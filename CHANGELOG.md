@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 15 November 2026
 
+### A shorter README
+
+- At the user's ask, the [README](README.md) now only describes the editor and the repository and links to the
+  releases and the guide. The long "source" section went: it told the project's history up to early November and
+  what was planned then, much of it out of date. The layout table is nine short rows, and the lab's setup details
+  are left to the tools' own notes.
+- The guide is linked as its source file, with a line that GitHub shows it as text: GitHub does not show an HTML file
+  of a repository as a page.
+- Checked: the `repo` suite (every link leads somewhere); the features listed against the release notes of 0.5.0 and
+  0.5.2. Not pushed.
+
 ### The source pushed
 
 - With the user's go-ahead ("push"), `main` was pushed to
