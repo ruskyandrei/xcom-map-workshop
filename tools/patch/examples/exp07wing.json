@@ -1,0 +1,737 @@
+{
+  "note": "EXP-07 step 4, the L layout's north wing (plan tools/upk/plans/urb_bar-L.json: the bar's footprint, tiles x 11..37, y 20..33, plus a wing over the street at x 25..36, y 8..19). The bar stays as it is, with its baked lighting, doors and ladders. The block tested in step 3b (the bar's west block, 12 x 12 tiles, pivot (-1056, 672, 16), turned 90 degrees so that its open side faces +y) is copied north of the bar's east block, centred at (192, -576): x -384..768, y -1152..0. Its open side meets the bar's north wall (XComDecoFracLevelActor_3, y -11..11), which closes it, so the step 3b closing copy isn't needed; the wing's east wall lines up with the bar's (x 768). It copies no doors and no ladder (the bar keeps its own): the five door frames stay open doorways, one of them in the wing's north end wall, facing the street and the squad's spawn points (y -1200 and beyond). The wing gets its own building volume, with the west block's three floors of floor volumes moved and turned along; they end at y 0, where the bar's start. A hider takes out what stood on the street there: the bar's awning and sign outside its north wall, the parked cars, street signs, parking blocks, the fog pod and its effects, decals and rubble. Its box (x -380..800, y -1200..-6) stops short of the bar's wall and what hangs inside it, and of the delivery van west of the wing (its own building volume, x -687..-387). The copier logs a path from the spawn row through the north doorway into the wing, and the floor tiles at a few points. Run 27 (the user's notes on run 26: \"no doors in the new wing\", the entrance \"seems to have a weird gap\", \"add some random decoration bits inside\", and the ground should match the layout, \"wood flooring inside, pavement outside\"): the copier copies the block's five doors (bCopyDoors, XComMapEdDoor) instead of moving the bar's own; a sixth door with its frame fills the bar's front opening, which landed in the wing's east wall; props from the bar furnish the wing's rooms; a 4-tile sidewalk ring of copied (dynamically lit) sidewalk pieces goes round the wing, over the parking stripes, blocks, the van and the SUV, which are hidden. Run 28 (the user's notes on run 27: the entrance gap still open, \"most doors still missing (there is one in the top)\", props fine; a ladder wanted outside the wing): the street hider had hidden five of the six door copies (its class test missed XComMapEdDoor; F-36), so hiders now skip everything of the XComMapEd package; a ladder (visible copy plus a hidden climbing ladder) goes outside the wing's north wall. Run 29 (the user's notes on run 28: doors are in, but \"can't open the doors, can't climb the ladder, can't run through the windows\", the entrance gap is \"just a gap in the wall going into the new wing area\", and the north-west room's floor should be wood): door copies work out bMustDestroy after copying (F-37); the entrance door goes into the bar's front doorway, which is the gap; a scaled wood floor covers the wing; the wing's and the ladder's copiers rebuild their tiles again 4 s after load; probes for the ladder, the doorway and the windows. Run 30 (the user's notes on run 29: the entrance gap \"still there 5 tries later\", the inner wall's end should be \"a full wall too\", doors and windows still can't be used, the ladder still can't be climbed, its foot tile not walkable): wall copies fill the doorway's east tile and the inner wall's end; door and window copies enter _Pristine (F-38); the ladder is a real, visible ladder object, with its foot tile rebuilt last (F-39). Run 31 (the user's notes on run 30: \"ok ladder and doors work now nice\", \"windoes still can't be pathed through though\", and cars in three places, one on the roof): window copies take bInteractive (F-40); three spawned cars, the roof one in the wing's roof floor cache; the copier logs the 3D cursor's tile. Run 32 (the user, run 31: the map's own compact gives cover at its tail; the roof car doesn't, and the move range stops a tile short of its nose and tail): the three cars stand on the tile grid as the map's do (F-41). Run 33 (the user: snapping to the grid \"sounds like a good idea\", and an overview shot of the map, zoomed out and well lit, from the front): the spawner snaps cars to the tile grid; the copier pulls the overhead camera out and brightens the picture, for the shot. The overview shot (run 35) is now patchtool's photo object; this spec has none, so normal tests keep the game's camera, lighting and UI.",
+  "name": "patch_exp07wing",
+  "base": "patch_bar",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "tileSize": 96
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_7",
+        "XComDecoFracLevelActor_8",
+        "XComDecoFracLevelActor_9",
+        "XComDecoFracLevelActor_10",
+        "XComDecoFracLevelActor_11",
+        "XComDecoFracLevelActor_12",
+        "XComDecoFracLevelActor_13",
+        "XComDecoFracLevelActor_15",
+        "XComDecoFracLevelActor_16",
+        "XComDecoFracLevelActor_17",
+        "XComLevelActor_91",
+        "XComFracLevelActor_17",
+        "XComLevelActor_4",
+        "XComFracLevelActor_3",
+        "XComFracLevelActor_4",
+        "XComFracLevelActor_6",
+        "XComFracLevelActor_18",
+        "XComFracLevelActor_202",
+        "XComFracLevelActor_203",
+        "XComDestructibleActor_158",
+        "XComDestructibleActor_161",
+        "XComDestructibleActor_142",
+        "XComDestructibleActor_60",
+        "XComDestructibleActor_31",
+        "XComDestructibleActor_65",
+        "XComDestructibleActor_30",
+        "XComDestructibleActor_502",
+        "XComInteractiveLevelActor_26",
+        "XComInteractiveLevelActor_6",
+        "XComInteractiveLevelActor_5",
+        "XComInteractiveLevelActor_7",
+        "XComInteractiveLevelActor_4"
+      ],
+      "pivot": [
+        -1056,
+        672,
+        16
+      ],
+      "location": [
+        192,
+        -576,
+        16
+      ],
+      "yaw": 90,
+      "building": {
+        "floors": [
+          [
+            "XComFloorVolume_15",
+            "XComFloorVolume_17"
+          ],
+          [
+            "XComFloorVolume_16"
+          ],
+          [
+            "XComFloorVolume_7"
+          ]
+        ]
+      },
+      "extra": [
+        "bLogTiles=False",
+        "bProbeIndoor=True",
+        "FloorProbes(0)=(X=192,Y=-576,Z=24)",
+        "FloorProbes(1)=(X=192,Y=-48,Z=24)",
+        "FloorProbes(2)=(X=48,Y=-1104,Z=24)",
+        "FloorProbes(3)=(X=48,Y=-1200,Z=24)",
+        "FloorProbes(4)=(X=720,Y=-48,Z=24)",
+        "FloorProbes(5)=(X=192,Y=-576,Z=410)",
+        "FloorProbes(6)=(X=192,Y=48,Z=24)",
+        "bCopyDoors=True",
+        "LateRebuild=4.0",
+        "PathProbes(0)=(X=528,Y=-1296,Z=16)",
+        "PathProbes(1)=(X=192,Y=-576,Z=16)",
+        "PathProbes(2)=(X=528,Y=48,Z=16)",
+        "PathProbes(3)=(X=528,Y=-96,Z=16)",
+        "PathProbes(4)=(X=720,Y=-240,Z=16)",
+        "PathProbes(5)=(X=600,Y=-240,Z=16)",
+        "PathProbes(6)=(X=240,Y=48,Z=16)",
+        "PathProbes(7)=(X=240,Y=-48,Z=16)",
+        "PathProbes(8)=(X=-576,Y=-144,Z=16)",
+        "PathProbes(9)=(X=-288,Y=-144,Z=16)",
+        "LadderFootRebuild=6.0",
+        "PathProbes(10)=(X=240,Y=-1300,Z=16)",
+        "PathProbes(11)=(X=240,Y=-1216,Z=16)",
+        "PathProbes(12)=(X=240,Y=-1300,Z=16)",
+        "PathProbes(13)=(X=240,Y=-1056,Z=410)",
+        "PathProbes(14)=(X=432,Y=48,Z=16)",
+        "PathProbes(15)=(X=432,Y=-48,Z=16)",
+        "PathProbes(16)=(X=624,Y=48,Z=16)",
+        "PathProbes(17)=(X=624,Y=-48,Z=16)",
+        "PathProbes(18)=(X=144,Y=-48,Z=16)",
+        "PathProbes(19)=(X=240,Y=-48,Z=16)",
+        "PathProbes(20)=(X=144,Y=-144,Z=16)",
+        "PathProbes(21)=(X=240,Y=-144,Z=16)",
+        "FloorProbes(7)=(X=240,Y=-1216,Z=24)",
+        "FloorProbes(8)=(X=240,Y=-1124,Z=410)",
+        "bLogCursor=True",
+        "PathProbes(22)=(X=864,Y=-432,Z=16)",
+        "PathProbes(23)=(X=576,Y=-432,Z=16)",
+        "PathProbes(24)=(X=864,Y=-720,Z=16)",
+        "PathProbes(25)=(X=576,Y=-720,Z=16)",
+        "PathProbes(26)=(X=864,Y=-912,Z=16)",
+        "PathProbes(27)=(X=576,Y=-912,Z=16)"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_31",
+        "XComInteractiveLevelActor_4"
+      ],
+      "pivot": [
+        -1632,
+        816,
+        16
+      ],
+      "location": [
+        528,
+        0,
+        16
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False",
+        "bCopyDoors=True"
+      ],
+      "inBuilding": 0,
+      "note": "The gap: the bar's own front doorway (x 480..576 in its north wall, XComDecoFracLevelActor_3; the run 27 A* probes walk from the bar's north-east entry room through it, (34, 20) to (34, 19)), which used to open onto the street and now opens into the wing's east room. A copy of the bar's west door (XComInteractiveLevelActor_4, DoorSwingSingleD) and its frame fills it. Run 27 had put them at (768, -48), against the solid east wall."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_316",
+        "XComDestructibleActor_340",
+        "XComDestructibleActor_7",
+        "XComDestructibleActor_4"
+      ],
+      "pivot": [
+        475,
+        1248,
+        16
+      ],
+      "location": [
+        -96,
+        -576,
+        16
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: the east block's arcade row (claw machine, arcade machine, cigarette machine, ATM), backs to the south-west room's inner wall (y -576)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_491",
+        "XComLevelActor_29"
+      ],
+      "pivot": [
+        528,
+        672,
+        16
+      ],
+      "location": [
+        432,
+        -768,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: the pool table on its rug, in the long east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_257",
+        "XComDestructibleActor_252",
+        "XComDestructibleActor_259",
+        "XComDestructibleActor_262",
+        "XComDestructibleActor_279",
+        "XComDestructibleActor_282"
+      ],
+      "pivot": [
+        45,
+        1152,
+        16
+      ],
+      "location": [
+        590,
+        -1000,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: two diner tables and four chairs along the storefront windows, north end of the east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_200",
+        "XComDestructibleActor_201",
+        "XComDestructibleActor_110",
+        "XComDestructibleActor_58",
+        "XComDestructibleActor_53"
+      ],
+      "pivot": [
+        -339,
+        1144,
+        16
+      ],
+      "location": [
+        590,
+        -220,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: two diner tables and three chairs along the storefront windows, south end of the east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_257",
+        "XComDestructibleActor_252",
+        "XComDestructibleActor_259",
+        "XComDestructibleActor_262",
+        "XComDestructibleActor_279",
+        "XComDestructibleActor_282"
+      ],
+      "pivot": [
+        45,
+        1152,
+        16
+      ],
+      "location": [
+        -96,
+        -870,
+        16
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: two diner tables and four chairs in the north-west room, turned."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_0",
+        "XComDestructibleActor_1"
+      ],
+      "pivot": [
+        -819,
+        144,
+        16
+      ],
+      "location": [
+        -325,
+        -1100,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: two trash cans in the north-west room's corner."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_329"
+      ],
+      "pivot": [
+        -1583,
+        175,
+        16
+      ],
+      "location": [
+        -333,
+        -700,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0,
+      "note": "Props: the west block's cigarette machine, back to the north-west room's west wall."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_220"
+      ],
+      "pivot": [
+        1152,
+        -288,
+        0
+      ],
+      "location": [
+        1152,
+        -1536,
+        0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the bar's north-east sidewalk corner (curbs east and north), copied to the wing's north-east corner."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_197"
+      ],
+      "pivot": [
+        1152,
+        864,
+        0
+      ],
+      "location": [
+        1152,
+        96,
+        0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the bar's east sidewalk (8 x 4 tiles, curb east), continued north along the wing: y -672..96, where the hidden corner was."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_197"
+      ],
+      "pivot": [
+        1152,
+        864,
+        0
+      ],
+      "location": [
+        1152,
+        -384,
+        1
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the same, y -1152..-384, raised 1 unit over the one before where they overlap (13 tiles to fill with 8-tile pieces)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_212"
+      ],
+      "pivot": [
+        768,
+        -288,
+        0
+      ],
+      "location": [
+        768,
+        -1536,
+        1
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the bar's north sidewalk (curb north) along the wing's north wall, x 0..768, y -1536..-1152; raised 1 unit, as its curb lies on the far sidewalk's edge."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_212"
+      ],
+      "pivot": [
+        768,
+        -288,
+        0
+      ],
+      "location": [
+        384,
+        -1536,
+        2
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the same, x -384..384, raised 2 units over the one before."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_119"
+      ],
+      "pivot": [
+        -1920,
+        -288,
+        0
+      ],
+      "location": [
+        -768,
+        -1536,
+        1
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the bar's north-west sidewalk corner (curbs west and north), at the wing's north-west corner."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_133"
+      ],
+      "pivot": [
+        -1920,
+        288,
+        0
+      ],
+      "location": [
+        -768,
+        -1056,
+        1
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the bar's west sidewalk (curb west) along the wing's west wall, y -1056..-288; raised 1 unit over the bar's north sidewalk's curb."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_133"
+      ],
+      "pivot": [
+        -1920,
+        288,
+        0
+      ],
+      "location": [
+        -768,
+        -1152,
+        2
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Ground: the same, y -1152..-384, raised 2 units over the one before."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_9"
+      ],
+      "pivot": [
+        -480,
+        1200,
+        0
+      ],
+      "location": [
+        624,
+        0,
+        0
+      ],
+      "yaw": 90,
+      "inBuilding": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Fills the bar's front doorway's east tile (x 576..672 at y 0; tile 35), which stayed open beside the door in tile 34 (the user, run 29: \"can we just put a wall to fill this gap please\"). A copy of the bar's full-height one-tile wall piece (Core_384BackC), turned along the bar's north wall."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_9"
+      ],
+      "pivot": [
+        -480,
+        1200,
+        0
+      ],
+      "location": [
+        192,
+        -48,
+        0
+      ],
+      "yaw": 0,
+      "inBuilding": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "With the next object, closes the end of the wing's inner wall at x 192, which stops at y -178 short of the bar's north wall (the user, run 29: \"this should be a full wall too\")."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_9"
+      ],
+      "pivot": [
+        -480,
+        1200,
+        0
+      ],
+      "location": [
+        192,
+        -144,
+        0
+      ],
+      "yaw": 0,
+      "inBuilding": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "The second piece of that wall end (y -203..-85; the one before covers y -107..11)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_302"
+      ],
+      "pivot": [
+        96,
+        672,
+        16
+      ],
+      "location": [
+        147.6923,
+        -531.6923,
+        17
+      ],
+      "yaw": 0,
+      "inBuilding": 0,
+      "extra": [
+        "bLogTiles=False",
+        "CopyScale=(X=0.923077,Y=0.923077,Z=1.0)"
+      ],
+      "note": "The wing's floor: the north-west room was the bar's kitchen, and the west block's floor mesh has a tiled section there (the user, run 28: \"could we make the floor wood or something in the top right room\"). The east block's floor (URB_Bar_384CFloor, 13 x 13 tiles, wood) is scaled to 12/13 about its pivot so that it covers the wing exactly, x -384..768, y -1152..0, one unit above the copied west-block floor."
+    },
+    {
+      "type": "spawn",
+      "location": [
+        336,
+        -720,
+        402
+      ],
+      "yaw": 0,
+      "tint": [
+        0.85,
+        0.55,
+        0.02
+      ],
+      "rebuildExtent": [
+        192,
+        256,
+        160
+      ],
+      "extra": [
+        "BuildingName=XComBuildingVolume_9000",
+        "BuildingFloor=2",
+        "bSnapToTiles=True"
+      ],
+      "archetype": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc1",
+      "partner": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ],
+      "note": "A car on the wing's roof (the user, run 30: \"can we add some cars in these 3 places (yes, one is on the roof)\"), near the middle of the roof (floor z 402). It joins the wing's roof floor in the building's caches, so it cuts away with the roof. Placed where the user circled it; the spawner snaps its body onto whole tiles (bSnapToTiles), as URB_Bar's own cars stand (F-41)."
+    },
+    {
+      "type": "spawn",
+      "location": [
+        432,
+        -1728,
+        0
+      ],
+      "yaw": 90,
+      "tint": [
+        0.02,
+        0.25,
+        0.08
+      ],
+      "rebuildExtent": [
+        256,
+        192,
+        160
+      ],
+      "archetype": "VEH_SUV.Prefab.PRE_SUVFull.PRE_SUVFull_Arc1",
+      "partner": "VEH_SUV.Prefab.PRE_SUVFull.PRE_SUVFull_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ],
+      "note": "An SUV on the north road, along it, past the north sidewalk's curb, between the BAR & GRILL sign (x -290..-190) and the north landing zone (719, -1681), whose spawn points lie south of it on the sidewalk (x 527..911, y -1489..-1201, F-06). Placed where the user circled it; the spawner snaps its body onto whole tiles (bSnapToTiles), as URB_Bar's own cars stand (F-41).",
+      "extra": [
+        "bSnapToTiles=True"
+      ]
+    },
+    {
+      "type": "spawn",
+      "location": [
+        1952,
+        -1720,
+        0
+      ],
+      "yaw": -86,
+      "tint": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "rebuildExtent": [
+        256,
+        192,
+        160
+      ],
+      "archetype": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc1",
+      "partner": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ],
+      "note": "A car on the east road beyond the sidewalk ring's north-east corner, turned like the map's parked compact (XComDestructibleActor_20). It stands north-east of the east landing zone (1967, -1489, facing east), whose spawn points lie west of it (about x 1487..1775, y -1681..-1297, F-06). Placed where the user circled it; the spawner snaps its body onto whole tiles (bSnapToTiles), as URB_Bar's own cars stand (F-41).",
+      "extra": [
+        "bSnapToTiles=True"
+      ]
+    },
+    {
+      "type": "ladder",
+      "location": [
+        240,
+        -1200,
+        16
+      ],
+      "yaw": 90,
+      "hidden": false,
+      "note": "The ladder on the wing's north wall, outside (the user, run 27: \"LADDER HERE\"): a real, visible XComLadder, as URB_Bar's own ladders stand (48 units out from the wall, z 16). Run 28-29 had a mesh copy for the look and a hidden ladder for the climb; the mesh copy made the foot tile unwalkable (the user, run 29: the foot tile has the V of a tile left out; the A* probe climbed one tile over), so the game made no climb (F-39). The hiders keep it (patchtool keeps the patch's visible ladders)."
+    },
+    {
+      "type": "hide",
+      "location": [
+        210,
+        -603,
+        320
+      ],
+      "half": [
+        590,
+        597,
+        320
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_123",
+        "XComDestructibleActor_124",
+        "XComDestructibleActor_125",
+        "XComDestructibleActor_126",
+        "XComDestructibleActor_127",
+        "XComDestructibleActor_128",
+        "XComDestructibleActor_129",
+        "XComLevelActor_139",
+        "XComLevelActor_44",
+        "XComLevelActor_62",
+        "XComLevelActor_81",
+        "DecalActor_14",
+        "DecalActor_7",
+        "XComDestructibleActor_130",
+        "XComDestructibleActor_131",
+        "XComDestructibleActor_132",
+        "XComDestructibleActor_133",
+        "XComDestructibleActor_134",
+        "XComDestructibleActor_138",
+        "XComLevelActor_141",
+        "XComLevelActor_142",
+        "XComLevelActor_146",
+        "XComLevelActor_151",
+        "XComLevelActor_201",
+        "XComLevelActor_204",
+        "XComLevelActor_205",
+        "XComLevelActor_225",
+        "XComLevelActor_220",
+        "DecalActor_17"
+      ]
+    },
+    {
+      "type": "hide",
+      "location": [
+        -585,
+        -925,
+        320
+      ],
+      "half": [
+        205,
+        635,
+        320
+      ],
+      "note": "The west sidewalk's ground: the delivery van parked against the wing's west wall (its meshes, glass, light and its own building and floor volumes, XComBuildingVolume_3, XComFloorVolume_2 and _3), the SUV and its glass, a steam emitter. Stops at y -290, short of the bar's sidewalk."
+    }
+  ]
+}

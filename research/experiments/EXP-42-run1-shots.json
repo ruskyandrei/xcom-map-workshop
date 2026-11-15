@@ -1,0 +1,6 @@
+{"map": "URB_Bar_X42", "shots": [
+ {"out": "EXP-42-run1-carpark.png", "title": "EXP-42 run 1: a moving van from another map, with its own building",
+  "target": [1250, -796, 80], "camera": [-650, 1000, 700],
+  "marks": [
+   {"n": "1", "at": [1248, -766, 120], "color": "#5ad17a", "r": 170, "side": "left",
+    "text": "a moving van from URB_ResearchOutpost_EWI (14 pieces, a building volume, two floor volumes): soldiers walk into its box and stand on its roof; the roof and walls cut away as a building's do"}]}]}

@@ -1,0 +1,278 @@
+{
+  "date": "2026-11-06",
+  "scope": "Read-only input audit, not a baker or runtime test",
+  "toolHashes": {
+    "tools/upk/audit_baker_inputs.py": "72e39d8df81f925b1436ef82f40a2a186a22ccf157a0b50b2cacd5c80f087466",
+    "tools/upk/audit_lighting.py": "80240c65667ab3a7ef4fe2d790a8e76ba802eb10e00ba8b284c00bf1cc2b27d5"
+  },
+  "packages": [
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\URB_Bar.upk",
+      "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+      "geometry": {
+        "components": 968,
+        "componentsWithLocalMesh": 948,
+        "uniqueMeshes": 256,
+        "uniqueLod0Triangles": 147135,
+        "instancedLod0Triangles": 367877,
+        "componentMeshLodCounts": {
+          "1": 943,
+          "2": 5
+        }
+      },
+      "allocations": {
+        "lod0TextureMappedComponents": 930,
+        "sumRectangleAreaTexels": 6773096.0,
+        "mostCommonRectangleSizes": [
+          [
+            "(30, 30)",
+            288
+          ],
+          [
+            "(14, 14)",
+            109
+          ],
+          [
+            "(22, 22)",
+            87
+          ],
+          [
+            "(62, 62)",
+            66
+          ],
+          [
+            "(78, 78)",
+            45
+          ],
+          [
+            "(38, 38)",
+            44
+          ],
+          [
+            "(94, 94)",
+            43
+          ],
+          [
+            "(46, 46)",
+            38
+          ],
+          [
+            "(190, 190)",
+            34
+          ],
+          [
+            "(86, 86)",
+            22
+          ],
+          [
+            "(126, 126)",
+            20
+          ],
+          [
+            "(158, 158)",
+            16
+          ]
+        ],
+        "textureDimensionPairs": {
+          "[(1024, 1024), (1024, 1024)]": 646,
+          "[(1024, 512), (1024, 512)]": 129,
+          "[(64, 64), (64, 64)]": 2,
+          "[(512, 256), (512, 256)]": 13,
+          "[(128, 32), (128, 32)]": 14,
+          "[(64, 16), (64, 16)]": 18,
+          "[(16, 16), (16, 16)]": 24,
+          "[(32, 32), (32, 32)]": 22,
+          "[(64, 32), (64, 32)]": 8,
+          "[(1024, 256), (1024, 256)]": 14,
+          "[(32, 16), (32, 16)]": 2,
+          "[(128, 64), (128, 64)]": 6,
+          "[(256, 32), (256, 32)]": 6,
+          "[(512, 64), (512, 64)]": 5,
+          "[(256, 128), (256, 128)]": 4,
+          "[(512, 128), (512, 128)]": 8,
+          "[(256, 64), (256, 64)]": 7,
+          "[(256, 256), (256, 256)]": 2
+        },
+        "interpretation": "Scale times largest available mip dimensions; not rasterized UV occupancy; does not count padding, all LODs, shadows, probes or inherited streams"
+      },
+      "guidAssociations": {
+        "uniqueLightmapGuids": 116,
+        "matchesLightmapGuid": 116,
+        "matchesLightGuid": 0,
+        "unmatchedLightmapGuids": 0,
+        "uniqueShadowGuids": 2,
+        "shadowMatchesLightGuid": 2,
+        "shadowMatchesLightmapGuid": 0
+      },
+      "directionalScale": {
+        "all2dLodRecords": 935,
+        "nonUnitRecords": 131,
+        "min": 1.0,
+        "max": 5.82650899887085
+      },
+      "explicitLightmapTextureFlags": {
+        "{\"CompressionSettings\": null, \"LODGroup\": null, \"NeverStream\": null, \"SRGB\": null, \"bNoTiling\": null}": 180
+      },
+      "structuralCandidates": [
+        {
+          "component": "TheWorld.PersistentLevel.StaticMeshActor_109.StaticMeshComponent_97",
+          "mesh": "ConcreteWallUnderPass.Meshes.ConcreteWallUnderPass1",
+          "savedLightmapUvIndex": 1,
+          "rectangle": [
+            14.0,
+            14.0
+          ],
+          "textures": [
+            "NormalizedAverageColor1_62",
+            "DirectionalMaxComponent1_62",
+            "None"
+          ],
+          "note": "Structural candidate only; visibility/material/gameplay suitability not checked"
+        },
+        {
+          "component": "TheWorld.PersistentLevel.StaticMeshActor_85.StaticMeshComponent_97",
+          "mesh": "ConcreteWallUnderPass.Meshes.ConcreteWallUnderPass1",
+          "savedLightmapUvIndex": 1,
+          "rectangle": [
+            14.0,
+            14.0
+          ],
+          "textures": [
+            "NormalizedAverageColor1_57",
+            "DirectionalMaxComponent1_57",
+            "None"
+          ],
+          "note": "Structural candidate only; visibility/material/gameplay suitability not checked"
+        },
+        {
+          "component": "TheWorld.PersistentLevel.StaticMeshActor_94.StaticMeshComponent_97",
+          "mesh": "ConcreteWallUnderPass.Meshes.ConcreteWallUnderPass1",
+          "savedLightmapUvIndex": 1,
+          "rectangle": [
+            14.0,
+            14.0
+          ],
+          "textures": [
+            "NormalizedAverageColor1_29",
+            "DirectionalMaxComponent1_29",
+            "None"
+          ],
+          "note": "Structural candidate only; visibility/material/gameplay suitability not checked"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\TempleShip.upk",
+      "sha256": "029bedcaea20c9a8d1d577fd9bd7dc733ce3976fb33b0b3f716f640caeaf4d2e",
+      "geometry": {
+        "components": 1707,
+        "componentsWithLocalMesh": 1668,
+        "uniqueMeshes": 161,
+        "uniqueLod0Triangles": 119840,
+        "instancedLod0Triangles": 1038248,
+        "componentMeshLodCounts": {
+          "1": 1667,
+          "2": 1
+        }
+      },
+      "allocations": {
+        "lod0TextureMappedComponents": 1651,
+        "sumRectangleAreaTexels": 7263372.0,
+        "mostCommonRectangleSizes": [
+          [
+            "(30, 30)",
+            683
+          ],
+          [
+            "(62, 62)",
+            175
+          ],
+          [
+            "(14, 14)",
+            118
+          ],
+          [
+            "(54, 54)",
+            106
+          ],
+          [
+            "(70, 70)",
+            80
+          ],
+          [
+            "(126, 126)",
+            79
+          ],
+          [
+            "(46, 46)",
+            66
+          ],
+          [
+            "(78, 78)",
+            64
+          ],
+          [
+            "(22, 22)",
+            55
+          ],
+          [
+            "(58, 58)",
+            51
+          ],
+          [
+            "(38, 38)",
+            42
+          ],
+          [
+            "(94, 94)",
+            38
+          ]
+        ],
+        "textureDimensionPairs": {
+          "[(1024, 1024), (1024, 1024)]": 895,
+          "[(1024, 512), (1024, 512)]": 326,
+          "[(1024, 256), (1024, 256)]": 39,
+          "[(512, 256), (512, 256)]": 31,
+          "[(512, 512), (512, 512)]": 40,
+          "[(1024, 128), (1024, 128)]": 50,
+          "[(512, 64), (512, 64)]": 17,
+          "[(512, 128), (512, 128)]": 19,
+          "[(64, 16), (64, 16)]": 7,
+          "[(128, 32), (128, 32)]": 55,
+          "[(256, 32), (256, 32)]": 13,
+          "[(32, 32), (32, 32)]": 47,
+          "[(64, 32), (64, 32)]": 48,
+          "[(16, 16), (16, 16)]": 15,
+          "[(32, 16), (32, 16)]": 8,
+          "[(128, 64), (128, 64)]": 21,
+          "[(256, 64), (256, 64)]": 4,
+          "[(64, 64), (64, 64)]": 12,
+          "[(128, 128), (128, 128)]": 3,
+          "[(4, 4), (4, 4)]": 1
+        },
+        "interpretation": "Scale times largest available mip dimensions; not rasterized UV occupancy; does not count padding, all LODs, shadows, probes or inherited streams"
+      },
+      "guidAssociations": {
+        "uniqueLightmapGuids": 119,
+        "matchesLightmapGuid": 119,
+        "matchesLightGuid": 0,
+        "unmatchedLightmapGuids": 0,
+        "uniqueShadowGuids": 1,
+        "shadowMatchesLightGuid": 1,
+        "shadowMatchesLightmapGuid": 0
+      },
+      "directionalScale": {
+        "all2dLodRecords": 1651,
+        "nonUnitRecords": 213,
+        "min": 1.0,
+        "max": 16.0
+      },
+      "explicitLightmapTextureFlags": {
+        "{\"CompressionSettings\": null, \"LODGroup\": null, \"NeverStream\": null, \"SRGB\": null, \"bNoTiling\": null}": 316
+      },
+      "structuralCandidates": [],
+      "errors": []
+    }
+  ]
+}

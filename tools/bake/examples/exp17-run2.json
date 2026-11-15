@@ -1,0 +1,138 @@
+[
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 1,
+  "rgb": [
+   [
+    0.903226,
+    0.888889,
+    0.903226
+   ],
+   [
+    0.451613,
+    0.444444,
+    0.451613
+   ],
+   [
+    0.225806,
+    0.222222,
+    0.225806
+   ],
+   [
+    0.0,
+    0.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 1,
+  "value": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 1,
+  "rgb": [
+   [
+    0.451613,
+    0.444444,
+    0.451613
+   ],
+   [
+    0.225806,
+    0.222222,
+    0.225806
+   ],
+   [
+    0.903226,
+    0.888889,
+    0.903226
+   ],
+   [
+    0.0,
+    0.0,
+    0.0
+   ]
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 1,
+  "value": [
+   2,
+   2,
+   2
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_95.StaticMeshComponent_156",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_95.StaticMeshComponent_156",
+  "slot": 1,
+  "rgb": [
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ]
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_95.StaticMeshComponent_156",
+  "slot": 1,
+  "value": [
+   1,
+   1,
+   1
+  ]
+ }
+]

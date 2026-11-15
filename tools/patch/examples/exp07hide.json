@@ -1,0 +1,31 @@
+{
+  "note": "EXP-07 step 2, the hide test: patch_bar plus one XComMapEdHider over the bar building of URB_Bar (its XComBuildingVolume_0: x -1859..925, y -157..1411, tiles x 9..38, y 18..34; found with tools/upk/map_inventory.py). At load it hides every placed mesh, fractured actor, door, ladder, physics actor, emitter and decal whose centre is in the box, except what lies wholly below 40 units (the ground floor slabs at z 14..18, rugs, sidewalks), and takes the bar's building, floor and cursor volumes out of play (no collision, so no unit counts as inside). Lights stay. Then it rebuilds the tile data over the box and logs a census of floor, occupied and cover tiles before and after. Run 3 (4 Nov): only the base map's and this patch's actors count (run 2 also hid the dropship intro's emitters at the origin); emitters never count as ground; level and fractured actors leave the cover count (bAlwaysConsiderForCover off, bIgnoreForCover on); fractured actors lose all fragments and their columns are marked destroyed; a probe line is traced through the left block's front wall (x -1056, y -120 to 400, z 64) before and after. Run 4: hidden level and fractured actors also stop blocking line of sight (VisibilityBlockingData.bBlockUnitVisibility off; run 3 could not see across the old walls), and doors go to their _Inactive state and lose their interaction points again after the rebuild (run 3 still offered 'open door').",
+  "name": "patch_exp07hide",
+  "base": "patch_bar",
+  "map": {
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "tileSize": 96
+  },
+  "objects": [
+    {
+      "type": "hide",
+      "location": [
+        -467,
+        627,
+        320
+      ],
+      "half": [
+        1392,
+        784,
+        320
+      ],
+      "extra": [
+        "ProbeStart=(X=-1056,Y=-120,Z=64)",
+        "ProbeEnd=(X=-1056,Y=400,Z=64)"
+      ]
+    }
+  ]
+}

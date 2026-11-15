@@ -1,0 +1,1245 @@
+"""The editor's Build (first-editor plan, section 7; slice E4): a saved project to a finished variant package, with
+its lighting baked. It never touches a game install: the game install (LWR, or plain Enemy Within) is only read, for
+the pristine base map and its config lines. Installing a package somewhere is a separate step (the editor's Install
+in game, installs.py, or a modder's own, from the package's README). The install's DefaultMaps.ini is read as it
+has it: what the editor installed into it is taken out (installs.maps_text).
+
+  python -B tools/editor/build.py <project file | project id or name> [--cache <viewer cache>] [--output <builds folder>]
+      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family frameless-door ...] [--quick]
+
+--quick is the editor's Build with Bake the lighting off (its default): the edit made in the map exactly as a full
+build makes it, but its lighting not baked (stage 4 without the relight), in seconds instead of minutes. Pathing, cover
+and line of sight in the game are a full build's; the lighting is not right (the copies keep their originals' lighting
+and cast no shadows, and deleted or moved pieces leave their shadows behind). Its package replaces the project's last
+one, as any build's does, and its manifest says `quick`.
+
+--family builds a family the compiler doesn't build yet (compiler.FAMILIES), for an experiment's build: EXP-22 built
+ladders with --family ladder, EXP-23 doors with --family door and EXP-24 cars and vans with --family car and
+--family van, and EXP-26 run 1 lights with --family light, before each family was switched on for every project.
+Fracturing pieces and physics props were switched on without one (9 November 2026; EXP-28 has their game runs).
+
+Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
+patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs):
+1. Snapshot: the project (its saved revision), the viewer export of its source map (by the project's SHA-256), and the
+   base map from the game install, which must have that SHA-256.
+2. Compile: tools/editor/compiler.py with --stream-only, split (compiler.native_split): copies of every class the
+   compiler builds (compiler.NATIVE_CLASSES: scenery, props, destructibles, collectibles, fracturing pieces and
+   physics props; and every assembly's parts) are
+   made in the variant map itself (native-copies.json), and so are their groups that break together, linked in the
+   map; hidden pieces are taken out of it. So a project the compiler accepts leaves the patch nothing. What would be
+   left for it (copies of a class built only by the copier, and the groups they break with) waits for later
+   milestones. Refused on an error of the document's (its schema, its
+   source map, its names, a malformed map size, groups or zones list), or when the project changes nothing; a piece
+   that can't be built is left out and named (the compile stage's leftOutPieces, the manifest's leftOut), and the
+   rest builds.
+3. Patch: tools/patch/patchtool.ps1 build (-Force, so a rebuild replaces the project's last authoring package, which
+   patchtool backs up) and cook, in UDK from the settings, with patchtool's work folder in the builds folder
+   (<output>/.work/patchtool) and the original maps read from the game install (-Lwr). Skipped when the patch has
+   nothing to do, which is every project the compiler accepts today: then the variant streams no patch, and UDK isn't
+   run. The udk setting is optional: a build that would need a patch without it is refused with what to set.
+4. Light: with copies, hides or light edits made in the map, tools/bake/native_copy.py --bake on the pristine base
+   map: each copy a new actor (its own lighting textures, a fresh name and net indices), in the tiles (seeds and a
+   rebuild volume), the cover blocks made (tools/bake/cover_blocks.py: hidden level actors on box meshes, from a
+   recipe), the light edits made (tools/bake/native_lights.py: lights deleted, changed, added, generated glow
+   lights following their pieces; private/plans/done/editor-lights-plan.md, 4.3), then tools/bake/relight.py with the copies,
+   the light edits' before and after lights and the patch's spec (--edit-spec). Without, relight.py alone with the spec.
+   A calculation that changes no texel (a disabled light added, say) is a valid build: the map keeps the original's
+   lightmaps, the stage and the manifest say lightingUnchanged, and there is no texture cache.
+   Hidden pieces stop casting shadows, copies cast them at their poses, a copy made in the map is lit for where it
+   stands, and every texture-lightmapped component within --radius of the edit is relit as a change on the original
+   bake (--receivers-near). Writes the variant map and its texture cache, Lighting_<n>.tfc, where n comes from the
+   variant's name. A quick build runs native_copy.py without --bake (Build.edit_unbaked): the same edit, no relight,
+   no texture cache.
+5. Seeds: the patch's seed plan (patchtool's seed-plan-built.tsv) is applied to the relit map
+   (tools/upk/seed_map.py apply), so the copier's copies block and give cover on tiles the map left empty (F-29).
+6. Package: <output>/<Variant>/, as the plan's variant package:
+     CookedPCConsole/<Variant>.upk          the base map with the edit's copies, relit and seeded, under the
+                                            variant's name
+     CookedPCConsole/Lighting_<n>.tfc       its texture cache (none in a quick build)
+     CookedPCConsole/<EditPatch>.upk        the cooked edit patch (hides, the copier's copies), if there is one
+     CookedPCConsole/<Intro>_<Variant>.upk  the base map's intro (CIN_DropshipIntros, CIN_FastropeIntros, or the
+                                            alien bases' CIN_TP05A_EnteringAlienBase) with its scene under the
+                                            variant's name (tools/bake/intro_copy.py, F-45, F-76), one for each intro
+                                            its records stream
+     CookedPCConsole/<Patch>_<Variant>.upk  a streamed patch of the base map without the pieces the edit takes out of
+                                            it (tools/bake/stream_copy.py: a moved or deleted ladder's hidden helper
+                                            in patch_bar), one for each such patch; and a mission's stream with the
+                                            objects the project moves moved in place (mission types plan, Part E),
+                                            streamed by that mission's records alone
+     README.txt                             what it is, where the files go, the config lines to add
+     manifest.json                          project and revision, source map hash, names, files and hashes, streams,
+                                            config lines, each stage's result, tool hashes, whether it is a quick
+                                            build, and how long the project's last full and quick builds took
+   The package is written beside the old one and swapped in last, so a failed build leaves the last good package as
+   it was. No zip is made (until 10 November 2026 one was, <output>/<Variant>.zip: a build takes an earlier one away).
+
+The config lines are the game install's own, renamed: each of the base map's DefaultMaps.ini records (one per mission
+it serves: most maps have several) under the variant's name, out of rotation, with the patch (if any) streamed in
+its lowest free slot and the intro and stream copies in place of the originals (the manifest's replaceStreams); its
+landing zones (DefaultLZMutator.ini); its DefaultMiniMods.ini rules. A record's own mission streams (a bomb's,
+say) stay as they are, placed for the original map, unless the project moves their objects: then the record streams
+the variant's copy (<Stream>_<Variant>.upk), and the base map's tiles under a moved solid piece are rebuilt where it
+stood and seeded and rebuilt where it stands (the native edit's streamTiles). The last two files are Long War's: an install without them (plain
+Enemy Within) gets neither, and its variant lands as the map's own landing zones say. The records' display names end
+in " |0" where the install's do (LWR's do; plain EW's don't).
+"""
+import argparse
+import contextlib
+import datetime
+import hashlib
+import io
+import json
+import os
+import re
+import shutil
+import struct
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+TOOLS = HERE.parent
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(TOOLS / 'viewer'))
+sys.path.insert(0, str(TOOLS / 'upk'))
+import compiler  # noqa: E402
+import decomp  # noqa: E402
+import installs  # noqa: E402
+import maplist  # noqa: E402
+import missions as mission_kinds  # noqa: E402
+import spawns  # noqa: E402
+import settings as settings_module  # noqa: E402
+from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
+from version import VERSION  # noqa: E402
+
+SCHEMA = 'xcom-map-workshop/variant-package'
+SCHEMA_VERSION = 1
+PATCHTOOL = TOOLS / 'patch' / 'patchtool.ps1'
+RELIGHT = TOOLS / 'bake' / 'relight.py'
+NATIVE_COPY = TOOLS / 'bake' / 'native_copy.py'
+TRANSPLANT = TOOLS / 'bake' / 'transplant.py'
+SHELL = TOOLS / 'bake' / 'shell.py'
+NATIVE_LIGHTS = TOOLS / 'bake' / 'native_lights.py'
+LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
+# the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
+# 9.3), passed to compiler.find_export where it takes a minimum
+EXPORT_MINIMUM = 18
+LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
+# what a quick build does with light edits (editor lights plan, 4.3). Its wording stays conditional until EXP-26 run 2
+# has shown what the game does; the editor's build panel can show the same text beside Bake the lighting
+QUICK_LIGHTS = ('Its light edits are made in the map but not baked, and what the game does with them is still to be '
+                'confirmed (EXP-26 run 2): a deleted light\'s pool stays on the baked surfaces; a changed light leaves '
+                'its old pool baked where it was, while soldiers, aliens and other things lit live can get the edited '
+                'light, and surfaces it newly reaches may get it live too; an added light has no baked light of its '
+                'own, and whether the game draws it live, and with what shadows, is not yet known; glow lights that '
+                'follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays baked '
+                'where it was and the new place gets none.')
+INTRO_COPY = TOOLS / 'bake' / 'intro_copy.py'
+STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
+# the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
+# landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
+INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
+LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
+RADIUS = 1024.0
+KEEP_WORK = 3       # a variant's newest work folders kept whole (prune_work)
+EOL = '\r\n'
+
+
+class BuildError(Exception):
+    pass
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def cache_name(variant):
+    """The variant's texture cache: Lighting (a name every map's table has) numbered from the variant's name, so two
+    variants don't share a cache file and a rebuild replaces its own."""
+    return 'Lighting_%d' % (1000 + int(hashlib.sha256(variant.encode('ascii')).hexdigest()[:6], 16))
+
+
+def last_times(manifest, project_id):
+    """How long the project's last full build and last quick build took ({'full': s, 'quick': s}, either or both), from
+    the package a build replaces, so the editor's estimate for each kind survives a build of the other. A package of
+    another project (the same variant name: never, but its manifest says) gives nothing; one from before quick builds
+    gives its `seconds` as the full build's."""
+    try:
+        m = json.loads(Path(manifest).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    if (m.get('project') or {}).get('id') != project_id:
+        return {}
+    times = m.get('times')
+    if isinstance(times, dict):
+        return {k: v for k, v in times.items() if k in ('full', 'quick') and isinstance(v, (int, float))}
+    return {} if m.get('quick') or not isinstance(m.get('seconds'), (int, float)) else {'full': m['seconds']}
+
+
+def find_project(arg, projects):
+    """A project file given as a path, or the file of the project with this id or name in the projects folder."""
+    path = Path(arg)
+    if path.suffix.lower() == '.json' or path.is_file():
+        return path
+    store = ProjectStore(projects)
+    try:
+        if PROJECT_ID.fullmatch(arg):
+            return store.path(arg)
+        named = [p for p in store.list() if not p.get('error') and (p.get('name') or '').casefold() == arg.casefold()]
+        if len(named) == 1:
+            return store.path(named[0]['id'])
+    except ProjectError as error:
+        raise BuildError('no project %s in %s (%s)' % (arg, projects, error.message))
+    if named:
+        raise BuildError('%d projects are called %s in %s; give the file or the id' % (len(named), arg, projects))
+    raise BuildError('no project %s in %s' % (arg, projects))
+
+
+def lwr_file(lwr, *parts):
+    return Path(lwr).joinpath('XEW', 'XComGame', *parts)
+
+
+def has_light_edits(native):
+    """Whether the native edit makes light edits (its `lights`, editor lights plan 9.5): any light deleted, changed or
+    added, or any generated area light moved, copied or deleted. A disabled added light is still a map edit."""
+    lights = (native or {}).get('lights') or {}
+    return any(lights.get(k) for k in ('deletes', 'changes', 'adds', 'area'))
+
+
+def light_counts(native):
+    """The native edit's light edits counted for the build window and the record: placed lights moved, changed (values
+    set), added (and how many by the built-in spot recipe) and deleted, and the generated area lights following their
+    pieces, counted apart with the pieces they follow. None without light edits."""
+    if not has_light_edits(native):
+        return None
+    lights = native['lights']
+    changes, adds, area = lights.get('changes') or [], lights.get('adds') or [], lights.get('area') or []
+
+    def posed(c):
+        before = c.get('before') or {}
+        loc = c.get('location') is not None and before.get('location') is not None and any(
+            abs(float(a) - float(b)) > 1e-3 for a, b in zip(c['location'], before['location']))
+        rot = c.get('rotation') is not None and before.get('rotation') is not None and \
+            [int(v) for v in c['rotation']] != [int(v) for v in before['rotation']]
+        return loc or rot
+    return dict(moved=sum(1 for c in changes if posed(c)), changed=sum(1 for c in changes if c.get('set')),
+                added=len(adds), recipeSpots=sum(1 for a in adds if a.get('template')),
+                deleted=len(lights.get('deletes') or []),
+                area=dict(moved=sum(1 for a in area if a.get('op') == 'move'),
+                          copied=sum(1 for a in area if a.get('op') == 'copy'),
+                          deleted=sum(1 for a in area if a.get('op') == 'delete'),
+                          pieces=sorted({str(a.get('ownerEntity') or a.get('owner')) for a in area
+                                         if a.get('ownerEntity') or a.get('owner')})))
+
+
+def light_summary(counts):
+    """The light edits in words, as the README and the stage lines say them, or '' without any."""
+    if not counts:
+        return ''
+
+    def n(k, word):
+        return '%d %s' % (k, word) if k else ''
+    placed = [x for x in (n(counts['moved'], 'moved'), n(counts['changed'], 'changed'),
+                          n(counts['added'], 'added'), n(counts['deleted'], 'deleted')) if x]
+    area = counts['area']
+    glow = [x for x in (n(area['moved'], 'moved'), n(area['copied'], 'copied'), n(area['deleted'], 'deleted')) if x]
+    parts = []
+    if placed:
+        parts.append('lights %s' % ', '.join(placed))
+    if glow:
+        parts.append('glow lights following their pieces %s (%s)' % (', '.join(glow), ', '.join(area['pieces'])))
+    return '; '.join(parts)
+
+
+# ---------------------------------------------------------------- config lines
+
+def config_text(path):
+    data = Path(path).read_bytes()
+    if data.startswith(b'\xef\xbb\xbf'):
+        data = data[3:]
+    return data.decode('latin-1').replace('\r\n', '\n').split('\n')
+
+
+def field_re(name, quoted=True):
+    return re.compile(r'(?<![A-Za-z])%s=%s' % (name, r'"[^"]*"' if quoted else r'[A-Za-z_]+'))
+
+
+def set_field(line, name, value, quoted=True):
+    new = '%s="%s"' % (name, value) if quoted else '%s=%s' % (name, value)
+    out, n = field_re(name, quoted).subn(lambda _: new, line, count=1)
+    if n != 1:
+        raise BuildError('the record has no %s' % name)
+    return out
+
+
+def add_stream(line, patch):
+    used = {int(k) for k in re.findall(r'StreamingMaps\[\s*(\d+)\s*\]\s*=', line)}
+    k = min(set(range(len(used) + 1)) - used)
+    close = line.rindex(')')
+    entry = ', StreamingMaps[%d]=( MapName="%s", Loc=( X=0, Y=0, Z=0 ), Rot=( Pitch=0, Yaw=0, Roll=0 ) ) ' % (k, patch)
+    return line[:close].rstrip() + entry + line[close:], k
+
+
+def base_records(maps, base):
+    """The base map's DefaultMaps.ini records, one per mission it serves (most maps have several: an abduction,
+    a terror site, a council mission...), in file order: its live records, or the commented-out ones the editor takes
+    for a switched-off map (maplist.records: Act1_IntroLevel's abduction)."""
+    records = [l for l in maplist.records('\n'.join(maps))
+               if re.search(r'(?<![A-Za-z])Name="%s"' % re.escape(base), l)]
+    if not records:
+        raise BuildError('the game install has no DefaultMaps.ini record for %s' % base)
+    return records
+
+
+def intro_stream(record):
+    """The intro a map record streams (one of INTROS: a landing, or the alien bases' entrance), or None."""
+    return next((n for n in re.findall(r'MapName="([^"]+)"', record) if n in INTROS), None)
+
+
+def intro_streams(records):
+    """The distinct landing intros the records stream, in order: a map's missions can land differently (13 LWR maps
+    have records with the Skyranger intro and records with the fast-rope one, or none)."""
+    return list(dict.fromkeys(s for s in map(intro_stream, records) if s))
+
+
+def mission_label(record):
+    """A record's mission, readable (maplist.mission_of): Abduction, Terror, Council bomb..."""
+    return maplist.mission_of(record)[2]
+
+
+def template_record(records):
+    """The base map's record an added kind of mission is made from (mission types plan, D4): its abduction, else its
+    first that is no council mission (whose streams a bomb or rescue needs), else its first."""
+    council = lambda r: (field_re('CouncilType', False).search(r) or [''])[0] not in ('', 'CouncilType=eFCMType_None')  # noqa: E731
+    return next((r for r in records if 'MissionType=eMission_Abduction' in re.sub(r'\s', '', r) and not council(r)),
+                next((r for r in records if not council(r)), records[0]))
+
+
+def mission_entries(records, listed):
+    """The missions the variant serves, as `missions` entries: every base map record ({record: i}) when the project
+    lists none, else the project's valid entries, its base records in file order and then its added kinds."""
+    if not isinstance(listed, list):
+        return [dict(record=i) for i in range(len(records))]
+    valid = [e for e in listed if mission_kinds.valid_entry(e, len(records))]
+    kinds = list(mission_kinds.ADDED_KINDS)
+    picked = sorted({e['record'] for e in valid if 'record' in e})
+    added = sorted({e['kind']: e for e in valid if 'kind' in e}.values(), key=lambda e: kinds.index(e['kind']))
+    return [dict(record=i) for i in picked] + added
+
+
+def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None, zones=None, missions_list=None):
+    """The variant's config lines from the game install's (lists of lines): one DefaultMaps.ini record per record of
+    the base map (its missions), each under the variant's name and out of rotation, streaming `patch` unless it is
+    None and the variant's own intro copies in place of the originals (`intros`, {original: copy}); landing zones and
+    MiniMods rules (`lz` and `minimods` None where the install has no such file: plain EW; then they are None too).
+    `display` is the records' display name, or display(mission label) for each record's; either keeps, after the
+    variant's name, the text the game's script matches in the base record's display name (missions.markers: '_Bomb',
+    so Long War still throttles a bomb mission's reinforcements; mission types plan, Part B), and `matchedNames` lists
+    the records that carry some ({record, marker, why}). `zones` (the project's
+    landingZones; Clear map plan, section 4): the variant's landing-zone lines are those zones, every one without
+    `lwr: false`, in order (spawns.write_line), in place of the base map's copied; the result then says
+    landingZonesFromProject. recordMissions: for each record, the missions it stands for (the indices of base map
+    records in file order, the export's `missions` order, or an added kind), which Play in game picks a mission by
+    (installs.build_record). missions_list: the project's `missions` (mission types plan, D1): records for those
+    alone, an added kind's made from the base map's abduction record (missions.added_record); then the result says
+    missionsFromProject."""
+    records, missions, slots, stands, matched = [], [], [], [], []
+    found = base_records(maps, base)
+    template = template_record(found)
+    seen = {}
+    for entry in mission_entries(found, missions_list):
+        if 'record' in entry:
+            index, base_line = entry['record'], found[entry['record']]
+            mission = mission_label(base_line)
+            base_display = (field_re('DisplayName').search(base_line) or [''])[0][len('DisplayName="'):-1]
+        else:
+            index, base_line = entry['kind'], mission_kinds.added_record(template, entry, add_stream)
+            mission = mission_kinds.label(entry['kind'])
+            base_display = '_Bomb' if entry['kind'] == 'Special/Bomb' else ''     # what the game matches for the kind
+        marks = mission_kinds.markers(base_display, variant)
+
+        def named(label):
+            text = display(label) if callable(display) else display
+            return variant + marks + text[len(variant):] if marks and text.startswith(variant) and not text.startswith(variant + marks) else text
+        text = named(mission)
+        record = set_field(set_field(base_line, 'Name', variant), 'DisplayName', text)
+        if field_re('bInRotation', False).search(record):
+            record = set_field(record, 'bInRotation', 'False', quoted=False)
+        for original, copy in (intros or {}).items():
+            record = record.replace('MapName="%s"' % original, 'MapName="%s"' % copy)
+        record, slot = add_stream(record, patch) if patch else (record, None)
+        if record in records:
+            stands[records.index(record)].append(index)
+            continue    # two records the renaming makes the same
+        # two records of one mission that differ (a landed transport and a landed terror ship) get display names of
+        # their own: the game streams by display name (mission types plan 2.1)
+        seen[mission] = seen.get(mission, 0) + 1
+        if seen[mission] > 1:
+            mission = '%s %d' % (mission, seen[mission])
+            text = named(mission)
+            record = set_field(record, 'DisplayName', text)
+        records.append(record)
+        missions.append(mission)
+        slots.append(slot)
+        stands.append([index])
+        matched += [dict(record=len(records) - 1, marker=marker, why=why) for marker, why in mission_kinds.matched(text)]
+    tag = 'MapName="%s"' % base
+    # a map that lands no Skyranger (TempleShip) has no landing zones, and its variant needs none
+    own = zones
+    zones = None if lz is None else [l.replace(tag, 'MapName="%s"' % variant) for l in lz
+                                     if tag in l and not l.lstrip().startswith(';')]
+    ids = None
+    if own is not None and lz is not None:
+        zones = [spawns.write_line(variant, z) for z in own if z.get('lwr', True) is not False]
+        ids = [z['id'] for z in own if z.get('lwr', True) is not False]
+    rule = 'Map="%s")' % base
+    rules = None if minimods is None else [l.replace(rule, 'Map="%s")' % variant) for l in minimods
+                                           if rule in l and not l.lstrip().startswith(';')]
+    return dict(maps=records, missions=missions, recordMissions=stands, matchedNames=matched, streamSlots=slots,
+                landingZones=zones, miniMods=rules, **({'missionsFromProject': True} if isinstance(missions_list, list) else {}),
+                **({'landingZonesFromProject': True, 'landingZoneIds': ids} if own is not None and lz is not None else {}))
+
+
+def readme(m):
+    c = m['config']
+    lines = [
+        '%s: %s, a variant of %s%s' % (m['variant'], m['project']['name'], m['source']['map'],
+                                     ' (QUICK BUILD: its lighting is not baked)' if m.get('quick') else ''),
+        '',
+        'Built by the XCOM Map Workshop %s from project %s, revision %s, on %s.' % (m.get('editorVersion', ''), m['project']['id'],
+                                                                                 m['project']['revision'], m['builtAt']),
+        'Base map: %s with SHA-256 %s (the game release it was built from).' % (m['source']['map'], m['source']['sha256']),
+        '',
+        'Files: copy the contents of CookedPCConsole into XEW\\XComGame\\CookedPCConsole of the game:',
+    ]
+    lines += ['  %s' % Path(f).name for f in sorted(m['files'])]
+    lit = light_summary(m.get('lights'))
+    made = (('its copies made as pieces of the map, in its tiles; ' if m.get('nativeCopies') else '')
+            + ('the pieces it deletes or moves taken out; ' if m.get('nativeHides') else '')
+            + ('its cover blocks and invisible floors made as hidden pieces, in their tiles; '
+               if m.get('coverBlocks') else '')
+            + ('its light edits made in the map (%s); ' % lit if lit else ''))
+    if m.get('quick'):
+        lines += [
+            '',
+            '%s.upk is %s with the edit made in it: %sits lighting NOT baked. This is a quick build, to check pathing, '
+            'cover and line of sight in the game, which are as a full build makes them. Its lighting is not right: the '
+            'copies keep the lighting their originals have where they stand and cast no shadows, and the pieces it '
+            'deletes or moves leave their shadows behind.%s Build the project with Bake the lighting ticked for its '
+            'proper lighting.'
+            % (m['variant'], m['source']['map'], made, ' ' + QUICK_LIGHTS if lit else ''),
+        ]
+    elif m.get('lightingUnchanged'):
+        lines += [
+            '',
+            '%s.upk is %s with the edit made in it: %sits lighting calculated, and the edit changes no baked light '
+            '(lighting unchanged), so it reads %s\'s own lightmaps and has no texture cache of its own.'
+            % (m['variant'], m['source']['map'], made, m['source']['map']),
+        ]
+    else:
+        lines += [
+            '',
+            '%s.upk is %s with the edit made in it: %sits lighting baked; its lightmaps are in %s.tfc.'
+            % (m['variant'], m['source']['map'], made, m['cache']),
+        ]
+    counts = m.get('lights') or {}
+    if lit and not m.get('quick') and (counts.get('added') or counts.get('changed') or counts.get('moved')):
+        lines += ['Each added, moved or changed light is baked into the lightmaps of the pieces it reaches and listed '
+                  'in them, so the game doesn\'t light those pieces with it a second time.']
+    if m['patch']:
+        lines += ['%s.upk is the rest of the edit, which the game makes at load, streamed into the variant.' % m['patch']]
+    intros = m.get('intros') or []
+    for intro in intros:
+        if intro['stream'] in LANDINGS:
+            lines += ['%s.upk is the landing intro (%s) with %s\'s landing under the variant\'s name, so the Skyranger '
+                      'lands as it does in %s.' % (intro['copy'], intro['stream'], m['source']['map'], m['source']['map'])]
+        else:
+            lines += ['%s.upk is the intro (%s) with %s\'s scene under the variant\'s name, so the intro plays as it '
+                      'does in %s.' % (intro['copy'], intro['stream'], m['source']['map'], m['source']['map'])]
+    several = len(c['maps']) > 1
+    slots = sorted(set(s for s in c['streamSlots'] if s is not None))
+    lines += [
+        '',
+        'Config: add these lines to XEW\\XComGame\\Config.',
+        '',
+        'DefaultMaps.ini, in the [XComGame.XComMapManager] list (out of rotation%s%s)%s:'
+        % ('; streams %s in slot %s' % (m['patch'], ' or '.join(map(str, slots))) if m['patch'] else '',
+           ''.join('; streams %s in place of %s' % (i['copy'], i['stream']) for i in intros),
+           ('; one record for each mission the project is for (%s): keep the ones you want' % ', '.join(c['missions'])
+            if c.get('missionsFromProject') else
+            '; one record for each mission %s serves (%s): keep the ones you want' % (m['source']['map'], ', '.join(c['missions'])))
+           if several else ''),
+    ] + c['maps'] + ['']
+    for m_ in c.get('matchedNames') or []:
+        lines += ['The %s record\'s display name keeps "%s": %s.' % (c['missions'][m_['record']], m_['marker'], m_['why'])]
+    if c.get('matchedNames'): lines += ['']
+    if c['landingZones'] is None:
+        pass    # the install has no DefaultLZMutator.ini (plain EW): the variant lands as the map itself says
+    elif c.get('landingZonesFromProject'):
+        lines += ['DefaultLZMutator.ini, the project\'s landing zones (beside %s\'s, or at the end):' % m['source']['map']]
+        lines += c['landingZones'] or ['(none: the project has no landing zone with a line)']
+    elif c['landingZones']:
+        lines += ['DefaultLZMutator.ini, beside %s\'s landing zones:' % m['source']['map']] + c['landingZones']
+    else:
+        lines += ['DefaultLZMutator.ini: nothing to add; %s has no landing zones there, so its variant needs none.'
+                  % m['source']['map']]
+    if c['miniMods']:
+        lines += ['', 'DefaultMiniMods.ini, beside %s\'s rules (optional):' % m['source']['map']] + c['miniMods']
+    base = m['source']['map']
+    lines += [
+        '',
+        'Playing it (with XCOM closed):',
+        '- The editor\'s Play in game (Project menu) installs this build under its own name and starts the game in a '
+        'battle on it, and Remove from game takes it back out; the editor keeps a backup of each file it changes.',
+        '- By hand: copy the files and add the lines above. The records are out of rotation (bInRotation=False), so no '
+        'mission picks the variant yet. For missions to pick it like any other map, set bInRotation=True on the records '
+        'you want. To play it instead of %s, also set bInRotation=False on %s\'s own records for the same missions '
+        '(the lines with Name="%s" in DefaultMaps.ini).' % (base, base, base),
+        '- Start a fresh mission afterwards: a tactical save from before ignores the new pieces\' cover.',
+        '- To take it out again: remove the lines you added and the files listed above.',
+        '',
+    ]
+    return EOL.join(lines)
+
+
+# ---------------------------------------------------------------- stages
+
+class Build:
+    def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
+                 seed=None, echo=print, enable=(), quick=False, foreign=()):
+        self.project_path = Path(project)
+        self.quick = bool(quick)        # the edit made in the map without baking its lighting (edit_unbaked)
+        self.enable = tuple(enable)     # families built although the compiler doesn't build them yet (--family)
+        self.foreign = tuple(foreign)   # families whose pieces from other maps build before their switch (--foreign-family)
+        self.cache, self.output, self.lwr = Path(cache), Path(output), Path(lwr)
+        self.udk = Path(udk) if udk else None     # only a patch needs UDK, and no project the compiler accepts has one
+        # patchtool's work folder: the builds folder's own, so a build needs nothing from our lab's layout
+        self.radius = radius
+        self.patch_work = Path(patch_work) if patch_work else self.output / '.work' / 'patchtool'
+        self.now = now or datetime.datetime.now()
+        self.stamp = self.now.strftime('%Y%m%d-%H%M%S')
+        self.run_tool = run or self._run
+        self.seed_tool = seed or self._seed
+        self.echo = echo
+        self.stages = []
+        self.started = self.stage_started = time.monotonic()
+        self.has_lights, self.lights, self.unchanged = False, None, False
+
+    def _run(self, args, log):
+        """Run a tool, its output to the log file and the console; raise on a failure."""
+        self.echo('  $ %s' % subprocess.list2cmdline([str(a) for a in args]))
+        with open(log, 'w', encoding='utf-8', newline='\n') as f:
+            proc = subprocess.Popen([str(a) for a in args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, encoding='utf-8', errors='replace', cwd=str(TOOLS.parent))
+            for line in proc.stdout:
+                f.write(line)
+                self.echo('    ' + line.rstrip())
+            code = proc.wait()
+        if code:
+            tool = next((Path(str(x)).name for x in args if str(x).endswith(('.py', '.ps1'))), str(args[0]))
+            raise BuildError('%s failed (exit %d); see %s' % (tool, code, log))
+
+    @staticmethod
+    def _seed(src, dst, plan):
+        import seed_map
+        import seed_tiles
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            seed_map.apply(str(src), str(dst), [str(plan)], seed_tiles.SEED_DEFAULT)
+        return out.getvalue().strip()
+
+    def stage(self, name, **result):
+        # how long the stage took: since the stage before it ended (faster-bake plan, 6.2)
+        now = time.monotonic()
+        result = dict(result, seconds=round(now - self.stage_started, 1))
+        self.stage_started = now
+        self.stages.append(dict(stage=name, **result))
+        self.echo('%s: %s' % (name, json.dumps(result)))
+
+    def unpacked(self):
+        """Decoded packages are kept for this build's tools (decomp.py): what a tool decodes, in the work folder,
+        for the tools after it and the relight's workers; the pristine base map's image in the viewer cache, for
+        the next build of the map too (faster-bake plan, 3.1). The work folder's go when the build ends."""
+        self.unpacked_work = self.work / 'unpacked'
+        os.environ[decomp.WORK_ENV] = str(self.unpacked_work)
+        keep = self.cache / '.unpacked'
+        os.environ[decomp.KEEP_ENV] = str(keep)
+        try:
+            decomp.keep(str(self.base), str(keep))
+        except (OSError, ValueError, KeyError, struct.error):
+            pass        # not a package this can read: the stages after it say so
+
+    def snapshot(self):
+        self.doc = json.loads(self.project_path.read_text(encoding='utf-8'))
+        out = self.doc.get('output') or {}
+        self.variant, self.patch = out.get('shipAs'), out.get('patch')
+        src = self.doc.get('source') or {}
+        self.map, self.sha = src.get('map'), src.get('sha256')
+        if not (self.variant and self.patch and self.map and self.sha):
+            raise BuildError('the project has no output names or source binding')
+        # a generation with the light metadata (export 18), where the compiler's find_export takes a minimum
+        import inspect
+        minimum = {'minimum': EXPORT_MINIMUM} if 'minimum' in inspect.signature(compiler.find_export).parameters else {}
+        self.export, self.scene = compiler.find_export(self.cache, self.doc, **minimum)
+        self.base = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % self.map)
+        if not self.base.is_file():
+            raise BuildError('the game install has no %s' % self.base)
+        if sha256(self.base) != self.sha:
+            raise BuildError('%s is not the map the project was made on (SHA-256 %s)' % (self.base, self.sha))
+        # the install's own file and folder: `base` becomes the equipped map where the shell stage makes one
+        self.install_base, self.install_cooked = self.base, self.base.parent
+        self.work = self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
+        (self.work / 'logs').mkdir(parents=True, exist_ok=True)
+        self.unpacked()
+        self.stage('snapshot', project=self.doc.get('id'), revision=self.doc.get('revision'), base=str(self.base),
+                   export=str(self.export))
+
+    def compile(self):
+        # pieces of other maps come from the library in the cache, read from this install
+        spec, report = compiler.compile_project(self.doc, self.scene, self.enable,
+                                                compiler.Library(self.cache, self.lwr), self.foreign)
+        report['export'] = str(self.export)
+        compiler.write_json(self.work / 'compile-report.json', report)
+        if spec is None:
+            raise BuildError('the project does not compile: %s' % '; '.join(e['message'] for e in report['errors']))
+        # the pieces the compiler left out (plan "sturdier prefabs", R4): the build goes on without them, and the
+        # Build's window and the manifest name them (the first LEFT_OUT_SHOWN; compile-report.json has them all)
+        self.left_out = [dict(actor=e.get('entity') or e.get('target') or '', code=e['code'], message=e['message'])
+                         for e in report.get('leftOut') or []]
+        patch_spec, self.native = compiler.native_split(compiler.stream_only(spec))
+        self.natives = self.native['copies']
+        self.covers = self.native.get('covers') or []
+        # buildings made from nothing (tools/bake/buildings.py): made in the map by native_copy.py, as cover blocks are
+        self.buildings = self.native.get('buildings') or []
+        # the map's own buildings changed or deleted (buildings.edit): edited in place by native_copy.py too
+        self.building_edits = self.native.get('buildingEdits') or []
+        self.any_buildings = bool(self.buildings or self.building_edits)
+        self.has_patch = bool(patch_spec['objects'])
+        # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
+        self.has_lights = has_light_edits(self.native)
+        self.lights = light_counts(self.native)
+        self.resizes = bool(report.get('stageGrid'))
+        # a cleared map (Clear map plan, section 7): native_copy.py's clear_level, and the shell stage's cursor storeys
+        self.cleared = self.native.get('cleared')
+        # the project's landing zones (Clear map plan, section 4): its own lines, and the map's own landings moved in
+        # the map (native_spawns.py, run by native_copy.py) where a zone that is also theirs moves them
+        self.landing_zones = self.native.get('landingZones')
+        self.moves_landings = bool(self.landing_zones and self.landing_zones.get('own'))
+        # a mission's objects moved in their streams (mission types plan, Part E): moved in place in the variant's
+        # copies of the streams (stream_copies), and the base map's tiles under a moved solid piece rebuilt
+        self.stream_moves = self.native.get('streamMoves') or {}
+        if self.stream_moves:
+            self.native['streamTiles'] = self.stream_tile_boxes()
+        self.stream_tiles = bool(self.native.get('streamTiles'))
+        if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
+                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
+                or self.stream_moves or self.native.get('streamHides')):
+            if self.left_out:
+                raise BuildError('nothing of the project can be built: %s left out (%s)' % (
+                    'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
+                    '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
+            raise BuildError('the project changes nothing in the map: no piece is moved, deleted or added, no '
+                             'light is changed, no building is made and the map keeps its size')
+        self.spec = self.work / ('%s.json' % self.patch)
+        compiler.write_json(self.spec, patch_spec)
+        self.copies = self.work / 'native-edit.json'
+        compiler.write_json(self.copies, self.native)
+        self.compiled = report['counts']
+        foreign = sum(1 for c in self.natives if c.get('donor'))
+        for row in self.left_out[:LEFT_OUT_SHOWN]:
+            self.echo('left out: %s' % row['message'])
+        # what the edit does to the missions the variant keeps (mission types plan, C3): the build window lists them by
+        # mission; the build goes on
+        mission_rows = [dict(mission=w.get('mission'), message=w['message'], **({'actor': w['actor']} if w.get('actor') else {}))
+                        for w in report.get('warnings') or [] if str(w.get('code', '')).startswith('mission-')]
+        for row in mission_rows[:LEFT_OUT_SHOWN]:
+            self.echo('mission: %s' % row['message'])
+        self.stage('compile', spec=str(self.spec), nativeCopies=len(self.natives), families=list(self.enable),
+                   **({'leftOutPieces': self.left_out[:LEFT_OUT_SHOWN]} if self.left_out else {}),
+                   **({'missionWarnings': mission_rows[:LEFT_OUT_SHOWN], 'missionWarningCount': len(mission_rows)}
+                      if mission_rows else {}),
+                   **({'foreignCopies': foreign} if foreign else {}),
+                   **({'coverBlocks': len(self.covers)} if self.covers else {}),
+                   **({'buildings': len(self.buildings)} if self.buildings else {}),
+                   **({'buildingEdits': len(self.building_edits)} if self.building_edits else {}),
+                   **({'cleared': self.cleared} if self.cleared else {}),
+                   streamHides=self.native.get('streamHides') or {},
+                   nativeBreakGroups=len({c['breakGroup'] for c in self.natives + self.covers if c.get('breakGroup')}),
+                   copierCopies=sum(len(o['from']) for o in patch_spec['objects'] if o['type'] == 'copy'),
+                   hides=len(self.native['hides']),
+                   patchHides=sum(len(o['alsoHide']) for o in patch_spec['objects'] if o['type'] == 'hide'),
+                   # the compiler's own light counts give way to the native edit's (light_counts)
+                   **({'lights': self.lights} if self.lights else {}),
+                   **{k: v for k, v in report['counts'].items() if k != 'lights'})
+
+    def patch_and_cook(self):
+        if not self.has_patch:
+            self.cooked = self.seed_plan = None
+            self.stage('patch', skipped='nothing for a patch: the edit is made in the map itself')
+            return
+        if self.udk is None or not PATCHTOOL.is_file():
+            raise BuildError('this edit needs a patch cooked in UDK, %s: set the udk setting to UDK 2011-09 with the '
+                             'XComGame stubs (viewer.py settings --udk <folder>), or leave out the pieces the compile '
+                             'report lists for the patch' % ('which this copy of the editor does not ship' if self.udk
+                                                            else 'and the udk setting is not set'))
+        common = ['-Udk', self.udk, '-Work', self.patch_work, '-Lwr', self.lwr]
+        ps = ['pwsh', '-NoProfile', '-File', PATCHTOOL]
+        self.run_tool(ps + ['build', self.spec, '-Force'] + common, self.work / 'logs' / 'patchtool-build.log')
+        self.run_tool(ps + ['cook', self.spec] + common, self.work / 'logs' / 'patchtool-cook.log')
+        self.cooked = self.udk / 'UDKGame' / 'CookedPC' / 'Maps' / 'patches' / ('%s.udk' % self.patch)
+        if not self.cooked.is_file():
+            raise BuildError('no cooked patch %s' % self.cooked)
+        plan = self.patch_work / self.patch / 'seed-plan-built.tsv'
+        self.seed_plan = plan if plan.is_file() and plan.stat().st_size else None
+        self.stage('patch', cooked=str(self.cooked), bytes=self.cooked.stat().st_size,
+                   seedPlan=str(self.seed_plan) if self.seed_plan else None)
+
+    def shell(self):
+        """A base map that is little more than a level and a tile grid (the game's blank map) gets what a battle and
+        the later stages need of it, from another map of the install (tools/bake/shell.py): soldier spawn points,
+        cursor volumes, a volume to clone rebuild volumes from. The equipped map is the base from here on. A map that
+        lacks none of them, which is every other map, is left alone and the stage says nothing.
+        A project can also ask for a larger tile grid (`stage: {grid: [nx, ny]}`, tiles, from the map's own corner,
+        or [nx, ny, nz] with the levels, from its own bottom): the same tool lays ground over the new area and writes
+        the map's tile data for it (prefab plan 5.11, 5.6b)."""
+        stage = self.doc.get('stage') or {}
+        grid = stage.get('grid')    # the compiler has checked it against the map's own
+        cleared = bool(self.cleared)
+        ambient = self.doc.get('prefabTest') and self.map in compiler.STAGE_MAPS
+        sys.path.insert(0, str(TOOLS / 'bake'))
+        import shell
+        from package import Package
+        try:
+            lacking = shell.needs(Package(self.base), building=self.needs_templates())
+        except (OSError, ValueError, KeyError, struct.error):
+            return      # not a package this stage can read: the stages after it say so
+        if not (lacking or grid or stage.get('lines') or stage.get('hideGround') or ambient or cleared):
+            return
+        out = self.work / 'shell'
+        self.run_tool([sys.executable, '-B', '-u', SHELL, self.base, out, '--cooked', self.install_cooked]
+                      + (['--grid', grid[0], grid[1]] if grid else [])
+                      + (['--levels', grid[2]] if grid and len(grid) == 3 else [])
+                      + (['--grid-lines'] if stage.get('lines') else ['--hide-ground'] if stage.get('hideGround') else [])
+                      + (['--ambient-light'] if ambient else [])
+                      # a cleared map lays no ground: the user lays floor pieces (Clear map plan, section 7)
+                      + (['--no-ground'] if grid and (stage.get('ground') is False or cleared) else [])
+                      + (['--clear'] if cleared else [])
+                      + (['--building'] if self.needs_templates() else []),
+                      self.work / 'logs' / 'shell.log')
+        try:
+            report = json.loads((out / 'shell.json').read_text(encoding='utf-8'))
+            if not report.get('shelled'):
+                return      # it lacks nothing and has that grid already
+            self.base = Path(report['shelled'])
+            if not self.base.is_file():
+                raise ValueError('no equipped map')
+        except (OSError, ValueError, KeyError) as error:
+            raise BuildError('shell.py equipped no map (%s); see %s' % (error, self.work / 'logs' / 'shell.log'))
+        donor = report.get('donor') or {}
+        self.shelled = dict(lacked=lacking, donor=donor.get('map'), sha256=donor.get('sha256'),
+                            brought=report['brought'])
+        if report.get('resized'):
+            r = report['resized']
+            self.shelled['grid'] = dict(before=r['before'], now=r['grid'], ground=r['ground'], planesLaid=r['planesLaid'],
+                                        # the map's own low scenery in the new area: made walkable, or a floor
+                                        # already, and the tiles they give floor on queued (F-100)
+                                        walkableScenery=len(r.get('walkableScenery') or []),
+                                        sceneryFloors=len(r.get('sceneryFloors') or []),
+                                        sceneryTilesQueued=r.get('sceneryTilesSeeded', 0),
+                                        blocksUnderScenery=len(r.get('blocksUnderScenery') or []))
+        if report.get('gridLines'):
+            self.shelled['gridLines'] = report['gridLines']
+        if report.get('hiddenGround'):
+            self.shelled['hiddenGround'] = report['hiddenGround']
+        if report.get('ambientLight'):
+            self.shelled['ambientLight'] = report['ambientLight']
+        if 'clearedCursors' in report:
+            self.shelled['clearedCursors'] = report['clearedCursors']
+        self.stage('shell', equipped=str(self.base), **self.shelled)
+
+    def drop_untried(self, error):
+        """After a failed transplant or copy stage: the copies marked untried (compiler.Compiler.untried: a class the
+        Build has not made before, an assembly's part on its own, a piece the library held back) are taken out of the
+        native edit, with the hide of a moved one (it stays where the map has it), and named as left out. False when
+        there is none to drop: the failure is the build's."""
+        gone = [c for c in self.natives if c.get('untried')]
+        if not gone:
+            return False
+        labels = {c['label'] for c in gone}
+        why = str(error).splitlines()[0][:300]
+        self.echo('the Build could not make the edit with its untried pieces (%s): building without %d of them'
+                  % (why, len(gone)))
+        self.native['copies'] = self.natives = [c for c in self.natives if not c.get('untried')]
+        self.native['hides'] = [h for h in self.native['hides'] if h['label'] not in labels]
+        made = {c.get('assembly') for c in self.natives}
+        if self.native.get('assemblies'):
+            self.native['assemblies'] = [m for m in self.native['assemblies'] if m['id'] in made]
+        dropped = [dict(actor=c['label'].split(':', 1)[-1], code='untried-failed',
+                        message='%s is of a kind the Build has not made before, and making it failed: left out%s'
+                        % (c['label'].split(':', 1)[-1], ' (it stays where the map has it)' if c['label'].startswith('move:') else ''))
+                   for c in gone]
+        self.left_out += dropped
+        self.copies = self.work / 'native-edit.json'
+        compiler.write_json(self.copies, self.native)
+        for folder in (self.work / 'transplant', self.work / 'lit'):
+            if folder.exists():
+                shutil.rmtree(folder)
+        self.stage('leftout', pieces=dropped[:LEFT_OUT_SHOWN], count=len(dropped), reason=why)
+        if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
+                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None):
+            raise BuildError('nothing of the project can be built: its %d untried piece%s could not be made (%s)'
+                             % (len(gone), '' if len(gone) == 1 else 's', why))
+        return True
+
+    def transplant(self):
+        """Pieces of other maps (the native edit's copies with a donor): each staged in a copy of the base map, with
+        what it depends on (tools/bake/transplant.py). The copier then reads the staged map and the edit naming the
+        staged actors. Without such a piece nothing is done."""
+        self.source, self.donors = self.base, []
+        if not any(c.get('donor') for c in self.natives):
+            return
+        out = self.work / 'transplant'
+        self.run_tool([sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
+                       self.install_cooked], self.work / 'logs' / 'transplant.log')
+        try:
+            report = json.loads((out / 'transplant.json').read_text(encoding='utf-8'))
+            self.source, self.copies = Path(report['staged']), out / 'native-edit.staged.json'
+            if not (self.source.is_file() and self.copies.is_file()):
+                raise ValueError('no staged map')
+        except (OSError, ValueError, KeyError) as error:
+            raise BuildError('transplant.py staged no map (%s); see %s' % (error, self.work / 'logs' / 'transplant.log'))
+        self.donors = [dict(map=d['map'], sha256=d['sha256'], file=d['file'], pieces=d['pieces'],
+                            objectsBrought=d['objectsBrought'], objectsReused=d['objectsReused'], cut=d['cut'],
+                            bytes=d['bytes']) for d in report['donors']]
+        self.stage('transplant', staged=str(self.source), foreignPieces=report['foreignPieces'],
+                   donors=[dict(map=d['map'], pieces=d['pieces'], objectsBrought=d['objectsBrought'], bytes=d['bytes'],
+                                cut=len(d['cut'])) for d in self.donors])
+
+    def light(self):
+        self.lit = self.work / 'lit'
+        if self.quick:
+            return self.edit_unbaked()
+        if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
+                or self.moves_landings or self.has_patch or self.resizes):
+            # landing-zone lines alone (Clear map plan, section 4): nothing in the map changes, so nothing is relit
+            return self.edit_unbaked()
+        if (self.covers or self.any_buildings or self.cleared) and not (self.natives or self.native['hides'] or self.has_lights
+                                                                    or self.has_patch or self.moves_landings):
+            # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
+            # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
+            # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
+            # volumes and lists, no light. A landing moved in place is relit: its grounded Skyranger casts a shadow,
+            # which goes with it (F-98)
+            self.cache_name, self.unchanged = None, True
+            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.base, self.lit, self.variant, '--copies',
+                           self.copies], self.work / 'logs' / 'native-copy.log')
+            self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
+                              lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record())
+            self.stage('light', cache=None, baked=True, **self.relit)
+            return
+        self.cache_name = cache_name(self.variant)
+        # the relit pieces of this project's last baked build are kept, and taken again where the new edit leaves a
+        # piece's lights and reaching edits as they were (relight.py PieceCache; faster-bake plan, 3.7)
+        pieces = ['--piece-cache', self.output / '.work' / 'pieces' / self.variant, '--base', sha256(self.base)]
+        if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.moves_landings
+                or self.stream_tiles):
+            # the edit made in the map (copies, hides, light edits), lit there; anything left in the patch modelled
+            # as an edit
+            # (the map is the base map, or the staged one with the pieces of other maps in it: those are lit from
+            # nothing where they stand)
+            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
+                           self.copies, '--bake', '--cache', self.cache_name, '--receivers-near', '%g' % self.radius]
+                          + pieces + (['--edit-spec', self.spec] if self.has_patch else []),
+                          self.work / 'logs' / 'native-copy.log')
+        else:
+            self.run_tool([sys.executable, '-B', '-u', RELIGHT, self.base, self.lit, self.variant, '--cache',
+                           self.cache_name, '--edit-spec', self.spec, '--receivers-near', '%g' % self.radius]
+                          + pieces,
+                          self.work / 'logs' / 'relight.log')
+        rec = json.loads((self.lit / ('%s.relight.json' % self.variant)).read_text(encoding='utf-8'))
+        # a completed calculation that changes no texel (plan 4.4): the map keeps the original's lightmaps, and there
+        # is no texture cache to ship
+        self.unchanged = bool(rec.get('lightingUnchanged'))
+        if self.unchanged:
+            self.cache_name = None
+        self.relit = dict(written=len(rec['components']), unchanged=len(rec.get('unchanged') or []),
+                          skipped=len(rec.get('skipped') or []),
+                          shadowMaps=sum(1 for s in rec.get('shadowMaps') or [] if 'skipped' not in s),
+                          copies=[(c['source'], c['triangles']) for c in rec.get('copies') or []],
+                          nativeCopies=[(c['copy'], c['source']) for c in rec.get('nativeCopies') or []],
+                          # pieces of other maps, lit from nothing where they stand (relight.py --foreign-copy)
+                          **({'foreignCopies': [c['copy'] for c in rec['foreignCopies']]} if rec.get('foreignCopies') else {}),
+                          hidden=len(self.native['hides']), lightingUnchanged=self.unchanged)
+        if self.lights:
+            self.relit['lights'] = dict(self.lights, **self.light_record())
+        self.relit.update(self.building_record())
+        self.stage('light', cache=self.cache_name, baked=True, **self.relit)
+
+    def needs_templates(self):
+        """Whether the map must have a building and a plain floor volume to clone: a building made from nothing, or a
+        new box in one of the map's own buildings."""
+        return bool(self.buildings) or any(v is None for e in self.building_edits if not e.get('deleted')
+                                           for f in e['floors'] for v in f['volumes'])
+
+    def building_record(self):
+        """What the writer's record says of the buildings made from nothing and of the map's own edited in place (the
+        fixture manifest's nativeCopies `buildings` and `buildingEdits`): each one's volumes and how many pieces each
+        floor lists. {} without any."""
+        if not self.any_buildings:
+            return {}
+        try:
+            m = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+            made = m['nativeCopies']['buildings']
+            edited = m['nativeCopies'].get('buildingEdits') or []
+        except (OSError, ValueError, KeyError):
+            return {}
+        return dict(**({'buildingEdits': [dict(id=e['id'], actor=e['actor'], deleted=e['deleted'],
+                                               **({} if e['deleted'] else dict(moved=e['moved'], volumes=e['volumes'],
+                                                                               pieces=e['pieces']))) for e in edited]}
+                       if edited else {}),
+                    buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], volume=b['copy'],
+                                    floors=[dict(volumes=f['volumes'], pieces=len(f['members']),
+                                                 cutDown=sum(1 for x in f['members'] if x['cutdown']))
+                                            for f in b['floors']], unread=b['unread']) for b in made])
+
+    def light_record(self):
+        """What the writer's record says of the light edits (the fixture manifest's `lights`): the receivers each
+        light was listed in, those in reach without a texture lightmap, and the imports recipe spots made."""
+        try:
+            m = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            return {}
+        lights = m.get('lights') or {}
+        return dict(policy=lights.get('policy'), registered=len(lights.get('registered') or {}),
+                    unregistered=len(lights.get('unregistered') or []),
+                    createdImports=sorted({str(i) for e in lights.get('edits') or [] for i in e.get('created') or []}))
+
+    def edit_unbaked(self):
+        """A quick build's light stage: the edit made in the map as a full build makes it (the copies as new actors
+        in their tiles, the hidden pieces taken out, ladders, doors, columns, floors and vans), by the same
+        native_copy.py without --bake. Nothing is relit: the copies read their originals' lightmaps and shadow maps
+        (EXP-20 run 2), and there is no texture cache. Only the lighting differs from a full build's map."""
+        self.cache_name = None
+        self.unchanged = False
+        if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
+                or self.moves_landings or self.stream_tiles):
+            # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
+            # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
+            # other maps in it (transplant)
+            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
+                           self.copies], self.work / 'logs' / 'native-copy.log')
+            if not (self.lit / ('%s.upk' % self.variant)).is_file():
+                raise BuildError('native_copy.py made no %s.upk' % self.variant)
+        else:
+            # an edit only a patch makes: the variant is the base map under its name
+            self.lit.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(self.base, self.lit / ('%s.upk' % self.variant))
+        self.stage('light', cache=None, baked=False, nativeCopies=len(self.natives), hidden=len(self.native['hides']),
+                   **({'coverBlocks': len(self.covers)} if self.covers else {}), **self.building_record(),
+                   **({'lights': dict(self.lights, **self.light_record())} if self.lights else {}))
+
+    def seed(self, cooked_dir):
+        lit_map = self.lit / ('%s.upk' % self.variant)
+        dst = cooked_dir / ('%s.upk' % self.variant)
+        if self.seed_plan:
+            shutil.copyfile(self.seed_plan, self.work / 'seed-plan.tsv')
+            self.seeded = self.seed_tool(lit_map, dst, self.seed_plan)
+            # the seeder's own notes beside the map (<map>.seeded.txt) belong with the build's work, not the package
+            for note in cooked_dir.glob(dst.name + '.*'):
+                shutil.move(str(note), str(self.work / note.name))
+        else:
+            shutil.copyfile(lit_map, dst)
+            self.seeded = ('no seed plan from the patch: the copies made in the map seeded their own tiles'
+                           if self.natives or self.covers else 'no seed plan: the edit puts nothing on new tiles')
+        self.stage('seeds', report=self.seeded)
+
+    def intro_copies(self, cooked_dir, records):
+        """The variant's own intros (F-45, F-76), one per intro its base records stream: {stream: copy}."""
+        copies = {}
+        for stream in intro_streams(records):
+            copy = self.intro_copy(cooked_dir, stream)
+            if copy:
+                copies[stream] = copy
+        return copies
+
+    def intro_copy(self, cooked_dir, stream):
+        """An intro stream copied with the base map's landing under the variant's name (tools/bake/intro_copy.py):
+        the copy's name, or None when the intro has no landing of its own for the base map (then the variant streams
+        it unchanged)."""
+        src = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % stream)
+        if not src.is_file():
+            raise BuildError('the game install has no %s' % src)
+        copy = '%s_%s' % (stream, self.variant)
+        moves = self.landing_moves()
+        extra = []
+        if moves:
+            path = self.work / 'landing-moves.json'
+            path.write_text(json.dumps(moves, indent=1) + '\n', encoding='utf-8', newline='\n')
+            extra = ['--landing-moves', path]
+        report = self.work / ('intro-copy-%s.json' % stream)
+        # the base map, whose grounded Skyrangers give a place to an entry of the intro that saves none (F-106)
+        if Path(self.install_base).is_file():
+            extra += ['--map', self.install_base]
+        self.run_tool([sys.executable, '-B', '-u', INTRO_COPY, src, cooked_dir / ('%s.upk' % copy), self.map,
+                       self.variant, '--report', report] + extra,
+                      self.work / 'logs' / ('intro-copy-%s.log' % stream))
+        r = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+        if r.get('moved') or r.get('notFound') or r.get('filled'):
+            self.stage('intro', stream=stream, moved=r.get('moved') or [],
+                       **({'filled': r['filled']} if r.get('filled') else {}),
+                       **({'warning': 'no flight place found for landing %s: the intro flies to the old place'
+                           % ', '.join(map(str, r['notFound']))} if r.get('notFound') else {}))
+        return copy if (cooked_dir / ('%s.upk' % copy)).is_file() else None
+
+    def own_landing_groups(self):
+        """[{zone, index, group}] for the zones that are the map's own landings: the spawn group the game knows each
+        by (`?SpawnGroup=Group<N>`: its points' tag where it is Group<N>, else Group<index>; F-96)."""
+        sys.path.insert(0, str(TOOLS / 'bake'))
+        import scene_metadata
+        from package import Package
+        try:
+            landings = scene_metadata.landing_metadata(Package(self.install_base))
+        except (OSError, ValueError, struct.error):
+            landings = []
+        out = []
+        for k, slot in enumerate(self.landing_zones['own']):
+            tag = landings[k].get('group') if k < len(landings) else None
+            group = tag if tag and re.fullmatch(r'Group\d+', tag) else 'Group%d' % k
+            out.append(dict(zone=self.landing_zones['zones'][slot]['id'], index=k, group=group))
+        return out
+
+    def landing_moves(self):
+        """The map's own landings the project moves (native_spawns.plan on the base map): [{index, frame}], or []."""
+        if not getattr(self, 'moves_landings', False):
+            return []
+        if not hasattr(self, '_landing_moves'):
+            sys.path.insert(0, str(TOOLS / 'bake'))
+            import native_spawns
+            import scene_metadata
+            from package import Package
+            moves = native_spawns.plan(scene_metadata.landing_metadata(Package(self.install_base)), self.landing_zones)
+            self._landing_moves = [dict(index=m['index'], frame=m['frame']) for m in moves]
+        return self._landing_moves
+
+    def stream_tile_boxes(self):
+        """The moved mission objects that touch the game's tiles (stream_copy.tile_boxes on the install's streams):
+        [{stream, actor, old, new}], for native_copy.py to rebuild the base map's tiles at both places."""
+        sys.path.insert(0, str(TOOLS / 'bake'))
+        import stream_copy
+        out = []
+        for stream, moves in sorted(self.stream_moves.items()):
+            src = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % stream)
+            if not src.is_file():
+                raise BuildError('the game install has no %s' % src)
+            try:
+                out += [dict(stream=stream, **b) for b in stream_copy.tile_boxes(src, moves)]
+            except ValueError as error:
+                raise BuildError('%s: %s' % (stream, error))
+        return out
+
+    def stream_copies(self, cooked_dir):
+        """The streamed patches with pieces taken out (the compiler's streamHides: a moved or deleted ladder's
+        helpers), and the mission streams whose objects the project moves (streamMoves, Part E: moved in place, the
+        map switches naming the variant), each copied under the variant's name (tools/bake/stream_copy.py):
+        {stream: copy}."""
+        copies = {}
+        hides, moves = self.native.get('streamHides') or {}, self.native.get('streamMoves') or {}
+        for stream in sorted(set(hides) | set(moves)):
+            src = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % stream)
+            if not src.is_file():
+                raise BuildError('the game install has no %s' % src)
+            copy = '%s_%s' % (stream, self.variant)
+            extra = []
+            if moves.get(stream):
+                listed = self.work / ('stream-moves-%s.json' % stream)
+                listed.write_text(json.dumps([dict(actor=m['actor'], location=m['location'], rotation=m['rotation'])
+                                              for m in moves[stream]], indent=1) + '\n', encoding='utf-8', newline='\n')
+                extra = ['--moves', listed, '--base', self.map, '--variant', self.variant]
+            self.run_tool([sys.executable, '-B', '-u', STREAM_COPY, src, cooked_dir / ('%s.upk' % copy)]
+                          + [x for n in hides.get(stream) or [] for x in ('--hide', n)] + extra
+                          + ['--report', self.work / ('stream-copy-%s.json' % stream)],
+                          self.work / 'logs' / ('stream-copy-%s.log' % stream))
+            if not (cooked_dir / ('%s.upk' % copy)).is_file():
+                raise BuildError('stream_copy.py made no %s' % copy)
+            copies[stream] = copy
+        if copies:
+            self.stage('streams', copies=copies, hidden=hides, **({'moved': {s: len(v) for s, v in moves.items()}} if moves else {}),
+                       **({'tiles': len(self.native.get('streamTiles') or [])} if moves else {}))
+        return copies
+
+    def package(self):
+        staging = self.work / 'package'
+        if staging.exists():
+            shutil.rmtree(staging)
+        cooked_dir = staging / 'CookedPCConsole'
+        cooked_dir.mkdir(parents=True)
+        self.seed(cooked_dir)
+        if self.cache_name:     # a quick build has none
+            tfc = self.lit / ('%s.tfc' % self.cache_name)
+            if tfc.is_file():
+                shutil.copyfile(tfc, cooked_dir / tfc.name)
+        if self.cooked:
+            shutil.copyfile(self.cooked, cooked_dir / ('%s.upk' % self.patch))
+        patch = self.patch if self.cooked else None
+        # the install's own config: what the editor installed (installs.py) taken out
+        cfg = lambda name: (installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n') if name == 'DefaultMaps.ini'  # noqa: E731
+                            else config_text(lwr_file(self.lwr, 'Config', name))
+                            # Long War's files (DefaultLZMutator.ini, DefaultMiniMods.ini): None where the install has none
+                            if lwr_file(self.lwr, 'Config', name).is_file() else None)
+        maps = cfg('DefaultMaps.ini')
+        records = base_records(maps, self.map)
+        intros = self.intro_copies(cooked_dir, records)
+        streams = self.stream_copies(cooked_dir)
+        replace = dict(intros, **streams)
+        files = {'CookedPCConsole/%s' % f.name: sha256(f) for f in sorted(cooked_dir.iterdir())}
+        name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
+        # one record: the project's name; several: each with its mission, so the game's lists tell them apart. LWR's
+        # display names end in " |<n>", plain EW's don't: the variant's follow the install's
+        tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
+        listed = self.doc.get('missions') if isinstance(self.doc.get('missions'), list) else None
+        count = len(mission_entries(records, listed))
+        display = ('%s (%s)%s' % (self.variant, name[:80], tail) if count == 1 else
+                   lambda mission: '%s (%s, %s)%s' % (self.variant, name[:80], re.sub(r'[^\x20-\x7E]|"|\|', '', mission), tail))
+        lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
+                             patch, display, intros=replace, missions_list=listed,
+                             zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None)
+        if self.landing_zones and self.landing_zones.get('own'):
+            # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
+            lines['ownLandingGroups'] = self.own_landing_groups()
+        tools = {str(p.relative_to(TOOLS.parent)).replace('\\', '/'): sha256(p)
+                 for p in (Path(__file__).resolve(), TOOLS / 'editor' / 'compiler.py', PATCHTOOL, RELIGHT,
+                           NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
+                           TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
+                           TOOLS / 'upk' / 'seed_map.py') if p.is_file()}
+        final = self.output / self.variant
+        seconds = round(time.monotonic() - self.started)
+        times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
+        m = dict(schema=SCHEMA, schemaVersion=SCHEMA_VERSION, editorVersion=VERSION, buildId='%s-%s' % (self.variant, self.stamp),
+                 builtAt=self.now.isoformat(timespec='seconds'), quick=self.quick,
+                 project=dict(id=self.doc.get('id'), name=self.doc.get('name'), revision=self.doc.get('revision'),
+                              savedAt=self.doc.get('savedAt'), file=str(self.project_path)),
+                 source=dict(map=self.map, sha256=self.sha, file=str(self.install_base),
+                             exporterVersion=self.scene.get('exporterVersion')), variant=self.variant,
+                 **({'prefabTest': self.doc['prefabTest']} if 'prefabTest' in self.doc else {}),
+                 **({'leftOut': self.left_out} if self.left_out else {}),
+                 **({'shell': self.shelled} if getattr(self, 'shelled', None) else {}),
+                 patch=patch, cache=self.cache_name, files=files, streams=[patch] if patch else [], config=lines,
+                 intros=[dict(stream=s, copy=c) for s, c in intros.items()], replaceStreams=replace,
+                 streamCopies=[dict(stream=s, copy=c, hidden=(self.native.get('streamHides') or {}).get(s) or [],
+                                    **({'moved': [m['actor'] for m in self.stream_moves[s]]} if self.stream_moves.get(s) else {}))
+                               for s, c in streams.items()],
+                 families=list(self.enable),
+                 nativeCopies=len(self.natives), nativeHides=len(self.native['hides']), coverBlocks=len(self.covers),
+                 buildings=len(self.buildings), buildingEdits=len(self.building_edits),
+                 donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
+                 lights=self.lights,
+                 lightingUnchanged=self.unchanged,
+                 stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)
+        (staging / 'manifest.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
+        (staging / 'README.txt').write_bytes(readme(m).encode('latin-1', 'replace'))
+        old = self.work / 'replaced'
+        if final.exists():
+            final.rename(old)
+        staging.rename(final)
+        # an earlier build's zip of the folder (builds made one until 10 November 2026): out of date now
+        stale = self.output / ('%s.zip' % self.variant)
+        if stale.is_file():
+            stale.unlink()
+        if old.exists():
+            shutil.rmtree(old)
+        self.manifest, self.folder = m, final
+        return m
+
+    def prune_work(self):
+        """Old work folders out of the builds folder (faster-bake plan, 6.1): each build leaves 60 to 150 MB there
+        (the grown map, the lit map, the arrays, the previews), and nothing else removes them. Of every variant, the
+        KEEP_WORK newest stay whole (a bug report reads the newest: builds.py); older ones keep their logs and their
+        small records. Folders that are not a build's (patchtool's, the kept pieces) are left."""
+        root = self.output / '.work'
+        builds = {}
+        for folder in root.iterdir() if root.is_dir() else ():
+            m = re.fullmatch(r'(.+)-\d{8}-\d{6}', folder.name)
+            if m and folder.is_dir():
+                builds.setdefault(m.group(1), []).append(folder)
+        freed = 0
+        for folders in builds.values():
+            for old in sorted(folders, key=lambda f: f.name)[:-KEEP_WORK]:
+                for child in list(old.iterdir()):
+                    try:
+                        if child.is_dir() and child.name != 'logs':
+                            freed += sum(f.stat().st_size for f in child.rglob('*') if f.is_file())
+                            shutil.rmtree(child)
+                        elif child.is_file() and child.stat().st_size > 1 << 20:
+                            freed += child.stat().st_size
+                            child.unlink()
+                    except OSError:
+                        pass        # a file held open: the next build's prune takes it
+        if freed:
+            self.echo('old build work folders pruned: %.0f MB freed' % (freed / 2 ** 20))
+
+    def run(self):
+        try:
+            self.snapshot()
+            self.compile()
+            self.patch_and_cook()
+            self.shell()
+            try:
+                self.transplant()
+                self.light()
+            except BuildError as error:
+                # a copy the Build has not been tried on (the compiler's `untried`) may be one it can't make: those
+                # are left out, named, and the rest is built
+                if not self.drop_untried(error):
+                    raise
+                self.transplant()
+                self.light()
+            m = self.package()
+            self.prune_work()
+        finally:
+            if getattr(self, 'unpacked_work', None):
+                shutil.rmtree(self.unpacked_work, ignore_errors=True)
+        self.echo('built %s: %s (%s)' % (m['buildId'], self.folder, ', '.join('%s %s' % (Path(f).name, h[:12]) for f, h in m['files'].items())))
+        return m
+
+
+def main(argv=None):
+    a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    a.add_argument('project', help='a project file (.json), or a project\'s id or name in the settings\' projects folder')
+    a.add_argument('--cache', type=Path, help='the viewer cache (default: the settings\' cache)')
+    a.add_argument('--output', type=Path, help='the builds folder (default: the settings\' output folder)')
+    a.add_argument('--game', '--lwr', dest='lwr', type=Path,
+                   help='the game install (LWR or plain EW), read only (default: the settings\' game)')
+    a.add_argument('--udk', type=Path, help='UDK 2011-09, only for an edit that needs a patch (default: the settings\' udk)')
+    a.add_argument('--radius', type=float, default=RADIUS,
+                   help='relight receivers within this many units of the edit (default %(default)g)')
+    a.add_argument('--family', action='append', default=[], choices=sorted(f for f in compiler.FAMILIES if not compiler.FAMILIES[f]['builds']),
+                   help='build this family although the compiler doesn\'t yet: an experiment\'s build (repeatable)')
+    a.add_argument('--foreign-family', action='append', default=[], choices=sorted(compiler.FAMILIES) + ['check'],
+                   help='build this family\'s pieces from other maps although that isn\'t switched on yet: an '
+                        'experiment\'s build (repeatable)')
+    a.add_argument('--quick', action='store_true',
+                   help='make the edit in the map without baking its lighting: seconds instead of minutes, to check '
+                        'pathing and cover in the game; the lighting is not right')
+    args = a.parse_args(argv)
+    s = settings_module.load_settings()
+    lwr = args.lwr or (settings_module.resolve_game(s['game'])[0] if s['game'] else None)
+    udk = args.udk or s['udk']
+    if not lwr:
+        a.error('set the game install (viewer.py settings, or --lwr)')
+    try:
+        project = find_project(args.project, s['projects'])
+        Build(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
+              enable=args.family, quick=args.quick, foreign=args.foreign_family).run()
+    except BuildError as error:
+        print('build failed: %s' % error)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

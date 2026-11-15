@@ -1,0 +1,63 @@
+{
+  "map": "URB_Bar",
+  "project": "28e0a0b1-2828-4d0a-8e28-3c4d5e6f7a28",
+  "shots": [
+    {
+      "out": "EXP-28-run1-overview.png",
+      "title": "EXP-28 run 1: walls, a floor, a counter and corpses on the bar",
+      "target": [-500, 200, 0],
+      "camera": [0, -3000, 3300],
+      "marks": [
+        {"n": "1", "at": [-1140, -192, 200], "color": "#5ad17a", "r": 60, "text": "the inner wall copied onto the sidewalk with its two doors"},
+        {"n": "2", "at": [-240, 246, 60], "color": "#f2c14e", "r": 34, "text": "the counter's south section moved 2 tiles south (under the roof)"},
+        {"n": "3", "at": [-1056, 960, 200], "color": "#ef6f6c", "r": 40, "text": "the inner cross wall deleted (under the roof)"},
+        {"n": "4", "at": [-1056, 340, 210], "color": "#6cb6ef", "r": 34, "text": "the upstairs floor strip copied 2 tiles north (under the roof)"},
+        {"n": "5", "at": [400, -850, 20], "color": "#c58af0", "r": 60, "text": "corpses: one copied, one moved, one deleted (if the game shows corpses here at all)"}
+      ]
+    },
+    {
+      "out": "EXP-28-run1-wall.png",
+      "title": "EXP-28 run 1: the wall copy on the sidewalk, from the street",
+      "target": [-1140, -192, 160],
+      "camera": [300, -1500, 700],
+      "marks": [
+        {"n": "1", "at": [-1140, -192, 330], "color": "#5ad17a", "r": 44, "text": "full cover along it, no sight through it; explosives break it a column at a time"},
+        {"n": "a", "at": [-816, -192, 110], "color": "#5ad17a", "r": 40, "text": "a door: opens; goes when the wall round it is blown up"},
+        {"n": "b", "at": [-1488, -192, 110], "color": "#5ad17a", "r": 40, "side": "left", "text": "the other door: the same"}
+      ]
+    },
+    {
+      "out": "EXP-28-run1-inside.png",
+      "title": "EXP-28 run 1: inside the bar, ground floor",
+      "floor": "1",
+      "target": [-650, 620, 40],
+      "camera": [0, -1300, 1700],
+      "marks": [
+        {"n": "2", "at": [-240, 246, 60], "color": "#f2c14e", "r": 46, "text": "the counter section here: low cover; its old place (south side of the island) is open"},
+        {"n": "3", "at": [-1056, 960, 100], "color": "#ef6f6c", "r": 50, "side": "left", "text": "no wall here: walk and see through; what hung on it still hangs"}
+      ]
+    },
+    {
+      "out": "EXP-28-run1-upstairs.png",
+      "title": "EXP-28 run 1: the floor strip's copy, upstairs over the front room",
+      "floor": "2",
+      "target": [-1056, 300, 208],
+      "camera": [0, -1100, 1300],
+      "marks": [
+        {"n": "4", "at": [-1056, 340, 210], "color": "#6cb6ef", "r": 50, "text": "the cursor lands on its top (about 210); a soldier put there stands and walks along it"},
+        {"n": "o", "at": [-1056, 148, 210], "color": "#ffffff", "r": 30, "side": "left", "text": "the strip it was copied from"}
+      ]
+    },
+    {
+      "out": "EXP-28-run1-corpses.png",
+      "title": "EXP-28 run 1: the corpses on the street south-east of the bar",
+      "target": [430, -920, 20],
+      "camera": [0, -1000, 1200],
+      "marks": [
+        {"n": "5a", "at": [346, -864, 20], "color": "#c58af0", "r": 44, "side": "left", "text": "a copy: the corpse lying beside it is its original"},
+        {"n": "5b", "at": [587, -685, 20], "color": "#c58af0", "r": 44, "text": "moved here (a third of a tile) and turned"},
+        {"n": "5c", "at": [354, -1177, 20], "color": "#ef6f6c", "r": 44, "text": "deleted: no corpse here"}
+      ]
+    }
+  ]
+}

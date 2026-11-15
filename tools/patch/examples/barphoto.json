@@ -1,0 +1,9 @@
+{
+  "name": "patch_barphoto",
+  "base": "patch_bar",
+  "map": { "name": "URB_Bar", "origin": [-2784, -1920], "tileSize": 96 },
+  "note": "The original URB_Bar (patch_bar's own actors, nothing changed) with the overview view, for a comparison shot of the shipped bar beside the EXP-07 L layout (4 Nov 2026). Stream it in place of patch_bar; it needs the original, unseeded URB_Bar.upk.",
+  "objects": [
+    { "type": "photo", "note": "EXP-07 run 35's overview settings (the class defaults): from the front (north-east), the whole map in view, a sun and sky light, no UI." }
+  ]
+}

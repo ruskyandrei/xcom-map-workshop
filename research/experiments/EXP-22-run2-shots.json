@@ -1,0 +1,64 @@
+{
+  "map": "CSmallScout_Farm",
+  "project": "22f0a0b1-2222-4d0a-8e22-3c4d5e6f7f22",
+  "shots": [
+    {
+      "out": "EXP-22-run2-overview.png",
+      "title": "EXP-22 run 2: where on the farm (the dashed box)",
+      "target": [400, -900, 0],
+      "camera": [0, -3200, 6200],
+      "box": [[-2150, -1950, 0], [-1050, -1950, 0], [-1050, 150, 0], [-2150, 150, 0]],
+      "marks": [
+        {"n": "1", "at": [-1392, -1392, 110], "color": "#5ad17a", "r": 16, "text": "moved ladder"},
+        {"n": "2", "at": [-1392, -1680, 110], "color": "#e0605a", "r": 16, "text": "its old place"},
+        {"n": "3", "at": [-1872.27, -240, 110], "color": "#58b4ff", "r": 16, "text": "copied ladder"},
+        {"n": "4", "at": [-1872.27, -48, 110], "color": "#f2c14e", "r": 16, "text": "original ladder"}
+      ]
+    },
+    {
+      "out": "EXP-22-run2-shed.png",
+      "title": "EXP-22 run 2: the moved ladder, seen from the west",
+      "target": [-1392, -1536, 120],
+      "camera": [-1300, -250, 900],
+      "marks": [
+        {
+          "n": "1",
+          "at": [-1392, -1392, 120],
+          "color": "#5ad17a",
+          "text": "XComLadder_4, moved here: a route up it should show",
+          "r": 36
+        },
+        {
+          "n": "2",
+          "at": [-1392, -1680, 120],
+          "color": "#e0605a",
+          "text": "where XComLadder_4 stood: no route up should show here",
+          "r": 36
+        }
+      ]
+    },
+    {
+      "out": "EXP-22-run2-red-shed.png",
+      "title": "EXP-22 run 2: the copied ladder, seen from the west",
+      "target": [-1872, -144, 120],
+      "camera": [-1300, -250, 900],
+      "marks": [
+        {
+          "n": "3",
+          "at": [-1872.27, -240, 120],
+          "color": "#58b4ff",
+          "text": "the copy of XComLadder_0: a route up it should show",
+          "r": 36,
+          "side": "left"
+        },
+        {
+          "n": "4",
+          "at": [-1872.27, -48, 120],
+          "color": "#f2c14e",
+          "text": "XComLadder_0, the original: still has its route up",
+          "r": 36
+        }
+      ]
+    }
+  ]
+}

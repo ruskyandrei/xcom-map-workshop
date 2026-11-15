@@ -1,0 +1,434 @@
+"""The project manager and the Game maps window (manager.py, gamemaps.py and their routes; installs.install_rotation,
+remove_rotation and set_records_use), on the temporary game installs of test_play.py: the listing, builds installed
+for campaigns beside the base map or in its place, records switched off and on, all of it undone byte for byte, and
+the map pack's zip."""
+from functools import partial
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import threading
+import unittest
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+import zipfile
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
+import installs  # noqa: E402  (it puts tools/bake on the path)
+import deploy_fixture as dep  # noqa: E402
+import gamemaps  # noqa: E402
+import manager  # noqa: E402
+import maplist  # noqa: E402
+from projects import ProjectError  # noqa: E402
+import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
+from test_deploy import record  # noqa: E402
+from test_projects import ID, document  # noqa: E402
+from viewer import Handler, LocalServer  # noqa: E402
+
+VARIANT = test_play.VARIANT
+OTHER_ID, OTHER = '1a2b3c4d-1d2a-4b6c-8e9f-123456789abc', 'URB_Bar_Second_1a2b'
+UNBUILT_ID, MISSING_ID = '2b3c4d5e-1d2a-4b6c-8e9f-123456789abc', '3c4d5e6f-1d2a-4b6c-8e9f-123456789abc'
+
+
+class Manager(unittest.TestCase):
+    setUp = test_play.Play.setUp
+    player = test_play.Play.player
+    package = test_play.Play.package
+    files = test_play.Play.files
+    records = test_play.Play.records
+    settle = test_play.Play.settle
+
+    def more_missions(self, game):
+        """Bar given a terror record in rotation and a council record out of it, as LWR's maps have."""
+        path = game / 'XEW/XComGame/Config/DefaultMaps.ini'
+        lines = dep.lines_of(path.read_bytes())
+        bar = record('bar')
+        terror = dep.set_field(dep.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False), 'DisplayName', 'URB_Bar_Terror (Terror) |0')
+        council = dep.set_field(dep.set_field(dep.set_field(bar, 'MissionType', 'eMission_Special', quoted=False),
+                                              'CouncilType', 'eFCMType_Bomb', quoted=False), 'DisplayName', 'URB_Bar_Bomb (Bomb) |0')
+        council = dep.set_field(council, 'bInRotation', 'False', quoted=False)
+        at = lines.index(bar) + 1
+        lines[at:at] = [terror, council]
+        path.write_bytes(dep.EOL.join(lines))
+        return terror, council
+
+    def second(self):
+        """Another project on Bar, built."""
+        self.store.save(OTHER_ID, dict(document(output=dict(shipAs=OTHER, patch='patch_' + OTHER.lower())), id=OTHER_ID, name='Second bar'), 0)
+        folder = self.output / OTHER
+        (folder / 'CookedPCConsole').mkdir(parents=True)
+        (folder / 'CookedPCConsole' / f'{OTHER}.upk').write_bytes(b'second map')
+        m = dict(schema=installs.PACKAGE_SCHEMA, schemaVersion=1, buildId=f'{OTHER}-1', builtAt='2026-11-09T12:00:00',
+                 editorVersion='0.4.0', project=dict(id=OTHER_ID, name='Second bar', revision=1),
+                 source=dict(map='URB_Bar', sha256='s' * 64), variant=OTHER, patch=None,
+                 files={f'CookedPCConsole/{OTHER}.upk': hashlib.sha256(b'second map').hexdigest()}, streams=[], replaceStreams={})
+        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+
+    def row(self, listed, project_id=ID):
+        return next(p for p in listed['projects'] if p['id'] == project_id)
+
+    def test_the_listing_gives_each_projects_last_build_and_its_warnings(self):
+        self.more_missions(self.lwr)
+        player = self.player()
+        row = self.row(manager.listing(self.store, self.builds, player))
+        self.assertEqual((row['variant'], row['build'], row['inGame'], row['map']), (VARIANT, None, None, 'URB_Bar'))
+        self.assertEqual([(m['label'], m['inRotation']) for m in row['missions']],
+                         [('Abduction', True), ('Terror', True), ('Council bomb', False)])
+        # each way's warnings: a mission other than an abduction; a council bomb is an extra bomb mission under Long
+        # War when additional, and takes the original's record name when it replaces
+        self.assertEqual(row['warnings'], [])
+        add, replace = row['modeWarnings']['additional'], row['modeWarnings']['replace']
+        self.assertEqual((len(add), len(replace)), (2, 2))
+        self.assertIn('Terror', add[0])
+        self.assertIn('extra bomb mission', add[1])
+        self.assertIn('by name', replace[1])
+        self.package(revision=1, quick=True)
+        listed = manager.listing(self.store, self.builds, player)
+        row = self.row(listed)
+        self.assertEqual((row['build']['revision'], row['build']['quick'], row['build']['stale'], row['build']['builtAt']),
+                         (1, True, False, '2026-11-08T12:00:00'))
+        self.assertIn('not baked', row['warnings'][0])
+        self.assertEqual((listed['install']['folder'], listed['install']['ready']), (str(self.lwr), True))
+        # saved again since: the build is of an older revision
+        self.store.save(ID, self.store.load(ID), 1)
+        row = self.row(manager.listing(self.store, self.builds, player))
+        self.assertTrue(row['build']['stale'])
+        self.assertTrue(any('revision 1' in w for w in row['warnings']))
+
+    def test_a_campaign_install_follows_the_builds_records_for_the_projects_missions(self):
+        # mission types plan, D4: the Build's own records, in rotation as the base map's (an added terror in, a bomb out)
+        terror, council = self.more_missions(self.lwr)
+        line = lambda base, label, display=None: dep.set_field(dep.set_field(dep.set_field(base, 'Name', VARIANT), 'DisplayName',  # noqa: E731
+                                                                             display or f'{VARIANT} (Bar remix, {label}) |0'),
+                                                               'bInRotation', 'False', quoted=False).decode('latin-1')
+        added_terror = dep.set_field(record('bar'), 'MissionType', 'eMission_TerrorSite', quoted=False)
+        self.package(maps=[line(record('bar'), 'Abduction'), line(council, 'Council bomb', f'{VARIANT}_Bomb (Bar remix, Council bomb) |0'),
+                           line(added_terror, 'Terror')], record_missions=[[0], [2], ['TerrorSite']])
+        folder = self.output / VARIANT
+        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        m['config']['missionsFromProject'] = True
+        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        before = self.files(self.lwr)
+        player = self.player()
+        done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))['results'][0]
+        self.assertTrue(done['ok'], done)
+        mine = self.records(self.lwr, VARIANT)
+        self.assertEqual([(dep.unquoted(l, 'MissionType'), dep.unquoted(l, 'bInRotation'), dep.field(l, 'DisplayName')) for l in mine],
+                         [('eMission_Abduction', 'True', f'{VARIANT} (Bar remix, Abduction) |0'),
+                          ('eMission_Special', 'False', dep.field(council, 'DisplayName')),      # replacing: asked for by name
+                          ('eMission_TerrorSite', 'True', f'{VARIANT} (Bar remix, Terror) |0')])
+        self.assertTrue(any('added to the map by the project' in w for w in done['warnings']), done['warnings'])
+        # a play of the added terror installs the Build's record for it
+        r = player.play(dict(project=ID, mission='TerrorSite'))
+        self.assertEqual(r['played']['mission']['label'], 'Terror')
+        self.settle(player)             # the play's watch puts things back too: a reset while it runs races it
+        installs.reset(self.lwr)
+        self.assertEqual(self.files(self.lwr), before)
+
+    def test_additional_adds_the_variant_to_the_rotation_and_replace_comments_the_map_out(self):
+        terror, council = self.more_missions(self.lwr)
+        before = self.files(self.lwr)
+        player = self.player()
+        r = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        self.assertEqual((r['results'][0]['ok'], r['results'][0]['error']), (False, 'It has not been built yet.'))
+        self.assertEqual(self.files(self.lwr), before)
+        self.package()
+        r = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        done = r['results'][0]
+        self.assertEqual((done['ok'], done['missions'], done['switchedOff']), (True, ['Abduction', 'Terror'], 0))
+        self.assertEqual(len(done['warnings']), 2)
+        mine = self.records(self.lwr, VARIANT)
+        self.assertEqual([(dep.unquoted(l, 'MissionType'), dep.unquoted(l, 'bInRotation')) for l in mine],
+                         [('eMission_Abduction', 'True'), ('eMission_TerrorSite', 'True'), ('eMission_Special', 'False')])
+        self.assertEqual([dep.field(l, 'DisplayName') for l in mine],
+                         [f'{VARIANT} (Bar remix, Abduction) |0', f'{VARIANT} (Bar remix, Terror) |0',
+                          f'{VARIANT}_Bomb (Bar remix, Council bomb) |0'])     # Long War's _Bomb kept (mission types plan, B)
+        for l in mine:
+            self.assertIn(f'CIN_DropshipIntros_{VARIANT}', dep.slot_streams(l))
+            self.assertNotIn('CIN_DropshipIntros', dep.slot_streams(l))
+        # after Bar's records, whose own lines are as they were
+        maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
+        self.assertEqual(maps[maps.index(council) + 2], mine[0])
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [record('bar'), terror, council])
+        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
+        self.assertNotIn(VARIANT, maplist.lwr_maps(self.lwr))
+        self.assertIn(f'MapName="{VARIANT}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
+        self.assertTrue((self.lwr / 'XEW/XComGame/CookedPCConsole' / f'{VARIANT}.upk').is_file())
+        row = self.row(r)
+        self.assertEqual(row['inGame'], dict(play=False, rotation='additional', buildId=f'{VARIANT}-1', current=True))
+        # replace: Bar's own records are commented out, and the variant's council record has Bar's record name, which
+        # the game asks for
+        r = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        self.assertEqual((r['results'][0]['switchedOff'], self.row(r)['inGame']['rotation']), (3, 'replace'))
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [])
+        maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
+        for line in (record('bar'), terror, council): self.assertIn(b';' + line, maps)
+        mine = self.records(self.lwr, VARIANT)
+        self.assertEqual([dep.field(l, 'DisplayName') for l in mine],
+                         [f'{VARIANT} (Bar remix, Abduction) |0', f'{VARIANT} (Bar remix, Terror) |0', 'URB_Bar_Bomb (Bomb) |0'])
+        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
+        self.assertEqual(len(maplist.lwr_maps(self.lwr)['URB_Bar']['missions']), 3)       # the editor still reads Bar
+        # Play in game's record goes in beside them and stays first, and comes out without touching them
+        player.play(dict(project=ID))
+        self.settle(player)
+        mine = self.records(self.lwr, VARIANT)
+        self.assertEqual((len(mine), dep.field(mine[0], 'DisplayName')), (4, f'{VARIANT} (XCOM Map Workshop) |0'))
+        self.assertEqual(self.row(manager.listing(self.store, self.builds, player))['inGame']['play'], True)
+        # Bar itself still plays alone: with its records commented out it gets a copy for the play, named apart
+        r = player.play(dict(map='URB_Bar'))
+        self.settle(player)
+        copy, = self.records(self.lwr, 'URB_Bar')
+        self.assertEqual((dep.field(copy, 'DisplayName'), dep.unquoted(copy, 'bInRotation')), ('URB_Bar (XCOM Map Workshop) |0', 'False'))
+        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
+        # back to additional: Bar's records are live again
+        manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        self.assertEqual(self.records(self.lwr, 'URB_Bar')[:3], [record('bar'), terror, council])
+        self.assertEqual(dep.field(self.records(self.lwr, VARIANT)[0], 'DisplayName'), f'{VARIANT} (XCOM Map Workshop) |0')
+        # Game maps undoes the build: its records for campaigns, Play in game's record and its landing zones
+        r = gamemaps.undo(player, dict(variants=[VARIANT]))
+        self.assertEqual((r['undone'], self.records(self.lwr, VARIANT)), ([VARIANT], []))
+        self.assertEqual(self.files(self.lwr)['DefaultLZMutator.ini'], before['DefaultLZMutator.ini'])
+        self.assertIsNone(self.row(manager.listing(self.store, self.builds, player))['inGame'])
+        manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        done = player.remove()['removed']
+        self.assertEqual((done['records'], done['rotation'], done['recordsBack'], done['left']), (1, 1, 3, []))
+        self.assertEqual(self.files(self.lwr), before)
+
+    def test_a_map_stays_replaced_while_any_variant_replaces_it(self):
+        before = self.files(self.lwr)
+        player = self.player()
+        self.package()
+        self.second()
+        r = manager.install(self.store, self.builds, player, dict(projects=[ID, OTHER_ID, MISSING_ID], mode='replace'))
+        self.assertEqual([x['ok'] for x in r['results']], [True, True, False])
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [])
+        self.assertEqual([dep.unquoted(self.records(self.lwr, v)[0], 'bInRotation') for v in (VARIANT, OTHER)], ['True', 'True'])
+        gamemaps.undo(player, dict(variants=[VARIANT]))
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [])
+        gamemaps.undo(player, dict(variants=[OTHER]))
+        self.assertEqual(self.files(self.lwr)['DefaultMaps.ini'], before['DefaultMaps.ini'])
+        # nothing changes while XCOM runs
+        self.running = True
+        with self.assertRaises(ProjectError) as error: manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        self.assertIn('XCOM is running', error.exception.message)
+        self.assertEqual(self.files(self.lwr)['DefaultMaps.ini'], before['DefaultMaps.ini'])
+
+    def test_game_maps_lists_the_records_and_switches_them_off_and_on(self):
+        terror, council = self.more_missions(self.lwr)
+        before = self.files(self.lwr)
+        player = self.player()
+        listed = gamemaps.listing(player)
+        bar = next(m for m in listed['maps'] if m['name'] == 'URB_Bar')
+        self.assertEqual([(r['mission'], r['inRotation'], r['state'], r['kind']) for r in bar['records']],
+                         [('Abduction', True, 'on', 'own'), ('Terror', True, 'on', 'own'), ('Council bomb', False, 'on', 'own')])
+        self.assertEqual((listed['anything'], listed['install']['ready']), (False, True))
+        # the terror record switched off: its line commented out, the others as they were
+        r = gamemaps.use(player, dict(records=[bar['records'][1]['id']], use=False))
+        self.assertEqual(r['changed'], 1)
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [record('bar'), council])
+        self.assertIn(b';' + terror, dep.lines_of(self.files(self.lwr)['DefaultMaps.ini']))
+        bar = next(m for m in r['maps'] if m['name'] == 'URB_Bar')
+        self.assertEqual([(x['state'], x['manual']) for x in bar['records']], [('on', False), ('off', True), ('on', False)])
+        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
+        # a build replaces Bar: every record of Bar's is off and says by whom, the build's records are listed under it
+        self.package()
+        manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        bar = next(m for m in gamemaps.listing(player)['maps'] if m['name'] == 'URB_Bar')
+        self.assertEqual([(x['state'], x['by']) for x in bar['records'][:3]], [('replaced', ['Bar remix'])] * 3)
+        self.assertEqual([(x['kind'], x['variant'], x['mode'], x['mission']) for x in bar['records'][3:]],
+                         [('rotation', VARIANT, 'replace', m) for m in ('Abduction', 'Terror', 'Council bomb')])
+        # switching the terror record on while replaced leaves it off; undoing the build brings back all but it...
+        r = gamemaps.use(player, dict(records=[bar['records'][1]['id']], use=True))
+        self.assertEqual((r['replaced'], self.records(self.lwr, 'URB_Bar')), (1, []))
+        gamemaps.use(player, dict(records=[bar['records'][1]['id']], use=False))
+        gamemaps.undo(player, dict(variants=[VARIANT]))
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [record('bar'), council])
+        # ...and switched on again the file is the install's own
+        r = gamemaps.use(player, dict(records=[bar['records'][1]['id']], use=True))
+        self.assertEqual(self.files(self.lwr)['DefaultMaps.ini'], before['DefaultMaps.ini'])
+        # Undo everything brings switched-off records back too
+        gamemaps.use(player, dict(records=[x['id'] for x in bar['records'][:3]], use=False))
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [])
+        self.assertEqual(player.remove()['removed']['recordsBack'], 3)
+        self.assertEqual(self.files(self.lwr), before)
+        with self.assertRaises(ProjectError): gamemaps.use(player, dict(records=['nothing'], use=False))
+
+    def test_a_pack_zips_the_builds_with_the_lines_for_the_mode(self):
+        self.more_missions(self.lwr)
+        before = self.files(self.lwr)
+        player = self.player()
+        with self.assertRaises(ProjectError) as error: manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        self.assertEqual(error.exception.status, 409)
+        self.package()
+        self.second()
+        self.store.save(UNBUILT_ID, dict(document(output=dict(shipAs='URB_Bar_Unbuilt_9', patch='patch_x')), id=UNBUILT_ID, name='Unbuilt'), 0)
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID, UNBUILT_ID], mode='replace', name='My: pack?'))
+        self.assertEqual(([p['variant'] for p in r['packed']], [s['name'] for s in r['skipped']], r['name']),
+                         ([VARIANT, OTHER], ['Unbuilt'], 'My pack'))
+        target = Path(r['zip'])
+        self.assertEqual(target.parent, self.output / manager.PACKS)
+        with zipfile.ZipFile(target) as z:
+            names = set(z.namelist())
+            readme = z.read('README.txt').decode('latin-1')
+            described = json.loads(z.read('pack.json'))
+            self.assertEqual(z.read(f'XEW/XComGame/CookedPCConsole/{OTHER}.upk'), b'second map')
+        self.assertLessEqual({'README.txt', 'pack.json', f'XEW/XComGame/CookedPCConsole/{VARIANT}.upk',
+                              f'XEW/XComGame/CookedPCConsole/CIN_DropshipIntros_{VARIANT}.upk',
+                              f'packages/{VARIANT}/manifest.json', f'packages/{OTHER}/manifest.json'}, names)
+        self.assertEqual((described['schema'], described['mode'], [m['variant'] for m in described['maps']]),
+                         (manager.PACK_SCHEMA, 'replace', [VARIANT, OTHER]))
+        self.assertEqual([m['donors'] for m in described['maps']], [[], []])      # no piece of another map in either
+        # the README has each variant's records, Bar's records to take out of rotation and the landing zones
+        self.assertIn(f'Name="{VARIANT}"', readme)
+        self.assertIn(f'DisplayName="{OTHER} (Second bar, Terror) |0"', readme)
+        self.assertIn('URB_Bar_Terror (Terror) |0', readme)
+        self.assertIn('     URB_Bar_Bomb (Bomb) |0', readme)             # the council record is commented out too
+        self.assertIn(f'Name="{VARIANT}",', readme)
+        self.assertEqual(readme.count('DisplayName="URB_Bar_Bomb (Bomb) |0"'), 2)      # each variant's council record takes its name
+        self.assertIn(f'LZArray=(MapName="{VARIANT}"', readme)
+        self.assertEqual(described['maps'][0]['switch'], [dep.field(record('bar'), 'DisplayName'), 'URB_Bar_Terror (Terror) |0', 'URB_Bar_Bomb (Bomb) |0'])
+        self.assertEqual(self.files(self.lwr), before)                    # a pack installs nothing
+        # additional: nothing of the base map's to change
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        with zipfile.ZipFile(r['zip']) as z: readme = z.read('README.txt').decode('latin-1')
+        self.assertNotIn('comment out', readme)
+        self.assertEqual(r['name'], 'Bar remix')
+
+    def run_script(self, folder, name, game):
+        """A pack's Install.cmd or Uninstall.cmd run on a game folder: its output."""
+        done = subprocess.run(['cmd', '/c', str(folder / name), str(game)], capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done.stdout
+
+    @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_packs_scripts_install_it_as_the_editor_does_and_take_it_out_byte_for_byte(self):
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        self.more_missions(self.lwr)
+        self.more_missions(self.copy)
+        before = self.files(self.copy)
+        cooked = self.copy / 'XEW/XComGame/CookedPCConsole'
+        player = self.player()
+        self.package()
+        self.second()
+        # all replacing, all additional, and one of each in one pack
+        for mode, modes in (('replace', {}), ('additional', {}), ('mixed', {ID: 'replace'})):
+            request = dict(projects=[ID, OTHER_ID], mode='additional' if modes else mode, modes=modes)
+            r = manager.pack(self.store, self.builds, player, dict(request, name=f'Two bars {mode}'))
+            self.assertEqual((r['mode'], [p['mode'] for p in r['packed']]),
+                             (mode, ['replace', 'additional'] if modes else [mode, mode]))
+            folder = Path(self.temp.name) / f'unzipped {mode}'
+            with zipfile.ZipFile(r['zip']) as z:
+                self.assertLessEqual({'Install.cmd', 'Uninstall.cmd', 'pack-tools/pack.ps1'}, set(z.namelist()))
+                z.extractall(folder)
+            # the scripts in one game folder, the editor in the other: the same config files
+            out = self.run_script(folder, 'Install.cmd', self.copy)
+            self.assertIn('Installed 2 map(s)', out)
+            done = manager.install(self.store, self.builds, player, request)
+            self.assertEqual([x['mode'] for x in done['results']], [p['mode'] for p in r['packed']])
+            self.assertEqual(self.files(self.copy), self.files(self.lwr))
+            self.assertEqual(len(self.records(self.copy, 'URB_Bar')), 3 if mode == 'additional' else 0)
+            if modes:
+                # the one that replaces has Bar's council record name, the one beside it a name of its own
+                self.assertEqual([dep.field(self.records(self.copy, v)[2], 'DisplayName') for v in (VARIANT, OTHER)],
+                                 ['URB_Bar_Bomb (Bomb) |0', f'{OTHER}_Bomb (Second bar, Council bomb) |0'])
+                self.assertEqual([(self.row(done, i)['inGame']['rotation']) for i in (ID, OTHER_ID)], ['replace', 'additional'])
+                with zipfile.ZipFile(r['zip']) as z: readme = z.read('README.txt').decode('latin-1')
+                self.assertIn('some replacing the original maps, some as additional maps', readme)
+                self.assertIn(f'a variant of URB_Bar, replacing it', readme)
+                self.assertIn(f'a variant of URB_Bar, beside it', readme)
+            self.assertEqual((cooked / f'{OTHER}.upk').read_bytes(), b'second map')
+            packs = self.copy / 'XCOM Map Workshop/packs'
+            self.assertEqual((packs / f'Two-bars-{mode}-{Path(r["zip"]).stem[-15:]}-before' / 'DefaultMaps.ini').read_bytes(), before['DefaultMaps.ini'])
+            # installed again over itself: no second set of records
+            self.run_script(folder, 'Install.cmd', self.copy)
+            self.assertEqual(self.files(self.copy), self.files(self.lwr))
+            # taken out: the config files byte for byte as before, the files gone, nothing left behind
+            out = self.run_script(folder, 'Uninstall.cmd', self.copy)
+            self.assertIn('exactly as it was before the pack', out)
+            self.assertEqual(self.files(self.copy), before)
+            self.assertFalse((cooked / f'{VARIANT}.upk').exists() or (cooked / f'{OTHER}.upk').exists())
+            self.assertEqual(list(packs.iterdir()), [])
+            self.assertIn('not installed', self.run_script(folder, 'Uninstall.cmd', self.copy))
+            installs.reset(self.lwr)
+        # a game with no record for the base map: nothing is changed
+        maps = self.copy / 'XEW/XComGame/Config/DefaultMaps.ini'
+        maps.write_bytes(dep.EOL.join(l for l in dep.lines_of(maps.read_bytes()) if dep.field(l, 'Name') != 'URB_Bar'))
+        bare = self.files(self.copy)
+        done = subprocess.run(['cmd', '/c', str(folder / 'Install.cmd'), str(self.copy)], capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('no record for its base map', done.stdout)
+        self.assertEqual(self.files(self.copy), bare)
+
+    def test_a_packs_scripts_and_the_editor_install_a_projects_own_landing_zones_alike(self):
+        """Clear map plan, step C7: the project's own lines, on a game whose landing-zone file has none for the base
+        map (they go at its end), by the pack's scripts and by the editor, and out again byte for byte."""
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        for game in (self.lwr, self.copy):
+            (game / 'XEW/XComGame/Config/DefaultLZMutator.ini').write_bytes(
+                dep.EOL.join([b'[XComLZMutator.XComLZMutator]', b'LZArray=(MapName="URB_Other",StartLoc=(X=1,Y=2,Z=3))', b'']))
+        before = self.files(self.copy)
+        player = self.player()
+        lines = ['LZArray=(MapName="%s",ESpawnLoc=ESL_Normal,StartLoc=(X=1103,Y=1583,Z=64),StartDir=ELZD_East)' % VARIANT]
+        self.package(zones=lines)
+        request = dict(projects=[ID], mode='additional', modes={})
+        r = manager.pack(self.store, self.builds, player, dict(request, name='Own zones'))
+        folder = Path(self.temp.name) / 'unzipped own zones'
+        with zipfile.ZipFile(r['zip']) as z:
+            z.extractall(folder)
+        packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
+        self.assertEqual((packed['landingZones'][1:], packed['ownZones']), (lines, True))
+        self.run_script(folder, 'Install.cmd', self.copy)
+        manager.install(self.store, self.builds, player, request)
+        self.assertEqual(self.files(self.copy), self.files(self.lwr))
+        lz = dep.lines_of(self.files(self.copy)['DefaultLZMutator.ini'])
+        self.assertEqual(lz[-2], lines[0].encode())
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual(self.files(self.copy), before)
+
+    def test_the_routes_change_things_only_for_the_viewer_itself(self):
+        player = self.player()
+        self.package()
+        server = LocalServer(('127.0.0.1', 0), partial(Handler, catalogue=self.catalogue, projects=self.store,
+                                                       builds=self.builds, player=player))
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            def call(method, path, body=None, origin=None):
+                request = Request(base + path, method=method, data=None if body is None else json.dumps(body).encode(),
+                                  headers={'Content-Type': 'application/json', **({'Origin': origin} if origin else {})})
+                try:
+                    with urlopen(request, timeout=10) as r: return r.status, json.loads(r.read())
+                except HTTPError as e: return e.code, json.loads(e.read())
+            status, listed = call('GET', '/manager.json')
+            self.assertEqual((status, self.row(listed)['build']['buildId']), (200, f'{VARIANT}-1'))
+            self.assertEqual(call('POST', '/manager/install', dict(projects=[ID], mode='replace'), origin='http://evil.example')[0], 403)
+            self.assertEqual(call('POST', '/manager/install', dict(projects=[ID]))[0], 400)
+            self.assertEqual(call('POST', '/manager/install', dict(projects=[ID], mode='replace', modes={ID: 'sideways'}))[0], 400)
+            self.assertEqual(call('POST', '/manager/install', dict(projects=[], mode='replace'))[0], 400)
+            self.assertEqual(call('GET', '/manager/install')[0], 405)
+            self.assertEqual(self.records(self.lwr, VARIANT), [])
+            status, r = call('POST', '/manager/install', dict(projects=[ID], mode='additional'))
+            self.assertEqual((status, r['results'][0]['ok'], len(self.records(self.lwr, VARIANT))), (200, True, 1))
+            status, r = call('POST', '/manager/pack', dict(projects=[ID], mode='additional'))
+            self.assertEqual((status, Path(r['zip']).is_file()), (200, True))
+            status, listed = call('GET', '/gamemaps.json')
+            bar = next(m for m in listed['maps'] if m['name'] == 'URB_Bar')
+            self.assertEqual((status, [x['kind'] for x in bar['records']]), (200, ['own', 'rotation']))
+            self.assertEqual(call('POST', '/gamemaps/undo', dict(variants=[VARIANT]), origin='http://evil.example')[0], 403)
+            self.assertEqual(call('POST', '/gamemaps/use', dict(records=[bar['records'][0]['id']]))[0], 400)
+            status, r = call('POST', '/gamemaps/use', dict(records=[bar['records'][0]['id']], use=False))
+            self.assertEqual((status, r['changed'], self.records(self.lwr, 'URB_Bar')), (200, 1, []))
+            status, r = call('POST', '/gamemaps/undo', dict(variants=[VARIANT]))
+            self.assertEqual((status, r['undone'], self.records(self.lwr, VARIANT)), (200, [VARIANT], []))
+        finally:
+            server.shutdown(); server.server_close(); thread.join(timeout=5)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,0 +1,8 @@
+{
+ "copies": [
+  {"actor": "XComLevelActor_15", "donor": {"package": "URB_PoliceStation"},
+   "location": [1300.0, -640.0, 0.0], "rotation": [0, 0, 0], "label": "lamp post (URB_PoliceStation)"},
+  {"actor": "XComLevelActor_106", "donor": {"package": "CAbductor_Cliffside"},
+   "location": [1150.0, -900.0, 0.0], "rotation": [0, 0, 0], "label": "alien wall (CAbductor_Cliffside)"}
+ ]
+}

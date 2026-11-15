@@ -1,0 +1,17 @@
+{"map": "URB_Bar_X38", "shots": [
+ {"out": "EXP-38-run1-overview.png", "title": "EXP-38 run 1: the two props from other maps, their lighting baked for the bar's car park",
+  "target": [300, -300, 0], "camera": [0, -300, 5200],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 60], "color": "#5ad17a", "r": 44, "side": "left",
+    "text": "the lamp post from URB_PoliceStation: lit as the car park's own pieces beside it"},
+   {"n": "2", "at": [1010, -900, 60], "color": "#ef6f6c", "r": 60,
+    "text": "the alien wall panel from CAbductor_Cliffside: lit as the car park, no longer as the alien ship"}]},
+ {"out": "EXP-38-run1-close.png", "title": "EXP-38 run 1: seen from the bar's front door, looking at the street",
+  "target": [1100, -800, 80], "camera": [-150, 1000, 550],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 150], "color": "#5ad17a", "r": 80, "side": "left",
+    "text": "lamp post: no brighter and no darker than the cars and the kerb around it"},
+   {"n": "2", "at": [1010, -900, 100], "color": "#ef6f6c", "r": 110,
+    "text": "alien wall: the car park's dim light on it, darker on the side away from the moon; no bright patch, no black one"},
+   {"n": "3", "at": [1150, -760, 5], "color": "#f2c14e", "r": 90,
+    "text": "the ground between them: each prop's shadow lies on it, as the cars' shadows do"}]}]}

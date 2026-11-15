@@ -1,0 +1,10 @@
+{"map": "URB_Bar_X41", "shots": [
+ {"out": "EXP-41-run1-carpark.png", "title": "EXP-41 run 1: a linked prop and two prefab pieces from other maps",
+  "target": [1250, -830, 60], "camera": [-500, 900, 650],
+  "marks": [
+   {"n": "1", "at": [1296, -625, 40], "color": "#5ad17a", "r": 70, "side": "left",
+    "text": "barrels on a pallet from URB_MilitaryAmmo (a prop that listed what it takes down): cover; breaks when shot"},
+   {"n": "2", "at": [1447, -973, 90], "color": "#f2c14e", "r": 90,
+    "text": "the side wall of a shipping container from URB_PierA_Terror (placed by a prefab): cover; breaks"},
+   {"n": "3", "at": [1060, -580, 100], "color": "#6fb7ef", "r": 90, "side": "left",
+    "text": "the rear door of a semi-trailer from URB_Highway1 (placed by a prefab): cover; breaks"}]}]}

@@ -1,0 +1,136 @@
+{
+  "note": "EXP-07 step 3b, the one-block test. patch_exp07hide's hider takes the bar out of play (it now keeps the map-wide cursor volumes, and leaves the patch's own volumes and moved pieces alone). The bar's west block (12 x 12 tiles, pivot (-1056, 672, 16)) is copied onto the cleared ground where the east block stood, centred at (192, 672), turned 90 degrees: its walls (back, front, west end wall, two inner walls), ground floor slab, upper slab strip, roof floor and parapets, ceiling beams, three windows and five door frames. Its five doors and its ladder to the roof are moved there, as themselves. A second copy, turned 270 degrees, puts the end wall, its parapet and its door frame on the side the block was open (it joined the east block there). The copy gets its own building volume, with the west block's three floors of floor volumes moved and turned along; the copier rebuilds its floor caches (RebuildCachedActors) for the cutaway. patchtool seeds every copied piece's tiles (map.name). Run 14: the copies take their sources' entries from the bar's baked floor caches into the new building (RebuildCachedActors found none of them in run 13), moved pieces leave the bar's caches, the closing copy joins the building and adds the back return at its corner (XComDecoFracLevelActor_8, the gap in run 13). Its doorway stays open: the block's five single doors are all used. Run 16, diagnostic: the copier logs A* paths from each ladder's bottom to its top (the moved XComLadder_3 and the hidden bar's XComLadder_4) at load and 5 s later, and every pawn's building and floor volumes whenever they change, and what touches the new building's floor volumes (run 15: links moved, ladder still not climbable; caches filled, roof still not cut away).",
+  "name": "patch_exp07block",
+  "base": "patch_bar",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "tileSize": 96
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_7",
+        "XComDecoFracLevelActor_8",
+        "XComDecoFracLevelActor_9",
+        "XComDecoFracLevelActor_10",
+        "XComDecoFracLevelActor_11",
+        "XComDecoFracLevelActor_12",
+        "XComDecoFracLevelActor_13",
+        "XComDecoFracLevelActor_15",
+        "XComDecoFracLevelActor_16",
+        "XComDecoFracLevelActor_17",
+        "XComLevelActor_91",
+        "XComFracLevelActor_17",
+        "XComLevelActor_4",
+        "XComFracLevelActor_3",
+        "XComFracLevelActor_4",
+        "XComFracLevelActor_6",
+        "XComFracLevelActor_18",
+        "XComFracLevelActor_202",
+        "XComFracLevelActor_203",
+        "XComDestructibleActor_158",
+        "XComDestructibleActor_161",
+        "XComDestructibleActor_142",
+        "XComDestructibleActor_60",
+        "XComDestructibleActor_31",
+        "XComDestructibleActor_65",
+        "XComDestructibleActor_30",
+        "XComDestructibleActor_502",
+        "XComInteractiveLevelActor_26",
+        "XComInteractiveLevelActor_6",
+        "XComInteractiveLevelActor_5",
+        "XComInteractiveLevelActor_7",
+        "XComInteractiveLevelActor_4"
+      ],
+      "pivot": [-1056, 672, 16],
+      "location": [192, 672, 16],
+      "yaw": 90,
+      "building": {
+        "floors": [
+          [
+            "XComFloorVolume_15",
+            "XComFloorVolume_17"
+          ],
+          [
+            "XComFloorVolume_16"
+          ],
+          [
+            "XComFloorVolume_7"
+          ]
+        ]
+      },
+      "extra": [
+        "bLogTiles=False",
+        "bProbeIndoor=True",
+        "PathProbes(0)=(X=528,Y=0,Z=16)",
+        "PathProbes(1)=(X=528,Y=150,Z=410)",
+        "PathProbes(2)=(X=432,Y=1330,Z=16)",
+        "PathProbes(3)=(X=432,Y=1200,Z=410)",
+        "PathProbes(4)=(X=192,Y=672,Z=410)",
+        "PathProbes(5)=(X=528,Y=144,Z=410)",
+        "PathProbes(6)=(X=528,Y=0,Z=16)",
+        "PathProbes(7)=(X=192,Y=672,Z=410)",
+        "bLogLadders=True",
+        "FloorProbes(0)=(X=528,Y=32,Z=24)",
+        "FloorProbes(1)=(X=528,Y=144,Z=410)",
+        "FloorProbes(2)=(X=192,Y=672,Z=410)",
+        "FloorProbes(3)=(X=432,Y=1312,Z=24)",
+        "FloorProbes(4)=(X=432,Y=1200,Z=410)",
+        "FloorProbes(5)=(X=-1584,Y=336,Z=410)",
+        "FloorProbes(6)=(X=432,Y=144,Z=410)",
+        "FloorProbes(7)=(X=624,Y=144,Z=410)",
+        "FloorProbes(8)=(X=144,Y=144,Z=410)",
+        "FloorProbes(9)=(X=528,Y=240,Z=410)"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_15",
+        "XComDecoFracLevelActor_8",
+        "XComFracLevelActor_18",
+        "XComDestructibleActor_31",
+        "XComFracLevelActor_202"
+      ],
+      "pivot": [-1056, 672, 16],
+      "location": [192, 672, 16],
+      "yaw": 270,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 0
+    },
+    {
+      "type": "hide",
+      "location": [-467, 627, 320],
+      "half": [1392, 784, 320]
+    },
+    {
+      "type": "bake",
+      "actor": "XComLadder_4",
+      "location": [528, 48, 16],
+      "yaw": 90,
+      "join": 0,
+      "note": "The block's ladder: the bar's north ladder, baked into the map where XComLadder_3's copy stood in run 16, with its climb links moved along (F-30)."
+    },
+    {
+      "type": "bake",
+      "actor": "XComLadder_3",
+      "location": [-1680, 336, -4000],
+      "links": false,
+      "note": "The bar's west ladder, out of the way under the map; its old climb links stay (to be removed later)."
+    },
+    {
+      "type": "ladder",
+      "location": [524, 68, 14],
+      "yaw": 90,
+      "hidden": true,
+      "note": "The block's pathing ladder, placed in the patch as patch_bar places XComLadder_15 beside the bar's XComLadder_4 (moved and turned like it). Run 18-19: with collision on it blocked its own top tile (34, 21, 6); the hider now takes its collision off, as it does XComLadder_15's."
+    }
+  ]
+}

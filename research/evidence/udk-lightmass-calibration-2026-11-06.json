@@ -1,0 +1,6745 @@
+{
+ "description": "UDK 2011-09 Lightmass calibration bakes (EXP-18): per receiver, the light direction in the top-face tangent frame and the median top-face texels and slot scales of the three lightmap textures (BakeCalib2-5); for point and spot lights (BakeCalib6-7), per floor the light and how the fitted model compares texel by texel. Own scenes; no game data.",
+ "bakes": {
+  "BakeCalib2": {
+   "spec": "tools/bake/examples/udk-calib1.json",
+   "baseMap": "CalibBase (udk_calib_base.py from BakeCalib1)",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "receivers": [
+    {
+     "name": "yaw000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        1.0,
+        1.390712,
+        1.065366
+       ],
+       "texels": {
+        "median": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "min": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "max": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.7451,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw045",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.5,
+      -0.5,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        1.0,
+        1.472205,
+        1.10066
+       ],
+       "texels": {
+        "median": [
+         0.23529,
+         1.0,
+         0.64706
+        ],
+        "min": [
+         0.23529,
+         1.0,
+         0.64706
+        ],
+        "max": [
+         0.23529,
+         1.0,
+         0.64706
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.77647,
+         0.76471,
+         0.77647
+        ],
+        "max": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      -0.707107,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.0,
+        1.076926,
+        1.071114
+       ],
+       "texels": {
+        "median": [
+         0.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         0.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.86275,
+         0.86275,
+         0.86275
+        ],
+        "min": [
+         0.77647,
+         0.78039,
+         0.77647
+        ],
+        "max": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw135",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.5,
+      -0.5,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.0,
+        1.097634,
+        1.466928
+       ],
+       "texels": {
+        "median": [
+         0.21569,
+         0.64706,
+         1.0
+        ],
+        "min": [
+         0.21569,
+         0.64706,
+         1.0
+        ],
+        "max": [
+         0.21569,
+         0.64706,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.86275,
+         0.86275,
+         0.86275
+        ],
+        "min": [
+         0.77647,
+         0.78039,
+         0.77647
+        ],
+        "max": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw180",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_6",
+       "scale": [
+        1.0,
+        1.071182,
+        1.387185
+       ],
+       "texels": {
+        "median": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "min": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "max": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.86275,
+         0.86275,
+         0.86275
+        ],
+        "min": [
+         0.80784,
+         0.81176,
+         0.80784
+        ],
+        "max": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw225",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.5,
+      0.5,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_6",
+       "scale": [
+        1.245916,
+        1.103354,
+        1.094981
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.0,
+         0.90196
+        ],
+        "min": [
+         1.0,
+         0.0,
+         0.90196
+        ],
+        "max": [
+         1.0,
+         0.0,
+         0.90196
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.77647,
+         0.78039,
+         0.77647
+        ],
+        "max": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw270",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.707107,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.5049,
+        1.071159,
+        1.071137
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "min": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "max": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.72941,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.92157,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "yaw315",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.5,
+      0.5,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.271928,
+        1.103343,
+        1.10067
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.89804,
+         0.0
+        ],
+        "min": [
+         1.0,
+         0.89804,
+         0.0
+        ],
+        "max": [
+         1.0,
+         0.89804,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.87059,
+         0.87059
+        ],
+        "min": [
+         0.77647,
+         0.78039,
+         0.77647
+        ],
+        "max": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "tilt_face",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_5",
+       "scale": [
+        1.148562,
+        1.152477,
+        1.162974
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.97647,
+         0.97647,
+         0.97647
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "tilt_half",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.382683,
+      0.0,
+      0.92388
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        1.011293,
+        1.497644,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.75294
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.75294
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.75294
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.96863,
+         0.96863,
+         0.96863
+        ],
+        "min": [
+         0.90588,
+         0.8902,
+         0.90588
+        ],
+        "max": [
+         0.96863,
+         0.98431,
+         0.96863
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "tilt_low",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.92388,
+      0.0,
+      0.382683
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        1.0,
+        1.298149,
+        1.285153
+       ],
+       "texels": {
+        "median": [
+         0.51765,
+         0.82745,
+         0.01961
+        ],
+        "min": [
+         0.51765,
+         0.82745,
+         0.0
+        ],
+        "max": [
+         0.52549,
+         0.82745,
+         0.03137
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.67843,
+         0.68235,
+         0.67843
+        ],
+        "min": [
+         0.41961,
+         0.42745,
+         0.41961
+        ],
+        "max": [
+         0.77647,
+         0.76471,
+         0.74118
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "tilt_wall",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_7",
+       "scale": [
+        1.0,
+        1.071182,
+        1.387185
+       ],
+       "texels": {
+        "median": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "min": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "max": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.86275,
+         0.86275,
+         0.86275
+        ],
+        "min": [
+         0.80784,
+         0.81176,
+         0.80784
+        ],
+        "max": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    }
+   ]
+  },
+  "BakeCalib3": {
+   "spec": "tools/bake/examples/udk-calib2.json",
+   "baseMap": "CalibBase (udk_calib_base.py from BakeCalib1)",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "receivers": [
+    {
+     "name": "e05a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.996197,
+      0.087135
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_11",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_11",
+       "scale": [
+        1.005496,
+        1.212478,
+        1.221987
+       ],
+       "texels": {
+        "median": [
+         0.61176,
+         0.0,
+         0.0
+        ],
+        "min": [
+         0.61176,
+         0.0,
+         0.0
+        ],
+        "max": [
+         0.61176,
+         0.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_11",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.41569,
+         0.41569,
+         0.41569
+        ],
+        "min": [
+         0.0,
+         0.01569,
+         0.0
+        ],
+        "max": [
+         0.58039,
+         0.57255,
+         0.58039
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e05a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.862751,
+      0.49806,
+      0.087161
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_11",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_11",
+       "scale": [
+        1.0,
+        1.109232,
+        1.567713
+       ],
+       "texels": {
+        "median": [
+         0.47059,
+         0.44314,
+         0.0
+        ],
+        "min": [
+         0.47059,
+         0.44314,
+         0.0
+        ],
+        "max": [
+         0.47059,
+         0.44314,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_11",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.41961,
+         0.41961,
+         0.41961
+        ],
+        "min": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "max": [
+         0.54902,
+         0.55686,
+         0.54902
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e05a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.862751,
+      -0.49806,
+      0.087161
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.0,
+        1.564939,
+        1.1118
+       ],
+       "texels": {
+        "median": [
+         0.0,
+         0.49412,
+         0.0
+        ],
+        "min": [
+         0.0,
+         0.49412,
+         0.0
+        ],
+        "max": [
+         0.0,
+         0.49412,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.40784,
+         0.40784,
+         0.40784
+        ],
+        "min": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "max": [
+         0.54902,
+         0.55686,
+         0.54902
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e05a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.996197,
+      0.0,
+      0.087135
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.005496,
+        1.212482,
+        1.221983
+       ],
+       "texels": {
+        "median": [
+         0.19216,
+         0.0,
+         0.51373
+        ],
+        "min": [
+         0.19216,
+         0.0,
+         0.51373
+        ],
+        "max": [
+         0.19216,
+         0.0,
+         0.51373
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.39608,
+         0.39608,
+         0.39608
+        ],
+        "min": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "max": [
+         0.67843,
+         0.68235,
+         0.67843
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.965918,
+      0.25885
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_7",
+       "scale": [
+        1.0,
+        1.282782,
+        1.290004
+       ],
+       "texels": {
+        "median": [
+         0.85098,
+         0.0,
+         0.0
+        ],
+        "min": [
+         0.85098,
+         0.0,
+         0.0
+        ],
+        "max": [
+         0.85098,
+         0.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.58824,
+         0.58824,
+         0.58824
+        ],
+        "min": [
+         0.19216,
+         0.18824,
+         0.19216
+        ],
+        "max": [
+         0.7098,
+         0.71373,
+         0.7098
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.836517,
+      0.482952,
+      0.258838
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_7",
+       "scale": [
+        1.0,
+        1.132268,
+        1.604563
+       ],
+       "texels": {
+        "median": [
+         0.67451,
+         0.63529,
+         0.0
+        ],
+        "min": [
+         0.67451,
+         0.63529,
+         0.0
+        ],
+        "max": [
+         0.67451,
+         0.63529,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_7",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.59216,
+         0.59216,
+         0.59216
+        ],
+        "min": [
+         0.22353,
+         0.21961,
+         0.22353
+        ],
+        "max": [
+         0.67843,
+         0.68235,
+         0.67843
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.836517,
+      -0.482952,
+      0.258838
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_10",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_10",
+       "scale": [
+        1.0,
+        1.603251,
+        1.133963
+       ],
+       "texels": {
+        "median": [
+         0.0,
+         0.68627,
+         0.13725
+        ],
+        "min": [
+         0.0,
+         0.68235,
+         0.05098
+        ],
+        "max": [
+         0.0,
+         0.68627,
+         0.13725
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_10",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.58824,
+         0.58824,
+         0.58824
+        ],
+        "min": [
+         0.2902,
+         0.27059,
+         0.2902
+        ],
+        "max": [
+         0.67843,
+         0.68235,
+         0.67843
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.965918,
+      0.0,
+      0.25885
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_10",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_10",
+       "scale": [
+        1.0,
+        1.282793,
+        1.289994
+       ],
+       "texels": {
+        "median": [
+         0.38824,
+         0.02353,
+         0.7098
+        ],
+        "min": [
+         0.38431,
+         0.0,
+         0.7098
+        ],
+        "max": [
+         0.38824,
+         0.07843,
+         0.7098
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_10",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.58039,
+         0.57647,
+         0.58039
+        ],
+        "min": [
+         0.45098,
+         0.44314,
+         0.45098
+        ],
+        "max": [
+         0.77647,
+         0.76471,
+         0.77647
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.866041,
+      0.499972
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_12",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_12",
+       "scale": [
+        1.18566,
+        1.254368,
+        1.257803
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "min": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "max": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_12",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.75294,
+         0.75686,
+         0.75294
+        ],
+        "min": [
+         0.54902,
+         0.55686,
+         0.54902
+        ],
+        "max": [
+         0.83922,
+         0.84314,
+         0.83922
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.750012,
+      0.432991,
+      0.500001
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_12",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_12",
+       "scale": [
+        1.0,
+        1.053539,
+        1.499173
+       ],
+       "texels": {
+        "median": [
+         0.89412,
+         0.87059,
+         0.0
+        ],
+        "min": [
+         0.89412,
+         0.87059,
+         0.0
+        ],
+        "max": [
+         0.89412,
+         0.87059,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_12",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.75294,
+         0.75686,
+         0.75294
+        ],
+        "min": [
+         0.58039,
+         0.58824,
+         0.58039
+        ],
+        "max": [
+         0.83922,
+         0.82745,
+         0.83922
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.750012,
+      -0.432991,
+      0.500001
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_13",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_13",
+       "scale": [
+        1.0,
+        1.499914,
+        1.052635
+       ],
+       "texels": {
+        "median": [
+         0.0,
+         0.89412,
+         0.0
+        ],
+        "min": [
+         0.0,
+         0.89412,
+         0.0
+        ],
+        "max": [
+         0.0,
+         0.89412,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_13",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.75294,
+         0.75294,
+         0.75294
+        ],
+        "min": [
+         0.58039,
+         0.57255,
+         0.58039
+        ],
+        "max": [
+         0.80784,
+         0.82745,
+         0.80784
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.866041,
+      0.0,
+      0.499972
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_13",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_13",
+       "scale": [
+        1.0,
+        1.254387,
+        1.257784
+       ],
+       "texels": {
+        "median": [
+         0.61176,
+         0.02353,
+         0.93725
+        ],
+        "min": [
+         0.61176,
+         0.0,
+         0.92549
+        ],
+        "max": [
+         0.62353,
+         0.07843,
+         0.93725
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_13",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.75294,
+         0.74902,
+         0.75294
+        ],
+        "min": [
+         0.67843,
+         0.68235,
+         0.67843
+        ],
+        "max": [
+         0.87059,
+         0.87451,
+         0.87059
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.707107,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_14",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_14",
+       "scale": [
+        1.504901,
+        1.071159,
+        1.071137
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "min": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "max": [
+         1.0,
+         0.48627,
+         0.49412
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_14",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.72941,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.92157,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.612384,
+      0.353534,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_14",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_14",
+       "scale": [
+        1.082072,
+        1.078006,
+        1.222142
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_14",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.87059,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.76471,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.612384,
+      -0.353534,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_17",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_17",
+       "scale": [
+        1.0,
+        1.502848,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.50196,
+         1.0,
+         0.50588
+        ],
+        "min": [
+         0.50196,
+         1.0,
+         0.50588
+        ],
+        "max": [
+         0.50196,
+         1.0,
+         0.50588
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_17",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.86667,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.7451,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_6",
+       "scale": [
+        1.0,
+        1.071182,
+        1.387185
+       ],
+       "texels": {
+        "median": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "min": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "max": [
+         0.80784,
+         0.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.86275,
+         0.86275,
+         0.86275
+        ],
+        "min": [
+         0.80784,
+         0.81176,
+         0.80784
+        ],
+        "max": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.499972,
+      0.866041
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_6",
+       "scale": [
+        1.607224,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.76471,
+         0.77255
+        ],
+        "min": [
+         1.0,
+         0.76471,
+         0.77255
+        ],
+        "max": [
+         1.0,
+         0.76471,
+         0.77255
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_6",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.93725,
+         0.94118,
+         0.93725
+        ],
+        "min": [
+         0.87059,
+         0.85882,
+         0.87059
+        ],
+        "max": [
+         0.96863,
+         0.96863,
+         0.96863
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.433016,
+      0.249996,
+      0.866025
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.260618,
+        1.259438,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.49412
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.49412
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.49412
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.9451,
+         0.9451,
+         0.9451
+        ],
+        "min": [
+         0.87059,
+         0.87451,
+         0.87059
+        ],
+        "max": [
+         0.96863,
+         0.96863,
+         0.96863
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.433016,
+      -0.249996,
+      0.866025
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.0,
+        1.607406,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.76471,
+         1.0,
+         0.76471
+        ],
+        "min": [
+         0.76471,
+         1.0,
+         0.76471
+        ],
+        "max": [
+         0.77647,
+         1.0,
+         0.77647
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.93725,
+         0.94118,
+         0.93725
+        ],
+        "min": [
+         0.87059,
+         0.85882,
+         0.87059
+        ],
+        "max": [
+         0.96863,
+         0.96863,
+         0.96863
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.499972,
+      0.0,
+      0.866041
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.517185
+       ],
+       "texels": {
+        "median": [
+         0.9451,
+         0.57647,
+         1.0
+        ],
+        "min": [
+         0.9451,
+         0.57647,
+         1.0
+        ],
+        "max": [
+         0.9451,
+         0.57647,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "min": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "max": [
+         1.0,
+         0.98431,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e75a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.25885,
+      0.965918
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        1.477611,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.95294,
+         0.95686
+        ],
+        "min": [
+         1.0,
+         0.95294,
+         0.95686
+        ],
+        "max": [
+         1.0,
+         0.95294,
+         0.96863
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.98824,
+         0.98431,
+         0.98824
+        ],
+        "min": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e75a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.224152,
+      0.129432,
+      0.965921
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_8",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_8",
+       "scale": [
+        1.284026,
+        1.284971,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.83922
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.83922
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.83922
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_8",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.98824,
+         0.98431,
+         0.98824
+        ],
+        "min": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e75a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.224152,
+      -0.129432,
+      0.965921
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_8",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_8",
+       "scale": [
+        1.0,
+        1.4805,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.9451,
+         1.0,
+         0.95686
+        ],
+        "min": [
+         0.93725,
+         1.0,
+         0.95686
+        ],
+        "max": [
+         0.9451,
+         1.0,
+         0.96863
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_8",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.98824,
+         0.98431,
+         0.98824
+        ],
+        "min": [
+         0.93725,
+         0.93725,
+         0.93725
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e75a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.25885,
+      0.0,
+      0.965918
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        1.080637,
+        1.0,
+        1.435156
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.87451,
+         1.0
+        ],
+        "min": [
+         1.0,
+         0.87451,
+         1.0
+        ],
+        "max": [
+         1.0,
+         0.87451,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.98824,
+         0.98431,
+         0.98824
+        ],
+        "min": [
+         0.96863,
+         0.96863,
+         0.96863
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        1.148562,
+        1.152477,
+        1.162974
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.97647,
+         0.97647,
+         0.97647
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -1.5e-05,
+      9e-06,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_9",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_9",
+       "scale": [
+        1.148761,
+        1.152539,
+        1.162718
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_9",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.97647,
+         0.97647,
+         0.97647
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -1.5e-05,
+      -9e-06,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_9",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_9",
+       "scale": [
+        1.148735,
+        1.152736,
+        1.16255
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_9",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.97647,
+         0.97647,
+         0.97647
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_15",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_15",
+       "scale": [
+        1.148562,
+        1.152476,
+        1.162974
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_15",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         0.97647,
+         0.97647,
+         0.97647
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "flat_z0",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_5",
+       "scale": [
+        1.0,
+        1.391901,
+        1.07495
+       ],
+       "texels": {
+        "median": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "min": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "max": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.87059,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.7451,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "flat_z1500",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.707107,
+      0.0,
+      0.707107
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor0_16",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent0_16",
+       "scale": [
+        1.0,
+        1.405807,
+        1.081009
+       ],
+       "texels": {
+        "median": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "min": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "max": [
+         0.82745,
+         1.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_16",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.87059,
+         0.87059,
+         0.87059
+        ],
+        "min": [
+         0.74118,
+         0.7451,
+         0.74118
+        ],
+        "max": [
+         0.90588,
+         0.90588,
+         0.90588
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       64,
+       64
+      ],
+      "coordinateScale": [
+       0.96875,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.015625,
+       0.015625
+      ]
+     }
+    }
+   ]
+  },
+  "BakeCalib4": {
+   "spec": "tools/bake/examples/udk-calib3.json",
+   "baseMap": "CalibBase (udk_calib_base.py from BakeCalib1)",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "receivers": [
+    {
+     "name": "e30a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.866041,
+      0.499972
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.50196,
+         0.24706
+        ],
+        "min": [
+         1.0,
+         0.49412,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.50196,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        2.371321,
+        2.508736,
+        2.515606
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "min": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "max": [
+         1.0,
+         0.0,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.760047,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.80392,
+         0.52157,
+         0.25882
+        ],
+        "min": [
+         0.58039,
+         0.38039,
+         0.19216
+        ],
+        "max": [
+         0.87059,
+         0.57255,
+         0.2902
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.750012,
+      0.432991,
+      0.500001
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.49412,
+         0.25882
+        ],
+        "min": [
+         1.0,
+         0.49412,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.50196,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        1.563566,
+        2.107494,
+        2.998347
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.87451,
+         0.0
+        ],
+        "min": [
+         1.0,
+         0.87059,
+         0.0
+        ],
+        "max": [
+         1.0,
+         0.87451,
+         0.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.729133,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.80784,
+         0.52157,
+         0.25882
+        ],
+        "min": [
+         0.61176,
+         0.39608,
+         0.19216
+        ],
+        "max": [
+         0.87059,
+         0.57255,
+         0.2902
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.499972,
+      0.866041
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.4902,
+         0.25882
+        ],
+        "min": [
+         1.0,
+         0.4902,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.49804,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        3.214539,
+        1.537311,
+        1.532643
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.86275,
+         0.87059
+        ],
+        "min": [
+         1.0,
+         0.86275,
+         0.87059
+        ],
+        "max": [
+         1.0,
+         0.86275,
+         0.87059
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.966058,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.9451,
+         0.64706,
+         0.32157
+        ],
+        "min": [
+         0.87059,
+         0.58824,
+         0.2902
+        ],
+        "max": [
+         0.96863,
+         0.66667,
+         0.32157
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.433016,
+      0.249996,
+      0.866025
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.49804,
+         0.25882
+        ],
+        "min": [
+         1.0,
+         0.49412,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.50196,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        2.521236,
+        2.518875,
+        1.664898
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.54902
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.53725
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.54902
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.941622,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.95686,
+         0.64706,
+         0.32157
+        ],
+        "min": [
+         0.87059,
+         0.58824,
+         0.2902
+        ],
+        "max": [
+         0.96863,
+         0.66667,
+         0.32157
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.49804,
+         0.24706
+        ],
+        "min": [
+         1.0,
+         0.4902,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.49804,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        2.301013,
+        2.304953,
+        2.336075
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        2.004317,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.68627,
+         0.34118
+        ],
+        "min": [
+         0.97647,
+         0.67059,
+         0.32941
+        ],
+        "max": [
+         1.0,
+         0.68627,
+         0.34118
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.836517,
+      -0.482952,
+      0.258838
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.49804,
+         0.24706
+        ],
+        "min": [
+         1.0,
+         0.4902,
+         0.24706
+        ],
+        "max": [
+         1.0,
+         0.49804,
+         0.25882
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.0,
+        3.206502,
+        2.265841
+       ],
+       "texels": {
+        "median": [
+         0.0,
+         0.68627,
+         0.03922
+        ],
+        "min": [
+         0.0,
+         0.68235,
+         0.01961
+        ],
+        "max": [
+         0.0,
+         0.68627,
+         0.03922
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.923727,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.6,
+         0.4,
+         0.2
+        ],
+        "min": [
+         0.25882,
+         0.17255,
+         0.09412
+        ],
+        "max": [
+         0.7098,
+         0.47451,
+         0.22353
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    }
+   ]
+  },
+  "BakeCalib5": {
+   "spec": "tools/bake/examples/udk-calib4.json",
+   "baseMap": "CalibBase (udk_calib_base.py from BakeCalib1)",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "receivers": [
+    {
+     "name": "e30a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.866041,
+      0.499972
+     ],
+     "toLightTangents": [
+      [
+       0.0,
+       0.866041,
+       0.499972
+      ],
+      [
+       0.499972,
+       0.224175,
+       0.836525
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.54902,
+         0.65882,
+         1.0
+        ],
+        "min": [
+         0.54902,
+         0.65882,
+         1.0
+        ],
+        "max": [
+         0.54902,
+         0.65882,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        2.915961,
+        1.547312,
+        2.080126
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.36078,
+         0.96863
+        ],
+        "min": [
+         1.0,
+         0.36078,
+         0.96863
+        ],
+        "max": [
+         1.0,
+         0.36078,
+         0.96863
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.056811,
+        2.090975
+       ],
+       "texels": {
+        "median": [
+         0.79608,
+         0.8902,
+         0.93725
+        ],
+        "min": [
+         0.61176,
+         0.72941,
+         0.83922
+        ],
+        "max": [
+         0.87059,
+         0.95294,
+         0.97647
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a150",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.612384,
+      0.353534,
+      0.707107
+     ],
+     "toLightTangents": [
+      [
+       -0.612384,
+       0.353534,
+       0.707107
+      ],
+      [
+       0.249972,
+       0.432997,
+       0.866041
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_4",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.63529,
+         0.72157,
+         1.0
+        ],
+        "min": [
+         0.63529,
+         0.72157,
+         1.0
+        ],
+        "max": [
+         0.63529,
+         0.72157,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_4",
+       "scale": [
+        3.345779,
+        1.563656,
+        1.378489
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.98824,
+         1.0
+        ],
+        "min": [
+         1.0,
+         0.98824,
+         1.0
+        ],
+        "max": [
+         1.0,
+         0.98824,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_4",
+       "scale": [
+        1.0,
+        1.152009,
+        2.249486
+       ],
+       "texels": {
+        "median": [
+         0.90196,
+         0.95294,
+         0.95686
+        ],
+        "min": [
+         0.80784,
+         0.87451,
+         0.87059
+        ],
+        "max": [
+         0.93725,
+         0.98431,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a210",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.433016,
+      -0.249996,
+      0.866025
+     ],
+     "toLightTangents": [
+      [
+       -0.433016,
+       -0.249996,
+       0.866025
+      ],
+      [
+       -0.055853,
+       0.545058,
+       0.836536
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.68627,
+         0.75686,
+         1.0
+        ],
+        "min": [
+         0.67843,
+         0.74902,
+         1.0
+        ],
+        "max": [
+         0.68627,
+         0.75686,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        2.960094,
+        2.436087,
+        1.214391
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.025132,
+        1.236155,
+        2.264852
+       ],
+       "texels": {
+        "median": [
+         0.95686,
+         0.96863,
+         0.97647
+        ],
+        "min": [
+         0.87059,
+         0.90588,
+         0.93725
+        ],
+        "max": [
+         0.96863,
+         0.98431,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e15a000",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.965918,
+      0.0,
+      0.25885
+     ],
+     "toLightTangents": [
+      [
+       0.965918,
+       0.0,
+       0.25885
+      ],
+      [
+       0.432997,
+       -0.499972,
+       0.750028
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_2",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.51765,
+         0.63529,
+         1.0
+        ],
+        "min": [
+         0.50588,
+         0.63137,
+         1.0
+        ],
+        "max": [
+         0.51765,
+         0.63529,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_2",
+       "scale": [
+        1.0,
+        1.720706,
+        2.864963
+       ],
+       "texels": {
+        "median": [
+         0.51765,
+         0.71765,
+         1.0
+        ],
+        "min": [
+         0.51765,
+         0.71765,
+         1.0
+        ],
+        "max": [
+         0.51765,
+         0.71765,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_2",
+       "scale": [
+        1.037132,
+        1.191581,
+        1.910604
+       ],
+       "texels": {
+        "median": [
+         0.61176,
+         0.70196,
+         0.88235
+        ],
+        "min": [
+         0.48235,
+         0.60392,
+         0.80784
+        ],
+        "max": [
+         0.80784,
+         0.85882,
+         0.96863
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e90a090",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "toLightTangents": [
+      [
+       0.0,
+       0.0,
+       1.0
+      ],
+      [
+       0.499972,
+       -0.612384,
+       0.612384
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.78431,
+         0.83137,
+         1.0
+        ],
+        "min": [
+         0.78431,
+         0.83137,
+         1.0
+        ],
+        "max": [
+         0.78431,
+         0.83137,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_5",
+       "scale": [
+        1.155119,
+        2.030486,
+        3.141951
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.92157,
+         1.0
+        ],
+        "min": [
+         1.0,
+         0.92157,
+         1.0
+        ],
+        "max": [
+         1.0,
+         0.92157,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_5",
+       "scale": [
+        1.048001,
+        1.2388,
+        2.167938
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.98824,
+         0.95686
+        ],
+        "min": [
+         1.0,
+         0.96863,
+         0.90588
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e45a270",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.0,
+      -0.707107,
+      0.707107
+     ],
+     "toLightTangents": [
+      [
+       0.0,
+       -0.707107,
+       0.707107
+      ],
+      [
+       -0.499972,
+       0.0,
+       0.866041
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_5",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.63529,
+         0.71765,
+         1.0
+        ],
+        "min": [
+         0.63529,
+         0.71373,
+         1.0
+        ],
+        "max": [
+         0.64706,
+         0.71765,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_5",
+       "scale": [
+        1.374263,
+        3.351567,
+        1.570902
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.98824
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_5",
+       "scale": [
+        1.0,
+        1.178709,
+        2.209744
+       ],
+       "texels": {
+        "median": [
+         0.89412,
+         0.93725,
+         0.96863
+        ],
+        "min": [
+         0.80784,
+         0.85882,
+         0.90588
+        ],
+        "max": [
+         0.96863,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e30a330",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.750012,
+      -0.432991,
+      0.500001
+     ],
+     "toLightTangents": [
+      [
+       0.750012,
+       -0.432991,
+       0.500001
+      ],
+      [
+       -0.055853,
+       -0.545058,
+       0.836536
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.54902,
+         0.66667,
+         1.0
+        ],
+        "min": [
+         0.54902,
+         0.65882,
+         1.0
+        ],
+        "max": [
+         0.54902,
+         0.66667,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.0,
+        2.23419,
+        2.913978
+       ],
+       "texels": {
+        "median": [
+         0.41961,
+         0.9451,
+         1.0
+        ],
+        "min": [
+         0.41961,
+         0.93725,
+         1.0
+        ],
+        "max": [
+         0.43922,
+         0.95294,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.0,
+        1.0,
+        2.114825
+       ],
+       "texels": {
+        "median": [
+         0.78431,
+         0.90588,
+         0.92549
+        ],
+        "min": [
+         0.67843,
+         0.79608,
+         0.83922
+        ],
+        "max": [
+         0.90588,
+         0.98431,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e60a030",
+     "lightmapType": 2,
+     "toLightTangent": [
+      0.433016,
+      0.249996,
+      0.866025
+     ],
+     "toLightTangents": [
+      [
+       0.433016,
+       0.249996,
+       0.866025
+      ],
+      [
+       0.055853,
+       -0.545058,
+       0.836536
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_1",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.68627,
+         0.75294,
+         1.0
+        ],
+        "min": [
+         0.67843,
+         0.74902,
+         1.0
+        ],
+        "max": [
+         0.68627,
+         0.75294,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_1",
+       "scale": [
+        1.456239,
+        1.946476,
+        3.205449
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "min": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_1",
+       "scale": [
+        1.029442,
+        1.238662,
+        2.268328
+       ],
+       "texels": {
+        "median": [
+         0.95686,
+         0.96863,
+         0.97647
+        ],
+        "min": [
+         0.90588,
+         0.93725,
+         0.96863
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e20a180",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.939689,
+      0.0,
+      0.34203
+     ],
+     "toLightTangents": [
+      [
+       -0.939689,
+       0.0,
+       0.34203
+      ],
+      [
+       -0.365997,
+       0.499972,
+       0.784904
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.53725,
+         0.65098,
+         1.0
+        ],
+        "min": [
+         0.53725,
+         0.65098,
+         1.0
+        ],
+        "max": [
+         0.54902,
+         0.65098,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        2.361682,
+        2.076605,
+        2.543819
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         1.0,
+         0.18039
+        ],
+        "min": [
+         1.0,
+         1.0,
+         0.18039
+        ],
+        "max": [
+         1.0,
+         1.0,
+         0.19216
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.0,
+        1.098977,
+        1.997301
+       ],
+       "texels": {
+        "median": [
+         0.69804,
+         0.79216,
+         0.90588
+        ],
+        "min": [
+         0.41961,
+         0.57255,
+         0.77647
+        ],
+        "max": [
+         0.77647,
+         0.85882,
+         0.93725
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.5078125,
+       0.015625
+      ]
+     }
+    },
+    {
+     "name": "e75a120",
+     "lightmapType": 2,
+     "toLightTangent": [
+      -0.129375,
+      0.224144,
+      0.96593
+     ],
+     "toLightTangents": [
+      [
+       -0.129375,
+       0.224144,
+       0.96593
+      ],
+      [
+       0.649531,
+       -0.125008,
+       0.749989
+      ]
+     ],
+     "slots": [
+      {
+       "texture": "NormalizedAverageColor1_3",
+       "scale": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "texels": {
+        "median": [
+         0.75294,
+         0.8,
+         1.0
+        ],
+        "min": [
+         0.75294,
+         0.8,
+         1.0
+        ],
+        "max": [
+         0.75294,
+         0.8,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "DirectionalMaxComponent1_3",
+       "scale": [
+        2.245898,
+        1.292555,
+        3.013178
+       ],
+       "texels": {
+        "median": [
+         1.0,
+         0.96863,
+         1.0
+        ],
+        "min": [
+         1.0,
+         0.96863,
+         1.0
+        ],
+        "max": [
+         1.0,
+         0.96863,
+         1.0
+        ],
+        "count": 961
+       }
+      },
+      {
+       "texture": "SimpleLightmap_0_3",
+       "scale": [
+        1.047263,
+        1.237558,
+        2.275006
+       ],
+       "texels": {
+        "median": [
+         0.98824,
+         0.99216,
+         0.96863
+        ],
+        "min": [
+         0.93725,
+         0.95294,
+         0.93725
+        ],
+        "max": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "count": 961
+       }
+      }
+     ],
+     "atlas": {
+      "size": [
+       128,
+       64
+      ],
+      "coordinateScale": [
+       0.484375,
+       0.96875
+      ],
+      "coordinateBias": [
+       0.0078125,
+       0.015625
+      ]
+     }
+    }
+   ]
+  },
+  "BakeCalib6": {
+   "spec": "tools/bake/examples/udk-calib5.json",
+   "baseMap": "CalibBase",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "method": "every top-face texel (udk_calib_read.py --texels); model = brightness x linear colour max x S(e, alpha) x (1-(d/R)^2)^F x spot cone x max(0, l.b_i); channels with prediction > 0.05 and l.b_i > 0.3 compared",
+   "floors": [
+    {
+     "name": "p2",
+     "kind": "point",
+     "light": {
+      "location": [
+       0,
+       0,
+       256
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "brightness": 1.0,
+      "color": [
+       255,
+       255,
+       255
+      ],
+      "actor": "PointLight_880"
+     },
+     "texels": 168100,
+     "channelsCompared": 128904,
+     "modelRmsRelative": 0.0845,
+     "modelMedianRatio": 1.044,
+     "alphaDegrees": [
+      3.84,
+      22.99
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.328312,
+       1.32892,
+       1.330725
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "p6",
+     "kind": "point",
+     "light": {
+      "location": [
+       6000,
+       0,
+       128
+      ],
+      "radius": 512,
+      "falloffExponent": 6,
+      "brightness": 2.0,
+      "color": [
+       255,
+       200,
+       150
+      ],
+      "actor": "PointLight_881"
+     },
+     "texels": 168100,
+     "channelsCompared": 80959,
+     "modelRmsRelative": 0.1993,
+     "modelMedianRatio": 1.0222,
+     "alphaDegrees": [
+      7.69,
+      51.37
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.849843,
+       1.851635,
+       1.856483
+      ],
+      [
+       1.347733,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "s4",
+     "kind": "spot",
+     "light": {
+      "location": [
+       0,
+       6000,
+       384
+      ],
+      "pitch": -12288,
+      "yaw": 0,
+      "radius": 1270,
+      "falloffExponent": 4,
+      "innerConeAngle": 20,
+      "outerConeAngle": 44,
+      "brightness": 1.0,
+      "color": [
+       255,
+       255,
+       255
+      ],
+      "actor": "SpotLight_870",
+      "direction": [
+       0.382683432,
+       0.0,
+       -0.923879533
+      ]
+     },
+     "texels": 168100,
+     "channelsCompared": 29678,
+     "modelRmsRelative": 0.0729,
+     "modelMedianRatio": 1.0094,
+     "alphaDegrees": [
+      3.77,
+      15.09
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "s50",
+     "kind": "spot",
+     "light": {
+      "location": [
+       6000,
+       6000,
+       256
+      ],
+      "pitch": -16384,
+      "yaw": 0,
+      "radius": 1024,
+      "falloffExponent": 50,
+      "innerConeAngle": 0,
+      "outerConeAngle": 44,
+      "brightness": 8.0,
+      "color": [
+       255,
+       255,
+       255
+      ],
+      "actor": "SpotLight_871",
+      "direction": [
+       0.0,
+       0.0,
+       -1.0
+      ]
+     },
+     "texels": 168100,
+     "channelsCompared": 5902,
+     "modelRmsRelative": 0.1244,
+     "modelMedianRatio": 1.0478,
+     "alphaDegrees": [
+      3.84,
+      22.99
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    }
+   ]
+  },
+  "BakeCalib7": {
+   "spec": "tools/bake/examples/udk-calib6.json",
+   "baseMap": "CalibBase",
+   "lightmassSettings": {
+    "DiffuseBoost": 1.0,
+    "OcclusionExponent": 1.5,
+    "MaxOcclusionDistance": 400.0
+   },
+   "method": "every top-face texel (udk_calib_read.py --texels); model = brightness x linear colour max x S(e, alpha) x (1-(d/R)^2)^F x spot cone x max(0, l.b_i); channels with prediction > 0.05 and l.b_i > 0.3 compared",
+   "floors": [
+    {
+     "name": "a0",
+     "kind": "point",
+     "light": {
+      "location": [
+       0,
+       0,
+       256
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "lightSourceRadius": 0,
+      "actor": "PointLight_880"
+     },
+     "texels": 168100,
+     "channelsCompared": 122852,
+     "modelRmsRelative": 0.0338,
+     "modelMedianRatio": 1.0077,
+     "alphaDegrees": [
+      0.0,
+      0.0
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.362685,
+       1.363202,
+       1.364586
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "a32",
+     "kind": "point",
+     "light": {
+      "location": [
+       6000,
+       0,
+       256
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "lightSourceRadius": 32,
+      "actor": "PointLight_881"
+     },
+     "texels": 168100,
+     "channelsCompared": 125021,
+     "modelRmsRelative": 0.0464,
+     "modelMedianRatio": 1.0251,
+     "alphaDegrees": [
+      1.23,
+      7.18
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.351953,
+       1.352516,
+       1.354067
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "a100",
+     "kind": "point",
+     "light": {
+      "location": [
+       12000,
+       0,
+       256
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "lightSourceRadius": 100,
+      "actor": "PointLight_882"
+     },
+     "texels": 168100,
+     "channelsCompared": 128904,
+     "modelRmsRelative": 0.0845,
+     "modelMedianRatio": 1.044,
+     "alphaDegrees": [
+      3.84,
+      22.99
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.328312,
+       1.328921,
+       1.330724
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "b0",
+     "kind": "point",
+     "light": {
+      "location": [
+       0,
+       6000,
+       256
+      ],
+      "radius": 4096,
+      "falloffExponent": 0,
+      "lightSourceRadius": 0,
+      "actor": "PointLight_883"
+     },
+     "texels": 168100,
+     "channelsCompared": 235138,
+     "modelRmsRelative": 0.0315,
+     "modelMedianRatio": 1.0109,
+     "alphaDegrees": [
+      0.0,
+      0.0
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.607711,
+       1.607695,
+       1.607612
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "c0",
+     "kind": "point",
+     "light": {
+      "location": [
+       6000,
+       6000,
+       128
+      ],
+      "radius": 512,
+      "falloffExponent": 6,
+      "lightSourceRadius": 0,
+      "actor": "PointLight_884"
+     },
+     "texels": 168100,
+     "channelsCompared": 62231,
+     "modelRmsRelative": 0.0351,
+     "modelMedianRatio": 1.0047,
+     "alphaDegrees": [
+      0.0,
+      0.0
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.002421,
+       1.003287,
+       1.005724
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "d32",
+     "kind": "point",
+     "light": {
+      "location": [
+       12000,
+       6000,
+       64
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "lightSourceRadius": 32,
+      "actor": "PointLight_885"
+     },
+     "texels": 168100,
+     "channelsCompared": 88569,
+     "modelRmsRelative": 0.0753,
+     "modelMedianRatio": 1.0329,
+     "alphaDegrees": [
+      1.24,
+      29.95
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.585822,
+       1.585965,
+       1.585765
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "e32",
+     "kind": "point",
+     "light": {
+      "location": [
+       0,
+       12000,
+       512
+      ],
+      "radius": 1024,
+      "falloffExponent": 2,
+      "lightSourceRadius": 32,
+      "actor": "PointLight_886"
+     },
+     "texels": 168100,
+     "channelsCompared": 123526,
+     "modelRmsRelative": 0.0311,
+     "modelMedianRatio": 1.0027,
+     "alphaDegrees": [
+      1.18,
+      3.58
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "b32",
+     "kind": "point",
+     "light": {
+      "location": [
+       12000,
+       12000,
+       256
+      ],
+      "radius": 4096,
+      "falloffExponent": 0,
+      "lightSourceRadius": 32,
+      "actor": "PointLight_887"
+     },
+     "texels": 168100,
+     "channelsCompared": 235138,
+     "modelRmsRelative": 0.0477,
+     "modelMedianRatio": 1.0339,
+     "alphaDegrees": [
+      1.23,
+      7.18
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.6077,
+       1.607686,
+       1.607664
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "name": "s32",
+     "kind": "spot",
+     "light": {
+      "location": [
+       6000,
+       12000,
+       384
+      ],
+      "pitch": -12288,
+      "yaw": 0,
+      "radius": 1270,
+      "falloffExponent": 4,
+      "innerConeAngle": 20,
+      "outerConeAngle": 44,
+      "lightSourceRadius": 32,
+      "actor": "SpotLight_870",
+      "direction": [
+       0.382683432,
+       0.0,
+       -0.923879533
+      ]
+     },
+     "texels": 168100,
+     "channelsCompared": 29280,
+     "modelRmsRelative": 0.0425,
+     "modelMedianRatio": 1.0028,
+     "alphaDegrees": [
+      1.2,
+      4.78
+     ],
+     "slotScales": [
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ],
+      [
+       1.0,
+       1.0,
+       1.0
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ "pointSpotModel": {
+  "elevationTerm": "S(e, alpha) = 2 sin e (1 - k alpha^2) + (c0 + c1 alpha) cos^2 e, alpha = asin(lightSourceRadius / d) in radians",
+  "c0": 0.114,
+  "c1": 1.8361,
+  "k": 0.5505,
+  "fit": "least squares of model/measured - 1 over 52000 texels (at most 4000 per floor) of BakeCalib6 and 7, strongest channel per texel; pooled rms 0.054",
+  "falloff": "(1 - (d/R)^2)^F with d from the light centre",
+  "spotCone": "clamp((cos theta - cos outer) / (cos inner - cos outer), 0, 1)^2",
+  "udkDefaultLightSourceRadius": 100.0,
+  "urbBarLightSourceRadius": 32.0
+ }
+}

@@ -1,0 +1,264 @@
+{
+  "map": "URB_PoliceStation",
+  "project": "25a0a0b1-2525-4d0a-8e25-3c4d5e6f7a25",
+  "shots": [
+    {
+      "out": "EXP-25-run1-overview.png",
+      "title": "EXP-25 run 1: every kind of edit on the police station (ground floor shown)",
+      "floor": "1",
+      "target": [
+        500,
+        -1400,
+        0
+      ],
+      "camera": [
+        0,
+        -3000,
+        5200
+      ],
+      "box": [
+        [
+          -1250,
+          -2450,
+          0
+        ],
+        [
+          1600,
+          -2450,
+          0
+        ],
+        [
+          1600,
+          950,
+          0
+        ],
+        [
+          -1250,
+          950,
+          0
+        ]
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -96,
+            628,
+            110
+          ],
+          "color": "#5ad17a",
+          "r": 22,
+          "text": "a bench, moved 2 tiles"
+        },
+        {
+          "n": "2",
+          "at": [
+            79,
+            820,
+            110
+          ],
+          "color": "#e0605a",
+          "r": 22,
+          "text": "where a bench stood (deleted)"
+        },
+        {
+          "n": "3",
+          "at": [
+            -1104,
+            -756,
+            100
+          ],
+          "color": "#58b4ff",
+          "r": 22,
+          "text": "a copy of a utility box"
+        },
+        {
+          "n": "4",
+          "at": [
+            1408,
+            -464,
+            90
+          ],
+          "color": "#58b4ff",
+          "r": 22,
+          "text": "a copy of a dumpster"
+        },
+        {
+          "n": "5",
+          "at": [
+            384,
+            -672,
+            160
+          ],
+          "color": "#c58cff",
+          "r": 22,
+          "text": "a copy of a double door, in an empty doorway"
+        },
+        {
+          "n": "6",
+          "at": [
+            1440,
+            -2302,
+            60
+          ],
+          "color": "#f2c14e",
+          "r": 22,
+          "text": "a copy of a compact car"
+        },
+        {
+          "n": "7",
+          "at": [
+            160,
+            -2114,
+            120
+          ],
+          "color": "#f2c14e",
+          "r": 22,
+          "text": "a copy of a delivery van"
+        }
+      ]
+    },
+    {
+      "out": "EXP-25-run1-inside.png",
+      "title": "EXP-25 run 1: inside the station, ground floor",
+      "floor": "1",
+      "target": [
+        200,
+        -120,
+        80
+      ],
+      "camera": [
+        1000,
+        -900,
+        1600
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -96,
+            628,
+            110
+          ],
+          "color": "#5ad17a",
+          "r": 44,
+          "text": "the bench, moved 2 tiles south: low cover where it stands now"
+        },
+        {
+          "n": "2",
+          "at": [
+            79,
+            820,
+            110
+          ],
+          "color": "#e0605a",
+          "r": 44,
+          "text": "where the bench beside it stood (deleted): open floor, no cover"
+        },
+        {
+          "n": "5",
+          "at": [
+            384,
+            -672,
+            160
+          ],
+          "color": "#c58cff",
+          "r": 50,
+          "text": "the copy of the facade's double door, turned, in the inner wall's empty doorway: open it, walk through"
+        }
+      ]
+    },
+    {
+      "out": "EXP-25-run1-south.png",
+      "title": "EXP-25 run 1: the street south of the station",
+      "target": [
+        800,
+        -2200,
+        40
+      ],
+      "camera": [
+        100,
+        450,
+        1900
+      ],
+      "marks": [
+        {
+          "n": "6",
+          "at": [
+            1440,
+            -2302,
+            60
+          ],
+          "color": "#f2c14e",
+          "r": 60,
+          "text": "the copy of the compact car, turned a quarter: cover, its glass breaks, it burns and explodes"
+        },
+        {
+          "n": "7",
+          "at": [
+            160,
+            -2114,
+            120
+          ],
+          "color": "#f2c14e",
+          "r": 80,
+          "text": "the copy of a delivery van, turned a quarter: walk into its cargo area; its roof cuts away over a soldier inside"
+        }
+      ]
+    },
+    {
+      "out": "EXP-25-run1-props.png",
+      "title": "EXP-25 run 1: the copied utility box, in the car park west of the station",
+      "target": [
+        -1104,
+        -756,
+        40
+      ],
+      "camera": [
+        700,
+        -700,
+        900
+      ],
+      "marks": [
+        {
+          "n": "3",
+          "at": [
+            -1104,
+            -756,
+            100
+          ],
+          "color": "#58b4ff",
+          "r": 50,
+          "text": "the copy of a utility box: high cover, blocks the way"
+        }
+      ]
+    },
+    {
+      "out": "EXP-25-run1-dumpster.png",
+      "title": "EXP-25 run 1: the copied dumpster, in the street east of the station",
+      "target": [
+        1408,
+        -464,
+        40
+      ],
+      "camera": [
+        800,
+        -700,
+        900
+      ],
+      "marks": [
+        {
+          "n": "4",
+          "at": [
+            1408,
+            -464,
+            90
+          ],
+          "color": "#58b4ff",
+          "r": 50,
+          "text": "the copy of a dumpster: high cover, blocks the way"
+        }
+      ]
+    }
+  ]
+}

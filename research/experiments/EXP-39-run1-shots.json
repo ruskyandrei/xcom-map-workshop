@@ -1,0 +1,22 @@
+{"map": "URB_Bar_X39", "shots": [
+ {"out": "EXP-39-run1-overview.png", "title": "EXP-39 run 1: one piece of each family from other maps, in the bar's car park",
+  "target": [1300, -850, 0], "camera": [0, -200, 1900],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 40], "color": "#5ad17a", "r": 50, "side": "left",
+    "text": "a dry bush from URB_GasStation_EWI (destructible prop): low cover; burns or breaks when hit"},
+   {"n": "2", "at": [1392, -832, 60], "color": "#f2c14e", "r": 50,
+    "text": "an alien nav computer from CLrgScout_TheBarrens (collectible): cover; breaks at its first damage"},
+   {"n": "3", "at": [1150, -710, 100], "color": "#ef6f6c", "r": 80, "side": "left",
+    "text": "an abductor wall, three tiles, from LAbductor_WindingStream (fracturing): high cover, blocks sight; an explosive breaks it by tile"},
+   {"n": "4", "at": [1392, -1056, 120], "color": "#6fb7ef", "r": 60,
+    "text": "an alien door from CSupplyShip_OverlookA: opens when a soldier walks to it or is told to open it"},
+   {"n": "5", "at": [1100, -1000, 20], "color": "#c58af9", "r": 45, "side": "left",
+    "text": "a body from Act2_Pier (physics prop): lies there; can be walked over"}]},
+ {"out": "EXP-39-run1-close.png", "title": "EXP-39 run 1: seen from the bar's front door, looking at the street",
+  "target": [1280, -850, 80], "camera": [-250, 1100, 650],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 40], "color": "#5ad17a", "r": 70, "side": "left", "text": "bush"},
+   {"n": "2", "at": [1392, -832, 60], "color": "#f2c14e", "r": 70, "text": "nav computer"},
+   {"n": "3", "at": [1150, -710, 100], "color": "#ef6f6c", "r": 110, "side": "left", "text": "abductor wall"},
+   {"n": "4", "at": [1392, -1056, 120], "color": "#6fb7ef", "r": 90, "text": "alien door"},
+   {"n": "5", "at": [1100, -1000, 20], "color": "#c58af9", "r": 60, "side": "left", "text": "body"}]}]}

@@ -1,0 +1,32 @@
+{
+  "path": "<Steam common>\\XCom-Enemy-Unknown\\XEW\\Binaries\\Win32\\XComEW.exe",
+  "sha256": "51d4cdbc1e3ba9988fcf8f31a772bf1c2f97ce23038aaeab08171ef9d21a2ef0",
+  "bytes": 27793464,
+  "method": "Read-only exact pattern counts. Does not establish that other shader patches are absent.",
+  "patterns": {
+    "custom_material_patch_3": {
+      "original_count": 1,
+      "modified_count": 0,
+      "original_offset": 8847786,
+      "modified_offset": -1
+    },
+    "custom_material_patch_4": {
+      "original_count": 1,
+      "modified_count": 0,
+      "original_offset": 11677406,
+      "modified_offset": -1
+    },
+    "lwce_dlc_patch_1": {
+      "original_count": 1,
+      "modified_count": 0,
+      "original_offset": 9548229,
+      "modified_offset": -1
+    },
+    "lwce_dlc_patch_2": {
+      "original_count": 1,
+      "modified_count": 0,
+      "original_offset": 9548310,
+      "modified_offset": -1
+    }
+  }
+}

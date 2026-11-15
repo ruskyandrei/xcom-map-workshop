@@ -1,0 +1,27 @@
+{
+  "map": "URB_Bar",
+  "project": "27a0a0b1-2727-4d0a-8e27-3c4d5e6f7a27",
+  "shots": [
+    {
+      "out": "EXP-27-run1-overview.png",
+      "title": "EXP-27 run 1: two sidewalk copies in the bar's car park, beside the Skyranger",
+      "target": [400, -700, 0],
+      "camera": [0, -3400, 3800],
+      "box": [[1055, -1652, 0], [1823, -1652, 0], [1823, -748, 0], [1055, -748, 0]],
+      "marks": [
+        {"n": "1", "at": [1439, -1440, 16], "color": "#5ad17a", "r": 34, "text": "a sidewalk copy at ground level (surface 16, as the map's sidewalks)"},
+        {"n": "2", "at": [1439, -960, 208], "color": "#f2c14e", "r": 34, "text": "a sidewalk copy raised to the bar's floor 2 (surface 208), where the map has no floor"}
+      ]
+    },
+    {
+      "out": "EXP-27-run1-strips.png",
+      "title": "EXP-27 run 1: the two copies, a tile from the drop zone",
+      "target": [1439, -1150, 80],
+      "camera": [0, -1500, 1000],
+      "marks": [
+        {"n": "1", "at": [1439, -1440, 16], "color": "#5ad17a", "r": 46, "text": "ground level: a soldier steps up onto it and stands on its top"},
+        {"n": "2", "at": [1439, -960, 208], "color": "#f2c14e", "r": 46, "side": "left", "text": "raised: the cursor lands on its top; a soldier put there stands on it and can walk along it"}
+      ]
+    }
+  ]
+}

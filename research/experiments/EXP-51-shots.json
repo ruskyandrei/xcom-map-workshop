@@ -1,0 +1,22 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e51", "shots": [
+ {"out": "EXP-51-overview.png", "title": "EXP-51: Bar cleared, two landing zones on fields of floor, the shed between them",
+  "target": [-100, -1300, 0], "camera": [300, -2600, 2600],
+  "marks": [
+   {"n": "1", "at": [1423, -1681, 10], "color": "#5ad17a", "r": 80,
+    "text": "zone 1, Bar's own landing moved 4 tiles east, facing west: Land here; plain EW lands here too"},
+   {"n": "2", "at": [-1297, -1361, 26], "color": "#4aa8ff", "r": 80, "side": "left",
+    "text": "zone 2, added, facing north, Long War only: Land here"},
+   {"n": "3", "at": [480, -1536, 200], "color": "#e06cff", "r": 70,
+    "text": "the shed (a building made from nothing): a soldier inside hides its roof"},
+   {"n": "4", "at": [0, 300, 0], "color": "#ff6b6b", "r": 70, "side": "left",
+    "text": "no floor (the ground grid): what the cursor and a move do past the laid floor"}]},
+ {"out": "EXP-51-zone1.png", "title": "EXP-51: zone 1, Bar's own landing moved four tiles east and turned west",
+  "target": [1300, -1681, 0], "camera": [-200, -1300, 1200],
+  "marks": [
+   {"n": "1", "at": [1423, -1681, 10], "color": "#5ad17a", "r": 70,
+    "text": "the squad should stand on these six tiles, the Skyranger and evac zone as drawn"}]},
+ {"out": "EXP-51-zone2.png", "title": "EXP-51: zone 2, added on the car park, facing north",
+  "target": [-1297, -1450, 0], "camera": [200, -1300, 1200],
+  "marks": [
+   {"n": "2", "at": [-1297, -1361, 26], "color": "#4aa8ff", "r": 70,
+    "text": "the squad should stand on these six tiles, the evac zone as drawn"}]}]}

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+
+# Never commit game files or anything built from them (packages, executables, disassembly, screenshots).
+*.upk
+*.udk
+*.u
+*.exe
+*.dll
+*.pdb
+*.tfc
+*.bin
+*.log
+# Lightmap previews and game shots show the maps' own data; they stay in the lab's working folder (the lab setting).
+research/evidence/*.png
+research/evidence/*.jpg
+
+# Share packages (they hold game files)
+dist/
+
+# Scratch test output (test servers, trial builds, browser shots)
+.scratch/
+
+# What cannot be public (the stub diff, copies from other repositories, the Discord feedback list, pictures of
+# experiments and checks). Never committed.
+private/
+.claude/skills/update-discord/
+research/experiments/*.png
+research/experiments/*.jpg
+research/experiments/*.webp
+
+# Local Claude state
+.claude/launch.json
+.claude/settings.local.json
+.claude/worktrees/

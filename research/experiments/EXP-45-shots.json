@@ -1,0 +1,35 @@
+{"map": "CB2_MP_Blank", "project": "00000000-0000-4000-8000-000000000e46", "shots": [
+ {"out": "EXP-45-overview.png", "title": "EXP-45: a tower of three storeys and a roof on the blank map (the squad starts at the lower left)",
+  "target": [576, 1248, 300], "camera": [-1500, -1900, 1700],
+  "box": [[384, 960, 0], [768, 960, 0], [768, 1536, 0], [384, 1536, 0]],
+  "marks": [
+   {"n": "1", "at": [-96, 528, 40], "color": "#4aa3ff", "r": 60, "side": "left",
+    "text": "the squad starts here"},
+   {"n": "2", "at": [384, 1104, 100], "color": "#e06cff", "r": 50, "side": "left",
+    "text": "the way in: a doorway in the west wall of the ground storey"},
+   {"n": "3", "at": [576, 1152, 580], "color": "#ffb347", "r": 70,
+    "text": "the roof deck (floor 4): a soldier should be able to stand here, reached by the ladder from storey 3"},
+   {"n": "4", "at": [576, 1440, 560], "color": "#5ad17a", "r": 60,
+    "text": "the roof's open end, over the third storey's ladder"}]},
+ {"out": "EXP-45-floor1.png", "title": "EXP-45: the ground storey (the editor's Floors at 1: everything above hidden, the walls cut down)",
+  "target": [576, 1248, 60], "camera": [-800, -1000, 1100], "floor": "1",
+  "marks": [
+   {"n": "2", "at": [384, 1104, 60], "color": "#e06cff", "r": 50, "side": "left", "text": "the doorway"},
+   {"n": "5", "at": [528, 1392, 60], "color": "#5ad17a", "r": 50,
+    "text": "ladder 1, inside at the north end: from the ground up to the second storey's deck"}]},
+ {"out": "EXP-45-floor2.png", "title": "EXP-45: the second storey (Floors at 2)",
+  "target": [576, 1248, 250], "camera": [-800, -1000, 1100], "floor": "2",
+  "marks": [
+   {"n": "6", "at": [576, 1104, 196], "color": "#ffb347", "r": 70, "side": "left",
+    "text": "the second storey's deck: the four rows at the south end. A soldier should walk on all of it"},
+   {"n": "5", "at": [528, 1392, 196], "color": "#5ad17a", "r": 50,
+    "text": "ladder 1 arrives here: the two open rows at the north end are the way up"},
+   {"n": "7", "at": [624, 1104, 290], "color": "#5ad17a", "r": 50,
+    "text": "ladder 2: from this deck up to the third storey's, which starts over the next row north"}]},
+ {"out": "EXP-45-floor3.png", "title": "EXP-45: the third storey (Floors at 3)",
+  "target": [576, 1248, 440], "camera": [-800, -1000, 1100], "floor": "3",
+  "marks": [
+   {"n": "8", "at": [576, 1392, 388], "color": "#ffb347", "r": 70,
+    "text": "the third storey's deck: the four rows at the north end. The two rows at the south end are open, over ladder 2"},
+   {"n": "9", "at": [528, 1392, 480], "color": "#5ad17a", "r": 50, "side": "left",
+    "text": "ladder 3: from this deck up to the roof deck"}]}]}

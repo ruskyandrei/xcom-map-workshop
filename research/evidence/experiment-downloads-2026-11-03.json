@@ -1,0 +1,64 @@
+[
+  {
+    "tool": "UDK 2011-09",
+    "tag": "udk-installer",
+    "published_at": "2024-06-28T23:06:36Z",
+    "page": "https://github.com/chrishayesmu/XCOM-Uncooker/releases/tag/udk-installer",
+    "assets": [
+      {
+        "name": "UDKInstall-2011-09-BETA.exe",
+        "size": 1663581640,
+        "browser_download_url": "https://github.com/chrishayesmu/XCOM-Uncooker/releases/download/udk-installer/UDKInstall-2011-09-BETA.exe",
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tool": "XCOM Uncooker",
+    "tag": "v1.1.0",
+    "published_at": "2024-07-26T06:59:01Z",
+    "page": "https://github.com/chrishayesmu/XCOM-Uncooker/releases/tag/v1.1.0",
+    "assets": [
+      {
+        "name": "xcom-uncooker-v1.1.0.zip",
+        "size": 78823060,
+        "browser_download_url": "https://github.com/chrishayesmu/XCOM-Uncooker/releases/download/v1.1.0/xcom-uncooker-v1.1.0.zip",
+        "digest": null
+      }
+    ]
+  },
+  {
+    "tool": "UE Explorer",
+    "tag": "1.6.2",
+    "published_at": "2026-06-03T19:17:40Z",
+    "page": "https://github.com/UE-Explorer/UE-Explorer/releases/tag/1.6.2",
+    "assets": [
+      {
+        "name": "ue-explorer-1.6.2-net48-portable.7z",
+        "size": 1892704,
+        "browser_download_url": "https://github.com/UE-Explorer/UE-Explorer/releases/download/1.6.2/ue-explorer-1.6.2-net48-portable.7z",
+        "digest": "sha256:085267f3192acb27c2a6a98367b2e659a202a80adda79d8562cddd3e7e8e53d9"
+      },
+      {
+        "name": "ue-explorer-win-x86-x64.msi",
+        "size": 5362176,
+        "browser_download_url": "https://github.com/UE-Explorer/UE-Explorer/releases/download/1.6.2/ue-explorer-win-x86-x64.msi",
+        "digest": "sha256:add6e0947133c6886efb32068364be07991d7a8b17451367a529cb7eaa4bfccd"
+      }
+    ]
+  },
+  {
+    "tool": "UPKUtils",
+    "tag": "7.3",
+    "published_at": "2015-04-10T15:36:29Z",
+    "page": "https://github.com/wghost/UPKUtils/releases/tag/7.3",
+    "assets": [
+      {
+        "name": "UPKUtils73.7z",
+        "size": 1442252,
+        "browser_download_url": "https://github.com/wghost/UPKUtils/releases/download/7.3/UPKUtils73.7z",
+        "digest": null
+      }
+    ]
+  }
+]

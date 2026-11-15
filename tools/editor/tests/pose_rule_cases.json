@@ -1,0 +1,576 @@
+{
+ "about": "Cases of the pose rule (private/plans/done/cars-doors-ladders-plan.md, section 3.2): compiler.grid_move and nearest_grid_pose, and the editor's recipe snap, give these results. Origin: URB_Bar's tile grid.",
+ "cases": [
+  {
+   "case": "a ladder moved two tiles along X",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     432,
+     1296,
+     16
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     624,
+     1296,
+     16
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 0,
+   "translation": [
+    192,
+    0.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     624.0,
+     1296.0,
+     16.0
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a ladder standing on a tile centre turned a quarter about itself",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1680,
+     336,
+     16
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -1680,
+     336,
+     16
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 1,
+   "translation": [
+    -1344,
+    2016,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -1679.9998,
+     335.9998,
+     16.0
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a car off the grid turned a quarter about its own pivot",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     15656,
+     0
+    ]
+   },
+   "valid": false,
+   "why": [
+    "whole tiles"
+   ],
+   "turns": 1,
+   "translation": [
+    -1722.52,
+    758.2,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -1245.8398,
+     -472.3602,
+     0.0
+    ],
+    "rotation": [
+     0,
+     15656,
+     0
+    ]
+   }
+  },
+  {
+   "case": "the same car turned a quarter and put on the grid",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -1245.8398,
+     -472.3602,
+     0
+    ],
+    "rotation": [
+     0,
+     15656,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 1,
+   "translation": [
+    -1728.0,
+    768.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -1245.8398,
+     -472.3602,
+     0.0
+    ],
+    "rotation": [
+     0,
+     15656,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a car moved a tile and a half",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -1096.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "valid": false,
+   "why": [
+    "whole tiles"
+   ],
+   "turns": 0,
+   "translation": [
+    144.0,
+    0.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -1048.36,
+     -482.16,
+     0.0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a car turned a half turn, on the grid",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -1159.6395,
+     -1149.84,
+     0
+    ],
+    "rotation": [
+     0,
+     32040,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 2,
+   "translation": [
+    -2399.999,
+    -1632.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -1159.6395,
+     -1149.84,
+     0.0
+    ],
+    "rotation": [
+     0,
+     32040,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a car turned three quarters, on the grid",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     -1240.36,
+     -482.16,
+     0
+    ],
+    "rotation": [
+     0,
+     -728,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     -2114.1598,
+     -1447.6398,
+     0
+    ],
+    "rotation": [
+     0,
+     48424,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 3,
+   "translation": [
+    -1632.0,
+    -2688.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     -2114.1598,
+     -1447.6398,
+     0.0
+    ],
+    "rotation": [
+     0,
+     48424,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a door lifted one storey",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     480,
+     144,
+     16
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     480,
+     144,
+     80
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   },
+   "valid": true,
+   "why": [],
+   "turns": 0,
+   "translation": [
+    0.0,
+    0.0,
+    64
+   ],
+   "nearest": {
+    "location": [
+     480.0,
+     144.0,
+     80.0
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a door lifted 30 units",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     480,
+     144,
+     16
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     480,
+     144,
+     46
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   },
+   "valid": false,
+   "why": [
+    "whole storeys"
+   ],
+   "turns": 0,
+   "translation": [
+    0.0,
+    0.0,
+    30
+   ],
+   "nearest": {
+    "location": [
+     480.0,
+     144.0,
+     16.0
+    ],
+    "rotation": [
+     0,
+     16384,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a ladder tilted",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     432,
+     1296,
+     16
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     432,
+     1296,
+     16
+    ],
+    "rotation": [
+     2000,
+     -16384,
+     0
+    ]
+   },
+   "valid": false,
+   "why": [
+    "pitch or roll"
+   ],
+   "turns": 0,
+   "translation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     432.0,
+     1296.0,
+     16.0
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   }
+  },
+  {
+   "case": "a ladder turned 45 degrees",
+   "origin": [
+    -2783.999755859375,
+    -1920.0
+   ],
+   "source": {
+    "location": [
+     432,
+     1296,
+     16
+    ],
+    "rotation": [
+     0,
+     -16384,
+     0
+    ]
+   },
+   "pose": {
+    "location": [
+     432,
+     1296,
+     16
+    ],
+    "rotation": [
+     0,
+     -8192,
+     0
+    ]
+   },
+   "valid": false,
+   "why": [
+    "quarter turns"
+   ],
+   "turns": 1,
+   "translation": [
+    1728,
+    864,
+    0.0
+   ],
+   "nearest": {
+    "location": [
+     432.0002,
+     1295.9998,
+     16.0
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+A = <lab>\uncooker-input\CookedPCConsole\patch_bar.upk
+B = <lab>\author\UDK-2011-09\UDKGame\CookedPC\Maps\patches\patch_bar.udk
+  ver        845                                845                                
+  lic        0                                  0                                  
+  engine     8916                               8916                               
+  cooker     135                                135                                
+  compflags  2                                  2                                  
+  flags      0x28a0009                          0x28a0009                          
+  guid       6bdd1ddcd8c74a4fbb164d753e7a42cf   6bdd1ddcd8c74a4fbb164d753e7a42cf   
+  namecount  320                                320                                
+  expcount   251                                251                                
+  impcount   142                                142                                
+export classes (A B): 0 differ
+imports (A B): 0 differ
+exports by class and path (A B): 0 differ

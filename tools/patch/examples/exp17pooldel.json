@@ -1,0 +1,38 @@
+{
+  "name": "patch_urb_bar_exp17pool_7a1f",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ]
+  },
+  "nameBase": 900,
+  "editor": {
+    "compiler": 1,
+    "project": "7a1f0e17-0917-4c0d-8e5a-3b2d1c9f0a17",
+    "revision": 2,
+    "sourceSha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+    "streamOnly": true
+  },
+  "objects": [
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        528.0002,
+        669.4463,
+        22.5417
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_45",
+        "XComDestructibleActor_491"
+      ],
+      "labels": [
+        "delete:XComDestructibleActor_45",
+        "delete:XComDestructibleActor_491"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "name": "patch_urb_bar_exp17move_7a1f",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "seedExternally": true
+  },
+  "nameBase": 900,
+  "editor": {
+    "compiler": 1,
+    "project": "7a1f0e17-1010-4d0e-9b6c-5e4f3a2b1c10",
+    "revision": 1,
+    "sourceSha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+    "streamOnly": true
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "location": [
+        56.4257,
+        209.7836,
+        88.5305
+      ],
+      "from": [
+        "XComDestructibleActor_45",
+        "XComDestructibleActor_491"
+      ],
+      "poses": [
+        {
+          "location": [
+            56.4257,
+            209.7836,
+            88.5305
+          ],
+          "rotation": [
+            0,
+            16384,
+            0
+          ]
+        },
+        {
+          "location": [
+            -48.0,
+            240.0,
+            24.0
+          ],
+          "rotation": [
+            0,
+            16384,
+            0
+          ]
+        }
+      ],
+      "labels": [
+        "move:XComDestructibleActor_45",
+        "move:XComDestructibleActor_491"
+      ],
+      "boxes": [
+        [
+          51.145,
+          61.707,
+          204.503,
+          215.065,
+          88.426,
+          98.356
+        ],
+        [
+          -156.599,
+          60.599,
+          179.479,
+          300.521,
+          22.542,
+          91.37
+        ]
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        528.0002,
+        669.4463,
+        22.5417
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_45",
+        "XComDestructibleActor_491"
+      ],
+      "labels": [
+        "move:XComDestructibleActor_45",
+        "move:XComDestructibleActor_491"
+      ]
+    }
+  ]
+}

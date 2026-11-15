@@ -1,0 +1,415 @@
+{
+  "name": "patch_urb_bar_exp11static_b7f3",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "shipAs": "URB_Bar_EXP11Static_b7f3",
+    "displayName": "URB_Bar_EXP11Static_b7f3 (EXP-11 static placement) |0",
+    "streamSlot": "free"
+  },
+  "nameBase": 900,
+  "editor": {
+    "compiler": 1,
+    "project": "b7f3a2c1-5e11-4c8e-9a3d-2f6e0b1c4d11",
+    "revision": 2,
+    "sourceSha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5"
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "location": [
+        -1971.1753,
+        -620.7919,
+        0.0
+      ],
+      "from": [
+        "XComLevelActor_15",
+        "XComLevelActor_87",
+        "XComLevelActor_15",
+        "XComLevelActor_15",
+        "XComLevelActor_15",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_250",
+        "XComLevelActor_27"
+      ],
+      "poses": [
+        {
+          "location": [
+            -1971.1753,
+            -620.7919,
+            0.0
+          ],
+          "rotation": [
+            0,
+            -16384,
+            0
+          ]
+        },
+        {
+          "location": [
+            -2739.1748,
+            -764.7919,
+            0.0
+          ],
+          "rotation": [
+            0,
+            -24576,
+            0
+          ]
+        },
+        {
+          "location": [
+            -504,
+            -816,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -288,
+            -816,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -144,
+            -816,
+            64.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1392,
+            -816,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1104,
+            -1008,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            0,
+            16384
+          ]
+        },
+        {
+          "location": [
+            -1200,
+            -816,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            2731,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1008,
+            -816,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            8192,
+            0
+          ]
+        },
+        {
+          "location": [
+            -816,
+            -816,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            16384,
+            0
+          ]
+        },
+        {
+          "location": [
+            -2160,
+            -1488,
+            13.2989
+          ],
+          "rotation": [
+            2731,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1680,
+            -1488,
+            13.2989
+          ],
+          "rotation": [
+            8192,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1200,
+            -1488,
+            13.2989
+          ],
+          "rotation": [
+            16384,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1872,
+            -1008,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            0,
+            2731
+          ]
+        },
+        {
+          "location": [
+            -1488,
+            -1008,
+            13.2989
+          ],
+          "rotation": [
+            0,
+            0,
+            8192
+          ]
+        },
+        {
+          "location": [
+            -720,
+            -1488,
+            0.0001
+          ],
+          "rotation": [
+            0,
+            -32768,
+            0
+          ]
+        }
+      ],
+      "labels": [
+        "move:XComLevelActor_15",
+        "move:XComLevelActor_87",
+        "XComLevelActor_15_copy11",
+        "XComLevelActor_15_copy12",
+        "XComLevelActor_15_copy13",
+        "XComLevelActor_250_copy1",
+        "XComLevelActor_250_copy10",
+        "XComLevelActor_250_copy2",
+        "XComLevelActor_250_copy3",
+        "XComLevelActor_250_copy4",
+        "XComLevelActor_250_copy5",
+        "XComLevelActor_250_copy6",
+        "XComLevelActor_250_copy7",
+        "XComLevelActor_250_copy8",
+        "XComLevelActor_250_copy9",
+        "XComLevelActor_27_copy14"
+      ],
+      "boxes": [
+        [
+          -2029.822,
+          -1912.529,
+          -679.438,
+          -562.146,
+          -4.331,
+          120.183
+        ],
+        [
+          -2811.652,
+          -2667.367,
+          -837.269,
+          -692.984,
+          0.008,
+          439.796
+        ],
+        [
+          -562.646,
+          -445.354,
+          -874.646,
+          -757.354,
+          -4.331,
+          120.183
+        ],
+        [
+          -346.646,
+          -229.354,
+          -874.646,
+          -757.354,
+          -4.331,
+          120.183
+        ],
+        [
+          -202.646,
+          -85.354,
+          -874.646,
+          -757.354,
+          59.669,
+          184.183
+        ],
+        [
+          -1435.676,
+          -1348.061,
+          -836.826,
+          -795.281,
+          13.299,
+          379.865
+        ],
+        [
+          -1147.676,
+          -1060.061,
+          -1008.0,
+          -641.434,
+          -7.42,
+          34.125
+        ],
+        [
+          -1247.551,
+          -1152.168,
+          -847.422,
+          -784.613,
+          13.299,
+          379.865
+        ],
+        [
+          -1053.534,
+          -962.204,
+          -861.61,
+          -770.28,
+          13.299,
+          379.865
+        ],
+        [
+          -836.719,
+          -795.174,
+          -859.676,
+          -772.061,
+          13.299,
+          379.865
+        ],
+        [
+          -2297.073,
+          -2117.558,
+          -1508.826,
+          -1467.281,
+          1.993,
+          378.746
+        ],
+        [
+          -1970.085,
+          -1648.93,
+          -1508.826,
+          -1467.281,
+          -17.585,
+          303.57
+        ],
+        [
+          -1566.566,
+          -1200.0,
+          -1508.826,
+          -1467.281,
+          -30.377,
+          57.238
+        ],
+        [
+          -1915.676,
+          -1828.061,
+          -1028.116,
+          -893.101,
+          7.936,
+          372.763
+        ],
+        [
+          -1531.676,
+          -1444.061,
+          -1022.726,
+          -734.148,
+          -1.352,
+          287.227
+        ],
+        [
+          -760.473,
+          -680.473,
+          -1550.025,
+          -1425.975,
+          0.008,
+          439.796
+        ]
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        -2263.4665,
+        -50.1854,
+        -4.3312
+      ],
+      "alsoHide": [
+        "StaticMeshActor_60",
+        "XComLevelActor_15",
+        "XComLevelActor_27",
+        "XComLevelActor_87"
+      ],
+      "labels": [
+        "delete:StaticMeshActor_60",
+        "move:XComLevelActor_15",
+        "delete:XComLevelActor_27",
+        "move:XComLevelActor_87"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "note": "Test patch for the tool: patch_bar plus EXP-04's block forced to LOW cover, and a second visible block (given in world coordinates, turned 90 degrees) right south of it, making a 2x4 wall over URB_Bar tiles x 1-2, y 9-12 (world x -2688..-2496, y -1056..-672).",
+  "name": "patch_exp04b",
+  "base": "patch_bar",
+  "map": { "origin": [-2784, -1920], "tileSize": 96 },
+  "objects": [
+    {
+      "mesh": "CoverPatch.High2x2",
+      "tile": [2, 10],
+      "cover": "Low"
+    },
+    {
+      "mesh": "CoverPatch.High2x2",
+      "location": [-2592, -768],
+      "yaw": 90,
+      "cover": "High"
+    }
+  ]
+}

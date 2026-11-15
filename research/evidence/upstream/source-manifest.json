@@ -1,0 +1,226 @@
+[
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComGame/classes/XComLevelVolume.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComGame/classes/XComLevelVolume.uc",
+    "sha256": "878D14EE2EF048EB4777B8D9911AA04C0EAF242F6AAB1212B202ED3E02563231"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComGame/classes/XComRebuildWorldDataVolume.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComGame/classes/XComRebuildWorldDataVolume.uc",
+    "sha256": "ABBF2D883DD0650D3B818B76BCDFE99C1577EBFA0DE71894AD29FCBA6F716D9B"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComGame/classes/XComWorldData.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComGame/classes/XComWorldData.uc",
+    "sha256": "177D4FCF28218327B4178254FFCB88ACB40C92531308A5EC01E331B57C8692A7"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComMapCleaner/classes/SeqAct_RemoveAllActors.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComMapCleaner/classes/SeqAct_RemoveAllActors.uc",
+    "sha256": "596B2D75CFFFA9E278EB08034EEFF53271828AD0C7D1C80833FE5F953802E488"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_BuildWorldData.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_BuildWorldData.uc",
+    "sha256": "8D4CF1D5E627E680BFA0065170B2B2AEBBF3206C0DF79A2702C3EB72D088CABE"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_LoadContent.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_LoadContent.uc",
+    "sha256": "BB8E33EDACDDAEDFAB6DABF1E8C41C62175853590621E87F4423EA6EB5A0FF6B"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_ReplaceActorMesh.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_ReplaceActorMesh.uc",
+    "sha256": "BDF6160E601B9298C0331B4AFA9F92944678DE5CA2359E510C157C833CF4174E"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_SetCover.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_SetCover.uc",
+    "sha256": "530D5BEDC644417AF4819E9C77D21025BCCB172368A85351DC678F233944C1F9"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_SetLOSBlocking.uc",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/Development/Src/XComUDK/classes/SeqAct_SetLOSBlocking.uc",
+    "sha256": "F55A3566E7EDB82675FFAAEE22F691DA55816F07796EB27010E069D4661FF3C2"
+  },
+  {
+    "repo": "iiiLiQuiDiii/UDK",
+    "commit": "80be6f4c21b665e0c261bee224429cb36c3fc217",
+    "path": "UDK-2011-09/UDKGame/Config/DefaultEngine.ini",
+    "url": "https://raw.githubusercontent.com/iiiLiQuiDiii/UDK/80be6f4c21b665e0c261bee224429cb36c3fc217/UDK-2011-09/UDKGame/Config/DefaultEngine.ini",
+    "sha256": "FAE9CC9C883C2D848C4983B791702E137A4F25470A9FFAB8FB04EB89138B5D31"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/README.md",
+    "sha256": "A940D8976A7BF9E78D58371C1E13D9522E46A529873F7074305CDED61770B811"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/Unreal/ObjectSubtypes/Level/ULevel.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/Unreal/ObjectSubtypes/Level/ULevel.cs",
+    "sha256": "FF56D2B86E6CBBF3224ED89C23BA961FC194FF8A68F08EB907A81F01F8498A4C"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/Unreal/ObjectSubtypes/Materials/UMaterial.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/Unreal/ObjectSubtypes/Materials/UMaterial.cs",
+    "sha256": "B7EFC52DD34BC2CFDCB984D8E261E472E7D804D6A45E57FCA3AA389A03C669D2"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/Unreal/ObjectSubtypes/Textures/UTexture2D.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/Unreal/ObjectSubtypes/Textures/UTexture2D.cs",
+    "sha256": "3A74EF965AC938759033EC584A42466270032D0EA4670FF4D2BAA160C8FCFBD0"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/Unreal/ObjectSubtypes/XCom/XComWorldData.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/Unreal/ObjectSubtypes/XCom/XComWorldData.cs",
+    "sha256": "6D8B7A8316BA429BF39D1A846DFDEBA3E22A04B7C998EF1F85034AE918ACFA65"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/Unreal/PackageOrganizer.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/Unreal/PackageOrganizer.cs",
+    "sha256": "1B2A682FC9D0BA1CD2F6366C8B1410E8863BB9677D70F60309E804B7BB3A3C36"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "UnrealPackageLibrary/UnrealArchiveLibrary.csproj",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/UnrealPackageLibrary/UnrealArchiveLibrary.csproj",
+    "sha256": "11673F35F1292750FA91D0D971D99B4699A48152F721C935AE57F06762A01917"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-Uncooker",
+    "commit": "c12648d52651946f35598e659cfa8db10d9a44d3",
+    "path": "XCOM-Uncooker/Program.cs",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-Uncooker/c12648d52651946f35598e659cfa8db10d9a44d3/XCOM-Uncooker/Program.cs",
+    "sha256": "A195BB218D89E2B79BCE24C8C1F89DCC505630376A819A4BC8254B59E267D17F"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-LW-CommunityEdition",
+    "commit": "71d2164ca8d76883ff5afa24ee5062596c880088",
+    "path": "Native/notes.md",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-LW-CommunityEdition/71d2164ca8d76883ff5afa24ee5062596c880088/Native/notes.md",
+    "sha256": "EF44997980761E613FD5A9EED8B762DE0496DF5A86DEF52971509AC9732BA87F"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-LW-CommunityEdition",
+    "commit": "71d2164ca8d76883ff5afa24ee5062596c880088",
+    "path": "Notes/exe_patches.md",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-LW-CommunityEdition/71d2164ca8d76883ff5afa24ee5062596c880088/Notes/exe_patches.md",
+    "sha256": "8AFA443E6E7F1BAFD7729DD950FF142E5B012C327C5B85596B4C31882B612D24"
+  },
+  {
+    "repo": "chrishayesmu/XCOM-LW-CommunityEdition",
+    "commit": "71d2164ca8d76883ff5afa24ee5062596c880088",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/chrishayesmu/XCOM-LW-CommunityEdition/71d2164ca8d76883ff5afa24ee5062596c880088/README.md",
+    "sha256": "CE344F706A1F6E8262FB4A4CE6DAEC9DC4419181D42ED965EF3A9942DD37AAAC"
+  },
+  {
+    "repo": "wghost/UPKUtils",
+    "commit": "9b2fd078a6f51ad2bd24aad9948378d2ce16edc2",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/wghost/UPKUtils/9b2fd078a6f51ad2bd24aad9948378d2ce16edc2/README.md",
+    "sha256": "FABDD7C3D63F464D208E2DD40B07F08E9F277588C7B822A676EAFF52D9038458"
+  },
+  {
+    "repo": "wghost/UPKUtils",
+    "commit": "9b2fd078a6f51ad2bd24aad9948378d2ce16edc2",
+    "path": "doc/PatchUPK_Readme.txt",
+    "url": "https://raw.githubusercontent.com/wghost/UPKUtils/9b2fd078a6f51ad2bd24aad9948378d2ce16edc2/doc/PatchUPK_Readme.txt",
+    "sha256": "87C11A6F11CCC454E0002B8B02700C354EA910B778394853731AD30FA7BA7365"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/README.md",
+    "sha256": "B0A5AE2BE64811DCCC53B30978F20814DAB6B8DFD92FCAAA13132F3D49C9D19A"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComBombMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComBombMutator.uc",
+    "sha256": "DBD97B4CFAA32A357E07F18BDAA48AB5C263B299E33B4406B4E7B97677787771"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComFCMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComFCMutator.uc",
+    "sha256": "69840D6E8F9CFD56A40CC8A94ADB0FC79DCED50F156DBCDBB6F321B9492C8861"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComLZMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComLZMutator.uc",
+    "sha256": "2ACADF950BEC61E85074ACFCAFF6F88C8521289927DA491679BEBB5BEADE92EE"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComMeldSpawnMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComMeldSpawnMutator.uc",
+    "sha256": "6CD9B33551DA470B333225466E4BEDD50D6A64100B55CAEA42A3265A2036F9E4"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComPodSpawnMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComPodSpawnMutator.uc",
+    "sha256": "180203EC451404D51A6DC32A356FC36602ABC63CC40935F1C824244F3081C697"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComSpawnAlienMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComSpawnAlienMutator.uc",
+    "sha256": "E2B4107473B4C2D3C898008B4C1539A6573DC7032502DE7E31A8A0211F4EC8FC"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XComSpawnMutator.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XComSpawnMutator.uc",
+    "sha256": "F1818003C4E7823B22C318E9F8CD73F6E8AF34F6FD9125315FAC86233E4D3F9B"
+  },
+  {
+    "repo": "wghost/XCOM-Mutators",
+    "commit": "4f7845b2ca764efa514b1e692ff27d9661d5a06b",
+    "path": "Src/XComLZMutator/Classes/XGFundingCouncil_Mod.uc",
+    "url": "https://raw.githubusercontent.com/wghost/XCOM-Mutators/4f7845b2ca764efa514b1e692ff27d9661d5a06b/Src/XComLZMutator/Classes/XGFundingCouncil_Mod.uc",
+    "sha256": "DB24B2857406C6CD7C7FD7BE8DE6517E375F44F53293C8BE09151AD68B7BBC47"
+  }
+]

@@ -1,0 +1,83 @@
+{
+  "map": "Act1_IntroLevel",
+  "project": "d57cf9af-d61e-4ff1-95fb-a377df3e0909",
+  "shots": [
+    {
+      "out": "EXP-30-run2-overview.png",
+      "title": "EXP-30 run 2: the intro map with its police car deleted",
+      "target": [
+        -1300,
+        400,
+        0
+      ],
+      "camera": [
+        900,
+        -1400,
+        3800
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -780,
+            673,
+            40
+          ],
+          "color": "#ef6f6c",
+          "r": 60,
+          "text": "the police car deleted: no car here"
+        },
+        {
+          "n": "o",
+          "at": [
+            -1734,
+            269,
+            40
+          ],
+          "color": "#ffffff",
+          "r": 44,
+          "side": "left",
+          "text": "another police car (a separate piece): stays"
+        }
+      ]
+    },
+    {
+      "out": "EXP-30-run2-car.png",
+      "title": "EXP-30 run 2: where the police car stood",
+      "target": [
+        -780,
+        673,
+        20
+      ],
+      "camera": [
+        700,
+        -1100,
+        1100
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -780,
+            673,
+            30
+          ],
+          "color": "#ef6f6c",
+          "r": 70,
+          "text": "no car, no glass: soldiers walk through and stand here, no cover from it"
+        },
+        {
+          "n": "o",
+          "at": [
+            -1734,
+            269,
+            40
+          ],
+          "color": "#ffffff",
+          "r": 44,
+          "text": "the other police car: stays"
+        }
+      ]
+    }
+  ]
+}

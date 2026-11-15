@@ -1,0 +1,15 @@
+{"map": "URB_Bar_X37", "shots": [
+ {"out": "EXP-37-run1-overview.png", "title": "EXP-37 run 1: two props from other maps in the bar's car park",
+  "target": [300, -300, 0], "camera": [0, -300, 5200],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 60], "color": "#5ad17a", "r": 44, "side": "left",
+    "text": "a lamp post from URB_PoliceStation, in the lane south of the bar's front"},
+   {"n": "2", "at": [1010, -900, 60], "color": "#ef6f6c", "r": 60,
+    "text": "an alien wall panel from CAbductor_Cliffside, in the same lane"}]},
+ {"out": "EXP-37-run1-close.png", "title": "EXP-37 run 1: seen from the bar's front door, looking at the street",
+  "target": [1100, -800, 80], "camera": [-150, 1000, 550],
+  "marks": [
+   {"n": "1", "at": [1300, -640, 150], "color": "#5ad17a", "r": 80, "side": "left",
+    "text": "lamp post: black iron, yellow glass; stops a soldier, low or no cover"},
+   {"n": "2", "at": [1010, -900, 100], "color": "#ef6f6c", "r": 110,
+    "text": "alien wall: dark panel with orange lights on this face (its other face is not drawn, as in its own map); high cover, blocks sight"}]}]}

@@ -1,0 +1,19 @@
+{
+  "note": "EXP-05 route B, try 2: patch_bar plus URB_Bar's own compact car, borrowed from memory at level start. Car A (where EXP-04's block stood) copies mesh and materials from the map's car archetype; car B, one car length further along +Y, names the mesh and its material directly. Try 1 borrowed only the mesh and rendered flat grey: Firaxis maps set the car's material on the placed component, not on the mesh. If a borrow fails, the dark CoverPatch.High2x2 placeholder shows instead. Purely visual: no collision or cover.",
+  "name": "patch_exp05",
+  "base": "patch_bar",
+  "map": { "origin": [-2784, -1920], "tileSize": 96 },
+  "objects": [
+    {
+      "type": "borrow",
+      "copyFrom": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc1",
+      "location": [-2592, -960]
+    },
+    {
+      "type": "borrow",
+      "meshPath": "VEH_CompactCarB.Meshes.CarCompactB",
+      "materials": ["VEH_CompactCarB.Materials.VEH_CompactCarB"],
+      "location": [-2592, -560]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{"map": "URB_Bar_X40", "shots": [
+ {"out": "EXP-40-run1-overview.png", "title": "EXP-40 run 1: a car, a framed door and a ladder from other maps",
+  "target": [900, 100, 0], "camera": [0, -300, 3000],
+  "marks": [
+   {"n": "1", "at": [1247, -768, 60], "color": "#5ad17a", "r": 90, "side": "left",
+    "text": "an SUV with two doors open, from URB_OfficePaper_Terror (car: body, glass, two doors): cover; burns and blows up; its glass breaks"},
+   {"n": "2", "at": [1536, -1104, 120], "color": "#6fb7ef", "r": 60,
+    "text": "a barn door in its frame, from URB_SmallCemetery (door: leaf and frame): opens for a soldier, blocks sight shut"},
+   {"n": "3", "at": [240, 1296, 240], "color": "#f2c14e", "r": 60,
+    "text": "a drain pipe from URB_ConvienienceStore_EWI (ladder): a route up to the bar's roof and down again"}]},
+ {"out": "EXP-40-run1-carpark.png", "title": "EXP-40 run 1: the car park",
+  "target": [1380, -930, 60], "camera": [-500, 900, 600],
+  "marks": [
+   {"n": "1", "at": [1247, -768, 60], "color": "#5ad17a", "r": 110, "side": "left", "text": "SUV, doors open"},
+   {"n": "2", "at": [1536, -1104, 120], "color": "#6fb7ef", "r": 90, "text": "barn door and frame"}]},
+ {"out": "EXP-40-run1-ladder.png", "title": "EXP-40 run 1: the drain pipe on the bar's wall",
+  "target": [240, 1260, 240], "camera": [-500, 900, 450],
+  "marks": [
+   {"n": "3", "at": [240, 1296, 240], "color": "#f2c14e", "r": 90, "text": "drain pipe: climbs to the roof"}]}]}

@@ -1,0 +1,633 @@
+{
+ "date": "2026-11-07",
+ "tool": "tools/bake/udk_bounce_check.py",
+ "quality": "Production (udk_bake.ps1 -Quality)",
+ "note": "values are mean summed linear directional values; UDK keeps its default bounce count",
+ "bakes": {
+  "BakeCalib8": {
+   "spec": "tools/bake/examples/udk-calib7.json",
+   "scene": "directional light pitched 5 degrees up at two walls; floors lit only by bounce",
+   "results": {
+    "spotConeScale1": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.14555987603114848,
+      "direct": 0.0,
+      "bounce": 0.1457303114650482,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.20483017855190616,
+        "direct": 0.0,
+        "bounce": 0.17784657961016012,
+        "udkBeyondDirectOverBounce": 1.1517240252856935
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1473,
+        "udk": 0.20135946550078931,
+        "direct": 0.0,
+        "bounce": 0.21769801469353808,
+        "udkBeyondDirectOverBounce": 0.9249485613557423
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2191,
+        "udk": 0.11818234748975912,
+        "direct": 0.0,
+        "bounce": 0.11573795545506976,
+        "udkBeyondDirectOverBounce": 1.0211200554310662
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 640,
+        "udk": 0.08122373999796215,
+        "direct": 0.0,
+        "bounce": 0.06671096670858162,
+        "udkBeyondDirectOverBounce": 1.2175470391963847
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4556,
+      "udk": 0.10385096069571134,
+      "direct": 0.0,
+      "bounce": 0.1014873066913339,
+      "bands": [
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 684,
+        "udk": 0.15107429571297867,
+        "direct": 0.0,
+        "bounce": 0.16692681158492276,
+        "udkBeyondDirectOverBounce": 0.9050331356513136
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2619,
+        "udk": 0.10680878724824758,
+        "direct": 0.0,
+        "bounce": 0.10425934997060338,
+        "udkBeyondDirectOverBounce": 1.0244528407127325
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1253,
+        "udk": 0.07188982031829452,
+        "direct": 0.0,
+        "bounce": 0.05997046495500387,
+        "udkBeyondDirectOverBounce": 1.1987537594086324
+       }
+      ]
+     }
+    },
+    "spotConeScale2": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.14555987603114848,
+      "direct": 0.0,
+      "bounce": 0.1457303114650482,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.20483017855190616,
+        "direct": 0.0,
+        "bounce": 0.17784657961016012,
+        "udkBeyondDirectOverBounce": 1.1517240252856935
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1473,
+        "udk": 0.20135946550078931,
+        "direct": 0.0,
+        "bounce": 0.21769801469353808,
+        "udkBeyondDirectOverBounce": 0.9249485613557423
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2191,
+        "udk": 0.11818234748975912,
+        "direct": 0.0,
+        "bounce": 0.11573795545506976,
+        "udkBeyondDirectOverBounce": 1.0211200554310662
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 640,
+        "udk": 0.08122373999796215,
+        "direct": 0.0,
+        "bounce": 0.06671096670858162,
+        "udkBeyondDirectOverBounce": 1.2175470391963847
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4556,
+      "udk": 0.10385096069571134,
+      "direct": 0.0,
+      "bounce": 0.1014873066913339,
+      "bands": [
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 684,
+        "udk": 0.15107429571297867,
+        "direct": 0.0,
+        "bounce": 0.16692681158492276,
+        "udkBeyondDirectOverBounce": 0.9050331356513136
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2619,
+        "udk": 0.10680878724824758,
+        "direct": 0.0,
+        "bounce": 0.10425934997060338,
+        "udkBeyondDirectOverBounce": 1.0244528407127325
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1253,
+        "udk": 0.07188982031829452,
+        "direct": 0.0,
+        "bounce": 0.05997046495500387,
+        "udkBeyondDirectOverBounce": 1.1987537594086324
+       }
+      ]
+     }
+    }
+   },
+   "albedo": [
+    0.15792954960914588,
+    0.1591927301803663,
+    0.299132021814228
+   ]
+  },
+  "BakeCalib9": {
+   "spec": "tools/bake/examples/udk-calib8.json",
+   "scene": "two spot lights aimed horizontally at the walls; cones miss the floors",
+   "results": {
+    "spotConeScale1": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.06350930076651613,
+      "direct": 0.0,
+      "bounce": 0.011771966632865203,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.032086286634798886,
+        "direct": 0.0,
+        "bounce": 0.003950775544266428,
+        "udkBeyondDirectOverBounce": 8.121515959408066
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1473,
+        "udk": 0.07169597200916854,
+        "direct": 0.0,
+        "bounce": 0.014742040254507607,
+        "udkBeyondDirectOverBounce": 4.863368351422483
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2191,
+        "udk": 0.06689325350200796,
+        "direct": 0.0,
+        "bounce": 0.012249951274213173,
+        "udkBeyondDirectOverBounce": 5.460695475811563
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 640,
+        "udk": 0.04879392160754732,
+        "direct": 0.0,
+        "bounce": 0.0072104015617385445,
+        "udkBeyondDirectOverBounce": 6.76715730597705
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4556,
+      "udk": 0.02819534989952892,
+      "direct": 0.0,
+      "bounce": 0.005817444396262911,
+      "bands": [
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 684,
+        "udk": 0.029498266628028576,
+        "direct": 0.0,
+        "bounce": 0.007989608723418267,
+        "udkBeyondDirectOverBounce": 3.692079005266739
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2619,
+        "udk": 0.03004589552478696,
+        "direct": 0.0,
+        "bounce": 0.006187670695083606,
+        "udkBeyondDirectOverBounce": 4.855768350545841
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1253,
+        "udk": 0.02361612082144066,
+        "direct": 0.0,
+        "bounce": 0.0038578409833453812,
+        "udkBeyondDirectOverBounce": 6.12159000938437
+       }
+      ]
+     }
+    },
+    "spotConeScale2": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.06350930076651613,
+      "direct": 0.0,
+      "bounce": 0.058576338210749264,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.032086286634798886,
+        "direct": 0.0,
+        "bounce": 0.022815073047903173,
+        "udkBeyondDirectOverBounce": 1.4063635285072114
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1473,
+        "udk": 0.07169597200916854,
+        "direct": 0.0,
+        "bounce": 0.07605329397777838,
+        "udkBeyondDirectOverBounce": 0.9427069921536471
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2191,
+        "udk": 0.06689325350200796,
+        "direct": 0.0,
+        "bounce": 0.058939506398107744,
+        "udkBeyondDirectOverBounce": 1.1349476368223466
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 640,
+        "udk": 0.04879392160754732,
+        "direct": 0.0,
+        "bounce": 0.03498938119320925,
+        "udkBeyondDirectOverBounce": 1.3945351401932558
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4556,
+      "udk": 0.02819534989952892,
+      "direct": 0.0,
+      "bounce": 0.022628207406014334,
+      "bands": [
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 684,
+        "udk": 0.029498266628028576,
+        "direct": 0.0,
+        "bounce": 0.030805590016239236,
+        "udkBeyondDirectOverBounce": 0.9575621376665241
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 2619,
+        "udk": 0.03004589552478696,
+        "direct": 0.0,
+        "bounce": 0.024310592306694107,
+        "udkBeyondDirectOverBounce": 1.235917872577444
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1253,
+        "udk": 0.02361612082144066,
+        "direct": 0.0,
+        "bounce": 0.014647763862299922,
+        "udkBeyondDirectOverBounce": 1.6122679914456628
+       }
+      ]
+     }
+    }
+   },
+   "albedo": [
+    0.15792954960914588,
+    0.1591927301803663,
+    0.299132021814228
+   ]
+  },
+  "BakeCalib10": {
+   "spec": "tools/bake/examples/udk-calib9.json",
+   "scene": "a spot light pointing up beside one wall; a point light beside the other",
+   "results": {
+    "spotConeScale1": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.004550625241703671,
+      "direct": 0.0,
+      "bounce": 0.001250674527521347,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.0006178573717997459,
+        "direct": 0.0,
+        "bounce": 0.00018328439635201658,
+        "udkBeyondDirectOverBounce": 3.371030944789687
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1430,
+        "udk": 0.002605832997811584,
+        "direct": 0.0,
+        "bounce": 0.000650093139789332,
+        "udkBeyondDirectOverBounce": 4.008399471275801
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 1786,
+        "udk": 0.005691896437220751,
+        "direct": 0.0,
+        "bounce": 0.0014805869376694717,
+        "udkBeyondDirectOverBounce": 3.8443513801223457
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1088,
+        "udk": 0.006389989462238081,
+        "direct": 0.0,
+        "bounce": 0.001976568518244156,
+        "udkBeyondDirectOverBounce": 3.2328702006821883
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4624,
+      "udk": 2.431591687821692,
+      "direct": 2.1640976922569792,
+      "bounce": 0.19714181584060575,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 3.930878428190475,
+        "direct": 3.5900712525434053,
+        "bounce": 0.2506645563382797,
+        "udkBeyondDirectOverBounce": 1.3596145407455995
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1430,
+        "udk": 4.2354707583715925,
+        "direct": 3.8571003313821692,
+        "bounce": 0.2909278388800176,
+        "udkBeyondDirectOverBounce": 1.3005645263995107
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 1786,
+        "udk": 2.0217313361673517,
+        "direct": 1.7828853336657642,
+        "bounce": 0.17457646036047192,
+        "udkBeyondDirectOverBounce": 1.368145522073305
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1088,
+        "udk": 0.2925216145223209,
+        "direct": 0.14529250770112628,
+        "bounce": 0.09517530387544418,
+        "udkBeyondDirectOverBounce": 1.5469255240190585
+       }
+      ]
+     }
+    },
+    "spotConeScale2": {
+     "floorA": {
+      "texels": 4624,
+      "udk": 0.004550625241703671,
+      "direct": 0.0,
+      "bounce": 0.013586264015504881,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 0.0006178573717997459,
+        "direct": 0.0,
+        "bounce": 0.0025686761361729256,
+        "udkBeyondDirectOverBounce": 0.24053533378493272
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1430,
+        "udk": 0.002605832997811584,
+        "direct": 0.0,
+        "bounce": 0.012763205940104085,
+        "udkBeyondDirectOverBounce": 0.20416759002717566
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 1786,
+        "udk": 0.005691896437220751,
+        "direct": 0.0,
+        "bounce": 0.016503203648692764,
+        "udkBeyondDirectOverBounce": 0.34489645516018413
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1088,
+        "udk": 0.006389989462238081,
+        "direct": 0.0,
+        "bounce": 0.013120222640813525,
+        "udkBeyondDirectOverBounce": 0.4870336149906879
+       }
+      ]
+     },
+     "floorB": {
+      "texels": 4624,
+      "udk": 2.431591687821692,
+      "direct": 2.1640976922569792,
+      "bounce": 0.19731429218561858,
+      "bands": [
+       {
+        "distance": [
+         0,
+         100
+        ],
+        "texels": 320,
+        "udk": 3.930878428190475,
+        "direct": 3.5900712525434053,
+        "bounce": 0.2506766911669563,
+        "udkBeyondDirectOverBounce": 1.359548724137596
+       },
+       {
+        "distance": [
+         100,
+         400
+        ],
+        "texels": 1430,
+        "udk": 4.2354707583715925,
+        "direct": 3.8571003313821692,
+        "bounce": 0.29103915122417473,
+        "udkBeyondDirectOverBounce": 1.3000671057413202
+       },
+       {
+        "distance": [
+         400,
+         800
+        ],
+        "texels": 1786,
+        "udk": 2.0217313361673517,
+        "direct": 1.7828853336657642,
+        "bounce": 0.17475199411980621,
+        "udkBeyondDirectOverBounce": 1.3667712560569685
+       },
+       {
+        "distance": [
+         800,
+         1300
+        ],
+        "texels": 1088,
+        "udk": 0.2925216145223209,
+        "direct": 0.14529250770112628,
+        "bounce": 0.09547031079442139,
+        "udkBeyondDirectOverBounce": 1.5421454648684105
+       }
+      ]
+     }
+    }
+   },
+   "albedo": [
+    0.15792954960914588,
+    0.1591927301803663,
+    0.299132021814228
+   ]
+  }
+ }
+}

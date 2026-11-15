@@ -1,0 +1,17 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e54", "mission": "kind:Crash", "shots": [
+ {"out": "EXP-54-overview.png", "title": "EXP-54: EXP-51's cleared Bar as a council bomb, a terror site and a crashed small scout",
+  "target": [-100, -1300, 0], "camera": [300, -2600, 2600],
+  "marks": [
+   {"n": "1", "at": [1423, -1681, 10], "color": "#5ad17a", "r": 80,
+    "text": "zone 1, Bar's own landing (moved): Land here; plain EW lands here too"},
+   {"n": "2", "at": [-1297, -1361, 26], "color": "#4aa8ff", "r": 80, "side": "left",
+    "text": "zone 2, added (Long War only): Land here"},
+   {"n": "3", "at": [480, -1536, 200], "color": "#e06cff", "r": 70,
+    "text": "the shed, now the project's UFO building: on the crashed UFO, Long War's commander spawn point inside"},
+   {"n": "4", "at": [0, 300, 0], "color": "#ffb347", "r": 70, "side": "left",
+    "text": "no floor past the fields: the bomb, its power nodes and the civilians go where Long War and the game find room"}]},
+ {"out": "EXP-54-shed.png", "title": "EXP-54: the shed as the UFO building (the crashed small scout's commander spawn point)",
+  "target": [480, -1536, 100], "camera": [-700, -1100, 900], "floor": "1",
+  "marks": [
+   {"n": "3", "at": [480, -1536, 100], "color": "#e06cff", "r": 90,
+    "text": "Long War should pick its commander spawn point in here (IsUfo); a test battle sends no commander"}]}]}

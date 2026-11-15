@@ -1,0 +1,170 @@
+{
+ "light": {
+  "pitch": -8192,
+  "yaw": 0,
+  "brightness": 1.0,
+  "color": [
+   255,
+   255,
+   255
+  ]
+ },
+ "receivers": [
+  {
+   "name": "yaw000",
+   "location": [
+    0,
+    0,
+    0
+   ],
+   "yaw": 0,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw045",
+   "location": [
+    1600,
+    0,
+    0
+   ],
+   "yaw": 8192,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw090",
+   "location": [
+    3200,
+    0,
+    0
+   ],
+   "yaw": 16384,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw135",
+   "location": [
+    4800,
+    0,
+    0
+   ],
+   "yaw": 24576,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw180",
+   "location": [
+    6400,
+    0,
+    0
+   ],
+   "yaw": 32768,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw225",
+   "location": [
+    8000,
+    0,
+    0
+   ],
+   "yaw": 40960,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw270",
+   "location": [
+    9600,
+    0,
+    0
+   ],
+   "yaw": 49152,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "yaw315",
+   "location": [
+    11200,
+    0,
+    0
+   ],
+   "yaw": 57344,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "tilt_face",
+   "location": [
+    0,
+    -2400,
+    600
+   ],
+   "yaw": 0,
+   "pitch": 8192,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "tilt_half",
+   "location": [
+    0,
+    -4800,
+    600
+   ],
+   "yaw": 0,
+   "pitch": 4096,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "tilt_low",
+   "location": [
+    0,
+    -7200,
+    600
+   ],
+   "yaw": 0,
+   "pitch": -4096,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "tilt_wall",
+   "location": [
+    0,
+    -9600,
+    600
+   ],
+   "yaw": 0,
+   "pitch": 16384,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  }
+ ]
+}

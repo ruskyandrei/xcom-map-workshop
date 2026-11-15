@@ -1,0 +1,14 @@
+{"map": "CB2_MP_Blank", "project": "00000000-0000-4000-8000-000000000e43", "shots": [
+ {"out": "EXP-43-run2-overview.png", "title": "EXP-43 run 2: pieces of other maps on the blank map",
+  "target": [420, 640, 40], "camera": [-900, -1500, 1500],
+  "marks": [
+   {"n": "1", "at": [-96, 528, 40], "color": "#4aa3ff", "r": 110, "side": "left",
+    "text": "the squad starts here, each soldier on a tile of their own (six soldier spawn points brought from URB_Bar)"},
+   {"n": "2", "at": [305, 313, 30], "color": "#5ad17a", "r": 45,
+    "text": "a dry bush (URB_GasStation_EWI): low cover, and it breaks"},
+   {"n": "3", "at": [564, 575, 90], "color": "#5ad17a", "r": 80,
+    "text": "an abductor wall, three tiles (LAbductor_WindingStream): full cover, and it breaks"},
+   {"n": "4", "at": [479, 864, 60], "color": "#5ad17a", "r": 90, "side": "left",
+    "text": "an SUV with its doors open (URB_OfficePaper_Terror): cover, burns and blows up"},
+   {"n": "5", "at": [960, 720, 100], "color": "#ffb347", "r": 150,
+    "text": "a moving van (URB_ResearchOutpost_EWI) with its own building: soldiers walk into its box; the roof and walls cut away"}]}]}

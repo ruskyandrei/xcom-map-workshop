@@ -1,0 +1,278 @@
+{
+  "name": "patch_templeship_exp14light",
+  "base": "",
+  "map": {
+    "name": "TempleShip",
+    "origin": [
+      -2112,
+      -9408
+    ],
+    "shipAs": "TempleShip_EXP14Light",
+    "displayName": "TempleShip_EXP14Light (EXP-14 lighting test) |0",
+    "streamSlot": "free",
+    "timeOfDay": "None",
+    "intro": false
+  },
+  "nameBase": 900,
+  "objects": [
+    {
+      "type": "copy",
+      "location": [
+        51.1222,
+        -5803.524,
+        190.7931
+      ],
+      "from": [
+        "XComCollectible_56",
+        "XComCollectible_56",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9"
+      ],
+      "poses": [
+        {
+          "location": [
+            51.1222,
+            -5803.524,
+            190.7931
+          ],
+          "rotation": [
+            0,
+            -32768,
+            0
+          ]
+        },
+        {
+          "location": [
+            50.1378,
+            -6955.524,
+            193.9605
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            1197.623,
+            -6994.1395,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1105.8673,
+            -6989.5162,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            1008.0,
+            -6706.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            1488.0,
+            -6706.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1200.0,
+            -6706.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -816.0,
+            -6706.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            1872.0,
+            -3826.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            1872.0,
+            -3154.0,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "labels": [
+        "XComCollectible_56_copy6",
+        "XComCollectible_56_copy7",
+        "XComDestructibleActor_9_copy4",
+        "XComDestructibleActor_9_copy5",
+        "east",
+        "east_sh",
+        "west",
+        "west_sh",
+        "north",
+        "north_sh"
+      ],
+      "boxes": [
+        [
+          -16.53,
+          118.774,
+          -5870.079,
+          -5735.386,
+          185.374,
+          417.707
+        ],
+        [
+          -17.514,
+          117.79,
+          -7023.662,
+          -6888.969,
+          188.541,
+          420.874
+        ],
+        [
+          1049.143,
+          1346.103,
+          -7099.106,
+          -6899.418,
+          -3.92,
+          156.011
+        ],
+        [
+          -1254.347,
+          -957.387,
+          -7094.482,
+          -6894.795,
+          -3.92,
+          156.011
+        ],
+        [
+          859.52,
+          1156.48,
+          -6810.966,
+          -6611.278,
+          -3.92,
+          156.011
+        ],
+        [
+          1339.52,
+          1636.48,
+          -6810.966,
+          -6611.278,
+          -3.92,
+          156.011
+        ],
+        [
+          -1348.48,
+          -1051.52,
+          -6810.966,
+          -6611.278,
+          -3.92,
+          156.011
+        ],
+        [
+          -964.48,
+          -667.52,
+          -6810.966,
+          -6611.278,
+          -3.92,
+          156.011
+        ],
+        [
+          1723.52,
+          2020.48,
+          -3930.966,
+          -3731.278,
+          -3.92,
+          156.011
+        ],
+        [
+          1723.52,
+          2020.48,
+          -3258.966,
+          -3059.278,
+          -3.92,
+          156.011
+        ]
+      ],
+      "extra": [
+        "bLogTiles=True",
+        "CopyLights(5)=(Mode=1)",
+        "CopyLights(7)=(Mode=1)",
+        "CopyLights(9)=(Mode=1)"
+      ]
+    },
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        47.9999,
+        -7056.0,
+        -3.6358
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_206",
+        "XComDestructibleActor_208"
+      ],
+      "labels": [
+        "delete:XComDestructibleActor_206",
+        "delete:XComDestructibleActor_208"
+      ]
+    }
+  ]
+}

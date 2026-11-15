@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map Workshop: UI redesign mock-up</title>
+<style>
+:root{color-scheme:dark;font-family:Segoe UI,system-ui,sans-serif;font-size:13px;color:#d8e1e8;--bg:#13191f;--panel:#192129ee;--line:#2f3d47;--muted:#8a9da9;--accent:#82d5ce;--warn:#e7c594}
+*{box-sizing:border-box}body{margin:0;background:#0e1317;padding:14px 20px 30px}
+.states{display:flex;gap:6px;align-items:center;margin:0 0 10px;color:#9fb0bb;font-size:12px}
+.states button{background:#1b252e;border:1px solid #3a4a55;color:#cfe0e7;border-radius:4px;padding:6px 11px;cursor:pointer;font:inherit}
+.states button.on{border-color:var(--accent);color:#b4f0e7;background:#25373e}
+.app{position:relative;width:1440px;height:880px;border:1px solid #2a3540;overflow:hidden;background:#202a32}
+.view{position:absolute;inset:44px 0 0 0;background:
+  repeating-linear-gradient(0deg,transparent 0 63px,#3c5d6a44 63px 64px),repeating-linear-gradient(90deg,transparent 0 63px,#3c5d6a44 63px 64px),
+  radial-gradient(ellipse at 55% 60%,#2a3a5c 0,#1b2438 60%,#141b29 100%)}
+.top{position:absolute;left:0;right:0;top:0;height:44px;background:#161e25;border-bottom:1px solid #2a3540;display:flex;align-items:center;gap:10px;padding:0 12px;z-index:5}
+.mark{width:26px;height:28px;border:1px solid #68b6ba;color:#8dd7d6;display:grid;place-items:center;font-weight:300;font-size:17px}
+.brand{letter-spacing:1.5px;font-size:11px;font-weight:600;margin-right:10px}
+.pick{display:flex;align-items:center;gap:6px;background:#1d2730;border:1px solid #33434e;border-radius:4px;padding:5px 9px;color:#dbe7ec}
+.pick small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px}
+.chev{color:#7f95a1;font-size:10px}
+.sp{flex:1}
+.chip{border-radius:12px;padding:4px 10px;font-size:11px;border:1px solid #3a4a55;color:#c8d7df;background:#1b252e}
+.chip.warn{border-color:#6f5a35;color:var(--warn);background:#2b2519}
+.icon{width:30px;height:30px;border-radius:4px;display:grid;place-items:center;color:#c8d7df;border:1px solid transparent;position:relative}
+.icon:hover{background:#25313a}
+.badge{position:absolute;top:-3px;right:-4px;background:#3b4f5a;color:#dbe7ec;border-radius:8px;font-size:9px;padding:1px 4px}
+.float{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:6px;z-index:4}
+.search{position:relative;width:300px;margin-left:14px;background:#121a21;border:1px solid #33434e;border-radius:4px}
+.search .results{position:absolute;left:-1px;right:-1px;top:calc(100% + 4px);background:#192129f5;border:1px solid var(--line);border-radius:6px;z-index:8}
+.search .field{display:flex;align-items:center;gap:8px;padding:5px 9px;color:#9fb0bb}
+.search .field b{color:#e3eaef;font-weight:400}
+.kbd{margin-left:auto;font-size:10px;color:#7f95a1;border:1px solid #3a4a55;border-radius:3px;padding:0 4px}
+.results{border-top:1px solid var(--line);max-height:330px}
+.res{display:flex;gap:9px;align-items:center;padding:7px 10px;border-bottom:1px solid #26323b}
+.res.hl{background:#25373e}
+.res .n{color:#e3eaef}.res .s{color:var(--muted);font-size:11px}
+.tag{font-size:10px;border:1px solid #3d4d58;border-radius:3px;padding:0 5px;color:#a9bcc6;margin-left:auto;white-space:nowrap}
+.resfoot{padding:6px 10px;color:#7f95a1;font-size:11px}
+.rail{left:12px;top:56px;display:flex;flex-direction:column;padding:4px;gap:2px}
+.rail .t{width:34px;height:34px;border-radius:4px;display:grid;place-items:center;color:#c8d7df;position:relative}
+.rail .t.on{background:#25373e;color:#b4f0e7;box-shadow:inset 0 0 0 1px var(--accent)}
+.rail .t.off{color:#5c6d78}
+.rail .t i{position:absolute;right:2px;bottom:1px;font-size:8px;color:#7f95a1;font-style:normal}
+.rail hr{border:0;border-top:1px solid var(--line);margin:3px 2px}
+.dock{left:50%;transform:translateX(-50%);bottom:14px;display:flex;align-items:center;gap:4px;padding:5px}
+.seg{display:flex;border:1px solid #33434e;border-radius:4px;overflow:hidden}
+.seg span{padding:5px 9px;color:#b9c9d1;border-right:1px solid #33434e}.seg span:last-child{border-right:0}
+.seg span.on{background:#25373e;color:#b4f0e7}
+.dlabel{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin:0 3px 0 8px}
+.btn{border:1px solid #33434e;border-radius:4px;padding:5px 9px;color:#d3e2e8;background:#1b252e}
+.right{right:12px;top:56px;width:290px;padding:12px 14px}
+.right h3{margin:0;font-size:16px;font-weight:500;color:#eef3f6}
+.sub{color:var(--muted);font-size:11px;margin-top:3px}
+.sec{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.sec .h{display:flex;align-items:center;color:#9fb0bb;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+.sec .h span{margin-left:auto;text-transform:none;letter-spacing:0;font-size:11px;color:#7f95a1}
+.xyz{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.num{background:#121a21;border:1px solid #33434e;border-radius:3px;padding:4px 6px;font:12px Consolas,monospace;color:#e3eaef;display:flex;gap:6px}
+.num em{font-style:normal;color:#7f95a1}.num.x em{color:#e06c6c}.num.y em{color:#6c9de0}.num.z em{color:#6cc47d}
+.row{display:flex;gap:6px;margin-top:8px}
+.link{color:#a9d8d2;font-size:12px}
+.mini{font-size:12px;color:#c7d9e2;line-height:1.7}
+.mini b{font-weight:400;color:var(--muted);display:inline-block;width:78px}
+.tog{display:flex;align-items:center;gap:7px;color:#c7d9e2;font-size:12px;margin-top:6px}
+.box{width:12px;height:12px;border:1px solid #6d8592;border-radius:2px;display:inline-block}.box.on{background:var(--accent);border-color:var(--accent)}
+.pop{right:12px;top:52px;width:250px;padding:12px}
+.pop .tog{margin-top:9px}
+.hint{left:50%;transform:translateX(-50%);top:58px;padding:6px 12px;color:#c7d9e2;font-size:12px}
+.hint b{color:#e3eaef;font-weight:400;border:1px solid #3a4a55;border-radius:3px;padding:0 4px;font-size:11px}
+.stats{right:12px;bottom:14px;padding:5px 9px;color:#7f95a1;font-size:11px}
+.note{position:absolute;color:#ffd8a8;font:12px Segoe UI;background:#3a2d16;border:1px dashed #a8844a;border-radius:4px;padding:4px 7px;z-index:7;max-width:250px;line-height:1.4}
+.car{position:absolute;left:560px;top:380px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="states" id="states"><span>State:</span>
+  <button data-s="idle" class="on">1 · Nothing selected</button>
+  <button data-s="search">2 · Searching</button>
+  <button data-s="selected">3 · Piece selected</button>
+  <button data-s="editing">4 · Dragging, edits pending</button>
+  <button data-s="display">5 · View options open</button>
+  <label style="margin-left:14px"><input type="checkbox" id="notes" checked> Show design notes</label>
+</div>
+
+<div class="app" id="app">
+  <div class="top">
+    <div class="mark">X</div><div class="brand">MAP WORKSHOP</div>
+    <div class="pick"><small>Map</small> Bar <span class="chev">▼</span></div>
+    <div class="pick"><small>Layout</small> Original <span class="chev">▼</span></div>
+    <div class="search" id="search">
+      <div class="field">⌕ <span class="s-q-empty">Find a piece</span><b class="s-q hide">sedan</b><span class="kbd">Ctrl+F</span></div>
+      <div class="results s-results hide">
+        <div class="res hl"><div><div class="n">SedanBFull</div><div class="s">XComDestructibleActor_64 · police car</div></div><span class="tag">+2 linked</span></div>
+        <div class="res"><div><div class="n">SedanBFull</div><div class="s">XComDestructibleActor_20</div></div><span class="tag">+1 linked</span></div>
+        <div class="res"><div><div class="n">SedanBFullGlass_FRACTURED</div><div class="s">XComFracLevelActor_45 · glass</div></div><span class="tag">car part</span></div>
+        <div class="res"><div><div class="n">SedanBFullGlass_FRACTURED</div><div class="s">XComFracLevelActor_10 · glass</div></div><span class="tag">car part</span></div>
+        <div class="res"><div><div class="n">SedanBPoliceLights</div><div class="s">XComDestructibleActor_143</div></div><span class="tag">car part</span></div>
+        <div class="resfoot">7 matches · ↑↓ to choose · Enter selects and frames · Esc clears</div>
+      </div>
+    </div>
+    <span class="chip warn s-preview hide">Experimental preview · not verified in game</span>
+    <div class="sp"></div>
+    <span class="chip warn s-editing">3 pieces moved · not saved</span>
+    <div class="icon s-editing" title="Undo (Ctrl+Z)">↶</div><div class="icon s-editing" title="Redo (Ctrl+Y)">↷</div>
+    <div class="icon" title="Import notes">⚠<span class="badge">26</span></div>
+    <div class="icon" title="View options">☰</div>
+    <div class="icon" title="Shortcuts and help">?</div>
+  </div>
+
+  <div class="view">
+    <svg class="car" width="380" height="230" viewBox="0 0 380 230" aria-hidden="true">
+      <rect class="s-sel" x="10" y="20" width="360" height="200" fill="none" stroke="#96e5d7" stroke-width="1.2"/>
+      <path d="M40 160 L70 110 L130 95 L170 60 L270 60 L310 105 L350 115 L355 160 Z" fill="#c9d2e4" opacity=".85"/>
+      <path d="M180 68 L262 68 L292 103 L160 103 Z" fill="#283a5a"/>
+      <rect x="195" y="48" width="60" height="12" rx="3" fill="#c33"/><rect x="225" y="48" width="30" height="12" rx="3" fill="#33c"/>
+      <circle cx="105" cy="165" r="26" fill="#111"/><circle cx="295" cy="165" r="26" fill="#111"/>
+      <g class="s-sel">
+        <line x1="200" y1="130" x2="200" y2="60" stroke="#2c2" stroke-width="4"/><polygon points="200,48 192,64 208,64" fill="#2c2"/>
+        <line x1="200" y1="130" x2="275" y2="150" stroke="#e33" stroke-width="4"/><polygon points="288,153 270,158 274,142" fill="#e33"/>
+        <line x1="200" y1="130" x2="150" y2="170" stroke="#33e" stroke-width="4"/><polygon points="140,178 146,160 158,172" fill="#33e"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="float rail" id="rail">
+    <div class="t tool-select" title="Select (V)">➤<i>V</i></div>
+    <div class="t tool-move" title="Move (W)">✥<i>W</i></div>
+    <div class="t" title="Rotate (E)">⟳<i>E</i></div>
+    <hr>
+    <div class="t" title="World / local axes (Q)">⊕<i>Q</i></div>
+    <div class="t off" title="Snap: 24 units, 15°">⌗</div>
+    <div class="t on" title="Move linked pieces">⛓</div>
+    <hr>
+    <div class="t" title="Frame selection (F)">⛶<i>F</i></div>
+  </div>
+
+  <div class="float hint s-editing">Moving 3 linked pieces · <b>Esc</b> cancels the drag</div>
+
+  <div class="float right s-sel hide" id="right">
+    <h3>SedanBFull</h3>
+    <div class="sub">Destructible · Bar map</div>
+    <div class="tog" style="margin-top:9px"><span class="chip">⛓ Moves with 2 linked pieces</span></div>
+    <div class="sec">
+      <div class="h">Position <span>game units</span></div>
+      <div class="xyz"><div class="num x"><em>X</em>-1240.4</div><div class="num y"><em>Y</em>-482.2</div><div class="num z"><em>Z</em>0.0</div></div>
+      <div class="h" style="margin-top:10px">Rotation <span>degrees</span></div>
+      <div class="xyz"><div class="num"><em>P</em>0.0</div><div class="num"><em>Y</em>-4.0</div><div class="num"><em>R</em>0.0</div></div>
+      <div class="row"><span class="btn">Reset piece</span><span class="btn s-editing">Reset all</span></div>
+    </div>
+    <div class="sec">
+      <div class="h" id="srcToggle" style="cursor:pointer">Source details <span id="srcArrow">▸ show</span></div>
+      <div class="mini hide" id="srcBody"><b>Actor</b>XComDestructibleActor_64<br><b>Package</b>URB_Bar<br><b>Mesh</b>VEH_SedanB…SedanBFull<br><b>Materials</b>3 (hover for paths)<br><b>Floors</b>none (street)<br><b>Geometry</b>2,414 vertices<br><b>Original at</b>-1240.36, -482.16, 0.00
+      <div class="link" style="margin-top:4px">Copy full paths</div></div>
+    </div>
+  </div>
+
+  <div class="float pop s-display hide">
+    <div class="sec" style="border:0;margin:0;padding:0"><div class="h">Lighting</div>
+      <div class="seg"><span class="on">Map</span><span>No area</span><span>Neutral</span></div>
+      <div class="tog">Brightness <span style="flex:1;height:4px;background:#33434e;border-radius:2px;position:relative"><span style="position:absolute;left:30%;top:-5px;width:12px;height:12px;border-radius:50%;background:var(--accent)"></span></span></div>
+    </div>
+    <div class="sec"><div class="h">Show</div>
+      <div class="tog"><span class="box on"></span>Floor grid</div>
+      <div class="tog"><span class="box"></span>Wireframe</div>
+      <div class="tog"><span class="box"></span>Hidden patch helpers</div>
+      <div class="tog"><span class="box on"></span>Performance stats</div>
+    </div>
+  </div>
+
+  <div class="float dock">
+    <span class="btn">⛶ Frame ▾</span>
+    <span class="dlabel">Scene</span><div class="seg"><span class="on">Interior</span><span>Full</span></div>
+    <span class="dlabel">Floors</span><div class="seg"><span class="on">All</span><span>1</span><span>2</span><span>3</span></div>
+    <span class="btn">All buildings ▾</span>
+  </div>
+
+  <div class="float stats s-display hide">172 draw calls · 45,630 triangles · 254 lights</div>
+
+  <div class="dn note" style="left:440px;top:330px;max-width:300px">Search sits in the header. No list until you type; results drop down over the view, clear of the tool strip.</div>
+  <div class="dn note" style="left:62px;top:400px;max-width:190px">Tool rail: select, move, rotate and their modifiers. Always in the same place; keys shown.</div>
+  <div class="dn note" style="left:560px;top:790px;max-width:330px">View dock: framing, interior or full scenery, and floor cut-through as one-click buttons.</div>
+  <div class="dn note" style="left:930px;top:52px;max-width:210px">Undo/redo and the "not saved" chip appear only once something has moved.</div>
+  <div class="dn note s-sel hide" style="left:950px;top:330px;max-width:180px">Selection panel only when something is selected. Plain name first, numbers editable, source paths folded away.</div>
+</div>
+
+<script>
+const show = (sel, on) => document.querySelectorAll(sel).forEach(e => e.classList.toggle('hide', !on));
+function state(s) {
+  document.querySelectorAll('#states button').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  const sel = s === 'selected' || s === 'editing';
+  show('.s-sel', sel); show('.s-editing', s === 'editing'); show('.s-display', s === 'display');
+  show('.s-results', s === 'search'); show('.s-q', s === 'search'); show('.s-q-empty', s !== 'search');
+  document.querySelectorAll('#rail .t').forEach((t, i) => { if (i >= 3 && i <= 5) t.style.opacity = sel ? 1 : .45; });
+  document.querySelector('.tool-select').classList.toggle('on', !sel);
+  document.querySelector('.tool-move').classList.toggle('on', sel);
+}
+document.querySelectorAll('#states button').forEach(b => b.onclick = () => state(b.dataset.s));
+document.getElementById('srcToggle').onclick = () => { const b = document.getElementById('srcBody'); b.classList.toggle('hide'); document.getElementById('srcArrow').textContent = b.classList.contains('hide') ? '▸ show' : '▾ hide'; };
+document.getElementById('notes').onchange = e => document.querySelectorAll('.dn').forEach(n => n.style.visibility = e.target.checked ? 'visible' : 'hidden');
+state(new URLSearchParams(location.search).get('state') || 'idle');
+</script>
+</body>
+</html>

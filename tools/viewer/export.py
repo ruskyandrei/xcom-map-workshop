@@ -1,0 +1,677 @@
+"""Export an original EW map into an external, disposable viewer cache."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import struct
+import tempfile
+from package import Package, FormatError
+from mesh import read_mesh, write_glb
+from skeletal import read_skeletal
+from texture import export_texture
+from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
+from PIL import Image
+from export_math import multiply, transform, view_matrix
+from scene_metadata import (building_metadata, cursor_volumes, effect_metadata, landing_metadata, destruction, fragment_breaks, kismet_references, prefab_members, tile_grid,
+                            tactical_metadata)
+from resolver import resolve_scene
+from composition import compose_scene,content_records
+from lights import light_metadata, light_records
+
+# 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
+# 14: no diagnostic pink: more diffuse rules (parameter names, compiled shaders' colour textures, colours by kind,
+#     else neutral grey), streamed packages' stub materials from the map, fractured interiors hidden
+# 17: what the game's damage does to each piece (`destruction`: its toughness and health; scene_metadata.destruction)
+# 18: what the editor needs to edit lights (private/plans/done/editor-lights-plan.md 4.1, 9.3): each light's GUIDs, the pieces
+#     its bake lists it in (`bakedInto`, `shadowMapped`), `channels`, `saved`, `referencedBy`; area lights' glowing
+#     pieces (`emitterAttachment`, objects' `areaLights`) and the scene's `lightMetadata`
+# 19: a masked material's cut-out follows its OpacityMask input (T-29)
+# 20: the map's cursor volumes (`cursorVolumes`: the cursor's floors; prefab plan B1.2)
+# 22: the map's own landings (`landings`: each landing prefab's ten actors, its group and the grounded Skyranger's
+#     prefab; private/plans/done/clear-map-plan.md, section 4)
+# 23: the level's effects (`effects`: its Emitter actors, each with its particle system and the piece that carries it;
+#     scene_metadata.effect_metadata), and a landing with no drop zone frame matched to its Skyranger from where its
+#     fitted zone's frame would stand (spawns.fit_zone)
+# 24: each mission stream's objects (`streams[<name>].missionObjects`: drop-in points, pods, points, landings, capture
+#     points, radar arrays, the bomb and power nodes with their parts, waves, triggers, each with what lists it and the
+#     group it moves with; scene_metadata.mission_objects, private/plans/done/mission-types-plan.md C1)
+EXPORT_VERSION = 24    # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+                       #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
+LIGHT_METADATA_VERSION = 1
+SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
+
+
+def sha256(path):
+    with Path(path).open("rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
+def collides(p, actor):
+    """Whether an actor collides: bCollideActors, and CollideActors on one of the mesh components under it (the
+    Build's native_copy.collides, which the export can't import)."""
+    if p.effective(actor, "bCollideActors", True) is False:
+        return False
+    def under(i):
+        for c in p.children.get(i, []):
+            yield c
+            yield from under(c)
+    return any(p.effective(c, "CollideActors", True) is not False for c in under(actor)
+               if (p.cls(c) == "SkeletalMeshComponent" and (p.effective(c, "SkeletalMesh", 0) or 0) > 0)
+               or (p.cls(c) in ("StaticMeshComponent", "FracturedStaticMeshComponent", "XComMapEdMeshComponent")
+                   and (p.effective(c, "StaticMesh", 0) or 0) > 0))
+
+
+def compiled_textures(p, material):
+    """The textures a cooked Material's compiled shaders sample: its first material resource's
+    UniformExpressionTextures, after CompileErrors, TextureDependencyLengthMap, MaxTextureDependencyLength, Id and
+    NumUserTexCoords. EW's cooked materials keep this list even where their expressions are stripped (StreetSet's
+    Asphalt_Patch: no texture parameter, only Asphalt_Patch_DIFF and _MASK here). [] where it doesn't parse."""
+    try:
+        e = p.exports[material - 1]
+        _, at = p.properties(material)
+        stop = e['off'] + e['size']
+        word = lambda o: struct.unpack_from('<i', p.data, o)[0]  # noqa: E731
+        for _ in range(word(at) if 0 <= word(at) < 64 else 0):      # CompileErrors: FStrings
+            at += 4
+            n = word(at)
+            at += 4 + (n if n >= 0 else -2 * n)
+        at += 4
+        pairs = word(at)                                           # TMap<expression, int>
+        if not 0 <= pairs < 4096: return []
+        at += 4 + 8 * pairs + 4 + 16 + 4
+        count = word(at)
+        if not 0 <= count <= 64 or at + 4 + 4 * count > stop: return []
+        refs = [word(at + 4 + 4 * k) for k in range(count)]
+        return [r for r in refs if r and 'Texture' in p.cls(r)]
+    except (FormatError, struct.error, IndexError, KeyError, ValueError):
+        return []
+
+
+DIFFUSE_NAME = re.compile(r'_(DIFF|DIF|DIFFUSE|D|COL|COLOR|COLOUR|ALB|ALBEDO|BASE)$', re.I)
+MASK_NAME = re.compile(r'_(MASK|MSK|M)$', re.I)
+# Words in a texture's or parameter's name that say it holds no surface colour: normals, specular, masks, FX
+# (scrolling smoke and fire, noise, gradients) and Firaxis's placeholders (DiffuseDev, NormalDev...)
+NOT_COLOUR = frozenset('NML NRM NORM NOR NORMAL NORMALS SPC SPEC SPECULAR REF REFL REFLECTION MASK MSK NOISE GRADIENT GRAD '
+                       'SMOKE FIRE SCROLLING RAGGED EDGE DEV WIPE VOMIT FROTH EMS EMISSIVE OPA OPC OPACITY ALPHA LIGHTS '
+                       'HOLE DISTORTION CLOUD EMBERS BLURRED HEIGHT AO CUBE CUBEMAP FRESNEL GLOW DISSOLVE'.split())
+# The neutral grey drawn where nothing says what colour a surface is (linear: sRGB 128)
+NEUTRAL = [(128/255)**2.2]*3
+STUB_PROPERTIES = {'ReferencedTextureGuids', 'LightingGuid'}
+
+
+def name_words(name):
+    """A name's words, upper case: T_Smoke_Cloud_Scrolling_NML -> T SMOKE CLOUD SCROLLING NML, NoiseHighFreq -> NOISE
+    HIGH FREQ."""
+    return {w.upper() for w in re.findall(r'[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+', name)}
+
+
+def colour_like(name):
+    """Whether a texture or parameter name could hold a surface colour (no NOT_COLOUR word in it)."""
+    return not name_words(name) & NOT_COLOUR
+
+
+def placeholder(full):
+    """Firaxis's default textures in the parent materials (GEN_MaterialParents.Textures.DiffuseDev, GrayDev...),
+    which a material instance that doesn't set the parameter keeps."""
+    return full.startswith('GEN_MaterialParents.Textures.') and 'DEV' in name_words(full.rsplit('.', 1)[-1])
+
+
+def diffuse_parameter(names):
+    """The diffuse among texture parameters the profile doesn't know ({parameter: texture path}), or None:
+    1. the one whose texture is named _DIFF (Firaxis's own "Diffsue_Map" on PROP_Objects_Old);
+    2. one named Diffuse..., Dif... ("Diffuse_Map" on Burning_Tree, "Diffuse Map A | CMod Mask" on the obsolete
+       Building_Tiling_Material, "Diffuse_GlassMask" on the window parallax), not a mask or a layered material's
+       Diffuse_Mod, nor a placeholder;
+    3. the only parameter whose name and texture both read as colour ("StaticScreenTexture" on HQ_ConsoleScreen,
+       "Rope_Tex", "Car_Tex")."""
+    usable = {k: v for k, v in names.items() if k != 'Diffuse_Mod' and not placeholder(v)}
+    named = [k for k, v in usable.items() if DIFFUSE_NAME.search(v.rsplit('.', 1)[-1])]
+    if named: return next((k for k in named if k.lower().startswith('diff')), named[0])
+    called = [k for k in usable if re.match(r'(?i)dif', k) and not re.fullmatch(r'(?i)diffuse[ _]?mask', k)]
+    if called: return called[0]
+    loose = [k for k, v in usable.items() if colour_like(k) and colour_like(v.rsplit('.', 1)[-1])]
+    return loose[0] if len(loose) == 1 else None
+
+
+def compiled_colour(names):
+    """The colour among the textures a material's compiled shaders sample ({ref: short name}): one named _DIFF,
+    else the first whose name reads as colour (pineBranchSplit beside the fire and smoke on burning trees). A name
+    can mislead: materials.BY_KIND takes the roots where it does, before this."""
+    return (next((r for r, n in names.items() if DIFFUSE_NAME.search(n)), None)
+            or next((r for r, n in names.items() if colour_like(n)), None))
+
+
+def area_lights(p, objects, lights, meshes, materials, warn):
+    """Each area light's glowing piece (area_light_bindings.associate, editor lights plan 4.8): `emitterAttachment` on
+    the area lights, `areaLights` on every object (the area lights it may have emitted). Returns the matcher's version,
+    or None where the matcher isn't there (the export then can't build edits: compiler.light_metadata_problem)."""
+    for obj in objects: obj['areaLights'] = []
+    try:
+        import area_light_bindings
+    except ImportError:
+        return None
+    found = area_light_bindings.associate(p, objects, lights, meshes, materials, warn)
+    for light in lights:
+        if light['id'] in found['attachments']: light['emitterAttachment'] = found['attachments'][light['id']]
+    for obj in objects: obj['areaLights'] = sorted(found['owners'].get(obj['id'], []))
+    return found['version']
+
+
+class Exporter:
+    def __init__(self, package, folder,namespace='',progress=None,base=None):
+        """progress(done, total): called as the pieces are read (the export's slow part). base: the map's own
+        Exporter, for a package streamed into it (its stub and imported materials are the map's)."""
+        self.p, self.folder = package, folder
+        self.base = base
+        self.prefix=namespace+'-' if namespace else ''
+        self.prefabs = {}
+        self.kismet = {}
+        self.breaks = {}
+        self.meshes, self.materials, self.textures = {}, {}, {}
+        self.diagnostics = []
+        self.progress = progress
+
+    def warn(self, source, message):
+        self.diagnostics.append(dict(source=source, message=str(message)))
+
+    def texture(self, index):
+        if index <= 0: return None
+        key = self.prefix+str(index)
+        if key not in self.textures:
+            self.textures[key] = None
+            try:
+                info = export_texture(self.p, index, self.folder / f"texture-{key}.png")
+                info["url"] = info.pop("output")
+                self.textures[key] = info
+            except (ValueError, OSError) as error:
+                self.warn(self.p.name(index), error)
+        return key if self.textures[key] else None
+
+    def material(self, index):
+        key = self.prefix+str(index)
+        if key in self.materials: return key
+        p = self.p
+        chain, seen = [], set()
+        current = index
+        while current > 0:
+            if current in seen: raise FormatError("Material parent cycle")
+            seen.add(current); chain.append(current)
+            current = p.own(current, "Parent", 0)
+        textures, scalars, vectors, sampling, switches = {}, {}, {}, {}, {}
+        blend, two_sided = "BLEND_Opaque", False
+        for mat in reversed(chain):
+            for c in p.children.get(mat, []):
+                parameter, tex = p.own(c, "ParameterName"), p.own(c, "Texture", 0)
+                if parameter and tex:
+                    textures[parameter] = tex
+                    sampling[parameter] = coordinates(p,c)
+                if parameter and p.cls(c) == "MaterialExpressionScalarParameter":
+                    scalars[parameter] = p.own(c,"DefaultValue",0.0)
+                if parameter and p.cls(c) == "MaterialExpressionVectorParameter":
+                    vectors[parameter] = p.own(c,"DefaultValue",[0,0,0,0])
+                if parameter and p.cls(c) == 'MaterialExpressionStaticSwitchParameter':
+                    switches[parameter] = p.own(c, 'DefaultValue', False)
+            for field, target in [("TextureParameterValues", textures), ("ScalarParameterValues", scalars),
+                                  ("VectorParameterValues", vectors)]:
+                for row in p.structs(p.own(mat, field)):
+                    name = row.get(("ParameterName", 0), {}).get("value")
+                    fallback = [0,0,0,0] if field == "VectorParameterValues" else 0
+                    value = row.get(("ParameterValue", 0), {}).get("value", fallback)
+                    if name is not None: target[name] = value
+            blend = p.own(mat, "BlendMode", blend)
+            two_sided = p.own(mat, "TwoSided", two_sided)
+            try: switches.update(static_switches(p, mat))
+            except (ValueError, struct.error) as error:
+                self.warn(p.name(mat), f'Static switch overrides unavailable: {error}')
+        def binding(names):
+            for name in names:
+                if name in textures: return self.texture(textures[name])
+            return None
+        render_profile = profile([p.name(i) for i in chain],blend,textures,scalars,sampling,switches)
+        if not render_profile['diffuseParameter']:
+            # A diffuse under another parameter name (diffuse_parameter has the rules)
+            pick = diffuse_parameter({k: p.name(v) for k, v in textures.items() if isinstance(v, int) and v > 0})
+            if pick:
+                render_profile.update(diffuseParameter=pick,
+                                      uv=dict(sampling.get(pick, {"channel": 0, "scale": [1, 1]})))
+                if '|' in pick and blend == 'BLEND_Masked':
+                    # "Diffuse Map A | CMod Mask": the alpha is where CMod Color tints, not a cut-out
+                    render_profile['opacitySource'] = 'opaque'
+        if render_profile['opacitySource'] == 'diffuse-alpha' and chain:
+            # A masked material's cut-out is what its OpacityMask input samples, not always the colour's alpha.
+            # Wired straight to a texture parameter (PROP_Objects: Spc_Ems_Mpc_Opc's alpha), that texture's channel;
+            # an OpacityMask switch that is off (PROP_Objects_Old: a tractor, dairy tanks, pipes, whose colour alpha
+            # is near black) cuts nothing. Otherwise the colour's alpha, as before.
+            wired = opacity_input(p, chain[-1])
+            if switches.get('OpacityMask') is False:
+                render_profile['opacitySource'] = 'opaque'
+            elif wired and wired[0] in textures and wired[0] != render_profile['diffuseParameter']:
+                render_profile.update(opacitySource='packed-alpha', opacityParameter=wired[0], opacityChannel=wired[1])
+        constant, unlit = constant_color(p, chain[-1]) if chain else (None, False)
+        if constant is not None:
+            render_profile.update(family='constant', constantColor=constant, unlit=unlit, opacitySource='opaque')
+        if render_profile['family']=='fogged-civilian':
+            interior=p.by_name.get(p.name(index).rsplit('.',1)[0]+'.CivFogged_Int',index)
+            colours=[p.own(c,'DefaultValue') for c in p.children.get(interior,[])
+                     if p.cls(c)=='MaterialExpressionVectorParameter']
+            render_profile['constantColor']=next((c[:3] for c in colours if isinstance(c,list) and len(c)>=3),None)
+            self.warn(p.name(index),'Fogged civilian procedural material: source constant-colour approximation')
+        diffuse = self.texture(textures[render_profile["diffuseParameter"]]) if render_profile["diffuseParameter"] else None
+        normal = binding(("Normal", "Normal_Base", "NormalMap", "Normal Map"))
+        opacity = emissive = None
+        if render_profile.get('opacityParameter'):
+            opacity = self.texture_channel(textures[render_profile['opacityParameter']], render_profile.get('opacityChannel', 'A'))
+            if diffuse: diffuse = self.texture_channel(textures[render_profile['diffuseParameter']], 'RGB')
+            render_profile['opacityUv'] = sampling.get(render_profile['opacityParameter'], dict(channel=0,scale=[1,1]))
+        if render_profile.get('emissiveParameter'):
+            emissive = self.texture_channel(textures[render_profile['emissiveParameter']], 'G')
+            render_profile['emissiveUv'] = sampling.get(render_profile['emissiveParameter'], dict(channel=0,scale=[1,1]))
+        if render_profile['family'] == 'alien-energy':
+            # The cooked energy graph is stripped. Tint one pattern channel with
+            # DoorColor, rather than displaying its packed RGB as surface colour.
+            if render_profile['diffuseParameter']:
+                emissive = self.texture_channel(textures[render_profile['diffuseParameter']], 'R')
+            self.warn(p.name(index), 'Alien energy door: stationary colour/pattern approximation; animation is not evaluated')
+        compiled = None
+        if (not diffuse and not render_profile.get('constantColor') and chain and p.name(chain[-1]) not in BY_KIND
+                and blend not in ("BLEND_Translucent", "BLEND_Additive", "BLEND_Modulate")):
+            # No texture parameter to read: the textures its compiled shaders sample, by name (a colour texture,
+            # and for a masked one a mask whose channel a 0/1 vector parameter picks, as Asphalt_Patch's PatchSet,
+            # else the colour texture's own alpha, as a burning pine's branches)
+            refs = compiled_textures(p, chain[-1])
+            names = {r: p.name(r).rsplit('.', 1)[-1] for r in refs}
+            colour = compiled_colour(names)
+            if colour:
+                compiled = dict(diffuse=names[colour], textures=[p.name(r) for r in refs])
+                mask = next((r for r in refs if MASK_NAME.search(names[r])), None)
+                selector = next((v for v in vectors.values() if isinstance(v, list) and len(v) >= 3
+                                 and all(x in (0, 1, 0.0, 1.0) for x in v[:3]) and sum(v[:3]) == 1), None)
+                if blend == 'BLEND_Masked' and mask and selector:
+                    diffuse = self.texture_channel(colour, 'RGB')
+                    channel = 'RGB'[list(v for v in selector[:3]).index(1)]
+                    opacity = self.texture_channel(mask, channel)
+                    render_profile.update(opacitySource='packed-alpha', opacityUv=dict(channel=0, scale=[1, 1]))
+                    compiled.update(mask=names[mask], channel=channel)
+                else:
+                    diffuse = self.texture(colour) if blend == 'BLEND_Masked' else self.texture_channel(colour, 'RGB')
+                render_profile['compiledTextures'] = compiled
+                self.warn(p.name(index), f"No texture parameter: colour from the compiled shader's {names[colour]}"
+                          + (f", cut out by {names[mask]}'s {compiled['channel']} channel" if 'channel' in compiled else '')
+                          + ' (approximation)')
+        if not diffuse and not render_profile.get('constantColor') and chain and blend not in (
+                "BLEND_Translucent", "BLEND_Additive", "BLEND_Modulate"):
+            # Nothing to read a colour from: a colour by kind (approximate_colour), or neutral grey
+            colour, why = approximate_colour([p.name(i) for i in chain], vectors)
+            render_profile.update(family='approximate', constantColor=colour, opacitySource='opaque')
+            self.warn(p.name(index), f'No colour texture found: {why} (approximation)')
+        info = dict(name=p.name(index), parents=[p.name(i) for i in chain], diffuse=diffuse,
+                    normal=normal, opacity=opacity, emissive=emissive, blend=blend, twoSided=two_sided,
+                    alphaTest=p.own(chain[-1], 'OpacityMaskClipValue', 0.3333) if chain else 0.3333,
+                    vectors=vectors, scalars=scalars, staticSwitches=switches,
+                    render=render_profile,
+                    textureParameters={k: p.name(v) for k,v in textures.items()}, approximation=True)
+        if blend == "BLEND_Modulate":
+            self.warn(p.name(index), "Modulate overlay: colour-only approximation")
+        if any(k in textures for k in ("Diffuse_Mod", "Normal_Mod", "Mask")):
+            self.warn(p.name(index), "Layered/vertex-painted material: base texture approximation")
+        self.materials[key] = info
+        return key
+
+    def stand_in(self, kind, name=None, source=None):
+        """A material for a mesh section with none to draw: 'interior', a fractured mesh's inside faces with no
+        material (the game draws them only where a fragment has broken off; the page hides them), or 'missing', a
+        material the package only names (it lives in another package: neutral grey)."""
+        key = f'{self.prefix}{kind}' + (f'-{name}' if name else '')
+        if key in self.materials: return key
+        hidden = kind == 'interior'
+        self.materials[key] = dict(name=name or kind, parents=[], diffuse=None, normal=None, opacity=None,
+                                   emissive=None, blend='BLEND_Opaque', twoSided=False, alphaTest=0.3333, vectors={},
+                                   scalars={}, staticSwitches={}, textureParameters={}, approximation=True,
+                                   render=dict(family='hidden' if hidden else 'approximate', opacitySource='opaque',
+                                               diffuseParameter=None, uv=dict(channel=0, scale=[1, 1]),
+                                               **({} if hidden else dict(constantColor=NEUTRAL))))
+        if name:
+            self.warn(name, 'Material not in this package (the game loads it from another): drawn neutral grey')
+        elif not hidden:
+            self.warn(source or kind, 'Mesh section with no material (this and any others): drawn neutral grey')
+        return key
+
+    def stub(self, index):
+        """A material export with nothing in it but its texture GUIDs (LWR's patch packages carry the materials of
+        their pieces like this: the game has the real ones from the map already loaded)."""
+        try:
+            props, _ = self.p.properties(index)
+        except (FormatError, ValueError, struct.error):
+            return False
+        return 'Material' in self.p.cls(index) and {k[0] for k in props} <= STUB_PROPERTIES
+
+    def section_material(self, mat, mesh):
+        """The material key for a mesh section's material reference: an export of this package; a stub or import
+        found in the base map (a streamed package's, as the game finds it); a fractured mesh's interior with none;
+        otherwise a neutral grey stand-in."""
+        if mat > 0 and (self.prefix + str(mat) in self.materials or not self.stub(mat)): return self.material(mat)
+        if mat and self.base is not None:
+            index = self.base.p.by_name.get(self.p.name(mat), 0)
+            if index > 0 and not self.base.stub(index): return self.base.material(index)
+        if not mat:
+            fractured = self.p.cls(mesh) == 'FracturedStaticMesh'
+            return self.stand_in('interior' if fractured else 'missing', source=self.p.name(mesh))
+        return self.stand_in('missing', self.p.name(mat))
+
+    def texture_channel(self, index, channel):
+        """Portable linear masks retain the packed source texture's provenance."""
+        source = self.texture(index)
+        if not source: return None
+        key = f'{source}-{channel}'
+        if key not in self.textures:
+            filename = f'texture-{key}.png'
+            with Image.open(self.folder / self.textures[source]['url']) as image:
+                pixels = image.convert('RGB') if channel == 'RGB' else image.getchannel(channel).convert('RGB')
+                pixels.save(self.folder / filename)
+            self.textures[key] = dict(self.textures[source], url=filename, derivedFrom=source,
+                                      channel=channel, srgb=self.textures[source]['srgb'] if channel == 'RGB' else False)
+        return key
+
+    def component(self, actor, component):
+        p = self.p
+        mi = p.effective(component, "StaticMesh", 0)
+        if mi <= 0:
+            if mi < 0: self.warn(p.name(component), f"Unresolved external mesh {p.name(mi)}")
+            skeletal = p.effective(component, "SkeletalMesh", 0)
+            if skeletal>0:mi=skeletal
+            else:
+                if skeletal<0:self.warn(p.name(component),f'Unresolved external skeletal mesh {p.name(skeletal)}')
+                return None
+        if p.cls(mi) not in ("StaticMesh", "FracturedStaticMesh", "SkeletalMesh"):
+            self.warn(p.name(component), f"Unsupported mesh class {p.cls(mi)}")
+            return None
+        visible = p.effective(component, "EditorPaintedVisibleFragments")
+        mask = None
+        if visible:
+            n = struct.unpack_from("<i", visible)[0]
+            if len(visible) == 4 + n * 4: mask = [bool(x) for x in struct.unpack_from(f"<{n}i", visible, 4)]
+            elif len(visible) == 4 + n: mask = [bool(x) for x in visible[4:]]
+            else: raise FormatError("Invalid visible-fragment mask")
+        mesh_key = self.prefix+str(mi) + ("-" + hashlib.sha256(visible).hexdigest()[:12] if visible else "")
+        if mesh_key not in self.meshes:
+            mesh = read_skeletal(p,mi) if p.cls(mi)=='SkeletalMesh' else read_mesh(p, mi)
+            if mask is not None:
+                indices, sections = [], []
+                for s in mesh["sections"]:
+                    start = len(indices)
+                    if len(s["fragments"]) != len(mask):
+                        raise FormatError("Fragment range count disagrees with visibility mask")
+                    for enabled, (first, triangles) in zip(mask, s["fragments"]):
+                        if enabled: indices.extend(mesh["indices"][first:first+triangles*3])
+                    sections.append({**s, "first": start, "count": len(indices)-start})
+                mesh["indices"], mesh["sections"] = indices, sections
+            write_glb(mesh, self.folder / f"mesh-{mesh_key}.glb")
+            self.meshes[mesh_key] = dict(name=p.name(mi), url=f"mesh-{mesh_key}.glb",
+                vertices=len(mesh["positions"])//3, triangles=len(mesh["indices"])//3,
+                sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=mask,
+                kind='skeletal' if mesh.get('bones') else 'static',bones=mesh.get('bones',[]),
+                pose='reference' if mesh.get('bones') else None,
+                origin=mesh.get('origin'),rotOrigin=mesh.get('rotOrigin'))
+        mesh = self.meshes[mesh_key]
+        material_refs = p.refs(p.effective(component, "Materials"))
+        mats = []
+        for s in mesh["sections"]:
+            if not s["count"]: continue
+            slot = s["slot"]
+            override = material_refs[slot] if 0 <= slot < len(material_refs) else 0
+            # the component's own material, else the mesh's; an import of either is looked for in the base map
+            mats.append(self.section_material(override if override > 0 else s["material"] or override, mi))
+        location = p.effective(actor, "Location", [0,0,0])
+        rotation = p.effective(actor, "Rotation", [0,0,0])
+        scale = [v * p.effective(actor, "DrawScale", 1) for v in p.effective(actor, "DrawScale3D", [1,1,1])]
+        component_scale = [v * p.effective(component, "Scale", 1) for v in p.effective(component, "Scale3D", [1,1,1])]
+        for flag in ("AbsoluteTranslation", "AbsoluteRotation", "AbsoluteScale"):
+            if p.effective(component, flag, False): raise FormatError(f"Unsupported {flag}")
+        am = transform(location, rotation, scale)
+        cm = transform(p.effective(component,"Translation",[0,0,0]),
+                       p.effective(component,"Rotation",[0,0,0]), component_scale)
+        return dict(id=f"{self.prefix}{actor}:{component}", actor=p.name(actor), component=p.name(component),
+                    sourcePackage=p.path.stem,layer='inherited' if self.prefix else 'base',
+                    editorLayers=[v.strip() for v in p.effective(actor,'Layer','').split(',') if v.strip()],
+                    actorClass=p.cls(actor), archetype=p.name(p.exports[actor-1]["arch"]),
+                    mesh=mesh_key, materials=mats, location=location, rotation=rotation, scale=scale,
+                    matrix=view_matrix(multiply(am,cm)), tint=p.effective(actor,"TintColor",[1,1,1,1]),
+                    componentTransform=cm,
+                    # Pieces placed together: the prefab instance that placed the actor, and the
+                    # partner it names (a car body's glass). The viewer moves linked pieces together.
+                    prefab=self.prefabs.get(actor),
+                    partner=p.name(partner) if (partner:=p.effective(actor,"HidingPartner",0)) > 0 else None,
+                    # what of the package's Kismet names the actor (export 15): moving or deleting it is refused
+                    referencedBy=self.kismet.get(actor, []),
+                    # what its fragment columns break (export 16): a car's glass names its body and parts
+                    breaks=[p.name(v) for v in self.breaks.get(actor, [])],
+                    # its toughness and health, None when it has none (export 17)
+                    destruction=destruction(p, actor),
+                    environment=p.name(mi).startswith("Skybox."),
+                    cutout=bool(p.effective(component,"bCutoutMask",False)),
+                    hidden=bool(p.effective(actor,"bHidden",False) or p.effective(component,"HiddenGame",False)),
+                    # false when the actor collides with nothing, so touches no floor volume and no building lists it
+                    # (F-87; the Build's native_copy.collides): left out otherwise, and in exports made before it
+                    **({} if collides(p, actor) else {'collides': False}))
+
+    def run(self, scope):
+        p = self.p
+        actors = [i for i,n in enumerate(p.paths,1) if n.startswith("TheWorld.PersistentLevel.") and n.count(".")==2
+                  and not n.rsplit(".",1)[-1].startswith("Default__")]
+        selected = set(actors)
+        if scope == "sample":
+            selected = {p.by_name["TheWorld.PersistentLevel."+n] for n in SAMPLES}
+            partner = p.own(p.by_name["TheWorld.PersistentLevel.XComDestructibleActor_20"], "HidingPartner", 0)
+            if partner > 0: selected.add(partner)
+        self.prefabs = prefab_members(p, self.warn)
+        self.kismet = kismet_references(p, self.warn)
+        self.breaks = fragment_breaks(p, selected, self.warn)
+        objects = []
+        work = [(actor, [c for c in p.children.get(actor,[]) if "MeshComponent" in p.cls(c)]) for actor in sorted(selected)]
+        total, done, step = sum(len(c) for _, c in work), 0, 0
+        if self.progress: self.progress(0, total)
+        for actor, components in work:
+            for c in components:
+                try:
+                    obj = self.component(actor,c)
+                    if obj: objects.append(obj)
+                except (ValueError, OSError, struct.error) as error:
+                    self.warn(p.name(c), error)
+                done += 1
+                if self.progress and (done == total or done * 100 // max(total, 1) > step):
+                    step = done * 100 // max(total, 1)
+                    self.progress(done, total)
+        buildings = building_metadata(p,objects,self.kismet)
+        # Lights only for whole-map scenes; the sample study moves its pieces apart.
+        lights = light_records(p,actors if scope == "map" else [],self.prefix,
+                               'inherited' if self.prefix else 'base',self.warn)
+        light_metadata(p, lights, objects, self.kismet, self.warn)
+        self.area_matcher = area_lights(p, objects, lights, self.meshes, self.materials, self.warn)
+        # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
+        import compiler
+        vans = compiler.van_buildings(dict(objects=objects, buildings=buildings, meshes=self.meshes), p.path.stem)
+        for building in buildings: building['van'] = building['id'] in vans
+        if self.prefix:
+            for building in buildings:building['id']=self.prefix+building['id']
+            for obj in objects:
+                for entry in obj['floors']:entry['building']=self.prefix+entry['building']
+        bounds = None
+        for obj in objects:
+            if obj["actorClass"] != "XComLevelVolume": continue
+            b = self.meshes[obj["mesh"]]["bounds"]
+            m = obj["matrix"]
+            corners = []
+            for sx in (-1,1):
+                for sy in (-1,1):
+                    for sz in (-1,1):
+                        v = [b[0]+sx*b[3],b[2]+sz*b[5],b[1]+sy*b[4]]
+                        corners.append([sum(m[k*4+j]*v[k] for k in range(3))+m[12+j] for j in range(3)])
+            candidate = dict(min=[min(v[j] for v in corners) for j in range(3)],
+                             max=[max(v[j] for v in corners) for j in range(3)])
+            area = (candidate["max"][0]-candidate["min"][0])*(candidate["max"][2]-candidate["min"][2])
+            if bounds is None or area > bounds[0]: bounds = (area,candidate)
+        grid=tile_grid(p,bounds[1],self.warn) if bounds else None
+        tactical=tactical_metadata(p,objects,self.meshes,grid,self.warn) if grid else None
+        return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
+                    playableBounds=bounds[1] if bounds else None,
+                    tileGrid=grid, tactical=tactical,
+                    buildings=buildings,
+                    cursorVolumes=[] if self.prefix else cursor_volumes(p),
+                    landings=[] if self.prefix or scope != "map" else landing_metadata(p, self.warn),
+                    effects=[] if self.prefix or scope != "map" else effect_metadata(p),
+                    lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
+                    source=dict(file=str(p.path),sha256=sha256(p.path),
+                    version=p.header["ver"],licensee=p.header["lic"]),
+                    counts=dict(exports=len(p.exports),selectedActors=len(selected),components=len(objects),lights=len(lights),
+                                meshes=len(self.meshes),materials=len(self.materials),textures=sum(bool(v) for v in self.textures.values())),
+                    objects=objects, lights=lights, meshes=self.meshes,
+                    materials=self.materials,textures=self.textures,diagnostics=self.diagnostics,
+                    content=content_records(p))
+
+
+def map_records(package_path):
+    """The DefaultMaps.ini records that play this map (maplist.records: the live ones, or a switched-off map's), from
+    the install its package is in
+    (<game>/XEW/XComGame/CookedPCConsole/<map>.upk, so <game>/XEW/XComGame/Config/DefaultMaps.ini): each record's
+    mission (maplist.mission_of) and the packages it streams, landing intros and other cinematics (CIN_) left out.
+    [] for a package outside an install."""
+    import maplist
+    import installs
+    path = Path(package_path).resolve()
+    ini = path.parent.parent / 'Config' / 'DefaultMaps.ini'
+    if not ini.is_file(): return []
+    # LWR's own records: what the editor installed (installs.py) taken out
+    game = ini.parents[3] if len(ini.parents) > 3 else None
+    text = installs.maps_text(game) if game and installs.config(game, 'DefaultMaps.ini') == ini else ini.read_text(encoding='latin-1')
+    out = []
+    for line in maplist.records(text):
+        if (maplist.field(line, 'Name') or '').casefold() != path.stem.casefold(): continue
+        group, mission, label = maplist.mission_of(line)
+        if mission in maplist.LEFT_OUT: continue
+        streams = [s for s in re.findall(r'MapName="([^"]+)"', line) if not s.upper().startswith('CIN_')]
+        out.append(dict(type=mission, label=label, group=group, display=maplist.field(line, 'DisplayName') or '',
+                        streams=list(dict.fromkeys(streams))))
+    return out
+
+
+def stream_package(package_path, name):
+    """A streamed package beside the map's (the EW folder), else in the base game's CookedPCConsole, or None."""
+    cooked = Path(package_path).resolve().parent
+    for folder in (cooked, cooked.parents[2] / 'XComGame' / 'CookedPCConsole'):
+        if (folder / f'{name}.upk').is_file(): return folder / f'{name}.upk'
+    return None
+
+
+def stream_layers(p, result, stage, records, progress=None, base=None):
+    """Each package the map's records stream, exported as a layer the page overlays (`streams` in scene.json): its
+    pieces and lights (layer "stream", `stream` its name), their assets added to the scene's. kind "lwr" for LWR's
+    patches (patch_*), "mission" for the rest (a mission's own objects: _CNH, _Bomb, ...). Stream pieces carry no
+    floors or scenery role: the page shows them whatever the cutaway, and never edits them. base: the map's
+    Exporter (whose assets are the result's), where a stream's stub and imported materials are found. A mission's
+    stream also gets `missionObjects` (export 24: scene_metadata.mission_objects), its objects that have no mesh to show
+    as pieces among them."""
+    streams = {}
+    for name in dict.fromkeys(s for r in records for s in r['streams']):
+        kind = 'lwr' if name.lower().startswith('patch_') else 'mission'
+        path = stream_package(p.path, name)
+        entry = streams[name] = dict(kind=kind, package=path.name if path else None, objects=[], lights=[],
+                                     error=None if path else 'not in the install')
+        if not path: continue
+        try:
+            report = (lambda done, total, name=name: progress(f'reading {name}', done, total)) if progress else None
+            package = Package(path)
+            layer = Exporter(package, stage, namespace='stream-'+name, progress=report, base=base).run('map')
+        except (FormatError, ValueError, OSError, struct.error) as error:
+            entry['error'] = str(error)
+            continue
+        if kind == 'mission':
+            from scene_metadata import mission_objects
+            entry['missionObjects'] = mission_objects(package, lambda source, error, name=name: result['diagnostics'].append(
+                dict(source=f'{name}: {source}', message=str(error))))
+        for key in ('meshes','materials','textures'):
+            if set(result[key]) & set(layer[key]): raise ValueError(f'Asset identity collision in {name}')
+            result[key].update(layer[key])
+        for record in layer['objects'] + layer.get('lights', []):
+            record.update(layer='stream', stream=name)
+        for obj in layer['objects']:
+            obj.update(floors=[], sceneryRole=None)
+        entry.update(objects=layer['objects'], lights=layer.get('lights', []),
+                     hiddenComponents=sum(bool(o['hidden']) for o in layer['objects']),
+                     rebuildVolumes=sum(r.get('actorClass') == 'XComRebuildWorldDataVolume'
+                                        for r in layer.get('content', [])))
+        result['diagnostics'].extend(dict(d, source=f'{name}: {d["source"]}') for d in layer['diagnostics'])
+    return streams
+
+
+def export_map(source, cache_root, scope, specs=(), progress=None):
+    """progress(what, done, total), as each package's pieces are read."""
+    p = Package(source)
+    fingerprint = sha256(p.path)[:16]
+    parent = Path(cache_root).resolve() / p.path.stem
+    parent.mkdir(parents=True, exist_ok=True)
+    target = parent / f"{fingerprint}-v{EXPORT_VERSION}-{scope}"
+    stage = Path(tempfile.mkdtemp(prefix=".export-",dir=parent))
+    try:
+        exporter = Exporter(p,stage,progress=(lambda done, total: progress('reading the map', done, total)) if progress else None)
+        result = exporter.run(scope)
+        previews=[]
+        inherited={}
+        def inherited_scene(name):
+            import re
+            if not re.fullmatch(r'[A-Za-z_]\w*',name):raise ValueError(f'Invalid inherited package name {name}')
+            if name not in inherited:
+                path=p.path.parent/(name+'.upk')
+                if not path.is_file():raise ValueError(f'Missing inherited patch: {path}')
+                package=Package(path)
+                layer=Exporter(package,stage,namespace='inherited-'+name,base=exporter).run('map')
+                for key in ('meshes','materials','textures'):
+                    collision=set(result[key])&set(layer[key])
+                    if collision:raise ValueError(f'Asset identity collision in {name}')
+                    result[key].update(layer[key])
+                inherited[name]=layer
+            return inherited[name]
+        def template(name):
+            index=p.by_name.get(name,0)
+            if not index:return []
+            output=[]
+            for c in p.children.get(index,[]):
+                if 'MeshComponent' not in p.cls(c):continue
+                obj=exporter.component(index,c)
+                if obj:output.append(obj)
+            return output
+        for i,path in enumerate(specs):
+            spec=json.loads(Path(path).read_text(encoding='utf-8'))
+            if spec.get('map',{}).get('name')!=p.path.stem:
+                raise ValueError(f'Spec {path} does not target {p.path.stem}')
+            composed=compose_scene(result,[inherited_scene(spec['base'])]) if spec.get('base') else result
+            scene=resolve_scene(composed,spec,template)
+            scene['preview']['source']=str(Path(path).resolve())
+            scene['preview']['sha256']=sha256(path)
+            previews.append((f'preview-{i}.json',scene))
+        if scope == 'map':
+            # what the game streams into the map with each mission (LWR's patches, mission objects); the original
+            # layout's only: a preview carries the patch it builds on itself
+            result['missions'] = map_records(p.path)
+            result['streams'] = stream_layers(p, result, stage, result['missions'], progress, base=exporter)
+        for scene in [result]+[s for _,s in previews]:
+            for key in ('meshes','materials','textures'):scene[key]=result[key]
+            scene['counts'].update(components=len(scene['objects']),lights=len(scene.get('lights',[])),meshes=len(exporter.meshes),
+                                   materials=len(exporter.materials),textures=sum(bool(v) for v in exporter.textures.values()))
+        for filename,scene in previews:
+            (stage/filename).write_text(json.dumps(scene,indent=2),encoding='utf-8')
+        (stage/"scene.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+        scenes=[dict(name=p.path.stem+' · Original',url='scene.json')]+[
+            dict(name=s['name']+' · Experimental',url=f) for f,s in previews]
+        (stage/'scenes.json').write_text(json.dumps(scenes,indent=2),encoding='utf-8')
+        if target.exists():
+            # Publish to a new generation instead of deleting an existing export.
+            target = parent / (target.name + "-" + stage.name.removeprefix(".export-"))
+        stage.rename(target)
+        return target, result
+    except BaseException:
+        # Remove only the verified staging folder created by this invocation.
+        if stage.parent == parent and stage.name.startswith(".export-"): shutil.rmtree(stage)
+        raise

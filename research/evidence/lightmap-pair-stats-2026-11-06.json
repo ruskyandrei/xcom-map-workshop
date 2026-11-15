@@ -1,0 +1,299 @@
+{
+  "date": "2026-11-06",
+  "scope": "Read-only statistics of lightmap scales and texel values; not a decoder or runtime test",
+  "method": {
+    "insetTexels": 2,
+    "skipDirectionalMaxBelow": 0.02,
+    "mip": "largest live mip, decoded DXT1 RGB / 255"
+  },
+  "toolHashes": {
+    "tools/bake/lightmap_stats.py": "e9fe82566240c5626eed7dc34351a149f45bf298f5ecc20a608e6edfeaa3a5eb",
+    "tools/upk/audit_lighting.py": "80240c65667ab3a7ef4fe2d790a8e76ba802eb10e00ba8b284c00bf1cc2b27d5"
+  },
+  "packages": [
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\URB_Bar.upk",
+      "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+      "lod0Records2d": 930,
+      "slotScales": {
+        "slot0": {
+          "distinct": 1,
+          "min": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "max": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "unequalChannels": 0
+        },
+        "slot1": {
+          "distinct": 129,
+          "min": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "max": [
+            5.8265,
+            4.4979,
+            4.2625
+          ],
+          "unequalChannels": 128
+        },
+        "slot2": {
+          "distinct": 1,
+          "min": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "max": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "unequalChannels": 0
+        }
+      },
+      "slotTexturePatterns": {
+        "NormalizedAverageColor0,DirectionalMaxComponent0,None": 650,
+        "NormalizedAverageColor1,DirectionalMaxComponent1,None": 280
+      },
+      "pairs": [
+        {
+          "textures": [
+            "NormalizedAverageColor0_11",
+            "DirectionalMaxComponent0_11"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 129,
+          "receiversSampled": 129,
+          "texels": 391116
+        },
+        {
+          "textures": [
+            "NormalizedAverageColor0_13",
+            "DirectionalMaxComponent0_13"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 120,
+          "receiversSampled": 120,
+          "texels": 342870
+        },
+        {
+          "textures": [
+            "NormalizedAverageColor0_1",
+            "DirectionalMaxComponent0_1"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 104,
+          "receiversSampled": 104,
+          "texels": 198725
+        }
+      ],
+      "texels": 932711,
+      "normalizedAverageColor": {
+        "maxChannelPercentiles": {
+          "1": 0.612,
+          "10": 0.851,
+          "50": 1.0,
+          "90": 1.0,
+          "99": 1.0
+        },
+        "fractionMaxChannelAtLeast094": 0.8066,
+        "channelMeans": [
+          0.857,
+          0.766,
+          0.802
+        ]
+      },
+      "directionalMaxComponent": {
+        "channelMeans": [
+          0.29,
+          0.284,
+          0.284
+        ],
+        "maxChannelPercentiles": {
+          "1": 0.031,
+          "10": 0.094,
+          "50": 0.341,
+          "90": 0.655,
+          "99": 0.937
+        },
+        "medianRelativeSpread": 0.406,
+        "channelCorrelation": [
+          [
+            1.0,
+            0.698,
+            0.7
+          ],
+          [
+            0.698,
+            1.0,
+            0.821
+          ],
+          [
+            0.7,
+            0.821,
+            1.0
+          ]
+        ]
+      }
+    },
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\TempleShip.upk",
+      "sha256": "029bedcaea20c9a8d1d577fd9bd7dc733ce3976fb33b0b3f716f640caeaf4d2e",
+      "lod0Records2d": 1651,
+      "slotScales": {
+        "slot0": {
+          "distinct": 1,
+          "min": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "max": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "unequalChannels": 0
+        },
+        "slot1": {
+          "distinct": 201,
+          "min": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "max": [
+            16.0,
+            16.0,
+            16.0
+          ],
+          "unequalChannels": 199
+        },
+        "slot2": {
+          "distinct": 1,
+          "min": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "max": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "unequalChannels": 0
+        }
+      },
+      "slotTexturePatterns": {
+        "NormalizedAverageColor0,DirectionalMaxComponent0,None": 1234,
+        "NormalizedAverageColor1,DirectionalMaxComponent1,None": 417
+      },
+      "pairs": [
+        {
+          "textures": [
+            "NormalizedAverageColor0_9",
+            "DirectionalMaxComponent0_9"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 216,
+          "receiversSampled": 216,
+          "texels": 226684
+        },
+        {
+          "textures": [
+            "NormalizedAverageColor0_4",
+            "DirectionalMaxComponent0_4"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 155,
+          "receiversSampled": 155,
+          "texels": 504182
+        },
+        {
+          "textures": [
+            "NormalizedAverageColor0_15",
+            "DirectionalMaxComponent0_15"
+          ],
+          "size": [
+            1024,
+            1024
+          ],
+          "receivers": 129,
+          "receiversSampled": 129,
+          "texels": 310242
+        }
+      ],
+      "texels": 1041108,
+      "normalizedAverageColor": {
+        "maxChannelPercentiles": {
+          "1": 0.675,
+          "10": 0.808,
+          "50": 1.0,
+          "90": 1.0,
+          "99": 1.0
+        },
+        "fractionMaxChannelAtLeast094": 0.6959,
+        "channelMeans": [
+          0.878,
+          0.807,
+          0.859
+        ]
+      },
+      "directionalMaxComponent": {
+        "channelMeans": [
+          0.17,
+          0.175,
+          0.175
+        ],
+        "maxChannelPercentiles": {
+          "1": 0.031,
+          "10": 0.039,
+          "50": 0.204,
+          "90": 0.467,
+          "99": 0.765
+        },
+        "medianRelativeSpread": 0.5,
+        "channelCorrelation": [
+          [
+            1.0,
+            0.706,
+            0.688
+          ],
+          [
+            0.706,
+            1.0,
+            0.727
+          ],
+          [
+            0.688,
+            0.727,
+            1.0
+          ]
+        ]
+      }
+    }
+  ]
+}

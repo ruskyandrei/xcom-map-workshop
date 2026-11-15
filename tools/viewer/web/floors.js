@@ -1,0 +1,405 @@
+// Floor pieces and floor levels: plain functions of the page's data, so the browser smoke test can call them
+// directly. Game axes throughout (x and y across the floor, z up) and game units. Nothing here draws or edits.
+//
+// A floor piece is a piece that carries the map's saved floor tiles (the game's bake names the actor under each
+// walkable tile), is flat (48 units or less), and is not a decoration lying on another floor piece: a rug or a plate,
+// 8 units or less, its bottom within 12 units of a floor piece's top over its centre. Sidewalks (18 units, on the
+// asphalt) are floors; rugs (5 units, on the bar's floor) are decorations, placed as any piece is.
+//
+// Placing a floor piece keeps the height it has in the map, moved by whole levels (64 units) to the saved floor under
+// the cursor: a sidewalk dropped on the road or on another sidewalk stands as the map's sidewalks do, and a storey's
+// floor dropped upstairs lands on that storey.
+
+import { QUARTER, POSE_SLACK, turned } from './poserule.js';
+
+export const TILE = 96, STOREY = 64;
+export const FLAT = 48;        // units: a floor piece is at most this tall
+export const THIN = 8;         // units: a decoration (rug, plate) is at most this thick
+export const RESTS = 12;       // units: a decoration's bottom lies this close to the floor piece under it
+
+const median = values => { const s = [...values].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+
+/** What a copy of a component is: class, archetype, mesh, materials, scale and tint. */
+export const partSignature = o => [o.actorClass, o.archetype ?? '', o.mesh, (o.materials ?? []).join(','),
+                                   (o.scale ?? [1, 1, 1]).join(','), (o.tint ?? []).join(',')].join('|');
+/** What a copy of an actor is: its components' signatures. Two actors with one signature are copies of one piece. */
+export const stampSignature = parts => parts.map(partSignature).sort().join('\n');
+
+/** An actor's meshes' box in the world, [x0, y0, z0, x1, y1, z1], from the meshes' bounds ([cx, cy, cz, ex, ey, ez,
+ *  r] in their own frame), scaled and turned by the actor's yaw. */
+export function worldBox(parts, meshes) {
+  const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (const o of parts) {
+    const b = meshes[o.mesh]?.bounds;
+    if (!b) continue;
+    const [sx, sy, sz] = o.scale ?? [1, 1, 1], yaw = (o.rotation[1] / 65536) * 2 * Math.PI, c = Math.cos(yaw), s = Math.sin(yaw);
+    for (const dx of [-b[3], b[3]]) for (const dy of [-b[4], b[4]]) for (const dz of [-b[5], b[5]]) {
+      const x = (b[0] + dx) * sx, y = (b[1] + dy) * sy, z = (b[2] + dz) * sz;
+      const p = [o.location[0] + c * x - s * y, o.location[1] + s * x + c * y, o.location[2] + z];
+      for (let k = 0; k < 3; k++) { box[k] = Math.min(box[k], p[k]); box[k + 3] = Math.max(box[k + 3], p[k]); }
+    }
+  }
+  return box;
+}
+
+/** Each actor's saved floor: { z, level, count }, the median height of the floor tiles it carries on its most common
+ *  level. floorTiles: the export's [{tile: [x, y, level], location, actor}]. */
+export function ownedFloors(floorTiles) {
+  const byActor = new Map();
+  for (const t of floorTiles ?? []) { if (!t.actor) continue; if (!byActor.has(t.actor)) byActor.set(t.actor, []); byActor.get(t.actor).push(t); }
+  const out = new Map();
+  for (const [actor, tiles] of byActor) {
+    const levels = new Map();
+    for (const t of tiles) levels.set(t.tile[2], (levels.get(t.tile[2]) ?? 0) + 1);
+    const level = [...levels].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    out.set(actor, { z: median(tiles.filter(t => t.tile[2] === level).map(t => t.location[2])), level, count: tiles.length });
+  }
+  return out;
+}
+
+/** Which of the actors carrying saved floor are floor pieces. carriers: [{ actor, box: worldBox }]. Returns a Map of
+ *  actor to 'floor', 'decoration' (thin, lying on a floor piece) or 'other' (taller than FLAT: a wall, ramp or crate
+ *  whose top is walked on). */
+export function classifyFloors(carriers) {
+  const flat = carriers.filter(c => c.box[5] - c.box[2] <= FLAT), out = new Map();
+  for (const c of carriers) {
+    const b = c.box, thick = b[5] - b[2];
+    if (thick > FLAT) { out.set(c.actor, 'other'); continue; }
+    const mx = (b[0] + b[3]) / 2, my = (b[1] + b[4]) / 2;
+    const rests = thick <= THIN && flat.some(d => d !== c && d.box[0] <= mx && mx <= d.box[3] && d.box[1] <= my && my <= d.box[4]
+                                                && Math.abs(d.box[5] - b[2]) <= RESTS);
+    out.set(c.actor, rests ? 'decoration' : 'floor');
+  }
+  return out;
+}
+
+/** The floor pieces by stamp signature: Map signature -> { support (the saved floor's height over the pivot), actor
+ *  (one carrying it) }. actors: [{ actor, parts, location }] (the base map's, as exported); kinds: classifyFloors;
+ *  floors: ownedFloors. Pieces of more than one component (a van, a car) are never floor pieces. */
+export function floorStamps(actors, kinds, floors) {
+  const out = new Map();
+  for (const a of actors) {
+    if (kinds.get(a.actor) !== 'floor' || a.parts.length !== 1) continue;
+    const signature = stampSignature(a.parts);
+    if (!out.has(signature)) out.set(signature, { support: floors.get(a.actor).z - a.location[2], actor: a.actor });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- the map's tiles and levels
+/** The grid: { origin: [x, y, z], size: [96, 96, 64], dims } in game axes (the export's tileGrid). */
+export const tileOf = (grid, x, y) => [Math.floor((x - grid.origin[0]) / grid.size[0]), Math.floor((y - grid.origin[1]) / grid.size[1])];
+/** The saved floor tiles by "x,y" key, each a list of the tile's floors (one per level). */
+export function floorIndex(floorTiles) {
+  const index = new Map();
+  for (const f of floorTiles ?? []) {
+    const k = `${f.tile[0]},${f.tile[1]}`;
+    if (!index.has(k)) index.set(k, []);
+    index.get(k).push(f);
+  }
+  return index;
+}
+/** The floor under a point: the saved floor of its tile that the point lies on (the highest at most 8 units over it
+ *  and at most a level under it), else the point's own height. { z, floor (the saved floor tile or null) }. */
+export function floorUnder(index, grid, point) {
+  const tile = tileOf(grid, point[0], point[1]);
+  let best = null;
+  for (const f of index.get(`${tile[0]},${tile[1]}`) ?? []) {
+    const z = f.location[2];
+    if (z <= point[2] + 8 && z >= point[2] - STOREY && (!best || z > best.location[2])) best = f;
+  }
+  return best ? { z: best.location[2], floor: best } : { z: point[2], floor: null };
+}
+/** The pivot height for a floor piece placed on floor z: its own pivot height (pivotZ, its saved floor `support`
+ *  over it), moved by whole levels to the level of z. */
+export const levelHeight = (pivotZ, support, z) => pivotZ + Math.round((z - pivotZ - support) / STOREY) * STOREY;
+
+// ---------------------------------------------------------------- building floors' heights (the Floor picker)
+const inPlan = (v, x, y) => v.min[0] <= x && x <= v.max[0] && v.min[1] <= y && y <= v.max[1];
+/** A building floor's walking height: the median of the saved floor tiles inside its volumes near its bottom (at most
+ *  8 units under it, less than a level over it), else its bottom; null for a floor without volumes. Floors differ per
+ *  building: Bar's main building has its floor 2 at 210, the Police Station's at 274. floor: the export's
+ *  { bottom, boxes: [{min, max}] }. */
+export function storeyHeight(floor, floorTiles) {
+  const boxes = floor?.boxes ?? [];
+  if (!boxes.length) return null;
+  const bottom = floor.bottom ?? Math.min(...boxes.map(v => v.min[2]));
+  const near = (floorTiles ?? []).filter(t => { const [x, y, z] = t.location;
+    return z >= bottom - 8 && z < bottom + STOREY && boxes.some(v => inPlan(v, x, y) && v.min[2] - 8 <= z && z <= v.max[2]); });
+  return near.length ? median(near.map(t => t.location[2])) : bottom;
+}
+/** The building whose floor k (0 the ground floor) stands over the point (x, y) in plan, else the nearest one that has
+ *  a floor k with volumes: its index, or -1 when none has. buildings: the export's. */
+export function buildingWithFloor(buildings, k, x, y) {
+  let best = -1, nearest = Infinity;
+  (buildings ?? []).forEach((b, i) => {
+    for (const v of b.floors?.[k]?.boxes ?? []) {
+      const dx = Math.max(v.min[0] - x, 0, x - v.max[0]), dy = Math.max(v.min[1] - y, 0, y - v.max[1]), d = Math.hypot(dx, dy);
+      if (d < nearest) { nearest = d; best = i; }
+    }
+  });
+  return best;
+}
+
+// ---------------------------------------------------------------- building floors (the cutaway)
+/** The building floor whose volumes overlap a world box [x0, x1, y0, y1, z0, z1] most: { building (index), floor }
+ *  or null, as the Build's native_copy.floor_at finds it (first wins a tie). buildings: the export's. */
+export function floorAt(buildings, box) {
+  let best = null, most = 0;
+  (buildings ?? []).forEach((b, i) => (b.floors ?? []).forEach((floor, k) => {
+    let got = 0;
+    for (const v of floor.boxes ?? []) {
+      let inter = 1;
+      for (let j = 0; j < 3; j++) inter *= Math.max(0, Math.min(box[2 * j + 1], v.max[j]) - Math.max(box[2 * j], v.min[j]));
+      got += inter;
+    }
+    if (got > most) { best = { building: i, floor: k }; most = got; }
+  }));
+  return best;
+}
+/** A CutdownFloor moved by `floors` floors, as the Build moves it (0 names none and stays). */
+export const movedCutdown = (cut, floors) => (cut ? Math.max(1, Math.min(255, cut + floors)) : 0);
+/** A copy's building-floor listings (the Build's rule, native_copy.copy_floors, with the shared cases in
+ *  tools/bake/tests/floor_membership_cases.json): listings, the original's [{building, floor, cutdownFloor}]
+ *  (building: an index); here and there, floorAt of the original's and the copy's boxes; floorCount(building). A piece
+ *  listed nowhere stays so; one standing in no floor volume, copied to none either, keeps its listings; a copy
+ *  standing in no floor gets none; else each listing moves to the floor the copy stands in, as far above it as the
+ *  original's is above the floor the original stands in. */
+export function copyFloors(listings, here, there, floorCount) {
+  if (!listings.length) return [];
+  if (!there && !here) return listings.map(l => ({ ...l }));
+  if (!there) return [];
+  return listings.map(l => {
+    const rise = here && here.building === l.building ? l.floor - here.floor : 0;
+    const floor = Math.max(0, Math.min(floorCount(there.building) - 1, there.floor + rise));
+    return { building: there.building, floor, cutdownFloor: movedCutdown(l.cutdownFloor, floor - l.floor) };
+  });
+}
+
+// ---------------------------------------------------------------- buildings made from nothing (prefab plan 5.1, 5.3)
+// The game editor's own rule for which floors of a building list a piece (findings register F-87), as the Build
+// applies it to a project's buildings (tools/bake/buildings.py, audit_buildings.touched and listing).
+// The cursor's floors (the map's cursor volumes, export 20): which floor a height is to the cursor, and so where the
+// mouse wheel stops. A building's storeys should start where they do (compiler.py cursor_storeys is the twin).
+export const CURSOR_NEAR = 32, CURSOR_STOREY = 192, CURSOR_STOREYS = 4;
+
+/** The cursor's floors of an exported map: [{ floor, box: [x0, y0, z0, x1, y1, z1], made }], or null when the export
+ *  predates them. A map with no cursor volumes, or a `cleared` one, gets the ones the Build gives it (shell.py): even
+ *  storeys of CURSOR_STOREY from the tile grid's bottom over the whole map (CURSOR_STOREYS, more on a taller grid),
+ *  the last one up to the grid's top (`made`). A map as it is on a grid larger than its own size `own` has its own as
+ *  shell.py grow_cursors leaves them: those reaching the old far X or Y side stretched to the new one, and with more
+ *  levels even storeys over the whole grid from the top of its own to the new top. Stair volumes are left out.
+ *  compiler.py cursor_storeys is the twin. */
+export function cursorStoreys(data, { cleared = false, own: ownDims = null } = {}) {
+  if (!(data?.exporterVersion >= 20)) return null;
+  const own = (data.cursorVolumes ?? []).filter(v => v.box && !v.stair).map(v => ({ floor: v.floor, box: [...v.box.min, ...v.box.max], made: false }));
+  const grid = data.tileGrid;
+  if (!grid?.origin) return own;
+  const size = grid.size ?? [96, 96, 64];
+  if ((own.length || (data.cursorVolumes ?? []).length) && !cleared) {
+    // a map as it is on a larger grid (shell.py grow_cursors): `ownDims` is the map's own size, data.tileGrid the
+    // project's (app.js showGrid draws it there)
+    if (!ownDims || ownDims.every((v, k) => v === grid.dimensions[k])) return own;
+    const old = [0, 1, 2].map(k => grid.origin[k] + ownDims[k] * size[k]);
+    const now = [0, 1, 2].map(k => grid.origin[k] + grid.dimensions[k] * size[k]);
+    const out = own.map(s => {
+      const box = [...s.box];
+      for (const k of [0, 1]) if (box[k + 3] >= old[k] - 1 && now[k] > box[k + 3]) box[k + 3] = now[k];
+      return { ...s, box };
+    });
+    if (own.length && now[2] > old[2] + 1e-3) {
+      const top = Math.max(...own.map(s => s.box[5])), highest = Math.max(...own.map(s => s.floor ?? 0));
+      if (now[2] > top + CURSOR_NEAR) {
+        const count = Math.max(1, Math.round((now[2] - top) / CURSOR_STOREY));
+        for (let n = 0; n < count; n++) {
+          const z0 = top + CURSOR_STOREY * n, z1 = n === count - 1 ? now[2] : z0 + CURSOR_STOREY;
+          out.push({ floor: highest + 1 + n, box: [grid.origin[0], grid.origin[1], z0, now[0], now[1], z1], made: true });
+        }
+      }
+    }
+    return out;
+  }
+  // none of its own, or cleared: even storeys from the bottom, a storey more for each 192 units of a taller grid
+  const bottom = grid.origin[2], top = bottom + grid.dimensions[2] * size[2], out = [];
+  const count = Math.max(CURSOR_STOREYS, Math.round((top - bottom) / CURSOR_STOREY));
+  for (let n = 0; n < count; n++) {
+    const z0 = bottom + CURSOR_STOREY * n, z1 = n === count - 1 ? Math.max(top, z0 + CURSOR_STOREY) : z0 + CURSOR_STOREY;
+    out.push({ floor: n + 1, box: [-1e9, -1e9, z0, 1e9, 1e9, z1], made: true });
+  }
+  return out;
+}
+
+/** Where the cursor's floors start over a box's footprint: [{ z, top, floor }] from the lowest up, one for each
+ *  height. */
+export function storeysOver(storeys, box) {
+  const out = new Map();
+  for (const s of storeys ?? []) {
+    if (Math.min(s.box[3], box[3]) - Math.max(s.box[0], box[0]) <= 0 || Math.min(s.box[4], box[4]) - Math.max(s.box[1], box[1]) <= 0) continue;
+    const key = Math.round(s.box[2]);
+    if (!out.has(key)) out.set(key, { z: s.box[2], top: s.box[5], floor: s.floor });
+  }
+  return [...out.values()].sort((a, b) => a.z - b.z);
+}
+
+/** Whether a box starts at none of the cursor's floors over it (within CURSOR_NEAR). */
+export const cursorMiss = (box, over) => over.length > 0 && !over.some(s => Math.abs(box[2] - s.z) <= CURSOR_NEAR);
+
+export const LIST_MARGIN = 20;   // a piece is a floor's when its bottom is more than this under the volume's top
+export const LIST_SLACK = 2;     // how near a floor's box a piece's box counts as touching it
+export const STOREY_HEIGHT = 192;
+/** The floors (indices) a piece's world box [x0, x1, y0, y1, z0, z1] counts for. floors: [{ boxes: [{min, max}] }]. */
+export function touchedFloors(box, floors, margin = LIST_MARGIN, slack = LIST_SLACK) {
+  const out = [];
+  (floors ?? []).forEach((floor, k) => {
+    for (const v of floor.boxes ?? []) {
+      if (box[4] < v.max[2] - margin && [0, 1, 2].every(j => box[2 * j] <= v.max[j] + slack && box[2 * j + 1] >= v.min[j] - slack)) { out.push(k); break; }
+    }
+  });
+  return out;
+}
+/** Where a piece that counts for `floors` is listed: [{ floor, cutdownFloor }]. With the cutout mask on the lowest
+ *  only, its cutdownFloor the highest when that is another floor; else on each, with none. */
+export function ruleListing(floors, mask) {
+  if (!floors.length) return [];
+  if (mask && floors.length > 1) return [{ floor: Math.min(...floors), cutdownFloor: Math.max(...floors) }];
+  return [...floors].sort((a, b) => a - b).map(floor => ({ floor, cutdownFloor: 0 }));
+}
+/** A project building's floors as the export has a building's: [{ index, bottom, top, boxes: [{min, max}] }]. */
+export const floorsOf = building => building.floors.map((f, index) => {
+  const boxes = f.boxes.map(b => ({ min: b.slice(0, 3), max: b.slice(3, 6) }));
+  return { index, boxes, volumes: [], members: [], bottom: Math.min(...boxes.map(b => b.min[2])), top: Math.max(...boxes.map(b => b.max[2])) };
+});
+
+/** The source building a building of the project comes from, as seen from one piece taken from that source: the
+ *  source's buildings carried by the piece's move (from its source pose `from` to `to`, a whole number of quarter
+ *  turns), each floor paired with the project floor its boxes overlap most. `floors`: the project building's, as
+ *  floorsOf gives them. The source building chosen is the one that overlaps the project building most, and it must
+ *  pair its floors with distinct project floors (one at least). Returns { building, floorMap: { source floor: project
+ *  floor or null }, moved: the source's floors carried ({ boxes: [{ min, max }] }) } or null. The boxes may have been
+ *  edited since: the piece keeps what its map saved where the rule agrees (carriedListing). compiler.py
+ *  source_floor_match is the twin; both pass tools/editor/tests/source_floor_match_cases.json. */
+export function sourceFloorMatch(buildings, floors, from, to) {
+  const [pitch, yaw, roll] = to.rotation.map((v, k) => ((v - from.rotation[k] + 32768) % 65536 + 65536) % 65536 - 32768);
+  const turns = Math.round(yaw / QUARTER);
+  if ([pitch, yaw - turns * QUARTER, roll].some(v => Math.abs(v) > POSE_SLACK)) return null;
+  const anchor = turned(from.location, turns);
+  const shift = to.location.map((v, k) => v - (k < 2 ? anchor[k] : from.location[k]));
+  const move = point => [...turned(point, turns), point[2]].map((v, k) => v + shift[k]);
+  const carry = box => { const a = move(box.min), z = move(box.max); return { min: a.map((v, j) => Math.min(v, z[j])), max: a.map((v, j) => Math.max(v, z[j])) }; };
+  const meet = (p, q) => [0, 1, 2].reduce((n, j) => n * Math.max(0, Math.min(p.max[j], q.max[j]) - Math.max(p.min[j], q.min[j])), 1);
+  let best = null;
+  for (const b of buildings ?? []) {
+    if (!b.floors?.length) continue;
+    const moved = b.floors.map(f => ({ boxes: (f.boxes ?? []).map(carry) }));
+    const floorMap = {}, used = new Set();
+    let total = 0, fine = true;
+    moved.forEach((f, k) => {
+      let pick = null, most = 0;
+      floors.forEach((g, j) => {
+        const got = f.boxes.reduce((n, x) => n + g.boxes.reduce((m, y) => m + meet(x, y), 0), 0);
+        if (got > most) { most = got; pick = j; }
+      });
+      if (pick != null && used.has(pick)) fine = false;
+      if (pick != null) used.add(pick);
+      floorMap[k] = pick;
+      total += most;
+    });
+    if (!fine || !used.size || (best && total <= best.total)) continue;
+    best = { building: b, floorMap, moved, total };
+  }
+  return best && { building: best.building, floorMap: best.floorMap, moved: best.moved };
+}
+/** `count` floors of one box each over a footprint [x0, y0, x1, y1], from `base` up, each `storey` high. */
+export const stackedFloors = (footprint, base, count, storey = STOREY_HEIGHT) => Array.from({ length: count }, (_, k) => (
+  { boxes: [[footprint[0], footprint[1], base + k * storey, footprint[2], footprint[3], base + (k + 1) * storey]] }));
+/** What stackedFloors would give back a building's floors: { footprint, base, count, storey }, or null when its
+ *  floors are not one box each over one footprint, stacked at one height. */
+export function stackOf(building) {
+  const floors = building.floors;
+  if (!floors.length || floors.some(f => f.boxes.length !== 1)) return null;
+  const first = floors[0].boxes[0], storey = first[5] - first[2], near = (a, b) => Math.abs(a - b) < 0.01;
+  const ok = floors.every((f, k) => { const b = f.boxes[0];
+    return [0, 1, 3, 4].every(j => near(b[j], first[j])) && near(b[2], first[2] + k * storey) && near(b[5], first[2] + (k + 1) * storey); });
+  return ok ? { footprint: [first[0], first[1], first[3], first[4]], base: first[2], count: floors.length, storey } : null;
+}
+/** The floors of a building around pieces' boxes ([x0, x1, y0, y1, z0, z1] each): the footprint out to whole tiles
+ *  (an edge within a quarter tile of a tile line goes to that line: a wall stands on the line), the base at the
+ *  lowest piece (to the level it is within 24 units of), storeys `storey` high with one more on top for a roof, and
+ *  the floors at the top that would list none of the pieces left out. grid: { origin, size, dimensions }. Null without
+ *  pieces. */
+export function floorsAround(boxes, grid, storey = STOREY_HEIGHT) {
+  if (!boxes.length) return null;
+  const lo = k => Math.min(...boxes.map(b => b[2 * k])), hi = k => Math.max(...boxes.map(b => b[2 * k + 1]));
+  const footprint = [0, 0, 0, 0];
+  for (const k of [0, 1]) {
+    const o = grid.origin[k], s = grid.size[k], n = grid.dimensions[k];
+    const edge = (v, out) => { const t = (v - o) / s, r = Math.round(t); return Math.abs(t - r) <= 0.25 ? r : out(t); };
+    const a = grid.unbounded ? edge(lo(k), Math.floor) : Math.max(0, edge(lo(k), Math.floor));
+    const b = grid.unbounded ? Math.max(a + 1, edge(hi(k), Math.ceil)) : Math.min(n, Math.max(a + 1, edge(hi(k), Math.ceil)));
+    footprint[k] = o + a * s; footprint[k + 2] = o + b * s;
+  }
+  const level = grid.size[2] ?? STOREY, bottom = lo(2), near = grid.origin[2] + Math.round((bottom - grid.origin[2]) / level) * level;
+  const base = Math.abs(bottom - near) <= 24 ? near : bottom, top = grid.origin[2] + grid.dimensions[2] * level;
+  let count = Math.max(1, Math.ceil((hi(2) - base) / storey)) + 1;
+  while (!grid.unbounded && count > 1 && base + count * storey > top + 0.01) count--;
+  let floors = stackedFloors(footprint, base, count, storey);
+  const used = new Set(boxes.flatMap(b => touchedFloors(b, floorsOf({ floors }))));
+  while (count > 1 && !used.has(count - 1)) count--;
+  return stackedFloors(footprint, base, count, storey);
+}
+/** What the compiler warns of in a building (compiler.py Compiler.buildings), as sentences: a box that overlaps a
+ *  floor of another building or another floor of its own. (A box reaching outside the tile grid is only a note
+ *  there: it covers a place with no tiles, which harms nothing; the user, 14 November 2026.) others: the map's and
+ *  the project's other buildings, [{ name, floors: [{ boxes: [{min, max}] }] }]. fresh(floor, box index): whether a
+ *  box is changed or new (a map building's boxes as the map has them are not said; default: every box). `grid` is
+ *  kept for the callers. */
+export function buildingProblems(building, grid, others, authored = false, fresh = () => true) {
+  const out = new Set();
+  const meet = (a, b) => [0, 1, 2].every(j => Math.min(a.max[j], b.max[j]) - Math.max(a.min[j], b.min[j]) > 0.5);
+  const mine = floorsOf(building);
+  mine.forEach((floor, k) => floor.boxes.forEach((box, n) => {
+    if (!fresh(k, n)) return;
+    for (const other of others) (other.floors ?? []).forEach((f, n) => {
+      if ((f.boxes ?? []).some(v => meet(box, v))) out.add(`floor ${k + 1} overlaps floor ${n + 1} of ${other.name}`);
+    });
+    if (!authored) mine.forEach((f, n) => { if (n !== k && f.boxes.some(v => meet(box, v))) out.add(`floor ${k + 1} overlaps floor ${n + 1}`); });
+  }));
+  return [...out];
+}
+
+// ---------------------------------------------------------------- the map's own buildings edited (map buildings plan)
+/** Which new floor each old floor of a map building comes to, by their volumes (the Build's buildings.floor_map):
+ *  oldVolumes [[name]], newVolumes [[name or null]] per floor -> { old index: new index (the lowest holding one of its
+ *  volumes) or null }. */
+export function floorMapOf(oldVolumes, newVolumes) {
+  const where = new Map();
+  newVolumes.forEach((names, j) => { for (const v of names) if (v != null && !where.has(v)) where.set(v, j); });
+  const out = {};
+  oldVolumes.forEach((names, k) => {
+    const found = names.filter(v => where.has(v)).map(v => where.get(v));
+    out[k] = found.length ? Math.min(...found) : null;
+  });
+  return out;
+}
+/** A piece's entries in an edited map building (the Build's buildings.carried; both pass
+ *  tools/bake/tests/carried_listing_cases.json): the rule with the old boxes at its old pose (oldRule) and with the
+ *  new boxes at its new pose (newRule), each [[floor, cutdownFloor]]. Where they agree once the old floors are carried
+ *  by floorMap, the piece keeps what the map saved (saved, carried the same way); else the new rule's answer.
+ *  Returns { entries, kept }. */
+export function carriedListing(saved, oldRule, newRule, floorMap) {
+  const order = list => [...list].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const mapped = list => {
+    const out = [];
+    for (const [k, cut] of list) {
+      if (floorMap[k] == null || (cut && floorMap[cut] == null)) return null;
+      out.push([floorMap[k], cut ? floorMap[cut] : 0]);
+    }
+    return order(out);
+  };
+  const old = mapped(oldRule), now = order(newRule);
+  if (old && JSON.stringify(old) === JSON.stringify(now)) {
+    const kept = mapped(saved);
+    if (kept) return { entries: kept, kept: true };
+  }
+  return { entries: now, kept: false };
+}

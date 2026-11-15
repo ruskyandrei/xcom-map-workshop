@@ -1,0 +1,131 @@
+{
+ "note": "Stored cone angles (degrees) and their effective half-angles (radians): lights.effective_cone and light_rules.js effectiveCone (editor lights plan, 2.7 and 9.2).",
+ "cases": [
+  {
+   "inner": 0,
+   "outer": 44,
+   "why": "UDK default spot",
+   "effective": [
+    0.0,
+    0.767944870878
+   ]
+  },
+  {
+   "inner": 10,
+   "outer": 30,
+   "why": "plain",
+   "effective": [
+    0.174532925199,
+    0.523598775598
+   ]
+  },
+  {
+   "inner": 60,
+   "outer": 80,
+   "why": "wide",
+   "effective": [
+    1.047197551197,
+    1.396263401595
+   ]
+  },
+  {
+   "inner": 0,
+   "outer": 100,
+   "why": "CLrgScout_ForestTrench and CSmallScout_DirtRoad stored outer 100",
+   "effective": [
+    0.0,
+    1.57062179387
+   ]
+  },
+  {
+   "inner": 0,
+   "outer": 580,
+   "why": "TempleShip stored outer 580",
+   "effective": [
+    0.0,
+    1.57062179387
+   ]
+  },
+  {
+   "inner": 30,
+   "outer": 30,
+   "why": "equal inner and outer",
+   "effective": [
+    0.523598775598,
+    0.524598775598
+   ]
+  },
+  {
+   "inner": 89,
+   "outer": 89,
+   "why": "equal at the inner limit",
+   "effective": [
+    1.553343034275,
+    1.554343034275
+   ]
+  },
+  {
+   "inner": 89,
+   "outer": 89.99,
+   "why": "both at their limits",
+   "effective": [
+    1.553343034275,
+    1.57062179387
+   ]
+  },
+  {
+   "inner": 90,
+   "outer": 95,
+   "why": "inner above its limit",
+   "effective": [
+    1.553343034275,
+    1.57062179387
+   ]
+  },
+  {
+   "inner": -5,
+   "outer": 44,
+   "why": "negative inner",
+   "effective": [
+    0.0,
+    0.767944870878
+   ]
+  },
+  {
+   "inner": 0,
+   "outer": 0,
+   "why": "zero outer",
+   "effective": [
+    0.0,
+    0.001
+   ]
+  },
+  {
+   "inner": 45,
+   "outer": 10,
+   "why": "inner wider than outer",
+   "effective": [
+    0.785398163397,
+    0.786398163397
+   ]
+  },
+  {
+   "inner": 0,
+   "outer": 89.99,
+   "why": "outer at its limit",
+   "effective": [
+    0.0,
+    1.57062179387
+   ]
+  },
+  {
+   "inner": 0,
+   "outer": 90,
+   "why": "outer at 90",
+   "effective": [
+    0.0,
+    1.57062179387
+   ]
+  }
+ ]
+}

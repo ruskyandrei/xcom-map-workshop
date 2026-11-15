@@ -1,0 +1,238 @@
+{
+  "name": "patch_urb_bar_exp13destr_d3e1",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "shipAs": "URB_Bar_EXP13Destr_d3e1",
+    "displayName": "URB_Bar_EXP13Destr_d3e1 (EXP-13 destructible props) |0",
+    "streamSlot": "free",
+    "timeOfDay": "Day"
+  },
+  "nameBase": 900,
+  "editor": {
+    "compiler": 1,
+    "project": "d3e1c0a7-13de-4b5a-9c2e-7f1a3b5c8d13",
+    "revision": 1,
+    "sourceSha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5"
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "location": [
+        -2311.1753,
+        -1244.7919,
+        0.0
+      ],
+      "from": [
+        "XComDestructibleActor_62",
+        "XComDestructibleActor_13",
+        "XComDestructibleActor_292",
+        "XComDestructibleActor_297",
+        "XComDestructibleActor_29",
+        "XComDestructibleActor_29",
+        "XComDestructibleActor_61",
+        "XComDestructibleActor_61"
+      ],
+      "poses": [
+        {
+          "location": [
+            -2311.1753,
+            -1244.7919,
+            0.0
+          ],
+          "rotation": [
+            0,
+            16384,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1872,
+            -1008,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1680,
+            -1008,
+            0.0
+          ],
+          "rotation": [
+            0,
+            2731,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1488,
+            -1008,
+            0.0
+          ],
+          "rotation": [
+            0,
+            8192,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1200,
+            -1008,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1104,
+            -1200,
+            23.7
+          ],
+          "rotation": [
+            0,
+            0,
+            16384
+          ]
+        },
+        {
+          "location": [
+            -1344,
+            -768,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -960,
+            -768,
+            0.0
+          ],
+          "rotation": [
+            0,
+            8192,
+            0
+          ]
+        }
+      ],
+      "labels": [
+        "move:XComDestructibleActor_62",
+        "XComDestructibleActor_13_copy6",
+        "XComDestructibleActor_292_copy5",
+        "XComDestructibleActor_297_copy7",
+        "XComDestructibleActor_29_copy3",
+        "XComDestructibleActor_29_copy4",
+        "XComDestructibleActor_61_copy1",
+        "XComDestructibleActor_61_copy2"
+      ],
+      "boxes": [
+        [
+          -2376.963,
+          -2245.387,
+          -1343.676,
+          -1146.404,
+          0.578,
+          132.318
+        ],
+        [
+          -1918.511,
+          -1827.215,
+          -1051.251,
+          -964.639,
+          0.0,
+          63.943
+        ],
+        [
+          -1737.45,
+          -1623.235,
+          -1057.78,
+          -953.933,
+          -2.042,
+          72.889
+        ],
+        [
+          -1535.14,
+          -1443.892,
+          -1053.685,
+          -962.437,
+          -2.249,
+          61.458
+        ],
+        [
+          -1223.801,
+          -1176.199,
+          -1031.665,
+          -984.335,
+          0.012,
+          72.161
+        ],
+        [
+          -1127.801,
+          -1080.199,
+          -1199.988,
+          -1127.839,
+          0.035,
+          47.365
+        ],
+        [
+          -1442.884,
+          -1245.612,
+          -833.788,
+          -702.212,
+          0.578,
+          132.318
+        ],
+        [
+          -1076.44,
+          -843.91,
+          -884.44,
+          -651.91,
+          0.578,
+          132.318
+        ]
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        -2501.423,
+        -1356.8976,
+        0.5785
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_18",
+        "XComDestructibleActor_61",
+        "XComDestructibleActor_62"
+      ],
+      "labels": [
+        "delete:XComDestructibleActor_18",
+        "delete:XComDestructibleActor_61",
+        "move:XComDestructibleActor_62"
+      ]
+    }
+  ]
+}

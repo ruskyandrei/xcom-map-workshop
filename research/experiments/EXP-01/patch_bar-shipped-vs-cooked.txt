@@ -1,0 +1,71 @@
+A = <lab>\uncooker-input\CookedPCConsole\patch_bar.upk
+B = <lab>\author\UDK-2011-09\UDKGame\CookedPCConsole\patch_bar.upk
+  ver        845                                845                                
+  lic        0                                  0                                  
+  engine     8916                               8916                               
+  cooker     135                                135                                
+  compflags  2                                  2                                  
+  flags      0x28a0009                          0x28a0009                          
+  guid       6bdd1ddcd8c74a4fbb164d753e7a42cf   6bdd1ddcd8c74a4fbb164d753e7a42cf   
+  namecount  320                                304                                <- differs
+  expcount   251                                221                                <- differs
+  impcount   142                                134                                <- differs
+export classes (A B): 8 differ
+     4    0  Brush
+    12    8  BrushComponent
+     6    0  DrawLightRadiusComponent
+    13    9  Model
+     3    0  PointLight
+    13    9  Polys
+     0    1  StaticLightCollectionActor
+     6    0  TextBuffer
+imports (A B): 10 differ
+     1    0  Core.TextBuffer
+     1    0  Engine.Brush
+     1    0  Engine.Default__Brush
+     1    0  Engine.Default__Brush.BrushComponent0
+     1    0  Engine.Default__PointLight.DrawLightRadius0
+     1    0  Engine.Default__PointLight.DrawLightSourceRadius0
+     1    0  Engine.DrawLightRadiusComponent
+     1    0  Engine.PointLight
+     0    1  Engine.StaticLightCollectionActor
+     1    0  EngineMaterials.DefaultMaterial
+exports by class and path (A B): 38 differ
+     1    0  Brush TheWorld.PersistentLevel.Brush_0
+     1    0  Brush TheWorld.PersistentLevel.Brush_2
+     1    0  Brush TheWorld.PersistentLevel.Brush_3
+     1    0  Brush TheWorld.PersistentLevel.Brush_8
+     1    0  BrushComponent TheWorld.PersistentLevel.Brush_0.BrushComponent_0
+     1    0  BrushComponent TheWorld.PersistentLevel.Brush_2.BrushComponent_5
+     1    0  BrushComponent TheWorld.PersistentLevel.Brush_3.BrushComponent_6
+     1    0  BrushComponent TheWorld.PersistentLevel.Brush_8.BrushComponent_23
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_4.DrawLightRadiusComponent_0
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_4.DrawLightRadiusComponent_1
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_6.DrawLightRadiusComponent_0
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_6.DrawLightRadiusComponent_1
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_9.DrawLightRadiusComponent_0
+     1    0  DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_9.DrawLightRadiusComponent_1
+     1    0  Model Brush
+     1    0  Model TheWorld.PersistentLevel.Brush_2.Model_3
+     1    0  Model TheWorld.PersistentLevel.Brush_3.Model_5
+     1    0  Model TheWorld.PersistentLevel.Brush_8.Model_13
+     1    0  PointLight TheWorld.PersistentLevel.PointLight_4
+     1    0  PointLight TheWorld.PersistentLevel.PointLight_6
+     1    0  PointLight TheWorld.PersistentLevel.PointLight_9
+     1    0  PointLightComponent TheWorld.PersistentLevel.PointLight_4.PointLightComponent_0
+     1    0  PointLightComponent TheWorld.PersistentLevel.PointLight_6.PointLightComponent_0
+     1    0  PointLightComponent TheWorld.PersistentLevel.PointLight_9.PointLightComponent_0
+     0    1  PointLightComponent TheWorld.PersistentLevel.StaticLightCollectionActor_0.PointLight_4_LC
+     0    1  PointLightComponent TheWorld.PersistentLevel.StaticLightCollectionActor_0.PointLight_6_LC
+     0    1  PointLightComponent TheWorld.PersistentLevel.StaticLightCollectionActor_0.PointLight_9_LC
+     1    0  Polys Polys_1
+     1    0  Polys TheWorld.PersistentLevel.Brush_2.Model_3.Polys_6
+     1    0  Polys TheWorld.PersistentLevel.Brush_3.Model_5.Polys_11
+     1    0  Polys TheWorld.PersistentLevel.Brush_8.Model_13.Polys_40
+     0    1  StaticLightCollectionActor TheWorld.PersistentLevel.StaticLightCollectionActor_0
+     1    0  TextBuffer XComUDK.SeqAct_AddDestructibleActorEvent.ScriptText
+     1    0  TextBuffer XComUDK.SeqAct_ForLoop.ScriptText
+     1    0  TextBuffer XComUDK.SeqAct_GetActorsTouchingVolume.ScriptText
+     1    0  TextBuffer XComUDK.SeqAct_GetAllActors.ScriptText
+     1    0  TextBuffer XComUDK.SeqAct_SetLOSBlocking.ScriptText
+     1    0  TextBuffer XComUDK.SeqAct_SetScale3D.ScriptText

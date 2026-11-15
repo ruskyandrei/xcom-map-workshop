@@ -1,0 +1,18 @@
+{
+  "note": "EXP-04's block: patch_bar plus one visible 2x2 high-cover block near the URB_Bar dumpsters. Its t3d step reproduces <lab>\\exp04\\exp04-add.t3d. Named patch_exp04r so it can never overwrite the hand-made patch_exp04.",
+  "name": "patch_exp04r",
+  "base": "patch_bar",
+  "map": { "origin": [-2784, -1920], "tileSize": 96 },
+  "nameBase": 900,
+  "objects": [
+    {
+      "mesh": "CoverPatch.High2x2",
+      "tile": [2, 10],
+      "anchor": "corner",
+      "cover": "High",
+      "collision": "BlockAllButWeapons",
+      "hidden": false,
+      "volume": { "half": 128, "offset": [0, 0, 12] }
+    }
+  ]
+}

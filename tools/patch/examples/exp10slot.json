@@ -1,0 +1,34 @@
+{
+  "note": "EXP-10 (research/experiments/EXP-10-variant-stream-slot.md): does a variant record that keeps all of URB_Bar's streams (CIN_DropshipIntros, patch_bar, patch_hide_randomized_objects) and adds an edit patch built on an empty template in a free slot load, and stream every one of them? The patch starts from an empty map (base \"\"), not patch_bar, so patch_bar's actors come only from patch_bar's own stream. URB_Bar ships as URB_BarSlot (map.shipAs), with a record of its own that streams the patch in the lowest StreamingMaps slot URB_Bar's record does not use (map.streamSlot \"free\": slot 2). Two visible CoverPatch.High2x2 blocks make a 2x4 wall in front of the dumpsters, over URB_Bar tiles x 1-2, y 9-12: EXP-04's block (tile 2,10; in game on 3 Nov 2026) and exp04b's second block right south of it, turned 90 degrees. seed false keeps the stream layout the only new factor: the blocks stand on ground-level tiles, as EXP-04's did without seeds.",
+  "name": "patch_exp10slot",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [-2784, -1920],
+    "tileSize": 96,
+    "shipAs": "URB_BarSlot",
+    "displayName": "URB_BarSlot (EXP-10 stream slot) |0",
+    "streamSlot": "free"
+  },
+  "seed": false,
+  "objects": [
+    {
+      "mesh": "CoverPatch.High2x2",
+      "tile": [2, 10],
+      "anchor": "corner",
+      "cover": "High",
+      "collision": "BlockAllButWeapons",
+      "hidden": false,
+      "volume": { "half": 128, "offset": [0, 0, 12] }
+    },
+    {
+      "mesh": "CoverPatch.High2x2",
+      "location": [-2592, -768],
+      "yaw": 90,
+      "cover": "High",
+      "collision": "BlockAllButWeapons",
+      "hidden": false,
+      "volume": { "half": 128, "offset": [0, 0, 12] }
+    }
+  ]
+}

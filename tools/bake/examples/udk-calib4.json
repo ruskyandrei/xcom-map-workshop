@@ -1,0 +1,166 @@
+{
+ "light": {
+  "pitch": -8192,
+  "yaw": 0,
+  "brightness": 1.0,
+  "color": [
+   255,
+   255,
+   255
+  ]
+ },
+ "moreLights": [
+  {
+   "pitch": -10923,
+   "yaw": 16384,
+   "brightness": 1.5,
+   "color": [
+    64,
+    128,
+    255
+   ]
+  }
+ ],
+ "receivers": [
+  {
+   "name": "e30a090",
+   "location": [
+    0,
+    0,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a150",
+   "location": [
+    0,
+    -2000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a210",
+   "location": [
+    0,
+    -4000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e15a000",
+   "location": [
+    0,
+    -6000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    15
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e90a090",
+   "location": [
+    0,
+    -8000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    90
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a270",
+   "location": [
+    0,
+    -10000,
+    1500
+   ],
+   "lightTangent": [
+    270,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e30a330",
+   "location": [
+    0,
+    -12000,
+    1500
+   ],
+   "lightTangent": [
+    330,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a030",
+   "location": [
+    0,
+    -14000,
+    1500
+   ],
+   "lightTangent": [
+    30,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e20a180",
+   "location": [
+    0,
+    -16000,
+    1500
+   ],
+   "lightTangent": [
+    180,
+    20
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e75a120",
+   "location": [
+    0,
+    -18000,
+    1500
+   ],
+   "lightTangent": [
+    120,
+    75
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  }
+ ]
+}

@@ -1,0 +1,42 @@
+{
+ "about": "Cases of a copy's building-floor listings (private/plans/done/floor-brush-plan.md, 3.8): native_copy.floor_at and copy_floors, and the editor's floors.js floorAt and copyFloors, give these results. Buildings are indexes; a listing is [building, floor, cutdown]; here and there are [building, floor] or null.",
+ "floorAt": [
+  {"case": "the floor whose volumes overlap the box most",
+   "buildings": [[[{"min": [0, 0, 0], "max": [100, 100, 100]}], [{"min": [0, 0, 100], "max": [100, 100, 200]}]]],
+   "box": [10, 20, 10, 20, 80, 150], "at": [0, 1]},
+  {"case": "volumes of one floor add up",
+   "buildings": [[[{"min": [0, 0, 0], "max": [50, 100, 100]}, {"min": [50, 0, 0], "max": [100, 100, 100]}], [{"min": [0, 0, 0], "max": [70, 100, 100]}]]],
+   "box": [0, 100, 0, 100, 0, 10], "at": [0, 0]},
+  {"case": "a tie: the first building and floor win",
+   "buildings": [[[{"min": [0, 0, 0], "max": [100, 100, 100]}]], [[{"min": [0, 0, 0], "max": [100, 100, 100]}]]],
+   "box": [10, 20, 10, 20, 10, 20], "at": [0, 0]},
+  {"case": "a box touching a volume's face only stands in none",
+   "buildings": [[[{"min": [0, 0, 0], "max": [100, 100, 100]}]]],
+   "box": [100, 150, 10, 20, 10, 20], "at": null},
+  {"case": "a flat surface (no thickness) stands in none",
+   "buildings": [[[{"min": [0, 0, 0], "max": [100, 100, 100]}]]],
+   "box": [10, 90, 10, 90, 16, 16], "at": null}
+ ],
+ "copyFloors": [
+  {"case": "a piece listed nowhere: its copy is listed nowhere",
+   "listings": [], "here": [0, 0], "there": [0, 1], "floors": [3], "expect": []},
+  {"case": "listed though it stands in no floor (a ladder on an outer wall), copied to none either: it keeps its listings",
+   "listings": [[0, 1, 0], [1, 0, 2]], "here": null, "there": null, "floors": [3, 2], "expect": [[0, 1, 0], [1, 0, 2]]},
+  {"case": "copied out of every floor: none",
+   "listings": [[0, 0, 0]], "here": [0, 0], "there": null, "floors": [3], "expect": []},
+  {"case": "copied up a floor of its building",
+   "listings": [[0, 0, 0]], "here": [0, 0], "there": [0, 1], "floors": [3], "expect": [[0, 1, 0]]},
+  {"case": "two listings move to another building, as far above the floor it stands in as they were",
+   "listings": [[0, 1, 0], [0, 2, 0]], "here": [0, 1], "there": [1, 0], "floors": [3, 2], "expect": [[1, 0, 0], [1, 1, 0]]},
+  {"case": "clamped to the building's floors",
+   "listings": [[0, 2, 0]], "here": [0, 0], "there": [1, 1], "floors": [3, 2], "expect": [[1, 1, 0]]},
+  {"case": "its CutdownFloor moves by as many floors",
+   "listings": [[0, 0, 2]], "here": [0, 0], "there": [0, 1], "floors": [3], "expect": [[0, 1, 3]]},
+  {"case": "moved down, a CutdownFloor stays at least 1; 0 names none and stays",
+   "listings": [[0, 1, 1], [0, 2, 0]], "here": [0, 1], "there": [0, 0], "floors": [3], "expect": [[0, 0, 1], [0, 1, 0]]},
+  {"case": "standing in no floor but copied into one: the listings go to the copy's floor, no rise",
+   "listings": [[0, 1, 0]], "here": null, "there": [0, 0], "floors": [3], "expect": [[0, 0, 0]]},
+  {"case": "listed in another building than the one it stands in: no rise",
+   "listings": [[0, 2, 0]], "here": [1, 0], "there": [1, 1], "floors": [3, 2], "expect": [[1, 1, 0]]}
+ ]
+}

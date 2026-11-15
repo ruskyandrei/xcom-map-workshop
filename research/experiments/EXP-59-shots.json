@@ -1,0 +1,28 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e59", "shots": [
+ {"out": "EXP-59-overview.png", "title": "EXP-59: cover blocks smaller than a tile, along the pavement's middle row",
+  "target": [-100, -144, 16], "camera": [0, -1100, 1300],
+  "marks": [
+   {"n": "F", "at": [720, -144, 60], "color": "#ff6b6b", "r": 56,
+    "text": "control: a whole-tile high block: no way into its tile, high cover beside it"},
+   {"n": "A", "at": [432, -144, 60], "color": "#e0a040", "r": 56,
+    "text": "half a tile (48 x 48) in the tile's middle: no standing in it; high cover in the 4 tiles round it"},
+   {"n": "B", "at": [96, -144, 60], "color": "#5ad17a", "r": 56,
+    "text": "wall 8 thick on a tile edge: stand on both sides, no crossing; high cover toward it both sides"},
+   {"n": "C", "at": [-276, -180, 60], "color": "#4aa8ff", "r": 56,
+    "text": "24 x 24 in the tile's corner: stand in its tile, walk past it; no cover from it"},
+   {"n": "D", "at": [-528, -144, 40], "color": "#d07ad0", "r": 56,
+    "text": "top 40 over the floor: stand in its tile, walk through it; no cover from it"},
+   {"n": "E", "at": [-864, -144, 60], "color": "#ffe27a", "r": 56,
+    "text": "wall 2 thick on a tile edge: no cover, but no crossing (and maybe no sight) across it"}]},
+ {"out": "EXP-59-west.png", "title": "EXP-59: C (corner), D (short) and E (2-unit wall), closer",
+  "target": [-576, -144, 16], "camera": [0, -620, 760],
+  "marks": [
+   {"n": "C", "at": [-276, -180, 60], "color": "#4aa8ff", "r": 40, "text": "24 x 24 in the tile's corner"},
+   {"n": "D", "at": [-528, -144, 40], "color": "#d07ad0", "r": 44, "text": "top 40 over the floor"},
+   {"n": "E", "at": [-864, -144, 60], "color": "#ffe27a", "r": 40, "text": "wall 2 thick on the tile edge at x -864"}]},
+ {"out": "EXP-59-east.png", "title": "EXP-59: F (control), A (half tile) and B (8-unit wall), closer",
+  "target": [400, -144, 16], "camera": [0, -620, 760],
+  "marks": [
+   {"n": "F", "at": [720, -144, 60], "color": "#ff6b6b", "r": 44, "text": "control: whole tile"},
+   {"n": "A", "at": [432, -144, 60], "color": "#e0a040", "r": 40, "text": "half a tile in the middle"},
+   {"n": "B", "at": [96, -144, 60], "color": "#5ad17a", "r": 40, "text": "wall 8 thick on the tile edge at x 96"}]}]}

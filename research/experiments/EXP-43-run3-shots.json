@@ -1,0 +1,13 @@
+{"map": "CB2_MP_Blank", "project": "00000000-0000-4000-8000-000000000e44", "shots": [
+ {"out": "EXP-43-run3-overview.png", "title": "EXP-43 run 3: the grid made 54 by 54 tiles (the editor still draws the map's own 36 by 36)",
+  "target": [700, 1400, 0], "camera": [-2400, -3600, 4200],
+  "box": [[-2112, -1344, 0], [3072, -1344, 0], [3072, 3840, 0], [-2112, 3840, 0]],
+  "marks": [
+   {"n": "1", "at": [-96, 528, 40], "color": "#4aa3ff", "r": 60, "side": "left",
+    "text": "the squad starts here, as in run 2; the pieces by it are run 2's"},
+   {"n": "2", "at": [2064, 1344, 90], "color": "#5ad17a", "r": 50,
+    "text": "an abductor wall on the new ground, east of the old edge: it stands on ground, gives full cover, breaks"},
+   {"n": "3", "at": [1776, 2736, 30], "color": "#5ad17a", "r": 40,
+    "text": "a dry bush on the new ground, north-east: low cover"},
+   {"n": "4", "at": [2900, 3650, 0], "color": "#ffb347", "r": 60, "side": "left",
+    "text": "the far corner of the new grid (dashed outline): the cursor, the camera and a soldier's path reach it"}]}]}

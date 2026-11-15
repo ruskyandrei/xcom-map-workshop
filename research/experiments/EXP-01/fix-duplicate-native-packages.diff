@@ -1,0 +1,28 @@
+diff --git "a/<lab>\\builds\\exp01-merged-2026-11-03\\Config\\DefaultEngine.ini" "b/<lab>\\author\\UDK-2011-09\\UDKGame\\Config\\DefaultEngine.ini"
+index e6f5b15..250d5f5 100644
+--- "a/<lab>\\builds\\exp01-merged-2026-11-03\\Config\\DefaultEngine.ini"
++++ "b/<lab>\\author\\UDK-2011-09\\UDKGame\\Config\\DefaultEngine.ini"
+@@ -15,8 +15,8 @@ MapExt=udk
+ [Engine.ScriptPackages]
+ ;+NonNativePackages=UTGame
+ ;+NonNativePackages=UTGameContent
+-+NativePackages=Core
+-+NativePackages=Engine
++;+NativePackages=Core   ; EXP-01: duplicate of EngineNativePackages, freezes the editor loading Engine.u
++;+NativePackages=Engine   ; EXP-01: duplicate of EngineNativePackages, freezes the editor loading Engine.u
+ +NativePackages=XComGame
+ +NonNativePackages=XComUDK
+ +NonNativePackages=XComModMusicOverride
+diff --git "a/<lab>\\builds\\exp01-merged-2026-11-03\\Config\\UDKEngine.ini" "b/<lab>\\author\\UDK-2011-09\\UDKGame\\Config\\UDKEngine.ini"
+index 4a3834a..288a6f6 100644
+--- "a/<lab>\\builds\\exp01-merged-2026-11-03\\Config\\UDKEngine.ini"
++++ "b/<lab>\\author\\UDK-2011-09\\UDKGame\\Config\\UDKEngine.ini"
+@@ -24,8 +24,6 @@ EditorPackages=UnrealEd
+ ScaleformEditorPackages=GFxUIEditor
+ NativePackages=UDKBase
+ EditorPackages=UTEditor
+-NativePackages=Core
+-NativePackages=Engine
+ NativePackages=XComGame
+ NonNativePackages=XComUDK
+ NonNativePackages=XComModMusicOverride

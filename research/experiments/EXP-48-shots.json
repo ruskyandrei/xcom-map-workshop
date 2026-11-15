@@ -1,0 +1,19 @@
+{"map": "CB2_MP_Blank", "project": "00000000-0000-4000-8000-000000000e48", "shots": [
+ {"out": "EXP-48-overview.png", "title": "EXP-48: three lights made from recipes on the blank map (light markers shown)",
+  "target": [300, 1050, 60], "camera": [-1500, -1900, 1700], "lights": true,
+  "marks": [
+   {"n": "1", "at": [-96, 528, 40], "color": "#4aa3ff", "r": 60, "side": "left",
+    "text": "the squad starts here"},
+   {"n": "2", "at": [-96, 864, 160], "color": "#5ad17a", "r": 60, "side": "left",
+    "text": "NEW: a green point light, 160 above open ground, three and a half tiles north of the squad. A round green pool on the ground, about five tiles to its edge; a soldier walking through turns green"},
+   {"n": "3", "at": [-96, 1440, 256], "color": "#6aa0ff", "r": 60, "side": "left",
+    "text": "the known case: a blue spot light pointing straight down (EXP-26's kind). A blue disc on the ground, to compare the point lights with"},
+   {"n": "4", "at": [672, 1248, 128], "color": "#ffb347", "r": 80,
+    "text": "NEW: a warm point light inside the hut (EXP-44's), at head height in the middle of the room"}]},
+ {"out": "EXP-48-hut.png", "title": "EXP-48: inside the hut (the editor's Floors at 1: the roof hidden, the walls cut down)",
+  "target": [672, 1248, 60], "camera": [-700, -900, 1000], "floor": "1", "lights": true,
+  "marks": [
+   {"n": "4", "at": [672, 1248, 128], "color": "#ffb347", "r": 60,
+    "text": "the warm point light: the floor, the four walls' insides and the crates lit warm, brightest under it; a soldier inside lit warm. Little or none of it outside the walls"},
+   {"n": "5", "at": [960, 1104, 60], "color": "#e06cff", "r": 50,
+    "text": "the swing door, the way in"}]}]}

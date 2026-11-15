@@ -1,0 +1,54 @@
+{
+  "map": "URB_Bar",
+  "project": "24c0a0b1-2424-4d0a-8e24-3c4d5e6f7c24",
+  "shots": [
+    {
+      "out": "EXP-24-run3-overview.png",
+      "title": "EXP-24 run 3: the vans west and south of the bar (the dashed box)",
+      "target": [-1500, -250, 0],
+      "camera": [0, -3000, 4600],
+      "box": [[-2650, -1450, 0], [-400, -1450, 0], [-400, 1050, 0], [-2650, 1050, 0]],
+      "marks": [
+        {"n": "1", "at": [-1247, -957, 120], "color": "#58b4ff", "r": 26, "text": "the copy of the delivery van, turned a quarter"},
+        {"n": "2", "at": [-669, -481, 120], "color": "#f2c14e", "r": 26, "text": "the delivery van, the original"},
+        {"n": "3", "at": [-2305, 476, 120], "color": "#5ad17a", "r": 26, "text": "the short moving van, moved 4 tiles south"},
+        {"n": "4", "at": [-2306, 860, 40], "color": "#e0605a", "r": 26, "text": "where the short moving van stood"},
+        {"n": "5", "at": [-1912, -1246, 40], "color": "#c58cff", "r": 26, "text": "where the big moving van stood (deleted)"}
+      ]
+    },
+    {
+      "out": "EXP-24-run3-delivery.png",
+      "title": "EXP-24 run 3: the delivery van and its copy",
+      "target": [-960, -720, 100],
+      "camera": [-700, -1150, 1100],
+      "marks": [
+        {"n": "1", "at": [-1247, -957, 120], "color": "#58b4ff", "r": 90,
+         "text": "the copy, turned a quarter: walk into its cargo area and onto its roof; its roof cuts away over a soldier inside"},
+        {"n": "2", "at": [-669, -481, 120], "color": "#f2c14e", "r": 90,
+         "text": "the original: as before, and nothing here hides when the copy's roof cuts away"}
+      ]
+    },
+    {
+      "out": "EXP-24-run3-short-van.png",
+      "title": "EXP-24 run 3: the street west of the bar",
+      "target": [-2305, 660, 80],
+      "camera": [1300, -500, 1300],
+      "marks": [
+        {"n": "3", "at": [-2305, 476, 120], "color": "#5ad17a", "r": 90,
+         "text": "the short moving van, moved 4 tiles south: cargo area, roof, cutaway, cover"},
+        {"n": "4", "at": [-2306, 860, 40], "color": "#e0605a", "r": 80,
+         "text": "where it stood: open ground, no roof or floor left in the air"}
+      ]
+    },
+    {
+      "out": "EXP-24-run3-deleted.png",
+      "title": "EXP-24 run 3: where the big moving van stood",
+      "target": [-1830, -1246, 40],
+      "camera": [0, -1000, 1000],
+      "marks": [
+        {"n": "5", "at": [-1830, -1246, 40], "color": "#c58cff", "r": 130,
+         "text": "where the big moving van stood (deleted): open ground, no roof or floor left in the air, no cover"}
+      ]
+    }
+  ]
+}

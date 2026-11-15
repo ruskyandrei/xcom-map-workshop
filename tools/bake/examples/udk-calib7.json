@@ -1,0 +1,10 @@
+{
+ "light": {"pitch": 910, "yaw": 0, "brightness": 1, "color": [255, 255, 255]},
+ "receivers": [
+  {"name": "floorA", "location": [0, 0, 0], "scale": 0.25, "lightmapRes": 256},
+  {"name": "wallA", "location": [500, 0, 532], "pitch": 16384, "scale": 0.25, "lightmapRes": 128},
+  {"name": "floorB", "location": [0, 1400, 0], "scale": 0.25, "lightmapRes": 256},
+  {"name": "wallB", "location": [748, 1400, 532], "pitch": 16384, "scale": 0.25, "lightmapRes": 128}
+ ],
+ "importanceVolume": {"min": [-800, -800, -300], "max": [1100, 2200, 1300]}
+}

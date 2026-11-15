@@ -1,0 +1,170 @@
+{
+ "what": "UDK 2011-09 Lightmass, the environment light alone (EXP-18, BakeCalib12, 7 November 2026)",
+ "bake": "<lab>/author/UDK-2011-09/UDKGame/Content/Maps/calib/BakeCalib12.udk",
+ "baseMap": "CalibEnv.udk: CalibBase with EnvironmentColor (R 64, G 69, B 97), as URB_Bar; ambient occlusion off",
+ "spec": "tools/bake/examples/udk-calib10.json",
+ "quality": "Production",
+ "command": "python -B tools/bake/udk_bounce_check.py <lab>/bake-calib/calib10/scene.json <lab>/bake-calib/calib10/texels.npz --environment 64,69,97",
+ "udkNac": "every receiver (0.6549, 0.7098, 1.0) as stored: the sRGB-decoded colour (0.40, 0.47, 1.0) normalised",
+ "beforeScale": {
+  "note": "environment radiance = sRGB-decoded colour x intensity (no scale)",
+  "receivers": {
+   "floorA": {
+    "udk": 0.2802,
+    "ours": 1.0507
+   },
+   "floorB": {
+    "udk": 0.2207,
+    "ours": 0.8526
+   },
+   "wallB": {
+    "udk": 0.2195,
+    "ours": 0.8513
+   }
+  },
+  "ratioUdkOverOursByBand": {
+   "floorB": [
+    0.27,
+    0.26,
+    0.26,
+    0.26
+   ],
+   "wallB": [
+    0.26,
+    0.26,
+    0.26,
+    0.26
+   ]
+  }
+ },
+ "afterScale": {
+  "note": "bounce.ENVIRONMENT_SCALE = 0.266",
+  "result": {
+   "albedo": [
+    0.15792954960914588,
+    0.1591927301803663,
+    0.299132021814228
+   ],
+   "spotIndirectConeScale": 2.0,
+   "rays": 256,
+   "environment": [
+    0.012708350445941392,
+    0.014995509948826615,
+    0.03172422745934261
+   ],
+   "receivers": {
+    "floorA": {
+     "texels": 4624,
+     "udk": 0.2802320970006209,
+     "direct": 0.0,
+     "bounce": 0.27949927279386183,
+     "bands": []
+    },
+    "floorB": {
+     "texels": 4624,
+     "udk": 0.2206880416715581,
+     "direct": 0.0,
+     "bounce": 0.22678738297798906,
+     "bands": [
+      {
+       "distance": [
+        0,
+        100
+       ],
+       "texels": 320,
+       "udk": 0.15730485401677757,
+       "direct": 0.0,
+       "bounce": 0.15754044741993706,
+       "udkBeyondDirectOverBounce": 0.9985045529131228
+      },
+      {
+       "distance": [
+        100,
+        400
+       ],
+       "texels": 1430,
+       "udk": 0.19552158335910702,
+       "direct": 0.0,
+       "bounce": 0.19946618396462554,
+       "udkBeyondDirectOverBounce": 0.980224213813515
+      },
+      {
+       "distance": [
+        400,
+        800
+       ],
+       "texels": 1786,
+       "udk": 0.23415556823855538,
+       "direct": 0.0,
+       "bounce": 0.2412237478914937,
+       "udkBeyondDirectOverBounce": 0.9706986575131163
+      },
+      {
+       "distance": [
+        800,
+        1300
+       ],
+       "texels": 1088,
+       "udk": 0.25029985507935004,
+       "direct": 0.0,
+       "bounce": 0.2593654953237311,
+       "udkBeyondDirectOverBounce": 0.9650468531557537
+      }
+     ]
+    },
+    "wallB": {
+     "texels": 1089,
+     "udk": 0.21946467516456633,
+     "direct": 0.0,
+     "bounce": 0.2264586760486743,
+     "bands": [
+      {
+       "distance": [
+        0,
+        100
+       ],
+       "texels": 65,
+       "udk": 0.15783009945298973,
+       "direct": 0.0,
+       "bounce": 0.15921796612710387,
+       "udkBeyondDirectOverBounce": 0.9912832282193191
+      },
+      {
+       "distance": [
+        100,
+        400
+       ],
+       "texels": 331,
+       "udk": 0.19095953383145242,
+       "direct": 0.0,
+       "bounce": 0.19763647445258659,
+       "udkBeyondDirectOverBounce": 0.9662160507587076
+      },
+      {
+       "distance": [
+        400,
+        800
+       ],
+       "texels": 462,
+       "udk": 0.2334633813279302,
+       "direct": 0.0,
+       "bounce": 0.24044030573317896,
+       "udkBeyondDirectOverBounce": 0.9709827169618094
+      },
+      {
+       "distance": [
+        800,
+        1300
+       ],
+       "texels": 231,
+       "udk": 0.24965535462361005,
+       "direct": 0.0,
+       "bounce": 0.2587153079056699,
+       "udkBeyondDirectOverBounce": 0.9649809925999309
+      }
+     ]
+    }
+   }
+  }
+ }
+}

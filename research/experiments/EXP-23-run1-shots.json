@@ -1,0 +1,44 @@
+{
+  "map": "URB_Bar",
+  "project": "23e0a0b1-2323-4d0a-8e23-3c4d5e6f7a23",
+  "shots": [
+    {
+      "out": "EXP-23-run1-overview.png",
+      "title": "EXP-23 run 1: the bar's ground floor (the dashed box)",
+      "floor": "1",
+      "target": [-1100, 700, 0],
+      "camera": [0, -1900, 3300],
+      "box": [[-1700, 120, 16], [-560, 120, 16], [-560, 1260, 16], [-1700, 1260, 16]],
+      "marks": [
+        {"n": "1", "at": [-1488, 672, 100], "color": "#5ad17a", "r": 22, "text": "door 6, moved into door 7's doorway"},
+        {"n": "2", "at": [-816, 672, 100], "color": "#58b4ff", "r": 22, "text": "the copy of door 5, in door 6's old doorway"},
+        {"n": "3", "at": [-1008, 192, 100], "color": "#f2c14e", "r": 22, "text": "door 5, the original (the front door)"},
+        {"n": "4", "at": [-1632, 816, 100], "color": "#e0605a", "r": 22, "text": "door 4, deleted: an open doorway"}
+      ]
+    },
+    {
+      "out": "EXP-23-run1-inner-wall.png",
+      "title": "EXP-23 run 1: the inner wall, seen from the front room",
+      "floor": "1",
+      "target": [-1150, 672, 100],
+      "camera": [0, -900, 650],
+      "marks": [
+        {"n": "1", "at": [-1488, 672, 110], "color": "#5ad17a", "r": 44,
+         "text": "door 6, moved 7 tiles into door 7's doorway: open it, walk through, kick it"},
+        {"n": "2", "at": [-816, 672, 110], "color": "#58b4ff", "r": 44,
+         "text": "the copy of door 5 (the front door), in door 6's old doorway: the same"}
+      ]
+    },
+    {
+      "out": "EXP-23-run1-west-door.png",
+      "title": "EXP-23 run 1: the west wall, seen from inside",
+      "floor": "1",
+      "target": [-1632, 816, 100],
+      "camera": [800, -350, 550],
+      "marks": [
+        {"n": "4", "at": [-1632, 816, 110], "color": "#e0605a", "r": 44,
+         "text": "door 4, deleted: an open doorway, with no door and no 'open door' icon"}
+      ]
+    }
+  ]
+}

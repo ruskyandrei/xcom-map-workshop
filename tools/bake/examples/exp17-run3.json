@@ -1,0 +1,131 @@
+[
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 1,
+  "rgb": [
+   0.903226,
+   0.888889,
+   0.903226
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7",
+  "slot": 1,
+  "value": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 1,
+  "rgb": [
+   [
+    0.225806,
+    0.222222,
+    0.225806
+   ],
+   [
+    0.258065,
+    0.253968,
+    0.258065
+   ],
+   [
+    0.290323,
+    0.285714,
+    0.290323
+   ],
+   [
+    0.322581,
+    0.31746,
+    0.322581
+   ],
+   [
+    0.354839,
+    0.349206,
+    0.354839
+   ]
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_91.StaticMeshComponent_6",
+  "slot": 1,
+  "value": [
+   16,
+   16,
+   16
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_275.StaticMeshComponent_414",
+  "slot": 0,
+  "rgb": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "op": "paint",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_275.StaticMeshComponent_414",
+  "slot": 1,
+  "rgb": [
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ]
+ },
+ {
+  "op": "setscale",
+  "component": "TheWorld.PersistentLevel.XComLevelActor_275.StaticMeshComponent_414",
+  "slot": 1,
+  "value": [
+   1,
+   1,
+   1
+  ]
+ }
+]

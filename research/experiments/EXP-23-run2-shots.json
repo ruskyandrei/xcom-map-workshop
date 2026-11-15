@@ -1,0 +1,58 @@
+{
+  "map": "URB_PoliceStation",
+  "project": "23f0a0b1-2323-4d0a-8e23-3c4d5e6f7b23",
+  "shots": [
+    {
+      "out": "EXP-23-run2-overview.png",
+      "title": "EXP-23 run 2: the station's west half, ground floor (the dashed box)",
+      "floor": "1",
+      "target": [-150, -480, 80],
+      "camera": [0, -2300, 3600],
+      "box": [[-560, -1800, 80], [140, -1800, 80], [140, 880, 80], [-560, 880, 80]],
+      "marks": [
+        {"n": "1", "at": [-384, -528, 160], "color": "#5ad17a", "r": 20, "text": "door 95, moved 13 tiles into door 2's doorway"},
+        {"n": "2", "at": [-384, 720, 160], "color": "#58b4ff", "r": 20, "text": "the copy of door 0, in door 95's old doorway"},
+        {"n": "3", "at": [-96, -672, 160], "color": "#c58cff", "r": 20, "text": "the copy of the double door 17-18, turned, in an empty doorway"},
+        {"n": "4", "at": [-480, -1632, 160], "color": "#e0605a", "r": 20, "text": "the double door 19-20, deleted: an open doorway"},
+        {"n": "5", "at": [-480, -864, 160], "color": "#f2c14e", "r": 20, "text": "the double door 17-18, the original"}
+      ]
+    },
+    {
+      "out": "EXP-23-run2-copy.png",
+      "title": "EXP-23 run 2: the back wall's north doorway, seen from inside",
+      "floor": "1",
+      "target": [-384, 720, 160],
+      "camera": [750, -350, 600],
+      "marks": [
+        {"n": "2", "at": [-384, 720, 160], "color": "#58b4ff", "r": 44,
+         "text": "the copy of door 0, in door 95's old doorway: open it, walk through, kick it"}
+      ]
+    },
+    {
+      "out": "EXP-23-run2-moved-and-turned.png",
+      "title": "EXP-23 run 2: the moved door and the turned double door, seen from inside",
+      "floor": "1",
+      "target": [-250, -600, 160],
+      "camera": [700, 650, 650],
+      "marks": [
+        {"n": "1", "at": [-384, -528, 160], "color": "#5ad17a", "r": 40,
+         "text": "door 95, moved 13 tiles into door 2's doorway: open it, walk through, kick it"},
+        {"n": "3", "at": [-96, -672, 160], "color": "#c58cff", "r": 54, "side": "left",
+         "text": "the double door 17-18 copied a quarter turn round into an empty doorway: both halves"}
+      ]
+    },
+    {
+      "out": "EXP-23-run2-facade.png",
+      "title": "EXP-23 run 2: the west facade's double doors, seen from inside",
+      "floor": "1",
+      "target": [-480, -1250, 160],
+      "camera": [950, -150, 750],
+      "marks": [
+        {"n": "4", "at": [-480, -1632, 160], "color": "#e0605a", "r": 50,
+         "text": "the double door 19-20, deleted: an open doorway, with no 'open door' icon"},
+        {"n": "5", "at": [-480, -864, 160], "color": "#f2c14e", "r": 50,
+         "text": "the double door 17-18, the original: as before"}
+      ]
+    }
+  ]
+}

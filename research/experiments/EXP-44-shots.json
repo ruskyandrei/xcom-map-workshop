@@ -1,0 +1,22 @@
+{"map": "CB2_MP_Blank", "project": "00000000-0000-4000-8000-000000000e45", "shots": [
+ {"out": "EXP-44-overview.png", "title": "EXP-44: a hut made as a new building on the blank map (the squad starts at the lower left)",
+  "target": [560, 1150, 60], "camera": [-1500, -1900, 1900],
+  "box": [[384, 960, 0], [960, 960, 0], [960, 1536, 0], [384, 1536, 0]],
+  "marks": [
+   {"n": "1", "at": [-96, 528, 40], "color": "#4aa3ff", "r": 60, "side": "left",
+    "text": "the squad starts here"},
+   {"n": "2", "at": [672, 1248, 330], "color": "#ffb347", "r": 70,
+    "text": "the roof: the building's upper floor. It should hide when a soldier is inside, or the cursor is in the hut on the ground floor"},
+   {"n": "3", "at": [384, 1248, 120], "color": "#5ad17a", "r": 50, "side": "left",
+    "text": "the four walls: with the roof hidden they should cut down to low stubs, as a house's walls do"},
+   {"n": "4", "at": [960, 1104, 80], "color": "#e06cff", "r": 40,
+    "text": "the swing door, on the far (east) wall: opens, a soldier walks through"},
+   {"n": "5", "at": [816, 1536, 110], "color": "#e06cff", "r": 50,
+    "text": "the open freight door, on the north wall: a soldier walks in through it; it cuts down with the walls"}]},
+ {"out": "EXP-44-inside.png", "title": "EXP-44: the hut from the north-east, the two doors in view",
+  "target": [680, 1250, 80], "camera": [1100, 1300, 1100],
+  "marks": [
+   {"n": "4", "at": [960, 1104, 80], "color": "#e06cff", "r": 40, "text": "the swing door"},
+   {"n": "5", "at": [816, 1536, 110], "color": "#e06cff", "r": 50, "side": "left", "text": "the open freight door"},
+   {"n": "6", "at": [580, 1010, 60], "color": "#5ad17a", "r": 60, "side": "left",
+    "text": "inside, under the roof: two crates, a generator and a utility box. They show once the roof hides, give cover, and stay drawn (they are the ground floor's)"}]}]}

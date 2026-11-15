@@ -1,0 +1,2740 @@
+{
+  "date": "2026-11-06",
+  "scope": "Read-only structural census; no visual or runtime equivalence claim. Properties called overrides exclude unresolved class defaults; probe colours are encoded bytes, not decoded linear radiance. Sphere coverage is geometric, not the engine interpolation rule.",
+  "scriptSha256": "80240c65667ab3a7ef4fe2d790a8e76ba802eb10e00ba8b284c00bf1cc2b27d5",
+  "pointsSource": {
+    "path": "<repo>\\tools\\patch\\examples\\templeimproved.json",
+    "sha256": "940c5d26e6c0d8699c763a8dd2f1cdb3b890ed0350bfc891a5958711a4964877"
+  },
+  "packages": [
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\URB_Bar.upk",
+      "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+      "header": {
+        "ver": 845,
+        "lic": 64,
+        "guid": "9805efe9e76432489469e561ec34a633"
+      },
+      "exportClasses": {
+        "AmbientSoundSimple": 5,
+        "AmbientSoundSimpleToggleable": 2,
+        "AnimNodeBlendList": 1,
+        "AnimNodeSequence": 10,
+        "AnimNotify_Sound": 4,
+        "AnimSequence": 10,
+        "AnimSet": 1,
+        "AnimTree": 1,
+        "AudioComponent": 7,
+        "BrushComponent": 47,
+        "CylinderComponent": 2,
+        "DecalActor": 38,
+        "DecalComponent": 38,
+        "DecalCue": 3,
+        "DecalMaterial": 8,
+        "DistributionFloatParticleParameter": 252,
+        "DistributionFloatSoundParameter": 4,
+        "DistributionVectorConstantCurve": 1,
+        "DistributionVectorParticleParameter": 177,
+        "DominantDirectionalLight": 1,
+        "DominantDirectionalLightComponent": 1,
+        "DynamicLightEnvironmentComponent": 504,
+        "EffectCue": 598,
+        "Emitter": 91,
+        "EmitterInstanceParameterSet": 83,
+        "FracturedStaticMesh": 45,
+        "FracturedStaticMeshComponent": 70,
+        "GeneratedMeshAreaLight": 137,
+        "InstancedStaticMeshComponent": 2,
+        "KAsset": 14,
+        "LensFlare": 1,
+        "LensFlareComponent": 3,
+        "LensFlareSource": 3,
+        "Level": 1,
+        "LightMapTexture2D": 180,
+        "LightmassImportanceVolume": 1,
+        "Material": 108,
+        "MaterialExpressionScalarParameter": 123,
+        "MaterialExpressionStaticComponentMaskParameter": 5,
+        "MaterialExpressionStaticSwitchParameter": 51,
+        "MaterialExpressionTextureSampleParameter2D": 105,
+        "MaterialExpressionTextureSampleParameterCube": 1,
+        "MaterialExpressionTextureSampleParameterNormal": 1,
+        "MaterialExpressionTextureSampleParameterSubUV": 1,
+        "MaterialExpressionVectorParameter": 83,
+        "MaterialInstanceConstant": 252,
+        "MaterialInstanceTimeVarying": 3,
+        "Model": 50,
+        "Package": 715,
+        "ParticleLODLevel": 219,
+        "ParticleLightEnvironmentComponent": 20,
+        "ParticleModuleAcceleration": 53,
+        "ParticleModuleAccelerationOverLifetime": 1,
+        "ParticleModuleAttractorPoint": 1,
+        "ParticleModuleCameraOffset": 51,
+        "ParticleModuleCollision": 11,
+        "ParticleModuleCollisionPrediction": 1,
+        "ParticleModuleColor": 108,
+        "ParticleModuleColorOverLife": 8,
+        "ParticleModuleColorScaleOverLife": 171,
+        "ParticleModuleEventGenerator": 5,
+        "ParticleModuleEventReceiverSpawn": 2,
+        "ParticleModuleKillHeight": 2,
+        "ParticleModuleLifetime": 122,
+        "ParticleModuleLocation": 102,
+        "ParticleModuleLocationEmitter": 3,
+        "ParticleModuleLocationEmitterDirect": 1,
+        "ParticleModuleLocationPrimitiveBox": 28,
+        "ParticleModuleLocationPrimitiveCylinder": 2,
+        "ParticleModuleLocationPrimitiveSphere": 5,
+        "ParticleModuleMeshMaterial": 7,
+        "ParticleModuleMeshRotation": 29,
+        "ParticleModuleMeshRotationRate": 16,
+        "ParticleModuleMeshRotationRateMultiplyLife": 10,
+        "ParticleModuleMeshRotationRateOverLife": 2,
+        "ParticleModuleOrbit": 7,
+        "ParticleModuleOrientationAxisLock": 2,
+        "ParticleModuleParameterDynamic": 79,
+        "ParticleModuleParameterDynamicModulator": 3,
+        "ParticleModuleRequired": 131,
+        "ParticleModuleRotation": 77,
+        "ParticleModuleRotationRate": 32,
+        "ParticleModuleRotationRateMultiplyLife": 8,
+        "ParticleModuleSize": 130,
+        "ParticleModuleSizeMultiplyLife": 115,
+        "ParticleModuleSizeScale": 10,
+        "ParticleModuleSpawn": 134,
+        "ParticleModuleSpawnPerUnit": 1,
+        "ParticleModuleSubUV": 18,
+        "ParticleModuleTypeDataMesh": 81,
+        "ParticleModuleVelocity": 123,
+        "ParticleModuleVelocityOverLifetime": 53,
+        "ParticleSpriteEmitter": 287,
+        "ParticleSystem": 36,
+        "ParticleSystemComponent": 91,
+        "PathBlockingVolume": 2,
+        "PhysicalMaterial": 11,
+        "PhysicsAsset": 3,
+        "PhysicsAssetInstance": 3,
+        "PlayerStart": 2,
+        "PointInSpace": 41,
+        "PointLight": 54,
+        "PointLightComponent": 54,
+        "Polys": 50,
+        "Prefab": 14,
+        "PrefabInstance": 28,
+        "RB_BodyInstance": 19,
+        "RB_BodySetup": 375,
+        "RB_ConstraintInstance": 15,
+        "RB_ConstraintSetup": 15,
+        "SeqAct_PlaySound": 1,
+        "SeqAct_SetParticleSysParam": 2,
+        "SeqAct_ToggleHidden": 2,
+        "SeqEvent_LevelLoaded": 1,
+        "SeqEvent_RemoteEvent": 3,
+        "SeqEvent_Touch": 2,
+        "SeqVar_Object": 8,
+        "Sequence": 1,
+        "SequenceFrameWrapped": 1,
+        "ShadowMap2D": 815,
+        "ShadowMapTexture2D": 54,
+        "SkeletalMesh": 11,
+        "SkeletalMeshComponent": 24,
+        "SkeletalMeshSocket": 50,
+        "SkyLight": 1,
+        "SkyLightComponent": 1,
+        "SoundCue": 25,
+        "SoundNodeAmbient": 7,
+        "SoundNodeAttenuation": 17,
+        "SoundNodeLooping": 4,
+        "SoundNodeMixer": 1,
+        "SoundNodeModulator": 6,
+        "SoundNodeRandom": 11,
+        "SoundNodeWave": 86,
+        "SpotLight": 62,
+        "SpotLightComponent": 200,
+        "SpotLightToggleable": 1,
+        "SpriteComponent": 41,
+        "StaticMesh": 324,
+        "StaticMeshActor": 197,
+        "StaticMeshComponent": 1099,
+        "StaticMeshCue": 199,
+        "SwfMovie": 5,
+        "Texture2D": 593,
+        "TriggerVolume": 2,
+        "VisGroupActor": 69,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComAlienPod_Abduction": 5,
+        "XComBuildingVolume": 11,
+        "XComCoverSeed": 2,
+        "XComCursorVolume": 4,
+        "XComDebrisStaticMeshComponent": 109,
+        "XComDecoFracLevelActor": 18,
+        "XComDestructibleActor": 588,
+        "XComDestructibleActorImpactDefinition": 4,
+        "XComDestructibleActor_Action_DamageOverTime": 27,
+        "XComDestructibleActor_Action_Hide": 427,
+        "XComDestructibleActor_Action_PlayEffectCue": 578,
+        "XComDestructibleActor_Action_PlaySoundCue": 456,
+        "XComDestructibleActor_Action_RadialDamage": 53,
+        "XComDestructibleActor_Action_SwapStaticMesh": 199,
+        "XComDestructibleActor_Action_ToggleEffect": 20,
+        "XComDestructibleActor_Action_ToggleLight": 1,
+        "XComDestructibleActor_Toughness": 10,
+        "XComDestructibleDebrisActor": 1,
+        "XComDestructionInstData": 1,
+        "XComFloorComponent": 199,
+        "XComFloorVolume": 24,
+        "XComFracDebrisComponent": 22,
+        "XComFracDecoComponent": 19,
+        "XComFracLevelActor": 52,
+        "XComInteractiveLevelActor": 10,
+        "XComLadder": 7,
+        "XComLevelActor": 283,
+        "XComLevelVolume": 2,
+        "XComMapInfo": 1,
+        "XComMeldContainerSpawnPoint": 4,
+        "XComMovementGridComponent": 4,
+        "XComNoSpawnVolume": 4,
+        "XComParticleModuleEvent_PlaySound": 1,
+        "XComParticleModuleEvent_SpawnDecal": 3,
+        "XComPhysicalMaterialProperty": 11,
+        "XComSpawnPoint": 24,
+        "XComTacticalSoundInfo": 1,
+        "XComUICollection": 1,
+        "XComVisGroupData": 1,
+        "XComWorldData": 2,
+        "XComWorldDataContainer": 1,
+        "XcomDestructibleActor_Action_ToggleSoundCue": 5
+      },
+      "levels": [
+        {
+          "method": "unique bounded suffix, 33-byte samples; physics prefix not parsed",
+          "level": "TheWorld.PersistentLevel",
+          "offset": 4678729,
+          "bounds": [
+            -3484.0,
+            -2351.999755859375,
+            -128.0,
+            2932.0,
+            2385.999755859375,
+            1414.0
+          ],
+          "sampleSpacing": 0.0,
+          "count": 1743,
+          "radiusRange": [
+            282.84271240234375,
+            3464.1015625
+          ],
+          "nonzeroIndirectRGB": 1714,
+          "nonzeroEnvironmentRGB": 1659,
+          "nonzeroAmbientRGB": 1717,
+          "shadowedFromDominant": 222,
+          "centersOutsideStoredBounds": 0,
+          "points": []
+        }
+      ],
+      "worldSettings": [
+        {
+          "path": "TheWorld.PersistentLevel.WorldInfo_6",
+          "overrides": {
+            "LightmassSettings": {
+              "StaticLightingLevelScale": 0.5,
+              "StaticLightingDynamicObjectScale": 2.0,
+              "NumIndirectLightingBounces": 1,
+              "EnvironmentColor": [
+                0.25098039215686274,
+                0.27058823529411763,
+                0.3803921568627451,
+                0.0
+              ],
+              "bUseAmbientOcclusion": true,
+              "MaxOcclusionDistance": 64.0
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "summary": {
+        "componentCount": 968,
+        "lod0LightmapTypes": {
+          "2": 930,
+          "0": 13,
+          "no LODData": 25
+        },
+        "componentsWithShadowmaps": 627,
+        "textureCount": 234,
+        "textureFormats": {
+          "PF_DXT1": 180,
+          "PF_G8": 54
+        },
+        "textureCaches": {
+          "Lighting": 233,
+          "None": 1
+        },
+        "lightmapSlotPatterns": {
+          "NormalizedAverageColor0,DirectionalMaxComponent0,None": 650,
+          "NormalizedAverageColor1,DirectionalMaxComponent1,None": 280
+        },
+        "levelProbeCounts": [
+          1743
+        ],
+        "errorCount": 0
+      },
+      "componentExamples": [
+        {
+          "path": "TheWorld.PersistentLevel.XComDecoFracLevelActor_0.FracturedStaticMeshComponent_8",
+          "cls": "FracturedStaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7618
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_5",
+                    "index": 2736,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_5",
+                    "index": 2646,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.216796875,
+                  0.216796875
+                ],
+                "coordinateBias": [
+                  0.6884765625,
+                  0.3603515625
+                ],
+                "lightGuidCount": 24
+              },
+              "overrideVertexColors": true
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComFracLevelActor_0.FracturedStaticMeshComponent_16",
+          "cls": "FracturedStaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_11",
+                    "index": 2727,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_11",
+                    "index": 2637,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.123046875,
+                  0.123046875
+                ],
+                "coordinateBias": [
+                  0.7119140625,
+                  0.3447265625
+                ],
+                "lightGuidCount": 11
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.StaticMeshActor_0.StaticMeshComponent_132",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7424
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor1_27",
+                    "index": 2750,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent1_27",
+                    "index": 2660,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.96875,
+                  0.96875
+                ],
+                "coordinateBias": [
+                  0.015625,
+                  0.015625
+                ],
+                "lightGuidCount": 2
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.StaticMeshActor_294.StaticMeshComponent_378",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7555
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComAlienPod_Abduction_0.StaticMeshComponent_131",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComCoverSeed_0.StaticMeshComponent_2809",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComDestructibleActor_0.StaticMeshComponent_8",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_13",
+                    "index": 2729,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_13",
+                    "index": 2639,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.037109375,
+                  0.037109375
+                ],
+                "coordinateBias": [
+                  0.6181640625,
+                  0.4462890625
+                ],
+                "lightGuidCount": 6
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_13",
+                    "index": 2729,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_13",
+                    "index": 2639,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.037109375,
+                  0.037109375
+                ],
+                "coordinateBias": [
+                  0.3603515625,
+                  0.9619140625
+                ],
+                "lightGuidCount": 6
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "Trashcan_B.Meshes.Trashcan_B_Destro"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComDestructibleActor_460.StaticMeshComponent_43",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComInteractiveLevelActor_0.StaticMeshComponent_112",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLadder_3.StaticMeshComponent_422",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7942
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_12",
+                    "index": 2728,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_12",
+                    "index": 2638,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.044921875,
+                  0.044921875
+                ],
+                "coordinateBias": [
+                  0.4697265625,
+                  0.4462890625
+                ],
+                "lightGuidCount": 4
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_0.StaticMeshComponent_986",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7944
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_1.StaticMeshComponent_134",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [
+                7946
+              ],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_13",
+                    "index": 2729,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_13",
+                    "index": 2639,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.095703125,
+                  0.095703125
+                ],
+                "coordinateBias": [
+                  0.7587890625,
+                  0.3212890625
+                ],
+                "lightGuidCount": 9
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_104.StaticMeshComponent_389",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelVolume_4.StaticMeshComponent_717",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        }
+      ],
+      "textureExamples": [
+        {
+          "path": "DirectionalMaxComponent0_1",
+          "cls": "LightMapTexture2D",
+          "format": "PF_DXT1",
+          "cache": "Lighting",
+          "cacheGuid": "b92e0bbcaeb8f642937e0628fe0ab79a",
+          "largestMip": {
+            "flags": 17,
+            "count": 524288,
+            "bytes": 427540,
+            "offset": 702061579,
+            "inline": false,
+            "width": 1024,
+            "height": 1024
+          },
+          "mipCount": 11,
+          "externalLiveMipCount": 4,
+          "nativeSuffixBytes": 16,
+          "payloadCheck": {
+            "width": 1024,
+            "height": 1024,
+            "decodedBytes": 524288,
+            "payloadSha256": "f2435c16459554df7634c5359529dd05fa520e7967623b0bb03f4b2f1dde4dc2",
+            "decodedSha256": "cc6ab899b87768f27d99b57f0a97fdbbbedd1404e769850f0f3f712a1522600b",
+            "pixelRanges": [
+              [
+                0,
+                255
+              ],
+              [
+                0,
+                255
+              ],
+              [
+                0,
+                255
+              ]
+            ]
+          }
+        },
+        {
+          "path": "ShadowMapTexture2D_314",
+          "cls": "ShadowMapTexture2D",
+          "format": "PF_G8",
+          "cache": "Lighting",
+          "cacheGuid": "e71abcec89866a4795ed67d9c93e3dd4",
+          "largestMip": {
+            "flags": 17,
+            "count": 1048576,
+            "bytes": 328952,
+            "offset": 691168596,
+            "inline": false,
+            "width": 1024,
+            "height": 1024
+          },
+          "mipCount": 11,
+          "externalLiveMipCount": 4,
+          "nativeSuffixBytes": 12,
+          "payloadCheck": {
+            "width": 1024,
+            "height": 1024,
+            "decodedBytes": 1048576,
+            "payloadSha256": "7d7ec2cff1739602b051a3c7419bbb9b8fae133124b2e7a3a094fa529a3d7119",
+            "decodedSha256": "e99cdebc96e06ab5aff4bcacc748b2425631d5578778c0f0ac9a51d612c76826",
+            "pixelRanges": [
+              0,
+              255
+            ]
+          }
+        }
+      ],
+      "lightOverridePatterns": {
+        "{\"cls\": \"DominantDirectionalLightComponent\"}": 1,
+        "{\"cls\": \"PointLightComponent\"}": 54,
+        "{\"BSP\": false, \"CompositeDynamic\": false, \"Dynamic\": false, \"Gameplay_1\": true, \"Static\": false, \"cls\": \"SkyLightComponent\"}": 1,
+        "{\"cls\": \"SpotLightComponent\"}": 200
+      },
+      "lightExamples": [
+        {
+          "path": "TheWorld.PersistentLevel.DominantDirectionalLight_1.DominantDirectionalLightComponent_0",
+          "cls": "DominantDirectionalLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 1.100000023841858,
+            "LightColor": [
+              0.25882352941176473,
+              0.27058823529411763,
+              0.5333333333333333,
+              0.0
+            ]
+          }
+        },
+        {
+          "path": "TheWorld.PersistentLevel.SkyLight_0.SkyLightComponent_263",
+          "cls": "SkyLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 0.75,
+            "LightColor": [
+              0.34901960784313724,
+              0.4196078431372549,
+              0.6274509803921569,
+              0.0
+            ],
+            "LightingChannels": {
+              "BSP": false,
+              "Static": false,
+              "Dynamic": false,
+              "CompositeDynamic": false,
+              "Gameplay_1": true
+            }
+          }
+        },
+        {
+          "path": "TheWorld.PersistentLevel.SpotLight_44.SpotLightComponent_90",
+          "cls": "SpotLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 1.5,
+            "LightColor": [
+              0.9176470588235294,
+              0.788235294117647,
+              0.5490196078431373,
+              1.0
+            ],
+            "Radius": 1427.279296875,
+            "bHasLightEverBeenBuiltIntoLightMap": true,
+            "LightmassSettings": {
+              "LightSourceRadius": 32.0
+            }
+          }
+        }
+      ],
+      "placedLightEnvironmentCount": 346,
+      "environmentOverridePatterns": {
+        "{}": 346
+      },
+      "meshUvSummary": {
+        "uniqueReferencedMeshes": 256,
+        "patterns": {
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 2}": 248,
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 1}": 1,
+          "{\"savedLightmapIndex\": null, \"uvChannels\": 1}": 5,
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 3}": 2
+        },
+        "savedIndexOutsideLod0Channels": [
+          "FX_Water.Rain_Runoff.ASE_Puddle_Simple_B"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\TempleShip.upk",
+      "sha256": "029bedcaea20c9a8d1d577fd9bd7dc733ce3976fb33b0b3f716f640caeaf4d2e",
+      "header": {
+        "ver": 845,
+        "lic": 64,
+        "guid": "4358867abb5bed448ee26e749a79aaf1"
+      },
+      "exportClasses": {
+        "ActorFactoryEmitter": 1,
+        "AmbientSound": 1,
+        "AmbientSoundSimpleToggleable": 2,
+        "AnimNodeBlendList": 1,
+        "AnimNodeSequence": 4,
+        "AnimNotify_MITV": 2,
+        "AnimNotify_Sound": 2,
+        "AnimSequence": 4,
+        "AnimSet": 1,
+        "AnimTree": 1,
+        "AudioComponent": 3,
+        "BrushComponent": 191,
+        "CameraShake": 2,
+        "CylinderComponent": 2,
+        "DecalCue": 2,
+        "DecalMaterial": 1,
+        "DistributionFloatParticleParameter": 109,
+        "DistributionFloatSoundParameter": 4,
+        "DistributionFloatUniform": 1,
+        "DistributionVectorParticleParameter": 75,
+        "DominantDirectionalLight": 1,
+        "DominantDirectionalLightComponent": 1,
+        "DynamicLightEnvironmentComponent": 42,
+        "EffectCue": 534,
+        "Emitter": 49,
+        "EmitterInstanceParameterSet": 16,
+        "GameCameraBlockingVolume": 9,
+        "GeneratedMeshAreaLight": 1190,
+        "InstancedStaticMeshComponent": 2,
+        "InterpData": 8,
+        "InterpGroup": 9,
+        "InterpTrackEvent": 1,
+        "InterpTrackFloatMaterialParam": 4,
+        "InterpTrackToggle": 4,
+        "Level": 1,
+        "LightMapTexture2D": 316,
+        "LightmassImportanceVolume": 1,
+        "Material": 74,
+        "MaterialExpressionScalarParameter": 54,
+        "MaterialExpressionStaticSwitchParameter": 4,
+        "MaterialExpressionTextureSampleParameter2D": 22,
+        "MaterialExpressionTextureSampleParameterNormal": 1,
+        "MaterialExpressionVectorParameter": 42,
+        "MaterialFunction": 1,
+        "MaterialInstanceConstant": 57,
+        "MaterialInstanceTimeVarying": 7,
+        "Model": 187,
+        "Package": 233,
+        "ParticleLODLevel": 126,
+        "ParticleLightEnvironmentComponent": 1,
+        "ParticleModuleAcceleration": 29,
+        "ParticleModuleAccelerationOverLifetime": 2,
+        "ParticleModuleCameraOffset": 44,
+        "ParticleModuleCollision": 2,
+        "ParticleModuleColor": 87,
+        "ParticleModuleColorOverLife": 4,
+        "ParticleModuleColorScaleOverLife": 126,
+        "ParticleModuleEventGenerator": 3,
+        "ParticleModuleEventReceiverSpawn": 2,
+        "ParticleModuleLifetime": 97,
+        "ParticleModuleLocation": 64,
+        "ParticleModuleLocationPrimitiveBox": 15,
+        "ParticleModuleLocationPrimitiveCylinder": 8,
+        "ParticleModuleLocationPrimitiveSphere": 8,
+        "ParticleModuleMeshMaterial": 6,
+        "ParticleModuleMeshRotation": 24,
+        "ParticleModuleMeshRotationRate": 14,
+        "ParticleModuleMeshRotationRateMultiplyLife": 7,
+        "ParticleModuleOrbit": 1,
+        "ParticleModuleOrientationAxisLock": 5,
+        "ParticleModuleParameterDynamic": 53,
+        "ParticleModuleParameterDynamicModulator": 4,
+        "ParticleModuleRequired": 95,
+        "ParticleModuleRotation": 51,
+        "ParticleModuleRotationRate": 25,
+        "ParticleModuleRotationRateMultiplyLife": 6,
+        "ParticleModuleSize": 97,
+        "ParticleModuleSizeMultiplyLife": 94,
+        "ParticleModuleSizeMultiplyVelocity": 1,
+        "ParticleModuleSizeScale": 7,
+        "ParticleModuleSpawn": 101,
+        "ParticleModuleSpawnPerUnit": 1,
+        "ParticleModuleSubUV": 18,
+        "ParticleModuleTypeDataMesh": 38,
+        "ParticleModuleVelocity": 60,
+        "ParticleModuleVelocityMag": 1,
+        "ParticleModuleVelocityOverLifetime": 29,
+        "ParticleSpriteEmitter": 192,
+        "ParticleSystem": 19,
+        "ParticleSystemComponent": 49,
+        "PathBlockingVolume": 4,
+        "PhysicalMaterial": 1,
+        "PhysicsAsset": 1,
+        "PhysicsAssetInstance": 1,
+        "PlayerStart": 2,
+        "PointInSpace": 20,
+        "PointLight": 87,
+        "PointLightComponent": 87,
+        "Polys": 187,
+        "PostProcessVolume": 3,
+        "Prefab": 3,
+        "PrefabInstance": 9,
+        "RB_BodyInstance": 1,
+        "RB_BodySetup": 189,
+        "SeqAct_ActivateNarrative": 20,
+        "SeqAct_ActivateRemoteEvent": 2,
+        "SeqAct_ActorFactory": 1,
+        "SeqAct_AddVisibilityMapViewer": 13,
+        "SeqAct_AlienContent_Clear": 2,
+        "SeqAct_AlienContent_Request": 29,
+        "SeqAct_CameraShake": 2,
+        "SeqAct_ConsoleCommand": 1,
+        "SeqAct_ConvertToString": 3,
+        "SeqAct_Delay": 8,
+        "SeqAct_DelayVictory": 1,
+        "SeqAct_Destroy": 6,
+        "SeqAct_DisableButtons": 3,
+        "SeqAct_DisplayUIMessageBoxTimed": 16,
+        "SeqAct_EnableButtons": 2,
+        "SeqAct_GetActiveUnit": 2,
+        "SeqAct_GetLocationAndRotation": 1,
+        "SeqAct_Interp": 8,
+        "SeqAct_PlaySound": 4,
+        "SeqAct_PreloadNarrative": 1,
+        "SeqAct_RebuildWorldData": 8,
+        "SeqAct_RemoveVisibilityMapViewer": 2,
+        "SeqAct_SaveLoadData": 1,
+        "SeqAct_SetBool": 24,
+        "SeqAct_SpawnAlien": 15,
+        "SeqAct_SpecialMissionHandler_GotoState": 1,
+        "SeqAct_SpecialMissionHandler_Initialize": 1,
+        "SeqAct_StopCameraLookAt": 4,
+        "SeqAct_Switch": 1,
+        "SeqAct_ToggleHidden": 6,
+        "SeqAct_WaitForCamera": 2,
+        "SeqAct_XComCameraLookAt": 4,
+        "SeqAct_YawCamera": 2,
+        "SeqCond_CompareBool": 23,
+        "SeqCond_CompareObject": 1,
+        "SeqEvent_DynamicAlienSpawned": 1,
+        "SeqEvent_LevelLoaded": 1,
+        "SeqEvent_OnAlienBeginTurn": 1,
+        "SeqEvent_OnAlienEndingTurn": 2,
+        "SeqEvent_OnKismetDataSerialized": 1,
+        "SeqEvent_OnUnitKilled": 1,
+        "SeqEvent_RemoteEvent": 27,
+        "SeqEvent_Touch": 7,
+        "SeqVar_Bool": 51,
+        "SeqVar_Float": 16,
+        "SeqVar_Named": 50,
+        "SeqVar_Object": 100,
+        "SeqVar_Player": 3,
+        "SeqVar_String": 16,
+        "SeqVar_Vector": 2,
+        "Sequence": 1,
+        "SequenceFrame": 13,
+        "SequenceFrameWrapped": 8,
+        "ShadowMap2D": 361,
+        "ShadowMapTexture2D": 27,
+        "SkeletalMesh": 1,
+        "SkeletalMeshComponent": 11,
+        "SkeletalMeshSocket": 8,
+        "SkyLight": 1,
+        "SkyLightComponent": 1,
+        "SoundCue": 13,
+        "SoundNodeAmbient": 2,
+        "SoundNodeAttenuation": 8,
+        "SoundNodeLooping": 3,
+        "SoundNodeModulator": 2,
+        "SoundNodeRandom": 3,
+        "SoundNodeWave": 26,
+        "SpotLight": 54,
+        "SpotLightComponent": 1244,
+        "SpriteComponent": 21,
+        "StaticMesh": 201,
+        "StaticMeshComponent": 1808,
+        "StaticMeshCue": 450,
+        "Texture2D": 235,
+        "TextureCube": 2,
+        "TriggerVolume": 11,
+        "VisGroupActor": 21,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComAlienPod": 14,
+        "XComBuildingVolume": 12,
+        "XComCollectible": 7,
+        "XComCursorVolume": 132,
+        "XComDestructibleActor": 443,
+        "XComDestructibleActorImpactDefinition": 3,
+        "XComDestructibleActor_Action_DamageOverTime": 7,
+        "XComDestructibleActor_Action_Hide": 22,
+        "XComDestructibleActor_Action_PlayEffectCue": 519,
+        "XComDestructibleActor_Action_PlaySoundCue": 462,
+        "XComDestructibleActor_Action_RadialDamage": 7,
+        "XComDestructibleActor_Action_SwapStaticMesh": 450,
+        "XComDestructibleActor_Action_ToggleEffect": 20,
+        "XComDestructibleActor_Toughness": 2,
+        "XComDestructionInstData": 1,
+        "XComFloorComponent": 101,
+        "XComFloorVolume": 18,
+        "XComInteractiveLevelActor": 11,
+        "XComLadder": 11,
+        "XComLevelActor": 1307,
+        "XComLevelVolume": 2,
+        "XComMapInfo": 1,
+        "XComMovementGridComponent": 4,
+        "XComParticleModuleEvent_SpawnDecal": 2,
+        "XComPhysicalMaterialProperty": 1,
+        "XComRebuildWorldDataVolume": 4,
+        "XComSpawnPoint": 20,
+        "XComSpawnPoint_Alien": 20,
+        "XComSquadVisiblePoint": 1,
+        "XComTacticalSoundInfo": 1,
+        "XComVisGroupData": 1,
+        "XComWaitCondition_NarrativesLoading": 1,
+        "XComWorldData": 2,
+        "XComWorldDataContainer": 1
+      },
+      "levels": [
+        {
+          "method": "unique bounded suffix, 33-byte samples; physics prefix not parsed",
+          "level": "TheWorld.PersistentLevel",
+          "offset": 2235123,
+          "bounds": [
+            -3752.283447265625,
+            -11056.578125,
+            -1298.807373046875,
+            3713.526611328125,
+            9971.953125,
+            1928.47314453125
+          ],
+          "sampleSpacing": 0.0,
+          "count": 8941,
+          "radiusRange": [
+            282.84271240234375,
+            3464.1015625
+          ],
+          "nonzeroIndirectRGB": 7997,
+          "nonzeroEnvironmentRGB": 5029,
+          "nonzeroAmbientRGB": 8174,
+          "shadowedFromDominant": 8485,
+          "centersOutsideStoredBounds": 278,
+          "points": [
+            {
+              "label": "XComCollectible_56_copy6",
+              "location": [
+                51.1222,
+                -5803.524,
+                190.7931
+              ],
+              "sphereCoverageCount": 32,
+              "closest": [
+                {
+                  "sampleIndex": 7016,
+                  "distance": 76.77638047168904,
+                  "position": [
+                    81.51092529296875,
+                    -5849.51318359375,
+                    244.23590087890625
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    107,
+                    203,
+                    237,
+                    121
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    94,
+                    184,
+                    209,
+                    121
+                  ]
+                },
+                {
+                  "sampleIndex": 7017,
+                  "distance": 169.5603261410641,
+                  "position": [
+                    81.5108642578125,
+                    -5649.2412109375,
+                    127.357666015625
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    97,
+                    106,
+                    238,
+                    120
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    96,
+                    113,
+                    190,
+                    117
+                  ]
+                },
+                {
+                  "sampleIndex": 8413,
+                  "distance": 189.98025965702354,
+                  "position": [
+                    -120.2677001953125,
+                    -5849.51318359375,
+                    122.94771575927734
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    65,
+                    132,
+                    225,
+                    121
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    44,
+                    93,
+                    175,
+                    121
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "XComCollectible_56_copy7",
+              "location": [
+                50.1378,
+                -6955.524,
+                193.9605
+              ],
+              "sphereCoverageCount": 34,
+              "closest": [
+                {
+                  "sampleIndex": 7100,
+                  "distance": 110.99850057265756,
+                  "position": [
+                    81.51093292236328,
+                    -7051.1435546875,
+                    240.79312133789062
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    57,
+                    113,
+                    148,
+                    119
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    94,
+                    168,
+                    211,
+                    119
+                  ]
+                },
+                {
+                  "sampleIndex": 6948,
+                  "distance": 119.96033111938037,
+                  "position": [
+                    81.51091003417969,
+                    -6850.87158203125,
+                    243.49917602539062
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    80,
+                    158,
+                    168,
+                    118
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    53,
+                    145,
+                    132,
+                    118
+                  ]
+                },
+                {
+                  "sampleIndex": 8463,
+                  "distance": 196.0256278212811,
+                  "position": [
+                    -120.267578125,
+                    -7051.1435546875,
+                    209.6115264892578
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    73,
+                    139,
+                    210,
+                    120
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    72,
+                    135,
+                    240,
+                    119
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "XComDestructibleActor_9_copy4",
+              "location": [
+                1197.623,
+                -6994.1395,
+                0.0
+              ],
+              "sphereCoverageCount": 27,
+              "closest": [
+                {
+                  "sampleIndex": 7053,
+                  "distance": 121.2065639769102,
+                  "position": [
+                    1292.182861328125,
+                    -7051.1435546875,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    66,
+                    145,
+                    154,
+                    124
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    58,
+                    128,
+                    137,
+                    122
+                  ]
+                },
+                {
+                  "sampleIndex": 7051,
+                  "distance": 131.32141514810712,
+                  "position": [
+                    1090.404296875,
+                    -7051.1435546875,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    61,
+                    134,
+                    152,
+                    123
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    56,
+                    123,
+                    138,
+                    120
+                  ]
+                },
+                {
+                  "sampleIndex": 6919,
+                  "distance": 178.7936561553655,
+                  "position": [
+                    1292.18310546875,
+                    -6850.8720703125,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    77,
+                    191,
+                    186,
+                    123
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    81,
+                    192,
+                    189,
+                    123
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "XComDestructibleActor_9_copy5",
+              "location": [
+                -1105.8673,
+                -6989.5162,
+                0.0
+              ],
+              "sphereCoverageCount": 34,
+              "closest": [
+                {
+                  "sampleIndex": 8470,
+                  "distance": 82.70752697762623,
+                  "position": [
+                    -1129.1611328125,
+                    -7051.1435546875,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    75,
+                    163,
+                    200,
+                    123
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    56,
+                    123,
+                    151,
+                    121
+                  ]
+                },
+                {
+                  "sampleIndex": 8329,
+                  "distance": 149.21393658026776,
+                  "position": [
+                    -1129.1611328125,
+                    -6850.8720703125,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    90,
+                    212,
+                    218,
+                    122
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    58,
+                    134,
+                    151,
+                    123
+                  ]
+                },
+                {
+                  "sampleIndex": 8341,
+                  "distance": 195.33258548253391,
+                  "position": [
+                    -927.38232421875,
+                    -7051.1435546875,
+                    50.00001525878906
+                  ],
+                  "radius": 282.84271240234375,
+                  "indirectBGRA": [
+                    54,
+                    123,
+                    167,
+                    124
+                  ],
+                  "environmentBGRA": [
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "ambientBGRA": [
+                    59,
+                    127,
+                    167,
+                    124
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "worldSettings": [
+        {
+          "path": "TheWorld.PersistentLevel.WorldInfo_5",
+          "overrides": {
+            "LightmassSettings": {
+              "NumIndirectLightingBounces": 2,
+              "EnvironmentColor": [
+                0.33725490196078434,
+                0.30196078431372547,
+                0.49411764705882355,
+                0.0
+              ],
+              "IndirectIlluminationOcclusionFraction": 0.0
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "summary": {
+        "componentCount": 1707,
+        "lod0LightmapTypes": {
+          "no LODData": 41,
+          "2": 1651,
+          "1": 4,
+          "0": 11
+        },
+        "componentsWithShadowmaps": 272,
+        "textureCount": 343,
+        "textureFormats": {
+          "PF_DXT1": 316,
+          "PF_G8": 27
+        },
+        "textureCaches": {
+          "Lighting": 343
+        },
+        "lightmapSlotPatterns": {
+          "NormalizedAverageColor0,DirectionalMaxComponent0,None": 1234,
+          "NormalizedAverageColor1,DirectionalMaxComponent1,None": 417
+        },
+        "levelProbeCounts": [
+          8941
+        ],
+        "errorCount": 0
+      },
+      "componentExamples": [
+        {
+          "path": "TheWorld.PersistentLevel.XComAlienPod_0.StaticMeshComponent_0",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComCollectible_0.StaticMeshComponent_6050",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_10",
+                    "index": 2589,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_10",
+                    "index": 2431,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.052734375,
+                  0.052734375
+                ],
+                "coordinateBias": [
+                  0.6884765625,
+                  0.3408203125
+                ],
+                "lightGuidCount": 6
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_10",
+                    "index": 2589,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_10",
+                    "index": 2431,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.052734375,
+                  0.052734375
+                ],
+                "coordinateBias": [
+                  0.7470703125,
+                  0.2822265625
+                ],
+                "lightGuidCount": 6
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "UFO_PowerCore.Meshes.PowerCore_Destro"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComDestructibleActor_0.StaticMeshComponent_769",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_4",
+                    "index": 2620,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_4",
+                    "index": 2462,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.056640625,
+                  0.056640625
+                ],
+                "coordinateBias": [
+                  0.5361328125,
+                  0.7822265625
+                ],
+                "lightGuidCount": 1
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_4",
+                    "index": 2620,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_4",
+                    "index": 2462,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.056640625,
+                  0.056640625
+                ],
+                "coordinateBias": [
+                  0.5947265625,
+                  0.6064453125
+                ],
+                "lightGuidCount": 1
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "alienConsoleB.Meshes.alienConsoleB2Hull"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComInteractiveLevelActor_0.StaticMeshComponent_604",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLadder_13.StaticMeshComponent_89",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_8",
+                    "index": 2634,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_8",
+                    "index": 2476,
+                    "scale": [
+                      11.600281715393066,
+                      8.899636268615723,
+                      5.582997798919678
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.021484375,
+                  0.021484375
+                ],
+                "coordinateBias": [
+                  0.2900390625,
+                  0.8916015625
+                ],
+                "lightGuidCount": 12
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_0.StaticMeshComponent_17",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 1,
+                "owner": "TheWorld.PersistentLevel.XComLevelActor_0.StaticMeshComponent_17",
+                "directionalSamples": {
+                  "flags": 0,
+                  "count": 24,
+                  "bytes": 192,
+                  "offset": 13694431,
+                  "inline": true
+                },
+                "scaleVectors": [
+                  [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  [
+                    2.0,
+                    2.0,
+                    2.0
+                  ]
+                ],
+                "simpleSamples": {
+                  "flags": 0,
+                  "count": 0,
+                  "bytes": 0,
+                  "offset": 13694675,
+                  "inline": true
+                },
+                "lightGuidCount": 2
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_1.StaticMeshComponent_2132",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 2,
+                "slots": [
+                  {
+                    "texture": "NormalizedAverageColor0_15",
+                    "index": 2605,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "DirectionalMaxComponent0_15",
+                    "index": 2447,
+                    "scale": [
+                      1.0,
+                      1.0,
+                      1.0
+                    ]
+                  },
+                  {
+                    "texture": "None",
+                    "index": 0,
+                    "scale": [
+                      2.0,
+                      2.0,
+                      2.0
+                    ]
+                  }
+                ],
+                "coordinateScale": [
+                  0.154296875,
+                  0.154296875
+                ],
+                "coordinateBias": [
+                  0.0009765625,
+                  0.0009765625
+                ],
+                "lightGuidCount": 10
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_10.StaticMeshComponent_517",
+          "cls": "StaticMeshComponent",
+          "lods": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelActor_36.StaticMeshComponent_264",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComLevelVolume_1.StaticMeshComponent_2189",
+          "cls": "StaticMeshComponent",
+          "lods": [],
+          "swaps": [
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            },
+            {
+              "shadowMaps": [],
+              "shadowVertexBuffers": [],
+              "lightmap": {
+                "type": 0
+              },
+              "overrideVertexColors": false
+            }
+          ],
+          "swapMeshes": [
+            "None",
+            "None"
+          ],
+          "unparsedSubclassBytes": 0
+        }
+      ],
+      "textureExamples": [
+        {
+          "path": "DirectionalMaxComponent0_1",
+          "cls": "LightMapTexture2D",
+          "format": "PF_DXT1",
+          "cache": "Lighting",
+          "cacheGuid": "0bdf859664e90c4bb7eefda33831d958",
+          "largestMip": {
+            "flags": 17,
+            "count": 524288,
+            "bytes": 176262,
+            "offset": 726491260,
+            "inline": false,
+            "width": 1024,
+            "height": 1024
+          },
+          "mipCount": 11,
+          "externalLiveMipCount": 4,
+          "nativeSuffixBytes": 16,
+          "payloadCheck": {
+            "width": 1024,
+            "height": 1024,
+            "decodedBytes": 524288,
+            "payloadSha256": "6d9587c9b567796c0dea23a083166bd458985e1263038ffe8d42e4adcfa56906",
+            "decodedSha256": "d4317f596d371dd5e462fad1bc9f7ec37d85269f2f3bda94489b6d4b1d073994",
+            "pixelRanges": [
+              [
+                0,
+                255
+              ],
+              [
+                0,
+                255
+              ],
+              [
+                0,
+                255
+              ]
+            ]
+          }
+        },
+        {
+          "path": "ShadowMapTexture2D_1256",
+          "cls": "ShadowMapTexture2D",
+          "format": "PF_G8",
+          "cache": "Lighting",
+          "cacheGuid": "dddb0c6607ae9746b6a20167b05db637",
+          "largestMip": {
+            "flags": 17,
+            "count": 524288,
+            "bytes": 109215,
+            "offset": 714715676,
+            "inline": false,
+            "width": 1024,
+            "height": 512
+          },
+          "mipCount": 11,
+          "externalLiveMipCount": 4,
+          "nativeSuffixBytes": 12,
+          "payloadCheck": {
+            "width": 1024,
+            "height": 512,
+            "decodedBytes": 524288,
+            "payloadSha256": "72af9a89bdffb4e888ececbf918b394ffe0210c5d6f836c4329e83d4e87f22f0",
+            "decodedSha256": "53cdc52a769a8058b51a08fc495e683b125668120a04155629ca77b051b9e7bc",
+            "pixelRanges": [
+              0,
+              255
+            ]
+          }
+        }
+      ],
+      "lightOverridePatterns": {
+        "{\"cls\": \"DominantDirectionalLightComponent\"}": 1,
+        "{\"cls\": \"PointLightComponent\"}": 69,
+        "{\"BSP\": false, \"Gameplay_1\": true, \"Static\": false, \"cls\": \"PointLightComponent\"}": 18,
+        "{\"BSP\": false, \"Dynamic\": false, \"Static\": false, \"cls\": \"SkyLightComponent\"}": 1,
+        "{\"cls\": \"SpotLightComponent\"}": 1244
+      },
+      "lightExamples": [
+        {
+          "path": "TheWorld.PersistentLevel.DominantDirectionalLight_0.DominantDirectionalLightComponent_0",
+          "cls": "DominantDirectionalLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 6.0,
+            "LightColor": [
+              0.796078431372549,
+              0.6549019607843137,
+              0.4823529411764706,
+              0.0
+            ]
+          }
+        },
+        {
+          "path": "TheWorld.PersistentLevel.SkyLight_0.SkyLightComponent_263",
+          "cls": "SkyLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 0.30000001192092896,
+            "LightColor": [
+              0.43137254901960786,
+              0.38823529411764707,
+              0.611764705882353,
+              0.0
+            ],
+            "LightingChannels": {
+              "BSP": false,
+              "Static": false,
+              "Dynamic": false
+            }
+          }
+        },
+        {
+          "path": "TheWorld.PersistentLevel.SpotLight_44.SpotLightComponent_2616",
+          "cls": "SpotLightComponent",
+          "overrides": {
+            "LightGuid": {
+              "rawBytes": 16
+            },
+            "LightmapGuid": {
+              "rawBytes": 16
+            },
+            "Brightness": 0.5,
+            "LightColor": [
+              0.5450980392156862,
+              0.8470588235294118,
+              0.8980392156862745,
+              1.0
+            ],
+            "Radius": 1472.242919921875,
+            "bHasLightEverBeenBuiltIntoLightMap": true,
+            "LightmassSettings": {
+              "LightSourceRadius": 32.0
+            }
+          }
+        }
+      ],
+      "placedLightEnvironmentCount": 24,
+      "environmentOverridePatterns": {
+        "{}": 24
+      },
+      "meshUvSummary": {
+        "uniqueReferencedMeshes": 161,
+        "patterns": {
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 2}": 153,
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 3}": 3,
+          "{\"savedLightmapIndex\": null, \"uvChannels\": 2}": 1,
+          "{\"savedLightmapIndex\": 1, \"uvChannels\": 1}": 2,
+          "{\"savedLightmapIndex\": null, \"uvChannels\": 1}": 2
+        },
+        "savedIndexOutsideLod0Channels": [
+          "AlienDoors.Design_Meshes.AlienDoorVolume_96x96x256",
+          "FX_Fire_B.ASE_Glow_Distort_Dome"
+        ],
+        "errors": []
+      }
+    }
+  ],
+  "scriptDefaults": [
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\Engine.upk",
+      "sha256": "112ceab1f603de73cd5b6da144cb6bd2f0ea086a0c57a10ae4f8f1950d5be108",
+      "explicitDefaults": {
+        "Default__LightEnvironmentComponent": {
+          "bEnabled": true
+        },
+        "Default__DynamicLightEnvironmentComponent": {
+          "bDynamic": true,
+          "bSynthesizeDirectionalLight": true,
+          "NumVolumeVisibilitySamples": 1,
+          "AmbientGlow": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "AmbientShadowColor": [
+            0.0010000000474974513,
+            0.0010000000474974513,
+            0.0010000000474974513,
+            1.0
+          ]
+        },
+        "Default__LightComponent": {
+          "bEnabled": true,
+          "LightingChannels": {
+            "bInitialized": true,
+            "BSP": true,
+            "Static": true,
+            "Dynamic": true,
+            "CompositeDynamic": true,
+            "Skybox": false,
+            "Unnamed_1": false,
+            "Unnamed_2": false,
+            "Unnamed_3": false,
+            "Unnamed_4": false,
+            "Unnamed_5": false,
+            "Unnamed_6": false,
+            "Cinematic_1": false,
+            "Cinematic_2": false,
+            "Cinematic_3": false,
+            "Cinematic_4": false,
+            "Cinematic_5": false,
+            "Cinematic_6": false,
+            "Cinematic_7": false,
+            "Cinematic_8": false,
+            "Cinematic_9": false,
+            "Cinematic_10": false,
+            "Gameplay_1": false,
+            "Gameplay_2": false,
+            "Gameplay_3": false,
+            "Gameplay_4": false,
+            "Crowd": false
+          },
+          "CastShadows": true,
+          "bCastCompositeShadow": true
+        },
+        "Default__SkyLightComponent": {
+          "CastShadows": false
+        },
+        "Default__SkyLight.SkyLightComponent0": {
+          "UseDirectLightMap": true
+        },
+        "Default__StaticMeshActor.StaticMeshComponent0": {
+          "bUsePrecomputedShadows": true,
+          "bForceDirectLightMap": true
+        }
+      }
+    },
+    {
+      "path": "<lab>\\uncooker-input\\CookedPCConsole\\XComGame.upk",
+      "sha256": "6d89e174084cc7df104e6fbbd76dbe5e43b1ce6be94b3b47b9dcfda7ed5aba12",
+      "explicitDefaults": {
+        "Default__XComLevelActor.StaticMeshComponent0": {
+          "bForceDirectLightMap": false
+        },
+        "Default__XComDestructibleActor.MyNEWLightEnvironment": {
+          "bEnabled": false,
+          "bDynamic": false,
+          "bForceNonCompositeDynamicLights": true
+        },
+        "Default__XComInteractiveLevelActor.MyNEWLightEnvironment": {
+          "bEnabled": true,
+          "bSynthesizeDirectionalLight": false,
+          "bSynthesizeSHLight": true
+        }
+      }
+    }
+  ]
+}

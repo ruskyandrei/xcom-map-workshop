@@ -1,0 +1,963 @@
+== Brush TheWorld.PersistentLevel.Brush_0 (size 251)
+Brush[0] ObjectProperty = Brush
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_0.BrushComponent_0
+Location[0] StructProperty = Vector(-2528.0, -1280.0, 4.0)
+bHidden[0] BoolProperty = 0
+Tag[0] NameProperty = Brush
+Layer[0] NameProperty = Cube
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_0.BrushComponent_0
+  [native data after props: 0 bytes]
+== Brush TheWorld.PersistentLevel.Brush_2 (size 234)
+CsgOper[0] ByteProperty = ECsgOper::CSG_Subtract
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.Brush_2.Model_3
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_2.BrushComponent_5
+Location[0] StructProperty = Vector(-2424.0, -1484.0, -20.0)
+Tag[0] NameProperty = Brush
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_2.BrushComponent_5
+  [native data after props: 0 bytes]
+== Brush TheWorld.PersistentLevel.Brush_3 (size 234)
+CsgOper[0] ByteProperty = ECsgOper::CSG_Subtract
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.Brush_3.Model_5
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_3.BrushComponent_6
+Location[0] StructProperty = Vector(-2424.0, -1484.0, -20.0)
+Tag[0] NameProperty = Brush
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_3.BrushComponent_6
+  [native data after props: 0 bytes]
+== Brush TheWorld.PersistentLevel.Brush_8 (size 234)
+CsgOper[0] ByteProperty = ECsgOper::CSG_Subtract
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.Brush_8.Model_13
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_8.BrushComponent_23
+Location[0] StructProperty = Vector(1524.0, 1344.0, 16.0)
+Tag[0] NameProperty = Brush
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.Brush_8.BrushComponent_23
+  [native data after props: 0 bytes]
+== BrushComponent TheWorld.PersistentLevel.Brush_0.BrushComponent_0 (size 166)
+Actor_41[4] Action_198 = Action_198 (0 bytes)
+Action_103[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== BrushComponent TheWorld.PersistentLevel.Brush_2.BrushComponent_5 (size 166)
+ActorFilter_41[4] Action_198 = Action_198 (0 bytes)
+Action_104[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== BrushComponent TheWorld.PersistentLevel.Brush_3.BrushComponent_6 (size 166)
+ActorFilterType_41[4] Action_198 = Action_198 (0 bytes)
+Action_105[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== BrushComponent TheWorld.PersistentLevel.Brush_8.BrushComponent_23 (size 166)
+AggGeom_41[4] Action_198 = Action_198 (0 bytes)
+Action_106[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.BrushComponent_25 (size 881)
+ARC_Dumpster_A_41[4] Action_198 = Action_198 (0 bytes)
+Action_108[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1044381696_1103101951[130] ?1103101952_-1044381697 = ?1103101952_-1044381697 (1103101952 bytes)
+  [native data after props: -1103101419 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.BrushComponent_8 (size 881)
+ARC_LadderMetalA_41[4] Action_198 = Action_198 (0 bytes)
+Action_109[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1015414784_1125515263[130] ?-1021968384_1125515263 = ?-1021968384_1125515263 (1125515264 bytes)
+  [native data after props: -1125514731 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.BrushComponent_25 (size 881)
+ARC_LadderVehicleA_41[4] Action_198 = Action_198 (0 bytes)
+Action_110[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1044381696_1103101951[130] ?1103101952_-1044381697 = ?1103101952_-1044381697 (1103101952 bytes)
+  [native data after props: -1103101419 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.BrushComponent_20 (size 881)
+ARC_MetalFence_41[4] Action_198 = Action_198 (0 bytes)
+Action_111[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1023410176_1124073471[130] ?1124073472_-1023410177 = ?1124073472_-1023410177 (1124073472 bytes)
+  [native data after props: -1124072939 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.BrushComponent_2 (size 881)
+ARC_MetalFence192_DESTRO_41[4] Action_198 = Action_198 (0 bytes)
+Action_112[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1023410176_1124073471[130] ?1124073472_-1023410177 = ?1124073472_-1023410177 (1124073472 bytes)
+  [native data after props: -1124072939 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.BrushComponent_11 (size 881)
+ARC_MetalFence192Cap_Destro_41[4] Action_198 = Action_198 (0 bytes)
+Action_113[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?1124073472_1133903871[130] ?1133903872_-1013579777 = ?1133903872_-1013579777 (1133903872 bytes)
+  [native data after props: -1133903339 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.BrushComponent_20 (size 881)
+ArrayProperty_41[4] Action_198 = Action_198 (0 bytes)
+Action_114[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1023410176_1124073471[130] ?1124073472_-1023410177 = ?1124073472_-1023410177 (1124073472 bytes)
+  [native data after props: -1124072939 bytes]
+== BrushComponent TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.BrushComponent_20 (size 881)
+bAllowAnyType_41[4] Action_198 = Action_198 (0 bytes)
+Action_115[0] BrushAggGeom = BrushAggGeom (272 bytes)
+?-1023410176_1124073471[130] ?1124073472_-1023410177 = ?1124073472_-1023410177 (1124073472 bytes)
+  [native data after props: -1124072939 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_4.DrawLightRadiusComponent_0 (size 162)
+bAlwaysConsiderForCover_263[4] Action_134 = Action_134 (0 bytes)
+Action_1149239295[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_4.DrawLightRadiusComponent_1 (size 162)
+bAutoActivateOutputLinks_263[4] Action_134 = Action_134 (0 bytes)
+Action_1107296255[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_6.DrawLightRadiusComponent_0 (size 162)
+bBlockUnitVisibility_263[4] Action_134 = Action_134 (0 bytes)
+Action_1149239295[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_6.DrawLightRadiusComponent_1 (size 162)
+bCallHandler_263[4] Action_134 = Action_134 (0 bytes)
+Action_1107296255[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_9.DrawLightRadiusComponent_0 (size 162)
+bCanClimbOver_263[4] Action_134 = Action_134 (0 bytes)
+Action_1149239295[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== DrawLightRadiusComponent TheWorld.PersistentLevel.PointLight_9.DrawLightRadiusComponent_1 (size 162)
+bClampedMax_263[4] Action_134 = Action_134 (0 bytes)
+Action_1107296255[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -89 bytes]
+== Model TheWorld.PersistentLevel.Brush_2.Model_3 (size 156)
+
+  [native data after props: 144 bytes]
+== Model TheWorld.PersistentLevel.Brush_3.Model_5 (size 156)
+
+  [native data after props: 144 bytes]
+== Model TheWorld.PersistentLevel.Brush_8.Model_13 (size 156)
+
+  [native data after props: 144 bytes]
+== Model TheWorld.PersistentLevel.Model_0 (size 156)
+
+  [native data after props: 144 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.Model_15 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.Model_6 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.Model_15 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.Model_12 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.Model_2 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.Model_7 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.Model_12 (size 2596)
+
+  [native data after props: 2584 bytes]
+== Model TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.Model_12 (size 2596)
+
+  [native data after props: 2584 bytes]
+== PointLight TheWorld.PersistentLevel.PointLight_4 (size 138)
+LightComponent[0] ObjectProperty = TheWorld.PersistentLevel.PointLight_4.PointLightComponent_0
+Location[0] StructProperty = Vector(-1681.0, 335.0, 80.0)
+Tag[0] NameProperty = PointLight
+  [native data after props: 0 bytes]
+== PointLight TheWorld.PersistentLevel.PointLight_6 (size 138)
+LightComponent[0] ObjectProperty = TheWorld.PersistentLevel.PointLight_6.PointLightComponent_0
+Location[0] StructProperty = Vector(431.0, 1296.0, 80.0)
+Tag[0] NameProperty = PointLight
+  [native data after props: 0 bytes]
+== PointLight TheWorld.PersistentLevel.PointLight_9 (size 138)
+LightComponent[0] ObjectProperty = TheWorld.PersistentLevel.PointLight_9.PointLightComponent_0
+Location[0] StructProperty = Vector(-2545.0, 815.0, 13.412718772888184)
+Tag[0] NameProperty = PointLight
+  [native data after props: 0 bytes]
+== PointLightComponent TheWorld.PersistentLevel.PointLight_4.PointLightComponent_0 (size 357)
+Box_48[64] Action_271 = Action_271 (0 bytes)
+Action_182[0] Action = Action (1065353216 bytes)
+  [native data after props: -1065352911 bytes]
+== PointLightComponent TheWorld.PersistentLevel.PointLight_6.PointLightComponent_0 (size 357)
+bPrecomputedLightingIsValid_48[64] Action_271 = Action_271 (0 bytes)
+Action_182[0] Action = Action (1065353216 bytes)
+  [native data after props: -1065352911 bytes]
+== PointLightComponent TheWorld.PersistentLevel.PointLight_9.PointLightComponent_0 (size 357)
+bRemoveLightmap_48[64] Action_271 = Action_271 (0 bytes)
+Action_182[0] Action = Action (1065353216 bytes)
+  [native data after props: -1065352911 bytes]
+== Polys TheWorld.PersistentLevel.Brush_2.Model_3.Polys_6 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.Brush_3.Model_5.Polys_11 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.Brush_8.Model_13.Polys_40 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.Polys_0 (size 24)
+
+  [native data after props: 12 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.Model_15.Polys_46 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.Model_6.Polys_17 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.Model_15.Polys_15 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.Model_12.Polys_36 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.Model_2.Polys_10 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.Model_7.Polys_24 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.Model_12.Polys_38 (size 1104)
+
+  [native data after props: 1092 bytes]
+== Polys TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.Model_12.Polys_34 (size 1104)
+
+  [native data after props: 1092 bytes]
+== SeqAct_AccessObjectList TheWorld.PersistentLevel.Main_Sequence.SeqAct_AccessObjectList_0 (size 3358)
+InputLinks[0] ArrayProperty = array[4] (1335 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[3] (1373 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1112
+ObjPosY[0] IntProperty = -88
+DrawWidth[0] IntProperty = 193
+DrawHeight[0] IntProperty = 149
+  [native data after props: 0 bytes]
+== SeqAct_AccessObjectList TheWorld.PersistentLevel.Main_Sequence.SeqAct_AccessObjectList_1 (size 3362)
+InputLinks[0] ArrayProperty = array[4] (1335 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[3] (1377 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1080
+ObjPosY[0] IntProperty = 200
+DrawWidth[0] IntProperty = 193
+DrawHeight[0] IntProperty = 149
+  [native data after props: 0 bytes]
+== SeqAct_AccessObjectList TheWorld.PersistentLevel.Main_Sequence.SeqAct_AccessObjectList_2 (size 3362)
+InputLinks[0] ArrayProperty = array[4] (1335 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[3] (1377 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3240
+ObjPosY[0] IntProperty = -232
+DrawWidth[0] IntProperty = 193
+DrawHeight[0] IntProperty = 149
+  [native data after props: 0 bytes]
+== SeqAct_AccessObjectList TheWorld.PersistentLevel.Main_Sequence.SeqAct_AccessObjectList_3 (size 3358)
+InputLinks[0] ArrayProperty = array[4] (1335 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[3] (1373 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 208
+ObjPosY[0] IntProperty = -72
+DrawWidth[0] IntProperty = 193
+DrawHeight[0] IntProperty = 149
+  [native data after props: 0 bytes]
+== SeqAct_AddDestructibleActorEvent TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddDestructibleActorEvent_1 (size 1548)
+EventType[0] ByteProperty = EActorEventType::DestroyActor
+EventTrigger[0] ByteProperty = EActorEventTrigger::Destroyed
+TargetActor[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_1
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[1] (457 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1392
+ObjPosY[0] IntProperty = -16
+DrawWidth[0] IntProperty = 203
+DrawHeight[0] IntProperty = 61
+  [native data after props: 0 bytes]
+== SeqAct_AddDestructibleActorEvent TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddDestructibleActorEvent_2 (size 1520)
+EventType[0] ByteProperty = EActorEventType::DestroyActor
+EventTrigger[0] ByteProperty = EActorEventTrigger::Destroyed
+TargetActor[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_3
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[1] (457 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 488
+DrawWidth[0] IntProperty = 203
+DrawHeight[0] IntProperty = 61
+  [native data after props: 0 bytes]
+== SeqAct_AddInt TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddInt_0 (size 2797)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1814 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 544
+ObjPosY[0] IntProperty = 192
+DrawWidth[0] IntProperty = 196
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_AddInt TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddInt_1 (size 2797)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1814 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 296
+ObjPosY[0] IntProperty = 208
+DrawWidth[0] IntProperty = 196
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_AddInt TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddInt_2 (size 2797)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1814 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 2704
+ObjPosY[0] IntProperty = -240
+DrawWidth[0] IntProperty = 196
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_AddInt TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddInt_3 (size 2797)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1814 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 2208
+ObjPosY[0] IntProperty = -224
+DrawWidth[0] IntProperty = 196
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_AddInt TheWorld.PersistentLevel.Main_Sequence.SeqAct_AddInt_4 (size 2797)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1814 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 2456
+ObjPosY[0] IntProperty = -224
+DrawWidth[0] IntProperty = 196
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_ForLoop TheWorld.PersistentLevel.Main_Sequence.SeqAct_ForLoop_0 (size 2793)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1810 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 856
+ObjPosY[0] IntProperty = 184
+DrawWidth[0] IntProperty = 158
+DrawHeight[0] IntProperty = 61
+  [native data after props: 0 bytes]
+== SeqAct_ForLoop TheWorld.PersistentLevel.Main_Sequence.SeqAct_ForLoop_1 (size 2793)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[4] (1810 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3016
+ObjPosY[0] IntProperty = -248
+DrawWidth[0] IntProperty = 158
+DrawHeight[0] IntProperty = 61
+  [native data after props: 0 bytes]
+== SeqAct_GetActorsTouchingVolume TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetActorsTouchingVolume_0 (size 2042)
+VolumeName[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11
+ActorFilter[0] NameProperty = ARC_Dumpster_A
+VolumeCollisionType[0] ByteProperty = EVolumeCollisionType::Overlaps
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (919 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 848
+ObjPosY[0] IntProperty = -48
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetActorsTouchingVolume TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetActorsTouchingVolume_1 (size 2042)
+VolumeName[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0
+ActorFilter[0] NameProperty = ARC_Dumpster_A
+VolumeCollisionType[0] ByteProperty = EVolumeCollisionType::Overlaps
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (919 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = -56
+ObjPosY[0] IntProperty = -32
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetAllActors TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetAllActors_0 (size 1978)
+ActorFilter[0] NameProperty = ARC_MetalFence192Cap_Destro
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (923 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1976
+ObjPosY[0] IntProperty = -232
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetAllActors TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetAllActors_1 (size 1978)
+ActorFilter[0] NameProperty = ARC_MetalFence
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (923 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1552
+ObjPosY[0] IntProperty = -216
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetAllActors TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetAllActors_2 (size 2042)
+ActorFilter[0] NameProperty = ARC_LadderMetalA_448
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (462 bytes)
+VariableLinks[0] ArrayProperty = array[2] (923 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = -80
+ObjPosY[0] IntProperty = 216
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetAllActors TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetAllActors_3 (size 1978)
+ActorFilter[0] NameProperty = ARC_LadderVehicleA_256
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (923 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 104
+ObjPosY[0] IntProperty = 208
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_GetAllActors TheWorld.PersistentLevel.Main_Sequence.SeqAct_GetAllActors_4 (size 1978)
+ActorFilter[0] NameProperty = ARC_MetalFence192_DESTRO
+ActorFilterType[0] ByteProperty = EActorFilterType::FilterByArchetype
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[2] (923 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1752
+ObjPosY[0] IntProperty = -216
+DrawWidth[0] IntProperty = 143
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_SetLOSBlocking TheWorld.PersistentLevel.Main_Sequence.SeqAct_SetLOSBlocking_0 (size 1449)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[1] (466 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3528
+ObjPosY[0] IntProperty = -184
+DrawWidth[0] IntProperty = 122
+DrawHeight[0] IntProperty = 77
+  [native data after props: 0 bytes]
+== SeqAct_SetScale3D TheWorld.PersistentLevel.Main_Sequence.SeqAct_SetScale3D_1 (size 1484)
+DrawScale3D[0] StructProperty = Vector(1.0, 1.0, 1.0010000467300415)
+InputLinks[0] ArrayProperty = array[1] (333 bytes)
+OutputLinks[0] ArrayProperty = array[1] (398 bytes)
+VariableLinks[0] ArrayProperty = array[1] (457 bytes)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1552
+ObjPosY[0] IntProperty = 312
+DrawWidth[0] IntProperty = 91
+DrawHeight[0] IntProperty = 61
+  [native data after props: 0 bytes]
+== SeqEvent_LevelLoaded TheWorld.PersistentLevel.Main_Sequence.SeqEvent_LevelLoaded_0 (size 1428)
+MaxWidth[0] IntProperty = 136
+OutputLinks[0] ArrayProperty = array[3] (1224 bytes)
+ObjInstanceVersion[0] IntProperty = 3
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = -320
+ObjPosY[0] IntProperty = 176
+DrawWidth[0] IntProperty = 137
+  [native data after props: 0 bytes]
+== Sequence TheWorld.PersistentLevel.Main_Sequence (size 284)
+SequenceObjects[0] ArrayProperty = array[40] (164 bytes)
+DefaultViewX[0] IntProperty = -539
+DefaultViewY[0] IntProperty = 188
+DefaultViewZoom[0] FloatProperty = 0.49999991059303284
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_0 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 888
+ObjPosY[0] IntProperty = 288
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_1 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 2072
+ObjPosY[0] IntProperty = -80
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_2 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1000
+ObjPosY[0] IntProperty = 416
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_3 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1760
+ObjPosY[0] IntProperty = -88
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_4 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3048
+ObjPosY[0] IntProperty = -144
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_5 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3160
+ObjPosY[0] IntProperty = -16
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_6 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 8
+ObjPosY[0] IntProperty = 344
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_7 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 176
+ObjPosY[0] IntProperty = 344
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Int TheWorld.PersistentLevel.Main_Sequence.SeqVar_Int_8 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1928
+ObjPosY[0] IntProperty = -88
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Object TheWorld.PersistentLevel.Main_Sequence.SeqVar_Object_0 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1312
+ObjPosY[0] IntProperty = 96
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Object TheWorld.PersistentLevel.Main_Sequence.SeqVar_Object_1 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1200
+ObjPosY[0] IntProperty = 464
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Object TheWorld.PersistentLevel.Main_Sequence.SeqVar_Object_2 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 3360
+ObjPosY[0] IntProperty = 8
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_Object TheWorld.PersistentLevel.Main_Sequence.SeqVar_Object_3 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 408
+ObjPosY[0] IntProperty = 120
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_ObjectList TheWorld.PersistentLevel.Main_Sequence.SeqVar_ObjectList_0 (size 152)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosY[0] IntProperty = 432
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_ObjectList TheWorld.PersistentLevel.Main_Sequence.SeqVar_ObjectList_1 (size 152)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1752
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_ObjectList TheWorld.PersistentLevel.Main_Sequence.SeqVar_ObjectList_2 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 1008
+ObjPosY[0] IntProperty = 56
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== SeqVar_ObjectList TheWorld.PersistentLevel.Main_Sequence.SeqVar_ObjectList_3 (size 180)
+ObjInstanceVersion[0] IntProperty = 1
+ParentSequence[0] ObjectProperty = TheWorld.PersistentLevel.Main_Sequence
+ObjPosX[0] IntProperty = 104
+ObjPosY[0] IntProperty = 80
+DrawWidth[0] IntProperty = 32
+DrawHeight[0] IntProperty = 32
+  [native data after props: 0 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLadder_11.StaticMeshComponent_1 (size 166)
+DrawLightRadius0_266[4] Action_198 = Action_198 (0 bytes)
+Action_185[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLadder_15.StaticMeshComponent_1 (size 166)
+DrawLightRadiusComponent_266[4] Action_198 = Action_198 (0 bytes)
+Action_185[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -85 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_1.StaticMeshComponent_19 (size 191)
+DrawLightSourceRadius0_266[4] Action_198 = Action_198 (0 bytes)
+Action_183[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_25.StaticMeshComponent_19 (size 191)
+DrawScale3D_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_26.StaticMeshComponent_19 (size 191)
+DrawWidth_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_3.StaticMeshComponent_19 (size 191)
+DrawX_266[4] Action_198 = Action_198 (0 bytes)
+Action_183[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_31.StaticMeshComponent_19 (size 191)
+DrawY_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_33.StaticMeshComponent_19 (size 191)
+Dynamic_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_34.StaticMeshComponent_19 (size 191)
+EActorEventTrigger_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_35.StaticMeshComponent_19 (size 191)
+EActorEventTrigger_MAX_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_36.StaticMeshComponent_19 (size 191)
+EActorEventType_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_37.StaticMeshComponent_19 (size 191)
+EActorEventType_MAX_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_38.StaticMeshComponent_19 (size 191)
+EActorFilterType_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_39.StaticMeshComponent_19 (size 191)
+EActorFilterType_MAX_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_40.StaticMeshComponent_19 (size 191)
+ECoverForceFlag_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_44.StaticMeshComponent_19 (size 191)
+ECsgOper_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== StaticMeshComponent TheWorld.PersistentLevel.XComLevelActor_46.StaticMeshComponent_19 (size 191)
+EdgeDirections_266[4] Action_198 = Action_198 (0 bytes)
+Action_184[0] ReplacementPrimitive = ReplacementPrimitive (199 bytes)
+  [native data after props: -60 bytes]
+== WorldInfo TheWorld.PersistentLevel.WorldInfo_0 (size 139)
+bMapNeedsLightingFullyRebuilt[0] BoolProperty = 1
+ClientDestroyedActorContent[0] ArrayProperty = array[5] (24 bytes)
+Tag[0] NameProperty = WorldInfo
+  [native data after props: 0 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_1.XComFloorComponent_13 (size 48)
+EMaterialOverrideMode_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] Model_192 = Model_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_25.XComFloorComponent_13 (size 48)
+Emitter_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] Momentum_192 = Momentum_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_26.XComFloorComponent_13 (size 48)
+EmitterInstanceParameterSet_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] Name_192 = Name_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_3.XComFloorComponent_13 (size 48)
+Encompasses_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] NameProperty_192 = NameProperty_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_31.XComFloorComponent_13 (size 48)
+End_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] None_192 = None_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_33.XComFloorComponent_13 (size 48)
+Engine_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjCategory_192 = ObjCategory_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_34.XComFloorComponent_13 (size 48)
+EngineMaterials_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] Object_192 = Object_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_35.XComFloorComponent_13 (size 48)
+Enum_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjectArchetype_192 = ObjectArchetype_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_36.XComFloorComponent_13 (size 48)
+EventTrigger_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjectIndex_192 = ObjectIndex_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_37.XComFloorComponent_13 (size 48)
+EventType_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjectList_192 = ObjectList_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_38.XComFloorComponent_13 (size 48)
+EVolumeCollisionType_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjectProperty_192 = ObjectProperty_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_39.XComFloorComponent_13 (size 48)
+EVolumeCollisionType_MAX_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjectsFound_192 = ObjectsFound_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_40.XComFloorComponent_13 (size 48)
+ExpectedType_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjInstanceVersion_192 = ObjInstanceVersion_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_44.XComFloorComponent_13 (size 48)
+FaceNormalDirections_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[0] ObjList_192 = ObjList_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComFloorComponent TheWorld.PersistentLevel.XComLevelActor_46.XComFloorComponent_13 (size 48)
+FacePlaneData_210[8] Action_13 = Action_13 (0 bytes)
+Action_0[-81] ObjName_192 = ObjName_192 (0 bytes)
+  [native data after props: -4 bytes]
+== XComLadder TheWorld.PersistentLevel.XComLadder_11 (size 362)
+LoopAnimations[0] IntProperty = 4
+StaticMesh[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_11.StaticMeshComponent_1
+VisibilityBlockingData[0] StructProperty = struct VisibilityBlocking (33 bytes)
+bCanClimbOver[0] BoolProperty = 1
+bIgnoreForCover[0] BoolProperty = 1
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_11.StaticMeshComponent_1
+Location[0] StructProperty = Vector(-1656.0, 335.9998779296875, 20.0)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLadder
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_11.StaticMeshComponent_1
+  [native data after props: 0 bytes]
+== XComLadder TheWorld.PersistentLevel.XComLadder_15 (size 406)
+LoopAnimations[0] IntProperty = 4
+StaticMesh[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_15.StaticMeshComponent_1
+VisibilityBlockingData[0] StructProperty = struct VisibilityBlocking (33 bytes)
+bCanClimbOver[0] BoolProperty = 1
+bIgnoreForCover[0] BoolProperty = 1
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_15.StaticMeshComponent_1
+Location[0] StructProperty = Vector(435.99993896484375, 1275.9998779296875, 14.0)
+Rotation[0] StructProperty = Rotator(0, -16384, 0)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLadder
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLadder_15.StaticMeshComponent_1
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_1 (size 259)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_1.XComFloorComponent_13
+CoverForceFlag[0] ByteProperty = ECoverForceFlag::CoverForce_High
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_1.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2688.0, -1344.0, 3.999993085861206)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_1.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_25 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_25.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_25.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2112.0, -1260.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_25.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_26 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_26.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_26.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2112.0, -1140.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_26.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_3 (size 259)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_3.XComFloorComponent_13
+CoverForceFlag[0] ByteProperty = ECoverForceFlag::CoverForce_High
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_3.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2304.0, -1344.0, 3.999992609024048)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_3.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_31 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_31.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_31.StaticMeshComponent_19
+Location[0] StructProperty = Vector(1824.0, 1332.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_31.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_33 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_33.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_33.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2496.0, 972.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_33.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_34 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_34.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_34.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2592.0, 972.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_34.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_35 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_35.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_35.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2496.0, 852.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_35.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_36 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_36.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_36.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2592.0, 852.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_36.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_37 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_37.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_37.StaticMeshComponent_19
+Location[0] StructProperty = Vector(1920.0, 1332.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_37.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_38 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_38.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_38.StaticMeshComponent_19
+Location[0] StructProperty = Vector(1920.0, 1452.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_38.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_39 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_39.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_39.StaticMeshComponent_19
+Location[0] StructProperty = Vector(1824.0, 1452.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_39.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_40 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_40.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_40.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2220.0, -1260.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_40.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_44 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_44.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_44.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2220.0, -1140.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_44.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComLevelActor TheWorld.PersistentLevel.XComLevelActor_46 (size 219)
+FloorComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_46.XComFloorComponent_13
+StaticMeshComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_46.StaticMeshComponent_19
+Location[0] StructProperty = Vector(-2220.0, -1200.0, 99.99999237060547)
+bHidden[0] BoolProperty = 1
+Tag[0] NameProperty = XComLevelActor
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComLevelActor_46.StaticMeshComponent_19
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.Model_15
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.BrushComponent_25
+Location[0] StructProperty = Vector(-2304.0, -1336.0, -20.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_0.BrushComponent_25
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.Model_6
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.BrushComponent_8
+Location[0] StructProperty = Vector(-2528.0, -1280.0, 4.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_1.BrushComponent_8
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.Model_15
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.BrushComponent_25
+Location[0] StructProperty = Vector(-2688.0, -1336.0, -20.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_11.BrushComponent_25
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.Model_12
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.BrushComponent_20
+Location[0] StructProperty = Vector(-2107.999755859375, -1243.9998779296875, 16.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_12.BrushComponent_20
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.Model_2
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.BrushComponent_2
+Location[0] StructProperty = Vector(428.00018310546875, 1292.0, 63.999996185302734)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_6.BrushComponent_2
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.Model_7
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.BrushComponent_11
+Location[0] StructProperty = Vector(-1604.0, 336.0, 244.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_7.BrushComponent_11
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.Model_12
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.BrushComponent_20
+Location[0] StructProperty = Vector(1920.0001220703125, 1344.0, 16.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_8.BrushComponent_20
+  [native data after props: 0 bytes]
+== XComRebuildWorldDataVolume TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9 (size 194)
+Brush[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.Model_12
+BrushComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.BrushComponent_20
+Location[0] StructProperty = Vector(-2491.999755859375, 868.0, 16.0)
+Tag[0] NameProperty = XComRebuildWorldDataVolume
+CollisionComponent[0] ObjectProperty = TheWorld.PersistentLevel.XComRebuildWorldDataVolume_9.BrushComponent_20
+  [native data after props: 0 bytes]

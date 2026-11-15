@@ -1,0 +1,101 @@
+// Clear map, the ground grid and landing zones (private/plans/done/clear-map-plan.md): the project records
+// (project.js) and the page's plain functions. Run: node tools/viewer/tests/clear_map_test.mjs
+import assert from 'node:assert/strict';
+import { validLandingZone, tidyLandingZone, sortState, stateKey, validStage } from '../web/project.js';
+
+// ---- C1: the records
+const zone = { id: 'z1', location: [719, -1681, 64], direction: 'north', kind: 'normal' };
+assert.ok(validLandingZone(zone));
+assert.ok(validLandingZone({ ...zone, other: 'Spare=(A=1,B="x,y")' }));
+for (const other of ['X=1)\r\n[Evil]\r\nfoo=(Y=2', 'a\nb', 'a\u2028b', 'a\x00b', 'x'.repeat(4001)]) assert.ok(!validLandingZone({ ...zone, other }), JSON.stringify(other));
+assert.ok(validLandingZone({ id: 'z2', location: [1, 2, 3], direction: 'west' }));             // kind defaults to normal
+assert.ok(validLandingZone({ ...zone, kind: 'inside', missionType: 'eMission_Abduction', councilType: 'eFCMType_Extraction',
+                             alternate: { location: [0, 0, 64], direction: 'east' }, lwr: false, other: 'Foo=1' }));
+for (const bad of [null, [], { ...zone, id: '' }, { ...zone, location: [1, 2] }, { ...zone, location: [1, 2, NaN] },
+                   { ...zone, direction: 'up' }, { ...zone, kind: 'outside' }, { ...zone, alternate: { location: [0, 0, 0] } }, { ...zone, lwr: true }, { ...zone, missionType: 'a b' },
+                   { ...zone, alternate: [1] }, { ...zone, other: 3 }, { ...zone, extra: 1 }, { ...zone, ew: 1 }])
+  assert.ok(!validLandingZone(bad), JSON.stringify(bad));
+assert.deepEqual(tidyLandingZone({ id: 'z2', location: [1.000001, 2, 3], direction: 'west' }),
+                 { id: 'z2', location: [1, 2, 3], direction: 'west', kind: 'normal' });
+assert.deepEqual(tidyLandingZone({ ...zone, lwr: false, missionType: '' }), { ...zone, lwr: false });
+// sortState: the zones keep their order; a malformed one is carried in place; absent is null, an empty list is no zone
+const odd = { id: 'odd', location: 'here' };
+const sorted = sortState({ overrides: [], added: [], landingZones: [{ ...zone, id: 'b' }, odd, { ...zone, id: 'a' }] });
+assert.deepEqual(sorted.landingZones.map(z => z.id), ['b', 'odd', 'a']);
+assert.equal(sortState({ overrides: [], added: [] }).landingZones, null);
+assert.deepEqual(sortState({ overrides: [], added: [], landingZones: [] }).landingZones, []);
+// cleared is part of the state's key, and so are the zones
+const plain = sortState({ overrides: [], added: [] });
+assert.equal(plain.cleared, false);
+assert.notEqual(stateKey(plain), stateKey(sortState({ overrides: [], added: [], cleared: true })));
+assert.notEqual(stateKey(plain), stateKey(sortState({ overrides: [], added: [], landingZones: [] })));
+assert.equal(stateKey(plain), stateKey(sortState({ overrides: [], added: [], cleared: false, landingZones: null })));
+// a smaller grid and three numbers are valid stages (the compiler says where they may be used)
+assert.ok(validStage({ grid: [20, 30, 4] }));
+assert.ok(!validStage({ grid: [0, 30, 4] }));
+assert.ok(validStage({ grid: [20, 30, 30] }));
+assert.ok(!validStage({ grid: [20, 30, 31] }));
+
+// ---- C4: spawns.js, the twin of spawns.py
+import { place, evacBox, zoneOfFrame, ownSlots, samePlace, startingZones, ownLandings } from '../web/spawns.js';
+const bar1 = { location: [719, -1681, 64], direction: 'north', kind: 'normal' };
+assert.deepEqual(place(bar1).frame, { location: [719, -1681, 0], yaw: 0 });
+assert.deepEqual(place({ location: [0, 0, 64], direction: 'east' }).soldiers[3], { location: [-288, 0, 48], yaw: 32768 });
+assert.deepEqual(place({ location: [0, 0, 64], direction: 'north', kind: 'inside' }).soldiers[3].location, [0, 0, 48]);
+assert.deepEqual(evacBox({ location: [0, 0, 64], direction: 'north' }), [-240, -191, 0, 240, 97, 192]);
+assert.equal(zoneOfFrame([5, 6, 10], 16380).direction, 'east');
+assert.ok(samePlace(zoneOfFrame([720, -1680, 0], 0), bar1));
+assert.ok(!samePlace(zoneOfFrame([720, -1680, 0], 16384), bar1));
+assert.deepEqual(ownSlots([{ missionType: 'eMission_Abduction' }, {}, {}], 1), [1]);
+// the starting list: the own landing joined with its line first, then the other lines; an own landing no line
+// matches gets lwr: false
+let n = 0;
+const id = () => `z${++n}`;
+const lines = [{ ...bar1, location: [-1297, -1681, 80] }, bar1];
+const own = ownLandings({ objects: [{ layer: 'base', actor: 'X_6', archetype: 'A.B.SoldierSpawns_DrpshipVol_12Arc0', location: [720, -1680, 0], rotation: [0, 0, 0] }] });
+assert.deepEqual(startingZones(own, lines, id), [{ id: 'z1', ...bar1, ew: true }, { id: 'z2', ...lines[0] }]);
+const far = ownLandings({ landings: [{ group: 'Group0', actors: [{ role: 'frame', path: 'F', location: [0, 0, 0], rotation: [0, 16384, 0] }] }] });
+assert.deepEqual(startingZones(far, lines, id).map(z => [z.lwr, z.direction, z.ew]), [[false, 'east', true], [undefined, 'north', undefined], [undefined, 'north', undefined]]);
+// Plain EW marked on zones (the panel's Plain EW): the marked zones, in order, up to the map's count; with none
+// marked anywhere, the old rule by order
+assert.deepEqual(ownSlots([{}, { ew: true }, {}, { ew: true }], 1), [1]);
+assert.deepEqual(ownSlots([{}, { ew: true }, {}, { ew: true }], 3), [1, 3]);
+assert.deepEqual(ownSlots([{}, {}], 1), [0]);
+assert.ok(validLandingZone({ ...zone, ew: true }) && !validLandingZone({ ...zone, ew: false }));
+assert.deepEqual(tidyLandingZone({ ...zone, ew: true }), { ...zone, ew: true });
+
+// The cursor's floors on a grown grid (floors.js cursorStoreys, compiler.py cursor_storeys' twin; shell.py grow_cursors)
+const { cursorStoreys } = await import('../web/floors.js');
+const map = { exporterVersion: 22, tileGrid: { origin: [0, 0, 0], dimensions: [60, 45, 18], size: [96, 96, 64] },
+              cursorVolumes: [{ floor: 1, box: { min: [-10, -10, 0], max: [52 * 96 + 5, 39 * 96, 192] } },
+                              { floor: 2, box: { min: [100, 100, 192], max: [900, 39 * 96 - 0.5, 400] } },
+                              { floor: 4, stair: true, box: { min: [0, 0, 0], max: [52 * 96, 39 * 96, 900] } }] };
+const grown = cursorStoreys(map, { own: [52, 39, 12] });
+assert.deepEqual(grown.slice(0, 2).map(s => s.box), [[-10, -10, 0, 60 * 96, 45 * 96, 192], [100, 100, 192, 900, 45 * 96, 400]]);
+assert.deepEqual(grown.slice(2).map(s => [s.floor, s.box[2], s.box[5]]), [[3, 400, 592], [4, 592, 784], [5, 784, 976], [6, 976, 1152]]);
+assert.deepEqual(cursorStoreys({ ...map, tileGrid: { ...map.tileGrid, dimensions: [52, 39, 12] } }, { own: [52, 39, 12] }).map(s => s.floor), [1, 2]);
+// cleared: even storeys from the bottom, one more for each 192 of a taller grid, the map's own left out
+assert.deepEqual(cursorStoreys(map, { cleared: true, own: [52, 39, 12] }).map(s => [s.floor, s.box[2], s.box[5]]),
+                 [[1, 0, 192], [2, 192, 384], [3, 384, 576], [4, 576, 768], [5, 768, 960], [6, 960, 1152]]);
+
+// A landing with no drop zone frame (spawns.js fitZone, soldierSpots; spawns.py's twins and their tests' numbers)
+const { fitZone, soldierSpots, ownLandings: own2, place: place2 } = await import('../web/spawns.js');
+const introPoints = [[-625.1, -48.1, 112], [-721.1, -144.0, 112], [-721.1, -336.0, 112], [-625.1, -432.0, 112], [-816.0, -336.0, 96], [-528.0, -144.0, 112]];
+const introActors = [...introPoints.map((p, k) => ({ role: `soldier${k + 1}`, location: p, rotation: [0, 32000, 0] })),
+                     { role: 'point', location: [-864, -384, 48], rotation: [0, 16384, 0] }];
+assert.deepEqual(fitZone(introActors), { location: [-353, -240, 112], direction: 'east', kind: 'normal' });
+assert.deepEqual(fitZone(introActors, -3.05e-5).location, [-353, -240, 64]);
+assert.deepEqual(fitZone(introActors, -48).location, [-353, -240, 80]);
+assert.deepEqual(own2({ tileGrid: { origin: [0, 0, -3.05e-5] }, landings: [{ group: 'g', actors: introActors }] })[0].zone.location, [-353, -240, 64]);
+for (const direction of ['north', 'east', 'south', 'west']) {
+  const z = { location: [-1680, -336, -320], direction, kind: 'normal' }, at = place2(z);
+  const actors = [...at.soldiers.map((s, k) => ({ role: `soldier${k + 1}`, location: s.location, rotation: [0, s.yaw, 0] })), { role: 'point', location: at.point.location, rotation: [0, 0, 0] }];
+  assert.deepEqual(fitZone(actors), z, direction);
+}
+const [intro] = own2({ landings: [{ group: 'XComSpawnPoint', actors: introActors }] });
+assert.ok(intro.fitted && intro.frame === null);
+assert.deepEqual(soldierSpots(intro.zone, intro).map(s => s.location), introPoints);
+const shifted = { ...intro.zone, location: [intro.zone.location[0] + 96, intro.zone.location[1], intro.zone.location[2]] };
+assert.deepEqual(soldierSpots(shifted, intro), place2(shifted).soldiers);
+
+console.log('clear map tests passed');

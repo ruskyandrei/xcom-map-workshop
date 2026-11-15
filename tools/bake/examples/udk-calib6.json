@@ -1,0 +1,27 @@
+{
+ "pointLights": [
+  {"location": [0, 0, 256], "radius": 1024, "falloffExponent": 2, "lightSourceRadius": 0},
+  {"location": [6000, 0, 256], "radius": 1024, "falloffExponent": 2, "lightSourceRadius": 32},
+  {"location": [12000, 0, 256], "radius": 1024, "falloffExponent": 2, "lightSourceRadius": 100},
+  {"location": [0, 6000, 256], "radius": 4096, "falloffExponent": 0, "lightSourceRadius": 0},
+  {"location": [6000, 6000, 128], "radius": 512, "falloffExponent": 6, "lightSourceRadius": 0},
+  {"location": [12000, 6000, 64], "radius": 1024, "falloffExponent": 2, "lightSourceRadius": 32},
+  {"location": [0, 12000, 512], "radius": 1024, "falloffExponent": 2, "lightSourceRadius": 32},
+  {"location": [12000, 12000, 256], "radius": 4096, "falloffExponent": 0, "lightSourceRadius": 32}
+ ],
+ "spotLights": [
+  {"location": [6000, 12000, 384], "pitch": -12288, "yaw": 0, "radius": 1270, "falloffExponent": 4,
+   "innerConeAngle": 20, "outerConeAngle": 44, "lightSourceRadius": 32}
+ ],
+ "receivers": [
+  {"name": "a0", "location": [0, 0, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "a32", "location": [6000, 0, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "a100", "location": [12000, 0, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "b0", "location": [0, 6000, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "c0", "location": [6000, 6000, 0], "scale": 0.25, "lightmapRes": 512},
+  {"name": "d32", "location": [12000, 6000, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "e32", "location": [0, 12000, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "b32", "location": [12000, 12000, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "s32", "location": [6000, 12000, 0], "scale": 0.5, "lightmapRes": 512}
+ ]
+}

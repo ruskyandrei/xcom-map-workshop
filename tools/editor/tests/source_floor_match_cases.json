@@ -1,0 +1,106 @@
+[
+  {
+    "name": "the Small Landed UFO prefab: LSmallScout_River's UFO, its boxes edited (36 lower, the roof floor 72 taller)",
+    "buildings": [
+      {"id": "8301", "floors": [
+        {"boxes": [{"min": [-2400.0, -768.00048828125, 53.999691009521484], "max": [-384.0, 1247.99951171875, 373.9996910095215]}]},
+        {"boxes": [{"min": [-2400.0, -768.00048828125, 245.99969482421875], "max": [-384.0, 1247.99951171875, 629.9996948242188]}]}]},
+      {"id": "8302", "floors": []},
+      {"id": "8303", "floors": [
+        {"boxes": [{"min": [2000, 2000, 0], "max": [2400, 2400, 192]}]}]}
+    ],
+    "floors": [[[96, 96, 18, 2112, 2112, 338]], [[96, 96, 210, 2112, 2112, 666]]],
+    "before": {"location": [-1373.99853515625, 239.99423217773438, 64.00010681152344], "rotation": [0, 32768, 0]},
+    "location": [1122.0015, 1103.9942, 66.0001], "rotation": [0, 32768, 0],
+    "expect": {"building": "8301", "floorMap": [0, 1]}
+  },
+  {
+    "name": "the boxes as the source has them, carried by the move",
+    "buildings": [
+      {"id": "1", "floors": [
+        {"boxes": [{"min": [0, 0, 0], "max": [384, 576, 320]}]},
+        {"boxes": [{"min": [0, 0, 192], "max": [384, 576, 576]}]}]}
+    ],
+    "floors": [[[768, 0, 0, 1152, 576, 320]], [[768, 0, 192, 1152, 576, 576]]],
+    "before": {"location": [96, 96, 0], "rotation": [0, 0, 0]},
+    "location": [864, 96, 0], "rotation": [0, 0, 0],
+    "expect": {"building": "1", "floorMap": [0, 1]}
+  },
+  {
+    "name": "a quarter turn carries the boxes turned",
+    "buildings": [
+      {"id": "1", "floors": [{"boxes": [{"min": [0, 0, 0], "max": [200, 100, 192]}]}]}
+    ],
+    "floors": [[[900, 0, 0, 1000, 200, 192]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [1000, 0, 0], "rotation": [0, 16384, 0],
+    "expect": {"building": "1", "floorMap": [0]}
+  },
+  {
+    "name": "a turn that is no whole quarter: no source building",
+    "buildings": [
+      {"id": "1", "floors": [{"boxes": [{"min": [0, 0, 0], "max": [200, 100, 192]}]}]}
+    ],
+    "floors": [[[0, 0, 0, 200, 100, 192]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 8192, 0],
+    "expect": null
+  },
+  {
+    "name": "a building away from where the source's would be: none",
+    "buildings": [
+      {"id": "1", "floors": [{"boxes": [{"min": [0, 0, 0], "max": [384, 384, 192]}]}]}
+    ],
+    "floors": [[[2000, 0, 0, 2384, 384, 192]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 0, 0],
+    "expect": null
+  },
+  {
+    "name": "one tall floor over both of the source's: the floors can't be paired, none",
+    "buildings": [
+      {"id": "1", "floors": [
+        {"boxes": [{"min": [0, 0, 0], "max": [384, 384, 192]}]},
+        {"boxes": [{"min": [0, 0, 192], "max": [384, 384, 384]}]}]}
+    ],
+    "floors": [[[0, 0, 0, 384, 384, 384]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 0, 0],
+    "expect": null
+  },
+  {
+    "name": "a floor added on top: the source's two pair with the first two",
+    "buildings": [
+      {"id": "1", "floors": [
+        {"boxes": [{"min": [0, 0, 0], "max": [384, 384, 192]}]},
+        {"boxes": [{"min": [0, 0, 192], "max": [384, 384, 384]}]}]}
+    ],
+    "floors": [[[0, 0, 0, 384, 384, 192]], [[0, 0, 192, 384, 384, 384]], [[0, 0, 384, 384, 384, 576]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 0, 0],
+    "expect": {"building": "1", "floorMap": [0, 1]}
+  },
+  {
+    "name": "two source buildings meet the building: the one that overlaps it most",
+    "buildings": [
+      {"id": "small", "floors": [{"boxes": [{"min": [300, 0, 0], "max": [500, 384, 192]}]}]},
+      {"id": "big", "floors": [{"boxes": [{"min": [0, 0, 0], "max": [384, 384, 192]}]}]}
+    ],
+    "floors": [[[0, 0, 0, 384, 384, 192]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 0, 0],
+    "expect": {"building": "big", "floorMap": [0]}
+  },
+  {
+    "name": "a source floor that meets none of the building's pairs with nothing",
+    "buildings": [
+      {"id": "1", "floors": [
+        {"boxes": [{"min": [0, 0, 0], "max": [384, 384, 192]}]},
+        {"boxes": [{"min": [0, 0, 192], "max": [384, 384, 384]}]}]}
+    ],
+    "floors": [[[0, 0, 0, 384, 384, 192]]],
+    "before": {"location": [0, 0, 0], "rotation": [0, 0, 0]},
+    "location": [0, 0, 0], "rotation": [0, 0, 0],
+    "expect": {"building": "1", "floorMap": [0, null]}
+  }
+]

@@ -1,0 +1,2288 @@
+{
+ "scope": "every base map and stream named by a live DefaultMaps.ini record",
+ "missingPackages": [],
+ "summary": {
+  "base": {
+   "packages": 96,
+   "actors": {
+    "XComSpawnPoint": {
+     "actors": 1179,
+     "packages": 96
+    },
+    "XComMeldContainerSpawnPoint": {
+     "actors": 490,
+     "packages": 68
+    },
+    "XComNoSpawnVolume": {
+     "actors": 278,
+     "packages": 48
+    },
+    "XComAlienPathNode": {
+     "actors": 277,
+     "packages": 13
+    },
+    "XComAlienPod": {
+     "actors": 222,
+     "packages": 40
+    },
+    "XComAlienPod_Abduction": {
+     "actors": 168,
+     "packages": 41
+    },
+    "PlayerStart": {
+     "actors": 150,
+     "packages": 96
+    },
+    "XComAlienPod_Terror": {
+     "actors": 63,
+     "packages": 12
+    },
+    "XComSpawnPoint_Alien": {
+     "actors": 42,
+     "packages": 10
+    },
+    "SeqAct_SpawnAlien": {
+     "actors": 16,
+     "packages": 2
+    },
+    "SeqAct_SpawnUnit": {
+     "actors": 3,
+     "packages": 3
+    }
+   },
+   "tallies": {
+    "Meld m_eDifficulty (default: easy)": 249,
+    "Meld m_eDifficulty Hard": 241,
+    "Meld m_iSpawnGroup 0": 276,
+    "Meld m_iSpawnGroup 1": 122,
+    "Meld m_iSpawnGroup 2": 92,
+    "PlayerStart archetype (none)": 5,
+    "PlayerStart archetype SoldierSpawns_DrpshipVol_NArcN": 145,
+    "XComSpawnPoint Tag (none)": 396,
+    "XComSpawnPoint Tag CharacterCustomization": 1,
+    "XComSpawnPoint Tag EXT_deleteme": 6,
+    "XComSpawnPoint Tag GroupN": 570,
+    "XComSpawnPoint Tag N": 6,
+    "XComSpawnPoint Tag PrefabN": 12,
+    "XComSpawnPoint Tag XComSpawnPoint": 92,
+    "XComSpawnPoint Tag deleteme": 90,
+    "XComSpawnPoint Tag nodeleteme": 6,
+    "XComSpawnPoint UnitType (default: soldier)": 1103,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_Alien": 4,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_Civilian": 16,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_MPTeamOne": 28,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_MPTeamTwo": 28,
+    "XComSpawnPoint archetype (none)": 93,
+    "XComSpawnPoint archetype AlienBaseDoorwayB_ArcN": 48,
+    "XComSpawnPoint archetype PRE_SoldierSpawns_MPOne_ArcN": 84,
+    "XComSpawnPoint archetype PRE_SoldierSpawns_MPTwo_ArcN": 84,
+    "XComSpawnPoint archetype SoldierSpawns_DrpshipVol_ArcN": 725,
+    "XComSpawnPoint archetype SoldierSpawns_DrpshipVol_NArcN": 145,
+    "alien point saves Layer": 17,
+    "alien point saves Location": 42,
+    "alien point saves Tag": 42,
+    "alien point saves UnitType": 29,
+    "alien point saves bDirtyComponents": 42,
+    "alien point saves bKismetSpawnOnly": 13,
+    "pod saves AlienType": 41,
+    "pod saves CenterpieceMesh": 453,
+    "pod saves ConstrainedMovementVolume": 10,
+    "pod saves ContingentPods": 5,
+    "pod saves CoverGoToPoints": 4,
+    "pod saves DrawScale": 5,
+    "pod saves ForceAlienType": 55,
+    "pod saves ItemType": 4,
+    "pod saves Layer": 64,
+    "pod saves LightEnvironment": 453,
+    "pod saves Location": 453,
+    "pod saves LoopType": 31,
+    "pod saves NumAliens": 31,
+    "pod saves NumAliens_Max": 453,
+    "pod saves NumAliens_Min": 453,
+    "pod saves PathNodes": 29,
+    "pod saves PodIndex": 453,
+    "pod saves PodMesh": 453,
+    "pod saves Rotation": 205,
+    "pod saves Tag": 452,
+    "pod saves bCommanderPod": 31,
+    "pod saves bDirtyComponents": 226,
+    "pod saves bHiddenEdLayer": 5,
+    "pod saves bSecondaryPod": 103,
+    "pod saves bTriggerOnViewPod": 7,
+    "pod saves bUse": 1
+   }
+  },
+  "stream": {
+   "packages": 141,
+   "actors": {
+    "XComSpawnPoint_Alien": {
+     "actors": 1222,
+     "packages": 38
+    },
+    "SeqAct_SpawnAlien": {
+     "actors": 258,
+     "packages": 18
+    },
+    "XComSpawnPoint": {
+     "actors": 136,
+     "packages": 28
+    },
+    "XComAlienPod": {
+     "actors": 109,
+     "packages": 37
+    },
+    "SeqAct_SpawnReinforcement": {
+     "actors": 20,
+     "packages": 1
+    },
+    "XComCapturePointVolume": {
+     "actors": 20,
+     "packages": 10
+    },
+    "XComWaveSystem": {
+     "actors": 19,
+     "packages": 19
+    },
+    "PlayerStart": {
+     "actors": 16,
+     "packages": 16
+    },
+    "SeqAct_SpawnCivilian": {
+     "actors": 10,
+     "packages": 7
+    },
+    "XComMeldContainerSpawnPoint": {
+     "actors": 5,
+     "packages": 2
+    },
+    "XComNoSpawnVolume": {
+     "actors": 4,
+     "packages": 3
+    }
+   },
+   "tallies": {
+    "Meld m_eDifficulty (default: easy)": 2,
+    "Meld m_eDifficulty Hard": 3,
+    "Meld m_iSpawnGroup -1": 1,
+    "Meld m_iSpawnGroup 0": 4,
+    "PlayerStart archetype (none)": 2,
+    "PlayerStart archetype SoldierSpawns_DrpshipVol_NArcN": 14,
+    "XComSpawnPoint Tag (none)": 54,
+    "XComSpawnPoint Tag GroupN": 30,
+    "XComSpawnPoint Tag XComSpawnPoint": 52,
+    "XComSpawnPoint UnitType (default: soldier)": 89,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_CovertOperative": 17,
+    "XComSpawnPoint UnitType EUnitType::UNIT_TYPE_Loot": 30,
+    "XComSpawnPoint archetype (none)": 52,
+    "XComSpawnPoint archetype SoldierSpawns_DrpshipVol_ArcN": 70,
+    "XComSpawnPoint archetype SoldierSpawns_DrpshipVol_NArcN": 14,
+    "alien point saves Layer": 287,
+    "alien point saves Location": 1222,
+    "alien point saves Rotation": 750,
+    "alien point saves Tag": 1222,
+    "alien point saves UnitType": 958,
+    "alien point saves bDirtyComponents": 1222,
+    "alien point saves bEdShouldSnap": 648,
+    "alien point saves bHiddenEdLayer": 93,
+    "alien point saves bKismetSpawnOnly": 7,
+    "pod saves AlienType": 48,
+    "pod saves CenterpieceMesh": 109,
+    "pod saves ForceAlienType": 52,
+    "pod saves Layer": 4,
+    "pod saves LightEnvironment": 109,
+    "pod saves Location": 109,
+    "pod saves LoopType": 8,
+    "pod saves NumAliens": 8,
+    "pod saves NumAliens_Max": 109,
+    "pod saves NumAliens_Min": 109,
+    "pod saves PodIndex": 109,
+    "pod saves PodMesh": 109,
+    "pod saves Rotation": 16,
+    "pod saves Tag": 109,
+    "pod saves bDirtyComponents": 109
+   }
+  },
+  "landingZones": {
+   "entries": 453,
+   "baseMapsWith": 82,
+   "baseMapsWithout": [
+    "Act2_Pier",
+    "Act2_Pier_Asian",
+    "AlienBase01",
+    "AlienBase02",
+    "CB2_MP_Blank",
+    "CBattleship_01",
+    "CBattleship_02",
+    "Command1",
+    "DEMO_SonOfFacemelt",
+    "DLC1_3_Gangplank",
+    "EWI_ExaltHQAssault",
+    "EWI_HQAssault",
+    "EWI_HQAssault_MP",
+    "TempleShip"
+   ]
+  }
+ },
+ "packages": {
+  "Act2_Pier": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 2,
+    "XComSpawnPoint": 8,
+    "XComSpawnPoint_Alien": 4
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "Act2_Pier_Asian": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 2,
+    "XComSpawnPoint": 8,
+    "XComSpawnPoint_Alien": 9
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "Act2_Pier_script": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 4
+   },
+   "kismet": {}
+  },
+  "AlienBase01": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 13,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 8
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "AlienBase02": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 12,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "CAbductor_Cliffside": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPathNode": 22,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "CAbductor_ScorchedEarth": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 41,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "CB2_MP_Blank": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 1,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "CBattleship_01": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 12,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 32,
+    "XComSpawnPoint_Alien": 2
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "CBattleship_02": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 12,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 32
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "CIN_DLC1_ZhangIntro": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "CIN_DLC2_Furies": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "CIN_DropshipIntros": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1
+   },
+   "kismet": {}
+  },
+  "CIN_FastropeIntros": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "CIN_TP05A_EnteringAlienBase": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "CIN_TP12A_ArriveTempleShip": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1
+   },
+   "kismet": {}
+  },
+  "CIN_XEW_Facemelt": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "CLrgScout_City": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "CLrgScout_DeepWoods": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 36,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "CLrgScout_ForestTrench": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 30,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "CLrgScout_Stonewall": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 25,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "CLrgScout_TheBarrens": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 22,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "Command1": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComSpawnPoint": 1
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "COverseer_DeepWoods": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "COverseer_ForestTrench": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 30,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "COverseer_Stonewall": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 25,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "COverseer_TheBarrens": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 22,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "CSmallScout_Badlands": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 9
+  },
+  "CSmallScout_DirtRoad": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 32,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "CSmallScout_DirtRoad_Tutorial": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {}
+  },
+  "CsmallScout_Farm": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "CSmallScout_Marshlands": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "CSmallScout_NukedCity": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "CSmallScout_Quagmire": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "CSmallScout_Roadhouse": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod": 3,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "CSupplyShip_OverlookA": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPathNode": 1,
+    "XComAlienPod": 8,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12,
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "CSupplyShip_Wildfire": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 8,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 10
+  },
+  "DEMO_SonOfFacemelt": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "DEMO_SonOfFacemelt_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 9
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 8
+   }
+  },
+  "DLC1_1_LowFriends": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 2,
+    "XComNoSpawnVolume": 6,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "DLC1_1_LowFriends_Stream": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 1,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 22
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 27,
+    "SeqAct_SpawnCivilian": 1
+   }
+  },
+  "DLC1_2_CnfndLight": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 5,
+    "XComSpawnPoint": 7
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "DLC1_2_CnfndLight_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 8
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "DLC1_3_Gangplank": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComSpawnPoint": 17
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "DLC1_3_Gangplank_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint_Alien": 16
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 35
+   }
+  },
+  "DLC2_1_Portent": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 1,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "DLC2_1_Portent_CovExt": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 31,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "DLC2_1_Portent_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 13
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 11,
+    "SeqAct_SpawnCivilian": 1
+   }
+  },
+  "DLC2_2_Deluge": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "DLC2_2_Deluge_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 17
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 16
+   }
+  },
+  "DLC2_3_Furies": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 3,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {
+    "SeqAct_SpawnUnit": 1
+   },
+   "landingZones": 3
+  },
+  "DLC2_3_Furies_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 11
+   }
+  },
+  "EWI_ChryssalidHive": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 6,
+    "XComNoSpawnVolume": 7,
+    "XComSpawnPoint": 18,
+    "XComSpawnPoint_Alien": 2
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 1
+   },
+   "landingZones": 4
+  },
+  "EWI_ChryssalidHive_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint_Alien": 42
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 42
+   }
+  },
+  "EWI_ExaltHQAssault": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 5,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "EWI_ExaltHQAssault_Stream": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "EWI_HQAssault": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "EWI_HQAssault_MP": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 0
+  },
+  "EWI_HQAssault_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComSpawnPoint": 24,
+    "XComSpawnPoint_Alien": 129,
+    "XComWaveSystem": 1
+   },
+   "kismet": {
+    "SeqAct_SpawnReinforcement": 20
+   }
+  },
+  "EWI_MeldTutorial": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 3,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 12
+  },
+  "EWI_MeldTutorial_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComMeldContainerSpawnPoint": 4
+   },
+   "kismet": {}
+  },
+  "LAbductor_FarmOutskirts": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPathNode": 4,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {
+    "SeqAct_SpawnUnit": 1
+   },
+   "landingZones": 5
+  },
+  "LAbductor_WindingStream": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "LLrgScout_CreepyForest": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "LLrgScout_Hillside": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 5,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "LSmallScout_River": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPathNode": 19,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "LSmallScout_Rivervalley": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 3,
+    "XComAlienPod": 4,
+    "XComMeldContainerSpawnPoint": 12,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "LSupplyShip_ForestGrove": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod": 8,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 13
+   },
+   "kismet": {},
+   "landingZones": 9
+  },
+  "LSupplyShip_RockyGorge": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPathNode": 6,
+    "XComAlienPod": 9,
+    "XComMeldContainerSpawnPoint": 8,
+    "XComSpawnPoint": 12
+   },
+   "kismet": {},
+   "landingZones": 12
+  },
+  "patch_abductor_farm": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_abductor_windingstream": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_alienbase1": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_alienbase2": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_bar": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_barrens": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_battleship": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_battleship_roof": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_boulevard": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_battleship": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_exaltprops": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_hive": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_nukedcity": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_overlook": {
+   "role": "stream",
+   "counts": {
+    "XComMeldContainerSpawnPoint": 1
+   },
+   "kismet": {}
+  },
+  "patch_clean_overseer_barrens": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_overseer_deepwoods": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_overseer_stonewall": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_clean_overseer_trench": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_cnfndlight": {
+   "role": "stream",
+   "counts": {
+    "XComNoSpawnVolume": 1
+   },
+   "kismet": {}
+  },
+  "patch_commercialalley": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialalley_carflank": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialalley_ewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialrestaurant": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialstreet": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialstreet2": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_commercialstreet2_terror": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_convstore": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_convstore_terror": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_deepwoods": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_deluge": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_dirtroad": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_exalthq": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_farm": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_fastfood": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_fastfood_ewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_forest_trench": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_forestgrove_computerfix": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_furies": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_gasstationewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_hide_randomized_objects": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_highway1": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_highwaybridge": {
+   "role": "stream",
+   "counts": {
+    "XComNoSpawnVolume": 2
+   },
+   "kismet": {}
+  },
+  "patch_highwayconstruction": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_highwayconstruction_ewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_icecreamshop": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_lidhive": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_liquorestore": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_lowfriends": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_marshlands": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_militaryammo": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_nukedcity": {
+   "role": "stream",
+   "counts": {
+    "XComNoSpawnVolume": 1
+   },
+   "kismet": {}
+  },
+  "patch_officepaper": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_officepaper2": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_officepaper_ewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_officepaper_terror": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_overseer_barrens": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_overseer_deepwoods": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_overseer_stonewall": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_overseer_trench": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_pickuptruckfix": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_pier_terror": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_piera": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_piera_warehousefix": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_policestation": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_portent": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_quagmire": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_researchoutpost": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_roadhouse": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_rockygorge_computerfix": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_rooftopconstr": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_scoutcity": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_scoutriver": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_scoutrivervalley": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_ship_gorge": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_ship_grove": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_ship_overlook": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_ship_wildfire": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_slaughterhouse": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_smallcemetery": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_streethurricane": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_streetoverpassewi": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_terrorize_piera": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_trainyard": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_truckstop": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_truckstop_door": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_xcomhq": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "patch_xcomhq-mp": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "TempleShip": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 14,
+    "XComSpawnPoint": 13,
+    "XComSpawnPoint_Alien": 20
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 15
+   },
+   "landingZones": 0
+  },
+  "TempleShip_Stream": {
+   "role": "stream",
+   "counts": {},
+   "kismet": {}
+  },
+  "URB_Bar": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 5,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "URB_Bar_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 10,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "URB_Boulevard": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 22
+   },
+   "kismet": {},
+   "landingZones": 7
+  },
+  "URB_Boulevard_CNH": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 27,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_Boulevard_Euro": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPathNode": 6,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 22
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_CemeteryGrand": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 5,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 19,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "URB_CemeteryGrand_Bomb": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "URB_CemeteryGrand_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4
+   },
+   "kismet": {}
+  },
+  "URB_CommercialAlley": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 9,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "URB_CommercialAlley_CovExt": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 64,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_CommercialAlley_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 9,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "URB_CommercialAlley_Stream": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 88
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 15,
+    "SeqAct_SpawnCivilian": 1
+   }
+  },
+  "URB_CommercialAlley_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 18,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "URB_CommercialRestaurant": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 6,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 3
+  },
+  "URB_CommercialRestaurant_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 60,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_CommercialStreet": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_CommercialStreet_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 15,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_ConvienienceStore": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 5,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_ConvienienceStore_CovExt": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 57,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_ConvienienceStore_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 5,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "URB_ConvienienceStore_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 10,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_Demolition_CNH": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 58,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_Demolition_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_FastFood": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_FastFood_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "URB_GasStation_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 61,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_GasStation_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod_Abduction": 5,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_Highway1": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 2,
+    "XComAlienPod_Terror": 5,
+    "XComMeldContainerSpawnPoint": 2,
+    "XComNoSpawnVolume": 2,
+    "XComSpawnPoint": 22
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_HIghwayBomb_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "URB_HighwayBridge": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 2,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_HighwayConstruction": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 5,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 6,
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_HighwayConstruction_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 51,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_HighwayConstruction_CovExt": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 48,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_HighwayConstruction_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 2,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 8
+  },
+  "URB_HighwayFallen": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 6,
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_HighwayFallen_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 2,
+    "XComSpawnPoint_Alien": 15
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 8,
+    "SeqAct_SpawnCivilian": 2
+   }
+  },
+  "URB_IndustrialOffice": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_IndustrialOffice_CNH": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 34,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_IndustrialOffice_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4
+   },
+   "kismet": {}
+  },
+  "URB_LiquorStore": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_LiquorStore_CovExt": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 40,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_MilitaryAmmo": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 18,
+    "XComSpawnPoint": 6,
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_MilitaryAmmo_CovExt": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 31,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_OfficePaper": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 5,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 5,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_OfficePaper_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 56,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_OfficePaper_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 2,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_OfficePaper_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 6
+  },
+  "URB_PierA": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 10,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_PierA_Asian": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 10,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_PierA_Stream": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 18
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 6,
+    "SeqAct_SpawnCivilian": 1
+   }
+  },
+  "URB_PierA_StreamB": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {}
+  },
+  "URB_PierA_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 5,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 19
+   },
+   "kismet": {},
+   "landingZones": 3
+  },
+  "URB_PoliceStation": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 7,
+    "XComNoSpawnVolume": 8,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_PoliceStation_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 24,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_ResearchOutpost": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 9,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_ResearchOutpost_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 9,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_ResearchOutpost_Rescue": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 32
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 12,
+    "SeqAct_SpawnCivilian": 1
+   }
+  },
+  "URB_ResearchOutpost_Stream": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {}
+  },
+  "URB_RooftopsConst": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 7,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_RooftopsConst_Asian": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 8,
+    "XComSpawnPoint": 18,
+    "XComSpawnPoint_Alien": 1
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_RooftopsConst_CNH": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 28,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_Slaughterhouse_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "URB_SlaughterhouseA": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 8,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 7,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_SmallCemetery": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_StreetHurricane": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 6,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_StreetHurricane_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 3,
+    "XComSpawnPoint_Alien": 13,
+    "XComWaveSystem": 1
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 7,
+    "SeqAct_SpawnCivilian": 3
+   }
+  },
+  "URB_StreetHurricane_Terror": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Terror": 5,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_StreetOverpass": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 8
+   },
+   "kismet": {},
+   "landingZones": 2
+  },
+  "URB_StreetOverpass_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 6
+   },
+   "kismet": {},
+   "landingZones": 3
+  },
+  "URB_StreetOverpass_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4
+   },
+   "kismet": {}
+  },
+  "URB_TrainStation": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 3,
+    "XComSpawnPoint": 9
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_TrainStation_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "URB_Trainyard": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 6,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 1,
+    "XComSpawnPoint": 18
+   },
+   "kismet": {
+    "SeqAct_SpawnUnit": 1
+   },
+   "landingZones": 4
+  },
+  "URB_Trainyard_CovExt": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 2,
+    "XComSpawnPoint": 1,
+    "XComSpawnPoint_Alien": 41,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_Trainyard_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4,
+    "XComSpawnPoint_Alien": 10
+   },
+   "kismet": {
+    "SeqAct_SpawnAlien": 10
+   }
+  },
+  "URB_TruckStop": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 7
+   },
+   "kismet": {},
+   "landingZones": 4
+  },
+  "URB_TruckStop_CNH": {
+   "role": "stream",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod": 2,
+    "XComCapturePointVolume": 2,
+    "XComSpawnPoint": 7,
+    "XComSpawnPoint_Alien": 24,
+    "XComWaveSystem": 1
+   },
+   "kismet": {}
+  },
+  "URB_TruckStop_EWI": {
+   "role": "base",
+   "counts": {
+    "PlayerStart": 1,
+    "XComAlienPod_Abduction": 4,
+    "XComMeldContainerSpawnPoint": 4,
+    "XComNoSpawnVolume": 4,
+    "XComSpawnPoint": 7
+   },
+   "kismet": {},
+   "landingZones": 5
+  },
+  "URB_TruckStop_Stream": {
+   "role": "stream",
+   "counts": {
+    "XComAlienPod": 4
+   },
+   "kismet": {}
+  }
+ }
+}

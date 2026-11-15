@@ -1,0 +1,10 @@
+[
+  {
+    "name": "pivot beyond the footprint",
+    "origin": [384, -192, 0],
+    "worldBox": [384, -192, 0, 576, 0, 176],
+    "worldPosition": [240, -144, 64],
+    "localBox": [0, 0, 0, 192, 192, 176],
+    "localPosition": [-144, 48, 64]
+  }
+]

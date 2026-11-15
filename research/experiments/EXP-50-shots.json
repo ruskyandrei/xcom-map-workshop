@@ -1,0 +1,27 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e50", "shots": [
+ {"out": "EXP-50-overview.png", "title": "EXP-50: the bar's ground floor stretched over the car park, the sign's building moved west",
+  "target": [-100, -900, 100], "camera": [1100, -2300, 1700],
+  "box": [[480, -384, 16], [768, -384, 16], [768, 0, 16], [480, 0, 16]],
+  "marks": [
+   {"n": "1", "at": [624, -192, 60], "color": "#ffb347", "r": 70,
+    "text": "the stretched part (dashed): a soldier here should cut the bar's upper floors and roof away"},
+   {"n": "2", "at": [200, 600, 60], "color": "#5ad17a", "r": 60, "side": "left",
+    "text": "inside the bar, as before: the roof cuts away the same"},
+   {"n": "3", "at": [-1008, -1680, 300], "color": "#e06cff", "r": 60, "side": "left",
+    "text": "the sign at its new place: a soldier at its foot should make it hide"},
+   {"n": "4", "at": [-240, -1680, 120], "color": "#ff6b6b", "r": 50,
+    "text": "where the sign stood: empty now, nothing hides here"}]},
+ {"out": "EXP-50-bar-floor1.png", "title": "EXP-50: the bar at floor 1 (the editor's Floors at 1), the stretched part in front",
+  "target": [300, 100, 60], "camera": [700, -1500, 1300], "floor": "1",
+  "box": [[480, -384, 16], [768, -384, 16], [768, 0, 16], [480, 0, 16]],
+  "marks": [
+   {"n": "1", "at": [624, -192, 30], "color": "#ffb347", "r": 70,
+    "text": "the stretched part: stand a soldier here, by the parked car"}]},
+ {"out": "EXP-50-sign.png", "title": "EXP-50: the sign moved eight tiles west along the pavement",
+  "target": [-620, -1680, 150], "camera": [300, -1500, 900],
+  "box": [[-1120, -1888, 16], [-896, -1888, 16], [-896, -1472, 16], [-1120, -1472, 16]],
+  "marks": [
+   {"n": "3", "at": [-1008, -1680, 300], "color": "#e06cff", "r": 60, "side": "left",
+    "text": "the sign's new place (dashed: its building's ground box)"},
+   {"n": "4", "at": [-240, -1680, 120], "color": "#ff6b6b", "r": 50,
+    "text": "its old place"}]}]}

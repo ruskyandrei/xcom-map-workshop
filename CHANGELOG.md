@@ -1,0 +1,10356 @@
+# Change ledger
+
+What changed in the repository, newest first, added as each change goes in. Each entry says what changed, where,
+and how it was checked. Experiment results stay in `research/experiments/` and the
+[findings register](research/findings-register.md); this ledger records the tools and documents.
+
+Before 5 November 2026 the history is in Git and in the experiment notes.
+
+## 15 November 2026
+
+### The source is in the public repository
+
+- At the user's ask, the editor's source, tools and research moved into the public repository that held only the
+  releases ([ruskyandrei/xcom-map-workshop](https://github.com/ruskyandrei/xcom-map-workshop)), as one commit on top of
+  its README-only commit, and a new folder is the development folder. The earlier private repository keeps the
+  history before this entry. The plan is kept privately, with the other plans.
+- **Left out** (kept in `private/`, which Git ignores, or only in the earlier repository): the copies of other
+  projects' source files (the [manifest](research/evidence/upstream/source-manifest.json) stays), our diff of the
+  unlicensed XComGame stubs, the Discord feedback list and its skill, the plans (at the user's ask: `private/plans`, 23 done and 5 not
+  built; links to them here and in the notes became plain text) and the 92 pictures of experiments.
+- **Scrubbed before the commit:** folders of one computer became placeholders (`<lab>`, `<Steam common>`,
+  `<Steam library>`, `<repo>`, `%USERPROFILE%`) in 50 files; mentions of other projects, hardware and a Discord
+  poster's name were reworded; picture embeds and links in the notes became plain text; links to files that are not
+  here became plain text and links broken by earlier moves were repaired. Eight readers then read every research
+  document, this ledger, the release notes and the guide; what they found was fixed.
+- **A guard:** the new `repo` suite ([test_repo.py](tools/repo/tests/test_repo.py), in
+  [run_tests.py](tools/run_tests.py)) fails on a drive-letter path that is not a made-up example, a profile folder
+  that is not a placeholder, a file of `private/`, an upstream copy, the stub diff, a picture under `research/`, or a
+  relative Markdown link that leads nowhere. [AGENTS.md](AGENTS.md): the repository is public, the records write
+  placeholders too, and what `private/` is for.
+- **Tools:** [mark_shots.py](tools/viewer/mark_shots.py) writes its pictures to `private/shots` (or `--out`), no
+  longer beside the shots file; [save_stub_diff.py](tools/udk/save_stub_diff.py) writes the diff to `private/`.
+- **Documents:** one [README](README.md) for testers and developers, with a section on working from a clone; the
+  [release skill](.claude/skills/release/SKILL.md) publishes in this repository, the tag on the commit the release
+  was built from; `LICENSE` and the installer's publisher name Andrei.
+- Checked: every suite in the new folder: viewer 282 tests (one fails by chance, `test_save_numbers_revisions_keeps_the_previous_and_lists`, when its two saves fall in different seconds; it passed 2 of 3 reruns and the code is unchanged), editor 203, upk 106, bake 390 (1 skipped), release 6, repo 3, node 6 files. A trial release built and `smoke_release.py` passed 10 of 10 steps; its `LICENSE.txt` names Andrei. The guide's 27 pictures were looked at on contact sheets: nothing personal. A sweep of the files Git adds for the user name, local folders, other projects and hardware found nothing. The main server on 8768 was restarted from the new folder, and the UDK's `XComMapEd` junction points at it. Not pushed (the user's go-ahead first).
+- Gaps: the tags up to v0.5.2 sit on the README-only commit, so those releases' source is not here. A note that
+  showed a picture now only names it; the readers found no result that only a picture carried.
+
+### A release skill, and release smoke tests
+
+- At the user's ask, a new project skill: [release](.claude/skills/release/SKILL.md). It is the process 0.5.2 went
+  through, in thirteen steps:
+  - the full suites on the branch, then a fast-forward into main;
+  - the patch version;
+  - the notes, checked against their sources, with the upgrade questions (the export number, what the last version
+    can open) and four known limits at most;
+  - the guide's and README's "New in" lists;
+  - the build into `dist/release`, then the smoke tests;
+  - a ledger entry and commit.
+- It then **stops and shows the notes in full**, and asks before pushing and publishing. After the user's yes it
+  publishes and checks what was published (digests, Latest, download links, the notes), then gives a Discord summary
+  from a template (under 2,000 characters, the link in `<...>`).
+- New [smoke_release.py](tools/release/smoke_release.py), the skill's step 7:
+  - the two files and their SHA-256s;
+  - the zip read back (one folder; `VERSION.txt`; the README is GETTING-STARTED.md; the guide's "New in" table; the
+    launcher, the licences and the Python; every file of ours under `tools/` against the repository);
+  - the zip unpacked to `dist/smoke-<version>` and started with its own Python on a test port, with scratch folders and
+    `--dry-play` (`/setup.json`, the page, the map listed);
+  - in headless Edge: the map opens with no page errors, the help names the version, and
+    `browser_smoke.py --only light-grid,text-select` passes;
+  - then the server is stopped and the folder deleted.
+- Checked:
+  - `smoke_release.py` on the published 0.5.2 passed 10 of 10 steps (129 of our files equal the repository's), and
+    left no server or folder behind;
+  - a new test in [test_release.py](tools/release/tests/test_release.py) checks the zip read-back with a small fake
+    zip: a good one passes, and a bad one gives each problem (missing Python, wrong version, no table, a changed file,
+    a file not ours, a zip for another version);
+  - the release suite passes (6).
+
+### Release 0.5.2 published
+
+- With the user's go-ahead ("let's publish this release"), main was pushed to the private repository (`9b09d7c`), then
+  [v0.5.2](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.5.2) was created on the releases
+  repository.
+- It is titled "XCOM Map Workshop 0.5.2 (preview)" and marked Latest, with the Setup.exe, the zip and the notes file
+  (`gh release create --notes-file tools/release/notes/0.5.2.md --latest`).
+- Checked:
+  - GitHub's digests and sizes of both files equal the local ones (`418855ed…bf55dce`, 63,486,949 bytes;
+    `98df0687…4b41ee8`, 101,633,686 bytes);
+  - `releases/latest` names v0.5.2, and both `releases/latest/download/` links answer 200 without signing in;
+  - the published notes equal the file, but for one trailing blank line.
+
+### Release 0.5.2's notes: two fixes taken out
+
+- At the user's ask, two of the bugs fixed are out of [tools/release/notes/0.5.2.md](tools/release/notes/0.5.2.md):
+  EXALT's missions had Sectoids, and a test play's save went over a campaign's save 1. So is the Enable saving line on
+  play saves, which said the same as the second.
+- Enable saving was taken out too, then put back at the user's word.
+- Only the notes changed. The zip, the installer and their SHA-256s stay as built.
+
+### Release 0.5.2: the mission you pick, Missions…, mission objects, Enable saving, cover blocks of any size, blockers
+
+At the user's ask ("commit, push and prepare a new patch release"). `discord-easy` was merged into main as a
+fast-forward (`dfb6c72`), after every suite passed on it. That also brought in the mission types work merged into
+main earlier the same day.
+
+- [version.py](tools/viewer/version.py) 0.5.2: the patch step, which the user asked for.
+- Release notes: [tools/release/notes/0.5.2.md](tools/release/notes/0.5.2.md), drawn from the entries since 0.5.1.
+  - **Upgrading:** every map is read again on its first open (export 24). A project or prefab with cover blocks saved
+    in 0.5.2 can't be opened in 0.5.1, which checks the old fields.
+  - **New features:** Play in game plays the picked mission (the kinds played and working, from
+    [missions.py](tools/viewer/missions.py)'s table), Missions…, mission objects (marked, moved with their group,
+    warned of), Enable saving, cover blocks of any size, blockers, camera speeds, the Pivot.
+  - **Changes:** the prefab test's bake off by default, the names the game matches kept in a build's records, text
+    that doesn't select, "the original map".
+  - **Bugs fixed:** Deluge, F-106, F-107, F-112, play saves over a campaign's save 1, Shift mid-move.
+  - **Known limits, four:** what isn't played, a test battle isn't a campaign mission, a new map from one of the
+    game's with only its pieces, Long War Rebalance through Steam.
+- The guide's New in this version ([guide.html](tools/release/guide/guide.html)) gains a New in 0.5.2 table above
+  0.5.1's. The testers' README ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) gains the same list.
+- Made in `dist/release` beside the earlier ones:
+  - `XCOM-Map-Workshop-0.5.2.zip`: 101.6 MB, 130 of our files, SHA-256 `98df0687…4b41ee8`;
+  - `XCOM-Map-Workshop-0.5.2-Setup.exe`: 63.5 MB, Inno Setup 6, SHA-256 `418855ed…bf55dce`.
+
+  The staged Python's import check passed.
+- **Checked.**
+  - `tools/run_tests.py`, every suite, on `discord-easy` before the merge: viewer 282, editor 203, upk 106, bake 390
+    (1 skipped), release 5, node 6 files, all pass. After the version and text changes, release and viewer `-k guide`
+    pass.
+  - The zip, read back: `VERSION.txt` says 0.5.2. These equal the repository's: `light_grid.js`, `style.css`,
+    `index.html`, `missions.py`, `mission_view.js`, `cover.js`, `compiler.py`, `cover_blocks.py`, `playsaves.py` and
+    `version.py`. Its README is GETTING-STARTED.md, and the guide has the 0.5.2 table.
+  - The zip, unpacked to a trial folder and started with its own Python on a test server (port 8795, scratch projects
+    and builds, `--dry-play`): `/setup.json` says 0.5.2; the help says "XCOM Map Workshop 0.5.2 (preview)"; Deluge
+    opens (932 pieces) with no console errors; the Enable saving tab is in the page. Server stopped, trial folder
+    deleted.
+- Not published (ask first). Known gaps: the installer wasn't run. Nothing was played for this release beyond the
+  experiments named in the notes. The guide's pictures of the Missions panel and the mission objects' arrows don't
+  exist yet.
+
+### Build window: the Enable saving tab's words slide out on top, moving nothing
+
+- The user saw the other buttons and the whole window shift when the tab's words slid out: they took room in the row,
+  squeezing the buttons onto two lines. The words are now drawn on top, over whatever is to the tab's right, with a
+  shadow, and take no room in the row. They are revealed by a clip, not a width change
+  ([style.css](tools/viewer/web/style.css)). They no longer stay out while ticked, because on top they would keep
+  covering the next button. The ticked box shows the state, and its tooltip still explains it. Footer buttons no longer
+  wrap their words.
+- Checked in the browser, with the build window shown by hand (no real build) and all four buttons showing: every footer
+  button and the window keep the same position and size, to the pixel, when the tab is pointed at and when it is
+  ticked. The words then lie over the start of "Save a bug report". The slide itself was seen only with the animation
+  switched off, because the browser pane was hidden.
+
+### Build window: Enable saving as a tab on Play in game
+
+- At the user's ask, the finished build's **Enable saving** no longer floats loose beside **Play in game**. It sits in a
+  tab joined to the button's right edge, with the same border and square inner corners
+  ([index.html](tools/viewer/web/index.html) `.playgroup`, [style.css](tools/viewer/web/style.css)). The tab shows only
+  the checkbox. Its words slide out when the pointer is on it or it has keyboard focus, and stay out while it is ticked,
+  so the state always shows. It dims with the button when the button is disabled. The button no longer wraps onto two
+  lines. The guide's sentence on where the checkbox is now names the tab
+  ([guide.html](tools/release/guide/guide.html)).
+- Checked in the browser on the main server, with the build window shown by hand (no real build): collapsed, hovered,
+  ticked with the pointer away, and disabled. Viewer and release `-k guide` pass.
+
+### Deluge (Progeny 2) opens: a far light no longer breaks the light grid
+
+- Deluge stopped at "Could not open scene: Invalid array length". One of its lights, Lightmass's
+  `GeneratedMeshAreaLight_369` (a spot light about 120 000 units out), has a radius of 2.4 million units, so the
+  local light grid asked for about 1.4 billion 128-unit cells.
+- The grid now covers only where the map has pieces ([light_grid.js](tools/viewer/web/light_grid.js)
+  `sceneLightClip`): each piece by its mesh bounds, leaving out the sky dome and ground plane (environment pieces), plus
+  the play area, widened by 4096 units. Past `MAX_CELLS` (262 144) cells, or wider than the GPU's texture size, its
+  cells double in size. The shader already took the cell size from a uniform; [lighting.js](tools/viewer/web/lighting.js)
+  now passes the grid's own size. Other maps keep 128-unit cells. Deluge gets 1024-unit cells (366 × 279), with at most
+  19 lights in a cell (15 without the far light).
+- Checked: Deluge opens on the main server, in neutral light, Map lighting and Map lighting without area lights. A new
+  smoke check `check_light_grid` ([browser_smoke.py](tools/viewer/tests/browser_smoke.py), also `--only light-grid`)
+  passes on Deluge. `--only light-grid,lights` passes on the Bar. Run on Deluge, `lights` stops where it looks for a
+  static spot light in the Bar's size range, which Deluge doesn't have; the Map lighting steps before that pass. Node
+  suite and viewer `-k light` pass.
+- Known gap: a piece moved or added more than 4096 units past the map's own pieces and play area gets no local light,
+  because the clip reads the exported pieces. The play area as the Map grid tool sets it is read again each time the
+  lights change.
+
+### Cover blocks: a sight line in the piece panel
+
+- At the user's ask, a selected cover block's panel says in one sentence, under its Cover choice, what it does to line
+  of sight ([app.js](tools/viewer/web/app.js) `coverSightWords`, `#coverSight` in
+  [index.html](tools/viewer/web/index.html)):
+  - None (a blocker): units see and shoot through it;
+  - Low: units see and shoot over it;
+  - High: it blocks sight as a wall does, though a unit beside it can lean round its ends; or, when it doesn't stand
+    across eye height (the tiles one level above the floor, where the game walks sight: `coverTiles` counts the lines
+    between tile centres it crosses 96 over the level's bottom), that units see and shoot past it.
+  - The cover sentence no longer carries sight. An invisible floor shows no sight line.
+- The guide's cover legend names the line, and its shot is retaken.
+- Checked: the browser smoke's `check_cover` checks the line for a blocker, a low block, a half-tile high block
+  (blocks), a high block 40 tall (doesn't reach eye height) and a floor (none); viewer `-k guide` and release suites
+  pass.
+- Known gap: a hidden high block stopping sight is still read from the game's code, not played (F-113).
+- On branch `discord-easy`.
+
+### EXP-59 run 1 passed; Discord S8 done; a blocker's sight seen
+
+- [EXP-59](research/experiments/EXP-59-small-cover-blocks.md) run 1 passed (the user, 15 Nov): the small blocks did
+  what the panel says, and the 8-unit edge wall held as a wall. New finding
+  [F-113](research/findings-register.md) (verified), with its open part: the user saw and shot across the one-tile
+  wall, most likely by leaning round its ends (the soldier was up against it); a hidden high block's sight at eye
+  level is unchecked, and the notes give a check that would settle it.
+- the Discord feedback list (kept locally): S8 (invisible cover wall) done by the thin edge block; S6
+  notes the user's 4 × 6 blocker, seen and shot through, as built. [EXP-58](research/experiments/EXP-58-blockers.md)
+  records that sight result; its other items are not reported.
+- Records only; no code changed.
+
+### Prefab Test in game: Bake the lighting off by default
+
+- At the user's ask, the builder's **Prefab → Test in game** panel now opens with **Bake the lighting** unticked, as
+  the map Build's panel does ([app.js](tools/viewer/web/app.js) `openPrefabTest`). Its help line says so
+  ([index.html](tools/viewer/web/index.html)).
+- The guide's [prefab testing section](tools/release/guide/guide.html) says baking is off by default and what
+  ticking it adds; its shot is retaken (`take_shots.py --only prefab-test`). The old shot predated the Enable saving
+  row, so the image's size in the page is corrected too (460 × 314).
+- Checked: [browser_prefab_test.py](tools/viewer/tests/browser_prefab_test.py) now expects the box unticked, ticks
+  it for the first test (a baked build is still asked for when ticked) and leaves the default for the second (a
+  quick build); `browser_smoke.py --only prefab-test` passes on a test server; viewer `-k guide` and release suites
+  pass.
+- On branch `discord-easy`.
+
+### EXP-59 ready to play: cover blocks smaller than a tile
+
+- New [EXP-59-small-cover-blocks.md](research/experiments/EXP-59-small-cover-blocks.md) and its project script
+  [exp59_project.py](tools/editor/examples/exp59_project.py): six high blocks along the Bar's pavement (a whole-tile
+  control, half a tile in a tile's middle, an 8-unit wall on a tile edge, a 24-unit block in a corner, a block 40
+  high, a 2-unit wall on an edge), each with the panel's prediction and what to look for in the game.
+- Built offline (quick build, `--store`: the project `EXP-59 small cover blocks` in the editor's store, its build
+  `URB_Bar_X59` in the builds folder): compiles with only the expected `cover-short` (D) and `cover-thin` (E)
+  warnings, six blocks written as `XComLevelActor_469` to `_474`. Marked shots from
+  [EXP-59-shots.json](research/experiments/EXP-59-shots.json) by [mark_shots.py](tools/viewer/mark_shots.py) on a
+  test server: overview (`EXP-59-overview.png`), east (`EXP-59-east.png`),
+  west (`EXP-59-west.png`).
+- Not played yet.
+- On branch `discord-easy`.
+
+### Cover blocks: what the game makes of small blocks, by the full read of the cover step
+
+- The panel's words and the Build's warnings for cover blocks now follow
+  [native/cover-build.md](research/native/cover-build.md) (the full read of the game's cover step) rather than the
+  older notes the handles plan's section 1 was written from. A correction note in
+  the plan gives the differences.
+  - [app.js](tools/viewer/web/app.js) `coverTiles`: an exact footprint test against each tile (separating axes, not 9
+    sample points, which missed a thin block crossing a tile between them); occupancy and the middle box measured
+    from the tile's level (28 to 92, 60 to 92), not the block's floor; walls are the lines between tile centres it
+    crosses 64 over the floor (no thickness rule, so a block under 4 through can still wall off an edge); cover is
+    looked for 44 to 60 over the floor, along the lines through tile centres, within 88 of the centre, only toward
+    an occupied neighbour or from a partly occupied tile.
+  - `coverGameWords` says where units can stand, how many tile edges it walls off, and how many tiles get its cover
+    (or why none: under 44, over 60, off the lines, or filling no tile).
+  - [compiler.py](tools/editor/compiler.py): `cover-short` warns for a top at or under 44 or a bottom at or over 60
+    (was a top under 52); `cover-thin` says a thin block gives no cover on its own but can still stop crossing, and
+    leaves out a plate 384 or more across (the game counts it).
+  - The guide's bullets on blocks smaller than a tile and its cover shot follow (the panel's new words).
+- Checked: the browser smoke's `check_cover` now also puts EXP-59's five shapes on the tile lines and checks the
+  panel's words for each (half a tile in the middle, an 8-unit wall on an edge, a 24-unit block in a corner, a top
+  of 40, a 2-unit wall); [test_compiler.py](tools/editor/tests/test_compiler.py) covers the floating block and the
+  wide thin plate; editor, viewer, node and release suites pass.
+- Known gaps: still read from the game's code, not played (EXP-59). The model takes the tiles' floors to be at the
+  block's own height and leaves out a turned block's facing test (a block turned 45° is hit at a slant the game may
+  refuse).
+- On branch `discord-easy`.
+
+### Review: effects and sounds plan, evidence limits and implementation contracts
+
+- Revised effects-and-sounds-plan.md after a detailed review
+  against the census, exporter, compiler, library, prefab/project validators, native writer and building/landing
+  code. This is a plan update; no effects/sounds implementation is enabled.
+- Corrected claims that closure checks prove playback, that the particle audit covers every native tail/LOD, and
+  that every sound resolves to one playable wave. Recorded the census's nine no-wave actors, its class/live-list
+  and source-identity limits, and the missing AmbientSoundMovable closure row.
+- Defined non-mesh records and schema compatibility; saved/effective/unknown values; direct/carried/group/landing
+  precedence; private-copy isolation; final-state floor reconciliation; Clear map parity; and effects-only
+  quick/full build dispatch. Added the non-mesh library template path, complete recipe identities and lazy,
+  validated wave audition. Wider carrying addresses only the smoke portion of F-50.
+- Added FX0a to close the evidence gaps, separate capability gates, and offline/browser/game acceptance matrices.
+  Expanded optional gallery, custom-audio portability/validation and retuned-system graph/LOD requirements.
+- Checked: local Markdown links, LF preservation and `git diff --check`; `tools/run_tests.py upk -k audit_effects`
+  (11 passed) and `tools/run_tests.py bake -k native_effects` (3 passed, no skips). Read-only sound probes found
+  empty/missing Wave slots in the eight currently available baseline cases; URB_Bar_X42 was absent from the
+  configured lab install. The saved census remains unchanged. No new game-play evidence; runtime acceptance and
+  plain-EW/LWR compatibility remain to be established by the planned experiments.
+
+### Cover blocks of any size, resized with handles in the view
+
+- Built cover-block-handles-plan.md (H1 to H6; moved from
+  `todo`), at the user's ask, with the user's answers to its open points (up under 96 snap: today's tile heights; the
+  bottom draggable):
+  - **Handles.** With one cover block or invisible floor selected, a white handle stands off each face along its own
+    axes: four sides, a block's top and bottom ([app.js](tools/viewer/web/app.js), drawn and picked as the building
+    boxes' are). A drag moves that face; a low side's drag moves the corner, so the far side stays; Esc puts it back;
+    each drag is one undo step; the drag hint says the size.
+  - **The snap setting's steps** ([cover.js](tools/viewer/web/cover.js) `resizedCover`): off to the unit, 24 in
+    steps of 24, 96 in whole tiles across and today's tile heights up and down (from the type's first top or bottom).
+    Cover High/Low moves heights that are on the old type's tile steps to the new type's (`retyped`).
+  - **The panel** loses Width, Length and Height. It keeps Cover (and Fit to ground for floors) and says the size
+    ("2 × 1 tiles across, from 12 units below its floor to 2 tiles above it") and what the game should do there:
+    the tiles whose middle it fills, a wall where it fills none, no cover under 52, nothing under 4 units through. A
+    floor's panel counts the tiles it carries (those whose centre it covers).
+  - **The record** is in units, `{ type, size: [x, y], heights: [z0, z1] }` (a floor's `{ type, size }`); the
+    whole-tile records and the first ones still read ([project.js](tools/viewer/web/project.js),
+    [prefabs.py](tools/viewer/prefabs.py), [prefab_bounds.py](tools/viewer/prefab_bounds.py)).
+  - **The compiler** ([compiler.py](tools/editor/compiler.py) `cover_shape`) reads all three, checks sizes (8 units
+    to 16 tiles across, up to the recipe's tallest), and warns for a block under 4 units through (`cover-thin`) or a
+    high/low block whose top is under 52 (`cover-short`), which do nothing in the game. No new recipe version: the
+    Build's box mesh was already made at any size.
+  - The help panel has the handles; the guide's [cover section](tools/release/guide/guide.html) is rewritten for
+    them (sizing, the snap steps, what a block smaller than a tile does, floors' carried tiles), its shot retaken
+    by [take_shots.py](tools/release/guide/take_shots.py) (blocks sized with `viewer.setCover`, a handle marked).
+- Checked:
+  - new [cover_test.mjs](tools/viewer/tests/cover_test.mjs) (records, faces, every snap step on both sides, the
+    corner shift, the limits, retyping, words);
+  - [test_compiler.py](tools/editor/tests/test_compiler.py) (a record in units is the same block as one in tiles;
+    blocks smaller than a tile and the warnings; malformed records refused);
+  - [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py) `BlocksSmallerThanATile` (a half-tile block, an
+    8-unit wall, a floating block, a turned 48 × 96 blocker and a 150 × 96 floor built in URB_Bar and read back:
+    meshes, hulls, corners, floor cells);
+  - the browser smoke's `check_cover`, rewritten for the handles (each face at each snap, the corner shift, undo,
+    Esc, retyping, copy and paste, a floor's four handles and carried tiles), with `cover`, `pivot`, `speeds`,
+    `text-select`, `copy-drag` and `box-select` passing on a test server;
+  - suites: editor, viewer, node, release and `bake -k cover` pass.
+- Known gaps: what the game does with blocks smaller than a tile is read from its code, not played; EXP-59 is to
+  play it. Discord S8 (an invisible cover wall) is a thin block on a tile edge if EXP-59 confirms it
+  (the Discord feedback list (kept locally)).
+- On branch `discord-easy`.
+
+### Plan: effects and sounds in the editor; the effects census
+
+- New effects-and-sounds-plan.md, at the user's ask (a look into
+  showing, editing, copying, deleting and adding the maps' particle emitters and other emitters, with sounds):
+  - an Effects view (markers, names, boxes, a sound's two radii as spheres), with move, copy, delete and undo;
+  - effects and sounds added from this map or any other, through the library and the cross-map copy;
+  - values: a system's own parameters, starts on or off, scale; a sound's radii, volume and pitch;
+  - hearing a sound in the editor (the waves are Ogg Vorbis);
+  - new effects listed with the building floor they stand in, so they hide with it;
+  - as later, optional parts: pictures shot in the game, a sound from the user's own Ogg file, a retuned copy of a
+    particle system.
+  - Decals, weather and a moving particle preview are left out, with the reasons.
+  - Stages FX1 to FX9 and game checks EXP-C to EXP-E; six decisions wait for the user, each with a default.
+- New [audit_effects.py](tools/upk/audit_effects.py): a read-only census of every map's `Emitter` actors, ambient
+  sounds and lens flares, what the mission's script does with them, each particle system and each wave once, and,
+  with `--closure`, whether [transplant.py](tools/bake/transplant.py) could bring each to another map.
+  - Its result for the install is [effects-audit-2026-11-15.json](research/evidence/effects-audit-2026-11-15.json):
+    7,208 effects in 96 of the 97 base maps and 437 in streams; 441 particle systems, none with native data; 855
+    sounds in 91 base maps playing 64 waves (17.2 MB); 110 flares.
+  - The dry run: 7,644 of 7,645 effects, all 870 sounds and all 110 flares could come (one effect's material plays
+    a `TextureMovie`, which has no layout).
+- Checked: [test_audit_effects.py](tools/upk/tests/test_audit_effects.py) (11 tests of the census's pure parts:
+  the preview sorting, the spread of sizes, the summary), run with `tools/run_tests.py upk -k audit_effects`. The
+  plan was read against the code and the census only. Nothing of the editor is built; waiting for the go-ahead.
+- On branch `discord-easy`, where the checkout was.
+
+### Plan: cover block handles (any size, resized in the view)
+
+- New cover-block-handles-plan.md, at the user's ask:
+  - cover blocks and invisible floors of any size in units;
+  - resized with face handles on the block in the 3D view, in place of the panel's fields;
+  - steps that follow the snap setting (off: 1 unit; 24; 96: whole tiles).
+- It reads, from the native notes, what the game should do with a block smaller than a tile:
+  - full occupancy needs the tile's middle;
+  - a thin block on an edge should act as a wall, which would cover Discord S8;
+  - under 4 units through, the game ignores a block;
+  - a block gives cover only if it is 52 or more over the floor.
+- It sets out stages H1 to H7, ending with one play (EXP-59).
+- Checked: read against the code only. Nothing built; waiting for the go-ahead.
+
+### Blockers: cover blocks with Cover set to None (Discord S6); EXP-58 ready
+
+On branch `discord-easy`.
+- **Cover block recipe version 2** ([cover_blocks.py](tools/bake/cover_blocks.py)): version 1 and one kind more,
+  `block`.
+  - It is the high block's hidden box with no `CoverForceFlag`, `bIgnoreForCover` True, not climbed onto nor a
+    destination, and low cover's sight data.
+  - The tile rebuild's occupancy test doesn't read either cover flag, so its tiles stay blocked. The cover trace skips
+    a piece ignored for cover (F-82), so nothing beside it gets cover.
+  - Its breaking variant (`BREAKING[2]`) saves `bIgnoreForCover` where the level actor does, for the blocker alone.
+  - `add_blocks` builds each block by its own version (a block's `version`, 1 when absent). A later version only adds
+    kinds.
+- **Compiler** ([compiler.py](tools/editor/compiler.py)): `COVER_RECIPES[2]` adds the `block` heights (as high). Each
+  block reaches the Build with its version. Blockers break with their group (`BREAKING_COVERS`).
+- **Page:**
+  - [families.py](tools/viewer/families.py) serves the types each version makes.
+  - The piece panel's Cover has **None (blocks walking)**. The block is then drawn purple and named a blocker in its
+    panel ([cover.js](tools/viewer/web/cover.js), [app.js](tools/viewer/web/app.js)).
+  - A block is saved by its own recipe version while that version makes its type, else the latest (`coverVersion`).
+  - There is no separate Add panel entry: one was made and taken out at the user's word (no difference from a cover
+    block with Cover None).
+- Guide: the cover blocks section says how to make one.
+- Checked:
+  - the bake cover tests: recipe 1's digests unchanged, version 2's pinned; blockers built in URB_Bar, plain and
+    breaking, read back; a version 1 block's map is the same file by either version; version 1 refuses a blocker;
+  - the compiler tests (a blocker needs version 2; versions reach the writer; a blocker breaks with its group);
+  - the viewer suite (282) and the editor suite (200);
+  - the browser smoke's `check_cover` with the new `check_blocker`;
+  - [EXP-58](research/experiments/EXP-58-blockers.md)'s project built and read back.
+- Not played: EXP-58 is ready in the editor's project store, with its marked shot.
+
+### Camera speed sliders, the centre pivot, text that doesn't select (Discord S2, S3, S4, S7)
+
+On branch `discord-easy`.
+- **Camera speeds (S2, S3).** View options' Camera section has three sliders: Move speed (×0.2 to ×3), Key turn speed
+  (×0.25 to ×4) and Drag turn speed (×0.25 to ×3).
+  - In [app.js](tools/viewer/web/app.js) they scale `PAN_SPEED`, `TURN_SPEED`, OrbitControls' `rotateSpeed` and the
+    look-drag's `LOOK_PER_SCREEN`.
+  - They are remembered on the computer; a double-click puts one back to ×1, and letting go gives the keys back to the
+    camera.
+- **Pivot (S4).** A Pivot button on the tool strip under Axes (C): the piece's own origin, as before, or the
+  selection's centre, remembered.
+  - [gizmo.js](tools/viewer/web/gizmo.js) `placeProxy` puts the handles on the selection's box centre. Under tile snap,
+    or with a building's box selected, that centre keeps to the nearest tile centre or corner.
+  - A typed turn with the centre pivot turns about the centre too (`setPose`).
+  - `pose()` and `setPose` now read the active actor's matrix, not the handles', so the pose fields still show the
+    piece's own pivot.
+- **Text selection (S7).** [style.css](tools/viewer/web/style.css) sets `user-select: none` on the page. The piece
+  details, import notes, install checks and messages, and the build's and the prefab test's notes, log and result
+  still select.
+- Help panel, [guide.html](tools/release/guide/guide.html) and its shots (the tool strip's 16 buttons, View options'
+  15 items) are updated. [take_shots.py](tools/release/guide/take_shots.py) numbers the new controls.
+- Checked:
+  - three new browser smoke checks in [browser_smoke.py](tools/viewer/tests/browser_smoke.py), run headless against a
+    test server on Basic Training, all passing:
+    - `check_camera_speeds` (inside `check_arrow_pan`, `--only speeds`): Shift during a hold ×3, ×0.5 move halves it,
+      ×2 key turn doubles it, remembered, double-click resets;
+    - `check_pivot` (`--only pivot`): a typed and a ring half turn about the centre keep the piece's box in place, the
+      pose fields keep the piece's pivot, and the tile-snap pivot is on a tile corner or centre;
+    - `check_text_select`;
+  - `--only pan` passed with them;
+  - the viewer guide tests, the release and node suites pass.
+  - The full browser smoke wasn't run.
+
+### Discord suggestions: effort judged
+
+- the Discord feedback list (kept locally): each suggestion now has an "Effort" line, judged against the
+  code (gizmo.js `placeProxy`, cover_blocks.py's `kinds` table, compiler `COVER_RECIPES`, cover.js, View options'
+  Camera section, the project document's fields). A table under "Last read" ranks them from tiny (S7) to large (S1).
+- Checked: read against the code only. Nothing built, no code changed.
+
+### Shift speeds up a camera move already under way (Discord B1); update-discord skill
+
+- [app.js](tools/viewer/web/app.js): pressing Shift while a move or turn key is held now triples the camera speed at
+  once. Before, it waited for the next key press, because `panFast` was set only on a pan or turn key's keydown. Window
+  blur now clears it too. the Discord feedback list (kept locally) marks B1 done.
+- New project skill update-discord (kept locally): re-read the two editor forums in Chrome,
+  read only, then bring the feedback list up to date, with a ledger entry and a commit.
+- Checked on a test server (port 8795, Basic Training) with synthetic key events: holding W moved the camera at
+  5,061 units a second; pressing Shift during the hold gave 14,998 (×2.96); after releasing Shift, 5,008. No console
+  errors. The suites weren't run (a three-line keyboard change).
+
+### Discord feedback list
+
+- New: the Discord feedback list (kept locally), from the LW Rebalance Discord's editor forums, read in full in
+  Chrome (read only) on 15 Nov at 15:30. It holds 1 bug report and 8 suggestions, each with its thread link, what the
+  editor does today, and a status.
+- B1 (Shift doesn't speed up a camera move already under way) traced in [app.js](tools/viewer/web/app.js): `panFast`
+  is set only on a pan or turn key's keydown. Not fixed yet.
+- Checked: each entry against its post; the code notes against `app.js` and `style.css`. No code changed.
+
+### EXP-57 run 4 passed: EXALT pods in a data recovery (F-112 verified)
+
+- [EXP-57](research/experiments/EXP-57-enable-saving.md) run 4's result and [F-112](research/findings-register.md)
+  marked verified: in the user's play of a data recovery (14:32) EXALT's units loaded when first needed, and the battle
+  had four pods of two operatives and a heavy, through Long War's save and reload.
+- The game picks a heavy or a sniper once for the whole battle (`GetSupportAlien`'s alternative), so the play window's
+  pods line now says "each with a heavy or a sniper" ([missions.py](tools/viewer/missions.py)), as does the guide
+  ([guide.html](tools/release/guide/guide.html)) and the comment in [gamelaunch.py](tools/viewer/gamelaunch.py).
+- Checked: the viewer play tests pass.
+
+### "The original map" in place of "the map as the game has it"
+
+- What it meant, the map from the game's files with none of the editor's edits, now says so in plain words: the
+  launch message ("Police Station (original map), Abduction"), the play window's note ("Plays the original map (no
+  edits) in …"), Play in game's tooltip and the play server's refusal ([app.js](tools/viewer/web/app.js),
+  [play.py](tools/viewer/play.py)); in the guide, Reset all, the Add list, landing zones, Play in game and Close project
+  ([guide.html](tools/release/guide/guide.html)); [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) and the
+  viewer [README](tools/viewer/README.md). Where it meant "the way the game reads it" (the README on reading an
+  install, two docstrings in [native_copy.py](tools/bake/native_copy.py) and [stream_copy.py](tools/bake/stream_copy.py))
+  it now says that. The smoke's play check looks for "(original map)" ([browser_smoke.py](tools/viewer/tests/browser_smoke.py)).
+- [test_projects.py](tools/viewer/tests/test_projects.py): the store test's second save carries the project's created
+  time, as the page's saves do; without it the test failed whenever the two saves fell in different seconds.
+- Checked: the viewer and node suites pass; on a dry-play test server, the play window's note, Play in game's tooltip
+  and the launch message read as above.
+
+### EXALT pods for EXALT's missions (F-112); the play window's note and the launch message in short paragraphs
+
+On branch `mission-types`, after EXP-57 run 2 (a data recovery with saving on: F5 and Long War's reload worked, but
+the enemies were Sectoids) and the user's ask for paragraphs and less text:
+- [missions.py](tools/viewer/missions.py): `EXALT_KINDS` (data recovery, covert extraction, the EXALT raid) get pods of
+  `EXALT_ALIENS` (`eChar_ExaltOperative`: the game's battle set-up makes EXALT pods for an EXALT type), as
+  `play_setup`'s new `aliens`; [play.py](tools/viewer/play.py) passes it to
+  [gamelaunch.py](tools/viewer/gamelaunch.py)'s `play_text`, whose `aliens` now also takes a character. Data recovery
+  is marked played and working (EXP-57 run 2). The notes are one short sentence each: the enemies (`PODS_NOTE`,
+  `TERROR_PODS_NOTE`, `EXALT_PODS_NOTE`), the commander, the covert operative, the story missions; the save and
+  EXALT notes are gone from the mission note (the Enable saving row says it); the state words no longer name the run;
+  the missing sentences are shorter. `SAVING_WHY` reads "Always on: ...".
+- [missions.js](tools/viewer/web/missions.js): `missionNote` joins its parts with line breaks; `setParagraphs` puts
+  text in an element as one `<p>` per line. The play window's note
+  ([index.html](tools/viewer/web/index.html): now a `div`), the banner and the build window's install message use it
+  ([app.js](tools/viewer/web/app.js), [build_options.js](tools/viewer/web/build_options.js),
+  [style.css](tools/viewer/web/style.css)).
+- The launch message (`playedMessage`): what is played, then "At the main menu, press F5 to start the battle." with
+  saving on, then anything missing or to know. The squad's line, the forced reason and the note about the copied
+  record are gone (the played result keeps `recordCopy`); the note that an install's map differs is shorter. The play
+  window's top line, the saving help and the prefab test's line are shorter too.
+- [guide.html](tools/release/guide/guide.html): EXALT pods, data recovery played.
+- Records: [EXP-57](research/experiments/EXP-57-enable-saving.md) run 2's result and a run 4 for the pods; F-112 and
+  F-109 in the [findings register](research/findings-register.md).
+
+- [test_play.py](tools/viewer/tests/test_play.py): the mission commands test waits for each play's watch before the next
+  play and before Remove from game (`played`, `settle`): two players' watches raced on the kept files, failing about
+  one run in four.
+
+Checked: the viewer suite and the node tests (tools/run_tests.py viewer node; the play tests eight times in a row); a test server (8792, `--dry-play`, the
+play request stubbed) showed the dialog's note for a data recovery as three paragraphs, Enable saving ticked and
+greyed with its reason, and the banner as two lines; an abduction's banner is one line. Not played: EXALT pods in a
+battle (EXP-57 run 4), covert extraction, the EXALT raid.
+
+### Enable saving: a test play can start at the main menu, F5 opening the battle, so it can be saved (F-89, F-109)
+
+On branch `mission-types`, at the user's design (instead of play-login-plan.md,
+moved to done as replaced):
+- [play.py](tools/viewer/play.py): `POST /play/start` takes `"saving": true`, and `play_test` too. With it, or for a
+  kind that needs it, the game starts on `installs.START_FILE` (`setbind F5 exec XComMapWorkshop-play.txt`) instead
+  of the play's commands file, and the play keeps `XComInput.ini` and `profile.bin` aside as well as
+  `XComContent.ini`. The result's `played.saving` says the key and why it was forced; `/play.json` gives `saveKey`.
+- [gamelaunch.py](tools/viewer/gamelaunch.py): `SAVE_KEY` (F5: F8 and F9 are Long War's camera keys, F12 Steam's
+  screenshot), `start_text`, `saving_config`.
+- [installs.py](tools/viewer/installs.py): `START_FILE`, `write_start_file`; clearing a play, Remove from game and the
+  status take the start file with the commands file.
+- [missions.py](tools/viewer/missions.py): `SAVING_KINDS` (data recovery, covert extraction, the EXALT raid) have
+  saving on under Long War (`play_setup(lwr=True)['saving']`, the reason `SAVING_WHY`), shown per kind on the page;
+  their state is now not played yet (EXP-57) instead of hanging; the save and EXALT notes say so.
+- [playsaves.py](tools/viewer/playsaves.py): a whole play save stays where the game wrote it (the game numbers a new
+  save after the highest, so a logged-in play never writes over a campaign's); one written over a save copied before
+  the play moves to the slot after the highest and that save goes back. Broken saves are set aside as before.
+- [prefab_tests.py](tools/viewer/prefab_tests.py): a test's request takes `saving`, kept on the job and passed to the
+  launch.
+- The page: [build_options.js](tools/viewer/web/build_options.js) and [index.html](tools/viewer/web/index.html): an
+  **Enable saving** row in the play panel (Play in game, Land here, a map alone, which now always opens the panel)
+  and in Build and test, off each time; fixed on for a mission that needs it, the reason as its tooltip; the line
+  under it says how the battle starts. [app.js](tools/viewer/web/app.js): the choice in every play request, a
+  checkbox beside a finished build's Play in game (off for each build), and the played message saying to press F5 at
+  the main menu (it stays until dismissed). [prefab_test.js](tools/viewer/web/prefab_test.js): the choice in the
+  test's request and the playing line.
+- The [user guide](tools/release/guide/guide.html), [F-89, F-109](research/findings-register.md) and
+  [EXP-57](research/experiments/EXP-57-enable-saving.md) (the in-game check: F5 on the main menu, a save and a load, a
+  data recovery through Long War's reload).
+- Checked: the viewer suite (new: a play with saving on, its start file, the files kept aside and put back, the forced
+  EXALT play, saving off unchanged; the saves test's new rule; a prefab test carrying the choice) and the release
+  suite; in a browser on a dry-play test server (8792): the panel's row off by default, ticked text, Data recovery
+  fixed on with its tooltip, back to the user's choice on the abduction, and the request and message with a stubbed
+  `/play/start` (nothing installed). Not seen in the game yet: whether F5 fires on the main menu (EXP-57).
+
+### EXP-56 passed: a battle opened after the login saves and loads (F-89's cause confirmed); a plan for plays that log in
+
+Documents only; no tool changed. On branch `mission-types`:
+- [EXP-56](research/experiments/EXP-56-save-after-login.md) run 1 (11:57): Exit to Main Menu, the play's commands run
+  again from the title screen's console, a save that finished (save21, whole), and its load. The new save's number
+  answers how the game names saves: the highest number plus one.
+- [F-89](research/findings-register.md): cause confirmed; the naming rule, and what it means for play saves once
+  plays log in.
+- play-login-plan.md (new, todo): how a play could log in by itself (a
+  copy of the start screen with a Kismet wait and console command, recommended; the editor typing the line; Steam's
+  callbacks by `set`; a key to press), what the game offers and doesn't, the stages, and three questions for the
+  user.
+
+### A play's broken saves taken out of the game's load list; ledger writes retried while Windows holds the file
+
+On branch `mission-types`, after EXP-56's try at 11:32 crashed loading the save999 the editor had made of the 10:45
+play's stuck save (F-89: such a save is 670 copies of its header and then the data):
+- [playsaves.py](tools/viewer/playsaves.py): `is_whole` (the package tag at byte 1024, after the header). Before a
+  play, a play's broken saves anywhere in a save folder are set aside, out of the folder, into the install's
+  `XCOM Map Workshop\broken saves` (named `<time>-<folder>-saveN`, kept, not deleted), before whole ones move to the
+  play range; after it, a changed play save in a low slot is set aside if broken, moved to save999 down if whole.
+  The ledger's `lastSaves` says what was set aside (`setAside`, `keptAside`). An entry noted by the first version
+  sorts as it did.
+- [installs.py](tools/viewer/installs.py): `BROKEN_SAVES`, the folder. The ledger's files are read and written one at
+  a time in the process (`_LEDGER_IO`): on Windows a read open while another thread renames the file over it is
+  refused, and the rename too (seen in the play tests after this change, from their several players' watch threads;
+  the server's status reads and a play's watch could meet the same way). The rename is also tried again for up to a
+  second when another process holds the file.
+- [missions.py](tools/viewer/missions.py), [play.py](tools/viewer/play.py)'s notes and the
+  [user guide](tools/release/guide/guide.html): a play's save is broken (loading it crashes the game) and is taken
+  out of the game's list.
+- [test_play.py](tools/viewer/tests/test_play.py): the saves test with broken saves (the play's save1, an older
+  broken save999 like the lab copy's, one in Documents) set aside, a whole one moved to save998, the older whole one
+  to save999 after the broken one left it.
+- Checked: the viewer suite (280 tests) three times in a row, and the release suite. Not seen in the game yet: the
+  lab copy's save999 is set aside at the next play.
+- [F-89](research/findings-register.md) and [EXP-56](research/experiments/EXP-56-save-after-login.md): the crash read
+  from the dump (a divide by zero in the compressed-data reader) and the file's layout; the try loaded the old save
+  after the login instead of making a new one, so the run is still to do.
+
+### F-109: why a play can't skip Long War's save and reload on EXALT missions
+
+Documents only; no tool changed. On branch `mission-types`, at the user's ask:
+- [F-109](research/findings-register.md): read from Long War's `RebalanceMutator`, the mutator loader (decompiled
+  from a copy of `XComMutator.u`) and the exe copy's `set`, `SaveGame` and `LoadGame`. Long War's own flag would skip
+  the reload but its class isn't loaded when a play's `set` lines run, and it would stay on all battle; the flag a
+  play can set makes the save fail at once but leaves the battle frozen in cinematic mode. The fix stays F-89's.
+- [EXP-56](research/experiments/EXP-56-save-after-login.md): the user's reply on the main menu, and what the logs
+  show of a trip to the title screen.
+
+### A play's saves kept out of a campaign's slots (save999 down), a save they replaced put back
+
+On branch `mission-types`, at the user's ask (a battle started by Play in game writes its save to save1, over a
+campaign's save 1, F-89):
+- [playsaves.py](tools/viewer/playsaves.py) (new): reads a save's header (game number, description, time, map
+  command) and tells a play's save (game 0, the map opened with `LoadingFromShell=1`) from a campaign's. `keep`, before
+  a play: a play's saves in ordinary slots moved to the play range (save999 down to save900), save1 to save9 copied
+  aside, the folder's saves noted. `restore`, after: each play's save written or changed in an ordinary slot moved to
+  the play range, the copy of the save it replaced put back.
+- [installs.py](tools/viewer/installs.py): `keep_saves` and `restore_saves` keep the noted folders in play.json
+  (`saves`, and `lastSaves` for what was done), the copies in the install's `XCOM Map Workshop\play` folder; status
+  says `savesKept`; Remove from game (`reset`) sorts them too.
+- [play.py](tools/viewer/play.py): a play notes the save folders (Documents' and the install's) beside the config it
+  keeps; its watch, the next play and a failed start sort them; a server that starts with saves still noted watches
+  for the game to close, as for the config.
+- [missions.py](tools/viewer/missions.py) and the [user guide](tools/release/guide/guide.html): the play window's save
+  note says so; the EXALT note no longer warns of save1.
+- [test_manager.py](tools/viewer/tests/test_manager.py): the campaign-install test waits for the play's watch before
+  its reset (they raced, failing about one run in three with a missing file or a refused rename, before this change
+  too).
+- Checked: a new play test (a campaign's save1 written over by a play comes back and the play's save goes to save999,
+  an older play save in save2 is moved before the play, a campaign's save6 is left, the Documents folder too, and a
+  server that went away sorts them at the next play); the viewer suite (280 tests) and the release suite pass; the
+  manager tests five times in a row.
+- Not seen in the game yet. Open (F-89): the game seems to name a new save the highest number plus one, so a
+  campaign saved after a save999 is there would write save1000.
+- [EXP-56](research/experiments/EXP-56-save-after-login.md): the user's try at 10:43 saved straight from the play's
+  battle, without leaving it for the main menu, so the run is still to do; its step 2 now names the pause menu's
+  **Exit to Main Menu** and says it is the step that matters.
+
+### F-89's cause read: a test play never logs in, so saves can't finish; EXP-56 to confirm it
+
+On branch `mission-types`, documents and one warning:
+- [F-89](research/findings-register.md): read from the game's scripts (`XComOnlineEventMgr`, the start screen's
+  `UIShell` decompiled from a copy of `XComUIShell_SF.upk`, the Steam subsystem's packages decompressed and decompiled
+  from copies): the start screen logs in by itself 0.1 seconds after its interface is up, and a play's `open` line runs
+  before that. The login registers the save callbacks with Steam's content interface, selects the storage device and
+  reads the save list; without them a save never reports that it finished, a load never comes back, and saves go to
+  slot 1.
+- [EXP-56](research/experiments/EXP-56-save-after-login.md): the run that confirms it by hand (leave a test battle for
+  the main menu, `exec` the play's commands again, save and load), and the ways a play could do it by itself.
+- [missions.py](tools/viewer/missions.py): the EXALT note in the play window warns that the stuck save is written as
+  slot 1 when the game closes, over any save 1.
+- Checked: the viewer suite's play tests.
+
+### Cover and line of sight read from the game's code (F-111), and a plan for a reference of the game's rules
+
+Documents only; no tool changed. On branch `mission-types`:
+- game-reference-plan.md: a bounded research track, at the user's
+  ask. Part A is an atlas that tools generate (script dumps of plain EW and LWR and their differences, class
+  layouts, the real functions behind the native thunks, a census of the maps, a config reference); part B is a
+  ranked list of reads, each tied to what the editor gains, the tile model first. Plan only, but for its first two
+  reads, below.
+- [cover-build.md](research/native/cover-build.md) and [line-of-sight.md](research/native/line-of-sight.md): the
+  two reads, made by two agents from the exe copy and LWR's decompiled scripts and copied from the lab folders
+  `<lab>\re\cover` and `re\sight`, where their dumps and scripts stay.
+  [cover-and-sight.md](research/native/cover-and-sight.md) is the summary: the rules in brief, the checks, how
+  exact a prediction in the editor can be, and the open points.
+  - Sight inside sight radius is a walk over the tiles' sight bits, with no collision trace; step-out sides are
+    baked in the cover flags; flanking is a rule on the cover directions. So the map's own tiles can show cover and
+    sight in the editor from the baked data alone, and edited tiles need the tile build's rule run on the project's
+    pieces.
+  - Corrections to what the notes held: the blocking bits are `0x7E` and `0x1F80`, not `0x3F` and `0xFC0`; the
+    cover table's East is −X; the tile grid's origin is `WorldBounds.Min`; `0x72A840` is `SingleLineCheck`.
+- [native-code-notes.md](research/native-code-notes.md): the static flag table rewritten with every bit now named,
+  a dated correction on the 10 November cover section, and a "Cover and line of sight" section with the functions'
+  addresses. [findings-register.md](research/findings-register.md): F-111.
+- Checked: the agents' own checks against URB_Bar's and CSmallScout_Farm's baked data (in the two notes: no
+  structural exception in 721 and 1,550 cover direction bits; the cover location within 0.1 unit on 209 of 213
+  tiles of a geometric spot-check, high or low on 199 of 209). The bit order checked again apart from them with
+  [world_grid.py](tools/upk/world_grid.py)'s decoder on URB_Bar: no blocking bit between two unoccupied tiles lacks
+  its mirror for the six pairs as read, against 84 to 1,826 with the old masks; every cover bit on an unoccupied
+  tile faces an occupied or off-grid neighbour as read (83, 53, 68 and 59 of the same).
+- Gaps: nothing was run in the game. The sight walk is not compared with a battle (F-29 and F-25 fit it).
+  Step-outs, climb marks and occupied tiles' bits are read but not checked on geometry. The agents' scripts
+  (among them a Python version of the sight walk) are in the lab, not in the repository.
+
+### EXP-53 played: every kind tried works except EXALT's (F-109); no commander in a test battle (F-110)
+
+On branch `mission-types`:
+- The user played EXP-53's runs under LWR (01:43 to 02:07): council bomb, council rescue, crashed UFO, base defence,
+  alien base and Confounding Light worked; data recovery, covert extraction and EXALT HQ stopped at "Mission
+  Briefing: Please Wait" with "SAVING...". Each run's `Launch.log` shows the record picked, so O-1 works.
+- [F-109](research/findings-register.md): Long War saves and reloads every EXALT battle as it starts
+  (`RebalanceMutator.ReloadExaltMission`, read from `LWRebalance.u` decompiled from a copy), and a battle started
+  without a campaign never finishes a save (F-89, which gains this). Skipping the reload by hand isn't clean (the flag
+  that skips it stays on all battle).
+- [F-110](research/findings-register.md), accepted: a commander comes only when the battle's description names one,
+  which the campaign does; the test's aliens have none (no Outsider in the UFO, no Sectoid Commander in the base).
+- [missions.py](tools/viewer/missions.py): the kinds that worked are `works`; data recovery, covert extraction and
+  the EXALT raid get a new state, `hangs` ("Hangs at the start under Long War"), with F-109's sentence; UFOs and the
+  alien base say no commander comes; the story missions say Confounding Light works. The open line's options stay
+  out of standard plays (O-2 answered: they load their packages, but no kind needs them and they would change every
+  abduction's start). [test_play.py](tools/viewer/tests/test_play.py) follows.
+- [EXP-53](research/experiments/EXP-53-mission-kinds.md) has its results; [EXP-55](research/experiments/EXP-55-moved-capture-point.md)
+  can't be played under LWR until F-109 is fixed; [EXP-54](research/experiments/EXP-54-added-missions.md)'s crashed
+  UFO looks for LWR's commander spawn point in the log (its shots retaken on a test server, 8790, stopped); the
+  plan's status and the [user guide](tools/release/guide/guide.html)
+  say which kinds play.
+- Checked: the viewer suite (279 tests).
+
+### EXP-54 and EXP-55 made: their projects, builds, marked shots and run notes (F-108 fixed on the way)
+
+On branch `mission-types`:
+- [exp54_project.py](tools/editor/examples/exp54_project.py): EXP-51's cleared Bar copied as **EXP-54 added
+  missions**, with an added council bomb, terror site and crashed small scout, and the shed as its UFO building.
+  Saved in the editor's store and quick-built (`URB_Bar_X54`): three records, the bomb's streaming
+  `URB_Slaughterhouse_Stream`.
+- [exp55_project.py](tools/editor/examples/exp55_project.py): **EXP-55 moved capture point**, Police Station's data
+  recovery with capture point 1 (its volume and encoder) moved nine tiles into the next room of the station, at the
+  same floor height, found from the map's saved floor tiles and building volumes. Quick-built (`URB_PoliceS_X55`):
+  the stream copy with the two actors moved, the base map's tiles rebuilt under the encoder's old and new places.
+  The plan had the point moved into a new building; the note says so.
+- [stream_copy.py](tools/bake/stream_copy.py) `pose` (F-108 in the [findings register](research/findings-register.md)):
+  a moved actor's old place and turn are read through its archetype, as the exporter reads them, so an actor turned
+  by its archetype (the encoder) is reported and boxed as it stands, and an unchanged turn isn't written.
+  [test_stream_copy.py](tools/bake/tests/test_stream_copy.py) `TurnedByItsArchetype`.
+- [mark_shots.py](tools/viewer/mark_shots.py): a shots file can name the header's `mission`, and a shot can show
+  View options' Mission objects (`missionObjects`).
+- Notes [EXP-54](research/experiments/EXP-54-added-missions.md) and
+  [EXP-55](research/experiments/EXP-55-moved-capture-point.md), with their shots files and marked shots;
+  [EXP-53](research/experiments/EXP-53-mission-kinds.md) points at them.
+- Checked: the bake suite's stream copy tests (the new one failed before the fix) and the editor suite's stream
+  tests; both projects compile without errors and build; the marked shots taken on a test server (8790), stopped.
+  Not played.
+
+### Terror plays get the civilians' looks (EXP-53 run 6 passed, F-107 fixed)
+
+On branch `mission-types`:
+- The user played `hurr+`'s Terror record with the editor started with `--try-mission-lines`: "launched and worked
+  fine in game". Its `Launch.log` shows the civilians loading their bodies with no empty lists.
+- [missions.py](tools/viewer/missions.py): the civilians' line and the terror kind are `works`, so every terror play
+  now has the line and the play window says "Played and working"; the missing sentence is left for an install whose
+  `DefaultContent.ini` gives no looks. [test_play.py](tools/viewer/tests/test_play.py) follows.
+- [F-107](research/findings-register.md) fixed and played, [EXP-53](research/experiments/EXP-53-mission-kinds.md) run
+  6 passed, and the [user guide](tools/release/guide/guide.html) says the terror site has been played this way.
+- Checked: the viewer suite. An added terror (a kind the project adds, EXP-54) is still marked not played.
+
+### F-107: a terror play hangs without the civilians' looks; the play window says so
+
+On branch `mission-types`:
+- [findings-register.md](research/findings-register.md) F-107: the user's terror play of `hurr+` hung at the loading
+  screen; its `Launch.log` shows every civilian spawning with empty head, body and hair lists and the content manager
+  asking for content 0, which never loads (the profile's civilian content, which a console start doesn't fill: O-4).
+  F-93's run 3 was the same on the prefab stage.
+- [missions.py](tools/viewer/missions.py): the terror line in the play window says the battle never leaves the
+  loading screen without the civilians' looks, and that `serve --try-mission-lines` gives them (not tried).
+  [EXP-53](research/experiments/EXP-53-mission-kinds.md) run 6's first question is answered.
+- Checked: the viewer suite's play tests ([test_play.py](tools/viewer/tests/test_play.py) follows the new words).
+
+### A variant's landing intro lands at the grounded Skyranger when the game's entry has no place (F-106)
+
+On branch `mission-types`:
+- [intro_copy.py](tools/bake/intro_copy.py) `--map`: an entry of the base map whose Set Location saves no place
+  (`missing_places`; LWR's one is `URB_StreetHurricane_Terror`'s, which put the dropship in the middle of the map) gets
+  its landing's grounded Skyranger's place and yaw (`fill_places`); a landing the project moves moves it from there.
+  The report lists it as `filled`.
+- [build.py](tools/editor/build.py) passes the base map to each intro copy and lists filled places in its `intro`
+  stage.
+- Checked: [test_intro_copy.py](tools/bake/tests/test_intro_copy.py) on the install's intro and maps (the Terror
+  entry filled at (3813, -134, 1), yaw 18468; every other entry's place as it was; a moved landing moves the filled
+  place; URB_Bar, which has its place, gets nothing filled); the editor suite; a quick build of a copy of `hurr+` into
+  a scratch folder (its intro copy staged at the Skyranger).
+- Gaps: not played yet. Your own `hurr+` build still has the old intro until it is built again. The map played as
+  the game has it keeps the fault.
+
+### F-106: Street Hurricane Terror's dropship lands in the middle of the map
+
+[findings-register.md](research/findings-register.md) F-106: the install's `CIN_DropshipIntros` gives
+`URB_StreetHurricane_Terror`'s intro no place (its Set Location saves a turn but no location), so the scene plays at
+(0, 0, 0), near the map's middle, and its dropship stays there. Read from the intro, the map's export and the play's
+`Launch.log`; it is the only one of the intro's 81 entries with no place. Nothing fixed yet: the fix named there is
+to give a variant's intro copy the map's grounded Skyranger's place.
+
+### The mission types plan built: guide, plan status, EXP-53's note
+
+On branch `mission-types`:
+- The [user guide](tools/release/guide/guide.html): the header's Mission picker chooses what Play in game plays; the
+  Project menu's **Missions…**; Clear map's "What is this map for?"; a mission's objects moved with their group
+  ("What a mission adds"); the test battle plays the picked mission with Sectoid pods; the limits brought up to date.
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) and [tools/viewer/README.md](tools/viewer/README.md) the
+  same; the Mission objects option's tooltip no longer says view only.
+- The plan moved to private/plans/done/mission-types-plan.md, its status
+  saying what is built, the open point of decision 4 taken at the plan's default (a map that isn't cleared keeps all
+  its base missions, changeable in the panel), and what waits for EXP-53 to 55; every link to it follows.
+- [EXP-53](research/experiments/EXP-53-mission-kinds.md): the run sheet for each kind played on a map as the game has
+  it (prepared, not run).
+- Checked: release and node suites passed. The guide's pictures were not taken again (no marked control changed; the
+  Missions item and the mission object's arrows have no picture yet).
+
+### A mission's objects moved with their group (mission types plan, Part E)
+
+On branch `mission-types`:
+- The document: an override whose target is `{package: <stream>, level: "stream", actor}` moves one of a mission
+  stream's objects ([editor-contracts.md](research/editor-contracts.md)).
+- [app.js](tools/viewer/web/app.js): a picked mission object's marker gets arrows that move it **with its group** (a
+  capture point with its volume and actor, a bomb or power node with its button, emitters and rebuild volume) by whole
+  tiles and levels, one undo step a drag, Escape putting a drag back; the streamed meshes move with them; the panel
+  says how far it moved and that the Build moves it in the stream's copy; the header counts "mission objects moved".
+  The moves go through save, open, recovery and Reset all. [mission_view.js](tools/viewer/web/mission_view.js) no
+  longer says the stream is never edited.
+- [compiler.py](tools/editor/compiler.py) `stream_override`: such a target becomes the native edit's `streamMoves`
+  ({stream: [actor, location, rotation, old, kind, group]}); a target that is no mission object, or in no mission
+  stream, is an error; a delete takes the object out of the copy (`streamHides`) with a warning; a group not moved as
+  one is warned (`mission-group-split`). C3's checks look where a moved object stands now (a moved one needs floor
+  there; a moved capture volume its floor tiles); the cleared map's note counts only the unmoved objects.
+- [stream_copy.py](tools/bake/stream_copy.py): `--moves` sets each actor's Location and Rotation in place (an actor
+  with a Base gets its RelativeLocation anew), checked in the copy; with `--base` and `--variant` the Switch String
+  entries naming the base map name the variant (`intro_copy.rename_switches`, split out of
+  [intro_copy.py](tools/bake/intro_copy.py)); `tile_boxes` gives the moved pieces that touch the game's tiles, before
+  and after.
+- [build.py](tools/editor/build.py): the stream's copy made with the moves, shipped, and streamed in place of the
+  original (by the records that stream it: that mission's alone); the base map's tiles under a moved solid piece are
+  rebuilt where it stood and seeded and rebuilt where it stands (`streamTiles`, done by
+  [native_copy.py](tools/bake/native_copy.py) as for a moved landing). Moves alone build the map unbaked (nothing is
+  relit).
+- Checked: compiler tests (moves, the group warning, the floor where a moved object stands, errors, a delete);
+  [test_stream_copy.py](tools/bake/tests/test_stream_copy.py) on the install's `URB_Slaughterhouse_Stream` (a power
+  node's five parts moved in place, every export and level slot as before, object references unchanged, the node's
+  tile boxes); a Build test (the copy made with `--moves`, `--base`, `--variant`, streamed by the data recovery's
+  record only, `streamTiles` handed on); the browser smoke test's streams check (`--only streams`: a group moved and
+  undone); by hand on a scratch server: a node moved, saved, reopened, Reset all and undone, and a quick build of the
+  test project on the install (the copy streamed by the Council bomb record alone, 45 tiles seeded at the node's new
+  place). Editor, viewer and node suites passed; bake tests for the stream and intro copies and the landing moves.
+- Gaps: not played (EXP-55). Under Long War the bomb mutator moves the bomb and power nodes to places of its own
+  anyway; capture points, radar arrays, the operative, the VIP and wave drop-ins play where placed. A moved solid
+  piece's baked shadow stays where it was (nothing is relit), and its group turns are not offered (moves only).
+  Kismet places held as values (a `SeqVar_Vector`, a matinee) don't move. The full bake suite was not run.
+
+### The Missions panel and the cleared map's "What is this map for?" (mission types plan, D2)
+
+On branch `mission-types`:
+- [missions_panel.js](tools/viewer/web/missions_panel.js) (new): the panel of the project's missions, one row for each
+  of the base map's missions and each kind a record alone gives the map (abduction, terror, a council bomb under Long
+  War, a crashed or landed UFO with a ship type to choose), each row saying how far that kind is known to work
+  played this way and what it needs; OK needs one row ticked. A bomb row is greyed out on plain Enemy Within, the UFO
+  rows until a UFO building stands on the map. [missions.js](tools/viewer/web/missions.js) gets the page's twin of
+  `ADDED_KINDS`.
+- [app.js](tools/viewer/web/app.js): **Missions…** in the Project menu opens it; OK sets the project's missions as one
+  undo step (all the base map's and nothing added on a map that isn't cleared is the default, saved as nothing). The
+  document's `missions` goes through open, recovery, save and Reset all; [project.js](tools/viewer/web/project.js)
+  keeps it in the state and its key, so a change shows as unsaved.
+- The header's Mission picker lists the project's missions (its base records kept, then its added kinds,
+  `?mission=kind:…` in the address), and Play in game's select follows it; a play of an added kind asks the server for
+  that kind, whose record the Build wrote.
+- Clear map's window says it then asks what the map is for; a clear from the window sets the cleared map's missions in
+  its undo step (the header's abduction, terror or bomb, of the map's records or the project's added kinds, else the
+  map's abduction record, else an added abduction) and opens the panel as **What is this map for?**.
+- Checked: [missions_test.mjs](tools/viewer/tests/missions_test.mjs) (new: kinds, zones, the play line, the added
+  kinds against `missions.py`, the state key); the browser smoke test's Clear map check asks the question, ticks an
+  added terror, undoes both ([browser_smoke.py](tools/viewer/tests/browser_smoke.py), `--only clear-map`, passed on a
+  scratch server); by hand on a test server: the panel's rows and states, save (revision 4 with the list), reload
+  keeping an added kind picked, and a dry play of an added terror installing the Build's Terror record. Node suite
+  passed.
+- Gaps: the added kinds are not played yet (EXP-54); a UFO row's ship choice and its enabling by a placed UFO prefab
+  were not tried in the browser.
+
+### The missions a project is for: the document, the Build and installs (mission types plan, D1, D3, D4)
+
+On branch `mission-types`:
+- The project document gets `missions` (optional, [editor-contracts.md](research/editor-contracts.md)): the base map's
+  records the variant serves (`{record: i}`) and kinds a record alone gives the map (`{kind, ship?}`: abduction,
+  terror, a council bomb, a crashed or landed UFO with its ship type). Absent, every record of the base map, as
+  before. [projects.py](tools/viewer/projects.py) checks it is a list of records.
+- [missions.py](tools/viewer/missions.py): `ADDED_KINDS` (each kind's mission, council and ship fields, whether
+  campaigns draw it, what it needs, the bomb streaming `URB_Slaughterhouse_Stream` as LWR gives three maps theirs),
+  `valid_entry` and `added_record`.
+- [build.py](tools/editor/build.py) `config_lines`: records for the project's missions alone (its base records in
+  file order, then its added kinds, each made from the base map's abduction record: `template_record`), with
+  `recordMissions` naming the kind for an added one and `missionsFromProject`; two records of one mission that differ
+  get display names of their own (`Landed UFO 2`), since the game streams by display name. The README says the
+  records are the project's missions.
+- [compiler.py](tools/editor/compiler.py) `mission_list`: an error for a list the Build can't write (empty, not a
+  list, an entry that is no record or known kind); a warning for a UFO mission with no UFO building on the map, a
+  note for an added bomb (Long War's mutator places it).
+- [installs.py](tools/viewer/installs.py): a campaign install of a package that names its records' missions
+  (`_rotation_from_build`) installs the Build's own records, each in or out of rotation as its base record is (an added
+  kind as `ADDED_KINDS` says), with the base display name for a record the game asks for by name when replacing;
+  `mission_warnings` names the added kinds as untried (EXP-54). A play of an added kind installs the Build's record
+  for it (`mission: "TerrorSite"`).
+- Checked: [test_build.py](tools/editor/tests/test_build.py) (the listed records alone, added terror, bomb and
+  crashed UFO records, the template, distinct display names), [test_compiler.py](tools/editor/tests/test_compiler.py)
+  (malformed lists, the UFO warning and bomb note), [test_manager.py](tools/viewer/tests/test_manager.py) (a replacing
+  campaign install of a project with an added terror, and a play of it); editor and viewer suites pass. The page's
+  Missions panel is next. Not played (EXP-54).
+
+## 14 November 2026
+
+### The compiler warns when an edit breaks a mission's objects (mission types plan, C3)
+
+On branch `mission-types`:
+- [compiler.py](tools/editor/compiler.py) `mission_objects`, for each mission the variant keeps (`kept_missions`:
+  the document's `missions` records, Part D's field, else all of the base map's): a warning (`mission-object`) for an
+  objective, a soldier's landing point, the operative's or a VIP's point that had floor under it and has none after
+  the edit, or that a copy of the project stands on; a warning (`mission-capture`) for a capture volume with none of
+  its floor tiles left; a note (`mission-spawns`) for drop-in points and pods that lose theirs (Long War places most
+  of its own); on a cleared map a note (`mission-cleared`) that the stream's objects stand where the original map had
+  them. Each names its mission, stream and actor. Warnings only: the Build goes on.
+  [missions.py](tools/viewer/missions.py) has the words and what may go wrong in the game for each kind.
+- [build.py](tools/editor/build.py): the compile stage carries `missionWarnings`; the build window
+  ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)) lists them by mission, and a row
+  shows its object (the mission picked in the header, the marker shown and picked, the camera on it). The mission
+  object panel says when the edit took the map's floor from under the object.
+- [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py): the blank-map stage test's tall-stage loop skips,
+  as its first loop does, while the blank map has no export of the current number (export 24 here, until it is
+  prepared again; Test in game prepares it itself).
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (a deleted floor under the operative's point and
+  a capture volume, a copy on a VIP's point, a drop-in noted, nothing when only the abduction is kept or the floor
+  stays); editor, viewer and node suites pass. The build window's list not seen in a browser yet.
+
+### A mission's objects in the view (mission types plan, C2)
+
+On branch `mission-types`:
+- [mission_view.js](tools/viewer/web/mission_view.js), new: a marker for each object of the mission the header's
+  Mission picker shows (export 24), one size on screen and faint through walls as light markers are, coloured and
+  shaped by kind (drop-in points, pods, soldiers' and the operative's and VIPs' points, capture points, radar arrays,
+  the bomb, power nodes, things to use); a group's helper parts (emitters, rebuild volumes) are named with it, not
+  marked. A click on one opens its panel: what it is ("Capture point 1 of 2, Data recovery"), its group and what it
+  moves with, what lists it, and that it stands where the original map had it.
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css): View options' **Mission objects** (shown on maps whose missions stream
+  objects, remembered), the markers following the Mission picker, a marker picked ahead of the piece behind it, and
+  the page's test hooks (`viewer.missionLayer`, `pickMissionObject`).
+- Checked on a test server (8792) with Police Station exported as export 24 into a scratch cache: Data recovery shows
+  42 markers (24 drop-ins, two pods, the landing and six soldiers' points, the operative, four capture-point
+  objects, four radar arrays) and the capture point's panel reads as above; Abduction shows none. Node syntax checks;
+  the pane was hidden, so no screenshot.
+
+### Export 24: each mission stream's objects (mission types plan, C1)
+
+On branch `mission-types`:
+- [scene_metadata.py](tools/viewer/scene_metadata.py) `mission_objects`: a mission stream's objects (drop-in points,
+  pods, the operative's, VIPs', loot's and soldiers' points by their unit type, landings, capture points, radar
+  arrays, things to use, the bomb and its power nodes with their parts, waves, triggers, rebuild volumes), each with
+  its place, archetype, a volume's box, what lists it (the stream's Kismet, a wave system's groups, a capture
+  volume's captured actor) and the group it moves with: the bomb and each power node found as Long War's bomb
+  mutator finds them (by archetype, parts and rebuild volumes within 128 units), each capture point as its volume,
+  the actor it captures and the capture actors in it.
+- [export.py](tools/viewer/export.py): export 24 puts them in `streams[<name>].missionObjects` for every mission
+  stream (not LWR's patches). Maps are prepared again on opening, as for every export number.
+- Checked: [test_streams.py](tools/viewer/tests/test_streams.py) on the install's Police Station data recovery stream
+  (24 drop-in points all in the wave's groups, two pods, the landing and its six soldier points, the operative, four
+  radar arrays, two capture points) and Slaughterhouse's bomb stream (the bomb with its button, five emitters,
+  waypoint, rebuild volume and visible point; eight nodes, each with its button, two emitters and rebuild volume);
+  viewer suite passes.
+
+### The Build's records keep the names the game matches (mission types plan, Part B)
+
+On branch `mission-types`:
+- [build.py](tools/editor/build.py) `config_lines`: a variant record's display name keeps, after the variant's name,
+  the text the game's script looks for in the base record's (`missions.markers`): a bomb record's is
+  `<Variant>_Bomb (<project>, Council bomb) |0`, so Long War still sends that mission's reinforcements through its
+  bomb throttle; the Temple Ship's keeps `TempleShip` when the variant's name lacks it. The manifest's
+  `config.matchedNames` and a README line name the records that carry one.
+- [installs.py](tools/viewer/installs.py): the campaign install's records (`rotation_plan`) and a play's record made
+  from the base map (`plan_record`) follow the same rule; a replacing install's records the game asks for by name
+  still keep the base map's display names as before.
+- [compiler.py](tools/editor/compiler.py) `missions_check`: a note (not a warning) for a map the game knows by its
+  whole name (`missions.NAMED_MAPS`: the Slingshot and Progeny maps, EXALT HQ, the Meld tutorial, Small Cemetery's
+  landing), saying what depends on it.
+- Checked: [test_build.py](tools/editor/tests/test_build.py) (a bomb record's display name, one-record and
+  already-named variants), [test_compiler.py](tools/editor/tests/test_compiler.py) (the note on Low Friends, none on
+  Bar), [test_manager.py](tools/viewer/tests/test_manager.py) (the campaign install's bomb record now with `_Bomb`;
+  the pack's scripts still install the editor's lines byte for byte); editor and viewer suites pass. Not played.
+
+### The play dialog names the mission (mission types plan, A4)
+
+On branch `mission-types`:
+- [build_options.js](tools/viewer/web/build_options.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css): the play dialog has a **Mission** select (the header picker's mission,
+  changeable there; no select for a map with one mission) and, under it, what is known of that kind played this way
+  ("Played and working", or "Not played yet (EXP-53 run 1)", what the play goes without, the test's Sectoid pods, no
+  saving). A map alone with several missions now opens the dialog in a play-only form (no bake option); one with a
+  single mission still plays at once.
+- [missions.js](tools/viewer/web/missions.js), new: the page's twin of `missions.kind_of_export`, the dialog's line
+  from `/play.json`'s `missionKinds`, and whether a landing zone serves a mission.
+- [app.js](tools/viewer/web/app.js): every play sends `mission`; the header picker follows the mission played; the
+  banner names it ("…, Council bomb") and what is missing; Land here is greyed out on a zone kept for another
+  mission than the header's.
+- [missions.py](tools/viewer/missions.py): a kind played and working (abductions) misses nothing for want of the
+  open line's options.
+- Checked on a test server (8792, `--dry-play`, a scratch game folder): Street Hurricane alone, Council bomb chosen
+  in the dialog, a copy of its record ahead of the map's own and the editor still reading the install's own lines;
+  a quick build of a project on it played as the Council bomb, the Build's line installed. The browser smoke's
+  `check_play` ([browser_smoke.py](tools/viewer/tests/browser_smoke.py), now answering the dialog) passes there;
+  viewer play tests and node tests pass. Not played in the game.
+
+### Play in game plays the picked mission (mission types plan, Part A1 and A2, server side)
+
+On branch `mission-types`, the first step of mission-types-plan.md:
+a play is the mission picked, not an abduction.
+- [missions.py](tools/viewer/missions.py), new: the kinds of mission (a record's mission type, and a council
+  mission's council type), each with its state on this path (abductions played and working; the rest not played
+  yet, with the EXP-53 run that tries each), the commands a kind may need (the open line's content options, the
+  terror civilians' looks read from the install's `DefaultContent.ini` as `XGBattleDesc.BuildCivilianContent`
+  picks them, the UFO type from the record's `ShipType`, the council type for the Chryssalid Hive and Portent), and
+  the names the game matches (`_Bomb` and `TempleShip` in a display name; the maps known by their whole name).
+- [installs.py](tools/viewer/installs.py): `install_package` takes `mission` and installs the Build's own record for
+  it (`build_record`: the manifest's `config.maps` line, with its kind, council type, streams and display name);
+  `plan_record` no longer rewrites a record as an abduction (a prefab test still asks for `TEST_MISSION`) and keeps
+  the matched text in its display name. A map alone (`install_map_record`, `map_record`): nothing installed for its
+  first record; for another, a copy of that record goes in ahead of the map's own, out of rotation, keeping its
+  display name, and comes out with the play's other things (decision 3).
+- [play.py](tools/viewer/play.py): `POST /play/start` takes `mission` (a record's index, or a kind a project added);
+  the result's and the ledger's `mission` say its kind, state, what the play goes without and what else is known.
+  `/play.json` gets `missionKinds` for the page. [gamelaunch.py](tools/viewer/gamelaunch.py) `play_text` takes the
+  kind's `set` lines and open-line options (checked to be only those). The commands go in only once their run has
+  shown them to work; `serve --try-mission-lines` ([viewer.py](tools/viewer/viewer.py)) puts the untried ones in,
+  for EXP-53. Today none is known to work, so every play's commands are as before.
+- [build.py](tools/editor/build.py) `config_lines`: `recordMissions`, which base map records each of the Build's
+  records stands for, so a play can pick the Build's line for a mission.
+- Checked: [test_play.py](tools/viewer/tests/test_play.py) (a project's play installs the Build's line for the
+  mission byte for byte, absent the first, a mission the build hasn't refused, older manifests by index; a map's play
+  of its first record installs nothing, of another a copy ahead of its own that comes out byte for byte; untried
+  commands left out and named, tried ones written; the kinds and names), and
+  [test_build.py](tools/editor/tests/test_build.py) for `recordMissions`; viewer suite and the editor's build tests
+  pass. Not played: the page's mission choice is next (A4), then EXP-53.
+
+### Mission types plan: the user's decisions written in
+
+mission-types-plan.md, still a plan only:
+- Section 3 is now the user's decisions: Play plays the picked mission; the aliens of a test stay Sectoids (no
+  choice in the dialog: the alien select and its defaults are out of Part A); maps without a project get the same
+  mission choice; mission objects are edited in this plan; added missions only where a record does it.
+- Part D is rewritten for the user's ask that a cleared map can be given a mission type: "What is this map for?"
+  at Clear map and in a Missions panel, with a table of the kinds offered (abduction, terror, a bomb mission under
+  LWR, a UFO mission on a map with a UFO building, the base map's own stream missions once their objects are
+  placed) and what each needs. New open item O-5 (a UFO mission on a map that had none: LWR's pod mutator looks
+  for the building volume with `IsUfo`, read from its script), and EXP-54 gains a run for it.
+- One point is open with the user: whether a map that isn't cleared keeps all its base map's missions or only the
+  one picked.
+- Checked: read through; no code changed.
+
+### Plan: missions in the editor (playing each kind, keeping each kind working)
+
+The user asked for research and a plan on mission types: Play in game always plays an abduction, and a variant's
+other missions (council, bomb, terror, EXALT, story) should play and work as their kind. Plan only; nothing built,
+nothing run in the game.
+
+- mission-types-plan.md: what decides a battle's kind (the record's
+  mission type, council type and streams; the mission's script is Kismet in its stream), what a console start has
+  and lacks beside a campaign, the kinds in the install, what the 47 mission streams hold, the names the game
+  matches (`_Bomb` in a display name, a few whole map names), what LWR's mutators do by kind, and what the editor
+  does today. Five parts: Play in game plays the picked mission; the Build's records keep matched names; the
+  editor shows a mission's objects and warns when an edit breaks them; a Missions list in the project; moving a
+  mission's objects in a copy of its stream. Six decisions wait for the user (its section 3).
+- [audit_missions.py](tools/upk/audit_missions.py), new: the classes placed in each mission stream and base map,
+  with the missions that use them. Its result for the LWR install:
+  [mission-streams-census-2026-11-14.json](research/evidence/mission-streams-census-2026-11-14.json) (47 streams,
+  97 base maps, none unreadable).
+- [findings-register.md](research/findings-register.md) F-105 and
+  [native-code-notes.md](research/native-code-notes.md) "The map's record": the game keeps one stored record; a
+  console `open` takes the first record named like the map; streams are added by display name; the campaign's
+  travel line carries `?Meld=1`, `?CapturePoints=1` and `?RadarArrays=1`, which load content a plain `open`
+  doesn't ask for. Read from the exe copy, not played.
+- Checked: the census ran over the install twice with the same counts; the plan's numbers are the census's and
+  `DefaultMaps.ini`'s (188 live records). No test covers the audit tool, as for `audit_spawns.py`.
+
+### AGENTS.md: commit when a piece of work is done
+
+At the user's ask, [AGENTS.md](AGENTS.md) gains a rule: commit a finished fix, feature or plan stage once its tests
+pass, on its branch and with its ledger entry, without waiting to be asked; push only when the user asks. Checked:
+the file reads as before around the new bullet; nothing else changed.
+
+### A large selection's Save as prefab says how far it has got, and saves faster
+
+The user saw Save as prefab stay on "Saving…" with a large selection (in 0.5.0), and the prefab saved in the end.
+Reproduced on a test server: the dialog does close, but only when the server answers, and the first save of a map's
+pieces made the server export every piece into the library inside that one request (about 0.2 s a piece: 817 pieces
+of URB_ResearchOutpost took 179 s, 913 of URB_CommercialStreet about 3 minutes), with nothing on screen meanwhile.
+Even with every piece already exported, the save took 9-13 s: [prefab_bounds.py](tools/viewer/prefab_bounds.py)'s
+`measure()` asked the library for each piece by itself, and each ask looked the game install up and listed its
+cooked folder again.
+
+- [app.js](tools/viewer/web/app.js) `savePrefab()` first copies the pieces to the library 20 at a time (the
+  existing `POST /library/pieces`), and the dialog says "copying the pieces to the library, n of N" after each batch;
+  closing the dialog meanwhile stops before the save is sent. Once sent, a save finishes and says so even if the
+  dialog was closed, and a save that ends after a new dialog opened no longer closes that one.
+- `measure()` reads all the records in one batch through the library's `records()` (the install and its maps
+  looked up once, each map opened once); a piece the batch can't give is unknown, as before. This serves the
+  save, the Prefabs tab's size check and the builder's Save.
+
+Checked: the 817-piece prefab measured in 0.35 s instead of 13 s, and the batched and one-by-one answers (sizes and
+recipes) are the same for it, the 913-piece one and the user's Small Landed UFO. In the page on a test server, a
+913-piece selection of URB_PoliceStation (pieces not yet exported) showed the count rising in steps of 20 (173 s), then
+"Saving…" for 5 s, and closed with the hint; saving that prefab again takes 0.5-0.7 s on the server (9 s before). A new
+case in [test_prefab_builder.py](tools/viewer/tests/test_prefab_builder.py) checks the one batch call and the
+unknown piece; `run_tests.py viewer -k prefab` and `-k library`,
+`editor -k prefab` pass. Known gap: exporting the pieces still takes about 0.2 s each; only the waiting is shown.
+
+### Release 0.5.1 published
+
+With the user's go-ahead ("let's push and publish the release"): main pushed to the private repository (`fc40f15`),
+then [v0.5.1](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.5.1) created on the releases
+repository, titled "XCOM Map Workshop 0.5.1 (preview)", marked Latest, with the Setup.exe and the zip and the notes
+file (`gh release create --notes-file tools/release/notes/0.5.1.md --latest`). Checked: GitHub's digests and sizes of
+both files equal the local ones (`fc7e7c7a…a28fed`, `0ba65ffd…8d085a`); `releases/latest` names v0.5.1; both
+`releases/latest/download/` links answer 200 without signing in; the published notes equal the file.
+
+### Release 0.5.1's known limits cut to four
+
+At the user's ask ("only a handful of the most important"), the Known limits of
+[tools/release/notes/0.5.1.md](tools/release/notes/0.5.1.md) went from thirteen lines to four: what isn't played yet
+(0.5.1's additions and 0.5.0's faster bake, with how to report), a new map starts from one of the game's, only the
+game's own pieces, and tried with Long War Rebalance through Steam. The rest is in the user guide's limits. Only the
+notes changed: the zip, the installer and their SHA-256s stay as built.
+
+### Release 0.5.1: Cache everything, 30 levels, more built with warnings, a faster editor, F-104
+
+At the user's ask, a patch release from main (`74b502f`).
+
+- [version.py](tools/viewer/version.py) 0.5.1 (the patch step, the user's rule).
+- Release notes: [tools/release/notes/0.5.1.md](tools/release/notes/0.5.1.md), drawn from this day's entries:
+  - upgrading from 0.5.0 (nothing read again; a prefab or project over 18 levels, or a building over 8 floors,
+    can't be opened by 0.5.0);
+  - new features (Cache everything, 30 levels, the builder's Problems chip);
+  - changes (pieces left out instead of the build, untried and held-back pieces built with a warning, lights
+    clamped, the prefab test following the Build's rules, prefabs from elsewhere, warnings only for game problems,
+    the floor rule skipping pieces that collide with nothing, the editor's timings, the busy state);
+  - bugs fixed (F-104's roof, the wide spot cones, F-103's offset copies);
+  - known limits (what 0.5.1 adds that isn't played, old exports' floor preview, the all-or-nothing untried
+    fallback, the rest carried from 0.5.0) and the SHA-256s.
+  
+  The Temple Ship arches patch (F-102) is a separate file, not part of the editor, and is left out.
+- The guide's New in this version ([guide.html](tools/release/guide/guide.html)) gains a New in 0.5.1 table above
+  0.5.0's; the testers' README ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) the same list.
+- Two stale texts brought up to date: the Build panel's bake help ([index.html](tools/viewer/web/index.html)) and the
+  guide's Build section say "a minute or two for a small edit, less when the project is built again" (0.5.0's known
+  gap: they still said several minutes); the guide's Map grid section says the grid grows up to 30 levels, not 18.
+- Made in `dist/release` beside the earlier ones:
+  - `XCOM-Map-Workshop-0.5.1.zip`: 101.5 MB, 125 of our files, SHA-256 `0ba65ffd…8d085a`;
+  - `XCOM-Map-Workshop-0.5.1-Setup.exe`: 63.4 MB, Inno Setup 6, SHA-256 `fc7e7c7a…a28fed`.
+  
+  The staged Python's import check passed.
+- **Checked.**
+  - `tools/run_tests.py`, every suite, on this checkout with the version and text changes in: viewer 272, editor
+    191, upk 95, bake 379 (1 skipped), release 5, node 4 files, all pass.
+  - The zip, read back: `VERSION.txt` says 0.5.1; `compiler.py`, `buildings.py`, `floors.js`, `prefab_stage.py`,
+    `library.py`, `lights.py`, `precache.py`, `precache.js` and `index.html` equal the repository's; its README is
+    GETTING-STARTED.md; the guide has the 0.5.1 table.
+  - The zip unpacked to a trial folder and started with its own Python on a test server (port 8795, scratch projects
+    and builds, `--dry-play`): the help says "XCOM Map Workshop 0.5.1 (preview)", the Build panel's new text shows,
+    `/precache.json?plan=1` answers (9,733 pieces of 116 maps cached here), the Cache everything window opens, and the
+    console has no errors. Server stopped, trial folder deleted.
+- Not published (ask first). Known gaps: the installer wasn't run; nothing was played for this release; the guide's
+  picture of the Project menu still predates Cache everything.
+
+### A building's pieces keep their map's floor listings through edited boxes; the rule skips what doesn't collide; warnings only for what can cause a problem in the game
+
+The Small Landed UFO prefab showed its roof with floor 1 shown (findings register F-104): LSmallScout_River lists the
+UFO's eight roof pieces on its roof floor only through hand-made inclusion and exclusion lists on its floor volumes,
+and the editor and the Build kept a map's saved listings only while the building's boxes were exactly the map's.
+
+- **Carried through edits.** [floors.js](tools/viewer/web/floors.js) `sourceFloorMatch` (it replaces
+  `sourceFloorLayout`) and its twin [compiler.py](tools/editor/compiler.py) `source_floor_match` (replaces
+  `source_floor_layout`): the source building a project building comes from, by overlap with the source's floors
+  carried by the piece's move, each source floor paired with the project floor it overlaps most (distinct ones, one at
+  least). The editor's `projectListings` ([app.js](tools/viewer/web/app.js)) and the Build
+  ([buildings.py](tools/bake/buildings.py) `members`, with the compiler's new `carry` {label: saved, floors,
+  floor_map} in place of `authored`) keep what the map saved where the rule gives the same with the source's boxes
+  as with the building's (`carriedListing` / `carried`, as for the map's own buildings), else the rule's answer. Such
+  a building's floors may overlap without a warning, as before for exact ones.
+- **The rule skips pieces that collide with nothing** (F-104: over the install, 65% to 83% right on unlisted pieces
+  near a building, listed ones as before): [buildings.py](tools/bake/buildings.py) `rule` (`native_copy.collides`),
+  used by new and edited buildings alike; the editor skips a piece whose export says `collides: false`, which
+  [export.py](tools/viewer/export.py) writes now for the map's pieces and the library's (no new export version:
+  caches made before keep the old answer until exported again).
+- **Survey**: [audit_floor_rule.py](tools/upk/audit_floor_rule.py), new: the rule under several readings of
+  "touches" (drawn box, collision box, collision hulls, the collide flag, slack) against every map's saved listings,
+  the floor volumes' lists applied.
+- **Warnings only for what can cause a problem in the game** (the user's ask): the compiler's new `note()` and the
+  report's `notes` take what can't: loot counts (`collectible`), how pieces look (`foreign-quick-light`,
+  `foreign-area-light-unresolved`, `area-light-unresolved`, `area-light-near`, the glowing pieces' `family`,
+  `light-clamped`, `tint-dropped`), `unknown-field`, `unchanged`, `stage-ground`, `building-outside`,
+  `group-unbreakable`, and the two `building-floor` lines that only describe the cutaway (the one about a copy in a
+  floor that won't hide stays). The prefab test lists only warnings ([prefab_stage.py](tools/editor/prefab_stage.py):
+  `pose-rounded` is gone). `stage-outside` counts only pieces and cover blocks wholly outside the grid (a piece sunk
+  into the ground stands in it; lights and building boxes are left out). The Buildings view's problems
+  ([floors.js](tools/viewer/web/floors.js) `buildingProblems`) no longer say a box reaches outside the tile grid.
+  The split is written down in [editor-contracts.md](research/editor-contracts.md).
+
+**Checked.** New [source_floor_match_cases.json](tools/editor/tests/source_floor_match_cases.json) (9 cases, the
+prefab's own among them) passed by both twins ([source_floor_match_test.mjs](tools/viewer/tests/source_floor_match_test.mjs),
+which also carries the hull's listing through the edited boxes, and `test_source_floor_match_cases`);
+[test_compiler.py](tools/editor/tests/test_compiler.py)'s roof test now also edits the boxes and moves the building
+away, and its outside test sinks a piece; the tests that expected the codes now notes look in `notes`.
+`tools/run_tests.py editor node viewer` and `bake -k building` passed (editor 191, viewer 272: its two pack-script
+tests fail in a PowerShell 7 shell, which hands Windows PowerShell its module path, and pass from Git Bash). In the
+editor on the main server: the prefab's eight roof pieces list on floor 2 only, floor 1 shows the UFO open with its
+walls cut down, and its check says No problems (five warnings before). A quick Build of the prefab's test stage
+(offline, into a scratch folder), read back with `buildings.py`: floor 2 lists the eight roof pieces and the power
+core the map lists on both floors, floor 1 55 pieces and none of the roof. Not played in the game. Known gaps: the
+editor knows a piece's collision only from exports made from now on; listings saved by hand in a map are carried only
+while the rule agrees at the old and the new boxes (a box edit that changes the rule's answer for a hand-listed piece
+loses its list).
+
+### Cache everything: every piece of the game's maps (and, as an option, every map) read ahead of use
+
+At the user's ask: a Project menu item that fills the cache at once instead of piece by piece and map by map on
+first use, in a window with a progress bar that can be cancelled at any moment.
+
+- [library.py](tools/viewer/library.py): `piece_plan` (what of the index's pieces the cache holds, by donor map as
+  the install has it now; a record's first bytes say its version), `precache` (the missing pieces written, a donor
+  map to a worker, six workers; then each donor's older generations deleted; a stop file ends it between pieces, so
+  no shared mesh or texture is left half written) and `viewer.py library precache [--jobs] [--stop-file]`, which
+  reads the library first when it is not there or the install's maps changed.
+- [precache.py](tools/viewer/precache.py), new: `PrecacheRunner`, one job at a time. The pieces run as that command
+  in a process of its own; the maps (asked for separately) go one after another through the server's own
+  `ExportRunner`, so each takes its place in the map list, an older exporter's map is prepared again, and a map the
+  page is preparing itself is waited for. Cancel asks the pieces' process to stop and kills it only after 20
+  seconds; a map in hand is abandoned. Routes in [viewer.py](tools/viewer/viewer.py): `GET /precache.json`
+  (`?plan=1`: counts, free disk space, estimates), `POST /precache/start {pieces, maps}`, `POST /precache/cancel`.
+- The page: Project menu, **Cache everything…** ([index.html](tools/viewer/web/index.html),
+  [precache.js](tools/viewer/web/precache.js), new; wired in [app.js](tools/viewer/web/app.js)): two options (the
+  pieces, ticked; every map, not ticked), each with what there is to do, about how long and how much disk; the
+  drive's free space, in red when it is short; a bar with the count and the clock; what could not be read, listed;
+  Cancel, then Carry on. Closing the window leaves the job running. Prepared maps reach the map browser's list
+  without a reload.
+- The guide ([guide.html](tools/release/guide/guide.html)): the menu item, and a pointer from Pieces from other maps.
+
+**Checked.** [test_precache.py](tools/viewer/tests/test_precache.py), 14 tests (the plan, the stop file, the job with
+both parts, a failing map, a busy exporter, both kinds of cancel, the routes); `tools/run_tests.py viewer node` passed (viewer 272), and `release`
+before the stop file went in. A full run into a scratch
+cache: 9,733 pieces of 116 maps, none failed, 619 s, 6.4 GB (the window's estimates are from this: 0.065 s and
+660 KB a piece). A stop file 12 s into a run of 704 pieces ended it 1.7 s later with 134 read and no `.part` file;
+the next run read the other 570. In a browser on a test server (the real cache): the window's counts, Start, the
+bar, Cancel after 15 s (337 pieces kept, no process left), Carry on offered; then the maps alone, two maps prepared
+through the real exporter and Cancel during the third.
+
+**Known gaps.**
+- The maps' estimates (28 s and 130 MB a map) are from the maps exported here so far; a full run of every map was
+  not made.
+- While the job runs, a piece the page asks for itself is exported by the server at the same time as the job may
+  be writing it: both write the same content, and the record is replaced whole, but it was not tried.
+- A cancelled map export is killed, not asked: its half-written folder stays in the cache until that map is
+  prepared (the map list never takes it).
+- Thumbnails are not part of it: the page draws them as the list shows them.
+- The guide's picture of the Project menu is from before the new item.
+
+### What our own gates held back is warned of and built
+
+At the user's word ("can we not just warn and include them in the build anyway"): the pieces only the editor's own
+gates kept out of a build are built with a warning now, and left out only when the Build can't make them.
+
+- [compiler.py](tools/editor/compiler.py): a move or copy of a class with no family of its own (`class-untried`),
+  a part of an assembly edited on its own (`assembly-split`, each part built as a piece of its own), a tinted copy
+  (`tint-dropped`, built untinted), a copy naming a partner outside the edit (`partner-dropped`) and a piece of
+  another map the library holds back as hidden, linked, of a kind not switched on or waiting for its game test
+  (`foreign-untried`, `FOREIGN_SOFT`) are warnings. Such copies are marked `untried` in the spec and by
+  `native_split`, which makes every one of them in the map. A volume is still left out (`not-a-piece`: the level
+  volume holds the map's tile data).
+- [build.py](tools/editor/build.py): when the transplant or copy stage fails with untried copies in the edit,
+  `drop_untried` takes them out (with the hide of a moved one, which stays where the map has it), writes the edit
+  again and reruns the stages; the new `leftout` stage and the manifest's `leftOut` name them (`untried-failed`).
+  A failure with no untried copy is raised as before.
+- The page ([app.js](tools/viewer/web/app.js), [library.js](tools/viewer/web/library.js),
+  [pieces.js](tools/viewer/web/pieces.js)): the "Builds from M3" chip and "Later" tag read **Untried** for these;
+  the library lets an untried piece be chosen and placed, with a hint; a prefab keeps its untried pieces; the
+  Build window's left-out list also shows the `leftout` stage's pieces.
+- Docs: [editor-contracts.md](research/editor-contracts.md) (Untried pieces, the family table),
+  [guide.html](tools/release/guide/guide.html).
+
+**Checked.** `tools/run_tests.py editor viewer node`: editor 190 (new: the gates' warnings, the volume, the
+Build's fallback and its two refusals), viewer 258, node 3 files. Offline: a scratch project that moves and copies
+`FracturedStaticMeshActor_1` of LSupplyShip_ForestGrove built in a quick build, both made in the map by
+native_copy.py (3 exports each, the copy seeding 42 tiles), with no fallback needed. In a browser on a test
+server (URB_Bar, `browser_smoke.py --projects --only library,library-all,prefabs`): passed; the library check now
+picks an untried piece of another map (tag, hint, placing) and a piece that still can't be brought (greyed out).
+
+**Known gaps.**
+- Nothing played: how an untried class, a split assembly's part or a held-back piece of another map behaves in
+  the game is unknown, which is what the warning says.
+- The fallback is all or nothing: one untried copy that fails takes every untried copy of the build out, since the
+  failing stage does not say which one it was.
+- The fallback was tested with a faked failing stage only; no real piece that makes native_copy.py fail was found
+  to try it on.
+- A tinted copy is built without its tint; tints still need a recipe of their own.
+
+### Sturdier prefab builds, a faster editor, a visible busy state and 30 levels: built
+
+The plan of the same day, built at the user's go-ahead
+(private/plans/done/sturdier-prefabs-faster-editor-plan.md,
+whose head lists what was built and what was not). Nothing was run in the game. Nothing is committed: the plan's
+two branches were not made, because the work sits uncommitted in the checkout with another session's files.
+
+**A piece that can't be built is left out, not the build (R4).**
+- [compiler.py](tools/editor/compiler.py): an error that names one piece's record (`overrides[n]`, `added[n]`) goes
+  into the report's `leftOut` and the compile goes on; `errors` holds the document's own, which still stop it.
+  `counts.leftOut`. A piece edited whose glowing light can't follow (`area-light-unresolved`, the light family off)
+  is a warning now: the piece is built, the light stays.
+- [build.py](tools/editor/build.py): the compile stage names the first 100 (`leftOutPieces`), the log and the
+  manifest (`leftOut`) too; a project with every edit left out says so instead of "changes nothing".
+- The Build window lists them under its steps, each row selecting its piece; the not-built banner says "leaves such
+  an edit out" ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)).
+
+**The prefab test follows the Build's rules (R1, R4, R6).** [prefab_stage.py](tools/editor/prefab_stage.py):
+- off the grid, a rounded rotation and a grid piece's pivot outside the grid are warnings;
+- a piece whose source can't be had, whose geometry can't be read or which the compiler leaves out is left out and
+  named (`issues`, the left-out first; `without` takes it out of its groups and partners);
+- a donor map with another SHA-256 than the saved one has its pieces matched by recipe
+  (`match_changed_donors`, on `prefabs.recover_sources`), with a warning;
+- the stage is as tall as the prefab needs, 18 to 30 levels (`stage_levels`);
+- messages say the prefab's own piece names. The test's window lists the left-out pieces first, a row selects its
+  piece, and a test that left something out waits for Launch test
+  ([prefab_test.js](tools/viewer/web/prefab_test.js), [prefab_tests.py](tools/viewer/prefab_tests.py)).
+
+**Copies keep a component's own offset (R2, F-103).** The `component-offset` refusal goes for every class the Build
+makes in the map and for pieces of other maps. Checked offline on the Landed Large UFO: its test prepares in 1.4 s
+with nothing left out (460 pieces, 68 warnings), a quick build of it takes 40 s, and in the package the fence's
+clone has the donor's component `Rotation`, the donor's vertices moved by the copy's move (difference 0.0000 over
+936 vertices) and the compiler's box. The Small Landed UFO prepares too.
+
+**Light values clamp and warn (R3).** A number outside its range is built at the nearest value in range with a
+`light-clamped` warning; a cone out of range is built as the cone it lights as (`lights.storable_cone`); an inner
+cone wider than its outer is built at the outer. What is no number is still left out. The spot-cone fix of earlier
+today (`storable_cone`, `storableCone`, the page's caps) goes in with this.
+
+**The builder's Problems chip (R5).** `POST /prefab-tests/check {snapshot}` runs the test's prepare step and builds
+nothing ([viewer.py](tools/viewer/viewer.py), `PrefabTests.check`). The chip under the builder's size line counts
+the pieces that would be left out and the warnings, opens the list, and a row selects and frames its piece. Checked
+on open and save, and by Check again.
+
+**Files from elsewhere (R6).** [prefabs.py](tools/viewer/prefabs.py): a field this editor doesn't know is kept when
+its value is small (`carried`, `small`), named by `validate` and on the prefab's card (`unknownFields`), and carried
+through the builder's save. It is still refused in a source, a template, a recipe and a light's or cover's values.
+
+**Size limits warn (R7).** [prefab_bounds.py](tools/viewer/prefab_bounds.py) and
+[prefab_document.js](tools/viewer/web/prefab_document.js): `warnings` in place of errors, `supported` always true,
+`tall` over 18 levels. A prefab over the limits is saved; one placed where it reaches out of the map's grid is
+placed, with a banner. The test still refuses a prefab that leaves the squad no room on its stage, and says it can
+be placed in a map.
+
+**30 levels (part H).** `STAGE_LEVELS_MAX` and `GRID_LEVELS` 18 to 30 (1,920 units; a prefab −192 to 2,112) in
+[compiler.py](tools/editor/compiler.py), [project.js](tools/viewer/web/project.js), `prefab_bounds.py` and
+`prefab_document.js`; a `stage-levels-tall` warning over 18; a building's floors 8 to 10; the Map grid panel and
+the builder's size line say "not played" over 18. [tests/limits.json](tools/viewer/tests/limits.json) holds the
+limits both sides share, checked by a Python test and a page test. The Build's shell stage needed no change: the
+blank map at 30 levels gets `NumZ` 30, bounds to 1,921 and ten cursor storeys.
+
+**Speed (part P).**
+- [library.py](tools/viewer/library.py) `donors`: the install's maps are listed once for the install as it stands
+  (the maps list's text and the cooked folder's listing). `compiler.Library` keeps one `shared` dict.
+  `POST /library/pieces.json` answers up to 200 records in one answer; the page reads a prefab's or a project's
+  pieces 100 at a time (`readLibraryRecords`).
+- One document state per edit event (`eventMemo`: `editState`, `builderDocument`, `builderKey`); a held drag does
+  only what is seen to move; the draw loop refreshes the builder when the view's target moved a tile or every 2 s.
+- A paste gives way by time, not after every 40 pieces (`buildRoots`, `breather`).
+- The sun's shadow map is drawn when something changed (`touchShadows`), and once a second besides.
+- [perf_probe.py](tools/viewer/perf_probe.py): the timings below as a tool, with a watch for stretches over 300 ms
+  in which nothing is said.
+
+| Operation (Forest Grove, the Large UFO) | Before | After |
+|---|---|---|
+| Compile the Large UFO | 16 s | 1.2 s |
+| Open it in the builder | 20.5 s | about 1 s (probe), with a bar that counts |
+| An edit event in the builder | 50 to 85 ms | 9 to 15 ms |
+| Paste 500 pieces | 1.3 s | 81 ms in the pane, 29 ms headless |
+| A frame of the map, in the editor's pane | 183 ms with the shadow pass | 14 ms without it |
+
+- **Dropped: box-first picking (P3).** A pick takes about 1 ms on Forest Grove at four camera places; the plan's
+  103 ms did not reproduce. It was written, gave the same hits in the same time, and was taken out.
+- **Not needed: batches (P5 step 3).** A frame is under the 16 ms target once the shadow pass goes.
+
+**Busy state (part L).** `busy(message, work, { total, now })` in `app.js`: the mark with a bar and a count, input
+to the view held while a mark put up at once shows. Opening a prefab or a project counts on the loading overlay
+(reading, loading, making); placing and pasting count pieces; delete, undo and redo of 60 pieces or more show the
+mark.
+
+**Documents.** [editor-contracts.md](research/editor-contracts.md) (sizes, 30 levels, unknown fields, the test's
+rules), the guide's builder section and rules ([guide.html](tools/release/guide/guide.html)),
+[findings-register.md](research/findings-register.md) F-103, `shell.py`'s usage.
+
+**Checked.**
+- `tools/run_tests.py editor viewer node`: 187, 258 and 3 files pass. New or changed cases: pieces left out and the
+  rest built, a copy with an offset component, light values clamped, 30 levels and the tall warning, ten cursor
+  storeys, the prefab test's left-out and warning rules, the stage's height, unknown fields carried, sizes that
+  warn, the limits shared with the page, the check route, the donors listed once, the records route.
+- `tools/run_tests.py bake -k TallestGrid`: the blank map at 30 levels.
+- [browser_builder.py](tools/viewer/tests/browser_builder.py) on a scratch server (port 8794): passes whole, with
+  its size step rewritten for "warns and saves" and the Problems chip.
+- In the editor's pane on a scratch server (port 8793): the Large UFO opens with the counting bar, the chip says
+  "68 warnings", a row selects its piece; on Forest Grove a paste of 500 and its undo under the busy mark; no
+  console errors.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `--projects` on a scratch server (port 8797): passes whole.
+  Its prefab step looked for a spot inside the other map's grid and found none, on the code before this change
+  too (checked against a scratch copy of the last commit); it now places with the warning where no spot fits.
+
+**Known gaps.**
+- Not played: the offset fence (whether its fragment columns land on its tiles is the one real doubt), anything
+  over 18 levels, a build with pieces left out.
+- (Done later the same day, in the entry above: what our own gates held back is warned of and built.)
+- Not built: the Prefabs tab's mark for a prefab whose last check left pieces out; the busy mark for Reset all,
+  Group, Ungroup, Align, Clear map, the view switches and box select's Select; Esc to cancel a busy step;
+  `deriveAreaLights` and `physicalBox` kept across events; the size warning in the Save dialog (the size line and
+  the card have it).
+- The Build window's left-out list and the Map grid's "not played over 18" note were not looked at in a browser.
+- A prefab or project over 18 levels, or a building over 8 floors, is refused by an editor from before this change.
+
+### Plan written: sturdier prefab builds, a faster editor and a visible busy state
+
+A plan only; no tool or page changed. It follows two prefabs that failed their tests (the Small Landed UFO's wide
+spot cones, and one fence with a component offset in a 520-piece Landed Large UFO from another user) and the user's
+report that the editor is slow with many pieces.
+
+- private/plans/done/sturdier-prefabs-faster-editor-plan.md
+  (in `todo` until it was built, later the same day):
+  what was measured, the user's six decisions, and three parts.
+  - Part R: the prefab test follows the Build's rules (off the grid warns), copies keep a component's offset,
+    light values clamp and warn, a piece that can't be built is left out instead of the build, a Problems list in
+    the builder, files read more tolerantly, size limits warn.
+  - Part P: the install's maps listed once, one document build per edit event, box-first picking, paste without
+    the frame waits, fewer draw calls, a probe kept as a tool.
+  - Part L: one busy helper with a bar or ring and a short message for every slow step.
+  - Part H (added the same day at the user's word): maps and prefabs up to 30 levels (1,920 units) instead of 18,
+    ten cursor storeys, a warning over 18; nothing of it is checked in the game, by the user's choice.
+- Measured for it, read only (the prefab test's prepare offline, the compiler under cProfile, the page in a test
+  server on port 8792 from a scratch copy of `tools/` with timers added): compiling the Large UFO takes 16 s and
+  opening it in the builder 20.5 s, both because `library.donors` lists the install again for every piece; an edit
+  event in the builder takes 50 to 85 ms; a pick on `LSupplyShip_ForestGrove` 103 ms; a frame about 40 ms for
+  2,803 draw calls. With the component-offset refusal lifted in memory the Large UFO compiles with no errors.
+- Gaps: the browser pane was hidden while measuring, so the frame and paste times are rough; nothing was measured
+  with a project open; nothing was built or played. "Leave a piece out" was taken to cover project builds as well
+  as prefab tests, which the plan marks as a reading of the user's "yes" to be confirmed.
+
+### A prefab's lights copied from a map's wide spot lights no longer fail its test
+
+The user's Small Landed UFO prefab failed its game test with four "outerConeAngle must be 0 to 89.99" errors. Its
+four blue spot lights were copied from the UFO map, which stores their outer cone as 100. The game lights a stored
+cone that wide as 89.99, and the editor already draws it that way. But a prefab's lights are made lights (recipe
+lights), so the compiler checks every value they hold, and the prefab had kept the stored 100.
+
+- [tools/viewer/lights.py](tools/viewer/lights.py) `storable_cone` and its twin `storableCone` in
+  [tools/viewer/web/light_rules.js](tools/viewer/web/light_rules.js): a spot light's cone as a made light may hold
+  it. Values already in the compiler's ranges stay as stored. Any others become the effective cone, which lights
+  the same (100 or 580 becomes 89.99).
+- [tools/viewer/web/app.js](tools/viewer/web/app.js): making a prefab stores a copied map light's cone this way, and
+  `recipeLight` caps the saved values when a prefab's or project's made light is placed or loaded. A prefab or
+  project saved before the fix is corrected the next time it is saved from the page.
+- [tools/editor/prefab_stage.py](tools/editor/prefab_stage.py) `make_project`: the prefab test caps the cones of the
+  prefab it is given, so prefabs saved before the fix test as they are.
+- Tests: `StorableConeTests` in [tools/viewer/tests/test_lights.py](tools/viewer/tests/test_lights.py) checks ten
+  cases in Python and in the page's JavaScript (in Edge). Each result must be in the ranges and light as the stored
+  cone does. [tools/editor/tests/test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py) checks a stored 100
+  made into 89.99 with the snapshot left unchanged, and the real blank map compiles a stored-100 spot light.
+- Checked: `run_tests.py viewer -k Cone` (5), `viewer -k prefab` (35), `editor -k test_prefab_stage` (12) and `node`
+  all pass. The test's prepare step, run on the saved Small Landed UFO prefab, now gives 0 errors, 7 warnings and
+  25 lights, the four blue spots at 0/89.99. The Build and the game run were not tried.
+- Gap: a project that already holds such a light and is built without being opened and saved in the page still
+  holds the stored 100. The compiler does not cap it.
+
+### Temple Ship's arches made clickable (F-102)
+
+A modder reported, through the user, that Temple Ship's arches are floor for aliens and the grapple but can't be
+clicked. The shipped map sets `bIgnoreFor3DCursorCollision` on all 273 arch pieces; the user asked for a patched map
+with it cleared.
+
+- [tools/upk/cursor_pick.py](tools/upk/cursor_pick.py): lists the placed level pieces whose archetype matches a
+  pattern (default `KnuckleWorm_A.Archetypes.*`) with their flag, and with `--out` writes a copy with the flag
+  cleared (or set, `--ignore`) through `package_edit.write_edited`. A piece that takes the flag from its archetype is
+  reported and left alone (a fixed-size edit can't add a property).
+- [tools/upk/tests/test_cursor_pick.py](tools/upk/tests/test_cursor_pick.py): the property walk on synthetic tags,
+  and on the install's `TempleShip.upk` the 273 pieces cleared with no other byte of the body changed.
+- [research/findings-register.md](research/findings-register.md): F-102, cause, fix and what to expect.
+- Made `dist/templeship-clickable-arches/TempleShip.upk` from the shipped EW map (SHA-256 `029bedca…af4d2e`, the same
+  in the LWR install): 273 bytes from 1 to 0 plus the chunk table, checked by decoding both packages; SHA-256
+  `3270f43400ad850ab66619bc3e9a2f254c44c1ea04921347e442d34577183850`.
+- Checked: `tools/run_tests.py upk`, 95 tests pass. Not played in the game.
+
+## 13 November 2026
+
+### Release 0.5.0 made again with the faster bake
+
+The user asked for the 0.5.0 release to be redone with the faster bake (the entry below) and for its notes to say
+so, giving their own timings for the `temple_improved` project.
+
+- [tools/release/notes/0.5.0.md](tools/release/notes/0.5.0.md):
+  - a new section, Faster baked builds: the Temple Ship project about 10 minutes before, under 3 on a fresh bake and
+    under 2 built again after a small change; the Bar's figures and the quick builds from the entry below; how it
+    works; the kept pieces; more of the original bake kept.
+  - Upgrading: the first Build clears old work folders (about 4.5 GB here).
+  - Bugs fixed: work folders piling up, a dead worker hanging the Build, and progress sitting still.
+  - Known limits: the new bake's lighting not played in the game.
+  - The new SHA-256s.
+- The temple timings were checked against the builds folder: `TempleShip_TempleIm_2001-20261109-010834` ran from
+  01:08:34 to 01:18:50 (10 min 16 s, old code). `-20261113-211940` ran from 21:19:40 to 21:22:18 (2 min 38 s; relight
+  153 s, 685 pieces relit, none kept). `-20261113-212357` ran from 21:23:57 to 21:25:50 (1 min 53 s; relight 108 s,
+  125 relit, 561 kept). Relight figures are from [profile_build.py](tools/bake/profile_build.py). The 9 November build
+  was of an earlier revision of the project.
+- Made again in `dist/release`, replacing the earlier 0.5.0 files:
+  - `XCOM-Map-Workshop-0.5.0.zip`: 101.4 MB, 123 of our files, SHA-256 `a5177c53…a7f94b`;
+  - `XCOM-Map-Workshop-0.5.0-Setup.exe`: 63.3 MB, Inno Setup 6, SHA-256 `a1c8497f…46cd20`.
+  
+  The zip's `relight.py`, `lighting_fixture.py`, `decomp.py` and `build.py` match the repository's. The staged
+  Python's import check passed.
+- Checked: the suites run on `faster-bake` before the merge (the entry below); since then only these notes changed.
+- Published with the user's go-ahead: [v0.5.0](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.5.0)
+  on the releases repository, marked Latest, with both files and the notes file (`gh release create --notes-file`).
+  GitHub's digests of the two files equal the local SHA-256s, and the `releases/latest/download/` links for both
+  answer without signing in. Main was pushed to the private repository first (`05f460d`).
+- Known gaps:
+  - the installer wasn't run;
+  - the guide and the Build panel still say a baked build takes "several minutes for a small edit".
+
+### The faster bake built: packages decoded once, lights culled, bands, the reach of each texel, the last build's pieces kept
+
+The user gave the go-ahead for the faster-bake plan with its proposed
+answers, and asked for the reuse of the last build's pieces to be in it. On branch `faster-bake`; the plan's
+section 11 says what was built stage by stage, and it moved to `private/plans/done`.
+
+- **Results** (URB_Bar; the reference from a clean copy of `f31f2a9`): the pool table build 146 s to 38 s, and 17 s
+  when built again; the lights build 296 s to 88 s (34 s again); the alien bar 266 s to 60 s (36 s again); the
+  cleared Bar 217 s to 91 s. Quick builds 11.7 s to 2.4 s, 11.2 to 2.5, 26.4 to 6.5, 51.2 to 8.4.
+- **Packages decoded once**: [decomp.py](tools/upk/decomp.py) keeps decoded images by the compressed file's
+  SHA-256, in the process, in a build's work folder (`XCOM_UNPACKED`) and, for the pristine base map, in the viewer
+  cache's `.unpacked` (`XCOM_UNPACKED_KEEP`, 12 kept); [build.py](tools/editor/build.py) sets them
+  (`Build.unpacked`). [lzo1x.py](tools/upk/lzo1x.py) copies matches as slices (1.8 times faster).
+  [package_edit.py](tools/upk/package_edit.py) `write_edited(verify=False)` for
+  [package_grow.py](tools/upk/package_grow.py), which verifies the final file.
+- **The writer** ([lighting_fixture.py](tools/bake/lighting_fixture.py)): `image` decodes only the blocks it needs
+  ([dxt1.py](tools/bake/dxt1.py) `decode_region`); `only_changed` writes only the blocks with a changed texel; `ring`
+  writes the padding texels around a rectangle with it (the plan's 11.4: the game reads them);
+  `others_changed` checks that no other piece's lightmap was touched (`otherPiecesChanged` in the records, a warning
+  from the relight). [lightmap_stats.py](tools/bake/lightmap_stats.py) `top_mip_rect` for the workers.
+- **The relight** ([relight.py](tools/bake/relight.py)): `relight_component` is `prepare_component`,
+  `compute_component` and `assemble_component`, so a large piece is relit in bands by several workers
+  (`piece_jobs`, `run_jobs`: largest first, progress as pieces finish, a dead worker stops the relight with the
+  pieces left named); `texel_reach` relights only the texels the edit can change; a floor of 0.043 under a piece's
+  change; the original slot scale kept where the light fits under it; the dominant light's shadow maps traced by
+  the workers (`shadow_map_jobs`, `shadow_map_job`, `shadow_map_results`); the quick reach test's lights tested
+  together (`shadows_meet`, `reaching_boxes`); gathers in chunks; workers counted by cores and memory;
+  `PieceCache` (`--piece-cache`, `--base`) keeps each piece for the project's next build; `--as-before` (or
+  `XCOM_RELIGHT_AS_BEFORE`) gives the output of before the plan; the record's `timing`.
+  [bounce.py](tools/bake/bounce.py) `direct_irradiance` works out a light only at the points inside its radius.
+- **The Build** ([build.py](tools/editor/build.py)): each stage's `seconds` in the manifest; the kept pieces in
+  `<builds>/.work/pieces/<Variant>` ([native_copy.py](tools/bake/native_copy.py) passes them on); `prune_work`
+  keeps every variant's three newest work folders whole and the logs and small records of older ones.
+- [profile_build.py](tools/bake/profile_build.py) prints where a build's time went. [README.md](README.md) names it.
+- **Checked**: two reference builds of the pool table gave the same bytes. With `XCOM_RELIGHT_AS_BEFORE` set, the
+  four projects' full builds give the reference's map and texture cache byte for byte, and their quick builds
+  too. Each project rebuilt from its kept pieces gives the bytes of its fresh build. A rebuild after one more
+  change (a ceiling piece moved) differs from a fresh build of the same project in one piece of 46, by 0.033 of
+  flat light at most, under the floor: a kept piece does not see an edit the reach rule says cannot reach it.
+  New tests: [test_faster_bake.py](tools/bake/tests/test_faster_bake.py) (19) and three in
+  [test_build.py](tools/editor/tests/test_build.py); two stubs in
+  [test_relight.py](tools/bake/tests/test_relight.py) take the new arguments. The suites with
+  [run_tests.py](tools/run_tests.py): bake 377 (1 skipped; 341 s, where it took 16 minutes), viewer 253, editor 181
+  (3 skipped), upk 92, release 5, all passing.
+- **Known gaps**: nothing was played in the game, and the new default output (texels in reach, the floor, the kept
+  scale, the ring) was compared with the old only in the tests. The next build from the editor prunes the builds
+  folder's old work folders on this PC (about 4.5 GB). CLrgScout_ForestTrench, the farm and Temple Ship are not
+  profiled. A cleared map keeps no pieces (over 64 edit boxes) and one large shadow map bounds its build. The
+  main viewer server was not restarted (nothing it serves changed; it starts builds with the new code as they
+  are).
+
+### A plan for a faster bake and its fixes (nothing built)
+
+The user asked whether the bake can be made faster and what else in it can be improved or fixed, then for the
+answer as a detailed plan.
+
+- private/plans/done/faster-bake-plan.md (in `todo` until it was built,
+  the entry above): what was measured (one full
+  build of "EXP-17 pool table moved" on URB_Bar, 146 s: the edit in the map 8 s, relight setup 8 s, 207 pieces on
+  16 workers 101 s, writing the lighting 24 s), five speed-ups (the package decompressed once, the writer decoding
+  each atlas once, the bounce working out each light only where it reaches, the largest pieces first and split
+  across workers, only the texels the edit can reach), the fixes (progress read as pieces finish, a dead worker
+  failing the build, memory bounded), more of the original bake kept (a floor under a change, the slot scale kept
+  and untouched blocks left alone, the padding around a rectangle), old work folders pruned, stage timings
+  recorded; how each stage is checked, eight stages, seven points for the user to decide.
+- How it was measured, all in a scratch folder with the code at `91dce36`, nothing in the repository changed: the
+  build run with every output line timed; the 207 pieces relit again from the build's grown map with a timer
+  around each piece and each function (8, 16 and 24 workers: 154, 106 and 98 s); the writer and `native_copy.py`
+  under cProfile; `lzo1x.decompress` against a copy with slice copies on four packages (1.8 times, identical
+  output); a prototype of the light culling on four pieces (1.5 to 2.0 times, identical images); each texel
+  tested against the reach rule (38% in reach, 4.3% changed); the variant's atlases compared with the grown
+  map's over the 868 pieces not written (no texel changed).
+- Known gaps: one build of one map; CLrgScout_ForestTrench's 728 s, the shadow maps on a large edit and peak
+  memory are not measured; another session may have used the processor during the worker-count runs; the
+  dead-worker hang and the padding question are read from the code, not seen happen; the survey's scripts are
+  not in the repository (the plan's stage 0 writes them again as a tool).
+
+### Release 0.5.0: pieces from other maps, prefabs, buildings, Clear map, Map grid, landing zones
+
+- A minor step, as the user asked (the rule's patch step is for small releases).
+  [version.py](tools/viewer/version.py) 0.5.0.
+- Release notes for the releases repository: [tools/release/notes/0.5.0.md](tools/release/notes/0.5.0.md): upgrading
+  from 0.4.1 (each map is read again on first opening, export 23; old exports are deleted by the editor), new
+  features (All maps, prefabs and the builder with Test in game, the Buildings view and the map's own buildings, Clear
+  map, Map grid, landing zones with Land here, box select, the four views, nested and mixed groups, cover blocks that
+  break, the Shift drag copy), changes (warnings in place of refusals: ladders, mission-script and landing pieces,
+  deletes of unbuilt kinds; doors without a frame build; the ladder check counts the project's floors; the change
+  count and Reset all), bugs fixed (a save binds to the newer export; old exports piled up in the cache), known limits
+  (what is played once or twice, what is built and not played) and the SHA-256s. Drawn from this ledger's entries
+  since 0.4.1 and the guide's New in this version; invisible floors and Align were checked against the 0.4.1 guide
+  and left out (they were in 0.4.1).
+- Made in `dist/release` beside the earlier ones: `XCOM-Map-Workshop-0.5.0.zip` (101.3 MB, SHA-256 `be2b105c…42758e`)
+  and `XCOM-Map-Workshop-0.5.0-Setup.exe` (63.3 MB, Inno Setup 6, SHA-256 `adaa4f05…630502`). The zip's
+  `VERSION.txt` says 0.5.0 and it has `prune.py`, `prefab_tests.py`, `spawns.py`, `native_spawns.py` and the guide.
+- Checked, with the new [run_tests.py](tools/run_tests.py): the viewer (253), editor (179, 3 skipped), upk (92),
+  release (5) and node (3 files) suites pass; the bake suite (358) passes with the two test_transplant fixes below
+  (test_transplant rerun alone: 32, 1 skipped). The whole browser smoke ran on main today before the guide commit
+  (the pre-release fixes entry); since then only the guide, its pictures, the notes, the version and tests changed.
+- Not published, at the user's word. Known gaps: the installer wasn't run, and nothing was played for this release.
+
+### A test runner that names every failure: tools/run_tests.py
+
+The bake suite failed twice in a 16-minute run whose output kept only the summary, and running its files one by one
+does not work (test_lab_install imports test_deploy, a neighbour). The user asked for a way that needs no second run.
+
+- [tools/run_tests.py](tools/run_tests.py): runs the viewer, editor, upk, bake and release suites (each in its own
+  process, `unittest discover -v`) and the node tests (`tools/viewer/tests/*_test.mjs`), or the ones named; `-k`
+  passes a name filter on. Each suite's failures and errors are printed with their tracebacks as it ends, with a
+  summary naming them at the close; the full output goes to `.scratch/tests/<date-time>/` (or `--log`). Exit 1 when
+  anything failed or a suite didn't finish.
+- Docs: a Tests section in [README.md](README.md), and a line in [AGENTS.md](AGENTS.md).
+- Checked: a passing run (release, node, editor); a scratch test file with a failure and an error, both named once
+  with their tracebacks (Python 3.12 writes the full name in the brackets); the real bake run named both
+  test_transplant failures; an unknown suite name is refused.
+
+### Two test_transplant tests brought up to the code
+
+Both failed on main; neither is a fault of the code (found by bisecting in a scratch worktree).
+
+- `test_an_actor_whose_closure_has_no_layout_is_refused_whole` asked for a volume, refused while brush components had
+  no layout. They have one since dcd94e0 (vans, 11 November), so the volume came. It now asks for a PrefabInstance,
+  whose native data still has no layout, and checks the refusal says so. The module's docstring said Model and Polys
+  had no layout; corrected.
+- `test_the_copier_makes_a_staged_actors_copy_as_it_makes_one_of_the_maps_own` expected tiles for all three copies.
+  Since bb48d07 (F-93, 12 November) a copy that collides with nothing seeds no tiles, and URB_PoliceStation's lamp has
+  `bCollideActors` off: its two copies have none, the map's own piece has its tiles. The test now expects tiles
+  exactly for the copies that collide.
+- Checked: test_transplant passes (32, 1 skipped).
+
+### The guide and the testers' README brought up to what the editor does (the user's ask before the release)
+
+The fixes branch was merged into main first (fast-forward, 069af75). Then the documentation testers read was gone
+through against everything added since 0.4.1.
+
+- **[The user guide](tools/release/guide/guide.html):**
+  - A new section, **New in this version**: each addition since 0.4.1 with a line on what it is and a link to its
+    section.
+  - **What it can't do yet** said things that are no longer so: no pieces from other maps, no new maps, doors
+    without a frame not building, pieces moving only on the grid, no rotation set-up, "it doesn't start the game".
+    Rewritten to what holds now, with a line that the Build warns far more often than it refuses.
+  - **Cover blocks and invisible floors** is a section of its own (it was two paragraphs under Pieces from other
+    maps), with a picture and numbered list, and the block that breaks with its group.
+  - **Clear map** has a picture of its window.
+  - **Typical tasks** gained five: cover where there is nothing to copy, a building taken from one map to another
+    (a prefab), a house made to open up in the game (floor boxes), moving where the squad lands, making the map
+    larger.
+  - **How pieces move and what builds:** the table has doors without a frame as building (not played), cover
+    blocks, floor boxes and landing zones; the grid rule says what Snap at 96 keeps and that off the grid a piece
+    builds with a warning; a new part on ladders (what counts as floor, a red end is built with a warning).
+  - The header's change count and Reset all name buildings, the grid, landing zones and a clear; the Build section
+    says warnings don't stop a build; the keys table has the Landing zones view's keys and the Shift drag.
+  - **In the game: known limits** lists what has been played once or twice and what builds but has not been played.
+- **[take_shots.py](tools/release/guide/take_shots.py):** two new shots, `cover-blocks` (a high block, a low one and
+  an invisible floor on the Bar's pavement, the landing zones' marks hidden for it) and `clear-map` (the window,
+  cancelled). The box-select shot now puts the view back to the play area and floor 1: it had left Full and All
+  floors on, so a full run took the Lights, Map grid and piece-list shots over a closed roof. Its usage says the
+  prefabs folder must be empty too.
+- **Pictures** ([shots](tools/release/guide/shots/)): all 27 taken again on a test server on 8790 (stopped after).
+  The 14 that differed from the committed ones were kept (the piece list, All maps, Prefabs, Group, Align, Project
+  menu, Build, Box select, the two Buildings shots, Lights, Map grid, Landing zones, Map browser), with the two new
+  ones; the 11 that came out the same were left as they were.
+- **[GETTING-STARTED.md](tools/release/GETTING-STARTED.md)** (the release's README): a New in this version list, what
+  builds brought up to date (cover blocks, buildings, a cleared or larger map, landing zones, doors without a frame
+  as built but not played), what is built but not played, the Add key (P, not A), and the landing-zone limit.
+- **Checked:** `test_guide.py` and the release tests pass (every picture the guide names exists and the other way
+  round; every control the shots mark is in the page). The guide's links all have their anchors, no id is used
+  twice and its tags nest. The new sections were looked at in the browser from the main server, and each new or
+  changed picture against its numbered list.
+- **Gaps:** the guide's older pictures of the Buildings view still show the landing zones' marks in the car park.
+  The ? menu's short list of controls was not gone through.
+
+### Seven fixes from the review of everything since 0.4.1 (branch pre-release-fixes)
+
+The 85 commits since release 0.4.1 were reviewed (six reviewers by area, the packaging and the suites checked
+beside them). These are the seven the review put before a release.
+
+- **Edits to a map's own buildings were dropped where the package's and the map record's names differ in case**
+  (the Farm: `CsmallScout_Farm.upk`, record `CSmallScout_Farm`). The page writes the export's name in `replaces`,
+  and [compiler.py](tools/editor/compiler.py) compared it with `==` in `buildings` and `floor_boxes_now`. The Build
+  then warned `building-replaces` and built nothing. Both compare by casefold now, as the rest of the compiler does.
+- **A moved or copied ladder failed the Build on a grown or cleared map.**
+  [native_copy.py](tools/bake/native_copy.py) `build` put a ladder's top-tile volume ahead of the level's rebuild
+  volumes only on the blank map, by its file name. Any resized map has shell.py's whole-grid ground volume, which
+  queued the foot first, and `ladder_order` raised. The top volumes now go first whenever the level already has a
+  rebuild volume. A map of the game's as it is has none, so its Builds are unchanged.
+- **The ladder check warns, and counts every floor the project gives.** `ladder-climb` was an error
+  ([compiler.py](tools/editor/compiler.py) `ladder_ends`); it is a warning now, and such a ladder is built with no
+  climb of its own (warn, don't block).
+  - The check runs once every copy, cover block and the stage are known (`ladder_climbs`, after `stage`), so a
+    map ladder moved onto a floor the project adds is no longer judged before that floor is read.
+  - `added_floors` counts an invisible floor (a cover block of type floor), and levels a grown grid adds.
+  - The page's twin counts invisible floors too ([app.js](tools/viewer/web/app.js) `ladderNow`), and its note
+    says a ladder with a red end is built with a warning.
+  - Docs: [the guide](tools/release/guide/guide.html), [editor contracts](research/editor-contracts.md),
+    [ladders.js](tools/viewer/web/ladders.js).
+- **A landing zone's `other` text must stay on its line.** It goes into the game's `DefaultLZMutator.ini` as
+  written, and any string was accepted, line breaks among them. [spawns.py](tools/viewer/spawns.py) `plain_other`
+  (no line break of any kind, no control character but a tab, 4000 characters at most) is checked by `valid_zone`,
+  and `write_line` raises on it; [project.js](tools/viewer/web/project.js) `validLandingZone` has the twin.
+- **The server no longer stops at start over a prefab test folder it can't delete.**
+  [prefab_tests.py](tools/viewer/prefab_tests.py) `_prune` and `_recover` keep such a folder for the next time.
+- **The Landing zones view steps aside for pieces** ([app.js](tools/viewer/web/app.js)): a piece selected from a
+  list, by a paste or a placing, and box select, leave the view, as the Buildings and Lights views already did.
+  Leaving the view also drops a zone asked for from the Add panel and not placed yet.
+- **Buildings count as changes, and Reset all takes the project's own.** `changes()` counts what
+  `savedBuildings()` holds, so the chip says "2 buildings" and Reset all is offered for building edits alone.
+  `resetAll` removes the project's own floor boxes in the same undo step that restores the map's buildings.
+- **Tests' own faults:**
+  - [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py)'s blank-map test skips when the cache has no
+    current export of the blank map, as its subtests did (it failed here, on main too).
+  - The smoke's `check_copy_drag` asserted an empty undo history, which a full run never has (the groups check
+    before it ends with Reset all). It compares the undo depth now ([gizmo.js](tools/viewer/web/gizmo.js)
+    `undoDepth`).
+- **Checked:**
+  - New tests: test_compiler (`test_the_package_is_the_map_whatever_its_case`,
+    `test_a_moved_ladder_counts_the_floors_the_project_adds_and_its_grown_levels`, the three ladder tests that
+    expected the refusal), test_native_copy (`test_a_ladder_copy_on_a_grown_map_rebuilds_its_top_tile_first`: Bar
+    grown four tiles, the ladder move that raised), test_spawns (`test_other_fields_stay_on_their_line`),
+    clear_map_test.mjs, test_prefab_tests (`test_restart_survives_an_old_test_whose_folder_can_not_be_deleted`).
+  - The viewer suite (253) and the editor suite (179, 3 skipped) pass; test_native_copy.py and test_shell.py pass;
+    the three node tests pass.
+  - All 950 LZArray lines of the two installs here still pass `plain_other`.
+  - The whole browser smoke on a test server on 8790 (stopped after), with new lines in `check_clear_map` (a
+    piece selected and box select leave the zones view) and `check_map_buildings` (the count, the chip, Reset all
+    and its undo).
+- **Gaps:**
+  - Nothing was played in the game. A ladder built with the `ladder-climb` warning has not been looked at there.
+  - The rest of the bake suite was not run (only native_copy.py changed there).
+  - The review's other findings are not done: the refusals left in the changed code, a `stage` the page doesn't
+    know dropped on save, `serve` pruning before it binds its port, a prefab test stuck after an unexpected
+    exception, a small building taken for a van when most of its pieces are hidden.
+  - The testers' README does not cover buildings, Clear map, Map grid, landing zones or cover blocks yet.
+
+### Shift on a move handle drags a copy
+
+Holding Shift as an axis arrow or a plane square of the move gizmo is taken drags a copy along that axis or plane;
+the original stays.
+
+- **[gizmo.js](tools/viewer/web/gizmo.js) `copyDrag`:** a new option, `{ begin(), end(token, delta) }`. With Shift
+  held at the press (read from the canvas's own `pointerdown`) and the move mode on, the drag is a copy's: the
+  selection moves as in any drag (tile, fine, level and recipe snaps), and on release it is put back and `end` gets
+  the move. Cancelled or not moved, `end` gets null. No move is recorded.
+- **[app.js](tools/viewer/web/app.js) `copyDragBegin`, `copyDragEnd`:** the selection's snapshot is taken at the
+  press and a drawn-only stand-in of it (its own materials) is left in its place; the release pastes the snapshot
+  moved by the drag (`pasteSnapshot`: one undo step, the copy selected, groups and buildings as any paste).
+  The hint says "Moving a copy of …". Not in the Buildings view, where Shift is a plain move.
+- **Docs:** [tools/viewer/README.md](tools/viewer/README.md) and the release guide
+  ([guide.html](tools/release/guide/guide.html)).
+- **Checked:** `browser_smoke.py --only copy-drag` (new `check_copy_drag`, also in the full run) on a test server
+  on 8790: Escape during a Shift drag copies nothing; a Shift drag on the X arrow leaves the original's matrix as it
+  was and places an added copy moved along X only; one Ctrl+Z takes it away; a drag without Shift moves the piece.
+  `test_guide.py` passes.
+- **Gaps:** plane handles, a group with a building, lights and a large selection (the busy mark) were not driven
+  by the check; rotate handles ignore Shift. The copy appears a moment after the release (the paste is asynchronous).
+
+### Cover blocks break with their group (F-101, EXP-52)
+
+A cover block grouped with a piece, with **Break together** on, goes when that piece is destroyed, so it leaves no
+invisible wall. Plan: breaking-cover-blocks-plan.md.
+
+- **[cover_blocks.py](tools/bake/cover_blocks.py) `BREAKING`:** a block with a `breakGroup` is made as a hidden
+  `XComDestructibleActor` on the block's box mesh, in the same tiles.
+  - One destroyed event, the game's own Hide action: it takes the mesh away, which turns the collision off and has
+    the tiles rebuilt ([native-code-notes.md](research/native-code-notes.md)).
+  - A toughness of its own with `bInvincible`, so it takes no damage itself; `bDestroysSurroundingArea` off.
+  - Recipe 1 is untouched (its digest is still pinned); the new table has its own digest.
+- **[native_copy.py](tools/bake/native_copy.py) `link_children`:** takes the blocks by group and adds each to the
+  `AffectedChildren` of the group's breakable pieces. A block lists nothing. One breakable piece is enough with a
+  block.
+- **[compiler.py](tools/editor/compiler.py) `groups`:** a high or low block in a group that breaks together takes
+  the group's number; an invisible floor stays (`group-unbreakable`).
+  - A group of a block and one of the map's own props, left in place, is linked: with no copy in the project the
+    spec carries the map's pieces in a `breakOriginals` object, which `native_split` passes on.
+  - A group of map props alone, with no copy and no block, is still not linked (`group-not-linked`).
+- **The editor page** ([app.js](tools/viewer/web/app.js)): Break together is on for one breakable piece and a cover
+  block; the note says the block goes with a destroyed piece.
+- **Docs:** [editor contracts](research/editor-contracts.md), the [viewer README](tools/viewer/README.md), the
+  [guide](tools/release/guide/guide.html), [F-101](research/findings-register.md),
+  [EXP-52](research/experiments/EXP-52-breaking-cover-blocks.md) with
+  [its project](tools/editor/examples/exp52_project.py).
+- **Checked:**
+  - `test_cover_blocks.py` (29 tests): the breaking block against URB_Bar's own props (state frame, events array,
+    action and toughness data), its links, fresh net indices;
+  - `test_compiler.py` (125 tests): a block with a copy, with a map prop left in place, with no prop, and a floor;
+  - `test_native_copy.py` and `test_build.py`: the link, group and cover tests;
+  - EXP-52's project built quick and read back: the two grouped blocks are props listed by their pieces, the
+    ungrouped one is the level actor it was;
+  - the page on a test server: the group panel's note for a group of a prop and a block.
+- **Gaps:**
+  - played by the user the same day (EXP-52 run 1): it checks out, but a save and a load after a block went could
+    not be tried (a battle started by Play in game can't be saved);
+  - `test_prefab_stage.py` has one failure that was there before this change (`stage-unprepared` where it expects
+    `snapshot-size`);
+  - the guide's pictures were not retaken (no control moved).
+
+### A grown map's raised backdrop is floor too, its tiles queued; no ground laid under it (F-100 again; the user's farm++)
+
+- **[shell.py](tools/bake/shell.py) `scenery_to_walk`** (in place of `walk_scenery`) takes low pieces (no taller
+  than 32) anywhere within the grid's levels, from a quarter level under its bottom.
+  - Before, only pieces within a level of the grid's bottom counted. That missed CsmallScout_Farm's raised backdrop,
+    two levels over its ground, and took the sky's ground plane, at -224.
+  - It takes those that are floor pieces already as well as those saved with their collision off. Debris that
+    collides but keeps `bPathColliding` off stays out.
+- **`scenery_tiles`:** the tiles they give floor on get the seed bit in the grown tile data, since a new tile above
+  the bottom level is open air, which the rebuild passes over. The rebuild volume reaches the level over the highest
+  of them.
+- **The ground laying skips a block whose middle such a piece covers.** On the Farm it had laid planes at -128 under
+  the raised backdrop: the only floor there, under the ground the units see.
+- The report gives `sceneryFloors`, `sceneryTilesSeeded` and `blocksUnderScenery`. The manifest's `shell.grid` gives
+  their counts.
+- **The compiler's `scenery_floor` and the page's zone notes** take the same height rule.
+- Docs:
+  - the guide's Map grid;
+  - the viewer README;
+  - [F-100](research/findings-register.md).
+- **Checked:**
+  - new [test_shell.py](tools/bake/tests/test_shell.py) `GrownFarmPlateau`: the raised fields' planes are floor;
+    their level-2 tiles are queued; the rebuild reaches z 64; no laid plane is under XComLevelActor_106; not the sky
+    plane;
+  - `GrownIntroScenery` with the new height rule;
+  - test_shell, test_compiler and test_build in full;
+  - farm++ built quick into a scratch folder: no landing warning, 24 floor pieces, 844 tiles queued, 9 planes laid
+    (21 before).
+- **Not checked in the game.**
+
+### A landing zone's Skyranger takes its shadow along in a full Build (F-98; the user's ask)
+
+- **[relight.py](tools/bake/relight.py) `--moved-in-place ACTOR=X,Y,Z,PITCH,YAW,ROLL`**: an actor of the map moved
+  where it is, standing at its new pose, with its old pose.
+  - The scene before the edit leaves it out where it stands and has a posed copy of it at the old pose. The scene
+    after is the map as written. The receivers around both places are relit.
+  - Its own lightmap and shadow maps keep their bake (skipped as "moved in place").
+  - The record's edit note lists it with its old pose.
+- **[native_copy.py](tools/bake/native_copy.py)** passes it, with `--bake`, for each piece with a mesh that
+  [native_spawns.py](tools/bake/native_spawns.py) moved: the grounded Skyranger, and the drop zone's frame, which
+  casts no shadow.
+- **[build.py](tools/editor/build.py)**: a full Build whose one change moves the map's own landing now bakes. Before,
+  it kept the map's lighting as cover blocks do. `own_landing_groups` also takes a map it can't parse as having none.
+- Docs:
+  - the guide's landing zones: the shadow moves with a baked build, and Long War removes the map's grounded
+    Skyranger at battle start;
+  - the viewer README;
+  - [F-98](research/findings-register.md), fixed offline.
+- **Checked:**
+  - new tests: [test_native_spawns.py](tools/bake/tests/test_native_spawns.py) `BarMovedBaked` (the relight gets
+    XComLevelActor_138 with its old pose) and [test_build.py](tools/editor/tests/test_build.py)
+    `test_a_moved_landing_alone_is_relit`;
+  - test_native_spawns, test_build and test_relight in full;
+  - URB_Bar baked with its landing moved six tiles east, through `native_copy.build`: 26 receivers were relit, and
+    the ground's shadow map lost the Skyranger's shadow at the old place and has it at the new one.
+- **Not checked in the game.**
+
+### A grown map's scenery is walkable (F-100); a zone's gizmo lands it on a level (the user's ask)
+
+- **The Build makes the map's own low scenery in a grown area walkable.**
+  - [shell.py](tools/bake/shell.py) `walk_scenery`, called by `resize`, turns on four flags with
+    [native_copy.py](tools/bake/native_copy.py) `make_walkable`: `bCollideActors`, `bPathColliding`, and the mesh's
+    `CollideActors` and `BlockRigidBody`.
+  - It does so for each listed level actor that saves its collision off and meets all of these:
+    - no taller than 32 (`SCENERY_LOW`);
+    - its bottom within a level of the grid's;
+    - reaching past the map's own far X or Y side.
+  - The user's intro+ has 21 such pieces: Act1_IntroLevel's ground planes, pavements and a street block. The
+    backdrop's buildings stay as they are. The shell report and the manifest's `shell.grid` give `walkableScenery`.
+- **A copy of such a piece placed in the grid is walkable too** (`native_copy.build`, the copy section's `walkable`).
+  Before, it was no floor and got no tiles.
+- **The compiler and the page count those pieces as floor for a landing zone.** These are the compiler's
+  `scenery_floor` and the page's `zoneNotes`, because the map's saved floor tiles stop at its own grid. The
+  grown-map warning and the panel's note say so.
+- **A landing zone's gizmo lands its ground on a level of the grid** ([app.js](tools/viewer/web/app.js)). intro+'s
+  zone was saved 16 under the grid's bottom, and moving it by whole levels kept it there. Now its first move puts it
+  on a level.
+- Docs:
+  - the guide's Map grid;
+  - the viewer README's Map grid;
+  - [F-100](research/findings-register.md), fixed offline.
+- **Checked:**
+  - new tests: [test_shell.py](tools/bake/tests/test_shell.py) `GrownIntroScenery`,
+    [test_native_copy.py](tools/bake/tests/test_native_copy.py) `WalkableScenery`, and
+    [test_compiler.py](tools/editor/tests/test_compiler.py)'s grown-area zone test;
+  - both bake suites whole (69 tests), the compiler (123) and test_build (40);
+  - the smoke's clear-map check on Bar, CSmallScout_Farm and Act1_IntroLevel;
+  - intro+ built quick into a scratch folder: the 21 pieces are listed with their flags on in the final package, and
+    with the zone on a level there is no landing warning;
+  - in the page on a copy of intro+: a drag of the zone went from z 48 to 64, and its notes cleared.
+- **Not checked in the game:** whether units walk there and the squad stands on the ground.
+
+### The guide's pictures taken again; the All maps list's crash on the landing-zone row; F-100 (the user's asks)
+
+- **Every guide picture taken again** with [take_shots.py](tools/release/guide/take_shots.py), on a test server
+  with empty projects and prefabs folders. Two new ones:
+  - `landing-zones.webp`: the Landing zones view on the Bar, its zone picked;
+  - `map-grid.webp`: Map grid on the Bar, with its three handles and the panel.
+- **The script** also numbers:
+  - the tool strip's two new buttons (the Landing zones view and Map grid);
+  - the Project menu's Map grid and Clear map…;
+  - the Prefabs tab's New.
+
+  It moves two of the Add panel's marks off the All maps tab. The buildings shot no longer counts the map's own
+  buildings that the project changes (the Bar remix's van carries one).
+- **[guide.html](tools/release/guide/guide.html)** changes:
+  - the tool strip's legend has fifteen buttons, and its text covers views 6 to 9;
+  - new figures and legends for Map grid and for landing zones (a `#landingzones` anchor);
+  - the Project menu has fourteen items, and the prefabs legend has eight;
+  - the View options note says Ground grid and Landing zones sit above Play area;
+  - the images have their new heights;
+  - Map grid says that the scenery outside a map's play area is not walkable, so floors are laid where the squad is
+    to walk (F-100).
+- **Fix:** the Add panel's All maps list threw on the landing-zone row, which has no placements
+  ([library.js](tools/viewer/web/library.js) `row`: a zone entry is drawn as the light and cover rows are). This
+  stopped the guide script; it would have stopped the list on any open map.
+- The View options' Landing zones row says that zones are picked in the Landing zones view
+  ([index.html](tools/viewer/web/index.html)).
+- **[F-100](research/findings-register.md)**, open: a grown map's new area has no floor over the map's scenery. The
+  scenery outside a play area saves its collision off (the user's intro+). The fix is not built.
+- **Checked:**
+  - every picture looked at against its legend;
+  - [test_guide.py](tools/viewer/tests/test_guide.py) passes;
+  - the guide read on the test server, its images all loaded.
+
+### Landing zones view; zones not picked in the normal view; old exports pruned (the user's asks)
+
+- **Landing zones view** (Shift+Z, a rail button under Lights; [app.js](tools/viewer/web/app.js) `setZonesShown`,
+  `zonesOn`), a fourth view with Normal, Buildings and Lights.
+  - The zones are drawn over everything there (depth test off), so a zone under a floor is seen and picked.
+  - A click picks a zone, its number badge first, or lets the picked one go. It never picks a piece or a light.
+  - Picking a zone or placing one from the Add panel turns the view on. Leaving it lets the zone go, and puts the
+    zones' layer back as it was. The zone gizmo shows only in this view.
+- **Zones are not picked in the normal view** (the user: "let's make LZ's not editable in normal mode"). A click on a
+  zone or on the landing's pieces goes to pieces. A landing piece says its zone is moved in the Landing zones view.
+  This also answers the report that the tutorial's zone could not be clicked: it lay under the road, and the floor
+  always won.
+- **Old exports are deleted** by the new [prune.py](tools/viewer/prune.py), the main server only (port 8768;
+  `viewer.py` `MAIN_PORT`):
+  - at its start, before it picks its exports;
+  - after an export it made itself ([exports.py](tools/viewer/exports.py) `ExportRunner(prune=True)`), once the map
+    serves the new generation.
+  - For each map: of its generations of one package and scope, the newest stays. The library's piece folders go by
+    the same rule. Another package's generations, unfinished ones and `.export-*` folders stay. `--dry-run` lists
+    what would go. Here it was 141 folders and 11.1 GB of the cache's 14 GB.
+- Docs: the guide's tool strip, views and landing zones; the README's views and the pruning.
+- Checked:
+  - new [test_prune.py](tools/viewer/tests/test_prune.py): the rule on a scratch cache; the main server's exporter
+    pruning after a Prepare, another server's not;
+  - the viewer and editor suites (the editor's one failure is test_prefab_stage's blank map, failing on main too);
+  - the smoke's clear-map check, three times each on Bar, the Farm and Act1_IntroLevel. It now covers: a click on a
+    zone's badge in the normal view picks nothing; Shift+Z and a badge click pick it with no piece; Shift+L takes
+    over and lets it go; Shift+N.
+    - The check waits 400 ms for the camera to rest before taking the badge's screen place. Without the wait it
+      missed two runs in six.
+  - the whole smoke on Bar;
+  - in the page on the user's intro+ copy: the zone under the road drawn over it in the view and picked by a click.
+
+### A frameless landing's zone on its level; zone marks on the floor; a save binds a project to the newer export (the user's report)
+
+- **The tutorial's zone stood partway up a level.** Its ground came out at 48, from its floating soldier points and
+  its PointInSpace, while its road is at 0 to 18. The gizmo moves by whole levels, so one step down put the zone at
+  -16: under the grid's bottom ("outside the tile grid") and out of sight.
+  - [spawns.py](tools/viewer/spawns.py) `fit_zone` takes the grid's bottom, and the ground goes down to the start of
+    its level, where every LWR line's zone ground is. The tutorial's is now 0.
+  - `own_landings` passes the export's grid, and [native_spawns.py](tools/bake/native_spawns.py) the package's
+    (`level_grid`). The twin is [web/spawns.js](tools/viewer/web/spawns.js) `fitZone`.
+  - TempleShip, the alien bases and DEMO_SonOfFacemelt are unchanged: their grounds were on a level's start already.
+- **The zone's marks lie on the floor** ([app.js](tools/viewer/web/app.js) `floorTop`). Each soldier point's mark is
+  at the saved height of the floor tile under it on the ground's level, and the evac footprint, arrow and number at
+  the highest of those. A floor that stands over its level's start, such as the tutorial's road at 18, no longer
+  hides them.
+- **A save binds the project to the export it was edited on**, when it is the same package and that export is newer
+  (`saveProject`; a plain save used to keep the project's own `source` whatever the export). The Build compiles
+  against the export the project names, so before this a project made on export 22 never got export 23's effects. A
+  save with nothing changed rebinds too.
+- Checked:
+  - test_spawns (the fit on a grid: bottoms 0, -384 and -48; `own_landings` with the grid) and clear_map_test.mjs
+    (the same numbers);
+  - test_native_spawns and test_compiler;
+  - in the page on Act1_IntroLevel: ground 0, no warnings, the six marks on the road;
+  - the smoke's clear-map check on Bar, the Farm and Act1_IntroLevel.
+  - In the test server's own projects folder, a copy of intro+ bound to export 22, opened and saved with nothing
+    changed: now bound to 23 (revision 7 to 9).
+
+### Landings with no drop zone frame are zones; effects in the export and carried by their piece (the user's ask)
+
+- **A landing with no drop zone frame is now a landing zone.** These landings have the six soldier points, the player
+  start and a PointInSpace, but no frame: Act1_IntroLevel (Basic Training), TempleShip, AlienBase01 and 02, and
+  DEMO_SonOfFacemelt. None has LWR lines. The editor used to make a zone only from a frame, so it showed none and the
+  squad always stood on the map's own points.
+  - [spawns.py](tools/viewer/spawns.py) `fit_zone` fits the mutator's layout to the soldier points: the direction
+    and place, and a ground at the lowest of each point's height less 48 and the PointInSpace's height. The
+    tutorial's points float 94 units over the road. `frame_of`, `soldier_spots` and `own_landings` (`fitted`) build
+    on it.
+  - [web/spawns.js](tools/viewer/web/spawns.js) has the twins (`fitZone`, `soldierSpots`).
+  - The fit is exact on the alien bases and within a tile on TempleShip. On the tutorial it is up to three tiles off,
+    because its points are its own layout. While the zone stays at the fitted place, the page and the compiler use
+    the map's own points.
+  - [native_spawns.py](tools/bake/native_spawns.py) moves nothing while the zone stays there. Moved, the landing's
+    actors take the mutator's layout at the new place, measured from where the fitted zone's frame would stand. That
+    frame also matches TempleShip's Skyranger prefab, which now moves with its landing.
+  - The page's floor note for a zone goes by the ground's tile level, as the compiler's does.
+- **Export 23: the level's effects** ([scene_metadata.py](tools/viewer/scene_metadata.py) `effect_metadata`,
+  [export.py](tools/viewer/export.py)). Each Emitter actor has its place, turn, scale, particle system, listed,
+  hidden, prefab and `carriedBy`. A mesh piece carries an effect at its own place (within 2 units on each axis) when
+  it is the only piece there. This is the data for the editor's effects to come. Maps re-export once as they open.
+- **A piece's effects follow it in the Build.** The compiler passes the export's pairs as `carriedEffects`.
+  [native_effects.py](tools/bake/native_effects.py) moves an effect in place with a moved piece, clones it for a
+  copy, and takes it out with a deleted piece; `native_copy.build` runs it after the hides. The tutorial's loose
+  Skyranger (XComLevelActor_116) now takes its lights (Emitter_4, P_Skyranger_Idle) along, as do Bar's claw machine
+  and DEMO_SonOfFacemelt's water valves. TempleShip's vortex (at the origin with 38 pieces) and the tutorial's police
+  lights (on a car body and its glass) are no piece's.
+  - The piece panel shows **Carries an effect**.
+- Docs: the guide's landing zones and chips, the README's Effects section and landing zones.
+- Checked:
+  - [test_spawns.py](tools/viewer/tests/test_spawns.py) `Frameless` (every direction comes back exactly; the
+    tutorial's points; spots and frame) and `Export23` (on the install);
+  - [test_native_spawns.py](tools/bake/tests/test_native_spawns.py) `FramelessPlan`;
+  - new [test_native_effects.py](tools/bake/tests/test_native_effects.py): the tutorial's Skyranger moved, copied
+    and deleted with its lights;
+  - test_compiler `CarriedEffects`, and clear_map_test.mjs (the twins, the same numbers);
+  - the viewer, editor and upk suites. The editor suite's one failure is test_prefab_stage's blank map, which fails
+    on main too.
+  - The smoke's clear-map and map-buildings checks passed on Bar, the Farm and Act1_IntroLevel. The clear-map check
+    now expects a kept landing piece only where a landing has a frame. The whole smoke passed on Bar.
+  - Quick Builds of the user's intro+ project bound to export 23: Emitter_4 moved with the Skyranger. With its zone
+    moved five tiles, the landing moved from the fitted frame.
+  - In the page on Act1_IntroLevel: one zone, drawn on the map's own six points, with the gizmo and panel; moving it
+    counts as a change; no console errors.
+- Not played. Not known yet:
+  - whether a moved tutorial landing plays;
+  - what LWR's mutator does with a Long War zone added on a map whose landing has no frame (it finds its actors by
+    archetype, and there is no frame).
+
+### A map as it is grows up too: cursor storeys over the new levels (the user's ask)
+
+- The rail's **Map grid** shows the green top handle on a map as it is as well. It raises the grid by whole levels,
+  up to 18, never lower than the map's own. The project saves `stage.grid` with three numbers when the levels
+  change. The compiler took that already.
+  - [app.js](tools/viewer/web/app.js): `gridRule`, `stageFor`, the panel's words and notes.
+- **The cursor reaches the new levels.** Its floors come only from cursor volumes (F-88), and a map as it is keeps
+  its own. [shell.py](tools/bake/shell.py) `grow_cursors` clones the topmost plain volume into even storeys of 192
+  over the whole grid, from the top of the map's own to the new top, with the floors after its highest. On Bar,
+  18 levels gives floors 5 and 6, from 768 to 1152.
+  - `set_span` places them, keeping a volume's DrawScale.
+- **Fixed on the way: growing across moved the map's own cursor volumes.** `equip` put every own volume at the
+  union's corner and span. That did no harm on Bar, whose four volumes each cover the map, but it would have piled
+  Police Station's 63 and the Farm's 22 (fitted to buildings) onto one box. Now a volume reaching the old far X or Y
+  side is stretched to the new one, and the rest keep their places. A turned volume is left as it is.
+- **The twins:**
+  - [compiler.py](tools/editor/compiler.py) `cursor_storeys` / `grown_storeys`, and the stage-grown-map warning,
+    which says where the new floors come from;
+  - [floors.js](tools/viewer/web/floors.js) `cursorStoreys`, which takes the map's own size (`storeysNow` in
+    app.js). It also now gives a cleared map the Build's even storeys, a storey more for each 192 of a taller grid,
+    as the compiler did already.
+- Docs: the guide's Map grid and Clear map, the README, the `stage` contract, a note in the
+  clear map plan.
+- Checked:
+  - [test_shell.py](tools/bake/tests/test_shell.py): `GrownRealMap` (Bar at 60 by 45 by 18) and
+    `GrownPoliceStation` (16 of its 63 volumes stretched, none turned, floors 5 and 6 from 784 to 1104);
+  - test_compiler (the warning; grown storeys) and clear_map_test.mjs (the page's twin);
+  - the smoke's check_clear_map, which drags the top handle up, gets the panel's note, undoes it, and checks a
+    drag down stays at the map's own: on Bar and the Farm, and the whole smoke on Bar;
+  - a quick Build of Bar at 60 by 45 by 18 (8 s): six cursor volumes in the shipped map, as above.
+- Not played: a map grown up as it is, and whether the game's cursor takes the cloned storeys above the map's own.
+  Police Station's smoke stops at its re-export prompt (export 21), which has nothing to do with this change.
+
+### Clear map plan done: EXP-51 passed, the plan moved to plans/done
+
+- [EXP-51](research/experiments/EXP-51-cleared-bar.md) passed. The user played it on 13 November: "already did exp 51
+  it was ok".
+- The plan moved from private/plans/todo to done, with its status line
+  saying so. Every link to it was updated, in the code comments, the docs, the tests and this ledger.
+- The branch clear-map was merged into main by fast-forward.
+- Checked before the merge, on the branch:
+  - the viewer, editor and upk suites;
+  - the bake modules the plan touched;
+  - the node tests;
+  - the whole browser smoke on Bar, and clear-map on the Farm.
+- Left as known gaps, none played:
+  - a full build's relight does not see a moved Skyranger;
+  - `?SpawnGroup=` on a plain install;
+  - the clear keeping the scenery outside;
+  - a map grown as it is.
+
+### The Add panel's Landing zones kind (the user's ask)
+
+- The Add panel's Kind menu has **Landing zones**, with one entry, Landing zone. Choosing it and clicking a tile
+  places a zone. It is now the one way to add a zone: View options' Add a landing zone is gone.
+  - [app.js](tools/viewer/web/app.js): `zoneEntries`, `startZonePlacing`, `stopZonePlacing`.
+  - [pieces.js](tools/viewer/web/pieces.js): its row, with a drawn icon.
+  - [piece_categories.js](tools/viewer/web/piece_categories.js): the kind.
+  - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): View options' button and
+    its rule taken out.
+- Placing shows the landing zones if they were hidden. Esc, or choosing the entry again, stops.
+- Docs: the guide's landing zone list, the README.
+- Checked: the smoke's `check_clear_map` opens the Add panel with P, picks the kind and its one entry, clicks a tile
+  six tiles from the kept zone, and gets two zones; one undo takes the new one back. It puts the kind back to all
+  after. `check_library` counts the zone entry apart from the pieces, as the panel's footer does. The whole smoke
+  passed on Bar, and clear-map on the Farm.
+
+### A resized grid and changed landing zones count as changes; Reset all puts them back (the user's report)
+
+- [app.js](tools/viewer/web/app.js) `changes()`: a grid of the project's size (`stage`) and the project's own landing
+  zones each count once. The header says so ("grid 60 × 39", "landing zones changed"), so a resize no longer looks
+  like nothing changed.
+- Reset all also brings back the map's own grid, its landing zones and no clear mark, as one undo step. It shows
+  while any of them is changed.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py):
+  - a grid drag is counted and named in the header, and its undo takes the count back;
+  - Reset all on the cleared map gives the map's own size, zones and no mark, and undo restores them;
+  - the Project menu check knows Map grid.
+- Checked: the whole browser smoke passes; clear-map passes on Bar and the Farm too.
+
+### Map grid: the grid resized by the play area's handles, on any map (the user's ask)
+
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css):
+  the left rail has a **Map grid** toggle (also the Project menu's Map grid).
+  - It shows the play area with a handle on each side the grid can move: the far X side (red), the far Y side (blue)
+    and, on a cleared map, the top (green).
+  - A drag follows its axis by whole tiles or levels, and is one undo step (`commitStage`).
+  - The panel gives the size against the map's own, the notes (landing zones left out, no room for LWR's pods, the
+    ground's level), the ground option, **The map's own size** and Done (Esc).
+- **The Map size window is gone, and so are the Clear map window's size fields.** A clear keeps the grid as it is.
+- **A map as it is can grow now** (the user: "Allow growing on an uncleared map too"), across only, never smaller,
+  its levels unchanged. A cleared map also shrinks and changes its levels, from 1 to 128 tiles and 1 to 18 levels.
+  - [compiler.py](tools/editor/compiler.py): `stage-map` is gone. A map as it is that asks for a smaller grid gets
+    `stage-grid`. One grown that isn't the blank map gets the warning `stage-grown-map` (not played).
+  - `ground` works on any map that isn't cleared: the Build lays more of the map's ground where it is laid as planes.
+    `stage-ground` now warns only of `lines` and `hideGround` off the blank map, and of `ground` on a cleared map.
+  - [project.js](tools/viewer/web/project.js) comment, [editor-contracts.md](research/editor-contracts.md) `stage`
+    row.
+- Docs: the guide's new "Map grid" section, its Clear map section, the Project menu and the task; the README; the
+  plan's decisions.
+- Checked:
+  - [test_compiler.py](tools/editor/tests/test_compiler.py): a map as it is grows with a warning and is refused
+    smaller, Bar included.
+  - The smoke's `check_clear_map` on Bar and the Farm:
+    - on the map as it is, two handles; a drag out grows the grid, undo takes it back, and a drag in stays at the
+      map's own;
+    - the Clear map window has no number fields;
+    - on the cleared map, three handles: the top and the X side shrink, two undos, Esc puts the handles away.
+  - A quick build of Bar grown to 60 by 45 as it is (8 s): the shell stage resized the grid and laid 6 ground planes.
+  - test_build passes.
+- Known gaps:
+  - A map grown as it is has not been played.
+  - The handles keep one size, so very close they are large and very far small.
+
+### Clear map keeps one landing zone (the user's ask)
+
+- [app.js](tools/viewer/web/app.js) `clearKeptZone`: the clear keeps one landing zone and the others go, in the same
+  undo step.
+  - The zone kept is plain EW's first (the map's own first landing), else the first zone.
+  - It is ticked for both Long War and Plain EW.
+  - Undo brings the zones back as they were.
+- The Clear map window says which zone stays and how many go, and its notes on a smaller grid look at that zone
+  alone ([index.html](tools/viewer/web/index.html)).
+- On a map with several landings of its own, plain EW also lands at the others where the map has them. The panel
+  and the compiler (`landing-ew-fewer`) say so.
+- Docs: the guide's Clear map section and task, the README, the plan's decisions.
+- Checked: the smoke's `check_clear_map` on Bar and the Farm. One zone is left, the map's own and used by both, and
+  undoing the clear gives back every zone.
+
+### Landing zones: "Used by: Long War, Plain EW" in place of the order (the user's ask)
+
+- **Each zone says which game lands there.** The panel's **Used by** has two ticks:
+  - **Long War** (unticked is `lwr: false`, the old "Not for Long War");
+  - **Plain EW** (`ew: true`): one of the map's own landings is moved to that zone.
+- **The order no longer matters.** Earlier and Later are gone, and so is every mention of order.
+- **Limits on Plain EW** ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)):
+  - Ticking more zones than the map has landings of its own is refused, with a banner asking you to untick another
+    first.
+  - Unticking the last one is refused the same way.
+  - Deleting the only ticked zone ticks the first zone left.
+  - A copy is Long War's alone. A zone added with none ticked anywhere is ticked.
+- [spawns.py](tools/viewer/spawns.py) `own_slots` and [spawns.js](tools/viewer/web/spawns.js) `ownSlots`:
+  - the ticked zones, in list order, take the map's own landings;
+  - a list with no tick (a project saved before this) goes by order as before;
+  - the page writes the ticks out at the first change (`explicitZones`), and the starting list ticks the map's own
+    landings.
+  - The Build, the installs and Land here read the zones only through these two, so they follow unchanged.
+- [compiler.py](tools/editor/compiler.py) carries `ew`, and has two new warnings:
+  - `landing-ew-extra`: more zones ticked than the map has landings;
+  - `landing-ew-fewer`: plain EW also lands at the map's other landings where they stand.
+  - `landing-lwr-only` no longer speaks of order.
+- [project.js](tools/viewer/web/project.js) checks and tidies `ew`.
+- Docs: [editor-contracts.md](research/editor-contracts.md), the guide, the README and the plan's decisions.
+- Checked:
+  - [test_compiler.py](tools/editor/tests/test_compiler.py): a ticked zone later in the list is the own landing,
+    both warnings, and a bad value refused.
+  - [clear_map_test.mjs](tools/viewer/tests/clear_map_test.mjs): `ownSlots` with and without ticks, the starting
+    list ticked.
+  - The smoke's `check_clear_map` on Bar and the Farm: both refusals with their banners, Long War untick, copy not
+    ticked.
+  - The scratch project saved before the ticks reads zone 1 as plain EW's, writes the tick at its first change, and
+    undoes it.
+  - test_spawns, test_play, test_build and test_native_spawns pass.
+
+### Landing zones: a gizmo in place of the panel's move and turn buttons (the user's ask)
+
+- [app.js](tools/viewer/web/app.js): the picked landing zone gets a gizmo of its own, `zoneGizmo`, a TransformControls
+  on its StartLoc on the ground.
+  - Its arrows (G) move the zone by whole tiles (96) across and whole levels (64) up, snapped as it drags.
+  - R shows its ring alone, which turns the zone by quarter turns about the vertical. A turn about the view's up is
+    the opposite yaw in the game, and a top-down check confirms the zone turns the same way as the drag.
+  - The zone and its carried Skyranger are drawn moved while it drags (`zoneDragView`). Each drag is one undo step,
+    and Escape during one puts the zone back.
+  - The gizmo hides in the Lights and Buildings views and while placing.
+  - `[` and `]` still turn the zone.
+- [index.html](tools/viewer/web/index.html): Turn left, Turn right, Up and Down are gone from the panel. Dragging the
+  footprint itself is gone too, as it would take the gizmo's presses.
+- [guide.html](tools/release/guide/guide.html) and [README.md](tools/viewer/README.md) say so.
+- Checked:
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_clear_map` drags the zone gizmo's X arrow with the
+    mouse: the zone moved a whole number of tiles east, nothing else changed, and it stayed picked.
+  - It drags the ring: the facing changed and the place didn't. Then `]`, copy, delete, and five undos.
+  - It passes with map-buildings, box-select, floor-boxes, play-area and lights.
+
+### Clear map plan: its status line
+
+- clear-map-plan.md says what is built (P0, C0 to C8) and that EXP-51 is
+  prepared and not played; it stays in plans/todo until then.
+
+### Clear map plan, step C9 prepared: EXP-51's project and shots
+
+- [exp51_project.py](tools/editor/examples/exp51_project.py) is new. It builds a cleared Bar:
+  - its own landing moved and turned, and one zone added;
+  - a field of Bar's own floor pieces copied in place round each zone;
+  - URB_ResearchOutpost's shed as a building made from nothing, between the zones.
+  - Run with `--store`, it goes into the editor's project store and builds folder.
+- [EXP-51](research/experiments/EXP-51-cleared-bar.md) with marked shots
+  ([EXP-51-shots.json](research/experiments/EXP-51-shots.json)): what to look at under LWR (Land here on each zone)
+  and on plain EW.
+- Checked:
+  - it compiles with no error;
+  - the quick build takes 43 s;
+  - the manifest has the two lines and the moved landing, and the intro's flight place moved.
+- Not played yet.
+
+### Clear map: keep the scenery outside the play area (the user's ask while the plan was built)
+
+- The Clear map window has a tick, **Keep the scenery outside the play area**, off at first and remembered
+  ([index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js)).
+  - Ticked, the clear keeps the pieces whose every part's box lies wholly outside the play area, and the lights
+    placed outside it (`clearPlan(size)`, `outsideBox`). The play area here is the map's level volume and the new
+    grid together, across, so pieces a larger grid brings into play still go.
+  - The window counts what stays. The view keeps drawing the lights the Build keeps out there.
+- The project says `clearKeepsOutside: true`:
+  - [project.js](tools/viewer/web/project.js), [projects.py](tools/viewer/projects.py) (a boolean, or refused);
+  - [editor-contracts.md](research/editor-contracts.md).
+- [compiler.py](tools/editor/compiler.py) `outside_box` gives the Build the same box (`cleared.keepOutside`).
+  [native_copy.py](tools/bake/native_copy.py) `clear_level(..., outside=)` then leaves the lights, emitters, decals
+  and lens flares whose Location is outside it (KEEP_OUTSIDE, counted in its report's `outside`).
+- [clear_bar_project.py](tools/editor/examples/clear_bar_project.py) `--keep-outside`, which goes by each actor's
+  place.
+- Checked:
+  - On Bar the page keeps 219 pieces and 29 lights.
+  - [test_compiler.py](tools/editor/tests/test_compiler.py): the box, a larger grid reaching further, the refusal.
+  - [test_clear_level.py](tools/bake/tests/test_clear_level.py): on Bar, every actor of those classes outside the
+    grid stays, and everything inside goes.
+  - [test_projects.py](tools/viewer/tests/test_projects.py).
+  - The smoke's `check_clear_map`, on Bar and the Farm.
+  - A quick build of Bar with it (20.6 s): 5 decals, 8 emitters, 17 point lights and 12 spotlights left outside.
+- Known gaps:
+  - An area light outside, of a piece across the edge (which goes), stays.
+  - Not played.
+
+### Fixed: deleted and moved pieces lost their rebuild volumes (on this branch since step C6)
+
+- [native_copy.py](tools/bake/native_copy.py) `hide_pieces`: the list of volumes it builds took the name of its new
+  `volumes=` argument. The test for that argument was then always false, so no hidden piece got a rebuild volume of
+  its own, on any map.
+- Only builds made on this branch since be23421 are affected, and the one in the builds folder is EXP-51's, a
+  cleared map. A cleared map gives hides no volume of their own and covers the grid with one, so it is unaffected.
+- Checked: the three tests of [test_native_copy.py](tools/bake/tests/test_native_copy.py) that caught it pass again,
+  and so does the whole suite.
+
+### Clear map plan, step C8: the guide, the README, the smoke
+
+- [guide.html](tools/release/guide/guide.html):
+  - a section, **Clear map and landing zones**, with the window, the size, Map size…, what the Build takes out, the
+    plain-install limit, the ground grid, landing zones, their panel and Land here;
+  - a task, "Make a new map on an old map's light and landing";
+  - lines in View options and the Project menu;
+  - "What it can't do yet" now says the landing can be moved.
+- [README.md](tools/viewer/README.md): "Clear map, the ground grid and landing zones", and Play in game's lines
+  from the project's zones.
+- [test_guide.py](tools/viewer/tests/test_guide.py): every link inside the guide has its place, and the section is
+  in the contents.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py): the Project menu check knows Clear map….
+- Checked:
+  - the whole browser smoke passes;
+  - the viewer tests pass (242);
+  - the editor, upk and bake suites the plan touches pass.
+  - Failures that main has too, and that this branch did not cause: test_prefab_stage's blank-map test, and two of
+    test_transplant's.
+- The main editor (8768) was restarted on the new page.
+
+### Clear map plan, steps C2 to C4: Clear map, the ground grid and landing zones in the editor
+
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css):
+  - **Clear map…** in the Project menu opens a dialog:
+    - it says what goes, as counts: pieces, lights and named script pieces;
+    - it says what stays: the landing's pieces, the landing zones, the sun or moon and the sky light;
+    - it takes the grid's size on all three axes, smaller or larger, with the corner and the bottom fixed;
+    - it notes zones that a smaller grid would leave outside.
+  - The clear is one undo step (39 ms on Bar). It deletes every piece but the landing's, sets `cleared` and the
+    size (`stage.grid`). A cleared map:
+    - hides the map buildings it can no longer edit;
+    - does not draw the LWR streams' pieces, or the view-only and area lights.
+  - **Map size** on a cleared map takes three numbers, the levels too, and its Apply is one undo step.
+  - **Ground grid** (View options, on by default): drawn at the landing zones' height, only on tiles with no floor.
+    - Placing over nothing lands on its plane.
+    - Level snap and the Floor tiles overlay leave out a cleared map's gone floors.
+  - **Landing zones** (View options, Show landing zones, and **Add a landing zone**). Each is drawn with:
+    - its six soldier tiles;
+    - its evac box;
+    - its frame's arrow;
+    - its number.
+  - Picking a zone opens its panel:
+    - turn left or right;
+    - up or down a level;
+    - earlier or later;
+    - kind (normal or inside);
+    - no LWR line;
+    - copy and delete;
+    - **Land here**.
+  - A drag moves a zone by whole tiles. Each change is one undo step. Keys: Delete, Ctrl+D, `[` and `]`, Escape.
+  - The panel says whether the zone is also one of the map's own landings, which plain EW plays. It notes, without
+    blocking:
+    - soldier tiles outside the grid or over no floor;
+    - a piece standing on one;
+    - zones played under LWR only, or played nowhere.
+  - The first change makes the zones the project's (`landingZones`). Until then, the map's own lines and landings
+    show as they are ([spawns.js](tools/viewer/web/spawns.js)).
+  - Moving one of the map's own landings carries its pieces in the view.
+  - **Land here** plays the project's build with the squad at the picked zone: `POST /play/start {project, zone}`,
+    after the build when it needs one. A project still on the map's lines takes them in first, as one undo step.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_clear_map` (`--only clear-map`, and in the full run)
+  covers:
+  - the dialog's counts;
+  - a clear at a smaller size;
+  - the ground grid over every tile;
+  - a zone turned, copied, deleted and undone;
+  - the clear undone and redone.
+  - It also fixes the view's canvas selector (`#viewport > canvas`): the library's thumbnails are canvases inside the
+    view too, and once the library had been opened a later check took a hidden one (box select after floor
+    placing failed in `--only` runs).
+- Checked:
+  - On a test server, with Bar and the Farm:
+    - the counts (Bar: 964 pieces and 254 lights go, 7 zones stay; the Farm: its 3 own landings first, then its 6
+      lines);
+    - save and reopen keep everything, with nothing unsaved;
+    - Land here's build of a cleared Bar (23 s, quick) sends `{project, zone: "start-3"}`, and the build's config
+      carries the zone ids. The game call was stubbed.
+  - The smoke checks clear-map, map-buildings, floor-boxes, box-select, play-area, floor-placing, floor-tiles and
+    lights pass together, and the node tests pass.
+- Known gaps:
+  - Adding a landing zone is a View options button, not a kind in the Add panel.
+  - The evac box is drawn 480 by 288, turned.
+  - Not played (EXP-51).
+
+### Clear map plan, step C7: landing zones in the Build and the installs
+
+- [build.py](tools/editor/build.py): a project with `landingZones` gets its own lines for the variant, in place of a
+  copy of the base map's: every zone without `lwr: false`, in order (`spawns.write_line`).
+  - The config says `landingZonesFromProject`, with `landingZoneIds` and, for the map's own landings,
+    `ownLandingGroups`.
+  - A change of the lines alone is a change. A full build whose only change is the lines makes the map unbaked,
+    with nothing relit.
+  - Without the list, the Build writes what it did before.
+- [installs.py](tools/viewer/installs.py) `plan_variant_lz`: Play in game, the campaign install and map packs take
+  the manifest's lines when the project set them ([manager.py](tools/viewer/manager.py),
+  [pack_scripts.py](tools/viewer/pack_scripts.py)). The lines go after the base map's last line, or at the end of
+  the file when it has none, and the same ledgers take them out again.
+- [native_spawns.py](tools/bake/native_spawns.py) is new, run by [native_copy.py](tools/bake/native_copy.py) after
+  `clear_level`. It works on a zone that is one of the map's own landings and puts it elsewhere:
+  - It moves that landing's ten actors in place, by LWR's mutator offsets and turns.
+  - The evac volume takes the zone's turn less the frame's (F-98).
+  - The player start's `RelativeLocation` follows its new place.
+  - The grounded Skyranger moves by the frame's rigid move, with its old tiles rebuilt and its new ones seeded.
+  - A zone within 4 units of its landing moves nothing.
+  - The manifest gets a `landings` section.
+- [intro_copy.py](tools/bake/intro_copy.py): the variant's intro copy moves each of the map's flight places (the
+  Set Location values, F-97) with its landing. A place it can't find is a warning of the Build (an `intro` stage),
+  never an error.
+- Land here, on the server: `POST /play/start {project, zone}` installs that zone's line alone under LWR. A zone
+  that is one of the map's own opens with `?SpawnGroup=Group<N>` ([play.py](tools/viewer/play.py),
+  [gamelaunch.py](tools/viewer/gamelaunch.py)).
+- [clear_bar_project.py](tools/editor/examples/clear_bar_project.py) `--zones`: Bar's own landing moved four tiles
+  east and turned west, plus one added zone.
+- Checked:
+  - [test_build.py](tools/editor/tests/test_build.py): 40 tests.
+  - [test_play.py](tools/viewer/tests/test_play.py): 22 tests. The project's lines go in and come out byte for
+    byte, an empty list too, and Land here installs one line or a spawn group.
+  - [test_manager.py](tools/viewer/tests/test_manager.py): 8 tests.
+  - [test_native_spawns.py](tools/bake/tests/test_native_spawns.py): 5 tests, new.
+  - [test_intro_copy.py](tools/bake/tests/test_intro_copy.py): 7 tests.
+  - The quick build of a cleared Bar with zones takes 25 s. Read back:
+    - its 14 landing and Skyranger actors are at their new places under their own names;
+    - the frame is at (1103, -1681, 0) facing west, and the evac volume at (1056, -1681, 96);
+    - the intro's place moved from (560, -2683) to (100, -1521).
+  - Without zones, the patch copy, the intro copy and the config are byte for byte as before.
+- Known gaps:
+  - A full build's relight does not see the Skyranger's move (F-98): it keeps its baked lightmap, and no shadow
+    falls at its new place.
+  - `?SpawnGroup=` in the play file's open command is not tried in the game.
+  - Land here can't narrow to one zone once a campaign install has written all of the variant's lines.
+  - An intro rotation can come out as an equivalent turn that is not normalised.
+  - Not played (EXP-51).
+
+### Clear map plan, step C4 (first part): export 22, the install's lines for the page, spawns.js
+
+- [export.py](tools/viewer/export.py): export 22. `scene.json` gets `landings`, the map's own landings, read by
+  [scene_metadata.py](tools/viewer/scene_metadata.py) `landing_metadata`:
+  - Each landing is a PrefabInstance of the soldier-spawn dropship prefab. It carries its ten actors (role by
+    archetype, path, class, place, turn, tag, whether it saves its turn) and its group, its soldier points' tag.
+  - Each also carries the nearest grounded Skyranger's prefab (mesh, emitter, sound, point).
+  - The landings come in the game's order, their groups sorted as text (F-96).
+  - Opening a map exported before version 22 offers Prepare again, as earlier versions did.
+- [viewer.py](tools/viewer/viewer.py): `GET /maps/<id>/landing-lines.json` gives the game install's kind and its
+  `LZArray` lines for the map, read from `DefaultLZMutator.ini` each time (not part of the export).
+- [web/spawns.js](tools/viewer/web/spawns.js) is new, the page's twin of [spawns.py](tools/viewer/spawns.py):
+  - `place`, `evacBox`, `zoneOfFrame` and `ownSlots`;
+  - `samePlace`: soldier points within 4 units, F-99's "exact";
+  - `ownLandings`;
+  - `startingZones`, the plan's rule 3: the map's own landings first, each joined with the line at the same place,
+    then the install's other lines. A landing no line matches becomes a zone with `lwr: false`.
+- Checked:
+  - [test_spawns.py](tools/viewer/tests/test_spawns.py): 9 tests. Two are new, on the game's packages: Bar's landing
+    has its ten actors and its Skyranger, and Bar's first line puts each within 2.5 units of the map's own. The
+    Farm's three landings come as Group0 to Group2, each with its Skyranger.
+  - [clear_map_test.mjs](tools/viewer/tests/clear_map_test.mjs): the spawns.js twins and the starting list.
+  - `landing-lines.json`'s reader on Bar (7 lines) and the Farm.
+
+### Clear map plan, step C6: the Build makes a cleared map
+
+- [native_copy.py](tools/bake/native_copy.py):
+  - `clear_level` is new. It runs when the native edit says `cleared`, after the hides, the building edits and the
+    light deletes. It takes out of the level's actor list every actor of `CLEAR_OUT`'s classes that is still
+    listed: building and floor volumes, emitters, decals, lens flares, path-blocking, camera-blocking and damage
+    volumes, cover seeds, and the point, spot and area lights.
+  - It never takes an actor of the landing's prefabs (by archetype) or the grounded Skyranger's dust emitter.
+  - It puts one rebuild volume over the whole grid, all its levels. The hides then get no volume each
+    (`hide_pieces(volumes=False)`).
+  - It reads the actor list as the edit has left it so far: a van's or an emptied building's volumes are out
+    already.
+  - An actor of a class on neither `CLEAR_OUT` nor `CLEAR_KEEP` is left and named in the manifest's `cleared`
+    section, which counts what went and what stayed by class.
+  - More than 100 removed casters go to the relight in a file.
+  - The volumes of the map's buildings that the edit changes in place are kept (`keep`).
+- [relight.py](tools/bake/relight.py): `--remove-caster-list FILE` is new. A cleared map removes about a thousand
+  casters, more than a Windows command line holds.
+- [shell.py](tools/bake/shell.py):
+  - `--clear` is new: the map's own cursor volumes are taken out of the level's list, and the donor's are brought as
+    even storeys over the grid, as the blank map's are.
+  - A grid with fewer storeys than the donor has cursor volumes lists only as many. The blank map at 9 levels had a
+    fourth storey above its top.
+- [build.py](tools/editor/build.py): a cleared project runs the shell stage with `--clear` (and `--no-ground` with a
+  size) and native_copy.py in both kinds of build. A clear alone counts as a change.
+- [compiler.py](tools/editor/compiler.py): on a cleared project, every piece of the map's LWR patch levels goes into
+  `streamHides`, so the variant's copy of the patch has them out (Bar: 17, two hidden ladders among them).
+- The class lists follow the C0 survey. `XComCoverSeed` goes, as the survey proposed (its native side is not read).
+  `PrefabInstance` stays: the native picks the squad's group from the points the prefabs hold (F-96).
+- [clear_bar_project.py](tools/editor/examples/clear_bar_project.py) is new: a cleared URB_Bar as Clear map makes
+  it (964 deletes, `cleared`, an optional size). It compiles, builds quick or full, and prints the times.
+- Checked:
+  - [test_clear_level.py](tools/bake/tests/test_clear_level.py), new, 3 tests on the install's Bar. `clear_level`
+    takes 6 building volumes, 18 floor volumes, 68 emitters, 38 decals, 2 lens flares, 2 path-blocking volumes, 2
+    cover seeds and 254 lights. The evac volume, the frame, the Skyranger, the sun and the sky light stay, and no
+    class is on neither list. Its one volume covers the grid. The shell's `--clear` gives three storeys on a 9-level
+    grid in place of Bar's four.
+  - [test_shell.py](tools/bake/tests/test_shell.py): 25 tests. [test_build.py](tools/editor/tests/test_build.py): 39.
+    [test_compiler.py](tools/editor/tests/test_compiler.py): 119.
+  - A cleared Bar compiles in 0.08 s (964 deletes, no error, the `landing-floor` warning). It builds quick in 25 s and
+    full in 97 s; the full build relit 1 component and skipped 929.
+  - Read back, quick build: 184 actors listed, the landing's 14 among them, one rebuild volume over the grid (z -8
+    to 768), cursor storeys of 192 from the bottom, and the tile data written back byte for byte.
+  - At 40 by 30 by 8 the quick build takes 20 s, with the grid and its volumes cut to match.
+- Known gaps:
+  - Not played in the game (EXP-51).
+  - The cursor storeys keep their length where the grid is shorter in x or y, as the blank map's do (`fit`).
+  - A smaller grid also has the shell's own ground rebuild volume beside the clear's.
+
+### Clear map plan, steps P0 and C0: the three reads and the offline survey
+
+- [clear-map-p0-2026-11-13.md](research/evidence/clear-map-p0-2026-11-13.md) is new. It holds the three reads, with
+  addresses, files and how sure each is:
+  - how the native picks the squad's spawn group;
+  - what the landing intro's flight is anchored to;
+  - what the relight takes as casters, and what a turned evac volume needs.
+- The [findings register](research/findings-register.md) has four new entries:
+  - F-96: the game picks the group from the points the level's prefab instances hold, by tag, at the play count.
+    So an own landing can be moved and turned, and removed with its prefab instance; adding one needs a cloned
+    prefab instance.
+  - F-97: the intro flies to a fixed place for each map and group (a Set Location's saved values), not to the
+    landing's actors. The variant's intro copy has to be moved with the landing.
+  - F-98: the relight takes casters at their saved places, so a moved Skyranger must reach it as a removed caster
+    and a posed copy. The evac volumes save no turn (it is baked into the brush), and a turn is a same-size
+    `Rotation` write.
+  - F-99, verified offline: LWR's lines against the maps' 146 own landings. 41 match a line within 4 units, and 8
+    match no line on a map that has lines.
+- [audit_clear.py](tools/upk/audit_clear.py) is new. For every exported map it reports:
+  - the script-named pieces;
+  - the own landings and Skyrangers, from the prefab instances' archetype maps;
+  - LWR's lines placed by the mutator's offsets and matched to the landings;
+  - the ground height against the grid's bottom;
+  - the clear's sorting of classes;
+  - the patch levels' pieces and the ambient sounds.
+  Over the install's base maps it covers landings against lines, the spawn groups and the intro's places against
+  the Skyrangers. Its output is [clear-audit-2026-11-13.json](research/evidence/clear-audit-2026-11-13.json).
+- Checked:
+  - [test_audit_clear.py](tools/upk/tests/test_audit_clear.py): 16 tests.
+  - The survey ran over 22 exports and 97 base maps, about 30 seconds.
+  - Bar's first line places its own landing within 1.4 units.
+  - No game run.
+- Differences from the plan:
+  - The install has 447 live lines for 83 base maps, not 453 for 82: variant copies have been added since.
+  - Commercial Street's own landing stands at -27, and its lines at -16 and 0.
+- Known gaps:
+  - That actors taken out of the level drop out of the native's pick is inferred.
+  - The mission streams were not surveyed for landing prefabs.
+  - The sound list is a byte scan, not a parse.
+
+### Clear map plan, step C5: the compiler takes a cleared map, its size and its landing zones
+
+- [compiler.py](tools/editor/compiler.py):
+  - `cleared` is read (`cleared-shape` for anything but true or false). The spec carries `cleared: {grid}` and
+    `native_split` hands it to the Build.
+  - `stage` may be set on any map once it is cleared, smaller or larger in any of its three numbers (1 to 128 tiles,
+    1 to 18 levels). The blank map's grid still grows only. A size on a map as it is stays `stage-map`. `ground`,
+    `lines` and `hideGround` on another map than the blank one give `stage-ground` (they do nothing there).
+  - A delete of a piece whose family is not built (`other`: merged actors and the like) is taken, with
+    `delete-untried` naming the class. Its move is still refused (`milestone`). A delete no longer checks for a
+    component offset: the actor goes whole.
+  - On a cleared project, a deleted glowing piece whose area light is not settled is no `area-light-unresolved`
+    error: the Build's `clear_level` takes such lights out.
+  - `landingZones` is checked for shape (`landing-shape`, an error) and carried to the Build as
+    `landingZones: {zones, own, ownLandings}`: `own` is the indices of the zones that are also the map's own landings
+    (`spawns.own_slots`: the first zones that name no mission, one for each landing of the map).
+  - New warnings: `landing-floor` (a soldier point over no floor the map still has or the project adds),
+    `landing-blocked` (a piece the project puts on a soldier point), `landing-outside`, `landing-lwr-only`,
+    `landing-unused` (a zone with no line that is none of the map's own), `landing-none`, `stage-outside` (the
+    project's pieces, lights, cover blocks and buildings outside a sized grid, counted and named) and `stage-small`
+    (no part of the grid 29 tiles from a zone's squad, F-90). Without `landingZones`, the map's own landings are
+    checked on a cleared or sized project.
+  - On a cleared map, `cursor_storeys` gives the even storeys the Build puts in place of the map's own.
+  - The report has `cleared`, `landingZones` and `ownLandings`.
+- [spawns.py](tools/viewer/spawns.py): `valid_zone` (the twin of `validLandingZone`), `own_slots`,
+  `kept_for_mission` and `own_landings` (export 22's `landings`, else the drop zone frames among the pieces).
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py), 119 tests. `ClearTests` (8) is new: a cleared
+  Bar compiles with no error, a size on a map as it is is still refused, smaller and larger grids, pieces and a
+  landing outside a smaller grid, `stage-small`, an unsettled area light on a clear, the zones' checks and carriage,
+  and a zone over no floor or under a piece. The milestone test now refuses a move and takes a delete.
+
+### Clear map plan, section 7 step 5: a smaller tile grid
+
+- [world_grid.py](tools/upk/world_grid.py) `resize(model, nx, ny, origin, floor, nz)` takes any size. Each axis can be
+  smaller, the same or larger, and the corner and the bottom stay fixed, so every kept tile keeps its (x, y, z).
+  - It cuts the smaller axes first (`shrink`), then grows the larger ones (`grow`, unchanged).
+  - `shrink` drops the tiles past the new far edges and above the new top from every store. The new far edges and
+    the tiles next to them take the edge's flags by `grow`'s rule (`place`, `bare_flags`), and the new top level
+    counts as top level.
+  - `cut_links` removes the floor links that leave the grid and lowers the link count with them. A floor by rule on
+    a new edge comes out as `flat_floor` for the new grid.
+- [shell.py](tools/bake/shell.py) `resize` accepts a smaller grid: the tile data, the world bounds,
+  `NumX/NumY/NumZ/NumTiles`, the level volume and the rebuild volume. Ground-plane clones now go only into blocks
+  that reach the new area. URB_Bar's three gaps under the bar were filled before, even when growing.
+- Checked offline:
+  - The blank map grown to 54 by 54 (12 and 18 levels) with ground and resized back gives its own container. The
+    only difference is the order of two cover stores' chunk lists, which `grow` numbers anew.
+  - Without ground, the 73 ground tiles of the far edges come back with other flags: their edge flags are not in the
+    grown model. The Build always resizes from the install's map, so this case does not come up there.
+  - URB_Bar made 48 by 35 by 10 parses with every count checked. It keeps exactly its 12,377 links inside the grid
+    (198 cut) and is written back the same.
+  - [test_world_grid.py](tools/upk/tests/test_world_grid.py): 20 tests. [test_shell.py](tools/bake/tests/test_shell.py)
+    classes SmallerGrid, SmallerRealMap, LargerGrid, TallerGrid, GridLines, HiddenGround and Fit: 16 tests.
+- Known gaps:
+  - On a lower grid, `equip` still lists every brought cursor volume (the blank map at 9 levels has a fourth storey
+    above the top), and the map's own volumes keep their heights. Step C6 deals with this for a cleared map.
+  - Not played in the game (EXP-51 run 2).
+
+### Clear map plan, step C1: the project's records for a cleared map, its size and its landing zones
+
+- [editor-contracts.md](research/editor-contracts.md):
+  - `stage` may be set on a cleared project, and may be smaller there in any of its three numbers.
+  - `cleared` is new: the Build takes out what the editor never showed.
+  - `landingZones` is new: the whole list of landing zones, in order, written as LWR's lines and as the map's own
+    landings moved in place.
+- [project.js](tools/viewer/web/project.js):
+  - `validLandingZone` and `tidyLandingZone` are new.
+  - `sortState` keeps `cleared` and the zones in their order, carrying a malformed zone in its place. Absent zones are
+    `null`, which is not the same as an empty list.
+  - `stateKey` takes both.
+- [projects.py](tools/viewer/projects.py) checks the frame: `cleared` is true or false, `landingZones` a list of
+  records.
+- [spawns.py](tools/viewer/spawns.py) is new: LWR's `LZArray` lines read and written back, and where a zone puts
+  each of the landing's actors, by the offsets of LWR's mutator (`XComLZMutator.CalcLocations`, `AdjustOffsets`,
+  `AdjRotation`). Its `check` command reads an ini.
+- Checked:
+  - `spawns.py check` on the install's `DefaultLZMutator.ini`: 495 lines (453 of LWR's and the lab's fixture copies),
+    each written back byte for byte.
+  - [test_spawns.py](tools/viewer/tests/test_spawns.py), 7 tests: Bar's first line puts the drop zone's frame on
+    the map's own (XComLevelActor_6) within two units; the turns, the inside offset and the evac box.
+  - [test_projects.py](tools/viewer/tests/test_projects.py): 15 tests.
+  - [clear_map_test.mjs](tools/viewer/tests/clear_map_test.mjs), new; `map_buildings_test.mjs` and
+    `prefab_document_test.mjs` still pass.
+- Known gap: the evac volume's box in `evac_box` assumes the prefab's brush is centred on its actor. Export 22 (C4)
+  will check that.
+
+### Map buildings plan, step E6: EXP-50 passed; the plan moved to done
+
+- [EXP-50](research/experiments/EXP-50-map-buildings.md) on Bar was checked by the user in the game and in the editor
+  ("looks good"):
+  - the bar's ground floor, stretched over the car park, cuts the bar away;
+  - the sign's building, moved west with its sign, cuts away at its new place.
+- [F-95](research/findings-register.md) is now Verified.
+- The plan moved from private/plans/todo to done (E0 to E6
+  built). Its links are rewritten in the code, the contracts, the register, the ledger and the
+  Clear map plan.
+- Not covered by a game run: a map building deleted, a notched volume replaced, a floor added to a map building.
+  These are covered by the Bar readbacks (`test_building_edits.py`).
+
+### Map buildings plan, step E5: the guide and the browser smoke; EXP-50 built for the game run (E6)
+
+- [guide.html](tools/release/guide/guide.html):
+  - "The map's own buildings" (`#building-copy-map`, which was "Copying one of the map's own buildings") explains
+    what is saved, the carried listing, Restore the map's, notched boxes, the grey buildings that stay fixed, copies
+    and lights.
+  - Overlaps, the mission script and the landing zone's pieces are now described as warnings, and the chip table has
+    a Landing zone row.
+  - The Box select, prefab and Buildings view texts name the map's buildings as editable.
+- [README.md](tools/viewer/README.md): the Mission script chip's piece "warns" (it was "refuses").
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py):
+  - The floor boxes check counts the project's own buildings only (`!b.replaces`), now that the map's are
+    `buildings()` too.
+  - `check_map_buildings` is new (also `--only map-buildings`). On export 21 of a map, it checks that each building
+    that can be edited is the export's, with a volume per box, and that nothing is saved untouched. It then does
+    these, each undone: a box stretched (saved with `replaces` and its volume); a storey pasted on top (a box with
+    no volume); a building deleted (a `deleted` record, listed in the Buildings view), restored from that list.
+- [compiler.py](tools/editor/compiler.py), found while building EXP-50:
+  - The building-floor note looks for the floor a moved piece's copy stands in among the map's buildings as the
+    project has them (`floor_boxes_now`: a changed one's boxes from its record, a deleted one gone). The original's
+    floor is looked up as exported. Before this, the sign moved with its building was warned of as standing in no
+    floor.
+  - The building-cursor warning says nothing of a map box at its volume's own height, moved sideways or stretched
+    across. The map's sign building starts at 256, away from Bar's cursor floors, as exported.
+- [native_copy.py](tools/bake/native_copy.py): its command line printed a copy standing in an edited building with
+  a KeyError (`floor`), which failed the Build. It now prints "edited in place".
+- EXP-50 built ([exp50_project.py](tools/editor/examples/exp50_project.py),
+  [EXP-50](research/experiments/EXP-50-map-buildings.md) with marked shots): Bar's ground floor stretched four tiles
+  south over the car park, and the sign's building moved eight tiles west with the sign. Read back: 408 pieces keep
+  the map's listing, the vans' buildings are unchanged, the sign's copy takes the original's entries, and there are
+  no warnings. Waiting for the user's game run.
+- Checked:
+  - `test_compiler.py`: 111 tests, one new (a piece moved with its building, the cursor at the volume's own height).
+  - `browser_smoke.py --projects`, whole, on a test server (8792) serving Bar's export 21: passed.
+  - `test_guide.py` ([tools/viewer/tests](tools/viewer/tests/test_guide.py)).
+- Known gaps:
+  - The guide's screenshots may still show the map's buildings in grey.
+  - The smoke stops on a map whose export needs preparing again, if the dialog's Later button is not shown yet; point
+    the smoke at a prepared map.
+- The plan's status line: E0 to E5 built, EXP-50 waiting for
+  the game run; it moves to done once that is played.
+
+### Map buildings plan, step E4b: a busy mark for slow steps
+
+- [app.js](tools/viewer/web/app.js) `busyStart`: the build window's turning ring with what is being done, under the
+  hint line ([index.html](tools/viewer/web/index.html) `#busyMark`, [style.css](tools/viewer/web/style.css)
+  `.busymark`), put up once a step has run for a third of a second; a step on the page's own thread asks for it at
+  once and lets a frame through first (`nextFrame`).
+  - Copy and paste: Ctrl+V on a copy of 60 pieces or more puts up "Getting N pieces ready to place…" before its
+    preview is made; placing it, "Placing N pieces…", and the paste builds its pieces 40 at a time (`PASTE_SLICE`)
+    so the ring keeps turning. Timed first: on Bar's whole bar (419 pieces, 8 boxes) the copy takes 1 ms and the
+    paste's own work 140 ms; the rest of the freeze is the first drawing of the new pieces and of the preview, one
+    call each that can't be sliced, so the ring stands still through it.
+  - A prefab placed in a map: "Opening the prefab …" while it is read; the prefab builder opens a saved prefab
+    under the loading overlay ("Opening <name>: reading its N pieces…").
+  - A piece of another map chosen in All maps: "Reading <piece> from <map>…"; and under the All maps list a row
+    "Reading pieces from <map>…" while a picture's piece is read ([library.js](tools/viewer/web/library.js)).
+- Checked in the browser (test server 8791, URB_Bar): a copy of the whole bar shows the mark at once on Ctrl+V and
+  it goes once the preview is made; a one-piece copy shows none. Not checked: the prefab, builder and All maps marks
+  (the browser pane was hidden, and saving a prefab waits for a drawn frame); they use the same `busyStart`.
+
+### Map buildings plan, step E4: the map's own buildings edited in the editor as the project's are
+
+- [app.js](tools/viewer/web/app.js): every building of the map that can be edited (export 21: base level, not a
+  van's, a volume on every floor; `mapEditable`) is drawn as boxes in its floors' colours and goes through the
+  project's code path: picked, moved, stretched, copied, pasted, deleted and undone in the Buildings view, picked
+  whole with its pieces in the normal view, a group member under the id made from its actor
+  (`map:PersistentLevel.XComBuildingVolume_2`). Each box remembers the map's floor volume it is (`origin`, held
+  while it stays in its building); a pasted or new box has none.
+  - Saved: only the changed ones (`mapChanged`, the compiler's 0.01 rule) with `replaces` and `volumes`, and the
+    deleted ones (`savedBuildings`); a record for a map building this export can't edit is carried unchanged.
+  - Listings: an unchanged map building keeps the map's saved listings (`mapListings`, a copy's moved by
+    `copyFloors`); a changed one lists by the carried rule (`projectListings`, floors.js `carriedListing` and
+    `floorMapOf`, the Build's twins), and a copy standing in one is left to it.
+  - **Restore the map's**: a button for a changed building's boxes, and in the Buildings view a list of the map's
+    buildings the project changes or deletes (a deleted one has no box to click), each with Restore; one undo step.
+    Reset all brings them back too.
+  - Grey, read only: only the fixed ones (vans', ones with an empty floor, every one of an older export, previews,
+    the prefab builder). The inspector's problems are warnings now ("may behave oddly in the game"), for a changed
+    or new box only; a notched floor volume says that stretched it becomes a plain box.
+  - The Mission script and Landing zone chips say the Build warns, not refuses.
+- [floors.js](tools/viewer/web/floors.js): `carriedListing`, `floorMapOf`; `buildingProblems` takes which boxes are
+  fresh. [index.html](tools/viewer/web/index.html): Restore the map's, the changed buildings' list.
+- Checked: [map_buildings_test.mjs](tools/viewer/tests/map_buildings_test.mjs) (the carried listing on the Build's
+  own cases, the floor map, problems for fresh boxes only); in the browser on a test server (port 8791, a scratch
+  cache with URB_Bar's export 21): the bar and building 2 drawn as editable, the four vans' grey; building 2's
+  ground box stretched a tile (saved with `replaces` and its volumes; its pieces keep the map's listing), undone
+  (nothing saved); deleted (a deleted record, its listings gone), restored and both undone; a box copied and pasted
+  (a new box with no volume); moved whole with its three pieces in the normal view; saved, reloaded, deleted,
+  saved, reloaded and restored from the list; a group of a piece and the unchanged bar saved and reopened, with no
+  building in the file; the overlap warning; no console errors. A quick Build of the project (the bar's ground box
+  two tiles longer, building 2 moved with its pieces) went through: the bar edited in place, all 408 of its
+  pieces keeping the map's listing, building 2's two volumes moved.
+
+### Map buildings plan, step E3: the Build edits the map's own buildings in place
+
+- [buildings.py](tools/bake/buildings.py) `edit`: each of the compiler's `buildingEdits`, in the map itself.
+  - Floor volumes: an unchanged box keeps its volume byte for byte (FloorNumber set where its floor's number
+    changed); a moved or stretched one keeps its volume with Location and DrawScale3D set; a notched volume
+    (F-95) that is stretched gets a plain clone in its place; a new box a clone of the plain template; a volume no
+    box keeps is taken out of the level (an empty slot).
+  - Floors rewritten: each piece's entries by `carried` (section 3: the rule with the old boxes at its old pose
+    and with the new boxes at its new pose; where they agree once the floors are carried by their volumes,
+    `floor_map`, the map's saved entry stays, CutdownFloor carried too; else the rule's answer). Kept entries stay
+    in the map's order. Hidden originals come off the lists (F-58's fix); entries of actors that are no candidate
+    stay. A floor's other properties are the old floor's; a saved emitter is dropped only from a floor whose boxes
+    held it and no longer do.
+  - The building volume's box follows the floors' union where that changed; `VisGroupIdxToHideWhenOccluding`
+    emptied when moved whole; `ExternalMeshGroups` point at the copies of pieces moved; `IsUfo` follows the kind.
+  - A deleted building: it and its floor volumes out of the level; its pieces stay.
+- [native_copy.py](tools/bake/native_copy.py) `build(building_edits=)`: the edits after the copies and hides;
+  `edit_floor_caches` leaves a copy standing in an edited building to the edit (its floor found with the new
+  boxes) and `hide_van_buildings` never takes an edited building for a van's (all of building 2's pieces moved
+  with it read as a van). The manifest's `buildingEdits` and the printout say what each kept, moved, stretched,
+  replaced, made and took out, and how many pieces kept the map's listing.
+- [build.py](tools/editor/build.py): the edits go through the native edit like the buildings made from nothing; the
+  shell stage stages templates only for a new box.
+- Checked: [test_building_edits.py](tools/bake/tests/test_building_edits.py) (new; URB_Bar of the install, unbaked,
+  no tiles): an identity edit of the bar and building 2 leaves every export byte for byte; building 2's ground box
+  stretched a tile (its volume kept and stretched, the roof floor's listing as saved, the other buildings and
+  volume byte for byte); the bar's notched `XComFloorVolume_15` stretched (a plain clone in its place, the old one
+  out of the level, more than 380 of the bar's pieces keeping their listing); a floor added on top (a clone
+  numbered 3); building 2 moved with its three pieces (its own volumes at the new place, its lists naming the
+  copies with the map's entries, and the grounded Skyranger that now stands in it listed by the rule); deleted
+  (its volumes out of the level, its pieces in). The shared cases
+  [carried_listing_cases.json](tools/bake/tests/carried_listing_cases.json). `test_buildings`, `test_native_copy`
+  and `test_build` still pass.
+
+### Map buildings plan, steps E2 and E2b: the compiler takes the map's own buildings, and warns where it refused
+
+- [compiler.py](tools/editor/compiler.py) `buildings()`: a record with `replaces` is matched to the export's
+  building by its actor (export 21, `map_buildings`). A van's, one with an empty floor, one of a patch, one the
+  export lacks, one named twice or an older export: passed over with `building-replaces`, the building staying as
+  the map has it. Unchanged (every box within `BUILDING_SAME`, 0.01, of its volume's, the same kind): nothing to
+  build. Changed or deleted: `buildingEdits` in the native edit (`native_split`), with each floor's boxes and
+  volumes, the old volumes and boxes, and `moved` (`moved_whole`: every volume kept and carried by one move, which
+  leaves the visibility groups behind). A volume the building doesn't have, or one named twice, gets a new box's.
+  The report lists them as `mapBuildings`.
+- **Warn, don't block** (the user): `building-outside` and `building-overlap` are warnings now, for the project's
+  buildings too, and only for a changed or new box (the map's own overlaps are not reported); each pair is said
+  once. `mission-linked` warns of a changed or deleted building the Kismet names.
+- **E2b**: moving or deleting a piece the Kismet names (`mission-linked`) or a landing-zone piece (`landing-zone`)
+  builds, with a warning of what will be missed; the warnings no longer say "copy it instead". The compiler's
+  other refusals are gone through in the plan, section 5a, as
+  "nothing to build from" or "may behave oddly", for the user; none changed.
+- A group's `{building}` may name a map building by its id with or without a record (`map_building_id`), not a
+  van's or a deleted one.
+- Docs: [editor-contracts.md](research/editor-contracts.md) (the buildings field, the mission-linked and landing
+  rows), the findings register's F-45 and Kismet notes.
+- Checked: `test_compiler` (110 tests): new `MapBuildingTests` (unchanged, a box stretched, a floor added on top and
+  below, moved whole and turned, deleted, Kismet-named warned, overlaps with a changed box warned, records passed
+  over, shapes refused, a group with a map building); the tests that expected `building-outside`,
+  `building-overlap`, `mission-linked` and `landing-zone` as errors now expect warnings and a build.
+
+### Plan: the sun and the time of day
+
+- Wrote the sun plan at the user's ask: a Sun panel on any map
+  with a time bar that sets the dominant light's direction, colour and brightness (the moon at night), the sky
+  light, and the `TimeOfDay` of the variant's map records; a Build without baking for colour, brightness, sky
+  and time (the game draws the sun live), and new work in the baker for a changed direction (every shadow map
+  of the light traced from nothing, the light's own shadow map of the level, the lighting samples' mark). The
+  Clear map plan points to it.
+- Read for it, nothing changed:
+  - the notes and code on the dominant light (EXP-19, the baker's design, `relight.py`, `shadowmaps.py`,
+    `native_lights.py`, the compiler's `light_rule`) and the game's scripts (`XComWeatherControl` sets the sun's
+    brightness and colour at runtime; `TimeOfDay` picks maps and lights nothing; LWR's night achievement);
+  - the 96 base maps' dominant lights, sky lights and records, with a scratch script: the commonest moon is
+    66, 69, 136 at 1.1, 81° up (13 maps); the low sun 255, 139, 45 at 16° (6 maps); the day sun 255, 250, 180
+    at 39° to 51° (7 maps); no sun of the game stands higher than 51°; 133 records say Night, 69 Day, 5 None.
+    The plan's curve is made from these, and its step S0 keeps the table as evidence with a tool of its own.
+- The Clear map plan's export step renamed: the map's own landings come with the next export version, since
+  version 21 is now the buildings plan's.
+- Checked by reading and counting only; nothing built. Four points are the user's to decide (the plan's
+  section 8). Waiting for a go-ahead.
+
+### Map buildings plan, step E1: the project's records for the map's own buildings
+
+- [editor-contracts.md](research/editor-contracts.md), `buildings`: a map building the project changed is saved with
+  `replaces` (the map's building volume as a piece's target: package, level `base`, actor path, so the same key
+  as an override's; the plan's example had the file name and short name) and an id made from the actor
+  (`map:PersistentLevel.XComBuildingVolume_2`); its floors carry `volumes` beside `boxes` (the floor volume each
+  box came from, `null` for a new one); a deleted one is `{id, replaces, deleted: true}`. Only changed and deleted
+  ones are saved.
+- [project.js](tools/viewer/web/project.js): `validBuilding` and `tidyBuilding` take them (a map building's boxes
+  and volumes sorted together), `mapBuildingId`, and `BUILDING_SAME` (0.01, what "unchanged" allows).
+- Checked: [map_buildings_test.mjs](tools/viewer/tests/map_buildings_test.mjs) (new, run with node): records made,
+  tidied, refused when malformed (volumes without `replaces`, of another length, a deleted one with floors) and
+  carried unchanged; `prefab_document_test.mjs` still passes. The group and save-and-reopen checks come with the
+  page (E4).
+
+### Map buildings plan, step E0b: export 21
+
+- [export.py](tools/viewer/export.py) is at version 21: each building's record
+  ([scene_metadata.py](tools/viewer/scene_metadata.py) `building_metadata`) gains `actor` and `level` (its actor's
+  short name and level, from which the editor makes a map building's id), `isUfo`, `referencedBy` (what of the
+  map's Kismet names it or its floor volumes), `van` (a van's own building, which goes with the van:
+  [compiler.py](tools/editor/compiler.py) `van_buildings`, the assemblies' rule) and, for each floor, `plain`: whether
+  each floor volume is a plain box (`plain_box`, from its brush's polygons; F-95's notched volumes are not).
+- Every map is exported again when it is next opened, as for any new export version; the library's index is read
+  again too. The Clear map plan's landings move to export 22.
+- Checked: URB_Bar exported to a scratch cache (28 seconds): its four vans' buildings marked, the bar's notched
+  floor volumes not plain, nothing named by Kismet; the export and compiler tests
+  (`test_materials_and_floors`, `test_compiler`: a van's building told from a plain one).
+
+### Map buildings plan, step E0: the survey of what editing them depends on
+
+- [audit_buildings.py](tools/upk/audit_buildings.py) `--editing`: per building of every package the editor lists,
+  whether its brush and its floor volumes' are plain boxes (read from each brush's Polys: the BSP's points hold
+  texture bases too), what Kismet names it or its floor volumes, which other exports reference them (every object
+  reference of every export's properties), its tag, empty floors, floors with two volumes of one box, and whether
+  it is a van's.
+- The numbers are [F-95](research/findings-register.md): 407 buildings with floors, none in a stream; 53 vans';
+  16 with an empty floor; 338 in 94 maps left to edit; 241 of 1,178 floor volumes are not boxes (notched prisms),
+  so a stretched one gets a plain box in its place; nothing but its own building references a floor volume, and no
+  Kismet names one.
+- Checked: the run over the install (24 seconds, no package unreadable); URB_Bar's volumes read by hand (its
+  main building's notched floor volumes, 22 to 36 sides).
+
+### Scratch test output ignored
+
+- [.gitignore](.gitignore) leaves out `.scratch/`, the test servers' caches, trial builds and browser shots (about
+  400 MB, none of it ever committed). The files stay on disk.
+- Checked: `git status` no longer lists anything under `.scratch/`.
+
+### Clear map plan: the last two answers; nothing left open
+
+- The Clear map plan, after the user's answers:
+  - **one list of landing zones for both installs** ("one list that works for both EW and LWR ... if so then one
+    list"), with the three rules that make it work: a plain install plays as many zones as the map has landings
+    of its own; a zone kept for one mission is LWR's alone; the list starts as the map's own landings, each
+    joined with the line at its place, then the other lines, and an own landing that no line matches is marked
+    "not for Long War" so that an unchanged list builds what it builds today;
+  - **pods and Meld on a plain install are left to the spawns plan**: until then a cleared map is for LWR, and
+    the modal and the guide say so on a plain install.
+- The plan's list of points to decide is gone: every one is answered. Nothing built; waiting for a go-ahead.
+
+### Clear map plan: landing zones for plain Enemy Within too
+
+- The Clear map plan's section 4 rewritten at the user's word
+  ("wherever possible we should try to support not just LWR but also EW"): one list of landing zones, written
+  both ways by the Build. Under LWR every zone is an `LZArray` line; for a plain install, and LWR's missions
+  without a random landing, the map's own landings are moved in the package, the first zones of the list being
+  the map's own. For that: export 21 with the map's own landings, a writer that moves a landing's actors in
+  place (`native_spawns.py`, the landing's part of the spawns plan's 4.4), Land here by `?SpawnGroup`, and a run
+  of EXP-51 on plain Enemy Within.
+- A new first step, P0, reads three things that decide how far a plain install can follow: how the native picks
+  a soldier spawn group (whether landings can be added and removed), what the intro's flight is anchored to, and
+  whether the bake takes a moved Skyranger as a caster.
+- Read for it, nothing changed: the game's script for the squad's spawn points and the intro's event, and the
+  spawn actors audit (64 base maps have one landing of their own, 10 two, 22 three).
+- Checked by reading only; nothing built. Two points are left for the user (the plan's section 10): pods and
+  Meld on a plain install, and one list of zones or two. Waiting for a go-ahead.
+
+### Clear map plan: landing zones join it, and the second round of answers
+
+- The Clear map plan rewritten again after the user's answers and ask:
+  - **landing zones** are part of it (its section 4): LWR's `LZArray` lines drawn in the view as footprints and
+    moved, turned, copied, added and deleted there; a `landingZones` list in the project; the Build, Play in
+    game, the campaign install and map packs write the project's lines in place of a copy of the base map's;
+    Land here. This is part 2 of the spawns plan, which now says so
+    and keeps the rest;
+  - decided: script-named pieces go with the rest (their delete a warning); the ground grid is at the landing's
+    height and is a View option, on by default for every project;
+  - the ground grid leaves out a tile whose saved floor's piece is still on the map, so that it is not seen on
+    an unchanged map where the ground is under the landing's height (most of Commercial Street's asphalt, the
+    Farm's trench);
+  - how far under the ground things can go (the play area's box shows the grid's bottom: none on Bar, 48, 64
+    and 128 units on the Police Station, Commercial Street and the Farm), said in the modal too.
+- Read for it, nothing changed: LWR's decompiled landing-zone mutator and the install's lines (Bar has seven;
+  a variant gets a copy of them, so a cleared Bar lands at one of seven places); where the Build and the
+  installers make the variant's lines. One correction noted in the spawns plan: the grounded Skyranger is hidden
+  and destroyed when a line is picked, and not spawned again.
+- Checked by reading only; nothing built. One point is left for the user (the plan's section 10). Waiting for a
+  go-ahead.
+
+### Clear map plan changed: the ground goes too, and a ground grid
+
+- The Clear map plan rewritten after the user's answers:
+  - the ground is cleared with everything else, so the first draft's ground rule is gone; the editor draws a
+    faint ground grid on the ground's plane (the prefab builder's, depth tested so a laid floor covers it), and
+    a piece placed over nothing lands on that plane (the plan's section 3);
+  - what the project added goes too; the Build's unseen removals, the far-edge resize and Map size… on a
+    cleared project are agreed;
+  - new in the plan: what the mission's script names on the exported maps (show-or-hide switches: the landing's
+    own pieces on Bar and the Police Station, two electric posts on the Farm), and what the game does where a
+    cleared map has no floor (F-46).
+- Counted for it: the landing stands at height 0 on all five maps counted, while the tile grid's bottom is 48,
+  64 and 128 units lower on the Police Station, Commercial Street and the Farm.
+- Checked by reading and counting only; nothing built. Three points are left for the user (the plan's
+  section 9). Waiting for a go-ahead.
+
+### Plan: Clear map
+
+- Wrote the Clear map plan at the user's ask: a "Clear map…" item in the
+  Project menu whose modal warns, counts what goes and stays, and sets the grid's size on three axes; one undo
+  step that deletes every piece and light but the ground, the landing zone and the sun, moon and sky light; a
+  `cleared` mark in the project for what the editor never showed (volumes, emitters, decals, view-only lights,
+  LWR's patch pieces), which the Build takes out; a grid that can also be made smaller, at its far edges and top.
+- Read for it, nothing changed: the page's delete and undo, the compiler's refusals, the Build's hides and
+  resize, and the version 20 exports in the cache. What the count showed is in the plan's section 2: a clear is
+  about a thousand deletes; the ground is not on the grid's bottom level on the Police Station and the Farm, and
+  some of it is thicker than a floor piece, so "lowest floor" is read for each tile column.
+- Checked by reading and counting only; nothing built. Six points are the user's to decide (the plan's
+  section 9). Waiting for a go-ahead.
+
+### Plan files sorted into todo and done
+
+- At the user's ask, the plans left `research/` for `private/plans/todo/` (not built yet: the spawn points
+  plan and the map's own buildings plan) and `private/plans/done/` (built or replaced: the other fourteen,
+  the lights plan's progress ledger among them). Notes that are not plans stay where they were.
+- Every link to a moved plan and every link inside one was rewritten for the new place, in 107 files: the
+  ledger, the README, the register, the experiment notes, and the comments of 48 code and test files that name
+  a plan.
+- Checked: the relative links that lead nowhere are the same 27 as before (to files since deleted); the
+  changed Python, JSON and JavaScript files still parse. No behaviour changed, so no tests were run.
+- Known gap: some plans in `done/` still have open ends (the first-editor plan's M4, the baker's L7, three
+  items of the preview release list, EXP-26 runs 2 to 6, doors without a frame, the prefab plan's leftovers).
+
+### Plan reviewed: the map's own buildings made editable
+
+- Reviewed the buildings plan against the code and the
+  register, and changed it:
+  - the user's decisions: every check is a warning and none stops a Build (overlapping floor boxes too, for the
+    project's buildings as well); vans' buildings are left out; lights move with the selection; scale is no risk;
+  - two more answers of the user, later the same day: the refusals for a Kismet-named piece and the landing's
+    pieces become warnings too (step E2b), and a busy mark for slow steps of the page joins the plan (section 4a,
+    step E4b);
+  - the review's own changes, marked in the plan and not yet ruled on by the user: an id made from the actor, the
+    floor volume each box came from saved beside it, floor volumes moved and stretched in place, floors compared
+    by volume, a new export version (step E0b), Restore, buildings with an empty floor left fixed.
+- Checked by reading only; nothing built. Still waiting for a go-ahead.
+
+### Plan: the map's own buildings made editable
+
+- Wrote the buildings plan at the user's ask: the map's own
+  buildings moved, stretched, copied and deleted like the project's. A changed one is saved as a project
+  building with `replaces`; the Build edits it in place and keeps the map's saved listing wherever the rule gives the
+  same answer before and after. Stages E0 to E6, with one game run (EXP-50). Nothing built; waiting for a go-ahead.
+
+## 12 November 2026
+
+### Automatic prefab source recovery
+
+- The [prefab builder and Add panel](tools/viewer/web/app.js) try exact recipe recovery when a prefab has
+  unreadable sources. The builder keeps unresolved records and warns about them. It applies matches as one undo
+  step and keeps them in the prefab on Save. Placement uses recovered sources for the current stamp and warns
+  about pieces it leaves out. An existing unsaved draft gets its restore-or-discard prompt before recovery runs.
+- Updated the [viewer README](tools/viewer/README.md), [release guide](tools/release/guide/guide.html),
+  [getting started](tools/release/GETTING-STARTED.md) and [document contracts](research/editor-contracts.md).
+  **Find missing pieces** remains available to retry after rescanning **All maps**. Recovery requires a saved
+  recipe and an unambiguous match in the current catalogue.
+- The [browser smoke](tools/viewer/tests/browser_builder.py) recovered a real catalogue source automatically on
+  open and placement, warned about the unresolved piece, and checked undo, redo and Save. The prefab, builder and
+  test-in-game browser checks and five release tests passed. Verified the main viewer serves the updated script.
+
+### Prefab release readiness (R)
+
+- **Find missing pieces** in the [prefab builder](tools/viewer/web/app.js) looks up saved recipes in the current
+  catalogue. [The resolver](tools/viewer/prefabs.py) keeps actor IDs, poses and links, handles a complete
+  unambiguous assembly together, and preserves pieces it cannot match. The recovery is undoable and the prefab
+  file changes on Save. [Supported saves](tools/viewer/prefab_bounds.py) capture recipe keys from readable sources.
+- [Settings and doctor](tools/viewer/settings.py) preserve a Documents prefab library on portable upgrade and
+  check whether the configured folder can be written or created. [Release checks](tools/release/make_release.py)
+  exercise the bundled prefab modules, first-run settings, doctor and the inlined guide.
+- Updated the [release guide](tools/release/guide/guide.html), [screenshot script](tools/release/guide/take_shots.py),
+  [getting started](tools/release/GETTING-STARTED.md), [viewer README](tools/viewer/README.md) and
+  [document contracts](research/editor-contracts.md). The guide now includes the Test in game dialog and describes
+  its runtime fill in both build modes.
+- Verified 229 viewer tests, 149 editor tests, the release tests, the whole browser smoke with projects and the
+  focused prefab smoke. Built the zip and installer locally. The unpacked zip served the guide and prefab doctor
+  row, recovered a source and built a real prefab. Restarted the main editor on 8768 and stopped the scratch servers.
+  Stage R is complete. An older prefab without a saved recipe
+  needs its original source to be readable before saving a recovery key.
+
+### Prefab area lights (L2)
+
+- The prefab plan records the user's confirmation of T2 and X. The Test in game
+  guide screenshot and final release smoke checks are in R.
+- [The library](tools/viewer/library.py) reads a donor's verified area-light associations and caches them by package
+  and matcher version. [The editor](tools/viewer/web/app.js) previews the lights where their props are placed.
+  [The compiler](tools/editor/compiler.py) derives one set per placement and warns about uncertain associations.
+- [The transplanter](tools/bake/transplant.py) brings the original light class and settings with the destination's
+  `WorldInfo` as owner. [The writer](tools/bake/native_lights.py) gives each live placement fresh GUIDs and
+  [the baker](tools/bake/relight.py) excludes the unlisted templates from both lighting states. Updated the
+  [viewer README](tools/viewer/README.md) and [guide](tools/release/guide/guide.html#prefab-testing).
+- Checked the editor, library and native-light suites, the builder preview in a browser, and quick and baked
+  package readback. [EXP-49](research/experiments/EXP-49-prefab-area-lights.md) records the baked test in XCOM.
+
+### Runtime lighting for prefab tests
+
+- The private prefab build in [build.py](tools/editor/build.py) asks [shell.py](tools/bake/shell.py) for a neutral
+  sky fill and makes the blank map's overhead light run live. Both reach static and dynamic meshes with baking off
+  or on. [relight.py](tools/bake/relight.py) keeps the forced-dynamic light out of the bake and reports `n/a` when a
+  uniform lightmap has no correlation statistic. Updated the [viewer README](tools/viewer/README.md) and
+  [user guide](tools/release/guide/guide.html#prefab-testing).
+- Checked [test_shell.py](tools/bake/tests/test_shell.py), the relight, editor and prefab-test suites, and a live
+  UrbanStatue test with baking off. The paving and props were clearly visible, and the lab install restored on exit.
+- The baked UrbanStatue package also built successfully. Visual verification covered the unbaked run.
+
+### F-93 played: prefab tests load with no aliens, a sky and hidden ground
+
+- The user's run 4 (19:18) of the Farm UFO prefab worked: about five minutes, a normal exit; no pods, Meld spawned
+  (the abduction record). So `eMission_None` crashed runs 1 and 2, not the empty alien squad. Recorded in
+  [the register](research/findings-register.md) (F-93 fixed) and the plan (5.11).
+- Known gaps: Meld still spawns in tests.
+
+### Prefab tests: the record back to an abduction (F-93, run 3 stalled on the terror site)
+
+- The terror-site record spawned civilians with no looks and a stray Chryssalid and Sectoid, and the battle never
+  left the loading screen. [installs.py](tools/viewer/installs.py) `TEST_MISSION` is `eMission_Abduction`, as every
+  other play's: Meld comes back; the alien type stays none, so the next run tells whether the empty alien squad or
+  the "none" record crashed runs 1 and 2.
+- Checked: [test_play.py](tools/viewer/tests/test_play.py).
+- Known gaps: not played; Meld in tests is back until the crash is understood.
+
+### Prefab tests crashed as the battle started (F-93): a terror-site record, and no tiles for a sky dome
+
+- The user's two runs of the last change crashed 3.7 s after the squad spawned, at the address EXP-30's map with no
+  record crashed at (F-78). [installs.py](tools/viewer/installs.py) `TEST_MISSION` is now `eMission_TerrorSite`
+  (no Meld there either) in place of `eMission_None`.
+- The quick build took 44 s, not 14: the upper sky dome's copy seeded every tile of the stage (23,534).
+  [native_copy.py](tools/bake/native_copy.py) `collides`: a copy whose actor or mesh components collide with
+  nothing seeds no tiles; the UFO test builds in 17 s, both domes "no tiles".
+- Checked: [test_native_copy.py](tools/bake/tests/test_native_copy.py) (URB_Bar's sky domes collide with nothing,
+  its pieces do; the suite, 38), [test_play.py](tools/viewer/tests/test_play.py) (the record kind), the prefab test,
+  build and stager suites.
+- Known gaps: not played. If it still crashes, the empty alien squad and the sky are next (F-93).
+
+### Prefab tests: hidden ground with no lines, a noon sky, no aliens and no Meld
+
+The user's first run of the grid lines: no grid showed (only black), the game's tile grid under the cursor was
+enough, and they asked for a lighter backdrop and no aliens or Meld.
+- [shell.py](tools/bake/shell.py) `--hide-ground` (`equip(hide=True)`): the planes hidden as `--grid-lines` hides
+  them, no line brought or laid; the stage key `hideGround` ([compiler.py](tools/editor/compiler.py),
+  [project.js](tools/viewer/web/project.js), [build.py](tools/editor/build.py)), which
+  [prefab_stage.py](tools/editor/prefab_stage.py) now sets in place of `lines`.
+- The sky: `add_sky` puts URB_TruckStop_EWI's sky dome (`XComLevelActor_46`, the noon sky) in every test,
+  centred on the stage at its ground, and a copy turned over under it. `compiler.Library.record(sky=True)` takes a
+  sky dome the library leaves out, on a test stage only.
+- No aliens: [gamelaunch.py](tools/viewer/gamelaunch.py) `play_text(aliens=False)` for a prefab test sets the
+  profile's alien type to `eChar_None` (no pods are made of it; an empty alien squad never wins the battle); a map's
+  play sets the game's default `eChar_Sectoid`. No Meld: [installs.py](tools/viewer/installs.py) writes a test's
+  record as `eMission_None` (`TEST_MISSION`; Meld comes only on abductions and UFO missions). Read from the
+  decompiled `XGBattleDesc`, `XGBattle_SP` and LWR's mutator sources; the run's log showed Sectoid's 4 pods.
+- Checked: new tests in [test_shell.py](tools/bake/tests/test_shell.py) (`HiddenGround`),
+  [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py) (the sky, and two domes on the real blank map),
+  [test_compiler.py](tools/editor/tests/test_compiler.py) and [test_play.py](tools/viewer/tests/test_play.py) (the
+  commands and the record kind); the editor (148), shell (19) and viewer play and prefab suites (54) pass. Your UFO
+  prefab staged and quick-built in a scratch folder: two noon sky domes at the stage's centre (one turned over), the
+  25 planes hidden, no lines.
+- Known gaps: not played. Whether the turned-over dome draws, whether `set` on the profile's data reaches the battle
+  (the profile may be read after the commands), and how the sky looks lit are the game run's. A quick test's pieces
+  are still unlit; brighter light for tests is open.
+
+### The test stage's ground drawn as a grid of white lines
+
+- [shell.py](tools/bake/shell.py) `--grid-lines` (`grid_lines`, `set_props`): every listed piece of the ground
+  plane's mesh is hidden in the game (`bHidden`; the collision stays, so the ground is stood on as EXP-32's
+  invisible floors are), the blank map's 16, its stray one 2,500 units off the grid and the ones laid for a larger
+  grid; URB_Bar's white road line (`XComLevelActor_366`, `RoadPaintWhite_1536`) is brought with the stage's other
+  donor pieces and copied along every tile edge one unit over the ground, a row's last copy shortened by its
+  `DrawScale3D` to end at the grid's edge. The user's pick: every tile, white.
+- The project's `stage.lines` ([compiler.py](tools/editor/compiler.py), [project.js](tools/viewer/web/project.js))
+  is passed to the shell by [build.py](tools/editor/build.py); [prefab_stage.py](tools/editor/prefab_stage.py) sets
+  it on every test. Guide, README and plan (section 5.11) updated.
+- Checked: [test_shell.py](tools/bake/tests/test_shell.py) `GridLines` (a 40 by 46, 18-level stage: 30 planes
+  hidden with collision kept, 264 lines on every edge, rows ending at the grid), the compiler, stager and build
+  suites (146), the viewer prefab and build tests. Your re-saved Farm UFO prefab (revision 6) staged and built
+  quick in a scratch folder: 36 by 46 by 18, 252 lines, all 25 planes hidden, the door on the ground at 0.
+- Known gaps: not played; how the paint looks lit in the game, and that soldiers stand and path on the hidden
+  ground there, are the game run's.
+
+### Survey: a see-through grid in place of the stage's dirt
+
+- prefab-library-plan.md, section 5.11's ground grid: the materials of the
+  always-loaded packages, the tactical UI and the blank map, and every exported map's see-through materials on
+  pieces, read offline for a grid look. The kit's design floor is a floor label ("F"), its border only on hidden
+  editor meshes; the game's movement grid material has the tile-outline look but is made for its own component
+  and not for lit pieces; the drop zone is a glowing frame. The way chosen to propose: the ground planes hidden
+  (collision kept) and the Bar's white road line along the tile edges. A mock-up in the editor (a scratch project,
+  222 lines) looks right in the editor's preview; nothing built or played. Waiting for the user's pick.
+
+### Align to grid: the builder's off-grid warning
+
+- [app.js](tools/viewer/web/app.js) `gridAlignment`, `alignToGrid`, `gridWarning`, with the warning in
+  [index.html](tools/viewer/web/index.html) and [style.css](tools/viewer/web/style.css): whenever a door, ladder,
+  car, van or fracturing piece stands off its grid, a warning over the builder's size names it, with **Show** (selects
+  those pieces and frames the first) and **Align to grid**. Align moves everything of the prefab (pieces, lights,
+  floor boxes) by one shift, the least of the off pieces' nearest grid poses
+  ([poserule.js](tools/viewer/web/poserule.js) `nearestGridPose`) that puts every such piece on the grid, as one
+  undo step, and gives the selection back. With pieces turned off quarter turns or tilted, or none that one shift
+  suits, or unreadable pieces kept (they would not move), the warning says why and Align is off. The user asked for
+  it after looking for the UFO's off-grid door; nearest level was their choice. It sits 96 px from the bottom, clear
+  of the view toolbar (the user's ask).
+- The builder's saved/unsaved status is redrawn after a save too, not only after an edit (it said "unsaved" after
+  saving).
+- Checked in the browser (a test server, a scratch library, 800 × 600 and 1600 × 900): the UFO prefab shows "1
+  piece off the tile grid: AlienDoor_Scout_ANIM"; Align moves all 58 pieces and both floor boxes 32 up, the door
+  from 160 to 192, and the warning goes; undo puts it all back and the warning returns; Show selects the door; after
+  Save the status says saved; no console errors. The aligned, saved prefab passes `prefab_stage.prepare` (stage
+  36 × 46 × 18). Node `--check` of app.js. Not added to the browser smoke tests yet.
+
+### More room: an 18-level test stage and prefabs −192 to 1,344 (5.6b, T2.7)
+
+Planned and built at the user's ask after the Farm UFO prefab could not be tested
+(prefab-library-plan.md section 5.6b and step T2.7; a first draft of 2,000 up
+and 500 down, 40 levels, was cut back by the user to the tallest map's 18 levels with room to stick out).
+- **The tile grid grows upward.** [world_grid.py](tools/upk/world_grid.py) `grow` takes the levels: every tile of
+  every store keeps its index, and a new level gets the map's top level's flags for its place across the grid.
+  [shell.py](tools/bake/shell.py) `resize` and `--levels` set `NumZ`, `NumTiles`, the top of `WorldBounds` and
+  the level volume's height; `equip` makes a cursor storey for each 192 units, cloning the donor's last with the
+  next floor numbers (six for 18 levels; the maps' go to 6). The rebuild volume stays three levels high (the
+  rebuild passes over open air, F-29).
+- **The project's stage takes levels:** `stage.grid` [nx, ny, nz], from the map's own up to 18
+  ([compiler.py](tools/editor/compiler.py) `stage`, `STAGE_LEVELS_MAX`; its building checks and cursor storeys
+  follow the height), passed to the shell by [build.py](tools/editor/build.py);
+  [project.js](tools/viewer/web/project.js) accepts it. The Map size dialog does not offer it yet.
+- **Prefab heights:** [prefab_bounds.py](tools/viewer/prefab_bounds.py) and
+  [prefab_document.js](tools/viewer/web/prefab_document.js) allow −192 to 1,344 (the grid 0 to 1,152 and 192 under
+  and over it) and list what sticks out of the grid (`outside`). The builder's workspace grid is 18 levels, its
+  readout says "grid 0–1152" and when something sticks out, and its floor boxes are checked against the same range
+  ([floors.js](tools/viewer/web/floors.js)).
+- **Height 0 is the map's grid bottom on a selection save** ([app.js](tools/viewer/web/app.js)
+  `prefabRecords`), in place of the level under the lowest geometry: the Farm UFO's door saved from the map
+  stands at 0.
+- **The stager** ([prefab_stage.py](tools/editor/prefab_stage.py)) asks for 18 levels on every test and refuses a
+  piece of a grid family or a cover block whose pivot is outside the grid; an off-grid piece warned about twice
+  is said once, with its name.
+- **Fixed on the way:** the builder's status said "unsaved" after a prefab opened (drawn before the saved state was
+  known) and listed every piece as "added" and every light as a "light edit"; it now says only saved or unsaved.
+  A UFO's building made from nothing could not be built on the blank map, at any height
+  ([buildings.py](tools/bake/buildings.py) `clone_volume`, [F-92](research/findings-register.md)).
+- Checked: [test_world_grid.py](tools/upk/tests/test_world_grid.py) (grown taller; the old `grow` and the new
+  agree at the map's own size on the blank map and Bar, every tile kept), [test_shell.py](tools/bake/tests/test_shell.py)
+  (`TallerGrid`: 18 levels in every part, six cursor storeys), the compiler's stage tests (levels 11 to 19, cursor
+  storeys), [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py) (pivot rule, one off-grid line, the
+  stage's levels, the real blank map), the shared size fixtures in Python and with Node
+  ([prefab_document_test.mjs](tools/viewer/tests/prefab_document_test.mjs)), the viewer prefab tests, the
+  compiler and build suites. The Farm UFO prefab moved down 160 (as saved again) staged and built quick in a
+  scratch folder: 36 × 46 × 18, bounds to 1,153, cursor floors 1 to 6 up to 1,152, its door at 0 on the grid, the
+  UFO's building volume with `IsUfo` from 22 to 598. As saved today it is refused once, for its door. In the
+  browser (a test server, a scratch library): the prefab opens "saved"; moved down 160 its door is on the grid and
+  the hull sticks out to −145; a selection of the Farm map puts the door at 0; no console errors.
+- Known gaps: not played (the game run of 5.6b is the user's). The saved UFO prefab still stands 160 too high: save
+  it again from the Farm map or move it down 160 in the builder. The release guide test fails on
+  `shots/prefab-test.webp`, a picture of the earlier T2 work the guide doesn't use yet. Node.js LTS was installed
+  on this PC (winget) to run the `.mjs` test.
+
+### Prefab Test in game: snapshots, build, launch and the builder's dialog (T2.2 to T2.5)
+
+Work made after T2.1 and before this ledger's entries above, written down and committed with them on 12 November
+2026.
+- [prefab_tests.py](tools/viewer/prefab_tests.py) and the routes in [viewer.py](tools/viewer/viewer.py): a test is
+  a private, immutable snapshot of the builder's document, prepared on the stage
+  ([prefab_stage.py](tools/editor/prefab_stage.py)), with request deduplication, a manifest and status, and old
+  tests pruned (a week, twenty at most).
+- [builds.py](tools/viewer/builds.py): the shared build runner starts a test's project under the one build lock,
+  with progress and cancelling; [play.py](tools/viewer/play.py) and [installs.py](tools/viewer/installs.py) launch
+  exactly the verified package, watch the game and take the test installation out when XCOM closes;
+  [exports.py](tools/viewer/exports.py) lets a test cancel the preparation it started;
+  [library.py](tools/viewer/library.py) reads many pieces in one pass (`read_pieces`).
+- The builder's Test in game: [prefab_test.js](tools/viewer/web/prefab_test.js), [app.js](tools/viewer/web/app.js)
+  `openPrefabTest`, the build options dialog's bake choice ([build_options.js](tools/viewer/web/build_options.js)),
+  [index.html](tools/viewer/web/index.html) and [style.css](tools/viewer/web/style.css): progress, cancel, the
+  issues it was refused for, reconnect after a reload; the guide's picture `shots/prefab-test.webp`.
+- In the bake: [cover_blocks.py](tools/bake/cover_blocks.py) takes its body setup from a static mesh's
+  (`_template` with `outer_class`); [native_copy.py](tools/bake/native_copy.py) `add_to_level` can put volumes
+  before the first rebuild volume, and on a resized blank map a ladder's top volumes are queued first, so their
+  tiles are worked out before the ground's.
+- Checked 12 November 2026: [test_prefab_tests.py](tools/viewer/tests/test_prefab_tests.py),
+  `test_builds`, `test_play` and `test_library` (57 tests), [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py)
+  (19), [test_native_copy.py](tools/bake/tests/test_native_copy.py) (37), and the user's own use of the dialog
+  (the UFO's refusal that started 5.6b). [browser_prefab_test.py](tools/viewer/tests/browser_prefab_test.py) was not
+  run again today.
+- Known gaps: no prefab test has been played in the game yet (T2.6). The guide does not show
+  `shots/prefab-test.webp` yet, so the release guide test fails on it.
+
+### Prefab test stage conversion (T2.0 and T2.1)
+
+- [prefab_stage.py](tools/editor/prefab_stage.py) turns a complete builder snapshot into a regular project on
+  CB2_MP_Blank. It clears the stock wall and vehicles through normal overrides, reserves the squad's spawn tiles
+  and a clear border, and chooses the smallest stage area that fits. A single tile translation preserves each
+  piece's pose, the building floors, and the light and group records.
+- The stage uses the [shared physical bounds](tools/viewer/prefab_bounds.py) and
+  [batch donor reader](tools/viewer/library.py). It refuses unresolved sources, changed donor hashes,
+  unsupported recipes and off-grid poses. The compiler report accounts for every expected addition and deletion.
+- [Stage tests](tools/editor/tests/test_prefab_stage.py) cover the size and squad-room limits, building-only and
+  light-only compilation, unresolved content, and reference remapping. Offline package readback verified 45 pieces,
+  three added lights and two buildings in the baked 36-by-36 fixture, plus the resized 128-by-36 quick build.
+  Both packages have six squad spawns and four cursor volumes. All five stock actors are out of the live actor list.
+- The plan and [contracts](research/editor-contracts.md) record the stage
+  interface. The test service, builder action and in-game checks are pending.
+
+### Shared Add a piece categories
+
+- [piece_categories.js](tools/viewer/web/piece_categories.js), [pieces.js](tools/viewer/web/pieces.js) and
+  [library.js](tools/viewer/web/library.js) use the same categories and assembly names in This map, All maps
+  and the prefab builder. The builder uses the Lights and Invisible rows with the same thumbnails as This map.
+- [library.py](tools/viewer/library.py) and [scene_metadata.py](tools/viewer/scene_metadata.py) use saved tile
+  ownership to identify floors in the donor maps. The refreshed scan found 664 floor recipes across 151 maps
+  and kept the existing piece keys. Older indexes offer a rescan to list floors.
+- Updated the [guide](tools/release/guide/guide.html). Library and guide unit tests and the browser smoke checks
+  for the library, cover, floor placement and prefab builder passed. Browser checks compared the category menus,
+  filtered donor floors and placed and undid all four recipe rows. The builder recovery check measures the
+  restored building against the fixture's current count after the navigation check has saved to it.
+
+### Farm scout prefab builds and cuts away
+
+The saved Farm scout prefab exposed a build warning for its energy field and a roof that stayed visible on floor 1.
+
+- [compiler.py](tools/editor/compiler.py), [library.py](tools/viewer/library.py) and the editor's family display
+  now support opacity fade scenery and frameless doors through the native copy and transplant recipes. Cached
+  library entries pick up the enabled family when their closure and link checks already passed.
+- [floors.js](tools/viewer/web/floors.js), [app.js](tools/viewer/web/app.js), the compiler and
+  [buildings.py](tools/bake/buildings.py) preserve authored floor entries when copied pieces and volumes move
+  together. The Farm scout's source floors overlap. Its roof and ceiling stay assigned to floor 2, and the door
+  and energy field keep their cutdown entries. Independently edited layouts and pieces use spatial membership.
+  Existing prefab files get the fix from refreshed library piece records.
+- [native_copy.py](tools/bake/native_copy.py) carries the compiler's copy labels to the floor writer and skips
+  lightmap registration for components with no LOD data. Updated the editor help, guide and
+  [contracts](research/editor-contracts.md).
+- Verified the user's existing prefab and a turned placement in the browser. Quick and baked scratch builds on
+  the blank map included all 82 pieces and nine lights. Readback of both packages confirmed the four affected
+  pieces' classes and floor entries. Compiler, building, library, family, prefab and guide tests passed.
+  Gameplay behavior remains unverified.
+
+### Prefab builder (prefab plan W)
+
+At the user's request: "Implement step W of the prefab plan (the prefab builder)."
+
+- [app.js](tools/viewer/web/app.js), [prefab_document.js](tools/viewer/web/prefab_document.js),
+  [prefabs.js](tools/viewer/web/prefabs.js), [map_browser.js](tools/viewer/web/map_browser.js) and the page/styles:
+  New/Edit opens the main editor as a prefab workspace. Expanding ground and footprint keep a fixed origin;
+  negative coordinates, All maps, recipe lights/cover, buildings, nested groups, box select and undo work there.
+  The Prefab menu saves complete contents, including hidden lights/boxes and unreadable records. Save as can
+  explicitly replace another prefab; floor-box-only prefabs save, open and place. Identities, links, source hashes
+  and recipe metadata survive a no-op save. Map-only actions are hidden; Test in game remains T2.
+- [prefabs.py](tools/viewer/prefabs.py), [prefab_bounds.py](tools/viewer/prefab_bounds.py) and
+  [viewer.py](tools/viewer/viewer.py): map-independent families, complete recovery routes and supported-size
+  validation from real source geometry. Both save paths use 128 by 128 tiles and ground 0 to 768 units, including
+  roofs/boxes, with 0.5 unit tolerance. Schema-1 files retain the 512-tile read/import bound for repair. Missing
+  geometry retains its envelope and records with size unverified; destination-map placement checks its own grid.
+- [project_files.js](tools/viewer/web/project_files.js) and app navigation: Save/Discard/Cancel for opening maps,
+  projects and prefabs; naming/replacement cancellation and failed/conflicting saves retain the current scene.
+  Ordered recovery writes cannot run after save/discard cleanup. Unnamed map edits consisting only of buildings,
+  groups or stage changes now also trigger the leave guard.
+- [library.py](tools/viewer/library.py): piece records include line collision (record version 5) so builder ground
+  readings use the source mesh's collision. [floors.js](tools/viewer/web/floors.js) and
+  [view_layout.js](tools/viewer/web/view_layout.js): floor creation and local tile drawing support negative builder
+  coordinates independently of the drawn ground. Updated the [guide](tools/release/guide/guide.html),
+  [contracts](research/editor-contracts.md), [viewer README](tools/viewer/README.md) and
+  plan.
+- Checks: prefab/store/route/size tests (18), project tests (15), library tests (21), family tests (3), guide tests
+  (3); shared JavaScript boundary, normalization, reference-graph and ordered-write fixtures. The
+  [builder browser check](tools/viewer/tests/browser_builder.py) passed real Bar/Police Station pieces, grouped
+  copy/undo, hidden lights/boxes, floor-only stamps, mixed missing-piece recovery, Save as replacement and all three
+  navigation destinations with save/discard/cancel and injected save failures/conflicts. Bar's whole building
+  (400 records) opened in 7.28 seconds from prepared source caches and retained its records on no-op save. A turned
+  two-floor/point-light stamp compiled in Bar with no errors (expected outside-floor and foreign-lighting warnings).
+  The existing browser smoke checks were updated for floor-only copies, physical-origin normalization and the new
+  destination bounds. Syntax, release module inclusion, original line endings and `git diff --check` checked.
+  Final whole browser smoke with `--projects` passed (1,095 Bar components, no browser errors), including the
+  cross-map prefab build. Missing-only/building-only recovery and deliberately delayed writes passed too. The
+  main editor on port 8768 serves the builder; its empty workspace opened cleanly without touching saved content.
+- Known gaps: no game run in W; T2's builder-only Test in game and X's gameplay proof remain separate stages.
+
+### Prefab testing is available only in the builder
+
+The user: "prefabs can only be tested in game from the prefab builder".
+
+- prefab-library-plan.md, D12, section 5.9, T2.2/T2.5 and the W handoff: removed
+  the prefab-row test action in every mode. A saved prefab is opened with Edit and tested from the builder.
+- The test API now accepts only the complete builder snapshot; source id/revision is provenance, not a request
+  to load another revision from the library. Browser checks require the row action to be absent and cover opening
+  the builder through the normal unsaved-changes guard. Route checks reject the removed saved-id-only input.
+- Checked: readback, obsolete-entry-point search, local links and git diff --check; LF endings preserved. No
+  runtime code changed and no browser/game tests run; T2 remains planned.
+
+### Prefab size policy and detailed Test in game plan
+
+At the user's agreement to the T2 review, their request to limit prefabs to the current stage's capacity, and
+"go ahead and write up a more detailed implementation plan based on this for T2".
+
+- prefab-library-plan.md, D5/D12 and new section 5.6a: supported prefabs fit
+  128 by 128 tiles and z 0 to 768 game units. A storey is not a fixed measure; 768 is 12 vertical levels of 64,
+  normally four cursor storeys of 192. Roof geometry/volumes count; old oversized schema-1 files stay readable
+  for repair and missing pieces remain preservable, without claiming their size is verified. W4/W6 use this policy.
+- Section 5.9 and T2.0-T2.6: blank-stage clearing, squad reservation and placement, saved-revision or unsaved
+  snapshots, complete source validation, private projects, shared build locking, exact-result launch, baked
+  default, cancellation/restart/cleanup, routes, file ownership and unit/browser/readback/game checks. The obsolete
+  cleared-map default and original builder-size wording are superseded explicitly; the existing Play save-game
+  limit remains outside T2.
+- Checked: current compiler limits, shell spawn/resize/cursor code, floor-volume survey, store/load validation and
+  BuildRunner/Player routes; document diff, links and whitespace, LF endings preserved. No runtime code changed
+  or browser/game tests run. 128 is the current tool cap; the recorded larger-stage run was 54 by 54, so T2 includes
+  a maximum-size game check and an explicit no-room refusal where a prefab leaves no clear squad area.
+
+### The builder plan: save decisions and review fixes
+
+At the user's agreement to the two save decisions and request to update the plan.
+
+- prefab-library-plan.md, D4a, section 5.8 and W1-W6: Save as can explicitly
+  replace a different prefab while preserving the one being edited; floor-box-only prefabs can be saved, opened
+  and placed. The shared serializer takes the complete document, preserves identities and references, and applies
+  one coordinate offset to visible and unreadable pieces. Missing geometry keeps a conservative footprint envelope.
+- The same sections separate the fixed snapping origin from expanding drawing bounds, cover negative coordinates,
+  cellars and taller buildings, require complete recovery records and ordered recovery writes, and keep navigation
+  on the current document when saving fails or is cancelled. The acceptance checks cover these cases.
+- Checked: the plan against the current serialization, grid, navigation and recovery code; document diff and
+  whitespace checks; existing LF line endings preserved. No implementation changed and no browser/game tests run;
+  W remains to be built. T2 reviewed separately against the current stage, build and Play in game code.
+
+### The builder's plan: the user's three answers written in
+
+The user: the floor as proposed; "Opening a prefab in the editor should count as opening a new map (i.e. it should
+pop up a warning to save or discard if there are unsaved changes)"; "Pieces of a map can also be added via the add
+piece tool from any map."
+
+- prefab-library-plan.md, section 5.8 and stage W:
+  - the floor (none to size, the footprint worked out) is marked agreed;
+  - the way back to the map the builder was opened from is taken out, with the Prefab menu's Close: opening a
+    prefab is opening another map;
+  - before a map, a project or a prefab is opened over unsaved changes the editor is to ask Save, Discard or
+    Cancel itself (step W3). Read from the code: a map switch today gets only the browser's own question, which
+    has no Save, so the plan puts the editor's question in for all three;
+  - a single piece of a map is added from All maps; a prefab is the way for several as they stand together.
+- Checked: read through. No code changed; the plan still waits for the user's go-ahead.
+
+### The prefab builder's plan gone through again (stage W); EXP-48 passed
+
+At the user's ask ("can you update the W plan to account for the changes you mentioned (box select, groups without
+unlocking and saving)"), after their word on EXP-48 ("yes everything checks out").
+
+- prefab-library-plan.md, section 5.8, rewritten against the code as it
+  stands: a table of what changed in it (the building tool is the Buildings view; a prefab brought in is a group,
+  not flattened; Save runs Save as prefab's routine over the whole scene; proposed, no floor to size, the footprint
+  worked out from what is there; lights from the recipes; box select), then how it opens, the scene, what works as
+  in a map, what is not there, saving, opening a saved prefab, and three doubts with the step that settles each.
+  Stage W is now seven steps (W0 to W6) with what checks each. **Nothing of it is built: it waits for the user's
+  go-ahead.**
+- The same file: L1.3 and stage L1 marked done, the order from here W, T2, X, L2, R.
+- [EXP-48](research/experiments/EXP-48-recipe-point-lights.md): the result (passed, by the user's word) and what
+  the game's log of the run says (the map loaded; nothing missing for the lights).
+- Checked: the plan's claims about the code read from it (the page's `open`, `prefabRecords`, `prefabClip`,
+  `editState`, the store's check and recovery, `families.py`, the collision route); the log read. No code changed.
+
+### EXP-48 prepared: recipe point lights on the blank map (stage L1.3)
+
+At the user's ask ("can you set a game up for me to test L1.3 ?").
+
+- [exp48_project.py](tools/editor/examples/exp48_project.py): EXP-44's hut with a warm recipe point light inside,
+  a green one over open ground and a blue recipe spot as the known case; saved in the editor's store as
+  "EXP-48 point lights" and built with the lighting baked (`CB2_MP_Blank_X48`).
+- [EXP-48](research/experiments/EXP-48-recipe-point-lights.md), with two marked editor shots
+  ([EXP-48-shots.json](research/experiments/EXP-48-shots.json)).
+- Checked offline: the built map read back (both point lights and the spot with their classes, archetypes, values
+  and a source radius of 32). Not played yet.
+
+### The prefab plan's order from here: the look at a point light, the builder, then Test in game
+
+Agreed with the user ("agreed, can you update the plan with your suggested order ?").
+
+- prefab-library-plan.md, section 6: after stage P the order is L1.3 (one look
+  in the game at a recipe point light, with any run), W (the builder, its detailed plan first), T2 (Test in game,
+  moved after W so its button is made once, for the row and the builder), X, L2, R. L1.2 is marked done.
+- Checked: read through; nothing else changed.
+
+### A prefab of the tutorial map's pieces can be placed
+
+The user's report: a prefab of a statue saved on Act1_IntroLevel would not place in the Bar ("says the map it's
+from isn't in the game files (which it obviously is)").
+
+- [library.py](tools/viewer/library.py) `donors`: the install's donor maps are the maps of the records the editor
+  lists (`maplist.records`), so the tutorial's map, whose records the game's file comments out and the map list
+  takes all the same, is one. It was skipped with every other commented-out line, so the map could be opened and a
+  prefab saved from it, but none of its pieces read back ("is not in the game install"); All maps never listed its
+  pieces either.
+- The library's index of this computer was read again (`viewer.py library scan`), since the Build takes a piece of
+  another map only from a map the index was scanned from. On another computer All maps says the game's maps have
+  changed and offers to read them again.
+- Checked: `test_library.py` (`DonorTests`, new); the statue's piece read from the tutorial map here.
+
+### Recipe lights bake with the source radius they save (F-91)
+
+At the user's word, after the finding was explained ("yes commit first, then fix this").
+
+- [native_lights.py](tools/bake/native_lights.py) `recipe_source_radius`: the Lightmass source radius of a light
+  made from a built-in recipe is read from where the factory's recipe keeps it (the component's
+  `LightmassSettings`), 32. It was looked for at the recipe's top, not found, and taken as UDK's default, 100, so
+  the relight baked recipe lights with softer shadow edges than the light in the map says.
+- Checked: `test_native_lights.py` (a recipe point made by the real factory carries 32, as its component saves;
+  the real spot recipe gives 32; an unknown recipe still gives the default); `test_light_factory.py`.
+- Gaps: not looked at in the game. A baked recipe spot light's shadows are a little sharper than in builds made
+  before.
+
+### The prefab library (prefab plan stage P), and the point light recipe (stage L1.1)
+
+At the user's go-ahead for stage P ("yes go ahead"), with two additions agreed first: the point light recipe brought
+forward from stage L1, so a saved building keeps all its lights, and the map's own buildings saved into a prefab as
+a copy makes them.
+
+- **The store** ([prefabs.py](tools/viewer/prefabs.py), `PrefabStore` over the project store, which
+  [projects.py](tools/viewer/projects.py) now lets a subclass re-aim: its schema, its noun, the previous revision's
+  name): one file for each prefab in the `prefabs` folder, a new setting
+  ([settings.py](tools/viewer/settings.py); unset, a `prefabs` folder beside the projects folder; `serve --prefabs`;
+  a doctor line). `validate` checks the whole document before it is stored: every key known, counts capped, every
+  name against a pattern, every number finite and in range, members and partners naming things the prefab has, no
+  group loop. Delete moves the file to `.workshop\deleted\`. `import_file` stores a file from elsewhere, and for an
+  id the library has answers 409 with the one here unless told `replace` or `copy`. The page's picture of a prefab
+  is kept beside it (`picture.png`, a PNG of up to 1 MB).
+- **Routes** ([viewer.py](tools/viewer/viewer.py) `handle_prefabs`): `GET /prefabs.json`, `GET`, `PUT` and `DELETE
+  /prefabs/<id>/prefab.json`, `GET` and `PUT /prefabs/<id>/picture.png`, `POST /prefabs/import`; changes from the
+  viewer's own page only. `POST /library/pieces` ([library.py](tools/viewer/library.py) `pieces`) exports many pieces
+  of other maps at once, the install's maps listed once and each map opened once; a map's SHA-256 is now worked out
+  once for the file as it is (`digest_of`), where every piece read hashed the whole map again.
+- **The editor** ([prefabs.js](tools/viewer/web/prefabs.js), new; [app.js](tools/viewer/web/app.js);
+  [index.html](tools/viewer/web/index.html); [style.css](tools/viewer/web/style.css)):
+  - **Save as prefab…** (the piece panel, the building's panel in the normal view, and the Prefabs tab's Save
+    selection…): `prefabRecords` writes the selection as a project's added records in a space of its own, the origin
+    the tile corner at or before the selection's lowest corner, at the level of its lowest building box (else its
+    lowest point, to the nearest level). The map's own pieces and added ones alike go in by their templates; lights
+    as recipe lights with every value; the project's buildings and the map's own selected with the pieces; the
+    groups among them. The window says what goes in, lists what is left out (pieces of streamed levels) and what
+    stands off the grid, and turns Save into Replace for a name the library has.
+  - **The Prefabs tab** of the Add panel: a row for each prefab (picture, what it holds, its footprint, a tag when
+    the install lacks one of its maps), a filter, Rename, Duplicate, Export (a download), Delete (asked once) and
+    Import… with the choice Replace it or Keep both.
+  - **Placing** (`prefabClip`, `choosePrefab`): the prefab's records become a clip and go through the paste.
+    `pasteSnapshot` takes what a clip's entry says beyond its source (`unit`, `link`, `partner`, `key`, `tinted`),
+    a clip's own groups, and `wrap`: everything placed is one group marked `prefab: { id, name, revision }`
+    ([project.js](tools/viewer/web/project.js) `validPrefabMark`; the compiler's groups know the key), which the
+    group panel names. A prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels
+    whatever the snap (`dropTarget`, `gridLocked`). The preview draws a clip's floor boxes as outlines (a copied
+    building's too). Pieces of other maps are read in one request the first time; one the library says can't be
+    brought is left out and named.
+  - **The link tag**: each set of linked pieces in a paste gets a tag of its own (`linkOf`, `linkTag`), so two
+    copies of one car pasted together, or two of the same car in a prefab, stay two cars. Before, both took
+    `copy<serial>:<tag>` and moved as one.
+- **The point light recipe** ([light_factory.py](tools/bake/light_factory.py) `POINT_RECIPES`, `add_point`): a
+  placed point light is the spot's two exports with PointLight's classes, no cones and no Rotation, as read from 397
+  placed point lights of five maps ([spot-light-recipe.md](research/spot-light-recipe.md), section 5). The spot
+  recipe's digest is unchanged. The writer ([native_lights.py](tools/bake/native_lights.py)) and the compiler
+  ([compiler.py](tools/editor/compiler.py) `LIGHT_RECIPES['point']`) take a point recipe; the Add panel offers the
+  editor's own Point Light on a map with none (`recipeLight`).
+- [The guide](tools/release/guide/guide.html): "Prefabs", with a picture
+  ([take_shots.py](tools/release/guide/take_shots.py) `prefabs`); the piece panel, Add and All maps pictures retaken;
+  the files table.
+- Checked: [test_prefabs.py](tools/viewer/tests/test_prefabs.py) (new, 12 tests: the store, about 90 malformed and
+  hostile documents, a file dropped in by hand, the routes, the setting); `test_projects.py`, `test_library.py`; `test_compiler.py` (93, two
+  new); `test_light_factory.py` (22: the point recipe built in a map with no light and read back, and matched
+  against the 380 placed point lights of the four validated maps); `test_native_lights.py` (a recipe point made by
+  the real factory on the Bar); `browser_smoke.py --only prefabs` (`check_prefabs`, new) on a test server (8790):
+  a car, a prop, a spot and a point light and a building saved from the Bar, placed twice (one turned), two of the
+  same car in one prefab, the tab's actions, import with its choice, then placed in URB_PoliceStation, saved,
+  reopened and built without baking (three pieces brought from the Bar); the whole `browser_smoke.py --projects`;
+  `test_guide.py`.
+- Gaps: nothing of this was played in the game: a recipe point light (stage L1.3: one look), a prefab building in
+  another map (stage X). No New or Edit of a prefab (stage W, the builder), no Test in game (T2), no area lights of
+  glowing pieces (L2). A prefab's pieces the open map has are not checked against the library until they are placed
+  in another map. The bake's source radius for a recipe light is not the one the light saves (F-91).
+
+## 11 November 2026
+
+### A map's own building copied with its pieces
+
+At the user's ask, after a copy of the Bar made with box select came without its building ("Why don't we allow
+that?").
+
+- [app.js](tools/viewer/web/app.js): with the Normal view's **Floor boxes** on, the map's own floor boxes are drawn
+  in the normal view too, in grey (`refreshVolumes`). A click on an edge (`pickBoxEdge`, `pickOwn`; Ctrl or Shift
+  adds it to the selection) or the select box takes the building into `ownSet`, shown fuller; alone, its panel
+  shows read only. A copy of a selection with one (`snapshot`) carries its boxes, and the paste makes a building
+  of the project from them, named "<its volume> copy", with the same floors. The originals are never moved or
+  deleted: a drag's hint and Delete say so.
+- [The guide](tools/release/guide/guide.html): "Copying one of the map's own buildings".
+- Checked: `browser_smoke.py` whole with `--projects` on a test server (8790) on the Bar; `check_floor_boxes` now
+  picks a building of the Bar by its edge and by the select box, copies it with a piece and counts the new
+  building's boxes; `test_guide.py`.
+- Gaps: not played in the game (a copy of a map's building is a project building as EXP-44 and EXP-45 made them,
+  listed by the Build's rule, not by the map's saved lists). The export does not say which of a map's buildings
+  is the alien ship, so a copy is always Kind: Building. Moving the map's own volumes is not built: it wants a
+  game run first.
+
+### Three views: Normal, Buildings, Lights
+
+At the user's ask after trying the last two entries: "in the lights mode it should also not allow anything but
+lights to be interacted with, same as building mode", the two switches "on the main screen not hidden in the
+settings view", and "a new normal mode above the building mode" with "a flyout when hovered".
+
+- [app.js](tools/viewer/web/app.js): the **Lights view** (`lightsOn`, `setLightsShown`) is a view of its own: a
+  click picks only lights, the select box takes only lights, a light in a group moves on its own (the gizmo's
+  `lockedGroup`), and Ctrl+G is off. It and the Buildings view end each other; a piece picked from a list leaves
+  it. Lights are no longer drawn in the Buildings view, and the Lights view is not remembered over a reload.
+- The **Normal view** button (`#editNormal`, Shift+N, `setNormalView`) stands above Buildings and Lights after a
+  new splitter under Add; one of the three is lit. While the pointer is over it a flyout
+  ([index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css) `.railfly`, `.flyout`) has
+  two switches for the normal view: **Lights** (`normalLights`, `setNormalLights`: lights drawn and picked with
+  pieces) and **Floor boxes** (`boxesShown`, as before). Both are off whenever a map opens. `syncLights` works out
+  what is drawn and drops from the selection what the view can't pick.
+- View options lost **Light markers** and **Floor boxes**. A light added from the piece list in the normal view
+  turns the Lights switch on.
+- [The guide](tools/release/guide/guide.html): "The three views, and the Normal view's switches" with a picture
+  ([take_shots.py](tools/release/guide/take_shots.py) `normal-flyout`), the tool strip's list and picture
+  (thirteen), View options (twelve), the Lights, Box select, Groups and Buildings sections, the keys table.
+- Checked: `browser_smoke.py` whole with `--projects` on a test server (8790) on the Bar; its floor boxes check
+  uses the flyout by hovering, and has the Lights view's rules (a click on a piece picks nothing, a grouped light
+  alone, the select box, a piece from a list leaving the view, Shift+B and Shift+N); `test_guide.py`.
+- Gaps: the flyout needs a pointer that hovers (on a touch screen the switches can't be reached). In the Lights
+  view the piece list (P) still places pieces.
+
+### Lights and buildings picked with pieces, and as group members
+
+The plan's 5.4a steps S2 and S3, after box select.
+
+- **Floor boxes in the normal view** ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)):
+  View options has **Floor boxes**, off whenever a map opens (the user: "should be off by default"). On, the
+  project's boxes are drawn in the normal view; a click on a box's edge (`pickVolumeEdge`) or the select box takes
+  the building whole, with whatever else is picked. It moves and turns with the selection, is copied with its
+  pieces as a new building ("<name> copy") and deleted, each one undo step. The building's panel shows there with
+  its name and kind; a box's size and floor stay the Buildings view's.
+- **A floor box's root carries its size in its matrix** (`volumeBox`, `setVolumeBox`): a unit cube scaled, so a
+  quarter turn by the gizmo, and its undo, carry the whole box. [gizmo.js](tools/viewer/web/gizmo.js): a selection
+  with a box (`boxed`) moves by whole tiles and levels and turns by quarter turns about the vertical, whatever
+  the snap; a typed turn is rounded to one.
+- **The select box takes lights** while the Lights button is on, and buildings while Floor boxes is on; its bar
+  counts pieces, lights and floor boxes.
+- **Group members** ([project.js](tools/viewer/web/project.js) `buildingKey`, `memberKey`, `validMember`; app.js
+  `memberRecord`, `liveMembers`, `groupables`, the gizmo's `lockedGroup`, `pasteSnapshot`, `applyState`): Ctrl+G
+  takes the lights and buildings in the selection as members, a light as a piece is and a building as
+  `{building: id}`. They move, turn, copy and go with the group, drawn or not. The group's title counts them.
+- [compiler.py](tools/editor/compiler.py): `member_key` takes `{building}`; a group naming a building that is not
+  the project's is warned of (`group-member`); break together passes over lights and buildings.
+- [The guide](tools/release/guide/guide.html): "A building with its pieces" in Buildings, "Lights and buildings in
+  a group" in Groups, a line in Box select, View options' new item (fourteen, the picture taken again);
+  [editor-contracts.md](research/editor-contracts.md).
+- Checked: `test_compiler.py` (92, one new); `browser_smoke.py` whole with `--projects` on a test server (8790) on
+  the Bar, with the new `check_floor_boxes` (`--only floor-boxes`): the switch, an edge click, the panel, a move, a
+  turn and their undo, the select box, copy with a piece, delete, a group of a piece and a building moved with the
+  boxes hidden, a group of a piece and a light; `test_guide.py`.
+- Gaps: not tried by the user. A building alone is not copied in the normal view (a piece must be copied with it).
+  The paste preview does not draw the boxes. A group with a building always moves by whole tiles. Align leaves
+  lights and buildings out. A prefab is not made of any of this yet (stage P).
+
+### Box select
+
+At the user's ask ("We just really need a better way of selecting many items at once ... a box select tool"), the
+first step of the prefab plan's new 5.4a.
+
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css): a **Box select** tool in the tool strip (T). A drag over the ground
+  draws a box from 32 units under the level drawn on up to the grid's top; the six face handles a building's box
+  has stretch it (`handleBox` gives them either box) and a dot in its middle moves it. A bar says how many pieces
+  are inside, with **Select** (Enter), **Add to selection** (Shift+Enter), **Draw again** and **Cancel** (Esc). A
+  piece is inside when the middle of its drawn box is (4 units of slack, for a wall on the box's side); the pieces
+  it would take are outlined in white. Only drawn pieces are taken, never a streamed one; a group or a linked set
+  comes whole, by the gizmo's own rule. The box is not saved and is no undo step; the Buildings view and opening
+  another map put it away.
+- [The guide](tools/release/guide/guide.html): a Box select section with a picture
+  ([take_shots.py](tools/release/guide/take_shots.py) `box-select`), the tool strip's list and picture with the new
+  button (twelve), the keys table. The page's own help lists T.
+- The plan: 5.4a (box select; lights and floor boxes shown and picked in the
+  normal view, a building picked whole there; then both as group members), in place of stage G2.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py): `check_box_select` (also `--only box-select`): the
+  drag, the count, a face handle and the middle dot dragged, Enter, Shift+Enter, an empty box, a group taken whole,
+  Escape, Cancel, the Buildings view. In passing, `check_recipe` added a set to a number (`before + len(...)`), so
+  the whole test stopped there on the Bar; it counts the set now.
+- Checked: the whole `browser_smoke.py --projects` on a test server (8790, scratch projects and builds) on the Bar;
+  `test_guide.py`; the guide's two pictures looked at.
+- Gaps: lights and floor boxes are not taken yet (the plan's S2). The middle rule takes a large piece whose middle
+  is inside though most of it is outside (a road slab), which the white outlines show. A map without a tile grid
+  gets a box four storeys high.
+
+### Groups: Group and Ungroup only
+
+At the user's ask after trying nested groups ("remove the lock/unlock/select stuff, just leave it to
+group/ungroup").
+
+- [app.js](tools/viewer/web/app.js) and [index.html](tools/viewer/web/index.html): the group section has
+  **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G) and the Break together option. Unlock, Lock, Select group, the
+  larger group's line and "Group these inside it" are gone. Every group selects and moves as one; Ctrl+G on a
+  group says it is one already. The chip reads "Group of N", the piece list's tag "group".
+- A project's `locked` is always written true, and a group saved unlocked is opened as any other group
+  ([editor-contracts.md](research/editor-contracts.md)); the compiler is unchanged.
+- [The guide](tools/release/guide/guide.html): the group section and "Groups inside groups" rewritten, the group
+  picture taken again, the keys table.
+- Checked: `browser_smoke.py` against a test server (its group and align checks changed to match: no lock button,
+  Ctrl+G on a group changes nothing, nesting by Group and Ungroup); `test_guide.py`.
+- Gaps: a piece of a group can't be moved on its own without ungrouping first; that is what was asked for.
+
+### Prefabs and buildings, stage G1: groups nest
+
+- The project document ([editor-contracts.md](research/editor-contracts.md), sections 2 and 4): a group's member
+  can be another group, `{ "group": id }`. [project.js](tools/viewer/web/project.js) has its key (`groupKey`),
+  takes it as a valid member, and `pruneGroups` ends a group left with fewer than two members, its last member
+  taking its place in the group it was in.
+- [app.js](tools/viewer/web/app.js), the groups section:
+  - a piece picked selects the outermost locked group it is in (`topLocked`, given to the gizmo's `lockedGroup`);
+  - `selectionUnits` reads a selection as pieces and whole groups; Ctrl+G on them makes a group that holds the
+    groups as members; Unlock and Ungroup act on the outermost whole group selected, so they peel one level (an
+    ungrouped group's members stay in the group it was in);
+  - "Group these inside it" makes a group of some pieces or inner groups of an unlocked group, inside that group;
+  - copy and paste copy the tree; the panel says how many groups are inside and when a group is inside another;
+    Break together counts a group's own pieces;
+  - saving keeps the tree of what is still on the map; opening leaves out (carries unchanged) a group that names
+    a group not applied, is in two groups or is inside itself.
+- [compiler.py](tools/editor/compiler.py): `{group}` is a member; a new error `group-nesting` for a named group
+  that is not the project's, is the group itself, is in two groups or is in a loop; breaking together skips
+  members that are groups.
+- [The guide](tools/release/guide/guide.html) has "Groups inside groups"; the plan
+  says G1 is done and G2 (lights and buildings as members) is not started.
+- Checked: `test_compiler.py` (91, one new); the editor's browser test with its group check extended
+  (`browser_smoke.py` against a test server: two groups locked as one, the pick, unlocking, a pasted tree, undo,
+  ungrouping); and a longer run by hand-written script on URB_Bar: three levels, a group made inside an unlocked
+  one, a project saved and reopened with the same groups and nothing carried.
+- After the user's first try ("unlocked ... effectively removed the top level group"): an unlocked outer group had
+  no sign in the panel once a group inside it was selected. The group section now has a line for the larger,
+  unlocked group a selected group is in, with **Lock the larger group** and **Select it**
+  ([index.html](tools/viewer/web/index.html), `groupPanel`); the browser test uses both.
+- Gaps: the piece list's "locked group" tag and Align name a piece's own group, not the outermost. No picture of
+  a nested group in the guide. Lights and buildings are not members yet (G2).
+
+### Export 20: the map's cursor volumes, shown in the Buildings view
+
+At the user's ask, so that floor boxes can be lined up with where the cursor's floors start.
+
+- [scene_metadata.py](tools/viewer/scene_metadata.py) `cursor_volumes` and [export.py](tools/viewer/export.py):
+  a map's export has `cursorVolumes` (name, floor number, world box, the stair mark). `EXPORT_VERSION` is 20, so
+  every map prepares again the first time it is opened; projects saved on export 19 open and build as before.
+- [floors.js](tools/viewer/web/floors.js) `cursorStoreys`, `storeysOver`, `cursorMiss`: the cursor's floors of a
+  map (for a map with no cursor volumes, the four storeys of 192 the Build gives it), where they start over a box,
+  and whether a box starts away from them (more than 32 units).
+- [app.js](tools/viewer/web/app.js), the Buildings view: a yellow line round each of the project's boxes (and the
+  map's own box being read) at each height where a cursor floor starts over it, with the floor's number and height
+  on the selected ones; a top or bottom dragged within 32 units of one goes to it; the panel says where the
+  cursor's floors start over the selected box and warns when a box starts away from them.
+- [compiler.py](tools/editor/compiler.py): a new warning `building-cursor` for such a floor (`cursor_storeys` is
+  the twin of the page's rule; an export older than 20 says nothing).
+- [The guide](tools/release/guide/guide.html) has "The cursor's floors: the yellow lines";
+  the plan marks B1.2 done.
+- Checked: `test_materials_and_floors.py` (12, one new), `test_compiler.py` (90, one new), and the viewer tests that
+  name the export version (catalogue, families, guide, library, projects, formats) and `test_build.py`; the blank
+  map and URB_Bar exported at version 20 and read in a browser on a test server: the tower's lines at 0, 192, 384
+  and 576, the Bar's four volumes (0, 210, 402, 594), a top dragged to about 222 landing on 210, and the warning
+  for a box whose bottom was raised a level.
+- The guide's two Buildings pictures were taken again (`take_shots.py --only buildings`), now with the yellow lines,
+  and the second one's list has them as item 9; the section also says how the cursor's floors work in a battle.
+- Gaps: many small cursor volumes over one box give a line for each height,
+  which was not looked at on such a map. The 32 units are a choice, not read from the game. The cursor's storeys
+  of a map made from nothing are not the user's to set yet.
+
+### EXP-45 passed; the editor's Climbs line counts floors the project adds
+
+- [EXP-45](research/experiments/EXP-45-tower.md) was played by the user and passed (decks are floor, ladders
+  climb, four cursor floors, each floor hides the ones above); the result is in the note and in
+  the plan.
+- [ladders.js](tools/viewer/web/ladders.js) `addedFloors` is the twin of the compiler's `added_floors`, and a
+  selected ladder's ends ([app.js](tools/viewer/web/app.js) `ladderNow`) count it: the line reads "Climbs, by a
+  floor this project adds" and the end's square is green, where it said "Won't climb" for a ladder the Build
+  accepts. The compiler's `ladder-new-floor` warning stays: the floor is guessed from the piece's drawn box, and a
+  flat piece that can't be stood on would pass the same check.
+- Checked: in a browser on the EXP-45 project, the three ladders' lines.
+- Gaps: no automated test of the page's side.
+
+### Prefabs and buildings, stage B2: storeys (a tower of three storeys and a roof built, EXP-45 waiting for its run)
+
+- [shell.py](tools/bake/shell.py): a map that is given its cursor volumes gets them as even storeys of 192 units
+  from the tile grid's bottom, the last one up to the grid's top (`STOREY`). They kept URB_Bar's own heights before
+  (0, 210, 402, 594), which fit no building made of whole storeys. The map's own cursor volumes, fitted when its
+  grid grows, keep their heights.
+- [compiler.py](tools/editor/compiler.py): `added_floors` works out the floor the project's own flat pieces are
+  expected to give (no more than 40 units high; each tile whose centre a piece covers, at the level of its top,
+  unless another added piece hangs less than 150 units over it, F-71). A ladder's ends count that floor
+  (`ladder_ends`), with a new warning that the climb depends on it (`ladder-new-floor`); it was refused before
+  unless both ends had floor in the map as it ships. A new warning `floor-headroom` names a flat piece with less
+  than standing room over some of its tiles.
+- New [exp45_project.py](tools/editor/examples/exp45_project.py) and
+  [EXP-45](research/experiments/EXP-45-tower.md) with its marked shots: a tower of 33 pieces from three maps (site
+  office walls that cut down, van-roof slabs as decks, three ladders inside), one building of four floors.
+- The plan says where B2 stands.
+- Checked: `python -B tools/bake/tests/test_shell.py` (14, the cursor storeys read back from an equipped blank
+  map), `python -B tools/editor/tests/test_compiler.py` (89, one new: a ladder on a project's slab, and refused
+  when a second slab hangs over it); the project built (`exp45_project.py <scratch> --store`, 14 seconds) and the
+  built map read back: the four floors' lists and boxes as asked, the cursor volumes 0, 192, 384, 576 to 768.
+- Gaps: not played. The floor a piece gives is guessed from its drawn box, not its collision. The editor's Climbs
+  line for a selected ladder still goes by the map's saved floors, so it says "Won't climb" for the tower's
+  ladders, which the Build accepts. The cursor volumes are not in the export (B1.2), so nothing warns of storeys
+  that miss a map's own cursor storeys. No stairs.
+
+### The guide says why a floor is several boxes and not one big one
+
+- [guide.html](tools/release/guide/guide.html), "Several boxes, or one big box", at the user's ask: what a box
+  takes in beside the building (pieces listed on the floor, standing there counting as inside, the overlap the
+  Build refuses), and that a small overhang and a loose ground floor do no harm.
+- Checked: `python -B tools/viewer/tests/test_guide.py`.
+- Gaps: "standing in the box counts as inside" is read from the scripts, not played with an oversized box.
+
+### The guide says what a building's Kind changes
+
+- [guide.html](tools/release/guide/guide.html), "Kind: Building or UFO": the two cut away alike; UFO sets the mark
+  the game's own ships carry (`IsUfo`), which only the placing of the aliens reads (F-88); when to choose it; and
+  what is not settled (read from the scripts, not played; LWR's own placing; a UFO mission needs more than the
+  building). The panel's Kind tooltip ([index.html](tools/viewer/web/index.html)) says the same in a line.
+- Checked: `python -B tools/viewer/tests/test_guide.py`.
+
+### The user guide has a Buildings section
+
+- [guide.html](tools/release/guide/guide.html), at the user's ask: what a building is to the game, what does not
+  work without floor boxes (and what still does), the Buildings view's tools, and where a floor's box goes (bottom
+  at the walking level, top just under what should hide, the 20-unit rule, walls crossing from one box into the
+  next, the top storey's box, why a building's floors must all be the same building, the gaps and overlaps the
+  game's own maps have, the ground listed on floor 1, StaticMeshActor), with the hut as an example. A line under the tool strip's picture, the contents and three rows
+  of the keys table point to it.
+- Pictures, at the user's ask: [take_shots.py](tools/release/guide/take_shots.py) has a `buildings` shot (a box
+  being drawn over the Bar's car park, `buildings-draw.webp`; that box with a second floor pasted on top and
+  selected, `buildings-view.webp`) and its tool strip shot numbers eleven buttons. The guide has both pictures with
+  numbered lists ("Drawing a box", "Fitting a box and making the next floor"), and the tool strip's list is
+  renumbered with Buildings as 5.
+- Checked: `python -B tools/viewer/tests/test_guide.py`; `take_shots.py --only rail,buildings` against a test
+  server; the page read in a browser.
+- Gaps: the other pictures were not taken again (the window's and the lights' show the tool strip without the
+  Buildings button).
+
+### The Buildings view: the user's first three points
+
+- **The map's own boxes are picked to be read** ([app.js](tools/viewer/web/app.js)): a click on a grey box shows
+  it in the panel, fields greyed: its size, bottom and top, its building, its floor of how many, its floor volume's
+  name, and how many pieces the map lists on that floor. Nothing of it can be changed; Escape or a click
+  elsewhere lets it go.
+- **A box being drawn or stretched stays see-through**, a little whiter (`paintVolume`, a `drag` material). It
+  turned solid white because a rebuilt box was given no material until the next refresh.
+- **The face handles stand clear of the gizmo**: each out from its face on a thin line, at least a fifth of the
+  camera's distance from the box's middle (the gizmo's arrows reach about an eighth). A handle takes the press
+  ahead of the gizmo, and the face moves by as much as the pointer does. The panel's size follows a stretch.
+- Checked in a browser on a test server, on URB_Bar: a click on the bar's box shows "Floor 3 of 3 of the map's own
+  XComBuildingVolume_0 ... 37 pieces", read only; a box drawn in the car park is see-through while drawn (opacity
+  0.3) and while its top is dragged up two levels; the top handle is 216 pixels from the gizmo's centre; no console
+  errors.
+
+### The Buildings view (the plan's 5.3a) in place of the Buildings dialog
+
+- The user asked for a building's boxes to be made and fitted in the 3D view, and for nothing else to be
+  selectable meanwhile. The dialog of stage B1.5 (below), its Project menu item and View options' Buildings
+  switch are gone.
+- **The view** ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)): a tool strip button
+  and Shift+B. On: the project's boxes are drawn see-through in their floor's colour, the map's own floor volumes
+  in grey (never picked), and a click picks only a box, never a piece or a light. Selecting a piece from a list
+  turns the view off. Off: no box is drawn or picked.
+- **A box is a root** as a piece or a light is (`volumeRoots`, joined in `allRoots`), so the gizmo moves it; it
+  moves by whole tiles and levels whatever the snap ([gizmo.js](tools/viewer/web/gizmo.js): a new `tiles` option),
+  and is never turned (R says so). The project's `buildings` are written from the boxes after every edit
+  (`syncVolumes`), so the Floor buttons, the cutaway and the pieces' Floors lines follow as before.
+- **Stretched** by six face handles on the selected box (white dots): a side goes to tile lines, the top and the
+  bottom to levels; Alt gives steps of 8 units. Bottom and Top can also be typed.
+- **Made** with New box (N): a drag over the tiles it is to cover, at the level under the cursor (the chosen
+  floor's height with a floor chosen), one storey high; it joins the building of the box selected last. "Boxes
+  around the pieces selected" makes a building's boxes around the pieces that were selected when the view was
+  turned on.
+- **Copy and paste** (Ctrl+C, Ctrl+V): the copy lands on top of its original as the next floor, to be moved from
+  there. Delete, and undo and redo for all of it (deleting hides a box; the history keeps it).
+- **The panel**: the box's size, Bottom and Top, its Building (any of the project's, or a new one), the
+  building's Name and Kind, its Floor; how many pieces stand in it and how many cut down; what the Build would
+  refuse. Several boxes of one building and floor make a floor of any outline. With several selected, Building
+  and Floor set them all.
+- Checked in a browser on a test server with a copy of the EXP-44 project: with the view on a click on a wall
+  picks the box around it and no piece; the box moved a tile by a typed pose and by a drag of the gizmo's arrow
+  (130 units of drag: one tile), undone; the east face's handle dragged to the next tile line, undone; a copy
+  pasted on top as floor 2, undone; a new box drawn over 3 by 2 tiles and given a building of its own and a name;
+  deleted and brought back; boxes made around the 12 pieces selected on the way in; R leaves the box unturned;
+  saved and reopened the buildings are the same; with the view off the same click picks the wall; URB_Bar shows
+  its own volumes in grey and its Floor buttons as before; no console errors.
+- Gaps: a box is no member of a group and is not in a prefab yet (stages G and P); the map's own volumes are not
+  edited; a paste always lands on top of its original; two boxes are not aligned to each other by a tool; the new
+  page code has no automated test (the browser run is a script in a scratch folder); nothing of it has been
+  tried by the user yet.
+
+### The Buildings view planned
+
+- The plan has a new section, 5.3a: the user asked for a building's floor
+  boxes to be made, stretched and moved in the 3D view, in a view of their own like the lights view, with each box
+  tied to a building and a floor in the inspector, in place of the Buildings dialog. Steps V1 to V5. Not built.
+
+### Prefabs and buildings, stage B1.5: buildings in the editor
+
+(The dialog of this entry was replaced the same day by the Buildings view, above; the saving, the rule in
+`floors.js` and the Floor buttons' and cutaway's reading of the project's buildings are kept.)
+
+- Project, **Buildings…** ([index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js)): the
+  project's buildings in a dialog. **Make of the selection** makes one around the selected pieces: the footprint
+  out to whole tiles (an edge within a quarter tile of a tile line goes to that line, since walls stand on the
+  lines), the base at the lowest piece, floors 192 high with one on top for the roof, and the top floors that
+  would list none of the pieces left out. Name, kind (building or UFO), the number of floors and their height can
+  be set, and a building deleted. It says how many pieces stand in the building and what the Build would refuse
+  (a box outside the tile grid, an overlap with another building's floor).
+- **Drawn**: each floor's box see-through, a colour for each floor; View options, Buildings turns them off and on.
+- **The Floor buttons, the cutaway and a piece's Floors line** read the map's buildings and the project's together
+  (`allBuildings`). A project building lists a piece by the game editor's rule as the Build applies it
+  ([floors.js](tools/viewer/web/floors.js) `touchedFloors`, `ruleListing`; the Build's `buildings.py`), from the
+  box of what is drawn of it where it stands; so floor 1 hides a new building's roof and cuts its walls down.
+- **Saved** with the project ([project.js](tools/viewer/web/project.js) `validBuilding`, `tidyBuilding`; a building
+  the page can't read is carried unchanged), kept for recovery, and part of what makes a project unsaved.
+- Checked in a browser on a test server, with a copy of the EXP-44 project: the hut's listings on the page are the
+  Build's own, piece for piece (walls and freight door on floor 1 cutting down, roof on floor 2, four of the map's
+  ground planes); floor 1 hides the roof and cuts the walls at 176; the dialog deletes the building, makes it again
+  of the 12 selected pieces (the same six by six tiles, two floors of 192), sets three floors, a UFO, a name, a
+  floor height; saved and reopened it comes back the same; URB_Bar's Floor buttons are as before; no console
+  errors. `tools/editor/tests/test_compiler.py` (88) as before.
+- Gaps: a building is not selected or moved in the view, and is no member of a group (the plan's stage G); floors
+  cannot have boxes of their own made or resized here (one footprint for every floor; a building with other boxes,
+  such as EXP-44's from its script, keeps them and only its name and kind can be set); undo does not cover
+  buildings; the dialog covers the view while it is open; no export 19 (B1.2), no warnings of 5.1; the new page
+  code has no automated test (the browser run was by hand, scripted in a scratch folder).
+
+### Buildings made from nothing are switched on (EXP-44 passed)
+
+- The user played [EXP-44](research/experiments/EXP-44-hut-building.md): the hut behaves as a building of the
+  game's, and a grenade broke its walls correctly. The result is in the note.
+- [The compiler](tools/editor/compiler.py): `FAMILIES['building']` builds, so the editor's own Build makes a
+  project's `buildings` without `--family building`. The plan and
+  [the contracts](research/editor-contracts.md) say so.
+- Checked: `python -B tools/editor/tests/test_compiler.py` (88: the family builds; switched off again it is
+  refused), `tools/viewer/tests/test_families.py` (3), `tools/editor/tests/test_build.py` (39). The main editor
+  server was restarted.
+- Gaps, as before: the editor does not draw or edit buildings (B1.5), no export 19 (B1.2), no warnings of 5.1;
+  several floors and several boxes a floor wait for EXP-45.
+
+### Prefabs and buildings, stage B1: a building made from nothing by the Build (EXP-44 built, not played)
+
+- New [tools/bake/buildings.py](tools/bake/buildings.py): a building volume, a floor volume for each box of each
+  floor, and each floor's list of the pieces standing in it, made in the map from the native edit's `buildings`
+  (`{id, name, kind, floors: [{boxes}]}`). The volumes are clones of a building volume and a plain floor volume
+  the map has, stretched over the boxes by `DrawScale3D`; the lists follow the game editor's rule (F-87;
+  `audit_buildings.touched` with 2 units of slack, and `listing`) over the map's own placed pieces that are not
+  hidden and the copies, each by its mesh box where it stands, masked pieces by their own `bCutoutMask`. Run on a
+  map it prints what the map's buildings save (`survey`).
+- [native_copy.py](tools/bake/native_copy.py) makes them after the copies' own floor listings (`build(...,
+  buildings=)`, `--copies` files' `buildings`), adds the volumes to the level's list and records them in the
+  manifest's `nativeCopies.buildings`.
+- [shell.py](tools/bake/shell.py): `--building` (and `needs(p, building=True)`) also brings a building volume
+  and a floor volume from the donor where the map has none to clone, left staged with their lists cut.
+- [The compiler](tools/editor/compiler.py): a project's optional `buildings` (`Compiler.buildings`), checked
+  (`building-shape`; `building-outside` the tile grid; `building-overlap` with one of the map's own floor volumes
+  or another floor's box) and passed to the native edit by `native_split`. A new family, `building`, off until
+  EXP-44 passes: without `--family building` such a project is refused (`family`). The report lists the buildings.
+- [build.py](tools/editor/build.py): a project with buildings builds (also one with nothing else), asks the shell
+  stage for the templates, and reports each building's volumes and how many pieces each floor lists (the light
+  stage's `buildings`, the manifest's count). Buildings alone relight nothing, as cover blocks alone.
+- [editor-contracts.md](research/editor-contracts.md) has the `buildings` field; the editor's page carries it
+  unchanged through a save and does not draw or edit it yet.
+- New [EXP-44](research/experiments/EXP-44-hut-building.md) with its project script
+  ([exp44_project.py](tools/editor/examples/exp44_project.py); `--store` saves it in the editor's project store
+  and builds it into the editor's builds folder): URB_ResearchOutpost's shed brought to the blank map as 12 pieces
+  and made a two-floor building there. Built and read back: the listing is the shed's own at home (walls and
+  freight door cut down, roof on the upper floor). Not played yet.
+- Checked: `python -B tools/bake/tests/test_buildings.py` (6, new: the rule on the outpost's shed against the
+  map's own lists, the volumes read back), `tools/editor/tests/test_compiler.py` (87, seven new),
+  `tools/editor/tests/test_build.py` (39), `tools/bake/tests/test_shell.py` (14),
+  `tools/bake/tests/test_native_copy.py` (36), `tools/viewer/tests/test_families.py` (3),
+  `tools/viewer/tests/test_library.py` (20); the EXP-44 build itself.
+- Gaps: no game run yet; the plan's B1.2 (export 19: cursor volumes) and B1.5 (the editor's buildings) are not
+  done, nor the warnings of 5.1 (a StaticMeshActor inside, storeys against the cursor's); `bCutoutMask` is taken
+  as each piece has it, never set; a member's box is its meshes', not its collision; no Build test with a
+  building, and none of the shell's `--building`.
+
+### Map size is for maps made from nothing only
+
+- The user's decision: a map of the game's that is being edited keeps its size; a size is set for a new prefab
+  and, later, a new map. So Project, Map size… shows only on the blank map (`STAGE_MAPS` in
+  [project.js](tools/viewer/web/project.js) and [the compiler](tools/editor/compiler.py)), the editor shows no
+  project size on any other map, and the compiler refuses a `stage` there (`stage-map`). The dialog's notes about
+  other maps are gone.
+- Kept as it was: `tools/bake/shell.py` and `tools/upk/world_grid.py` can still resize any map from the command
+  line; nothing in the editor or the Build asks them to but for the blank map.
+- Checked: `python -B tools/editor/tests/test_compiler.py` (80, one new: a map of the game's is refused); a browser
+  run on a test server (the dialog works on the blank map's 54 by 54 project; the menu item is hidden on URB_Bar;
+  no console errors). The main editor server was restarted.
+- Gaps: growing to the west or south and shrinking are still not built; the prefab builder is to set the size
+  itself when it comes (the plan's stage W).
+
+### The editor knows the map's size: Map size… in the Project menu
+
+- A project can carry `stage: {"grid": [nx, ny], "ground": false}` (the second optional): the map's tile grid made
+  that large from its own corner, so it grows along +X and +Y only.
+  [project.js](tools/viewer/web/project.js) validates and saves it with the edit state;
+  [the compiler](tools/editor/compiler.py) checks it against the map's own grid (`stage-shape`, `stage-grid`; a
+  warning past 70 tiles, refused past 128) and reports `stageGrid`; [the Build](tools/editor/build.py) passes it to
+  the shell stage, and a project that only resizes the map now builds.
+- [The editor](tools/viewer/web/app.js): Project, Map size… sets it (two numbers and "Lay the map's ground over
+  the new area"). The play area's box and the tile grid take the size, and the new area is drawn as a faint sheet.
+- [shell.py](tools/bake/shell.py) lays ground only where the map's ground is a flat plane at the grid's bottom
+  (`ground_plane`), and not at all with `--no-ground`; [world_grid.py](tools/upk/world_grid.py) then writes the
+  new ground-level tiles as open air with the seed bit, without floor data.
+- Checked: compiler tests (6 new, `StageTests`), `test_build.py`, `test_shell.py`, `test_world_grid.py`,
+  `test_projects.py`; a browser run on a test server (the 54 by 54 project opens at its size, the dialog refuses a
+  smaller size and applies a larger one, no console errors); the 54 by 54 project rebuilt.
+- Gaps: no game run of the no-ground path, nor of any map but the blank one made larger (URB_Bar offline: the
+  rule still found a flat piece there and laid 14 planes, not looked at). Undo does not cover the size.
+  [editor-contracts.md](research/editor-contracts.md) does not describe `stage` yet. Growing to the west or south,
+  and shrinking, are not built: they renumber every tile (asked for by the user, feasible, next).
+
+### A tile grid of a chosen size (EXP-43 run 3 built)
+
+- New [tools/upk/world_grid.py](tools/upk/world_grid.py): a map's baked tile data (`XComWorldDataContainer`) taken
+  apart into tiles and written again, the same or for a grid that reaches further from the same corner. New tiles
+  get what bare ground has in the map itself. `world_grid.py check <map>` round-trips a map's container and says
+  how far the bare-ground rules give its own tiles back.
+- [shell.py](tools/bake/shell.py) resizes a map's grid (`--grid NX NY`, `equip(grid=)`): ground planes cloned over
+  the new area, the tile data, the world data's numbers and bounds, the level volume stretched, the cursor volumes
+  fitted (stretched where the grid is larger than they are; `cursor_shift` gave way to `fit` and `place_volume`),
+  and a rebuild volume over the whole grid.
+- [The Build](tools/editor/build.py)'s shell stage takes a project's `stage: {grid: [nx, ny]}` and records the
+  resize in the manifest. Nothing in the editor sets it yet, and the editor still draws the map's own grid.
+- [exp43_project.py](tools/editor/examples/exp43_project.py) `--grid`: run 3's project, in the editor's projects
+  as "EXP-43 blank map stage, 54 by 54". [EXP-43](research/experiments/EXP-43-blank-map-stage.md) has the note
+  and marked shot, and what the same resize does to URB_Bar offline.
+- Checked: `python -B tools/upk/tests/test_world_grid.py` (10 tests; the blank map's and URB_Bar's containers come
+  back byte for byte, CSmallScout_Farm's too by hand); `python -B tools/bake/tests/test_shell.py` (14: the blank
+  map made 54 by 45 and read back); `python -B tools/editor/tests/test_build.py` (39); the project built in 15
+  seconds and read back. The main editor server was restarted.
+- Played later the same day (run 3): passed; LWR's pods and Meld spawn on the larger grid.
+- Gaps: the ground laid is the piece the map's ground tiles name most, right for the blank
+  map only. A grid can only grow, and only away from its corner. The level volume's hidden mesh and its brush are
+  as they were. The compiler does not check a piece against the stage's grid.
+
+### The game's blank map as a base: the Build equips it (EXP-43 run 2 built)
+
+- New [tools/bake/shell.py](tools/bake/shell.py): a map that is little more than a level and a tile grid gets what a
+  battle and the Build need of it, brought from URB_Bar with the transplanter: six soldier spawn points (set on the
+  map's own multiplayer team-one points), the four cursor volumes (moved as one to cover the map's grid, nothing
+  scaled) and a plain volume to clone rebuild volumes from (staged, not placed). `needs()` says which a map lacks.
+- [The Build](tools/editor/build.py) has a new stage, `shell`, between the patch and the transplant: a base map
+  that lacks any of the three is equipped and is the base from there on; the manifest records it (`shell`). Every
+  other map lacks none and the stage says nothing. The donors of a project's pieces are still looked for in the
+  install's own folder.
+- New [exp43_project.py](tools/editor/examples/exp43_project.py): a bush, an abductor wall, an SUV and a moving van
+  (with its building) on `CB2_MP_Blank`. It is in the editor's projects as "EXP-43 blank map stage".
+  [EXP-43](research/experiments/EXP-43-blank-map-stage.md) has run 2's note and marked shot.
+- Checked: `python -B tools/bake/tests/test_shell.py` (12 tests: the cursor volumes' move, an ordinary map left
+  alone, the blank map equipped and read back); `python -B tools/editor/tests/test_build.py` (39, unchanged); the
+  project built by the Build in 18 seconds and read back (the level lists the soldier points, the cursor volumes,
+  the van's building and its floor volumes, four rebuild volumes). The main editor server was restarted.
+- Played later the same day (run 2): passed, but LWR places no pods or Meld on a map this small with the squad in
+  its middle (F-90, the cause read from the log).
+- Gaps: the build's tests have no case of their own for the new stage. The donor is URB_Bar,
+  by name. A baked build of the blank map was not tried. The cursor volumes come as URB_Bar has them, so a map
+  with a grid larger than URB_Bar's is refused.
+
+### Prefabs and buildings, stage B0: the building survey as a tool, and the game's listing rule
+
+- New [tools/upk/audit_buildings.py](tools/upk/audit_buildings.py): the plan's read-only survey of how the install's
+  maps save their buildings (building volumes, floors, floor volumes, the pieces each floor lists, cursor volumes,
+  the tile grid's height), with a summary printed and the whole as JSON. It gives the numbers of the plan's section
+  4; two were corrected there (133 floors list emitters, 213 name mesh groups).
+- The game editor's own rule for which floors list a piece and which pieces cut down, read from the exe copy
+  (`RebuildCachedActors`): a piece counts for each floor whose volume it touches with its bottom more than 20 units
+  under the volume's top; a piece with `bCutoutMask` is listed on the lowest only, with the highest as its
+  `CutdownFloor`. `audit_buildings.touched` and `listing` are that rule, and the tool checks it against every listed
+  piece: the saved listing for 86% from the mesh's own box, 89% with 2 units of slack, and the mask follows the
+  mesh for 95% of pieces.
+- [The findings register](research/findings-register.md) has a new section, "Buildings and the cutaway": F-86 (how
+  the maps save a building), F-87 (the listing rule) and F-88 (what `IsUfo`, `m_bIsInternalBuilding`, the other
+  building flags and a cursor volume's `m_bTreatAsStair` do, from the decompiled scripts).
+- The plan now lists a new building's members and their `CutdownFloor` by that
+  rule (its 5.1; it had "the floor a piece overlaps most" and cut-down only for copies of pieces that had it), and
+  marks stage B0 done.
+- New [EXP-43](research/experiments/EXP-43-blank-map-stage.md): the game's blank map `CB2_MP_Blank` as the stage
+  for the plan's game runs. Run 1 plays it as shipped, started from the editor's map browser with Play in game;
+  nothing is built for it.
+- Checked: `python -B tools/upk/tests/test_audit_buildings.py` (9 tests of the rule); the tool run over the
+  install's 152 packages, none unreadable, in about 20 seconds.
+- Gaps: how the tile rebuild makes ramps from stairs was not read (left to EXP-45). Nothing of the buildings or the
+  prefabs is implemented yet.
+- Later the same day, EXP-43 run 1 was played and is recorded in its note: a battle starts on the blank map, with
+  the squad on one tile and the map's own pod (F-90); saving never ends and the save hangs on load (F-89). Run 1b,
+  a save on URB_Bar started the same way, failed alike: saving does not work in any battle Play in game starts
+  (F-89, cause not read; no change broke it, no earlier Play in game run had saved).
+
+### A plan for prefabs and buildings
+
+- New private/plans/done/prefab-library-plan.md: prefabs made from a selection or in a
+  builder, saved as files, placed as stamps in any map, with nested groups and lights; and buildings the Build makes
+  from nothing (a building volume, floor volumes and each floor's members), which prefab buildings and UFOs need.
+  It records the decisions agreed with the user, the stages (buildings first) and the game runs each needs
+  (EXP-43 to EXP-47). The runs use an empty map as their stage, the plan's second stage and its first run: the
+  game's own blank map (`CB2_MP_Blank`) as a shell for a map from scratch is tried first, and a real map with its
+  play area cleared, as EXP-08's blank Bar was, is the fallback. It takes the place of section 10's sketch in
+  the cross-map plan.
+- Its section 4 holds a read-only survey of the install's 152 map packages, run from a scratch script: 568 building
+  volumes (405 with floors, two floors for a one-storey building), no turned building or floor volume, a floor
+  component from the class defaults on every piece class but `StaticMeshActor`, cut-down only with `bCutoutMask`,
+  no stair volume in any map, cursor volumes for the cursor's floors, and UFO hulls as buildings with `IsUfo`.
+- Checked: the survey read every package (none unreadable); the numbers in the plan are its output.
+- Gaps: nothing is implemented. The survey script is not in the repository yet and its findings are not in the
+  register (the plan's step B0.1).
+
+### Pieces from other maps: vans switched on (EXP-42 passed)
+
+- The user played EXP-42: the van from another map works as a room. [compiler.py](tools/editor/compiler.py): `van`
+  joins `FOREIGN_ASSEMBLIES`. [library.py](tools/viewer/library.py): index version 8, so a cache scans again.
+  [The guide](tools/release/guide/guide.html), [EXP-42](research/experiments/EXP-42-van.md) and
+  the plan.
+- Checked: the editor's, the library's and the release's tests; the library scanned again (9,474 of 9,645 entries
+  placeable).
+- Gaps: 171 entries can't be placed: 93 helpers hidden in their own maps, 77 of classes with no build recipe, one
+  that needs a `ShadowMap1D`. Semi-trailers and shipping containers come as parts, not as rooms.
+
+### Pieces from other maps: EXP-41 passed and switched on; vans build with their buildings (EXP-42 installed)
+
+- EXP-41 passed in the game (the user's play): [compiler.py](tools/editor/compiler.py) `FOREIGN_UNCHECKED` is empty,
+  so props that list other pieces and pieces placed by prefabs are placeable.
+- [tools/upk/native_fields.py](tools/upk/native_fields.py): layouts for `Model`, `Polys` and `BrushComponent` (a
+  volume's brush). [tools/bake/transplant.py](tools/bake/transplant.py): `van_volumes`; `stage_edit` stages a van's
+  building volume and floor volumes with its parts. [tools/viewer/library.py](tools/viewer/library.py): a van's
+  closure counts them; a van is held by its family's gate, not refused; index version 7. The compiler no longer
+  refuses a foreign van outright (`van` joins `FOREIGN_ASSEMBLIES` after EXP-42).
+- New [exp42_project.py](tools/editor/examples/exp42_project.py) and [EXP-42](research/experiments/EXP-42-van.md)
+  with a marked shot: URB_ResearchOutpost_EWI's moving van (14 pieces, a building volume, two floor volumes) baked
+  into URB_Bar and installed in the lab's test slot. Not played.
+  [The guide](tools/release/guide/guide.html) and the plan.
+- Checked: the layouts read every `Model`, `Polys` and `BrushComponent` of three maps to the last byte
+  ([test_native_fields.py](tools/upk/tests/test_native_fields.py)); the transplanter's new `StagedVan` (the building
+  staged with the parts, the copy's building listing only the copy's parts, its volumes listed and with brushes of
+  their own) and its oracle over three pairs of maps; the compiler's, library's and layout suites; the library
+  scanned again (9,453 of 9,645 entries placeable; the 21 vans wait).
+- Gaps: EXP-42 is not played, so vans stay greyed. The oracle's ring over all 96 maps was not rerun with the new
+  layouts. A copied brush model names its original's `Polys`, as it does for a van of the map's own.
+
+### Pieces from other maps: linked props and prefab pieces build (EXP-41 installed)
+
+- [tools/bake/transplant.py](tools/bake/transplant.py): a `Prefab` asset comes as a shell (`SHELLS`,
+  `Plan.shelled`, `closure(shells=)`): itself and the archetypes the brought pieces use, its lists' other entries
+  set to none. That frees the 428 pieces whose prefab also places a building's volumes (their brushes have no
+  layout): parts of vans, semi-trailers, shipping containers and buses. The report lists the shells.
+- [tools/viewer/library.py](tools/viewer/library.py): the scan records which properties hold a piece's cut
+  references to other pieces (`cut_links`); a prop whose only such property is `AffectedChildren` (243 entries) is
+  no assembly's part. Entries brought in either new way are `blocked: 'check'` with `held` until their game check;
+  index version 6. [tools/editor/compiler.py](tools/editor/compiler.py): `FOREIGN_UNCHECKED`, lifted by
+  `--foreign-family check` ([build.py](tools/editor/build.py) too).
+- [tools/bake/native_copy.py](tools/bake/native_copy.py): a staged piece's copy drops the emptied entries of its
+  `AffectedChildren` (a first build left one pointing at nothing).
+- New [exp41_project.py](tools/editor/examples/exp41_project.py) and
+  [EXP-41](research/experiments/EXP-41-loose-ends.md) with a marked shot: barrels on a pallet, a shipping
+  container's side wall and a semi-trailer's rear door, baked into URB_Bar (64 seconds), installed in the lab's
+  test slot. Not played. The plan: "After X9".
+- Checked: new tests (the transplanter's `LooseEnds`: the door refused with its whole Prefab, brought with the
+  shell, the staged map read back, the pallet's copy listing nothing; the library's held entries; the compiler's
+  check gate); the compiler's, library's and transplanter's suites; the library scanned again (8,782 placeable as
+  before, 671 held for the check, 22 others left).
+- Gaps: not played, so the 671 entries stay greyed in the editor. Pieces that could already come with their whole
+  Prefab now come with the shell without a game run of their own (EXP-41's two cover the mechanism).
+
+### Pieces from other maps: ladders switched on (EXP-40 run 2 passed)
+
+- The user climbed the moved drain pipe in the game. [tools/editor/compiler.py](tools/editor/compiler.py): `ladder`
+  joins `FOREIGN_FAMILIES`. [tools/viewer/library.py](tools/viewer/library.py): index version 5, so a cache scans
+  again. [The guide](tools/release/guide/guide.html) lists ladders and says where one can stand.
+  [EXP-40](research/experiments/EXP-40-assemblies.md) and
+  the plan: X9 done.
+- Checked: the editor's, the library's and the release's tests; the library scanned again.
+- Gaps: vans, pieces that need a brush and props linked to other props outside a car or door still can't be
+  brought. A ladder's place is checked by floors only: one put inside a building through its ceiling compiles.
+
+### Pieces from other maps: cars and framed doors switched on (EXP-40 run 1); the ladder moved for run 2
+
+- EXP-40 run 1, the user's play: the car and the framed door passed; the drain pipe stood on an ice box and could
+  not be reached. [tools/editor/compiler.py](tools/editor/compiler.py): `FOREIGN_ASSEMBLIES` lists cars and doors.
+  [tools/viewer/library.py](tools/viewer/library.py): index version 4, so a cache scans again.
+  [The guide](tools/release/guide/guide.html) says so.
+- [exp40_project.py](tools/editor/examples/exp40_project.py): the pipe three tiles further along the wall, clear of
+  the ice box. Built quick (18 seconds, no rebake, at the user's ask) and installed in the lab's test slot.
+  [EXP-40](research/experiments/EXP-40-assemblies.md): run 1's result and run 2;
+  the plan.
+- Checked: the compiler's and the library's tests; the library scanned again.
+- Gaps: run 2 is not played, so ladders from other maps stay switched off.
+
+### Pieces from other maps: five more families switched on (EXP-39 passed); cars, framed doors and ladders built (EXP-40 installed)
+
+- **EXP-39 passed in the game** (the user's play). [tools/editor/compiler.py](tools/editor/compiler.py):
+  `FOREIGN_FAMILIES` lists destructible props, collectibles, fracturing pieces, doors and physics props beside
+  scenery. [tools/viewer/library.py](tools/viewer/library.py): index version 3, so a cache scans again; here 8,314
+  of 9,645 entries can be placed (4,578 before).
+- **An assembly of another map is one library entry**, at its pivot: a car (body, glass, parts), a door with its
+  frame. `library.level_assemblies` finds them from the package as the compiler finds a map's own; a piece record
+  of one (version 4) has every part and `assembly`. Vans are listed and can't be placed.
+- **The compiler** ([compiler.py](tools/editor/compiler.py)) takes a foreign assembly through `assembly_added`
+  (every part once, one grid move) and a foreign ladder through the ladder's climb check, against this map's
+  floors. New gate `FOREIGN_ASSEMBLIES`, empty; ladders stay out of `FOREIGN_FAMILIES`. Both wait for EXP-40.
+- **The transplanter** ([tools/bake/transplant.py](tools/bake/transplant.py)): `stage_edit` brings the copies of one
+  `assembly` in one call, so a car's parts keep their references to each other, and every other piece alone;
+  `bring` and `closure` take `shared`, so baked textures a donor's pieces share are brought once.
+- **The page** ([app.js](tools/viewer/web/app.js), [library.js](tools/viewer/web/library.js)): an assembly's entry is
+  placed as one linked copy and read back from a saved project; its tooltip says how many pieces it is.
+- New [tools/editor/examples/exp40_project.py](tools/editor/examples/exp40_project.py) and
+  [EXP-40](research/experiments/EXP-40-assemblies.md) with marked shots: an SUV with two doors open, a barn door in
+  its frame and a drain pipe, each from another map, baked into URB_Bar (149 seconds) and installed in the lab's
+  test slot. Not played.
+- X10: [tools/release/tests/test_release.py](tools/release/tests/test_release.py) names the modules pieces from
+  other maps need (the release's file list already took them);
+  [the guide](tools/release/guide/guide.html) says what can be placed.
+  The implementation plan: X9's and X10's state;
+  [EXP-39](research/experiments/EXP-39-families.md): passed.
+- Checked: the compiler's tests (72, with a foreign car, its split, two cars, a van, a foreign ladder); the
+  library's (19, with the assembly entries of Bar and Police Station and a car's record); the transplanter's new
+  `StagedAssembly` (a Police Station car staged whole keeps its links, brought apart loses them, its copy is a car
+  of its own); the editor's, the viewer's and the transplanter's whole suites; the built map read back (the body's
+  partner is the copied glass, the glass's columns name the copied parts); the page's new check
+  ([browser_smoke.py](tools/viewer/tests/browser_smoke.py) `--only library-assembly`, on a scratch cache whose
+  index had the three kinds marked placeable): a car, a framed door and a ladder placed, saved and reopened.
+- Gaps: EXP-40 is not played, so cars, framed doors and ladders stay switched off in the editor. Vans, pieces that
+  need a brush (424 entries) and props linked to other props outside a car or door (241) can't be brought. The
+  old walker in `native_copy.py` was not moved onto the typed reader. The page's snap for a grid piece of another
+  map was tried only by placing (the check above), not by dragging.
+
+### Pieces from other maps, X9: the families build; EXP-39 installed in the lab
+
+- The two native layouts X9 needed were written by two agents in worktrees and merged (their entries follow):
+  fracturing meshes and skeletal meshes. After the merge the layout tests (26) and the transplant tests of a door,
+  a body and a fracturing piece (20) pass together.
+- [tools/viewer/library.py](tools/viewer/library.py): a piece record carries its home map's tile grid corner
+  (`grid`, record version 3; `grid_origin`); a fracturing piece's cut references to its neighbours don't make it an
+  assembly's part. [tools/editor/compiler.py](tools/editor/compiler.py): a foreign piece's home place is read on
+  this map's grid, so the pose rule holds across maps; a grid family from a map without a grid is an error.
+  [tools/viewer/web/app.js](tools/viewer/web/app.js): the page rebases a library template the same way.
+- New [tools/editor/examples/exp39_project.py](tools/editor/examples/exp39_project.py) and
+  [EXP-39](research/experiments/EXP-39-families.md) with marked shots: a destructible bush, an alien nav computer, a
+  three-tile abductor wall, an alien door and a body, each from another map, baked into URB_Bar and installed in the
+  lab's test slot. Not played.
+- The implementation plan: X9's state.
+- Checked: the editor's tests (109, with the grid case); the cache's library scanned again; EXP-39's baked build by
+  the Build (61 seconds), exported and opened in the editor, all five pieces drawn.
+- Gaps: not played, so every family but scenery stays switched off in the editor. Assemblies from other maps
+  (cars, vans, framed doors) and ladders are not built. The page's snap for a grid piece of another map was not
+  tried in a browser.
+
+### Pieces from other maps, X9 begun: what blocks each piece, and gates an experiment can lift
+
+- At the user's ask, X9's families are built together and checked in the game once, one piece of each.
+- [tools/viewer/library.py](tools/viewer/library.py), index version 2: each entry says what blocks it (`blocked`:
+  `assembly`, `hidden`, `closure`, or `family` when only the compiler's gate holds it back). A piece whose cut
+  references name other pieces is an assembly's part. The gate is the compiler's `FOREIGN_FAMILIES`. Of the
+  install's 9,894 entries, 2,704 destructible props and 17 collectibles are held back by the gate alone; fracturing
+  pieces (975), doors (83) and physics props (20) need native layouts not written yet.
+- [tools/editor/compiler.py](tools/editor/compiler.py): an entry held back by its family alone is decided by the
+  build's own gate. [tools/editor/build.py](tools/editor/build.py): `--foreign-family` (and `Build(foreign=...)`).
+- Checked: the editor's tests (108) and test_library (16); the cache's library scanned again (29 seconds); a baked
+  build through the Build of a destructible bush of URB_GasStation_EWI and an alien nav computer of
+  CLrgScout_TheBarrens beside the police station's lamp post in URB_Bar (71 seconds; each lit from nothing).
+- Gaps: nothing played; the gates stay off. An index of version 1 is not read: the Add panel offers the scan again.
+### Skeletal meshes have their layout: doors and physics props can be brought from other maps (plan step X9, part)
+
+- The audit first (a throwaway script): over URB_Bar, URB_PoliceStation, CSmallScout_DirtRoad, URB_TruckStop_EWI,
+  TempleShip and AlienBase01, each against the next, the closure of every placed `XComInteractiveLevelActor` (38),
+  `KAsset` (41) and `SkeletalMeshActor` (1). Two classes refused them and nothing else: `SkeletalMesh` (24 doors, 36
+  physics props, the skeletal actor) and `DecalComponent` (3 physics props, through an archetype's decal template).
+  What else such a piece holds has no native data in a cooked map (`SkeletalMeshComponent`, `PhysicsAsset`,
+  `AnimSet`, `AnimTree`, `AnimNodeSequence`, `SkeletalMeshSocket`) or was plain already (`AnimSequence`,
+  `RB_BodySetup`, `PhysicsAssetInstance`).
+- [tools/upk/native_fields.py](tools/upk/native_fields.py): `_skeletal_mesh` (with `_skeletal_lod`,
+  `_skeletal_indices`) and `_decal_component`, and their `MAPPED` entries.
+  - A skeletal mesh: bounds; the materials (references); origin and rotation origin; the reference skeleton (each
+    bone: its **name**, flags, orientation, position, children, parent, colour); the depth; the LODs; the map of
+    bone names to bone numbers (each a **name** and a number); per-polygon bone collision (a count, refused unless
+    0); the bones that break (text, not names) and how; the clothing assets (**references**, one a material, none
+    set in the game); the cached streaming texture factors; the source-data flag (refused unless 0).
+  - A LOD: sections (13 bytes each); the index buffer; active bones; chunks (refused if one keeps CPU vertices);
+    size and vertex count; required bones; the raw point indices (**a bulk record**, empty in cooked data, so its
+    offset moves with the export); the vertex buffer; vertex colours when the mesh's `bHasVertexColors` is set;
+    alternate vertex influences (a count, refused unless 0); the adjacency index buffer.
+  - A decal component: its static receivers, each the **component** it lies on, vertices, indices, a triangle
+    count, a lightmap word (refused unless 0: none has one, so its form is not known), shadow maps (references,
+    none set), 8 bytes. An archetype's has no receivers.
+- Checked:
+  - the walk ends at the export's end for all 31 skeletal meshes and 244 decal components of the six maps, and for
+    1,594 skeletal meshes over every package of the install (up to 168 bones, 3 LODs). Four more, in
+    `XComGame.upk`, are refused by the bulk record's own check (its offset does not point past itself there);
+  - the oracle over the three pairs and over the ring of 96 (`XCOM_TRANSPLANT_RING=1`): `SkeletalMesh` 268 of 268
+    equal (they were the 268 that differed when compared by properties alone); `DecalComponent` 13 equal, 2 of
+    another size; `SkeletalMeshComponent` 49 equal, 1 of another size; `PhysicsAsset` 152, `AnimSet` 62, `AnimTree`
+    61, `AnimNodeSequence` 423, `SkeletalMeshSocket` 1,157, `KAsset` archetypes 22 and door archetypes 28 all
+    equal. The ring: 318,982 objects, 302,348 equal, 14,414 cook noise, 490 size, 492 differ (as before), 336
+    equal and 902 different among the classes still without a layout (`FracturedStaticMesh` 576, `Model` 157,
+    `Polys` 157, the world data 12);
+  - after it, none of the 80 closures is refused, into the next map or into URB_Bar;
+  - [tools/upk/tests/test_native_fields.py](tools/upk/tests/test_native_fields.py): a skeletal mesh's names are its
+    bones twice over and the viewer reader's bones in order, its references its materials and as many empty
+    clothing slots, one bulk record a LOD pointing past itself; a decal component's references are components of
+    the level, one a receiver (25 tests with `test_schema` and `test_props`);
+  - [tools/bake/tests/test_transplant.py](tools/bake/tests/test_transplant.py): `SkeletalPieces` brings the small
+    scout's door (`AlienDoors.Meshes.AlienDoor_Scout_ANIM`, with its physics asset, animation set and tree, 12
+    sockets, sounds) and a corpse of the police station (a `KAsset`, `SM_GenericCorpse`) into URB_Bar, re-reads the
+    written map (each new export is its donor's renumbered by names and paths, and reads to its end), and the
+    viewer's skeletal reader draws the two meshes as it draws the donors'. `SkeletalMesh` is out of `NO_LAYOUT`
+    (21 tests, 1 skipped: the ring).
+- Gaps: nothing was played in the game, and nothing here places a door (the copier, the editor's families and door
+  assemblies are X9's other parts). A door that refers to its other leaf has that reference cut, as any reference
+  to another actor is (URB_TruckStop_EWI's sliding doors). A placed decal's receivers are components of its own
+  level, so a decal actor brought to another map would have them cut: decal actors are not a family yet. The
+  decal receiver's lightmap and shadow maps, per-polygon bone collision, alternate vertex influences and CPU skin
+  vertices occur nowhere in the install and are refused or unproven rather than guessed.
+### Fracturing meshes have a native layout: a fracturing piece's closure can be brought (plan X9, first part)
+
+- [tools/upk/native_fields.py](tools/upk/native_fields.py): `FracturedStaticMesh` and
+  `FracturedStaticMeshComponent` are mapped classes (`_fractured_mesh`, `_fragment`,
+  `_fractured_mesh_component`).
+  - A fractured mesh is a static mesh, whole, then: the source mesh (a reference, none in cooked data), a count of
+    fragments, and 60 bytes (core fragment, interior section, the core mesh's scale, offset and rotation, the plane
+    bias, two 2-byte build versions). A fragment: centre (12), six convex hull arrays (empty in every one), the
+    hull's box (25), bounds (28), neighbours (a count, 4 bytes each: EW's, the engine writes one), three flags (12),
+    the outside normal (12), the shared faces' sizes (the same count, 4 each), and one more index of a fragment or
+    -1 (EW's). Its package numbers are the static mesh's and the source reference.
+  - A fractured mesh component's native data is a static mesh component's and nothing after it.
+- [tools/upk/tests/test_native_fields.py](tools/upk/tests/test_native_fields.py): the walk of both classes on six
+  maps (URB_Bar, URB_PoliceStation, CSmallScout_DirtRoad, URB_TruckStop_EWI, and TempleShip and AlienBase01, which
+  hold none), against `mesh.read_mesh` and `lightmap_fields.component_fields`; the refused class in the tests is
+  now `Model`.
+- [tools/bake/tests/test_transplant.py](tools/bake/tests/test_transplant.py): `FracturedStaticMesh` out of
+  `NO_LAYOUT`; `FracturingPiece` (3): `XComFracLevelActor_52` of URB_PoliceStation (a museum column) staged in
+  URB_Bar with its component, its fractured mesh, body setup, materials and baked textures, nothing cut, the
+  written map read back by the field walk, the mesh reader and the lighting reader, each new export its donor's
+  bytes renumbered; the refused closure in the tests is now a volume's (its brush component).
+- Checked:
+  - every package of the install (2,979): 1,679 fractured meshes with 46,989 fragments and 4,062 components read
+    to their last byte, no error; the source reference none in all, no convex hull in any;
+  - the oracle over the ring of 96 pairs: `FracturedStaticMesh` 576 objects, 576 equal (they were 576
+    plainDiffers); `FracturedStaticMeshComponent` 100 objects, 97 equal, 3 of another size in the other map (car
+    prefabs' archetypes in the _EWI maps), none differs;
+  - all 68 fracturing actors of URB_PoliceStation have a closure for URB_Bar (none refused);
+  - `test_native_fields test_schema test_props` (24) and `test_transplant` with the ring (21, one real bake).
+- Gaps:
+  - a fragment with a convex hull is refused, not guessed: the install has none to check the engine's element
+    sizes against;
+  - a staged fracturing piece keeps its home map's `FragmentColumns`, and the references it has to other pieces of
+    its level are cut (397 destructibles, 283 fracturing pieces, 10 interactive actors over the police station's
+    68): columns for this map's tiles are not made, and nothing was played in the game;
+  - the catalogue ([tools/viewer/library.py](tools/viewer/library.py)) still lists fracturing pieces as not
+    placeable; `SkeletalMesh`, `Model`, `Polys` and the brush, deco, debris and decal components are still refused.
+
+### EXP-38 passed; the editor bakes projects with pieces from other maps
+
+- EXP-38 run 1 passed (the user's play, with a screenshot): the two props from other maps, lit from nothing by a
+  baked build, look right beside the bar's own pieces. The user also tried the Add panel's All maps (X7's gate).
+  [The note](research/experiments/EXP-38-foreign-props-baked.md) and
+  the plan say so.
+- [tools/viewer/web/app.js](tools/viewer/web/app.js), [build_options.js](tools/viewer/web/build_options.js): Build's
+  panel no longer holds Bake the lighting off for a project with such pieces; a line under the tick says what
+  baking does for them (`bakeNote`). The piece panel's note and
+  [the user guide](tools/release/guide/guide.html) say the same.
+- Checked: `browser_smoke.py --only library-all` on a test server (8790), no errors.
+
+### Pieces from other maps: light from nothing (plan step X8)
+
+- [tools/bake/native_copy.py](tools/bake/native_copy.py): with `--bake`, a copy of a staged piece of another map
+  (`staged` in the copies file, which the command line now keeps) gets a texture lightmap list of this map's
+  lights alone (`extra_lights(fresh=True)`, `guid_field`, `clone_assembly(fresh=..., shadow_guid=...)`), its
+  shadow maps name this map's dominant light (`dominant_guid`), and it goes to the relight as `--foreign-copy`.
+- [tools/bake/relight.py](tools/bake/relight.py): `--foreign-copy COPY=STAGED`: the copy lit from nothing in the
+  scene after the edit (`relight_component(fresh=True)`), its dominant shadow map's whole field, the staged pieces
+  left out of both scenes (`Scene(ignore_casters=...)`) and of the receivers; the report's `foreignCopies`.
+  [tools/bake/shadowmaps.py](tools/bake/shadowmaps.py): `fresh_shadow_map`.
+- [tools/editor/build.py](tools/editor/build.py): a full build of a project with pieces of other maps is made (the
+  baking copier reads the staged map); the light stage says `foreignCopies`.
+  [tools/viewer/package.py](tools/viewer/package.py): `link_caches` follows a folder pointed elsewhere.
+- [EXP-38](research/experiments/EXP-38-foreign-props-baked.md) written, with its marked shots: the EXP-37 props,
+  baked, built by the two commands and deployed to the lab's test slot. Not played.
+- The implementation plan: X8 as built. Findings register:
+  T-35.
+- Checked: [test_transplant.py](tools/bake/tests/test_transplant.py) `FreshLight` (4, one real bake of about a
+  minute: the copies' light lists hold only the bar's lights, the wall's shadow map names the bar's dominant light
+  and has its whole field, both are lit from nothing at car-park levels, the staged pieces are in no scene);
+  [test_build.py](tools/editor/tests/test_build.py) (a full build stages and bakes). The bake suites: test_relight, test_shadowmaps, test_native_copy, test_transplant and test_native_lights, 113 tests, one skipped (the ring of base maps, which runs on request).
+  The EXP-37 project baked through the Build in 66 seconds; the baked variant exported and opened in the editor.
+- Gaps: not played (EXP-38). The editor's Build panel still leaves Bake the lighting off for such a project until
+  EXP-38 passes. A piece with no shadow map at home gets none; a piece lit per vertex keeps its home light.
+
+### Pieces from other maps: the library in the editor (plan step X7)
+
+- New [tools/viewer/web/library.js](tools/viewer/web/library.js): the Add panel's **All maps**, the pieces of
+  every map of the game install from the library's index. Its list is drawn only where it shows; filters by
+  name, kind and map, "Can be placed", "Not in this map" and "Favourites"; sorts; the scan offered on first use;
+  thumbnails loaded from the server or drawn from the piece and kept there; favourites and recently used pieces
+  read from and written to the state file beside the settings.
+- [tools/viewer/web/app.js](tools/viewer/web/app.js): the panel's two scopes; a library piece read into the
+  page's tables (`libraryTemplate`) and placed as a copy is, its added record naming the donor map; a project's
+  foreign templates read before its state is applied; the piece panel's "From <map>"; Build's panel leaves Bake
+  the lighting off for a project with such a piece; the build window's step "Bring the pieces from other maps".
+  [pieces.js](tools/viewer/web/pieces.js): `paintThumbs`, the list's painter for other lists.
+  [build_options.js](tools/viewer/web/build_options.js): `noBake`.
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the panel.
+- Server: `GET /library.json?index=1` also lists the thumbnails kept
+  ([library.py](tools/viewer/library.py) `LibraryRunner.thumbs`, [viewer.py](tools/viewer/viewer.py)); a build's
+  status carries its package's `foreignPieces` and `donors` ([builds.py](tools/viewer/builds.py)); the Build's
+  compile stage says `foreignCopies` ([build.py](tools/editor/build.py)).
+- [The user guide](tools/release/guide/guide.html): "Pieces from other maps", with a new picture
+  (`shots/add-all.webp`; [take_shots.py](tools/release/guide/take_shots.py) `add-all`) and the Add picture retaken.
+- The implementation plan: X7 as built.
+- Checked: on a test server (8790; scratch settings, projects and builds; this PC's cache, whose library was
+  scanned for X6), [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `--only library-all,library` (the new
+  case: the list, a search, a favourite, the Police Station's lamp post placed in URB_Bar, saved, reopened and
+  quick-built) and the whole smoke with `--projects`, no errors. The editor's tests (108) and the viewer's (190).
+- Gaps: not tried by the user yet, and the built map not played (X6's build of the same kind of edit equals the
+  scripted route's). A piece the open map also has is still brought from its home map. The main server was not
+  running; it shows the panel when next started.
+
+### Pieces from other maps: the compiler and the Build (plan step X6)
+
+- [tools/editor/compiler.py](tools/editor/compiler.py), `COMPILER_VERSION` 3: an added piece whose template is in
+  another map's base level compiles to a copy that names its donor (`donors` on the spec's copy object, `donor` on
+  the native edit's copy; such a copy is always made in the map). Its parts and meshes come from the library's
+  piece record (`Library(cache, game)`). New errors: `no-library`, `donor-missing`, `donor-changed`,
+  `not-placeable`; one warning `foreign-quick-light`; the report lists `donors`. Only `FOREIGN_FAMILIES`
+  (scenery) build from other maps; `--foreign-family` and `--game` on the command line.
+- [tools/editor/build.py](tools/editor/build.py): a `transplant` stage before `light`, run only when a copy has a
+  donor: `tools/bake/transplant.py` stages the pieces in a copy of the base map, and `native_copy.py` reads that
+  map and the edit naming the staged actors. The manifest gains `donors` and `foreignPieces`. A full build with
+  such a piece is refused until it can light them (X8).
+- [tools/viewer/library.py](tools/viewer/library.py): `describe(p, actor)` (the scan's recipe of one actor); a
+  piece record carries its recipe's `key` (version 2); `piece()`'s errors carry a code.
+- [tools/viewer/builds.py](tools/viewer/builds.py): the `transplant` stage.
+  [tools/viewer/manager.py](tools/viewer/manager.py): a map pack's `pack.json` lists each map's donors.
+- The implementation plan: X6 as built.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (ForeignTests, 6: the copy and its donor, each
+  error, the family gate, templates only, the install's library, a cache without a scan),
+  [test_build.py](tools/editor/tests/test_build.py) (the stage with a stand-in transplanter, the full build's
+  refusal, a transplanter that stages nothing), the editor's suite (108), the viewer's (190), the transplanter's
+  (14). The gate: the EXP-37 edit as a project, quick-built by the Build in 16 seconds, is byte for byte the
+  scripted route's map on the same copies in the same order; the scripted route on EXP-37's own edit gives the
+  played map again.
+- Gaps: not played (the played EXP-37 map differs from the Build's only in the order of the two donors). The
+  editor's page can't place such a piece yet and its build steps don't name the new stage (X7). The package's
+  README doesn't mention donors.
+
+### Pieces from other maps: the catalogue (plan step X5)
+
+- New [tools/viewer/library.py](tools/viewer/library.py):
+  - `scan(game, cache)` reads every donor map's placed pieces (the Firaxis-cooked base maps and streams the
+    install's map records name) and writes `<cache>/library/index.json`: one entry per recipe (class, archetype,
+    tint, each mesh component's mesh and overridden materials, by path) with where it is placed, the map to bring
+    it from, what bringing it adds, and whether the first release can place it, with the reason when not;
+  - `piece(cache, game, source)` exports one piece as a template (its scene objects, meshes, materials and
+    textures, by the map exporter as it is) into `<cache>/library/pieces/<donor>/<generation>/` on first request;
+  - `load_state` and `save_state`: the user's favourites and recently used pieces in `library.json` beside
+    `settings.json`, with a revision;
+  - `LibraryRunner`: the scan as the server runs it, one at a time, with progress; the thumbnails the page draws.
+- [tools/viewer/viewer.py](tools/viewer/viewer.py): `library scan` and `library piece` commands; the routes
+  `GET /library.json` (the scan's state, the index with `?index=1`), `POST /library/scan`,
+  `GET /library/scan.json`, `GET /library/piece.json`, `GET` and `PUT /library/thumbs/<key>.png`, `GET` and
+  `PUT /library/state.json`, and a piece's files under `/cache-library/`. A server of one exact export has no
+  library.
+- The implementation plan: X5 as built, and where the index
+  differs from the contract first written (a recipe's `parts`, donor numbers in `placed.in`, assemblies not grouped
+  yet).
+- Checked: [test_library.py](tools/viewer/tests/test_library.py) (16: the index from made-up scans; the favourites
+  file; the routes, the path guard, the origin check and the runner on a temporary cache; two maps of the install
+  scanned and a piece exported). The viewer's whole suite (190). The whole install scanned: 150 donors in 31
+  seconds, 109,052 placed pieces, 9,894 entries, 4,562 placeable. On a test server the index came in 0.2 s and a
+  piece of CAbductor_Cliffside exported in 1.2 s, its mesh served.
+- Gaps: the page shows none of it yet (X7) and the compiler takes no foreign piece yet (X6). Entries are single
+  actors: a car or a door from another map is not offered as one piece. The release's file list was not touched.
+
+### EXP-37 passed: two props from other maps play in URB_Bar
+
+- [EXP-37](research/experiments/EXP-37-foreign-props.md) run 1, the user's play: the map loads, the lamp post of
+  URB_PoliceStation and the alien wall of CAbductor_Cliffside draw with their own materials, stop a unit, give
+  cover, and come back after a save and reload. The plan's X4 gate is passed; the
+  plan and the findings register (T-31) say so.
+- Gap: `Launch.log` was not checked (the run wrote none in the game's documents folder; the file there is from
+  3 November).
+
+### Pieces from other maps: a native edit's foreign copies staged, and the first game check prepared (plan step X4)
+
+- [tools/bake/transplant.py](tools/bake/transplant.py): `stage_edit(map, out, edit, cooked)` stages each distinct
+  (donor, actor) of a native edit's foreign copies in a copy of the map (`<out>/staged/<map>.upk`, which reads the
+  game's texture caches through `tfc-folder.txt`), gives the edit back with those copies naming the staged actors
+  (`staged: true`, the donor's actor under `donor.actor`) and writes `transplant.json` (per donor: file, hash,
+  pieces, what was brought, reused and cut, the bytes). `DonorError` (`no-donor`, `donor-changed`) for a donor map
+  that is missing, has another hash than the edit's, or lacks the actor. The command line takes `--edit` (also
+  writing `native-edit.staged.json`) or `--stage DONOR ACTOR`, in place of the first form's donor and `--actor`.
+  `native_copy.py` is unchanged and takes the staged edit as it is.
+- [EXP-37](research/experiments/EXP-37-foreign-props.md): URB_Bar with a lamp post of URB_PoliceStation and an
+  alien wall panel of CAbductor_Cliffside in its car park, built quick by the two commands, deployed to the lab's
+  test slot as `URB_Bar_X37`; the edit, the marked shots and what the run is to show. Not played yet.
+- The implementation plan: X4 as built; the second pinned prop
+  changed (the first choice was a whole cave).
+- Checked: `test_transplant.StagedCopy` (4: the edit rewritten and the staged actor staged once for two copies;
+  `native_copy.build` on the staged map makes the lamp's two copies and a copy of the bar's own piece, each in the
+  Level's list with seeds and a rebuild volume, the staged actor in none, the lamp copies on the police station's
+  mesh and the staged actor's baked textures, which name `Lighting` and lie inside it; an edit with no foreign copy
+  comes back untouched; the three donor errors). The whole `test_transplant.py` (14). The variant exported by the
+  viewer's exporter and opened on a test server: both props draw with their own meshes, materials and textures.
+- Gaps: not played. Nothing in the compiler, the Build or the editor makes such an edit yet (X5 to X7). The
+  earlier entry's last gap is settled: the work is on the `cross-map-assets` branch.
+
+### Pieces from other maps: the transplanter and what it stands on (plan steps X0 to X3; offline, nothing played)
+
+- New [tools/upk/schema.py](tools/upk/schema.py): the game's property types read from its script packages' export
+  tables. Per class and struct its super and properties; an array's element; a struct property's struct; which
+  structs are saved as plain bytes (from their flags) and their members' order. 3,862 classes and structs, 24,925
+  properties, 2,293 arrays. `load(cache, cooked)` keeps it as `<cache>/schema/<digest>.json`.
+- New [tools/upk/typed_props.py](tools/upk/typed_props.py): every name and object reference of an export up to the
+  end of its tagged properties, inside structs and arrays to any depth, by the schema; and what stands before the
+  properties (a state frame's references, a component's template owner class and name).
+- New [tools/upk/native_fields.py](tools/upk/native_fields.py): the names, references and bulk-data records of
+  native data, by layout, for the texture classes, `StaticMesh`, the material classes, `StaticMeshComponent` and
+  `SoundNodeWave`; five asset classes known to hold none; every other class with native data is refused by name.
+- New [tools/bake/transplant.py](tools/bake/transplant.py): `Donor`, `remap` (an export's bytes in another
+  package's numbering), `closure` (what a donor's actors need: brought, reused, cut), `bring` (the closure appended
+  to the map being grown: the actors staged under the level, in no actor list, their assets under their own
+  packages) and `oracle` (every asset two maps share, one's bytes renumbered against the other's). A command line
+  stages named actors of a donor in a copy of a map.
+- [tools/upk/package_grow.py](tools/upk/package_grow.py): `Grower.adopt_export`, a new export from an entry made
+  elsewhere, everything of it kept but its size and place.
+- [tools/upk/audit_cross_map.py](tools/upk/audit_cross_map.py): the table entries and net indices of shared
+  objects, the caches the baked textures name, the classes with numbered fields beyond their properties, and
+  (`--no-walk` leaves it out) the walk of every Firaxis-cooked export by its property types and native layout. The
+  [result](research/evidence/cross-map-assets-audit-2026-11-11.json) is rerun with them.
+- [tools/upk/props.py](tools/upk/props.py): `props_start` no longer takes bytes for a tag when the kind's name
+  carries a number (T-33: one brush component of the install was read 4 bytes early).
+- [tools/upk/upkinfo.py](tools/upk/upkinfo.py): `load` reads a package the cooker compressed whole (the script and
+  startup packages), as the audit's own loader did.
+- [tools/lab/labpaths.py](tools/lab/labpaths.py): `install_map(name)`, any map of the configured install for a
+  test, or of the folder `XCOM_COOKED` names.
+- The implementation plan: X0 to X3 marked done with their
+  results; section 2's property count corrected; the two props for EXP-37 pinned. Findings register: T-31 gains
+  the results, T-33 (the early read) and T-34 (Long War took a property out of a struct's field chain) are new.
+- Checked:
+  - new tests: [test_schema.py](tools/upk/tests/test_schema.py) (9),
+    [test_native_fields.py](tools/upk/tests/test_native_fields.py) (8, each layout against the reader it was taken
+    from), [test_transplant.py](tools/bake/tests/test_transplant.py) (10: the oracle on three pairs, the
+    self-transplant, URB_Bar grown with two props of URB_PoliceStation and read back), one more in
+    `test_package_grow.py` and one in `test_props.py`;
+  - the oracle over every base map against the next (`XCOM_TRANSPLANT_RING=1`, 96 pairs, a minute): 318,982
+    objects, 316,830 the other map's bytes, the rest the known list (the plan's X3 has it);
+  - the walk over the 150 packages by the audit: 1,408,360 exports, none failing, one untyped array (an
+    editor-only actor's), no layout failing;
+  - the bake suite and the package tests, because `props_start` and `upkinfo.load` are read by everything.
+- Gaps: nothing is wired into the compiler, the Build or the editor (X4 to X7), and nothing was played: whether a
+  staged, cloned foreign prop draws in the game is EXP-37. No test brings an actor with a cut reference. Fracturing
+  meshes, skeletal meshes, brushes and the placed fracturing, debris, decal and instanced components have no
+  layout, so pieces that need them are refused until X9. The work is on `main`, uncommitted, not on the
+  `cross-map-assets` branch the plan names.
+
+### An implementation plan for pieces from other maps, route A (plan only, nothing built)
+
+- private/plans/done/cross-map-assets-implementation-plan.md: the user
+  chose route A with the earlier plan's recommendations, and asked that assets of our own stay possible later. The
+  decisions (D1 to D6), the architecture (the transplanter stages a foreign actor in the map, unlisted, and today's
+  clone copies it; a transplant's steps; what a piece keeps and loses; the three seams that keep files of our own
+  possible), the data contracts (the schema cache, the library index, a piece record, the project unchanged, the
+  native edit's `donor`, the manifest's `donors`), eleven milestones with their gates (X0 to X10: the measurements
+  into the audit, exact property types, native field maps, the transplanter and its test, staging and EXP-37, the
+  catalogue, the compiler and the Build, the Add panel's "All maps", light from nothing and EXP-38, the other
+  families, release), code ownership, a verification matrix, risks and decision points, and the first task.
+- Two changes the user asked for after reading it: favourites and recently used are kept in a file beside the
+  settings file (D7, contract 4.7: `library.json` with a schema and a revision, its routes and tests in X5, read by
+  the panel in X7), not in the browser's storage; and a prefab library is written down as a follow-up (D8, section
+  10: what a prefab holds, the defaults proposed, its limits, and the seams X5 and X7 leave for it).
+- private/plans/done/cross-map-assets-plan.md: a "where it stands" note with the
+  decisions and the places the implementation plan replaces it.
+- [Findings register](research/findings-register.md): T-31 gains the day's later measurements.
+- Checked: how the code stands was read for the plan (the compiler's refusal of a template outside the project's
+  map, the native edit's copies, the growing writer's methods, the relight's need of a source in the same package,
+  the Add panel and the cache's layout). Four measurements were made with scratch scripts on the install: shared
+  assets' table entries and net indices (three pairs), the caches the baked textures name (twelve maps), the classes
+  with numbered fields beyond their properties (six pairs), and property types read from the script packages and
+  walked over URB_Bar. Nothing was built or run in the game.
+- Gap: those four are not repeatable from the repository yet; the plan's first milestone puts them in the audit
+  and runs them over the whole install. Whether the exporter's object pass can run without writing meshes is to be
+  confirmed at the start of the catalogue work.
+
+### A plan for pieces from other maps and an asset library across maps (research only, nothing built)
+
+- private/plans/done/cross-map-assets-plan.md: the limit revisited, as the user asked (a
+  map can only use the pieces it holds; the goal is a large library usable across maps and on new maps). What the
+  install holds (5,771 static meshes across 150 Firaxis-cooked packages, 249 in a median base map), what the same
+  object looks like in two maps, where the shaders and textures are, what a map imports from outside itself, and
+  two routes compared: copying a piece and what it depends on into the map being built (recommended), and a shared
+  library package, with five ways it could get loaded. Five decisions for the user, the work for the recommended
+  route (exact property types, a transplanter, a test that needs no game, the catalogue, the editor's Library panel,
+  lighting from nothing, the families in order), the order of work and the game checks (EXP-37 to EXP-41).
+- [tools/upk/audit_cross_map.py](tools/upk/audit_cross_map.py), new and read-only: over every base map and stream a
+  game install's `DefaultMaps.ini` names, the assets each holds and how many packages hold each, every asset two
+  neighbouring base maps both hold compared byte for byte, each base material looked up in the shared shader cache,
+  the texture cache each texture names, what the maps import and which always-loaded package holds it, and the
+  levels that import from a `_LOC_INT` companion. Its result for the LWR install:
+  [research/evidence/cross-map-assets-audit-2026-11-11.json](research/evidence/cross-map-assets-audit-2026-11-11.json)
+  (237 packages, none missing or unreadable).
+- [Findings register](research/findings-register.md): T-31 (the game's art is the same bytes in every map that
+  holds it, its shaders are in one shared cache, its textures in two shared caches) and T-32 (Firaxis's levels import
+  art only from packages loaded before them: the startup package, script packages, a level's companion).
+- Checked: the audit ran over the install twice with the same totals (318,982 comparisons, 317,628 explained by
+  numbering and offsets, 864 with other bytes, 490 of another size; 784 of 784 base materials in the cache). The
+  shapes of the 864 and the 490 were read from the examples the result keeps, a few by hand against the packages.
+  The three packages that import the DLC voice data were checked to have a companion that holds it. Nothing was
+  built or run in the game; the claims about how the engine loads a companion or a script package are readings.
+- Gap: the audit explains a difference by what it could mean (a number that names the same thing in both
+  packages), not by parsing each class; the plan's transplanter test is the exact form of it.
+
+### A plan for spawn points and the landing zone in the editor (research only, nothing built)
+
+- private/plans/todo/editor-spawns-plan.md: what the maps hold (soldier start points and the
+  landing prefab, pods, Meld points, drop-in points, wave systems), how the game uses them, what Long War Rebalance
+  does to them at load, and a plan in four parts: show everything; LWR's landing zones edited as the variant's own
+  `LZArray` lines; the map's own spawn actors edited in the map (and in a copy of a mission's stream); pods and Meld
+  as placed under LWR through a mutator of our own. It lists four decisions for the user, the order of work and the
+  game checks (EXP-33 to EXP-36).
+- [tools/upk/audit_spawns.py](tools/upk/audit_spawns.py), new and read-only: the spawn-related actors of every base
+  map and stream a game install's `DefaultMaps.ini` names, with the tallies the plan quotes. Its result for the LWR
+  install: [research/evidence/spawn-actors-audit-2026-11-11.json](research/evidence/spawn-actors-audit-2026-11-11.json)
+  (96 base maps, 141 streams, none missing).
+- [Findings register](research/findings-register.md): F-85 (LWR replaces a map's own landing zone, pods, Meld
+  points and scripted drop-in points when the battle loads), and F-06 points at the plan.
+- Checked: the audit ran over the install without a package failing to read; URB_Bar's actors and its first
+  landing-zone line were compared by hand with the mutator's offsets (within two units). The claims about LWR are read
+  from its decompiled scripts and config; none was run in the game.
+
+### Release 0.4.1: the project manager, Game maps, map packs, and a play that leaves nothing behind
+
+- A patch step, as the release rule says and the user asked. [version.py](tools/viewer/version.py) 0.4.1.
+- Release notes for the releases repository: [tools/release/notes/0.4.1.md](tools/release/notes/0.4.1.md): upgrading
+  from 0.4.0 (earlier plays' leftovers are taken out by themselves; Remove from game is now Game maps' Undo
+  everything), new features (the project manager, installing for campaigns, map packs with Install.cmd and
+  Uninstall.cmd, Game maps), changes, the bug fixed since 0.4.0 (T-30), known limits (nothing installed for campaigns
+  has been played in one yet) and the SHA-256s. Drawn from this ledger's entries since 0.4.0.
+- The user guide's Project menu picture taken again (shots/project-menu.webp (`project-menu.webp`),
+  with [take_shots.py](tools/release/guide/take_shots.py) `--only project-menu` on a test server): Game maps is 6 and
+  Manage projects 8, and [guide.html](tools/release/guide/guide.html)'s list has the same numbers.
+- Made in `dist/release` beside the earlier ones: `XCOM-Map-Workshop-0.4.1.zip` (98.0 MB, SHA-256 `59d5707f…ce8141`)
+  and `XCOM-Map-Workshop-0.4.1-Setup.exe` (60.2 MB, Inno Setup 6, SHA-256 `cf1630de…d45918`).
+- Checked: the viewer (174), editor (100), release (5), upk (24) and bake (243) suites pass.
+  [browser_smoke.py](tools/viewer/tests/browser_smoke.py) passes on a test server (8790, scratch projects, builds and
+  game folder, `--dry-play`): the whole of it with `--projects`, and with `--play` on `?map=URB_Bar`, which goes
+  through Game maps' Undo everything. The zip's `VERSION.txt` and `User Guide.html` say 0.4.1, and it has
+  `manager.py`, `gamemaps.py`, `pack_scripts.py`, the two windows' scripts and the guide's two new sections; the
+  SHA-256s recomputed.
+- Published with the user's go-ahead: [v0.4.1](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.4.1)
+  on the releases repository, marked Latest, with both files and the notes file (`gh release create --notes-file`).
+  GitHub's digests of the two files equal the local SHA-256s, and
+  `releases/latest/download/XCOM-Map-Workshop-0.4.1-Setup.exe` answers 200 without signing in (60,180,610 bytes).
+  Main pushed to the private repository first.
+- Known gaps: the installer wasn't run. `browser_smoke.py --play`
+  fails its "nothing installed" check when the server's first map is Basic Training, which gets a record for the
+  play: run it on another map. A first-mission install from before 0.3.0 isn't put back by the automatic clean-up
+  (the notes say so).
+
+### Editor: one install or one map pack can replace some maps and add others
+
+- The project manager's rows have **Install as**: As below (the choice under the list), Additional or Replace
+  ([`manager.js`](tools/viewer/web/manager.js), [`index.html`](tools/viewer/web/index.html),
+  [`style.css`](tools/viewer/web/style.css)). A row's warnings follow its own way.
+- [`manager.py`](tools/viewer/manager.py): `POST /manager/install` and `/manager/pack` take `"modes": {project id:
+  mode}` beside `"mode"`; each result and each packed map says its mode. A pack whose maps differ has `"mode":
+  "mixed"`; its README says which map replaces and which stands beside, and lists lines to comment out only for the
+  ones that replace.
+- [`pack_scripts.py`](tools/viewer/pack_scripts.py): `Install.cmd` comments the base map's records out for the maps
+  whose own `mode` is replace (a pack from before, with one mode for all, still installs).
+- Checked: `test_manager.py` (7): the scripts test now also packs one build replacing URB_Bar and one beside it,
+  installs the pack with `Install.cmd` and the same request with the editor, and gets the same bytes, the replacing
+  build's council record under Bar's name and the other's under its own; a bad `modes` value is refused (400). In a
+  browser on the main server: a row set to Replace with the choice below on Additional (nothing installed there).
+- Gaps: not played in the game. Two projects on one map, one replacing and one beside it, leave the original
+  commented out, as the replacing one asks.
+
+### Editor: a map pack installs and uninstalls itself (Install.cmd, Uninstall.cmd)
+
+- A map pack's zip now carries `Install.cmd`, `Uninstall.cmd` and `pack-tools\pack.ps1`
+  ([`pack_scripts.py`](tools/viewer/pack_scripts.py), written into the zip by [`manager.py`](tools/viewer/manager.py)'s
+  `pack`; `pack.json` gains an `id`). They run with Windows' own PowerShell and need no editor.
+- `Install.cmd [<game folder>]`: asks for the folder when none is given (offering the Steam installs it finds),
+  refuses while XCOM runs, checks the pack's files against their checksums and against files of the same name in the
+  game, keeps `DefaultMaps.ini` and `DefaultLZMutator.ini` in `<game>\XCOM Map Workshop\packs\<pack id>-before`,
+  copies the files, adds each map's records after its base map's (a pack made to replace: the base map's own
+  records commented out) and its landing zones, and writes what it did to `packs\<pack id>.json`. A map whose base
+  map the game has no record for, or that the game already has a record for, is left out. Run again, it takes its
+  earlier install out first.
+- `Uninstall.cmd`: the lines it added out, the lines it commented out back, the files it copied deleted if
+  unchanged; it says whether `DefaultMaps.ini` is then exactly as before the pack, and keeps the copy when not.
+- The pack's README leads with the scripts and keeps the by-hand steps; the manager's texts, the
+  [viewer README](tools/viewer/README.md) and the [user guide](tools/release/guide/guide.html) say so.
+- Checked: a new test, `test_a_packs_scripts_install_it_as_the_editor_does_and_take_it_out_byte_for_byte`
+  ([`test_manager.py`](tools/viewer/tests/test_manager.py)), runs the two scripts with `cmd` on a temporary game
+  folder for a pack of two builds, replacing and additional: the config files are the same bytes as the editor's own
+  install writes in the other folder, a second run adds nothing, Uninstall leaves them byte for byte as before with
+  the files and the record gone, and a game without the base map is refused unchanged. By hand, with no folder
+  given and an empty pack: it found this computer's Steam install and stopped without changing it.
+- Gaps: not run on another computer, on plain Enemy Within or on another Long War version (the lines are this
+  install's); no double-click run with the prompt typed into; a zip from a download may get Windows' warning before
+  a .cmd runs. The editor's Game maps window sees a pack's records as the install's own.
+
+### Lab: the lab copy's map list and landing zones cleared of old experiments
+
+- The Game maps window showed the lab copy's leftovers as records of the install's own: five that patchtool deploys
+  wrote (`URB_BarBlank` EXP-08, `URB_BarSlot` EXP-10, `URB_Bar_EXP11Static_b7f3` EXP-11, `TempleShip_EXP14Light`
+  EXP-14, `TempleShip_TempleIm_2001`), and the first-mission slot pointed at `URB_Bar_Exp28Frac_28e0` (EXP-03's
+  slot, last set for EXP-28). `DefaultLZMutator.ini` also held 307 lines of landing zones for 41 fixtures and variants.
+- With the game closed and nothing of the editor's installed (both ledgers empty), the lab copy's `DefaultMaps.ini`
+  and `DefaultLZMutator.ini` (`<Steam common>\XCom-Enemy-Unknown\XEW\XComGame\Config`) were set to the
+  LWR install's (`…\XCom-Enemy-Unknown.LWR`), from which they differed only by those lines. The files from before are
+  in `<lab>\backups\20261111-lab-config-cleanup`.
+- Checked: both files compare equal to the LWR install's; the main server's Game maps lists 203 records (208 before),
+  none of an experiment.
+- Gaps: the 123 files the lab copy's `CookedPCConsole` has beyond the LWR install's (1.62 GB: experiment and fixture
+  maps, their lighting caches and intro copies, test patches, the EU map trials) are still there. The next lab deploy
+  (`deploy_fixture.py`, patchtool) sets the first-mission slot again; its restore chain's records still describe the
+  slot as it was.
+
+### Editor: Game maps can group its records by mission
+
+- The Game maps window has **Group by**: Map (as before) or Mission, which lists each kind of mission with the maps
+  the game can play it on, the install's own and the editor's, and how many of the shown records are in use
+  ([`gamemaps.js`](tools/viewer/web/gamemaps.js), [`index.html`](tools/viewer/web/index.html),
+  [`app.js`](tools/viewer/web/app.js), [`style.css`](tools/viewer/web/style.css)). Kinds are in the map browser's
+  order; the filter, the ticks, Undo and the two Switch buttons work the same. The choice is kept in the browser.
+- Checked: in a browser on the main server, grouped by mission: 17 kinds from Abduction to Strategy over the lab
+  copy's 208 records, the first column showing the map. Nothing was changed there.
+- Gaps: no automated check.
+
+### Lab: the stand-in launcher hands -EXEC on without its quotes (Play in game stopped at the main menu)
+
+- A play through the stand-in launcher ended at the main menu: the stand-in passed Steam's quoted
+  `"-EXEC=XComMapWorkshop-play.txt"` on as it came, and the game then looks for a file whose name ends in a quote
+  ([findings register](research/findings-register.md) F-84, with the log lines).
+- [`tools/lab/XComLauncherSkip.cs`](tools/lab/XComLauncherSkip.cs) now hands each argument on without quotes, but for
+  one with a space in it. Rebuilt with `csc` and put in the lab copy and the LWR install
+  (`…\XEW\Binaries\Win32\XCOMLauncher.exe`), and at `<lab>\bin\XComLauncherSkip.exe`.
+- The lab copy's `XComEngine.ini` had `ResY=1317` (a borderless window 123 pixels short of the screen); set back to
+  1440, the file from before kept beside it.
+- Checked: offline, the rebuilt stand-in started a dummy `XComEW.exe` with `-FROMLAUNCHER
+  -EXEC=XComMapWorkshop-play.txt -nostartupmovies -nohomedir "-LOG=my file.log"` from quoted arguments.
+- Gaps: not played in the game. What wrote `ResY=1317` is not known, so it may come back.
+
+### Play in game leaves nothing behind: its own ledger, cleared when the game closes
+
+- [`installs.py`](tools/viewer/installs.py): the install's record is two files in `<game>\XCOM Map Workshop`.
+  `play.json` holds what a play put in (`PLAY_KEYS`: its records, what they are, the last play, the config kept
+  aside, and the files and landing zones a play copied: `playFiles`, `playZones`); `installs.json` (schema version 3)
+  holds what stays: the installs for campaigns and the records switched off. `read_ledger` gives both as one dict
+  and `write_ledger` splits it, so the rest of the module is as it was. A ledger from before is read as a play's.
+- `clear_play` takes a play's things out: its records, landing zones, files and the commands file. A file or
+  landing-zone block is noted in one ledger only, the campaign's first (`_copy_files`, `install_rotation`), so a
+  build installed for campaigns keeps its files when a play of it is cleared. `reset` and
+  `remove_rotation(everything=True)` go through both (`_zones_out`, `_files_out`).
+- [`play.py`](tools/viewer/play.py): the watch that puts the game's config back once the game has closed now clears
+  the play too; so does the next play before it installs, and the first `GET /play.json` that finds a play's things
+  with the game closed. `Player(cleanup=False)`, which `serve --dry-play` passes ([`viewer.py`](tools/viewer/viewer.py)),
+  leaves them in.
+- Checked: three new tests in [`test_play.py`](tools/viewer/tests/test_play.py) (a play of a build and of a map
+  leave the install byte for byte once the game closes, with the play's things in `play.json` meanwhile; a build
+  installed for campaigns keeps its records, files and landing zones through plays of it, in either order and with a
+  newer build; an old single ledger is cleared on the next look); `test_play.py` (20) and `test_manager.py` (6) pass.
+- Gaps: not tried with the real game: the watch waits up to 300 s for XCOM to come up, and a game that takes longer
+  (or is never started from the launcher) is cleared then, with the game refusing nothing since it isn't running.
+  The earlier tests run with cleanup off, to look at what a play installs.
+
+### Editor: a project manager and a Game maps window, to install projects for campaigns and undo it
+
+- **Manage projects…** in the Project menu opens the project manager ([`manager.js`](tools/viewer/web/manager.js),
+  markup in [`index.html`](tools/viewer/web/index.html), styles in [`style.css`](tools/viewer/web/style.css), wired in
+  [`app.js`](tools/viewer/web/app.js)): every project with its last build (date, revision, baked or not, the editor
+  version that built it), its base map's missions and what is in the game of it. It filters by text and by state,
+  sorts by column, and ticks rows one by one, as a Shift+click run or all that the filter shows.
+- The ticked projects' last builds are installed in the game or zipped, as **additional maps** in the rotation or
+  **replacing the original maps** ([`manager.py`](tools/viewer/manager.py): `GET /manager.json`,
+  `POST /manager/install`, `/manager/pack`, routed in [`viewer.py`](tools/viewer/viewer.py)).
+- **Game maps…** takes the place of Remove from game in the Project menu ([`gamemaps.js`](tools/viewer/web/gamemaps.js),
+  [`gamemaps.py`](tools/viewer/gamemaps.py): `GET /gamemaps.json`, `POST /gamemaps/use`, `/gamemaps/undo`): every map
+  record of the install's `DefaultMaps.ini` by map, in rotation or asked for by name, original, switched off,
+  replaced (by which project) or added by the editor. A record of the install's own is switched off and on with a
+  tick, a build is undone with Undo, and Undo everything is what Remove from game was (`POST /play/remove`).
+- [`installs.py`](tools/viewer/installs.py):
+  - `install_rotation` adds a variant's records for campaigns (one per record of the base map, in or out of rotation
+    as the base map's is: `rotation_plan`). To replace, the base map's own records are **commented out** (`_sync_off`,
+    the ledger's `linesOff`): the research notes have a report that `bInRotation=False` had no effect, and that
+    commenting a record out stops it being used.
+  - **Council missions can be replaced.** The game asks for their map by the record's display name
+    (`XGFundingCouncil.BuildMission`; Long War's `XGFundingCouncil_Mod.FixDisplayName` takes the last record of the
+    council type whose name contains it: upstream source).
+    A replacing variant's record for a mission whose base record is out of rotation keeps the base map's display
+    name; an additional one gets its own, which under Long War makes an extra bomb mission of a bomb record and is
+    never picked otherwise (`mission_warnings` says which).
+  - `set_records_use` switches the install's own records off and on (`manualOff`); `remove_rotation(everything=True)`
+    takes a build's records, Play in game's record and its landing zones out; `reset`, `pristine_lines` and
+    `maps_text` undo all of it, so the editor still reads the install as the game has it.
+  - `install_map_record` gives a map whose records the editor commented out a copy for a play of the map alone, named
+    apart; `install_package` finds the base map's place by its commented-out records too (`_after_base`).
+    `read_package` and `_copy_files` are shared with `install_package`.
+- The map pack is `<builds>\Map packs\<name> <time>.zip`: the files under `XEW\XComGame\CookedPCConsole`, a README of
+  the config lines for the chosen way (to replace: the base map's lines to comment out), each build's README and
+  manifest, and `pack.json`.
+- Warnings, never refusals: a quick build, a build of an older revision, missions other than abductions, and what the
+  chosen way does for missions asked for by name.
+- The Project menu's Installs line names builds installed for campaigns and records switched off
+  ([`play.js`](tools/viewer/web/play.js)); the [viewer README](tools/viewer/README.md), the
+  [user guide](tools/release/guide/guide.html) and [GETTING-STARTED](tools/release/GETTING-STARTED.md) describe both
+  windows and name Undo everything where they named Remove from game; [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py)'s
+  play checks go through Game maps.
+- Checked: [`test_manager.py`](tools/viewer/tests/test_manager.py) (6 new tests: the listing and each way's warnings;
+  additional, replace and back with Play in game's record beside them and the replaced map played alone; two variants
+  replacing one map; records switched off and on, alone and under a replacement; the pack's zip; the routes) and
+  `test_play.py` (17) pass. In a browser on a test server (8791, the real projects, installs into a scratch copy of
+  the config files): 31 projects listed; a project on the overpass installed to replace it (3 records commented out,
+  its council assault record under the original's name); Game maps showed the three replaced and three added
+  records; a record switched off, the build undone, then Undo everything; `DefaultMaps.ini` and
+  `DefaultLZMutator.ini` byte for byte the game's again. An earlier trial zipped 5 builds (165 MB).
+- Gaps: **nothing played in the game.** Not verified there: that a campaign draws an added variant, that a
+  commented-out original is no longer drawn, that a council mission plays the variant under the original's record
+  name (plain EW matches the whole name, Long War a part of it), and the extra bomb mission. The pack's config lines
+  are added by hand (no installer). DefaultMiniMods.ini rules are not installed (each build's own README lists
+  them). Undo of one build leaves its files until Undo everything. `browser_smoke.py` was edited for the changed
+  menu but not run, and has no check of the two windows beyond Undo everything; the user guide's Project menu picture
+  still shows Remove from game and no Manage projects ([`take_shots.py`](tools/release/guide/take_shots.py) marks
+  Game maps in its place, which `test_release.py` checks; the pictures were not taken again).
+
+### Builds: a deleted, copied or cover piece outside the map's tiles no longer stops the build
+
+- From a user's build report (0.4.0, `Act1_IntroLevel`): deleting two backdrop pieces that stand past the level
+  volume's edge ended the build with "the hidden piece at … crosses no tile of the map"
+  ([findings register](research/findings-register.md) T-30).
+- [`native_copy.py`](tools/bake/native_copy.py): `hide_tiles` and `add_tiles_box` return None for a box that crosses
+  no tile instead of raising. `hide_pieces` still takes the piece out of the Level's list and adds no rebuild volume
+  (its section's `tiles` and `volume` are None); a copy outside the tiles is made with no seeds or volume (`tiles`
+  None, as a build with `--no-tiles` records it). The lines it prints say "outside the map's tiles, no rebuild
+  volume".
+- [`cover_blocks.py`](tools/bake/cover_blocks.py): a cover block or invisible floor outside the tiles is made the
+  same way, with no volume.
+- Checked: a new test, `test_pieces_outside_the_maps_tiles_are_hidden_and_copied_without_a_rebuild`
+  ([`test_native_copy.py`](tools/bake/tests/test_native_copy.py)), with the two neighbouring hide and tile tests, and
+  `test_cover_blocks.py` (18) pass; the report's project quick-built here on the same map file (12 hidden, two of
+  them without a volume, 5 copies).
+- Gaps: not played in the game; a full (baked) build of that project not run; a ladder copy outside the tiles is
+  not handled.
+
+### Lab: a stand-in launcher that skips the "which game" click, in both installs
+
+- [`tools/lab/XComLauncherSkip.cs`](tools/lab/XComLauncherSkip.cs): a small program put in place of the game's
+  `XEW\Binaries\Win32\XCOMLauncher.exe` (the real one kept as `XCOMLauncher_backup.exe`). It starts the `XComEW.exe`
+  beside it with `-FROMLAUNCHER` and its own arguments, so Steam, the lab wrapper and Play in game start the game with
+  no launcher click, and the game still runs as `XComEW.exe`. In place in the lab copy and the LWR install
+  (`<Steam common>\XCom-Enemy-Unknown` and `…\XCom-Enemy-Unknown.LWR`); the built exe is also at
+  `<lab>\bin\XComLauncherSkip.exe`.
+- Why not the usual copy of `XComEW.exe` under the launcher's name: tried first, and it quit within 200 ms whenever
+  the game's Steam stub started it ([findings register](research/findings-register.md) F-84).
+- Texts that told the reader to click the launcher now say "if the launcher asks":
+  [`app.js`](tools/viewer/web/app.js), [`play.js`](tools/viewer/web/play.js),
+  [`index.html`](tools/viewer/web/index.html) (Help), [`GETTING-STARTED.md`](tools/release/GETTING-STARTED.md),
+  [`guide.html`](tools/release/guide/guide.html), [`tools/viewer/README.md`](tools/viewer/README.md), and the notes in
+  [`gamelaunch.py`](tools/viewer/gamelaunch.py), [`play.py`](tools/viewer/play.py),
+  [`XComLabWrapper.cs`](tools/lab/XComLabWrapper.cs) and [`click_launcher.ps1`](tools/lab/click_launcher.ps1).
+  [`steam_launch_test.ps1`](tools/lab/steam_launch_test.ps1) clicks nothing when the install has
+  `XCOMLauncher_backup.exe`.
+- Checked: the lab copy through Steam reached the main menu and closed normally (F-84 has the runs);
+  `test_play.py`, `test_guide.py`, `test_links.py` and `test_release.py` pass.
+- Gaps: Play in game through the stand-in not played yet; the LWR install not started (same files); the editor does
+  not know a game running as `XCOMLauncher.exe` (the copy trick on other machines, F-84).
+
+## 10 November 2026
+
+### Release 0.4.0: invisible pieces, Basic Training, the new camera keys, export 19
+
+- A minor step rather than a patch (the release rule allows one for big or breaking changes): five shortcuts moved
+  (G, R, P, O, X), every map re-exports on first open (export 19), and it brings cover blocks, invisible floors and
+  Basic Training. [version.py](tools/viewer/version.py) 0.4.0.
+- Release notes for the releases repository: [tools/release/notes/0.4.0.md](tools/release/notes/0.4.0.md) (new; the
+  first kept here): upgrading, new features, changes, bugs fixed since 0.3.1 (T-27, T-28, T-29, F-76, the wheel zoom,
+  the getting-started line), known limits and the SHA-256s. Drawn from this ledger's entries since 0.3.1.
+- Made in `dist/release` beside the earlier ones: `XCOM-Map-Workshop-0.4.0.zip` (97.9 MB, SHA-256 `3028dbf6…efd342`)
+  and `XCOM-Map-Workshop-0.4.0-Setup.exe` (60.1 MB, Inno Setup 6, SHA-256 `144b047a…1370a`).
+- [Findings register](research/findings-register.md) T-28: 0.4.0 has T-27's and T-28's fixes.
+- Checked: the viewer (164), editor (100), release (5), upk (24) and bake (242) suites pass; the zip's `VERSION.txt`
+  and `User Guide.html` say 0.4.0, and it has `cover_blocks.py`, `collision.py`, export 19, the build window's Play in
+  game, the camera and play-area options, and the getting-started line on it; the SHA-256s recomputed.
+- Published with the user's go-ahead: [v0.4.0](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.4.0)
+  on the releases repository, marked Latest, with both files and the notes file (`gh release create --notes-file`).
+  GitHub's digests of the two files equal the local SHA-256s, and
+  `releases/latest/download/XCOM-Map-Workshop-0.4.0-Setup.exe` answers 200 without signing in (60,125,885 bytes).
+  The repository's README links to the latest release, so it needed no change.
+- Known gaps: the installer wasn't run.
+
+### Editor: Play in game in a finished build's window
+
+- A build's window, once the build is done, has **Play in game** on the left of its buttons: it installs that build
+  and starts the game in a battle on it, as the Project menu's Play last build does, asking the server first (a
+  closed install or an open XCOM says why in the window) and showing the outcome in the window. Disabled while it
+  plays, it stays for playing again, also after Build and play. The note says "Nothing is installed yet: Play in game
+  installs it …" instead of pointing to the README. [app.js](tools/viewer/web/app.js) `renderBuild`, `playFinished`
+  (new), `playBlocked` (new) and `followBuild` (the installs asked again when a build ends);
+  [index.html](tools/viewer/web/index.html) `#buildPlay`; [style.css](tools/viewer/web/style.css).
+- Docs: the [viewer README](tools/viewer/README.md)'s build window, the [user guide](tools/release/guide/guide.html)
+  (the build window and the quick start's play step), [GETTING-STARTED.md](tools/release/GETTING-STARTED.md).
+- Tests: [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_play` with a project: a quick build (Ctrl+B),
+  the window's Play in game hidden while it builds, then enabled, pressed, the game's start shown in the window and
+  the project's quick build installed, then removed. Two fixes to checks that had gone stale: `check_prepare` (and
+  the new step) waits for Build's panel to focus its button before pressing Enter (Enter came first and pressed
+  nothing, every time here); the Interior check that every piece is cut by at least six planes allows a piece drawn
+  whole two (the height cut), as Interior has drawn edge pieces since earlier today.
+- Checked: browser_smoke.py on Bar with `--play --play-project` (a copy of "EXP-17 pool table moved") against a
+  scratch game folder, scratch builds and `serve --dry-play` on a test server: passes, no errors; the finished
+  window looked at in its shot.
+
+### Viewer: masked props cut by their real mask, export 19 (T-29: the farm's tractors drew as glass)
+
+- A masked material's cut-out follows its parent's OpacityMask input instead of always the colour texture's alpha:
+  wired straight to a texture parameter, that texture's masked channel (PROP_Objects, the common prop parent:
+  `Spc_Ems_Mpc_Opc`'s alpha); an `OpacityMask` static switch that is off, nothing (PROP_Objects_Old: the farm's
+  tractors, dairy tanks, pipes); else the colour's alpha as before. [materials.py](tools/viewer/materials.py)
+  `opacity_input` (new); [export.py](tools/viewer/export.py) `Exporter.material` (and `opacityChannel`), and
+  `EXPORT_VERSION` 19. Cause and survey in the [findings register](research/findings-register.md), T-29.
+- Docs: the [viewer README](tools/viewer/README.md)'s material rules.
+- Checked: [test_material_rules.py](tools/viewer/tests/test_material_rules.py) (new: what an OpacityMask input
+  samples, with a stand-in package; on the Farm, PROP_Objects' input is `Spc_Ems_Mpc_Opc` A and PROP_Objects_Old's
+  says nothing, the tractor draws solid, the metal lamp cuts by its packed alpha (under 1% cut, against 98% by its
+  colour's), and the truck stop's car lift with its switch on keeps the colour's alpha); the viewer suite (164).
+  The Farm exported to a scratch cache and looked at beside its export 18 on test servers: the tractor and the
+  barn's metal lamp now draw (they didn't), the trash pile loses the brown smudge.
+- Deployed: all 15 maps in this PC's library re-exported to export 19 from the packages their exports came from (each
+  checked against its export's SHA-256 first; none skipped, 10 to 30 s each), and the main editor restarted onto them.
+- Maps exported before an update prepare themselves again when they open, so installs with export-18 maps get the
+  fix (the user's choice: automatic, over a banner). The server's `/maps.json` marks an exported map of the install
+  whose export is older than `EXPORT_VERSION` `outdated` ([catalogue.py](tools/viewer/catalogue.py)
+  `public_catalogue`, `with_install` marking the install's maps; [viewer.py](tools/viewer/viewer.py) passes the
+  version when it exports maps), and the page opens the Prepare dialog under the map's name with just "Map schema
+  updated. Re-exporting." (the user's wording: no long explanation), already running with its progress
+  ("Re-exporting: 40%"), then reloads on the new export ([app.js](tools/viewer/web/app.js) `showPrepare('update')`).
+  A failure leaves the dialog's error and Try again, and Later a short banner with Re-export; a map still outdated
+  after its re-export waits for a click in that session (no loop). The other Prepare dialogs' button reads
+  "Preparing…" while it runs. README: "Updated maps prepare themselves again".
+- Checked (the automatic prepare): [test_catalogue.py](tools/viewer/tests/test_catalogue.py) (outdated needs a newer
+  exporter and a map of the install; over HTTP the two exported maps are outdated, a Prepare clears one, a failed one
+  stays outdated); and on a test server serving a scratch cache with only the Farm's export 18: the catalogue marked
+  it outdated, opening it showed the dialog already running at once, and 29 s later the page had reloaded on export 19
+  with no dialog and the mark gone; run again with the short wording from a fresh copy of the export 18: the dialog
+  read the map's name, "Map schema updated. Re-exporting." and "Re-exporting: 4%…", and the page reloaded on export
+  19 after 24 s. The viewer suite (164) passes.
+
+### Editor: the play area drawn, Interior draws edge pieces whole, the camera keys slower
+
+- The play area shows in the view: the map's level volume (`playableBounds`, the box the tile grid fills, which
+  units can't leave) as faint amber walls with amber edges, the edges also faintly through whatever stands in front
+  so Full's buildings don't hide it, from the lowest tile level to the top of the highest. Never picked, never cut by
+  Interior or the floors. **B** or View options' new **Play area** (Show section, on at first, remembered in the
+  browser as `workshop.playArea`) shows and hides it. [app.js](tools/viewer/web/app.js) `drawPlayArea`,
+  `setPlayArea`; [index.html](tools/viewer/web/index.html) (the option, the help panel's B).
+- Interior no longer slices pieces off at its sides: a piece with some part inside its area (the saved floors' extent)
+  is drawn whole across the map, cut by height only, so a car or rubble across the edge shows entire (the user's
+  shot of Basic Training's police car). A piece reaching more than four tiles past the sides (`WHOLE_OVERHANG`: big
+  ground, long walls) and one outside stay cut there as before, so the surroundings don't come back; the ground's
+  edge is ragged now where whole ground pieces reach out. Picking and the selection box follow (`interiorWhole`).
+  On Basic Training 322 of the 346 shown pieces draw whole, on the Bar 715 of 746.
+- The camera keys move at 5,000 units (about 52 tiles) a second, Shift three times that (`PAN_SPEED`, was 7,200;
+  the user's choice).
+- Docs: [viewer README](tools/viewer/README.md) (the play area, Interior's cut, the speed), the
+  [guide](tools/release/guide/guide.html) (Interior, the B key, the View options list renumbered for Play area); every
+  guide picture re-shot with [take_shots.py](tools/release/guide/take_shots.py) (its View options marks number 13).
+- Checked: the [browser smoke test](tools/viewer/tests/browser_smoke.py) on a test server, `--only play-area,pan,zoom`
+  on Basic Training and `--only play-area` on the Bar: `check_play_area` (drawn on the level volume's bounds within a
+  unit, three parts, B and the option hide and show it and remember it) and `check_interior_whole` (in Interior every
+  shown piece is whole exactly when it reaches the area and overhangs four tiles or less, a whole one has no side cuts
+  and a cut one four, some whole ones stick out; back in Full none is whole), both also in the full run after
+  `check_arrow_pan`; the camera checks still pass. Looked at: Full and Interior on both maps (screenshots). The full
+  smoke run was not repeated.
+
+### Editor: WASD moves the camera, Q and E turn it, and a toggle moves it along the view (and drags look round)
+
+- WASD moves the camera while held, as the arrow keys do (W and Up forward, S and Down back, A and Left left, D and
+  Right right; Shift faster), and Q and E turn the view left and right about the vertical, keeping its tilt (60° a
+  second, Shift three times as fast). The letters were shortcuts, so they moved, at the user's choice: Move is now
+  **G** (was W), the piece list **P** (was A), Solo **O** (was S), Rotate **R** (was E; while placing, R still turns
+  the piece) and world or local axes **X** (was Q). [app.js](tools/viewer/web/app.js) `PAN_KEYS`, `TURN_KEYS`,
+  `turnCamera`, `panCamera` and the key handler; the tool strip's letters, tooltips and the help panel in
+  [index.html](tools/viewer/web/index.html) (its Pieces section's stale arrow-keys line taken out).
+- View options has a **Camera** section with **Keys move along the view** (`#flyKeys`, remembered in the browser as
+  `viewer.flyKeys`). Off, the keys pan across the map at a constant height as before. On, forward and back move the
+  way the camera faces, climbing or descending with its tilt, and left and right go sideways across it, level. The
+  orbit target moves with the camera either way. Sideways is now the screen's right laid level in both modes (the
+  same direction as before, and defined looking straight down too). Q and E circle the camera round the point it
+  looks at when off (as XCOM's own camera turns), and turn it where it stands when on.
+- The keys move at one speed on every map and at every zoom: `PAN_SPEED`, 7,200 units (75 tiles) a second, Shift
+  three times that. It had followed the distance to the point looked at, so it changed with the map and the framing:
+  measured on a test server, Full's framing put the camera 34,000 to 90,000 units away (Basic Training, the Bar, the
+  Farm, the police station, Street Overpass, the temple ship, the alien base) and Interior's about 9,000 (9,013 to
+  13,447; the temple ship and alien base 27,530 and 23,867). The user asked for about Interior's speed, a bit slower.
+- On, a left-drag looks round from where the camera stands instead of orbiting (`lookBy` and its pointer listeners
+  in [app.js](tools/viewer/web/app.js), OrbitControls' `enableRotate` off meanwhile): the camera keeps its place and
+  the point it looks at swings round it at the same distance, right looking right and up looking up, 90° for a drag
+  the view's height, the tilt clamped just short of straight up or down. Shift, Ctrl or Cmd with the left button,
+  right-drag and the wheel pan and zoom as before; a press the gizmo or a light's handle takes is theirs, and a press
+  that barely moves still selects. The option's tooltip and the help panel say so.
+- Docs: [viewer README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html) (keys, the camera table,
+  the View options list renumbered for the new row) and [GETTING-STARTED.md](tools/release/GETTING-STARTED.md); the
+  guide's window, rail, add and view-options pictures re-shot (window, rail and add again for R and X) with
+  [take_shots.py](tools/release/guide/take_shots.py) (its View options marks now number twelve rows).
+- Checked: the [browser smoke test](tools/viewer/tests/browser_smoke.py) on a test server on the default map
+  (Basic Training): `check_arrow_pan` (now also `--only pan`) holds each arrow and each WASD key in both modes and
+  checks camera and target move together, flat across the map when off, along the facing (descending for forward)
+  and level sideways when on, and nothing while typing in a field (Q and E too). New in it: `check_turn` holds Q and
+  E in both modes (the right point stays put, distance and tilt kept, forward swung left for Q and right for E) and
+  `check_tool_keys` presses R, G and X (Rotate, Move, the axes there and back), checks WASD, Q and E leave the tool,
+  axes and piece list alone, and that R while pasting turns the piece a quarter and leaves the tool;
+  `check_drag_look` drags right and up with nothing selected, on (camera still, target swung right then up at the
+  same distance) and off (target still, camera orbiting, waited out until the damping stops: `settled`), and checks a
+  drag selects nothing; and Up held at the framed distance and at an eighth of it moves about as far (it had moved
+  an eighth as far). Those pass, and
+  `--only zoom`, `--only library` (P) and
+  `--only lights,floor-placing` (O for Solo, G for Move) pass. `--only lights,library,floor-placing` together fails
+  `check_library`'s entry count on main as well as here: an existing ordering effect of `--only`, not looked into.
+  The full smoke run was not repeated.
+
+### Invisible floors snap to the game's collision, not the drawn ground (EXP-32 run 2, F-83)
+
+- The user played run 2: floors snapped 1 unit over the drawn ramp weren't found, raised a few units by hand they
+  were, and F-82's fix held (the tile below gets no cover from a floor: verified). The game's floor trace meets the
+  ramp's convex hulls, which stand up to 5.2 units over its drawn surface there.
+  [F-83](research/findings-register.md), [EXP-32](research/experiments/EXP-32-invisible-floor.md) runs 2 and 3.
+- [collision.py](tools/viewer/collision.py) (new): each static mesh's line-check collision from the map's package
+  (convex hulls and boxes, one solid each, in the mesh's frame; a mesh saving `UseSimpleLineCollision` False uses its
+  triangles), the package checked against the export's SHA-256 and read once per server.
+  [viewer.py](tools/viewer/viewer.py): `GET /maps/<id>/collision.json`.
+- The page ([app.js](tools/viewer/web/app.js)): `groundAt` measures each piece by its collision once it has come
+  (`askLineCollision`, asked for when a floor is chosen or first needs the ground; the drawn mesh until then, or where
+  it can't be read), one solid at a time as the floor trace takes it (`solidGround`: a top looking up more than 0.7; a
+  line starting inside a solid gets its top); the floor's note says whose ground it read. `viewer.groundAt` and
+  `viewer.collisionRead` for the tests.
+- Docs: [viewer README](tools/viewer/README.md) (the route, the floor note), the
+  [guide](tools/release/guide/guide.html).
+- Checked: [test_collision.py](tools/viewer/tests/test_collision.py) (6: a box's W-first planes, mesh ids, the SHA-256
+  guard, the farm's ramp hulls 86.15 and 49.64 at run 2's tile centres, the backdrop box flat), the viewer suite (162),
+  `check_cover` in the [browser smoke test](tools/viewer/tests/browser_smoke.py) on a test server on the default map
+  and CSmallScout_Farm (it waits for the collision, then reads the floor as placed over it), and the user's project
+  there (ground 86.15, 49.64, 86.15; Fit to ground 87.15, 50.64, 87.15). The smoke test found box elements read in
+  the wrong plane order (the backdrop's box stood on end); fixed. Played in EXP-32 run 3: floors fitted to the
+  collision are found (F-83 verified); the floor's note and the guide no longer call floors untried. Known gaps: streamed
+  patches' meshes are measured from the drawn mesh; sphere and capsule elements are left out (none on the farm).
+
+### Invisible floors: placed on the ground, a height readout and Fit to ground; ignored for cover (EXP-32 run 1, F-82)
+
+- The user played the floors (EXP-32 run 1): soldiers on them over the ramp get cover, but the tile below a floor got
+  half cover from it, like a step. Read from the native code: the floor trace is one line through a tile's centre, and
+  a flat tile's cover trace (52 over its floor, 124 sideways) hit the plate.
+  [Native code notes](research/native-code-notes.md) ("Where a tile's floor and cover are looked for"),
+  [F-82](research/findings-register.md), [EXP-32](research/experiments/EXP-32-invisible-floor.md) run 1 and run 2 to
+  do; F-81 notes the way round works.
+- [cover_blocks.py](tools/bake/cover_blocks.py): a floor's actors save `bIgnoreForCover` True (as the game's hidden
+  ladder helpers do), so the cover trace skips them; blocks unchanged. The digest re-pinned (never released).
+- The page ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)): a floor from the Add panel
+  goes 1 unit over the ground at its first tile's centre (`groundAt`, which skips the editor's hidden pieces); its
+  section says how far its top stands over the ground at each tile's centre, or that it is below it (`floorNote`,
+  refreshed as it moves); **Fit to ground** (`fitFloor`, one undo step) puts it back 1 unit over the highest.
+- Docs: [viewer README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html).
+- Checked: `test_cover_blocks.py` (18: a floor's actors ignored for cover, a block's not), `check_cover` in the
+  [browser smoke test](tools/viewer/tests/browser_smoke.py) on a test server (the note at 1 unit, 31 after +30 on Z,
+  Fit back to 1, the undos), the user's floors measured on a test server. Not played: EXP-32 run 2.
+
+### Invisible floors, and a height for cover blocks (EXP-32)
+
+- The user asked for an invisible floor to try, with width and length set like a cover block's, and for a height
+  setting on cover blocks. The Add panel's kind is now **Invisible**, with **Cover block** and **Invisible floor**.
+- [cover_blocks.py](tools/bake/cover_blocks.py): the recipe's `floor` kind: one hidden XComLevelActor per tile cell
+  (`cells`, `_axes`), at the cell's centre on a shared 96 × 96 × 2 plate with its convex BodySetup, without the blocks'
+  cover, climbing and destination properties (an enum whose item is None is skipped too); records list each block's
+  `cells`. The digest re-pinned (version 1, never released). [native_copy.py](tools/bake/native_copy.py) names floors
+  in its report line. [compiler.py](tools/editor/compiler.py): `COVER_RECIPES` gains the floor's heights, `maxHeight`
+  8, `heightStep` 96 and `flat`; `cover` records are {width, length, type, height}, the first form read as one tile
+  tall; [build.py](tools/editor/build.py)'s build README names floors. The page: [cover.js](tools/viewer/web/cover.js) (`FLOOR_START`, `normalCover`, `isFloor`, heights in the box
+  and mesh id, a green floor), [app.js](tools/viewer/web/app.js) (the Invisible kind's two entries, a floor's panel,
+  the Height field, first records opened), [index.html](tools/viewer/web/index.html) (Height, the section's head),
+  [pieces.js](tools/viewer/web/pieces.js), [project.js](tools/viewer/web/project.js) (both record forms).
+- Docs: [viewer README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html),
+  [EXP-32](research/experiments/EXP-32-invisible-floor.md) (new: what changed, why a floor is made so, run 1 to do).
+- Checked: `test_cover_blocks.py` (18: a floor's six plates, their properties and box; a tall block), the editor suite
+  (100: a tall block's and a floor's boxes, first records, refusals), the viewer suite (156), `check_cover` in the
+  [browser smoke test](tools/viewer/tests/browser_smoke.py) on a test server, a first-form project opened there, and
+  a scratch build of `farm+` with a floor and a tall block (every reference in range). The full bake suite didn't run:
+  the change reaches only the cover factory and a report line (the user asked to run it only for changes that reach
+  across the bake tools, or before a release). Known gaps: not played (EXP-32 run 1); where a floor's top must sit in
+  a level to be found isn't known.
+
+### Cover blocks work on level ground (EXP-31 run 3); no cover on sloped floors is the game's rule (F-81)
+
+- The user played the BodySetup build: the blocks block and give cover on level ground (F-80 verified there), not on
+  CSmallScout_Farm's ramp. Read offline from the baked tiles and the native code: the game works out no cover for a
+  soldier on a sloped floor tile. [F-81](research/findings-register.md), [EXP-31](research/experiments/EXP-31-cover-blocks.md)
+  run 3; the [native code notes](research/native-code-notes.md) say how the tile rebuild picks the actors near a tile
+  (by their bounding box, in the octree) and that sloped tiles skip the floor-detail step.
+- The [guide](tools/release/guide/guide.html) and the [viewer README](tools/viewer/README.md) say a block gives no
+  cover to a soldier on a slope (it still stops movement there).
+- No tool change stands: a split of each block into one actor per tile cell, for a guess the code then ruled out, was
+  written and taken out before any build.
+
+### Cover blocks: each box mesh gets a BodySetup with the box's convex hull (F-80, second fix)
+
+- EXP-31 run 2: with the simple-collision flags off (the entry below), the blocks still gave no cover and let a
+  soldier onto their tiles. Read from the native code ([native code notes](research/native-code-notes.md), "How the
+  rebuild decides a tile is occupied"): the tile rebuild's occupancy test skips a level actor whose StaticMesh has no
+  `BodySetup`, before any collision test, and the component's checks use simple collision while the flags are on.
+- [cover_blocks.py](tools/bake/cover_blocks.py): each box mesh gets an `RB_BodySetup` under it
+  (`body_setup_properties`, `convex_hull`), named in the mesh's `BodySetup` property and native field: the map's
+  RB_BodySetups' entry and version, one convex element of the box's corners laid out as the game's
+  `FX_Utilities.Box_96x96x96` has its hull (the recipe's `bodySetup`), no pre-cooked data (the maps' own have none
+  either); the forced package counts the body setups' net indices; the `UseSimple...Collision` flags are taken out
+  again (back at their defaults, as LWR's and the game's boxes). Recipe version 1 changed in place (never released),
+  its digest re-pinned. [F-80](research/findings-register.md) rewritten,
+  [EXP-31](research/experiments/EXP-31-cover-blocks.md) runs 2 and 3.
+- Checked: [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py): a 96-unit box's hull is the game's
+  `FX_Utilities.Box_96x96x96`'s float for float (`GameBoxHull`, URB_PoliceStation); LWR's helpers' hulls save the
+  same version, properties and fields, with the same corners and planes; each built mesh's body setup is under it,
+  named twice, with the map's entry flags, version and empty native data, its hull the mesh's box with four corners on
+  each plane. The bake suite passes (238). The user's project rebuilt quick: every new export reads whole, every
+  reference in range. Known gap: not played yet (EXP-31 run 3); a hidden filter in the collision hash is not ruled out.
+
+### Cover blocks collide: their box mesh's line and box checks use its triangles (F-80)
+
+- EXP-31 run 1: with the map loading (F-79), the user's three high blocks gave no cover and a block in the open let
+  a soldier onto its tile. The box `StaticMesh` had no `BodySetup` and left the `UseSimple...Collision` flags at
+  their default (on), so the game's line and box checks asked for simple collision that wasn't there.
+  [cover_blocks.py](tools/bake/cover_blocks.py): the recipe's new `box` properties save `UseSimpleBoxCollision` and
+  `UseSimpleLineCollision` off, so those checks use the triangles (the collision tree the mesh already saves), as the
+  game's maps do for CsmallScout_Farm's `HayBaleShort_B` and URB_Bar's `Trashcan_E`; recipe version 1 changed in
+  place again (never released), its digest re-pinned. [F-80](research/findings-register.md),
+  [EXP-31](research/experiments/EXP-31-cover-blocks.md) run 1 (F-79 verified: the map loads).
+- Checked: a new test in [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py) checks the mesh saves the two
+  flags off and nothing else, in the order URB_Bar's meshes that save both save them, with no BodySetup. The user's
+  project rebuilt quick: the meshes read whole with the flags, every reference in range. Known gaps: not played yet
+  (EXP-31 run 2); rigid bodies still pass through a block (`UseSimpleRigidBodyCollision` stays on).
+
+### Cover blocks: the map loads (F-79), and one Cover block entry in the Add panel
+
+- The user's first play of a cover block (a project on CSmallScout_Farm) stopped the game as the map loaded
+  (`Bad import index 65535/334`). The block's `StaticMeshComponent` saved the native data of LWR's UDK-cooked helpers
+  (licensee 0: an empty LODData, 4 bytes); the game's maps (licensee 64) save two mesh-swap LOD records and their two
+  meshes after it, 46 bytes in all, so the game read 42 bytes past the component.
+  [cover_blocks.py](tools/bake/cover_blocks.py): the recipe's component saves the 46 bytes (version 1 changed in place,
+  never released; its digest re-pinned). [F-79](research/findings-register.md),
+  [EXP-31](research/experiments/EXP-31-cover-blocks.md).
+- The Add panel's **Cover** kind has one entry, **Cover block** (1 × 1, high cover), in place of six ready-made sizes:
+  the size and cover are set in the piece panel ([cover.js](tools/viewer/web/cover.js) `COVER_START`,
+  [app.js](tools/viewer/web/app.js), [pieces.js](tools/viewer/web/pieces.js): the row says "Any size, high or low"
+  and is tagged Invisible). The [viewer README](tools/viewer/README.md) and the [guide](tools/release/guide/guide.html)
+  say so; the guide also says that with snap off the turn handles can tip a block onto its side (the user's block
+  had a roll of a quarter turn).
+- Checked: [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py) compares the component's native data with
+  URB_Bar's own components with no LOD (the audit reader takes it whole), and the actor and floor component with the
+  map's (no native data); the comparison with LWR's helpers keeps their LODData as the start of ours. The user's
+  project rebuilt quick: every new export reads whole with the native readers and every reference is in range.
+  `check_cover` in the [browser smoke test](tools/viewer/tests/browser_smoke.py) uses the one entry. Known gap: not
+  played yet (EXP-31 run 1).
+
+### Cover blocks: invisible pieces that give cover, in the Add panel, built on any install
+
+- The user asked for a new kind of piece: invisible, giving cover, as LWR's patches add it (URB_PoliceStation's), in
+  sizes 1 × 1, 1 × 2 and 4 × 4 or of any size. LWR's helpers are hidden `XComLevelActor`s on plain `CoverPatch` box
+  meshes with `CoverForceFlag` set (and, for low cover, a `VisibilityBlockingData` that lets units see over them);
+  cover comes only through `XComCoverInterface`, so a block has to be such an actor, not a volume. A first version
+  copied LWR's helper out of `patch_policestation.upk`; the user asked why it should need LWR's patch at all (plain
+  EW has none), so the Build makes the blocks itself.
+- [cover_blocks.py](tools/bake/cover_blocks.py) (new): per block an `XComLevelActor` with its `StaticMeshComponent`
+  and `XComFloorComponent`, built from a versioned recipe (as `light_factory.py` builds the recipe spot light) with
+  LWR's helpers' properties (hidden, not a destination, not climbable onto, cover forced high or low), on a box
+  `StaticMesh` of the block's own size written by the Build under a forced-export package of its own
+  (`XComMapEdCover`), one per size; no `BodySetup` (the triangles collide for line and box checks); seeds and a
+  rebuild volume over its tiles, as a copy gets (`native_copy.add_tiles_box`). Nothing is read from LWR's files.
+- [native_copy.py](tools/bake/native_copy.py): `build(covers=...)` and the copies file's `covers` list; the manifest's
+  `coverBlocks`. [compiler.py](tools/editor/compiler.py): `COVER_RECIPES` (version 1: whole tiles from the block's
+  corner, from 12 below the floor to 96 above it for high cover and 84 for low, as LWR's `highcover` and `Cover2x4`
+  stand; 1 to 16 tiles each way), `cover_add`, the spec's `covers` object, `native_split`; a block in a group that
+  breaks together doesn't break. [build.py](tools/editor/build.py): cover blocks make a build on their own; a project
+  with nothing else keeps the map's lighting (hidden actors cast no baked shadow: no relight, no texture cache); the
+  README and manifest count them. [families.py](tools/viewer/families.py) serves the recipe (`coverRecipes`).
+- The page: [cover.js](tools/viewer/web/cover.js) (new) draws a block as a see-through box (orange high, blue low);
+  [app.js](tools/viewer/web/app.js): the Add panel's **Cover** kind (six ready-made sizes at first, one entry
+  since: above; placed by their first tile so tile snap keeps them on the grid), the piece panel's **Cover block**
+  section (width, length, cover; one undo step each) in [index.html](tools/viewer/web/index.html), copy, paste, delete and groups as for pieces, saving
+  and opening; [project.js](tools/viewer/web/project.js) accepts the record (`template` {kind: cover, version},
+  `cover` {width, length, height}); [pieces.js](tools/viewer/web/pieces.js) shows a block's tiles and cover.
+- Docs: [viewer README](tools/viewer/README.md) (the piece list), the [guide](tools/release/guide/guide.html) (Add);
+  [EXP-31](research/experiments/EXP-31-cover-blocks.md) (what changed, and run 1 to do).
+- Checked: new [test_cover_blocks.py](tools/bake/tests/test_cover_blocks.py): against LWR's two helpers in
+  `patch_policestation.upk` (the reference only), a box of a helper's size has the helper's mesh layout, faces and
+  windings, normals and fields after LOD 0, and the built actors save the helpers' properties in their order with
+  their classes, archetypes, export flags and state frame (but a word of cooker noise, written 0 as the spot recipe
+  does); blocks built in URB_Bar read back (the viewer's mesh reader, the Level's list, shared meshes, fresh net
+  indices, seeded tiles). New `CoverTests` in [test_compiler.py](tools/editor/tests/test_compiler.py), a cover-only
+  and a mixed build in [test_build.py](tools/editor/tests/test_build.py), `check_cover` in the
+  [browser smoke test](tools/viewer/tests/browser_smoke.py). The editor, viewer and bake suites pass. A test project
+  on URB_Bar (a 3 × 4 low block) built quick and full on a test server, and full again with a car deleted beside it
+  (relit, the block left out of the shadows). Known gaps: not yet played in the game (EXP-31 run 1); the box has no
+  rigid-body collision (ragdolls and debris pass through it).
+
+### Basic Training (Act1_IntroLevel, the tutorial's map) in the map browser, its builds and its plays (F-77, F-78)
+
+- Testers reported Act1_IntroLevel missing from the map browser, taking it for the campaign's first mission. The map
+  browser lists live `DefaultMaps.ini` records only, and LWR comments out both of this map's (an abduction, "Helo
+  Crash", and the tutorial's Basic Training). Under LWR a new campaign's first mission plays URB_CommercialAlley_EWI
+  (EXP-03), which was listed already; the user chose to add the tutorial's map anyway.
+- [maplist.py](tools/viewer/maplist.py): `SWITCHED_OFF` and `records`: the editor takes Act1_IntroLevel's commented-out
+  abduction record as the map's (not the tutorial's, which streams the tutorial's script); the map browser lists it as
+  "Basic Training (tutorial map)" under Abduction (96 maps). The other maps with only commented-out records stay out
+  (Long War's EU maps). The exporter ([export.py](tools/viewer/export.py) `map_records`), Build
+  ([build.py](tools/editor/build.py) `base_records`), Play in game ([installs.py](tools/viewer/installs.py)
+  `base_records`, `plan_record`) and the release's [README check](tools/release/readme_install_check.py) read records
+  through it, so a variant gets a live copy of that record.
+- [installs.py](tools/viewer/installs.py) `install_map_record` and [play.py](tools/viewer/play.py): Play in game on the
+  map alone crashed the game 8 s into the battle with no record (EXP-30 run 1, F-78); it now puts a live copy of the
+  abduction record in for the play, out of rotation, kept in the install's ledger (the next play replaces it, Remove
+  from game takes it out); the page names it ([play.js](tools/viewer/web/play.js), [app.js](tools/viewer/web/app.js)).
+- [native_copy.py](tools/bake/native_copy.py): `LightmassImportanceVolume` is the last class a rebuild volume is
+  cloned from (F-77): the map has no trigger, no-spawn or cursor volume and its camera blocking volumes have no brush,
+  so a Build that deleted a piece stopped.
+- Docs: [viewer README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html),
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md); [findings register](research/findings-register.md): F-77,
+  F-78; [EXP-30](research/experiments/EXP-30-intro-map.md).
+- Checked: new tests in [test_maplist.py](tools/viewer/tests/test_maplist.py), [test_build.py](tools/editor/tests/test_build.py),
+  [test_play.py](tools/viewer/tests/test_play.py) (a variant's record and install, the map alone's record in and out
+  byte for byte) and [test_native_copy.py](tools/bake/tests/test_native_copy.py) (`RebuildTemplateIntro`, on the
+  install's package); the map's two lines added to [defaultmaps-records.txt](tools/patch/tests/defaultmaps-records.txt)
+  (its count in [test_ship_record.ps1](tools/patch/tests/test_ship_record.ps1), 49 of 49). The viewer (156), editor
+  (93), bake (224), release (5) and upk (24) suites and the browser smoke test pass. The map exported (export 18) and
+  opens in the editor; the EXP-30 project (the police car deleted) built in full and played in run 2 (the car gone,
+  the battle normal). Not yet played: the map alone with its record (EXP-30 run 3); standing where the car stood (the
+  grid's edge).
+
+### An alien base variant gets its own entrance intro, so its battle starts (F-76)
+
+- The user's Play in game on a quick build of AlienBase01 (project aba1_test) loaded the battle and then stayed in a
+  cutscene that never played. The alien bases' intro, `CIN_TP05A_EnteringAlienBase`, picks its scene with a Switch
+  String on the map's name (`AlienBase01`, `AlienBase02`); a variant's name matched neither, so cinematic mode stayed
+  on and the intro never ended. The same cause as the landings' F-45, in a package the Build didn't copy.
+- [build.py](tools/editor/build.py) and [intro_copy.py](tools/bake/intro_copy.py): `INTROS` takes
+  `CIN_TP05A_EnteringAlienBase` too, so a variant of AlienBase01 or AlienBase02 streams
+  `CIN_TP05A_EnteringAlienBase_<variant>` with its base map's case under the variant's name; the README says "the
+  intro plays as it does in <map>" for it (`LANDINGS` keeps the Skyranger wording for the landings). Of every `CIN_`
+  package LWR's records stream, only these three switch on a map name (scanned on the install).
+- [Findings register](research/findings-register.md): F-76.
+- Checked: new `test_an_alien_base_gets_its_own_entrance_intro` in
+  [test_build.py](tools/editor/tests/test_build.py) and `EntranceCopy` in
+  [test_intro_copy.py](tools/bake/tests/test_intro_copy.py) (on the install's package: one switch, entry 0 of 3
+  renamed, every export kept); AlienBase01's record added to
+  [defaultmaps-records.txt](tools/patch/tests/defaultmaps-records.txt) (its count in
+  [test_ship_record.ps1](tools/patch/tests/test_ship_record.ps1), 49 of 49). The editor, viewer and bake suites pass.
+  aba1_test rebuilt (quick): the package carries the copy, and Play in game's record (`installs.plan_record`) streams
+  it in place of the original.
+- Played: the user ran aba1_test's rebuild with Play in game, and the intro played into the battle ("tested works").
+- Known gaps: AlienBase02 wasn't played. Play in game still writes the record as an abduction, as for every map
+  (fine for map testing, the user says).
+
+### The wheel zooms towards what is under the cursor, and no longer stalls on big maps
+
+- The user asked why zooming in sometimes slows down: on a big map, zoomed far in, scrolling barely zooms at all.
+  OrbitControls' own zoom scales the distance to the orbit target (by 0.95 a notch), so each notch moves a share of a
+  shrinking distance and it never passes the target. Framed on a big map the target sits at the map's centre; zooming
+  in on anything else ends up close to the target and stalls there.
+- [app.js](tools/viewer/web/app.js) `wheelZoom` replaces it (`controls.enableZoom` off): a notch moves the camera 18%
+  of the way to the surface under the cursor (`pick`; else the ground level with the target; else a point on the
+  cursor's ray as far as the target), so that point stays under the cursor; the orbit target moves onto the view's
+  centre line at that point's depth, so orbit, right-drag pan and arrow-key pan speed follow what was zoomed to.
+  Zooming out backs away the same way. A burst of wheel events with the cursor still raycasts once. Close in the near
+  plane comes in (depth / 50, down to 0.2) and goes back to the framing's on the way out (`frameNear`).
+- [README](tools/viewer/README.md): the camera line says how the wheel zooms.
+- Checked: new `check_zoom` in [browser_smoke.py](tools/viewer/tests/browser_smoke.py) (also `--only zoom`): framed
+  on the whole map, 40 notches towards the piece farthest from the orbit target bring the camera within 30 units of
+  it (it stood 10,600 to 26,600 units from the target), the point within 3 pixels of the cursor, and 40 back return
+  to within 5% of the start; passes on Bar, URB_StreetOverpass and AlienBase01 on a test server (8790, then stopped),
+  and the full smoke test on Bar passes with no page errors. (A first run failed on the test's own fractional pixel:
+  a quarter pixel is some 15 units on the whole map.)
+- Known gaps: not tried with a real mouse or touchpad here (only Playwright's wheel events); pinch zoom on a touchpad
+  arrives as wheel events with Ctrl and zooms the same way.
+
+### No snapping limits: any piece moves freely, cars and doors included
+
+- The user asked to take away the grid snapping limits, so that snap can be off for any piece, cars included. Until
+  now ladders, doors, cars, vans and fracturing pieces kept the recipe snap whatever the snap setting, and the
+  compiler refused them off the grid.
+- [compiler.py](tools/editor/compiler.py): `grid_rule` no longer refuses a pose off the grid; it adds an `off-grid`
+  warning (what the pose misses, and `nearest`, the nearest pose on the grid) and the assembly's move says
+  `grid: false`. The Build already carries the per-tile data by the exact move (`native_copy` `move_columns`,
+  `moved_pose`, `edit_floor_caches` and the ladder ends take any pose; the assembly moves only reach the manifest), and
+  the game rebuilds the copy's tiles.
+- [gizmo.js](tools/viewer/web/gizmo.js) and [app.js](tools/viewer/web/app.js): the pose rule holds only under tile
+  snap (96, badge **R**); snap off or 24, such a piece drags, types, pastes and aligns as any piece does, pitch and
+  roll rings included. A new chip, **Off the grid** (warning), shows while such a piece stands off its original's grid
+  (`poserule.js` `gridMove`), with what it misses; under tile snap the chip says Recipe snap as before.
+- Docs: the [viewer README](tools/viewer/README.md)'s snap section and fracturing note,
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md)'s list of what builds.
+- Checked: `test_compiler` (57; the fracturing test now expects the warning for each miss, moved and added; new
+  `test_assemblies_off_the_grid_build_with_a_warning`: a car turned off the tile corners, moved half a tile, copied
+  half a tile over, a door turned 30°); [browser_smoke.py](tools/viewer/tests/browser_smoke.py) on Bar on a test
+  server (8790, then stopped), no page errors: with snap off a ladder moves 150 units and turns 30° freely, the chip
+  and the page's own grid check say off the grid, undone it goes; the tile-snap recipe checks as before; the viewer's
+  suite (151) and the editor's (91).
+- Known gaps: nothing built off the grid was played. A fracturing piece's columns stay one box per tile only on the
+  grid (turned off a quarter turn, each column's box grows to hold its turned corners); a ladder off the grid climbs
+  from the tiles its ends fall in; a van's building volumes turn with it.
+
+### A full build's shadow relight leaves out a component with no mesh (T-28)
+
+- A tester's bug report (0.3.1, plain EW): a full build of DLC1_1_LowFriends stopped in the relight on
+  `XComLevelActor_16.StaticMeshComponent_166`, which names no static mesh yet keeps a dominant-light shadow map; its
+  box, asked for by the quick reach test outside the per-receiver `try`, stopped the whole relight.
+- [shadowmaps.py](tools/bake/shadowmaps.py): `dominant_receivers` leaves out components with no static mesh in the
+  package; [relight.py](tools/bake/relight.py): `receivers_near` does too.
+- Checked: `test_shadowmaps` (new `MeshlessReceiver`) and `test_relight`; the tester's project, taken from the report,
+  built here to the end on the same map (export into a scratch cache). See the
+  [findings register](research/findings-register.md), T-28.
+- Known gaps: not played; the tester needs a new release to get it.
+
+### A full build reads a lighting texture that saves no cache name (T-27)
+
+- The user's full build of URB_StreetOverpass (13 copies) stopped while making the edit: "Texture has no own 8-byte
+  TextureFileCacheName". A copied piece's spotlight shadow map texture keeps every mip inside the map and saves no
+  cache name at all.
+- [lightmap_fields.py](tools/bake/lightmap_fields.py): `texture_fields` takes such a texture (`cache` and
+  `cacheNameOffset` None) when no live mip lies in a cache, and still refuses one with cached mips but no name.
+  [lighting_fixture.py](tools/bake/lighting_fixture.py): `redirect` edits it in place, as it does a texture kept inside
+  the package under a cache name.
+- Checked: `test_fixture` (23 tests, two new in `TextureWithoutCacheName`), `test_shadowmaps`, `test_native_copy`
+  and `test_shadows_bounce` pass; the build's own
+  `native_copy.py --bake` command rerun on the shipped map to the end; all 25 such textures on the install's shipped
+  maps (10 maps) read now. See the
+  [findings register](research/findings-register.md), T-27.
+- Known gaps: not played; a copy keeps its original's shadow maps for lights other than the dominant directional one,
+  as before.
+
+### Releases published in a public repository of their own: 0.3.1 first
+
+- The user asked whether the installer could go in a Discord channel (60 MB: over most upload limits), then chose a
+  separate public repository for releases over making this one public (this one holds copies of upstream files with
+  no licence, in `research/evidence/upstream/`).
+- [ruskyandrei/xcom-map-workshop](https://github.com/ruskyandrei/xcom-map-workshop), new and public, with the user's
+  go-ahead: a README for testers (what it is, download, what it needs, the SmartScreen warning, the user guide,
+  reporting problems in its Issues with the bug-report zip, the licence, not affiliated with Firaxis or 2K) and the MIT
+  licence; release
+  [v0.3.1](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.3.1) with
+  `XCOM-Map-Workshop-0.3.1-Setup.exe` and `XCOM-Map-Workshop-0.3.1.zip`, its notes listing what is in it, the known
+  limits and both SHA-256 checksums.
+- Here: the [README](README.md) and the preview checklist name it;
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md)'s plain-EW limit no longer speaks of the first-mission
+  install (Play in game replaced it).
+- Checked: GitHub's digests of the two files equal the local SHA-256s; the repository page and
+  `releases/latest/download/XCOM-Map-Workshop-0.3.1-Setup.exe` answer 200 without signing in (60,064,422 bytes).
+- Known gaps: the published 0.3.1 still has the stale plain-EW line (the next release has the fix); releases are
+  published by hand (`gh release create`), with no script here.
+
+### Release 0.3.1: no zip beside a build, the build window's paths open Explorer
+
+- The first release under the patch-number rule. Made in `dist/release` beside the earlier ones:
+  `XCOM-Map-Workshop-0.3.1.zip` (97.8 MB, SHA-256 `398fcbae…69e0e7`) and `XCOM-Map-Workshop-0.3.1-Setup.exe`
+  (60.1 MB, Inno Setup 6, SHA-256 `72ab4a85…16ba`).
+- Checked: the zip's `VERSION.txt` and `User Guide.html` say 0.3.1; it has `reveal`, `pathLink`, the step's new name,
+  and a `build.py` without the zip.
+- Known gaps: the installer wasn't run.
+
+### The build window's paths open Windows Explorer; releases bump the patch number
+
+- The user asked for the paths the build window shows (a build's folder, a bug report's zip) to be links that open
+  Windows Explorer there, and for releases to raise the patch number from now on unless the change is big or breaking
+  or they ask for a minor or major one.
+- [builds.py](tools/viewer/builds.py) `reveal`, route `POST /builds/reveal {path}` ([viewer.py](tools/viewer/viewer.py)):
+  Windows' own `explorer.exe` opens a folder, or selects a file in its folder (`/select,`, which never runs it). Only
+  the builds folder and what is in it: anything else is 403, a path not there any more 404, no Explorer 501. The
+  route takes changes from the editor's own page only, as the others. The package summary loses its `zip`.
+- The page ([app.js](tools/viewer/web/app.js) `pathLink`, [project.js](tools/viewer/web/project.js) `reveal`,
+  [style.css](tools/viewer/web/style.css)): the build's folder and "Bug report saved (its path is copied): <zip>" are
+  links; a refusal shows in the link's tooltip, red.
+- [version.py](tools/viewer/version.py)'s rule: the patch number for each release, unless big or breaking, or asked.
+- Documents: the [user guide](tools/release/guide/guide.html), [GETTING-STARTED.md](tools/release/GETTING-STARTED.md),
+  the [viewer's README](tools/viewer/README.md).
+- Checked:
+  - [test_builds.py](tools/viewer/tests/test_builds.py): through the route, a folder and a file shown with the
+    arguments Explorer gets; above the builds folder, a `..` out of it, a missing path, no path, another origin and no
+    Explorer refused;
+  - in headless Edge on a test server (8790, then stopped), the build's answers stood in for: the folder and the bug
+    report's zip are links, each click posts its own path, the step reads "Write the variant folder", no page errors;
+  - `explorer` called once for real on a scratch file whose path has spaces: Explorer opened its folder with it
+    selected (read back through Shell.Application, then closed);
+  - the viewer suite passes (151), the editor's (90), the release's (5).
+
+### A build makes no zip: the variant folder is the build
+
+- The user: the folder with the map and the README is enough, no zip needed.
+- [build.py](tools/editor/build.py) `package`: the zip beside the variant folder (`<output>/<Variant>.zip`) is no
+  longer made, and a build takes an earlier build's zip of the same variant away (it would be out of date). The
+  step itself stays (it seeds the map, copies the landing intro and streamed patches, writes the README and
+  manifest); the build window names it "Write the variant folder", was "Package the variant"
+  ([app.js](tools/viewer/web/app.js)). A bug report's zip is unchanged.
+- Documents: [GETTING-STARTED.md](tools/release/GETTING-STARTED.md), the [user guide](tools/release/guide/guide.html)
+  (zip the folder to send it).
+- Checked: [test_build.py](tools/editor/tests/test_build.py): the folder holds its manifest, README and files and
+  no zip is beside it; a rebuild takes an earlier zip away. The editor's suite passes (90), the viewer's (151), the
+  release's (5).
+- Known gaps: zips of variants not built again since stay in the builds folder; release 0.3.0 still makes them.
+
+### Release 0.3.0: projects and builds in the editor's folder
+
+- The user asked for the installer repacked with the change below. [version.py](tools/viewer/version.py) goes to
+  0.3.0, as its rule says for each release; 0.2.0 is already installed on a second computer, so a bug report
+  from either names its own build.
+- Made in `dist/release` beside 0.1.0 and 0.2.0: `XCOM-Map-Workshop-0.3.0.zip` (97.8 MB, SHA-256 `acc9e4db…51e0b`)
+  and `XCOM-Map-Workshop-0.3.0-Setup.exe` (60.1 MB, Inno Setup 6, SHA-256 `dca60ac9…8a67`).
+- Checked: the zip's `VERSION.txt` (one CRLF) and `User Guide.html` say 0.3.0; its `settings.py` has
+  `default_folders`; the guide and README name the editor folder.
+- Known gaps: the installer wasn't run, nor an upgrade over 0.2.0 or an install for all users.
+
+### A release keeps projects and builds in its own folder
+
+- The user asked for projects and builds to go where the editor is installed instead of Documents.
+- [settings.py](tools/viewer/settings.py) `default_folders` (with `editor_folder`): with no setting, a release (its
+  folder holds `VERSION.txt` and `python`) keeps projects and builds in `<editor folder>\projects` and `builds`.
+  An upgrade replaces `tools` and `python` only, and uninstalling leaves the rest, so both survive. They stay
+  under `Documents\XCOM Map Workshop` when run from the repository, when the editor's folder can't be written (an
+  install for all users, in Program Files), and, each on its own, while that Documents folder holds anything (an
+  earlier release's projects or builds, so none go out of sight). The settings file and the cache stay in Documents.
+- Documents: [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) and the [user guide](tools/release/guide/guide.html)
+  (where things are, sharing, removing; with the zip, unpack a new version over the old folder or move the two),
+  [installer.iss](tools/release/installer.iss)'s notes, the [viewer's README](tools/viewer/README.md), the
+  [README](README.md); [take_shots.py](tools/release/guide/take_shots.py)'s stand-in projects folder (no picture shows
+  it, so none was retaken).
+- Checked: [test_projects.py](tools/viewer/tests/test_projects.py)
+  `test_a_release_keeps_projects_and_builds_in_its_own_folder` (the editor's folder, the repository, an earlier
+  release's projects in Documents, a folder that can't be written, a setting winning); the viewer suite passes (151),
+  the release's (5); a trial release (`--out dist/folders-check`, deleted after) whose own Python finds its folder,
+  writable, and gives a fresh Documents' tester `projects` and `builds` there. On this PC it keeps both in
+  Documents, which already hold projects and builds.
+- Known gaps: the installer wasn't run with it, nor an install for all users; 0.2.0 in `dist/release` was made before
+  this change.
+
+### Release 0.2.0: Play in game, the prepare-again dialog; release text files with single line endings
+
+- The user asked for a release from the latest main (c4b9e60, Play in game). [version.py](tools/viewer/version.py)
+  goes to 0.2.0 (its rule: the minor number for each preview release).
+- [make_release.py](tools/release/make_release.py): `VERSION.txt` and the embedded Python's `._pth` are written with
+  `newline=''`; they ended each line in `\r\r\n` (0.1.0's too), since `write_text` on Windows turns the `\n` of
+  `\r\n` into another `\r\n`. Python read the `._pth` regardless.
+- Made in `dist/release` beside 0.1.0: `XCOM-Map-Workshop-0.2.0.zip` (97.8 MB, SHA-256 `30cb8b8e…5898c`) and
+  `XCOM-Map-Workshop-0.2.0-Setup.exe` (60.1 MB, Inno Setup 6, SHA-256 `75b8474f…6237`).
+- Checked:
+  - the zip holds `gamelaunch.py`, `play.py`, `play.js`, no `intro.py` or `intro.js`; `VERSION.txt`, `version.py`
+    and `User Guide.html` say 0.2.0, and the guide describes Play in game and the prepare-again dialog, not Install
+    as intro map; `VERSION.txt` and the `._pth` end each line in one CRLF;
+  - the unpacked release's editor, started with its own Python on a test port (8790, then stopped): `/play.json`
+    answers (through Steam, install ready), `/guide.html` is 0.2.0, and temple_improved opens with Play in game and
+    Remove from game in its Project menu, no page errors;
+  - the release suite passes (5).
+- Known gaps: the installer wasn't run, nor the release on a clean Windows account (preview checklist item 2); Play in
+  game from the release wasn't played in the game.
+
+### Play in game stands in for a patchtool record of the same variant
+
+- The user's Play in game on temple_improved stopped with "DefaultMaps.ini has a record named
+  TempleShip_TempleIm_2001 that the editor did not write": the lab's patchtool deploy had written one on 6 Nov, when
+  that project was tested before the editor could install.
+- [installs.py](tools/viewer/installs.py): a record of the variant whose comment line is patchtool's ("; <variant>:
+  <base>'s record under its own name, … (patchtool, <date>)", `patchtool_record`) is replaced by the editor's while
+  its build is installed; the ledger keeps the two lines and Remove from game (and `pristine_lines`, so what the
+  editor reads of the install) puts them back. Landing-zone lines patchtool left are kept as they are. Any other
+  record of that name is still refused, the message now giving its line.
+- Checked: [test_play.py](tools/viewer/tests/test_play.py) (14) stands in for one, installs a rebuild over it and puts
+  it back byte for byte, and refuses one without patchtool's comment; offline, the user's build installed into a
+  copy of the lab's `DefaultMaps.ini`, `DefaultLZMutator.ini` and ledger took line 185's place, and `reset` left both
+  files with their hashes from before; the viewer's suite passes (150).
+- Known gap: not yet played in the game (the user's next click).
+
+### A map that needs preparing again: a dialog in the middle of the window, and a button where a build failed for it
+
+- The user's build of a Temple Ship project failed with "no export of TempleShip … at version 18 or newer … prepare
+  the map (re-export it …) and restart the editor": the offer to prepare was a banner at the top of the view, which
+  they had missed, and the build window had no way to do it.
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html) (`#prepareModal`, `#buildPrepare`),
+  [style.css](tools/viewer/web/style.css):
+  - a map whose export is older than lights and builds need (`families.json`'s `exportProblem`) opens with a dialog
+    in the middle of the window, **Prepare now** focused; it shows the export's progress and reopens the map. **Later**
+    (or Esc) leaves the banner, whose button opens the dialog again;
+  - Build and Play in game of a project on such a map show the dialog instead of starting (`needsPrepare`);
+  - a build that failed for want of a newer export says so in plain words above the compiler's message, and its
+    window has a **Prepare the map** button that starts the export at once.
+- [installs.py](tools/viewer/installs.py) `plan_record`: a variant's record is an abduction whatever kind the base
+  map's record is (Temple Ship's is `eMission_Final`), as the intro slot's was when a variant played there (EXP-14,
+  EXP-25).
+- Documents: the [user guide](tools/release/guide/guide.html), the [viewer's README](tools/viewer/README.md),
+  [EXP-29](research/experiments/EXP-29-direct-map-launch.md)'s "Not known".
+- Checked:
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_prepare`, with the server's answers stood in for:
+    the dialog in the middle on open, Esc and Later leaving the banner, the banner opening it again, Ctrl+B asking to
+    prepare instead of opening Build's panel, a failed build's window offering Prepare the map, the progress shown
+    and the page reopened; run on Bar with `--play --play-project` against a scratch game folder and
+    `serve --dry-play`: no errors;
+  - [test_play.py](tools/viewer/tests/test_play.py) (13): a Temple Ship variant's record is an abduction, out of
+    rotation, with the base record's streams;
+  - offline, the user's build of temple_improved (`TempleShip_TempleIm_2001`, built 10 Nov 00:03 after they had
+    prepared the map) installed with `install_package` into a scratch copy of the lab's config: one record after
+    Temple Ship's, `eMission_Abduction`, `bInRotation=False`, no landing-zone lines (LWR has none for Temple Ship);
+    `reset` left `DefaultMaps.ini` with its hash from before;
+  - the viewer's suite passes (149).
+- Known gaps:
+  - no real old export was prepared through the dialog: the export route is the one the banner used, unchanged;
+  - a Temple Ship variant wasn't played through Play in game, nor any map of the game's whose first record isn't an
+    abduction.
+
+## 9 November 2026
+
+### Play in game: the game started straight in a battle on a map, in place of Install as intro map
+
+- The user asked whether a map could be tested without starting a campaign and without changing the game's first
+  mission, then to try the way that needs no Steam launch option and, if it worked, to change Install as intro map
+  to it. It works: [EXP-29](research/experiments/EXP-29-direct-map-launch.md), seven runs in the lab copy; findings
+  register F-72 to F-75.
+- **Play in game** (Project menu) installs a project's build under its own name and starts the game on it; with a
+  map alone it starts the game on the map and installs nothing. **Remove from game** takes everything the editor
+  installed back out. They replace Install as intro map and Reset intro map.
+- New, [gamelaunch.py](tools/viewer/gamelaunch.py): the commands file's text (the content loaded on demand, a squad
+  of six squaddies written out in LWR's item numbers, `open <Map>`); the command that starts the game
+  (`steam.exe -applaunch 200510 -EXEC=<file>` for a game folder in a Steam library, and only the folder Steam's
+  manifest names; else the folder's own `XComEW.exe`).
+- [installs.py](tools/viewer/installs.py):
+  - a variant gets a `DefaultMaps.ini` record of its own after the base map's records, out of rotation, in place of
+    the intro slot's line being rewritten (`plan_record`); no line the install had is changed;
+  - the commands file in `XEW\Binaries` (`write_play_file`), and the game's `XComContent.ini` kept aside for a play
+    and put back after it (`backup_config`, `restore_config`: the commands make the game save that file, F-73);
+  - `reset` takes all of it out, and an intro install an earlier version left, which the next play does too
+    (`restore_intro`); `maps_text` reads an install without the editor's records.
+- [play.py](tools/viewer/play.py) (was `intro.py`): `Player`, with the routes `GET /play.json`, `POST /play/start`
+  and `POST /play/remove` ([viewer.py](tools/viewer/viewer.py)); a watch that puts the config back once the game has
+  closed, also for a file left kept by a server that went away; `serve --dry-play` does everything but start the
+  game.
+- The page: [play.js](tools/viewer/web/play.js) (was `intro.js`), the Project menu's two items and its Installs rows
+  (Game, Plays in, Started, In the game), Build's panel as Build and play / Play last build
+  ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)).
+- Documents: the [user guide](tools/release/guide/guide.html) (its Project menu picture retaken),
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md), the [viewer's README](tools/viewer/README.md), a build's
+  README line ([build.py](tools/editor/build.py)).
+- Checked:
+  - in the game (EXP-29 run 7): a test server's Play in game on the project "EXP-26 lights" added the record, started
+    the game through Steam on the variant with its own landing intro and the squad, put `XComContent.ini` back when
+    the game closed (same hash), and Remove from game left `DefaultMaps.ini` with its hash from before;
+  - [test_play.py](tools/viewer/tests/test_play.py) (12, was `test_intro.py`; nothing is started): a map played with
+    nothing installed; a project's record added, replaced by a rebuild and taken out byte for byte; plain EW; the
+    config kept aside and put back when the game closes, and by the next server; an earlier version's intro install
+    put back; a separate copy; lines and files changed since; XCOM running; the routes; the squad's text (the same
+    as run 6 played) and Steam's command;
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) on Bar with `--play --play-project` against a scratch
+    game folder and `serve --dry-play`: no errors;
+  - the viewer's suite passes (148), the release's, the editor's and the bake's.
+- Known gaps:
+  - the squad is written for LWR (Long War's item numbers are taken to be the same); on plain Enemy Within the game's
+    own developer squad plays, and nothing of plain EW was played;
+  - a game folder outside a Steam library (started by its `XComEW.exe`) wasn't tried, nor a Steam with no launch
+    option at all (the lab's wrapper was set, which only adds arguments);
+  - not played: a whole battle to its end, saving in it, and whether the game ever writes the profile on this path
+    (it didn't in the runs);
+  - if the editor is closed before the game, `XComContent.ini` stays as the play left it (the game's own values plus
+    the on-demand loading) until the editor next starts;
+  - the lab's own `lab_install.py` still uses the test slot.
+
+### A build copies a piece lit per vertex: Stonewall's vine and Temple Ship's door volumes
+
+- The user asked for the copying limit the last entry left open (T-26 in the
+  [findings register](research/findings-register.md)): a full build refused a piece whose lightmap is per vertex,
+  because that lightmap lies in the mesh component's own data with the absolute offsets of its samples.
+- [lightmap_fields.py](tools/bake/lightmap_fields.py): a vertex lightmap's fields are located (`ownerOffset`,
+  `owner`, `bulkOffsets`, `scaleVectorsOffset`), in place of the note that they weren't.
+- [native_copy.py](tools/bake/native_copy.py):
+  - `lighting_textures` no longer refuses such a piece (it has no lightmap textures);
+  - `clone_assembly` gives the clone its own vertex lightmap: the owner remapped to the clone, the bulk records'
+    offsets moved to where the clone will lie (`vertex_lightmaps`, `move_bulk_offsets`), counting any light GUIDs
+    put in before them. This is for quick builds too, which used to make the clone without either;
+  - `check_vertex_lightmaps`, after the write: every clone owns its lightmap and its records point at their own
+    payloads;
+  - a vertex lightmap in a mesh-swap record is refused (no map has one).
+- Checked:
+  - [test_native_copy.py](tools/bake/tests/test_native_copy.py) `BulkOffsets` (no game data): the offset moves
+    with the export; bytes put in before a record move it; an empty record moves, one stored elsewhere stays; a
+    record that points elsewhere is refused;
+  - `VertexLit` (CLrgScout_Stonewall from the install, skipped without it): the vine is lit per vertex and has no
+    lighting textures; its copy is a new actor whose component owns its lightmap, with the original's samples at
+    the copy's own place, the original untouched, and it casts its triangles two tiles along; a clone relocated
+    after it was made is caught;
+  - full builds into scratch folders: on Stonewall the vine with the stone wall beside it (12 components relit,
+    10 shadow maps, the vine's copy listed as skipped by rule); on Temple Ship the door volume `XComLevelActor_2`
+    with its door (lighting unchanged). Both read back from the built maps: the copies own their lightmaps, the
+    records point 16 bytes on, the properties are their originals' bar `VisibilityId`, and both are in the Level's
+    list;
+  - the bake suite passes (219), the upk's (24), the editor's (90) and the viewer's (144).
+- Known gaps:
+  - not played: whether the game draws the vine's copy with its vertex light was not looked at;
+  - the copy keeps its original's light. The relight writes texture lightmaps only; the copy does cast its shadow
+    from its new place. The door volumes are hidden, so only the vine can show it;
+  - a moved vine was not built (a move is this copy and a hide, which doesn't touch the lightmap).
+
+### Full builds of CLrgScout_Stonewall and URB_CommercialStreet_Terror: the two other maps the caster read stopped on
+
+- The user asked for the two maps the last entry's scan found (T-25 in the
+  [findings register](research/findings-register.md)).
+- CLrgScout_Stonewall: a vine (`CemeteryFoliage.Meshes.VineTop_2`) names lightmap UV channel 1 and has one channel;
+  it is lit per vertex. [lightmap_texels.py](tools/bake/lightmap_texels.py): `component_mesh` gives such a mesh
+  with `uv` None, so it casts shadows and has a box, and `rasterise` refuses it with the message `component_mesh`
+  gave before.
+- URB_CommercialStreet_Terror: a tree's mesh component couldn't be read. Its net index, 2315, is where the map's
+  name table has None, and `props_start` took it for the closing None of an empty property block.
+  [props.py](tools/upk/props.py): the closing None must be the plain name (number 0).
+- Checked:
+  - [test_props.py](tools/upk/tests/test_props.py), new: the start after an actor's net index, a component's
+    second field and a template's name; an export without properties; the field that equals None's place;
+  - [test_shadows_bounce.py](tools/bake/tests/test_shadows_bounce.py) `Casters`: a mesh without its lightmap UVs
+    casts its triangle and only rasterising refuses it; one with them carries them;
+  - the old and the new `props_start` compared over every export of the install (2,757,592 in 3,052 packages): 54
+    change, and each of them failed to read before and reads now (the register lists what they are: lights,
+    floor components and mesh components among them);
+  - the caster scan again over the 456 map packages: nothing left but the lab's own `patch_exp05`;
+  - full builds into scratch folders, from scratch exports: on Stonewall a copy of the stone wall beside the vine
+    (11 components relit, 10 shadow maps); on Terror a copy of that tree put inside the play area (12 relit, 4
+    shadow maps), read back from the variant with its source's ten properties and in the Level's list;
+  - the upk suite passes (24), the editor's (90), the viewer's (144) and the bake's (212).
+- Known gaps:
+  - not played;
+  - a copy of the vine itself still fails the build, by a rule that was there: a piece lit per vertex can't be
+    copied, and the compiler doesn't say so first (T-26, open; on the listed maps only that vine and Temple Ship's
+    four door volumes);
+  - the 54 exports include lights and floor components the tools couldn't read before; what the editor and the
+    builds made of them until now was not looked at, and maps exported before this keep their old exports (the
+    export version stays 18).
+
+### A full build of a map with flags failed: a mesh's colour stream longer than its vertices
+
+- The user installed the editor on another computer, copied a car on URB_FastFood, and the full build failed
+  (bug report `URB_FastFood_Test_3b8e-report.zip`): the relight stopped in `shadows.caster_triangles` with
+  `FormatError: Invalid colour stream` from `mesh.read_mesh`.
+- Cause (T-24 in the [findings register](research/findings-register.md)): the cloth of the map's flags
+  (`FX_Cloth.Flags.Flag_B`, also `Flag_A`) saves 180 vertex colours for its 90 vertices, the 90 twice over, and the
+  reader took any count but the vertex count for a broken file. The relight reads every shadow caster of the map,
+  so any full build of such a map failed, whatever the edit; a quick build doesn't relight and passed. Nothing of
+  the other computer or its plain Steam install is involved: the same map file here failed the same way.
+- [mesh.py](tools/viewer/mesh.py): `read_mesh` checks the colour stream against its own header and reads it as far
+  as the vertices go; a stream shorter than the vertices is still refused.
+- The export reads the same meshes: a map exported from now on shows its flags' cloth (URB_FastFood: six), which an
+  earlier export left out with a diagnostic. The export version stays 18, so a cache made before this keeps its
+  flagless exports until the map is exported again; builds don't depend on it.
+- Checked:
+  - [test_formats.py](tools/viewer/tests/test_formats.py) `test_colour_stream`: a colour per vertex; twice as many
+    read as far as the vertices; fewer refused; a header and array that disagree refused;
+  - the report's project full-built here into scratch folders (a scratch cache and builds folder): 11 components
+    relit, 5 shadow maps, both copies made, the package written;
+  - every map package of the install scanned with the relight's caster read (456 maps, 145,338 casters): the long
+    colour stream is only the two flag meshes, in ten packages (URB_FastFood, URB_OfficePaper and their EWI
+    versions, URB_OfficePaper_Terror, URB_LiquorStore, URB_SlaughterhouseA, URB_Boulevard_Euro as casters;
+    EWI_ChryssalidHive not as one), and every caster of those packages reads now;
+  - the viewer suite passes (144), the bake's (210) and the editor's (90).
+- Known gaps:
+  - not played: the build's map was not started in the game;
+  - the scan found two more listed maps whose full build would stop in the same read for other causes,
+    CLrgScout_Stonewall and URB_CommercialStreet_Terror (T-25, open);
+  - a release made before this change still has the old reader: the other computer needs a new release, or this
+    one file replaced.
+
+### A user guide: one HTML page, in every release, opened after Setup and linked from the ? menu
+
+- The user asked for a user guide: the window described, each button marked on a screenshot and explained, typical
+  use cases, and early on a list of what the editor can't do; one HTML page, in the repository and in each release,
+  perhaps opened when the install is done.
+- [guide.html](tools/release/guide/guide.html), new: the guide's source. What the editor does; what it can't do
+  yet (maps and pieces, missions and gameplay, building, the view, the program); getting started; the window, part
+  by part, each with a marked picture and a numbered list (header, tool strip, view and camera, bottom bar and
+  floors, piece panel and its chips, groups and Align, the piece list, lights, View options, Project menu, map
+  browser, Build, the other windows); eleven typical tasks; how pieces move and what builds; keys; the known limits
+  in the game; where things are; problems and removing. It follows the system's light or dark theme, has a contents
+  list beside it on a wide window, enlarges the large pictures on a click, and loads nothing from the net.
+- [take_shots.py](tools/release/guide/take_shots.py), new, and its 16 pictures in
+  [shots/](tools/release/guide/shots): Playwright and Edge drive the editor through a demo project on the Bar (a pool
+  table moved, a claw machine copied, an ATM deleted, saved as "Bar remix") and take each picture with numbered
+  marks drawn beside the page's own controls, found by their ids. It never builds or installs. The server's answers
+  that would name this computer's folders (`/intro.json`, the projects folder) are replaced by a usual install's.
+- [guide.py](tools/viewer/guide.py), new: the guide as one page (`inline`: each picture put inside as a data URI,
+  the version in its slot) and what the server sends (`page`: a release's own `User Guide.html`, else the
+  repository's source made one page).
+- [viewer.py](tools/viewer/viewer.py): `GET /guide.html` sends it. [index.html](tools/viewer/web/index.html): the ?
+  menu starts with a **User guide** link, which opens it in a new tab ([style.css](tools/viewer/web/style.css)).
+- [make_release.py](tools/release/make_release.py): the release carries `User Guide.html` beside the README, and its
+  check asks the staged editor for it. `--out` is made absolute (a relative one failed in that check, as it did
+  before this change).
+- [installer.iss](tools/release/installer.iss): the Start menu's "XCOM Map Workshop guide" opens `User Guide.html`
+  (it opened README.md in Notepad; the same name, so an upgrade replaces it), and Setup's last page has a second
+  ticked box, **Open the user guide**.
+- Docs: [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) points to the guide; [README](README.md), the
+  [viewer README](tools/viewer/README.md) (the guide, and retaking its pictures when the window changes) and the
+  preview checklist.
+- Checked:
+  - [test_guide.py](tools/viewer/tests/test_guide.py), new: pictures inside the page and the version in; a missing
+    picture or slot is an error; a release's file ahead of the source; the route (GET, HEAD, 404 with no guide);
+  - [test_release.py](tools/release/tests/test_release.py): every picture the guide names is there and none is
+    left over; as one page it loads nothing from beside it or the net; its links name sections that exist; every
+    control `take_shots.py` marks is an id of the page; the installer's shortcut and last-page entry;
+  - the viewer suite passes (143), the release's (5) and the editor's (90);
+  - each picture looked at; the guide rendered in headless Edge at 1500, 1100 and 400 wide, dark and light, with
+    no page errors, no sideways scroll and every picture loaded;
+  - on a test server (8790): the ? menu's link opens `/guide.html` in a new tab, version 0.1.0, 16 pictures;
+  - `make_release.py --out dist/guide-check` (the last release in `dist/release` left alone): the zip (97.8 MB)
+    has `User Guide.html` at its top, 2.0 MB with its 16 pictures inside and version 0.1.0, the staged editor
+    finds it, and Inno Setup 6 compiles the installer (60.0 MB).
+- Known gaps:
+  - Setup's last page and the Start menu shortcut were not run: installing here would write this user's settings
+    and shortcuts. The installer compiles with both entries;
+  - the guide's text is kept right by hand: the test catches a control that is gone, not one whose behaviour
+    changed;
+  - the pictures show the Bar drawn from this install's game files, as the experiment notes' editor shots do;
+  - no picture of the build window, the Save and Load dialog or Game install and checks (their folders are this
+    computer's); the guide describes them in words.
+
+### A save's tiles read without the game; a fracturing copy's fragment heights go with a storey move
+
+- After EXP-28 run 1 (the user: "all seemed ok except" a deleted wall's line that couldn't be crossed and a floor
+  strip's copy that took no soldier). Both were settled from the run's save; the
+  [EXP-28 note](research/experiments/EXP-28-fracturing-physics.md) has the result.
+- [save_tiles.py](tools/lab/save_tiles.py), new: reads a tactical save's static tile store (the game's flags after
+  its tile rebuild) and prints each tile's flags beside the map's baked ones, with F for a floor and O for occupied,
+  for tile ranges (`--tiles`) or a world box (`--box`). The save is decompressed in memory (a 1,024-byte header,
+  compressed chunks as a cooked package's) and the store found by its header. Nothing is written.
+- [native_copy.py](tools/bake/native_copy.py) `shift_fragment_heights`: a fracturing copy moved up or down takes its
+  fractured mesh components' `FragmentBoundsMinZ` and `FragmentBoundsMaxZ` along, which the map saves as world
+  heights. Found while reading the floor strip's properties; EXP-28 run 1's copies stand at their originals' heights.
+- Docs: the [findings register](research/findings-register.md) (F-69 verified in the main, F-70, F-71: a floor's
+  copy gets floor only where a soldier has standing room, T-23), the [contracts' matrix](research/editor-contracts.md),
+  [README](README.md), the [viewer README](tools/viewer/README.md) and the release's
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md), which no longer say nothing was played.
+- Checked:
+  - [test_save_tiles.py](tools/bake/tests/test_save_tiles.py): a made-up save of two chunks and a one-chunk store;
+  - [test_native_copy.py](tools/bake/tests/test_native_copy.py)
+    `test_a_storey_floor_copy_moved_up_takes_its_fragment_heights_along`;
+  - the bake suite passes (210), the editor's too (90);
+  - on the run's save: the deleted wall's two kitchen-side tiles free after the rebuild, the back bar's column
+    still occupied; the strip copy's tiles, 4 with a floor and 6 without, under tiles the bake has occupied.
+- Known gaps:
+  - only the static flags are read, not the save's floor heights or pathing links;
+  - the editor doesn't warn of a floor copy without standing room over it (F-71);
+  - a copy moved by a storey hasn't been played.
+
+### Fracturing pieces and physics props build for every project; the kind list loses its build notes
+
+- At the user's request ("let's get fracturing and physics enabled and then clear those warnings from that list"),
+  on branch `fracturing-physics`. Both families were the last of a map's own kinds the Build refused (milestone M3).
+  They are switched on before any game run, as lights were; [EXP-28](research/experiments/EXP-28-fracturing-physics.md)
+  has the run still to play.
+- [compiler.py](tools/editor/compiler.py):
+  - `FAMILIES['fracturing']` and `FAMILIES['physics']` build. Either off again brings back its refusal.
+  - A fracturing piece of its own (a wall, a storey floor, a roof slab, a counter) keeps the grid move, though it is
+    no assembly (`single_grid_rule`, in `override` and `add`): whole tiles, whole storeys and quarter turns from where
+    its original stands. Off the grid it is refused with the nearest pose that builds. A physics prop takes any pose.
+    A door's frame edited without its leaf stays a free destructible prop.
+  - `NATIVE_CLASSES` has the two fracturing classes and `KAsset`, so the Build makes them in the map itself.
+- [native_copy.py](tools/bake/native_copy.py) (findings register F-69, T-22):
+  - every fracturing copy takes its fragment columns along, not only a car's glass (`move_columns`, now run after all
+    the clones are made). Its `DestructibleCache` and its `FracActorCache` (the neighbouring walls' columns, which
+    the glass recipe never met) keep the entries of its assembly and of pieces copied by the same move
+    (`same_move`), naming their copies, and drop the rest;
+  - `edit_columns` takes hidden fracturing pieces out of every `FracActorCache`, takes wall copies as destinations
+    for a door's copy (once per column), and reads a hidden wall's listing too;
+  - `EditorPaintedVisibleFragments` is no longer read as object references (`NOT_REFERENCES`);
+  - the log lines say what a copy's columns kept and dropped.
+- The page ([pieces.js](tools/viewer/web/pieces.js), [app.js](tools/viewer/web/app.js),
+  [index.html](tools/viewer/web/index.html)):
+  - the piece list's kind options carry their count alone ("Fracturing (37)"): " · first build" is gone, and " · M2"
+    or " · M3" stays only on a kind none of whose entries build (doors without a frame, on a UFO map);
+  - through `families.json`, fracturing pieces and physics props lose their "Builds from M3" chip, their M3 tag and
+    the not-built banner, and a fracturing piece gets the recipe snap;
+  - the help's "What builds" names them, and lights, which it still listed as not built.
+- [exp28_projects.py](tools/editor/examples/exp28_projects.py): EXP-28 run 1's project on Bar (a wall copied with its
+  two doors, a counter section moved, a wall deleted, a storey floor strip copied, three corpses).
+- Tests:
+  - [test_compiler.py](tools/editor/tests/test_compiler.py): the families table; a fracturing piece and a physics
+    prop compile, and are refused as before with their family patched off; a fracturing piece on and off the grid,
+    moved and added; all four kinds of copy go to the map, none to the patch;
+  - [test_native_copy.py](tools/bake/tests/test_native_copy.py): a wall copied with a door (columns carried exactly,
+    the door's copies listed once, the rest dropped); a hidden wall leaving its neighbours' columns and a door's
+    copy joining a wall's copy; a physics prop's clone;
+  - [test_families.py](tools/viewer/tests/test_families.py) and
+    [browser_smoke.py](tools/viewer/tests/browser_smoke.py): what the page is told, the chips and the kind options.
+- Docs: [README](README.md), the [viewer README](tools/viewer/README.md), the release's
+  [GETTING-STARTED.md](tools/release/GETTING-STARTED.md), the [contracts' recipe matrix](research/editor-contracts.md),
+  the first-editor plan, the preview checklist, the
+  [findings register](research/findings-register.md) (F-69, F-70, T-22) and the
+  [EXP-28 note](research/experiments/EXP-28-fracturing-physics.md) with its marked shots.
+- Checked:
+  - the suites pass (editor 90, viewer 140, bake 208, release 4), and the full browser smoke against a test server
+    on 8790;
+  - EXP-28 run 1's project built quick (12 s) and full (282 s), with no patch. The package read back: every column
+    box of the three fracturing copies moved exactly, the wall copy naming its four door pieces and nothing else, no
+    column in the Level naming an actor out of it; the full build's variant exports into a scratch cache;
+  - in the page on the test server: Bar's kind list reads "Destructible (113), Scenery (85), Fracturing (37),
+    Interactive (5), Physics (4), Ladder (1)", a wall shows Recipe snap and no milestone chip, a corpse neither.
+- Known gaps:
+  - nothing of this has been played. EXP-28 lists what only the game can show: a wall copy's cover and sight
+    blocking, breaking it, its doors going with it, a storey floor copy's floor tiles, a save with a broken copy;
+  - a wall's copy standing against other walls lists none of them and is listed by none (`FracActorCache`, whose use
+    by the game wasn't worked out), and a piece hung on a copy afterwards isn't in its columns;
+  - fracturing pieces build on the grid only; other poses need the columns made anew;
+  - Bar's corpses carry the tag `deleteme`, and whether the game shows them, or a copy, isn't known (F-70);
+  - doors without a frame (UFO and alien doors) still wait for a run on a UFO map.
+
+### Light edits build for every project
+
+- The user switched the light family on after EXP-26 run 1, before its runs 2 to 6, to fix issues as they are found.
+- [compiler.py](tools/editor/compiler.py): `FAMILIES['light']` builds, and the docstring says when and why. The gate
+  stays: the family off again brings back the refusal with its note.
+- Through `families.json`, the page drops what it showed while lights waited:
+  - the banner "Light edits are drawn and saved, but not built yet";
+  - the light panel's "Builds after its game test";
+  - the piece list's Test tags and "· after its game test".
+- `build.py --family` no longer offers `light`, which it isn't needed for. The usage text and
+  [exp26_projects.py](tools/editor/examples/exp26_projects.py) say so.
+- A quick build's light wording (`build.QUICK_LIGHTS`) stays conditional until EXP-26 run 2.
+- [test_compiler.py](tools/editor/tests/test_compiler.py):
+  - the families table now has `light`;
+  - a light edit compiles without `enable`;
+  - with the family patched off, a light edit and a glowing piece's deletion are refused as before.
+- Docs:
+  - [README](README.md) and the [viewer README](tools/viewer/README.md);
+  - the plan's status and the [EXP-26 note](research/experiments/EXP-26-lights.md);
+  - the progress ledger;
+  - the release's [GETTING-STARTED.md](tools/release/GETTING-STARTED.md): lights build, and light edits need Bake the
+    lighting.
+- Checked: the suites pass (editor 89, viewer 140, bake 205, release 4). The main server on 8768 was restarted to serve
+  the new families.
+
+### Drag handles for a light's radius and cones; the reach outlines an option, off at first
+
+- At the user's request, the selected light has drag handles in the view
+  ([lights_view.js](tools/viewer/web/lights_view.js) `lightHandles`, `nearestValue`, `makeHandle`;
+  [app.js](tools/viewer/web/app.js)):
+  - the radius: a white dot on the left edge of a point light's sphere (the panel covers the view's right), or at the
+    end of a spot light's axis, with a thin line from the light;
+  - a spot light's outer cone: a dot on the left of its rim, and its inner cone a smaller one on the right.
+- How a drag works:
+  - each handle runs along its curve; a drag takes the value whose point comes nearest the pointer on screen, so it
+    works from any angle;
+  - the shapes, the panel, Map lighting and Solo follow live; the reach is worked out again once the drag ends;
+  - the release is one undo step (`gizmo.record`), and Esc puts it back (other keys wait);
+  - radii go in whole units and cones in half degrees, within the panel's limits, the inner cone inside the outer;
+  - a handle takes the press ahead of the gizmo, the camera and picking: capture listeners on the canvas, which run
+    first;
+  - where two dots overlap (a spot light's inner cone at 0 on its radius dot), the first move picks the one whose way
+    it goes;
+  - a dot turns amber under the pointer, the cursor shows a hand, and the dot's title says what it sets.
+- At the user's request, the outlines of the pieces the selected light reaches are an option:
+  - **Outline the pieces a light reaches** in View options, off at first and remembered;
+  - the panel still counts the pieces, and says "(outlined)" only when they are.
+- The help's Lights keys and the [viewer README](tools/viewer/README.md) say both.
+- Checked:
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_lights`:
+    - a spot light's outer cone dragged towards its axis narrows, and a point light's radius dragged outwards grows,
+      each with real mouse moves; the values change during the drag, the camera stays, the release is one undo step
+      that Ctrl+Z takes back, and Esc during a drag puts it back;
+    - the outlines are off at first, and the option draws and removes them and the note's "(outlined)".
+  - `--only lights,library` passes on Bar, and the full smoke (with projects) on a test server.
+  - By hand in Bar:
+    - `SpotLight_64`'s outer cone 80 to 45.5, then its radius 387 to 533 down the axis, then its inner cone 0 to
+      12.5 from the shared dot; three undo steps;
+    - `PointLight_0`'s radius 314 to 445;
+    - the gizmo's arrow still moves the light;
+    - the option off and on.
+
+### The light panel ignores cone values for a point light
+
+- The user asked whether a point light's radius and a spot light's cone can be changed: they can, in the light panel
+  (Radius for both kinds, Inner cone and Outer cone for a spot). Checking it by hand on placed lights in Bar:
+  - a placed Point Light's radius from 314 to 500;
+  - a placed Spot Light's outer cone from 60 to 30, inner from 10 to 12, radius from 1270 to 800;
+  - an inner cone of 40 refused with "The inner cone can't be wider than the outer cone";
+  - the drawn cone and reach updated each time, and each edit undid as one step.
+- The check showed a change event on a hidden cone field could put a cone on a point light, which the compiler then
+  refuses ("has no cone"). [app.js](tools/viewer/web/app.js) `commitLightField` now ignores cone keys for a light
+  that is not a spot.
+- Checked by hand on a test server: an outer cone sent to a point light leaves it without one, while its radius edit
+  still applies and undoes.
+
+### New lights are a kind of the piece list: Point Light and Spot Light, with an icon
+
+- At the user's request, the Add panel's row of Point light and Spot light buttons became two entries of the piece
+  list, under a **Lights** kind. The kind is found by its entry in the Kind menu, "Lights (2) · after its game test",
+  and by a search for "light".
+- [pieces.js](tools/viewer/web/pieces.js):
+  - each light row has an icon drawn in its starting colour: a bulb with its glow, or a lamp head with its cone and
+    pool;
+  - the row says what the light starts as, its radius, brightness and (for a spot) cone, the map's number of such
+    lights, and a Test tag while light edits wait for EXP-26;
+  - the footer counts pieces and lights apart ("245 pieces and 2 lights").
+- [app.js](tools/viewer/web/app.js): `lightEntries` builds the two entries, each where the map has a light to start
+  from (Spot Light from the recipe on a map with none), and `chooseEntry` places them as `chooseLight` did.
+- [index.html](tools/viewer/web/index.html) and [style.css](tools/viewer/web/style.css): the old row is gone, and
+  the help names the Lights kind. The [viewer README](tools/viewer/README.md) is updated.
+- Checked:
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_library` covers the kind: its two entries with
+    drawn icons, choosing one placing a new light with its panel, and undo. Its footer check counts pieces and lights
+    apart, and `--only library` runs it alone.
+  - `--only library,lights` and the full smoke pass on Bar.
+  - By hand: the entries' text and icons, the footer under each kind and filter, and the counts (54 point and 63 spot
+    lights on Bar, streamed levels' left out).
+
+### EXP-26 run 1: the user's look, and mark 2's light placed right
+
+- The user's look at run 1 ([EXP-26-lights.md](research/experiments/EXP-26-lights.md)): "seems good". Mark 2 can't
+  be judged: `PointLight_4` is not a ceiling light over the pool table, as the note and the project's docstring
+  first said. It is a small light 25 units past the table's end, 123 units up, radius 78. It never reaches the
+  floor, and the relight changed only 440 of the table's 3,736 texels.
+- The wording is corrected in the note, [exp26_projects.py](tools/editor/examples/exp26_projects.py) and the shots
+  file. The bar shot (`EXP-26-run1-bar.png`) is retaken closer with the ground floor's cutaway,
+  showing where the light is.
+- The lab copy is switched back out (LWR active, verified against its baseline).
+
+### EXP-26 run 1 prepared: five light edits on Bar, full-built, read back, installed in the lab
+
+- [EXP-26-lights.md](research/experiments/EXP-26-lights.md) run 1:
+  - SpotLight_3 deleted;
+  - PointLight_4 over the pool table recoloured warm and brightened;
+  - the lamp post XComLevelActor_37 and its SpotLight_53 moved 6 tiles along the south street;
+  - SpotLight_32 copied to a dark corner;
+  - PointLight_15 copied beside the police sedans, with a dumpster copied into its pool.
+- The full build took 353 s: 244 pieces relit, and the edited lights listed in 126 receivers' lightmaps. Read back:
+  every edit as the project has it, no other light changed, GUIDs unique. The deleted light and the moved post's
+  original are out of the Level's actor list.
+- The marked shots were retaken after the first revision put the dumpster against a police sedan.
+- Installed in the lab's test slot, with the lab copy switched in, for the user's run.
+- [findings-register.md](research/findings-register.md) T-21: the viewer's export lists actors a build took out of
+  the Level (open; variant checks read the Level list meanwhile).
+- [README.md](README.md): L6's state in the status paragraph. Progress ledger:
+  run 1 installed.
+- Not yet run in the game.
+
+### The parts of L6 joined: a project with light edits built end to end (with the light family switched on)
+
+- [build.py](tools/editor/build.py): the compile stage takes the Build's own light counts in place of the compiler's
+  `counts.lights`. Both had been passed as `lights`, which stopped every light build with a TypeError.
+- [test_build.py](tools/editor/tests/test_build.py): the light tests use the compiler's own `native_split`, which
+  now moves the spec's `lights` object to the native edit, in place of a stand-in, and their stubbed report carries
+  `counts.lights` as the compiler's does.
+- [app.js](tools/viewer/web/app.js) `buildStepDetail`: the build window says what a build did with lights: placed
+  lights moved, changed, added (and how many from the recipe) and deleted, glow lights following their pieces, "light
+  edits made" in a quick build, and "lighting unchanged" when no texel changes.
+- Checked, on a scratch project on Bar built with `--family light` (the family stays off for every other project
+  until EXP-26). The project had SpotLight_32 brightened, a copy of it, a recipe spot, and the claw machine
+  (`XComDestructibleActor_316`) moved 96 units.
+  - The compiler: 1 changed, 2 added, 33 area lights following the claw machine.
+  - The quick build: 13 s.
+  - The full build: 93 pieces relit; the new and changed lights listed in 66 receivers' lightmaps, 2 more in reach
+    without a texture lightmap.
+  - The quick build's variant, exported into a scratch cache: SpotLight_32 at brightness 2; the copy (written as
+    SpotLight_66) 400 and 300 units over at brightness 2; the recipe spot (SpotLight_67) with recipe version 1's
+    values, pointing down; all 33 claw-machine lights moved exactly 96 units with their rotations kept; no other
+    light changed; 258 light GUIDs, all unique.
+  - Suites on the merged branch: editor 89, viewer 140, bake 205 (none skipped: the factory's release check now
+    runs), upk 19, release 4: all pass. The release bundles light_factory, native_lights, area_light_bindings and
+    the page's new scripts.
+- [mark_shots.py](tools/viewer/mark_shots.py): a shot can show the light markers (`lights`) and pick the lighting
+  mode (`lighting`), and the page's notices are hidden in shots.
+- EXP-26 run 1 prepared: [exp26_projects.py](tools/editor/examples/exp26_projects.py) saves the project, and
+  [the note](research/experiments/EXP-26-lights.md) has its edits and marked shots. The plan's status line and the
+  progress ledger are updated.
+- Not checked in the game: EXP-26 is next.
+
+### The Build for light edits (L6 step 8, the Build side): native routing, counts, lighting unchanged, the README
+
+- [build.py](tools/editor/build.py) (plan 4.5): a native edit with `lights` (`has_light_edits`) takes the
+  native_copy.py path in `compile`'s "changes nothing" guard, `light` (with `--bake`) and `edit_unbaked`; empty
+  light lists still change nothing. The compile and light stages and the manifest carry `lights` counts
+  (`light_counts`: moved, changed, added, recipe spots, deleted; generated area lights counted apart with the pieces
+  they follow), the light stage adds the writer record's policy, receivers listed and imports made for recipe spots.
+- A completed relight that writes no texel: the light stage and manifest say `lightingUnchanged`, the manifest's
+  cache is null and no `.tfc` is packaged; the README says the lighting is unchanged and the map reads the base
+  map's lightmaps.
+- The README lists the light edits; a full build says they are baked into and listed by the pieces they reach; a
+  quick build's paragraph adds `QUICK_LIGHTS`, the unbaked-light limitations of plan 4.3, worded as still to be
+  confirmed by EXP-26 run 2 (the page can show the same text beside Bake the lighting). The tool fingerprint
+  includes native_lights.py and light_factory.py when present. `snapshot` asks `compiler.find_export` for export 18
+  or newer (`EXPORT_MINIMUM`) where it takes a `minimum`.
+- Checked: [test_build.py](tools/editor/tests/test_build.py), 6 new tests (light counts, the conditional quick-build
+  text, a lights-only edit through native_copy.py in both kinds of build with the compiler's native split standing
+  in, a zero-write full build without a cache, empty light lists refused, the export minimum); editor suite 77
+  tests pass; with both commits the whole bake suite passes, 188 tests, none skipped (9 minutes).
+- Gaps: the build window's text for the new stage fields (`lights`, `lightingUnchanged`) is the page's
+  ([app.js](tools/viewer/web/app.js) `buildStepDetail`, another branch); the compiler on this branch doesn't yet
+  move the `lights` object into the native edit (the tests stand in for it); light builds stay behind the family
+  gate until EXP-26.
+
+### Light edits in the map and in the relight (L6 steps 4 and 7): the writer, explicit light states, zero-write builds
+
+- Work order L6-backend of the editor lights plan (sections 4.3, 4.4, 4.8's
+  writing, 9.5). Built against section 9's interfaces; the compiler's `lights` object, the spot factory and the
+  area-light matcher are other branches' work.
+- **The writer** ([native_lights.py](tools/bake/native_lights.py), new), used by
+  [native_copy.py](tools/bake/native_copy.py) `build(lights=...)` and `--copies` documents' `lights`:
+  - `set_property` sets any tagged property (float, `Color` as B G R A, `bEnabled` with a bool tag of size 0 and
+    one value byte, `Matrix`, `Guid`, Vector, Rotator), adding the tag before the closing None when the export
+    doesn't save it; `set_struct` now calls it (the tag takes the value's own size).
+  - `prepare` reads the pristine map once into a registry of every point and spot light (raw stored values, both
+    GUIDs, scale), and resolves the edit into explicit before and after registries: deletes absent after, additions
+    absent before, `before` and `light` checked against the map, one edit per light, deterministic GUIDs from
+    `guidSeed` (sha256, plan 9.5) checked for collisions.
+  - `apply`: a delete empties the light's Level slot; a change writes only its `set` values, Location/Rotation when
+    they moved, and `CachedParentToWorld` for the new pose (its layout read on Bar, Police Station and Temple: rows
+    X, Y, Z axes with DrawScale3D, then the origin, each saved W first); a copy is `clone_assembly` of the template
+    (actor and component, an unused name number, fresh GUIDs, only differing values written, no tiles); a recipe spot
+    calls `light_factory.add_spot` (imported when needed, plan 9.6); area lights are moved, copied or deleted keeping
+    their class, flags, archetype and WorldInfo owner.
+  - Baked builds only: each added or changed placed light that emits is listed in the texture lightmaps its radius
+    sphere meets at final poses (`Registrar`, merged per component and spliced on the writer's current bytes, so
+    edits accumulate), piece copies included through their clones; components in reach without a texture lightmap
+    are recorded. `extra_lights` takes the after registry. Unbaked builds leave every lightmap list as it is.
+  - The grown map is read back (`verify`: values, GUIDs, pose, Level slots); the fixture manifest gets a `lights`
+    section (policy, each edit's exports, tags added, values written, GUIDs, raw before/after, the component's saved
+    flags, receivers listed) and baked builds write `<variant>.light-edits.json` for the relight.
+- **The relight** ([relight.py](tools/bake/relight.py)): `--light-edits` gives the before and after codec lights
+  (`resolve_light_states`); the scenes take each state's lights (`Scene(lights=..., registered=...)`), a receiver's
+  direct lights come from its list through each state (`listed`), before without the GUIDs the build added
+  (`original_guids`, a copy's from its source's); workers get the same resolved states. `--remove-light` is one case
+  of the edit list. `edit_reaches` tests every edited light before and after (`edited`), light boxes are kept apart
+  from geometry boxes (shadow maps see only geometry). Zero writes in an edit are success (`unchanged_fixture`: the
+  edited map as the variant, cache null, `lightingUnchanged`); a receiver that fails to relight (not `Excluded` by
+  rule) makes such an edit fail. `<variant>.relight.json` gets `lightEdits`, `lightBoxes`, `lightingUnchanged`,
+  `failed` and `cache`.
+- Checked: [test_native_lights.py](tools/bake/tests/test_native_lights.py) (new; property writer, GUIDs, matrix,
+  resolution and refusals synthetic; on Bar: registry against `relight.map_lights`, stored matrices, delete/change/
+  copy read back with `light_record`, byte-identical rebuilds, area ops, baked memberships with two new lights and a
+  copy accumulating, the copy relit with real scenes gaining the new light, unbaked lists untouched, zero writes
+  through a real relight; Temple's stored 580-degree cone kept on move and copy), additions to
+  [test_relight.py](tools/bake/tests/test_relight.py) (light states, changed reach, unchanged fixture, injected
+  failures and exclusions, `--remove-light`, worker states), [test_native_copy.py](tools/bake/tests/test_native_copy.py)
+  (extra lights from the after registry) and [test_lightmap_encode.py](tools/bake/tests/test_lightmap_encode.py)
+  (direct light at the radius before and after). The whole bake suite passed, 185 tests, none skipped (Bar, Police
+  Station, Temple and Lighting.tfc present), before the last three cases were added; the final run is in the Build
+  entry.
+- Gaps: no game run (EXP-26); recipe spots run through a stand-in `add_spot` (the real
+  `tools/bake/light_factory.py` is another branch's), and without the module a recipe spot is
+  refused; the bounce beyond a light's radius is covered by `edit_reaches`' padding, not a bounced fixture;
+  vertex-lit receivers in reach are recorded, not listed.
+
+### Lights in the editor's page: shown, picked, edited, soloed, copied, added and saved (L6 steps 2 and 3)
+
+- **Showing them** ([app.js](tools/viewer/web/app.js), [lights_view.js](tools/viewer/web/lights_view.js) new,
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)):
+  - Shift+L, the rail's bulb or View options shows the map's point and spot lights as markers that keep one size on
+    screen (a bulb, or a cone hanging from the light along its direction), in the light's colour, grey when view only,
+    hollow when off, and faint through what covers them.
+  - View options also has Area lights (the bake's generated lights: view only) and the sun, moon and sky, listed.
+  - Interior shows the lights whose radius reaches the play area (241 of the bar's 257).
+- **Picking**: a click within 13 pixels of a marker's centre selects the light, ahead of the piece behind it;
+  Ctrl or Shift adds it to a selection of pieces, and a mixed selection moves together.
+- **The light panel**:
+  - colour (picker and R, G, B), brightness, radius, falloff, a spot's inner and outer cones (the effective cones
+    the game draws; a stored 580-degree cone stays unless changed), On;
+  - each typed value is checked against plan 4.2's ranges and is one undo step;
+  - Reset piece puts back values and pose together;
+  - the panel says why a light is view only (area, toggleable, a streamed level's, an export older than 18, and the
+    other reasons from `compiler.light_rule`).
+- **What it lights**:
+  - the selected light's cones or radius spheres, with a line down to the floor;
+  - the pieces its bake lists it in, outlined (export 18's `bakedInto`);
+  - for a moved, changed or added light, the pieces its new reach touches, which a full build relights, with a
+    warning above 300.
+- **Solo** (S, or the panel's button): the map dimmed to a faint neutral, and up to four selected lights lit by
+  three.js lights with UE3's falloff and spot terms (lights_view.js patches three.js's attenuation) and live shadows.
+  Those shadows start 64 units out, past the light's own fixture: the bar's parking-lot lamps stayed dark with the
+  shadows starting at 40.
+- **Map lighting** takes the lights as edited (lighting.js `setLights`), throttled while a drag lasts.
+- **Copy, paste, delete and Add**:
+  - a light copies, pastes and deletes as a piece does;
+  - Add has Point light and Spot light: a copy of the map's first editable light of that kind, or the recipe spot
+    (version 1) where the map has no spot light;
+  - copies keep their template's values, and a copy of a copy keeps the original as its template.
+- **Glowing pieces' area lights**: an area light follows its glowing piece, as the export found it or as the project
+  binds it. Moved, it moves; deleted, it goes; each copy gets copies, drawn but not picked.
+  - The piece panel says "Glows · N lights", or "May glow · N to settle" for lights the export couldn't tie to one
+    piece.
+  - An area light's panel has Assign glowing piece (then click the piece), Keep fixed and As exported.
+- **Projects** ([project.js](tools/viewer/web/project.js)):
+  - light overrides carry `light`;
+  - added lights are copies, or recipe spots with `template`;
+  - `areaLightBindings` are saved, reopened, recovered and carried when the export lacks the light.
+- **Old exports**: the page offers Prepare now, which re-exports the map in place. The server's
+  `POST /maps/<id>/export {"prepare": true}` ([exports.py](tools/viewer/exports.py), [viewer.py](tools/viewer/viewer.py))
+  exports a ready map again and keeps the older generation until the new one is published.
+- The warnings say light edits are saved but not built until their game test (EXP-26); the Build refuses them until
+  then.
+- Checked:
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_lights` (also `--only lights`) passes on Bar,
+    Police Station (export 18) and Temple Ship (export 17: view only, Prepare offered). It checks the toggle,
+    picking a marker, typed values with a refused range, undo and redo, Solo, copy, paste, delete and undo, Map
+    lighting following the edits, the claw machine's 33 area lights moving with it and copied with its copy, and
+    Reset all.
+  - The full smoke runs through on Bar.
+  - [test_catalogue.py](tools/viewer/tests/test_catalogue.py) checks Prepare, including that a failed prepare
+    keeps the old export served.
+  - By hand on a test server: a project with a changed, a copied and an added light saved and reopened as it was.
+    The compiler refused it with the light family's note, and with `--family light` compiled it to the plan's
+    `lights` object (1 change, 2 adds). Prepare re-exported the Police Station in 30 s and the page reloaded on
+    export 18.
+- Docs: the [viewer README](tools/viewer/README.md)'s new Lights section, the light fields in
+  [editor-contracts.md](research/editor-contracts.md) section 4, and the help panel's Lights keys; the
+  progress ledger.
+- Gap: nothing is built yet (the writer, relight and Build are the backend's part, still running).
+
+### What a cooked spot light is made of, and what the recipe freezes (research note)
+
+- [spot-light-recipe.md](research/spot-light-recipe.md) (new): a placed spot light as the packages hold it (its two
+  exports, their flags, archetypes, preambles and net indices, the properties saved and never saved, their encodings,
+  the cached matrix's layout and the five Engine imports), which maps lack one (Truck Stop EWI; Truck Stop's patch
+  levels have no light at all), what recipe version 1 writes and freezes, and what EXP-26 run 6 must check in the
+  game. Names, flags, counts and structure only; no decoded game data.
+- Checked: each count and claim against the four maps' placed spots and Truck Stop, read again for the note (net
+  indices above 0 on all 167 spots' exports, `Rotation` saved by 159, the matrix rule on 448 lights).
+- Gap: the engine's use of the state frame's varying 2-byte field and of `CachedParentToWorld` are readings, not
+  game results.
+
+### The spot light recipe factory: a spot light in a map with no light to copy (L6 step 5, plan 4.9 and 9.6)
+
+- [light_factory.py](tools/bake/light_factory.py) (new): `add_spot(g, p, location, rotation, light, guids,
+  version=1)` makes a `SpotLight` actor and its `SpotLightComponent` in the persistent level of a growing package,
+  from a declarative recipe (`RECIPES[1]`) and the destination package alone, with `Grower.new_export` (no local
+  template). It finds or adds the Engine imports by name with the destination's outers (`Engine`, `Engine.SpotLight`,
+  `Engine.SpotLightComponent`, `Engine.Default__SpotLight`, its `SpotLightComponent0` archetype), builds the state
+  frame, the component's empty template owner class, fresh net indices and the tagged properties with the
+  destination's names, and writes the pose, `CachedParentToWorld` (`cached_parent_to_world`: UE3's sine-table
+  rotation matrix, rows stored W first), the seven light values of 9.1 (all saved explicitly), the GUIDs given, the
+  bar's Lightmass setting (`LightSourceRadius` 32) and the built flag; cast-shadow, channel and lightmap settings are
+  left to the engine's archetype, as every surveyed placed spot leaves them. Light values, pose and GUIDs are checked
+  before the package changes (GUIDs already used by the map's lights or by lights the writer has added are refused);
+  an unknown version raises ValueError. It returns `dict(actor, component, imports, created)`; the caller adds the
+  actor to the Level's list. `recipe_digest` gives the recipe's SHA-256 for a build's record.
+- Recipe version 1 was read from every placed SpotLight of URB_Bar (62), URB_PoliceStation (31), TempleShip (54) and
+  CLrgScout_ForestTrench (20): their export flags, archetypes, preambles, property kinds and order, Lightmass setting
+  and the absence of a native tail match the recipe, and its matrix rule reproduces their stored matrices within
+  float rounding. It holds construction rules, names and values only, no package bytes.
+- Truck Stop (URB_TruckStop_EWI, no spot light): the factory reuses its Engine and `Engine.SpotLightComponent`
+  imports (its generated area lights use that class) and makes the other three; three names are added. On Truck
+  Stop's stream level, which has no light, light import or light name at all, it makes four imports and 23 names.
+- Checked: [test_light_factory.py](tools/bake/tests/test_light_factory.py) (new), 17 tests, 16 pass and 1 skips
+  (release inclusion, until the writer imports the factory): versions and refusals, the frozen digest, the plan's
+  defaults, values checked before any change, the matrix; construction with no light in the map; on Truck Stop the
+  imports reused and made, the exports, flags, preambles and net indices read back, `light_record` values, GUIDs
+  unique, the Level slot, no reference outside Engine and the map, identical bytes from a second build, more spots
+  reusing the imports; the recipe against the four maps' placed spots. `add_export` is made to fail in every
+  map-backed build, so no template is used. The upk suite still passes (19).
+- Gaps: only the game can confirm that the engine loads and lights the constructed spot (EXP-26 run 6), and what an
+  unbaked build does with its built flag (recipe 1 writes it set, as copied spots inherit it; EXP-26 run 2). The
+  writer (`tools/bake/native_lights.py`, being built in parallel) does not call the factory yet.
+
+### The growing writer makes an export with no template (L6 step 5, plan 4.9)
+
+- [package_grow.py](tools/upk/package_grow.py) `Grower.new_export(cls, outer, name, data, archetype=0, flags=0,
+  number=None)`: a new export whose entry is made from its class, outer, name, archetype and object flags alone,
+  where `add_export` copies a local template's entry. It is bounded to plain objects (no super field, export flags,
+  net object counts, package GUID or package flags); references outside the package, an import as outer, a bad name,
+  flags or name number are refused. `next_net_index(outer)` gives the package's next net object for such an export
+  (refusing an outer inside a forced-export package, as `fresh_net_index` does; both now share that check). The spot
+  recipe factory (plan 9.6) builds on it, so a spot light can be made in a map with no light to copy.
+- Checked: `test_a_new_export_with_no_template` in [test_package_grow.py](tools/upk/tests/test_package_grow.py) on
+  URB_Bar (two new exports under the level and under each other, their entries, names, data and the net object count
+  read back after a write; ten refusals). The upk suite: 19 tests pass (18 before, unchanged).
+- Gap: none known; the factory's own checks follow.
+
+### The matcher in export 18, and the compiler finding a re-export of the same version
+
+- With the [area-light matcher](tools/viewer/area_light_bindings.py) merged, export 18's `area_lights` hook in
+  [export.py](tools/viewer/export.py) now runs: area lights get `emitterAttachment`, objects `areaLights`, and the
+  scene's `lightMetadata.areaMatcher` is 1. The bar was re-exported into the cache (30 s): 137 area lights, all
+  verified.
+- [compiler.py](tools/editor/compiler.py) `find_export` also takes the generations export.py publishes beside an
+  existing export of the same version (`<sha16>-v18-map-<suffix>`), newest first. Before, it took the older
+  `-v18-map` folder, which had no matcher data, and refused every build.
+- [test_compiler.py](tools/editor/tests/test_compiler.py): `PreviewParityTests` samples only pieces that don't glow
+  (a glowing piece takes its generated lights along, which is refused until EXP-26; the floors of its counts are
+  lowered to 750 pieces and 320 destructibles); the export-selection test checks a suffixed generation.
+- Checked: editor suite 83 tests OK, viewer suite 139 OK.
+
+### The area-light matcher (L6 step 6, the matching half): which glowing piece emitted each generated light
+
+- New [area_light_bindings.py](tools/viewer/area_light_bindings.py), the plan's 9.7 interface: `MATCHER_VERSION` (1),
+  `associate(p, objects, lights, meshes, materials, warn)` giving each area light's attachment (status, reason,
+  owner, candidates, `ownerMatrix`, `local`) and `owners`, and `light_pose(local, owner_matrix)`. It reads the map
+  for what decides it: a generated light stands 30 units times the level's `StaticLightingLevelScale` out from its
+  patch along the patch's normal, and only components whose LightmassSettings set `bUseEmissiveForStaticLighting`
+  emit, with their `EmissiveLightFalloffExponent` and explicit radius as the light's (members read through the
+  archetype chain: the flood lights inherit them). Candidates come from the components' world-space triangles near
+  the light's foot (a KD-tree; Temple's 1,190 lights in 3 to 5 s), with distances, vertex-normal agreement,
+  emissive and material evidence and a score; `verified` needs one actor among the supported emitters within half an
+  offset of the closest. `python tools/viewer/area_light_bindings.py <map> [--scene <scene.json>]` reports a map.
+- Findings in [area-light-matching.md](research/area-light-matching.md) (new): the method, the thresholds and their
+  measurements, per-map results (all 2,494 area lights of the ten cached maps verify: Bar 137 in 0.5 s, Temple
+  1,190), what simpler rules get wrong (nearest actor origin: 17 bar and 538 Temple lights), known failure modes
+  and what EXP-26 run 5 must check.
+- Checked: [test_area_light_bindings.py](tools/viewer/tests/test_area_light_bindings.py) (new, 23 tests pass):
+  synthetic unique, several-proxy, ambiguous, settings-mismatch, computed-radius, unmatched, unsupported,
+  same-actor and component-offset cases; pose round trips (non-quarter turns, scaled and mirrored owners, copies to
+  a second placement); on the bar (read from the install), every light verified and deterministic, ten hand-checked
+  owners pinned, `light_pose` reproducing all 137 lights, the claw machine's records removed leaving its 33 lights
+  unmatched, and a copy over a flood light making its light ambiguous. The viewer suite passes (135).
+- Gaps: not yet called by the export (export 18's `emitterAttachment`, `areaLights` and `lightMetadata` are the
+  next integration step), the page or the compiler. No shipped map has an ambiguous or unmatched light. Why the
+  arcade machine's 20 up-pointing lights face away from the faces beside them is not known (normal agreement is
+  evidence, not a rule).
+
+### Export 18's light data, and the compiler's light family (refused until EXP-26)
+
+- **Export 18** ([export.py](tools/viewer/export.py) `EXPORT_VERSION`; [lights.py](tools/viewer/lights.py)
+  `light_metadata`, `toggle_light_actions`, `guid_hex`): each light of every layer has its `lightmapGuid` and
+  `lightGuid`, the pieces whose LOD-0 lightmap lists it (`bakedInto`) or whose shadow map names it (`shadowMapped`),
+  `channels` (`LAC_USER_SELECTED`), the properties its component saves (`saved`), and `referencedBy` (the package's
+  Kismet, and a destructible's ToggleLight action). Objects get `areaLights` and area lights `emitterAttachment` from
+  the area-light matcher, through `area_lights` in export.py, once the matcher module lands on the branch. The scene
+  gets `lightMetadata` (`areaMatcher` stays null until then).
+- **The compiler** ([compiler.py](tools/editor/compiler.py)):
+  - the `light` family, `builds=False`, with a `note` in place of a milestone;
+  - `light_rule`, which says why a light is view only: area, toggleable, sun or sky, a streamed level's, Kismet-named,
+    channel-limited, in no lightmap, or missing its export 18 data;
+  - light overrides (move, turn, change, switch off, delete), light copies and recipe spots (`LIGHT_RECIPES` spot
+    version 1), with the submitted values checked against plan 4.2's ranges and inherited raw values kept;
+  - redundant overrides dropped, and the spec's `lights` object (plan 9.5), which `native_split` moves to the native
+    edit;
+  - the area lights a moved, copied or deleted glowing piece takes along (`derive_area_lights`, `moved_light_pose`,
+    `rotator_of`). The project's `areaLightBindings` override the export's association. An edited piece that may be
+    the glowing piece of an unsettled area light is refused until that light is assigned or kept fixed;
+  - `light_metadata_problem`: every project with edits needs export 18 with its matcher;
+  - `find_export(..., minimum=18)` picks a new-enough generation by SHA-256, ahead of the project's older
+    `exporterVersion`.
+- [families.py](tools/viewer/families.py) adds `lightRules`, `lightRecipes` and `exportProblem` to families.json, and
+  [projects.py](tools/viewer/projects.py) checks `areaLightBindings`' frame.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) `LightTests` (12 new tests: the family gate, edits
+  and their spec, refusals, value checks, redundant edits, export checks, area following and unsettled glows,
+  determinism, rotator round trips, export selection); the compiler's synthetic scenes are now export 18.
+  [test_lights.py](tools/viewer/tests/test_lights.py) `LightMetadataTests` passes on the bar: 116 placed lights, each in
+  a lightmap, and no area light in any; SpotLightToggleable_2 names XComDestructibleActor_14.
+  [test_families.py](tools/viewer/tests/test_families.py) checks the light table. Viewer 116 and editor 83 tests run.
+  The bar was re-exported as export 18 into the cache (20 s).
+- Gap: `PreviewParityTests.test_the_bars_static_pieces` fails until the bar's export has the area matcher (every
+  build is refused on this branch until then, as plan 4.1 asks). The page doesn't show lights yet.
+
+### Lights in the editor (L6) started: the interfaces, and one effective-cone rule for the baker and the page
+
+- The user asked for the editor lights plan to be implemented. Work is on branch
+  `editor-lights`. The plan's new section 9 fixes the interfaces between the parts built in parallel (export 18's
+  light fields, the project's light records, the compiler's `lights` spec object and the native edit, the spot
+  recipe factory and the area-light matcher). Its status line says it is being built.
+- **Effective cones** (plan 2.7, 4.2): `effective_cone` and `effective_cone_degrees` in
+  [lights.py](tools/viewer/lights.py) clamp a spot light's stored angles as UE3 does (inner 0 to 89 degrees, outer
+  just above the inner and below 90). The page's twin is `effectiveCone` in the new
+  [light_rules.js](tools/viewer/web/light_rules.js) (with `falloffRadius`, for the 10% falloff outline). The codec
+  ([lightmap_encode.py](tools/bake/lightmap_encode.py) `light_contribution`), the bounce's spot term
+  ([bounce.py](tools/bake/bounce.py) `direct_irradiance`, widened after clamping) and Map mode
+  ([lighting.js](tools/viewer/web/lighting.js)) now use it, so a stored 100- or 580-degree cone bakes as it is drawn.
+  Stored values are never rewritten.
+- Checked: the new [cone_cases.json](tools/viewer/tests/cone_cases.json) (14 cases, including 2.7's stored 100 and
+  580) against the Python rule and, in Edge through Playwright, the JavaScript one
+  ([test_lights.py](tools/viewer/tests/test_lights.py) `EffectiveConeTests`, 12 tests pass); a stored 580 bakes as
+  89.99; the codec (7) and shadow/bounce (27) tests pass.
+- Gap: nothing user-visible yet. The bake of the twelve wide-stored spots changes slightly from before (their cones
+  were not clamped); EXP-26 run 4 checks the rule against the game.
+
+### EXP-27 prepared: floor pieces at their levels, before the floor-brush branch merges
+
+- The user asked for final offline checks and one in-game test before merging. Offline, on the branch: every unit
+  suite (viewer 109, editor 71, release 4, upk 18, bake 151) and the full smoke on URB_PoliceStation and
+  CLrgScout_ForestTrench pass. Bar and Temple Ship passed after the last change.
+- [exp27_projects.py](tools/editor/examples/exp27_projects.py) (new) writes EXP-27's project: two copies of Bar's
+  sidewalk strip `XComLevelActor_21` in the car park, at ground level and raised to the bar's floor 2 (pivot 192,
+  surface 208). The poses come from Level snap's rules (floors.js `levelHeight`, `storeyHeight`, mirrored here). It
+  quick-built offline, passed EXP-25's variant check, and is installed in the lab's test slot; marked shots
+  [EXP-27-run1-shots.json](research/experiments/EXP-27-run1-shots.json).
+  [EXP-27-floor-pieces.md](research/experiments/EXP-27-floor-pieces.md) asks the one new question: whether a floor
+  copy made in the map at a new level gets floor tiles (F-47's question for such copies).
+- Gap: the result is pending the user's run. One of Bar's seven landing zones grounds the Skyranger across the
+  strips; the note says to restart if it comes up.
+
+### Level snap toggle, floor pieces stepping by levels on the gizmo, and the Floor picker's floor height
+
+- The user asked for level snapping when moving a placed floor piece, as an option, and for the Floor picker to set
+  the height new floor pieces snap to (floor 2 chosen: a level-2 floor's height).
+- **Level snap** ([app.js](tools/viewer/web/app.js) `setLevelSnap`, a button under Snap in
+  [index.html](tools/viewer/web/index.html), key **L**; on by default, kept in the browser): with it on, floor pieces
+  snap by levels when placed or pasted, as before, and moved with the gizmo they step up and down by whole levels
+  (64 units) from where the drag began ([gizmo.js](tools/viewer/web/gizmo.js), a `levels(root)` option). Off, they
+  are placed and moved as any piece is.
+- **The Floor picker**: with a floor chosen (not All), a floor piece being placed snaps to that floor's height in the
+  building whose floor stands under the cursor, else the nearest building with that floor
+  ([floors.js](tools/viewer/web/floors.js) `buildingWithFloor`, `storeyHeight`: the median of the saved floor tiles
+  near the bottom of the floor's volumes, else the bottom). Floors differ per building: Bar's main building has its
+  floor 2 at 210, the Police Station's at 274. The placing hint names the floor; changing the picker moves the preview.
+- Docs: the viewer [README](tools/viewer/README.md) (Level snap under the gizmo, the Floor picker under placing); the
+  help's keys list L.
+- Checked:
+  - read-only first: the building floors' volumes against the saved floor tiles inside them on Bar, Police Station,
+    Temple Ship and Research Outpost, which showed the per-building heights and why the tiles near the bottom are
+    used (Bar's floor 2 volume also holds tiles at 381);
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py): `check_floor_rules` covers storey heights and the
+    building for a floor. `check_floor_placing` on Bar covers: Level snap off, where the sidewalk dropped on a
+    sidewalk stacks; floor 2 chosen, where a sidewalk dropped on the road takes floor 2's height (pivot 192); and the
+    gizmo's up arrow dragged 140 pixels, rising by a whole number of levels with Level snap on and not with it off.
+    These pass on URB_Bar, URB_PoliceStation, CLrgScout_ForestTrench and TempleShip. The full smoke passes on Bar
+    (with `--projects`, clean scratch projects) and Temple Ship;
+  - viewer unit tests: 109 pass.
+- Gaps: the Floor picker's floor applies to placing only; a gizmo drag steps relative to where it began. Outside
+  every building, "the nearest building" decides floor 2's height. Not tried in the game.
+
+### Floor pieces in the piece list and level snapping, in place of the floor brush
+
+- The user asked to simplify: an easy way to pick a floor piece, then place and turn it on a floor with its height
+  snapped to the right level, and no snapping across unless asked. They chose to take the brush out and to snap
+  levels for floor pieces only.
+- [floors.js](tools/viewer/web/floors.js) (new; floor_brush.js removed) keeps
+  the saved-floor lookups, the building-floor membership rule shared with the Build (`floorAt`, `copyFloors`) and adds:
+  - `classifyFloors`: a piece carrying saved floor tiles is a floor when it is 48 units tall or less, and a
+    decoration when it is also 8 units or less thick and lies on another floor piece (its bottom within 12 units of
+    that piece's top, over its centre);
+  - `floorStamps`: floor pieces of one component, with their saved floor's height over the pivot;
+  - `levelHeight`: the piece's own pivot height moved by whole levels (64 units) to the floor under the cursor.
+- [pieces.js](tools/viewer/web/pieces.js): the kind menu's **Floors (n)**, each floor entry's size in tiles; a
+  search for "floor" finds them too.
+- [app.js](tools/viewer/web/app.js): `dropTarget` snaps a floor piece's height by levels (placed from the list or
+  pasted); the placing hint says so. Across, Snap works as before. The brush's state, bar, strokes, keys (B) and
+  hooks are gone, along with its markup in [index.html](tools/viewer/web/index.html) and styles in
+  [style.css](tools/viewer/web/style.css). The help's Add line mentions Floors and the snapping.
+- Kept: the compiler's landing-zone refusal (F-45) and the Landing zone chip, copies' building-floor membership in
+  the cutaway, the Floor tiles overlay.
+- Docs: the viewer [README](tools/viewer/README.md) (Floors and placing; the brush section out),
+  floor-brush-plan.md (superseded, with what replaces it),
+  [editor-contracts.md](research/editor-contracts.md) and the [findings register](research/findings-register.md)
+  (brush mentions out); the Build's docstrings and the shared cases name floors.js.
+- Checked:
+  - Read-only, on the cached maps first: on Bar the rule leaves out the 5 rugs and 5 plates and keeps the 18-unit
+    sidewalks (they lie on the asphalt but are thick). The Floors entries are Bar 15 of 245, Temple Ship 31 of 175,
+    Forest Trench 2 of 208 (its grass planes).
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py): `check_floor_rules` (classification, boxes, saved
+    floors, floor stamps, level heights, the floor under a point, the shared membership cases) and
+    `check_floor_placing` replace the brush checks (`--only floor-placing,floor-tiles`). The placing check covers:
+    Floors listing every floor entry with its tiles; a sidewalk dropped on another sidewalk landing at z 0, not
+    stacked; elsewhere a floor piece dropped on a saved floor at the level rule's height; the rug and pasted sidewalk
+    cases. These pass on URB_Bar, URB_PoliceStation, CLrgScout_ForestTrench and TempleShip on a test server. The
+    full smoke passes on Bar (with `--projects`, in a clean scratch projects folder: the first try found the last
+    run's "Smoke Test Project" there and its Save asked to replace it) and on Temple Ship.
+  - Unit tests: viewer 109, editor 71, native copy 22; all pass.
+- Gaps: moving a placed floor piece with the gizmo doesn't snap its height (placing and pasting do). Not tried in
+  the game. Pieces carrying floor tiles over 48 units tall (ramps, crates) are not Floors, and Temple Ship's trims
+  and caps (12 to 34 units) are.
+
+### Freehand brush strokes no longer hang the page
+
+- The user's editor froze on a freehand stroke. floor_brush.js `lineCells`
+  never ended when the cursor moved along a row or a column only: the axis with no steps always won the "which
+  boundary first" test and never advanced the loop, which added cells until the tab ran out of memory. Freehand calls
+  it at every cell change, so the first move to a neighbouring cell hung the page. It now takes exactly |Δi| + |Δj|
+  steps, never along an axis that has none left.
+- Checked: a simulation of the old loop ran past 10,000 cells on (0,0)→(1,0), (0,0)→(0,1) and (2,1)→(−1,1), and ended
+  on the slanted (0,0)→(5,3), the one case the rules test had. [browser_smoke.py](tools/viewer/tests/browser_smoke.py)
+  now checks rows, columns, single cells and slants in `check_floor_brush_rules`, and `check_floor_brush` paints a
+  freehand stroke along a row of three cells (three copies, one undo step). The floor checks pass on URB_Bar,
+  URB_PoliceStation, CLrgScout_ForestTrench and TempleShip on a test server.
+
+### The floor brush: Paint, Erase, Replace, the Floor tiles overlay (floor-brush plan steps 0 to 2)
+
+- The user asked for the floor brush plan to be implemented. Built its steps 0 to 2,
+  with the plan's bold choices as defaults: **B** opens the brush on the selected piece, left-drag paints, Alt+drag
+  orbits, Ctrl+click picks up a piece, Shift+drag erases, R/Shift+R turn, Esc leaves; rectangle strokes by default,
+  freehand in the bar.
+- Step 0, shared protection and membership:
+  - [compiler.py](tools/editor/compiler.py) refuses moving or deleting a landing-zone piece (`landing-zone`, F-45:
+    archetypes `DGN_DropShipSoldierSpawn.*`, `VEH_Lv1Skyranger_MOD.Prefabs.*`); copies build.
+    [families.py](tools/viewer/families.py) serves them as `landing`, and the inspector marks them **Landing zone**.
+  - [native_copy.py](tools/bake/native_copy.py) `copy_floors`: the Build's building-floor listing of a copy as one
+    pure rule, used by `edit_floor_caches` (same output as before), with a JavaScript twin in
+    floor_brush.js (`floorAt`, `copyFloors`). Both pass the shared cases in
+    [floor_membership_cases.json](tools/bake/tests/floor_membership_cases.json).
+- Step 1, Paint and Erase: floor_brush.js (new: measured modules from the saved
+  floor tiles each piece owns, support heights, the lattice, stroke planning, whole-piece targets) and the brush in
+  [app.js](tools/viewer/web/app.js), with its bar in [index.html](tools/viewer/web/index.html) and
+  [style.css](tools/viewer/web/style.css).
+  - Each stroke is one undo step and is applied on release; Esc, a lost pointer or a changed setting cancels it.
+  - Paint skips cells where the same piece already stands and warns on covered floors and raised floors (F-47).
+    Height **Level with the piece** (default) keeps the source's height plus whole storeys; **On the surface** is the
+    plan's rule. Lift raises rugs and road paint.
+  - Erase takes whole pieces only, those whose reach (shrunk a quarter tile) lies in the stroke on its level.
+  - Caps: 400 cells or replacements, 4,096 region tiles, 1.5 million triangles. Protected pieces (Kismet-named,
+    landing zone, unbuilt families, car and door parts, locked groups, streamed) stay, outlined red.
+- Step 2: geometric Replace where measured footprints match; same-mesh Replace waits for the Material tool. A piece in
+  a building floor's cutaway replaced by one listed in none (Bar's A strip by its B strip) leaves the cutaway, and the
+  stroke warns as the Build does (`building-floor`).
+  - The **Floor tiles** View option ([view_layout.js](tools/viewer/web/view_layout.js) `floorTilesOverlay`) colours
+    the saved floor tiles by their piece, hatches the tiles of moved and deleted pieces, names a tile's piece on hover
+    and selects it on click.
+  - Copies and moved pieces now join the cutaway of the building floor they stand in, as the Build lists them; a
+    copy keeps its template's floor listings and cutout (`addedObject`).
+- Fixed on the way: after a Delete the selection's tile grid could stay drawn (`cutaway` reset `tileKey` to the
+  empty key). While the brush is on, the project banner and hints sit below its bar.
+- Docs: the viewer [README](tools/viewer/README.md) (The floor brush (B), Floor tiles, membership, the stale current
+  limit), [editor-contracts.md](research/editor-contracts.md) (landing-zone row), the plan's status and deviations,
+  and F-45 in the [findings register](research/findings-register.md).
+- Checked:
+  - unit tests: viewer 109, editor 71 (a new landing-zone test), bake 151 (the shared membership cases); all pass;
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_floor_brush_rules`, `check_floor_brush` and
+    `check_floor_tiles` (new; `--only floor-brush,floor-tiles` runs just these). They pass on URB_Bar,
+    URB_PoliceStation, CLrgScout_ForestTrench and TempleShip on a test server, and the full smoke passes on Bar
+    (with `--projects`) and Temple Ship;
+  - end to end on a test server: two sidewalk copies painted and the A strip replaced on Bar, saved, reopened
+    identically and quick-built offline in 9 s (3 native copies, 1 hide, one `building-floor` warning, no errors);
+  - in-page timings: brush context 6–8 ms, overlay 8–13 ms (Temple Ship, Forest Trench).
+- Gaps: plan step 3 (rebuild volumes measured for 40+ copies), steps 4 and 5 (the Material tool, schema 2, the
+  writer's `Materials` setter, relighting) and step 6 (EXP-27 in the game) are not done; no painted floor has been
+  seen in the game. Pieces that are not quarter-turned cannot be the brush piece. The overlay does not open around
+  strokes by itself, and there is no Space+drag fallback for Alt. A quick build's painted copies show their source's
+  baked lighting.
+
+### Review corrections to the floor brush plan
+
+- Reviewed and updated floor-brush-plan.md against placement, footprint, material,
+  compiler, package writer, cutaway and relight code. Replaced the destructive 75% selection rule with whole-actor
+  containment; support-surface height replaces minimum mesh Z; geometric Replace requires compatible footprints.
+  Added validated brush modules, atomic cancellation/commit, freehand interpolation and pre-allocation limits.
+- Material records now identify source components and actual slots. The plan reuses the existing object-array
+  setter, preserves complete own/inherited arrays and signed references, and carries stable clone identities through
+  the native pipeline. It corrects the assumed older-page compatibility with schema-2 and request-capability checks.
+- Limited the first material tool to understood opaque non-emissive replacements; full builds model before/after
+  albedo and indirect-light changes, while quick builds retain the old bounce. Added complete materials-only routing,
+  valid-zero-write packaging, shared landing protection, full cutaway parity, exact-coverage rebuild coalescing and
+  integration with the planned light/area-light work. Expanded tests, work order, risks and EXP-27 with a full-bake run.
+- Checked: 25 existing tests passed (11 material/floor, 14 project). Read-only cache checks found 27 Bar and 11 Police
+  Station sidewalks whose saved surface is 18 units above their bounds' bottom, contradicting the old 8-unit test.
+  Package/code checks confirmed material inheritance, existing array setter, export-only `by_name`, clone-name
+  allocation, native CLI omissions and before/after albedo limitations. Document links, references, whitespace and
+  LF endings checked; previous ledger content preserved.
+- Documentation only: the gesture choices remain proposed defaults; implementation and the new in-game acceptance
+  checks remain pending. No editor, game package, project or server was changed.
+
+### Plan for painting floors in the editor
+
+- The user asked for an easier way to paint and re-paint floors in the editor, then for the ideas written up as a plan
+  like the lights plan. floor-brush-plan.md:
+  - **What the floors are.** A read-only inventory of the ten cached exports (export 17), from their saved floor tiles
+    and the pieces under them:
+    - 51,480 floor tiles, 96% carried by scenery pieces, which build today; 1,492 by fracturing pieces (M3);
+    - floors are slabs and kits, not tiles: 10 × 10-tile ground planes, one mesh per building storey with its pattern
+      in material sections, sidewalks in 2 to 8 tiles, Temple Ship's alien floors on a 3-tile module; no one-tile
+      floor piece;
+    - kit pieces have their pivot on a tile corner; 63% of the floor tiles come from pieces within 8 units of one.
+  - **The tools.** A floor brush that paints and erases in strokes, stepping by the piece's own size from its source
+    and keeping a stroke's height; Replace (the same mesh takes the brush's materials in place, another mesh is a
+    hide plus a copy); a Material tool for one section of a piece, from the map's own materials; a Floor tiles
+    overlay; floor membership for copies in the view.
+  - **Open decisions** with recommendations (gestures, rectangle strokes, the same-mesh Replace, scenery first, the B
+    key), the project's new `materials` field, the compiler's material gate, the writer's `Materials` setter, merged
+    rebuild volumes if measurements need them, tests, order of work, EXP-27 (three runs), risks and follow-ups.
+- Checked: the inventory figures were counted from the cached exports with throwaway scripts; the code facts the plan
+  rests on were read in the code: `dropTarget` steps one tile from the source's pivot and drops on the piece under the
+  cursor; each copy and each hide gets its own rebuild volume; a quick build's copy reads its source's lightmap; the
+  writer has no object-array setter; the compiler doesn't refuse the landing prefab's pieces. Documentation only:
+  nothing is built, and the walkability and lighting readings marked [inferred] are not proven in the game.
+
+### Include generated-light following and spot construction in L6
+
+- At the user's request, brought two follow-ups into editor-lights-plan.md:
+  area lights following their glowing piece (section 4.8), and spot lights in maps with no suitable spot template
+  (section 4.9). Ordinary placed lamps and their authored lights still stay separate.
+- Area-light work now covers surface/material/direction matching, explicit resolution of ambiguous associations,
+  project persistence, derived owner move/rotate/copy/delete, fresh copy identities, and correct before/after area
+  contributions without adding generated GUIDs to receiver lightmaps. Piece-only builds also need the new export
+  metadata so their generated lights cannot silently be left behind.
+- Spot construction now has a versioned project recipe, destination class/default imports and a fresh-export
+  constructor, with no local light template, donor-map or UDK dependency. Added its editor/clipboard/recovery,
+  compiler, writer, release and readback requirements.
+- Updated the scope table, project fields, tests, dependency order and risks; added required EXP-26 runs 5 (area
+  lights, Bar/Temple) and 6 (new spots, Truck Stop), both with full and unbaked builds. Updated the parent
+  baker design's L6 row.
+- Checked: read the existing material/emissive export, area-light relight, package import/export and rebuild-volume
+  constructor paths; checked document links, section references, stale scope statements, whitespace and LF endings.
+  Documentation only. Association reliability, constructed-spot layout and game behaviour remain implementation
+  and experiment gates; no new implementation or in-game test result is claimed.
+
+### Review corrections to the editor lights plan
+
+- Updated editor-lights-plan.md with the review's five findings and concrete
+  implementation requirements: explicitly prepare export 18 and select compatible data for old projects; pass
+  before/after light registries through piece copying and relighting; separate baked from unbaked GUID registration;
+  preserve stored cone angles while sharing effective-angle rules; and package valid edits that change no lighting.
+- Expanded the regression cases for a new light plus a copied receiver, multiple lights sharing a receiver,
+  rotation/cone/radius/on-off changes, raw-angle persistence, worker parity, direct versus bounced reach, and
+  zero-write builds. Updated the work order and risks. EXP-26's unbaked run is now required, and a fourth run checks
+  the stored-angle cases against the game. The Bake checkbox remains off by default.
+- Checked: reconciled the requirements with the current exporter, compiler, writer and build paths; checked local
+  document links, section references, whitespace and preserved LF endings. The preceding review ran 79 existing
+  tests successfully and verified twelve enabled baked spots with stored outer angles of 100 or 580 degrees in
+  the original packages. Those checks establish the review baseline, not implementation acceptance.
+- Documentation only: no editor or game changes, no new implementation tests run, and no claim of in-game proof.
+  L6 stays planned and its proposed light family remains gated on the new tests and EXP-26.
+
+### Plan for lights in the editor and the Build (baker step L6)
+
+- The user asked for light emitters in the editor: shown on a toggle, selectable and configurable, with where they
+  emit drawn in the map, and copied, added and removed. The Build bakes their light. Then they asked for a detailed
+  plan, leaving three things as follow-ups: the game's own baked lighting in the Map lighting mode, the sun or moon
+  (with the map's time of day), and links between lamps and their lights.
+- editor-lights-plan.md:
+  - **Where it stands and what the map files hold.** A read-only inventory of the ten cached exports and of the
+    pristine URB_Bar, URB_PoliceStation and TempleShip packages:
+    - each light actor is the actor and one component, and many values sit at the class default, unsaved;
+    - each light is baked into a median of 41 to 102 lightmaps (up to 773);
+    - Bar's toggleable spot is switched by a destructible's action;
+    - area lights carry no link to their glowing piece; the plan explains what area lights are.
+  - **Decisions.** The user's answers, and what can be edited in L6: placed baked point and spot lights only. Area,
+    lit-live, channel-limited, sun or moon, sky and streamed lights are view only.
+  - **The project records** and **export 18**.
+  - **The work.** The compiler's light rule and spec object; a new writer module (`native_lights.py`) for deletes,
+    in-place changes, copies with fresh GUIDs and the receivers' lightmap lists; the relight's before and after for
+    added and changed lights; the Build's light stage; the editor's toggle, markers, picking, shapes, solo preview,
+    baked-into outlines, inspector, edit commands, and the Map mode following edits.
+  - **Tests, order of work, EXP-26** (three runs, URB_Bar and Police Station), risks and follow-ups.
+- The baker design's L6 row links to it.
+- Checked: the inventory figures were read with the repository's own readers. The code facts the plan rests on were
+  checked against the code: `set_struct` only adds 12-byte structs; `clone_assembly` splices light GUIDs into a clone's
+  lightmap; `edit_reaches` counts only removed lights. Nothing is built yet.
+
+### The "Installed …" message closes itself after 5 s
+
+- The user asked for the message after Install as intro map to time out by itself after about 5 s, and still close
+  sooner when clicked.
+- [app.js](tools/viewer/web/app.js) `banner(message, actions, {timeout})`: with a timeout, the banner hides itself after
+  that long. Hovering it keeps it open, the countdown starting again when the pointer leaves, and × closes it at once.
+  A new banner clears the old one's countdown.
+  - Install as intro map's success messages pass 5 s (`INSTALLED_FOR`): an install from the menu, and one at the end of
+    a build once the build window is closed.
+  - Failure messages, and every other banner, stay until dismissed.
+- Checked on a test server: the message stayed past 6.5 s while hovered and closed 5 s after the pointer left. The
+  browser smoke (`--intro`) now waits for the map install's message to close by itself, and passes.
+
+### One Build… item: a panel with Bake the lighting, off by default, also for Install as intro map
+
+- The user asked for one Build button in place of Build and Quick build. It opens a build panel with a Bake the
+  lighting option, off by default, whose text says what baking does and that it takes a while. Then the user asked
+  for Install as intro map to use the same panel instead of its own picker (the entry below).
+- **The panel** ([build_options.js](tools/viewer/web/build_options.js) `createBuildOptions`,
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)):
+  - It names the project, its revision (or that what is on screen is saved first) and its variant.
+  - **Bake the lighting** is unticked each time it opens. Its text says what baking does and that it takes several
+    minutes against seconds, and that pathing, cover and line of sight are the same either way.
+  - An estimate follows the checkbox, from the project's last build of that kind.
+  - Build (Enter) builds, Esc or Cancel closes, and the editor's keys stay off the map while it is open.
+- **The menu and keys** ([app.js](tools/viewer/web/app.js)): Project ▸ **Build…** (Ctrl+B) opens it (`openBuild`).
+  Quick build (no lighting) and Ctrl+Shift+B are gone. `buildProject(quick)` is unchanged; `canBuild` holds the checks
+  both share.
+- **Wording:**
+  - The build window's title says "(lighting not baked)", and its estimate goes by "the last baked/unbaked build". The
+    old message ("hasn't had a build before") was wrong for a baked build after unbaked ones.
+  - The Last built line, the Installs row and the "Installed …" message say "lighting not baked".
+  - Texts that said "Build (Ctrl+B) bakes it" now say to build with Bake the lighting ticked, as does a package's
+    README ([build.py](tools/editor/build.py)).
+  - Docs: help, [the viewer README](tools/viewer/README.md), intro.py's docstring and
+    [the release's getting-started guide](tools/release/GETTING-STARTED.md).
+- **Install as intro map** with a project open now opens this panel (`installIntro`), titled "Install <project> as
+  intro map". The panel's `show` takes the build button's label and its callbacks each time it opens.
+  - **Build and install** builds (Bake the lighting off by default) and installs when the build ends.
+  - **Install last build** shows only when the last build is of what is on screen, and is then the focused default,
+    so Enter doesn't replace a baked build.
+  - The separate picker (intro.js `createInstallChoice`, its `#installDialog` and styles) is gone. Install's tooltip
+    says what the panel offers.
+- **Checked** in the editor on a test server (scratch project, builds folder and game folder):
+  - The menu shows Build… alone, and the panel opens with Bake off and Build focused.
+  - Ticking it changes the estimate. (Ticked, the checkbox sat centred beside its text; it is aligned to the top now.)
+  - Enter with Bake off started a build without baking. Reopened, it was unticked again; ticked, Build started a
+    baked build, which was cancelled and left the last package as it was.
+  - Install with a current build: the panel showed "Install last build" focused as the primary button, beside "Build
+    and install", with Bake off. After Esc, Ctrl+B opened it as plain Build again, without the install button.
+  - Install, then Build and install: a build without baking, then installed into the scratch game. The message said
+    "lighting not baked", and the install recorded that build.
+  - The browser smoke checks the menu labels, and (`--projects`) that Ctrl+B opens the panel unticked with Build
+    focused, that the checkbox changes the estimate, and that Esc closes it without building. With `--intro
+    --intro-project` it installs through the panel's Install last build. Both pass, as do the editor (70), viewer
+    (109) and release (4) tests.
+
+### Install as intro map asks how to build the project: Quick build by default
+
+- The user asked for Install as intro map to ask whether to make a quick or a full build first, defaulting to quick.
+- **The window** (intro.js `createInstallChoice`, [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)): with a project open, Install as intro map opens a small window. It offers:
+  - **Quick build**: the default, with the no-proper-lighting note;
+  - **Full build**: lighting baked;
+  - **Its last build, as it is**: only when the last build is of what is on screen. Then it is the default instead,
+    so an existing build, baked or not, is installed rather than replaced by a quick one unasked.
+
+  Each choice shows how long the project's last build of that kind took. Enter picks the focused choice (the
+  default), the arrow keys move between them, and Esc, Cancel or the close button cancel. While it is open the
+  editor's keys stay off the map.
+- **[app.js](tools/viewer/web/app.js)**: `installIntro` opens the window, and `installChosen` builds (quick or full,
+  saving first if needed) and installs when the build ends, or installs the last build at once. A map alone installs
+  as before, without asking.
+  - Install's tooltip says it asks.
+  - The "Installed …" message says when it installed a quick build.
+- Docs: help text, [the viewer README](tools/viewer/README.md) and intro.py's docstring.
+- **Checked** in the editor on a test server, with a scratch copy of the project and builds folder and a scratch game
+  folder made from the install's config:
+  - The window's three choices with the last build as default, then two with Quick build as default once that
+    package was gone.
+  - The arrow keys wrapping, Esc cancelling with nothing built or installed, and Delete leaving the map alone while it
+    is open.
+  - Enter on Quick build: built in 7 s and installed, recorded as quick in the Installs row and the message.
+  - Enter on the last build: installed at once, with no build.
+  - Full build: started a full build with the install queued; it was then cancelled, and the last package stayed.
+  - The browser smoke with `--intro --intro-project` answers the window with its default. It passes, as do the
+    viewer (109) and editor (70) tests.
+- **Gaps:** the default differs from the request when a current build exists. The window then defaults to installing
+  that build as it is, not to a new quick build, so a 10-minute bake isn't thrown away by pressing Enter.
+
+### Quick build: the edit made in the map without baking its lighting, in seconds
+
+- The user asked for a build that skips the expensive bake, for checking pathing and cover in the game before the
+  map is ready, with a tooltip making clear the lighting won't be right.
+- **The Build** ([build.py](tools/editor/build.py)): `--quick` runs the light stage as `Build.edit_unbaked`. That is
+  native_copy.py without `--bake`, the same edit a full build makes, with nothing relit and no texture cache. An edit
+  only a patch makes ships the base map under the variant's name.
+  - The light stage records `baked` (false for a quick build).
+  - The manifest records `quick` and `times`: how long the project's last full and quick builds took, carried over
+    from the package a build replaces (`last_times`).
+  - A quick package's README says in its first line that its lighting is not baked, and what that means.
+- **The server** ([builds.py](tools/viewer/builds.py), [viewer.py](tools/viewer/viewer.py)):
+  - `POST /projects/<id>/build` with `{"quick": true}` starts a quick build; the job and the package say `quick`, and
+    the package gives `times`.
+  - native_copy.py without `--bake` shows as "making the edit in the map".
+  - Install as intro map records whether it installed a quick build ([installs.py](tools/viewer/installs.py)), and the
+    Installs section says so (intro.js).
+- **The editor** ([index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js),
+  [project.js](tools/viewer/web/project.js)):
+  - The Project menu has **Quick build (no lighting)** under Build (Ctrl+Shift+B). Its tooltip starts "NO PROPER
+    LIGHTING" and says what is wrong in the game and what is right.
+  - The build window's title says "(quick, no lighting)", its bake step reads "Make the edit in the map (lighting not
+    baked)", and once built its note says what that means.
+  - Its time estimate goes by the last build of the same kind.
+  - The Project menu's Last built line and Install as intro map's tooltip say when the package is a quick build.
+  - Help and [the viewer README](tools/viewer/README.md) describe it. The README also drops the "patch marked so" line
+    that the step hiding above made stale.
+- **Checked:**
+  - A real quick build of temple_improved (revision 13 of Temple Ship: 33 copies, 7 hides) took 6.6 s from the command
+    line and 6 s from the editor, against 10:22 for the full build of the same revision.
+  - Compared with that full build, export by export: the world data is byte for byte the same, and native_copy.py's
+    record of the edit matches. Every other difference is lighting, or a reference or net index shifted by the full
+    map's 66 extra lightmap textures. This is findings register T-20.
+  - In the editor on a test server, with a scratch copy of the project and builds folder: the menu item and its
+    tooltip, a build from the menu and one from Ctrl+Shift+B, the window's texts, the Last built line and the estimate
+    from the last quick build.
+  - Tests: `test_build` (a quick build's tool call, stage, package and README; a patch-only quick build; times carried
+    over both ways), `test_builds` (`--quick` passed, the running label, `{"quick": true}` over the route and anything
+    else full) and `test_intro` (a quick package installs and is recorded as quick).
+  - All suites pass: editor 70, viewer 109, bake 149, upk 18, release 4.
+- **Gaps:** no quick build has been played in the game yet; T-20 says what to look for. (Install as intro map's
+  choice of build is the entry above.)
+
+### The Build panel hides the patch step unless the edit makes a patch
+
+- The user asked what the panel's "No patch: the edit is made in the map itself" row was for. It was the patch step
+  (patchtool build and cook in UDK), which the Build skips for every project the compiler accepts since every family
+  it builds is made in the map. So it showed on every build and said nothing.
+- [app.js](tools/viewer/web/app.js) `renderBuild`: the step "Build and cook the patch in UDK" is listed only once the
+  compile leaves the patch something (copies for the copier, or hidden pieces for the patch) or the patch stage ran;
+  the next step's time still counts from the skipped stage's end. A normal build now lists four steps. The unused
+  `.skip` style is gone from [style.css](tools/viewer/web/style.css). The Build itself ([build.py](tools/editor/build.py))
+  is unchanged: its patch path stays for edits a map can't take natively, if any.
+- Checked on a test server with a build's status stubbed in the page: a skipped patch, a made patch, a running build
+  before the compile ends, and a build that failed in the compile.
+
+### Export 17: whether a piece is destructible, and its health, under Source details
+
+- The user asked to see, for a selected piece, whether the game counts it as destructible and with how much health.
+- **Export 17** ([scene_metadata.py](tools/viewer/scene_metadata.py) `destruction`, [export.py](tools/viewer/export.py)):
+  each piece gets `destruction`, from the toughness it names (directly or through its archetype), or null when it has
+  no health (scenery, ladders). It records:
+  - its kind: a prop (one health for the whole piece) or a fracturing piece (it breaks a part at a time);
+  - the toughness's name (`Toughness_METAL`) and health;
+  - the toughness's flags that are set (`bFragile`, `bInvincible`);
+  - and whether the health is the class default (3), for a prop that names no toughness.
+  What the game does with it is finding F-68, from a scan of the install's 101 maps and the game's decompiled script.
+- **The panel** ([pieces.js](tools/viewer/web/pieces.js) `destructionNote`, [app.js](tools/viewer/web/app.js)): Source
+  details gains **Destructible** and **Health** lines under Class, with the game's rules in their tooltips.
+  - A prop: "Yes, not by bullets" (only hits that cause fracture hurt it: explosions, fire, lasers, plasma, heavy guns,
+    melee), or "Yes, by any damage" when fragile. Health reads "500 (Toughness_SMALLCAR)".
+  - A collectible: "Yes: its first damage destroys it".
+  - A fracturing piece: "Yes, a part at a time", with its toughness's health. With no toughness (852 of the install's
+    fracturing pieces): "Unknown: no toughness set", since what the game's native code does then wasn't worked out.
+  - An invincible toughness: "No: invincible". Scenery: "No".
+  - An export older than 17: "Unknown: export the map again".
+- **The cache's ten maps re-exported at 17.** Each v17 has the same pieces and diagnostics as its v16; only
+  `destruction` is new.
+- **Checked:**
+  - new [test_destruction.py](tools/viewer/tests/test_destruction.py) (6 tests: archetypes, the default, fracturing
+    pieces, flags, an imported toughness; and the Bar's car, its glass, a deco wall and a ground plane);
+  - the viewer's 108 unit tests and the editor's 67 pass;
+  - `browser_smoke.check_destruction` passes on the Bar's export 17. It checks the panel's lines for the car
+    ("Yes, not by bullets", "500 (Toughness_SMALLCAR)"), its glass ("Yes, a part at a time",
+    "10 (Toughness_GLASS, fragile)") and a ground plane ("No", no Health line).
+  - The panel was looked at in the browser.
+- **Not checked:** the health of a fracturing piece's parts and the damage rules weren't tried in the game; they come
+  from the script and the maps' data.
+
+## 8 November 2026
+
+### viewer.cmd renamed to xcom_editor.cmd
+
+- The repository's launcher for the editor is now [xcom_editor.cmd](xcom_editor.cmd) (the user asked for it). It is
+  the same script under a name that says what it starts: the main server on port 8768, with `start`, `restart`,
+  `stop` and `status`, and the same `VIEWER_PORT`, `VIEWER_NO_OPEN` and `VIEWER_CACHE` variables.
+- Its messages say "the editor", and its server window is titled "XCOM Map Workshop (port N)".
+- A release keeps its own launcher, `XCOM Map Workshop.cmd`, which the installer's shortcuts start.
+- Updated: [AGENTS.md](AGENTS.md), the [README](README.md), [tools/viewer/README.md](tools/viewer/README.md) and the
+  UDK-removal plan's table. Earlier ledger entries and experiment notes
+  keep the old name, as records.
+- **Checked** on test port 8790: `status`, `start` (from nothing and with one running), `restart`, an unknown action
+  (exit 2), `stop`, then `status` again. `status` on 8768 found the user's running server. Nothing tracked names
+  `viewer.cmd` any more, outside those records.
+- **Gap:** a shortcut someone made to `viewer.cmd` needs remaking.
+
+### The repository renamed to xcom-ew-map-editor
+
+- On GitHub, the private repository is now named `xcom-ew-map-editor` (still private), since the
+  project is the editor now. Its description names XCOM Map Workshop. GitHub redirects the old address.
+- The local `origin` points at the new name. The local folder keeps its name: the UDK's `XComMapEd` link, the
+  worktrees and the agents' project memory are tied to its path.
+- The [README](README.md)'s title and opening say what the repository is: the editor, and the research behind it.
+- One repository still holds the editor and the research. A public editor repository would be carved out with its
+  history when the editor goes public.
+- **Checked:** `gh repo view` shows the new name and description, and `git ls-remote` reaches it.
+
+### A standard Windows installer (Inno Setup) in place of the PowerShell window
+
+- The user asked for a real Windows installer, with a folder picker for the LWR or EW install and a choice of where to
+  install the editor. New [installer.iss](tools/release/installer.iss), compiled by Inno Setup 6 or 7 (free for any
+  use).
+- **Its pages:**
+  - welcome and licence (MIT);
+  - **destination folder:** `{autopf}\XCOM Map Workshop`, per user by default (`AppData\Local\Programs`, no
+    administrator rights), or for all users (`Program Files`) through Setup's own dialog;
+  - **your XCOM: Enemy Within game:** a folder box with Browse…, filled from Steam's libraries (registry, then
+    `libraryfolders.vdf`; our lab copy skipped). The install's kind shows as it is typed, and a folder without
+    `XEW\XComGame\CookedPCConsole` is refused;
+  - an optional desktop shortcut;
+  - ready (with the game folder);
+  - finish (start the editor).
+- **What it does:**
+  - **The game setting.** After copying, it runs `gamesetup.py set` with the bundled Python as the user who started
+    Setup, so the settings land in that user's Documents even when installing for all users. A failure says the
+    editor will ask itself.
+  - **Shortcuts and uninstall.** Start menu shortcuts (the editor, the guide in Notepad) and an uninstaller in Apps.
+  - **Upgrades.** A new version removes the old `tools` and `python` first (`[InstallDelete]`).
+  - **Silent installs** take `/GAMEDIR`.
+- **[make_release.py](tools/release/make_release.py):**
+  - it makes `XCOM-Map-Workshop-<version>-Setup.exe` beside the zip when it finds ISCC (`--iscc`, the `ISCC` variable,
+    or Inno Setup 7 or 6's usual folders), else the zip alone with a note; `--no-installer` skips it;
+  - it compiles every module ahead (`compileall`, unchecked hashes), so numpy's and SciPy's code isn't compiled at each
+    start and nothing is written beside the program;
+  - THIRD-PARTY-NOTICES names Inno Setup.
+- **Removed:** `Install.cmd` and `Install.ps1`. The zip stays as the portable form: unpack and run
+  `XCOM Map Workshop.cmd`, whose first start asks for the game folder in the page.
+- **Docs:** the guide's setup and removal sections ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md); the
+  installer is unsigned, so Windows SmartScreen asks once), the [README](README.md), and checklist item 9.
+- **Checked** (Inno Setup 6, already installed on this PC; a download of Inno Setup 7 wasn't run, and was deleted):
+  - **0.1.0:** `XCOM-Map-Workshop-0.1.0-Setup.exe` is 58.4 MB; the zip is 96.1 MB with the compiled modules.
+  - **A silent install into a scratch folder**, with a scratch settings file and `/GAMEDIR` set to the LWR install,
+    took 10 s:
+    - it wrote the game setting, registered the uninstaller and made the two Start menu shortcuts;
+    - the installed copy's doctor is all OK, its server served the page, three.js and the 95 maps, and a second
+      start (`--reuse`) found the running one;
+    - the Build's tools import in 4.3 s.
+  - **A game folder with a trailing backslash** was set correctly.
+  - **A second install**, with no `/DIR` or `/GAMEDIR`, found the same folder and kept the setting, and a stale module
+    left in `tools` was removed.
+  - **Each uninstall** removed the folder, the Apps entry and the shortcuts, and kept the settings.
+  - **Tests:** `test_release.py` (4: the installer script's pages, its settings step and its output name).
+- **Not done:** the wizard's pages weren't clicked through here (the user tries them on a separate machine with a
+  fresh LWR), and the installer isn't code-signed.
+
+### Cancel a build; a bug report's zip (two of the preview's recommended items)
+
+- **Cancel the build:** a button in the build window while a build runs.
+  - [builds.py](tools/viewer/builds.py) `cancel` stops `build.py` and the tools it runs (`taskkill /T`); the job ends
+    "cancelled".
+  - The package swaps in only at the end, so the last good one stays.
+  - Route: `POST /projects/<id>/build-cancel` ([viewer.py](tools/viewer/viewer.py)).
+- **Save a bug report:** a button in the build window once a build has ended (built, failed or cancelled).
+  - `report` zips the project file, the last package's `manifest.json` and README, and the newest build's logs,
+    compile report and relight records into `<builds>/<variant>-report.zip`.
+  - The zip also holds a `report.json` (editor version, the build's state and error) and the build's output, and the
+    page copies its path.
+  - Route: `POST /projects/<id>/report`. Page: [app.js](tools/viewer/web/app.js), [project.js](tools/viewer/web/project.js),
+    [index.html](tools/viewer/web/index.html).
+- The guide ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) says both.
+- **Checked:**
+  - [test_builds.py](tools/viewer/tests/test_builds.py) (5: a running build cancels and the next one builds; a
+    report holds the project, the manifest, the logs and the output; nothing to report before a first build).
+  - In the browser, on a test server (8793) with scratch settings and a copy of the EXP-24 cars project:
+    - a build cancelled after 13 s ("build cancelled"), with no `build.py`, `native_copy.py` or `relight.py` left
+      running;
+    - the earlier package's map is unchanged (SHA-256 `11660e23ff3f`);
+    - Save a bug report wrote the zip with the cancelled build's log.
+  - The test server was stopped.
+- Not done: picking which missions a variant serves (the third recommended item).
+
+### The release zip with everything bundled, its installer and guide; MIT licence (preview checklist items 6, 9, 5, 2)
+
+- **The release** ([tools/release/make_release.py](tools/release/make_release.py)), at the user's request:
+  - **Everything bundled.** Python, the packages and three.js come in the zip, so a tester needs neither Python nor
+    the internet.
+  - **Output.** `python tools/release/make_release.py` writes `dist/release/XCOM-Map-Workshop-<version>.zip`
+    (gitignored).
+  - **Our modules:**
+    - those the editor's entry points import, found by reading their imports: the server, the Build, and the bake
+      tools it runs;
+    - plus the subprocess scripts named by path, and the page with its pinned three.js, checked against
+      `setup_vendor.py`'s checksums;
+    - it refuses two modules with one name, since the embedded path finds each by name alone;
+    - 0.1.0 takes 81 of our files; none from `tools/patch`, `tools/udk`, `tools/re` or any tests.
+  - **Python 3.12.10's embeddable package** from python.org:
+    - the SHA-256 is pinned; its MD5 matched the one python.org's release page publishes;
+    - its `python312._pth` names the tools' folders, since an embedded Python adds no script folder to the path;
+    - `requirements.txt`'s packages are installed into it as Windows wheels (`pip --only-binary --platform
+      win_amd64`); downloads are cached in `dist/.downloads`.
+  - **Included files:** [LICENSE](LICENSE) (MIT, the user's choice), a generated `THIRD-PARTY-NOTICES.txt` (Python's
+    licence, each wheel's licence files, three.js's) and `VERSION.txt`.
+  - **A last check** imports the packages and the editor's modules with the bundled Python.
+  - Nothing from a game install goes in.
+- **The installer** (Install.cmd, Install.ps1): a small
+  Windows form on Windows PowerShell 5.1, which every Windows has.
+  - It lists the installs found in Steam (through `gamesetup.py find`, the same search as the page), with a folder
+    box, Browse… and the install's kind shown as it is typed.
+  - It sets the game setting through the bundled Python (`gamesetup.py set`).
+  - It can make a desktop shortcut and start the editor.
+  - It takes the zip's "from the internet" mark off the unpacked files.
+- **The launcher** ([XCOM Map Workshop.cmd](tools/release/XCOM%20Map%20Workshop.cmd)): starts the server with the
+  bundled Python. With the new `serve --reuse` ([viewer.py](tools/viewer/viewer.py)), a second start opens the browser
+  on the running editor instead of failing on the port.
+- **The guide** ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md), the zip's `README.md`) covers:
+  - what you need, setting it up, making and playing a variant (Install as intro map, or by hand);
+  - what builds in the preview;
+  - the known limits for testers (the recommended item), and that projects may not open in a later version (the
+    "project files" item: testers are told, schema 1 isn't frozen);
+  - where things are, reporting a problem, removing it, and the licences.
+- **A version** ([version.py](tools/viewer/version.py), 0.1.0) in the page's help and setup dialog, each build's
+  `manifest.json` (`editorVersion`) and `README.txt`, and the zip's name. `/setup.json` gives it.
+- **What can be edited, said up front** (item 5, [app.js](tools/viewer/web/app.js)):
+  - a banner, with Undo, as soon as a piece of a family the Build doesn't take is moved, deleted or copied: doors
+    without a frame, fracturing pieces, physics props. It names the piece and its milestone, and says the Build
+    refuses the project while it holds such an edit;
+  - the help panel says what builds and what doesn't ([index.html](tools/viewer/web/index.html)).
+- **The README by hand** (item 2):
+  - the build's README now says how to play a variant without the editor's install: set `bInRotation=True` on its
+    records, and False on the base map's own to play it instead. Before, it only said that was "up to you";
+  - new [readme_install_check.py](tools/release/readme_install_check.py) installs a package by its README.txt
+    alone (never the manifest) into a scratch copy of an install's config and checks the result reads back:
+    - the files are listed and present;
+    - the records are the variant's, with their streams present;
+    - the editor's map list reads them with the base map's missions;
+    - the landing zones match;
+    - after the rotation step, the variant is in rotation and the original isn't.
+- **Gamesetup's command line:** `find` and `set <folder>`, for the installer.
+- **Checked:**
+  - **The release built:** 81.2 MB.
+  - **A full Build with the release's bundled Python:** EXP-24's cars on the Bar project, scratch settings set by the
+    installer's own `gamesetup.py set`, the real cache read only. Its variant map, lightmaps and intro copy are byte
+    for byte those of the 16:16 build with this PC's Python, the one played in EXP-24 run 2. It took 230 s, against
+    178.
+  - **The release's own server** (test port 8791) served the Bar with the bundled three.js. Deleting a fracturing
+    interior wall showed the item 5 banner. The server was stopped afterwards.
+  - **The README hand install:**
+    - on that build's README as built, steps 1 and 2 passed, and step 3 failed on the old "up to you" wording;
+    - regenerated with the new wording, it passed for that build and for EXP-25's Police Station build (three
+      records: abduction, data recovery, terror; both intro copies).
+  - **Tests:** new `tools/release/tests/test_release.py` (3), and `test_build.py` (the version and the README's
+    rotation step). `Install.ps1` parses in Windows PowerShell 5.1.
+- **Not done:**
+  - the installer's window wasn't clicked through here, and nothing was tried on a clean Windows account (item 3's
+    last line);
+  - no in-game run of a hand-installed variant, or of the editor's own Install as intro map.
+
+### First run in the page: the game install chosen there, the doctor's checks shown (preview checklist item 3)
+
+- **An empty cache serves** ([catalogue.py](tools/viewer/catalogue.py) `load_catalogue(allow_empty=True)`,
+  [viewer.py](tools/viewer/viewer.py)):
+  - the server makes the cache folder and starts with no exported map, listing the install's maps to export on first
+    open;
+  - before, it stopped with "No prepared maps found";
+  - with no map exported there is no default map, and the page opens the map browser with "Choose a base map to
+    start".
+- **The game install from the page** (new [gamesetup.py](tools/viewer/gamesetup.py), [setup.js](tools/viewer/web/setup.js),
+  the dialog in [index.html](tools/viewer/web/index.html) and [style.css](tools/viewer/web/style.css)):
+  - **The first-run dialog.** With no game install set and nothing exported, the page opens on "Welcome: choose your
+    game install". It offers the installs found in Steam's libraries (registry keys, then `libraryfolders.vdf`; the
+    lab copy greyed out), a folder typed in, or Browse… (a Windows folder dialog run through Windows PowerShell). It
+    also lists the doctor's checks.
+  - **Choosing an install** saves the game setting. The server then swaps in that install's maps and exporter
+    without a restart (the new `Live` holder and `install_catalogue`, which the handler reads on each request), and
+    the page reloads.
+  - **Later**, the Project menu's "Game install and checks…" opens the same dialog.
+  - Routes: `GET /setup.json`, `POST /setup/game`, `POST /setup/browse`; same-origin checks on the POSTs.
+- **[requirements.txt](tools/viewer/requirements.txt)** lists what the editor imports, pinned to this PC's versions:
+  Pillow 12.3.0, numpy 2.5.3, scipy 1.18.1 and embreex 4.4.0.post1. It listed Pillow alone. An AST walk from the
+  editor's entry points (the server, the Build and the bake tools it runs) found 52 of our modules and those four
+  packages.
+- **Docs:** the [viewer README](tools/viewer/README.md) (first run and the game install).
+- **Checked:**
+  - New [test_gamesetup.py](tools/viewer/tests/test_gamesetup.py) (3 tests):
+    - installs found from a fake Steam folder and a second library, with the kinds and the lab copy;
+    - choosing an install refuses a non-game folder and an empty one, then saves and relists;
+    - an empty cache's server answers `/maps.json`, the setup routes, refuses another origin, and denies an asset
+      without crashing.
+  - In the browser, on a test server (8790) with a scratch settings file (no game install) and an empty scratch cache:
+    - the welcome dialog listed the LWR install and the lab copy (greyed out);
+    - Use this install relisted the 95 maps, and the page reloaded on the map browser;
+    - Commercial Street exported into the scratch cache and opened;
+    - the Project menu's dialog showed every check OK.
+  - The test server was stopped afterwards.
+- **Not done here** (item 9's installer): the one-click setup, and a try on a clean machine.
+
+### Plain Enemy Within installs too (preview checklist item 8, a best guess)
+
+- The user asked for plain EW installs as well as LWR, on a best guess from the code, not checked against a real
+  vanilla install. A read-only sweep of `tools/viewer`, `tools/editor`, `tools/bake` and `tools/upk` (a helper agent,
+  reviewed here) found that nothing refuses a vanilla folder. Two places did break: the Build's packaging, and
+  Install as intro map. Both needed Long War's files.
+- **The game setting** ([settings.py](tools/viewer/settings.py)): the install the editor reads is now **game**, for
+  LWR or plain EW.
+  - `lwr` is its older name: a settings file with `lwr` is read the same, a save writes `game` and drops `lwr`,
+    `load_settings` gives the folder under both names, and `viewer.py settings --lwr` and `build.py --lwr` still work.
+  - New `game_kind` tells LWR (`DefaultLWRebalance.ini`), another Long War (`DefaultLZMutator.ini`, a doctor warning:
+    not tried) and plain Enemy Within apart. `resolve_game` and the doctor name the kind.
+  - `resolve_lwr` and `lwr_game` stay as aliases for the lab tools.
+  - [LabSettings.ps1](tools/lab/LabSettings.ps1) reads either name.
+- **The Build** ([build.py](tools/editor/build.py)):
+  - `DefaultLZMutator.ini` and `DefaultMiniMods.ini` are Long War's. Where the install has neither, the config lines
+    carry `None` for them and the README leaves them out; before, the build stopped with a traceback after the
+    lighting.
+  - The records' display names end in ` |0` only where the install's do (LWR's do, plain EW's don't).
+- **Install as intro map** ([installs.py](tools/viewer/installs.py)):
+  - **The landing-zone file is optional.** Ready, install and reset no longer need `DefaultLZMutator.ini`: without
+    it, no landing-zone lines are written, and the backups hold `DefaultMaps.ini` alone.
+  - **The intro slot is found by name.** It is the record named LWR's Commercial Alley Redux, else the same name
+    without LWR's ` |0` (`INTRO_SLOTS`). That plain EW's first mission plays that record is a guess: LWR's
+    `TakeFirstMission` was decompiled, vanilla's wasn't.
+- **The page and server text** say the game install instead of the LWR install:
+  - the Project menu's Installs row is "Game", with the install's kind;
+  - "as the game has it" and "the game's own";
+  - files: intro.py (`/intro.json` adds the kind; the keys keep their names),
+    intro.js, [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+    [exports.py](tools/viewer/exports.py) and [viewer.py](tools/viewer/viewer.py).
+- **Docs:** the [README](README.md) (setup: the game setting, the UDK only for the lab), the
+  [viewer README](tools/viewer/README.md) (Install as intro map, settings and doctor), and the
+  preview checklist's item 8.
+- **Checked:**
+  - new tests:
+    - `test_build.py`: a plain EW install builds with no Long War files and no ` |0`;
+    - `test_intro.py`: a plain EW install, with no landing-zone file and the slot named without ` |0`, takes a
+      project's build and a map, and resets byte for byte;
+    - `test_projects.py`: the older `lwr` setting is read and replaced; the install kinds and their doctor statuses;
+  - suites: viewer (97), editor (67), and the bake's `test_deploy` and `test_lab_install` pass;
+  - `browser_smoke.py`'s expectations are updated, not run yet;
+  - `doctor` on this PC: game OK, "Long War Rebalance".
+- **Known gaps:**
+  - nothing was tried on a real vanilla install;
+  - LWR's exports and projects won't build against vanilla where vanilla's map differs from LWR's (the Build checks
+    the base map's SHA-256), so a vanilla user exports their own;
+  - Long War's `|N` display-name convention and the first mission on vanilla are guesses.
+
+### UDK no longer required (preview checklist item 4); the checklist brought up to date
+
+- **The Build runs without UDK** ([build.py](tools/editor/build.py)). The `udk` setting is optional: `build.py` asks
+  only for the game install, and `Build` takes no UDK. Every project the compiler accepts is made in the map itself
+  and skips the patch stage, as before. A build that would need a patch (none today; only an experiment's
+  `--family`) is refused at that stage, before UDK would run, saying the setting isn't set, or that this copy of the
+  editor ships no patchtool. The manifest's tool hashes leave out a tool that isn't there.
+- **The doctor** ([settings.py](tools/viewer/settings.py)): UDK unset is OK ("not needed"); UDK set but incomplete is
+  a warning, not a failure.
+- **The preview checklist:** item 7 ticked (ladders, framed doors, cars and vans built
+  and played on two maps each; frameless doors stay refused with their chip). Items 2 and 3 say what the 8 November
+  install and settings work already did: Install as intro map works on any LWR install, and every folder is a
+  setting. The user's choice for item 2: Install as intro map is the one install mode, and the README covers the
+  rest by hand. New items 8 (plain Enemy Within installs too) and 9 (an installer with each release), both asked for
+  by the user. The scope paragraph no longer leaves vanilla EW out.
+- Checked: `test_build.py` (24, two of them new: an edit made in the map builds without UDK, and one needing a patch is
+  refused saying so with no tool run), `test_projects.py` (12: the doctor's UDK warning and the unset UDK's OK).
+
+### EXP-25 done: checklist item 1 ticked
+
+- **Run 5 (Truck Stop) passed** ([the note](research/experiments/EXP-25-preview-maps.md)): the Fastrope landing works
+  on a variant, and a copied drain pipe climbs, as does its original. EXP-25's conclusion is written.
+- **Checklist item 1 ticked** (preview checklist): six maps built with every kind of
+  edit; three played, three checked offline. The plan's step 7 is done; doors
+  without a frame still wait for a run of their own.
+- Checked: the user's run in the lab copy and its `Launch.log`. No tool code changed.
+
+### EXP-25 runs 3, 4 and 6 checked offline
+
+- **The farm, Demolition and Street Hurricane** ([the note](research/experiments/EXP-25-preview-maps.md)): built with
+  no family flag and checked without the game, at the user's request. Each variant was exported with the viewer's
+  exporter into a scratch cache and compared with its project: every copy at its pose with its source's mesh, every
+  moved or deleted original out of the persistent level's actor list, one more ladder or collectible in the level
+  where the project copies one; each landing intro copy names its variant. Nothing left a doubt that needs the game:
+  every kind of edit and family passed in the game on another map. The same check passes on runs 1 and 2's variants,
+  which passed in the game.
+- Documents: the preview checklist (item 1's table).
+- Checked: the three builds' logs and variant checks. No tool code changed.
+
+### EXP-25: run 2 passed (loot works); a rebuild volume needs a brush (F-67); run 5 installed
+
+- **Run 2 (ForestTrench) passed** ([the note](research/experiments/EXP-25-preview-maps.md)): the user ended the mission
+  and got three power cores as loot, the copy among them. The [editor contracts](research/editor-contracts.md)' collectibles
+  row has its test at last.
+- **F-67** ([native_copy.py](tools/bake/native_copy.py) `rebuild_template`, [register](research/findings-register.md)):
+  URB_Demolition_EWI's first fallback volumes (camera blocking volumes) have no brush, and its build failed; a
+  rebuild volume's template must now have a brush model (Demolition's is `XComCursorVolume_0`).
+- **Example projects** ([exp25_projects.py](tools/editor/examples/exp25_projects.py)): the farm's project takes the
+  records' name `CSmallScout_Farm` and the package's `CsmallScout_Farm` (its first build found no record, T-17); the
+  truck stop and Demolition drain pipe copies moved to spots on their own walls (the compiler's end check passed
+  two that would have stood inside a jutting wall and clear of a site office).
+- **Run 5 (Truck Stop)** built and installed for its Fastrope landing; runs 3, 4 and 6 are checked offline from now
+  on (the user: an in-game test only where an offline check leaves a doubt).
+- Checked: `test_native_copy.py` (`RebuildTemplateBrush`, new, and `RebuildTemplate`); runs 5 and 6's variants
+  exported and compared with their projects (every copy at its pose, every hide out of the level); run 2's log.
+
+### EXP-25: run 1 passed, run 2 built, runs 3 to 6 planned
+
+- **Run 1 (Police Station) passed** on the user's short look ("yes they all pass move on"); from run 2 on, each map's
+  check covers only what is new there ([the note](research/experiments/EXP-25-preview-maps.md)).
+- **Run 2 (ForestTrench)** built (12 minutes, 10 of them on one 267,588-texel piece) and installed in the lab's test
+  slot: a power core copied out of the UFO, a tree moved, a rock copied and one deleted. Marked shot:
+  [EXP-25-run2-shots.json](research/experiments/EXP-25-run2-shots.json).
+- **Runs 3 to 6** ([projects](tools/editor/examples/exp25_projects.py)): the farm (a tractor moved and copied, a
+  generator deleted, a UFO collectible copied, a ladder, the flatbed truck), Demolition (a bulldozer, a portable
+  toilet, a crate stack, a drain pipe, an SUV), the truck stop (a dumpster, a forklift, a crate stack, a drain pipe,
+  a semi truck cab) and Street Hurricane (cover chunks, a park bench, a sedan). The truck stop's only empty doorway is
+  a garage opening, so it copies no door.
+- **F-66** ([register](research/findings-register.md)): Street Hurricane's moving vans climb by
+  `patch_streethurricane`'s helpers, and their ladders aren't part of the van; the compiler refuses a copy of them
+  even at the van's own place, so run 6 copies a sedan.
+- Documents: the preview checklist and the plan.
+- Checked: runs 3 to 6's projects compile (no errors; the expected loot and cutaway notes); run 2's offline build.
+  No tool code changed.
+
+### EXP-25 run 1 built: Police Station, every kind of edit
+
+- **EXP-25, checklist item 1's maps** ([the note](research/experiments/EXP-25-preview-maps.md),
+  [projects](tools/editor/examples/exp25_projects.py), plan step 7): one project per map with a moved, a deleted and
+  a copied piece, a collectible copied where the map has one, and a copy of each family the map has that builds,
+  played through a whole mission. The first builds to put the families together.
+- **Run 1 on Police Station**: a lobby bench moved and one deleted; a utility box and a dumpster copied; the facade's
+  double door copied into an empty doorway; a compact car and a delivery van copied, each a quarter turn round. Built
+  with no family flag (6.6 minutes, no compiler warnings) and installed in the lab's test slot. Marked shots:
+  [EXP-25-run1-shots.json](research/experiments/EXP-25-run1-shots.json) and its five images.
+- **ForestTrench (run 2)** has its project too (a tree moved, a rock deleted, a rock and a power core copied); its
+  doors and the farm's have no frame, so those maps copy no door.
+- The three item 1 maps not yet in the viewer cache (URB_Demolition_EWI, URB_TruckStop_EWI,
+  URB_StreetHurricane_Terror) were exported (export 16).
+- Documents: the plan (step 7), the preview checklist
+  (item 1's table).
+- Checked: run 1's offline build. Not yet played in the game. No tool code changed.
+
+### Vans build: EXP-24 run 4 passed, the van family switched on (step 6 done)
+
+- **EXP-24 run 4 passed** ([the note](research/experiments/EXP-24-cars.md), [F-65](research/findings-register.md)):
+  the user's quick check of the delivery vans at the Police Station (one copied a quarter turn round, one moved, one
+  deleted): "consider all of these passed". The game log has no `CachedFrag` or `REBUILD PATHING!` lines and no
+  warning naming the copies; no save this time (run 3 had the save and reload).
+- **The van family builds** ([compiler.py](tools/editor/compiler.py) `FAMILIES`): a van's edits are no longer refused
+  with M2, and the Build takes its building along (F-65). M2's note in the editor ([pieces.js](tools/viewer/web/pieces.js))
+  now names only doors without a frame, and `build.py --family` offers the families still refused
+  ([build.py](tools/editor/build.py)). The two vans projects' notes say they ran with `--family van`.
+- Documents: the plan (status, section 1's table, 7.6, order of work, risks),
+  [editor contracts](research/editor-contracts.md) (a vans row), the preview checklist
+  (item 7), the [viewer README](tools/viewer/README.md) (milestones).
+- Checked: `test_compiler.py` (42; the refused families test now moves a van and refuses only the frameless door,
+  and the rest builds), `test_build.py` (22); [browser_smoke.py](tools/viewer/tests/browser_smoke.py) on Bar, Police
+  Station and CSmallScout_DirtRoad (a van's body shows no milestone; a UFO door shows "Builds from M2").
+
+### EXP-24 run 4 built (vans on Police Station)
+
+- **EXP-24 run 4 on Police Station** ([the note](research/experiments/EXP-24-cars.md),
+  [project](tools/editor/examples/exp24_police_vans_project.py)): a delivery van copied a quarter turn round, one
+  moved 2 tiles south, one deleted; built with `--family van` and installed in the lab's test slot. Each van's
+  building went with it (the copy dropped two sidewalk pieces under the original from its lists). Marked shots:
+  [EXP-24-run4-shots.json](research/experiments/EXP-24-run4-shots.json) and its three images.
+- Documents: the plan (status, 7.6, order of work).
+- Checked: run 4's offline build (no compiler warnings). Not yet checked in the game. No code changed.
+
+### EXP-24 run 3 passed (vans on Bar)
+
+- **The user's check passed** ([the note](research/experiments/EXP-24-cars.md), [F-65](research/findings-register.md)
+  verified): soldiers walk into the turned delivery van copy's and the moved short van's cargo areas, and the copy's
+  roof cuts away over a soldier inside, also after a reload: "looks good to me". The rebuild makes a van copy's cargo
+  floor into floor tiles (plan 7.6's open question). The game log has no `CachedFrag` or `REBUILD PATHING!` lines and
+  no warning naming the copies' buildings or parts.
+- Documents: the plan (status, 7.6, order of work).
+- Checked: the user's run in the lab copy, its F9 shots and its `Launch.log`. No code changed.
+
+### Vans: a van's building goes with it; EXP-24 run 3 built
+
+- **A van's building and floor volumes** ([native_copy.py](tools/bake/native_copy.py) `van_buildings`, `moved_pose`,
+  `edit_van_building`, `hide_van_buildings`; [F-65](research/findings-register.md), plan 7.6): the Build finds a van's
+  `XComBuildingVolume` from its parts (the volumes have no mesh, so the export doesn't list them) and clones it and its
+  floor volumes with the parts, carried by their move, a quarter turn turning them; the copy lists only the van's own
+  pieces and has no visibility groups; a moved or deleted van's building and floor volumes leave the level with it.
+  The manifest gives `vans` and `hiddenBuildings`. A van's parts stay out of other buildings' cutaways, and the
+  compiler ([compiler.py](tools/editor/compiler.py) `floor_note`) gives them no `building-floor` note.
+- **EXP-24 run 3 on Bar** ([the note](research/experiments/EXP-24-cars.md),
+  [project](tools/editor/examples/exp24_vans_project.py)): the delivery van copied a quarter turn round, a short
+  moving van moved 4 tiles, the moving van deleted; built with `--family van` and installed in the lab's test slot.
+  Marked shots: [EXP-24-run3-shots.json](research/experiments/EXP-24-run3-shots.json) and its four images.
+- Documents: the plan (status, 7.6, order of work).
+- Checked: `test_native_copy.py` (19; new: a van's copy takes its building and floor volumes along, turned, listing
+  only the parts' copies; a deleted van's building leaves the level), `test_compiler.py` (42); run 3's offline build.
+  Not yet checked in the game; whether the copies' cargo floor and roof become floor tiles is the open question.
+
+### Cars build: EXP-24 run 2 passed, the car family switched on (step 5 done)
+
+- **EXP-24 run 2 passed in the game** ([the note](research/experiments/EXP-24-cars.md),
+  [T-19](research/findings-register.md) verified): on Police Station a sedan moved with its standalone light bar, a
+  police car copied half round, a crashed car copied, a sedan and its light bar deleted, and a save with wrecks
+  reloaded: "all looks good to me". The game log has no `CachedFrag` or `REBUILD PATHING!` lines. On load the game
+  replays the blasts of every car destroyed before the save, the map's own and the copy alike, harmlessly
+  ([F-18](research/findings-register.md) gets the note; plan section 1's table: F-18 falls away).
+- **The car family builds** ([compiler.py](tools/editor/compiler.py) `FAMILIES`): cars need no `--family` flag; a car's
+  body or glass edited alone is `assembly-split`. Vans and doors without a frame stay refused
+  ([build.py](tools/editor/build.py) `--family van`; [pieces.js](tools/viewer/web/pieces.js): the M2 chip names vans
+  and doors without a frame).
+- Documents: the plan (status, section 1, 7.5, order of work), the
+  [editor contracts](research/editor-contracts.md) (cars), the preview checklist (item
+  7), the [viewer README](tools/viewer/README.md); the EXP-24 example projects say the flag was for their runs.
+- Checked: `test_compiler.py` (42; the car refusals become `assembly-split`; the family table), `test_build.py` (the
+  flag passed on for vans), the viewer unit suite (94); the browser smoke test on Bar and Police Station (a car's body
+  shows no milestone chip, a van's shows M2); both EXP-24 projects and EXP-23 run 1's compile with no family flag.
+
+### Export 16: what car glass breaks; Police Station's standalone light bars join their sedans; EXP-24 run 2 built
+
+- **Export 16** ([scene_metadata.py](tools/viewer/scene_metadata.py) `fragment_breaks`,
+  [export.py](tools/viewer/export.py) `breaks`): each fracturing piece records the pieces its fragment columns break
+  (a car's glass names its body and parts, a wall its doors).
+- **A car's loose parts** ([compiler.py](tools/editor/compiler.py) `assemblies`, `PART_AT`;
+  [T-19](research/findings-register.md)): an XComDestructibleActor that a car's glass names and that stands at the
+  body's place joins the car. On the cache's seven maps exactly Police Station's four standalone police light bars
+  join their sedans; before, moving such a sedan left its light bar behind. The page gives a pasted light bar its
+  sedan copy's link tag ([app.js](tools/viewer/web/app.js) `copyTag`, `useMapFamilies`).
+- **The cache's seven maps re-exported at 16.**
+- **EXP-24 run 2 on Police Station** ([the note](research/experiments/EXP-24-cars.md),
+  [project](tools/editor/examples/exp24_police_project.py)): a sedan with its standalone light bar moved a quarter turn
+  round, a police car copied half round, a crashed car copied (its glass drops the neighbour's entries), a sedan
+  with its light bar deleted; built with `--family car` and installed in the lab's test slot. Marked shots:
+  [EXP-24-run2-shots.json](research/experiments/EXP-24-run2-shots.json) and its four images.
+- Documents: the plan (status, G3, 3.3, 7.5, order of work), the
+  [viewer README](tools/viewer/README.md).
+- Checked: `test_compiler.py` (42; new: a part the glass names at the body's place joins the car, one it names
+  elsewhere or one it doesn't name stays out), `test_links.py` (new: Police Station's glass names its car, its
+  standalone light bar and a neighbour), the whole viewer unit suite (94), `test_build.py`; the browser smoke test on Bar and on
+  Police Station (new `check_light_bar`: the light bar selects with its sedan, and a pasted copy's light bar moves with
+  the copy); the old and new exports compared (the same diagnostics, only those four assemblies changed); run 2's
+  offline build. Not yet checked in the game.
+
+### EXP-24 run 1 passed (cars on Bar)
+
+- **The user's check passed** ([the note](research/experiments/EXP-24-cars.md), [F-64](research/findings-register.md)
+  verified): the moved sedan and the turned copy of the police car, "looks good confirmed". The game log has no
+  `CachedFrag` or `REBUILD PATHING!` lines; it shows no save or reload, so that check carries to run 2.
+- Documents: the plan (status, G8, 7.5, order of work).
+- Checked: the user's run in the lab copy and its `Launch.log`. No code changed.
+
+### Cars: a copied car's glass takes its columns along (G8's glass half); EXP-24 run 1 built
+
+- **The glass's columns** ([native_copy.py](tools/bake/native_copy.py) `move_columns`,
+  [F-64](research/findings-register.md), plan 7.2): a fracturing member of an assembly (a car's glass) has each
+  fragment column's box carried with the copy's move, its MinZ raised by the storey shift, the entries of the car's
+  own members kept (pointing at their copies) and the others dropped. The Build's report and manifest give each
+  glass's columns moved and entries dropped.
+- **EXP-24 run 1 on Bar** ([the note](research/experiments/EXP-24-cars.md),
+  [project](tools/editor/examples/exp24_cars_project.py)): a sedan moved, the police car copied a quarter turn round,
+  an SUV deleted; built with `--family car` and installed in the lab's test slot. Marked shots:
+  [EXP-24-run1-shots.json](research/experiments/EXP-24-run1-shots.json) and its three images.
+- Documents: the plan (status, G8, 7.5, order of work).
+- Checked: `test_native_copy.py` (17; new: a car copy's glass columns turned and moved with it, on Bar's police car;
+  a glass entry of another piece dropped, on Police Station's car 1071); the run's offline build (each glass carried
+  its 6 columns). Not yet checked in the game.
+
+### Export 15: Kismet references and floor boxes (the rest of G3)
+
+- **What the map's Kismet names** ([scene_metadata.py](tools/viewer/scene_metadata.py) `kismet_references`,
+  [export.py](tools/viewer/export.py) version 15, `referencedBy`; [F-63](research/findings-register.md)): the
+  compiler refuses moving or deleting such a piece (`mission-linked`, [compiler.py](tools/editor/compiler.py)) and
+  allows copying it; the inspector shows a **Mission script** chip ([app.js](tools/viewer/web/app.js)). On Bar these
+  are the landing's grounded Skyranger and drop zone, which its Kismet hides.
+- **Floor volume boxes** (`buildings[].floors[].boxes`): the compiler's `building-floor` note now says whether a
+  copy stands in no floor (no cutaway), or a piece in none stands in one (it won't hide), and says nothing when the
+  Build's cutaway holds; on an export before 15 it keeps the general note.
+- **A piece listed though it stands in no floor volume** (the farm's ladders on the sheds' outer walls) gives its copy,
+  outside them too, its own listing ([native_copy.py](tools/bake/native_copy.py) `edit_floor_caches`, and the
+  compiler's note): found compiling the EXP-22 farm project against export 15; an offline build of it lists both
+  ladder copies in the floors their originals are in.
+- **The cache's seven maps re-exported at 15** (Bar, Police Station, the outpost, the farm, the forest trench, the
+  dirt road, Temple Ship): the library picks a map's newest export and doesn't re-export by itself.
+- Documents: the plan (G3, 3.5), the
+  [editor contracts](research/editor-contracts.md), the [viewer README](tools/viewer/README.md).
+- Checked: `test_compiler.py` (41; new: a Kismet-named piece copied, not moved or deleted; the floor note with floor
+  boxes), `test_native_copy.py` (15), the EXP-22 and EXP-23 projects compiled against export 15 (no family flag, no
+  errors), `test_links.py` (new: Bar's Kismet names its Skyranger and drop zone), `test_materials_and_floors.py` (the
+  floor boxes), every other viewer unit test, `test_build.py`; the browser smoke test on export 15 (the Mission script
+  chip).
+
+### Doors build: EXP-23 run 3 passed (step 4 done)
+
+- **EXP-23 run 3 passed in the game** ([the note](research/experiments/EXP-23-doors.md),
+  [F-62](research/findings-register.md) verified upstairs): on URB_ResearchOutpost's floor 2 a moved door and a door
+  copied 6 storeys up from another building work, and cut away with their floor.
+- **The door family builds** ([compiler.py](tools/editor/compiler.py) `FAMILIES`): doors with a frame need no
+  `--family door`, and their "Builds from M2" chip goes; doors without a frame (UFO and alien doors) stay refused.
+  `build.py --family` offers the families still refused.
+- Documents: the plan (status, section 1, 6.8, order of work), the
+  [editor contracts](research/editor-contracts.md), checklist item 7, the [viewer README](tools/viewer/README.md).
+- Not done: Kismet references (`mission-linked`) aren't checked for any family yet (the rest of G3, next).
+- Checked: `test_compiler.py`, `test_build.py`, `test_families.py`, `test_native_copy.py`; the browser smoke test.
+
+### EXP-23 run 3 built on URB_ResearchOutpost; a cutdown floor of 0 stays
+
+- **A copy's CutdownFloor moves only when it names a floor** ([native_copy.py](tools/bake/native_copy.py)
+  `entry_for`): the cutaway lists of Bar, Police Station and the outpost show it names a floor of the building, and
+  0 names none (doors on every floor).
+- **EXP-23 run 3** ([the note](research/experiments/EXP-23-doors.md), project
+  [`exp23_outpost_project.py`](tools/editor/examples/exp23_outpost_project.py)): URB_ResearchOutpost exported into
+  the main cache; on the telescope room on its roof (floor 2), door 26 deleted and door 25 moved into its doorway, the
+  other building's ground-floor door copied 6 storeys up into door 25's; built with `--family door`, installed in the
+  lab's test slot, with marked editor shots.
+- **`mark_shots.py`**'s run 3 file names places by landmark: the editor's camera puts +X on the screen's left.
+- Checked: the door tests of `test_native_copy.py`; the build puts all four copies in floor 2's cutaway.
+
+### EXP-23 run 2 passed
+
+- [EXP-23](research/experiments/EXP-23-doors.md) run 2 on Police Station passed in the game ("done, everything was
+  fine"): a moved prefab door, a copied door, a double door copied a quarter turn round into an empty doorway, a
+  deleted double door. The plan updated; no tool changes.
+
+### EXP-23 run 2 built on Police Station; a copy's floor by overlap
+
+- **A copy's building floor is the one its box overlaps most** ([native_copy.py](tools/bake/native_copy.py)
+  `floor_at`, [F-62](research/findings-register.md)): Police Station's floor volumes end on its back wall's line, so
+  a door's centre there lay on their face and the first run 2 build put two door copies in no floor.
+- **EXP-23 run 2** ([the note](research/experiments/EXP-23-doors.md), project
+  [`exp23_police_project.py`](tools/editor/examples/exp23_police_project.py)): door 95 (a prefab's) moved 13 tiles
+  into door 2's doorway, door 0 copied into door 95's, the double door 17-18 copied a quarter turn round into an inner
+  wall's empty double doorway, the double door 19-20 deleted; built with `--family door` and installed in the lab's
+  test slot, with marked editor shots.
+- Checked: `test_native_copy.py` (15; new: a door copy on Police Station's back wall joins floor 0),
+  `test_compiler.py`; the rebuilt run 2 puts all eight copies in floor 0.
+
+### EXP-23 run 1 passed
+
+- [EXP-23](research/experiments/EXP-23-doors.md) run 1 on Bar passed in the game ("everything works as expected"):
+  [F-61 and F-62](research/findings-register.md) verified (F-62 for the ground floor), the plan updated. No tool
+  changes.
+
+### Doors made in the map, and EXP-23 run 1 built (step 4)
+
+- **A door leaf's box from its skeletal mesh** ([native_copy.py](tools/bake/native_copy.py) `piece_box`,
+  `static_mesh`, `skeletal_mesh`; [T-18](research/findings-register.md)): a leaf saves an unused static mesh
+  component, and the Build failed on it.
+- **Walls' fragment columns** (`edit_columns`, [F-61](research/findings-register.md)): every hidden piece leaves every
+  column's `DestructibleCache`, and a door's copy takes its original's listing carried by its move.
+- **Floor cutaways** (`edit_floor_caches`, [F-62](research/findings-register.md)): every copy whose original is in a
+  building floor's cutaway joins the floor it stands in; the compiler's `building-floor` warning says so
+  ([compiler.py](tools/editor/compiler.py) `FLOOR_NOTE`).
+- **EXP-23 run 1** ([the note](research/experiments/EXP-23-doors.md), project
+  [`exp23_doors_project.py`](tools/editor/examples/exp23_doors_project.py)): on Bar, door 7 deleted and door 6 moved 7
+  tiles into its doorway, the front door copied into door 6's, door 4 deleted; built with `--family door` and
+  installed in the lab's test slot, with marked editor shots.
+- **`mark_shots.py`** takes a shot's floor (`"floor": "1"`: the ground floor with the floors and roofs above cut away).
+- The plan: G4, G7 and G8's door half done; run 1 redesigned (Bar has no
+  doorway without a door).
+- Checked: `test_native_copy.py` (14; new: a leaf's box from its skeletal mesh; a door copy in its wall's columns and
+  its floor's cutaway, the hidden doors in no column), `test_compiler.py`, `test_build.py`; the run's build reads back
+  with the viewer's reader (columns and floors), and a baked build of a probe edit ran to the end.
+
+### Ladders build: EXP-22 run 2 passed (step 3 done)
+
+- **EXP-22 run 2 passed in the game** ([the note](research/experiments/EXP-22-ladders.md),
+  [F-60](research/findings-register.md)): on CSmallScout_Farm the Skyranger lands, the moved ladder (its near helper
+  taken out of `patch_farm`'s copy) and the copy each give a route up, the original beside the copy still does, and
+  the same after a save and reload.
+- **The ladder family builds** ([compiler.py](tools/editor/compiler.py) `FAMILIES`): no `--family ladder` needed, and
+  the editor's "Builds from M2" chip and the palette's M2 tag go for ladders, from the served table
+  ([pieces.js](tools/viewer/web/pieces.js) keeps only the note's wording). `build.py --family` now offers the
+  families still refused.
+- Documents: the plan (status, section 1, 5.4, order of work, risks),
+  [editor contracts](research/editor-contracts.md), checklist item 7 in
+  preview-release.md, the [viewer README](tools/viewer/README.md).
+- Checked: `test_compiler.py` (39; a ladder's deletion compiles with no family enabled), `test_build.py` (22),
+  `test_families.py`, `test_builds.py`, `test_projects.py`, `test_native_copy.py` (12), `test_stream_copy.py`; the
+  browser smoke test on a test server (8790, stopped after): a ladder shows no milestone.
+
+### Marked editor shots for in-game checks
+
+- **`mark_shots.py`** ([tools/viewer/mark_shots.py](tools/viewer/mark_shots.py), [README](tools/viewer/README.md)):
+  opens a project in the editor on a test server and takes shots from the cameras a shots file chooses, with
+  numbered circles on the pieces to look at and a legend saying what each should do. The user asked for them with
+  each in-game check, to find the pieces in the map.
+- **EXP-22 run 2's shots** ([the note](research/experiments/EXP-22-ladders.md),
+  [shots file](research/experiments/EXP-22-run2-shots.json)): an overview of the farm and close-ups of the moved
+  ladder (and its old place) and of the copy beside its original.
+- **No climbing down in the checks:** the game has none (a soldier drops off the roof's edge), so EXP-22's checks,
+  F-60's verification and the plan's check ask for routes up; the down link is left to the A* probe, not run.
+- Checked: the three shots taken with the checked-in tool on a test server (8790, stopped after), matching the ones
+  sent to the user.
+
+### Maps named in two cases build; EXP-22 run 2 on the farm
+
+- **The compiler matches the map's name whatever its case** ([compiler.py](tools/editor/compiler.py),
+  [T-17](research/findings-register.md)): CSmallScout_Farm's package is `CsmallScout_Farm.upk` and its records say
+  `CSmallScout_Farm`. A project names the record's, its pieces the package's, and the compiler compared them exactly,
+  so every edit there was refused and no assembly found. Now the pieces, assemblies and ladder helpers are found
+  under the package's name (`Compiler.package`), and the spec keeps the record's for the records.
+- **The intro copy matches the map's name whatever its case** ([intro_copy.py](tools/bake/intro_copy.py)
+  `same_map`): `CIN_DropshipIntros` names the farm's landing `CsmallScout_Farm`, so the Build made no intro copy for
+  it and the variant would have landed no Skyranger.
+- **EXP-22 run 2** ([the note](research/experiments/EXP-22-ladders.md), project
+  [`exp22_farm_project.py`](tools/editor/examples/exp22_farm_project.py)): on CSmallScout_Farm (exported into the
+  main cache, export 14), `XComLadder_4` moved three tiles along its shed's wall, its near helper in `patch_farm`
+  hidden with a warning, and `XComLadder_0` copied two tiles along its wall.
+- Checked: `test_compiler.py` (39; new: a map whose package and records differ in case), `test_intro_copy.py` (5;
+  new: the farm's landing renamed though the intro names it in the package's case), `test_native_copy.py` and
+  `test_stream_copy.py` (12 and 2, after `empty_slots`); the run 2 build's order check passes (both tops rebuilt
+  first) and it has the farm's intro copy; installed in the lab's test slot.
+
+### Ladders made in the map, and EXP-22 run 1 built (step 3)
+
+Branch `cars-doors-ladders`, the plan's step 3 (G3's `helperOf`, G6, the
+ladder recipe, the ladder ends in the editor). The ladder family still doesn't build for every project: an
+experiment's build switches it on.
+- **[`ladders.py`](tools/viewer/ladders.py)**, shared by the compiler, the server and (as
+  [`ladders.js`](tools/viewer/web/ladders.js)) the page: a ladder's climb ends (foot tile, top tile, the linked top
+  T′) against the export's floor tiles, and `helpers`, the streamed patches' hidden ladders that stand in for a map
+  ladder (exact: the same end tiles; near: the nearest within half a tile). Worked out from export 14's streams, so
+  no export change: on Bar, `patch_bar`'s `XComLadder_11` and `_15` are exact helpers of `XComLadder_3` and `_4`.
+- **The compiler** ([compiler.py](tools/editor/compiler.py)): a ladder copy or move whose foot, or top, has no floor
+  is refused (`ladder-climb`, naming the end); each ladder copy carries its `ladder` ends (`foot`, `top` tiles) to
+  the Build; a moved or deleted ladder's helpers go into `streamHides` ({stream: [actor]}), a near one with a
+  `ladder-helper` warning.
+- **The copier** ([native_copy.py](tools/bake/native_copy.py)): each ladder copy gets a rebuild volume of sphere
+  radius 24 over its T′ (`tile_volume`), first among the volumes it adds, so the top is rebuilt before the foot and
+  the climb keeps its down link (plan 5.2, recipe 1). `rebuild_order` simulates the battle's rebuild on the built map
+  and `ladder_order` refuses a ladder whose foot no volume reaches or whose top comes after its foot; the manifest
+  records both places (`nativeCopies.ladders`). `empty_slots` is `hide_pieces`' list editing, factored out.
+- **Stream copies** ([stream_copy.py](tools/bake/stream_copy.py), G6): a streamed patch copied under the variant's
+  name with named actors out of its level's actor list. The Build ([build.py](tools/editor/build.py)) makes one per
+  stream in `streamHides`, streams it in place of the original (`replaceStreams`, as the intro copies) and lists it
+  in `streamCopies`. `build.py --family ladder` builds a family the compiler doesn't build yet, for experiments.
+- **The editor** ([app.js](tools/viewer/web/app.js)): a selected ladder shows "Climbs" or "Won't climb: no floor at
+  its top", squares on its foot and top tiles (green with floor, red without), and a "Patch helper" chip; the
+  families route serves the helpers.
+- **EXP-22 run 1** ([the note](research/experiments/EXP-22-ladders.md), project
+  [`exp22_ladders_project.py`](tools/editor/examples/exp22_ladders_project.py)): on Bar, `XComLadder_3` moved two
+  tiles along the west wall and `XComLadder_4` copied a quarter turn round onto the west wall, both facing +X (the
+  order hazard).
+- Checked:
+  - `test_compiler.py` (38; new: a ladder climbs only between floors, a moved or deleted ladder's helper hidden,
+    exact and near), `test_build.py` (22; new: the patch copy streamed in place, `--family` passed on),
+    `test_native_copy.py` (12; new: `XComLadder_3` moved, whose plain build rebuilds the foot first and whose
+    ladder build puts the top first), `test_stream_copy.py` (2, new, on LWR's `patch_bar`), the viewer's tests (92)
+    pass.
+  - `browser_smoke.py`'s `check_recipe` also checks the ladder's ends, its chips and its helper, and a move that
+    leaves its top without floor; Bar passes on a test server (8790).
+- EXP-22 run 1 passed in the game the same day: both ladders climb up and down, and again after a save and reload,
+  and the old place doesn't climb ([F-60](research/findings-register.md)).
+- Not done: run 2 (CSmallScout_Farm, a near helper); the streamed levels' volumes and LWR's mutator are not in the
+  order simulation.
+
+### The editor's recipe snap, and assemblies always together (step 2)
+
+Branch `cars-doors-ladders`, the plan's step 2 (section 8), for the user to
+try before any of these families builds.
+- **The server serves the families** ([families.py](tools/viewer/families.py), [viewer.py](tools/viewer/viewer.py)):
+  `GET /maps/<id>/families.json` gives the compiler's `FAMILIES` and class table, the pose rule's steps and the map's
+  assemblies (`compiler.assemblies`), worked out from the export once per server. Bar: 13 cars, 4 vans, 7 doors,
+  2 ladders.
+- **Assemblies always move together** ([gizmo.js](tools/viewer/web/gizmo.js) `linkFinder`, `assemblyOf`): a car's
+  parts, a van's, a door's leaf and frame, whatever Linked pieces says. A copied door's leaf and frame, which share
+  no prefab, share a tag `copy<serial>:<the leaf>` in `prefab`, so they stay together too ([app.js](tools/viewer/web/app.js)
+  `copyTag`; [the contracts](research/editor-contracts.md), section 2).
+- **The recipe snap** ([poserule.js](tools/viewer/web/poserule.js), the twin of the compiler's `grid_move` and
+  `nearest_grid_pose`; `gizmo.recipeMove`): a selection with a ladder, door, car or van moves by whole tiles and
+  storeys and turns by quarter turns from where the original stands, whatever the snap setting. It holds for drags,
+  typed values, paste, placing from the piece list and Align; the rotate handles lose their pitch and roll rings; the
+  snap button's corner says R and the piece panel "Recipe snap".
+- **The chip and the palette read the families** ([pieces.js](tools/viewer/web/pieces.js) `useFamilies`,
+  `pieceMilestone`, `pieceGrid`): `MILESTONES` is gone. A kind in the palette is marked with the first milestone that
+  builds any of its entries.
+- Docs: [the viewer README](tools/viewer/README.md) (the route, assemblies, the recipe snap).
+- Checked:
+  - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) has a new `check_recipe` on Bar: the page's rule
+    passes the 11 cases of `pose_rule_cases.json`; the served assemblies; a door selects with its frame, Linked
+    pieces on and off; a ladder's typed move (+150 → +192), lift (+40 → +64), turn (+50° → +90°) and tilt (gone);
+    the rotate rings; copies of a door, a car and a van (both turned while placing) all keep the rule, from the
+    project state the page would save, and the door's copies share one tag. Bar's search now lands on a dumpster,
+    and the free-move checks skip pieces with a pose rule.
+  - On a test server (8790, scratch projects and builds): `browser_smoke.py` on Bar (and with `--projects`), Temple
+    Ship and Police Station, and `browser_maps_smoke.py`, pass.
+  - [`test_families.py`](tools/viewer/tests/test_families.py) (2 new) and the viewer's unit tests (92) pass.
+- Not done: the user has not tried the snap yet. The main viewer was not running, so nothing was restarted.
+
+### The copier makes an assembly's parts together (G2)
+
+Branch `cars-doors-ladders`, the plan's step G2.
+- **`native_copy.clone_assembly`** ([native_copy.py](tools/bake/native_copy.py)) clones the members of one copy of
+  an assembly together:
+  - every member's exports get their indices first, so a reference from any member to any other points at that
+    member's clone. On Bar's police car, the body's `HidingPartner` is the glass's copy, and the glass's fragment
+    columns name the body's and the light bar's copies;
+  - anything else is referenced as before, and each member's lighting textures are its own clones, as for single
+    copies;
+  - `clone_actor` is now `clone_assembly` with one member.
+- **`build()`** takes copies sharing an `assembly`, the compiler's id, as one copy:
+  - cloned together, with one seeded rebuild volume over the whole (`assembly_box`, `add_tiles_box`), recorded on the
+    first member;
+  - a member's `AffectedChildren` keep exactly the other members' copies and drop the original's other pieces
+    (`assembly_children`), instead of `copy_children`'s matching by distance;
+  - the compiler's moves go into the manifest (`nativeCopies.assemblies`). The command line and the Build's copies
+    file carry `assembly`, `family` and `assemblies` through.
+- **Arrays that hold no references** are no longer taken for them (`NOT_REFERENCES`):
+  - a brush's `FaceTriData`, a building's `VisGroupIdxToHideWhenOccluding`, a deco component's
+    `PerInstanceBitfield`;
+  - a clone used to rewrite any of these values that equalled a cloned index. The rebuild volumes' clones (brushes)
+    were exposed to that before.
+- Checked: `test_native_copy.py` (11 tests, 3 new: the arrays left alone, the police car cloned a quarter turn round
+  with its links between copies and none to the originals, `build()` making it in one piece with one volume),
+  `test_compiler.py` (36), `test_build.py` (21) and the viewer's `test_builds.py` (3) pass.
+- Not done yet: the glass's columns still name what the original's name outside the car, and still hold the
+  original's places (G8). Nothing new builds until the families are switched on.
+
+### Families, assemblies and the pose rule in the compiler (G1); the rebuild's work set read (G5)
+
+Branch `cars-doors-ladders`, the first steps of the plan (section 10, step 1).
+Nothing new builds yet: ladders, doors, cars and vans stay refused until each passes in the game.
+
+- **Families** ([compiler.py](tools/editor/compiler.py), compiler version 2):
+  - `FAMILIES` says, per family, whether the Build makes it, whether the pose rule applies, and the milestone its
+    refusal names. `M1_CLASSES` and `MILESTONE` come from it.
+  - `--family NAME` (`compile_project(..., enable=)`) builds a family that isn't switched on yet, for an experiment.
+  - The report lists the families that build.
+- **Assemblies** (`compiler.assemblies`), from the export as it is:
+  - pieces joined by prefab, partner, and a door's leaf to the frame standing at its place;
+  - a door ('frameless-door' without a frame), a car, a van (most of what a building's floors list is its own: on
+    Bar the short van's building also lists a skid mark under it), or a ladder on its own.
+  - On Bar: 13 cars, 4 vans, 7 doors and 2 ladders, as the inventory counted.
+- **Edits of an assembly name all its pieces with one move.** Otherwise the compiler errs:
+  - `assembly-split`: a part missing, parts moved apart, or some deleted and others moved;
+  - `malformed`: two copies of one piece at one place.
+
+  A door's frame without its leaf stays a destructible prop (an open doorway). Copies of one piece are sorted into
+  copies of the whole by their rigid moves.
+- **The pose rule** (`grid_move`, `nearest_grid_pose`): whole tiles, whole storeys and quarter turns from the
+  original, pitch and roll kept. Error `pose` gives the nearest pose that builds (`nearest` in the error, for the
+  editor). [tools/editor/tests/pose_rule_cases.json](tools/editor/tests/pose_rule_cases.json) holds the cases the
+  editor's snap will be checked against too.
+- **The spec and the split:**
+  - copies of an assembly carry `families`, `assemblies` and `assemblyMoves` (each copy's quarter turns and
+    translation);
+  - `native_split` makes them in the map and passes the moves on as `assemblies`.
+- **A change for M1 projects:** a car's or van's parts (a police light bar, a van's cab) were M1 pieces one by one.
+  They are now part of their car or van, so moving one is refused until cars build.
+- **The rebuild's work set** (G5, a helper agent's read of the executable copy, reviewed here; notes in
+  [research/native/ladder-links.md](research/native/ladder-links.md)):
+  - every rebuild volume adds its tiles to one shared set, in the order each tile is first added, and a tile already
+    in it keeps its place;
+  - so the plan's foot-tile volume wouldn't help a ladder copy. A small volume over the ladder's top tile, before every
+    volume reaching its foot, does;
+  - interaction points are cleared and found again by a collision query, not from the level's list.
+
+  The plan's section 5.2 now says so.
+- Checked: `test_compiler.py` (36 tests, 10 new: the table, the assemblies of a small scene and of Bar, the pose
+  cases, refusals per assembly, frames alone, enabled cars, whole deletes and copies, partial and off-grid edits,
+  unchanged assemblies) and `test_build.py` (21) pass. Not checked: nothing built or played; the native read is
+  untested in the game.
+
+### The plan for cars, doors and ladders in the Build (checklist item 7)
+
+- The user asked for a detailed plan for item 7 of the preview release checklist:
+  moving, copying, deleting and adding cars, doors and ladders. It is
+  private/plans/done/cars-doors-ladders-plan.md, linked from item 7. Nothing in it is
+  built yet.
+- **The approach:**
+  - copies are made in the variant map, as M1's are (`native_copy.py`);
+  - poses are limited to whole-tile, whole-storey and quarter-turn moves of the original, so everything saved per
+    tile or in world space maps exactly;
+  - a car's members, and a door's leaf with its frame, move as one;
+  - one table of families in the compiler, which the page reads too;
+  - eight groundwork steps (G1 to G8), then ladders, doors, cars and vans, each with its experiment (EXP-22 to
+    EXP-24) on Bar and a second map;
+  - frameless (UFO) doors come later.
+- **The user's decisions** (plan section 3.1):
+  - the pose rule is agreed for now, to be judged in the editor. So the recipe snap comes right after the first
+    groundwork, before any family builds;
+  - vans are in the preview unless a big reason turns up. Their plan (section 7.6) covers the building and floor
+    volumes cloned and turned with the van, the building's lists pointed at the copies, and the open question:
+    whether the rebuild gives a copied van's cargo floor and roof their floor tiles (F-47);
+  - copies join the cutaway of the floor they stand in (G7), which doors wait for. It serves M1's copies too;
+  - one branch for all of it, `cars-doors-ladders`.
+- Doors above the ground floor are on seven maps only (a scan of every map's building volumes). EXP-23's third run,
+  for the cutaway, is on URB_ResearchOutpost, which has two on its floor 2.
+- **A read-only inventory for it** (a helper agent, reviewed here; its scripts and dumps stayed in the session's
+  scratch folder). It covered URB_Bar and URB_PoliceStation in full, and counts across all 95 LWR maps and their
+  streamed packages:
+  - a door's leaf and frame reference each other nowhere: the frame stands at the leaf's Location, its mesh named
+    after the leaf's plus `_Frame`. The wall around a door lists both in its fragment columns;
+  - car glass's `FragmentColumns` are tagged properties in world space, and on Police Station they also name fences
+    and a neighbouring wreck. Some light bars belong to a car only through those columns;
+  - `IsLocationFlammable` is `static flags & 0x1E` (read from the executable copy), so the seeds may already make a
+    copy flammable at window height (F-14 looks like F-29's rule);
+  - Police Station has no ladder. 30 patches hold 101 hidden ladders (75 with exactly a map ladder's ends), and no
+    streamed package holds a door or a car;
+  - no Kismet object references any of these pieces on the two maps.
+- `XGBattle.DoWorldDataRebuild` (decompiled) rebuilds each rebuild volume with its own `RebuildTileData` call, in
+  the level's actor order. Whether each call is a pass of its own (which decides how a ladder copy keeps its climb
+  down) is groundwork step G5.
+- Not checked: nothing was built or played. The inferred points are marked as such in the plan's section 2.
+
+### Install as intro map for any LWR install; no folder of this PC in anything checked in
+
+- The user asked for Install as intro map to work with any LWR install the editor is configured to use, not only
+  our lab copy. They also asked for an audit so that nothing checked in names a folder of this PC: paths must be
+  generic, relative or configured.
+- **Install as intro map, generic.** New [installs.py](tools/viewer/installs.py) replaces the lab tools' install
+  (`lab_install`, `deploy_fixture`'s deploy records in the lab's work folder, the lab-marker check).
+  - **Target:** the new **install** setting (a game folder), else the LWR install the editor reads.
+  - **Record in the install:** what the editor changed lives in `<game>\XCOM Map Workshop\installs.json`, with
+    copies of both INI files from before each change, so it follows the folder.
+  - **Reset takes everything back out:**
+    - the slot line as it was (into a separate install: the LWR install's own line);
+    - the landing-zone lines it added;
+    - the files it copied, unless they changed since.
+
+    Into the LWR install itself, both INI files end byte for byte as they were.
+  - **Overwrites:** a package file of the same name is replaced; names come from the project's variant, so it is an
+    earlier build of the same project.
+  - **Refused only while XCOM runs.**
+  - **Readers see LWR's own records:** the map list ([maplist.py](tools/viewer/maplist.py)), the exporter
+    ([export.py](tools/viewer/export.py)) and Build ([build.py](tools/editor/build.py)) read the install's
+    `DefaultMaps.ini` with the editor's slot line swapped back (`installs.maps_text`). So an installed variant never
+    shows up as a map, and a map installed as the intro never gains a second record in a build's config lines.
+  - **Server and page:** intro.py uses it; `serve --install <game folder>` replaces
+    `--lab`/`--lab-work`. The page (intro.js, [app.js](tools/viewer/web/app.js),
+    [index.html](tools/viewer/web/index.html)) says "Installs into" instead of "Lab copy". Reset's message lists
+    anything it left alone.
+- **Settings** ([settings.py](tools/viewer/settings.py)):
+  - **New settings:** **cache** (exported maps; default `Documents\XCOM Map Workshop\cache`) and **install**.
+  - **lab** is now our lab's working folder; only the lab tools use it.
+  - **The settings file moved to `Documents\XCOM Map Workshop\settings.json`.** This PC's `python` is the Microsoft
+    Store build, which redirects writes under `%APPDATA%` into its own package folder. So the old file was invisible
+    to PowerShell, `viewer.cmd` and C#, which the helper agent found. A file left in the old place is moved on first
+    read; the user's was.
+  - **New helpers:** `lwr_game`, `install_game`, `require`, `configured` and `lwr_cooked`.
+  - **Removed:** the hard-coded UDK suggestion.
+  - **Doctor:** now checks cache, install and lab.
+  - **This PC's values:** `lab` = `<lab>`, `cache` = `<lab>\viewer-cache`, `install` = Steam's active folder
+    (`...\steamapps\common\XCom-Enemy-Unknown`, the lab copy while it is active). These are in the user's settings
+    file, not in git.
+- **Editor code without local paths:**
+  - [viewer.py](tools/viewer/viewer.py) `serve` and `export` take the cache setting when no folder is given.
+  - viewer.cmd passes no cache unless `VIEWER_CACHE` is set.
+  - `build.py --cache` takes the cache setting, as do the six `tools/editor/examples/exp*_project.py` scripts.
+  - The viewer and editor tests (`test_compiler`, `test_material_rules`, `test_streams`) default to the configured
+    install or cache.
+- **Lab tools without local paths** (a helper agent, reviewed here):
+  - **New helpers:** [labpaths.py](tools/lab/labpaths.py) and [LabSettings.ps1](tools/lab/LabSettings.ps1) read the
+    same settings file: lab root, UDK, Steam's common folder, the active game, Python from PATH, Steam's folder from
+    the registry, csc under `%WINDIR%`.
+  - **[deploy_fixture.py](tools/bake/deploy_fixture.py):** `GAME`, `WORK` and `PATCHTOOL` are resolved from settings
+    when used.
+  - **Scripts on these settings:** `lab_install.py`, `switch_install.ps1`, `swap_patch.ps1`, `steam_launch_test.ps1`,
+    the `udk_editor_*` scripts, `udk_bake.ps1`, `udk_bounce_check.py`, [patchtool.ps1](tools/patch/patchtool.ps1)
+    (`-Udk`, `-Work`, `-Game` defaults), `gen_exp08.py`, `share_readme_exp07.py`, `save_stub_diff.py` and
+    `scan_patch_art.py`. The `tools/re` scripts take `pe.py`'s `--exe` or `<lab>\re\XComEW-copy.exe`.
+  - **C#:** the build comments say `<lab>\bin`. `XComLabWrapper`'s log is now relative to its exe, and
+    `UeDecompile`'s library comes from `UE_EXPLORER` or a path relative to its exe.
+  - **Tests:** the bake and upk tests default to the LWR install's packages (the uncooker-input copies have the same
+    SHA-256), or skip with a reason when nothing is configured.
+  - **Docs:** the [patchtool README](tools/patch/README.md) uses placeholders.
+- **Bugs found on the way:**
+  - `package_grow.Grower.write` wrote its temporary `<map>.upk.grow-tmp` beside its *input*. In builds the input is
+    the LWR install's map, so every native-copy bake briefly wrote into the game's `CookedPCConsole`. It now writes
+    beside the output ([package_grow.py](tools/upk/package_grow.py)). Before the fix, the helper's test runs created
+    and deleted that file in the LWR install about five times; nothing was left (checked).
+  - patchtool and `udk_bake.ps1` didn't pass `-Udk` to `udk_editor_try.ps1`, so the editor opened in its default UDK.
+    They pass it now.
+- **Docs:**
+  - **[AGENTS.md](AGENTS.md):** a new rule, no folder of one computer in anything checked in, except experiment notes,
+    the findings register and this ledger, which record what was run here. The main server line no longer names the
+    cache.
+  - **[README](README.md):** the setup section describes the settings.
+  - **[Viewer README](tools/viewer/README.md):** placeholders, the new Install as intro map section, and the settings
+    list.
+- **Checked:**
+  - Unit tests pass: viewer 90 (the rewritten test_intro.py has 7 tests), editor
+    47, bake 134, upk 18, `test_ship_record.ps1` 49/49.
+  - With no settings file, the bake and upk suites still pass, skipping the tests that need game files (43 and 7).
+  - `test_intro.py` covers:
+    - into the LWR install and back byte for byte;
+    - into a separate copy, with reset writing LWR's line;
+    - a map install;
+    - a rebuild over an earlier install;
+    - files and slot lines changed since;
+    - XCOM running;
+    - the routes.
+  - All PowerShell scripts parse. `switch_install.ps1 status` and `lab_install.py status` read the settings.
+  - On a test server (8790) with a scratch install (copies of the lab's config files and `URB_Bar.upk`, no lab
+    marker), started without a cache argument:
+    - `browser_smoke.py --intro --intro-project`, `--projects --intro`, Temple Ship and `browser_maps_smoke.py` pass.
+    - After reset, the scratch install's `DefaultLZMutator.ini` is byte for byte the original, `DefaultMaps.ini`
+      differs only in the slot (now LWR's line), and only `URB_Bar.upk` is left in its `CookedPCConsole`.
+  - `viewer.cmd start/status/stop` on port 8791 works without a cache path.
+  - `doctor` is all OK.
+  - The audit script finds no folder of this PC in `tools/`, `viewer.cmd`, `README.md`, `AGENTS.md` or
+    `.gitignore`. What's left: the marker and desktop names, the editor's own default folders, and a dummy `C:\x`
+    path in one unit test.
+- **Known gaps:**
+  - `research/` (experiment notes, plans, register) and this ledger still name this PC's folders, as records.
+  - `XComLabWrapper.exe` and `UeDecompile.exe` in the lab's `bin` aren't rebuilt from the changed sources. They
+    behave the same here; the rebuild commands are in the sources.
+  - Serving an empty cache (a first run on another PC) still stops with "No prepared maps found": preview checklist
+    item 3.
+  - Not tried in the game: no intro install into the real lab copy or LWR install yet.
+
+### Install as intro map and Reset intro map, in the Project menu
+
+- The user asked for the editor to install the open map as the intro map (as we have done for testing with
+  `lab_install.py`), to reset the intro map to the default, and to show which LWR install the editor works with.
+  - **Install as intro map** puts what is open in our lab copy's test slot, the first mission of a new campaign. With a
+    project open, it installs the project's last build through `lab_install.install`. When that build isn't of what is
+    on screen (unsaved changes or a newer revision), the page saves and builds first, then installs when the build
+    ends; the build window says so and shows the outcome. With a map alone, it installs the map as LWR has it: its own
+    record under its own name, so its landing zones and intro are LWR's and no file is copied.
+  - **Reset intro map** writes the LWR install's own test slot record back (Commercial Alley Redux): the new
+    [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `reset`, which writes a deploy record that `restore` undoes,
+    and that a later deploy chains to. The landing-zone lines and files of earlier installs stay; they do nothing
+    while no record names them.
+  - **Installs**, a new section at the bottom of the Project menu, shows three things:
+    - the LWR install (the `lwr` setting resolved to its game folder: `XCom-Enemy-Unknown.LWR` here);
+    - the lab copy installs go to (the `lab` setting, else the lab tools' own folder), and why it can't take one now
+      (XCOM running, or the lab copy parked);
+    - what the lab's first mission plays: a project's build with its revision, LWR's own, or another map.
+  - Both refuse while XCOM runs or while the lab copy isn't the active install, as the lab tools do.
+  - Server: intro.py with `GET /intro.json`, `POST /intro/install` and `POST /intro/reset`
+    ([viewer.py](tools/viewer/viewer.py); same-origin checks as the other changes). `serve --lab` and `--lab-work`
+    point a test server at a scratch lab copy and ledger.
+  - Page: intro.js, the menu items and Installs section in
+    [index.html](tools/viewer/web/index.html) and [app.js](tools/viewer/web/app.js), styles in
+    [style.css](tools/viewer/web/style.css), and a line in the help panel.
+  - `deploy_fixture.py` also gains `test_slot`, `slot_index`, `slot_streams` and `previous_record` (deploy's chain
+    lookup, now shared with reset).
+  - Docs: [the viewer README](tools/viewer/README.md) (Projects, Checks), the editor plan's
+    Install in Lab note, `lab_install.py`'s docstring, the [README](README.md)'s `tools/lab/` row, and the `lab`
+    setting's comment in [settings.py](tools/viewer/settings.py).
+- Checked:
+  - New test_intro.py (6 tests, on a temporary lab copy and LWR install side by
+    side):
+    - the status;
+    - a map install, and a lab map that differs from LWR's noted;
+    - a project install, refused before a build;
+    - reset byte for byte, a second reset that changes nothing, and restore of the reset's record;
+    - refusals while XCOM runs and with the lab copy parked;
+    - the routes, refusing other origins.
+  - `test_deploy.py` has a reset test. The viewer (89), bake (134) and editor (47) unit tests pass.
+  - `deploy_fixture.py reset --dry-run` against the real installs: it would write LWR's line 35
+    (`URB_CommercialAlley_EWI`) over the lab's line 42 (`TempleShip_TempleIm_2001`), chaining to the last install.
+  - `browser_smoke.py` has a new `--intro` check (and `--intro-project <id>`). It refuses any server without
+    `serve --lab`.
+  - On a test server (8790), the server read the real LWR install and wrote to a scratch lab copy holding copies of
+    the lab's two config files and `URB_Bar.upk`:
+    - `--intro --intro-project` on Bar: Urban Bar installed as LWR has it, then reset; Large remix's build of
+      revision 1 installed without building, then reset;
+    - `--projects --intro` with an empty projects folder: passes;
+    - the plain smoke test on Temple Ship and `browser_maps_smoke.py`: pass.
+  - The real lab copy was not touched: its test slot still plays `TempleShip_TempleIm_2001`.
+- Known gaps:
+  - The install after a build is the page's: if the page is reloaded mid-build, the build finishes but isn't
+    installed. Install as intro map again installs it without building.
+  - Not yet tried in the game from the editor. The install is `lab_install`'s, already played many times; the reset
+    writes LWR's own line, as the lab copy had it before our tools changed the slot.
+
+### One file per project, named after it
+
+- The user asked for project folders named after the project rather than its id, to make projects easier to share,
+  and for a project kept in one file if nothing is lost. Each project is now one file in the projects folder,
+  `<name>.json`: the same schema 1 document as before, so sharing a project is sending that file.
+  - What stays on this computer moved to a hidden `.workshop\<id>\` beside the files: the previous revision
+    (`project.prev.json`) and the unsaved changes kept for recovery (`recovery.json`). Keyed by id, they survive a
+    renamed file, and a shared file never carries them.
+  - [projects.py](tools/viewer/projects.py) finds a project by the id inside any `.json` file in the folder. So a
+    file renamed by hand, or shared and dropped in, opens. Its next save names it after the project again.
+  - File names: what Windows forbids becomes `_`, never a device name. ` (2)` is added when another project has
+    the name. A save under a new name (or only a new case) renames the file.
+  - Two files with one id (a copy made beside it): the newest revision is the project. The copy is listed greyed
+    out, with why.
+  - Folders of the earlier layout are moved the first time the server reads the projects folder.
+  - Routes, the browser's API, recovery, conflicts and builds are unchanged. The build runs on the project's file
+    ([builds.py](tools/viewer/builds.py)). [build.py](tools/editor/build.py) also takes a project's name:
+    `build.py "Bar remix"`.
+  - The Load dialog's tooltips name each project's file, and the replace confirm says "kept as a backup"
+    ([project_files.js](tools/viewer/web/project_files.js)). The six example scripts print the file
+    (`tools/editor/examples/exp*_project.py`).
+  - Docs: [the viewer README](tools/viewer/README.md) (Storage) and
+    [the editor contracts](research/editor-contracts.md) (sections 4 and 5).
+- Checked:
+  - [test_projects.py](tools/viewer/tests/test_projects.py) has new tests: file names, the ` (2)` clash, a
+    case-only rename on NTFS, a file renamed by hand keeping its recovery, a shared file dropped in, a copy beside
+    a project, non-project files, the earlier layout moved. `test_build.py` finds a project by file, id or name.
+  - The viewer (83), editor (47) and bake (133) unit tests pass.
+  - The browser smoke test with `--projects` passes on a test server (port 8790, scratch folder). It now also checks
+    that both projects are files named after them, renamed with the case change.
+  - The move was tried on a copy of the user's projects folder: 9 folders became 9 named files, with 4 previous
+    revisions and 1 kept recovery in `.workshop`.
+- Known gaps:
+  - A copy made beside a project keeps its id, so it can't be opened as a project of its own. Making it one would
+    need a new id and output names.
+  - A project file deleted by hand leaves its `.workshop\<id>` folder behind.
+
+### Cars, doors and ladders join the preview release
+
+- The user asked for cars, ladders and doors to be addable and copyable in the preview. They are now item 7 of
+  private/plans/done/preview-release.md, with its scope updated, and noted in the
+  editor plan's M2 row.
+  - Each family is copied in the map itself, like M1's pieces, and played in the game on Bar and a second map.
+  - What each one is in the maps: a ladder is one `XComLadder`. A door is an `XComInteractiveLevelActor` leaf in a
+    destructible frame. A car is a destructible body naming its fractured glass (`XComFracLevelActor`) as
+    `HidingPartner`, with other parts placed by one prefab.
+  - What the patch route already taught (F-10, F-11, F-14, F-18, F-37 to F-39, F-41), and what to check in the game.
+  - Order: ladders, doors, cars. A family not ready in time stays refused and the preview goes without it.
+- Windows on these maps are destructibles (`ComKitWindows`), so they are already in M1.
+- Checked: each family's actor classes, partners and prefabs in Bar's and Police Station's export 14.
+
+### The preview release checklist
+
+- private/plans/done/preview-release.md, linked from the [README](README.md): what is left before
+  the user gives an early version to some of the modding community (smaller edits to LWR's maps, milestone M1).
+  - Must do:
+    - Builds played on six more maps, chosen for what Bar and Temple haven't covered (the rebuild-volume fallbacks,
+      Fastrope intros, a crashed UFO's collectibles, a terror map);
+    - the install by hand from a package's README (never done) and an install script for a normal Steam install;
+    - setup on another PC (the lab's hard-coded paths as settings, first run in the page, one-click setup);
+    - UDK no longer required;
+    - what can be edited, said up front;
+    - a release of its own with a licence.
+  - Then the recommended items and what comes after.
+- [`tools/editor/build.py`](tools/editor/build.py)'s docstring said collectibles' copies went through the patch (and
+  so UDK). They haven't since 7 November: every class the compiler accepts is copied in the map, so no accepted
+  project runs UDK. The docstring now says so, and that the `udk` setting is still asked for (checklist item 4).
+- Checked: against `compiler.py` (`M1_CLASSES`, `NATIVE_CLASSES`, `native_split`), `build.py`'s `patch_and_cook` and
+  argument handling, `builds.py` (the Build button passes no `--udk`), `settings.doctor`, and each test map's
+  intros and rebuild template read from the LWR install.
+
+### No pink in any map (export 14); Hide patch helpers, on by default; the Layout and building menus removed
+
+- **No diagnostic pink** ([`export.py`](tools/viewer/export.py), [`materials.py`](tools/viewer/materials.py),
+  [T-16](research/findings-register.md)). The user saw pink trees and wreckage on a crashed UFO map and asked for
+  every map to be scanned and fixed.
+  - The scan read every piece LWR's 95 maps and their streamed packages draw, by the exporter's own rules. It found
+    2,810 visible pink pieces on 79 maps.
+  - New rules, after the profile's parameters:
+    - `diffuse_parameter`: a diffuse under another name (`Diffuse_Map`, `Diffuse Map A | CMod Mask` with its alpha
+      not a cut-out, `StaticScreenTexture`), never a placeholder;
+    - `compiled_colour`: the compiled shaders' colour texture by name (burning pines' `pineBranchSplit`, keeping
+      its alpha for the masked branches);
+    - `approximate_colour`: a colour by kind (alien wreck debris as charred metal, since its texture is a packed
+      mask; marsh bottom, burnt debris, water), else neutral grey, flagged in Import notes.
+  - `Exporter.section_material`:
+    - LWR's patch packages carry their pieces' materials as stubs, so they are taken from the map, as the game
+      does (`base`);
+    - fractured meshes' interiors with no material are hidden (family `hidden`, drawn invisible by
+      [`app.js`](tools/viewer/web/app.js));
+    - a material from another package draws grey.
+  - After it the same scan finds no pink piece. The four maps in the main cache are re-exported.
+- **Hide patch helpers** ([`index.html`](tools/viewer/web/index.html), [`app.js`](tools/viewer/web/app.js)):
+  - the user asked for an option to hide LWR's invisible cover, on by default;
+  - the View options checkbox is now **Hide patch helpers**, ticked on every map; unticked, the helpers show as the
+    cyan wireframe.
+- **The Layout and building menus are gone**, at the user's request:
+  - the floor cutaway applies to every building at once, counting floors up to the tallest building's;
+  - an exported preview still opens by its address (`scene=preview-0.json`).
+- Docs: [tools/viewer/README.md](tools/viewer/README.md).
+- Checked:
+  - viewer unit tests (80, plus [`test_material_rules.py`](tools/viewer/tests/test_material_rules.py): the rules,
+    and on LWR's maps the burning trees, the supply ship's stub crates and a fractured interior) and editor tests
+    (47);
+  - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) on Bar (with projects), Police Station (hiding and
+    showing its helpers), Forest Trench and Temple Ship, and
+    [`browser_maps_smoke.py`](tools/viewer/tests/browser_maps_smoke.py), on a test server. One Police run failed
+    the arrow-pan check that typing in a field keeps the keys (the camera seemingly still settling); it passed on
+    the re-run and in every other run;
+  - close-ups of Forest Trench's burning pines, stumps, grass, wreck debris and rubble.
+- Known gaps:
+  - burning trees show their unburnt textures, and colours by kind are guesses;
+  - maps exported before 14 keep their pink until re-exported (delete the map's export folder and open it again).
+
+## 7 November 2026
+
+### What the missions stream, in the editor; progress bars; neutral light by default; textures from compiled shaders
+
+- **What the missions stream** (export 13, [`export.py`](tools/viewer/export.py)). The game loads more than the map
+  package: each mission record streams LWR's patches and the mission's own objects. The user asked to see them.
+  - `map_records` reads the map's records from the install its package is in (`missions` in `scene.json`), and
+    `stream_layers` exports each package they stream (`streams`), landing intros and other cinematics left out.
+  - Stream pieces are layer `stream`, with no floors or scenery role; their assets join the scene's.
+- **The page** ([`app.js`](tools/viewer/web/app.js), [`gizmo.js`](tools/viewer/web/gizmo.js),
+  [`index.html`](tools/viewer/web/index.html)) shows them on the original layout:
+  - a **Mission** picker in the header (maps with more than one mission) chooses which record's streams show,
+    kept in the URL as `mission=`;
+  - LWR's hidden cover and blockers draw as cyan wireframe. The option is now **Patch helpers**, on by default
+    where the streams have them;
+  - a streamed piece can be inspected, with a chip naming its package and "not editable". The gizmo never takes it
+    (`fixed`), its fields are read only, Copy and Delete are off, and a project never saves it.
+- **Progress bars.**
+  - The page's loading overlay shows a bar: the layout's download, then building the pieces.
+  - The map browser shows one during a first export. The exporter reports `progress: <what> <done>/<total>`
+    lines; [`exports.py`](tools/viewer/exports.py) gives them as `progress` (the map 90%, its streams the rest).
+- **Neutral light by default**: the user's choice, since our map lighting is an approximation.
+- **Pink surfaces** (the user's question about URB_PoliceStation's asphalt patches): pink is the viewer's diagnostic
+  colour for a material it finds no texture for.
+  - StreetSet's `Asphalt_Patch` keeps no texture parameter, only a `PatchSet` vector. Its compiled shader still lists
+    `Asphalt_Patch_DIFF` and `_MASK` (`compiled_textures`).
+  - The exporter now takes the colour texture by its name, and for a masked material the mask channel a 0/1 vector
+    picks.
+  - A parameter of another name whose texture is named `_DIFF` serves as the diffuse too: Firaxis's misspelt
+    `Diffsue_Map`, and `Diffuse_GlassMask` on window parallax.
+  - URB_PoliceStation goes from 9 diagnostic-colour materials to 1, the night sky (not drawn).
+- Bar, Temple Ship and URB_PoliceStation re-exported at version 13 in the main cache. Projects still find their
+  version-12 exports (`compiler.find_export` prefers the project's version).
+- Docs: the [viewer README](tools/viewer/README.md) (What the missions stream, loading, lighting, materials).
+- **Checked:**
+  - Tests in this branch: viewer 73, with new [`test_streams.py`](tools/viewer/tests/test_streams.py) on the
+    install's URB_PoliceStation (its missions and streams, a stream layer, compiled textures, the misspelt
+    parameter) and progress in the export test; editor 47.
+  - On a test server over a scratch export of URB_PoliceStation:
+    - 10 streamed pieces, and the picker lists Abduction, Terror and Data recovery;
+    - Data recovery shows its transmitter, encoder and drop zone, marked "Mission stream · not editable", with the
+      fields read only and the gizmo empty;
+    - LWR's `CoverSmallCar` shows as a wireframe over the burnt-out car;
+    - no diagnostic-colour material is shown, and the asphalt patch has its texture and cut-out.
+  - On a test server over the main cache, with fresh scratch projects:
+    - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) passes on Bar and Temple Ship (`--projects`) and on
+      URB_PoliceStation. Its new `check_streams` covers the mission picker, the streams each mission shows, helpers
+      on by default, and a streamed piece that can't be moved, deleted or saved. It now expects neutral light by
+      default.
+    - [`browser_maps_smoke.py`](tools/viewer/tests/browser_maps_smoke.py) passes.
+    - A first run failed at Save: the scratch projects folder still held my earlier runs' projects of the same name.
+- **Gaps:**
+  - Streamed pieces show whatever the floor cutaway.
+  - Streamed lights (`patch_bar`'s three) and ladders are recorded but not drawn or lit.
+  - Some mission objects aren't exported: the data recovery's radar arrays (`XComRadarArrayActor`) are missing.
+  - Maps exported before version 13 show no streams until they are exported again.
+
+### Every LWR map in the editor: a map browser by mission type, export on first open, Builds of any map
+
+- **The map list.** New [`maplist.py`](tools/viewer/maplist.py) reads every map LWR plays from the install's
+  `DefaultMaps.ini` (95 battle maps; the strategy map left out). For each map it gives:
+  - a readable label: the display names without their development notes, a table for the DLC, tutorial and joke
+    names, and the package's last part where two would share one;
+  - its mission groups (abduction, UFO, terror, council, EXALT, story, other), its missions and its package.
+  41 maps serve more than one group.
+- **The catalogue** ([`catalogue.py`](tools/viewer/catalogue.py) `with_install`) lists every map: exported ones as
+  before, the rest with no files yet. Names match whatever their case (the package `CsmallScout_Farm.upk`, the
+  record `CSmallScout_Farm`), and a map keeps its record's name. `/maps.json` gives each map's label, whether it is
+  exported and checked in the game, its groups and missions; the "(unverified)" label suffix is gone.
+- **Export on first open.** New [`exports.py`](tools/viewer/exports.py): `POST /maps/<id>/export` runs
+  `viewer.py export <package> --scope map` in the background into the served cache, one at a time;
+  `GET /maps/<id>/export.json` follows it. When it ends the map's entry takes the new generation, so the page opens
+  it with no restart. [`viewer.py`](tools/viewer/viewer.py) wires it in when serving a cache root with the `lwr`
+  setting. `/cache/<id>/` refuses a map not exported yet.
+- **The map browser** ([`map_browser.js`](tools/viewer/web/map_browser.js), [`index.html`](tools/viewer/web/index.html),
+  [`style.css`](tools/viewer/web/style.css), [`app.js`](tools/viewer/web/app.js)) replaces the Map menu: the header's
+  Map button or **M** opens it.
+  - Sections by mission type, with a map listed under each type it serves, and chips to show one section.
+  - A search over names, packages and missions, and **Prepared only**.
+  - Each row gives the map's state: checked in the game, ready, or first open in about 30 s.
+  - Opening a map not exported yet exports it, with the time so far, then opens it. A link to such a map (a
+    project of one) opens the browser on it and exports it. A map that isn't listed opens the browser with a note.
+- **Builds of any map** ([`build.py`](tools/editor/build.py)):
+  - one `DefaultMaps.ini` record per record of the base map, each with its mission in its display name. 65 maps have
+    several, and the Build refused them before;
+  - a landing intro copy per distinct intro: 13 maps stream the Skyranger intro on some records and the fast-rope
+    one, or none, on others. The manifest gives `intros` and `replaceStreams` for all of them; `config` gives
+    `maps`, `missions` and `streamSlots` as lists;
+  - [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `slot_record`: the lab's test slot plays the map's abduction
+    record where it has one, else its first record that is no council mission. A replaced intro the record doesn't
+    stream is left out.
+- **Two per-map gaps the first Build on another map found** ([F-59](research/findings-register.md)), on
+  URB_PoliceStation:
+  - [`native_copy.py`](tools/bake/native_copy.py) `rebuild_template`: a copy's tile-rebuild volume is cloned from
+    `TriggerVolume_0` where the map has it. Otherwise it takes another plain, unrotated volume of the level (Police
+    Station has no trigger volume).
+  - [`relight.py`](tools/bake/relight.py): removing a piece that casts no shadow removes nothing. Before, it was
+    refused as "no shadow caster".
+- Docs: the [viewer README](tools/viewer/README.md) (the map browser, export on first open, the smoke test's
+  `--prepare`), the first-editor plan's config lines, the
+  baker design section 13, and the
+  [lab install](tools/lab/lab_install.py) notes.
+- **Checked:**
+  - Tests in this branch:
+    - viewer 70, with new [`test_maplist.py`](tools/viewer/tests/test_maplist.py) and export, install-list and case
+      tests in [`test_catalogue.py`](tools/viewer/tests/test_catalogue.py);
+    - editor 47, with tests for several records and two intros;
+    - baker 133, with new tests for the slot's record, the template on URB_PoliceStation, and removing a non-caster.
+  - [`browser_maps_smoke.py`](tools/viewer/tests/browser_maps_smoke.py), rewritten for the browser, on a test server
+    (8790) over a scratch cache linking the two exported maps, with `--prepare URB_SmallCemetery`: every section and
+    chip, search, Prepared only, map switching and history, and a map that isn't listed. Urban Cemetery exported on
+    first open and opened with 1,221 pieces, with no console errors. Playwright was installed for this (the user
+    agreed).
+  - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) on the same server: Bar and Temple Ship with
+    `--projects`, and URB_PoliceStation, exported on first open. Its Project menu check still expected the menu
+    from before Build, since it couldn't be run then; it now expects Build.
+  - A Build on another map, through the test server's API with scratch folders: URB_PoliceStation (three missions,
+    two intros), exported on first open in 20 s, one plain piece moved and one deleted.
+    - It failed twice, which gave F-59's two fixes, then built in 116 s. The package has two intro copies, Skyranger
+      and fast-rope, and three records (Abduction, Terror, Data recovery), each streaming its own intro's copy.
+    - `lab_install.py install --dry-run` on it plans the test slot as the abduction record with the Skyranger
+      copy, and copies the 4 landing zones. Nothing was installed.
+  - `native_copy.rebuild_template` on all 95 maps:
+    - 69 have a trigger volume;
+    - 25 fall back to another class: `XComNoSpawnVolume` 20, `XComCursorVolume` 3, `GameCameraBlockingVolume` 2;
+    - CB2_MP_Blank, the multiplayer blank, has none, so a copy there stops with an error.
+- **Gaps:**
+  - No Build of a map other than Bar and Temple Ship has been played. A copy's rebuild volume cloned from another
+    volume class is untested in the game.
+  - A record's own mission streams stay as they are, placed for the original map (a bomb's props, a data recovery's
+    `_CNH`), and so do LWR's own patches (`patch_policestation`). An edit could overlap them.
+  - The Build always writes every record. There is no choice of missions yet.
+  - The main viewer now exports into the main cache on a map's first open, about 120 MB each.
+
+### EXP-21 run 1 passed: a large remix relit as a change shows no seams (L5 done for maps with a bake)
+
+- [EXP-21](research/experiments/EXP-21-room-light-model.md) run 1's result, from four F9 shots and the user ("seemed
+  ok"): the floor's light runs on with no edge between relit and untouched floor. The booth's table tops weren't
+  drawn in one shot, most likely the camera's cutaway; not followed up.
+- Baker design section 13:
+  - L5 is done for maps with an original bake; its absolute match waits for blank maps;
+  - L6 is next, after every LWR map comes to the editor (the user's order).
+- **Checked:** in the game by the user. No code changed.
+
+### EXP-21 run 1: a large bar remix relit as a change, built and installed
+
+- [EXP-21](research/experiments/EXP-21-room-light-model.md) run 1: the user chose to test a large remix relit as a
+  change rather than chase Lightmass's indirect model (and to stop before L6).
+  - The project moves the pool table to the front corner and the back booth into its old place, and deletes the
+    railing round the pool area and five stools.
+  - Built by the editor's Build (283 s, 166 lightmaps written) and installed in the lab.
+- **Checked:** the build's log (24 pieces out of the map, 10 copies made, the relit receivers). Waiting for the
+  game.
+
+### EXP-21: what our light model gets wrong across a room (L5), and the tools to find out
+
+- New [EXP-21](research/experiments/EXP-21-room-light-model.md): nine findings on the bar room.
+  - Direct light matches.
+  - Bounce, the emissive stand-ins and the environment are off in strength and in shape.
+  - Fitted strengths reach about 23% within 10% on components left out of the fit.
+  - Two ways on.
+- [`room_match.py`](tools/bake/room_match.py):
+  - `--previews` (original | ours | where they differ, and each source);
+  - `--texels` (every texel saved for fitting);
+  - `--bounce-by-kind` and `--bounce-by-material` (the bounce split by the light it starts from, or by the material
+    it bounced off);
+  - `--source-*` options for the bounce sources.
+- [`bounce.py`](tools/bake/bounce.py):
+  - `SourceIrradiance`:
+    - `estimate='density'` (a photon map's own estimate);
+    - `bounces` (light that has bounced before, gathered at the samples);
+    - `box` (samples only around the room);
+    - it drops samples buried in geometry, which made its light 0.75 of the exact at one wall's gather hits, 0.92
+      now.
+  - `gather(groups=...)` returns each group's share of the bounce.
+  - `tangent_frames`.
+  - The relight's default (no sources) is unchanged.
+- [`relight.py`](tools/bake/relight.py) `Scene` passes the new source options through; its defaults are unchanged.
+- Baker design section 13 points to EXP-21.
+- **Checked:**
+  - new tests for the density estimate (half the light at a surface's edge) and the groups (they add up to the
+    bounce, and scale with one material's albedo);
+  - `test_shadows_bounce`, `test_room_match` and the bake tests pass;
+  - EXP-21's runs (`<lab>\l5`, outside the repo).
+
+### EXP-20 run 10: the loot count is left for the UFO maps
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 10's result: `killaliens` does not end Temple Ship's
+  mission, which is scripted as the final mission, so no loot screen showed. The user accepted the reasoning for
+  now; the count is checked when the editor takes on UFO maps.
+- The [editor contracts](research/editor-contracts.md) collectibles row and the
+  baker design section 13 say so.
+- **Checked:** in the game by the user. No code changed.
+
+### L5's yardstick, and the collectible loot check built (EXP-20 run 10)
+
+- New [`room_match.py`](tools/bake/room_match.py): how closely the relight's model matches a map's own bake across
+  many components, with nothing written.
+  - It measures lit texels within 10% and 40%, by facing and by brightness, the checkerboard groups of EXP-17 run 7
+    (component, facing, 192-unit cube), and the components that carry the error.
+  - `--parts` splits our light into its sources.
+  - This is baker step L5's measure (baker design section 13). On
+    run 7's bar room it gives run 7's figures: 23.7% within 10%, checker 24.6%.
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 10:
+  - a Temple Ship project with two power cores copied and one deleted, built by the editor's Build and installed in
+    the lab;
+  - its loot list should show 7 UFO power sources;
+  - the note lists which maps have collectibles (the UFO maps, alien bases, two DLC maps, Temple Ship).
+- **Checked:**
+  - new `test_room_match` (5 tests, on made-up texels);
+  - the harness on the bar room (178 components, 10 workers);
+  - the build's log shows both copies made as collectibles and the deleted core out of the Level's list.
+  - Run 10 itself waits for the game.
+
+### EXP-20 run 9 passed: a variant's own intro copy lands the Skyranger (F-45 verified)
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md): run 9's result. The pool-table variant, built with its own
+  `CIN_DropshipIntros_<variant>` copy and no patch, plays the bar's landing. The user reported "landing intro was
+  working fine"; no screenshots were taken.
+- [Findings register](research/findings-register.md): F-45 verified again, for the Build.
+- **Checked:** in the game by the user. No code changed.
+
+### Enemy Unknown's maps as EW/LWR maps: findings and a plan
+
+- New [research/eu-maps-for-ew.md](research/eu-maps-for-ew.md), on the four Enemy Unknown maps in the Extra Maps mod
+  (Nexus 686):
+  - what the mod's maps are (EU's own, with their textures moved into the packages);
+  - what EW has and they lack (Meld spawn points, a landing intro, live records);
+  - why the community's black ground patches aren't a lighting problem (the asphalt patch pieces' material is
+    suspected);
+  - a seven-step plan to make each a base map the Build turns into an EW/LWR variant.
+- **Checked:** read-only counts by scratch scripts on the mod's files and on the EU and EW installs, through a
+  wrapper that lets the repo's readers take EU's licensee 59. Nothing tested in the game yet. The repo's tools are
+  unchanged and still refuse EU packages.
+
+### The Build gives a variant its own landing intro (F-45; EXP-20 run 9 built)
+
+- New [`intro_copy.py`](tools/bake/intro_copy.py): the base map's intro stream (`CIN_DropshipIntros` or
+  `CIN_FastropeIntros`) copied as `<intro>_<variant>.upk`.
+  - In the copy, the Switch String entries that name the base map name the variant, so the Skyranger lands as it does
+    on the base map.
+  - An intro with no landing of its own for the map gets no copy.
+- [`build.py`](tools/editor/build.py):
+  - the package carries the copy, and its record streams it in place of the original;
+  - the manifest gives `intro` and `replaceStreams`, and the README says what the copy is.
+- [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `plan_maps(replace=...)` and `deploy(replace_streams=...)`, and
+  [`lab_install.py`](tools/lab/lab_install.py), stream the copy in the test slot the same way.
+- Why: the user saw no Skyranger landing in run 8. The Build's patch is compiled `--stream-only`, so patchtool never
+  added its `XComMapEdIntro`, and no Build variant has had the intro.
+  - The exe copy matches the intro streams' name by substring (three places), so the copy's name starts with the
+    original's.
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 8's note corrected, run 9 added;
+  [findings register](research/findings-register.md) F-45 fixed again.
+- **Checked:**
+  - new tests: `test_intro_copy` on the LWR install's `CIN_DropshipIntros` (only `URB_Bar`'s entry renamed, every
+    other entry and the export count unchanged; no copy for a map with no landing); `test_deploy` (the copy streamed
+    in place of the original); `test_build` (the package, record, manifest and README);
+  - editor tests (45) and bake tests (123);
+  - the copy read back with `kismet_links.py`: `URB_Bar`'s output reads `URB_Bar_EXP17Move_7a1f`.
+- **Gaps:** not yet in the game (run 9). `CIN_FastropeIntros`' switches haven't been read; the tool handles them
+  the same way.
+
+### EXP-20 run 8 passed: native hides in the game; F-58 verified; F-45 open again
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 8 passed: the pool table built with no patch is gone
+  from its old place, stands lit at the new one, breaks, and survives a save and reload.
+- [Findings register](research/findings-register.md):
+  - F-58 is verified harmless: no ghost in the cutaway.
+  - F-45 is open again: the dropship intro didn't play. The patch's `XComMapEdIntro` gave a renamed map its intro,
+    and an M1 Build has no patch.
+- Baker design: the same.
+- **Checked:** the user's play-through, five shots, and the lab's `Launch.log` (the 10 engine `duplicate NetIndex`
+  lines only). The exe copy's three uses of the name `CIN_DropshipIntros` match it as a substring.
+
+### Pieces from other maps noted as an optional follow-up
+
+- First editor plan, later milestones:
+  - Pieces from other maps are an optional follow-up, as the user asked. The note says why edits made in the map
+    make it plausible: the game's own objects are copied, and its shaders and textures are in shared files.
+  - It also says what's left (copying a piece with everything it depends on) and a first test.
+  - "Builds without UDK" is marked done for M1.
+- **Checked:** the lab install's `CookedPCConsole` holds `RefShaderCache-PC-D3D-SM3.upk`, `Textures.tfc` and
+  `CharTextures.tfc`. Nothing was built or tested.
+
+### The editor's Build shows a window over the editor until the build ends, with its steps, progress and log
+
+- [`app.js`](tools/viewer/web/app.js), [`index.html`](tools/viewer/web/index.html),
+  [`style.css`](tools/viewer/web/style.css): the build's banner is replaced by a window that covers the editor
+  while the build runs, as the user asked. It takes no clicks or keys (Ctrl shortcuts included). It shows:
+  - the steps with their times, and "No patch" when the edit needs none;
+  - the step running, with what it's doing, and a bar for the pieces the relight has done;
+  - the log's latest lines, or the last 40;
+  - the time so far, with a bar against the project's last build when there is one, and a spinner.
+  - When the build ends it shows the package's folder (Copy the folder path) or the error with the log, and closes
+    with Close or Esc. If the server stops answering mid-build, it says so and can be closed; it keeps asking.
+- [`relight.py`](tools/bake/relight.py) prints `progress: relighting pieces <done>/<total>` per component, and
+  `progress:` lines for the shadow maps and the writing.
+  - Fixed on the way: a component of one texel took its bounce blur width from the median of no spacings (NaN, and
+    numpy's "Mean of empty slice" warning in every build's log). It takes 1 now. No written lightmap had the NaN:
+    the pool-table build's report has none, since such a component came out unchanged and wasn't written.
+- [`builds.py`](tools/viewer/builds.py) turns those into the job's `progress` (they stay out of its lines), stamps
+  each stage with when it ended, and gives the last package's `seconds`, which
+  [`build.py`](tools/editor/build.py) now writes in its manifest.
+- [`viewer.py`](tools/viewer/viewer.py): a body a route leaves unread is read after it. Build's POST never read its
+  `{}`, so on the kept-alive connection the page's first poll arrived as `{}GET ...` and was answered 501 (one
+  failed poll per build, retried 5 s later).
+- Docs: [viewer README](tools/viewer/README.md), first editor plan.
+- **Checked:**
+  - viewer tests (the progress lines, stage times and the package's seconds; Build and a poll on one connection,
+    which fails without the fix); editor and bake tests;
+  - two real builds of the pool-table project from a test server on port 8791 into a scratch builds folder,
+    watched in the browser from start to end:
+    - the first: no estimate (a moving bar), 0 → 207 pieces, built in 2:32;
+    - the second: "about 2:27 left, going by the last build (2:31)", the full log, built in 2:39 with the same
+      109 pieces relit and no numpy warning;
+    - during them, W/E/A, Ctrl+S and a click on the map did nothing, and Esc closed the finished window.
+
+### The Build hides pieces in the map and makes collectibles' copies there: no patch or UDK for M1 (EXP-20 run 8 built)
+
+- [`native_copy.py`](tools/bake/native_copy.py) `hide_pieces`:
+  - empties a hidden piece's slot in the Level's actor list, as a level designer's delete does;
+  - takes it out of other destructibles' `AffectedChildren`;
+  - adds a rebuild volume over its tiles and a ring of one (`hide_tiles`; no seeds needed).
+  - The relight removes it as a caster (`--remove-caster`). `--copies` takes `{copies, breakOriginals, hides}`, and
+    copies take a full `rotation`.
+- [`compiler.py`](tools/editor/compiler.py) `native_split`:
+  - exact hides go to the map, with their boxes;
+  - collectibles' copies too, as collectibles, so they count as mission loot, as the user wants by default.
+  - The report's loot notes say what each edit does: a copy counts too, a moved piece once, a deleted one no longer.
+  - An option to mark a copy as not loot is for later.
+- [`build.py`](tools/editor/build.py): a project with nothing left for the patch skips patchtool, UDK and the cook,
+  and ships no patch; the README and config lines leave the patch out. The native step's output streams (`-u`).
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 8: the pool-table project built this way (4 minutes,
+  no patch). Checked offline: both originals out of the Level's list with their rebuild volumes, the table's copy
+  linked to the glass's copy, no net index repeats.
+- F-58 in the [findings register](research/findings-register.md) (open): the building's floor caches and a
+  visibility group still list a hidden piece; run 8's cutaway checks it.
+- Docs: UDK-removal plan ("The patch left the Build for M1"),
+  baker design, [editor contracts](research/editor-contracts.md),
+  first editor plan, [viewer README](tools/viewer/README.md),
+  [README](README.md).
+- **Checked:** editor tests (43), viewer tests (64), bake tests (118; 7 for `native_copy`: hides, links, the
+  texture-cache link file); the build above.
+- **Gaps:** not yet in the game (run 8); a collectible's copy not yet checked as loot at a mission's end.
+
+### EXP-20 run 7 passed: native break groups in the game; F-56 fixed; L4 done
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 7 passed: the temple's stacked console pairs, made in
+  the map and linked there, are lit and explode together from one grenade.
+- F-56 in the [findings register](research/findings-register.md) is fixed: the pair that came out near black is
+  baked for its place.
+- Baker design: L4 is done for every copy but a collectible's; L5
+  is next.
+- **Checked:** the user's play-through, four shots, and the game's log against Temple's logs from 6 November.
+
+### Groups that break together made in the map; copies keep their assemblies' links (EXP-20 run 7 built)
+
+- [`native_copy.py`](tools/bake/native_copy.py) `link_children`: the game's own link, `AffectedChildren`, set in the
+  map.
+  - The editor's groups that break together: each member lists every other, the map's own pieces left in place
+    included (their exports are relocated with the longer list).
+  - Two-way links are safe: the exe's native `SyncChildStates` (found through the class's vtable, slot 0x3FC) asks
+    each child `IsInState` first and calls `GotoState` without forced events, so a chain stops at a piece already in
+    that state.
+  - A copy no longer keeps its original's children. Over 30 of the bar's destructibles list parts (a pool table its
+    top, vans their doors), and a copy pointing at them would have broken the original's parts. A part copied in the
+    same build is linked to its copy instead, the one standing as far from the parent's copy as the originals stand
+    apart (within 32 units); other references (a few name archetypes) stay as they are.
+  - `--copies` takes `{"copies": [...], "breakOriginals": [...]}` too, and each copy may carry `breakGroup`; the
+    manifest's `nativeCopies` lists the groups and each copy's parts.
+- [`compiler.py`](tools/editor/compiler.py) `native_split` returns the native break originals too: a group goes
+  native whole unless it has a collectible's copy, which keeps the group (and its base-map pieces) on the copier.
+- [`build.py`](tools/editor/build.py) writes them to `native-copies.json` and counts the native groups.
+- Docs: [EXP-20](research/experiments/EXP-20-growing-writer.md) run 7, F-56 in the
+  [findings register](research/findings-register.md), the baker design's
+  L4 row, the [editor contracts](research/editor-contracts.md), the first-editor plan,
+  the UDK-removal plan, the [viewer README](tools/viewer/README.md) and
+  the [README](README.md).
+- **Checked:**
+  - [`test_native_copy.py`](tools/bake/tests/test_native_copy.py) on the bar: a pool table copied with its top lists
+    the top's copy, and one copied alone lists nothing of the original's. A group of two copies and one of the map's
+    dumpsters links each to the others, and the original table keeps its own.
+  - [`test_compiler.py`](tools/editor/tests/test_compiler.py): groups go native, and a group with a collectible's copy
+    stays the copier's with its base-map pieces.
+  - [`test_build.py`](tools/editor/tests/test_build.py): the copies file carries the groups.
+  - The temple project built for real in under 4 minutes: all 6 copies native in 2 linked pairs, a hide-only
+    patch. Each console of a pair lists the other in the variant map; no net index repeats; F-56's pair bakes as
+    dim as the block it lies on (0.023 and 0.034 against 0.022 to 0.025) rather than black.
+  - The bake (117), upk (18), editor (42) and viewer (64) suites pass.
+- **Not yet known:** the game check of run 7.
+
+### EXP-20 run 6 passed: the editor's Build's native copies in the game
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 6 passed: EXP-13's project, built by the editor
+  with its copies made in the map, plays with them lit, breaking and surviving a save and reload.
+- T-15 in the [findings register](research/findings-register.md) is verified: no net-index error names a clone.
+- Baker design L4 row: run 6 passed. Left for L4: break groups'
+  and collectibles' copies, still the copier's (F-56's black pair on the temple is one).
+- **Checked:** the user's play-through and five shots, and the game's log against older sessions' logs.
+
+### The editor's Build makes copies natively (baker step L4; EXP-20 run 6 built)
+
+- [`compiler.py`](tools/editor/compiler.py): the copy object lists each copy's class, and `native_split` takes the
+  copies of plain and destructible pieces in no break group out of the patch spec, as `native_copy.py` takes them.
+  Collectibles' copies (not loot) and groups that break together stay the copier's.
+- [`build.py`](tools/editor/build.py):
+  - The Light stage runs `native_copy.py --bake --copies native-copies.json`, with the patch's spec as
+    `--edit-spec` so the hides are relit with the copies; without copies, relight.py as before.
+  - A patch with nothing to do is not built: the Patch stage is skipped, UDK isn't run, and the variant streams no
+    patch (config lines, README and manifest follow; `streams` is empty).
+  - A project that changes nothing is refused.
+  - The manifest counts the native copies and hashes `native_copy.py` and `package_grow.py`.
+- [`native_copy.py`](tools/bake/native_copy.py):
+  - Copies take a full rotation. A piece at rotation 0 saves no `Rotation` (228 of the bar's), so the copy's
+    Location and Rotation are added to its properties when missing (`set_struct`).
+  - `--copies FILE` (a JSON list) and `--edit-spec` (passed to relight.py); the CLI prints one line per copy.
+- Texture caches through a link file: [`package.py`](tools/viewer/package.py)'s `cache_file` finds `<cache>.tfc`
+  beside a package or in the folder its `tfc-folder.txt` names, and `link_caches` writes that file. The readers use
+  it ([`texture.py`](tools/viewer/texture.py), [`audit_lighting.py`](tools/upk/audit_lighting.py),
+  [`albedo.py`](tools/bake/albedo.py), [`lightmap_stats.py`](tools/bake/lightmap_stats.py),
+  [`shadowmaps.py`](tools/bake/shadowmaps.py), [`lighting_fixture.py`](tools/bake/lighting_fixture.py)), and
+  `native_copy.py` and [`grow_fixture.py`](tools/bake/grow_fixture.py) write it instead of hard-linking or copying
+  the 1.4 GB Lighting.tfc (a build folder on another drive could only copy it).
+- The viewer's build runner ([`builds.py`](tools/viewer/builds.py)) names `native_copy.py`'s step, and the page's
+  banner says "making the copies and baking the lighting". [`lab_install.py`](tools/lab/lab_install.py) says "no
+  patch" for a package that streams none.
+- Docs: [EXP-20](research/experiments/EXP-20-growing-writer.md) run 6, the
+  baker design's L4 row, the
+  first-editor plan, the UDK-removal plan,
+  the [editor contracts](research/editor-contracts.md), the [viewer README](tools/viewer/README.md) and the
+  [README](README.md).
+- **Checked:**
+  - EXP-13's project built for real in about 2.5 minutes: 8 copies made in the map with a hide-only patch.
+    - The map space repeats no net index besides the 0 group.
+    - The Level's list ends with the copies and their rebuild volumes.
+    - Every copy's lightmap is in the variant cache and was relit.
+  - Every saved project splits as expected: the temple keeps its break groups' copies on the copier, and the claw
+    machine project needs no patch.
+  - [`test_compiler.py`](tools/editor/tests/test_compiler.py) covers the split.
+  - [`test_build.py`](tools/editor/tests/test_build.py) covers each case: copies with hides, copies alone (no patch),
+    hides alone, the copier's copies, and nothing to build.
+  - [`test_native_copy.py`](tools/bake/tests/test_native_copy.py) covers a piece without a saved Rotation turned on
+    every axis, and the lighting test reads the cache through the link file.
+  - The bake (116), upk (18), editor (40) and viewer (64) suites pass.
+- **Not yet known:** the game check of run 6. The temple's mixed build (native copies with copier copies) has not
+  been built for real.
+
+### EXP-20 run 5 passed; components take fresh net indices too
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 5 passed: the copied dumpster stands lit in its bay
+  and breaks as the map's own dumpsters do. The lab's grenades had been raised for the test (lab config, outside
+  the repository).
+- Its log showed components still sharing their originals' net indices (T-15 in the
+  [findings register](research/findings-register.md)). A component's data starts with its template owner class, so
+  its net index isn't first.
+  - [`native_copy.py`](tools/bake/native_copy.py) now takes the net index as the 4 bytes before the tagged
+    properties, and passes that place to
+    [`package_grow.py`](tools/upk/package_grow.py)'s `fresh_net_index`. That function takes it as `at`.
+- Baker design L4 row: run 5 passed; next, native copies from the
+  editor's Build.
+- **Checked:**
+  - A two-copy build gives all 19 clones fresh indices, with nothing repeated in the map's space besides the 0 group.
+  - [`test_native_copy.py`](tools/bake/tests/test_native_copy.py) reads the index from the right place, so
+    components count.
+  - The bake, upk and editor suites pass.
+- **Not yet confirmed in game:** the component fix. The next run's log will show it.
+
+### Several copies per variant, destructibles, fresh net indices (EXP-20 run 4b passed, run 5 built)
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 4b passed: the mission loads, and the copy blocks and
+  gives cover.
+  - F-57 and T-14 in the [findings register](research/findings-register.md) are verified.
+  - The flushed log showed the clones' duplicate net indices (new finding T-15).
+- [`package_grow.py`](tools/upk/package_grow.py): `fresh_net_index` gives a clone the package's next net index
+  when its original has one above 0, and refuses one inside a forced-export package. `net_index_at` is shared.
+- [`native_copy.py`](tools/bake/native_copy.py):
+  - Every clone gets a fresh net index.
+  - `--copy ACTOR X Y Z [YAW]`, repeatable: several copies in one variant, each with its tiles and its own rebuild
+    volume, relit together. The manifest's section is now `nativeCopies`.
+  - Seeds already made for one copy count as marked for the next.
+- [`grow_fixture.py`](tools/bake/grow_fixture.py) `clone_texture`: a fresh net index.
+- EXP-20 run 5: the lamp post and the dumpster `XComDestructibleActor_294`, copied natively into a car-park bay, in
+  one variant (`URB_BarNative5`). The dumpster's whole subtree comes along, damage actions and cues included.
+- Baker design L4 row, [README](README.md) layout row.
+- **Checked:**
+  - The variant has no chunk crossings and no repeated net index besides the original's 0 group (the count goes
+    7,578 → 7,598).
+  - Both copies' seeds and volumes are in, and the Level's list ends with the two copies and their volumes.
+  - [`test_native_copy.py`](tools/bake/tests/test_native_copy.py): a cloned lamp post's clones take fresh net
+    indices from the count up.
+  - The bake, upk and editor suites pass.
+- **Not yet known:** whether the dumpster breaks as the map's own dumpsters do. That is run 5's check.
+
+### The growing writer keeps every read inside one compressed chunk (EXP-20 run 4 hung; run 4b built)
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 4 hung while loading the mission, twice. New
+  [findings register](research/findings-register.md) entry T-14 records the most likely cause:
+  - [`package_grow.py`](tools/upk/package_grow.py) cut its appended data into 1 MB chunks wherever the cut fell,
+    and in run 4 the cut split an export-table field.
+  - The game's loader reads from one chunk at a time.
+  - The cooked maps never split a read.
+- `package_grow.py`:
+  - It cuts appended chunks only where an export's data or a table starts (`chunk_cuts`).
+  - Its write check refuses any export's data or table that crosses a chunk boundary.
+- [`native_copy.py`](tools/bake/native_copy.py): the rebuild volume's archetype stays empty, as the game's own
+  rebuild volumes have it.
+- [`XComLabWrapper.cs`](tools/lab/XComLabWrapper.cs): a line `args=...` in the lab marker adds launch arguments
+  for the lab copy.
+  - The marker now has `args=-forcelogflush`, so the game writes its log line by line and a hang keeps it.
+  - Rebuilt to `<lab>\bin\XComLabWrapper.exe`, the old one kept as `XComLabWrapper-20261103.exe`.
+  - Dry runs: the lab command gains `-forcelogflush`; the live install's is unchanged.
+- EXP-20 run 4b: run 4 rebuilt with the fixed writer and deployed as `URB_BarNative4`.
+- Baker design L4 row.
+- **Checked:**
+  - Field by field, no export's data or table entry crosses a chunk boundary in URB_Bar, runs 1–3 or run 4b; run 4
+    had the one.
+  - Run 4b reads back as run 4 did.
+  - New test in [`test_package_grow.py`](tools/upk/tests/test_package_grow.py): where chunks are cut.
+  - The bake, upk and editor suites pass.
+- **Not proven:** that the split field was the only cause. That is run 4b's check.
+
+### A copy made in the map gets its tiles (EXP-20 run 3 passed for the lighting, run 4 built)
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 3 passed for the lighting, through a save and reload.
+  But the user's soldier could walk into the copy. New finding F-57 in the
+  [findings register](research/findings-register.md): a copy made in the map isn't in the tile data.
+- [`native_copy.py`](tools/bake/native_copy.py) `add_tiles` (on by default; `--no-tiles` leaves it out):
+  - Seed bit 0x1 on the tiles the copy crosses above the ground, plus a ring of one tile and one level above, where
+    the baked flags have no low bits. These are in-place edits of the world data.
+  - Add an `XComRebuildWorldDataVolume` over those tiles. The battle rebuilds such volumes at load and after a saved
+    game loads (`XGBattle.DoWorldDataRebuild`).
+  - The volume is cloned from the map's `TriggerVolume_0` (actor and brush component; the brush model stays
+    shared), retyped through three new imports, placed, and scaled with a new `DrawScale3D`.
+- [`package_grow.py`](tools/upk/package_grow.py): `add_import` and `find_import`. New imports go in a new import
+  table after the export data, the old entries first.
+- EXP-20 run 4: run 3's copy rebuilt with its tiles and deployed as `URB_BarNative3`. It seeds 84 tiles (15–18 ×
+  0–2, levels 1–7, none marked before); the volume reaches 364 units from its centre.
+- Baker design L4 row, [README](README.md) layout row.
+- **Checked:**
+  - The variant reads back: the volume's class, archetype and box, its component's template, the 3 imports, all
+    84 seeds, and both actors in the Level's list.
+  - New tests: [`test_native_copy.py`](tools/bake/tests/test_native_copy.py) (the copy's tiles) and
+    [`test_package_grow.py`](tools/upk/tests/test_package_grow.py) (a new import).
+  - The bake, upk and editor suites pass.
+- **Not yet known:**
+  - whether the game takes the new import and name tables;
+  - whether the rebuild marks the copy's tiles as the bake marks the original's.
+
+  That is run 4's check.
+- **Open:** [`seed_map.py`](tools/upk/seed_map.py)'s plan for the editor's spawned copies doesn't seed that ring
+  (recorded under F-57).
+
+### A copied piece baked for where it stands (EXP-20 run 3 built)
+
+- [`native_copy.py`](tools/bake/native_copy.py) `--bake`:
+  - The copy's lighting textures (its texture lightmaps and its shadow maps' textures) are cloned as new exports,
+    and the copy reads the clones.
+  - Its lightmap lists the baked lights that reach only its new place (`extra_lights`: in range, and lighting its
+    texels unshadowed). Vertex-lit pieces are refused.
+  - Then it runs the relight on the grown map.
+- [`relight.py`](tools/bake/relight.py) `--native-copy COPY=SOURCE`:
+  - The scene before the edit leaves the copy out, so the receivers around it take its shadows.
+  - The copy itself is relit from our light on its source where that stands to ours on the copy where it stands
+    (`relight_component` with `source`; the two share the mesh and the lightmap layout).
+- [`shadowmaps.py`](tools/bake/shadowmaps.py): `relight_shadow_map` takes the same `source`, for the copy's moon
+  shadow map.
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 3: the run 2 lamp post rebuilt with `--bake` and
+  deployed as `URB_BarNative2`.
+  - Its lightmap adds the next lamp post's spotlight (`SpotLight_17`); 1,988 of its 2,460 texels changed.
+  - Its moon shadow map changed by 86 texels.
+  - 5 receivers around it take its shadows.
+- Baker design L4 row, [README](README.md) layout row.
+- **Checked:**
+  - The variant read back. The copy reads its clones, which matched the original atlas before the relight and
+    differ only inside its rectangle after. It lists 2 lights, and the original is unchanged.
+  - [`test_native_copy.py`](tools/bake/tests/test_native_copy.py): new test, the copy with its own lighting
+    (clones, the added light, the relight's report, the copy's moon shadow map).
+  - The bake, upk and editor suites pass.
+- **Known gaps:**
+  - The copy's lower pole is likely too dark: foliage shadows as solid in our model (step L5).
+  - A copied lamp still has no light of its own (step L6).
+
+### EXP-20 run 2 passed: a new actor in the map
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 2 passed in the game: the lamp post copied as a new
+  actor of the bar stands midway between two lamp posts, lit like them. The originals are unchanged.
+- It lacks the warm pool of light the originals cast on the pavement. That light is a separate actor
+  (`SpotLight_53`, 413 units above the original post) baked into the pavement. Recorded in the run and in the
+  baker design's L6 row (a copied lamp needs its light copied with
+  it). The L4 row now says run 2 passed; next is the copy's own lightmap and moon shadow map.
+- [Findings register](research/findings-register.md) T-07: the hypervisor is off on the test PC since 7 November,
+  so game checks can save.
+- **Checked:** the user's look and the F9 shots; `SpotLight_53` found by a search for light actors near the post.
+
+### A placed piece copied as a new actor of the map (EXP-20 run 2 built)
+
+- New [`native_copy.py`](tools/bake/native_copy.py):
+  - It clones a piece's actor and every export under it (components, shadow maps, a destructible's damage actions)
+    as new exports, the children under the new actor.
+  - It remaps the references among them, with a tagged-property walker that also looks inside structs and arrays,
+    and through the mesh component's shadow-map records.
+  - The new actor gets an unused name number, a fresh net index, and the copy's Location and Rotation. Its mesh
+    components get VisibilityId −1.
+  - The Level's actor list gets the new actor; the Level export is relocated with the longer list.
+- [`package_grow.py`](tools/upk/package_grow.py) writes the generation's net object count too.
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 2:
+  - The write-up records how a placed piece is stored: actor, components, shadow maps, shared archetypes, and only
+    the Level's actor list referring to it.
+  - The bar's lamp post `XComLevelActor_37` is copied as `XComLevelActor_469`, midway between two lamp posts at the
+    map's edge. It was built and deployed to the test slot. It still reads the original's lightmap and has no tiles
+    yet.
+- Baker design L4 row, [README](README.md) layout row.
+- **Checked:**
+  - The grown map reads back with the new actor and its children at the new place. The Level's list ends with the
+    new actor and its data after the list is unchanged; the original is untouched.
+  - New [`test_native_copy.py`](tools/bake/tests/test_native_copy.py), 2 tests: the walker on a dumpster's
+    references (damage actions included), and a cloned lamp post.
+- **Not yet known:** whether the game shows a new actor. That is run 2's check.
+
+### EXP-20 run 1 passed: the game loads a grown map (gate C6 for textures)
+
+- [EXP-20](research/experiments/EXP-20-growing-writer.md) run 1: "worked fine, it was green".
+  - The game takes the appended chunk and the tables after all export data.
+  - The bar's east floor reads its light from the two new texture exports. Nothing shows blue, and the rest of the
+    room is unchanged.
+- Baker design L4 row: C6 passed for textures; next, a copy as a new
+  actor.
+- **Checked:** the four shots (13:28:14 to 13:28:30). No tool changes.
+
+### Baker step L4 started: the growing writer, and gate C6's first run (EXP-20)
+
+- New [`package_grow.py`](tools/upk/package_grow.py), a growing writer that appends:
+  - fixed-size edits stay in place;
+  - new exports' data and grown exports' new data go after the logical end;
+  - a new export table and depends map follow, plus a new name table when names are added, all in new literal-LZO
+    chunks;
+  - the summary points at them, with the new counts. Nothing in the package moves.
+  - It reads back what it wrote and refuses a package whose depends map isn't all empty.
+- New [`grow_fixture.py`](tools/bake/grow_fixture.py), gate C6:
+  - It clones one receiver's colour and directional lightmap textures as new exports, with their inline mips'
+    offsets moved, and points the receiver at them.
+  - It paints the receiver's rectangle green in the clone and blue in the original.
+- [`lighting_fixture.py`](tools/bake/lighting_fixture.py): `paint_rect` (paint split out, so a texture's rectangle
+  can be painted directly), and a `tfc` option for where Lighting.tfc is read from.
+- [EXP-20](research/experiments/EXP-20-growing-writer.md), run 1:
+  - The bar's east floor reads two cloned textures (exports 14,052 and 14,053). It was built and deployed to the
+    test slot.
+  - The write-up records the package layout and what the game has to accept: the tables after all export data, and
+    an appended chunk.
+- Baker design L4 row, UDK-removal plan
+  status note, [README](README.md) layout row.
+- **Checked:**
+  - New [`test_package_grow.py`](tools/upk/tests/test_package_grow.py), 3 tests on the bar: a growing write with no
+    change keeps every export in place; a new name and a relocated export read back; cloned textures read back with
+    their payloads.
+  - The fixture checked offline: the floor reads the clones (green), the original rectangle is blue, and the 69
+    other components still read the originals.
+  - The other suites still pass.
+- **Not yet known:** whether the game loads the grown map. That is run 1's check.
+
+### EXP-19 run 1 passed: baker step L3 done
+
+- [EXP-19](research/experiments/EXP-19-moon-shadow-maps.md) run 1, the dumpster moved behind the bar: "looks ok".
+  - Where it stood, the asphalt is moonlit, with no dark patch. The copy stands on a shadow like its neighbours',
+    with none doubled, so copies stay in the moon's shadow maps.
+  - The copy's body is darker than the baked dumpsters: its live light, for step L4.
+- Baker design section 13: L3 done, L4 next.
+- **Checked:** the six shots (13:10:29 to 13:10:54); the spacing of the three dumpsters identifies the copy. No tool
+  changes.
+
+### Baker step L3: the moon's shadow maps are relit (gate C4 passed offline; EXP-19 run 1 built)
+
+- New [`shadowmaps.py`](tools/bake/shadowmaps.py). A map's dominant light (the bar's moon) is drawn live, and what
+  shadows it on static surfaces is a per-component `ShadowMap2D`: a G8 signed distance field in a texture atlas.
+  - The module finds a component's shadow maps and the dominant light they belong to (by `LightGuid`).
+  - It traces the moon from 4 x 4 sub-samples per texel through the relight's occluder.
+  - It measures each sub-sample's world distance to the shadow's edge, searched within a window of the texel grid,
+    so UV islands packed side by side don't see each other.
+  - It encodes the distance with a 25-unit transition.
+  - `gate` compares a rebuilt field with the map's own.
+- [`relight.py`](tools/bake/relight.py), in an edit:
+  - Every component with a dominant-light shadow map that the edit's shadow can reach (the quick test, with the
+    moon) is traced before and after the edit.
+  - Where its view of the moon changes, the map's own field takes our field's change, so the rest stays to the
+    byte.
+  - The record lists `shadowMaps` and `shadowMapsUnchanged`; `--no-shadow-maps` leaves the maps alone.
+- [`lighting_fixture.py`](tools/bake/lighting_fixture.py): the `gray` op writes G8 texels and rebuilds the lower
+  mips. [`build.py`](tools/editor/build.py): the light stage reports `shadowMaps`.
+- [EXP-19](research/experiments/EXP-19-moon-shadow-maps.md):
+  - **Gate C4 on eight bar receivers.** Flat ground matches to within 1–2 of 255 levels (asphalt mean difference
+    0.0007). Props with many UV islands are off by about 0.06. The foliage is off by 0.22: cut-out leaves count as
+    solid (L5).
+  - **Run 1's project**, [`exp19_moon_project.py`](tools/editor/examples/exp19_moon_project.py), moves a dumpster
+    behind the bar along the back railing. The build rewrote 14 lightmaps and 5 shadow maps; the asphalt's map
+    loses the dumpster's shadow where it stood and gains it under the copy.
+- Baker design section 13: L3 built, game check next.
+  [README](README.md) layout row.
+- **Checked:**
+  - New [`test_shadowmaps.py`](tools/bake/tests/test_shadowmaps.py), 7 tests: the field across a straight edge,
+    stretched texels, islands side by side, per-texel means, a change that stays local, the bar's moon and its
+    asphalt map, and the `gray` writer with its mips.
+  - Baker suite 111, editor suite 35, viewer suite 64, all passing.
+- **Not yet known:**
+  - Whether the game also draws a live moon shadow for copies. If it does, the baked one doubles it, and run 1's
+    copy will show it.
+  - The 10 shadow maps of the bar's toggleable spot light, and other non-dominant lights' shadow maps, aren't
+    relit.
+
+### Baker step L2: lightmaps inside the map package are relit in place; vertex lighting left out
+
+- [`lighting_fixture.py`](tools/bake/lighting_fixture.py):
+  - A texture with every mip inside the map package is no longer refused ("has no mips in the cache"). Its mips are
+    written there in place, at the same size, with no variant cache. These are the small lightmaps, up to 64
+    texels wide, uncompressed, each usually owned by one component.
+  - `image` rebuilds lower mips down to 1/64 of the top mip's width (at least 4). That is 16 texels for a 1024
+    atlas, as before, and every mip for the small ones.
+- [`relight.py`](tools/bake/relight.py): the flat-light statistics give `null` rather than NaN when a component has
+  too few lit texels (`flat_light_stats`).
+- **Checked:**
+  - A new test, [`test_fixture.py`](tools/bake/tests/test_fixture.py), writes a bar piece's 16 × 16 in-package
+    lightmap: all three mips take the light, no export changes size, and no cache is written. Baker suite 104,
+    editor suite 35, all passing.
+  - The Temple project rebuilt to a scratch folder skips only its 2 deleted pieces (24 before). The 22 small
+    lightmaps are relit, and this edit leaves them unchanged.
+  - A survey of LWR's 141 maps found 109,026 lit components, of which 6 are vertex-lit and 2 visible. So per-vertex
+    relighting is left out, and the plan says why. Baker design
+    section 13 marks L2 done. With the UDK-removal plan, it now
+    starts the growing writer at L4.
+- **Not checked in the game:** a visible change to one of these small lightmaps. The in-place path is the one that
+  already writes the big atlases' small inline mips in every relit build; a check comes with the next game run.
+
+### EXP-14 run 15 passed: baker step L1 done; F-56 open again
+
+- [EXP-14](research/experiments/EXP-14-temple-variant.md) run 15, the editor's relit Temple build: "everything looks
+  right". No leftover shadows; the barriers and pairs cast theirs.
+- Baker design section 13: L1 is marked done; L2 is next.
+- [Findings register](research/findings-register.md) F-56: open again. One low-cover pair is near black in run 15,
+  and the user asks whether our own baking can fix it. The entry lists two ways: a fill the baker measures for each
+  copy, or copies baked themselves (L4).
+- **Checked:** the run's six shots (12:21:38 to 12:22:00). No tool changes.
+
+### EXP-14 run 15 set up: the editor's Temple build, relit, in the lab (baker step L1)
+
+- [EXP-14](research/experiments/EXP-14-temple-variant.md), run 15. The user's Temple project (revision 7) was built
+  by the editor's Build in about 5 minutes. Our baker rewrote 7 lightmaps: the floors under the two laser barriers,
+  the blocks under the two low-cover pairs, two fences and a floor piece. The run was installed with
+  `lab_install.py`, and the section lists what to look at in the game.
+- **Checked:** the three lab files match the package byte for byte. The flip floors' previews show the low cover's
+  shadow replaced by the barrier's. The game check is the user's, still to come.
+
+### The lab installer takes over patchtool's files, and plays Temple as the first mission's abduction
+
+The first Temple build from the editor (`TempleShip_TempleIm_2001`) did not install. Its patch and map names were
+already in the lab from patchtool's EXP-14 deploys, and the installer never overwrote a file it hadn't put there.
+- [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `patchtool_owns`: a lab file belongs to patchtool when it is a
+  patch named in patchtool's `deployed.txt`, or a map whose bytes match the last `seeded.txt` entry for that map.
+  - `deploy` replaces such a file, backed up first; the deploy record lists it under `replaced`, with the backup.
+  - Any other file it didn't put there is still refused.
+- `plan_maps`: the test slot is the first mission, an abduction. A base map of another kind (TempleShip's record is
+  `eMission_Final`) now plays as an abduction, with the slot's map family. That is how patchtool's test slot played
+  Temple in EXP-14 runs 1 to 4, which loaded. It also keeps Temple's own record the only Final one in rotation. An
+  abduction map keeps its own family, as before.
+- **Checked:**
+  - two new tests in [`test_deploy.py`](tools/bake/tests/test_deploy.py): replacing patchtool's files with a backup,
+    and the Temple base in the test slot. Baker suite 103, editor suite 35, all passing.
+  - A dry run of the Temple package against the lab plans to replace the two EXP-14 files. The slot line it plans
+    has `URB_Bar`, an abduction, Temple's three streams and the patch in slot 2, as EXP-14 run 4's did.
+
+### The plan from here: the rest of the lighting work, then UDK removal
+
+- Baker design, new section 13: what is done (stages 1–5, the
+  editor's Build) and the steps left, in order:
+  - L1, a second map (Temple);
+  - L2, receivers skipped today (lightmaps inside the map package, vertex lighting);
+  - L3, dominant-light shadow maps;
+  - L4, copies baked themselves;
+  - L5, the light model for big remixes;
+  - L6, lights in the editor;
+  - L7, destruction.
+
+  The header's status says what is built.
+- UDK-removal plan: a status note. It follows the lighting steps;
+  the editor's Build already does much of U4; the variant map is now relit; the growing writer (U2) starts in
+  lighting steps L2 and L4; Build's only UDK use is now the patch itself.
+- [README](README.md): what's next, in that order.
+- **Checked:** the links and anchors between the three documents. No tool changes.
+
+### `lab_install.py watch` installs what is built after it starts
+
+- [`lab_install.py`](tools/lab/lab_install.py) `watch` now leaves the new packages already in the builds folder when
+  it starts and installs only those built after; `--pending` takes the others too, as before. Started while an old
+  rebuild sits there, it no longer installs that first.
+- **Checked:** [`test_lab_install.py`](tools/bake/tests/test_lab_install.py), 7 tests (one new: a package already
+  there stays out, and `--pending` takes it).
+
+### Editor groups and the units-only sky light merged in; maps without landing zones build and install
+
+- Merged branch `copy-lighting-units-sky` (editor groups that lock and break together, Align, copies keeping the
+  map's tone through damage; EXP-14 runs 13 and 14) into `standalone-baker`, so that main gets both lines of work.
+  The Temple project uses groups.
+  - Conflicts resolved: the page's key list and keyboard comment ([`index.html`](tools/viewer/web/index.html),
+    [`app.js`](tools/viewer/web/app.js)) keep both groups and Build; the ledger keeps both branches' 6 November
+    entries; both branches had added a T-12 to the [findings register](research/findings-register.md), so this
+    branch's (patchtool and a one-copy spec) is now T-13.
+- A base map without landing zones in LWR's `DefaultLZMutator.ini` (TempleShip, which lands no Skyranger) no longer
+  stops a build or an install: [`build.py`](tools/editor/build.py) writes no landing-zone lines and says so in the
+  README, and [`deploy_fixture.py`](tools/bake/deploy_fixture.py) adds none, as patchtool already did.
+- **Checked:**
+  - Test suites in this branch after the merge: editor 35, viewer 64 and baker 100 (one new), all passing.
+  - The merged page, on a test server on port 8792 with scratch folders: the Temple project opens (6 added,
+    2 deleted) with no console errors, the Project menu has Build, and the key list has the group keys. The
+    Playwright smoke test (`browser_smoke.py`) wasn't run: Playwright isn't installed here.
+  - A pre-flight of the Temple project, without building: it compiles (2 deleted, 6 added, no warnings), the LWR
+    install's `TempleShip.upk` has the project's SHA-256, and the quick reach test keeps 173 of 318 receivers within
+    1024 units. 18 of those keep their bake, because their lightmaps aren't in `Lighting.tfc`.
+
+### The editor's Build no longer needs our lab's folders
+
+- [`patchtool.ps1`](tools/patch/patchtool.ps1):
+  - `-Lwr <install>` names the LWR install the original maps are read from (read only); without it,
+    `switch_install.ps1` still says where it is, as in the lab.
+  - The hidden-desktop helper (`HiddenRun.exe`) is compiled beside the work folder, so the lab's own stays
+    `<lab>\bin` and an editor build gets `<builds>\.work\bin`.
+  - Before a cook it keeps a copy of UDK's `HQSound_MCMusic_SF.upk` in `<Work>\keep`, and puts that back if the cook
+    deletes it (the upstream UDK's copy in the lab is the fallback).
+- [`build.py`](tools/editor/build.py) runs patchtool with its work folder in the builds folder
+  (`<output>\.work\patchtool`) and `-Lwr` from the settings. So a build takes the LWR install, UDK and the builds
+  folder from the editor's settings and nothing from `<lab>`; only the command line's default viewer cache is
+  still the lab's.
+- **Checked:** [`test_build.py`](tools/editor/tests/test_build.py) (11, one new). A real build of EXP-17 run 11's
+  project ran patchtool from the builds folder: it read `URB_Bar.upk` from the LWR install into
+  `<builds>\.work\patchtool\maps`, compiled `HiddenRun.exe` into `<builds>\.work\bin`, built and cooked the patch,
+  and wrote the seed plan there.
+
+### EXP-17 run 11 passed
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 11 result. A claw machine copy added from
+  nothing, built by the editor's Build and installed by `lab_install.py`, stands at the counter's corner. The floor
+  around its base is darker, and the original stays at the wall. The rest of the room is as in the original map,
+  with no artifacts. [Findings register](research/findings-register.md) F-55 and the status line updated.
+- **Checked:** seven F9 shots by the user, 11:29–11:30 ("looks good"), and a brightened crop kept in the lab. Cover
+  beside the copy wasn't in the shots. No tool changes.
+
+### The editor's Build, with the lighting baked; the lab installer; EXP-17 run 11 built
+
+- **Build in the editor** (first-editor plan section 7, slice E4). The Project menu's Build (Ctrl+B) saves the
+  project if it has unsaved changes, then builds the saved revision; Save never builds.
+  - [`tools/viewer/builds.py`](tools/viewer/builds.py) runs the build in the background, one at a time.
+  - [`viewer.py`](tools/viewer/viewer.py) adds `POST /projects/<id>/build` and `GET /projects/<id>/build.json`
+    (same-origin only, as the save routes), and `serve --builds`.
+  - The page ([`app.js`](tools/viewer/web/app.js), [`project.js`](tools/viewer/web/project.js),
+    [`index.html`](tools/viewer/web/index.html)) follows the stages in a banner, picks a running build up again on
+    reload, and shows the last build in the Project menu.
+- **The build**, [`tools/editor/build.py`](tools/editor/build.py): a saved project into a variant package
+  (`<output>/<Variant>/` and a zip). It never touches a game install.
+  - Stages: snapshot (the pristine map read from the settings' LWR install, hash-checked), compile (`--stream-only`),
+    patchtool build (`-Force`) and cook, the edit's light baked onto the map (`relight.py --edit-spec
+    --receivers-near 1024`), the patch's seeds applied, then the package.
+  - The package holds the relit and seeded map, its texture cache (`Lighting_<n>`, numbered from the variant's
+    name), the cooked patch, a manifest (project and revision, hashes, streams, config lines, each stage's result,
+    tool hashes) and a README with the config lines from the LWR install, renamed: the `DefaultMaps.ini` record with
+    the patch in its lowest free slot and out of rotation, the landing zones, and the Mini Mods rules.
+  - It is written beside the last package and swapped in last, so a failed build leaves the last good one.
+- **Install in the lab**, [`tools/lab/lab_install.py`](tools/lab/lab_install.py), kept out of the editor:
+  `install` (a package, or the newest new one), `watch` (installs each new package as it is built, waiting while
+  XCOM runs), `status`, `uninstall`. It is `deploy_fixture.py deploy` with the package's files.
+  - [`deploy_fixture.py`](tools/bake/deploy_fixture.py) takes a manifest as a dict, and a streamed patch that comes
+    among the fixture's own files.
+  - Two deploys in one second no longer share a deploy record, a backup or a seeded copy: the second overwrote the
+    first, which would have broken the restore chain.
+- **Relight finds its receivers** ([`relight.py`](tools/bake/relight.py)):
+  - `--receivers-near R`: every texture-lightmapped component within R units of what the edit changes (`Scene`
+    records the edit's boxes: removed casters where they stood, copies at their poses, removed lights' reach);
+  - a quick reach test, `edit_reaches`, leaves out components the edit can't change (record: `unreached`;
+    `--no-quick` turns it off);
+  - `--jobs N` relights in N worker processes (default: half the cores, at most 16).
+- **patchtool** ([`patchtool.ps1`](tools/patch/patchtool.ps1)) refused a spec with exactly one copy:
+  [findings register](research/findings-register.md) T-13, fixed.
+- [`exp17_add_project.py`](tools/editor/examples/exp17_add_project.py): EXP-17 run 11's project, a copy of the claw
+  machine added under a ceiling spot.
+- Docs: the plan's section 7 status, the
+  baker design section 4.5, the [README](README.md)'s layout (the
+  viewer and editor folders were missing), the [viewer README](tools/viewer/README.md)'s Build.
+- **Checked:**
+  - New tests: [`test_build.py`](tools/editor/tests/test_build.py) (10, with the tools stubbed),
+    [`test_lab_install.py`](tools/bake/tests/test_lab_install.py) (6),
+    [`test_builds.py`](tools/viewer/tests/test_builds.py) (3, with a stand-in build), `EditReaches` in
+    [`test_relight.py`](tools/bake/tests/test_relight.py) (5), and a receivers test in
+    [`test_shadows_bounce.py`](tools/bake/tests/test_shadows_bounce.py).
+  - The claw machine project built from the command line in 12.5 minutes with the full relight (357 receivers, 118
+    changed). The reach test, run against that result, keeps 137; the 51 changed components it would skip changed by
+    at most 0.045 in flat light (a lit floor is 6 to 7). Relighting six components with one worker and with three
+    gives byte-identical images and scales.
+  - Built again from the editor (Ctrl+B in the browser pane, on a test server on port 8791): 2 minutes 35 seconds,
+    67 components written. The banner followed every stage and ended with the package's folder; the Project menu
+    showed the last build. That package was installed in the lab with `lab_install.py install` (EXP-17 run 11), not
+    yet seen in the game.
+  - Test suites in this branch: editor 29, viewer 64 and baker 99, all passing.
+- **Known gaps:** patchtool's work folder and authoring base stay in `<lab>\patchtool`; no cancel, no cleanup
+  of old work folders.
+
+### EXP-17 run 10 passed; lightmap previews kept out of the repo
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 10 result. In the game, the moved pool table
+  stands at its new place with a soft shadow around its base. The floor between it and the counter is 25% darker on
+  screen (run 9's and run 10's top-down shots, both fitted onto run 8's). A soldier beside it gets cover, from the
+  seeds in the relit map. The old place and the rest of the room are unchanged.
+  [Findings register](research/findings-register.md) F-55 and the status line updated.
+- The two lightmap previews committed with runs 9 and 10 (`research/evidence/exp17-run9-rug.png` and
+  `exp17-run10-floor.png`) showed URB_Bar's own bake, decoded from the map, which the repo never holds (README,
+  `.gitignore`).
+  - They were removed from the three unpushed commits that had them, so the branch's history no longer holds them.
+  - The docs now name their copies in the lab (`<lab>\bake-fixtures\run9`, `run10`).
+  - [`.gitignore`](.gitignore) leaves out images in `research/evidence/`.
+- **Checked:** nine F9 shots by the user, 10:33–10:34. `git log --all -- research/evidence/*.png` finds nothing. No
+  tool changes.
+
+### Moved and added pieces cast baked shadows; relit maps take the patch's tile seeds (EXP-17 run 10 deployed)
+
+- [`relight.py`](tools/bake/relight.py):
+  - `Scene(add_casters=...)`: copies of casters at new poses, as dicts of `source`, `location` and `rotation`. They
+    cast shadows and reflect light as their sources do, their triangles' owners are negative, and the record lists
+    them (`copies`). A moved piece is removed at its old place and added at the new one.
+  - `--edit-spec <spec>` (`edit_from_spec`): the edit from an editor patch spec. The exact hider's targets become
+    removed casters, and each copy becomes an added caster at its pose. Box hiders and other objects are refused.
+  - The buried rule (buried both before and after) applies to added casters too. The usage and module notes are
+    updated.
+- [`shadows.py`](tools/bake/shadows.py) `caster_triangles(pose=...)` and
+  [`lightmap_texels.py`](tools/bake/lightmap_texels.py) `world_matrix(location=, rotation=)`: a component's actor at
+  another pose, keeping its scale and the component's own transform, as XComMapEdCopier's copies do.
+- [`patchtool.ps1`](tools/patch/patchtool.ps1) `map.seedExternally`. Seeds are planned and the `XComMapEdTileSeeds`
+  actor added as usual, but deploy seeds no lab map and puts back one seeded for the patch before. Not with `shipAs`,
+  moved ladders or bakes. Documented in the [patchtool README](tools/patch/README.md).
+- [`compiler.py`](tools/editor/compiler.py) `--stream-only` now also writes `map.seedExternally`.
+- [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `deploy --seed-plan <tsv>` (repeatable). It writes a seeded
+  copy of the variant map (`tools/upk/seed_map.py apply`) to `<work>/seeded/` and deploys that, recording its hash
+  and the seeder's report.
+- [`exp17_move_project.py`](tools/editor/examples/exp17_move_project.py) and its spec
+  [`exp17poolmove.json`](tools/patch/examples/exp17poolmove.json): the pool table moved into a lamp's pool, with the
+  glass on it.
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 10 (setup, offline numbers, restore, what to
+  look at); [findings register](research/findings-register.md)
+  F-55; design section 4.5.
+- **Checked:**
+  - new tests:
+    - specs read into edits, and the rest refused (`test_relight.py`);
+    - a copy at its source's own pose changes at most 5 texels, and a moved copy darkens the floor under it by more
+      than half while the far floor keeps its bake (`test_shadows_bounce.py`);
+    - a seeded copy of the variant is deployed and recorded (`test_deploy.py`); stream-only specs carry
+      `seedExternally` (`test_compiler.py`);
+  - 87 baker tests, 19 compiler tests and 49 of 49 patchtool record checks pass;
+  - the live patchtool run: 9 tiles planned, no lab map seeded;
+  - seeding a relit variant changes the same bytes as seeding the original;
+  - run 10 offline: under the table at its new place, 6.76 → 0.033.
+- **Known gaps:** the game check is pending. patchtool's `map.seedExternally` paths have no scripted test; the live
+  run covers them. Copies' own surfaces are still lit live.
+
+### EXP-17 run 9 passed
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 9 result. In the game, the pool table and the
+  glass on it are gone, and a soldier beside where the table stood has no cover. The rug under the table is evenly
+  lit, brighter toward the windows, with no shadow of the table left. Run 8's spot is back (its pool 32% brighter on
+  screen). Nothing else changed. [Findings register](research/findings-register.md) F-55 and the status line
+  updated.
+- **Checked:** six F9 shots by the user, 10:03–10:04. Run 9's top-down shot was scaled onto run 8's (factor 1.18)
+  for a brightness ratio. The rugs were identified from the export. No tool changes.
+
+### A deletion made in the editor, relit and played on the relit map (EXP-17 run 9 deployed)
+
+- [`compiler.py`](tools/editor/compiler.py) `--stream-only` (`stream_only`): the spec without `map.shipAs`, so
+  patchtool builds a plain streamed patch and ships no map copy. A relit variant of the base map ships the map
+  instead.
+- [`deploy_fixture.py`](tools/bake/deploy_fixture.py) `deploy --stream <patch>` (repeatable): the test slot line also
+  streams that patch, in the lowest slot the base record does not use, written as patchtool writes one
+  (`add_stream`). It refuses a patch missing from the lab or already streamed. The deploy record lists the streams,
+  and restore and the deploy chain work as before.
+- [`relight.py`](tools/bake/relight.py): in an edit that removes casters, a texel counts as buried only if it is
+  buried both before and after, so the floor inside a removed piece that stood solid on it is relit. Its light
+  before is computed like any other: inside a piece it comes out near zero by itself. The record counts these texels
+  (`texels.opened`). The usage line lists the edit options.
+- [`tools/bake/examples/bar-room-components.txt`](tools/bake/examples/bar-room-components.txt): the bar room's 178
+  receivers (runs 7–9), kept in the repo.
+- [`exp17_delete_project.py`](tools/editor/examples/exp17_delete_project.py) and its spec
+  [`exp17pooldel.json`](tools/patch/examples/exp17pooldel.json): the pool table and the glass on its edge, deleted.
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 9 (setup, offline numbers, restore, what to
+  look at); [findings register](research/findings-register.md)
+  F-55; design section 4.5.
+- **Checked:**
+  - new tests: a patch streamed in the first free slot and restored (`test_deploy.py`); a patch streamed already is
+    refused; stream-only specs (`test_compiler.py`); a removed counter section opens more than 100 floor texels,
+    black before and lit after (`test_shadows_bounce.py`);
+  - 82 baker tests (deploy included) and 19 compiler tests pass;
+  - run 9 offline: 26 components written, 149 untouched; the rug's middle 0.028 → 0.076.
+- **Known gaps:** the game check is pending. Pieces a patch adds or moves are still runtime copies lit live. Lighting
+  a seeded map (patchtool's `shipAs` with tile seeds) is not combined with the relight yet.
+
+### EXP-17 run 8 passed
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 8 result: in the game, the switched-off spot's
+  pool is gone and the rest of the room is unchanged, without artifacts. Shown by the brightness ratio of two
+  matching top-down shots (run 6's and run 8's). [Findings register](research/findings-register.md) F-55 and the
+  status line updated.
+- **Checked:** eight F9 shots by the user, 09:07–09:08; no tool changes.
+
+### Edits relit as a change on the original bake; run 7 recorded
+
+- [`relight.py`](tools/bake/relight.py) delta mode, `--remove-caster NAME` and `--remove-light NAME` (actor or
+  component, repeatable): a second `Scene` without them, and each component's texels get the original bake changed
+  by our model's change (`apply_change`, `model_coefficients` for both scenes).
+  - Light added adds.
+  - Light removed is scaled (original × after/before) where our model accounts for most of the original's light,
+    and subtracted where it accounts for little, weighted by before/original. The subtraction never goes below the
+    scaled value. Plain subtraction left black dots where our model over-lights, and a crosshatch where it took away
+    most of a bright pool: the original's compression error, left in a small remainder.
+  - The change spreads from our texels into their neighbours (chart gutters, buried edges), which keep their own
+    original light; spreading the relit values instead blurred the counter's contact shadow into its footprint.
+  - Components the edit does not reach are listed in the record's `unchanged` and not written; a removed caster's
+    own lightmap is left alone.
+- Every texel of a relit component's rectangle is now written. Those that our texels and their dilation don't reach
+  (buried deep, unused) keep the original bake, re-encoded under the component's new slot scale. Before, they kept
+  bytes stored under the old scale. The record counts them (`texels.keptOriginal`).
+- Deterministic sampling: [`shadows.py`](tools/bake/shadows.py) `point_turns` turns each point's shadow samples by a
+  hash of its position and `light_seed` names each light. [`bounce.py`](tools/bake/bounce.py)'s gather turns its
+  rays the same way. So the same point gets the same rays whatever else is in the batch, and before and after an
+  edit agree exactly where it does not reach.
+- [`bounce.py`](tools/bake/bounce.py) `SourceIrradiance` (`relight.py --source-radius`): bounce sources' direct light
+  smoothed over discs, as Lightmass's photon search does. Tried on the bar room, it matches worse at every radius
+  (25–200), so it stays off. [`udk_bounce_check.py`](tools/bake/udk_bounce_check.py) gained `--source-radius`.
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 7 (the whole room as a checkerboard, offline,
+  not deployed) and run 8 (the delta edit);
+  design: the first version relights edits as a change.
+- **Checked:** 79 baker tests pass. New: the change rule (added light adds; removed light scales where our model
+  accounts for the light and subtracts where it doesn't; never negative); on the bar floor an edit changes only what
+  it reaches (the pool table's shadow and one spot), and an edit that reaches nothing changes nothing; texels far
+  from ours keep the original under the new scale; a point's samples do not depend on the batch; smoothed sources
+  carry a lit floor's light under a table. Run 8 built (122 components written, 54 untouched) and deployed; not yet
+  seen in the game.
+
+### Whole-room relight: buried texels left out, environment calibrated, component lists
+
+- [`relight.py`](tools/bake/relight.py):
+  - `--component-list FILE` relights many components; one that cannot be relit is skipped, listed in the record's
+    `skipped`, and keeps its bake. `--component` is no longer required.
+  - `--checker` now alternates 3D cubes, so walls and furniture show it too.
+  - Texels inside geometry are left out when the scene shadows. Their unburied neighbours' values spread into those
+    at the edges; the rest keep the original bake. The record counts them (`texels.buried`).
+  - Components with `StaticLightingHiddenByDefault` are skipped: URB_Bar's one, a corner column inside the wall
+    pieces, was baked as if they weren't there.
+  - The checker's shared slot scale no longer divides by zero for an unlit channel (it wrote NaN into a sidewalk).
+- [`bounce.py`](tools/bake/bounce.py):
+  - `buried_texels`: a texel is inside geometry when more than half the rays over its hemisphere meet back faces,
+    from where its shadow rays start.
+  - `ENVIRONMENT_SCALE = 0.266` and `environment_radiance`: rays that leave the scene bring back the sRGB-decoded
+    EnvironmentColor × EnvironmentIntensity × 0.266. The relight's `Scene` uses it.
+- [`lightmap_texels.py`](tools/bake/lightmap_texels.py) `rasterise` also returns each texel's triangle.
+- Calibration tools: [`udk_calib_base.py`](tools/bake/udk_calib_base.py) `--environment R,G,B`;
+  [`udk_bounce_check.py`](tools/bake/udk_bounce_check.py) `--environment`; spec
+  [`udk-calib10.json`](tools/bake/examples/udk-calib10.json).
+- [EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md) gains the environment bake (BakeCalib12):
+  UDK's light is 0.263–0.267 of ours on every receiver; within 4% after the scale. Evidence:
+  [`udk-lightmass-environment-2026-11-07.json`](research/evidence/udk-lightmass-environment-2026-11-07.json).
+- [Findings register](research/findings-register.md) F-55: the whole-room relight so far.
+- **Checked:** 70 baker tests pass. New: floor under a closed box is buried while the floor beside it and a lamp
+  shade's floor are not; the pool-table floor's texels under the walls (5–30%) are left out; a component list
+  relights what it can and records the rest. The bar room relit (offline, 3D checker of 192 units) goes from 22.7%
+  to 24.6% of lit texels within 10% with buried texels left out. Not yet deployed.
+
+### UDK bounce calibration; spot lights bounce wider; codec and calibration-tool fixes
+
+- [EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md) gains bounce-light bakes (BakeCalib8–11):
+  floors lit only by bounce off walls, under a directional light, spot lights and a point light.
+  - Our one bounce matches Lightmass's for directional and point lights, near the walls within 10–20%.
+  - Lightmass decodes albedo from sRGB as `albedo.py` does: the floors' colour matches.
+  - Lightmass bounces spot light 3.5–8 times more than our model, and wider than the cone. That, not a factor of
+    π, is what darkened the relit bar floor.
+  - Evidence: [`udk-lightmass-bounce-2026-11-07.json`](research/evidence/udk-lightmass-bounce-2026-11-07.json).
+- [`bounce.py`](tools/bake/bounce.py): spot lights light bounce sources through doubled cones
+  (`SPOT_INDIRECT_CONE_SCALE`); their direct light keeps the real cone. This is an empirical stand-in for
+  Lightmass's photon smearing.
+  - The bar floor goes from 64% to 69% within 10%; the original's bands below 0.5 go from 0.38–0.94 to 0.80–1.00
+    of it, except the darkest, now 1.6.
+  - The upward-pointing spot in BakeCalib10 does not fit it (overshoot by 2–5).
+- [`lightmap_encode.py`](tools/bake/lightmap_encode.py): the light-size angle is capped at the largest calibrated
+  value (51°). Past 77° the fitted S(e, α) went negative, on bar ceiling texels a few units from a lamp, and the
+  encoder wrote NaN. `encode` also treats negative or NaN coefficients as 0.
+- New [`udk_bounce_check.py`](tools/bake/udk_bounce_check.py): rebuilds a calibration scene and compares our direct
+  light and bounce with UDK's bake, texel by texel, in bands of distance from the nearest other receiver.
+- [`udk_bake.ps1`](tools/bake/udk_bake.ps1) `-Quality Preview|Medium|High|Production`: sets the Lighting Build
+  Options quality for one bake in `UDKEditorUserSettings.ini` and puts the file back byte for byte.
+- [`udk_calib_scene.py`](tools/bake/udk_calib_scene.py) `importanceVolume`: a LightmassImportanceVolume box brush,
+  written brush first so its component resolves. Lightmass still reports no importance bounds, so it is not yet
+  effective.
+- Specs [`udk-calib7.json`](tools/bake/examples/udk-calib7.json), [`udk-calib8.json`](tools/bake/examples/udk-calib8.json)
+  and [`udk-calib9.json`](tools/bake/examples/udk-calib9.json).
+- **Checked:** 66 baker tests pass. New: a texel inside a lamp's source sphere stays finite and non-negative; a
+  spot's bounce source 45° off its axis is lit through the doubled cone and not through the real one; the
+  importance volume is a six-sided brush, written brush first, with clockwise polygons and one component.
+- **Gaps:**
+  - the doubled cone is a proxy; modelling Lightmass's photon density estimate would replace it;
+  - emissive surfaces still come in only through the generated stand-ins;
+  - the importance volume is not registered;
+  - not yet seen in the game.
+
+### EXP-17 run 6 result recorded
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 6 passed. The checkerboard of our shadowed,
+  bounced light against the original bake doesn't show in the game. With contrast stretched, the only steps at
+  square edges are in the darkest floor.
+- Comparing by brightness band, which the earlier within-10% figure hid by skipping texels darker than 0.05: where
+  the original is darker than 0.1 (11% of the floor), the relight is at 0.4 of it. Bounce light is too weak there;
+  scaling it by π fits (70% within 10%). The scale is not applied yet; a UDK bounce calibration comes first.
+- **Checked:** five F9 shots, contrast-stretched and mapped onto the floor; offline comparison by brightness band.
+  No tool change.
+
+### Shadows, emissive surfaces and one bounce for the relight
+
+- [`shadows.py`](tools/bake/shadows.py): the map's shadow casters as the bake records them (static, fractured and
+  debris mesh components with an LOD-0 lightmap or shadow maps, unless `CastShadow`/`bCastStaticShadow` is off or
+  they are hidden), in world space, traced with Embree (`embreex`). Soft shadows: stratified rays to the near half of
+  each light's Lightmass source sphere, starting off the surface by Lightmass's offsets (3 and 0.1) times the map's
+  `StaticLightingLevelScale`. Triangles are rewound so that Embree's normal points out of the surface.
+- [`bounce.py`](tools/bake/bounce.py): one bounce by final gathering. Hemisphere rays from every second texel each
+  way; a hit brings back that point's shadowed direct light times its albedo over pi, and a miss brings back the
+  WorldInfo's environment colour. Each ray enters the codec as a small directional light, and the gathered values
+  are spread to all texels by a world-space Gaussian that checks normals.
+- [`albedo.py`](tools/bake/albedo.py): each material's mean diffuse colour, resolved as the viewer's exporter does,
+  from a small mip, sRGB decoded. Translucent, additive and modulated materials (window glass, decals) let light
+  through and reflect nothing.
+- [`relight.py`](tools/bake/relight.py): a `Scene` (casters, albedo, the map's Lightmass settings, the 137
+  generated area lights that stand in for emissive surfaces) and shadowed, emissive and bounced relighting by
+  default. `--direct-only` gives run 5's model; `--checker SIZE` keeps the original bake in alternate squares for an
+  in-game A/B. [`lightmap_encode.py`](tools/bake/lightmap_encode.py): `coefficients` takes a per-light
+  visibility. [`lightmap_texels.py`](tools/bake/lightmap_texels.py): mesh sections and per-triangle materials.
+- On the bar's pool-table floor (73,495 texels), relit against the original over lit texels:
+  - within 10%: 51% (run 5, no shadows) → 64%;
+  - median light: 0.84 → 0.57, against the original's 0.59;
+  - correlation: 0.88 → 0.98;
+  - bright, open floor is at 0.98–0.99 of the original, dim corners at about 0.8;
+  - bounce light is 1.6% of the floor's total.
+  - Each step was checked against the original bake: the rugs fixed the ray-start offset; lamp shades the sampling of
+    the sphere's near half; window glass the transmitting materials.
+  - Ambient occlusion (distance 32 or 64) made the match worse and is not used.
+- **Run 6** built and deployed: `URB_BarLight6`, the pool-table floor as a checkerboard of 192-unit squares, our
+  light against the original bake ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md)). Offline, our
+  squares are at 0.93–1.02 of the original on the open floor and 0.78–0.85 in the dim floor beside the pool table.
+- [`deploy_fixture.py`](tools/bake/deploy_fixture.py): the running-game check is its own function, so the deploy
+  tests no longer fail while XCOM is open.
+- **Checked:** [`test_shadows_bounce.py`](tools/bake/tests/test_shadows_bounce.py) (11 tests):
+  - occlusion, umbra and penumbra, a lamp in an open shade, and the level-scaled ray start;
+  - even hemisphere directions, open sky against a numerical integral, a lit ceiling bouncing light down, and the
+    smoothing filter;
+  - on URB_Bar: the scene's settings, upward-facing floor triangles in Embree, and a shadowed, checkered relight of
+    the floor against the original.
+
+  [`test_deploy.py`](tools/bake/tests/test_deploy.py) gains a refusal while the game runs. All 61 baker tests pass.
+- **Needs:** `pip install embreex` (Embree 4) besides numpy, scipy and Pillow.
+- **Gaps:**
+  - emissive surfaces are approximated by Lightmass's generated area lights, not traced from the emissive meshes;
+  - masked materials shadow as solid;
+  - one bounce only, which is what the bar's settings ask for;
+  - the floor's whole run (scene, 64 shadow rays per light and texel, gathering, writing) takes 32 s.
+
+### EXP-17 run 5 result recorded
+
+- [EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 5 passed: the relit pool-table floor renders
+  correctly in the game and shows our bake (dark where the original's emissive surfaces light it). 51% of lit texels
+  agree with the original within 10%. The relit floor is brighter only under objects and darker near emissive
+  surfaces, which Lightmass bakes as unlisted mesh area lights. Adding the generated area-light stand-ins without
+  shadows overshoots (0.88 -> 1.40 around the pool table).
+- **Checked:** five F9 shots against world-space maps of both bakes; offline comparison only, no tool change.
+- **Gaps:** shadows, bounce light and emissive surfaces.
+
+### Our own lightmap encoder, and a relit floor for the game (EXP-17 run 5)
+
+- [`lightmap_encode.py`](tools/bake/lightmap_encode.py): EW's directional lightmap codec as EXP-18 fitted it to UDK
+  Lightmass (directional, point and spot lights; UE3's basis; falloff, cone, the light-size elevation term), plus a
+  softened lobe clamp for lights with a size (all-channel rms on BakeCalib7 13.9% -> 9.1%).
+  [`dxt1.py`](tools/bake/dxt1.py): numpy DXT1 decode and four-colour encode (principal axis, least-squares refine).
+  [`lightmap_texels.py`](tools/bake/lightmap_texels.py): every texel of a component's atlas rectangle rasterised from
+  its mesh's lightmap UVs, with world position and orthonormal tangent frame, and dilation into the chart padding.
+- [`lighting_fixture.py`](tools/bake/lighting_fixture.py) gains the `image` operation: per-texel values into a
+  component's rectangle, partly covered blocks merged, mips down to 16 texels rebuilt by box averaging, and the
+  change outside the rectangle logged.
+- [`relight.py`](tools/bake/relight.py): relights components from the lights their lightmap lists (matched by GUID,
+  with each light's Lightmass source radius), writes the variant map and cache, a report and a before/after preview.
+- **Run 5** built and deployed: `URB_BarLight5`, the pool-table floor relit from its 52 lamps
+  ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md)): offline, 0.97–0.99 of the original bake in the
+  unshadowed light pools; shadows, bounce light and an emissive glow missing, as expected.
+- **Checked:** [`test_dxt1.py`](tools/bake/tests/test_dxt1.py) (4: against PIL's decoder, error bounds, solid and
+  two-colour blocks), [`test_lightmap_encode.py`](tools/bake/tests/test_lightmap_encode.py) (6, including texel by
+  texel against BakeCalib7), [`test_relight.py`](tools/bake/tests/test_relight.py) (4: dilation, the floor's
+  geometry and frames, all 52 lights matched, lit pools within 5% of the original),
+  [`test_fixture.py`](tools/bake/tests/test_fixture.py) gains the image operation on the real map.
+- **Gaps:** no shadows, no bounce light, no mesh area lights (emissive surfaces); the game look of run 5 is pending.
+
+## 6 November 2026
+
+### Editor: Align lines up pieces and groups with a chosen target
+
+- **[`app.js`](tools/viewer/web/app.js), [`index.html`](tools/viewer/web/index.html),
+  [`style.css`](tools/viewer/web/style.css):** with two or more pieces or groups selected, the piece panel's Align
+  section moves the others along any of game X, Y and Z until their boxes' centres, low edges or high edges meet the
+  target's.
+  - The target is the last one picked unless another is chosen in the Target list. The list names each piece or group
+    with its position, so pieces that look alike can be told apart.
+  - A white box marks the target in the view.
+  - Align is one undo step and only moves pieces. The ticked axes and the edge are remembered.
+- **[`gizmo.js`](tools/viewer/web/gizmo.js):** `units()` splits a selection into what moves as one: a locked group,
+  and with linked pieces on, linked pieces.
+- **Docs:** the help panel and the [viewer README](tools/viewer/README.md) (Editing and Checks).
+- **Checked:**
+  - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) has a new `check_align`, which covers three cases, each
+    with undo:
+    - low edges on X and Z, keeping Y;
+    - the first one picked chosen as the target, which moves the other piece instead;
+    - a locked group lining up as one.
+  - The check picks two pieces that don't already line up. In Temple, two PowerCores in a row already shared X and
+    height, so Align did nothing and the next undo reached an earlier step.
+  - Passes with `--projects` on TempleShip and URB_Bar (test server on 8790, an empty projects folder for each run).
+  - The panel was looked at in a screenshot.
+- **Gaps:** not yet used on the user's project.
+
+### EXP-14 run 14 deployed: revision 7, a low-cover pair that breaks together at each place
+
+- The user's revision 7 ([EXP-14](research/experiments/EXP-14-temple-variant.md)): the consoles replaced by a pasted
+  copy of the low-cover group, so both places have a stacked pair of `XComDestructibleActor_28` as a locked group that
+  breaks together.
+- [`templeimproved.json`](tools/patch/examples/templeimproved.json) is compiled from it: no warnings, `breakGroups
+  [2, 2, 1, 1, 0, 0]`.
+- Deployed at 19:42 (`make` with 0 errors and 0 warnings, 149,581 bytes, 128 tiles newly seeded).
+- **Gaps:** not yet played.
+
+### Copies log each hit's outcome; EXP-14 run 13's first hit recorded
+
+- **[`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc)** logs a copy's health and
+  state after each hit, and whether its break partners follow.
+- **Run 13** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - both break groups linked at load;
+  - one grenade hit one low cover without changing its state, so nothing was passed on. The link isn't tested yet.
+- **Checked:** `make` with 0 errors and 0 warnings. Redeployed at 19:40 (the same spec).
+- **Gaps:** the link still needs a hit that damages or destroys a piece.
+
+### EXP-14 run 13 deployed: revision 6, the stacked pairs as groups that break together
+
+- The user's revision 6 ([EXP-14](research/experiments/EXP-14-temple-variant.md)): the north consoles and a new south
+  pair of alien low covers (`XComDestructibleActor_28`), each a locked group with "Break together in the game".
+- [`templeimproved.json`](tools/patch/examples/templeimproved.json) is compiled from it: no warnings, `breakGroups
+  [1, 1, 2, 2, 0, 0]`.
+- Deployed at 19:36 as the intro mission (`make` with 0 errors and 0 warnings, 149,444 bytes, 146 tiles seeded).
+- **Gaps:** not yet played.
+
+### Editor groups: lock pieces together, unlock, ungroup; "Break together in the game"
+
+- **Viewer** ([`app.js`](tools/viewer/web/app.js), [`gizmo.js`](tools/viewer/web/gizmo.js),
+  [`project.js`](tools/viewer/web/project.js), [`index.html`](tools/viewer/web/index.html),
+  [`style.css`](tools/viewer/web/style.css)):
+  - **Lock as group** (the piece panel, or Ctrl+G) makes two or more pieces one group, which selects and moves as one
+    whether linked pieces are on or off. Unlock keeps the group and its options while its pieces move one by one;
+    Lock (or Ctrl+G) locks it again; Ungroup (Ctrl+Shift+G) ends it.
+  - A locked group shows in gold: a chip beside the piece's name, the panel's group section with a lock, the
+    selection box in the view, and a search tag. An unlocked group shows a dashed chip and offers Select group.
+  - The group option **Break together in the game**, for groups with two or more breakable pieces.
+  - A copied group pastes as a new group of the copies. Every group change is one undo step, and Reset all ends them.
+- **Projects:** an optional `groups` list (members by target or by output name; `locked`, `breakTogether`).
+  [`projects.py`](tools/viewer/projects.py) checks it is a list of records, and
+  [research/editor-contracts.md](research/editor-contracts.md) (sections 2 and 4) describes it. Groups naming pieces
+  the export lacks are carried unchanged.
+- **Compiler** ([`compiler.py`](tools/editor/compiler.py)): each group that breaks together with two or more breakable
+  pieces gets a number, on its copies (`breakGroups`) and on the base map's own pieces of it left in place
+  (`breakOriginals`). It warns about pieces that can't break, groups with fewer than two breakable pieces, and groups of
+  originals only (not linked yet). Groups that don't break together leave the spec as it was.
+- **patchtool** ([`patchtool.ps1`](tools/patch/patchtool.ps1), [README](tools/patch/README.md)): the copy object's
+  `breakGroups` and `breakOriginals`, written as the copier's `BreakGroups`, `BreakOriginals`, `BreakOriginalGroups`.
+- **Game side:**
+  - [`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc) `LinkBreakGroups` links each group at
+    load and after a load restores a copy.
+  - [`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc): a copy whose hit moves it
+    to damaged or destroyed puts its partners still in a better state into the same one (`BreakWithPartners`).
+  - A base-map piece left in place uses the game's one-way `AffectedChildren`, as URB_Bar links 36 of its pieces
+    (one way each; no shipped map links two ways).
+- **Checked:**
+  - the compiler tests (23, 5 of them new) and the viewer unit tests (61);
+  - `browser_smoke.py --projects` on TempleShip and URB_Bar, with a new groups check, and `browser_maps_smoke.py`, on
+    a test server (8790);
+  - screenshots of a locked and an unlocked group;
+  - `make` with 0 errors and 0 warnings;
+  - patchtool's T3D step writing the break groups from a scratch spec, and refusing a list of the wrong length.
+- **Gaps:**
+  - not yet tried in the game: whether damage carries over as built;
+  - whether a destroyed partner's tiles update outside the explosion's own area;
+  - how links behave after a save is loaded;
+  - groups of originals only aren't linked;
+  - the arrow-key pan check failed once on its last step (camera damping) and passed on the rerun.
+
+### EXP-18: point and spot lights calibrated
+
+- [`udk_calib_scene.py`](tools/bake/udk_calib_scene.py) writes point and spot lights (`pointLights`, `spotLights`:
+  radius, falloff exponent, cone angles, Lightmass `lightSourceRadius`), each with all the components of its
+  `Engine.u` archetype in order (4 for `PointLight`, 7 for `SpotLight`), and the directional light is optional.
+  [`udk_calib_read.py`](tools/bake/udk_calib_read.py) gains `--texels`: every texel of each receiver's top face with
+  its world position (from the face's lightmap UV, an affine map of local position fitted from UDK's template floor),
+  tangent frame and decoded values.
+- **BakeCalib6** ([`udk-calib5.json`](tools/bake/examples/udk-calib5.json): two point and two spot lights over
+  their own floors) and **BakeCalib7** ([`udk-calib6.json`](tools/bake/examples/udk-calib6.json): nine floors varying
+  the light source radius, falloff exponent and height), in
+  [EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md) and its
+  [numbers](research/evidence/udk-lightmass-calibration-2026-11-06.json): falloff (1 − (d/R)²)^F from the light's
+  centre, the spot cone factor squared, and an elevation term that depends on the light's angular radius
+  α = asin(ρ/d), S(e, α) = 2 sin e (1 − 0.55 α²) + (0.114 + 1.84 α) cos² e (3–5% rms per texel for lights like the
+  bar's). UDK's default source radius is 100; every point and spot light in `URB_Bar` sets 32. Design section 4.7
+  and the [findings register](research/findings-register.md) updated.
+- **Checked:** [`test_udk_calib.py`](tools/bake/tests/test_udk_calib.py) gains point and spot light blocks, unique
+  object names, the texel-to-world map and its fit against `MapTemplates.upk` (16 tests); the per-texel reader on
+  BakeCalib5 reads each uniformly lit face as one value.
+- **Gaps:** the elevation term is an empirical fit with no known cause; floors where a light's apparent size exceeds
+  about 30° fit worse (20% rms at 51°). Shadows and bounce light are outside the codec.
+
+### EXP-18: several lights at once
+
+- [`udk_calib_scene.py`](tools/bake/udk_calib_scene.py) takes `moreLights` (extra directional lights, actors 891 and
+  up) and [`udk_calib_read.py`](tools/bake/udk_calib_read.py) reports every light's tangent-space direction.
+- **BakeCalib5** ([`udk-calib4.json`](tools/bake/examples/udk-calib4.json): a white and a blue light on ten
+  receivers), in [EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md) and its
+  [numbers](research/evidence/udk-lightmass-calibration-2026-11-06.json): lights add per colour; the colour texture
+  is the summed coefficients' colour normalised (within 0.01), each directional value the largest colour channel of
+  its coefficient (6% rms). EXP-18 now states the encoder for any set of directional lights. Design section 4.7 and
+  the [findings register](research/findings-register.md) updated.
+- **Checked:** [`test_udk_calib.py`](tools/bake/tests/test_udk_calib.py) gains a two-light case (10 tests).
+- **Gaps:** point and spot lights not yet calibrated.
+
+### EXP-18: brightness and colour calibrated
+
+- **BakeCalib4** ([`udk-calib3.json`](tools/bake/examples/udk-calib3.json): brightness 2, colour 255/128/64, six
+  tangent directions), recorded in [EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md) and its
+  [numbers](research/evidence/udk-lightmass-calibration-2026-11-06.json): every directional value doubles
+  (1.99–2.02); `NormalizedAverageColor` holds the light's linear colour normalised to its largest channel,
+  gamma-encoded ((1, 0.50, 0.25) as texels, (1, 0.22, 0.05) decoded); the directional values carry the largest
+  channel. EXP-18 now states the single-light encoder in full. Design section 4.7 and the
+  [findings register](research/findings-register.md) updated.
+- **Checked:** compared receiver by receiver with BakeCalib3's identical tangent directions.
+- **Gaps:** several lights at once (how the colour texture is formed from mixed colours) not yet calibrated.
+
+### UDK Lightmass calibration tools; EXP-18: the encoder's basis and curve
+
+- New tools in [`tools/bake/`](tools/bake/):
+  - [`udk_calib_scene.py`](tools/bake/udk_calib_scene.py) writes a calibration scene as T3D: one static
+    directional light over UDK's template floor, turned by rotator or by the wanted tangent-space light direction;
+  - [`udk_calib_base.py`](tools/bake/udk_calib_base.py) makes the base map: a copy of a bake with the template's
+    sky-blue Lightmass environment colour and ambient occlusion switched off in place (the editor refuses `SET`);
+  - [`udk_bake.ps1`](tools/bake/udk_bake.ps1) bakes unattended on the hidden desktop: import, `BUILDLIGHTING`, OK
+    in its options dialog, wait for Lightmass, close the result windows, Save As;
+  - [`udk_calib_read.py`](tools/bake/udk_calib_read.py) reads each receiver's top-face texels and scales (and the
+    saved Lightmass settings) from the baked map;
+  - specs [`udk-calib1.json`](tools/bake/examples/udk-calib1.json) and [`udk-calib2.json`](tools/bake/examples/udk-calib2.json).
+- **[EXP-18](research/experiments/EXP-18-udk-lightmass-calibration.md)** with its
+  [numbers](research/evidence/udk-lightmass-calibration-2026-11-06.json): the channels point along UE3's lightmap
+  basis (azimuths 90°, 210°, 330° in the tangent frame), and each stores value^2.2 × scale ≈
+  (2.00 sin e + 0.24 cos² e) × max(0, l·b) for one light of brightness 1 (3% rms over 40 receivers' channels).
+  Baker design section 4.7, the
+  [findings register](research/findings-register.md) and [README](README.md) updated.
+- **Checked:** new [`test_udk_calib.py`](tools/bake/tests/test_udk_calib.py) (rotations, tangent placement, T3D
+  content: 9 tests); four bakes run, the last two clean (white colour texture, identical bytes for identical tangent
+  directions, height-independent).
+- **Gaps:** brightness, colour and several lights not yet calibrated; why the elevation factor has its shape is not
+  known (empirical fit); the game has not yet been shown an encoding made with it.
+
+### EXP-17 run 4 result: the three directional channels weigh the same and add
+
+- **Run 4 result** ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md), four F9 shots at 22:54): on
+  the pool-table floor blue and green average the same over their mirrored bands; on the asphalt, with blue moved
+  away from the car, red, green and blue match within 5%. Grey 19/31 in all three channels matches one channel at
+  full value, and 24/31 and 15/31 come out 1.79 and 0.59 times it (predicted 1.67 and 0.60). So on a flat receiver
+  the light is the colour texture times the sum of value^2.2 × slot scale over the three channels.
+- **Baker design** section 4.7 and the
+  [findings register](research/findings-register.md) updated.
+- **Checked:** band positions against the rugs and the pool table; patches on the kitchen's tiles (which cover the
+  far end of the kitchen-side floor) found and replaced by patches below them.
+- **Gaps:** red's second band was off screen; the in-plane direction of each channel is still open.
+
+### The component reader takes UDK packages; UDK's Lightmass writes EW's lightmap format
+
+- [`audit_lighting.component_record`](tools/upk/audit_lighting.py) reads licensee-0 (UDK) component records, which
+  end after the LOD array; EW's two mesh-swap records are read only for licensee 64.
+- New [`test_audit_lighting.py`](tools/upk/tests/test_audit_lighting.py): EW and UDK records from stub packages,
+  trailing bytes refused, and UDK's `ExampleMap.udk` when installed.
+- **Finding** (baker design section 4.7): all 547 lit receivers in
+  UDK's `ExampleMap.udk` carry `NormalizedAverageColor` and `DirectionalMaxComponent` with per-channel scales, as EW
+  does, plus a `SimpleLightmap` that EW's cooked maps leave out. So the UDK calibration bake reads directly as EW
+  data.
+- **Checked:** upk 13, bake 18, viewer 61 and editor 18 tests pass.
+- **Gaps:** a texel-by-texel fit of the simple lightmap against the pair is too loose to settle the decoder; the
+  one-light calibration scene is still to build.
+
+### EXP-17 run 3 result; run 4 (symmetry and additivity) deployed
+
+- **Run 3 result** ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md)):
+  - the 8/31 stripe matched the uniform floor, so the directional value is decoded with a power of about 2.2
+    (sRGB-like), not squared;
+  - on the asphalt (only the strip between the kerb and the next plane shows), red-only and green-only light it
+    equally within 5% and no stripe is tinted, so the three channels are directional weights, not colours;
+  - blue read 10–35% lower, but only beside the police car, where the asphalt's untouched dominant-light shadow map
+    holds the car's shadow (factors 0.42–0.88).
+- **Run 4** ([`exp17-run4.json`](tools/bake/examples/exp17-run4.json), `URB_BarLight4`, deployed 22:34): the
+  east floor has seven mirrored single-channel bands (R, G, B, black, B, G, R); the west floor three greys (19/31
+  next to the counter should match one channel at full value if the decoder adds the channels); the asphalt's
+  order is swapped so blue sits by the lamp corner and red beside the car.
+- **Baker design** section 4.7 and the
+  [findings register](research/findings-register.md) updated with what runs 3 and 4 establish and test.
+- **Checked:** asphalt positions from the sidewalk slab joints, cross-checked by the kerb, strip edge and joints
+  sharing one horizon; the car's shadow read from `ShadowMap2D_4284`'s G8 top mip; run 4 built with the fixture's
+  decode-back check and deployed with a dry run first; its chained restore (runs 4 to 1) dry-run.
+- **Gaps:** run 4 not played. The in-plane direction of each channel is still open (UDK calibration next).
+
+### EXP-17 run 2 result; run 3 (which power, and the three channels) deployed
+
+- **Run 2 result** ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md)), from wood-patch brightness in the
+  three shots:
+  - the directional slot scale acts linearly (twice the scale gives 1.9× the brightness);
+  - the stored value does not: it enters raised to a power of about 2–2.5 (two comparisons give 2.5), which rules
+    out a plain value × scale encoder;
+  - the rug test was inconclusive.
+- **Run 3** ([`exp17-run3.json`](tools/bake/examples/exp17-run3.json), `URB_BarLight3`, deployed 22:05): a null test
+  for the power. The east floor is uniform at 28/31 × 1; the west floor is at scale 16 with stripes 7/31 to 11/31, and
+  the stripe matching the east floor gives the power (7 means squared, 8 means sRGB-like). Single-channel stripes
+  with a black marker on the asphalt outside test the three directions.
+- **Baker design** section 4.7 and the
+  [findings register](research/findings-register.md) note what EXP-17 has established so far.
+- **Checked:** run 3's stripe positions were computed from the meshes' UVs (fit residual under 0.4 units); the
+  chained restore over runs 3, 2 and 1 was dry-run on the lab.
+- **Gaps:** run 3 not played. The direction basis and the colour texture's own decoding are still open.
+
+### EXP-17: run 1 passes in the game; run 2 (brightness encoding) deployed
+
+- **Run 1 result** ([EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md)): the rewritten map loads (C0),
+  the game reads the texture from `Lighting_7000.tfc` by its renamed cache FName (C1), and the painted floor lights
+  red with its light-and-shadow pattern intact, so `NormalizedAverageColor` is the light's colour. `Launch.log` has no
+  texture-cache messages.
+- **[`lighting_fixture.py`](tools/bake/lighting_fixture.py):** `paint` takes a list of colours for stripes along
+  atlas U (split on whole block columns); new `setscale` sets a slot scale outright. Fixed a crash when a second
+  paint touched an inline mip already painted.
+- **[`deploy_fixture.py`](tools/bake/deploy_fixture.py):** a deploy over an earlier one records it as `previous`, and
+  `restore` undoes the chain, so one restore of the latest record returns the test slot to EXP-14.
+- **Run 2** ([`exp17-run2.json`](tools/bake/examples/exp17-run2.json), `URB_BarLight2`, deployed 21:24):
+  - both bar floors are painted white in the colour texture, with brightness stripes;
+  - the east floor's scale is 1 and the west floor's 2, so if value × scale is linear, its stripes match the east
+    floor's in pairs;
+  - the rug has one directional channel per stripe.
+- **Checked:** 18 bake tests, 4 of them new (stripes, too-small mips, a stripes-and-scale fixture, a chained deploy and
+  restore). The run 2 atlases were decoded and looked at. The chained restore was dry-run on the lab.
+- **Gaps:** run 2 not played; the × 4 scale of run 1 was not judged (no unedited view to compare).
+
+### Baker stage 1 tools; EXP-17 run 1 deployed (lighting edits in the game)
+
+- **[`lightmap_fields.py`](tools/bake/lightmap_fields.py):** logical offsets of a component's lightmap fields (texture
+  references, slot scales, atlas scale/bias) and of a texture's cache name and mip records. Every value is checked
+  against the audit readers.
+- **[`lighting_fixture.py`](tools/bake/lighting_fixture.py):** builds test maps from fixed-size edits through
+  [`package_edit.py`](tools/upk/package_edit.py). Operations: `noop` (C0), `redirect` a texture's cached mips to a new
+  cache file (C1), `scale` a slot, and `paint` one colour into a receiver's atlas rectangle in every mip (C2). The new
+  cache is named `<Name>_<n>`, an FName number on an existing name, so the edit keeps its size. It writes a manifest
+  with every edit and checks the result decodes as intended.
+- **[`deploy_fixture.py`](tools/bake/deploy_fixture.py):** puts a fixture into the lab's test slot (map and cache
+  copied, landing zones copied, the slot rewritten as the base map's record), with backups, a deploy record and an
+  exact `restore`. Refuses unless the lab is active and XCOM is closed.
+- **[EXP-17](research/experiments/EXP-17-lighting-edits-in-game.md) run 1** (`URB_BarLight`, deployed 21:11): the
+  east half of the bar's floor painted red in its colour texture, the west half's directional scale × 4, and its
+  atlas read from `Lighting_7000.tfc`. **The test slot now plays it instead of EXP-14 run 14**; EXP-17 gives the restore
+  command, needed before EXP-14 continues.
+- **Checked:** [`test_fixture.py`](tools/bake/tests/test_fixture.py) (9: DXT1 blocks and painting, compressed bulk,
+  field offsets on URB_Bar, a paint-and-scale fixture re-read) and [`test_deploy.py`](tools/bake/tests/test_deploy.py)
+  (5: dry run, deploy then restore byte for byte, refusals) pass, as do the 9 package-edit tests. The painted atlas
+  was decoded and looked at: only the floor's rectangle changed. The snapshot's URB_Bar and `Lighting.tfc` match the
+  lab's by SHA-256. The restore was dry-run against the deployed lab.
+- **Gaps:** not played yet. Three questions are open: whether the game loads moved chunks and a renamed cache, whether
+  it ignores the cache GUID, and what the floor shows.
+
+### Baker design reviewed; lightmap statistics; fixed-size edits in any chunk
+
+- **Review** (baker design, new section 12; sections 1–5, 9 and 11
+  updated). The principles stand; the order and cost change:
+  - the codec gate (C0–C5) uses fixed-size edits of a derived map plus a variant texture cache file, so it no longer
+    waits for the growing package writer, which moves to cloning (C6) and new baked placements (stage 6);
+  - UDK 2011-09 Lightmass (the same engine build as EW) becomes the main encoder reference on the development
+    machine; the released bake still never runs UDK;
+  - a new stage 5 rebakes the existing receivers around runtime copies, which would remove F-24's stale shadows with
+    no new exports;
+  - the solver prototype is Python/numpy with an Embree binding behind the worker manifest; C++ only if measured
+    throughput needs it.
+- **[`lightmap_stats.py`](tools/bake/lightmap_stats.py)** (new `tools/bake/`): read-only scale and texel statistics of
+  lightmap pairs. Results in [EXP-16](research/experiments/EXP-16-baker-input-audit.md) run 2 and its
+  [metadata](research/evidence/lightmap-pair-stats-2026-11-06.json): `NormalizedAverageColor` has a scale of 1
+  everywhere and a largest channel of 1 in most texels; `DirectionalMaxComponent`'s three channels carry separate
+  scales (up to 16) and vary separately.
+- **[`package_edit.py`](tools/upk/package_edit.py)**: fixed-size edits at logical offsets in any compressed chunk.
+  It re-encodes only the touched blocks (literal LZO), moves later chunks, rewrites the chunk table and decodes the
+  result back to compare. `force` re-encodes a no-op edit, which is the C0 build.
+- **Checked:** [`test_package_edit.py`](tools/upk/tests/test_package_edit.py), 9 tests: literal encoder round trips
+  (1–599 bytes and full blocks), synthetic packages (middle-chunk edit, edits across block and chunk boundaries,
+  forced and unforced no-ops, refusals), and a forced no-op on a URB_Bar lightmap record in a middle chunk that
+  decodes back identically and re-reads the same component record. Viewer (61) and editor (18) tests still pass.
+  The statistics tool reproduced the exploratory numbers on both maps, with input hashes unchanged.
+- **Gaps:** nothing has been tried in the game. Whether the game accepts moved chunks (C0) and a texture cache found by
+  a new name (C1) is untested. The field locator and the C1/C2 builders are not written yet, nor the UDK calibration
+  scene.
+
+### Research: standalone lighting baker architecture and construction sequence
+
+- Added the separate baker design: scene/material/light extraction,
+  UV sampling, CPU transport, directional encoding, textures/shadows, native attachment, partial rebakes,
+  proposed bundled libraries, performance model and stage-by-stage acceptance tests. The working Temple lighting
+  workaround remains the normal editor path.
+- Added [audit_baker_inputs.py](tools/upk/audit_baker_inputs.py), the read-only
+  [EXP-16 record](research/experiments/EXP-16-baker-input-audit.md) and
+  [metadata](research/evidence/baker-input-audit-2026-11-06.json). Updated F-55 in the
+  [findings register](research/findings-register.md) and linked the follow-up from the earlier
+  [lighting report](research/map-lighting-research.md).
+- **Checked:** both source maps parsed with zero audit errors; input hashes unchanged. Measured geometry/atlas
+  workloads, separate LightmapGuid/LightGuid associations and non-unit intensity scales. Reviewed primary solver,
+  denoiser, texture encoder and UE3 tool sources. Verified script syntax, metadata invariants and local doc links.
+- **Gaps:** no lighting solver, codec or native writer implemented; no game/UDK launch, texture injection or bake
+  timing measurement. The exact EW shader decoder remains a research gate. Geometry/rectangle totals are workload
+  proxies, not final-scene occupancy or performance benchmarks.
+
+### EXP-14 run 12 recorded: F-52 passes, F-56's cause revised; closest-point light tracing taken back out
+
+- **Run 12** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - a grenade left the console's tone as it was, and the soldiers looked normal, so F-52 passes;
+  - the black console stayed black. Almost no direct light reaches its place: its nearest light is under the deck
+    (F-56 in the [register](research/findings-register.md), cause revised, then set aside at the user's word).
+- **[`XComMapEdSkyFree.uc`](unrealscript/XComMapEd/Classes/XComMapEdSkyFree.uc)** no longer sets
+  `bTraceFromClosestBoundsPoint`. It didn't help, and it lets a light behind a wall reach a piece standing against
+  it. Comments in [`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc) and the copy
+  row of the [patchtool README](tools/patch/README.md) follow.
+- **Checked:** `make` with 0 errors and 0 warnings. Not yet built into a patch: the deployed run 12 patch still traces
+  from the closest point.
+
+### Copies: the map's units-only sky light moves to the units' channel; pieces trace light from their bounds (F-52, F-56); EXP-14 run 12
+
+- **Run 11** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - the relight at a grenade hit ran (the log), but the hit consoles still came out lavender;
+  - the aiming highlight (`M_HitByAOE`) triggered relights too;
+  - one console of the other pair is black (F-56 in the [register](research/findings-register.md)).
+- **[`XComMapEdSkyFree.uc`](unrealscript/XComMapEd/Classes/XComMapEdSkyFree.uc)**, rewritten:
+  - a sky light that lights no baked surface but reaches light environments is switched off for good once a piece
+    registers;
+  - a new [`XComMapEdUnitSky`](unrealscript/XComMapEd/Classes/XComMapEdUnitSky.uc), with its brightness and colour,
+    lights the units on Gameplay_1 only;
+  - the timed sky-off and the watch of runs 7 to 11 are gone, so nothing runs per frame or per piece in play;
+  - every registered piece's light environments trace from their bounds' closest point (`bTraceFromClosestBoundsPoint`).
+- **Comments** in [`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc) and
+  [`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc), and the copy row of the
+  [patchtool README](tools/patch/README.md).
+- **Checked:**
+  - `make` with 0 errors and 0 warnings;
+  - the game's `Engine.upk` has `bTraceFromClosestBoundsPoint`;
+  - the cooked patch (145,767 bytes) has `XComMapEdUnitSky` and its component;
+  - deployed at 18:39 as EXP-14 run 12 (revision 5, spec unchanged).
+- **Gaps:**
+  - not yet played;
+  - the units' look with the sky light on Gameplay_1 isn't yet seen;
+  - the map's doors and debris lose the lavender fill;
+  - the lower hemisphere is left out (const in play);
+  - the cause of F-56 is likely, not proven;
+  - why run 11's relight didn't hold is not established (moot if the swap works).
+
+### Damaged copies take their light again without the sky light; EXP-14 run 10 recorded (F-52)
+
+- **Run 10** ([EXP-14](research/experiments/EXP-14-temple-variant.md)): a grenade on a console copy turned it lavender
+  again. The game resets a damaged piece's light environment (`_Damaged` state, mesh swap), and it takes its light with
+  the sky light on.
+- **[`XComMapEdSkyFree.uc`](unrealscript/XComMapEd/Classes/XComMapEdSkyFree.uc)** watches the pieces it has lit:
+  their state, a destructible's mesh and materials, and a fractured piece's visible fragments, every 0.25 s.
+  - A changed piece takes its light again with the sky light off for 0.3 s (`InPlayTime`; 2 s at load as before).
+  - Each relight is logged.
+- **Built at 18:17** for run 11 (the user's revision 5, spec unchanged): `make` with 0 errors and 0 warnings.
+  Deployed at 18:18, when the game closed (same SHA-256 as the cook, 146 tiles seeded).
+- **Gaps:**
+  - not yet played;
+  - the soldiers lose the sky light for 0.3 s at each relight;
+  - not yet known whether anything other than damage resets a copy's light.
+
+### EXP-14 run 10 deployed: the user's revision 5, compiled straight from the saved project
+
+- The user re-pasted the south consoles with the fixed viewer (T-12) and saved revision 5. It compiles with no
+  warnings: 2 deleted and 6 added, the four consoles as four actors.
+  [`templeimproved.json`](tools/patch/examples/templeimproved.json) is compiled from it.
+- Deployed at 18:03 as the intro mission (6 copies, 146 tiles seeded). Recorded in
+  [EXP-14](research/experiments/EXP-14-temple-variant.md).
+- **Gaps:** not yet played.
+
+### Viewer: pasted copies of one original keep names of their own (T-12); EXP-14 run 9 deployed
+
+- **[`app.js`](tools/viewer/web/app.js)**: a paste gives each pasted actor a serial of its own. Before, two pieces
+  copied from one original (the user's stacked consoles) got one name, and a save merged them into one actor with one
+  pose (T-12 in the [register](research/findings-register.md)).
+- **[`browser_smoke.py`](tools/viewer/tests/browser_smoke.py)**: pastes a piece twice, then both copies together, and
+  checks four actors with distinct names and no repeated component.
+- **EXP-14 run 9** ([EXP-14](research/experiments/EXP-14-temple-variant.md)): the user's revision 4 (four consoles in
+  place of the power cores).
+  - The compiler refused the saved file (the merged actor). The lost console was rebuilt in a scratch copy from the
+    paste's shift, and [`templeimproved.json`](tools/patch/examples/templeimproved.json) compiled from it.
+  - Deployed at 17:56 as the intro mission: `make` with 0 errors and 0 warnings, 6 copies, 146 tiles seeded.
+- **Checked:**
+  - `browser_smoke.py --projects` on TempleShip and URB_Bar, and `browser_maps_smoke.py`, on a test server (8790);
+  - the new check against the last commit's `app.js` (served to the test page only) fails, finding 3 actors instead
+    of 4;
+  - the main viewer restarted.
+- **Gaps:**
+  - run 9 not yet played;
+  - the user's saved revision 4 still has the merged actor.
+
+### Every copy and spawned piece leaves out a units-only sky light; viewer smoke tests brought up to date
+
+- **[`XComMapEdSkyFree.uc`](unrealscript/XComMapEd/Classes/XComMapEdSkyFree.uc)** (new) makes run 7's fix generic
+  (F-52):
+  - it leaves out a map's sky light only when it lights no baked surface but reaches light environments (Temple
+    Ship's; most maps put theirs in `Gameplay_1`, which our pieces don't take);
+  - registered pieces take their light with it off for 2 s at load, then keep that light;
+  - it logs every sky light and its choice.
+- **[`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)**: registers every copy of a baked
+  piece (destructibles, walls, level pieces; not doors), at load and after a save is loaded. `bKeepSkyLight` opts
+  out. The trials' glow, channel, tuning and per-copy sky settings are removed; `CopyLights` keeps the draw mode and
+  shadowing.
+- **[`XComMapEdSpawner.uc`](unrealscript/XComMapEd/Classes/XComMapEdSpawner.uc)**: its pieces register too.
+- **[`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc)**: `SetLighting(Mode,
+  bBooleanShadow)` only.
+- **Docs:** [`exp14light.json`](tools/patch/examples/exp14light.json) regenerated in the new form;
+  [`tools/patch/README.md`](tools/patch/README.md), the first-editor plan,
+  [EXP-14](research/experiments/EXP-14-temple-variant.md) run 8 and F-52 updated.
+- **Deployed at 17:13:** the user's `temple_improved` (spec unchanged) as the intro mission. `make` with 0 errors and 0
+  warnings, and the patch holds the new class.
+- **Viewer:**
+  - [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py) expects project output names within the 30-character
+    cap (T-09). It had failed on TempleShip, whose name leaves 8 letters for the project's.
+  - [`browser_maps_smoke.py`](tools/viewer/tests/browser_maps_smoke.py) follows the redesigned header: Wireframe in
+    View options, the scene buttons, and the helpers row hidden. It had failed since the redesign.
+  - [`style.css`](tools/viewer/web/style.css): under 1100 px the preview chip shortens (ellipsis) and the search box
+    gives way, so the Map and Layout menus keep their width. At 1000 px in a preview the Map menu had shrunk to 55 px;
+    it is now 91 px.
+- **Checked:**
+  - editor tests 18 of 18, viewer unit tests 61 of 61, patchtool `test_ship_record.ps1` 69 of 69;
+  - `browser_smoke.py --projects` on TempleShip and URB_Bar, and `browser_maps_smoke.py`, on a test server (8790),
+    with no errors;
+  - the main viewer restarted.
+- **Gaps:**
+  - run 8 not yet played;
+  - an explosion's light on a copy with fixed light not checked;
+  - a Bar edit not run in the game (its sky light isn't left out, by its channels).
+
+### EXP-14 run 7 passes: copies without the sky light match the map's pieces; sky lights surveyed (F-52)
+
+- **Run 7** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - copies with `bNoSkyLight` match the map's own barriers ("looks great now!"; hue 283 to 286 against the original's
+    286, was 266);
+  - the soldiers keep their light;
+  - the log shows the sky light off for 2 s at load and back on.
+- **Sky light survey** of ten maps (EXP-14, F-52 in the [register](research/findings-register.md)):
+  - every sky light lights units only;
+  - most use `Gameplay_1`, which our copies don't take;
+  - Temple's keeps the default `CompositeDynamic`, which every light environment takes.
+- **Gaps:**
+  - `bNoSkyLight` is per copy in the spec, not yet the copier's default;
+  - walls, plain level pieces and spawned pieces don't have it;
+  - not checked whether fixed-light copies still take explosions' light.
+
+### Copies take their light without Temple's sky light; EXP-14 run 6 recorded, run 7 deployed (F-52)
+
+- **Run 6** ([EXP-14](research/experiments/EXP-14-temple-variant.md)): channels can't leave the sky light out. A copy
+  without `CompositeDynamic` stays lavender, and one without Dynamic gets no light at all. The log reads both back as
+  set.
+- **[`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)**: `CopyLights(i).bNoSkyLight`.
+  - At load (and once after a save is loaded) `LightWithoutSky` gives those copies a full update, even off screen, and
+    switches the map's sky lights off.
+  - `SkyFreeTime` (2 s) later, `SkyBackOn` fixes those copies' light (`bDynamic` off) and switches the sky lights back
+    on at their brightness. Both steps are logged.
+- **[`exp14light.json`](tools/patch/examples/exp14light.json)**: the six test barriers and the two cores without the sky
+  light, half of them with the door draw, and copies 4 and 5 as controls.
+  [`tools/patch/README.md`](tools/patch/README.md) documents `bNoSkyLight`.
+- **Deployed at 16:50:** `make` with 0 errors and 0 warnings; the patch is 143,381 bytes.
+- **Gaps:**
+  - not yet run;
+  - not yet known whether a fixed light environment still takes dynamic lights (explosions);
+  - only destructible copies have the option.
+
+### Research: compatible baked lighting and whole-map dynamic lighting
+
+- Added a separate [lighting research report](research/map-lighting-research.md), comparing native rebaking,
+  conversion of existing geometry to dynamic lighting, and reuse/rebuilding of indirect-light samples. It sets
+  out the data/engine barriers, relevance to UDK removal, and concrete visual/runtime decision tests.
+- Added the read-only [lighting auditor](tools/upk/audit_lighting.py),
+  [EXP-15](research/experiments/EXP-15-lighting-data-audit.md), and
+  [metadata evidence](research/evidence/lighting-audit-2026-11-06.json). The evidence is a bounded census and
+  examples, not game payloads. Added F-55 and clarified F-52's earlier sky-channel/full-map-bake statements in the
+  [findings register](research/findings-register.md).
+- **Checked:** 2,675 placed static/fractured component records; 577 lightmap/shadow textures and cache ranges;
+  four representative high-mip payload decompressions/image decodes; 417 unique mesh UV layouts; and unique
+  bounded volume suffixes containing 1,743 Bar / 8,941 Temple samples. Explicit Engine/XComGame defaults read.
+  Input package hashes unchanged; zero audit parsing errors. Script syntax, report links and rejection checks
+  verified. Consulted primary UE3 documentation, pinned format declarations and related-tool sources.
+- **Gaps:** no bake, in-game conversion or new visual/performance result from this task. Probe sphere coverage
+  does not prove engine interpolation. The volume decoder deliberately leaves the Level physics prefix and
+  nonempty visibility/distance-field suffixes unsupported. Existing EXP-14 runtime trials remain separate work.
+
+### Copies can leave out Temple's sky light; EXP-14 run 5 recorded, run 6 deployed (F-52)
+
+- **Run 5** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - Temple's lavender sky light, which lights only live-lit objects (units, our copies), is much of the copies' tint.
+    Switching it off from the console brought a copy to the baked barrier's brightness, though the soldiers went too
+    dark.
+  - `AmbientGlow` has no visible effect.
+  - Copies changed in play stopped following the sky light.
+- **[`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc)**: `SetLighting` takes
+  `Channels`, the light environment's own lighting channels without `CompositeDynamic`: with Dynamic (1) or without (2).
+  It no longer reattaches the mesh, and the log reads both channel sets back.
+- **[`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)**: `CopyLights(i).Channels` and
+  `TuneChannels`.
+- **[`exp14light.json`](tools/patch/examples/exp14light.json)**: the six test barriers and the two cores in A and B,
+  with copies 4 and 5 as controls. [`tools/patch/README.md`](tools/patch/README.md) documents `Channels`.
+- **Deployed at 16:43:** `make` with 0 errors and 0 warnings; the cooked copier has the 10 settings.
+- **Gaps:**
+  - not yet run;
+  - whether the engine chooses a light environment's lights by these channels is the open question;
+  - only destructible copies take the setting so far (not walls, level pieces or doors).
+
+### Copies' light settings, tunable from the console; EXP-14 run 5 deployed to compare them (F-52)
+
+- **[`XComMapEdDestructible.uc`](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc)**: `SetLighting` sets a
+  destructible copy's light environment:
+  - the draw mode (the engine's default, or the game's door setting with an SH light);
+  - on/off environment shadowing;
+  - an ambient glow.
+  It then resets the environment and reattaches the mesh. `LightingText` reads the settings back for the log.
+- **[`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)**: `CopyLights(i)` gives copy i a
+  setting, also after a load. Copies with `bTuned` follow `TuneMode`, `bTuneBooleanShadow` and `TuneGlow`, checked
+  every half second, so the console's `set XComMapEdCopier ...` changes them in the game. Every change is logged.
+- **[`exp14light.json`](tools/patch/examples/exp14light.json)**: `temple_improved`'s edits plus six laser barrier
+  copies with different settings, shipped as `TempleShip_EXP14Light`. It is written by hand, not compiler output.
+  [`tools/patch/README.md`](tools/patch/README.md) documents `CopyLights` and the tune settings.
+- **Deployed at 16:26** as the first mission's test slot:
+  - `make` with 0 errors and 0 warnings, then a 20 s build and a 9 s cook;
+  - 310 tiles seeded;
+  - the new record at `DefaultMaps.ini` line 184; the project's record (line 186) is unchanged;
+  - the cooked copier carries the 10 `CopyLights` entries.
+  Setup in [EXP-14](research/experiments/EXP-14-temple-variant.md) run 5, and F-52 in the
+  [register](research/findings-register.md).
+- **Gaps:** not yet run in the game. Untried so far:
+  - changing the mode or glow while the game runs (`ResetEnvironment`);
+  - `set` with a struct value;
+  - the editor and compiler don't write `CopyLights` yet.
+
+### EXP-14 run 4 passes: fresh-start copies block and give cover; the copies' blue tone traced to their lights
+
+- **Run 4** in [EXP-14](research/experiments/EXP-14-temple-variant.md):
+  - the edited Temple as a new campaign's first mission;
+  - the power cores and the laser barriers block, give cover all around and can be walked around;
+  - the new tile log lines show each core's tile fully occupied from the walk up.
+- **F-54** in the [register](research/findings-register.md) is verified: a fresh start keeps the patch's tile rebuild.
+- **F-52** (the copies look bluer) has evidence, from a read of Temple's lights and of the light environment
+  templates in `Engine.upk` and `XComGame.upk`:
+  - cyan doorway spotlights (139, 216, 229) reach both barrier copies and one core copy;
+  - the sky light reaches nothing, and the dominant light is warm;
+  - the copies lack the warm bounce that the baked pieces carry;
+  - the game's doors light themselves live with an SH light, unlike our copies.
+- **Gaps:** neither fix (the game's door setting, a per-map warm ambient) has been tried in the game.
+
+### EXP-14 run 4 deployed: the Temple variant as a fresh first mission; copy tile logs start at the base
+
+- **[`XComMapEdCopier.uc`](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)**: `LogCopyTiles` starts at the
+  copy's base (`B.Min.Z + 8`; it was `+ 80`). Before, it skipped the tile a piece on a raised walk stands in, so run
+  2's log couldn't show the cores' tiles.
+- **[`templeimproved.json`](tools/patch/examples/templeimproved.json)**: the copier sets `bLogTiles=True`. That is
+  already the default, so the spec just states it.
+- **Redeployed at 16:01** with `patchtool all ... -Slot 2 -Force`:
+  - `make` with 0 errors, then a 20 s build and an 8 s cook;
+  - the patch is 133,470 bytes, and 128 tiles are seeded.
+- **Checked after the deploy:**
+  - the test slot (line 42) names `TempleShip_TempleIm_2001`, with Temple's streams and the patch in slot 2;
+  - the lab's `TempleShip.upk` is the original.
+- **Gaps:** the game hasn't run it yet. Run 4 in [EXP-14](research/experiments/EXP-14-temple-variant.md) (a new
+  campaign, so no tactical checkpoint, per F-54) is the check, and F-54 in the
+  [register](research/findings-register.md) points to it.
+
+### F-54 explained: a tactical save puts back its own tile data; door walls (F-51) set aside
+
+- **F-54** in the [register](research/findings-register.md): why run 2's power core copies could be walked through.
+  - Run 2's log shows the save's checkpoint carrying an `XComWorldDataContainer`, the map's tile store. It loaded at
+    11.57 s, after our copies queued their rebuild at 11.36 s.
+  - That tile store came from the user's original game, with no copies and no seeds, so the copies' tiles read open.
+  - `Checkpoint_TacticalGame` keeps destructibles (`ActorClassesNotToDestroy`), so the copies themselves stayed.
+  - Saves made in a patched mission are fine. Checks should start missions fresh.
+- **EXP-14 run 3c** (console checks with the cursor outside building volume 10, `CutoutBoxWidth 0` and
+  `DumpCutoutActors`) and a read of LWR 2.06.03's Temple code are in
+  [EXP-14](research/experiments/EXP-14-temple-variant.md). The user set the door walls (F-51) aside: they are likely
+  LWR's or the game's own behaviour.
+
+### EXP-14 run 3 recorded: the unedited Temple shows its door walls after the intro, then hides them
+
+- In [EXP-14](research/experiments/EXP-14-temple-variant.md) and F-51 in the
+  [register](research/findings-register.md), from the user's account and the lab's log:
+  - From the HQ save, a fresh mission on the original map shows the walls right after the intro, then hides them.
+  - The camera staggered on every mouse move until a save and reload.
+- **Checked (read only):**
+  - The lab's console `Engine.upk` differs from LWR's normal one only in `Console.ConsoleCommand`.
+  - The lab's generated settings differ from the user's live profile only in graphics options.
+  - LWR's config has nothing Temple-specific that would hide pieces.
+- **Lab state:** the Ironman save of the mission replaced `save7`, and `save6` is gone (one save per Ironman
+  campaign). The user's profile copy is unchanged.
+- **Next:** the console's `ToggleBuildingAndPropHiding` and `ShowCursorFloor` in that save.
+
+### EXP-14 run 2 seen, run 3 set up; patchtool no longer takes a test slot for the base map's record (T-11)
+
+- **Run 2** ([EXP-14](research/experiments/EXP-14-temple-variant.md)):
+  - The user's tactical save loaded the real Temple mission with the patch. The copies stood as posed, and both
+    cores logged `copied collectible`.
+  - The doorway walls are still missing, so F-51 isn't from the test slot. It is open again, with LWR's
+    `patch_hide_randomized_objects` ruled out.
+  - The core copies could be walked through and gave no cover. This is new finding F-54 in the
+    [register](research/findings-register.md): likely the save's tile data replacing our rebuild, not verified.
+- **Run 3** (lab only):
+  - the lab's `TempleShip.upk` is the original again (both hashes checked);
+  - the user's HQ save `save_before_temple` is copied byte for byte to the lab's `SaveData\save7`;
+  - Temple's own record is untouched;
+  - the mission starts normally, with the unedited map.
+- **[patchtool.ps1](tools/patch/patchtool.ps1) `Set-ShipConfig` (T-11):**
+  - The fault: it took the first `Maps=` line named after the base map as the base map's record. After run 1b had
+    named the test slot `TempleShip`, the 15:28 redeploy rebuilt the variant's record from the test slot (map
+    family `URB_Bar`, an abduction).
+  - The fix: it now skips the line `-Stream` points.
+  - [test_ship_record.ps1](tools/patch/tests/test_ship_record.ps1) gains two checks: a test slot named
+    `TempleShip`, and the old behaviour without `-Stream`.
+  - **Checked:** 69 of 69 checks pass with `-Config` on LWR's config, and 49 of 49 without it. A `deploy` at 15:39
+    rebuilt line 184 from Temple's record; it equals run 1's, and no other line changed.
+
+### EXP-14 run 2 deployed: revision 3 of the Temple project, from the user's save inside the Temple mission
+
+- **The spec:** compiled `temple_improved` revision 3 (two power core copies in place of the psi devices) into
+  [templeimproved.json](tools/patch/examples/templeimproved.json), with Temple's time of day and no intro.
+- **Built, cooked and deployed** with `patchtool all ... -Slot 2 -Force`:
+  - 128 of 250 tiles were seeded;
+  - the record and the test slot stream the patch again;
+  - the cooked patch carries the collectible script change.
+- **The user's save** (LWR v2.01.14, a tactical save inside the Temple mission) streams the maps its own open URL
+  names, not `DefaultMaps.ini`'s, and its checkpoint names the map `TempleShip`. So, in the lab only:
+  - the lab's `TempleShip.upk` became the seeded variant, after its original was checked and backed up;
+  - the lab's `SaveData\save6` is a copy of the save with the patch as `StreamingMap2`, and its header CRC was
+    recomputed. The save's two CRCs are UE3's `appMemCrc`, and both were reproduced from the original file.
+- The setup, what to look at and how to undo the map swap are in
+  [EXP-14](research/experiments/EXP-14-temple-variant.md), run 2.
+- **Checked:**
+  - the deploy hashes;
+  - the save re-parsed with both CRCs valid;
+  - the user's own save byte-identical.
+- **Not checked:** loading the save in game.
+
+### Collectibles (the power cores) join the first build (M1)
+
+- At the user's request, `XComCollectible` pieces build like destructible props. Temple Ship has 6, the
+  `PowerCore2` cores (`eItem_UFOPowerSource`, toughness 30); the Bar has none.
+- **[compiler.py](tools/editor/compiler.py):** `XComCollectible` is in `M1_CLASSES`. Every copy, move or delete of
+  one warns (`collectible`) what happens to its loot:
+  - a copy is not loot;
+  - a moved or deleted original is hidden, not destroyed, so it may still count as loot (`XGBattle.CollectLoot`
+    counts the collectibles standing at the end).
+- **[XComMapEdDestructible.uc](unrealscript/XComMapEd/Classes/XComMapEdDestructible.uc):** a copy of a collectible
+  gets one health point. The game's collectibles destroy themselves as soon as they are damaged (`BecomeDamaged`,
+  called only on its own collectibles), so the copy breaks at its first damage too, with the original's explosion.
+  It logs `copied collectible`.
+- **Viewer ([pieces.js](tools/viewer/web/pieces.js), [app.js](tools/viewer/web/app.js)):** collectibles are
+  first-build pieces. The inspector marks an original **Mission loot** and a copy **Not loot**, with the loot rules
+  as a tooltip.
+- Docs: [editor-contracts.md](research/editor-contracts.md), first-editor-plan.md
+  and the [viewer README](tools/viewer/README.md).
+- **Checked:**
+  - 18 compiler tests, including a new one for collectibles' copies, moves, deletes and warnings;
+  - the resolver tests;
+  - `UDK.com make` compiled `XComMapEd` with 0 errors;
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) on Temple Ship (a new check: a power core shows no
+    "Builds from" and is marked Mission loot) and on the Bar with `--projects`, on test server 8790;
+  - a pasted power core copy shows "Not loot".
+- **Not checked:** in game. A copy's break at the first hit and the loot rules are untested. The loot only matters
+  away from the Temple, whose mission ends the campaign.
+
+### EXP-14 run 1 recorded; run 1b loads the unedited Temple Ship in the test slot
+
+- **Run 1** is in [EXP-14](research/experiments/EXP-14-temple-variant.md), from the user's shots and notes and the
+  lab's log:
+  - the variant loads with Temple's streams and the arrival cinematic;
+  - the 4 copies stand exactly as posed, and exactly the 2 targets are hidden;
+  - the laser barriers give cover.
+- **New findings** in the [register](research/findings-register.md):
+  - F-51: Temple's doorway walls aren't drawn; they aren't touched by the patch.
+  - F-52: copies look bluer than the baked scene.
+  - F-53: the psi device copies give no cover at their ends; likely their shape. Mesh slices at the cover heights and
+    the original's baked cover flags are in the entry.
+- **EXP-14's "Where to look" table** was corrected. The readout's level is one above the floor tile's, so the ground
+  reads 7, not 6.
+- **Run 1b:** the test slot (`DefaultMaps.ini` line 42) now loads `TempleShip` itself, with no patch stream. It was
+  set by a one-line script edit, checked byte for byte, with a backup. The lab's `TempleShip.upk` has the project
+  source's SHA-256.
+- **Run 1b result (15:11):** the walls are missing from the unedited map too, so F-51 comes from loading Temple in
+  the test slot, not from the edit. The user set it aside.
+
+### EXP-14 deployed: the user's Temple Ship project in the lab's test slot
+
+- Built, cooked and deployed `tools/patch/examples/templeimproved.json`. The test slot then took Temple's slot 0
+  (`TempleShip_Stream`) and slot 1 (the arrival cinematic) with two `stream` steps, as
+  [EXP-14](research/experiments/EXP-14-temple-variant.md) planned.
+  - patchtool's first Temple build: 21 s, then an 8 s cook. TempleShip was seeded with 146 of 280 tiles.
+  - LWR has no landing zones for TempleShip, and patchtool warned so.
+- **Checked:** the record (`DefaultMaps.ini` line 184) and the test slot (line 42) name the same map, time of day
+  and four streams. The deployed patch has the cook's SHA-256.
+- EXP-14 lists the pieces' tiles as the game's cursor readout shows them.
+
+### EXP-11 done: run 2 sees the moves and deletions; effects left behind (F-50)
+
+- Recorded run 2 in [EXP-11](research/experiments/EXP-11-static-placement.md), from the user's 8 shots and the two
+  game logs, read only. The user closed the experiment.
+  - The moved fog pod's old tile and the deleted lamp post's tile are open. The railing's gap is there, with its
+    east neighbour standing.
+  - The logs pass as in run 1: 16 of 16 copies placed exactly, 4 of 4 exact targets hidden.
+  - Not seen closely: the turned lamp post (its pose is in the log) and the railing's west end piece.
+- **New finding F-50** in [the findings register](research/findings-register.md): the fog pod's green smoke stayed
+  on the old tile. The map placed it as five emitters, a light and three decals around the pod, and the export does
+  not have them. F-48 and the [editor contracts](research/editor-contracts.md) note EXP-11's result.
+- **The lab's test slot** (`DefaultMaps.ini` line 42) is back as EXP-10 left it, after the current file was backed
+  up. Only that line changed (checked).
+- **No restore from now on.** The user asked that a finished experiment be left as it is, since the next one
+  replaces it. So each deploy sets every test-slot field its run needs:
+  - [EXP-13](research/experiments/EXP-13-destructible-props.md)'s deploy sets the Bar's slots 0 and 1 with `stream`
+    steps, and its spec ([exp13destr.json](tools/patch/examples/exp13destr.json)) carries `map.timeOfDay` `Day`.
+  - [EXP-14](research/experiments/EXP-14-temple-variant.md) has no restore step.
+- The game's cursor readout gives a tile as (x + 2784) / 96, (y + 1920) / 96 and z / 64 on the Bar. EXP-11 says so,
+  for giving spots to check as tiles.
+
+### Destructible props join the first build (M1); EXP-13 and the user's Temple project (EXP-14) prepared
+
+- **Destructible props build now.** At the user's request, the compiler builds `XComDestructibleActor` as it builds
+  static pieces: moved, turned, copied or deleted ([compiler.py](tools/editor/compiler.py) `M1_CLASSES`).
+  - A piece that names a partner is refused as M2, whether moved, deleted or copied. On the Bar those are the 17 car
+    bodies, whose glass (a fracturing piece) is their partner. Temple Ship has none.
+  - The game script needed no change. The copier already copies destructibles as `XComMapEdDestructible` (toughness,
+    cover, damage and destruction events, tint, `_Pristine`), and its absolute-pose mode allowed them. The hider
+    hides them as level actors (`XComDestructibleActor` extends `XComLevelActor`).
+- **The viewer** marks destructible props as first-build pieces and a car's body as "Builds from M2"
+  ([pieces.js](tools/viewer/web/pieces.js) `pieceMilestone`, [app.js](tools/viewer/web/app.js)).
+- **EXP-13** ([plan](research/experiments/EXP-13-destructible-props.md)): 7 destructible copies, 1 move and 2
+  deletions in the Bar's south-west street ([exp13_project.py](tools/editor/examples/exp13_project.py), spec
+  [exp13destr.json](tools/patch/examples/exp13destr.json)). Compiled, not built.
+- **EXP-14** ([plan](research/experiments/EXP-14-temple-variant.md)): the user's `temple_improved` project, the first
+  Temple Ship variant, to check in game through the test slot with Temple's streams. Its deploy spec is
+  [templeimproved.json](tools/patch/examples/templeimproved.json). Compiled and dry-run (T3D, and the tile seeds on a
+  scratch copy of TempleShip); not built, as the game is open.
+- **patchtool** takes `map.timeOfDay` `None` (Temple Ship's), besides Day and Night
+  ([patchtool.ps1](tools/patch/patchtool.ps1), [README](tools/patch/README.md)).
+- **Checked:**
+  - [test_compiler.py](tools/editor/tests/test_compiler.py), 17 tests, pass. New checks: destructible props compile
+    as moves, copies and deletions; car bodies are refused in all three. The preview-parity check on the real Bar now
+    samples destructibles too: 25 of its 60 random edits.
+  - The browser smoke test passes on the Bar and Temple Ship, with a prop that has no "Builds from" mark and a car
+    body marked M2. The viewer's 61 unit tests pass.
+- **Docs:** the first-editor plan (sections 1, 6 and 9), the
+  [editor contracts](research/editor-contracts.md) (recipe matrix) and [the viewer's README](tools/viewer/README.md).
+- **Not yet:** no destructible placed by the compiler has been in the game. Saves of copies placed by absolute poses
+  are untested (F-17's reload path).
+
+### EXP-11 run 1: the editor's static pieces pass in the game for what was seen
+
+- Recorded run 1 in [EXP-11](research/experiments/EXP-11-static-placement.md) from the user's shot and note, and
+  from the lab's game log, read only.
+  - The map loads. All 16 copies stand exactly as posed, at load and 5 s later. The hider hid exactly its 4 targets.
+  - The shot matches the project for the added pieces, and the pods on the floor give cover.
+  - Still to see in game: the moved fog pod's old tile, the turned and deleted lamp posts, and the railing gap.
+- New finding F-49 in [the findings register](research/findings-register.md): a piece lifted a level gives no cover.
+  F-48 now notes EXP-11's evidence.
+- The lab's test slot still loads EXP-11; it is put back when the experiment closes.
+
+### Viewer: the Project menu first in the header, with classic Save and Load dialogs
+
+- **The Project button** moved to the left of the header, first after "Map Workshop"
+  ([index.html](tools/viewer/web/index.html)).
+- **A classic menu:** the open project's details, then Save (Ctrl+S), Save as…, Load… (Ctrl+O) and Close project.
+  Under them, **Recent**: the three projects last opened or saved in this browser (or else saved most recently), the
+  open one aside ([app.js](tools/viewer/web/app.js) `renderProjectMenu`, `touchRecent`).
+- **Save and Load dialogs:** an in-app file picker over the projects folder
+  ([project_files.js](tools/viewer/web/project_files.js), new). The user chose this over the Windows dialogs, which
+  would lose revisions, recovery and the conflict check.
+  - It lists name, map, revision and when saved; the column heads sort; arrow keys, Enter, double-click and Esc work;
+    the dialog keeps its keys from the editor behind it.
+  - Save lists this map's projects. A new name makes a new project. The open project's own name saves its next
+    revision, renamed if only the case changed. Another project's name asks to replace it: what is on screen becomes
+    that project's next revision, with its id and output names kept (`saveProject({ replace })`).
+  - Load lists every map's projects, starting on the open one; typing finds a name.
+- **Smaller changes:**
+  - Saving under another project drops the recovery state of the one open before.
+  - The Project button now works on patch previews and piece studies for Load and Recent; Save is off there.
+  - `sourceOf` in [project.js](tools/viewer/web/project.js) gives a project's map binding.
+- **Checked:**
+  - The browser smoke test passes on the Bar (twice, with `--projects` against a scratch projects folder on a test
+    port) and on Temple Ship. The viewer's 61 unit tests and the editor's 15 pass.
+  - New checks: the header order; the menu and its recent list; Ctrl+O and Esc leaving the selection alone, with
+    Delete in the dialog deleting nothing; Ctrl+S without a project opening the Save dialog; the Save dialog starting
+    on the open project; replacing another project after its confirm (and "Don't replace"); renaming by case; Load by
+    typing; opening from the recent list.
+  - Screenshots of the menu, the Load dialog and the replace confirm.
+- **Docs:** [the viewer's README](tools/viewer/README.md) (Header, Projects),
+  [the editor contracts](research/editor-contracts.md) (`output`), and a wording fix in the findings register (T-09).
+
+### Viewer: the arrow keys pan the camera
+
+- While held, the arrow keys pan the camera across the map ([app.js](tools/viewer/web/app.js) `panCamera`).
+  - Up and Down move along the view's direction laid flat; Left and Right move across it. The camera keeps its height
+    and angle.
+  - The speed is about the distance to the point it looks at, per second; Shift is three times faster.
+  - In a text field the keys stay the field's own, and the search list keeps them for choosing a result.
+- **Checked:** the browser smoke test holds each arrow key and checks the camera and its target moved together. It
+  checks the direction (Up away from the camera, Right to its right), that the height is unchanged, and that nothing
+  moves while the search box has focus. It passes on the Bar.
+- **Docs:** the key list in the page and [the viewer's README](tools/viewer/README.md) ("Camera").
+
+### Viewer: Escape clears the selection
+
+- Escape still cancels a drag first, then stops placing, then closes an open menu. With none of those, it now clears
+  the selection: the inspector and the tile grid go with it ([app.js](tools/viewer/web/app.js), the key handler).
+- **Checked:** the browser smoke test now presses Escape after selecting a piece, and checks that nothing is selected,
+  the inspector is hidden and there is no tile grid. It passes on the Bar, with the projects checks as well (scratch
+  projects folder on test port 8790).
+- **Docs:** the key list in the page and [the viewer's README](tools/viewer/README.md).
+
+### Plan: remove UDK from the editor's user requirements
+
+- Added a separate UDK-removal implementation plan, with U0-U8
+  milestones, a template-constrained package writer, build/template/property contracts, shared editor integration,
+  staged map/configuration output, bundled runtimes, version compatibility and a clean-machine release gate.
+- The target is ordinary import/edit/build use with EW/LWR and the packaged editor, without installing or launching
+  UDK. UDK remains a maintainer tool for preparing compiled templates initially. Existing editor plans are unchanged.
+- **Checked:** traced the current compiler, property readers, helpers, seed preparation, patchtool integration and
+  prerequisite checks; validated all local document links, milestone/test coverage, Markdown fences and LF endings.
+- **Gaps:** planning only; no writer, template, package, application or game behavior changed. U0-U8 remain planned,
+  and the UDK baseline plus no-change/single-edit/growing-data proof must precede a standalone release claim.
+
+### Viewer: a tile grid around the selection, showing the piece's tiles
+
+- **Grid only where it matters.** The whole-map floor grid is gone. The grid now shows only around the selection, or
+  around the piece being placed: the tiles within three of it, fading out, on the saved floors at the piece's tile
+  level ([view_layout.js](tools/viewer/web/view_layout.js) `footprintOf`, `tileGridAround`;
+  [app.js](tools/viewer/web/app.js) `updateTileGrid`). It follows the piece while it is dragged, turned or placed.
+- **The piece's tiles.** Tiles it reaches a quarter tile or more into are filled. Tiles it only reaches into at the
+  edge get a lighter fill and an outline. Both show through the piece, and its own outline is drawn.
+  - The outline is the mesh's farthest vertices in 96 directions, not its bounding box: the Bar's round fog pod covers
+    1 tile plus 4 at the edge, where its box reached 3 x 3.
+  - A readout above the bottom bar gives the counts and the tile level.
+- **Floating pieces.** When a piece's lowest point is more than 8 units above the saved floor under it, its tiles turn
+  blue, with lines from the floor up to it, and the readout says how high it floats. The user asked for this from
+  EXP-11, where the fog pod lifted 64 units gave no cover.
+- **Checked:**
+  - The browser smoke test passes on the Bar and Temple Ship.
+  - It has new checks:
+    - no grid with nothing selected or with the option off;
+    - the tiles follow the selection when it moves a tile;
+    - the two kinds of tile on boxes, a turned box and a cylinder;
+    - floating at 64 units;
+    - off the map's grid, nothing.
+  - Screenshots on the Bar: the fog pod selected, lifted 64 units, and placed through the preview.
+  - The test caught one bug, fixed before the change went in: the grid read each mesh's position a frame late.
+- **Docs:** [the viewer's README](tools/viewer/README.md), "The tile grid".
+
+### Research: replacing installed map-tool dependencies
+
+- Added the [dependency-replacement assessment](research/dependency-replacement-feasibility.md): the actual
+  dependency inventory, a cooked-template backend for supported map edits, remaining compiler/content limits,
+  relevant upstream projects, and acceptance gates for a build without installed UDK.
+- Recorded [EXP-12](research/experiments/EXP-12-standalone-toolchain-audit.md) and its
+  [package metadata](research/evidence/dependency-replacement-audit-2026-11-06.json); added T-10 to the
+  [findings register](research/findings-register.md).
+- **Checked:** read four existing source/cooked packages with our readers, recorded SHA-256 values and export
+  counts, and compared EXP-11's four helpers' property shapes, array counts/sizes and scalar values. Reviewed
+  primary-source cooking, package-tool and deployment documentation. Local document links and evidence totals
+  checked.
+- **Gaps:** no standalone writer implemented or run in game; EXP-11's gameplay check remains pending. No package,
+  game install, UDK install or viewer server was changed. A precompiled template would initially retain a UDK
+  dependency for helper-code updates.
+
+### Editor compiler (E3) for static pieces, and EXP-11 deployed
+
+- **The compiler** ([tools/editor/compiler.py](tools/editor/compiler.py), new) turns a saved project and its map's
+  export into a patchtool spec and a report:
+  - one copier with absolute poses, listed before one exact hider;
+  - first-build classes only (XComLevelActor, StaticMeshActor). It refuses any other piece, naming its milestone
+    (M2 or M3), rather than build the project partly.
+  - Errors: level, component offset, missing source, changed template, malformed record, output names over 30
+    characters, schema, source mismatch. Warnings: unchanged, building floor, unknown field.
+  - Rotators are rounded to whole units, half away from zero. The output is deterministic.
+  - The export is found by its cache folder and checked by its full SHA-256.
+- **The copier's absolute poses**
+  ([XComMapEdCopier.uc](unrealscript/XComMapEd/Classes/XComMapEdCopier.uc)): each copy has its own location, full
+  rotator and label, and a source can be copied more than once. Each copy's box is rebuilt. The poses are logged at
+  load and 5 s later, with how far each is from what was asked. Fractured pieces, doors and ladders are refused in
+  this mode.
+- **The hider's exact targets** ([XComMapEdHider.uc](unrealscript/XComMapEd/Classes/XComMapEdHider.uc)): only the
+  named base-map actors are hidden, with each one's box rebuilt and no census.
+- **patchtool** ([patchtool.ps1](tools/patch/patchtool.ps1)):
+  - copy `poses`, `labels` and `boxes`, and hide `exact`;
+  - a spec name or `shipAs` over 30 characters is refused before UDK opens (T-09);
+  - [seed_map.py](tools/upk/seed_map.py) seeds a posed copy from its own box.
+- **Matching the build:**
+  - The viewer's patch resolver ([resolver.py](tools/viewer/resolver.py)) previews posed copies and exact hides, and
+    its defaults now match patchtool's.
+  - Project output names keep to 30 characters ([project.js](tools/viewer/web/project.js) `outputNames`).
+- **Checked:**
+  - [test_compiler.py](tools/editor/tests/test_compiler.py) (new, 15 tests): every edit kind, every refusal, no-ops,
+    determinism, rounding and boxes. It also checks the compiled spec against the viewer's preview, on a small scene
+    and on the real Bar with 60 random edits. The viewer's resolver gained 4 tests (61 pass).
+  - EXP-11's project compiled with no errors, then built (21 s), cooked (135,761 bytes), seeded 310 of 339 tiles and
+    deployed to the lab's test slot. The first build hit UDK's 30-character limit, which became T-09.
+- **Docs:**
+  - [EXP-11](research/experiments/EXP-11-static-placement.md) (new);
+  - T-09 in the findings register;
+  - [the editor contracts](research/editor-contracts.md);
+  - [patchtool's README](tools/patch/README.md).
+- **Example project:** [tools/editor/examples/exp11_project.py](tools/editor/examples/exp11_project.py) and its
+  spec, [exp11static.json](tools/patch/examples/exp11static.json).
+
+### viewer.cmd restarts a running viewer
+
+- Run with no argument (a double-click), viewer.cmd now restarts the server when it is already running,
+  instead of only opening the browser. A re-export or a server change then needs nothing more than running it again.
+  `viewer.cmd restart` does the same; `viewer.cmd start` keeps the old behaviour (start only if not running).
+- **Checked** on test port 8791 with `VIEWER_NO_OPEN=1`:
+  - the first run started it;
+  - the second stopped it and started a new process;
+  - `status` reported it, `start` left it running, and `stop` stopped it.
+- **Docs:** [README](README.md), [AGENTS.md](AGENTS.md) and [the viewer's README](tools/viewer/README.md).
+
+### EXP-10 run 1: a variant record with an added stream slot passes in the game
+
+- **Result.** URB_BarSlot's record loaded in the lab: URB_Bar's three streams plus `patch_exp10slot` in slot 2.
+  - The seamless travel loaded slots 0 to 2, and `patch_hide_randomized_objects` came after the load.
+  - `patch_bar`'s 28 actors loaded once, and the dropship intro played.
+  - The 2 × 4 wall stood by the dumpsters with high cover. It is a plain black box, as `CoverPatch` meshes are
+    (EXP-04).
+- **Recorded in:**
+  - [EXP-10](research/experiments/EXP-10-variant-stream-slot.md), run 1;
+  - the [findings register](research/findings-register.md): T-08 verified, out of the open list;
+  - [the editor contracts](research/editor-contracts.md): E0 no longer lacks the check;
+  - [patchtool's README](tools/patch/README.md).
+- **Lab.** The test slot is back as EXP-08 left it, from patchtool's backup. URB_BarSlot's out-of-rotation record and
+  its packages stay.
+- **Checked:** six F9 shots and the lab's `Launch.log`, read only.
+
+### Editor settings: the LWR install found beside the lab copy
+
+- The **LWR setting** now takes the game folder itself (an install anywhere), or a folder holding game folders such
+  as `<Steam common>` ([settings.py](tools/viewer/settings.py) `resolve_lwr`).
+  - In a folder, the game folder without `XComLab-copy.txt` is the install. That way the setting follows
+    `switch_install`, which swaps the lab copy and LWR between `XCom-Enemy-Unknown` and `.LWR` / `.Lab`.
+  - If several game folders are not the lab, Steam's own names win. If none are Steam's, the user is asked to set
+    the install itself.
+  - A lab copy is never taken for the install: the doctor now reports that as wrong, not a warning.
+- **This machine:**
+  - The settings name `<Steam common>` and `<lab>\author\UDK-2011-09`.
+  - `viewer.py doctor --cache <lab>\viewer-cache` passes every check.
+  - It finds `XCom-Enemy-Unknown.LWR` while the lab is active. Its `URB_Bar.upk` and `TempleShip.upk` match the
+    exported maps by SHA-256.
+  - UDK has the stubs and XComMapEd.
+- **Checked:** a new unit test covers the game folder set directly, the lab active and parked either way, only a lab
+  copy present, and ambiguous folders. 57 unit tests pass.
+- **Docs:** [the README](tools/viewer/README.md) and [the editor contracts](research/editor-contracts.md).
+
+### Editor contracts (E0) and the stream-slot groundwork (EXP-10, prepared)
+
+- **[research/editor-contracts.md](research/editor-contracts.md)**, new: what E0 settles for the editor:
+  - **Piece identity:** package, level, actor and component, unique on both maps and stable across the Bar's
+    version 10 to 12 exports. Never by short name or export id.
+  - **Assemblies:** prefab and partner links, and how copies keep them.
+  - **Transforms:** game space; an actor's pose as location plus `FRotator` in native units; precision; a moved
+    piece keeps its source rotator exactly.
+  - **The project document, schema 1,** with its storage, conflict and recovery rules.
+  - **The recipe matrix** with each family's status now.
+  - **Streams:** the Bar and Temple base records, and the stream-slot rule.
+  - **What E0 still lacks:**
+    - resolver discrepancy fixtures, which belong with E3;
+    - the in-game EXP-10 run;
+    - the M1 placement experiments.
+  - It stores rotators, not the quaternions the plan suggested, and gives the reason.
+- **patchtool `map.streamSlot`** ([patchtool.ps1](tools/patch/patchtool.ps1), [README](tools/patch/README.md)):
+  - It takes a slot number (default 1, the old behaviour) or `"free"`: the lowest slot the base map's record does
+    not use, added so that every stream of the record stays. That is slot 2 for both Bar and Temple.
+  - The record is now built by a pure `Get-ShipRecord`. It also reads unquoted map names and slots written out of
+    order, and warns when a numbered slot replaces a stream that is not a patch (T-08).
+  - It needs `map.shipAs`.
+- **Check without the game:** the new [test_ship_record.ps1](tools/patch/tests/test_ship_record.ps1) runs the
+  functions on real record lines copied from LWR's `DefaultMaps.ini` ([defaultmaps-records.txt](tools/patch/tests/defaultmaps-records.txt)).
+  - Results: 49 of 49 checks; with `-Config <LWR Config folder>`, 66 of 66.
+  - Slot 1 reproduces the lab's EXP-08 record byte for byte.
+  - `"free"` gives the expected Bar and Temple lines.
+  - `Set-ShipConfig` on temporary copies of the real INIs changes only the planned lines, keeps CRLF and is idempotent.
+  - patchtool `t3d` on the new spec, and on bad values, behaves as expected.
+  - Checked again by the main session: 49 of 49 and 66 of 66.
+- **[EXP-10](research/experiments/EXP-10-variant-stream-slot.md)**, prepared, not run:
+  - The Bar's (and every LWR record's) stream inventory.
+  - The spec [exp10slot.json](tools/patch/examples/exp10slot.json): an empty-template patch with a 2×4 wall, shipped
+    as `URB_BarSlot` in a free slot.
+  - The exact commands, the log lines and in-game signs that pass it, the risks, and the cleanup (no patchtool step
+    removes a slot).
+- **[Findings register](research/findings-register.md):** T-08 is fixed but not yet confirmed in game. It now
+  records the 47 records whose slot 1 is not a patch, the sparse slots, and the need to choose the base record by
+  `DisplayName`.
+- **Gaps:** nothing was built, cooked or deployed; the in-game run waits for the user.
+
+### Viewer: whole-tile snap, turning before placing, build milestones marked
+
+- **Snap** cycles off, **24** and **96**; the button's corner shows the mode
+  ([gizmo.js](tools/viewer/web/gizmo.js), [app.js](tools/viewer/web/app.js)).
+  - 96 moves whole tiles (96 across, 64 up) counted from where the piece stood when the drag began, and turns in 90°
+    steps. A piece keeps its offset within its tile, which matters because most pivots are not on tile corners
+    (EXP-09).
+  - Pastes and placements with snap 96 land whole tiles from their source.
+- **R** turns a paste or piece-list placement a quarter turn about its pivot before it is placed (Shift+R the other
+  way). The preview and the hint show the turn.
+- **Build milestones** ([pieces.js](tools/viewer/web/pieces.js)):
+  - The piece list marks the kinds the first build does not cover: M2 for cars, destructibles, doors and ladders,
+    M3 for fracturing pieces, physics props and collectibles. An assembly takes its latest part's milestone, and the
+    kind list carries the same marks.
+  - The piece panel shows "Builds from M2" or "M3" on such pieces.
+- **Checked:**
+  - The [browser smoke test](tools/viewer/tests/browser_smoke.py) now pastes with snap 96 and one R, and checks the
+    copy is whole tiles from its source and turned 90°.
+  - It checks the milestone tags match the entries, and the panel chip on a destructible.
+  - A real mouse drag of the move gizmo with snap 96 moved a piece exactly 9 tiles (864 units) along X.
+
+### Editor projects (E1): save, reopen, recover; settings and doctor
+
+- **Projects** save the edits on one base map ([project.js](tools/viewer/web/project.js),
+  [app.js](tools/viewer/web/app.js), [projects.py](tools/viewer/projects.py), [viewer.py](tools/viewer/viewer.py)).
+  The format and rules are in the new [editor contracts](research/editor-contracts.md), below.
+  - **Saving:**
+    - The header's **Project** button opens Save, Save as new, Close and the list of saved projects.
+    - Ctrl+S saves; without a project it asks for a name first.
+    - The address carries the project, so a reload reopens it.
+  - **Opening** replays the project onto the map as exported:
+    - moved and deleted originals, by package, level and actor;
+    - added copies, by their template's actor and components;
+    - the camera from the last save.
+    - Edits naming pieces this export lacks, or malformed ones, are kept, counted in the import notes and saved back
+      unchanged. A project made on another source package (by SHA-256) says so.
+  - **Unsaved changes:**
+    - They are kept on the server a second after each change, never in the middle of a drag, and offered back on
+      reopening.
+    - A save based on an older revision (another tab saved first) is refused, with Overwrite or Open the saved one.
+    - Leaving with unsaved changes asks first.
+  - **On disk:**
+    - Saves are atomic and keep the previous revision.
+    - A project with another schema version is refused with a message.
+    - Each project gets output names (`URB_Bar_<Name>_<id>`, `patch_…`) when it is made, so two projects never
+      build the same names.
+- **Copies** now carry an entity id and their original's identity (`added.from` is package, level and actor). A
+  copy of a copy names the original, and output names are never reused, even after the copy is deleted.
+- **Settings and doctor** ([settings.py](tools/viewer/settings.py)):
+  - `viewer.py settings` shows and sets the projects and builds folders, the LWR install, UDK 2011-09 and the
+    optional lab copy, in `%APPDATA%\XCOM Map Workshop\settings.json`.
+  - `viewer.py doctor [--cache …]` reports each prerequisite with what to do:
+    - folders writable;
+    - Python and PowerShell 7;
+    - the LWR install set, not the lab copy, and its maps matching the exports' SHA-256;
+    - UDK with the XComGame stubs and a compiled XComMapEd.
+  - `serve --projects` points one server at another projects folder.
+  - On this machine the doctor reports the LWR install and UDK as not set yet.
+- **Routes** `/projects.json`, `/projects/<id>/project.json` and `/projects/<id>/recovery.json`. They accept changes
+  only from the viewer's own page (a loopback Host, a matching Origin, a JSON body) and only UUID ids.
+- **Checked:**
+  - **Unit tests.** The new [test_projects.py](tools/viewer/tests/test_projects.py) (8 tests) covers:
+    - revisions, conflicts, the kept previous revision and recovery;
+    - refused schemas, documents and paths;
+    - the routes, including other origins and hosts;
+    - settings and the doctor.
+    All 56 unit tests pass.
+  - **Browser.** The smoke test's new `--projects` check, run against a test server with a scratch projects folder,
+    passes on Bar and Temple Ship with no errors. It covers:
+    - Ctrl+S naming and saving a moved-and-turned, a deleted and a pasted piece (on Bar, a linked car);
+    - reopening identically with no unsaved changes or history;
+    - recovery after a reload, then a save that drops it;
+    - a stale save from a second tab refused and overwritten;
+    - a project of the untouched map;
+    - kept unknown records;
+    - a missing project.
+  - **Re-exports.** Every key of the Bar test project resolves in the Bar's version 10, 11 and 12 exports, so a
+    re-export loses no edits.
+- **Gaps:**
+  - Projects are not built yet (E3, E4).
+  - Undo history is not saved.
+  - There is no rebind step for a project made on another package: it is shown with a warning.
+  - The doctor does not read the LWR version.
+  - The main server on 8768 needs `viewer.cmd restart` for the new routes.
+
+### Viewer: paste places through the preview
+
+- **Ctrl+V** no longer drops the copy at once: it starts placing, as the piece list does
+  ([app.js](tools/viewer/web/app.js)).
+  - A see-through preview of the clipboard follows the cursor, at the copied pieces' current pose, so a turned piece
+    is previewed turned.
+  - A click (or Ctrl+V again) places it, Shift+click places more, Esc cancels with nothing added. The hint names
+    what is being placed ("MovingVanCab and 13 other pieces").
+  - With the cursor off the view, Ctrl+V now just starts placing; the old fallback of one tile along X is gone.
+- Placing is shared: `startPlacing(clip, entry)` serves paste and the piece list, and `previewGroup` takes parts with
+  their matrices. Closing the piece list stops only a placement started from it.
+- **Gizmo:** [gizmo.js](tools/viewer/web/gizmo.js) gained `hold(on)`, which hides and disables the handles while
+  placing and keeps the selection. A click can then never grab a handle, and undoing a paste still returns the
+  selection.
+- The Copy button's tooltip, the help popover and the [README](tools/viewer/README.md) describe the new paste.
+- **Checked:** the [browser smoke test](tools/viewer/tests/browser_smoke.py)'s `check_adding` now pastes in this
+  order:
+  - Ctrl+V shows the preview, adds nothing yet and turns the gizmo off;
+  - Esc leaves the map unchanged and the selection as it was;
+  - Ctrl+V, then a click, places at the picked point with the source's turn, and the gizmo returns.
+  The linked car paste now places with a click. Both maps pass with no console or network errors; the 48 unit
+  tests pass.
+
+### Viewer: the piece list, to add pieces the map has (trial edits, not saved)
+
+- **Add** (A, or the new box button in the tool strip) opens **Pieces in this map**, the first palette from the
+  first-editor plan (section 4) ([pieces.js](tools/viewer/web/pieces.js),
+  [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)).
+  - One entry per distinct piece: what copying one instance takes along (the actor and its linked pieces). Instances
+    alike in every part (class, archetype, mesh, materials, tint) share an entry with a count. 250 entries on the
+    Bar, 175 on the Temple Ship. A prefab's parts go by the prefab's name (`PRE_MovingVanA`, 14 parts).
+  - Rows show a thumbnail, kind (from the actor class), mesh package, parts, size in game units and the count.
+    Filter by text, kind and play area or backdrop; sort by name, size or use.
+  - Clicking an entry starts placing it: a see-through preview follows the cursor, a click places a copy through
+    the paste code (one undo step, the copy selected), Shift+click keeps placing, Esc stops. The entry also goes on
+    the clipboard for Ctrl+V.
+  - Thumbnails are drawn a few per frame into the corner of the main canvas just before the view, then copied out
+    (no second WebGL context). [lighting.js](tools/viewer/web/lighting.js) gained `withoutLocalLights` for them.
+- Paste and placing share `dropTarget`/`moveTo` in app.js. Loaded meshes and materials can now be read at once
+  (`loaded`), for previews drawn mid-frame.
+- **Linked pieces:** [gizmo.js](tools/viewer/web/gizmo.js) now groups links in one union-find pass (`linkFinder`),
+  used by selection, `linkedCount` and the new `linkedGroups`. A browser check compared it with the old fixed-point
+  expansion for every piece on both maps: no differences. Building the list fell from about 1 s to 9 ms on the
+  Temple Ship.
+- **Checked:** the [browser smoke test](tools/viewer/tests/browser_smoke.py) passes on Bar (with both previews) and
+  Temple Ship, with no console or network errors; the 48 unit tests pass. Its new `check_library`:
+  - entries are distinct, and every thumbnail is drawn with a real picture;
+  - the kind filter, the size sort and the name filter;
+  - placing the entry with the most parts by click (pieces added, selected, one undo step);
+  - Shift+click placing twice, then Esc;
+  - closing with A.
+  The test now finds the view as `#viewport > canvas`, since the list adds canvases.
+- **Gaps:**
+  - Only placed pieces can be listed (the export holds no others).
+  - Gameplay support per family and the placement anchor are not shown.
+  - Thumbnails use a studio light, not the map's.
+  - The preview cannot be turned before placing; turn the copy afterwards.
+
+## 5 November 2026
+
+### Viewer: copy, cut, paste and delete pieces (trial edits, not saved)
+
+- New pieces can be added by copying ones the map has. Like moves, these edits are drawn only, not saved or built
+  ([app.js](tools/viewer/web/app.js), [gizmo.js](tools/viewer/web/gizmo.js)).
+  - **Copy** (Ctrl+C, or the panel's Copy button) takes the selection as it is, linked pieces included.
+  - **Cut** (Ctrl+X) copies and deletes.
+  - **Paste** (Ctrl+V) puts the copied piece's pivot on the point under the cursor: on a piece, or else level with
+    where it was copied. Snap rounds that spot to 24 units. The pasted pieces keep their source's turn and become
+    the selection.
+  - **Delete** (Del, or the panel's Delete button) removes added pieces and hides originals.
+- A copy is a new piece built from its source's mesh and materials (the per-piece build code moved out of `open()`
+  into `buildRoot`). It has a new id, actor name (`…_copy3`) and pivot (`placedPose`).
+  - Its prefab and partner links are renamed inside the paste, so a copied car's parts move with each other and
+    not with the original.
+  - It is marked "Added copy · not saved" in the panel, and "added" in search.
+  - It has no floor membership, and Interior does not filter it out as backdrop.
+- **Undo history:** the gizmo's undo now holds commands, so paste, delete and Reset all are single undo steps
+  alongside moves. A selection that an undo removes falls back to what was selected before.
+- **Header:** the status chip counts moved, added and deleted pieces. **Reset all** moved there from the piece
+  panel, which is hidden when nothing is selected (the smoke test found it unreachable after a delete). It now
+  also removes added pieces and brings deleted ones back.
+- A Duplicate button was built and then removed at the user's request: paste covers it, and placement is adjusted
+  by hand.
+- **Checked:** the [browser smoke test](tools/viewer/tests/browser_smoke.py) passes on Bar (with both previews)
+  and Temple Ship, with no errors. Its new checks:
+  - paste under the cursor: the pivot is on the picked point and the turn matches;
+  - undo returns the selection, and redo works;
+  - deleting the copy, then an original, then Reset all and its undo;
+  - on Bar, a copied car's three parts link only to each other.
+
+  48 unit tests pass. Screenshots of a pasted police car show its body, glass and light bar together on the
+  street.
+- **Gaps:**
+  - nothing is saved: a project file and building copies into the game are the plan's later E2/E3 work;
+  - a copied lamp has no light, and a deleted one keeps its light on;
+  - a copy's collision, cover and tile data are not simulated;
+  - paste places at once, without the plan's preview-then-click step.
+
+### Viewer: UI pass, the view first and details when needed
+
+- Redesigned the viewer window after the [mock-up](research/ui/viewer-ui-mockup.html), which the user approved
+  (with the search moved into the header so its list cannot cover the tool strip).
+  - Rewritten: [index.html](tools/viewer/web/index.html) and [style.css](tools/viewer/web/style.css) (now
+    readable, and holding what `panels.css` had; that file is gone). Rewired:
+    [app.js](tools/viewer/web/app.js).
+  - Removed: the always-on piece list and its footer, the side panels, the toolbar, the edit bar, the pose readout,
+    the hint lines, the mode and light-count overlays and the footer.
+- **Search** in the header (Ctrl+F). Results appear only while it holds text, with "+N linked" tags. Arrow keys
+  choose, and Enter or a click selects and frames; Ctrl/Shift adds to the selection; Esc clears. 60 results at most.
+- **Tool strip** on the left: Select (V, new), Move, Rotate, axes, snap, linked pieces, frame selection (F, new).
+- **Bottom bar:** Frame, Interior/Full and the floor buttons as segmented buttons, plus the building list (shown
+  only with two or more buildings). "Frame play area" is gone: Frame frames the play area in Interior.
+- **Header menus:** import notes (count on the button), view options (lighting, brightness, grid, wireframe, patch
+  helpers, an optional stats line remembered in the browser), and controls and shortcuts.
+  - "Pieces moved · not saved", Undo and Redo appear only once something has moved.
+  - Previews show an "Experimental preview" chip.
+- **Piece panel** only with a selection: name, class and package, a "Moves with N other pieces" chip, and typed
+  position and rotation. Reset piece and Reset all.
+  - Source details are folded (open state remembered), with short material names, full paths on hover and
+    **Copy full paths**.
+  - The constant "Appearance" line is dropped.
+- [gizmo.js](tools/viewer/web/gizmo.js):
+  - `setPose` puts the selection at a typed location (exact orientation kept) or rotation, as one undo step.
+  - `linkedCount` serves the search tags.
+  - Fix: a piece moved back to exactly where it was (undo, reset, typed back) counted as still moved, because the
+    edit check compared matrices exactly. It now compares the pose with the base pose within 1e-6.
+- The [browser smoke test](tools/viewer/tests/browser_smoke.py) drives the new controls and adds checks:
+  - the search list is hidden without text, and picking a result opens the panel;
+  - a typed X moves only X and a typed yaw turns only yaw, and two undos leave nothing edited;
+  - Escape closes a menu;
+  - the preview chip shows on previews.
+
+  The [viewer README](tools/viewer/README.md) has a new "The window" section, and its trial-edit and test notes
+  are updated.
+- **Checked:**
+  - the browser smoke test passes on Bar (with both previews) and Temple Ship on test port 8790, with no console
+    or network errors;
+  - 48 unit tests pass;
+  - screenshots in headless Edge at 1600, 1300 and 1000 pixels wide: idle, searching, selected, edited, each menu,
+    and during a real gizmo drag. The hint showed, and Escape cancelled the drag back to 0 edits.
+- **Gaps:**
+  - not checked by hand in a real browser window;
+  - the panel's rotation fields report a straight-up/down piece's turn as yaw (roll 0), as before;
+  - below 1100 pixels wide the stats line is hidden;
+  - the search matches mesh and actor names only.
+
+### One main viewer port
+
+- [AGENTS.md](AGENTS.md) now sets port **8768** for the one main viewer/editor server, the one the user keeps open.
+  Updates are deployed there: web changes need a browser reload, and re-exports need that server restarted. No
+  second server may use 8768, and no other long-running viewer servers are left behind. Test servers use
+  8790–8799 and are stopped after each check.
+- `viewer.py serve` defaults to 8768, and its port-in-use message says to restart the running viewer rather than
+  start another. The [viewer README](tools/viewer/README.md) and the smoke test's default URL follow.
+- Added viewer.cmd in the repository root. Double-clicking it starts the main viewer on 8768 if it is
+  not running and opens the browser; `restart` (after a re-export), `stop` and `status` are also available.
+  - It stops only a process whose command line is `viewer.py serve`.
+  - `VIEWER_PORT` and `VIEWER_NO_OPEN` let tests use a test port.
+  - It is saved with CRLF endings, as cmd needs.
+- **Why:** a viewer started before the version 12 re-export kept serving version 11 on the user's port, and old
+  servers were still running on 8766 and 8770.
+- **Checked:**
+  - `viewer.cmd` on test port 8791: status, start, start again (reports it running), restart, stop;
+  - with a different program on 8792, status, start, restart and stop all refuse with exit code 1 and leave it
+    running;
+  - `status` on 8768 reports the user's viewer (read only);
+  - a plain `serve` of the cache library tried 8768, found the user's running viewer there and printed the new
+    message without starting a second server.
+
+### Viewer: move and rotate pieces (trial edits, not saved)
+
+- Added a move/rotate gizmo to the viewer ([gizmo.js](tools/viewer/web/gizmo.js), wired in
+  [app.js](tools/viewer/web/app.js)), using the pinned three.js r180 `TransformControls`, now in
+  [setup_vendor.py](tools/viewer/setup_vendor.py) with its checksum.
+  - It moves a whole actor about its own pivot on all three axes, in world or local axes, with optional 24-unit and
+    15-degree snapping.
+  - It has Escape-to-cancel, undo/redo, Reset piece and Reset all, and a live pose readout in game units and degrees.
+  - A click on a handle never also picks the piece behind it, and orbiting pauses while dragging.
+- **Linked pieces and multi-select.** Export version 12 records, for each piece, the prefab instance that placed it
+  and the partner it names (`HidingPartner`), from the cooked `PrefabInstance` archetype-to-instance map
+  ([scene_metadata.py](tools/viewer/scene_metadata.py)).
+  - The gizmo moves linked actors together, for example a police car's body, glass and light bar, or a moving van's
+    10–14 parts. A **Move linked pieces** switch turns this off.
+  - Ctrl/Shift+click adds or removes pieces from the selection.
+  - With an export older than version 12 the switch is disabled and reads "Linked pieces: re-export needed". A
+    server started before the re-export keeps serving the old export until it is restarted.
+  - In patch previews, copies link only to copies made by the same operation, and spawned bodies to their partners.
+  - Bar has 93 actors in 22 prefab instances and 17 partner links; Temple Ship has 22 actors in 8 instances.
+  - Both maps were re-exported into the local cache, with the same object and diagnostic counts as version 11.
+- Nothing is saved or built. Leaving the page with edits asks first. Documented in the
+  [viewer README](tools/viewer/README.md).
+- **Checked:**
+  - real pointer drags in headless Edge: the X arrow moved a van exactly +200 game units in X only;
+  - a 45-degree turn, then undo, redo and reset;
+  - the readout matches every exported actor's location and orientation on Bar (969 actors) and Temple Ship (1,678,
+    264 tilted), after fixing the straight-up/down case;
+  - 45 unit tests, the map-switch browser test and the main browser smoke test pass with no errors;
+  - links: a real click on the police car selects body, glass and light bar, and a drag moves all three by the same
+    150 units. Turning links off leaves one actor. Ctrl+click adds and removes a piece, and a floor change keeps the
+    selection. Three new unit tests (48 in all) cover the prefab map and the copy-link rewrite.
+- **Gaps:** snapping is absolute, not tile- or footprint-aware. A moved piece's collision, cover and floor membership
+  do not follow it. No projects, saving, palette or clipboard yet.
+
+### First-editor plan: variant packages instead of lab installs
+
+- Revised the first-editor plan after review, with the user's decisions:
+  - it is aimed at LWR modders, and LWR is a dependency for now;
+  - Save & Build produces a variant package with no lab needed: the base map's copy under the variant's name, the
+    cooked edit patch, a README with the `DefaultMaps.ini`, landing-zone and Mini Mods lines, and a manifest.
+    Modders add it to their game themselves;
+  - UDK 2011-09 stays a build prerequisite, checked by a doctor step with configurable paths;
+  - the derived base map is bundled (simple, but tied to the exact LWR map);
+  - no editor-project compatibility before the tool is public.
+- **Install in Lab** is now a developer action that installs a finished package. Patchtool's deploy, original-map
+  lookup and hard-coded paths are listed for refactoring.
+- The first deliverable (M1) is narrowed to Bar with static scenery and props, through to a package that works when
+  installed by hand from its README. Cars, doors, ladders (M2), fractured walls and other families (M3), Temple (M4)
+  and pre-release work follow. The section 6 fixes and experiments are tagged by milestone.
+- The variant record adds the edit patch in a free stream slot instead of replacing slot 1. Bar's record already
+  uses slots 0, 1 and 5. Adding a slot is untested in the game, so E0 now includes that check.
+- **Checked:** against patchtool's deploy/seed code, the EXP-07 share package and README writer, the research note on
+  separately cooked patches, and the LWR `DefaultMaps.ini` stream layout (read only). **Gap:** plan only; no code,
+  build or game test yet.
+
+### Plan the first editable map variants
+
+- Committed the accumulated viewer work as `75a8c4e`, with the user's author/committer identity and all 45 tests passing.
+- Added the detailed first-editor plan: persistent projects, semantic selection,
+  XYZ gizmos, clipboard/palette operations, recipe-aware snapping, full-transform backend work, exact deletions,
+  staged save/build/install/cleanup and runtime acceptance. Linked it from [README](README.md) and the
+  earlier implementation plan.
+- Recorded the read-only [EXP-09 placement audit](research/experiments/EXP-09-editor-placement-audit.md) and F-48/T-08
+  in the [findings register](research/findings-register.md). Original placements refute a universal tile-corner or
+  cardinal-rotation rule; gameplay still needs recipe-specific validation. The current stream-slot-1 substitution
+  would replace Temple's arrival cinematic in the recorded configuration and must be generalized.
+- **Checked:** existing game evidence and current code paths; both v11 source-scene transform censuses; pinned
+  three.js r180 TransformControls source; document links and diff formatting. **Gap:** no new game experiment,
+  build or deployment was performed, and editor implementation remains the next task.
+
+### Select the base map in the viewer
+
+- Added separate **Base map** and **Layout** selectors in the [viewer header](tools/viewer/web/index.html).
+  Bar and Temple Ship now load from one local session; choosing a base map opens its original layout and resets
+  scene-specific controls, while layout changes retain the selected map in the URL.
+- [The server](tools/viewer/viewer.py) can serve a cache library. [catalogue.py](tools/viewer/catalogue.py) selects
+  the latest published full-map generation per base map, skips incomplete/sample generations and labels other
+  prepared maps as unverified. Exact-generation serving remains supported. Each map has its own asset URL prefix.
+- **Checked:** 45 Python tests, including generation selection, pinned exports and isolated HTTP asset paths;
+  [map-switch browser checks](tools/viewer/tests/browser_maps_smoke.py) for Bar/Temple, patch-to-map resets,
+  reload/back/forward, unavailable-map recovery and a 1000-pixel-wide header. Existing Temple Ship and
+  Bar/EXP-07/EXP-08 browser checks also pass without errors.
+- **Known gaps:** only Bar and Temple Ship have been checked. Other game maps need exporting and review;
+  the menu lists prepared cache exports rather than all installed packages. Restart the server to include a
+  newly exported map/generation. The [viewer README](tools/viewer/README.md) records library and single-map use.
+
+### Focus Temple Ship on the playable interior
+
+- Export v11 preserves authored scenery layers and original saved floor surfaces in
+  [scene_metadata.py](tools/viewer/scene_metadata.py) and [export.py](tools/viewer/export.py). Temple Ship has 5,902
+  floor records across several heights; the source `Periphery`, `hallway roofs`, helper layers and floor bounds
+  provide a reversible interior inspection view. URB_Bar has 2,495 saved floor records.
+- [The viewport](tools/viewer/web/app.js) now opens Temple Ship in **Playable interior**: backdrop/roof/helper pieces
+  are filtered, remaining geometry is clipped around the floor region, and the camera and shadows frame that region.
+  **Full scenery** restores the outer structure. Source positions and hidden flags are retained unchanged.
+- [The floor grid](tools/viewer/web/view_layout.js) follows saved floor heights/normals, sits above the surfaces,
+  and respects actor visibility and floor cuts. Patch previews retain a reference plane instead of implying that
+  the original baked floor data represents their rebuilt navigation. Picking and selection frames respect clipping.
+- **Checked:** 41 Python tests; fresh exports; Temple Ship and Bar/EXP-07/EXP-08 browser checks, including initial
+  interior visibility, restoration of full scenery, preserved source transforms, clipping, surface grids and existing
+  lighting/skeletal/preview checks. Temple Ship's default view shows 1,296 pieces; full scenery still shows 1,667.
+- **Known gaps:** this is a source-derived inspection view, not an execution of the game's camera/visibility rules.
+  Saved floor records do not establish current reachability: doors, mission gates and runtime rebuilding can change it.
+  Remaining room-specific roofs/backdrop choices can be reviewed through the scenery switch and source-layer inspector.
+
+### Temple Ship viewer improvements
+
+- Replaced fixed per-cell light lists with compact offset/count lists in [light_grid.js](tools/viewer/web/light_grid.js)
+  and [lighting.js](tools/viewer/web/lighting.js). All 269 lights in Temple Ship's busiest cell now survive; GPU
+  capacity errors are explicit rather than silently omitting contributions.
+- Export v10 reads material static-switch overrides and the map's tile dimensions, and exports independent packed
+  masks with source provenance ([materials.py](tools/viewer/materials.py), [export.py](tools/viewer/export.py),
+  [scene_metadata.py](tools/viewer/scene_metadata.py)). Alien opacity follows its source switch/packed alpha; glow
+  uses an approximate packed emissive mask. Three textureless constant materials now render their source colours.
+- [The viewer](tools/viewer/web/app.js) gives energy doors a stationary source-colour pattern, sizes the grid from
+  each map's own origin/dimensions, fits visible scenery and shadows, and adds a separate **Frame play area** control.
+- **Checked:** 39 Python tests; fresh Temple Ship and URB_Bar/EXP-07/EXP-08 exports; [browser checks](tools/viewer/tests/browser_smoke.py)
+  on all four scenes without errors, including exact light-list membership, a GPU render lit only by light 300, whole-scene framing,
+  grid dimensions and alien material bindings. Temple Ship's checked play-area view measured about 10 ms median
+  headless Edge frame intervals at 1600 x 1000. Existing file line endings are retained.
+- **Known gaps:** packed alien emission and energy-door patterns remain approximations of stripped material graphs;
+  animated effects, reflections, normal decoding, static-light shadows and a fresh in-game comparison remain open.
+  The [viewer README](tools/viewer/README.md) and [format note](research/native/viewer-formats.md) record the details.
+
+### Temple Ship loads in the viewer
+
+- Exported and browser-checked the final mission's original `TempleShip.upk` with the existing v9 importer; added
+  the command, counts and scope to the [viewer README](tools/viewer/README.md#additional-map-check-temple-ship).
+- **Checked:** all 1,678 exported components loaded (1,667 visible), with no browser errors or failed requests;
+  search, selection, framing, floor cutaway, wireframe and lighting switches worked. The small companion stream
+  has no mesh actors. Exported data, screenshots and the check report remain in the external viewer cache.
+- **Known gaps:** five unsupported diffuse bindings; alien material/energy effects have not been compared with the
+  game; dense area lights exceed the 128-light-per-cell limit (269 in the busiest cell). The no-area-light mode
+  avoids overflow. Framing can crop the surrounding structure and the grid retains URB_Bar's size. Arrival
+  cinematics, mission scripts and gameplay were not evaluated; the existing browser smoke script is URB_Bar-specific.
+
+### The change ledger and agent instructions
+
+- Added this ledger and [AGENTS.md](AGENTS.md), the instructions for coding agents: add a ledger entry with each
+  change, and keep each file's line endings. Codex reads `AGENTS.md`; `CLAUDE.md` only imports it, so Claude Code
+  reads the same rules.
+
+### The viewer lights maps with their own lights
+
+- **Export version 9** records every placed light in game units ([lights.py](tools/viewer/lights.py)). URB_Bar has
+  its moon (a shadow-casting dominant directional light), a sky light, 54 point lights, 63 spot lights and 137
+  Lightmass area lights. Unset values take the UDK engine's class defaults.
+- **The property reader** handles `DominantDirectionalLightComponent`, which stores a WORD shadow-map array ahead of
+  its properties ([package.py](tools/viewer/package.py)). The layout is noted in the
+  [format note](research/native/viewer-formats.md).
+- **The web viewer** renders them all dynamically ([lighting.js](tools/viewer/web/lighting.js)):
+  - the moon is the shadow-mapped sun, and the sky light becomes a hemisphere light;
+  - point and spot lights use UE3's falloff and cone terms, read per fragment from a 128-unit light grid;
+  - a toolbar **Lighting** switch chooses between map lights, map lights without area lights, and the earlier
+    neutral light.
+- **Patch previews** follow the scripts. A hider with `bHideLights=True` switches off lights in its box, and `sun` or
+  `photo` objects add XComMapEdSun's directional and sky light. Inherited `patch_bar` adds three point lights.
+- **Known differences** from the game: no baked shadows or bounce light for static lights, so light can pass through
+  walls and interiors look darker. Height fog and post-process colouring are not applied yet.
+- **Checked:** 33 unit tests, including the engine defaults, the shadow-map layout and the hide/sun rules. The Edge
+  smoke test on the original, remix and blank scenes now covers lighting. A brute-force check found no light missing
+  from the grid. Frame time on the development PC was unchanged, at about 16 ms.
+
+### Viewer fixes
+
+- `viewer.py serve` explains a port already in use (usually an older viewer still running) instead of printing a
+  traceback.
+- `tools/viewer/export.py` and `setup_vendor.py` are back to LF line endings; the first viewer commit had saved them
+  as CRLF by accident.
+
+### First viewer and the editor implementation plan (commit 42e7ab5)
+
+- **Added** [tools/viewer](tools/viewer/README.md), a read-only local 3D viewer of URB_Bar:
+  - static, fractured and skeletal pieces, materials and TFC textures;
+  - building-floor cutaway;
+  - experimental previews of the EXP-07 remix and the EXP-08 blank layout.
+- **Added** the editor implementation plan and the
+  [viewer format note](research/native/viewer-formats.md).
+- **Review fixes before that commit:**
+  - explicit MIME types in the server;
+  - parallel mesh and material loading (URB_Bar opens in about 2.2–2.7 s instead of 3.0–3.5 s);
+  - wireframe stays consistent across floor cuts;
+  - the vendor install checks every download before writing anything.
+- **Checked:** 24 unit tests, a fresh export and the Edge smoke test on all three scenes.

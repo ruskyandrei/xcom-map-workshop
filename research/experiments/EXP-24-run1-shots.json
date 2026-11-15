@@ -1,0 +1,46 @@
+{
+  "map": "URB_Bar",
+  "project": "24e0a0b1-2424-4d0a-8e24-3c4d5e6f7a24",
+  "shots": [
+    {
+      "out": "EXP-24-run1-overview.png",
+      "title": "EXP-24 run 1: the cars west and south of the bar (the dashed box)",
+      "target": [-1750, -150, 0],
+      "camera": [0, -2700, 4200],
+      "box": [[-2650, -1100, 0], [-1000, -1100, 0], [-1000, 750, 0], [-2650, 750, 0]],
+      "marks": [
+        {"n": "1", "at": [-2122, 480, 60], "color": "#5ad17a", "r": 24, "text": "the sedan, moved 5 tiles along the street"},
+        {"n": "2", "at": [-2026, 1, 60], "color": "#e0605a", "r": 24, "text": "where the sedan stood"},
+        {"n": "3", "at": [-1342, -856, 60], "color": "#58b4ff", "r": 24, "text": "the copy of the police car, turned a quarter"},
+        {"n": "4", "at": [-1240, -482, 60], "color": "#f2c14e", "r": 24, "text": "the police car, the original"},
+        {"n": "5", "at": [-2402, -684, 60], "color": "#c58cff", "r": 24, "text": "where the SUV stood (deleted)"}
+      ]
+    },
+    {
+      "out": "EXP-24-run1-police.png",
+      "title": "EXP-24 run 1: the police car and its copy",
+      "target": [-1290, -660, 60],
+      "camera": [-650, -1000, 850],
+      "marks": [
+        {"n": "3", "at": [-1342, -856, 70], "color": "#58b4ff", "r": 70,
+         "text": "the copy of the police car, turned a quarter: cover, glass, fire, its blast"},
+        {"n": "4", "at": [-1240, -482, 70], "color": "#f2c14e", "r": 70,
+         "text": "the police car, the original: as before"}
+      ]
+    },
+    {
+      "out": "EXP-24-run1-west-street.png",
+      "title": "EXP-24 run 1: the street west of the bar",
+      "target": [-2250, -100, 40],
+      "camera": [1300, -500, 1300],
+      "marks": [
+        {"n": "1", "at": [-2122, 480, 70], "color": "#5ad17a", "r": 60,
+         "text": "the sedan, moved 5 tiles along the street: cover, glass, fire"},
+        {"n": "2", "at": [-2026, 1, 40], "color": "#e0605a", "r": 60,
+         "text": "where the sedan stood: no cover, nothing burns"},
+        {"n": "5", "at": [-2402, -684, 40], "color": "#c58cff", "r": 60,
+         "text": "where the SUV stood (deleted): no cover, nothing burns"}
+      ]
+    }
+  ]
+}

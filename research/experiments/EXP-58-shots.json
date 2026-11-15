@@ -1,0 +1,10 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e58", "shots": [
+ {"out": "EXP-58-overview.png", "title": "EXP-58: blockers (cover blocks with Cover None), on the pavement in front of the bar",
+  "target": [-330, -48, 16], "camera": [0, -900, 800],
+  "marks": [
+   {"n": "A", "at": [-528, -48, 60], "color": "#d07ad0", "r": 60, "side": "left",
+    "text": "blocker: no way into its tile, no cover beside it (no shield), units see and shoot past it"},
+   {"n": "B", "at": [-240, -48, 60], "color": "#ff6b6b", "r": 60,
+    "text": "control: high cover block: high cover beside it and no way through, as always"},
+   {"n": "C", "at": [-48, -48, 60], "color": "#4aa8ff", "r": 60,
+    "text": "blocker over a copied trash can, grouped with it: blocks the tile; destroy the can, the tile should free up"}]}]}

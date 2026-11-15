@@ -1,0 +1,231 @@
+{
+  "map": "URB_Bar",
+  "project": "26a0a0b1-2626-4d0a-8e26-3c4d5e6f7a26",
+  "shots": [
+    {
+      "out": "EXP-26-run1-overview.png",
+      "title": "EXP-26 run 1: five light edits on Bar, each in its own place",
+      "target": [
+        -250,
+        -500,
+        0
+      ],
+      "camera": [
+        0,
+        -4300,
+        4700
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -6,
+            245,
+            297
+          ],
+          "color": "#e05a5a",
+          "r": 30,
+          "text": "SpotLight_3 deleted: its pool gone"
+        },
+        {
+          "n": "2",
+          "at": [
+            533,
+            804,
+            123
+          ],
+          "color": "#f2a33a",
+          "r": 30,
+          "text": "PointLight_4 at the pool table's end: warm orange, twice as bright (a small light: 78-unit radius)"
+        },
+        {
+          "n": "3",
+          "at": [
+            45,
+            -1874,
+            200
+          ],
+          "color": "#5ab0f0",
+          "r": 30,
+          "text": "the lamp post and its spot moved 6 tiles east: the pool moves with it"
+        },
+        {
+          "n": "4",
+          "at": [
+            911,
+            -1297,
+            300
+          ],
+          "color": "#5ad17a",
+          "r": 30,
+          "text": "a copy of a parking-lot lamp's spot, in the dark corner by the wrecked sedan"
+        },
+        {
+          "n": "5",
+          "at": [
+            -1297,
+            -800,
+            170
+          ],
+          "color": "#c58af0",
+          "r": 30,
+          "text": "a copy of a warm point light by the police sedans, and a dumpster copied into its pool"
+        }
+      ],
+      "lights": true
+    },
+    {
+      "out": "EXP-26-run1-bar.png",
+      "title": "EXP-26 run 1, marks 1 and 2: inside the bar",
+      "target": [
+        300,
+        560,
+        40
+      ],
+      "camera": [
+        0,
+        -700,
+        900
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -6,
+            245,
+            297
+          ],
+          "color": "#e05a5a",
+          "r": 40,
+          "text": "SpotLight_3 deleted: the floor under it darker than before, no pool"
+        },
+        {
+          "n": "2",
+          "at": [
+            533,
+            804,
+            123
+          ],
+          "color": "#f2a33a",
+          "r": 40,
+          "side": "left",
+          "text": "PointLight_4, just past the table's end: a small warm patch on the end rail and the rug (PointLight_37 beside it still purple)"
+        }
+      ],
+      "lights": true,
+      "lighting": "map",
+      "floor": "1"
+    },
+    {
+      "out": "EXP-26-run1-street.png",
+      "title": "EXP-26 run 1, mark 3: the lamp post moved along the south street",
+      "target": [
+        -250,
+        -1874,
+        0
+      ],
+      "camera": [
+        0,
+        -1400,
+        1000
+      ],
+      "marks": [
+        {
+          "n": "3",
+          "at": [
+            45,
+            -1874,
+            200
+          ],
+          "color": "#5ab0f0",
+          "r": 40,
+          "text": "the lamp post here now, its pool on the pavement under it"
+        },
+        {
+          "n": "3'",
+          "at": [
+            -531,
+            -1874,
+            0
+          ],
+          "color": "#8a959c",
+          "r": 34,
+          "side": "left",
+          "text": "where it stood: its pool gone (no doubled or leftover light)"
+        }
+      ],
+      "lights": true,
+      "lighting": "map"
+    },
+    {
+      "out": "EXP-26-run1-west.png",
+      "title": "EXP-26 run 1, mark 5: a point light added by the police sedans, and a dumpster in its pool",
+      "target": [
+        -1220,
+        -800,
+        0
+      ],
+      "camera": [
+        0,
+        -1200,
+        1000
+      ],
+      "marks": [
+        {
+          "n": "5",
+          "at": [
+            -1297,
+            -800,
+            170
+          ],
+          "color": "#c58af0",
+          "r": 40,
+          "text": "the new warm point light: a pool where the map was darkest"
+        },
+        {
+          "n": "5'",
+          "at": [
+            -1150,
+            -880,
+            40
+          ],
+          "color": "#c58af0",
+          "r": 34,
+          "side": "left",
+          "text": "the dumpster's copy: lit by the new light, with no seam"
+        }
+      ],
+      "lights": true,
+      "lighting": "map"
+    },
+    {
+      "out": "EXP-26-run1-east.png",
+      "title": "EXP-26 run 1, mark 4: a spot light copied to the dark corner by the wrecked sedan",
+      "target": [
+        911,
+        -1297,
+        0
+      ],
+      "camera": [
+        0,
+        -1100,
+        1000
+      ],
+      "marks": [
+        {
+          "n": "4",
+          "at": [
+            911,
+            -1297,
+            300
+          ],
+          "color": "#5ad17a",
+          "r": 40,
+          "text": "the copied spot: a lamp's pool on the road, with no lamp post under it"
+        }
+      ],
+      "lights": true,
+      "lighting": "map"
+    }
+  ]
+}

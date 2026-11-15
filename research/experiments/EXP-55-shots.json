@@ -1,0 +1,20 @@
+{"map": "URB_PoliceStation", "project": "00000000-0000-4000-8000-000000000e55", "mission": "2", "shots": [
+ {"out": "EXP-55-moved.png", "title": "EXP-55: capture point 1 moved nine tiles on, into the next room of the police station (ground floor)",
+  "target": [-48, -1100, 80], "camera": [1500, -1700, 2100], "floor": "1", "missionObjects": true,
+  "box": [[-384, -960, 80], [288, -960, 80], [288, -384, 80], [-384, -384, 80]],
+  "marks": [
+   {"n": "1", "at": [0, -672, 80], "color": "#5ad17a", "r": 48,
+    "text": "the encoder, moved: soldiers in the dashed box capture it, and the waves come"},
+   {"n": "2", "at": [-96, -1536, 80], "color": "#ff6b6b", "r": 48, "side": "left",
+    "text": "where it stood: nothing to capture in this room now"}]},
+ {"out": "EXP-55-overview.png", "title": "EXP-55: Police Station's data recovery with capture point 1 moved",
+  "target": [0, 0, 0], "camera": [2300, -3200, 3800], "missionObjects": true,
+  "marks": [
+   {"n": "1", "at": [0, -672, 80], "color": "#5ad17a", "r": 60,
+    "text": "capture point 1 (the encoder), moved"},
+   {"n": "2", "at": [-96, -1536, 80], "color": "#ff6b6b", "r": 50, "side": "left",
+    "text": "its old place"},
+   {"n": "3", "at": [-1632, 1632, 16], "color": "#4aa8ff", "r": 60,
+    "text": "capture point 0 (the transmitter), as the map has it"},
+   {"n": "4", "at": [2163, -39, 37], "color": "#ffb347", "r": 60, "side": "left",
+    "text": "the landing"}]}]}

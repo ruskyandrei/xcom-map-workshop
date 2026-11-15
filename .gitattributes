@@ -1,0 +1,2 @@
+# Keep every file byte for byte as written (CRLF or LF): some tools and checks compare exact bytes.
+* -text

@@ -1,0 +1,18 @@
+{
+ "pointLights": [
+  {"location": [0, 0, 256], "radius": 1024, "falloffExponent": 2, "brightness": 1.0, "color": [255, 255, 255]},
+  {"location": [6000, 0, 128], "radius": 512, "falloffExponent": 6, "brightness": 2.0, "color": [255, 200, 150]}
+ ],
+ "spotLights": [
+  {"location": [0, 6000, 384], "pitch": -12288, "yaw": 0, "radius": 1270, "falloffExponent": 4,
+   "innerConeAngle": 20, "outerConeAngle": 44, "brightness": 1.0, "color": [255, 255, 255]},
+  {"location": [6000, 6000, 256], "pitch": -16384, "yaw": 0, "radius": 1024, "falloffExponent": 50,
+   "innerConeAngle": 0, "outerConeAngle": 44, "brightness": 8.0, "color": [255, 255, 255]}
+ ],
+ "receivers": [
+  {"name": "p2", "location": [0, 0, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "p6", "location": [6000, 0, 0], "scale": 0.25, "lightmapRes": 512},
+  {"name": "s4", "location": [0, 6000, 0], "scale": 0.5, "lightmapRes": 512},
+  {"name": "s50", "location": [6000, 6000, 0], "scale": 0.5, "lightmapRes": 512}
+ ]
+}

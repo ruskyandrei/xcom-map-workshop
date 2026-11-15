@@ -1,0 +1,10 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e52", "shots": [
+ {"out": "EXP-52-overview.png", "title": "EXP-52: cover blocks that break with their group, on the pavement in front of the bar",
+  "target": [-840, 144, 0], "camera": [0, -900, 800],
+  "marks": [
+   {"n": "A", "at": [-1200, 144, 60], "color": "#5ad17a", "r": 70,
+    "text": "low block over the map's own trash cans, grouped with one: destroy the cans, the cover and the wall should go"},
+   {"n": "B", "at": [-432, -48, 60], "color": "#4aa8ff", "r": 70, "side": "left",
+    "text": "high block over a copied trash can, grouped with it: destroy the can, the cover and the wall should go"},
+   {"n": "C", "at": [-816, 144, 60], "color": "#ff6b6b", "r": 70,
+    "text": "control: high block over the map's cans, in no group: it should stay when the cans go"}]}]}

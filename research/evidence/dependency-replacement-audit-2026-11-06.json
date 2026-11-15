@@ -1,0 +1,651 @@
+{
+  "date": "2026-11-06",
+  "scope": "Read-only structural audit; existing files only. No UDK, game, package mutation, or new runtime test. Array counts and sizes compared, not every array element.",
+  "packages": [
+    {
+      "map": "patch_bar",
+      "stage": "source",
+      "path": "<lab>\\author\\UDK-2011-09\\UDKGame\\Content\\Maps\\patches\\patch_bar.udk",
+      "sha256": "fc4064b9caa196e0f74466a13038a35fd4a33a1dd261ab0afd94e87716ddecbc",
+      "bytes": 136945,
+      "header": {
+        "ver": 845,
+        "lic": 0,
+        "engine": 8916,
+        "cooker": 0,
+        "flags": "0x20001",
+        "compflags": 0,
+        "namecount": 201,
+        "impcount": 55,
+        "expcount": 155
+      },
+      "export_classes": {
+        "Brush": 4,
+        "BrushComponent": 12,
+        "DrawLightRadiusComponent": 6,
+        "Level": 1,
+        "Model": 13,
+        "PointLight": 3,
+        "PointLightComponent": 3,
+        "Polys": 13,
+        "SeqAct_AccessObjectList": 4,
+        "SeqAct_AddDestructibleActorEvent": 2,
+        "SeqAct_AddInt": 5,
+        "SeqAct_ForLoop": 2,
+        "SeqAct_GetActorsTouchingVolume": 2,
+        "SeqAct_GetAllActors": 5,
+        "SeqAct_SetLOSBlocking": 1,
+        "SeqAct_SetScale3D": 1,
+        "SeqEvent_LevelLoaded": 1,
+        "SeqVar_Int": 9,
+        "SeqVar_Object": 4,
+        "SeqVar_ObjectList": 4,
+        "Sequence": 1,
+        "StaticMeshComponent": 17,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComFloorComponent": 15,
+        "XComLadder": 2,
+        "XComLevelActor": 15,
+        "XComRebuildWorldDataVolume": 8
+      },
+      "placed_helpers": [],
+      "compiled_class_paths": [],
+      "texture_paths": []
+    },
+    {
+      "map": "patch_bar",
+      "stage": "cooked",
+      "path": "<lab>\\author\\UDK-2011-09\\UDKGame\\CookedPC\\Maps\\patches\\patch_bar.udk",
+      "sha256": "f71fd6c09de05b987b86136587e7e8ad496b7a6e49891c3df3448ad02f2456af",
+      "bytes": 67907,
+      "header": {
+        "ver": 845,
+        "lic": 0,
+        "engine": 8916,
+        "cooker": 135,
+        "flags": "0x28a0009",
+        "compflags": 2,
+        "namecount": 320,
+        "impcount": 142,
+        "expcount": 251
+      },
+      "export_classes": {
+        "ArrayProperty": 2,
+        "BoolProperty": 7,
+        "Brush": 4,
+        "BrushComponent": 12,
+        "ByteProperty": 6,
+        "Class": 6,
+        "ClassProperty": 2,
+        "DrawLightRadiusComponent": 6,
+        "Enum": 5,
+        "FloatProperty": 4,
+        "Function": 6,
+        "IntProperty": 9,
+        "Level": 1,
+        "Model": 13,
+        "NameProperty": 3,
+        "ObjectProperty": 18,
+        "Package": 5,
+        "PointLight": 3,
+        "PointLightComponent": 3,
+        "Polys": 13,
+        "RB_BodySetup": 2,
+        "SeqAct_AccessObjectList": 4,
+        "SeqAct_AddDestructibleActorEvent": 3,
+        "SeqAct_AddInt": 5,
+        "SeqAct_ForLoop": 3,
+        "SeqAct_GetActorsTouchingVolume": 3,
+        "SeqAct_GetAllActors": 6,
+        "SeqAct_SetLOSBlocking": 2,
+        "SeqAct_SetScale3D": 2,
+        "SeqEvent_LevelLoaded": 1,
+        "SeqVar_Int": 9,
+        "SeqVar_Object": 4,
+        "SeqVar_ObjectList": 4,
+        "Sequence": 1,
+        "StaticMesh": 3,
+        "StaticMeshComponent": 17,
+        "StructProperty": 6,
+        "TextBuffer": 6,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComFloorComponent": 15,
+        "XComLadder": 2,
+        "XComLevelActor": 15,
+        "XComRebuildWorldDataVolume": 8
+      },
+      "placed_helpers": [],
+      "compiled_class_paths": [
+        "XComUDK.SeqAct_AddDestructibleActorEvent",
+        "XComUDK.SeqAct_ForLoop",
+        "XComUDK.SeqAct_GetActorsTouchingVolume",
+        "XComUDK.SeqAct_GetAllActors",
+        "XComUDK.SeqAct_SetLOSBlocking",
+        "XComUDK.SeqAct_SetScale3D"
+      ],
+      "texture_paths": []
+    },
+    {
+      "map": "patch_urb_bar_exp11static_b7f3",
+      "stage": "source",
+      "path": "<lab>\\author\\UDK-2011-09\\UDKGame\\Content\\Maps\\patches\\patch_urb_bar_exp11static_b7f3.udk",
+      "sha256": "149b5a111617692ccf4c49220df41af4ad4ea7f225b2a1da86091c1a15dc4e0e",
+      "bytes": 11485,
+      "header": {
+        "ver": 845,
+        "lic": 0,
+        "engine": 8916,
+        "cooker": 0,
+        "flags": "0x20020001",
+        "compflags": 0,
+        "namecount": 103,
+        "impcount": 26,
+        "expcount": 15
+      },
+      "export_classes": {
+        "BookMark": 1,
+        "Brush": 1,
+        "BrushComponent": 1,
+        "Level": 1,
+        "Model": 2,
+        "Note": 1,
+        "Polys": 2,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComMapEdCopier": 1,
+        "XComMapEdHider": 1,
+        "XComMapEdIntro": 1,
+        "XComMapEdTileSeeds": 1
+      },
+      "placed_helpers": [
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdCopier_900",
+          "export_index": 12,
+          "class": "XComMapEdCopier",
+          "class_reference": -12,
+          "archetype_reference": 0,
+          "serialized_bytes": 1245,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "SourceNames",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 132,
+              "count": 16
+            },
+            {
+              "name": "bLogTiles",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": false
+            },
+            {
+              "name": "bAbsolutePoses",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": true
+            },
+            {
+              "name": "PoseLocations",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 196,
+              "count": 16
+            },
+            {
+              "name": "PoseRotations",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 196,
+              "count": 16
+            },
+            {
+              "name": "CopyLabels",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 465,
+              "count": 16
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -1971.17529296875,
+                -620.7918701171875,
+                0.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdCopier"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdHider_901",
+          "export_index": 13,
+          "class": "XComMapEdHider",
+          "class_reference": -13,
+          "archetype_reference": 0,
+          "serialized_bytes": 336,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "AlsoHide",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 36,
+              "count": 4
+            },
+            {
+              "name": "bExactTargets",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": true
+            },
+            {
+              "name": "TargetLabels",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 117,
+              "count": 4
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -2263.466552734375,
+                -50.18539810180664,
+                -4.331200122833252
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdHider"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdIntro_903",
+          "export_index": 14,
+          "class": "XComMapEdIntro",
+          "class_reference": -14,
+          "archetype_reference": 0,
+          "serialized_bytes": 146,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "IntroMapName",
+              "slot": 0,
+              "kind": "StrProperty",
+              "bytes": 12
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -2784.0,
+                -1920.0,
+                1000.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdIntro"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdTileSeeds_902",
+          "export_index": 15,
+          "class": "XComMapEdTileSeeds",
+          "class_reference": -15,
+          "archetype_reference": 0,
+          "serialized_bytes": 516,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "SeedBoxes",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 354,
+              "count": 14
+            },
+            {
+              "name": "PlannedTiles",
+              "slot": 0,
+              "kind": "IntProperty",
+              "value": 339
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -1392.0,
+                -1056.0,
+                56.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdTileSeeds"
+            }
+          ]
+        }
+      ],
+      "compiled_class_paths": [],
+      "texture_paths": []
+    },
+    {
+      "map": "patch_urb_bar_exp11static_b7f3",
+      "stage": "cooked",
+      "path": "<lab>\\author\\UDK-2011-09\\UDKGame\\CookedPC\\Maps\\patches\\patch_urb_bar_exp11static_b7f3.udk",
+      "sha256": "08cf465191defe6cd7708d552a5029871b805d2d1d27f1f8f144c07f825cfb3f",
+      "bytes": 135761,
+      "header": {
+        "ver": 845,
+        "lic": 0,
+        "engine": 8916,
+        "cooker": 135,
+        "flags": "0x228a0009",
+        "compflags": 2,
+        "namecount": 782,
+        "impcount": 410,
+        "expcount": 815
+      },
+      "export_classes": {
+        "ArrayProperty": 40,
+        "BookMark": 1,
+        "BoolProperty": 45,
+        "Brush": 1,
+        "BrushComponent": 1,
+        "ByteProperty": 1,
+        "Class": 14,
+        "ClassProperty": 1,
+        "ComponentProperty": 17,
+        "DynamicLightEnvironmentComponent": 7,
+        "FloatProperty": 28,
+        "FracturedSkinnedMeshComponent": 2,
+        "FracturedStaticMeshComponent": 1,
+        "Function": 107,
+        "IntProperty": 174,
+        "Level": 1,
+        "Model": 2,
+        "NameProperty": 12,
+        "Note": 1,
+        "ObjectProperty": 138,
+        "Package": 4,
+        "PointLightComponent": 1,
+        "Polys": 2,
+        "SkeletalMeshComponent": 1,
+        "State": 1,
+        "StaticMeshComponent": 5,
+        "StrProperty": 43,
+        "StructProperty": 122,
+        "TextBuffer": 14,
+        "Texture2D": 1,
+        "World": 1,
+        "WorldInfo": 1,
+        "XComFloorComponent": 5,
+        "XComMapEdBorrowedMesh": 1,
+        "XComMapEdCopier": 2,
+        "XComMapEdDestructible": 1,
+        "XComMapEdDoor": 1,
+        "XComMapEdFracMeshComponent": 2,
+        "XComMapEdGlass": 1,
+        "XComMapEdHider": 2,
+        "XComMapEdIntro": 2,
+        "XComMapEdLevelPiece": 1,
+        "XComMapEdLight": 1,
+        "XComMapEdMeshComponent": 2,
+        "XComMapEdSpawner": 1,
+        "XComMapEdTileSeeds": 2,
+        "XComMapEdWall": 1
+      },
+      "placed_helpers": [
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdCopier_900",
+          "export_index": 810,
+          "class": "XComMapEdCopier",
+          "class_reference": 331,
+          "archetype_reference": 0,
+          "serialized_bytes": 1245,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "SourceNames",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 132,
+              "count": 16
+            },
+            {
+              "name": "bLogTiles",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": false
+            },
+            {
+              "name": "bAbsolutePoses",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": true
+            },
+            {
+              "name": "PoseLocations",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 196,
+              "count": 16
+            },
+            {
+              "name": "PoseRotations",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 196,
+              "count": 16
+            },
+            {
+              "name": "CopyLabels",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 465,
+              "count": 16
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -1971.17529296875,
+                -620.7918701171875,
+                0.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdCopier"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdHider_901",
+          "export_index": 812,
+          "class": "XComMapEdHider",
+          "class_reference": 515,
+          "archetype_reference": 0,
+          "serialized_bytes": 336,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "AlsoHide",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 36,
+              "count": 4
+            },
+            {
+              "name": "bExactTargets",
+              "slot": 0,
+              "kind": "BoolProperty",
+              "value": true
+            },
+            {
+              "name": "TargetLabels",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 117,
+              "count": 4
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -2263.466552734375,
+                -50.18539810180664,
+                -4.331200122833252
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdHider"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdIntro_903",
+          "export_index": 813,
+          "class": "XComMapEdIntro",
+          "class_reference": 533,
+          "archetype_reference": 0,
+          "serialized_bytes": 146,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "IntroMapName",
+              "slot": 0,
+              "kind": "StrProperty",
+              "bytes": 12
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -2784.0,
+                -1920.0,
+                1000.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdIntro"
+            }
+          ]
+        },
+        {
+          "path": "TheWorld.PersistentLevel.XComMapEdTileSeeds_902",
+          "export_index": 815,
+          "class": "XComMapEdTileSeeds",
+          "class_reference": 711,
+          "archetype_reference": 0,
+          "serialized_bytes": 516,
+          "native_tail_bytes": 0,
+          "properties": [
+            {
+              "name": "SeedBoxes",
+              "slot": 0,
+              "kind": "ArrayProperty",
+              "bytes": 354,
+              "count": 14
+            },
+            {
+              "name": "PlannedTiles",
+              "slot": 0,
+              "kind": "IntProperty",
+              "value": 339
+            },
+            {
+              "name": "Location",
+              "slot": 0,
+              "kind": "StructProperty",
+              "value": [
+                -1392.0,
+                -1056.0,
+                56.0
+              ]
+            },
+            {
+              "name": "Tag",
+              "slot": 0,
+              "kind": "NameProperty",
+              "value": "XComMapEdTileSeeds"
+            }
+          ]
+        }
+      ],
+      "compiled_class_paths": [
+        "XComMapEd.XComMapEdBorrowedMesh",
+        "XComMapEd.XComMapEdCopier",
+        "XComMapEd.XComMapEdMeshComponent",
+        "XComMapEd.XComMapEdDestructible",
+        "XComMapEd.XComMapEdDoor",
+        "XComMapEd.XComMapEdFracMeshComponent",
+        "XComMapEd.XComMapEdGlass",
+        "XComMapEd.XComMapEdHider",
+        "XComMapEd.XComMapEdIntro",
+        "XComMapEd.XComMapEdLevelPiece",
+        "XComMapEd.XComMapEdLight",
+        "XComMapEd.XComMapEdSpawner",
+        "XComMapEd.XComMapEdTileSeeds",
+        "XComMapEd.XComMapEdWall"
+      ],
+      "texture_paths": [
+        "MapTemplates.lut.LUT_Daytime"
+      ]
+    }
+  ],
+  "observations": {
+    "exp11_helper_count": 4,
+    "exp11_total_helper_serialized_bytes": 2243,
+    "exp11_helper_property_shapes_and_scalar_values_match": true,
+    "exp11_helper_native_tail_bytes": 0,
+    "exp11_compiled_class_count": 14,
+    "exp11_function_exports": 107
+  },
+  "workspace_source_sha256": {
+    "tools/upk/upkinfo.py": "e885abf92466d0d06fc96f7ca5409878d2fdbf60d8acf64270168f602780387f",
+    "tools/upk/decomp.py": "400ac22116651ddb9bde01fe87cf272e452588d2ce3a41af16e0ca0e51d288c0",
+    "tools/upk/lzo1x.py": "97c657317d3c2bd197660271f902bd8329aef0a8dd2ac4bc13ec5659d087fb35",
+    "tools/upk/bake_actor.py": "e25c9e20f2e2c9a7d6744353b2db087ba9e2d0782905e30eebd089047b8de422",
+    "tools/upk/seed_tiles.py": "98fbcae8bb458e24876b3348a7919b8f987857bd2dae67c1a35f31826d257aa5",
+    "tools/viewer/package.py": "b8ac91be3edc1d3e13457d60677119d4f57b21ba7c3a88a8c1b3f3437470a749",
+    "tools/viewer/texture.py": "f801abe792883dbea3e3afcacf74c8b574c76bfe8e338ad1c1bcffa1adb8684b",
+    "tools/editor/compiler.py": "3ee841bccd690ba19b6834f853db77fc608ed62479bda9b73711f762bbf82b01",
+    "tools/patch/patchtool.ps1": "1c4841f84f3ee4df57c5a40f5ac36db20dfe202b64ed659296ab132db5c1134b",
+    "unrealscript/XComMapEd/Classes/XComMapEdCopier.uc": "6c7ec3506bcd3b32d78ad37937d931f0efff7299d21dde42df656056b831c54e",
+    "unrealscript/XComMapEd/Classes/XComMapEdHider.uc": "e8949d6707d1ad05869488d9f31a898c67da5a2ba76505386965fbd02a464426"
+  }
+}

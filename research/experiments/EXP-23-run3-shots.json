@@ -1,0 +1,40 @@
+{
+  "map": "URB_ResearchOutpost",
+  "project": "23a0a0b1-2323-4d0a-8e23-3c4d5e6f7c23",
+  "shots": [
+    {
+      "out": "EXP-23-run3-overview.png",
+      "title": "EXP-23 run 3: the outpost (the dashed box: the telescope room on the roof)",
+      "target": [0, 200, 0],
+      "camera": [0, -3300, 5600],
+      "box": [[1140, 480, 384], [1932, 480, 384], [1932, 1248, 384], [1140, 1248, 384]],
+      "marks": [
+        {"n": "1", "at": [1680, 1248, 470], "color": "#5ad17a", "r": 20, "text": "door 25, moved into door 26's doorway (the telescope room)"},
+        {"n": "2", "at": [1584, 480, 470], "color": "#58b4ff", "r": 20, "text": "the copy of door 0, in door 25's old doorway (the telescope room)"},
+        {"n": "3", "at": [-1776, -768, 80], "color": "#f2c14e", "r": 20, "text": "door 0, the original (the other building, ground floor)"}
+      ]
+    },
+    {
+      "out": "EXP-23-run3-north-wall.png",
+      "title": "EXP-23 run 3: the telescope room, seen from inside (floors 1-3 shown)",
+      "floor": "3",
+      "target": [1680, 1248, 470],
+      "camera": [-200, -800, 520],
+      "marks": [
+        {"n": "1", "at": [1680, 1248, 470], "color": "#5ad17a", "r": 44,
+         "text": "door 25, moved into door 26's doorway: open it, walk through, kick it"}
+      ]
+    },
+    {
+      "out": "EXP-23-run3-south-wall.png",
+      "title": "EXP-23 run 3: the telescope room's other side, seen from inside (floors 1-3 shown)",
+      "floor": "3",
+      "target": [1584, 480, 470],
+      "camera": [200, 800, 520],
+      "marks": [
+        {"n": "2", "at": [1584, 480, 470], "color": "#58b4ff", "r": 44,
+         "text": "the copy of door 0 (a ground-floor door), in door 25's old doorway: the same"}
+      ]
+    }
+  ]
+}

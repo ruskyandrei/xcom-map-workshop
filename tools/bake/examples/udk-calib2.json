@@ -1,0 +1,432 @@
+{
+ "light": {
+  "pitch": -8192,
+  "yaw": 0,
+  "brightness": 1.0,
+  "color": [
+   255,
+   255,
+   255
+  ]
+ },
+ "receivers": [
+  {
+   "name": "e05a090",
+   "location": [
+    0,
+    0,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    5
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e05a150",
+   "location": [
+    0,
+    -2000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    5
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e05a210",
+   "location": [
+    0,
+    -4000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    5
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e05a000",
+   "location": [
+    0,
+    -6000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    5
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e15a090",
+   "location": [
+    0,
+    -8000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    15
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e15a150",
+   "location": [
+    0,
+    -10000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    15
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e15a210",
+   "location": [
+    0,
+    -12000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    15
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e15a000",
+   "location": [
+    0,
+    -14000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    15
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e30a090",
+   "location": [
+    0,
+    -16000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e30a150",
+   "location": [
+    0,
+    -18000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e30a210",
+   "location": [
+    0,
+    -20000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e30a000",
+   "location": [
+    0,
+    -22000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    30
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a090",
+   "location": [
+    0,
+    -24000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a150",
+   "location": [
+    0,
+    -26000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a210",
+   "location": [
+    0,
+    -28000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e45a000",
+   "location": [
+    0,
+    -30000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    45
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a090",
+   "location": [
+    0,
+    -32000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a150",
+   "location": [
+    0,
+    -34000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a210",
+   "location": [
+    0,
+    -36000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e60a000",
+   "location": [
+    0,
+    -38000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    60
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e75a090",
+   "location": [
+    0,
+    -40000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    75
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e75a150",
+   "location": [
+    0,
+    -42000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    75
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e75a210",
+   "location": [
+    0,
+    -44000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    75
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e75a000",
+   "location": [
+    0,
+    -46000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    75
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e90a090",
+   "location": [
+    0,
+    -48000,
+    1500
+   ],
+   "lightTangent": [
+    90,
+    90
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e90a150",
+   "location": [
+    0,
+    -50000,
+    1500
+   ],
+   "lightTangent": [
+    150,
+    90
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e90a210",
+   "location": [
+    0,
+    -52000,
+    1500
+   ],
+   "lightTangent": [
+    210,
+    90
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "e90a000",
+   "location": [
+    0,
+    -54000,
+    1500
+   ],
+   "lightTangent": [
+    0,
+    90
+   ],
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "flat_z0",
+   "location": [
+    3000,
+    0,
+    0
+   ],
+   "yaw": 0,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  },
+  {
+   "name": "flat_z1500",
+   "location": [
+    3000,
+    -4000,
+    1500
+   ],
+   "yaw": 0,
+   "pitch": 0,
+   "roll": 0,
+   "scale": 0.25,
+   "lightmapRes": 64
+  }
+ ]
+}

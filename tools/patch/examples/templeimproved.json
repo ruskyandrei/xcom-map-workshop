@@ -1,0 +1,199 @@
+{
+  "name": "patch_templeship_templeim_2001",
+  "base": "",
+  "map": {
+    "name": "TempleShip",
+    "origin": [
+      -2112,
+      -9408
+    ],
+    "shipAs": "TempleShip_TempleIm_2001",
+    "displayName": "TempleShip_TempleIm_2001 (temple_improved) |0",
+    "streamSlot": "free"
+  },
+  "nameBase": 900,
+  "editor": {
+    "compiler": 1,
+    "project": "20012b82-ea6d-4d22-8fdb-c6ac64cdc379",
+    "revision": 7,
+    "sourceSha256": "029bedcaea20c9a8d1d577fd9bd7dc733ce3976fb33b0b3f716f640caeaf4d2e"
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "location": [
+        50.1951,
+        -6963.5709,
+        262.058
+      ],
+      "from": [
+        "XComDestructibleActor_28",
+        "XComDestructibleActor_28",
+        "XComDestructibleActor_28",
+        "XComDestructibleActor_28",
+        "XComDestructibleActor_9",
+        "XComDestructibleActor_9"
+      ],
+      "poses": [
+        {
+          "location": [
+            50.1951,
+            -6963.5709,
+            262.058
+          ],
+          "rotation": [
+            0,
+            32768,
+            -16384
+          ]
+        },
+        {
+          "location": [
+            49.6409,
+            -6961.8696,
+            262.8876
+          ],
+          "rotation": [
+            0,
+            0,
+            -16384
+          ]
+        },
+        {
+          "location": [
+            47.1541,
+            -5804.9654,
+            262.2712
+          ],
+          "rotation": [
+            0,
+            32768,
+            -16384
+          ]
+        },
+        {
+          "location": [
+            46.6,
+            -5803.2642,
+            263.1009
+          ],
+          "rotation": [
+            0,
+            0,
+            -16384
+          ]
+        },
+        {
+          "location": [
+            1197.623,
+            -6994.1395,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "location": [
+            -1105.8673,
+            -6989.5162,
+            0.0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "labels": [
+        "XComDestructibleActor_28_copy14",
+        "XComDestructibleActor_28_copy15",
+        "XComDestructibleActor_28_copy16",
+        "XComDestructibleActor_28_copy17",
+        "XComDestructibleActor_9_copy4",
+        "XComDestructibleActor_9_copy5"
+      ],
+      "boxes": [
+        [
+          3.392,
+          96.998,
+          -6967.207,
+          -6894.505,
+          110.372,
+          413.744
+        ],
+        [
+          2.838,
+          96.444,
+          -7030.935,
+          -6958.234,
+          111.202,
+          414.573
+        ],
+        [
+          0.351,
+          93.957,
+          -5808.601,
+          -5735.9,
+          110.586,
+          413.957
+        ],
+        [
+          -0.203,
+          93.403,
+          -5872.33,
+          -5799.628,
+          111.415,
+          414.787
+        ],
+        [
+          1049.143,
+          1346.103,
+          -7099.106,
+          -6899.418,
+          -3.92,
+          156.011
+        ],
+        [
+          -1254.347,
+          -957.387,
+          -7094.482,
+          -6894.795,
+          -3.92,
+          156.011
+        ]
+      ],
+      "breakGroups": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "hide",
+      "exact": true,
+      "location": [
+        47.9999,
+        -7056.0,
+        -3.6358
+      ],
+      "alsoHide": [
+        "XComDestructibleActor_206",
+        "XComDestructibleActor_208"
+      ],
+      "labels": [
+        "delete:XComDestructibleActor_206",
+        "delete:XComDestructibleActor_208"
+      ]
+    }
+  ]
+}

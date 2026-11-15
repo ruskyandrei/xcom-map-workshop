@@ -1,0 +1,115 @@
+{
+  "map": "URB_TruckStop_EWI",
+  "project": "25e0a0b1-2525-4d0a-8e25-3c4d5e6f7e25",
+  "shots": [
+    {
+      "out": "EXP-25-run5-overview.png",
+      "title": "EXP-25 run 5: the truck stop (Fastrope landing only)",
+      "target": [
+        0,
+        100,
+        0
+      ],
+      "camera": [
+        0,
+        -3800,
+        5200
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -2640,
+            -1680,
+            250
+          ],
+          "color": "#5ad17a",
+          "r": 26,
+          "text": "a copy of a tall drain pipe (a ladder), 2 tiles along its wall: a route up it"
+        },
+        {
+          "n": "2",
+          "at": [
+            2400,
+            384,
+            150
+          ],
+          "color": "#f2c14e",
+          "r": 26,
+          "text": "a copy of a semi truck cab"
+        },
+        {
+          "n": "3",
+          "at": [
+            1879,
+            -433,
+            100
+          ],
+          "color": "#58b4ff",
+          "r": 22,
+          "text": "a copy of a crate stack"
+        },
+        {
+          "n": "4",
+          "at": [
+            -1920,
+            1048,
+            100
+          ],
+          "color": "#58b4ff",
+          "r": 22,
+          "text": "a dumpster, moved 2 tiles"
+        },
+        {
+          "n": "5",
+          "at": [
+            2539,
+            -719,
+            60
+          ],
+          "color": "#e0605a",
+          "r": 22,
+          "text": "where a forklift stood (deleted)"
+        }
+      ]
+    },
+    {
+      "out": "EXP-25-run5-drainpipe.png",
+      "title": "EXP-25 run 5: the tall drain pipe and its copy",
+      "target": [
+        -2736,
+        -1680,
+        150
+      ],
+      "camera": [
+        0,
+        -950,
+        550
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -2640,
+            -1680,
+            250
+          ],
+          "color": "#5ad17a",
+          "r": 50,
+          "text": "the copy: a route up it to the roof"
+        },
+        {
+          "n": "6",
+          "at": [
+            -2832,
+            -1680,
+            250
+          ],
+          "color": "#f2c14e",
+          "r": 40,
+          "text": "the original drain pipe"
+        }
+      ]
+    }
+  ]
+}

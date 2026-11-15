@@ -1,0 +1,1693 @@
+{
+  "note": "EXP-08 run 3, run 2's layout without the hole, the block with two storeys: a wood second floor at z 210 (no ceiling beams) with a ladder well in the south-west corner, a short ladder up, two box stacks upstairs (research/experiments/EXP-08-blank-map.md), written by tools/patch/gen_exp08.py: everything URB_Bar places in its play area is hidden, ground and lights included, and copies of its asphalt plane XComLevelActor_242 lay new ground on the tile grid, x -2784..2976, y -2496..2304. A sun object is the only light. The patch starts from an empty map (base \"\"), not patch_bar, whose cover fixes belong to the old layout, and the map ships as URB_BarBlank (map.shipAs), beside the untouched URB_Bar (F-42). 40 actors outside the play area that reach into it are hidden by name; the pieces of the landing prefabs stay (F-45). Lit by the sun, the map is a day map (map.timeOfDay).",
+  "name": "patch_exp08blank",
+  "base": "",
+  "map": {
+    "name": "URB_Bar",
+    "origin": [
+      -2784,
+      -1920
+    ],
+    "tileSize": 96,
+    "shipAs": "URB_BarBlank",
+    "displayName": "URB_BarBlank (EXP-08 blank map) |0",
+    "timeOfDay": "Day"
+  },
+  "objects": [
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -2304.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False",
+        "bLogCursor=True",
+        "PathProbes(0)=(X=-624,Y=240,Z=16)",
+        "PathProbes(1)=(X=-624,Y=240,Z=216)",
+        "PathProbes(2)=(X=-432,Y=-864,Z=16)",
+        "PathProbes(3)=(X=-288,Y=-96,Z=16)",
+        "PathProbes(4)=(X=-240,Y=-816,Z=16)",
+        "PathProbes(5)=(X=-240,Y=-600,Z=410)",
+        "PathProbes(6)=(X=-288,Y=-96,Z=216)",
+        "PathProbes(7)=(X=-240,Y=-600,Z=410)",
+        "FloorProbes(0)=(X=-624,Y=240,Z=216)",
+        "FloorProbes(1)=(X=-816,Y=432,Z=216)",
+        "FloorProbes(2)=(X=-720,Y=432,Z=216)",
+        "FloorProbes(3)=(X=-288,Y=-96,Z=24)",
+        "FloorProbes(4)=(X=-288,Y=-96,Z=216)",
+        "FloorProbes(5)=(X=-288,Y=-96,Z=410)",
+        "FloorProbes(6)=(X=240,Y=-624,Z=216)",
+        "FloorProbes(7)=(X=-2304,Y=864,Z=24)"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -1344.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -384.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        576.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        1536.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        2496.0,
+        -2016,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -2304.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -1344.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -384.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        576.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        1536.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        2496.0,
+        -1056,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -2304.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -1344.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -384.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        576.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        1536.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        2496.0,
+        -96,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -2304.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -1344.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -384.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        576.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        1536.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        2496.0,
+        864,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -2304.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -1344.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        -384.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        576.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        1536.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_242"
+      ],
+      "pivot": [
+        -382.0,
+        -1056.0,
+        0.0
+      ],
+      "location": [
+        2496.0,
+        1824,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_7",
+        "XComDecoFracLevelActor_8",
+        "XComDecoFracLevelActor_9",
+        "XComDecoFracLevelActor_10",
+        "XComDecoFracLevelActor_11",
+        "XComDecoFracLevelActor_12",
+        "XComDecoFracLevelActor_13",
+        "XComDecoFracLevelActor_15",
+        "XComDecoFracLevelActor_16",
+        "XComDecoFracLevelActor_17",
+        "XComLevelActor_91",
+        "XComFracLevelActor_17",
+        "XComFracLevelActor_3",
+        "XComFracLevelActor_4",
+        "XComFracLevelActor_6",
+        "XComFracLevelActor_18",
+        "XComFracLevelActor_202",
+        "XComFracLevelActor_203",
+        "XComDestructibleActor_158",
+        "XComDestructibleActor_161",
+        "XComDestructibleActor_142",
+        "XComDestructibleActor_60",
+        "XComDestructibleActor_31",
+        "XComDestructibleActor_65",
+        "XComDestructibleActor_30",
+        "XComDestructibleActor_502",
+        "XComInteractiveLevelActor_26",
+        "XComInteractiveLevelActor_6",
+        "XComInteractiveLevelActor_5",
+        "XComInteractiveLevelActor_7",
+        "XComInteractiveLevelActor_4"
+      ],
+      "pivot": [
+        -1056,
+        672,
+        16
+      ],
+      "location": [
+        -288,
+        -96,
+        16
+      ],
+      "yaw": 90,
+      "building": {
+        "floors": [
+          [
+            "XComFloorVolume_15",
+            "XComFloorVolume_17"
+          ],
+          [
+            "XComFloorVolume_16"
+          ],
+          [
+            "XComFloorVolume_7"
+          ]
+        ]
+      },
+      "extra": [
+        "bLogTiles=False",
+        "bProbeIndoor=True",
+        "bCopyDoors=True",
+        "LateRebuild=4.0",
+        "LadderFootRebuild=6.0"
+      ],
+      "note": "The step 3b block (the bar's west block), turned 90 degrees as the L layout's wing, its doors copied (bCopyDoors)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDecoFracLevelActor_15",
+        "XComDecoFracLevelActor_8",
+        "XComFracLevelActor_18",
+        "XComDestructibleActor_31",
+        "XComFracLevelActor_202",
+        "XComInteractiveLevelActor_4"
+      ],
+      "pivot": [
+        -1056,
+        672,
+        16
+      ],
+      "location": [
+        -288,
+        -96,
+        16
+      ],
+      "yaw": 270,
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "bCopyDoors=True"
+      ],
+      "note": "The closing copy of EXP-07 step 3b (end wall, its parapet, back return and door frame on the side the block is open), and the door for that frame (XComInteractiveLevelActor_4 goes with XComDestructibleActor_31)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_316",
+        "XComDestructibleActor_340",
+        "XComDestructibleActor_7",
+        "XComDestructibleActor_4"
+      ],
+      "pivot": [
+        475,
+        1248,
+        16
+      ],
+      "location": [
+        -576,
+        -96,
+        16
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: the east block's arcade row (claw machine, arcade machine, cigarette machine, ATM), backs to the south-west room's inner wall (y -576)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_491",
+        "XComLevelActor_29"
+      ],
+      "pivot": [
+        528,
+        672,
+        16
+      ],
+      "location": [
+        -48,
+        -288,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: the pool table on its rug, in the long east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_257",
+        "XComDestructibleActor_252",
+        "XComDestructibleActor_259",
+        "XComDestructibleActor_262",
+        "XComDestructibleActor_279",
+        "XComDestructibleActor_282"
+      ],
+      "pivot": [
+        45,
+        1152,
+        16
+      ],
+      "location": [
+        110,
+        -520,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: two diner tables and four chairs along the storefront windows, north end of the east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_200",
+        "XComDestructibleActor_201",
+        "XComDestructibleActor_110",
+        "XComDestructibleActor_58",
+        "XComDestructibleActor_53"
+      ],
+      "pivot": [
+        -339,
+        1144,
+        16
+      ],
+      "location": [
+        110,
+        260,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: two diner tables and three chairs along the storefront windows, south end of the east room."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_257",
+        "XComDestructibleActor_252",
+        "XComDestructibleActor_259",
+        "XComDestructibleActor_262",
+        "XComDestructibleActor_279",
+        "XComDestructibleActor_282"
+      ],
+      "pivot": [
+        45,
+        1152,
+        16
+      ],
+      "location": [
+        -576,
+        -390,
+        16
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: two diner tables and four chairs in the north-west room, turned."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_0",
+        "XComDestructibleActor_1"
+      ],
+      "pivot": [
+        -819,
+        144,
+        16
+      ],
+      "location": [
+        -805,
+        -620,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: two trash cans in the north-west room's corner."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_329"
+      ],
+      "pivot": [
+        -1583,
+        175,
+        16
+      ],
+      "location": [
+        -813,
+        -220,
+        16
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "inBuilding": 30,
+      "note": "Props: the west block's cigarette machine, back to the north-west room's west wall."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_302"
+      ],
+      "pivot": [
+        96,
+        672,
+        16
+      ],
+      "location": [
+        -332.3077,
+        -51.692300000000046,
+        17
+      ],
+      "yaw": 0,
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "CopyScale=(X=0.923077,Y=0.923077,Z=1.0)"
+      ],
+      "note": "The wing's floor: the north-west room was the bar's kitchen, and the west block's floor mesh has a tiled section there (the user, run 28: \"could we make the floor wood or something in the top right room\"). The east block's floor (URB_Bar_384CFloor, 13 x 13 tiles, wood) is scaled to 12/13 about its pivot so that it covers the wing exactly, x -384..768, y -1152..0, one unit above the copied west-block floor."
+    },
+    {
+      "type": "ladder",
+      "location": [
+        -240,
+        -720,
+        16
+      ],
+      "yaw": 90,
+      "hidden": false,
+      "note": "The ladder on the block's north wall, outside, on the north sidewalk: as in the L layout's wing (F-39)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_302"
+      ],
+      "pivot": [
+        96,
+        672,
+        16
+      ],
+      "location": [
+        -280.615,
+        -51.692,
+        207.5
+      ],
+      "yaw": 0,
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "CopyScale=(X=0.923077,Y=0.846154,Z=1.0)",
+        "BuildingFloor=1"
+      ],
+      "note": "The second floor, east of the well: tiles x 21..31, y 13..24, on the building's second floor in its floor caches (BuildingFloor 1)."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_302"
+      ],
+      "pivot": [
+        96,
+        672,
+        16
+      ],
+      "location": [
+        -332.308,
+        -103.385,
+        208.5
+      ],
+      "yaw": 0,
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "CopyScale=(X=0.846154,Y=0.923077,Z=1.0)",
+        "BuildingFloor=1"
+      ],
+      "note": "The second floor, north of the well: tiles x 20..31, y 13..23, on the building's second floor in its floor caches (BuildingFloor 1)."
+    },
+    {
+      "type": "ladder",
+      "location": [
+        -816.0,
+        432.0,
+        16
+      ],
+      "yaw": 0,
+      "hidden": false,
+      "loops": 0,
+      "extra": [
+        "DrawScale3D=(X=1.0,Y=1.0,Z=0.42)"
+      ],
+      "note": "The inside ladder, in the well (tile x 20, y 24) against the second floor's edge: URB_Bar's ladder squashed to 200 units."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_12"
+      ],
+      "pivot": [
+        721.0,
+        1765.0,
+        0.0
+      ],
+      "location": [
+        -49.5,
+        -240.0,
+        210.5
+      ],
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "BuildingFloor=1"
+      ],
+      "note": "Cover upstairs: a box stack on tile x 28, y 17 of the second floor."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_12"
+      ],
+      "pivot": [
+        721.0,
+        1765.0,
+        0.0
+      ],
+      "location": [
+        -529.5,
+        -336.0,
+        210.5
+      ],
+      "inBuilding": 30,
+      "extra": [
+        "bLogTiles=False",
+        "BuildingFloor=1"
+      ],
+      "note": "Cover upstairs: a box stack on tile x 23, y 16 of the second floor."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_47"
+      ],
+      "pivot": [
+        -768.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        -864,
+        864,
+        0.0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        -96,
+        864,
+        0.0
+      ],
+      "yaw": 270,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        96,
+        864,
+        0.0
+      ],
+      "yaw": 270,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_47"
+      ],
+      "pivot": [
+        -768.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        288,
+        -1056,
+        0.0
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        -480,
+        -1056,
+        0.0
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        -672,
+        -1056,
+        0.0
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_47"
+      ],
+      "pivot": [
+        -768.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        672,
+        480,
+        0.0
+      ],
+      "yaw": 270,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        672,
+        -288,
+        0.0
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        672,
+        -480,
+        0.0
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_47"
+      ],
+      "pivot": [
+        -768.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        -1248,
+        -672,
+        0.0
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        -1248,
+        96,
+        0.0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_111"
+      ],
+      "pivot": [
+        -1920.0,
+        96.0,
+        0.0
+      ],
+      "location": [
+        -1248,
+        288,
+        0.0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_116"
+      ],
+      "pivot": [
+        -1920.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        -1248,
+        864,
+        0.0
+      ],
+      "yaw": 0,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_116"
+      ],
+      "pivot": [
+        -1920.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        -1248,
+        -1056,
+        0.0
+      ],
+      "yaw": 90,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_116"
+      ],
+      "pivot": [
+        -1920.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        672,
+        -1056,
+        0.0
+      ],
+      "yaw": 180,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComLevelActor_116"
+      ],
+      "pivot": [
+        -1920.0,
+        1440.0,
+        0.0
+      ],
+      "location": [
+        672,
+        864,
+        0.0
+      ],
+      "yaw": 270,
+      "extra": [
+        "bLogTiles=False"
+      ]
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_2"
+      ],
+      "pivot": [
+        -193.0,
+        1721.0,
+        0.0
+      ],
+      "location": [
+        -1824.5,
+        -623.5,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: Dumpster_A on tiles x 9..10, y 13..13."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_12"
+      ],
+      "pivot": [
+        721.0,
+        1765.0,
+        0.0
+      ],
+      "location": [
+        -1681.5,
+        -432.0,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: BoxStackB on tiles x 11..11, y 15..15."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_29"
+      ],
+      "pivot": [
+        -2523.0,
+        1559.0,
+        0.0
+      ],
+      "location": [
+        -1968.0,
+        -432.0,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: Trashcan_E_Closed on tiles x 8..8, y 15..15."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_2"
+      ],
+      "pivot": [
+        -193.0,
+        1721.0,
+        0.0
+      ],
+      "location": [
+        1247.5,
+        -431.5,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: Dumpster_A on tiles x 41..42, y 15..15."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_18"
+      ],
+      "pivot": [
+        -2410.0,
+        -1437.0,
+        4.0
+      ],
+      "location": [
+        1056.0,
+        -240.0,
+        4.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: MetalFence on tiles x 40..40, y 17..17."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_12"
+      ],
+      "pivot": [
+        721.0,
+        1765.0,
+        0.0
+      ],
+      "location": [
+        1390.5,
+        -336.0,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: BoxStackB on tiles x 43..43, y 16..16."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_2"
+      ],
+      "pivot": [
+        -193.0,
+        1721.0,
+        0.0
+      ],
+      "location": [
+        -384.5,
+        1200.5,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: Dumpster_A on tiles x 24..25, y 32..32."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_12"
+      ],
+      "pivot": [
+        721.0,
+        1765.0,
+        0.0
+      ],
+      "location": [
+        -145.5,
+        1296.0,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: BoxStackB on tiles x 27..27, y 33..33."
+    },
+    {
+      "type": "copy",
+      "from": [
+        "XComDestructibleActor_297"
+      ],
+      "pivot": [
+        -2613.0,
+        1747.0,
+        0.0
+      ],
+      "location": [
+        -622.5,
+        1104.0,
+        0.0
+      ],
+      "extra": [
+        "bLogTiles=False"
+      ],
+      "note": "Cover: TrashBagA on tiles x 22..22, y 31..31."
+    },
+    {
+      "type": "spawn",
+      "location": [
+        1056,
+        288,
+        0
+      ],
+      "yaw": 90,
+      "tint": [
+        0.02,
+        0.25,
+        0.08
+      ],
+      "rebuildExtent": [
+        256,
+        192,
+        160
+      ],
+      "extra": [
+        "bSnapToTiles=True"
+      ],
+      "note": "An SUV east of the ring, along x.",
+      "archetype": "VEH_SUV.Prefab.PRE_SUVFull.PRE_SUVFull_Arc1",
+      "partner": "VEH_SUV.Prefab.PRE_SUVFull.PRE_SUVFull_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ]
+    },
+    {
+      "type": "spawn",
+      "location": [
+        -1584.0,
+        480,
+        0
+      ],
+      "yaw": -90,
+      "tint": [
+        0.85,
+        0.55,
+        0.02
+      ],
+      "rebuildExtent": [
+        256,
+        192,
+        160
+      ],
+      "extra": [
+        "bSnapToTiles=True"
+      ],
+      "note": "A compact between the hole and the ring, along x.",
+      "archetype": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc1",
+      "partner": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ]
+    },
+    {
+      "type": "spawn",
+      "location": [
+        -624.0,
+        -1392.0,
+        0
+      ],
+      "yaw": 0,
+      "tint": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "rebuildExtent": [
+        192,
+        256,
+        160
+      ],
+      "extra": [
+        "bSnapToTiles=True"
+      ],
+      "note": "A compact north of the ring, along y, between the north landing zones' spawn points.",
+      "archetype": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc1",
+      "partner": "VEH_CompactCarB.Prefab.PRE_CompactCarB.PRE_CompactCarB_Arc0",
+      "partnerOffset": [
+        0,
+        -2,
+        0
+      ]
+    },
+    {
+      "type": "sun",
+      "sun": 1.2,
+      "sky": 0.5,
+      "yaw": 138,
+      "pitch": 50,
+      "note": "The photo object's light (EXP-07 run 35), on its own: the map's only light."
+    },
+    {
+      "type": "hide",
+      "location": [
+        -288.0,
+        -48.0,
+        384.0
+      ],
+      "half": [
+        2496.0,
+        1872.0,
+        448.0
+      ],
+      "keep": [
+        "AmbientSoundSimpleToggleable_0",
+        "Emitter_78",
+        "PlayerStart_2",
+        "PointInSpace_22",
+        "PointInSpace_24",
+        "XComBuildingVolume_6",
+        "XComLevelActor_6",
+        "XComLevelActor_138",
+        "XComSpawnPoint_18",
+        "XComSpawnPoint_19",
+        "XComSpawnPoint_20",
+        "XComSpawnPoint_21",
+        "XComSpawnPoint_22",
+        "XComSpawnPoint_23"
+      ],
+      "alsoHide": [
+        "StaticMeshActor_30",
+        "StaticMeshActor_31",
+        "StaticMeshActor_33",
+        "StaticMeshActor_34",
+        "StaticMeshActor_36",
+        "StaticMeshActor_38",
+        "StaticMeshActor_39",
+        "StaticMeshActor_40",
+        "StaticMeshActor_41",
+        "StaticMeshActor_42",
+        "StaticMeshActor_43",
+        "StaticMeshActor_53",
+        "XComLevelActor_9",
+        "XComLevelActor_56",
+        "XComLevelActor_57",
+        "XComLevelActor_58",
+        "XComLevelActor_59",
+        "XComLevelActor_60",
+        "XComLevelActor_82",
+        "XComLevelActor_83",
+        "XComLevelActor_92",
+        "XComLevelActor_113",
+        "XComLevelActor_115",
+        "XComLevelActor_117",
+        "XComLevelActor_118",
+        "XComLevelActor_123",
+        "XComLevelActor_124",
+        "XComLevelActor_130",
+        "XComLevelActor_131",
+        "XComLevelActor_140",
+        "XComLevelActor_143",
+        "XComLevelActor_147",
+        "XComLevelActor_211",
+        "XComLevelActor_235",
+        "XComLevelActor_261",
+        "XComLevelActor_306",
+        "XComLevelActor_314",
+        "XComLevelActor_316",
+        "XComLevelActor_318",
+        "XComLevelActor_347"
+      ],
+      "extra": [
+        "KeepGroundHeight=-1",
+        "bHideLights=True",
+        "bHideVolumes=True",
+        "bHideFragments=True",
+        "ProbeStart=(X=-1056,Y=-120,Z=64)",
+        "ProbeEnd=(X=-1056,Y=400,Z=64)"
+      ]
+    }
+  ]
+}

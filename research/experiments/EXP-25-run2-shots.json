@@ -1,0 +1,18 @@
+{
+  "map": "CLrgScout_ForestTrench",
+  "project": "25b0a0b1-2525-4d0a-8e25-3c4d5e6f7b25",
+  "shots": [
+    {
+      "out": "EXP-25-run2-overview.png",
+      "title": "EXP-25 run 2: the clearing north of the UFO",
+      "target": [-480, 1950, 64],
+      "camera": [300, -1500, 1900],
+      "marks": [
+        {"n": "1", "at": [-432, 1872, 200], "color": "#58b4ff", "r": 50, "text": "a copy of the UFO's power core: counted as loot at the end, with the two originals"},
+        {"n": "2", "at": [0, 1824, 200], "color": "#5ad17a", "r": 40, "text": "a tree, moved 2 tiles east"},
+        {"n": "3", "at": [-768, 1824, 90], "color": "#58b4ff", "r": 40, "text": "a copy of a rock"},
+        {"n": "4", "at": [-960, 2304, 110], "color": "#e0605a", "r": 50, "text": "where a big rock stood (deleted)"}
+      ]
+    }
+  ]
+}

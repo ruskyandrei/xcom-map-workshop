@@ -1,0 +1,9 @@
+ 59  b30a92b1334876489d88fca44057f6dc  e.g. patch_abductor_farm.upk, patch_bar.upk, patch_barrens.upk, patch_battleship.upk, patch_boulevard.upk, patch_clean_battleship.upk
+ 14  no embedded XComUDK  e.g. patch_abductor_windingstream.upk, patch_battleship_roof.upk, patch_clean_exaltprops.upk, patch_clean_nukedcity.upk, patch_commercialalley.upk, patch_commercialalley_carflank.upk
+  4  5516e9e985944f44be53a3f505d50152  e.g. patch_clean_overseer_stonewall.upk, patch_forest_trench.upk, patch_militaryammo.upk, patch_officepaper2.upk
+  4  f9b68768fbcb6f41abe1b08748b2a619  e.g. patch_convstore.upk, patch_gasstationewi.upk, patch_hide_randomized_objects.upk, patch_officepaper.upk
+  3  7c5c0ff34ab51d4bb14adde1e35860ae  e.g. patch_alienbase1.upk, patch_alienbase2.upk, patch_overseer_barrens.upk
+  2  d075927c43070849bad70f237db978e6  e.g. patch_commercialrestaurant.upk, patch_fastfood_ewi.upk
+  2  da38fb059439684abe4257692a6207c6  e.g. patch_deepwoods.upk, patch_marshlands.upk
+  1  e40f2651ed640c4f8375d5c8b3199af7  e.g. patch_clean_overlook.upk
+  1  93a4f71d547584459b92ff3aaf7fc094  e.g. patch_museum_multi.upk

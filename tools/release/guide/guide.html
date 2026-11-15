@@ -1,0 +1,1912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XCOM Map Workshop: user guide</title>
+<!-- The editor's user guide. This file is its source: the pictures are in shots/ (take_shots.py makes them, with the
+     numbered marks the lists below explain). A release carries it as one file, "User Guide.html", with the pictures
+     inside it and the version filled in (tools/viewer/guide.py); the editor serves the same at /guide.html. -->
+<style>
+:root {
+  --bg: #f5f6f4; --surface: #ffffff; --sunk: #eceeec; --line: #d6dcdc; --text: #1b2428; --muted: #58676f;
+  --accent: #14706a; --accent-soft: #e0f1ee; --mark: #ffcf5a; --mark-ink: #191204; --warn: #7a5a16; --warn-soft: #fbf1d9;
+  --shot: #11171c; --code: #e9eceb;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif; font-size: 16px; line-height: 1.55;
+  color: var(--text); background: var(--bg); color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11171c; --surface: #182027; --sunk: #141b21; --line: #2b3842; --text: #d8e1e8; --muted: #8fa2ae;
+    --accent: #82d5ce; --accent-soft: #1f3136; --warn: #e7c594; --warn-soft: #2b2519; --shot: #0c1115; --code: #222d35;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 1000px; margin: 0 auto; padding: 0 20px 80px; }
+@media (min-width: 1240px) {
+  .page { grid-template-columns: 250px minmax(0, 1fr); gap: 48px; max-width: 1340px; }
+  nav.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow: auto; padding: 28px 0 28px; }
+  nav.toc summary { display: none; }
+}
+header.top { padding: 44px 0 8px; }
+.brand { display: flex; align-items: center; gap: 12px; letter-spacing: 1.8px; font-weight: 650; font-size: 12px; color: var(--muted); }
+.brand .x { display: grid; place-items: center; width: 30px; height: 32px; border: 1px solid var(--accent); color: var(--accent); font-size: 20px; font-weight: 300; letter-spacing: 0; }
+h1 { font-size: 40px; line-height: 1.12; font-weight: 600; letter-spacing: -0.5px; margin: 18px 0 8px; text-wrap: balance; }
+.lede { font-size: 19px; color: var(--muted); max-width: 46em; margin: 0 0 6px; }
+.version { color: var(--muted); font-size: 13px; }
+h2 { font-size: 27px; font-weight: 600; letter-spacing: -0.2px; margin: 64px 0 10px; padding-top: 22px; border-top: 1px solid var(--line); text-wrap: balance; }
+h3 { font-size: 19px; font-weight: 650; margin: 38px 0 6px; }
+h4 { font-size: 16px; font-weight: 650; margin: 24px 0 4px; }
+p, ul, ol, table, .note { max-width: 46em; }
+p { margin: 8px 0; }
+ul, ol { padding-left: 1.3em; margin: 8px 0; }
+li { margin: 4px 0; }
+li > ul, li > ol { margin: 4px 0; }
+code, kbd { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: 0.88em; }
+code { background: var(--code); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+kbd { display: inline-block; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 6px; background: var(--surface); white-space: nowrap; line-height: 1.5; }
+b.ui { font-weight: 650; }
+
+/* contents */
+nav.toc { font-size: 14px; }
+nav.toc details { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px 14px; margin-top: 20px; }
+@media (min-width: 1240px) { nav.toc details { border: 0; background: none; padding: 0; margin: 0; } }
+nav.toc summary { cursor: pointer; font-weight: 650; }
+nav.toc .toctitle { text-transform: uppercase; letter-spacing: 1.2px; font-size: 11px; color: var(--muted); margin: 10px 0 8px; }
+nav.toc ol { list-style: none; padding: 0; margin: 0; }
+nav.toc li { margin: 0; }
+nav.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+nav.toc a:hover { color: var(--text); }
+nav.toc a.on { color: var(--accent); border-left-color: var(--accent); }
+nav.toc ol ol a { padding-left: 24px; font-size: 13px; }
+
+/* notes */
+.note { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface); border-radius: 6px; padding: 10px 16px; margin: 16px 0; }
+.note.warn { border-left-color: #d9a021; background: var(--warn-soft); }
+.note > :first-child { margin-top: 0; } .note > :last-child { margin-bottom: 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; padding: 0; list-style: none; max-width: none; }
+.cards li { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 14px 16px; margin: 0; }
+.cards b { display: block; margin-bottom: 2px; }
+.cards span { color: var(--muted); font-size: 15px; }
+.limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; margin: 18px 0; max-width: none; }
+.limits section { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 6px 18px 12px; }
+.limits h3 { margin: 12px 0 4px; font-size: 16px; }
+.limits ul { font-size: 15px; }
+
+/* pictures and their numbered lists */
+figure { margin: 18px 0; max-width: none; }
+figure img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--shot); }
+figure.zoom img { cursor: zoom-in; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; max-width: 46em; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 30px; align-items: start; margin: 14px 0; }
+@media (min-width: 760px) { .split { grid-template-columns: auto minmax(0, 1fr); } .split.wide { grid-template-columns: minmax(0, 1fr); } }
+.split figure { margin: 6px 0; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.pair figure { margin: 0; }
+ol.legend { list-style: none; padding: 0; margin: 6px 0; max-width: 46em; }
+ol.legend > li { position: relative; padding: 5px 0 5px 40px; margin: 0; min-height: 34px; }
+ol.legend > li::before { content: attr(data-n); position: absolute; left: 0; top: 5px; width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--mark); color: var(--mark-ink); border: 1.5px solid #12100a; font-size: 13px; font-weight: 700; line-height: 1; }
+ol.legend > li > b:first-child { font-weight: 650; }
+table { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 650; }
+td:first-child { white-space: nowrap; }
+table.wrapfirst td:first-child { white-space: normal; }
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps > li { counter-increment: step; position: relative; padding-left: 40px; margin: 10px 0; }
+.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid var(--accent); color: var(--accent); font-size: 13px; font-weight: 700; }
+.task { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 4px 20px 12px; margin: 16px 0; max-width: 50em; }
+.task h3 { margin-top: 16px; }
+footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+#lightbox { position: fixed; inset: 0; z-index: 10; background: #06090cee; display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+#lightbox[hidden] { display: none; }
+#lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+@media print { nav.toc, #lightbox { display: none !important; } .page { display: block; } h2 { break-after: avoid; } figure, .task, .limits section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <details open>
+    <summary>Contents</summary>
+    <div class="toctitle">User guide</div>
+    <ol>
+      <li><a href="#what">What it does</a></li>
+      <li><a href="#new">New in this version</a></li>
+      <li><a href="#limits">What it can't do yet</a></li>
+      <li><a href="#start">Getting started</a></li>
+      <li><a href="#window">The window</a>
+        <ol>
+          <li><a href="#header">Header</a></li>
+          <li><a href="#tools">Tool strip</a></li>
+          <li><a href="#view">The view and the camera</a></li>
+          <li><a href="#bottom">Bottom bar and floors</a></li>
+          <li><a href="#piece">Piece panel</a></li>
+          <li><a href="#boxselect">Box select</a></li>
+          <li><a href="#groups">Groups and Align</a></li>
+          <li><a href="#add">Add: the piece list</a></li>
+          <li><a href="#add-all">Pieces from other maps</a></li>
+          <li><a href="#cover">Cover blocks and invisible floors</a></li>
+          <li><a href="#prefabs">Prefabs</a></li>
+          <li><a href="#lights">Lights</a></li>
+          <li><a href="#buildings">Buildings</a></li>
+          <li><a href="#mapgrid">Map grid</a></li>
+          <li><a href="#clearmap">Clear map and landing zones</a></li>
+          <li><a href="#viewoptions">View options</a></li>
+          <li><a href="#project">Project menu</a></li>
+          <li><a href="#maps">Map browser</a></li>
+          <li><a href="#build">Build</a></li>
+          <li><a href="#dialogs">Other windows</a></li>
+        </ol>
+      </li>
+      <li><a href="#tasks">Typical tasks</a></li>
+      <li><a href="#rules">How pieces move and what builds</a></li>
+      <li><a href="#keys">Keyboard and mouse</a></li>
+      <li><a href="#ingame">In the game: known limits</a></li>
+      <li><a href="#files">Where things are</a></li>
+      <li><a href="#help">Problems, and removing it</a></li>
+    </ol>
+  </details>
+</nav>
+<main>
+<header class="top">
+  <div class="brand"><span class="x">X</span><span>MAP WORKSHOP</span></div>
+  <h1>User guide</h1>
+  <p class="lede">XCOM Map Workshop is a map editor for XCOM: Enemy Within. It opens one of the game's maps in your browser,
+    lets you rearrange it, and builds the result into a new map the game plays like its own.</p>
+  <p class="version">Preview release <span id="guideVersion"></span> · for Long War Rebalance, and plain Enemy Within as a best guess</p>
+</header>
+
+<h2 id="what">What it does</h2>
+<ul class="cards">
+  <li><b>Opens any map your game plays</b><span>Every map in your install's rotation (96 with Long War Rebalance, the tutorial's map included), in a 3D view you can orbit, cut open floor by floor and search.</span></li>
+  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Edit its lights. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
+  <li><b>Makes room for a map of your own</b><span>Clear a map down to its light and its landing, set the size of its tile grid, give your buildings their cutaway, and say where the squad lands.</span></li>
+  <li><b>Builds a new map</b><span>Your edits are saved as a project and built into a <i>variant</i>: a copy of the map with the changes made in it, cover and pathing included, its lighting baked on request.</span></li>
+  <li><b>Starts the game on it</b><span>One menu item starts XCOM straight in a battle on your variant, with a test squad: no campaign to start, and nothing of the game's own changed. Another takes the variant back out.</span></li>
+</ul>
+<p>The editor runs only on your computer. It reads your own game install and contains nothing from the game; nothing
+  goes into the game until you install a map from the Project menu.</p>
+
+<h2 id="new">New in this version</h2>
+<p>What has been added since version 0.4.1, each with the section that explains it: first what 0.5.2 adds, then
+  0.5.1 and 0.5.0.</p>
+<table class="wrapfirst">
+  <tr><th>New in 0.5.2</th><th>What it is</th></tr>
+  <tr><td><a href="#task-play">The mission you pick</a></td><td><b class="ui">Play in game</b> plays the mission the
+    header's Mission picker shows, not always an abduction, and says how far that kind is known to work.</td></tr>
+  <tr><td><a href="#missions">Missions…</a></td><td>Which of the base map's missions a project is for, and missions a
+    map can be given by its record (abduction, terror, a council bomb, a UFO). Clear map asks what the map is
+    for.</td></tr>
+  <tr><td><a href="#mission-objects">A mission's objects</a></td><td>View options' Mission objects marks what the
+    picked mission adds. Move one with its group, and the Build warns when an edit takes the floor from under
+    one.</td></tr>
+  <tr><td><a href="#task-play">Enable saving</a></td><td>A test battle you can save and load: XCOM opens at its main
+    menu and F5 starts the battle.</td></tr>
+  <tr><td><a href="#cover-size">Cover blocks of any size</a></td><td>Sized with the dots on their faces. The panel
+    says what the game makes of a block smaller than a tile and what it does to line of sight.</td></tr>
+  <tr><td><a href="#blocker">Blockers</a></td><td>A cover block with Cover None stops units walking there without
+    giving cover.</td></tr>
+  <tr><td><a href="#viewoptions">Camera speeds</a> and <a href="#tools">the centre pivot</a></td><td>Sliders for
+    moving and turning speed in View options, and a Pivot button (C) on the tool strip to move and turn about the
+    selection's centre.</td></tr>
+</table>
+<table class="wrapfirst">
+  <tr><th>New in 0.5.1</th><th>What it is</th></tr>
+  <tr><td><a href="#cache-everything">Cache everything</a></td><td>The Project menu reads every piece of the game's
+    maps ahead of use, and every map if you ask, with a progress bar you can cancel.</td></tr>
+  <tr><td><a href="#mapgrid">30 levels</a></td><td>Maps, prefabs and their test stage go up to 30 levels high, where
+    18 was the limit. Over 18 has not been played.</td></tr>
+  <tr><td><a href="#prefab-builder">The builder's Problems chip</a></td><td>What <b class="ui">Test in game</b>
+    would say of a prefab, without building it.</td></tr>
+  <tr><td><a href="#limits">More is built</a></td><td>A piece the Build can't make is left out and listed, and the
+    rest of the map is built. Pieces of a kind not tried before are built with a warning. Prefabs that are too big
+    or hold odd light values are warned of, not refused.</td></tr>
+  <tr><td><a href="#prefabs">A faster editor</a></td><td>A large prefab opens in about a second instead of twenty,
+    edits and pastes with many pieces are several times quicker, and slow steps show a bar.</td></tr>
+</table>
+<table class="wrapfirst">
+  <tr><th>New in 0.5.0</th><th>What it is</th></tr>
+  <tr><td><a href="#add-all">Pieces from other maps</a></td><td>The piece list's <b class="ui">All maps</b>: any
+    piece of any map in your install, placed in the map you are editing. Favourites and recently used pieces are
+    kept.</td></tr>
+  <tr><td><a href="#prefabs">Prefabs</a></td><td>A set of pieces, or a whole building with its lights, saved to be
+    placed again in any map and passed on as a file. The <a href="#prefab-builder">prefab builder</a> makes one from
+    nothing, and <a href="#prefab-testing">Test in game</a> plays it on a blank stage.</td></tr>
+  <tr><td><a href="#buildings">Buildings</a></td><td>The Buildings view: floor boxes drawn over a building so its
+    roof hides and its walls cut down in the game. The map's own buildings can be changed the same way.</td></tr>
+  <tr><td><a href="#clearmap">Clear map</a></td><td>Takes every piece off a map, to build a new one on its light and
+    landing.</td></tr>
+  <tr><td><a href="#mapgrid">Map grid</a></td><td>The play area resized by handles: larger and taller on any map, and
+    any size once it is cleared.</td></tr>
+  <tr><td><a href="#landingzones">Landing zones</a></td><td>Where the squad lands, moved, turned, added and deleted
+    in a view of their own, for Long War and for plain Enemy Within. <b class="ui">Land here</b> plays a zone.</td></tr>
+  <tr><td><a href="#boxselect">Box select</a></td><td>A box drawn over the ground selects everything inside it.</td></tr>
+  <tr><td><a href="#normal-view">Four views</a></td><td>Normal, Buildings, Lights and Landing zones: each selects
+    its own kind of thing only. The Normal view can show lights and floor boxes beside the pieces.</td></tr>
+  <tr><td><a href="#groups-nested">Groups in groups</a></td><td>A group can hold other groups, and
+    <a href="#groups-mixed">lights and buildings</a> too, so a house moves with its lamps and its floor boxes.</td></tr>
+  <tr><td><a href="#cover">Cover blocks that break</a></td><td>A cover block grouped with a breakable piece goes
+    when the piece is destroyed.</td></tr>
+  <tr><td><a href="#view">A copy by dragging</a></td><td>Hold <kbd>Shift</kbd> as you take a move handle to drag a
+    copy.</td></tr>
+  <tr><td><a href="#rules">What builds</a></td><td>Doors without a frame build now. A ladder that isn't expected to
+    climb is warned of and built, where it used to stop the build.</td></tr>
+</table>
+<p>Most of these have been played in the game on one or two maps. The ones that have not are listed under
+  <a href="#ingame">In the game: known limits</a>.</p>
+
+<h2 id="limits">What it can't do yet</h2>
+<p>This is a preview. Before you plan a map around it, these are the things it does not do.</p>
+<div class="limits">
+  <section>
+    <h3>Maps and pieces</h3>
+    <ul>
+      <li><b>A new map starts from one of the game's.</b> <a href="#clearmap">Clear map</a> empties it, and you
+        build on its light, sky and landing. The sun, the time of day and the mission stay the base map's.</li>
+      <li><b>Only the game's own pieces.</b> Any piece of any map in your install can be placed, but you can't import
+        your own models, textures or sounds.</li>
+      <li><b>Move and turn only.</b> No resizing or reshaping, and no changing a piece's material or colour (a light's
+        colour can be changed).</li>
+      <li><b>No ground sculpting.</b> The ground is made of pieces like everything else: you can move, copy and delete
+        them, not reshape them.</li>
+      <li><b>Only the maps your install plays.</b> Maps the game's files hold but its map list leaves out aren't offered.</li>
+    </ul>
+  </section>
+  <section>
+    <h3>Missions and gameplay</h3>
+    <ul>
+      <li><b>No mission scripting.</b> Objectives, where the aliens start, timers and reinforcements stay as the base
+        map has them. Where your squad lands can be changed: <a href="#clearmap">landing zones</a>.</li>
+      <li><b>Pieces the mission script uses are best left where they are.</b> A piece marked
+        <b class="ui">Mission script</b>, moved or deleted, builds, but the script goes on acting on the original; one
+        of the landing's own pieces, moved or deleted as a piece, breaks Long War's landing. The Build warns of both.
+        Move the landing zone instead.</li>
+      <li><b>Long War Rebalance's invisible cover and blockers can't be edited.</b> They show for reference. A
+        mission's own objects (a bomb, the data recovery's capture points) can be moved, but not copied or deleted:
+        <a href="#mission-objects">what a mission adds</a>. Under Long War the bomb and its power nodes go where its
+        bomb rules put them, whatever you do.</li>
+      <li><b>Cover, pathing and line of sight aren't shown or set by hand.</b> The game works them out from the pieces
+        when the map loads. The editor's tile grid is a guide, not the game's answer.</li>
+      <li><b>No play-testing in the editor.</b> No units, no fog of war, no destruction. You test in the game.</li>
+      <li><b>Only abductions have been played from the rotation.</b> <a href="#manage-projects">Manage
+        projects</a> puts builds into campaigns, beside the original maps or in their place; maps that serve other
+        missions install too, with a warning.</li>
+      <li><b>No campaign in a test battle.</b> Play in game starts the mission you pick, with a fixed squad of six
+        squaddies and four Sectoid pods (EXALT pods on EXALT's missions), not your campaign's soldiers. The battle
+        starts by itself and can't be saved.
+        Tick <b>Enable saving</b> in the play window (and in Build and test, and in the tab on a finished build's Play
+        in game button, whose words show when you point at it) to save and load in it: XCOM then opens at its main menu, and <b>F5</b> there starts the battle; Exit to
+        Main Menu and F5 starts it again. Its saves go to new slots, never over a campaign's. Without it, a save never
+        finishes and the broken file is moved out of the game's list once the game closes (into the install's
+        <code>XCOM Map Workshop\broken saves</code>), and a campaign save it replaced is put back. The abduction, terror
+        site, council bomb and rescue, crashed UFO, base defence, alien base, Confounding Light and data recovery have
+        been played this way; UFOs and alien bases come without their commander. Under Long War the EXALT missions
+        (data recovery, covert extraction, the EXALT raid) always have saving on, because Long War saves and reloads
+        them as they start. The play window says how far each kind is known to work.</li>
+    </ul>
+  </section>
+  <section>
+    <h3>Building</h3>
+    <ul>
+      <li><b>Some pieces are surest on the grid:</b> ladders, doors, cars, vans, walls, storey floors and roof slabs
+        build exactly by whole tiles and quarter turns from where their originals stand. Off that grid they build
+        with a warning, and how they play there hasn't been tried. <a href="#rules">More</a></li>
+      <li><b>A ladder needs floor at both ends</b> where you put it, or the Build warns that it isn't expected to climb.</li>
+      <li><b>The Build warns far more often than it refuses.</b> A warning means "this may behave oddly in the
+        game", and the map is built all the same. That includes pieces of a kind the Build has not made before
+        (marked <b>Untried</b>), a single part of a car or a door edited on its own, and pieces of other maps the
+        library used to hold back. A piece the Build can't make at all is <b>left out</b> and listed
+        in the build window, and the rest is built. The prefab test does the same and waits for
+        <b class="ui">Launch test</b> when it left something out.</li>
+      <li><b>Some lights are view only:</b> the sun, moon and sky, the glow of lit surfaces, and lights the map's
+        scripts or a breakable piece switch. New lights are point or spot lights.</li>
+      <li><b>Light edits need a baked build.</b> A quick build makes them without their lighting.</li>
+      <li><b>One build at a time</b>, and a baked build takes minutes.</li>
+    </ul>
+  </section>
+  <section>
+    <h3>The view</h3>
+    <ul>
+      <li><b>It is not the game's picture.</b> Colours and lighting are approximate, most lights cast no shadows, and
+        there is no fog, sky, particles, decals or animation. Doors stand closed.</li>
+      <li><b>No preview of the baked lighting.</b> Only the game shows what a build's lighting looks like.</li>
+    </ul>
+    <h3>The program</h3>
+    <ul>
+      <li><b>Windows 10 or 11 only</b>, 64-bit, for one person on one computer.</li>
+      <li><b>Tried with Long War Rebalance.</b> Plain Enemy Within is a best guess, and Long War without Rebalance
+        hasn't been tried.</li>
+      <li><b>Few maps have been played after editing.</b> Any map opens and builds; most builds haven't been tried in
+        the game yet.</li>
+      <li><b>Projects may not open in the next version.</b> Builds you made keep playing.</li>
+      <li><b>It installs only while the game is closed.</b> Play in game starts XCOM itself, through Steam.</li>
+    </ul>
+  </section>
+</div>
+<p>Things to expect in the game from a variant are under <a href="#ingame">In the game: known limits</a>.</p>
+
+<h2 id="start">Getting started</h2>
+<h3>What you need</h3>
+<ul>
+  <li>Windows 10 or 11, 64-bit, and a browser: Edge, Chrome or Firefox.</li>
+  <li>XCOM: Enemy Within with <b>Long War Rebalance</b>. Plain Enemy Within should work too, but hasn't been tried.</li>
+  <li>Free disk space: each map you open is kept (about 50 to 200 MB each) in <code>Documents\XCOM Map Workshop\cache</code>.</li>
+</ul>
+<p>Everything else comes with the editor. It needs no internet connection and no Unreal tools.</p>
+<h3>Installing and starting</h3>
+<ol class="steps">
+  <li>Run <b>XCOM-Map-Workshop-&lt;version&gt;-Setup.exe</b>. The installer isn't signed yet: if Windows says "Windows
+    protected your PC", choose <b class="ui">More info</b>, then <b class="ui">Run anyway</b>.</li>
+  <li>Follow its pages. The one that matters is <b class="ui">Your XCOM: Enemy Within game</b>: the game folder, the one that
+    holds <code>XEW</code>, usually <code>...\steamapps\common\XCom-Enemy-Unknown</code>. Setup fills it in when it finds
+    the game in Steam, and says whether it is Long War Rebalance or plain Enemy Within.</li>
+  <li>Start <b>XCOM Map Workshop</b> from the Start menu or the desktop shortcut. A small console window opens, then the
+    editor in your browser at <code>http://127.0.0.1:8768/</code>.</li>
+  <li>Keep the console window open while you work. Closing it stops the editor.</li>
+</ol>
+<p><b>From the zip instead:</b> unpack it anywhere and run <b>XCOM Map Workshop.cmd</b>. The first start asks for the
+  game folder in the browser.</p>
+<p>The first time you open a map, the editor reads it from the game, which takes about half a minute. After that it
+  opens at once.</p>
+
+<h2 id="window">The window</h2>
+<p>The 3D view fills the window. Everything else floats over it, and most of it appears only when it is needed: the
+  piece panel with a selection, the undo buttons once something has changed.</p>
+<figure class="zoom">
+  <img src="shots/window.webp" width="1080" height="675" alt="The editor's window with the Bar open, its ground floor cut open, and a pool table selected">
+  <figcaption>The Bar with a project open, cut down to its ground floor, a pool table selected with the Move tool. Click a picture to enlarge it.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="A"><b>Header:</b> the project, the map, the search, and on the right what has changed, undo, and three menus. <a href="#header">More</a></li>
+  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, buildings, lights, and how pieces snap. <a href="#tools">More</a></li>
+  <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
+  <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
+  <li data-n="E"><b>Bottom bar:</b> frame the view, play area or everything, and which floor to cut down to. <a href="#bottom">More</a></li>
+  <li data-n="F"><b>Tile readout:</b> how many tiles the selected piece covers, and its level. <a href="#view">More</a></li>
+</ol>
+
+<h3 id="header">Header</h3>
+<figure><img src="shots/header-left.webp" width="749" height="78" alt="The left of the header: Project, Map and Find a piece"></figure>
+<ol class="legend">
+  <li data-n="1"><b>Project</b> shows the open project's name (a dot after it means unsaved changes) and opens the
+    <a href="#project">Project menu</a>: save, build, install, load.</li>
+  <li data-n="2"><b>Map</b> shows the base map and opens the <a href="#maps">map browser</a> (<kbd>M</kbd>).</li>
+  <li data-n="3"><b>Find a piece</b> (<kbd>Ctrl</kbd>+<kbd>F</kbd>): type part of a name. The list shows each match
+    with how many linked pieces move with it. Arrow keys choose, <kbd>Enter</kbd> or a click selects the piece and
+    frames it, and <kbd>Ctrl</kbd> or <kbd>Shift</kbd> adds it to the selection.</li>
+</ol>
+<p>On a map that serves more than one mission, a <b class="ui">Mission</b> picker shows between Map and the search. It chooses
+  which mission's extra objects are shown (see <a href="#mission-objects">what a mission adds</a>) and which mission
+  <b class="ui">Play in game</b> plays. With a project open it lists the project's <a href="#missions">missions</a>,
+  the kinds the project adds marked <i>(added)</i>.</p>
+<figure><img src="shots/header-right.webp" width="510" height="78" alt="The right of the header: the edit count, Undo, Redo, Reset all, Import notes, View options and help"></figure>
+<ol class="legend">
+  <li data-n="4"><b>What has changed:</b> how many pieces are moved, added and deleted, how many lights and
+    buildings are edited, a resized grid and changed landing zones, and whether that is saved: "not saved" with no
+    project, then "unsaved" or "saved".</li>
+  <li data-n="5"><b>Undo</b> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>).</li>
+  <li data-n="6"><b>Redo</b> (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</li>
+  <li data-n="7"><b>Reset all</b> puts the whole map back to the original: added pieces go, deleted ones return,
+    moved ones go home, groups end, your buildings go and the map's own are restored, and the grid, the landing
+    zones and a clear are undone. It is one undo step, so Undo brings your edits back.</li>
+  <li data-n="8"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
+    approximate colour, say), with their count. They are about the picture, not about your edits.</li>
+  <li data-n="9"><b>View options:</b> lighting, light markers, tile grid and more. <a href="#viewoptions">More</a></li>
+  <li data-n="10"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
+</ol>
+<p>Items 4 to 7 show once something has changed.</p>
+
+<h3 id="tools">Tool strip</h3>
+<div class="split">
+  <figure><img src="shots/rail.webp" width="94" height="668" alt="The tool strip, its sixteen buttons numbered"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Select</b> (<kbd>V</kbd>): click pieces without any handles in the way.</li>
+    <li data-n="2"><b>Move</b> (<kbd>G</kbd>): arrows on the selection. Drag an arrow to move along it, or a small
+      square between two arrows to slide across a plane.</li>
+    <li data-n="3"><b>Rotate</b> (<kbd>R</kbd>): rings on the selection. Drag a ring to turn about its axis.</li>
+    <li data-n="4"><b>Box select</b> (<kbd>T</kbd>): draw a box around many pieces to select them all at once.
+      <a href="#boxselect">More</a></li>
+    <li data-n="5"><b>Add</b> (<kbd>P</kbd>) opens <a href="#add">the piece list</a>, to place more of any piece the map has, a <a href="#add-all">piece of another map</a>, or a new light.</li>
+    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of four
+      views, with the next three; one is on at a time. Hover it for its two switches,
+      <a href="#normal-view">Lights and Floor boxes</a>.</li>
+    <li data-n="7"><b>Buildings view</b> (<kbd>Shift</kbd>+<kbd>B</kbd>), where a building's floor boxes are drawn and fitted. While it is on, only boxes can be selected. <a href="#buildings">More</a></li>
+    <li data-n="8"><b>Lights view</b> (<kbd>Shift</kbd>+<kbd>L</kbd>) shows the map's lights as markers you can select and edit. While it is on, only lights can be selected. <a href="#lights">More</a></li>
+    <li data-n="9"><b>Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>): only landing zones are selected,
+      drawn over everything. <a href="#landingzones">More</a></li>
+    <li data-n="10"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
+      <a href="#mapgrid">More</a></li>
+    <li data-n="11"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
+      piece that stands at an angle).</li>
+    <li data-n="12"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
+      the piece's own origin, usually one of its corners, so a turned piece swings round that corner. Lit, the middle of
+      the selection, so a piece turns in place. With snap at <b>96</b>, the middle keeps to the nearest tile centre or
+      corner, so pieces on the tiles stay on them (a piece one tile by two still moves half a tile when turned). A typed
+      turn in the piece panel turns about the same point.</li>
+    <li data-n="13"><b>Snap</b> cycles through three settings; the button's corner shows which.
+      <b>Off</b>; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter turns,
+      counted from where the piece stood. The corner shows <b>R</b> when the selection is a piece that
+      <a href="#rules">only moves on the grid</a>.</li>
+    <li data-n="14"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
+      when moved up or down. <a href="#rules">More</a></li>
+    <li data-n="15"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
+      off to move one piece of a set. A car's parts, a van's, and a door with its frame always move together.</li>
+    <li data-n="16"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
+  </ol>
+</div>
+<p>A lit button with an outline is on. Hover any button for a reminder of what it does.</p>
+<h4 id="normal-view">The views, and the Normal view's switches</h4>
+<div class="split">
+  <figure><img src="shots/normal-flyout.webp" width="311" height="124" alt="The Normal view button with its flyout: Lights and Floor boxes"></figure>
+  <div>
+    <p>Buttons 6 to 9 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
+      <b>Buildings view</b>, only lights in the <b>Lights view</b>, only <a href="#landingzones">landing zones</a> in
+      the <b>Landing zones view</b>. Pressing the view that is on, or <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the
+      normal view.</p>
+    <p>Hover the Normal view button for two switches. They let the normal view show and select more than pieces,
+      so a house can be handled with its lamps and its building in one go:</p>
+    <ul>
+      <li><b>Lights:</b> the lights are drawn and can be clicked, moved, copied and deleted with pieces. A light's
+        colour, radius and cones are still set in the Lights view.</li>
+      <li><b>Floor boxes:</b> your buildings' boxes are drawn, and a building is selected
+        <a href="#building-whole">whole</a>, by a click on a box's edge.</li>
+    </ul>
+    <p>Both are off whenever a map opens.</p>
+  </div>
+</div>
+
+<h3 id="view">The view and the camera</h3>
+<table>
+  <tr><th>To</th><th>Do this</th></tr>
+  <tr><td>Orbit</td><td>Drag with the left button. With <b class="ui">Keys move along the view</b> ticked, the drag looks round instead: the camera stays where it is and only turns and tilts</td></tr>
+  <tr><td>Pan</td><td>Drag with the right button, or hold <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys (<kbd>Shift</kbd> moves faster)</td></tr>
+  <tr><td>Move along the view</td><td>Tick <b class="ui">Keys move along the view</b> in View options: then <kbd>W</kbd> and <kbd>S</kbd> (Up and Down) move forward and back the way the camera faces, climbing or descending with its tilt, and <kbd>A</kbd> and <kbd>D</kbd> (Left and Right) sideways</td></tr>
+  <tr><td>Turn</td><td>Hold <kbd>Q</kbd> or <kbd>E</kbd> to turn the view left or right (<kbd>Shift</kbd>: faster). The camera circles the point it looks at, or with <b class="ui">Keys move along the view</b>, turns where it stands</td></tr>
+  <tr><td>Change the camera's speed</td><td>The three sliders under Camera in <a href="#viewoptions">View options</a>: moving, turning with the keys, and turning with a drag</td></tr>
+  <tr><td>Zoom</td><td>Scroll</td></tr>
+  <tr><td>Go to a piece</td><td>Double-click it, or select it and press <kbd>F</kbd></td></tr>
+  <tr><td>See the whole map again</td><td><b class="ui">Frame</b> in the bottom bar</td></tr>
+  <tr><td>Select</td><td>Click a piece. <kbd>Ctrl</kbd> or <kbd>Shift</kbd>+click adds one to the selection, or takes it out</td></tr>
+  <tr><td>Clear the selection</td><td><kbd>Esc</kbd></td></tr>
+</table>
+<ul>
+  <li><b>The handles' colours:</b> red is the game's X, blue is its Y, and green is up (Z). The piece panel uses the same letters.</li>
+  <li><b>The tile grid</b> shows only around the selected piece, or the piece being placed. The game's tiles are 96
+    units across and 64 up.
+    <ul>
+      <li>Filled tiles are the ones the piece reaches well into; outlined ones it only touches at the edge.</li>
+      <li>Tiles turn blue when the piece floats above the floor under it. A floating piece may give no cover.</li>
+      <li>The readout above the bottom bar counts them: "2 tiles + 10 at the edge · level 0".</li>
+    </ul>
+  </li>
+  <li><b>While you drag a handle</b>, a hint says what is moving. <kbd>Esc</kbd> cancels the drag.</li>
+  <li><b>Hold <kbd>Shift</kbd> as you take a move handle</b> (an arrow or a plane square) to drag a copy along it. The original stays where it is.</li>
+</ul>
+
+<h3 id="bottom">Bottom bar and floors</h3>
+<figure><img src="shots/dock.webp" width="542" height="92" alt="The bottom bar: Frame, Scene and Floors"></figure>
+<ol class="legend">
+  <li data-n="1"><b>Frame</b> fits the whole view in the window: the play area in Interior, everything in Full.</li>
+  <li data-n="2"><b>Scene:</b> <b class="ui">Interior</b> shows the area the game plays on; <b class="ui">Full</b> adds
+    the backdrop around it (distant buildings, the street beyond the edge). Interior draws a piece that reaches into
+    the area whole, a car across the edge included, unless it stretches more than four tiles past it.</li>
+  <li data-n="3"><b>Floors:</b> <b class="ui">All</b> shows buildings whole, roofs closed. A number cuts every building
+    down to that floor, so you can see and edit inside. It is also the <b>Floor picker</b>: with a floor chosen, a floor
+    piece you place goes to that floor's height.</li>
+</ol>
+<div class="pair">
+  <figure><img src="shots/floors-all.webp" width="470" height="320" alt="The Bar with all floors: its roof closed"><figcaption>Floors: All</figcaption></figure>
+  <figure><img src="shots/floors-1.webp" width="470" height="320" alt="The Bar cut down to floor 1: its ground floor open"><figcaption>Floors: 1</figcaption></figure>
+</div>
+<p>Each part of the bar shows only on maps where it applies: a map with no buildings has no Floors.</p>
+
+<h3 id="piece">Piece panel</h3>
+<p>The panel on the right appears when something is selected.</p>
+<div class="split">
+  <figure><img src="shots/piece-panel.webp" width="348" height="651" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>What it is:</b> the piece's name, its kind and its map, then chips with what you should know
+      about it (listed below).</li>
+    <li data-n="2"><b>Copy</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and <b>Delete</b> (<kbd>Del</kbd>). After Copy,
+      <kbd>Ctrl</kbd>+<kbd>V</kbd> shows the copy at the cursor and a click places it.</li>
+    <li data-n="3"><b>Position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
+    <li data-n="4"><b>Rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
+    <li data-n="5"><b>Reset piece</b> puts the selected pieces back where the map has them. <b>Save as prefab…</b>
+      saves what is selected as a <a href="#prefabs">prefab</a>.</li>
+    <li data-n="6"><b>Source details</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
+      and its health, which building floor it belongs to, and what moves with it.</li>
+    <li data-n="7"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
+  </ol>
+</div>
+<h4>The chips</h4>
+<table class="wrapfirst">
+  <tr><th>Chip</th><th>What it means</th></tr>
+  <tr><td>Moves with 2 other pieces</td><td>Linked pieces: they were placed together and move together (a car's body and glass).</td></tr>
+  <tr><td>Added copy</td><td>A piece you added. Source details names the piece it copies.</td></tr>
+  <tr><td>Recipe snap</td><td>It moves only by whole tiles and quarter turns. <a href="#rules">Why</a></td></tr>
+  <tr><td>Group of 2</td><td>It is in a <a href="#groups">group</a>.</td></tr>
+  <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
+  <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's. The Build moves, copies and deletes it with the piece. The editor doesn't show effects yet.</td></tr>
+  <tr><td>Mission loot · Not loot</td><td>A collectible such as a UFO power core. A copy breaks like the original, but the game doesn't count it as loot.</td></tr>
+  <tr><td>Untried</td><td>A kind of piece the Build has not made before. The editor warns when you edit one; the Build makes it all the same, and leaves it out (named in its window) only if it can't.</td></tr>
+  <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
+  <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
+  <tr><td>A package's name</td><td>The piece comes from a mission or from Long War Rebalance's patch, not from the map. It can be looked at, not edited.</td></tr>
+</table>
+
+<h3 id="boxselect">Box select</h3>
+<p>To select many pieces at once, a whole house for one, draw a box around them.</p>
+<figure class="zoom">
+  <img src="shots/box-select.webp" width="1080" height="675" alt="A select box drawn over part of the Bar's car park, the pieces inside it outlined in white">
+  <figcaption>A select box: the pieces outlined in white are the ones it would take.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Box select</b> in the tool strip (<kbd>T</kbd>) arms the tool: the cursor becomes a cross. Press on
+    the ground at one corner of what you want, and drag to the opposite corner.</li>
+  <li data-n="2"><b>The box.</b> It starts a little under the ground you drew on and reaches up to the top of the
+    map's grid. The pieces it would take are outlined in white, and follow as you change it.</li>
+  <li data-n="3"><b>A white dot on each of its six sides:</b> drag one to stretch that side. Pull the top down to take
+    one storey only.</li>
+  <li data-n="4"><b>The dot in the middle:</b> drag it to move the box over the ground.</li>
+  <li data-n="5"><b>The bar</b> says how many pieces are inside. <b class="ui">Select</b> (<kbd>Enter</kbd>) makes them
+    the selection. <b class="ui">Add to selection</b> (<kbd>Shift</kbd>+<kbd>Enter</kbd>) keeps what was selected
+    as well. <b class="ui">Draw again</b> starts a new box, and <b class="ui">Cancel</b> (<kbd>Esc</kbd>) puts it
+    away.</li>
+</ol>
+<ul>
+  <li><b>A piece is inside when its middle is.</b> A wall that sticks out of the box a little is still taken; a
+    neighbour's wall that pokes in is not. Check the white outlines before you select.</li>
+  <li><b>A group comes whole</b> when any of its pieces is inside, and so does a set of linked pieces, as with a
+    click.</li>
+  <li><b>Lights and buildings are taken when they are shown.</b> With the Normal view's
+    <a href="#normal-view">Lights switch</a> on, the lights inside are taken with the pieces; in the Lights view,
+    only lights are. With its <b class="ui">Floor boxes</b> switch on, a building, yours or
+    <a href="#building-copy-map">the map's</a>, is taken <a href="#building-whole">whole</a> when the middle of one of
+    its boxes is inside. The bar counts them.</li>
+  <li><b>Only what is drawn is taken.</b> With a floor chosen in the <a href="#bottom">Floors buttons</a>, the hidden
+    floors above are left out. Pieces of a mission or of Long War Rebalance's patch are never taken.</li>
+  <li><b>For an outline a box doesn't fit</b>, an L-shaped house for one: select one part, draw again over the
+    other, and use <b class="ui">Add to selection</b>.</li>
+  <li>The box is only a tool: it is not saved with the project, and making or changing it is not an undo step.</li>
+</ul>
+
+<h3 id="groups">Groups and Align</h3>
+<p>With two or more pieces selected, the piece panel gains two sections.</p>
+<div class="split">
+  <figure><img src="shots/group.webp" width="350" height="292" alt="The group section of the piece panel, for a group of two kegs"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The group.</b> <b class="ui">Group</b> (<kbd>Ctrl</kbd>+<kbd>G</kbd>) joins the selected
+      pieces. A group selects and moves as one: picking any of its pieces picks them all. It shows in gold.</li>
+    <li data-n="2"><b>Ungroup</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>) ends the group: its pieces are
+      separate again. To move one piece of a group on its own, ungroup, move it, and group them again.</li>
+    <li data-n="3"><b>Break together in the game:</b> when one of the group's breakable pieces is damaged or destroyed,
+      the others are too. Use it for a cover piece made of two, so it can't be left half standing. A cover block
+      in the group goes when one of those pieces is destroyed. Grouping is the editor's alone; this option is what
+      reaches the game.</li>
+  </ol>
+</div>
+<h4 id="groups-nested">Groups inside groups</h4>
+<p>A group can hold other groups. Group a table and its chairs, group a counter and its stools, then group the two
+  as a room: each stays a group of its own inside the room.</p>
+<ul>
+  <li><b>To make one:</b> select pieces and whole groups together (a click on any piece of a group picks the
+    group), then <b class="ui">Group</b> (<kbd>Ctrl</kbd>+<kbd>G</kbd>). The groups are kept as they are inside the
+    new one.</li>
+  <li><b>A click picks the outermost group</b> the piece is in. The panel says how many pieces it has and how many
+    groups are inside.</li>
+  <li><b>Ungroup works one level at a time</b>, from the outside in. Ungroup the room and the table group and the
+    counter group are there again, each selecting as one. Ungroup one of those to reach its pieces.</li>
+  <li><b>Copy and paste</b> copy the whole tree: the copy has the same groups inside it.</li>
+  <li><b>Break together</b> is each group's own option, over the pieces it holds itself. The groups inside it break
+    by their own.</li>
+</ul>
+<h4 id="groups-mixed">Lights and buildings in a group</h4>
+<p>A group can also hold lights and buildings (yours or the map's), so a house keeps its lamps and its floor boxes when it is
+  moved or copied.</p>
+<ul>
+  <li><b>To add them:</b> have them in the selection when you press <b class="ui">Group</b>. Lights are selected
+    with the Normal view's <a href="#normal-view">Lights switch</a> on; a building with its <b class="ui">Floor boxes</b> switch on
+    (<a href="#building-whole">more</a>). <a href="#boxselect">Box select</a> takes all three at once.</li>
+  <li><b>They follow the group even when they are not drawn.</b> Pick any piece of the group and its lights and
+    floor boxes move, turn, copy and are deleted with it, with both switches off too. (In the Lights view and
+    the Buildings view each light and each box is on its own.)</li>
+  <li><b>A group with a building moves by whole tiles and turns by quarter turns</b>, whatever the snap, so the
+    floor boxes stay on the tile grid.</li>
+  <li><b>A copy of the group</b> has its own lights and a new building with the same floors.</li>
+  <li>Lights and buildings take no part in <b>Break together</b>.</li>
+  <li><b>A cover block over a piece that can be destroyed:</b> group the block with the piece and tick
+    <b class="ui">Break together in the game</b>. When the piece is destroyed the block goes too, so no invisible
+    wall is left. One breakable piece is enough, and nothing else destroys the block. An invisible floor stays.</li>
+</ul>
+<div class="split">
+  <figure><img src="shots/align.webp" width="350" height="165" alt="The Align section of the piece panel"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Target:</b> the piece or group the others line up with. It is the last one you picked unless you
+      choose another here. A white box marks it in the view.</li>
+    <li data-n="2"><b>Axes and edge:</b> tick any of X, Y (across the floor) and Z (up), choose what lines up (centres,
+      low edges or high edges), then <b class="ui">Align</b>. The others move; nothing turns. It is one undo step.</li>
+    <li data-n="3"><b>What will happen</b>, in words.</li>
+  </ol>
+</div>
+
+<h3 id="add">Add: the piece list</h3>
+<p><b class="ui">Add</b> (<kbd>P</kbd>) opens <b>Add a piece</b>. Under <b class="ui">This map</b> it lists one entry
+  for each distinct piece the map has placed. It lists the original map, so a piece you deleted still has its
+  entry. <b class="ui">All maps</b> lists <a href="#add-all">the pieces of the game's other maps</a>, and
+  <b class="ui">Prefabs</b> <a href="#prefabs">the sets of pieces you have saved</a>.</p>
+<div class="split">
+  <figure><img src="shots/add.webp" width="436" height="812" alt="The piece list open beside the tool strip"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Filter</b> by name, kind or material.</li>
+    <li data-n="2"><b>Kind</b> uses the same categories in This map, All maps and the prefab builder.
+      <b>Floors</b> finds flat pieces that carry saved floor tiles. <b>Lights</b> has point and spot lights.
+      <b>Invisible</b> has <a href="#cover">cover blocks and invisible floors</a>.</li>
+    <li data-n="3"><b>Where:</b> the play area or the backdrop, on maps that have a backdrop.</li>
+    <li data-n="4"><b>Sort:</b> A to Z, largest first, or most used.</li>
+    <li data-n="5"><b>An entry:</b> its picture, name, kind, and size in game units (width × depth × height); on the
+      right, how many the map has. An entry is everything a copy would take along: a van is one entry of several parts.</li>
+    <li data-n="6"><b>How many</b> pieces and lights the list holds.</li>
+    <li data-n="7"><b>Close</b> (or <kbd>P</kbd> again).</li>
+    <li data-n="8"><b>All maps:</b> <a href="#add-all">pieces from the game's other maps</a>.</li>
+  </ol>
+</div>
+<p><b>To place one:</b> click an entry. A see-through preview follows the cursor. <kbd>R</kbd> turns it a quarter turn
+  (<kbd>Shift</kbd>+<kbd>R</kbd> the other way). Click in the view to place it; <kbd>Shift</kbd>+click places it and
+  keeps going. <kbd>Esc</kbd> stops. The new piece is selected, ready to move or turn.</p>
+<h3 id="add-all">Pieces from other maps</h3>
+<p><b class="ui">All maps</b> lists the pieces of every map in the game install, so a lamp post from the Police Station
+  or a wall from an alien ship can stand in the map you are editing. The first time, the editor reads the game's maps
+  (<b class="ui">Read the game's maps</b>: about half a minute, once; nothing in the game is changed). After that
+  each piece is read from the game the first time you use it; the Project menu's <b class="ui">Cache everything…</b>
+  reads them all at once instead.</p>
+<div class="split">
+  <figure><img src="shots/add-all.webp" width="436" height="812" alt="The piece list showing the pieces of all maps"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>All maps</b>, beside This map. The editor remembers which one you used last.</li>
+    <li data-n="2"><b>Filter</b> by name, kind, material or the name of a map.</li>
+    <li data-n="3"><b>Kind, map and sort:</b> the middle menu keeps only the pieces placed in one map. Sort A to Z,
+      largest first, most used, in most maps, or recently used.</li>
+    <li data-n="4"><b>Can be placed</b> keeps the pieces the Build can bring into another map today: scenery,
+      props that break, walls and floors that break, doors, cars, vans, ladders, collectibles and bodies. A car, a
+      van or a door with its frame is one entry and is placed as one; a van brings the room inside its box. Untick
+      it to see the rest, greyed, each saying why not: mostly helpers that are hidden in their own maps. <b>Not in this map</b> leaves out what this map has
+      itself. <b>Favourites</b> shows only the starred pieces.</li>
+    <li data-n="5"><b>An entry:</b> its picture, name, kind, size, and the map it comes from (or in how many maps it
+      stands). <b>Here</b> marks a piece this map has too.</li>
+    <li data-n="6"><b>The star</b> makes it a favourite. Favourites and recently used pieces are kept with your
+      settings, for every map and project.</li>
+    <li data-n="7"><b>How many</b> pieces match.</li>
+  </ol>
+</div>
+<p>Placing one works as from This map: click it, then click in the view. The piece panel shows the map it is from.
+  A piece that keeps to the tiles (a wall, a door) snaps to this map's tiles as it stood on its own map's. A ladder
+  needs floor at its foot and at its top, as a copy of one of the map's own does; put it on an outer wall with
+  nothing standing at its foot.
+  The Build copies the piece into your map with the meshes, materials and textures it needs, so the built map grows a
+  little (the entry's tooltip says by how much at most).</p>
+<p><b>Lighting.</b> Built with <b class="ui">Bake the lighting</b>, a piece from another map is lit for where it
+  stands, and the pieces around it take its shadow. Built without, it keeps the light it had in its home map, so it
+  can look too dark or too bright where you put it.</p>
+
+<h3 id="cover">Cover blocks and invisible floors</h3>
+<p>Two pieces the game never draws, both under Kind: <b class="ui">Invisible</b> in the piece list. A <b>cover
+  block</b> adds cover and blocks movement where the map has nothing to do it, as Long War's own map patches do (or,
+  with Cover set to None, only blocks movement). An <b>invisible floor</b> is something to stand on where the map has
+  no floor. Both work on plain Enemy Within too.</p>
+<figure class="zoom">
+  <img src="shots/cover-blocks.webp" width="1080" height="675" alt="A high cover block, a low one and an invisible floor on the Bar's car park, the high block selected with its handles and its panel">
+  <figcaption>A high cover block (orange), a low one (blue) and an invisible floor (green), as the editor draws them.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>A high cover block:</b> full cover for a unit beside it, and it blocks sight.</li>
+  <li data-n="2"><b>A low cover block:</b> half cover, and units see over it.</li>
+  <li data-n="3"><b>An invisible floor:</b> a thin plate with its top at the height you place it at.</li>
+  <li data-n="4"><b>Its handles:</b> drag a white dot to move that face (four sides, the top and the bottom) and size
+    the block.</li>
+  <li data-n="5"><b>Cover:</b> high, low, or none (a <a href="#blocker">blocker</a>), and under it what the block
+    does to line of sight: a high block stops it as a wall does (a unit beside it can still lean round its ends),
+    units see over low cover and through a blocker.</li>
+  <li data-n="6"><b>Its size</b> and <b>what it will do</b> where it stands, in words.</li>
+</ol>
+<p><b>To place a cover block:</b> press <kbd>P</kbd>, choose Kind: <b class="ui">Invisible</b>, pick
+  <b class="ui">Cover block</b> and click its first tile; with tile snap on it stays on the tiles. It starts as one
+  tile of high cover, one tile tall. Size it with its handles and set its cover in the piece panel. Turn it with
+  <kbd>R</kbd>; with snap off, the turn handles can also tip it onto its side.</p>
+<p id="cover-size"><b>To size a block:</b> select it and drag one of its white dots. Each moves one face along the
+  block's own axes: its four sides, its top and its bottom. The snap setting on the rail sets the steps:</p>
+<ul>
+  <li><b>96:</b> whole tiles across, and whole tiles up from its first top (96 units over the floor for high cover,
+    84 for low), as Long War's own blocks stand.</li>
+  <li><b>24:</b> steps of 24 units.</li>
+  <li><b>Off:</b> smooth, to the unit.</li>
+</ul>
+<p>A drag on a low side (−X, −Y) moves the block's corner, so the far side stays where it is. <kbd>Esc</kbd> during
+  the drag puts it back, and each drag is one undo step. A block can be 8 units to 16 tiles across, and its bottom can
+  leave the floor.</p>
+<p><b>A block smaller than a tile</b> does what the game's tile rules make of it. The panel says which, for where it
+  stands. Read from the game's code and not played yet:</p>
+<ul>
+  <li><b>One that fills the middle of a tile</b> stops units standing in it.</li>
+  <li><b>One across the line between two tiles' centres, 64 units over the floor, is a wall:</b> units can't cross
+    between those two tiles. A thin block along a tile edge does this, units stand on both sides of it, and both
+    sides get its cover.</li>
+  <li><b>The game looks for cover 44 to 60 units over the floor</b>, along the lines through the tiles' centres. A
+    block whose top is under 44, or one off those lines (in a tile's corner, say), gives none.</li>
+  <li><b>One under 4 units through fills no tile</b>, so on its own it gives no cover. It can still wall off a tile
+    edge.</li>
+</ul>
+<ul>
+  <li><b>Units can't walk through a block</b>, and the units beside it get its cover. In the game you won't see
+    it.</li>
+  <li id="cover-break"><b>Over a piece that can be destroyed, make the block break with it.</b> A block alone is
+    never destroyed, so a block over a car leaves an invisible wall when the car is gone.
+    <a href="#groups">Group</a> the block with the piece and tick <b class="ui">Break together in the game</b>: the
+    block then goes when the piece is destroyed. One breakable piece is enough, and it can be one of the map's own,
+    left where it stands.</li>
+  <li><b>On a slope</b> (a ramp, a hillside) the game gives no cover to a soldier standing on the sloped tiles, from
+    a block or anything else: there a block only stops movement, and gives cover to soldiers on flat ground beside
+    it.</li>
+</ul>
+<p id="blocker"><b>To stop units walking somewhere without giving cover:</b> place a cover block and set its
+  Cover to <b>None</b>. It becomes a blocker (drawn purple): units can't walk into its tiles or stand on it, units
+  beside it get no cover from it, and units see past it. It sizes, turns and breaks with a piece as any cover block.
+  Not played in the game yet.</p>
+<p><b>To place an invisible floor:</b> pick <b class="ui">Invisible floor</b> in the same list. Size it with its
+  four side handles, as a block, and set its height with the <b>Z</b> field. It carries the tiles whose centres it
+  covers, since the game looks for a tile's floor at its centre; the piece panel counts them.</p>
+<ul>
+  <li><b>Units only get onto it from somewhere they can already reach</b> at that height, or by a ladder. A
+    <a href="#rules">ladder</a> counts an invisible floor as floor for its foot or its top.</li>
+  <li><b>Placed from the list, its top goes just above the ground</b> at the centre of its tile, which is where the
+    game looks for a floor. The ground there is the game's collision, which can stand a few units above the ground
+    you see, so a floor may look raised. The piece panel says how high it stands there, and
+    <b class="ui">Fit to ground</b> puts it back just above the ground.</li>
+  <li><b>Over a ramp, a floor makes the tile flat</b>, so a soldier on it gets cover. A floor gives no cover itself,
+    so the tile below it on a ramp doesn't get cover from it as from a step.</li>
+  <li><b>It does not break.</b> In a group that breaks together, an invisible floor stays.</li>
+</ul>
+
+<h3 id="prefabs">Prefabs</h3>
+<p>A <b>prefab</b> is a set of pieces saved to be placed again as one thing: a barricade, a market stall, or a whole
+  building with its lights. Prefabs are kept in a library of their own, apart from maps and projects, so one can be
+  placed in any map and passed on as a file. They are listed under <b class="ui">Prefabs</b> in the piece list.</p>
+<div class="split">
+  <figure><img src="shots/prefabs.webp" width="436" height="652" alt="The piece list showing the prefab library"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Prefabs</b>, beside This map and All maps.</li>
+    <li data-n="2"><b>Filter</b> by name, or by the name of a map its pieces come from.</li>
+    <li data-n="3"><b>New</b> opens an empty prefab builder.</li>
+    <li data-n="4"><b>Save selection…</b> saves what is selected in the view as a new prefab.</li>
+    <li data-n="5"><b>Import…</b> adds a prefab file someone passed on.</li>
+    <li data-n="6"><b>A prefab:</b> its picture, name, what it holds and the tiles it covers. Click it to place it.</li>
+    <li data-n="7"><b>Edit</b>, <b>Rename</b>, <b>Duplicate</b>, <b>Export</b> and <b>Delete</b>.</li>
+    <li data-n="8"><b>How many</b> prefabs the library holds. Hover it to see the folder they are kept in.</li>
+  </ol>
+</div>
+<p><b>To save one:</b> select what should be in it, then press <b class="ui">Save as prefab…</b> in the piece panel
+  (or <b class="ui">Save selection…</b> here) and give it a name. <a href="#boxselect">Box select</a> takes a whole
+  building at once; with the Normal button's <a href="#normal-view">switches</a> on it takes the lights and the
+  building's floor boxes too. The window says what goes in, and lists anything that can't.</p>
+<ul>
+  <li><b>What goes in:</b> the map's own pieces and the ones you added (pieces from other maps too), cover blocks and
+    invisible floors, lights, the groups among them, and buildings: your own, or
+    <a href="#building-copy-map">the map's own</a>, each saved as a building of the prefab.</li>
+  <li><b>Lights</b> are saved with all their values, so the prefab needs no light to copy from in the map it is
+    placed in. A light's finer settings that the light panel doesn't show go back to the usual ones.</li>
+  <li><b>Left out:</b> pieces of the levels a mission streams in (they aren't the map's own).</li>
+  <li><b>A name the library already has</b> turns Save into <b class="ui">Replace</b>: the prefab is saved over the
+    old one. What you placed from the old one stays as it is.</li>
+  <li>Saving changes nothing in the map or the project.</li>
+</ul>
+<p><b>To place one:</b> click it in the list, then click in the view. <kbd>R</kbd> turns it a quarter turn before you
+  click; <kbd>Shift</kbd>+click places it and keeps going. It arrives as one <a href="#groups">group</a>, named after
+  the prefab in the piece panel: it selects, moves, copies and deletes as one. <b class="ui">Ungroup</b> it to change
+  single pieces; the groups it had inside stay groups. Placing is one undo step.</p>
+<ul>
+  <li><b>What you place is a copy.</b> Changing or deleting the prefab later changes nothing already placed, and a
+    project doesn't need the prefab's file.</li>
+  <li><b>By whole tiles.</b> A prefab with a building in it, or with a wall, door, car, van or ladder, is placed by
+    whole tiles, whole levels and quarter turns, whatever Snap says, so those pieces
+    <a href="#rules">build as they should</a>. Any other prefab goes where you click, as a piece does.</li>
+  <li><b>In another map,</b> its pieces are brought from their home maps, as <a href="#add-all">pieces from other
+    maps</a> are. The first time, the editor reads them from the game, which takes a moment for a large prefab.
+    A piece that can't be brought into another map is left out, and the message says which. One the library
+    marks <b>Untried</b> is brought with a warning.</li>
+  <li><b>Maps missing</b> on a row means this game install lacks a source map. The editor looks for matching
+    recipes when you place the prefab and warns about any pieces it leaves out.</li>
+  <li><b>A building in a prefab</b> placed where it overlaps another building builds, with a warning: a piece in
+    both is listed by both.</li>
+  <li><b>Lighting</b> is as for pieces from other maps: build with <b class="ui">Bake the lighting</b> to light the
+    prefab for where it stands.</li>
+</ul>
+<p><b>Passing one on.</b> <b class="ui">Export</b> saves the prefab as a small <code>.json</code> file. It holds the
+  names of the pieces, where they stand and any saved recipe keys. The recipient needs game maps with those pieces.
+  <b class="ui">Import…</b> adds such a file to your library. If the library already has
+  that prefab, the editor asks: <b class="ui">Replace it</b> saves the file over yours, <b class="ui">Keep both</b>
+  adds it beside yours with "(imported)" after its name. <b class="ui">Delete</b> moves a prefab's file to the
+  library's <code>.workshop\deleted</code> folder instead of erasing it.</p>
+<h4 id="prefab-builder">The prefab builder</h4>
+<p><b class="ui">New</b> in the Prefabs tab opens an empty workspace in the main editor. A row's
+  <b class="ui">Edit</b> opens that prefab for editing, including imported prefabs and ones saved from a map
+  selection. The map browser (<kbd>M</kbd>) also has a <b class="ui">Prefabs</b> group.</p>
+<p>Add pieces from <b class="ui">All maps</b>, or place another prefab and use <b class="ui">Ungroup</b> to edit
+  its pieces. Choose <b class="ui">Lights</b> for point and spot lights, or <b class="ui">Invisible</b> for cover
+  blocks and invisible floors. The Buildings and Lights views, box select, nested groups, copy, paste and undo work as in a map. The
+  ground grid grows with your work; it is a drawing guide and is never saved. Negative X and Y are fine.</p>
+<p><b class="ui">Prefab → Save</b> (<kbd>Ctrl+S</kbd>) saves everything, including lights and floor boxes hidden
+  by the current view. Floor boxes alone can be saved. The first save asks for a name; later saves write the next
+  revision. <b class="ui">Save as…</b> makes another prefab, or explicitly replaces a different one after
+  confirmation, leaving the original unchanged. To update the one being edited, use Save.</p>
+<p>The footprint and height appear at the bottom. Height 0 is the drawn grid. A map holds at most
+  <b>128 by 128 tiles</b>, and a tile grid <b>0 to 1,920 units high</b> (30 levels), with up to
+  <b>192 units sticking out</b> under or over it: a hull or crater under the ground, a roof, floor boxes, lights.
+  Out of the grid there are no tiles, so nothing there can be stood on or give cover; the readout says when
+  something sticks out. The game's own maps are at most 18 levels (1,152 units) high: over that the readout says
+  "not played", because nothing that tall has been tried in the game yet. Light influence radii do not count. The
+  usual cursor storeys are guides; floor boxes can have other heights. A prefab larger than a map holds is saved
+  and placed all the same, with a warning on the readout and on its card. Nothing is lifted automatically. A
+  selection saved from a map keeps its height: the map's grid bottom becomes 0. A prefab placed where it reaches
+  outside the map's grid is placed, with a notice saying how far it reaches out.</p>
+<p>Under the readout, a <b class="ui">Problems</b> chip says what <b class="ui">Test in game</b> would say of the
+  prefab as it stands, without building it: how many pieces would be left out and how many warnings there are.
+  Click it for the list; a row selects its piece. It is checked when you open and save the prefab, and
+  <b class="ui">Check again</b> brings it up to date after an edit.</p>
+<p>The test stage's ground is hidden: it is still there to stand on, so what reaches under it shows, and the game
+  draws its own tile grid under the cursor. A noon sky surrounds the stage, above and below. A test battle has no
+  aliens.</p>
+<p>Doors, ladders, cars, vans and fracturing pieces are meant to stand whole tiles and levels from where their
+  originals stand. When one is off that grid, a warning over the size names it; it still builds and tests, and how
+  it plays there has not been tried. <b class="ui">Show</b> selects it;
+  <b class="ui">Align to grid</b> moves the whole prefab, lights and floor boxes too, the smallest distance that puts
+  every such piece on the grid, in one undo step. Move it by whole levels afterwards to set its height: it stays
+  aligned.</p>
+<p>When you open a prefab with missing pieces, the builder looks for the same recipes in your local map catalogue
+  and warns about pieces it still can't load. Matches keep their positions and links. You can undo the recovery
+  or save the prefab with its new sources. Unresolved records stay in the document. After scanning or rescanning
+  <b class="ui">All maps</b>, use <b class="ui">Prefab → Find missing pieces</b> to try again.
+  Unsaved changes to an already saved prefab are kept for
+  recovery and offered when you reopen it. Opening a map, project or prefab asks <b class="ui">Save</b>,
+  <b class="ui">Discard</b> or <b class="ui">Cancel</b> first if there are changes. A failed or cancelled save
+  keeps the current workspace open.</p>
+<p>Glowing props, such as neon signs and lamps, carry their matched area lights when you move or copy them in a
+  prefab. Quick builds keep those lights live, and baking adds their glow to nearby static surfaces.</p>
+<h4 id="prefab-testing">Testing a prefab in game</h4>
+<p>In the builder, choose <b class="ui">Prefab → Test in game</b>. The dialog shows the prefab's dimensions
+  and the game install that will open. <b class="ui">Build and test</b> uses the current contents, including
+  unsaved edits or a prefab you haven't named. <b class="ui">Bake the lighting</b> is off by default, for a quicker
+  check of appearance, movement, cover or cutaway; the stage has a neutral fill light either way. Tick it to see the
+  prefab's shadows and the glow of its lights on nearby surfaces.</p>
+<figure class="zoom"><img src="shots/prefab-test.webp" width="460" height="314" alt="Test in game dialog with Bake the lighting and Enable saving unchecked and a Build and test button"></figure>
+<p>The battle starts on the blank stage with the prefab placed beside the squad. If the entire footprint leaves
+  no room for the squad, or the editor can't resolve all the pieces, the progress window shows the problem.
+  You can cancel preparation or building there. If you reload before the build launches, reopen the test and
+  choose <b class="ui">Launch test</b> when it is ready. Close XCOM when you finish to restore the test install.</p>
+
+<h3 id="lights">Lights</h3>
+<p>The map's placed lights can be edited as pieces are. The <b class="ui">Lights view</b> in the tool strip
+  (<kbd>Shift</kbd>+<kbd>L</kbd>) shows them as markers: a bulb for a point light, a cone for a spot light, each in its
+  light's colour. Grey markers are view only, hollow ones are switched off. While the view is on only lights can be
+  selected, so a piece is never moved by accident; a light that is in a group moves on its own here. To handle
+  lights together with pieces, use the Normal view's <a href="#normal-view">Lights switch</a> instead.</p>
+<figure class="zoom">
+  <img src="shots/lights.webp" width="1080" height="675" alt="A spot light selected in the Bar, with its cone drawn, its handles and the light panel">
+  <figcaption>A spot light selected: its cones drawn in the view, and the light panel on the right.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Lights view</b> turns the view on and off. Click a marker to select its light. Move, turn, copy and
+    delete it as you would a piece.</li>
+  <li data-n="2"><b>Radius handle:</b> drag the white dot to change how far the light reaches.</li>
+  <li data-n="3"><b>Outer cone handle</b> (spot lights): drag the dot on the left of the rim. Nothing is lit outside this cone.</li>
+  <li data-n="4"><b>Inner cone handle:</b> the smaller dot on the right. Inside this cone the light is at full brightness.</li>
+  <li data-n="5"><b>Colour:</b> the picker, or red, green and blue from 0 to 255.</li>
+  <li data-n="6"><b>Brightness</b> (0 to 100) and <b>Radius</b> in game units.</li>
+  <li data-n="7"><b>Falloff</b> (how fast it fades towards its radius: higher stays bright for longer, then drops) and,
+    for a spot light, the <b>inner and outer cones</b> in degrees.</li>
+  <li data-n="8"><b>On:</b> unticked, the light stays in the map but lights nothing.</li>
+  <li data-n="9"><b>What it lights:</b> how many pieces the light is baked into, or reaches now that you changed it. A
+    baked build relights those.</li>
+  <li data-n="10"><b>Solo</b> (<kbd>O</kbd>) dims the map and lights it with the selected lights alone, to see what they do.</li>
+</ol>
+<ul>
+  <li>A typed value applies on <kbd>Enter</kbd>; <kbd>Esc</kbd> puts it back.</li>
+  <li><b>New lights</b> are in the piece list: Add, then Kind: <b class="ui">Lights</b>. Point Light and Spot Light are
+    placed as pieces are. Each starts as a copy of one of the map's lights of that kind; on a map with none, the
+    editor makes its own.</li>
+  <li>To see your light edits on the map itself, choose <b class="ui">Map</b> lighting in View options.</li>
+  <li><b>Glowing pieces</b> (a lit sign, a screen) carry their glow with them. Sometimes the editor can't tell which
+    piece a glow belongs to; its panel then says "May glow". Before moving such a piece, select the glow's light and
+    choose <b class="ui">Assign glowing piece</b> (then click the piece) or <b class="ui">Keep fixed</b>.</li>
+  <li>A view-only light's panel says why it can't be edited.</li>
+</ul>
+
+<h3 id="buildings">Buildings</h3>
+<p>To the game, a building is not its walls and roof. It is a set of invisible boxes laid over them, one or more for
+  each floor. The boxes tell the game which pieces belong to which floor, and that is what lets you see inside:</p>
+<ul>
+  <li><b>The roof and the upper floors hide</b> when a soldier is inside, or when the cursor is.</li>
+  <li><b>The walls cut down</b> to low stubs, so the near wall doesn't block the view of the room.</li>
+</ul>
+<p>The game's own maps have these boxes already. A piece you bring from another map comes without its building, and a
+  house you put together from walls and a roof never had one. The <b class="ui">Buildings</b> view is where you give
+  it one.</p>
+
+<h4>Without boxes</h4>
+<p>Pieces with no building around them are loose scenery. They stand, give cover, block sight and break as always,
+  and soldiers walk in and climb as on any floor. What is missing is everything above: the roof never hides, an
+  upper floor and its furniture stay drawn while you look at the ground floor, the walls stay at full height, and
+  moving the cursor inside opens nothing up. A closed building without boxes can be played, but blind: the fight
+  inside happens under a roof you can't see through. Fences, walls and ruins with no roof need no boxes.</p>
+
+<h4>The Buildings view</h4>
+<p><b class="ui">Buildings</b> in the tool strip, between Add and Lights (<kbd>Shift</kbd>+<kbd>B</kbd>), turns the
+  view on and off. While it is on, only boxes can be selected: a click on a wall picks the box around it, never the
+  wall, so nothing of the building is moved by accident. Every building's boxes show in their floor's colour, the
+  map's own as yours (<a href="#building-copy-map">The map's own buildings</a>); only the few that stay as the map has
+  them are grey.</p>
+<h4>Drawing a box</h4>
+<figure class="zoom">
+  <img src="shots/buildings-draw.webp" width="1080" height="675" alt="The Buildings view on the Bar's car park, a new box being dragged out over the tiles">
+  <figcaption>A new box being drawn: the mouse button is still held.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Buildings</b> in the tool strip turns the view on. The panel on the right appears, and pieces can
+    no longer be selected.</li>
+  <li data-n="2"><b>New box</b> (<kbd>N</kbd>) arms the tool: the cursor becomes a cross.</li>
+  <li data-n="3">Press where one corner of the floor is…</li>
+  <li data-n="4">…and drag to the opposite corner. The box follows by whole tiles and stays see-through, so you can
+    see what it takes in.</li>
+  <li data-n="5">The line at the top says its size in tiles and the height it starts at. <kbd>Esc</kbd> cancels.</li>
+</ol>
+<p>Let go and the box is made, one storey (192 units) high, and selected. It starts at the level under the cursor:
+  on the ground here, on a floor if you start the drag on one. With a floor chosen in the
+  <a href="#bottom">Floors</a> buttons it starts at that floor's height. It joins the building of the box you
+  selected last; with none, it starts a new building.</p>
+
+<h4>Fitting a box and making the next floor</h4>
+<figure class="zoom">
+  <img src="shots/buildings-view.webp" width="1080" height="675" alt="A building of two boxes, the upper one selected with its handles, the gizmo and the panel">
+  <figcaption>A building of two floors: the ground floor's box in blue, the second floor's in orange and selected.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The top's handle:</b> drag a white dot to stretch that face. The top and the bottom go to levels.</li>
+  <li data-n="2"><b>A side's handle:</b> a side goes to the tile lines. Hold <kbd>Alt</kbd> for steps of 8 units. Each
+    dot stands off its face on a thin line, clear of the arrows.</li>
+  <li data-n="3"><b>The Move tool's arrows</b> move the whole box, by whole tiles and levels. A box is never turned.</li>
+  <li data-n="4"><b>Bottom</b> and <b>Top:</b> the heights the box runs between. They can be typed.</li>
+  <li data-n="5"><b>Building</b> and <b>Floor:</b> which building the box is a part of, and which of its floors
+    (1 is the ground floor). <b class="ui">New building</b> in the list starts another.</li>
+  <li data-n="6"><b>Name</b> and <b>Kind</b> are the building's: a name for you, and whether it is a plain building
+    or a UFO. <a href="#building-kind">What Kind changes</a></li>
+  <li data-n="7"><b>What it takes in:</b> how many pieces stand in the box, and how many of them cut down. Anything
+    the Build would refuse is said here too.</li>
+  <li data-n="8"><b>Copy</b> and <b>Delete</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Del</kbd>).</li>
+  <li data-n="9"><b>A yellow line:</b> where one of the cursor's floors starts over the box, with that floor's number
+    and height. A storey's box should start at one. <a href="#cursor-floors">The cursor's floors</a></li>
+</ol>
+<p><b>To add a floor above</b>, select a box, copy it and paste (<kbd>Ctrl</kbd>+<kbd>C</kbd>,
+  <kbd>Ctrl</kbd>+<kbd>V</kbd>): the copy lands on top of the original as the next floor of the same building, as in
+  the picture. Then drag its top to where the roof ends. Move it from there if it belongs elsewhere.</p>
+<ul>
+  <li><b>Boxes around the pieces selected:</b> select a building's walls, floors and roof first, then turn the view
+    on. The button makes a box for each floor around them.</li>
+  <li><b>Undo and redo</b> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>) work on boxes as on pieces.</li>
+  <li><b>Several boxes</b> can be selected with <kbd>Ctrl</kbd> or <kbd>Shift</kbd>+click; Building and Floor then
+    set them all.</li>
+  <li><b>A floor of any outline</b> is several boxes with the same Building and Floor: two for an L-shaped house.
+    <a href="#building-big-box">Why not one big box</a></li>
+  <li><b>The map's own buildings</b> are edited the same way: see <a href="#building-copy-map">below</a>. Grey
+    boxes, a van's building among them, can be clicked and read, not changed.</li>
+  <li><b>Done</b>, or <kbd>Shift</kbd>+<kbd>B</kbd> again, leaves the view: pieces can be selected again.</li>
+</ul>
+<p>With the view off, the <a href="#bottom">Floors</a> buttons cut your building down as they do the map's own, so
+  you can check it: choose floor 1 and the roof should go and the walls drop.</p>
+
+<h4 id="building-kind">Kind: Building or UFO</h4>
+<p>Leave Kind at <b class="ui">Building</b> for anything that is not the mission's alien ship: a house, a shed, a
+  shop, and also a ship-shaped structure you only want as scenery.</p>
+<p>What you see is the same for both kinds. A UFO's hull hides its roof and upper decks and cuts its walls down
+  exactly as a house does, with the same boxes and the same rule.</p>
+<p><b class="ui">UFO</b> sets one mark on the building, the one the game's own crashed and landed ships carry. The
+  only part of the game that reads it is the placing of the aliens at the start of a battle:</p>
+<ul>
+  <li>the building's footprint is taken as where the ship is (for three of the ship types, a smaller area in its
+    middle);</li>
+  <li>groups of aliens can then be placed by it: inside the ship, or behind it as seen from where the squad lands.</li>
+</ul>
+<p>So choose UFO only for the building that is the alien ship of a UFO mission, where the aliens should gather in
+  and around it. On any other building the mark does no good, and it may put a mission's aliens around the wrong
+  building.</p>
+<p>How far this goes is not settled. It is read from the game's own scripts and has not been tried in a battle
+  here; Long War Rebalance places its aliens by rules of its own, which may not look at the mark at all; and a
+  working UFO mission needs more than this building (the ship's own doors, power source and mission objects), which
+  the editor does not make yet.</p>
+
+<h4>Where a floor's box goes</h4>
+<p>Each floor's box starts at that storey's walking level and runs up to where the next storey's walking level
+  begins. The boxes stack: the top of one is the bottom of the next. The reason is the game's rule for which floor a
+  piece belongs to: a piece counts for a floor when it touches that floor's box and its bottom is more than 20 units
+  under the box's top.</p>
+<table class="wrapfirst">
+  <tr><th>Part of the box</th><th>Where to put it, and why</th></tr>
+  <tr><td>Bottom</td><td>At the walking level of the storey. The floor you stand on, and everything standing on it,
+    is then in that storey's box.</td></tr>
+  <tr><td>Top</td><td>Just under whatever should hide: the roof, or the next storey's floor. That piece must start no
+    lower than 20 units under the box's top, or it also counts for the floor below and stays drawn when you look
+    inside.</td></tr>
+  <tr><td>Sides</td><td>On the lines the walls stand on, so the walls are inside.</td></tr>
+  <tr><td>The top storey</td><td>It needs a box too, tall enough to take in the roof. A roof with no box around it
+    never hides.</td></tr>
+</table>
+<ul>
+  <li><b>Walls should cross from one box into the next.</b> A wall that starts in the lower box and rises into the
+    upper one is the kind that cuts down. A wall that stops short of the upper box is a ground-floor piece and stays
+    at full height. Most wall pieces are made to cut down; a tall piece that isn't simply stays drawn until every
+    floor it reaches is hidden.</li>
+  <li><b>All the floors of one building must have the same Building.</b> The game hides and cuts down floor by
+    floor within one building: "the floors above the one the soldier is on". Two boxes stacked as two separate
+    buildings are two one-floor buildings, each with only a ground floor: nothing is above anything, so the roof
+    never hides and the walls never cut down. The Build does not refuse this (the boxes only touch), so check the
+    Building and Floor of each box in the panel, and check the result with the Floors buttons.</li>
+  <li><b>You need not be exact to the unit.</b> The game's own maps have storeys with a small gap between their boxes,
+    and others that overlap by a unit, and they work. The 20 units at the top are what decides where a roof or an
+    upstairs floor lands.</li>
+  <li><b>The ground under the building</b> is listed on floor 1 with everything else that touches the box. That does
+    no harm: the ground floor is never the one hidden.</li>
+  <li>A few plain scenery pieces (the class StaticMeshActor) never hide in the game, whatever box they stand in.</li>
+</ul>
+<h4 id="cursor-floors">The cursor's floors: the yellow lines</h4>
+<p>The game keeps a second set of invisible boxes, apart from any building: the map's <b>cursor volumes</b>. They
+  say which floor a height is to the cursor, and so where the mouse wheel stops as you go up and down. Your floor
+  boxes decide what is hidden; the cursor volumes decide where the cursor goes. The two have to agree, or the wheel
+  and the cutaway fall out of step.</p>
+<p>How the cursor's floors work in a battle: each cursor volume carries a floor number. Rolling the mouse wheel
+  moves the cursor to the next number up or down among the volumes over where it stands, and a click on a deck
+  counts as the floor of the volume that height falls in. A place with no cursor volume over it has a single
+  floor.</p>
+<p>In the Buildings view, each of your boxes has a yellow line round it at every height where a cursor floor starts
+  over it. On the selected box each line carries the cursor floor's number and its height (<b class="ui">2 · 192</b>).</p>
+<ul>
+  <li><b>Start each storey's box at a yellow line</b>, or within 32 units of one. The panel says so when a box
+    starts away from them, and the Build warns of it.</li>
+  <li><b>A top or bottom dragged near a yellow line goes to it</b>, also where the line is off the levels: on the
+    Bar the second cursor floor starts at 210.</li>
+  <li><b>The game's own maps have theirs</b>, often four over the whole map, sometimes many small ones over single
+    buildings. They are shown as they are and not changed.</li>
+  <li><b>A map made from nothing has none.</b> The Build gives it four over the whole map, 192 units each from the
+    ground up: the lines at 0, 192, 384 and 576. So build in storeys of 192 there.</li>
+</ul>
+<p>A map opened before this was added prepares again the first time it is opened: the cursor volumes are read
+  with the rest of the map.</p>
+
+<h4 id="building-whole">A building with its pieces: Floor boxes in the normal view</h4>
+<p>In the Buildings view only boxes can be selected. To handle a building together with its pieces, hover the
+  <a href="#normal-view">Normal view button</a> in the tool strip and tick <b class="ui">Floor boxes</b>: your
+  buildings' boxes are then drawn in the normal view as well. It is off whenever a map opens.</p>
+<ul>
+  <li><b>Click a box's edge</b> to select its building. The sides are see-through to the mouse, so the pieces inside
+    are still clicked as usual. <kbd>Ctrl</kbd> or <kbd>Shift</kbd>+click adds it to the pieces selected, and
+    <a href="#boxselect">Box select</a> takes it with them.</li>
+  <li><b>A building is picked whole here:</b> all its boxes, on every floor. Single boxes are the Buildings view's.</li>
+  <li><b>It moves by whole tiles and levels, and turns by quarter turns</b>, and so does everything selected with
+    it.</li>
+  <li><b>Copy and paste</b> (with at least one piece selected too) make a new building with the same floors beside
+    the copied pieces. <b>Delete</b> removes the building's boxes; the pieces stay unless they are selected too.</li>
+  <li><b>The panel</b> shows the building's name and kind, which can be changed. Stretching a box and changing its
+    floor stay in the Buildings view.</li>
+  <li><b>To keep them together for good</b>, <a href="#groups-mixed">group</a> the pieces and the building.</li>
+</ul>
+<h4 id="building-copy-map">The map's own buildings</h4>
+<p>The map's own buildings are edited exactly as yours are. Their boxes show in their floors' colours; in the
+  Buildings view each box can be moved, stretched, copied, pasted (a copy on top adds a floor) and deleted, and a box
+  can be added to them; in the normal view, with <b class="ui">Floor boxes</b> on, a building is picked whole with
+  its pieces, to move, turn, copy or delete, and it can be in a group.</p>
+<ul>
+  <li><b>Only what you change is saved.</b> A building you leave alone stays exactly as the map has it. One you
+    change is edited in place by the Build: the map's own floor volumes are moved and stretched, new boxes added, the
+    ones you deleted taken out, and a building you delete is taken out with its boxes (its pieces stay).</li>
+  <li><b>Where nothing changed, the cutaway stays as the map's designers made it.</b> For each piece the Build works
+    out the rule (<a href="#buildings">where it stands in the boxes</a>) before and after your change; where the
+    answer is the same, the piece keeps what the map saved, lists tuned by hand included, and a floor added below
+    carries the ones above with it. A building moved whole with its pieces keeps all of its own. The piece panel's
+    Floors line shows what the Build will list.</li>
+  <li><b>Restore the map's</b> puts a changed building back as the map has it, as one undo step: its button shows
+    under a changed building's boxes, and the Buildings view lists every building of the map you changed or deleted,
+    each with Restore (a deleted one has no box left to click). Reset all restores them too.</li>
+  <li><b>Notched boxes:</b> some of the map's floor volumes are not plain boxes but have notches or an L shape (the
+    Bar's ground floor has several); the editor draws their outer box, and the panel says so. Moved, such a volume
+    keeps its shape; stretched, the Build puts a plain box in its place, filling the notches.</li>
+  <li><b>Grey boxes</b> are the buildings that stay as the map has them: a van's own building (it goes with the
+    van), and the rare one with a floor that has no box. They can be clicked and read; selected with their pieces
+    and copied, the copy gets a building of your own with the same boxes.</li>
+  <li><b>A copy</b> of one of the map's buildings is a new building of yours with the same boxes, named after the
+    original; saved into a prefab, likewise. A copied alien ship is a plain building until you set its Kind to UFO
+    in the panel.</li>
+  <li><b>Lights</b> move with a building only when they are selected with it, as with any move. Emitters, decals
+    and the like stay where they are.</li>
+</ul>
+
+<h4 id="building-big-box">Several boxes, or one big box</h4>
+<p>A floor that is not a rectangle (an L, a T, a house with a porch) is made of several boxes with the same Building
+  and Floor. One larger box around the whole of it also builds, but the space it takes in beside the building counts
+  as the building too:</p>
+<ul>
+  <li><b>Everything in the box is part of that floor.</b> A car, a tree, a lamp post or a neighbour's wall inside an
+    upper floor's box hides along with the roof whenever someone is inside your building.</li>
+  <li><b>Standing in the box counts as being inside.</b> The roof would go while a soldier only stands in the yard
+    beside the house. This is expected from how the game reads the boxes, and has not been tried in a battle here.</li>
+  <li><b>Boxes of two buildings had better not overlap.</b> It builds, with a warning: a piece in both is listed by
+    both, so a generous box can make the building next door hide with yours.</li>
+</ul>
+<p>So keep each box to the walls. A box that sticks out by part of a tile where nothing stands does no harm, and the
+  ground floor is the forgiving one: it is never hidden, so extra pieces listed there change nothing you see. The
+  panel's count of pieces in the box is a quick check: if it jumps when you stretch a side, the box has taken in
+  something that is not the building's.</p>
+
+<p>An example: a hut whose walls run from the ground to 256 and whose roof starts at 240. Floor 1's box from 0 to
+  176, floor 2's from 176 to 384. The walls reach into both, so they cut down; the roof starts well above 156 (20
+  under floor 1's top), so it is floor 2's alone and hides.</p>
+
+<h3 id="mapgrid">Map grid</h3>
+<p>The map's tile grid is the box the game plays in: the play area. <b class="ui">Map grid</b> on the left rail (or
+  in the Project menu) shows the play area with a handle on each side that can move. Drag a handle to resize the grid.
+  Click the button again, or press <kbd>Esc</kbd>, to put the handles away.</p>
+<figure class="zoom">
+  <img src="shots/map-grid.webp" width="1080" height="675" alt="Map grid on the Bar: the play area's box with its red, blue and green handles, and the panel">
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Map grid</b> on the tool strip.</li>
+  <li data-n="2"><b>The red handle</b> moves the far X side, by whole tiles.</li>
+  <li data-n="3"><b>The blue handle</b> moves the far Y side, by whole tiles.</li>
+  <li data-n="4"><b>The green handle</b> raises the top, by whole levels.</li>
+  <li data-n="5"><b>The size</b>, against the map's own.</li>
+  <li data-n="6"><b class="ui">Lay the map's ground over the new area</b>, shown on maps whose ground is laid as
+    planes.</li>
+  <li data-n="7"><b class="ui">The map's own size</b> puts it back; <b class="ui">Done</b> puts the handles away.</li>
+</ol>
+<ul>
+  <li><b>On a map as it is, the grid only grows.</b> The red handle moves the far X side and the blue one the far Y
+    side, by whole tiles; the green one on top raises it by whole levels, up to 30 (over 18, the height of the
+    game's tallest maps, has not been played). The corner and the bottom stay
+    where they are. The new area is drawn as a faint sheet:
+    <ul>
+      <li>green where the Build lays more of the map's ground there, on maps whose ground is laid as planes (the
+        blank map's and Bar's are);</li>
+      <li>grey where it lays none. <b class="ui">Lay the map's ground over the new area</b>, in the panel, chooses
+        between the two.</li>
+    </ul>
+    On the new levels the cursor goes by storeys the Build adds over the whole grid, above the map's own. A map
+    grown as it is has not been played yet.</li>
+  <li><b>The map's scenery in the new area is made walkable.</b> The ground and pavements a map is seen against
+    beyond its play area are saved so the game ignores them: no floor. The Build turns that on for the low ones the
+    grown grid takes in, so units walk on them as on the map's own ground, at whatever height they stand (the
+    Farm's raised fields too). The map's ground is laid only where no such piece is. Taller scenery (the backdrop's
+    buildings, a hill's mesh) stays as it is: no floor, no cover. Lay floors where there is none. A copy of such a
+    ground piece placed in the grid is floor too.</li>
+  <li><b>On a cleared map</b> the grid can also shrink and get lower. The corner and the bottom stay where they
+    are.</li>
+  <li>Every drag is one undo step. The panel gives the size against the map's own and warns about landing zones the
+    grid leaves out. <b class="ui">The map's own size</b> puts it back.</li>
+</ul>
+
+<h3 id="clearmap">Clear map and landing zones</h3>
+<p><b class="ui">Clear map…</b> in the Project menu takes every piece off the map, the ground too, so that you can
+  build a new map with pieces and prefabs on an old map's light and landing. It is meant for an unchanged map, but it
+  works on any.</p>
+<figure><img src="shots/clear-map.webp" width="484" height="297" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
+<ul>
+  <li><b>A window comes first.</b> It warns what will go and counts it for this map: the pieces, the lights, and the
+    pieces the mission's script names. It also counts what stays:
+    <ul>
+      <li>the landing's own pieces (the Skyranger's frame and the drop zone);</li>
+      <li>one landing zone: the map's own first landing, used by Long War and plain EW alike (copy it for more);</li>
+      <li>the sun or moon and the sky light.</li>
+    </ul>
+    The clear keeps the grid's size. Change it with <a href="#mapgrid">Map grid</a>, before or after.</li>
+  <li><b class="ui">Keep the scenery outside the play area</b> leaves the pieces that stand wholly outside it: the
+    buildings, trees and fences the map is seen against. The lights, smoke and stains placed out there stay too. Here
+    the play area is the map's own, and the new grid where it reaches further, so pieces the new grid brings into play
+    still go. So does a piece across the edge. The window counts what stays. The tick is remembered.</li>
+  <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings everything back, the size too. What
+    your project had added goes as well, with its groups and buildings.</li>
+  <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>
+  <li><b>The Build takes out what the editor never showed</b> on a cleared map: the missions' streamed pieces, the
+    patch's helpers, the map's own floor storeys. It gives the new grid storeys of its own.</li>
+  <li><b>A cleared map is for Long War Rebalance.</b> On plain Enemy Within the aliens' pods and Meld still start
+    where the map's buildings were, some over nothing. The window says so on a plain install.</li>
+  <li><b>Then it asks "What is this map for?"</b>: the <a href="#missions">Missions</a> window, with the header's
+    mission ticked if it is an abduction, a terror site or a bomb, else an abduction. A base mission with objects of
+    its own (a bomb, a data recovery) keeps them where the original map has them until you move them.</li>
+</ul>
+<h4>The ground grid</h4>
+<p>A faint grid on the ground's plane (the height the landing zones stand at), drawn only where there is no floor.
+  On a map as it is you see it only over holes. On a cleared map it covers everything until you lay floors, which
+  hide it where they lie. A piece placed over nothing lands on it. It is a View option, <b class="ui">Ground
+  grid</b>, on at first.</p>
+<h4 id="landingzones">Landing zones</h4>
+<p>Each landing zone is where the squad may land: the drop zone's frame, the evac zone, the six soldier tiles, an
+  arrow the way the squad faces, and its number. The game picks one of a map's zones. They are drawn on every map
+  (View options, <b class="ui">Landing zones</b>).</p>
+<figure class="zoom">
+  <img src="shots/landing-zones.webp" width="1080" height="675" alt="The Landing zones view on the Bar: its zone picked, with its gizmo and its panel">
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Landing zones view</b> on the tool strip (<kbd>Shift</kbd>+<kbd>Z</kbd>).</li>
+  <li data-n="2"><b>The zone's number.</b> Click it, or the zone, to pick the zone.</li>
+  <li data-n="3"><b>The gizmo</b> on the picked zone: arrows to move it, <kbd>R</kbd> for its ring.</li>
+  <li data-n="4"><b class="ui">Kind</b>: normal, or inside.</li>
+  <li data-n="5"><b class="ui">Used by</b>: Long War, plain EW, or both.</li>
+  <li data-n="6"><b class="ui">Copy</b> and <b class="ui">Delete</b>.</li>
+  <li data-n="7"><b class="ui">Land here</b>: play the build with the squad landing at this zone.</li>
+</ol>
+<ul>
+  <li><b>Zones are edited in the Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>, or its button in the
+    tool strip). There they are drawn over everything, even under a floor, and a click picks a zone, never a piece.
+    In the normal view they are shown but not picked, and the landing's pieces are pieces.</li>
+  <li><b>Click a zone</b> in that view to pick it. A gizmo appears on its drop zone, and its panel opens: <b class="ui">Kind</b> (normal, or inside: the squad stands further back, inside the evac zone),
+    <b class="ui">Used by</b>, <b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
+    (<kbd>Delete</kbd>).</li>
+  <li><b>The gizmo moves and turns the zone</b> only in the steps a landing zone takes:
+    <ul>
+      <li>its arrows (<kbd>G</kbd>) move it by whole tiles across and whole levels up;</li>
+      <li><kbd>R</kbd> shows its ring, which turns it by quarter turns. <kbd>[</kbd> and <kbd>]</kbd> turn it too.</li>
+    </ul>
+    The zone and its Skyranger follow as you drag. <kbd>Esc</kbd> during a drag puts the zone back, and every drag
+    is one undo step. A build with <b class="ui">Bake the lighting</b> moves the Skyranger's shadow with it. Under
+    Long War the map's grounded Skyranger is taken away when the battle starts (the tutorial's stays), so there only
+    its shadow shows.</li>
+  <li><b>To add one</b>, choose <b class="ui">Landing zones</b> under Kind in the <a href="#add">Add panel</a>
+    (<kbd>P</kbd>), then click the tile it is to stand on. The Landing zones view comes on.</li>
+  <li><b>Maps whose landing has no drop zone</b> (Basic Training, the Temple Ship, the alien bases) show it as a zone
+    too, on the map's own soldier tiles. Moved, the squad stands in the usual six-tile layout at the new place.</li>
+  <li><b>Used by</b> says which game lands at the zone:
+    <ul>
+      <li><b class="ui">Long War</b>: Long War Rebalance picks among all the zones ticked for it.</li>
+      <li><b class="ui">Plain EW</b>: plain Enemy Within lands only at the map's own landings, and the Build moves
+        them to the zones ticked for it. A map has only as many as it came with (Bar one, the Farm three), so only
+        that many zones can be ticked. Ticking one more asks you to untick another first. At least one zone stays
+        ticked: deleting the last one ticks the first zone left.</li>
+    </ul>
+    With fewer zones ticked than the map has landings, plain EW also lands at the others where the map has them.
+    The panel says so.</li>
+  <li><b>The panel warns, without stopping you,</b> about a soldier tile outside the grid or over no floor, a piece
+    standing on one, and a zone that is played under Long War only or not at all.</li>
+  <li><b class="ui">Land here</b>, with a project open, plays its build in the game with the squad landing at the
+    picked zone. It builds first when the build is not of what is on screen.</li>
+</ul>
+<p>Until you change one, the zones are the map's original ones. The first change makes them the
+  project's.</p>
+
+<h3 id="viewoptions">View options</h3>
+<div class="split">
+  <figure><img src="shots/view-options.webp" width="332" height="610" alt="The View options menu, its fifteen items numbered"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Lighting:</b> <b class="ui">Neutral</b> is plain, even light, best for editing. <b class="ui">Map</b>
+      uses the map's own lights, as edited; <b class="ui">No area</b> is the same without the glow of lit surfaces. Both
+      are approximations of the game's lighting.</li>
+    <li data-n="2"><b>Brightness</b> of the view.</li>
+    <li data-n="3"><b>Keys move along the view:</b> <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys move the
+      camera forward, back and sideways the way it faces, instead of panning across the map, and dragging looks round
+      from where the camera stands instead of orbiting. <a href="#view">More</a></li>
+    <li data-n="4"><b>Move speed:</b> how fast <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys
+      move the camera, from a fifth of the usual speed to three times it (<kbd>Shift</kbd> still triples it).</li>
+    <li data-n="5"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
+    <li data-n="6"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
+      three speeds are kept on this computer; double-click a slider to put it back to ×1.</li>
+    <li data-n="7"><b>Area lights:</b> also show the lights that stand for glowing surfaces. View only.</li>
+    <li data-n="8"><b>Outline the pieces a light reaches:</b> for the selected light, in teal the pieces it is baked
+      into, in orange the ones it reaches after your change.</li>
+    <li data-n="9"><b>Sun, moon and sky:</b> lists the lights that have no place. View only.</li>
+    <li data-n="10"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
+      units can't leave it.</li>
+    <li data-n="11"><b>Tile grid</b> around the selection.</li>
+    <li data-n="12"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
+      tile to name its piece; click to select it.</li>
+    <li data-n="13"><b>Wireframe.</b></li>
+    <li data-n="14"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
+      wireframe. Shown only on maps that have them.</li>
+    <li data-n="15"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
+  </ol>
+</div>
+<p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
+  (<a href="#clearmap">more</a>), and on a map whose missions have objects of their own, <b class="ui">Mission
+  objects</b> (<a href="#mission-objects">more</a>).</p>
+
+<h3 id="project">Project menu</h3>
+<p>A project is your set of edits on one base map. Until you save one, edits are a trial that a reload loses (the
+  browser asks first).</p>
+<div class="split">
+  <figure><img src="shots/project-menu.webp" width="354" height="684" alt="The Project menu, its items numbered"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The open project:</b> its name, revision, when it was saved, the name its variant builds as, and
+      its last build.</li>
+    <li data-n="2"><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) saves the next revision. With no project open, it asks for a name.</li>
+    <li data-n="3"><b>Save as…</b> saves what is on screen under a name: a new project, or in place of another.</li>
+    <li data-n="4"><b>Build…</b> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) makes the project's variant. <a href="#build">More</a></li>
+    <li data-n="5"><b>Play in game</b> starts XCOM in a battle on the project's build. With no project open, on the
+      original open map, without edits. <a href="#task-play">More</a></li>
+    <li data-n="6"><b>Game maps…</b> shows the game's map records and what the editor changed of them, and undoes
+      it. <a href="#game-maps">More</a></li>
+    <li data-n="7"><b>Map grid</b> shows the play area's handles, as the tool strip's button does.
+      <a href="#mapgrid">More</a></li>
+    <li data-n="8"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
+    <li data-n="9"><b>Load…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
+    <li data-n="10"><b>Manage projects…</b> lists every project with its last build, to install several in the game
+      for campaigns or zip them into a map pack. <a href="#manage-projects">More</a></li>
+    <li data-n="11"><b>Close project</b> goes back to the original map.</li>
+    <li data-n="12"><b>Game install and checks…</b> changes which game folder the editor reads, and lists what the editor
+      needs with a tick or a remedy for each.</li>
+    <li data-n="13"><b>Recent:</b> the last three projects. Click one to open it.</li>
+    <li data-n="14"><b>Installs:</b> the game folder the editor reads, the one it plays in, how the game is started
+      there, and what the editor has installed in it.</li>
+  </ol>
+</div>
+<p>On a whole map the menu also has <b class="ui">Clear map…</b>, which takes every piece off it
+  (<a href="#clearmap">more</a>), <b class="ui">Map grid</b>, which shows the play area's handles to resize the
+  grid (<a href="#mapgrid">more</a>), and <b class="ui">Missions…</b>, the missions the project is for.</p>
+<p id="missions"><b>Missions…</b> lists the base map's missions and the kinds a map can be given by its record
+  alone: an abduction, a terror site, a bomb mission (Long War only) and a crashed or landed UFO (once a UFO prefab
+  stands on the map, with the UFO's type to choose). Tick the ones the project is for: the Build writes a map record
+  for each, and the header's Mission picker and Play in game list them. Each line says how far that kind is known to
+  work when played this way, and what it needs. A map that isn't cleared starts with all of its base map's missions;
+  a cleared map is asked when it is cleared. The kinds the project adds have not been played yet. OK needs one ticked;
+  the change is one undo step.</p>
+<p id="manage-projects"><b>Manage projects…</b> opens the project manager: every project with its last
+  build (when it was built, of which revision, whether its lighting is baked, and the editor version that built it)
+  and what is in the game of it. Type to filter, or pick a state under <b class="ui">Show</b>; tick projects one by
+  one, a run of them with <kbd>Shift</kbd>+click, or all that the filter shows (<kbd>Ctrl</kbd>+<kbd>A</kbd>). Then
+  choose how the ticked projects' last builds go into campaigns, as <b class="ui">Additional maps</b> in the rotation
+  beside the originals or to <b class="ui">Replace the original maps</b>, and either <b class="ui">Install in the
+  game</b> (with XCOM closed) or <b class="ui">Zip as a map pack</b>: one zip in the builds folder's
+  <i>Map packs</i>, with the files laid out as the game folder is, a README, and two scripts for whoever gets it:
+  <b>Install.cmd</b> puts the maps into their game (it asks for the game folder and keeps a copy of
+  <code>DefaultMaps.ini</code> first) and <b>Uninstall.cmd</b> takes them out again, neither needing the editor.
+  A row's <b class="ui">Install as</b> gives that project its own way, so one install or one pack can replace
+  some maps and add others. Replacing comments the original map's records out, so the game no longer uses it; for a council mission, which
+  asks for its map by name, your map takes the original's record name. Beside the original, a map is never picked for
+  a council mission (but a bomb mission under Long War, which makes an extra one of it). The manager warns, without
+  stopping you, about a build whose lighting is not baked, a build older than its project, and maps that serve
+  missions other than abductions: only abductions have been played with an edited map so far.</p>
+<p id="game-maps"><b>Game maps…</b> opens a list of every map record in the game's <code>DefaultMaps.ini</code>, by
+  map: its mission, whether missions draw it from the rotation or ask for it by name, and what the editor did to it.
+  A record of the game's own has a tick: untick it and the game stops using it (its line is commented out), tick it
+  to bring it back. A record a project's build replaces says by which project, and stays off while it does. The
+  records the editor added are listed under their base map, each with <b class="ui">Undo</b>, which takes that build
+  out of the game's maps and brings back the map it replaced. <b class="ui">Undo everything</b> takes all of the
+  editor's back out, files included: the game's config files end exactly as they were. Type to filter, or pick under
+  <b class="ui">Show</b> (changed by the editor, in rotation, asked for by name, not in use);
+  <b class="ui">Switch off the shown</b> and <b class="ui">Switch on the shown</b> act on every record the filter
+  shows. <b class="ui">Group by</b> lists the records by map or by mission, to see which maps each kind of
+  mission draws from. All of it needs XCOM closed.</p>
+<ul>
+  <li><b>Unsaved changes are kept for you.</b> If the browser closes, reopening the project offers them back:
+    <b class="ui">Restore them</b> or <b class="ui">Discard them</b>.</li>
+  <li>Each save is a new revision, and the one before is kept as a backup beside it.</li>
+  <li>Opening a project starts with an empty undo history.</li>
+</ul>
+
+<h3 id="maps">Map browser</h3>
+<p><b class="ui">Map</b> in the header (<kbd>M</kbd>) lists every map your install plays, in sections by mission type.
+  A map that serves several types is listed under each.</p>
+<figure class="zoom"><img src="shots/map-browser.webp" width="912" height="790" alt="The map browser, with its search, mission chips and list of maps"></figure>
+<ol class="legend">
+  <li data-n="1"><b>Search</b> by the map's name, its package or a mission.</li>
+  <li data-n="2"><b>Prepared only</b> hides maps the editor hasn't read yet.</li>
+  <li data-n="3"><b>Mission types:</b> click one to show only its section.</li>
+  <li data-n="4"><b>A map:</b> its name, its package (the file's name in the game), and the missions it serves.</li>
+  <li data-n="5"><b>Its state:</b> <b>Checked in game</b> (the editor's work on this map has been checked in the game), <b>Ready</b> (already read:
+    opens at once) or <b>First open ≈ 30 s</b> (the editor reads it from the game when you open it).</li>
+  <li data-n="6"><b>How many</b> maps match, and how many are ready.</li>
+  <li data-n="7"><b>Open</b> (or double-click a map, or <kbd>Enter</kbd>).</li>
+</ol>
+
+<h3 id="build">Build</h3>
+<p><b class="ui">Build…</b> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) saves the project if it has changes, then makes its variant:
+  the map with your edits made in it, in the editor folder's <code>builds\&lt;variant name&gt;\</code>. A build replaces the project's last one, and installs nothing.</p>
+<div class="split">
+  <figure><img src="shots/build.webp" width="512" height="359" alt="The Build panel with its one choice, Bake the lighting"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Bake the lighting</b>, off each time the panel opens.
+      <ul>
+        <li><b>Off</b> (a quick build): seconds. Cover, pathing and line of sight in the game are right; the lighting
+          around your changes isn't: copies are lit as their originals were, and moved or deleted pieces leave their
+          shadows behind.</li>
+        <li><b>On</b> (a baked build): a minute or two for a small edit, less when the project is built again. The
+          editor relights the map around your changes.</li>
+      </ul>
+    </li>
+    <li data-n="2"><b>Cancel</b> (<kbd>Esc</kbd>) builds nothing. On its left, about how long the build will take, from the
+      project's last build of that kind.</li>
+    <li data-n="3"><b>Build</b> (<kbd>Enter</kbd>). Opened from Play in game, this button reads
+      <b class="ui">Build and play</b>, with <b class="ui">Play last build</b> beside it when the last build is of what
+      is on screen.</li>
+  </ol>
+</div>
+<p><b>While it builds</b>, a window covers the editor and takes no clicks: the steps with their times, a bar for the
+  step running, and the time so far. <b class="ui">Show the log</b> unfolds the build's own output, and
+  <b class="ui">Cancel the build</b> stops it, leaving the last good build as it was. When it ends, the window shows the
+  build's folder or why it failed, and <b class="ui">Save a bug report</b>. Click the folder's path to open it in
+  Windows Explorer, or <b class="ui">Copy the folder path</b>. Once built, <b class="ui">Play in game</b> installs the
+  build and starts XCOM in a battle on it, as the Project menu's does.</p>
+<p><b>Warnings don't stop a build.</b> They say what may behave oddly in the game: a piece off its grid, a ladder
+  that isn't expected to climb, a floor box that starts away from the cursor's floors, a landing zone over no floor.
+  The map is built all the same, and the build window lists them.</p>
+<p>If the project holds an edit that can't be built at all, the build stops at once and says which piece and why.
+  Undo that edit, or fix it as the message says, and build again.</p>
+
+<h3 id="dialogs">Other windows</h3>
+<ul>
+  <li><b>Save as… and Load…</b> open a list of your projects with each one's map, revision and when it was saved.
+    Click a column head to sort. Type a name, or pick one; <kbd>Enter</kbd> or a double-click chooses.
+    Saving under another project's name asks before replacing it. <b class="ui">Show</b> switches between this map's
+    projects and all of them.</li>
+  <li id="cache-everything"><b>Cache everything…</b> (above <b class="ui">Game install and checks…</b> in the menu)
+    reads every piece of the game's maps into the editor's cache now, so placing a piece of another map or opening a
+    prefab never waits for it. Tick <b class="ui">Every map, ready to open</b> to prepare every map as well, which
+    takes much longer. The window says how many there are, about how long it takes and how much disk space it needs.
+    <b class="ui">Start</b> runs it in the background with a progress bar: you can keep working, close the window and
+    open it again later. <b class="ui">Cancel</b> stops it at any moment; what was read so far stays, and
+    <b class="ui">Carry on</b> picks up from there. What is already cached is left alone, and what a game update or a
+    newer editor made out of date is read again.</li>
+  <li><b>Game install and checks</b> lists the game installs found in Steam, takes another folder typed in or picked with
+    <b class="ui">Browse…</b>, and <b class="ui">Use this install</b> switches to it without a restart. Below, the editor's
+    checks: each one is OK, or says what to do.</li>
+  <li><b>Banners</b> at the top of the view carry messages that need an answer, such as a project made on a different
+    version of the map.</li>
+  <li><b>A map that needs preparing again.</b> When the editor's saved copy of a map is older than the editor needs, a
+    box in the middle of the window says so as the map opens, and again if you ask for a build.
+    <b class="ui">Prepare now</b> reads the map from the game again, in about half a minute, and opens it afresh; your
+    projects are kept. <b class="ui">Later</b> leaves a banner with the same offer. A build that stopped for this
+    reason has a <b class="ui">Prepare the map</b> button in its window.</li>
+</ul>
+
+<h2 id="tasks">Typical tasks</h2>
+
+<div class="task" id="task-first">
+<h3>Make your first variant, start to finish</h3>
+<ol class="steps">
+  <li>Press <kbd>M</kbd> and open a map. Urban Bar is a good first one: builds of it have been played.</li>
+  <li>Choose a floor number in the bottom bar's <b class="ui">Floors</b> to look inside a building.</li>
+  <li>Click a piece, press <kbd>G</kbd>, and drag an arrow to move it.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>S</kbd> and give the project a name.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>B</kbd>, leave <b class="ui">Bake the lighting</b> off, and choose <b class="ui">Build</b>.
+    It takes a few seconds.</li>
+  <li>Close XCOM if it is running, and choose <b class="ui">Play in game</b> in the build window (or later in the
+    Project menu, then <b class="ui">Play last build</b>).</li>
+  <li>If XCOM's launcher opens, pick <b>Enemy Within</b>. The battle on your map starts by itself, with a test squad.</li>
+  <li>When you are done, close XCOM: the editor then takes your map back out of the game by itself. <b class="ui">Game maps…</b>, <b class="ui">Undo everything</b> does it at once, if you ever need to.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Add cover to an open area</h3>
+<ol class="steps">
+  <li>Find a piece that gives the cover you want and select it: a dumpster, a planter, a car.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>C</kbd>, then <kbd>Ctrl</kbd>+<kbd>V</kbd>. The copy follows the cursor.</li>
+  <li>Press <kbd>R</kbd> to turn it, then click where it should stand. <kbd>Shift</kbd>+click places several.</li>
+  <li>Check the tile grid: the filled tiles are the ones the piece occupies. Blue tiles mean it floats.</li>
+</ol>
+<p>If the map has no such piece standing where you can click it, use <b class="ui">Add</b> (<kbd>P</kbd>) and pick it from the list.
+  Keep new cover off the squad's landing area: the game may drop a soldier on it.</p>
+</div>
+
+<div class="task">
+<h3>Rearrange a room</h3>
+<ol class="steps">
+  <li>Cut down to the room's floor with <b class="ui">Floors</b>.</li>
+  <li>Set <b class="ui">Snap</b> to <b>96</b> to keep pieces on whole tiles, or <b>24</b> for finer steps.</li>
+  <li>Move pieces with <kbd>G</kbd> and turn them with <kbd>R</kbd>. For an exact place, type the position or the yaw
+    in the piece panel.</li>
+  <li>To line several up, select them, pick the one to line up with last, and use <b class="ui">Align</b>.</li>
+  <li>Delete what is in the way with <kbd>Del</kbd>.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Open or close a route</h3>
+<ul>
+  <li><b>Open a wall:</b> select the wall section and delete it. Pictures and shelves hanging on it stay unless you
+    delete them too.</li>
+  <li><b>Add a door:</b> copy an existing door. Its leaf and frame come together, and it lands on whole tiles in
+    quarter turns. A door needs an opening: delete the wall section where it goes, or copy a wall section that
+    already has a doorway.</li>
+  <li><b>Add a way up:</b> copy a ladder to where its foot and its top both meet floor. The Build warns of a ladder
+    that isn't expected to climb, and builds it all the same.</li>
+  <li><b>Block a route:</b> copy a wall section, a van or a fence into the gap.</li>
+</ul>
+<p>After a change like this, a quick build and a look in the game is the way to know how the game paths around it.</p>
+</div>
+
+<div class="task">
+<h3>Work on an upper floor</h3>
+<ol class="steps">
+  <li>Choose the floor's number in <b class="ui">Floors</b>. The floors above are cut away.</li>
+  <li>To extend the floor itself, open <b class="ui">Add</b>, choose Kind: <b class="ui">Floors</b>, and pick a floor piece.</li>
+  <li>With <b class="ui">Level snap</b> on, the piece goes to the height of the floor chosen in Floors, however high the
+    cursor is. Click to place it.</li>
+  <li>Put props on it as on any floor.</li>
+</ol>
+<p>A copied storey floor can be walked on only where a soldier has room to stand: not under a duct or a low ceiling.</p>
+</div>
+
+<div class="task">
+<h3>Make one cover piece out of two</h3>
+<ol class="steps">
+  <li>Place the pieces together: two crates stacked, two consoles side by side.</li>
+  <li>Select both and press <kbd>Ctrl</kbd>+<kbd>G</kbd> to group them.</li>
+  <li>Tick <b class="ui">Break together in the game</b> in the piece panel.</li>
+  <li>Copy the group wherever you need it: each copy is a group of its own with the same option.</li>
+</ol>
+</div>
+
+<div class="task">
+<h3>Change the lighting</h3>
+<ol class="steps">
+  <li>Press <kbd>Shift</kbd>+<kbd>L</kbd> for the Lights view, and click a marker.</li>
+  <li>Move it like a piece, or change its colour, brightness and radius in the light panel or with the white handles.</li>
+  <li>Press <kbd>O</kbd> to see that light alone. Press it again to go back.</li>
+  <li>For a new light, press <kbd>P</kbd>, choose Kind: <b class="ui">Lights</b>, and place a Point Light or a Spot Light.</li>
+  <li>Build with <b class="ui">Bake the lighting</b> ticked. Light edits show properly only in a baked build.</li>
+</ol>
+</div>
+
+<div class="task" id="task-cover-block">
+<h3>Add cover where there is nothing to copy</h3>
+<ol class="steps">
+  <li>Press <kbd>P</kbd>, choose Kind: <b class="ui">Invisible</b>, and pick <b class="ui">Cover block</b>.</li>
+  <li>Click the tile it starts on, then set its <b>Width</b>, <b>Length</b>, <b>Height</b> and <b>Cover</b> in the
+    piece panel.</li>
+  <li>If it stands over something that can be destroyed (a car, a crate), select the block and that piece, press
+    <kbd>Ctrl</kbd>+<kbd>G</kbd>, and tick <b class="ui">Break together in the game</b>. The block then goes with
+    the piece and leaves no invisible wall.</li>
+</ol>
+<p>More: <a href="#cover">Cover blocks and invisible floors</a>.</p>
+</div>
+
+<div class="task" id="task-prefab">
+<h3>Take a building from one map to another</h3>
+<ol class="steps">
+  <li>Open the map that has the building (<kbd>M</kbd>).</li>
+  <li>Hover the <b class="ui">Normal view</b> button and tick <b class="ui">Lights</b> and
+    <b class="ui">Floor boxes</b>, so its lamps and its building are taken too.</li>
+  <li>Press <kbd>T</kbd> and draw a box round the building. Check the white outlines, then choose
+    <b class="ui">Select</b>.</li>
+  <li>Choose <b class="ui">Save as prefab…</b> in the piece panel and give it a name. The window says what goes
+    in.</li>
+  <li>Open your own map or project. Press <kbd>P</kbd>, choose <b class="ui">Prefabs</b>, and click the prefab.</li>
+  <li>Turn it with <kbd>R</kbd> and click where it should stand. It arrives as one group, with its floor boxes.</li>
+  <li>Build with <b class="ui">Bake the lighting</b> ticked, so it is lit for where it stands.</li>
+</ol>
+<p>For a single piece, a lamp post or a wall, use the piece list's <b class="ui">All maps</b> instead.
+  More: <a href="#prefabs">Prefabs</a>, <a href="#add-all">Pieces from other maps</a>.</p>
+</div>
+
+<div class="task" id="task-building">
+<h3>Make a house you put together open up in the game</h3>
+<ol class="steps">
+  <li>Select the house's walls, floors and roof (<a href="#boxselect">Box select</a> is the quick way).</li>
+  <li>Press <kbd>Shift</kbd>+<kbd>B</kbd> for the Buildings view, and choose
+    <b class="ui">Boxes around the pieces selected</b>. A box is made for each floor.</li>
+  <li>Click each box and check it in the panel: the same <b>Building</b> for all, <b>Floor</b> 1 for the ground
+    floor, 2 for the next.</li>
+  <li>Drag a box's top so the roof, or the next storey's floor, starts above it, and start each storey's box at a
+    yellow line.</li>
+  <li>Leave the view (<kbd>Shift</kbd>+<kbd>B</kbd>) and choose floor 1 in the bottom bar's
+    <b class="ui">Floors</b>: the roof should go and the walls drop.</li>
+</ol>
+<p>More: <a href="#buildings">Buildings</a>.</p>
+</div>
+
+<div class="task" id="task-landing">
+<h3>Move where the squad lands</h3>
+<ol class="steps">
+  <li>Press <kbd>Shift</kbd>+<kbd>Z</kbd> for the Landing zones view, and click the zone.</li>
+  <li>Drag its arrows to move it by whole tiles. <kbd>[</kbd> and <kbd>]</kbd> turn it a quarter turn.</li>
+  <li>Read the panel: it says when a soldier tile is outside the grid, over no floor, or has a piece on it.</li>
+  <li>For a second landing, press <kbd>Ctrl</kbd>+<kbd>D</kbd> and move the copy. Under
+    <b class="ui">Used by</b>, say which game lands there.</li>
+  <li>Save, then choose <b class="ui">Land here</b> to play the build with the squad landing at that zone.</li>
+</ol>
+<p>More: <a href="#landingzones">Landing zones</a>.</p>
+</div>
+
+<div class="task" id="task-grow">
+<h3>Make the map larger</h3>
+<ol class="steps">
+  <li>Choose <b class="ui">Map grid</b> in the tool strip. The play area shows with a handle on its far sides and
+    its top.</li>
+  <li>Drag the red or the blue handle outwards by whole tiles, or the green one up by whole levels.</li>
+  <li>Leave <b class="ui">Lay the map's ground over the new area</b> ticked where it is offered. Elsewhere, lay
+    floor pieces over the new area yourself (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>).</li>
+  <li>Choose <b class="ui">Done</b>, then fill the new area with pieces and prefabs.</li>
+</ol>
+<p>A map grown as it is has not been played yet. More: <a href="#mapgrid">Map grid</a>.</p>
+</div>
+
+<div class="task" id="task-clear">
+<h3>Make a new map on an old map's light and landing</h3>
+<ol class="steps">
+  <li>Open the map, and choose <b class="ui">Clear map…</b> in the Project menu.</li>
+  <li>Click <b class="ui">Clear map</b>. The ground grid shows the empty ground.</li>
+  <li>Turn on <b class="ui">Map grid</b> on the left rail and drag the play area's handles to the size you want, in
+    tiles and levels.</li>
+  <li>Lay floors first (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>), at least under the landing zones' soldier tiles,
+    then walls, cover and prefabs.</li>
+  <li>The clear leaves one landing zone. Click it to move or turn it with its gizmo, and copy it for more. Lay floor under its six tiles.</li>
+  <li>Save, then pick a zone and click <b class="ui">Land here</b> to try it in the game.</li>
+</ol>
+</div>
+
+<div class="task" id="task-play">
+<h3>Try it in the game, then finish it</h3>
+<ol class="steps">
+  <li>While the layout is changing, build with Bake the lighting <b>off</b>. Each build takes seconds, and cover,
+    pathing and line of sight are already right.</li>
+  <li>Close XCOM, choose <b class="ui">Play in game</b>, then <b class="ui">Build and play</b>.</li>
+  <li>Pick <b>Enemy Within</b> if XCOM's launcher asks. The game goes straight into a battle on your map: the Skyranger
+    lands and a test squad of six steps out. There is no campaign to start, and no save to load: a tactical save
+    from before a change ignores the new pieces' cover, so always play it this way.</li>
+  <li>When the layout is right, build once more with Bake the lighting <b>on</b>, and play that.</li>
+  <li><b class="ui">Game maps…</b>, <b class="ui">Undo everything</b> takes it out again: the game's config files end exactly as they were.</li>
+</ol>
+<p><b>What the test battle is.</b> A plain battle on the map, started the way the game's own developers started one:
+  the map's usual landing and aliens of the game's choosing, with six squaddies (shotgun, rifles, a machine gun with
+  a rocket launcher, a sniper rifle; grenades and a medikit). It is right for cover, pathing, line of sight,
+  destruction and lighting. It is not a campaign mission: your soldiers, the mission's story and its rewards are not
+  in it. It plays the mission the header's Mission picker shows, which the play window can change; under that choice
+  a line says how far that kind is known to work played this way and what it goes without (a terror site's
+  civilians, a UFO's type). The aliens are four pods of Sectoids (five on a terror site), and EXALT's missions get
+  four pods of EXALT operatives, each with a heavy or a sniper. The squad is written for Long
+  War and Long War Rebalance; on plain Enemy Within the game's own test squad plays, which has not been tried.</p>
+<p><b>What Play in game changes.</b> It copies the build's files into the game and adds one line to
+  <code>DefaultMaps.ini</code>: a record for your variant under its own name, kept out of the rotation, so no
+  campaign ever draws it (with Long War, it also adds landing-zone lines). No line the game had is changed, and it
+  keeps a backup of every file it changes in <code>&lt;game folder&gt;\XCOM Map Workshop\</code>. While you play, the
+  game rewrites one of its own settings files (<code>XComContent.ini</code>) with the test squad in it: the editor
+  keeps the file aside first and puts it back when the game closes, so leave the editor open until then. If it was
+  closed, the file goes back the next time the editor starts.</p>
+<p><b>Through Steam.</b> The editor asks Steam to start the game on the map, so nothing needs setting up in Steam.
+  The game folder the editor plays in must be the one Steam runs.</p>
+<p><b>To compare with the original:</b> close the project and choose Play in game. The same map plays as the game
+  has it, and nothing is installed for its first mission. Another of its missions gets a copy of that mission's
+  record ahead of the map's own while the game runs, taken out when it closes (Basic Training, the tutorial's map,
+  gets a copy of its map record, since the game keeps its own switched off; Game maps' Undo everything takes it
+  out).</p>
+</div>
+
+<div class="task">
+<h3>Share a project or a build</h3>
+<ul>
+  <li><b>A project</b> is one file: <code>&lt;editor folder&gt;\projects\&lt;name&gt;.json</code>. Send it. To open one
+    sent to you, put it in that folder and choose <b class="ui">Load…</b>. It opens on the same version of the map only;
+    on another it says so.</li>
+  <li><b>A build</b> is its folder in <code>&lt;editor folder&gt;\builds\</code> (zip it to send it). Its
+    <code>README.txt</code> says what each file is and lists the config lines the game needs.</li>
+  <li><b>Installing a build by hand:</b> copy its <code>CookedPCConsole</code> files into the game's
+    <code>XEW\XComGame\CookedPCConsole</code>, and add the config lines from its README. As built, the variant is out
+    of the mission rotation; putting it in is your choice.</li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Undo a mistake</h3>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes the last step, <kbd>Ctrl</kbd>+<kbd>Y</kbd> redoes it.</li>
+  <li><b class="ui">Reset piece</b> sends the selected pieces home. <b class="ui">Reset all</b> does it for the whole map,
+    as one step you can undo.</li>
+  <li><b class="ui">Close project</b> shows the untouched map; your saved project is still there to load.</li>
+  <li>If a save went wrong, the revision before it is kept beside the project, in the projects folder's
+    <code>.workshop</code> folder.</li>
+</ul>
+</div>
+
+<h2 id="rules">How pieces move and what builds</h2>
+<h3>Kinds of pieces</h3>
+<table class="wrapfirst">
+  <tr><th>Kind</th><th>Examples</th><th>How it moves</th><th>Builds</th></tr>
+  <tr><td>Scenery, destructible props</td><td>Tables, crates, dumpsters, windows, signs</td><td>Freely, on every axis</td><td>Yes</td></tr>
+  <tr><td>Physics props</td><td>Bodies, loose objects</td><td>Freely</td><td>Yes</td></tr>
+  <tr><td>Collectibles</td><td>UFO power cores</td><td>Freely</td><td>Yes; a copy isn't loot</td></tr>
+  <tr><td>Cars and vans</td><td>With their glass, doors and light bars</td><td>On the grid (below), all parts together</td><td>Yes</td></tr>
+  <tr><td>Doors with a frame</td><td>Building doors</td><td>On the grid, leaf and frame together</td><td>Yes</td></tr>
+  <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>On the grid</td><td>Yes; not played yet</td></tr>
+  <tr><td>Ladders</td><td></td><td>On the grid</td><td>Yes; it climbs where both ends meet floor, and is warned of where they don't</td></tr>
+  <tr><td>Fracturing pieces</td><td>Walls, storey floors, roof slabs, a bar's counter</td><td>On the grid</td><td>Yes</td></tr>
+  <tr><td>Cover blocks, invisible floors</td><td><a href="#cover">Invisible pieces</a></td><td>Freely; on the tiles with tile snap</td><td>Yes</td></tr>
+  <tr><td>Lights</td><td>Placed point and spot lights</td><td>Freely</td><td>Yes; baked builds only show them right</td></tr>
+  <tr><td>Floor boxes</td><td><a href="#buildings">Buildings</a>, yours and the map's</td><td>Whole tiles and levels, never turned alone</td><td>Yes</td></tr>
+  <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Whole tiles and levels, quarter turns</td><td>Yes</td></tr>
+  <tr><td>What a mission adds</td><td>Patch helpers, mission objects</td><td>Not at all</td><td>Left as they are</td></tr>
+</table>
+<h3>The grid rule ("recipe snap")</h3>
+<p>The game saves some things per tile: where a ladder can be climbed, which part of a wall stands on which tile. For
+  the Build to carry those along exactly, such a piece must end up a whole number of tiles (96 units) and storeys
+  (64 units) from where its original stands, turned by quarter turns.</p>
+<ul>
+  <li><b>With Snap at 96</b> the editor keeps such a piece there for you: dragging, typing, pasting, placing and
+    Align all go to the nearest allowed place. The Snap button shows <b>R</b> and the piece panel a
+    <b class="ui">Recipe snap</b> chip.</li>
+  <li><b>With Snap off or at 24</b> it moves as any piece does. Off the grid, the chip reads
+    <b class="ui">Off the grid</b> and the Build warns: the piece is built, but what the map saved for its tiles no
+    longer fits exactly, and how it plays there hasn't been tried in the game. Set Snap back to 96 and move it a
+    step to put it on the grid again.</li>
+  <li><b>A piece from another map</b> keeps to this map's tiles as it stood on its own map's.</li>
+</ul>
+<h3 id="ladders">Ladders</h3>
+<p>The game makes a ladder's climb between two floors: the tile at its foot, and the tile at its top or the one
+  below that. Select a ladder and the editor marks both ends, green where there is floor and red where there is
+  none.</p>
+<ul>
+  <li><b>What counts as floor:</b> the map's own floor, a flat piece of your project with standing room over it (a
+    deck, a slab), and an <a href="#cover">invisible floor</a>, on any level the <a href="#mapgrid">grid</a> has.</li>
+  <li><b>A ladder with a red end is built all the same</b>, with a warning: the game is not expected to make its
+    climb. Earlier versions refused to build it.</li>
+</ul>
+<h3>Floor pieces and Level snap</h3>
+<p>A floor piece is one the game walks on: asphalt, a sidewalk, a building's storey floor. The piece list gathers them
+  under Kind: <b class="ui">Floors</b>, each with its size in tiles. With <b class="ui">Level snap</b> on, a floor piece
+  you place keeps the height its kind has in the map, moved by whole levels to the floor under the cursor, so a
+  sidewalk dropped next to another sits at the same height instead of on top of it. With a floor number chosen in the
+  bottom bar, it goes to that floor. Moved with the handles, it steps up and down by whole levels.</p>
+<h3 id="mission-objects">What a mission adds</h3>
+<p>The game loads more than the map: each mission that uses a map adds its own objects, and Long War Rebalance adds
+  a patch to most maps, mostly invisible cover blocks and blockers. The editor shows the patch so you can plan around
+  it, but it isn't part of your project. So if you move a wrecked car that Long War Rebalance has put invisible
+  cover over, the cover stays where it was. Untick <b class="ui">Hide patch helpers</b> in View options to see it.</p>
+<p><b>A mission's own objects</b> (the bomb and its power nodes, the data recovery's capture points, radar arrays,
+  the operative's and the VIP's places, the waves' drop-in points) show as markers with the mission the header picks,
+  on View options' <b class="ui">Mission objects</b>. Click one: its panel says what it is, the group it belongs to and
+  what lists it. With it picked, drag its arrows to move it <b>with its group</b> (a capture point with its volume, a
+  power node with its button, effects and rebuild volume) by whole tiles and levels; <kbd>Esc</kbd> during a drag puts
+  it back, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes. The Build moves them in its own copy of the mission's stream, which
+  only that mission's record uses, so every reference the mission's script has to them still holds. It warns when an
+  edit leaves an objective or a squad's, operative's or VIP's place with no floor, or inside a piece, mission by
+  mission, so you can move it or drop the mission. Not played in the game yet.</p>
+<h3>Copies</h3>
+<ul>
+  <li>A copy is a new piece with its own name. A copied car's parts are linked to each other, not to the original.</li>
+  <li>A copied wall doesn't break the pictures, shelves and neighbouring walls its original breaks, unless they were
+    copied along with it in the same move.</li>
+  <li>A copied group is a new group of the copies, with the same options.</li>
+</ul>
+
+<h2 id="keys">Keyboard and mouse</h2>
+<table>
+  <tr><th>Key</th><th>Does</th></tr>
+  <tr><td><kbd>V</kbd> · <kbd>G</kbd> · <kbd>R</kbd></td><td>Select · Move · Rotate</td></tr>
+  <tr><td><kbd>T</kbd></td><td><a href="#boxselect">Box select</a>; then <kbd>Enter</kbd> selects what is inside, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds it to the selection, <kbd>Esc</kbd> puts the box away</td></tr>
+  <tr><td><kbd>P</kbd></td><td>Add: open or close the piece list</td></tr>
+  <tr><td><kbd>X</kbd></td><td>World axes or the piece's own</td></tr>
+  <tr><td><kbd>C</kbd></td><td>Pivot: the piece's own origin, or the selection's middle (a piece turns in place)</td></tr>
+  <tr><td><kbd>B</kbd></td><td>Show or hide the play area</td></tr>
+  <tr><td><kbd>L</kbd></td><td>Level snap on or off</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>N</kbd></td><td>The Normal view</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>The Buildings view on or off (only boxes are selected)</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>The Lights view on or off (only lights are selected)</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>Z</kbd></td><td>The <a href="#landingzones">Landing zones view</a> on or off (only landing zones are selected)</td></tr>
+  <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>[</kbd> <kbd>]</kbd></td><td>In the Landing zones view: the picked zone's arrows · its ring · a quarter turn either way</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>In the Landing zones view: copy the picked zone · delete it</td></tr>
+  <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of the selection; the original stays</td></tr>
+  <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
+  <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units</td></tr>
+  <tr><td><kbd>O</kbd></td><td>Solo the selected lights</td></tr>
+  <tr><td><kbd>F</kbd>, double-click</td><td>Frame the selection</td></tr>
+  <tr><td><kbd>M</kbd></td><td>Map browser</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find a piece</td></tr>
+  <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, arrow keys</td><td>Move the camera: across the map, or along the view with View options' Keys move along the view (<kbd>Shift</kbd>: faster)</td></tr>
+  <tr><td><kbd>Q</kbd> · <kbd>E</kbd></td><td>Turn the camera left or right (<kbd>Shift</kbd>: faster)</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> · <kbd>Ctrl</kbd>+<kbd>X</kbd> · <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Copy · Cut · Paste (then click to place)</td></tr>
+  <tr><td><kbd>R</kbd> · <kbd>Shift</kbd>+<kbd>R</kbd></td><td>While placing: turn a quarter turn, either way</td></tr>
+  <tr><td><kbd>Shift</kbd>+click</td><td>While placing: place and keep placing</td></tr>
+  <tr><td><kbd>Del</kbd></td><td>Delete the selection</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Group the selection</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Ungroup</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo · Redo</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> · <kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Save the project · Load a project</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Build</td></tr>
+  <tr><td><kbd>Esc</kbd></td><td>Cancel a drag, stop placing, close a menu, or clear the selection</td></tr>
+</table>
+<p>The mouse: drag to orbit, right-drag to pan, scroll to zoom, click to select, <kbd>Ctrl</kbd> or <kbd>Shift</kbd>+click to add to the selection.</p>
+
+<h2 id="ingame">In the game: known limits</h2>
+<ul>
+  <li><b>Start a fresh mission after installing.</b> A tactical save from before the install ignores the new pieces' cover.</li>
+  <li><b>Long War Rebalance's invisible cover stays put.</b> It doesn't follow the piece it covers.</li>
+  <li><b>A mission's own pieces stay where they are</b>, such as the data recovery's encoder.</li>
+  <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
+    <a href="#landingzones">move the landing zone</a>.</li>
+  <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
+    and a deleted or changed light's old pool stays on the floor. Bake the lighting for the finished map.</li>
+  <li><b>The editor's colours are approximate.</b> Judge the lighting in the game.</li>
+  <li><b>Walls, floors and light edits</b> have been played on one map each so far. If something looks
+    wrong in the game, please report it.</li>
+  <li><b>Played once or twice in the game:</b> pieces from other maps, prefabs and their test stage, buildings made
+    from nothing, the map's own buildings changed, a cleared map with its own landing zones, cover blocks that break
+    with their group.</li>
+  <li><b>Built, but not played yet:</b>
+    <ul>
+      <li>doors without a frame;</li>
+      <li>a map grown larger or taller as it is, with its new cursor storeys and its scenery made walkable;</li>
+      <li>Clear map with the scenery outside kept;</li>
+      <li>a landing moved on a map with no drop zone (Basic Training, the Temple Ship, the alien bases);</li>
+      <li>the moved Skyranger's shadow in a baked build;</li>
+      <li>a ladder built with the warning that it isn't expected to climb;</li>
+      <li>a building marked UFO;</li>
+      <li>landing zones on plain Enemy Within.</li>
+    </ul>
+    These build without errors. A report of how any of them plays is very welcome.</li>
+  <li><b>Plain Enemy Within is a best guess.</b> Its first-mission install is the least sure part.</li>
+</ul>
+
+<h2 id="files">Where things are</h2>
+<table class="wrapfirst">
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>Settings</td><td><code>Documents\XCOM Map Workshop\settings.json</code></td></tr>
+  <tr><td>Projects</td><td><code>&lt;editor folder&gt;\projects\</code> (one <code>.json</code> file each)</td></tr>
+  <tr><td>Prefabs</td><td>Beside the projects by default, or the folder chosen in <code>settings.json</code> (one <code>.json</code> file each)</td></tr>
+  <tr><td>Builds</td><td><code>&lt;editor folder&gt;\builds\</code></td></tr>
+  <tr><td>Opened maps</td><td><code>Documents\XCOM Map Workshop\cache\</code> (safe to delete: maps are read again when opened)</td></tr>
+  <tr><td>Build logs</td><td><code>&lt;editor folder&gt;\builds\.work\&lt;variant&gt;-&lt;time&gt;\logs\</code></td></tr>
+  <tr><td>What Play in game installed</td><td><code>&lt;game folder&gt;\XCOM Map Workshop\</code> (records and backups)</td></tr>
+</table>
+<p>The editor folder is where the editor is installed (by default <code>%LOCALAPPDATA%\Programs\XCOM Map Workshop</code>), or where you
+  unpacked the zip. Upgrading keeps your projects, builds and prefabs. The editor uses <code>Documents\XCOM Map
+  Workshop</code> when the install folder is read-only and keeps existing data folders there available. Use
+  <b class="ui">Game install and checks…</b> to see which folders are in use. With the zip, unpack a new version
+  over the old folder, or move <code>projects</code>, <code>builds</code> and <code>prefabs</code> into the new one.</p>
+
+<h2 id="help">Problems, and removing it</h2>
+<h3>If something seems wrong</h3>
+<ul>
+  <li>Project menu, <b class="ui">Game install and checks…</b> lists what the editor needs and what to do about anything missing.</li>
+  <li>If the browser can't open the editor's page, or a save fails, the console window was probably closed: start
+    XCOM Map Workshop again.</li>
+  <li>A map that looks wrong after an update of the game or of Long War Rebalance: delete its folder in the cache and open it again.</li>
+</ul>
+<h3>Reporting a problem</h3>
+<p>Say which version you have: it is at the bottom of the <b class="ui">?</b> menu, in <code>VERSION.txt</code> and in
+  each build's <code>manifest.json</code>. After a build, or a failed or cancelled one, <b class="ui">Save a bug report</b>
+  in the build window zips the project and the build's logs into the builds folder and copies the zip's path; click
+  the path to see the zip in Windows Explorer. Send that zip with what you did and what you saw; a screenshot helps.</p>
+<h3>Removing the editor</h3>
+<ol class="steps">
+  <li>Choose <b class="ui">Game maps…</b>, <b class="ui">Undo everything</b> first, if you played or installed a project in the game.</li>
+  <li>Uninstall <b>XCOM Map Workshop</b> from Windows' Settings, Apps. If you used the zip, delete its folder.</li>
+  <li>Uninstalling leaves your projects, builds and prefabs in the editor folder: delete it too if you don't need them.
+    <code>Documents\XCOM Map Workshop</code> keeps the settings and the opened maps.</li>
+</ol>
+
+<footer>
+  <p>XCOM Map Workshop is under the MIT licence (<code>LICENSE.txt</code>). It bundles Python, numpy, SciPy, Pillow,
+    embreex and three.js, each under its own licence (<code>THIRD-PARTY-NOTICES.txt</code>). The pictures in this guide
+    show the editor drawing a map from the author's own game install; XCOM: Enemy Within is a trademark of its owners,
+    who have no part in this editor.</p>
+</footer>
+</main>
+</div>
+<div id="lightbox" hidden><img alt=""></div>
+<script>
+// Click a large picture to see it at full size; click again, or Esc, to close.
+(() => {
+  const box = document.getElementById('lightbox'), big = box.querySelector('img');
+  const close = () => { box.hidden = true; };
+  for (const img of document.querySelectorAll('figure.zoom img'))
+    img.addEventListener('click', () => { big.src = img.src; big.alt = img.alt; box.hidden = false; });
+  box.addEventListener('click', close);
+  addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  // the contents list marks the section being read
+  const links = new Map([...document.querySelectorAll('nav.toc a')].map(a => [a.getAttribute('href').slice(1), a]));
+  if (!('IntersectionObserver' in window)) return;
+  const seen = new IntersectionObserver(entries => {
+    for (const e of entries) if (e.isIntersecting) { links.forEach(a => a.classList.remove('on')); links.get(e.target.id)?.classList.add('on'); }
+  }, { rootMargin: '0px 0px -75% 0px' });
+  for (const id of links.keys()) { const el = document.getElementById(id); if (el) seen.observe(el); }
+})();
+</script>
+</body>
+</html>

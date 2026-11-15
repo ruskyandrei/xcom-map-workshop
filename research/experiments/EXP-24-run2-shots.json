@@ -1,0 +1,235 @@
+{
+  "map": "URB_PoliceStation",
+  "project": "24f0a0b1-2424-4d0a-8e24-3c4d5e6f7b24",
+  "shots": [
+    {
+      "out": "EXP-24-run2-overview.png",
+      "title": "EXP-24 run 2: the cars west of the police station (the dashed box)",
+      "target": [
+        -450,
+        -1150,
+        0
+      ],
+      "camera": [
+        0,
+        -3600,
+        5600
+      ],
+      "box": [
+        [
+          -1550,
+          -2600,
+          0
+        ],
+        [
+          -150,
+          -2600,
+          0
+        ],
+        [
+          -150,
+          1550,
+          0
+        ],
+        [
+          -1550,
+          1550,
+          0
+        ]
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -1248,
+            278,
+            60
+          ],
+          "color": "#5ad17a",
+          "r": 26,
+          "text": "the sedan with its loose light bar, moved a quarter turn round"
+        },
+        {
+          "n": "2",
+          "at": [
+            -768,
+            -92,
+            60
+          ],
+          "color": "#58b4ff",
+          "r": 26,
+          "text": "the copy of the police car, turned half round"
+        },
+        {
+          "n": "3",
+          "at": [
+            -960,
+            -292,
+            60
+          ],
+          "color": "#f2c14e",
+          "r": 26,
+          "text": "the police car, the original"
+        },
+        {
+          "n": "4",
+          "at": [
+            -958,
+            1344,
+            60
+          ],
+          "color": "#4fd6d0",
+          "r": 26,
+          "text": "the copy of the crashed red car, 2 tiles north"
+        },
+        {
+          "n": "5",
+          "at": [
+            -958,
+            1152,
+            60
+          ],
+          "color": "#e09a5a",
+          "r": 26,
+          "text": "the crashed red car, the original"
+        },
+        {
+          "n": "6",
+          "at": [
+            -296,
+            -2400,
+            60
+          ],
+          "color": "#c58cff",
+          "r": 26,
+          "text": "where a sedan and its loose light bar stood (deleted)"
+        }
+      ]
+    },
+    {
+      "out": "EXP-24-run2-sedan-police.png",
+      "title": "EXP-24 run 2: the moved sedan, and the police car and its copy",
+      "target": [
+        -1010,
+        20,
+        50
+      ],
+      "camera": [
+        -500,
+        -1150,
+        1000
+      ],
+      "marks": [
+        {
+          "n": "1",
+          "at": [
+            -1248,
+            278,
+            70
+          ],
+          "color": "#5ad17a",
+          "r": 80,
+          "text": "the sedan, moved a quarter turn round with its loose light bar: no light bar left where it stood; cover, glass, fire"
+        },
+        {
+          "n": "2",
+          "at": [
+            -768,
+            -92,
+            70
+          ],
+          "color": "#58b4ff",
+          "r": 70,
+          "text": "the copy of the police car, turned half round: cover, glass, fire"
+        },
+        {
+          "n": "3",
+          "at": [
+            -960,
+            -292,
+            70
+          ],
+          "color": "#f2c14e",
+          "r": 70,
+          "text": "the police car, the original: as before"
+        }
+      ]
+    },
+    {
+      "out": "EXP-24-run2-wrecks.png",
+      "title": "EXP-24 run 2: the crashed red car and its copy",
+      "target": [
+        -958,
+        1130,
+        40
+      ],
+      "camera": [
+        0,
+        -900,
+        800
+      ],
+      "marks": [
+        {
+          "n": "4",
+          "at": [
+            -958,
+            1344,
+            60
+          ],
+          "color": "#4fd6d0",
+          "r": 70,
+          "text": "the copy of the crashed red car: cover, glass; save and reload"
+        },
+        {
+          "n": "5",
+          "at": [
+            -958,
+            1152,
+            60
+          ],
+          "color": "#e09a5a",
+          "r": 70,
+          "text": "the crashed red car, the original: as before"
+        },
+        {
+          "n": "7",
+          "at": [
+            -957,
+            898,
+            60
+          ],
+          "color": "#e0605a",
+          "r": 60,
+          "text": "the crashed yellow car: breaking the copy's glass leaves it alone"
+        }
+      ]
+    },
+    {
+      "out": "EXP-24-run2-deleted.png",
+      "title": "EXP-24 run 2: where the sedan stood, at the south edge",
+      "target": [
+        -296,
+        -2350,
+        30
+      ],
+      "camera": [
+        0,
+        900,
+        900
+      ],
+      "marks": [
+        {
+          "n": "6",
+          "at": [
+            -296,
+            -2400,
+            40
+          ],
+          "color": "#c58cff",
+          "r": 90,
+          "text": "where the sedan and its loose light bar stood (deleted): bare road, no cover, nothing burns"
+        }
+      ]
+    }
+  ]
+}
