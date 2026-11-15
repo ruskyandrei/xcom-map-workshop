@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 15 November 2026
 
+### The source pushed
+
+- With the user's go-ahead ("push"), `main` was pushed to
+  [ruskyandrei/xcom-map-workshop](https://github.com/ruskyandrei/xcom-map-workshop): the source commit `a57a2a3` on top
+  of the README-only commit. Before it, at the user's ask, the plans went to `private/plans` and out of the commit.
+- The repository's description now says "Source, releases and bug reports".
+- Checked on GitHub: the top level and `research/` hold what the commit holds, with no `private/` and no
+  `research/plans`; both commits carry the no-reply address; the six releases are as they were and v0.5.2 is still
+  the latest.
+
 ### The source is in the public repository
 
 - At the user's ask, the editor's source, tools and research moved into the public repository that held only the
