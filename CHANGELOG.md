@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 15 November 2026
 
+### The guide as a page
+
+- At the user's ask, the user guide is published with GitHub Pages at
+  <https://ruskyandrei.github.io/xcom-map-workshop/>. A workflow,
+  [guide.yml](.github/workflows/guide.yml), makes it one page with [guide.py](tools/viewer/guide.py)'s `inline()`
+  (pictures inside, the version filled in), as a release carries it, and publishes it whenever the guide, its
+  pictures, `guide.py` or the version change on `main`.
+- The [README](README.md) links to it, and says it can be ahead of the last release.
+- Checked: the workflow's build step run here gives a 5.6 MB page; the `repo` suite.
+
 ### A shorter README
 
 - At the user's ask, the [README](README.md) now only describes the editor and the repository and links to the

@@ -40,10 +40,11 @@ Unreal tools, and it contains nothing from the game: it reads your own install.
 The **user guide** explains every control on marked pictures, walks through typical tasks, and says what the editor
 can't do yet.
 
-- Every release carries it as **User Guide.html**: Setup offers to open it, and it is in the Start menu and in the
-  editor's **?** menu.
-- Its source is [tools/release/guide/guide.html](tools/release/guide/guide.html). GitHub shows that file as text;
-  download or clone it to read it in a browser.
+- **[Read it online](https://ruskyandrei.github.io/xcom-map-workshop/)**: the guide as it is in this repository,
+  which can be ahead of the last release.
+- Every release carries its own as **User Guide.html**: Setup offers to open it, and it is in the Start menu and in
+  the editor's **?** menu.
+- Its source is [tools/release/guide/guide.html](tools/release/guide/guide.html).
 - [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) covers setting up, building, playing and the known limits.
   A release carries it as its `README.md`.
 
