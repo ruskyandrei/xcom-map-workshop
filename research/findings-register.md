@@ -12,8 +12,6 @@ Statuses:
 
 ## Open now
 
-- F-115: the test squad's records follow the scripts (body from the armour, LWR's scanner and smoke charges in perk
-  entries, eight units); EXP-64 plays them.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
   the user saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
@@ -118,6 +116,10 @@ Statuses:
   arches (EXP-60); every flag off on a statue and its plinth, walked through and not picked (EXP-61); each flag alone
   on copies, a door, a ladder and a hedge (EXP-62). Blocks walking on a low piece stops no one: the editor says so
   (`flags-low`). Open: a prop's gate on a tall prop, a ladder's cover and a door after opening it are not played.
+- F-115: the test squad's records follow the scripts (body from the armour, LWR's scanner and smoke charges in perk
+  entries, units 7 and 8 behind the landing points). Verified in EXP-64 (16 November, LWR): the default six, two
+  SHIVs, a MEC with both modules, the grapple, the four grenade kinds, flight, squadsight, eight units on a map and
+  in a prefab test, and a save and load all passed. Plain Enemy Within's soldiers-only squad is not played.
 - F-111: cover, step-outs, flanking and sight inside sight radius come from the tiles' data alone (read 15
   November, checked against baked data). Not compared with a battle yet: one short run of a soldier on a known
   tile would settle the sight walk.
@@ -1919,8 +1921,8 @@ mission types plan, not seen in a run;
 - Used by: the mission types plan (which record a play installs, the options on its `open` line).
 
 ### F-115: A squad written into the profile is taken as written; its body comes from its armour, and LWR keeps some charges in perk entries
-**Open** (16 November 2026: read from the decompiled scripts and LWR's tactical mutator; not played yet, EXP-64 checks
-it). The test squad's records (test squad plan, Q0); [test-squad-records.md](test-squad-records.md) has the detail.
+**Verified** (16 November 2026: read from the decompiled scripts and LWR's tactical mutator; played in EXP-64 runs 1
+to 4 on LWR, every check passed). The test squad's records (test squad plan, Q0); [test-squad-records.md](test-squad-records.md) has the detail.
 - **Taken as written:** `XGPlayer.LoadSquad` sets each record's character and soldier as they are, its `aStats` the
   base stats; armour, weapon and item bonuses are added by the battle each turn, so a record holds none of them.
   `aAbilities` and `aProperties` are counts of the config row's entries, zeros included (`BuildCharacter`).
@@ -1942,9 +1944,10 @@ it). The test squad's records (test squad plan, Q0); [test-squad-records.md](tes
   Recoilless Launcher, and its `DefaultGameCore.ini` costs with elerium and alloys; LWR's starting rifle is
   `eItem_ExaltAssaultRifle` (cost row `iCash=-1`, not built). The default squad keeps the old six as they were; the
   panel shows their gear by the install's names.
-- Fix (not played yet): the test squad (squadrecords.py) writes each unit this way, checks its armour against the
-  list, writes the charge entries for scanners and smoke grenades, the class record, and warns about what the game
-  drops (a SHIV's other guns and items, a soldier's third large item, a MEC's grenades).
+- Fix: the test squad (squadrecords.py) writes each unit this way, checks its armour against the list, writes the
+  charge entries for scanners and smoke grenades, the class record, and warns about what the game drops (a SHIV's
+  other guns and items, a soldier's third large item, a MEC's grenades). Played in EXP-64 runs 1 to 4: every check
+  passed.
 
 
 ## Buildings and the cutaway (prefabs and buildings plan)

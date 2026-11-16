@@ -5,7 +5,7 @@ the decompiled XComGame scripts (`<lab>\reference\XComGame-decompiled`, LWR's), 
 (`RebalanceMutator`, decompiled from `LWRebalance.u` in the lab's reference copy), and the install's own data
 (`XComGame.upk`'s enums: [script_enums.py](../tools/upk/script_enums.py); `DefaultGameCore.ini` and the localisation:
 [gamedata.py](../tools/viewer/gamedata.py)). Nothing was run in the game for this note; the runs that check it are
-EXP-64's. The rules the editor follows are in [squadrecords.py](../tools/viewer/squadrecords.py); findings register
+EXP-64's, which passed on LWR (16 November). The rules the editor follows are in [squadrecords.py](../tools/viewer/squadrecords.py); findings register
 F-115.
 
 ## 1. The path
@@ -84,7 +84,7 @@ round every point, so units 7 and 8 stay clear of the prefab.
 Not visible in the scripts: how the targeting builds squadsight from `aUpgrades[3]`, the abilities built from armour
 (flight), the armour's stat bonus, pathing's reading of the traversals, and `IsOptionEnabled` (whether Robot
 Overlords is on for a console battle). The plan's runtime checks (EXP-64) cover those, the eight-unit line through
-the game's own parser, and the charges above.
+the game's own parser, and the charges above; all passed on LWR.
 
 ## 8. Plain Enemy Within and Long War without Rebalance
 

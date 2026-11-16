@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### EXP-64 passed: the test squad played on LWR
+
+The user played [EXP-64](research/experiments/EXP-64-test-squad.md)'s four runs in the lab copy of LWR and reported
+every check passed: the default six, the plan's six (two SHIVs, a MEC with both modules, the grapple, the scanner and
+the HE, smoke and acid grenades, flight, squadsight), eight units on a map and in a prefab test, and a save and load.
+F-115 is verified ([findings register](research/findings-register.md)); [test-squad-records.md](research/test-squad-records.md)
+says so. No shots were taken. Not played: plain Enemy Within's soldiers-only squad (no install here).
+
+Checked: the repo suite.
+
 ### Build queue plan: reviewed against the build, manager and prefab lifecycles
 
 Revised the private build queue plan; the feature is not implemented. The review of

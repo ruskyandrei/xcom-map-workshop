@@ -1,6 +1,7 @@
 # EXP-64: the test squad in the game
 
-Date: 16 November 2026. Status: **prepared, not run**. The test squad plan's game checks: stage Q0's runtime probes
+Date: 16 November 2026. Status: **runs 1 to 4 passed** (16 November, the lab copy of LWR): the user played every
+check below and reported each one passed; no shots were taken. The test squad plan's game checks: stage Q0's runtime probes
 (what the game makes of the records the editor writes) and stage Q5's acceptance runs, together. Until now every
 Play in game landed the same six soldiers written into the code (EXP-29 run 6); since stages Q1 to Q4 the squad is
 the one saved in **Settings → Test squad setup…**, written from the install's own data. The scripts' reading is
@@ -42,7 +43,7 @@ the grenadier's backpack warning:
 [EXP-64-eight.xcomsquad.json](EXP-64-eight.xcomsquad.json): the default six and two more soldiers (a support with a
 medikit, a tactical with a shotgun), for the seventh and eighth landing places.
 
-## Run 1 (to do): the default six
+## Run 1 (passed): the default six
 
 In the lab copy. **Reset to default** and Save in the setup (or no squad saved yet), then Play in game on a map. The
 user drives and looks (F9 shots); the unit info screen shows each unit's stats and perks.
@@ -53,7 +54,7 @@ user drives and looks (F9 shots); the unit info screen shows each unit's stats a
 3. A unit's stats are its base stats plus its armour's and weapons' bonuses, once (the unit info screen against the
    panel's base stats and the armour's line).
 
-## Run 2 (to do): the six
+## Run 2 (passed): the six
 
 Import EXP-64-six, Save, Play in game on a map with a roof the grapple can reach near the landing.
 1. All six land with bodies, names and gear as listed; the MEC shows the MEC class, the SHIVs none.
@@ -67,14 +68,14 @@ Import EXP-64-six, Save, Play in game on a map with a roof the grapple can reach
 5. Sky Wing takes off and lands.
 6. Long Eye fires at an alien beyond its own sight that another unit sees.
 
-## Run 3 (to do): eight units
+## Run 3 (passed): eight units
 
 Import EXP-64-eight, Save.
 1. Play in game on a map: units 7 and 8 land one tile behind landing points 1 and 2, on open tiles, not inside
    anything.
 2. A prefab test (**Test in game…** in the prefab builder) with the eight: the same, inside the stage's landing room.
 
-## Run 4 (to do): save and load
+## Run 4 (passed): save and load
 
 With the six, a play with **Enable saving** on: save in the battle, load the save, and check that names, gear, charges
 (the scanner's, the flamethrower's) and Squadsight are still there. After leaving the game, the editor has put back
