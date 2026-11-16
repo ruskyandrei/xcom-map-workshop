@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### EXP-61 run 1 passed: a statue with every flag off, walked through and not picked
+
+- [EXP-61](research/experiments/EXP-61-intro-statue-flags-off.md), a piece flags probe played by the user: a quick
+  build of the user's Act1_IntroLevel project with every flag turned off on a statue (`UrbanStatue_A`) and its plinth,
+  where they stand, written and read back by the Build and their tiles rebuilt. In the game a soldier walks through
+  them and the cursor passes them: the first play of Blocks walking off on a visible, colliding piece.
+  [Findings register](research/findings-register.md): F-114 notes it.
+- Known gaps: cover and sight off on their own, each flag alone, the plinth's top as a place to stand, damage and a
+  save and reload were not checked.
+
 ### EXP-60 run 1 passed: Temple Ship's arches clicked with Mouse picks it on
 
 - [EXP-60](research/experiments/EXP-60-temple-arches-mouse.md), the piece flags plan's first in-game probe (P7's
