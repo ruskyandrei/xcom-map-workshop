@@ -1,0 +1,168 @@
+{
+  "schema": "xcom-map-workshop/test-squad",
+  "version": 1,
+  "name": "EXP-64 eight",
+  "units": [
+    {
+      "id": "unit-1",
+      "kind": "soldier",
+      "first": "Tom",
+      "last": "Alpha",
+      "class": "eSC_Assault",
+      "rank": 1,
+      "look": "man-a",
+      "country": "eCountry_Canada",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_Shotgun"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-2",
+      "kind": "soldier",
+      "first": "Raj",
+      "last": "Bravo",
+      "class": "eSC_Support",
+      "rank": 1,
+      "look": "man-b",
+      "country": "eCountry_India",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_AssaultRifle"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-3",
+      "kind": "soldier",
+      "first": "Mia",
+      "last": "Charlie",
+      "class": "eSC_HeavyWeapons",
+      "rank": 1,
+      "look": "woman-a",
+      "country": "eCountry_Mexico",
+      "armour": "eItem_ArmorCarapace",
+      "sidearm": "eItem_LMG",
+      "weapons": [
+        "eItem_RocketLauncher"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-4",
+      "kind": "soldier",
+      "first": "Leo",
+      "last": "Delta",
+      "class": "eSC_Sniper",
+      "rank": 1,
+      "look": "man-c",
+      "country": "eCountry_Italy",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_SniperRifle"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-5",
+      "kind": "soldier",
+      "first": "Eva",
+      "last": "Echo",
+      "class": "eSC_Support",
+      "rank": 1,
+      "look": "woman-b",
+      "country": "eCountry_Mexico",
+      "armour": "eItem_ArmorCarapace",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_AssaultRifle"
+      ],
+      "items": [
+        "eItem_Medikit"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-6",
+      "kind": "soldier",
+      "first": "Sam",
+      "last": "Foxtrot",
+      "class": "eSC_Assault",
+      "rank": 1,
+      "look": "man-d",
+      "country": "eCountry_Canada",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_AssaultRifle"
+      ],
+      "items": [
+        "eItem_NeedleGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-7",
+      "kind": "soldier",
+      "first": "Ann",
+      "last": "Golf",
+      "class": "eSC_Support",
+      "rank": 1,
+      "look": "woman-b",
+      "country": "eCountry_Canada",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_ExaltAssaultRifle"
+      ],
+      "items": [
+        "eItem_Medikit"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-8",
+      "kind": "soldier",
+      "first": "Ben",
+      "last": "Hotel",
+      "class": "eSC_Assault",
+      "rank": 1,
+      "look": "man-d",
+      "country": "eCountry_India",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_Shotgun"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    }
+  ],
+  "editor": "0.5.2"
+}

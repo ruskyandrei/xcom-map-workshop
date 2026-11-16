@@ -1,0 +1,129 @@
+{
+  "schema": "xcom-map-workshop/test-squad",
+  "version": 1,
+  "name": "EXP-64 six",
+  "units": [
+    {
+      "id": "unit-1",
+      "kind": "shiv",
+      "first": "Tracks",
+      "last": "",
+      "class": "eSC_None",
+      "rank": 1,
+      "look": null,
+      "country": null,
+      "armour": "eItem_SHIVDeck_I",
+      "sidearm": null,
+      "weapons": [
+        "eItem_ShivMinigun"
+      ],
+      "items": [],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-2",
+      "kind": "shiv",
+      "first": "Hover",
+      "last": "",
+      "class": "eSC_None",
+      "rank": 1,
+      "look": null,
+      "country": null,
+      "armour": "eItem_SHIVDeck_III",
+      "sidearm": null,
+      "weapons": [
+        "eItem_ShivMinigun"
+      ],
+      "items": [],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-3",
+      "kind": "mec",
+      "first": "Iron",
+      "last": "Fist",
+      "class": "eSC_Mec",
+      "rank": 1,
+      "look": "man-b",
+      "country": "eCountry_India",
+      "armour": "eItem_MecArmor1",
+      "sidearm": null,
+      "weapons": [
+        "eItem_Chaingun",
+        "eItem_MecKineticArm",
+        "eItem_MecFlameThrower"
+      ],
+      "items": [],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-4",
+      "kind": "soldier",
+      "first": "Gren",
+      "last": "Hook",
+      "class": "eSC_Support",
+      "rank": 1,
+      "look": "woman-a",
+      "country": "eCountry_Mexico",
+      "armour": "eItem_ArmorSkeleton",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_ExaltAssaultRifle"
+      ],
+      "items": [
+        "eItem_BattleScanner",
+        "eItem_FragGrenade",
+        "eItem_SmokeGrenade",
+        "eItem_GasGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-5",
+      "kind": "soldier",
+      "first": "Sky",
+      "last": "Wing",
+      "class": "eSC_Assault",
+      "rank": 1,
+      "look": "man-a",
+      "country": "eCountry_Canada",
+      "armour": "eItem_ArmorArchangel",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_ExaltAssaultRifle"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [],
+      "stats": {}
+    },
+    {
+      "id": "unit-6",
+      "kind": "soldier",
+      "first": "Long",
+      "last": "Eye",
+      "class": "eSC_Sniper",
+      "rank": 1,
+      "look": "man-c",
+      "country": "eCountry_Italy",
+      "armour": "eItem_ArmorKevlar",
+      "sidearm": "eItem_Pistol",
+      "weapons": [
+        "eItem_ExaltSniperRifle"
+      ],
+      "items": [
+        "eItem_FragGrenade"
+      ],
+      "perks": [
+        "ePerk_SquadSight"
+      ],
+      "stats": {}
+    }
+  ],
+  "editor": "0.5.2"
+}

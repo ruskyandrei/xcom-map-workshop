@@ -1936,6 +1936,12 @@ it). The test squad's records (test squad plan, Q0); [test-squad-records.md](tes
   place; there is no cap in the scripts.
 - **Class record:** `kSoldier.kClass.eType` is the HUD's class label and LWR's class; plays before the panel left it
   empty (a rookie's).
+- **The old squad's gear is LWR's Gauss tier:** the item numbers EXP-29 run 6 took for the basic weapons (rifle 3,
+  machine gun 5, sniper rifle 6, rocket launcher 7) are `eItem_AssaultRifle`, `eItem_LMG`, `eItem_SniperRifle` and
+  `eItem_RocketLauncher`, which LWR's localisation names Gauss Assault Rifle, Gauss Autorifle, Gauss Long Rifle and
+  Recoilless Launcher, and its `DefaultGameCore.ini` costs with elerium and alloys; LWR's starting rifle is
+  `eItem_ExaltAssaultRifle` (cost row `iCash=-1`, not built). The default squad keeps the old six as they were; the
+  panel shows their gear by the install's names.
 - Fix (not played yet): the test squad (squadrecords.py) writes each unit this way, checks its armour against the
   list, writes the charge entries for scanners and smoke grenades, the class record, and warns about what the game
   drops (a SHIV's other guns and items, a soldier's third large item, a MEC's grenades).

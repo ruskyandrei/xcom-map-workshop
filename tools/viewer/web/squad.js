@@ -323,7 +323,7 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
               unit.sidearm, { none: 'None' });
       sidearm.onchange = () => { unit.sidearm = sidearm.value || null; changed(); };
       els.unit.append(field('Sidearm', sidearm, el('small', { textContent: unit.class === 'eSC_HeavyWeapons'
-        ? 'A heavy carries its machine gun here and its rocket launcher as its weapon, as the game\'s own heavy does' : 'The pistol\'s place' })));
+        ? 'A heavy can carry its main gun here and its launcher as its weapon, as the default heavy does' : 'The pistol\'s place' })));
     }
     els.unit.append(field(unit.kind === 'mec' ? 'Gun and modules' : unit.kind === 'shiv' ? 'Gun' : 'Weapons', listEditor(unit, 'weapons', unit.kind),
       el('small', { textContent: unit.kind === 'mec' ? 'The gun first, then its modules (kinetic strike, flamethrower…)' : unit.kind === 'shiv' ? 'A SHIV fires its first gun' : 'The weapon first' })));

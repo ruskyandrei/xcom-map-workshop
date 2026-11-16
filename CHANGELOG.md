@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Test squad: EXP-64 prepared; the old six's gear named as LWR names it
+
+- [EXP-64](research/experiments/EXP-64-test-squad.md) is the test squad's game check (the plan's Q0 probes and Q5
+  runs), prepared, not run: the default six, then the plan's six (two SHIVs, a MEC with both modules, a grenadier
+  with the grapple armour, a flyer, a squadsight sniper) and an eight-unit squad, as two shared squad files to
+  import ([EXP-64-six](research/experiments/EXP-64-six.xcomsquad.json),
+  [EXP-64-eight](research/experiments/EXP-64-eight.xcomsquad.json)), each checked playable against the LWR install,
+  and a save and load.
+- The old six's item numbers name LWR's Gauss tier (Gauss Assault Rifle, Gauss Autorifle, Gauss Long Rifle,
+  Recoilless Launcher), by LWR's localisation and cost rows: a bullet in F-115
+  ([findings register](research/findings-register.md)). The default squad keeps them; the guide no longer calls them
+  rifles and a machine gun ([guide.html](tools/release/guide/guide.html)), and the panel's sidearm help for a heavy
+  says "main gun" and "launcher" ([squad.js](tools/viewer/web/squad.js)).
+
+Checked: the repo, release and node suites; the squads through `POST /squad/check` on the main server.
+
 ### Test squad Q4: the Settings menu and the squad's panel
 
 Stage Q4 of the test squad plan (private): the squad is set up in the editor.
