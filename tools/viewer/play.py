@@ -58,6 +58,7 @@ import time
 import gamelaunch
 import installs
 import missions
+import publication
 import playsaves
 from projects import ProjectError
 from squads import SquadError
@@ -278,13 +279,19 @@ class Player:
     def _install_project(self, game, project_id, zone=None, mission=None):
         if self.projects is None or self.builds is None: raise ProjectError(404, 'This server does not build.')
         document = self.projects.load(project_id)
-        with self.builds.lock:
-            job = self.builds.job
-            building = bool(job and job['state'] == 'running' and job['project'] == project_id)
-        if building: raise ProjectError(409, 'Not started: the project is building; it can be played when the build ends.')
-        package = self.builds.package(project_id, (document.get('output') or {}).get('shipAs'))
-        if package is None: raise ProjectError(409, 'Not started: build the project first (Ctrl+B).')
-        return installs.install_package(game, Path(package['folder']), zone=zone, mission=mission)
+        # its package leased (a project being built, or about to be, can't be played) and its guard held while it is
+        # copied in: no build swaps it meanwhile (build queue plan, 9.4); another project building doesn't stop it
+        with self.builds.lease([project_id]) as building:
+            if project_id in building:
+                raise ProjectError(409, 'Not started: the project is building; it can be played when the build ends.')
+            package = self.builds.package(project_id, (document.get('output') or {}).get('shipAs'))
+            if package is None: raise ProjectError(409, 'Not started: build the project first (Ctrl+B).')
+            folder = Path(package['folder'])
+            try:
+                with publication.guard(folder.parent, folder.name):
+                    return installs.install_package(game, folder, zone=zone, mission=mission)
+            except publication.Busy as error:
+                raise installs.InstallError(str(error))
 
     def _map(self, game, map_id, mission=None):
         entry = (self.catalogue or {}).get('maps', {}).get(map_id) if isinstance(map_id, str) else None

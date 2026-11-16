@@ -234,7 +234,8 @@ export const api = {
   // edit made in the map without baking its lighting.
   build: (id, quick = false) => call('POST', `${at(id)}/build`, quick ? { quick: true } : {}),
   buildStatus: id => call('GET', `${at(id)}/build.json`),
-  cancelBuild: id => call('POST', `${at(id)}/build-cancel`, {}),
+  // attempt: only that launch (a page that saw an older build stops no newer one)
+  cancelBuild: (id, attempt = null) => call('POST', `${at(id)}/build-cancel`, attempt ? { attempt } : {}),
   report: id => call('POST', `${at(id)}/report`, {}),
   // a folder or file of the builds folder shown in Windows Explorer (a folder opened, a file selected)
   reveal: path => call('POST', '/builds/reveal', { path }),

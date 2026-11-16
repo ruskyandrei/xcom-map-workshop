@@ -374,6 +374,33 @@ canvas { display: block; width: 100%; height: 100%; }
 .mmode strong { color: #e3eaef; font-weight: 600; }
 .mmode input { accent-color: var(--accent); margin: 0; }
 .mwarnings { margin: 0; padding: 0 0 0 16px; max-height: 84px; overflow: auto; font-size: 11.5px; color: var(--warn); }
+/* the build queue (build_queue.js): a row's place in it, and the strip above the manager's footer */
+.mrow > .mbuild.queued { display: flex; flex-direction: column; gap: 1px; white-space: normal; line-height: 1.35; }
+.mbuild .mqline { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d3e2e8; }
+.mbuild .mqline.waiting, .mbuild .mqline.stopped { color: #a9bcc6; }
+.mbuild .mqline.built { color: var(--accent-text); }
+.mbuild .mqline.failed { color: var(--warn); }
+.mbuild .mqrest { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.mbuild .mqremove { margin: 0 0 0 auto; font-size: 11px; padding: 0 2px; }
+.mqrowbar, .mqstage { display: block; height: 3px; border-radius: 2px; background: #22303a; overflow: hidden; }
+.mqrowbar > span, .mqstage > span { display: block; height: 100%; background: var(--accent); }
+.mqueue { border: 1px solid var(--border); border-radius: 6px; background: #161f26; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #a9bcc6; }
+.mqhead { display: flex; align-items: baseline; gap: 10px; }
+.mqhead strong { flex: 1; color: #e3eaef; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mqclock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.mqstep { color: #c8d7df; }
+.mqbar { height: 6px; border-radius: 3px; background: #22303a; overflow: hidden; }
+.mqbar > span { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+.mqbar.done > span { background: #4f8f6f; }
+.mqnote { font-size: 11.5px; }
+.mqfailures { margin: 0; padding: 0 0 0 16px; max-height: 72px; overflow: auto; font-size: 11.5px; color: var(--warn); }
+.mqbuttons { display: flex; justify-content: flex-end; gap: 8px; }
+.mqbuttons button { border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; padding: 4px 12px; cursor: pointer; font-size: 12px; }
+.mqbuttons button:hover:not(:disabled) { background: #31434d; }
+.mqbuttons button:disabled { opacity: .4; cursor: default; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.queuechip { cursor: pointer; font: inherit; font-size: 11px; }
+.queuechip:hover { border-color: #5a7180; }
 .mwarnings b { font-weight: 600; }
 .managerdialog .filemessage { color: #c8d7df; }
 .managerdialog .filemessage.warn { color: var(--warn); }

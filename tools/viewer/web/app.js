@@ -13,6 +13,7 @@ import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
 import { createSquadDialog, squadLine } from './squad.js';
 import { createProjectManager } from './manager.js';
+import { chipWords, createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
@@ -4382,30 +4383,37 @@ function openBuild() {
 async function buildProject(quick = false) {
   if (!canBuild()) return;
   if (dirty() && !(await saveProject())) return;
-  try { followBuild(await projectApi.build(project.doc.id, quick)); }
+  try {
+    const status = await projectApi.build(project.doc.id, quick);
+    // Play in game asked for this very build: its attempt, so no other build of the project (the queue's) plays
+    if (playAfterBuild && !playAfterBuild.attempt && status.job?.project === playAfterBuild.project) playAfterBuild.attempt = status.job.attempt;
+    followBuild(status);
+  }
   catch (e) { banner(`Not built: ${e.message}`); }
 }
 // Each status from the server (every 2 s while the build runs). A build that ended before this page saw it running
-// opens no window: its package shows in the Project menu.
+// opens no window: its package shows in the Project menu. A build of the build queue's (job.origin 'queue') opens no
+// window either: the editor stays usable, and the chip and the project manager follow it.
 function followBuild(status) {
   clearTimeout(buildTimer);
   lastBuild = status;
   const job = status.job;
   if (!project || !job) return;
-  if (buildView?.started !== job.startedAt) {
+  if (job.origin === 'queue' && buildView?.attempt !== job.attempt) { renderPlayItems(); return; }
+  if (buildView?.attempt !== (job.attempt ?? job.startedAt)) {
     if (status.state !== 'running') return;
     // the estimate: how long the project's last build of the same kind (full or quick) took
     const times = status.package?.times;
-    buildView = { started: job.startedAt, estimate: (job.quick ? times?.quick : times?.full) || null,
-                  failures: 0, fullLog: false, thenInstall: playAfterBuild === job.project, install: null };
+    buildView = { attempt: job.attempt ?? job.startedAt, started: job.startedAt, estimate: (job.quick ? times?.quick : times?.full) || null,
+                  failures: 0, fullLog: false, thenInstall: Boolean(job.attempt) && playAfterBuild?.attempt === job.attempt, install: null };
     $('buildPlaySaving').checked = false;           // the window's Enable saving: off for each build
     openBuildWindow();
   }
   Object.assign(buildView, { status, failures: 0 });
   if (status.state === 'failed' && !buildView.ended) buildView.fullLog = true;
   buildView.ended = status.state !== 'running';
-  // Play in game asked for this build: play it once built.
-  if (buildView.ended && playAfterBuild === job.project) {
+  // Play in game asked for this build: play it once built (this attempt alone).
+  if (buildView.ended && job.attempt && playAfterBuild?.attempt === job.attempt) {
     playAfterBuild = null;
     if (status.state === 'built') playBuilt(job.project);
   }
@@ -4439,7 +4447,7 @@ function openBuildWindow() {
 function closeBuildWindow() {
   clearInterval(buildTicker); clearTimeout(buildTimer);
   $('buildModal').hidden = true;
-  if (buildView && !buildView.ended) { buildView.started = null; buildTimer = setTimeout(pollBuild, 5000); }
+  if (buildView && !buildView.ended) { buildView.attempt = null; buildTimer = setTimeout(pollBuild, 5000); }
 }
 const copyCount = n => n === 1 ? '1 copy' : `${n} copies`;
 // A step's line under its name: what it made once done, or what it is doing while it runs.
@@ -4655,7 +4663,7 @@ $('buildPrepare').onclick = () => { closeBuildWindow(); showPrepare('failed', tr
 // Cancel stops the build and its tools (builds.py); the package swaps in only at the end, so the last good one stays.
 $('buildCancel').onclick = async () => {
   $('buildCancel').disabled = true;
-  try { followBuild(await projectApi.cancelBuild(buildView.status.job.project)); }
+  try { followBuild(await projectApi.cancelBuild(buildView.status.job.project, buildView.status.job.attempt)); }
   catch (e) { buildView.report = `Not cancelled: ${e.message}`; buildView.reportPath = null; renderBuild(); }
   finally { $('buildCancel').disabled = false; }
 };
@@ -4728,6 +4736,7 @@ async function renderProjectMenu() {
 // map, in the game install the settings name (the install setting, else the game install the editor reads). With a
 // project open it plays the project's build, building first when the last build isn't of what is on screen; with a map
 // alone, the original map (no edits). The menu's Installs section says what the editor works with.
+// playAfterBuild: { project, attempt } once Build and play has asked for a build (its attempt once the server took it)
 let playStatus = null, playAfterBuild = null;
 // Land here (Clear map plan, section 4): the landing zone, by id, the next play of the project lands at, else null
 let playZone = null;
@@ -4859,10 +4868,11 @@ async function playChosen(kind, mission = null, saving = false) {
   playSaving = Boolean(saving);
   followPlayedMission(playMission);
   if (kind === 'last') { if (builtAsShown()) sendPlay(withZone({ project: project.doc.id }), project.doc.name); return; }
-  // save and build it, and play it when the build ends (followBuild)
-  playAfterBuild = project.doc.id;
+  // save and build it, and play it when that build ends (followBuild)
+  playAfterBuild = { project: project.doc.id, attempt: null };
   await buildProject(kind === 'quick');
-  if (lastBuild?.state !== 'running') playAfterBuild = null;   // the build didn't start (not saved, or refused)
+  // the build didn't start (not saved, or refused: the build queue holds the slot): no later build plays
+  if (!playAfterBuild?.attempt) playAfterBuild = null;
 }
 async function sendPlay(request, label) {
   flashHint(`Starting the game on ${label}…`);
@@ -5041,15 +5051,64 @@ const fileDialog = createProjectDialog({
   api: projectApi, mapLabel, onLoad: loadProject,
   onSave: ({ name, target, output }) => saveProject(!target ? { name, output } : target.id === project?.doc.id ? { rename: name } : { name, replace: target }),
 });
-// The project manager (manager.js): every project and its last build, to install or zip several at once.
+// The build queue (build_queue.js, tools/viewer/buildqueue.py): one controller for the page asks the server about it,
+// for the project manager and for the chip in the top bar, which says where the queue is (and its results, until
+// Clear or the next Build) and opens the manager. A row of the open project's that starts or ends refreshes its
+// build state (its package), even when the server has gone on to the next row.
+async function queueCall(method, url, body) {
+  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+                                      body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
+  const value = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, body: value });
+  return value;
+}
+const buildQueue = createQueueController({
+  get: () => queueCall('GET', '/manager/queue.json'),
+  post: (action, body) => queueCall('POST', action === 'add' ? '/manager/queue' : `/manager/queue/${action}`, body),
+  onChange: (state, info) => { renderQueueChip(state, info); projectManager?.queueChanged(state, info); followQueueForProject(state, info); },
+});
+function renderQueueChip(state, info) {
+  const chip = $('queueChip'), words = chipWords(state);
+  chip.hidden = !words;
+  if (!words) return;
+  chip.textContent = words.text + (info?.offline ? ' (not answering)' : '');
+  chip.classList.toggle('warn', words.warn);
+  chip.title = `The build queue: ${words.text}. Click to open the project manager and follow it`;
+}
+function followQueueForProject(state, info) {
+  if (!project || builderMode) return;
+  const id = project.doc.id, mine = state?.items?.find(i => i.project === id);
+  const building = Boolean(mine && (mine.state === 'starting' || mine.state === 'building'));
+  const shown = lastBuild?.state === 'running' && lastBuild.job?.origin === 'queue';
+  if (building !== shown || info?.ended?.some(i => i.project === id))
+    projectApi.buildStatus(id).then(s => { if (project?.doc.id === id) { lastBuild = s; renderPlayItems(); } }, () => {});
+}
+$('queueChip').onclick = () => showProjectManager();
+window.addEventListener('focus', () => buildQueue.refresh());
+// Build in the manager saves the open project first when it is ticked and has unsaved changes, as the editor's own
+// Build does; a save that fails or is refused queues nothing, and neither does a project switched meanwhile.
+async function ensureSavedFor(ids) {
+  if (builderMode || !project || !ids.includes(project.doc.id) || !dirty()) return true;
+  const id = project.doc.id;
+  const saved = await saveProject();
+  return Boolean(saved) && project?.doc.id === id && !dirty();
+}
+// The project manager (manager.js): every project and its last build, to install or zip several at once, or to build.
 const projectManager = createProjectManager({
   els: { root: $('managerDialog'), form: $('managerForm'), close: $('managerClose'), search: $('managerSearch'), show: $('managerShow'),
          head: $('managerHead'), all: $('managerAll'), list: $('managerList'), count: $('managerCount'), pickShown: $('managerPickShown'),
          pickNone: $('managerPickNone'), warnings: $('managerWarnings'), message: $('managerMessage'), pack: $('managerPack'),
-         install: $('managerInstall'), done: $('managerDone'), where: $('managerWhere') },
+         install: $('managerInstall'), done: $('managerDone'), where: $('managerWhere'), build: $('managerBuild'),
+         queueBox: $('managerQueue'), queueTitle: $('managerQueueTitle'), queueClock: $('managerQueueClock'),
+         queueStep: $('managerQueueStep'), queueStage: $('managerQueueStage'), queueBar: $('managerQueueBar'),
+         queueNote: $('managerQueueNote'), queueFailures: $('managerQueueFailures'), queueLive: $('managerQueueLive'),
+         queueStop: $('managerQueueStop'), queueResume: $('managerQueueResume'), queueClear: $('managerQueueClear'),
+         queueReset: $('managerQueueReset') },
   mapLabel, onOpen: loadProject, onChanged: () => refreshInstalls(),
   reveal: path => projectApi.reveal(path),
+  queue: buildQueue, ensureSaved: ensureSavedFor,
 });
+buildQueue.start();
 // The Game maps window (gamemaps.js): what the game install's map records are now, and undoing the editor's changes.
 const gameMaps = createGameMaps({
   els: { root: $('gameMapsDialog'), form: $('gameMapsForm'), close: $('gameMapsClose'), search: $('gameMapsSearch'), show: $('gameMapsShow'),

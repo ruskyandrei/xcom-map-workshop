@@ -8,6 +8,52 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue Q2 and Q3: Build in the project manager, the editor's chip, package leases
+
+One commit for both stages (private build queue plan), since the page's one queue controller serves the manager and
+the chip.
+
+- [build_queue.js](tools/viewer/web/build_queue.js), new: the page's side of the queue without the page. The "Needs a
+  full build" predicate (not built, not baked, an older revision, another or unknown editor version; a full build that
+  kept its lighting counts as full), the order Build sends (the list's sort, ticked rows the filter hides included),
+  the rows', strip's and chip's words, and honest estimates: each project's last full build, the current one's
+  elapsed time taken off with a floor at zero, "taking longer than its last build" past it, and a known subtotal plus
+  how many have no time to go by instead of a whole-queue time. One controller polls `/manager/queue.json` (about 2 s
+  with the manager open and the queue running, 5 s closed, 15 s idle; at once on focus and on opening the manager),
+  one request at a time, older answers dropped, slower while the server doesn't answer, and nothing more after a 404.
+- [manager.js](tools/viewer/web/manager.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css): Build (N) beside Zip and Install; the open project is saved first when it is
+  ticked and changed, and a save that fails or conflicts queues nothing. The Last build column shows the row's place
+  in the queue above its last build's line (Waiting (2nd) with Remove, Building with the step and a thin bar, Built,
+  Failed with the reason, Stopped: starts again on Resume); polls redraw only the cells that changed, a change of
+  which rows are queued redraws the list with scroll and focus kept. A strip above the footer shows the queue
+  (Building 2 of 5, the step, the time, processed of all, the estimate, the failures) with Stop / Stopping…, Resume,
+  Clear and Reset. Show has "Needs a full build"; a row with a queue result stays shown under a filter. The note on
+  unbuilt projects now says Install and Zip leave them out.
+- [app.js](tools/viewer/web/app.js), [project.js](tools/viewer/web/project.js): a chip in the top bar (Building 2 of
+  5, Queue stopped, 5 built, 1 failed) opens the manager; results stay until Clear or the next Build. A build of the
+  queue's opens no build window and never plays; the build window and Play after a build follow the exact attempt, and
+  a refused Build and play forgets its play. The open project's build state is refreshed when its row starts or ends,
+  even after the server has gone on. The window's Cancel sends its attempt.
+- [manager.py](tools/viewer/manager.py), [play.py](tools/viewer/play.py): Install, the map pack and Play in game lease
+  the packages they read (a project being built or about to be is left out with the reason; the queue waits for the
+  reader) and hold each package's guard while reading and copying it; the pack takes all its guards at once in one
+  order. The listing's `building` comes from the shared active-writer query.
+
+Checked: [build_queue_test.mjs](tools/viewer/tests/build_queue_test.mjs), new (filter, order, rows, estimates, strip,
+chip, the controller's cadence, stale answers, offline and 404); [test_manager.py](tools/viewer/tests/test_manager.py)
+(leases and guards held during Install, the pack and Play, let go after a failure); the viewer suite (409), the editor,
+node and repo suites. In the browser, on a scratch test server (port 8790, copies of four projects, a scratch builds
+folder, a stand-in build that goes through its stages by itself; stopped afterwards): Build of four with two hidden by
+the filter, one failing alone, the queue surviving a reload, the finished strip and chip, Clear, the filter, Stop
+while building (Stopping…, then stopped, earlier builds' lines kept), Remove without toggling the row, Add to a
+stopped queue, a stale request (409), Resume, a queued project open in the editor (no build window, Play off while
+its row builds, its new package afterwards), Build saving the open project first, a conflicting save queuing
+nothing, a second tab's queue found by the first, the chip saying "not answering", and the server killed mid-build:
+its build died with it, and the restarted server had the row waiting and the queue stopped until Resume, which built
+it as a second attempt. The controller called `setTimeout` unbound at first; the browser run found it. Known gaps: no
+real build queued yet (Q4); the guide and README not written (Q5).
+
 ### Build queue Q1: the queue on the server, kept across restarts
 
 [buildqueue.py](tools/viewer/buildqueue.py), new (private build queue plan, stage Q1): projects queued for full

@@ -27,6 +27,12 @@ have been played in the game with a variant. All of that is said as warnings, ne
 
 The pack's config lines are worked out from the game install the editor reads (the same lines install_rotation would
 add there); the README says so, since another install's records may differ.
+
+Install and the pack read packages while the build queue may be building (build queue plan, 9.4): they lease the
+projects' packages (builds.py lease), so a project being built, or about to be, is left out with the reason and the
+queue waits before it starts one being read; and they hold each package's guard (publication.py) while they read and
+copy it, so no build swaps it meanwhile. The pack takes all its packages' guards at once, in one order, and reads their
+manifests again once it holds them.
 """
 import datetime
 import json
@@ -36,6 +42,7 @@ import zipfile
 
 import installs
 import pack_scripts
+import publication
 from projects import ProjectError
 from settings import kind_label, lwr_game
 from version import VERSION
@@ -97,9 +104,8 @@ def listing(projects, builds, player):
         except (OSError, ValueError, installs.InstallError): status = None
     played = {i.get('map'): i for i in (status or {}).get('installed') or [] if i.get('kind') == 'project'}
     rotation = {e['variant']: e for e in (status or {}).get('rotation') or []}
-    with builds.lock:
-        job = builds.job
-        building = job['project'] if job and job['state'] == 'running' else None
+    # being built now, or about to be (the build queue's next): the shared active-writer query
+    building = builds.active_projects()
     rows = []
     for summary in projects.list():
         if summary.get('error'):
@@ -132,15 +138,14 @@ def listing(projects, builds, player):
                            current=bool(build) and (entry or played[variant]).get('buildId') == build['buildId'])
         rows.append(dict(summary, variant=variant, build=build, missions=missions, warnings=warnings,
                          modeWarnings=by_mode, inGame=in_game,
-                         building=building == summary['id']))
+                         building=summary['id'] in building))
     return dict(projects=rows, folder=str(projects.root), output=str(builds.output), editorVersion=VERSION,
                 install=dict(folder=None if game is None else str(game), ready=game is not None and why is None, why=why,
                              kind=None if game is None else kind_label(game)))
 
 
-def _chosen(projects, builds, request, need_mode=True):
-    """The request's projects and mode: ([(id, name, manifest or None, folder, why not, its mode)], mode). A project's
-    mode is its own where the request's "modes" ({id: mode}) names it, else the request's "mode"."""
+def _request(request, need_mode=True):
+    """The request's project ids (in order, once each) and mode, checked."""
     if not isinstance(request, dict) or not isinstance(request.get('projects'), list) or not request['projects'] \
             or not all(isinstance(p, str) for p in request['projects']):
         raise ProjectError(400, 'Send {"projects": [id...]}.')
@@ -150,18 +155,23 @@ def _chosen(projects, builds, request, need_mode=True):
     modes = request.get('modes') or {}
     if not isinstance(modes, dict) or any(v not in installs.ROTATION_MODES for v in modes.values()):
         raise ProjectError(400, 'Send "modes": {project id: "additional" or "replace"}.')
-    with builds.lock:
-        job = builds.job
-        building = job['project'] if job and job['state'] == 'running' else None
+    return list(dict.fromkeys(request['projects'])), mode, modes
+
+
+def _chosen(projects, builds, request, building, need_mode=True):
+    """The request's projects and mode: ([(id, name, manifest or None, folder, why not, its mode)], mode). A project's
+    mode is its own where the request's "modes" ({id: mode}) names it, else the request's "mode". `building`: the
+    projects being built (the lease's), which are left out."""
+    ids, mode, modes = _request(request, need_mode)
     out = []
-    for project_id in dict.fromkeys(request['projects']):
+    for project_id in ids:
         try: document = projects.load(project_id)
         except ProjectError as error:
             out.append((project_id, project_id, None, None, error.message, mode))
             continue
         name = document.get('name') or project_id
         m, folder = _manifest(builds, project_id, (document.get('output') or {}).get('shipAs'))
-        why = ('It is building; it can be used when the build ends.' if building == project_id
+        why = ('It is building; it can be used when the build ends.' if project_id in building
                else None if m else 'It has not been built yet.')
         out.append((project_id, name, m if why is None else None, folder, why, modes.get(project_id, mode)))
     return out, mode
@@ -176,23 +186,27 @@ def _game(player, what):
 def install(projects, builds, player, request):
     """Each chosen project's last build installed for campaigns (installs.install_rotation); the results, one per
     project, and the listing afterwards."""
-    chosen, mode = _chosen(projects, builds, request)
+    ids, _, _ = _request(request)
     game = _game(player, 'Not installed')
     results = []
-    with player.lock:
-        why = installs.ready(game)
-        if why: raise ProjectError(409, f'Not installed: {why}.')
-        for project_id, name, m, folder, why, its in chosen:
-            if m is None:
-                results.append(dict(id=project_id, name=name, ok=False, error=why))
-                continue
-            try:
-                done = installs.install_rotation(game, folder, its)
-                results.append(dict(id=project_id, name=name, ok=True, mode=its, variant=done['variant'], base=done['base'],
-                                    switchedOff=done['switchedOff'], quick=done['quick'], warnings=done['warnings'],
-                                    missions=[x['label'] for x in done['missions'] if x['inRotation']]))
-            except (OSError, ValueError, KeyError, installs.InstallError) as error:
-                results.append(dict(id=project_id, name=name, ok=False, error=str(error)))
+    with builds.lease(ids) as building:
+        chosen, mode = _chosen(projects, builds, request, building)
+        with player.lock:
+            why = installs.ready(game)
+            if why: raise ProjectError(409, f'Not installed: {why}.')
+            for project_id, name, m, folder, why, its in chosen:
+                if m is None:
+                    results.append(dict(id=project_id, name=name, ok=False, error=why))
+                    continue
+                try:
+                    # the package's guard held while it is read and copied: no build swaps it meanwhile
+                    with publication.guard(folder.parent, folder.name):
+                        done = installs.install_rotation(game, folder, its)
+                    results.append(dict(id=project_id, name=name, ok=True, mode=its, variant=done['variant'], base=done['base'],
+                                        switchedOff=done['switchedOff'], quick=done['quick'], warnings=done['warnings'],
+                                        missions=[x['label'] for x in done['missions'] if x['inRotation']]))
+                except (OSError, ValueError, KeyError, installs.InstallError, publication.PublishError) as error:
+                    results.append(dict(id=project_id, name=name, ok=False, error=str(error)))
     return dict(listing(projects, builds, player), results=results, mode=mode)
 
 
@@ -280,9 +294,22 @@ def pack_readme(pack, parts):
 def pack(projects, builds, player, request, now=None):
     """One zip of the chosen projects' last builds (see the module notes). Projects without a build are left out and
     named; with none left it is an error."""
+    ids, _, _ = _request(request)
+    with builds.lease(ids) as building:
+        chosen, mode = _chosen(projects, builds, request, building)
+        variants = [folder.name for _, _, m, folder, _, _ in chosen if m is not None]
+        try:
+            # every package's guard at once, in one order, while they are read and zipped (their manifests read again
+            # once held: _pack's read_package)
+            with publication.guards(builds.output, variants):
+                return _pack(projects, builds, player, request, chosen, mode, now)
+        except publication.Busy as error:
+            raise ProjectError(409, f'Not made: {error}')
+
+
+def _pack(projects, builds, player, request, chosen, mode, now):
     import deploy_fixture as dep
     from settings import game_kind
-    chosen, mode = _chosen(projects, builds, request)
     _, _, read = _targets(player)
     game = read if read is not None else _targets(player)[0]
     lines = _lines(game)

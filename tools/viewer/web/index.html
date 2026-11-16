@@ -50,6 +50,7 @@
     <span id="previewChip" class="chip warn" hidden title="This layout is a patch preview built by the viewer; the game has not confirmed it">Experimental preview · not verified in game</span>
     <span class="spacer"></span>
     <span id="editCount" class="chip warn" hidden></span>
+    <button id="queueChip" class="chip queuechip" type="button" hidden title="The build queue: open the project manager to follow it"></button>
     <button id="editUndo" class="icon" title="Undo (Ctrl+Z)" aria-label="Undo" hidden><svg class="i"><use href="#i-undo"/></svg></button>
     <button id="editRedo" class="icon" title="Redo (Ctrl+Y)" aria-label="Redo" hidden><svg class="i"><use href="#i-redo"/></svg></button>
     <button id="editResetAll" class="textbutton" type="button" title="Put the map back as exported: added pieces go, deleted ones return, moved ones go home, groups end (one undo step)" hidden>Reset all</button>
@@ -405,7 +406,7 @@
         <label>Show <select id="managerShow" aria-label="Show">
           <option value="all">All projects</option><option value="built">Built</option><option value="baked">Built, lighting baked</option>
           <option value="unbaked">Built, lighting not baked</option><option value="stale">Built from an older revision</option>
-          <option value="unbuilt">Not built</option><option value="ingame">In the game</option></select></label>
+          <option value="unbuilt">Not built</option><option value="needsfull" title="Not built, not baked, built from an older revision, or by another editor version: the projects a full build would bring up to date">Needs a full build</option><option value="ingame">In the game</option></select></label>
       </div>
       <div class="filetable">
         <div id="managerHead" class="filehead mhead"><input id="managerAll" type="checkbox" aria-label="Select every project shown" title="Select or clear every project the filter shows"><button type="button" data-sort="name">Name</button><button type="button" data-sort="map">Map</button><button type="button" data-sort="savedAt">Saved</button><button type="button" data-sort="build">Last build</button><button type="button" data-sort="inGame">In the game</button><span title="How this project goes into the game or a pack: as the choice below says, or its own way. One install or pack can hold both">Install as</span></div>
@@ -418,7 +419,16 @@
       </fieldset>
       <ul id="managerWarnings" class="mwarnings" hidden></ul>
       <div id="managerMessage" class="filemessage" role="status" hidden></div>
-      <div class="mapfoot"><span id="managerWhere"></span><button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Zip as a map pack</button><button id="managerInstall" class="primary" type="button">Install in the game</button><button id="managerDone" type="button">Close</button></div>
+      <section id="managerQueue" class="mqueue" aria-label="Build queue" hidden>
+        <div class="mqhead"><strong id="managerQueueTitle"></strong><span id="managerQueueClock" class="mqclock" title="How long the queue has been building (its waits for other builds included; not while it was stopped)"></span></div>
+        <div id="managerQueueStep" class="mqstep" hidden></div>
+        <div id="managerQueueStage" class="mqstage" title="The step's own progress, not the whole build's" hidden><span></span></div>
+        <div id="managerQueueBar" class="mqbar" title="Projects done (built or failed) of all in the queue"><span></span></div>
+        <div id="managerQueueNote" class="mqnote"></div>
+        <ul id="managerQueueFailures" class="mqfailures" hidden></ul>
+        <div class="mqbuttons"><span id="managerQueueLive" class="visually-hidden" role="status" aria-live="polite"></span><button id="managerQueueStop" type="button" title="Stop the queue: its build stops (that project's last package stays as it was) and no other starts. Resume goes on">Stop</button><button id="managerQueueResume" type="button">Resume</button><button id="managerQueueClear" type="button" title="Take every row and result out of the queue. No project or package is deleted">Clear</button><button id="managerQueueReset" type="button" title="Set the queue's unreadable file aside (it is kept) and start with an empty queue" hidden>Reset the queue</button></div>
+      </section>
+      <div class="mapfoot"><span id="managerWhere"></span><button id="managerBuild" type="button">Build</button><button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Zip as a map pack</button><button id="managerInstall" class="primary" type="button">Install in the game</button><button id="managerDone" type="button">Close</button></div>
     </form>
   </div>
   <div id="gameMapsDialog" class="modal" hidden>

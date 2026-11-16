@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import unittest
+from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import zipfile
@@ -390,6 +391,67 @@ class Manager(unittest.TestCase):
         self.assertEqual(lz[-2], lines[0].encode())
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
         self.assertEqual(self.files(self.copy), before)
+
+    def test_install_pack_and_play_lease_their_packages_and_hold_their_guards(self):
+        """Build queue plan, 9.4: a reader leases the packages it reads (the queue can't start those projects meanwhile)
+        and holds each one's guard while it reads and copies it (no build swaps it); a project being built, or about
+        to be, is left out with the reason; leases and guards are let go when the reader fails."""
+        import publication
+        self.package()
+        self.second()
+        player = self.player()
+        seen = []
+
+        def watching(real):
+            def run(game, folder, *args, **kwargs):
+                seen.append((self.builds.claim(ID, 'queue'), self.busy(folder.name)))
+                return real(game, folder, *args, **kwargs)
+            return run
+        with mock.patch.object(installs, 'install_rotation', watching(installs.install_rotation)):
+            manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        self.assertEqual(seen, [(False, True)])         # the queue waited, the guard was held
+        self.assertEqual((self.builds.leases, self.busy(VARIANT)), ({}, False))
+        # about to be built (the queue's claim): left out, with why
+        self.assertTrue(self.builds.claim(ID, 'queue'))
+        r = manager.install(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional'))
+        results = {x['id']: x for x in r['results']}
+        self.assertEqual(results[ID]['error'], 'It is building; it can be used when the build ends.')
+        self.assertTrue(results[OTHER_ID]['ok'])
+        self.assertTrue(self.row(r)['building'])        # the listing says so too
+        with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
+        self.assertIn('is building', error.exception.message)
+        self.builds.unclaim(ID, 'queue')
+        # the pack holds every package's guard while it zips, and lets go of all of them after, even when it fails
+        held = []
+        real_write = zipfile.ZipFile.write
+
+        def write(zf, src, *args, **kwargs):
+            held.append((self.busy(VARIANT), self.busy(OTHER)))
+            return real_write(zf, src, *args, **kwargs)
+        with mock.patch.object(zipfile.ZipFile, 'write', write):
+            manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional'))
+        self.assertTrue(held and all(h == (True, True) for h in held))
+        with mock.patch.object(installs, 'read_package', side_effect=OSError('torn')):
+            with self.assertRaises(ProjectError):
+                manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        self.assertEqual((self.builds.leases, self.busy(VARIANT), self.busy(OTHER)), ({}, False, False))
+        # Play in game the same way
+        with mock.patch.object(installs, 'install_package', watching(installs.install_package)):
+            seen.clear()
+            player.play(dict(project=ID))
+        self.assertEqual(seen, [(False, True)])
+        with mock.patch.object(installs, 'install_package', side_effect=installs.InstallError('copy failed')):
+            with self.assertRaises(ProjectError): player.play(dict(project=ID))
+        self.assertEqual((self.builds.leases, self.busy(VARIANT)), ({}, False))
+
+    def busy(self, variant):
+        """Whether the variant's guard is held (by anyone)."""
+        import publication
+        try:
+            with publication.guard(self.output, variant, wait=0):
+                return False
+        except publication.Busy:
+            return True
 
     def test_the_routes_change_things_only_for_the_viewer_itself(self):
         player = self.player()
