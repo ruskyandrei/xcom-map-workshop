@@ -194,28 +194,20 @@ export const validGroup = g => typeof g?.id === 'string' && Array.isArray(g.memb
 
 export const uuid = () => globalThis.crypto?.randomUUID?.()
   ?? '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c => (c ^ Math.random() * 16 >> c / 4).toString(16));
-// Output names: the base map's name, the project's name as one word, and a piece of the id, so that two projects never
-// build the same names (plan section 1). Package names keep to letters, digits and underscores, and to 30 characters:
-// UDK's Save As stops at a warning for longer ones (findings register T-09). The patch is patch_<variant>, so the
-// variant keeps to 24: at most 12 of the map's name, then as much of the project's as fits.
-export const NAME_LIMIT = 30;
-export function outputNames(map, name, id) {
-  const stem = map.slice(0, 12), room = NAME_LIMIT - 'patch_'.length - stem.length - 6;   // _, 4 id digits, _
-  const word = (name.normalize('NFKD').replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').filter(Boolean)
-    .map(w => w[0].toUpperCase() + w.slice(1)).join('') || 'Variant').slice(0, room);
-  const shipAs = `${stem}_${word}_${id.slice(0, 4)}`;
-  return { shipAs, patch: `patch_${shipAs.toLowerCase()}` };
-}
+// Output names (output names plan): the map's package name and its edit patch's, { shipAs, patch }. The server gives a
+// new project's (api.names: its project name as one word, at most 24 characters, numbered when taken; the Save dialog
+// shows it) and keeps them fixed once the project is saved (tools/viewer/outputnames.py, projects.py). Projects saved
+// before 16 November 2026 keep the names they have (the base map's, the project's and a piece of the id).
 /** The base map a project binds to: the scene's map as exported. */
 export const sourceOf = (mapId, data) => ({ map: mapId, package: data.source.file.split(/[\\/]/).at(-1),
                                             sha256: data.source.sha256, exporterVersion: data.exporterVersion });
-/** A new project's document, bound to the scene's base map. */
-export function newDocument(name, mapId, data) {
+/** A new project's document, bound to the scene's base map, with the output names the Save dialog showed. */
+export function newDocument(name, mapId, data, output) {
   const id = uuid();
   return {
     schema: SCHEMA, schemaVersion: SCHEMA_VERSION, id, name, mode: 'edit',
     source: sourceOf(mapId, data),
-    output: outputNames(mapId, name, id),
+    output: { shipAs: output.shipAs, patch: output.patch },
     overrides: [], added: [], groups: [], areaLightBindings: [],
   };
 }
@@ -230,6 +222,9 @@ async function call(method, url, body) {
 const at = id => `/projects/${encodeURIComponent(id)}`;
 export const api = {
   list: () => call('GET', '/projects.json'),
+  // the map name saving under `name` gives: a new project's ({ fresh: true, output, reason }), or with `target` (a
+  // project's id: the open one, or one replaced) that project's fixed one ({ fresh: false, output, conflicts })
+  names: (name, map, target = null) => call('POST', '/projects/output-names', { name, map, target }),
   load: id => call('GET', `${at(id)}/project.json`),
   save: (id, document, expectedRevision) => call('PUT', `${at(id)}/project.json`, { expectedRevision, document }),
   recovery: id => call('GET', `${at(id)}/recovery.json`),   // null when nothing is kept

@@ -708,10 +708,18 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   Enter or a double-click picks, Esc cancels. Projects with changes kept for recovery are marked, unreadable ones are
   listed greyed out.
   - **Save** lists this map's projects (a project belongs to one map) and starts on the open project's name. A new
-    name makes a new project from what is on screen, with output names of its own. The open project's name saves its
+    name makes a new project from what is on screen, with a map name of its own. The open project's name saves its
     next revision (renamed if only the case changed). Another project's name asks first ("already exists… Replace
-    it?"); replacing puts what is on screen into that project as its next revision, keeping its id and output names,
+    it?"); replacing puts what is on screen into that project as its next revision, keeping its id and map name,
     with the revision before kept as a backup.
+  - Under the name box Save shows what the project builds as, before anything is written ("Builds as
+    CommercialRestaurantFix · map names keep to 24 characters"): for a new project, the server's answer
+    (`POST /projects/output-names`, [outputnames.py](outputnames.py)): the project's name as one word, accents taken
+    off, at most 24 characters (so its patch, `patch_<name>`, keeps to UDK's 30), numbered (`_2`, `_3`…) when another
+    project, a build in the builds folder or a package or record of the game installs has it, with the reason; for the
+    open project or one replaced, its own name, fixed when it was first saved. Save waits for the answer for what is
+    typed; a name taken between the answer and the save is refused, and the dialog stays open with the next one. The
+    server refuses a save that changes a saved project's names: Save as under a new name makes a new project instead.
   - **Load** lists every map's projects ("Show" narrows it to this map) and starts on the open project. Typing finds
     the first name that starts with the text. Opening a project of another map switches to that map.
 - **Ctrl+S** saves the next revision; without a project open it opens the Save dialog. The address carries

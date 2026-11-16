@@ -1,7 +1,9 @@
 // The Save and Load dialogs: a classic file picker over the projects folder, which the viewer's server keeps with one
 // file per project, named after it (tools/viewer/projects.py). Load lists every project; Save lists this map's, with a name box. In
 // Save a new name makes a new project, the open project's own name saves its next revision, and another project's
-// name replaces that project after a confirm. The caller does the opening and saving (app.js).
+// name replaces that project after a confirm. Under the name box Save shows what the project builds as: a new
+// project's map name, from the server (the project name as one word, at most 24 characters, numbered when taken), or
+// the fixed one of the project saved onto. The caller does the opening and saving (app.js).
 const byName = (a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' });
 const SORTS = {
   name: byName,
@@ -13,21 +15,77 @@ const same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCa
 export const savedWhen = iso => iso ? new Date(iso).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '';
 
 /**
- * els: the dialog's elements (root, form, title, folder, head, list, show, name, ok, cancel, close, confirm, message).
- * api: list() → { folder, projects }. mapLabel(id): a map's display name.
- * onLoad(summary): open that project. onSave({ name, target }): target is the project summary to save onto, or null
- * for a new project.
+ * els: the dialog's elements (root, form, title, folder, head, list, show, name, ok, cancel, close, confirm, message,
+ * output). api: list() → { folder, projects }; names(name, map, target) → what saving under that name builds as (the
+ * server's: output names plan). mapLabel(id): a map's display name.
+ * onLoad(summary): open that project. onSave({ name, target, output }): target is the project summary to save onto, or
+ * null for a new project, which gets `output`, the map name the dialog showed. A save the server refuses because that
+ * name was taken meanwhile throws with detail.proposal: the dialog stays open and shows the name it would get now.
  */
 export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   let mode = 'load', context = {}, projects = [], chosen = null, sort = { key: 'savedAt', down: true };
   let lastFocus = null;
   let completion = null;
+  // The map name shown (output names plan 3.3): the server's answer for a name and the project it saves onto
+  // ({ key, result } or { key, error }); asked again as the name changes, an answer for an older name thrown away.
+  // Save waits for the answer for what is typed now.
+  let preview = null, asked = 0, previewTimer = null;
   async function saveAndClose(request) {
     els.ok.disabled = true;
     try { const saved = await onSave(request); close(Boolean(saved)); }
-    catch (error) { say(`Not saved: ${error.message}`); completion?.(false); completion = null; }
+    catch (error) {
+      say(`Not saved: ${error.message}`); completion?.(false); completion = null;
+      // the name shown was taken meanwhile: the one it would get now, for the next Save
+      const proposal = error.detail?.proposal;
+      if (proposal?.output && !request.target) { preview = { key: previewKey(), result: { fresh: true, notes: [], conflicts: [], ...proposal } }; showOutput(); }
+    }
     finally { update(); }
   }
+  const targetFor = name => (chosen && same(chosen.name ?? '', name) ? chosen : shown().find(p => same(p.name ?? '', name)) ?? null);
+  // what the preview depends on: the name as typed and the project it would save onto (the open one keeps its own),
+  // known once the projects are listed
+  let listed = false;
+  function previewKey() {
+    const name = els.name.value.trim(), target = name ? targetFor(name) : null;
+    return `${name}\n${target?.id ?? ''}`;
+  }
+  function askPreview(soon = false) {
+    if (mode !== 'save' || !api.names || !listed) return;
+    clearTimeout(previewTimer);
+    const key = previewKey(), name = els.name.value.trim();
+    if (preview?.key === key) { showOutput(); return; }
+    preview = null; showOutput();
+    if (!name) return;
+    previewTimer = setTimeout(async () => {
+      const mine = ++asked, target = targetFor(name);
+      try {
+        const result = await api.names(name, context.mapId, target?.id ?? null);
+        if (mine === asked && key === previewKey()) preview = { key, result };
+      } catch (error) {
+        if (mine === asked && key === previewKey()) preview = { key, error: error.message };
+      }
+      if (mine === asked) { showOutput(); update(); }
+    }, soon ? 0 : 200);
+  }
+  function showOutput() {
+    const box = els.output;
+    if (!box) return;
+    box.replaceChildren(); box.classList.remove('pending', 'warn');
+    box.hidden = mode !== 'save' || !els.name.value.trim();
+    if (box.hidden) return;
+    const add = (text, cls, tag = 'span') => { const el = document.createElement(tag); el.textContent = text; if (cls) el.className = cls; box.append(el); return el; };
+    const current = preview?.key === previewKey() ? preview : null;
+    if (!current) { box.classList.add('pending'); box.append('Builds as '); add('…', null, 'b'); return; }
+    if (current.error) { box.classList.add('warn'); box.textContent = `The map name can't be worked out: ${current.error}`; return; }
+    const r = current.result;
+    if (!r.output) { box.classList.add('warn'); box.textContent = 'This project has no map name: Save as under a new name to give it one.'; return; }
+    box.append('Builds as '); add(r.output.shipAs, null, 'b');
+    box.append(r.fresh ? ` · map names keep to ${r.limit ?? 24} characters` : ' · fixed when the project was first saved');
+    if (r.reason) add(`${r.reason[0].toUpperCase()}${r.reason.slice(1)}.`, 'why');
+    for (const note of r.conflicts ?? []) add(`Taken elsewhere too: ${note}. Save as under a new name before building.`, 'why warn');
+    for (const note of r.notes ?? []) add(`${note[0].toUpperCase()}${note.slice(1)}.`, 'why');
+  }
+  const previewReady = () => { const p = preview?.key === previewKey() ? preview : null; return Boolean(p?.result?.output); };
   const enabled = () => [...els.list.querySelectorAll('.filerow:not(:disabled)')];
   const shown = () => projects.filter(p => mode === 'load' ? els.show.value === 'all' || p.map === context.mapId : !p.error && p.map === context.mapId);
 
@@ -40,10 +98,10 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
       if (on) { row.scrollIntoView({ block: 'nearest' }); if (focus) row.focus(); }
     }
     if (chosen && fill) els.name.value = chosen.name ?? '';
-    hideConfirm(); say(null); update();
+    hideConfirm(); say(null); askPreview(true); update();
   }
   function update() {
-    els.ok.disabled = mode === 'load' ? !chosen : !els.name.value.trim();
+    els.ok.disabled = mode === 'load' ? !chosen : !els.name.value.trim() || (Boolean(api.names) && !previewReady());
   }
   function render() {
     els.list.replaceChildren();
@@ -87,14 +145,16 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   async function refresh() {
     els.list.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'Reading the projects folder…' }));
     try {
-      const listed = await api.list();
-      els.folder.textContent = listed.folder; els.folder.title = listed.folder;
-      projects = listed.projects;
+      const found = await api.list();
+      els.folder.textContent = found.folder; els.folder.title = found.folder;
+      projects = found.projects;
     } catch (e) {
       projects = [];
       els.list.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: `The projects could not be listed: ${e.message}` }));
+      listed = true; askPreview(true); update();
       return;
     }
+    listed = true;
     render();
     // Load starts on the open project, or else the newest; Save on the name it was given.
     if (mode === 'load') choose((projects.find(p => p.id === context.current && !p.error) ?? enabled()[0]?.dataset)?.id ?? null, true);
@@ -117,11 +177,11 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     els.confirm.replaceChildren();
     const message = document.createElement('div');
     message.textContent = `“${target.name}” already exists (revision ${target.revision}, saved ${savedWhen(target.savedAt)}). `
-      + 'Replace it with what is on screen? It keeps its output names, and its revision before is kept as a backup.';
+      + 'Replace it with what is on screen? It keeps its map name, and its revision before is kept as a backup.';
     const yes = document.createElement('button'), no = document.createElement('button');
     Object.assign(yes, { type: 'button', textContent: 'Replace', className: 'primary' });
     Object.assign(no, { type: 'button', textContent: "Don't replace" });
-    yes.onclick = () => { hideConfirm(); saveAndClose({ name, target }); };
+    yes.onclick = () => { hideConfirm(); saveAndClose({ name, target, output: null }); };
     no.onclick = () => { hideConfirm(); els.name.focus(); };
     els.confirm.append(message, yes, no);
     els.confirm.hidden = false;
@@ -138,9 +198,11 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     const name = els.name.value.trim();
     if (!name) { say('Type a name for the project.'); return; }
     if (name.length > 120) { say('A project name has at most 120 characters.'); return; }
-    const target = chosen && same(chosen.name ?? '', name) ? chosen : shown().find(p => same(p.name ?? '', name)) ?? null;
+    // the map name shown must be the one for what is typed now
+    if (api.names && !previewReady()) { say(preview?.error ? `Not saved: ${preview.error}` : 'Working out the map name…'); askPreview(true); return; }
+    const target = targetFor(name);
     if (target && target.id !== context.current) { confirmReplace(target, name); return; }
-    saveAndClose({ name, target });
+    saveAndClose({ name, target, output: target ? null : preview?.result?.output ?? null });
   }
   function move(step) {
     const rows = enabled();
@@ -151,7 +213,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   }
 
   els.form.addEventListener('submit', e => { e.preventDefault(); submit(); });
-  els.name.addEventListener('input', () => { hideConfirm(); say(null); matchName(); update(); });
+  els.name.addEventListener('input', () => { hideConfirm(); say(null); matchName(); askPreview(); update(); });
   els.show.addEventListener('change', render);
   els.cancel.onclick = () => close();
   els.close.onclick = () => close();
@@ -190,6 +252,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     els.name.value = context.name ?? '';
     els.name.placeholder = saving ? 'Name of the project' : 'Type to find a project';
     hideConfirm(); say(null);
+    preview = null; listed = false; clearTimeout(previewTimer); showOutput();
     lastFocus = document.activeElement;
     els.root.hidden = false;
     els.name.focus(); els.name.select();
@@ -200,6 +263,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   function close(saved = false) {
     if (els.root.hidden) return;
     els.root.hidden = true; hideConfirm();
+    clearTimeout(previewTimer); asked++;
     completion?.(saved); completion = null;
     if (lastFocus?.isConnected && lastFocus !== document.body) lastFocus.focus({ preventScroll: true });
     else document.activeElement?.blur?.();

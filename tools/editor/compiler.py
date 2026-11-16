@@ -273,6 +273,8 @@ PARTNER_MILESTONE = FAMILIES['car']['milestone']
 NAME_BASE = 900
 # UDK's Save As stops at a warning for package names over 30 characters (findings register T-09).
 NAME_LIMIT = 30
+# the names Windows keeps for devices (CON, NUL, COM1...): no file can have one, with any extension
+DEVICE_NAMES = {'CON', 'PRN', 'AUX', 'NUL', *('COM%d' % i for i in range(1, 10)), *('LPT%d' % i for i in range(1, 10))}
 ACTOR_NAME = re.compile(r'^[A-Za-z_]\w*$')
 # Pieces that can break in the game and be linked to break together: destructible props (collectibles build as such).
 BREAKABLE = ('XComDestructibleActor', 'XComCollectible')
@@ -780,15 +782,21 @@ class Compiler:
             self.error('source-mismatch', 'the export is of %s, not %s' % (self.scene.get('name'), self.map))
             return False
         self.package = self.scene['name']
+        # names of any length up to UDK's limit (a new project's map name keeps to 24, so that its patch fits: the
+        # Save dialog's allocation, tools/viewer/outputnames.py; a project from before 16 November may have up to 30)
         for key in ('shipAs', 'patch'):
-            if not isinstance(out.get(key), str) or not re.match(r'^[A-Za-z][A-Za-z0-9_]{1,62}$', out[key]):
-                self.error('output', 'output.%s must be a package name (letters, digits and _)' % key)
+            if not isinstance(out.get(key), str) or not re.match(r'^[A-Za-z][A-Za-z0-9_]*$', out[key]):
+                self.error('output', 'output.%s must be a package name (letters, digits and _, starting with a letter)' % key)
             elif len(out[key]) > NAME_LIMIT:
                 self.error('output', 'output.%s %s is longer than %d characters, which UDK cannot save; '
                            'save the project as a new one to get shorter names' % (key, out[key], NAME_LIMIT))
+            elif out[key].upper() in DEVICE_NAMES:
+                self.error('output', 'output.%s %s is a name Windows keeps for a device; save the project as a new '
+                           'one under another name' % (key, out[key]))
         if self.errors:
             return False
-        if out['patch'].lower() == out['shipAs'].lower() or out['shipAs'].lower() == self.map.lower():
+        names = [out['shipAs'].lower(), out['patch'].lower(), self.map.lower()]
+        if len(set(names)) < 3:
             self.error('output', 'the variant, its patch and the base map need three different names')
             return False
         self.out = out

@@ -141,6 +141,7 @@ class Handler(SimpleHTTPRequestHandler):
     def project_route(self):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if parts == ['projects.json']: return ('list', None)
+        if parts == ['projects', 'output-names']: return ('names', None)
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] in ('project.json', 'recovery.json', 'build.json'):
             return (parts[2].split('.')[0] + ('-status' if parts[2] == 'build.json' else ''), parts[1])
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] in ('build', 'build-cancel', 'report'): return (parts[2], parts[1])
@@ -186,6 +187,13 @@ class Handler(SimpleHTTPRequestHandler):
             if method != 'GET' and not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
             if kind == 'list' and method == 'GET':
                 self.send_json(200, dict(folder=str(self.projects.root), projects=self.projects.list()))
+            elif kind == 'names' and method == 'POST':
+                # the Save dialog: the map name saving under {name} gives (a new project's, or the fixed one of the
+                # project {target}, the open one or one replaced), for the map {map} (outputnames.Service.preview)
+                request = self.body_json()
+                if not isinstance(request, dict): raise ProjectError(400, 'Send {name, map, target}.')
+                if self.projects.names is None: raise ProjectError(404, 'This server does not name projects.')
+                self.send_json(200, self.projects.names.preview(request.get('name'), request.get('map'), request.get('target')))
             elif kind == 'project' and method == 'GET':
                 self.send_json(200, self.projects.load(project_id))
             elif kind == 'project' and method == 'PUT':
@@ -777,6 +785,13 @@ def main():
                     None if exact else LibraryRunner(cache_root, settings['game']))
         prefab_tests = PrefabTests(builds, live)
         precache = None if exact else PrecacheRunner(live, cache_root)
+        # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the
+        # editor reads and the one Play in game uses (both followed when the page picks another install)
+        import outputnames
+        from settings import game_install
+        projects.names = outputnames.Service(projects, builds.output, lambda: [
+            (game_install(live.player.settings)[0], 'the game install'),
+            (live.player.target()[0], 'the install Play in game uses')])
 
         def configure(new_settings):
             """Another game install chosen in the page: its maps listed (the exported ones kept), Play in game

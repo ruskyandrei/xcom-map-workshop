@@ -29,7 +29,7 @@ from pathlib import Path
 import re
 import unicodedata
 
-from projects import ID, RESERVED as DEVICES, SCHEMA as PROJECT_SCHEMA, ProjectError
+from projects import RESERVED as DEVICES, SCHEMA as PROJECT_SCHEMA, ProjectError, valid_output  # noqa: F401
 
 LIMIT = 24              # a newly allocated map name: its patch, patch_<name>, keeps to PACKAGE_LIMIT
 PACKAGE_LIMIT = 30      # UDK's Save As refuses longer package names (findings register T-09)
@@ -102,14 +102,6 @@ def derived(variant, streams=()):
     """Every name a build of `variant` can write: the map, its patch, its texture cache and a copy of each stream in
     `streams` (the intros and the other streams of its base map's records)."""
     return [variant, patch_name(variant), cache_name(variant)] + [f'{s}_{variant}' for s in dict.fromkeys(streams)]
-
-
-def valid_output(output):
-    """Whether `output` is a project's output names as saved: {shipAs, patch}, package names of at most
-    PACKAGE_LIMIT characters (a project from before 16 November may have up to 30 in its map name)."""
-    return (isinstance(output, dict) and set(output) == {'shipAs', 'patch'}
-            and all(isinstance(output[k], str) and PACKAGE.fullmatch(output[k]) and len(output[k]) <= PACKAGE_LIMIT
-                    for k in ('shipAs', 'patch')))
 
 
 def allocate(name, taken, streams=()):

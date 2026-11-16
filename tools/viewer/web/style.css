@@ -12,7 +12,7 @@ body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow
    S7). What is worth copying still selects: a piece's details, the import notes, the install checks and messages, the
    build's and the prefab test's log and result. Text fields select whatever this says. */
 body { user-select: none; }
-#details, #sourceDetails, #issues, #setupIntro, #setupFound, #setupMessage, #setupChecks, #setupVersion, .filemessage,
+#details, #sourceDetails, #issues, #setupIntro, #setupFound, #setupMessage, #setupChecks, #setupVersion, .filemessage, .fileoutput,
 #buildNote, #buildLeftOut, #buildMissions, #buildLog, #buildResult, #prefabTestNote, #prefabTestIssues, #prefabTestLog { user-select: text; }
 button { font: inherit; color: inherit; }
 kbd { font: 10px Segoe UI, system-ui, sans-serif; color: #7f95a1; }
@@ -335,6 +335,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .filedialog button.primary:hover:not(:disabled) { background: #2c5a5d; }
 .filefoot button:disabled { opacity: .4; cursor: default; }
 .filemessage { color: var(--warn); font-size: 12px; }
+/* The Save dialog's map name (output names plan): what the project builds as, and why when it is not the name as typed */
+.fileoutput { font-size: 12px; line-height: 1.45; color: #a9bcc6; }
+.fileoutput b { color: #e3eaef; font-weight: 600; }
+.fileoutput .why { display: block; color: #c8d7df; }
+.fileoutput.pending b { color: #7f95a1; font-weight: normal; }
+.fileoutput.warn, .fileoutput .warn { color: var(--warn); }
 /* The project manager (manager.js) */
 .managerdialog { width: 980px; height: min(760px, 100%); }
 .managerdialog .filetable { flex: 1; }

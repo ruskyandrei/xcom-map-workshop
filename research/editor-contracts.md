@@ -164,7 +164,7 @@ is stored as 2.
   "savedAt": "2026-11-06T12:02:41Z",
   "source": { "map": "URB_Bar", "package": "URB_Bar.upk",
               "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5", "exporterVersion": 12 },
-  "output": { "shipAs": "URB_Bar_BarRemix_5005", "patch": "patch_urb_bar_barremix_5005" },
+  "output": { "shipAs": "BarRemix", "patch": "patch_barremix" },
   "overrides": [
     { "target": { "package": "URB_Bar", "level": "base", "actor": "TheWorld.PersistentLevel.KAsset_6" },
       "location": [-269, 632.9999, 19], "rotation": [0, 5461.333, 0] },
@@ -193,7 +193,7 @@ is stored as 2.
 | `mode` | `edit` only. `blank` is reserved for the later blank-map preset. |
 | `revision`, `savedAt`, `created` | Set by the server on each save. |
 | `source` | The base map: catalogue id, package file, SHA-256 and the exporter version it was edited on. |
-| `output` | The variant's map and edit-patch names. Set once, when the project is made (saving under a new name gives new ones; replacing a project keeps its own), so that two projects never build the same names. A building step (E4) checks them against the LWR install. |
+| `output` | The variant's map and edit-patch names. Fixed at the project's first save: the server gives a new project its name as one word, at most 24 characters, numbered when another project, build or package of the game installs has it (`patch_<map in lower case>` for the patch), and refuses a later save that changes them (tools/viewer/outputnames.py, projects.py). Save as under a new name makes a new project with names of its own; replacing a project keeps its own. Projects saved before 16 November 2026 keep theirs (the base map's, the project's and four digits of the id; up to 30 characters). The Build and the installs check them again against everything that holds names, and refuse what another project holds. |
 | `overrides` | Originals moved (`location`, `rotation`) or deleted (`deleted: true`), one record per actor, sorted by key. An actor not listed is as exported. |
 | `added` | Added actors, sorted by output name. `id` is the entity's UUID. `actor` is its output name: `<template actor>_copy<serial>`, kept once given. `from` and `components` name the template. Optional `tinted: true` for a tinted spawn's copy (preview layouts only). |
 | `nextSerial` | The highest copy serial used. A new copy never reuses an output name, even one whose piece was deleted. |

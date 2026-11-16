@@ -4274,10 +4274,12 @@ async function keepRecovery() {
   } catch (e) { console.warn('Unsaved changes could not be kept for recovery', e); }
 }
 // Save (Ctrl+S): the open project's next revision; without one, the Save dialog asks for a name first.
-// The Save dialog calls it with { name } for a new project from what is on screen, with output names of its own;
-// { name, replace } to put what is on screen into that saved project, which keeps its id and output names; or
-// { rename } for the open project's next revision under that name (the dialog matches names regardless of case).
-async function saveProject({ name = null, replace = null, rename = null } = {}) {
+// The Save dialog calls it with { name, output } for a new project from what is on screen, with the map name it showed
+// (the server's: output names plan); { name, replace } to put what is on screen into that saved project, which keeps
+// its id and map name; or { rename } for the open project's next revision under that name (the dialog matches names
+// regardless of case), its map name kept. A new project's save that the server refuses because its map name was
+// taken meanwhile throws, so the dialog can show the name it would get now; other failures say so in a banner.
+async function saveProject({ name = null, replace = null, rename = null, output = null } = {}) {
   if (builderMode) return saveBuilder({ name, replace });
   if (!projectsAvailable() || saving || gizmo.controls.dragging) return false;
   if (!project && !name) { showFileDialog('save'); return false; }
@@ -4298,7 +4300,10 @@ async function saveProject({ name = null, replace = null, rename = null } = {}) 
       const target = await projectApi.load(replace.id);
       if (target.source?.map !== activeMapId) throw new Error(`${target.name} is a project of another map.`);
       base = { ...target, name, source }; expected = target.revision;
-    } else if (fresh) { base = { ...newDocument(name, activeMapId, data), source }; expected = 0; }
+    } else if (fresh) {
+      if (!output) throw new Error('the map name is still being worked out; save again in a moment');
+      base = { ...newDocument(name, activeMapId, data, output), source }; expected = 0;
+    }
     else if (rename && project) base = { ...project.doc, name: rename };
     const document = { ...base, schemaVersion: PROJECT_SCHEMA_VERSION, ...sortState({ overrides: [...state.overrides, ...carried.overrides], added: [...state.added, ...carried.added],
                                                groups: [...state.groups, ...carried.groups],
@@ -4328,6 +4333,8 @@ async function saveProject({ name = null, replace = null, rename = null } = {}) 
     flashHint(`Saved ${document.name} · revision ${result.revision}`);
     return true;
   } catch (e) {
+    // the map name shown was taken meanwhile: the dialog shows the one it would get now, and nothing is lost
+    if (fresh && e.status === 409 && e.detail?.proposal) throw e;
     if (e.status === 409 && Number.isInteger(e.detail?.revision) && !name && !replace) {
       banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.detail.revision}).`, [
         ['Overwrite it with this', () => { project.revision = e.detail.revision; saveProject(); }],
@@ -4682,7 +4689,7 @@ async function renderProjectMenu() {
   if (project) {
     text(info, 'strong', project.doc.name);
     text(info, 'div', `Revision ${project.revision} · saved ${savedWhen(project.doc.savedAt)}${dirty() ? ' · unsaved changes' : ''}`);
-    text(info, 'div', `Builds as ${project.doc.output?.shipAs ?? '(no output names)'}`).title = 'The variant\'s map name and edit patch, fixed when the project was made';
+    text(info, 'div', `Builds as ${project.doc.output?.shipAs ?? '(no map name)'}`).title = 'The map\'s name in the game (its package and records), fixed when the project was first saved: Save as under a new name makes a new project that builds under a name of its own';
     const pkg = lastBuild?.package;
     if (lastBuild?.state === 'running') text(info, 'div', `Building revision ${lastBuild.job.revision}…`);
     else if (pkg) {
@@ -4998,9 +5005,9 @@ async function openPrefabTest() {
 const fileDialog = createProjectDialog({
   els: { root: $('fileDialog'), form: $('fileForm'), title: $('fileTitle'), folder: $('fileFolder'), head: $('fileHead'),
          list: $('fileList'), show: $('fileShow'), name: $('fileName'), ok: $('fileOk'), cancel: $('fileCancel'),
-         close: $('fileClose'), confirm: $('fileConfirm'), message: $('fileMessage') },
+         close: $('fileClose'), confirm: $('fileConfirm'), message: $('fileMessage'), output: $('fileOutput') },
   api: projectApi, mapLabel, onLoad: loadProject,
-  onSave: ({ name, target }) => saveProject(!target ? { name } : target.id === project?.doc.id ? { rename: name } : { name, replace: target }),
+  onSave: ({ name, target, output }) => saveProject(!target ? { name, output } : target.id === project?.doc.id ? { rename: name } : { name, replace: target }),
 });
 // The project manager (manager.js): every project and its last build, to install or zip several at once.
 const projectManager = createProjectManager({

@@ -8,6 +8,41 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Output names N2: a new project builds as its own name, shown before saving and fixed once saved
+
+Stage N2 of the output names plan (private), on N1's checks. A new project's map name is its project name as one
+word, at most 24 characters, numbered when taken, with no piece of its id; projects saved before keep theirs.
+- [outputnames.py](tools/viewer/outputnames.py): the conversion (accents off before words split, ASCII letters,
+  digits and `_` as typed, each word capitalised, `Map` in front of a name starting with no letter or with a kept
+  prefix: `patch_`, `pt_`, `pp_`, the intro copies'), the numbering (`_2`... on a shorter stem, each candidate's
+  patch, cache and intro/stream copies checked, device names skipped, a useful error after `_999`), `Service`: the
+  Save dialog's preview and the store's check of a new project's names.
+- [projects.py](tools/viewer/projects.py): output names must be package names when present; inside the store's lock a
+  saved project's next revision must carry them exactly (409 otherwise; a case-only rename keeps them), and with the
+  server's names service a new project's must be names its project name gives that are free, else 409 with the names
+  it would get now (`proposal`). Two first saves can't take one name.
+- [viewer.py](tools/viewer/viewer.py): `POST /projects/output-names` ({name, map, target}); the service follows the game
+  install and the install Play in game uses.
+- The Save dialog ([project_files.js](tools/viewer/web/project_files.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)): "Builds as CommercialRestaurantFix · map names keep to 24 characters"
+  under the name box, the reason when numbered, the fixed name for the open project or one replaced; Save waits for
+  the answer for what is typed (stale answers thrown away); a name taken meanwhile keeps the dialog open with the
+  next. [project.js](tools/viewer/web/project.js) no longer makes names (`outputNames` gone); [app.js](tools/viewer/web/app.js)
+  passes the shown name through and its Project menu says the name is fixed at the first save.
+- [compiler.py](tools/editor/compiler.py): one-letter names accepted, 25-30 character names of older projects still
+  build, the patch must differ from the base map too, device names refused.
+- Docs: [editor-contracts.md](research/editor-contracts.md) (`output`), [viewer README](tools/viewer/README.md) (Save).
+
+Checked: the viewer, editor and node suites, with new tests (test_outputnames: conversion vectors, `_9`/`_10`,
+device and prefix reasons, exhaustion, case-insensitive project/build/install/record claims, a retained build of a
+deleted project, two installs, an unreadable ledger, fixed names and Save as, a name taken meanwhile, two first saves
+at once, an imported duplicate diagnosed, the route; compiler output names). Browser: the new `--only output-names`
+smoke on a test server (pending answer shows no name and Save stays off; save; numbered with its reason; taken
+meanwhile, dialog kept with the next; fixed-name save; replace; Project menu), passed with no page errors, and the
+full smoke's projects check passed. Known gaps: the full smoke then stops in its prefab check on the test server's
+default map (Act1_IntroLevel), the same without these changes. A pack shared with someone else may still meet a name
+on their install (their install step refuses it).
+
 ### Output names N1: a build or install never replaces another project's package or files
 
 Stage N1 of the output names plan (private), which has to be in before map names lose their id piece. New

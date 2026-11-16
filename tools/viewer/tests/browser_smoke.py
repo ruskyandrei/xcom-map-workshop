@@ -2036,7 +2036,7 @@ def check_library_all(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    page.locator('#fileName').fill('Library smoke')
+    type_project_name(page, 'Library smoke')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -2810,7 +2810,7 @@ def check_library_assembly(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    page.locator('#fileName').fill('Library assembly smoke %d' % page.evaluate('Date.now() % 100000'))   # a name of its own, run after run
+    type_project_name(page, 'Library assembly smoke %d' % page.evaluate('Date.now() % 100000'))   # a name of its own, run after run
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     page.reload(); page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.project()", timeout=120000)
@@ -2865,13 +2865,85 @@ def wait_opened(page, project_id):
                            arg=project_id, timeout=120000)
 
 
+def type_project_name(page, name):
+    """The Save dialog's name box filled in, and the map name it builds as worked out by the server (Save waits for
+    it: output names plan 3.3)."""
+    page.locator('#fileName').fill(name)
+    page.wait_for_function("() => !document.getElementById('fileOk').disabled")
+    return page.locator('#fileOutput').inner_text()
+
+
 def save_dialog(page, name):
-    """Save as…: the Save dialog, a name typed into it."""
+    """Save as…: the Save dialog, a name typed into it (and its map name worked out)."""
     page.locator('#projectButton').click()
     page.locator('#projectSaveAs').click()
     page.wait_for_selector('#fileDialog:not([hidden]) .filerow, #fileDialog:not([hidden]) .filelist .empty')
     assert page.locator('#fileTitle').inner_text() == 'Save project' and page.locator('#fileOk').inner_text() == 'Save'
+    return type_project_name(page, name)
+
+
+def check_output_names(browser, url, errors):
+    """Output names plan 3.3 and 5: Save shows a new project's map name (its name as one word, at most 24 characters)
+    before writing anything, and nothing while the answer for what is typed is still coming; a name another project
+    has is numbered, saying why; one taken between the answer and the save is refused with the next, the dialog left
+    open with nothing lost; the open project and one replaced keep their own. Saves projects: a test server with
+    --projects <scratch folder> only."""
+    page = open_viewer(browser, url, errors, expected=(409,))
+    stamp = page.evaluate('Date.now() % 100000')
+    name, word = f'Names smoke {stamp}', f'NamesSmoke{stamp}'
+    # the server's answer held back: Save stays disabled and no name is shown meanwhile
+    page.evaluate("""() => { const f = window.fetch; window.slowNames = true;
+      window.fetch = (u, o) => String(u).includes('output-names') && window.slowNames
+        ? new Promise(r => setTimeout(() => r(f(u, o)), 1500)) : f(u, o); }""")
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
     page.locator('#fileName').fill(name)
+    page.wait_for_timeout(400)
+    assert page.locator('#fileOk').is_disabled() and page.locator('#fileOutput').inner_text() == 'Builds as …'
+    page.wait_for_function("() => !document.getElementById('fileOk').disabled")
+    page.evaluate('window.slowNames = false')
+    assert page.locator('#fileOutput').inner_text() == f'Builds as {word} · map names keep to 24 characters', page.locator('#fileOutput').inner_text()
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    first = page.evaluate('viewer.project()')
+    assert first['doc']['output'] == dict(shipAs=word, patch='patch_' + word.lower()), first['doc']['output']
+    # another project's name as one word: numbered, and why
+    shown = save_dialog(page, f'names-smoke {stamp}')
+    assert f'Builds as {word}_2' in shown and 'is taken' in shown, shown
+    # taken meanwhile (another tab saves a project under it): refused with the next, the dialog stays open
+    other = page.evaluate("""async ([name, shipAs]) => {
+      const id = crypto.randomUUID(), doc = { ...viewer.project().doc, id, name, output: { shipAs, patch: 'patch_' + shipAs.toLowerCase() },
+        overrides: [], added: [], groups: [], areaLightBindings: [] };
+      delete doc.revision; delete doc.savedAt; delete doc.created;
+      const r = await fetch(`/projects/${id}/project.json`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedRevision: 0, document: doc }) });
+      return [r.status, id]; }""", [f'Names  smoke {stamp}', f'{word}_2'])     # another name, the same as one word
+    assert other[0] == 200, other
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function("() => document.getElementById('fileMessage').textContent.includes('Not saved')")
+    assert page.locator('#fileDialog').is_visible() and page.evaluate('viewer.project().id') == first['id']
+    assert f'Builds as {word}_3' in page.locator('#fileOutput').inner_text(), page.locator('#fileOutput').inner_text()
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('id => viewer.project()?.id !== id && viewer.project().revision === 1', arg=first['id'])
+    third = page.evaluate('viewer.project()')
+    assert third['doc']['output']['shipAs'] == f'{word}_3'
+    # the open project's own name (another case): its fixed name, kept
+    shown = save_dialog(page, f'NAMES-smoke {stamp}')
+    assert shown == f'Builds as {word}_3 · fixed when the project was first saved', shown
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 2')
+    assert page.evaluate('viewer.project().doc.output.shipAs') == f'{word}_3'
+    # another project's name: replaced, its own map name kept
+    shown = save_dialog(page, name)
+    assert shown.startswith(f'Builds as {word} · fixed'), shown
+    page.locator('#fileName').press('Enter')
+    page.locator('#fileConfirm button.primary').click()
+    page.wait_for_function('id => viewer.project()?.id === id && viewer.project().revision === 2', arg=first['id'])
+    assert page.evaluate('viewer.project().doc.output') == first['doc']['output']
+    page.locator('#projectButton').click()
+    assert f'Builds as {word}' in page.locator('#projectInfo').inner_text()
+    page.close()
+    return dict(first=word, numbered=f'{word}_3')
 
 
 def check_streams(page):
@@ -3012,16 +3084,17 @@ def check_projects(browser, url):
     page.wait_for_selector('#fileDialog:not([hidden])')
     assert page.locator('#fileTitle').inner_text() == 'Save project' and page.locator('#fileName').input_value() == ''
     assert page.locator('#fileOk').is_disabled()
-    page.locator('#fileName').fill('Smoke test project')
+    shown = type_project_name(page, 'Smoke test project')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     first = page.evaluate('viewer.project().id')
     assert f'project={first}' in page.url and page.locator('#projectTitle').inner_text() == 'Smoke test project'
     assert 'saved' in page.locator('#editCount').inner_text() and 'unsaved' not in page.locator('#editCount').inner_text()
     doc = page.evaluate('viewer.project().doc')
-    # The map's name, as much of the project's as fits, and four digits of the id; 30 characters at most (T-09).
-    stem = page.evaluate('viewer.mapId')[:12]
-    assert doc['output']['shipAs'].startswith(stem + '_' + 'SmokeTestProject'[:30 - len('patch_') - len(stem) - 6])
+    # The project's name as one word, at most 24 characters (numbered when another project has it), as the dialog
+    # showed; its patch patch_<name>, 30 at most (T-09).
+    assert doc['output']['shipAs'].startswith('SmokeTestProject') and len(doc['output']['shipAs']) <= 24
+    assert shown.startswith('Builds as %s · ' % doc['output']['shipAs']), shown
     assert len(doc['output']['patch']) <= 30 and doc['output']['patch'] == 'patch_' + doc['output']['shipAs'].lower()
     assert doc['source']['sha256'] == page.evaluate('viewer.data.source.sha256')
     assert len(doc['groups']) == 1 and doc['groups'][0]['locked'], doc['groups']
@@ -3078,7 +3151,7 @@ def check_projects(browser, url):
     page.locator('#editResetAll').click()
     save_dialog(page, 'Smoke test project')
     assert page.locator('.filerow.on').get_attribute('data-id') == first and 'open' in page.locator('.filerow.on').inner_text()
-    page.locator('#fileName').fill('Smoke test empty')
+    type_project_name(page, 'Smoke test empty')
     assert page.locator('.filerow.on').count() == 0
     page.locator('#fileName').press('Enter')
     page.wait_for_function('id => viewer.project()?.id !== id && viewer.project().revision === 1', arg=first)
@@ -3697,7 +3770,7 @@ def check_prefabs(browser, url):
     page.keyboard.press('p')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    page.locator('#fileName').fill('Prefab smoke')
+    type_project_name(page, 'Prefab smoke')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -3731,7 +3804,7 @@ def main():
     ap.add_argument("--play",action="store_true",help="Also check Play in game and Game maps' Undo everything: changes the server's "
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -3787,6 +3860,10 @@ def main():
             if 'text-select' in only: check_text_select(page)
             if 'play-area' in only: check_play_area(page); check_interior_whole(page)
             if 'light-grid' in only: check_light_grid(page)
+            if 'output-names' in only:
+                found = []
+                print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
+                errors.update(found)
             page.screenshot(path=str(args.screenshot))
             print(json.dumps(dict(only=sorted(only), errors=sorted(errors)), indent=2))
             browser.close()

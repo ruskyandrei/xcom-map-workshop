@@ -99,6 +99,21 @@ def validate(document, project_id):
     listed = document.get('missions', [])
     if not isinstance(listed, list) or not all(isinstance(item, dict) for item in listed):
         raise ProjectError(422, '"missions" must be a list of records.')
+    # Its output names (output names plan): package names, when it has them; who holds them is checked as it saves
+    # (ProjectStore.check_output)
+    if 'output' in document and not valid_output(document['output']):
+        raise ProjectError(422, '"output" must be the map\'s and its patch\'s package names (letters, digits and _, '
+                                'starting with a letter, at most 30 characters).')
+
+
+OUTPUT_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,29}')
+
+
+def valid_output(output):
+    """Output names as a project saves them: {shipAs, patch}, package names of at most 30 characters (outputnames.py
+    says which are free)."""
+    return (isinstance(output, dict) and set(output) == {'shipAs', 'patch'}
+            and all(isinstance(output[k], str) and OUTPUT_NAME.fullmatch(output[k]) for k in output))
 
 
 def file_stem(name):
@@ -141,10 +156,27 @@ class ProjectStore:
                     revision=document.get('revision'), savedAt=document.get('savedAt'),
                     recovery=(self.state(document['id']) / 'recovery.json').is_file())
 
-    def __init__(self, root):
+    def __init__(self, root, names=None):
+        """names: what checks a new project's output names as it saves (outputnames.Service; the server's), or None
+        (a store a tool opens checks their form alone)."""
         self.root = Path(root)
         self.lock = threading.RLock()
         self.paths = {}             # project id -> its file, as last found; checked before each use
+        self.names = names
+
+    def check_output(self, document, current):
+        """A project's output names as it saves, in the store's lock (output names plan 3.3): fixed once saved, so a
+        saved project's next revision must carry them exactly (a case-only change of its name keeps them as they
+        are); a new project's (or one saved without any) are checked by `names` when the store has it."""
+        before = current.get('output') if isinstance(current, dict) else None
+        if valid_output(before):
+            if document.get('output') != before:
+                raise ProjectError(409, f'This project builds as {before["shipAs"]}: its map name is fixed when it is '
+                                        f'first saved. Use Save as with a new name to save it as a new project that '
+                                        f'builds under a name of its own.', output=before)
+            return
+        if self.names is not None:
+            self.names.check_new(document)
 
     def check_id(self, project_id):
         if not isinstance(project_id, str) or not ID.fullmatch(project_id): raise ProjectError(404, f'No such {self.noun}.')
@@ -301,6 +333,8 @@ class ProjectStore:
             if current is not None: self.check(current)
             if expected != revision:
                 raise ProjectError(409, f'This {self.noun} was saved elsewhere since (revision {revision}).', revision=revision)
+            # its output names, in the lock: two first saves can't both take one name
+            self.check_output(document, current)
             document = dict(document, revision=revision + 1, savedAt=now())
             document.setdefault('created', document['savedAt'])
             self.root.mkdir(parents=True, exist_ok=True)

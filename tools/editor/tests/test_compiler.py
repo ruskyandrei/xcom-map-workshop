@@ -679,6 +679,24 @@ class CompilerTests(unittest.TestCase):
                 self.assertIsNone(spec)
                 self.assertEqual(codes(report)[:1], [code])
 
+    def test_output_names_of_any_valid_length_build_and_three_must_differ(self):
+        """Output names plan 3.3: a new project's map name keeps to 24 (the Save dialog's allocation), but the compiler
+        takes what UDK can save, so a project of before with a name of 25 to 30 characters still builds; one letter is
+        a name; the map, its patch and the base map differ pairwise (the patch named as the base map too); a device
+        name is refused."""
+        for out in (dict(shipAs='A', patch='patch_a'), dict(shipAs='B' * 30, patch='patch_b'),
+                    dict(shipAs='URB_Bar_Commercial_Fix_ab12', patch='patch_urb_bar_commercial_fix_')):
+            with self.subTest(out=out):
+                spec, report = compile_project(document(output=out), scene())
+                self.assertTrue(report['ok'], refused(report))
+                self.assertEqual(spec['map']['shipAs'], out['shipAs'])
+        for out in (dict(shipAs='C' * 31, patch='patch_c'), dict(shipAs='Fine', patch='URB_BAR'),
+                    dict(shipAs='Fine', patch='fine'), dict(shipAs='Con', patch='patch_con'), dict(shipAs='Fine', patch='LPT1')):
+            with self.subTest(out=out):
+                spec, report = compile_project(document(output=out), scene())
+                self.assertIsNone(spec)
+                self.assertEqual(codes(report)[:1], ['output'])
+
     def test_no_edits_is_a_variant_with_no_objects(self):
         spec, report = compile_project(document(name='Quote "and" pipe | é'), scene())
         self.assertTrue(report['ok'])
