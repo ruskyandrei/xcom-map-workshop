@@ -2521,6 +2521,22 @@ word; not looked at in the game).
 
 ## Toolchain
 
+### T-41: Map grid snapped back on maps past 128 tiles at their own size
+**Fixed** (16 November 2026, seen by the user on a temple map).
+- **Seen.** On TempleShip the rail's Map grid drew a larger grid while a handle was dragged, then snapped back to the
+  map's own size on release, and nothing changed. The blue (Y) handle did worse: it jumped down to 128 as soon as it
+  moved, and on release left a hidden `grid: [45, 128]` in the project, smaller than the map, which the Build refuses.
+- **Cause.** TempleShip's own grid is 45 by 203 by 15 tiles, and the editor capped a project's grid at 128 tiles a
+  side (`STAGE_GRID_MAX`) whatever the map's own size. Every size dragged on it kept the 203, so `project.js
+  validStage` turned it down and the stage went back to none. The drag's bounds put the Y handle's limit (128) under
+  its floor (203), so the clamp gave 128. The compiler refused the same sizes. AlienBase01 (63 by 168) had the same
+  bug; no other map in the cache is past 128.
+- **Fix.** Each axis now goes up to 128 tiles or 30 levels, or the map's own where that is more (`project.js
+  stageMax`, `compiler.py stage_max`). The drag bounds, the checks as a stage is set, loaded or recovered, and the
+  compiler use it. `sortState` checks only the stage's shape, because its size was already checked against the map,
+  so a save keeps the larger grid. TempleShip now grows across to 128 and up to 30 levels. It can't be made deeper
+  than its own 203.
+
 ### T-40: The output-name check took the lab's earlier tests of a project for someone else's files
 **Fixed** (16 November 2026, seen by the user in the build queue: temple_improved failed at once).
 - **Seen.** "The build would write names that are taken: patch_templeship_templeim_2001 (… in XCom-Enemy-Unknown's

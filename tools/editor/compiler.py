@@ -2803,7 +2803,8 @@ class Compiler:
         grid, its planes hidden and a white line on every tile edge; 5.11) and `hideGround` (true: the planes hidden, no
         lines). A map as it is, the blank map among them, only grows (the user, 13 November 2026: any map, where
         before only the blank map); a cleared project's grid (Clear map plan, section 6) may also be smaller in any of
-        the three, from 1 to STAGE_GRID_MAX tiles and 1 to STAGE_LEVELS_MAX levels.
+        the three, from 1 tile or level. Each is at most STAGE_GRID_MAX tiles or STAGE_LEVELS_MAX levels, or the map's
+        own where that is more (stage_max).
         Sets self.stage_grid to [nx, ny, nz] when the grid differs from the map's, else None."""
         self.stage_grid = None
         stage = self.doc.get('stage')
@@ -2832,14 +2833,15 @@ class Compiler:
                        'own %d by %d' % ('the blank map' if bare else self.map, grid[0], grid[1], own[0], own[1]),
                        grid=grid, own=own[:2])
             return
-        if not 1 <= min(grid[:2]) <= max(grid[:2]) <= STAGE_GRID_MAX:
-            self.error('stage-grid', 'the map can be from 1 to %d tiles across and deep (asked: %d by %d)'
-                       % (STAGE_GRID_MAX, grid[0], grid[1]), grid=grid)
+        most = stage_max(own)
+        if not (1 <= grid[0] <= most[0] and 1 <= grid[1] <= most[1]):
+            self.error('stage-grid', 'the map can be from 1 to %d tiles across and 1 to %d deep (asked: %d by %d)'
+                       % (most[0], most[1], grid[0], grid[1]), grid=grid, own=own[:3])
             return
         lowest = own[2] if grows_only else 1
-        if not lowest <= grid[2] <= STAGE_LEVELS_MAX:
+        if not lowest <= grid[2] <= most[2]:
             self.error('stage-grid', 'the map can be from %d up to %d levels high (asked: %d)'
-                       % (lowest, STAGE_LEVELS_MAX, grid[2]), grid=grid, own=own[:3])
+                       % (lowest, most[2], grid[2]), grid=grid, own=own[:3])
             return
         if grid != list(own[:3]):
             self.stage_grid = grid
@@ -3350,11 +3352,20 @@ class Library:
         return record, entry
 
 
-# a project's larger tile grid (Compiler.stage): the game's own maps go to 70 tiles (CSmallScout_Farm is 67 by 70)
+# a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all
+# (TempleShip is 45 by 203, AlienBase01 63 by 168), so a map past 128 keeps its own as its limit (stage_max)
 STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 128
 # levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b); the editor makes up to
 # 30 (1,920 units; the user, 14 November 2026)
 STAGE_LEVELS_PLAYED, STAGE_LEVELS_MAX = 18, 30
+
+
+def stage_max(own):
+    """The most a project's grid may be on each axis for a map whose own grid is `own` [nx, ny, nz]: STAGE_GRID_MAX
+    tiles across and deep and STAGE_LEVELS_MAX levels, or the map's own where that is more, so a map is never past
+    the limit at its own size and can still be made larger (project.js stageMax is the twin)."""
+    return [max(limit, int(own[k]) if own and len(own) > k else 0)
+            for k, limit in enumerate((STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX))]
 # the maps whose size a project may set: the bare maps that a new prefab or a new map starts from (tools/bake/shell.py)
 STAGE_MAPS = ('CB2_MP_Blank',)
 # a project's buildings made from nothing (Compiler.buildings): the kinds, the most floors (a CutdownFloor is a byte;

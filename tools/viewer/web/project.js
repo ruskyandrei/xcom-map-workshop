@@ -120,10 +120,17 @@ export const tidyLandingZone = z => ({ id: z.id, location: z.location.map(tidyLo
   ...(z.missionType ? { missionType: z.missionType } : {}), ...(z.councilType ? { councilType: z.councilType } : {}),
   ...(z.alternate ? { alternate: { location: z.alternate.location.map(tidyLocation), direction: z.alternate.direction } } : {}), ...(z.lwr === false ? { lwr: false } : {}),
   ...(z.ew === true ? { ew: true } : {}), ...(z.other ? { other: z.other } : {}) });
-export const validStage = s => s == null || (typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.grid) && [2, 3].includes(s.grid.length)
-  && s.grid.every((v, k) => Number.isInteger(v) && v >= 1 && v <= (k < 2 ? STAGE_GRID_MAX : STAGE_LEVELS_MAX)) && [undefined, true, false].includes(s.ground)
+// The most a project's grid may be on each axis, given the map's own grid [nx, ny, nz]: 128 tiles across and deep and
+// 30 levels, or the map's own where that is more (TempleShip is 203 tiles deep, AlienBase01 168), so a map is never
+// past the limit at its own size and can still be made larger (compiler.py stage_max is the twin)
+export const stageMax = (own = null) => [STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX].map((v, k) => Math.max(v, own?.[k] ?? 0));
+// A stage's shape, whatever its size
+const stageShape = s => typeof s === 'object' && s !== null && !Array.isArray(s) && Array.isArray(s.grid) && [2, 3].includes(s.grid.length)
+  && s.grid.every(v => Number.isInteger(v) && v >= 1) && [undefined, true, false].includes(s.ground)
   && [undefined, true, false].includes(s.lines) && [undefined, true, false].includes(s.hideGround)
-  && Object.keys(s).every(k => ['grid', 'ground', 'lines', 'hideGround'].includes(k)));
+  && Object.keys(s).every(k => ['grid', 'ground', 'lines', 'hideGround'].includes(k));
+// A stage the map whose own grid is `own` can take in size (without `own`, the plain limits)
+export const validStage = (s, own = null) => s == null || (stageShape(s) && s.grid.every((v, k) => v <= stageMax(own)[k]));
 export const tidyStage = s => (s ? { grid: [...s.grid], ...(s.ground === false ? { ground: false } : {}),
                                      ...(s.lines === true ? { lines: true } : {}),
                                      ...(s.hideGround === true ? { hideGround: true } : {}) } : null);
@@ -134,7 +141,9 @@ export function sortState(state) {
            // Malformed groups are carried as they are.
            groups: (state.groups ?? []).map(g => (validGroup(g) ? tidyGroup(g) : g)).sort((a, b) => String(a?.id).localeCompare(String(b?.id))),
            areaLightBindings: [...(state.areaLightBindings ?? [])].sort(byBinding),
-           stage: validStage(state.stage) ? tidyStage(state.stage) : null,
+           // the size was checked against the map when the stage was set (app.js setStage): only its shape here, so a
+           // map past the plain limits at its own size keeps its larger grid
+           stage: state.stage != null && stageShape(state.stage) ? tidyStage(state.stage) : null,
            // Malformed buildings are carried as they are.
            buildings: (state.buildings ?? []).map(b => (validBuilding(b) ? tidyBuilding(b) : b)).sort((a, b) => String(a?.id).localeCompare(String(b?.id))),
            // cleared (Clear map plan, section 6): the Build takes out what the editor never showed

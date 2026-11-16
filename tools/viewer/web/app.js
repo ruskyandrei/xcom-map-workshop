@@ -4,7 +4,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
 import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, STAGE_GRID_MAX, STAGE_LEVELS_MAX, STAGE_LEVELS_PLAYED, STAGE_MAPS,
+         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
@@ -4020,7 +4020,7 @@ async function applyState(state, progress = null) {
   cleared = state.cleared === true; clearKeepsOutside = cleared && state.clearKeepsOutside === true; mergedBuildings = null;
   landingZones = Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null;
   projectMissions = Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null;
-  setStage(validStage(state.stage) ? state.stage : null);
+  setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
   clearedChanged();
   // (a record for a map building this export can't edit is kept and saved back unchanged)
   const unknownBuildings = setBuildings((state.buildings ?? []).filter(validBuilding));
@@ -4217,7 +4217,7 @@ async function openProject(id) {
     const state = { overrides: recovery.overrides.filter(validOverride), added: recovery.added.filter(validAdded),
                     groups: (Array.isArray(recovery.groups) ? recovery.groups : []).filter(validGroup),
                     areaLightBindings: (Array.isArray(recovery.areaLightBindings) ? recovery.areaLightBindings : []).filter(validBinding),
-                    stage: validStage(recovery.stage) ? recovery.stage : null,
+                    stage: validStage(recovery.stage, ownSize()?.dims) ? recovery.stage : null,
                     buildings: (Array.isArray(recovery.buildings) ? recovery.buildings : []).filter(validBuilding),
                     cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
                     landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
@@ -5663,7 +5663,7 @@ const bareMap = () => STAGE_MAPS.includes(activeMapId);
 const sizeEditable = () => Boolean(ownSize());
 // The grid a stage asks for, as [nx, ny, nz], when this map can take it; else null (the map's own size)
 function stageDims(next, own = ownSize()) {
-  if (!own || !next || !validStage(next)) return null;
+  if (!own || !next || !validStage(next, own.dims)) return null;
   const want = [next.grid[0], next.grid[1], next.grid[2] ?? own.dims[2]];
   // a map as it is only grows (the user, 13 November: the blank map's rule for every map); a cleared map any way
   if (!cleared && (want[0] < own.dims[0] || want[1] < own.dims[1] || want[2] < own.dims[2])) return null;
@@ -5687,7 +5687,7 @@ function setStage(next) {
   for (const child of [...stageArea.children]) { child.geometry.dispose(); stageArea.remove(child); }
   const dims = stageDims(next, own);
   // a size this map can't take (smaller than the map's own, not cleared) is kept as the project has it, not drawn
-  stage = dims ? tidyStage(next) : (next && validStage(next) && !cleared ? tidyStage(next) : null);
+  stage = dims ? tidyStage(next) : (next && validStage(next, own?.dims) && !cleared ? tidyStage(next) : null);
   if (!own) return;
   showGrid(dims);
   // a map grown as it is: the new area as a faint sheet, green where the Build lays the map's ground (where it is laid
@@ -5720,9 +5720,9 @@ const gridHandleLine = new THREE.LineBasicMaterial({ color: 0xffffff, transparen
 function gridRule() {
   const own = ownSize();
   if (!own) return null;
-  // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way
-  return cleared ? { axes: [0, 1, 2], min: [1, 1, 1], max: [STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX] }
-    : { axes: [0, 1, 2], min: [...own.dims], max: [STAGE_GRID_MAX, STAGE_GRID_MAX, Math.max(own.dims[2], STAGE_LEVELS_MAX)] };
+  // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way. Up to 128 tiles and 30
+  // levels, or the map's own where more (stageMax: TempleShip is 203 deep)
+  return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
 }
 // The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py)
 const storeysNow = () => cursorStoreys(data, { cleared, own: ownSize()?.dims ?? null });

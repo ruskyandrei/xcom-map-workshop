@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Map grid works on maps past 128 tiles at their own size (TempleShip, AlienBase01)
+
+The user dragged the Map grid larger on a temple map. It snapped back on release and nothing changed. TempleShip's
+own grid is 45 by 203 by 15 tiles, and a project's grid was capped at 128 tiles a side whatever the map's own size,
+so every size dragged there failed the check. The Y handle also jumped down to 128 and left a hidden, too-small stage
+in the project ([findings register](research/findings-register.md) T-41).
+- [project.js](tools/viewer/web/project.js) `stageMax(own)`: each axis goes up to 128 tiles or 30 levels, or the
+  map's own where that is more. `validStage(s, own)` checks against it. `sortState` checks only the stage's shape,
+  because its size was checked when the stage was set, so a save keeps a grid like 77 by 203.
+- [app.js](tools/viewer/web/app.js) `gridRule` (the drag's bounds), `stageDims`, `setStage`, `applyState` and the
+  recovery pass the map's own grid.
+- [compiler.py](tools/editor/compiler.py) `stage_max`, the twin, in `Compiler.stage`. Its comment no longer says the
+  game's maps stop at 70 tiles.
+- [The viewer README](tools/viewer/README.md) gives the limits (it still said 18 levels).
+- Checked: a browser run on a test server on TempleShip, before and after the fix. Before: X 77 and up 30 snapped
+  back to 45 and 15, and Y went to 128 with `grid: [45, 128]` saved. After: X 77 and up 30 stay (stage and
+  `editState` both keep them), and Y stays at 203. `test_compiler` (a new StageTests test on a 45 by 203 by 15 map;
+  `-k Stage`, `-k Clear`), the node suite (clear_map_test asserts `stageMax`, `validStage` and `sortState` on it),
+  and `browser_smoke --only clear-map` on URB_Bar.
+- Gaps: TempleShip can't be made deeper than its own 203, by the rule. No Build has been run on a larger
+  TempleShip.
+
 ### The output-name check no longer takes the lab's earlier tests of a project for someone else's files
 
 The user's queued build of temple_improved failed at once: "the build would write names that are taken:

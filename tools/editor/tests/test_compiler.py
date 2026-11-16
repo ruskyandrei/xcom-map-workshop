@@ -935,6 +935,27 @@ class StageTests(unittest.TestCase):
         self.assertTrue(report['ok'])
         self.assertEqual(warned(report, 'stage-'), [])
 
+    def test_a_map_past_the_limit_at_its_own_size_still_grows(self):
+        """TempleShip's grid is 45 by 203 by 15 tiles: past 128 deep at its own size, so 203 is its limit there and
+        the other axes keep 128 tiles and 30 levels (stage_max; 16 November 2026: the Map grid snapped back)."""
+        temple = dict(dims=(45, 203, 15), name='TempleShip')
+        self.assertEqual(compiler.stage_max([45, 203, 15]), [128, 203, 30])
+        self.assertEqual(compiler.stage_max([52, 39, 12]), [128, 128, 30])
+        for grid, want in (([46, 203], [46, 203, 15]), ([128, 203], [128, 203, 15]), ([45, 203, 16], [45, 203, 16]),
+                           ([45, 203, 30], [45, 203, 30])):
+            _, report = self.run_stage({'grid': grid}, **temple)
+            self.assertTrue(report['ok'], (grid, refused(report)))
+            self.assertEqual(report['stageGrid'], want)
+        for grid in ([129, 203], [45, 204], [45, 203, 31], [45, 128]):
+            _, report = self.run_stage({'grid': grid}, **temple)
+            self.assertEqual(codes(report), ['stage-grid'], grid)
+        # cleared: smaller on any axis, and never past its own 203 deep
+        c = compiler.Compiler(document(cleared=True, stage={'grid': [40, 150, 8]}), dict(scene(), name='TempleShip'))
+        c.scene['tileGrid'] = dict(c.scene['tileGrid'], dimensions=[45, 203, 15], size=[96, 96, 64])
+        c.map = 'TempleShip'
+        c.cleared_mark(); c.stage()
+        self.assertEqual((c.stage_grid, [e['code'] for e in c.errors]), ([40, 150, 8], []))
+
     def test_a_malformed_stage_is_refused(self):
         for stage in ({'grid': [61]}, {'grid': [61.5, 39]}, {'grid': [61, 39], 'ground': 'yes'}, [61, 39], {'grid': [True, 39]},
                       {'grid': [61, 39, 18, 1]}, {'grid': [61, 39, 17.5]}, {'grid': [61, 39], 'lines': 'yes'}):

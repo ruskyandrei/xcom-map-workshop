@@ -455,13 +455,16 @@ The plan; the guide's "Clear map and landing zones".
   handle on each side that can move (`placeGridHandles`).
   - The red handle is the far X side, the blue one the far Y side, and the green one the top.
   - A drag follows its axis (`alongLine`) by whole tiles (96) or levels (64), within `gridRule`.
-    - A map as it is, the blank map included, only grows, across and up to 18 levels (since 13 November any map,
-      where the compiler refused all but the blank map before).
+    - A map as it is, the blank map included, only grows, across and up (since 13 November any map, where the
+      compiler refused all but the blank map before).
+    - Each axis goes up to 128 tiles or 30 levels, or the map's own where that is more (`project.js stageMax`,
+      `compiler.py stage_max`). TempleShip is 45 by 203 tiles, so it grows across to 128 and up to 30 levels but
+      not deeper; AlienBase01 (63 by 168) is the other map past 128.
     - On a map that keeps its own cursor volumes, the Build's `shell.py grow_cursors` stretches those that reach the
       old far X or Y side to the new one, and with more levels clones the topmost plain one into even storeys of 192
       over the whole grid, from the top of its own up to the new top. `floors.js cursorStoreys` (given the map's own
       size; `storeysNow` in app.js) and `compiler.py cursor_storeys` draw and check the same storeys.
-    - A cleared map goes from 1 to 128 tiles and 1 to 18 levels.
+    - A cleared map goes from 1 tile or level up to the same limits.
   - Each drag is one undo step (`commitStage`). The panel gives the size, the notes (`sizeNotes`, the ground's level
     on a cleared map), **Lay the map's ground over the new area** (`stage.ground`, on a map as it is), **The map's
     own size** and Done (Esc).

@@ -1,7 +1,7 @@
 // Clear map, the ground grid and landing zones (private/plans/done/clear-map-plan.md): the project records
 // (project.js) and the page's plain functions. Run: node tools/viewer/tests/clear_map_test.mjs
 import assert from 'node:assert/strict';
-import { validLandingZone, tidyLandingZone, sortState, stateKey, validStage } from '../web/project.js';
+import { validLandingZone, tidyLandingZone, sortState, stateKey, validStage, stageMax } from '../web/project.js';
 
 // ---- C1: the records
 const zone = { id: 'z1', location: [719, -1681, 64], direction: 'north', kind: 'normal' };
@@ -35,6 +35,16 @@ assert.ok(validStage({ grid: [20, 30, 4] }));
 assert.ok(!validStage({ grid: [0, 30, 4] }));
 assert.ok(validStage({ grid: [20, 30, 30] }));
 assert.ok(!validStage({ grid: [20, 30, 31] }));
+// a map past the limits at its own size (TempleShip, 45 by 203 by 15) keeps its own as its limit on that axis
+// (stageMax, compiler.py stage_max's twin; 16 November 2026: the Map grid snapped back there), and the project keeps it
+const temple = [45, 203, 15];
+assert.deepEqual(stageMax(temple), [128, 203, 30]);
+assert.deepEqual(stageMax(), [128, 128, 30]);
+assert.ok(!validStage({ grid: [46, 203] }));
+for (const grid of [[46, 203], [128, 203], [45, 203, 30], [40, 150, 8]]) assert.ok(validStage({ grid }, temple), JSON.stringify(grid));
+for (const grid of [[129, 203], [45, 204], [45, 203, 31]]) assert.ok(!validStage({ grid }, temple), JSON.stringify(grid));
+assert.deepEqual(sortState({ overrides: [], added: [], stage: { grid: [46, 203], ground: false } }).stage, { grid: [46, 203], ground: false });
+assert.equal(sortState({ overrides: [], added: [], stage: { grid: [46, 203.5] } }).stage, null);
 
 // ---- C4: spawns.js, the twin of spawns.py
 import { place, evacBox, zoneOfFrame, ownSlots, samePlace, startingZones, ownLandings } from '../web/spawns.js';
