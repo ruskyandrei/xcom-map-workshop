@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Plan written: custom walls and terrain shapes
+
+At the user's ask, the research proposal for custom geometry (EXP-66, T-42) was reviewed against the code and the
+native notes, and a detailed implementation plan written beside it in the private plans folder. Nothing is built;
+it waits for a go-ahead.
+- [T-42](research/findings-register.md) has the review's four points: play reads a mesh's hulls and never its
+  triangles, so a shape made of convex solids has its collision by construction; the triangle tree's node count
+  follows one rule on all 579 static meshes of two maps; a generated piece needs the dominant light's shadow map
+  (or the light among its irrelevant lights) as well as a lightmap; breaking a wall a panel at a time rests on the
+  breaking cover block's recipe.
+- The plan: walls with openings, slabs, blocks and ramps as pieces made by the Build from their numbers, on a
+  palette of the game's own materials, for any Enemy Within install; stages W0 to W8, three game runs (EXP-67 to
+  69), eight points for the user to rule on.
+- Checked: the counts by a read-only scratch script on the configured install's URB_Bar and CSmallScout_Farm (the
+  plan's first stage makes them part of the repeatable audit); the `repo` suite. No tool, server or game file
+  changed.
+
 ### Research: custom building and terrain geometry
 
 [EXP-66](research/experiments/EXP-66-custom-geometry-feasibility.md) records the boundary between the existing

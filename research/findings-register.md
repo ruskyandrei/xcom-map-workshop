@@ -2542,6 +2542,23 @@ inspection, no new visible mesh played).
   and the existing cover-block suite (36 tests passed, no skips). F-81/F-83 still constrain terrain floor and cover.
 - Next evidence needed: a visible generated primitive, a wall aperture and a terrain wedge, with full lighting,
   movement, cover, sight, building cutaway where applicable, and save/reload checked in game.
+- **Review, 16 November 2026** (read only: the notes below and a scratch count on URB_Bar and CSmallScout_Farm,
+  which the audit script is to take over; nothing built or played):
+  - Collision is two things. Every tactical test (occupied, floor, cover, the walking and sight bits) reads a mesh's
+    simple collision, its BodySetup's hulls, and never its triangles
+    ([cover-build.md](native/cover-build.md), sections 2, 4 and 5; F-80, F-83). So one hull for each convex solid of
+    a generated shape decides play, and a wall cut into boxes at its openings has hulls that cannot span one. The
+    triangle tree only has to be sound data.
+  - The triangle tree is regular: 6-byte nodes, 8-byte triangles, and on all 579 static meshes of the two maps the
+    node count is the smallest power of two that gives at most five triangles a node (11 triangles: 4 nodes; 5,118:
+    1,024; 5,166: 2,048). The cover box's 12 triangles and 4 nodes fit. How the triangles are sorted into the nodes
+    is not read yet.
+  - The lighting list has one item more: the dominant light. Of the two maps' components with a texture lightmap,
+    all but five either have a shadow map of the dominant light or list irrelevant lights, the dominant light among
+    them in 470 of the 499 lists. A generated piece needs one or the other, as well as its lightmap.
+  - Breaking a generated wall a panel at a time rests on what the Build already makes: a destructible prop whose one
+    destroyed event hides it, taking its collision and cover (the breaking cover block, F-101). Shown, with a
+    toughness that takes damage, it is not played yet.
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).
