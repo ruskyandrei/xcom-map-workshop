@@ -172,14 +172,15 @@ class Play(unittest.TestCase):
         before = self.files(self.lwr)
         player = self.player()
         r = player.play(dict(map='URB_Bar'))
-        self.assertEqual((r['played']['kind'], r['played']['map'], r['played']['how'], r['played']['squad']), ('map', 'URB_Bar', 'direct', True))
+        # these players have no test squad (test_squad_play.py plays with one): the game's own lands
+        self.assertEqual((r['played']['kind'], r['played']['map'], r['played']['how'], r['played']['squad']), ('map', 'URB_Bar', 'direct', None))
         self.assertEqual(self.files(self.lwr), before)                         # no config line changed
         exe = self.lwr / 'XEW/Binaries/Win32/XComEW.exe'
         self.assertEqual(self.started, [([str(exe), f'-EXEC={installs.PLAY_FILE}'], exe.parent)])
         lines = (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii').split('\n')
         self.assertEqual((lines[0], lines[-2], lines[-1]), ('set XComContentManager bAllowJITLoad True', 'open URB_Bar', ''))
         self.assertEqual(lines[1], 'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid')
-        self.assertTrue(lines[2].startswith('set XComOnlineProfileSettings m_aSoldiers (('))
+        self.assertEqual(len(lines), 4)                                      # no squad line
         self.settle(player)
         self.assertEqual(player.status()['game']['lastPlay']['map'], 'URB_Bar')
         with self.assertRaises(ProjectError) as error: player.play(dict(map='Nowhere'))
@@ -1069,28 +1070,25 @@ class Play(unittest.TestCase):
 class Launch(unittest.TestCase):
     """gamelaunch.py: the commands file's text and the command that starts the game (nothing is started)."""
 
-    def test_the_squad_is_six_soldiers_in_lwrs_item_numbers(self):
-        squad = gamelaunch.squad_text('lwr')
-        self.assertEqual(squad, gamelaunch.squad_text('longwar'))
-        self.assertIsNone(gamelaunch.squad_text('ew'))
-        self.assertEqual((squad.count('(kChar=('), squad.count('iUnitLoadoutID=-1)')), (6, 6))
-        self.assertEqual(squad.count('('), squad.count(')'))
-        # the first: an assault in kevlar (59) with a pistol (2), a shotgun (4) and a frag grenade (81)
-        self.assertTrue(squad.startswith('((kChar=(strName="Soldier",iType=2,kInventory=(iArmor=59,iPistol=2,arrLargeItems[0]=4,'
-                                         'iNumLargeItems=1,arrSmallItems[0]=81,iNumSmallItems=1,arrCustomItems[0]=37,iNumCustomItems=1),'))
-        self.assertIn('eClass=eSC_Assault', squad)
-        self.assertIn('strFirstName="Tom",strLastName="Alpha"', squad)
-        self.assertNotIn('\n', squad)
-        text = gamelaunch.play_text('URB_Bar', 'lwr')
-        self.assertEqual(text.split('\n')[1:], ['set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid',
-                                                text.split('\n')[2], 'open URB_Bar', ''])
-        # a prefab test: no aliens (no pods are made of eChar_None)
-        self.assertEqual(gamelaunch.play_text('URB_Bar', 'lwr', aliens=False).split('\n')[1],
-                         'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_None')
+    def test_the_commands_file_with_and_without_a_squad(self):
+        # the six squaddies plays had before the setup panel (tests/squad_default_lwr.txt: squadrecords makes the same,
+        # test_squad_records.py), set as the profile's soldiers
+        squad = (HERE / 'squad_default_lwr.txt').read_text(encoding='ascii').strip()
+        text = gamelaunch.play_text('URB_Bar', squad)
+        self.assertEqual(text.split('\n'), ['set XComContentManager bAllowJITLoad True',
+                                            'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid',
+                                            f'set XComOnlineProfileSettings m_aSoldiers {squad}', 'open URB_Bar', ''])
         text.encode('ascii')
-        for bad in ('URB Bar', 'URB_Bar?x=1', 'open', ''):
-            if bad == 'open': continue
-            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.play_text(bad, 'lwr')
+        # no squad: the game's own lands
+        self.assertNotIn('m_aSoldiers', gamelaunch.play_text('URB_Bar'))
+        # a prefab test: no aliens (no pods are made of eChar_None)
+        self.assertEqual(gamelaunch.play_text('URB_Bar', squad, aliens=False).split('\n')[1],
+                         'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_None')
+        for bad in ('URB Bar', 'URB_Bar?x=1', ''):
+            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.play_text(bad, squad)
+        # a squad text that is not one line of printable ASCII soldiers is refused
+        for bad in ('lwr', squad + '\nopen Other', squad.replace('Tom', 'Töm'), '((kChar=(x))'[:-1]):
+            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.play_text('URB_Bar', bad)
 
     def test_a_record_keeps_its_kind_unless_a_prefab_test_asks(self):
         # Temple Ship's record is the final mission's: its variant's is too, out of rotation (mission types plan, A1)
@@ -1134,11 +1132,11 @@ class Launch(unittest.TestCase):
         self.assertEqual(missions.play_setup(bomb_record(), try_untried=True)['lines'], [])
         self.assertIsNone(missions.civilian_content('[XComGame.XComContentManager]'))
         # the commands file: the mission's lines before the open line, its options after the landing
-        text = gamelaunch.play_text('URB_Bar', 'ew', spawn_group='Group2', lines=['set XGBattleDesc m_eUFOType eShip_UFOSmallScout'],
+        text = gamelaunch.play_text('URB_Bar', None, spawn_group='Group2', lines=['set XGBattleDesc m_eUFOType eShip_UFOSmallScout'],
                                     options=[('Meld', '1')])
         self.assertEqual(text.split('\n')[-3:], ['set XGBattleDesc m_eUFOType eShip_UFOSmallScout', 'open URB_Bar?SpawnGroup=Group2?Meld=1', ''])
         for bad in (dict(lines=['open Other']), dict(lines=['set a b c\nopen x']), dict(options=[('Meld', '1?x=2')])):
-            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.play_text('URB_Bar', 'lwr', **bad)
+            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.play_text('URB_Bar', None, **bad)
         # what the game matches in a display name, kept by a variant's
         self.assertEqual(missions.display_name('URB_Boulevard_Bomb (Bomb Defusal Boulevard) |0', 'URB_Boulevard_Mine', 'Mine, Council bomb', ' |0'),
                          'URB_Boulevard_Mine_Bomb (Mine, Council bomb) |0')

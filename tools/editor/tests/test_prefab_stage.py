@@ -61,6 +61,17 @@ class StageTests(unittest.TestCase):
         lo_x, lo_y, hi_x, hi_y = placement['reservedTiles']
         self.assertTrue(x + 4 <= lo_x or x >= hi_x or y + 2 <= lo_y or y >= hi_y)
 
+    def test_the_reserved_tiles_take_a_seventh_and_eighth_unit_too(self):
+        # a squad of seven or eight (the test squad, squadrecords.py): XGPlayer.LoadSquad puts units past the sixth one
+        # tile behind a landing point, so every tile next to one must be kept clear of the prefab
+        placement = stage.place([-192, -96, 0, 192, 96, 768], GRID, SPAWNS)
+        lo_x, lo_y, hi_x, hi_y = placement['reservedTiles']
+        for point in SPAWNS:
+            tx, ty = [(point[k] - GRID['origin'][k]) // 96 for k in range(2)]
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    self.assertTrue(lo_x <= tx + dx < hi_x and lo_y <= ty + dy < hi_y, (point, dx, dy))
+
     def test_exact_width_can_grow_the_stage_but_a_full_stage_has_no_squad_room(self):
         limit = 128 * 96
         self.assertEqual(stage.place([0, 0, 0, limit, 96, 64], GRID, SPAWNS)['grid'], [128, 36])

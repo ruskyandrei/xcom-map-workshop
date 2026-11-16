@@ -39,6 +39,12 @@ way. The game's saves get the same care (playsaves.py): a battle started without
 whatever is there, and broken, so once the game has closed a broken one is set aside out of the game's folder and a
 save it replaced is put back; a whole one (saving on) stays where the game wrote it.
 
+A play lands with the test squad (squads.py: the one squad of Settings, Test squad setup), resolved once against the
+install played in before anything there changes (squadrecords.py), so a squad saved meanwhile waits for the next play;
+a squad that can't be played there (its file unreadable, or errors such as a name the game can't take) stops the play
+before it installs anything. Every play does this: a map, a project, Land here, saving on or off, a prefab test.
+`played.squad` keeps its name, its units in a few words and its warnings and notes.
+
 A play leaves nothing in the game: the same watch then takes out what the play put in (installs.clear_play: the
 build's record, landing zones and files, the commands file), and so does the next play before it installs, and the
 first look at the install (status) when a play's things are still there with the game closed (the server was stopped
@@ -54,25 +60,29 @@ import installs
 import missions
 import playsaves
 from projects import ProjectError
+from squads import SquadError
 from settings import documents, game_kind, game_setting, install_game, kind_label, lwr_game
 
 
 class Player:
     def __init__(self, settings, builds=None, catalogue=None, projects=None, install=None, start=gamelaunch.start,
                  steam=gamelaunch.steam_exe, command=gamelaunch.command, user_documents=None, appear=300, every=3,
-                 cleanup=True, try_lines=False):
+                 cleanup=True, try_lines=False, squads=None):
         """settings: the editor's settings (load_settings); install: a game folder that overrides the install setting
         (serve --install: tests use a scratch copy). builds: the BuildRunner; catalogue: the server's maps. start, steam
         and command: gamelaunch's, which tests and serve --dry-play replace (a dry play starts nothing); user_documents: the Documents folder the game keeps its settings
         under. appear: the seconds the watch waits for the game to come up (the game's launcher, where an install still has it, waits for a click); every:
         how often it looks. cleanup: whether a play's things are taken out of the game once it has closed (not for a
-        dry play). try_lines: put in the mission commands not yet known to work (serve --try-mission-lines: EXP-53)."""
+        dry play). try_lines: put in the mission commands not yet known to work (serve --try-mission-lines: EXP-53).
+        squads: the test squad (squads.SquadService, set by the server once the player exists, as it plays in the
+        player's install); None: no squad is set and the game's own lands (tests)."""
         self.settings, self.override = settings, Path(install) if install else None
         self.builds, self.catalogue, self.projects = builds, catalogue, projects
         self.start, self.steam, self.command, self.documents = start, steam, command, user_documents
         self.appear, self.every, self.cleanup, self.try_lines = appear, every, cleanup, try_lines
         self.lock, self.watching, self.stop_watch = threading.Lock(), None, None
         self.test_watching = None
+        self.squads = squads
 
     def target(self):
         """(the game folder plays go to or None, what was found, where the choice came from)."""
@@ -100,6 +110,9 @@ class Player:
         out['missionKinds'] = missions.kinds_for_page(self.content_text(game), self.try_lines,
                                                       lwr=game is not None and game_kind(game) == 'lwr')
         out['saveKey'] = gamelaunch.SAVE_KEY
+        # the test squad in a few words, for the play dialog's line
+        try: out['squad'] = self.squads.summary() if self.squads else None
+        except (OSError, ValueError, ProjectError) as error: out['squad'] = dict(problem=str(error), playable=False)
         if game is not None:
             out['launch'] = self.launch(game)
             try: out['game'] = installs.status(game)
@@ -158,6 +171,10 @@ class Player:
                 if why := installs.ready(game):
                     raise installs.InstallError(why)
                 argv, cwd, how = self.command(game, installs.PLAY_FILE, self.steam)
+                # the test squad, resolved once for this install before anything in it changes: the play writes this
+                # snapshot, whatever is saved meanwhile (a SquadError, 409, says why there is none to play)
+                try: squad = self.squads.snapshot(game) if self.squads else None
+                except SquadError as error: raise ProjectError(409, f'Not started: {error.message}', code='squad') from None
                 if verify: verify()
                 installs.recover_test_install(game)
                 installs.restore_config(game)       # an earlier play's, when its watch didn't see the game close
@@ -182,7 +199,11 @@ class Player:
                 installs.write_start_file(game, gamelaunch.start_text(installs.PLAY_FILE) if saving else None)
                 # the pods: none in a prefab test, the mission's (EXALT's for its missions) or the game's default
                 aliens = False if test else (setup and setup['aliens']) or True
-                installs.write_play_file(game, gamelaunch.play_text(played['map'], game_kind(game), aliens=aliens,
+                if squad:
+                    document, resolved = squad
+                    played['squad'] = dict(name=document['name'], count=len(document['units']), **resolved.receipt())
+                else: played['squad'] = None
+                installs.write_play_file(game, gamelaunch.play_text(played['map'], resolved.text if squad else None, aliens=aliens,
                                                                     spawn_group=played.get('spawnGroup'),
                                                                     lines=setup['lines'] if setup else (),
                                                                     options=setup['options'] if setup else ()), played)
@@ -211,7 +232,7 @@ class Player:
             if not (test and how == 'dry'):
                 self.watch(game, appear=self.appear, finished=finished)
                 if test: self.test_watching = self.watching
-        return dict(played, how=how, squad=gamelaunch.squad_text(game_kind(game)) is not None)
+        return dict(played, how=how)
 
     @staticmethod
     def test_installed(game, test):

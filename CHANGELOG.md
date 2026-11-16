@@ -8,6 +8,49 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Test squad Q0 to Q3: the game's own data, the saved squad and its records, in every play
+
+Stages Q0 (the scripts' part), Q1, Q2 and Q3 of the test squad plan (private). Every Play in game now lands with one
+saved squad, resolved for the install played in, in place of the six squaddies written into the code.
+- Q0: [test-squad-records.md](research/test-squad-records.md) says what the game does with a squad written into the
+  profile, read from LWR's decompiled scripts and tactical mutator (findings register F-115): records taken as
+  written, the body from the armour (`MapSoldierToPawn`), the loadout's places, LWR's scanner and smoke charges kept
+  in perk entries, the class record, units past six one tile behind a landing point. Its game runs are EXP-64's.
+- Q1: [script_enums.py](tools/upk/script_enums.py) reads a script package's enums (each entry's position and full
+  name, unsigned FName numbers, names held twice marked, tagged properties skipped, bad exports refused), kept by
+  the package's hash and the reader's version. [gamedata.py](tools/viewer/gamedata.py) reads an install's catalogue:
+  the enums, `DefaultGameCore.ini`'s base characters, armours, weapons and cost rows (the INI's operators, repeated
+  sections, nested structs, quoted commas, numeric and named types, a later row replacing an earlier one as
+  `BuildWeapon`/`BuildArmor`/`BuildCharacter` do), the localisation (UTF-16, UTF-8 or Windows-1252, names or numbers
+  as keys, the install's language then INT), and a fingerprint of every file read.
+- Q2: [squads.py](tools/viewer/squads.py) is the squad's file, `test-squad.json` beside the settings (schema
+  `xcom-map-workshop/test-squad` 1, units by id, the game's enum names for items, classes, perks and countries):
+  revisions by hash (a save on an older one is refused, 409), atomic saves with `test-squad.prev.json`, a file that
+  can't be read reported and its bytes kept, shared files (`<name>.xcomsquad.json`) without the install's details,
+  a newer version refused. [squadrecords.py](tools/viewer/squadrecords.py) has each family's rules (LWR: soldiers,
+  MEC troopers and SHIVs, eight units; Long War and plain EW: soldiers in the base game's armours, six), the choices
+  an install offers (items by role from their properties, cost rows for the usual lists, perks without the battle's
+  states), the squad checked against them (errors stop a play: no body, a name the game can't take, a MEC without
+  its gun; warnings say what the game does: a SHIV's other guns, a soldier's third large item, a MEC's grenades,
+  one SHIV a turn under LWR; a choice the install lacks is left out with a note and kept in the file), and the
+  `m_aSoldiers` text. Routes `GET/PUT /squad.json`, `POST /squad/check`, `/squad/import`, `/squad/export`
+  ([viewer.py](tools/viewer/viewer.py)).
+- Q3: [play.py](tools/viewer/play.py) resolves the squad once per play, before anything in the install changes,
+  and writes that snapshot (a save meanwhile waits for the next play); a squad that can't be played stops the play
+  with nothing changed. Maps, projects, Land here, saving on and prefab tests all use it; `played.squad` and
+  `/play.json`'s `squad` say what it was. [gamelaunch.py](tools/viewer/gamelaunch.py) no longer holds a squad:
+  `play_text` takes the text and refuses one that is not a line of printable ASCII soldiers.
+- The default squad is the six squaddies as before, byte for byte but for each soldier's class record
+  (`kClass=(eType=n)`, added on purpose: the HUD's class label and LWR's class read it), held to the text plays wrote
+  before ([squad_default_lwr.txt](tools/viewer/tests/squad_default_lwr.txt)).
+- Checked: the upk suite's [test_script_enums.py](tools/upk/tests/test_script_enums.py) (synthetic exports, and LWR's
+  reference entries when the install is LWR), the viewer suite's [test_gamedata.py](tools/viewer/tests/test_gamedata.py),
+  [test_squad_store.py](tools/viewer/tests/test_squad_store.py), [test_squad_records.py](tools/viewer/tests/test_squad_records.py),
+  [test_squad_play.py](tools/viewer/tests/test_squad_play.py) on a scratch install
+  ([squad_fixture.py](tools/viewer/tests/squad_fixture.py)), the play tests, and the editor suite's prefab stage
+  test (the reserved tiles take units 7 and 8). Known gaps: nothing played yet (EXP-64); the panel is Q4; no
+  script of plain EW or Long War without Rebalance was read, so they get soldiers only.
+
 ### Output names N4: the guide's Save and Project menu, and EXP-63 prepared
 
 Stage N4 of the output names plan (private), all but its game run. The [guide](tools/release/guide/guide.html)

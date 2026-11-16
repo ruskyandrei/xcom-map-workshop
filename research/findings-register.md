@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-115: the test squad's records follow the scripts (body from the armour, LWR's scanner and smoke charges in perk
+  entries, eight units); EXP-64 plays them.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
   the user saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
@@ -1915,6 +1917,28 @@ mission types plan, not seen in a run;
   lists for Meld, capture points and radar arrays only when the option is there. `?StreamingMap<n>=` preloads on
   a seamless travel and adds levels only on a save's load. Play in game's `open <Map>` carries none of these.
 - Used by: the mission types plan (which record a play installs, the options on its `open` line).
+
+### F-115: A squad written into the profile is taken as written; its body comes from its armour, and LWR keeps some charges in perk entries
+**Open** (16 November 2026: read from the decompiled scripts and LWR's tactical mutator; not played yet, EXP-64 checks
+it). The test squad's records (test squad plan, Q0); [test-squad-records.md](test-squad-records.md) has the detail.
+- **Taken as written:** `XGPlayer.LoadSquad` sets each record's character and soldier as they are, its `aStats` the
+  base stats; armour, weapon and item bonuses are added by the battle each turn, so a record holds none of them.
+  `aAbilities` and `aProperties` are counts of the config row's entries, zeros included (`BuildCharacter`).
+- **The body from the armour:** `MapSoldierToPawn` maps a fixed list of armours, chassis and MEC suits to pawns; any
+  other armour spawns nothing, and the unit is missing without an error. A MEC is the soldier character with the MEC
+  class in a MEC suit; a SHIV the tank character in a chassis, carrying its first large item only.
+- **The loadout:** a soldier equips two large items; the pistol's place takes any item (the heavy's machine gun); the
+  fourth small item and on go to a five-item backpack; an armour with the grapple property gives the grapple itself.
+- **LWR's charges:** a battle scanner's charges come from `aUpgrades[8] >> 1` and a smoke grenade's one from
+  `aUpgrades[44] >> 1`, not from the item; a MEC's frag grenades and medikits are set to none. Without the entries the
+  item is carried with no charges and its ability is hidden.
+- **Size:** units past the sixth land one tile behind a landing point (point `I % 6`), snapped to the nearest valid
+  place; there is no cap in the scripts.
+- **Class record:** `kSoldier.kClass.eType` is the HUD's class label and LWR's class; plays before the panel left it
+  empty (a rookie's).
+- Fix (not played yet): the test squad (squadrecords.py) writes each unit this way, checks its armour against the
+  list, writes the charge entries for scanners and smoke grenades, the class record, and warns about what the game
+  drops (a SHIV's other guns and items, a soldier's third large item, a MEC's grenades).
 
 
 ## Buildings and the cutaway (prefabs and buildings plan)

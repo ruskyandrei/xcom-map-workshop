@@ -119,6 +119,7 @@ class Handler(SimpleHTTPRequestHandler):
     library = property(lambda self: self.live.library)
     exports = property(lambda self: self.live.exports)
     player = property(lambda self: self.live.player)
+    squads = property(lambda self: getattr(self.live.player, 'squads', None))
 
     @property
     def scene_root(self):
@@ -425,6 +426,31 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
+    # The test squad (squads.py, squadrecords.py): GET /squad.json is the saved squad (or the default) with what the
+    # install Play in game uses offers and the squad checked there; PUT /squad.json {expectedRevision, document} saves
+    # it; POST /squad/check {document} checks a draft, /squad/import {text} reads a shared file as a draft and
+    # /squad/export {document} gives a shared file's name and text.
+    def handle_squad(self, method):
+        path = urlsplit(self.path).path
+        if path not in ('/squad.json', '/squad/check', '/squad/import', '/squad/export'): return False
+        self.body_read = False
+        try:
+            if self.squads is None: raise ProjectError(404, 'This server has no test squad.')
+            if path == '/squad.json' and method == 'GET': self.send_json(200, self.squads.get())
+            elif (path == '/squad.json' and method == 'PUT') or (path != '/squad.json' and method == 'POST'):
+                if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
+                act = {'/squad.json': self.squads.save, '/squad/check': self.squads.check,
+                       '/squad/import': self.squads.import_text, '/squad/export': self.squads.export}[path]
+                self.send_json(200, act(self.body_json()))
+            else: raise ProjectError(405, 'Not allowed.')
+        except ProjectError as error:
+            self.send_json(error.status, dict(error=error.message, **error.extra))
+        except OSError as error:
+            self.send_json(500, dict(error=f'The squad could not be saved: {error.strerror or error}'))
+        finally:
+            self.drain_body()
+        return True
+
     # The project manager (manager.py): GET /manager.json lists every project with its last build and what is in the
     # game of it; POST /manager/install and /manager/pack act on {"projects": [id...], "mode": ...}.
     # The Game maps window (gamemaps.py): GET /gamemaps.json lists the install's map records and what the editor
@@ -596,17 +622,17 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_squad, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):
-        if not any(handle('PUT') for handle in (self.handle_library, self.handle_prefabs, self.handle_project)): self.send_error(405)
+        if not any(handle('PUT') for handle in (self.handle_squad, self.handle_library, self.handle_prefabs, self.handle_project)): self.send_error(405)
 
     def do_POST(self):
-        if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
+        if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
 
     def do_DELETE(self):
-        if not any(handle('DELETE') for handle in (self.handle_prefabs, self.handle_project)): self.send_error(405)
+        if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_project)): self.send_error(405)
 
     def do_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
@@ -783,6 +809,10 @@ def main():
         dry = dict(start=lambda argv, cwd=None: None, command=lambda game, name, steam: ([], None, 'dry'), appear=0, cleanup=False) if args.dry_play else {}
         live = Live(catalogue, exports, Player(settings, builds, catalogue, projects, install=args.install, try_lines=args.try_mission_lines, **dry),
                     None if exact else LibraryRunner(cache_root, settings['game']))
+        # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
+        from squads import SquadService, SquadStore, store_path
+        live.player.squads = SquadService(SquadStore(store_path()), lambda: live.player.target(),
+                                          cache=Path(cache_root) / '.gamedata')
         prefab_tests = PrefabTests(builds, live)
         precache = None if exact else PrecacheRunner(live, cache_root)
         # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the

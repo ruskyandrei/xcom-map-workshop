@@ -7,10 +7,10 @@ DefaultMaps.ini record has them, aliens of the game's choosing), with a squad th
 - `set XComContentManager bAllowJITLoad True`: the game loads a soldier's body and weapons when they are first needed.
   Nothing else loads them on this path (in a campaign the base does, before the mission), and without it the squad is
   invisible;
-- `set XComOnlineProfileSettings m_aSoldiers (...)`: the squad, six squaddies (SQUAD). The game's own for this path is
-  two MEC troopers, a heavy and a support, and under Long War the MECs come without bodies or weapons. Items are
-  numbers in the game's item list, which Long War renumbers: ITEMS has LWR's, read from its scripts and played, and
-  Long War's are taken to be the same. For plain Enemy Within no squad is set: the game's own plays (not tried).
+- `set XComOnlineProfileSettings m_aSoldiers (...)`: the squad, the test squad of the setup panel (squads.py), its
+  records made for the install played in (squadrecords.py). The game's own squad for this path is two MEC troopers,
+  a heavy and a support, and under Long War the MECs come without bodies or weapons; a play without a squad text
+  (no test squad service: tests) leaves the game's own.
 Both commands make the game save its XComContent.ini with them in it: installs.backup_config keeps the file aside
 first and restore_config puts it back after the game closes (F-73).
 
@@ -28,39 +28,6 @@ import sys
 
 APP_ID = '200510'       # XCOM: Enemy Unknown, which Enemy Within is launched from
 
-# The item numbers of the squad's gear in each kind of install (settings.game_kind).
-LWR_ITEMS = dict(eItem_Pistol=2, eItem_AssaultRifle=3, eItem_Shotgun=4, eItem_LMG=5, eItem_SniperRifle=6, eItem_RocketLauncher=7,
-                 eItem_PsiAmp=37, eItem_ArmorKevlar=59, eItem_ArmorCarapace=60, eItem_Medikit=69, eItem_FragGrenade=81,
-                 eItem_NeedleGrenade=87)
-ITEMS = dict(lwr=LWR_ITEMS, longwar=LWR_ITEMS)
-
-# Looks the game's own developer squad uses (XComOnlineProfileSettings.ExtendedLaunch_BuildSoldiersFromParts), so
-# their heads, hair and voices are ones the game has.
-MAN_A = 'iHead=31,iGender=1,iRace=2,iHaircut=20,iHairColor=2,iFacialHair=7,iVoice=1'
-MAN_B = 'iHead=36,iGender=1,iRace=3,iHaircut=19,iHairColor=10,iFacialHair=-1,iSkinColor=4,iVoice=1'
-MAN_C = 'iHead=16,iGender=1,iHaircut=22,iHairColor=9,iFacialHair=4,iSkinColor=3,iVoice=1'
-MAN_D = 'iHead=31,iGender=1,iRace=2,iHaircut=20,iHairColor=8,iFacialHair=-1,iVoice=1'
-WOMAN_A = 'iHead=43,iGender=2,iHaircut=10,iHairColor=1,iFacialHair=-1,iSkinColor=1,iVoice=12'
-WOMAN_B = 'iHead=43,iGender=2,iHaircut=10,iHairColor=6,iFacialHair=-1,iSkinColor=2,iVoice=12'
-# (first name, last name, class, armour, sidearm, weapon, small item, look, country). The heavy's pair is the game's
-# own: the machine gun in the sidearm's place and the rocket launcher as the weapon.
-SQUAD = (
-    ('Tom', 'Alpha', 'eSC_Assault', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_Shotgun', 'eItem_FragGrenade', MAN_A, 15),
-    ('Raj', 'Bravo', 'eSC_Support', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_FragGrenade', MAN_B, 7),
-    ('Mia', 'Charlie', 'eSC_HeavyWeapons', 'eItem_ArmorCarapace', 'eItem_LMG', 'eItem_RocketLauncher', 'eItem_FragGrenade', WOMAN_A, 21),
-    ('Leo', 'Delta', 'eSC_Sniper', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_SniperRifle', 'eItem_FragGrenade', MAN_C, 9),
-    ('Eva', 'Echo', 'eSC_Support', 'eItem_ArmorCarapace', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_Medikit', WOMAN_B, 21),
-    ('Sam', 'Foxtrot', 'eSC_Assault', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_NeedleGrenade', MAN_D, 15),
-)
-# A soldier as the game writes its own (getall XComOnlineProfileSettings m_aSoldiers, EXP-29 run 3): the character's
-# base numbers are the ones the game gave its developer squad's soldiers.
-SOLDIER = ('(kChar=(strName="Soldier",iType=2,kInventory=(iArmor={armor},iPistol={pistol},arrLargeItems[0]={weapon},'
-           'iNumLargeItems=1,arrSmallItems[0]={item},iNumSmallItems=1,arrCustomItems[0]={amp},iNumCustomItems=1),'
-           'aAbilities[0]=7,aAbilities[27]=1,aProperties[0]=5,aProperties[6]=1,aStats[0]=6,aStats[1]=65,aStats[3]=14,'
-           'aStats[7]=30,aStats[10]=27,{traversals},eClass={cls},fBioElectricParticleScale=1.000000),'
-           'kSoldier=(strFirstName="{first}",strLastName="{last}",iRank=1,iCountry={country},kAppearance=({look},iBody=-1,'
-           'iBodyMaterial=-1,iEyeColor=-1,iFlag={country},iArmorSkin=-1,iArmorDeco=-1,iArmorTint=7)),iUnitLoadoutID=-1)')
-
 
 class LaunchError(Exception):
     pass
@@ -75,19 +42,12 @@ class LaunchError(Exception):
 ALIENS, NO_ALIENS = 'eChar_Sectoid', 'eChar_None'
 
 
-def squad_text(kind):
-    """The squad as the value of m_aSoldiers for a kind of install, or None when its item numbers aren't known."""
-    items = ITEMS.get(kind)
-    if items is None: return None
-    traversals = ','.join(f'aTraversals[{k}]=1' for k in range(1, 10))
-    return '(' + ','.join(SOLDIER.format(first=first, last=last, cls=cls, armor=items[armor], pistol=items[pistol],
-                                         weapon=items[weapon], item=items[item], amp=items['eItem_PsiAmp'], look=look,
-                                         country=country, traversals=traversals)
-                          for first, last, cls, armor, pistol, weapon, item, look, country in SQUAD) + ')'
+SQUAD_TEXT = re.compile(r'[(][(]kChar=[(][ -~]*[)][)]')      # printable ASCII on one line
 
 
-def play_text(map_name, kind, aliens=True, spawn_group=None, lines=(), options=()):
-    """The commands file's text: the squad's set-up, the aliens (True: ALIENS, False: none, or a character such as
+def play_text(map_name, squad=None, aliens=True, spawn_group=None, lines=(), options=()):
+    """The commands file's text: the squad (`squad`: the value of m_aSoldiers, squadrecords.squad_text, or None for
+    the game's own), the aliens (True: ALIENS, False: none, or a character such as
     'eChar_ExaltOperative'), the mission's own commands (`lines`:
     missions.play_setup's `set` lines for the kind of mission played), then the map, with `spawn_group` (Group<N>)
     the squad's landing (?SpawnGroup=; F-96: the native takes the group of that tag) and the mission's `options`
@@ -105,8 +65,9 @@ def play_text(map_name, kind, aliens=True, spawn_group=None, lines=(), options=(
     if not re.fullmatch(r'eChar_[A-Za-z_]{1,40}', alien): raise LaunchError(f'{alien!r} is not a character')
     out = ['set XComContentManager bAllowJITLoad True',
            f'set XComOnlineProfileSettingsDataBlob m_eAlienType {alien}']
-    squad = squad_text(kind)
-    if squad: out.append(f'set XComOnlineProfileSettings m_aSoldiers {squad}')
+    if squad is not None:
+        if not SQUAD_TEXT.fullmatch(squad): raise LaunchError('The squad is not a list of soldiers the game can read')
+        out.append(f'set XComOnlineProfileSettings m_aSoldiers {squad}')
     out += list(lines)
     url = (f'?SpawnGroup={spawn_group}' if spawn_group else '') + ''.join(f'?{name}={value}' for name, value in options)
     return '\n'.join(out + [f'open {map_name}{url}']) + '\n'
