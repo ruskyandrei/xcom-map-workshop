@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Research: custom building and terrain geometry
+
+[EXP-66](research/experiments/EXP-66-custom-geometry-feasibility.md) records the boundary between the existing
+invisible-box writer and a future visible wall/terrain generator; [T-42](research/findings-register.md) tracks the
+unqualified parts. The implementation proposal is in the private plans folder.
+- Added a read-only [audit](research/evidence/custom-geometry-audit.py) and its
+  [measurements](research/evidence/custom-geometry-audit.json): the farm's slanted dirt is an ordinary static mesh
+  with ten simple collision elements; four Bar wall meshes have 30-77 fragments. Package hashes and scope are kept;
+  no game bytes or local folders are recorded.
+- Documented material binding, lightmap allocation, collision openings, tile rules and the additional destruction
+  data, distinguishing existing gameplay proofs from proposed functionality. Checked the original UE3 documentation
+  and the upstream explanations of the custom-material boundary.
+- Checked: the audit on the configured farm and Bar packages; the existing cover-block suite (36 tests, no skips);
+  the repo suite. Gaps: no newly generated visible mesh, custom doorway, terrain replacement or destruction model
+  was built or played. No game, editor server or runtime behaviour changed.
+
 ### Maps up to 256 tiles a side (128 before)
 
 At the user's word, a project's grid now goes up to 256 tiles across and deep (levels stay at 30). TempleShip, 45

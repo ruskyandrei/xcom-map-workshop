@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
+  general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
+  fracturing is a separate gap (EXP-66, read-only audit, 16 November).
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
   the user saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
@@ -2520,6 +2523,25 @@ word; not looked at in the game).
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
 ## Toolchain
+
+### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
+**Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code
+inspection, no new visible mesh played).
+- The existing cover-block writer creates new cooked meshes and BodySetups, confirmed in game in EXP-31/EXP-32.
+  It writes hidden boxes with a fixed triangle collision tree, one overlapping UV channel, no bound section material
+  and no component texture lightmap. It is not a general mesh importer.
+- The farm's `TornEarth.Meshes.SmallscoutRamps` is a StaticMesh: 1,123 vertices, 1,788 triangles, two UV channels and
+  ten simple collision elements. Replacing this slope does not require native Terrain/Landscape support.
+- A visible-mesh writer needs qualified material binding, render/collision geometry, lightmap UVs and allocation,
+  actor flags and tile rebuilding. `relight.prepare_component` has fresh lighting but requires an allocated LOD-0
+  texture lightmap. An opening must remain open in collision and pass the game's tiled movement/headroom checks.
+- Custom fracturing also needs native fragment topology, component state and the actor's fragment columns and
+  neighbours (F-69). Four sampled Bar wall meshes have 30-77 fragments; reading/carrying their data does not author
+  it for a changed shape. Whole-panel destruction is a possible intermediate experiment, not yet qualified.
+- Checked: [repeatable audit](evidence/custom-geometry-audit.py), [measurements](evidence/custom-geometry-audit.json)
+  and the existing cover-block suite (36 tests passed, no skips). F-81/F-83 still constrain terrain floor and cover.
+- Next evidence needed: a visible generated primitive, a wall aperture and a terrain wedge, with full lighting,
+  movement, cover, sight, building cutaway where applicable, and save/reload checked in game.
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).
