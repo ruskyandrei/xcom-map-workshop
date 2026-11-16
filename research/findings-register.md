@@ -2521,6 +2521,25 @@ word; not looked at in the game).
 
 ## Toolchain
 
+### T-39: A Job Object's count of active processes drops before they have ended
+**Fixed** (16 November 2026, found while building the build queue's containment, stage Q0).
+- **Seen.** A contained build tree (procs.py) killed with `TerminateJobObject`: the job's `ActiveProcesses` read 0 at
+  once, while the processes still answered as alive for about 10 to 16 ms more (waiting on them had not yet returned).
+- **Cause.** Windows takes a process out of the job's count when it is told to end, not when it has.
+- **Fix.** `Contained.drain` remembers every process it has seen in the job (its id and creation time) and waits
+  until the count is 0 and each of them has ended. test_procs checks the grandchild is gone, not merely told to go.
+
+### T-38: A leftover process holding a build's output pipe kept the server's build running
+**Fixed** (16 November 2026, found by the build queue's Q0 tests with a stand-in build; not seen with a real build).
+- **Seen.** A stand-in build.py that started a child and exited left the server's build `running` for as long as the
+  child lived.
+- **Cause.** The server followed a build by reading its output to the end, and a child inherits that pipe: the end
+  never came while the child lived, so the job never ended and the build slot stayed taken.
+- **Fix.** Since the build queue's stage Q0 (builds.py) a watcher waits for build.py itself, gives its leftover
+  processes 15 seconds, then kills the rest of its tree, which closes the pipe; the build ends only once every process
+  of it has gone (test_builds: a good build waits for its leftover processes). Builds are contained process trees
+  (procs.py), so the server's own death ends them too (EXP-65 run 4).
+
 ### T-37: A full build of a map grown with nothing else stops in the relight
 **Open** (16 November 2026, found while checking the piece flags plan's Build routes; not fixed).
 - **Seen.** A scratch project on URB_Bar whose only change is a grid grown from 52 by 39 to 56 by 39 tiles: its quick

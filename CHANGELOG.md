@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue Q4: EXP-65, real builds stopped, killed and restarted
+
+[EXP-65](research/experiments/EXP-65-build-queue-real-builds.md) ran the queue with the real build.py on a test server
+(port 8791, scratch projects and builds; stopped afterwards; no game started): a project that changes nothing failed
+alone and two real projects (a small URB_Bar edit, a copy-heavy URB_PoliceStation edit) built after it; Stop mid-relight
+ended all eight processes of the build and left the last package valid; Resume built the latest save; a server killed
+outright mid-build took its build's processes with it, and the restarted server had the row waiting, the queue stopped
+and the slot idle until Resume; a package that went in while the queue couldn't save its result became built after a
+restart (`recovered`). Warm against cold with the same edits: 21 s against 47 s (205 of 207 pieces kept) and 51 s
+against 63 s (213 of 224; copies are always relit). The first attempt also showed the snapshot builds keep their name
+checks: the copied projects' names were held in the install by an earlier experiment's files.
+[Findings register](research/findings-register.md): T-38 and T-39 (found building Q0, fixed there).
+
+Checked: the run itself, recorded in EXP-65; the repo suite. No code changed in this stage.
+
 ### Build queue Q2 and Q3: Build in the project manager, the editor's chip, package leases
 
 One commit for both stages (private build queue plan), since the page's one queue controller serves the manager and
