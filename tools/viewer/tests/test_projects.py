@@ -311,7 +311,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(checks['game']['status'], 'ok')
         checks = {c['name']: c for c in settings_module.doctor(dict(projects=self.root / 'p', output=self.root / 'o',
                                                                    cache=self.root / 'c', game=self.root / 'lw', install=None, udk=None, lab=None))}
-        self.assertEqual(checks['game']['status'], 'warn')
+        self.assertEqual(checks['game']['status'], 'ok')        # (no "not tried" warning since 16 November 2026)
 
     def test_doctor_reports_missing_wrong_and_matching_maps(self):
         game = self.root / 'game'; cooked = game / 'XEW' / 'XComGame' / 'CookedPCConsole'; cooked.mkdir(parents=True)

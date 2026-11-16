@@ -781,15 +781,15 @@ class Build:
             return False
         labels = {c['label'] for c in gone}
         why = str(error).splitlines()[0][:300]
-        self.echo('the Build could not make the edit with its untried pieces (%s): building without %d of them'
-                  % (why, len(gone)))
+        self.echo('the Build could not make the edit with %d piece%s of kinds it has not made before (%s): building '
+                  'without them' % (len(gone), '' if len(gone) == 1 else 's', why))
         self.native['copies'] = self.natives = [c for c in self.natives if not c.get('untried')]
         self.native['hides'] = [h for h in self.native['hides'] if h['label'] not in labels]
         made = {c.get('assembly') for c in self.natives}
         if self.native.get('assemblies'):
             self.native['assemblies'] = [m for m in self.native['assemblies'] if m['id'] in made]
         dropped = [dict(actor=c['label'].split(':', 1)[-1], code='untried-failed',
-                        message='%s is of a kind the Build has not made before, and making it failed: left out%s'
+                        message='making %s failed: left out%s'
                         % (c['label'].split(':', 1)[-1], ' (it stays where the map has it)' if c['label'].startswith('move:') else ''))
                    for c in gone]
         self.left_out += dropped
@@ -802,7 +802,7 @@ class Build:
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
                 or self.flags_edit):
-            raise BuildError('nothing of the project can be built: its %d untried piece%s could not be made (%s)'
+            raise BuildError('nothing of the project can be built: its %d piece%s could not be made (%s)'
                              % (len(gone), '' if len(gone) == 1 else 's', why))
         return True
 

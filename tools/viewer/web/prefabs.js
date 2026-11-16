@@ -88,8 +88,6 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
     // (the size limits warn and refuse nothing: plan "sturdier prefabs", R7)
     if (p.largeSize?.length) tags.append(el('span', { className: 'tag later', textContent: 'Very large',
       title: `${p.largeSize.join('; ')}. It can be placed all the same.` }));
-    else if (p.tall) tags.append(el('span', { className: 'tag later', textContent: 'Tall',
-      title: 'It reaches over 18 levels, the height of the game\'s tallest map: not played at this height.' }));
     if (p.unknownFields?.length) tags.append(el('span', { className: 'tag later', textContent: 'Newer fields',
       title: `This prefab has ${p.unknownFields.length === 1 ? 'a field' : `${p.unknownFields.length} fields`} a newer editor wrote (${p.unknownFields.join(', ')}). `
         + 'This editor keeps them as they are and doesn\'t use them.' }));

@@ -1941,7 +1941,7 @@ def check_library_all(browser, url):
     page.locator('#libAllPlaceable').uncheck()
     assert page.evaluate('viewer.library.shown().filter(e => e.library).length') == total
     # what the library only holds back (hidden, linked, a kind not switched on, waiting for its game test) is placed
-    # untried since 14 November 2026; what can't be brought at all stays off
+    # since 14 November 2026, and since 16 November 2026 nothing says it is untried; what can't be brought stays off
     soft = "['hidden', 'assembly', 'family', 'check']"
     later = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.placeable && !%s.includes(e.blocked))" % soft)
     if later >= 0:
@@ -1953,10 +1953,11 @@ def check_library_all(browser, url):
     untried = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.placeable && %s.includes(e.blocked))" % soft)
     if untried >= 0:
         page.evaluate("i => { document.getElementById('libAllList').scrollTop = i * 61; }", untried)
-        row = page.locator('#libAllList .libitem:not(.off)', has=page.locator('.tag.later', has_text='Untried')).first
+        row = page.locator(f'#libAllList .libitem:not(.off)[data-key="{page.evaluate("i => viewer.library.shown()[i].key", untried)}"]')
         row.wait_for()
+        assert not page.locator('#libAllList .tag', has_text='Untried').count()
         row.click()
-        assert 'untried' in page.locator('#dragHint').inner_text().lower(), page.locator('#dragHint').inner_text()
+        assert 'untried' not in page.locator('#dragHint').inner_text().lower(), page.locator('#dragHint').inner_text()
         page.wait_for_function('viewer.placing()', timeout=60000)      # (read from the game the first time)
         page.keyboard.press('Escape')
         assert page.evaluate('viewer.placing()') is None
@@ -3319,7 +3320,7 @@ def check_play(browser, url, project_id=None, screenshot=None):
             # a map with several missions: the play dialog names the mission (the header's), with its kind's line
             page.wait_for_selector('#buildOptions', state='visible')
             assert page.locator('#buildMissionRow').is_visible() and page.locator('#buildBakeRow').is_hidden()
-            assert page.locator('#buildMissionNote').inner_text().startswith(('Played and working', 'Not played yet')),                 page.locator('#buildMissionNote').inner_text()
+            assert 'Enemies:' in page.locator('#buildMissionNote').inner_text() and 'played' not in page.locator('#buildMissionNote').inner_text().lower(),                 page.locator('#buildMissionNote').inner_text()
             page.locator('#buildOptionsOk').click()
         page.wait_for_function("() => { const b = document.querySelector('#projectBanner'); return !b.hidden && b.textContent.startsWith('Starting XCOM'); }",
                                timeout=60000)

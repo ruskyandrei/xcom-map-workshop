@@ -34,11 +34,10 @@ import maplist
 # (Special/Bomb). Special without one is a story or DLC mission.
 COUNCIL = ('Bomb', 'Assault', 'Rescue', 'Extraction')
 
-# What the play dialog says of a kind: 'works' (played and working on this path), 'untried' (not played yet: the
-# run named tries it), 'hangs' (played: the battle stops at its start under Long War), 'no' (not played on this path
-# at all).
-STATES = {'works': 'Played and working', 'untried': 'Not played yet', 'hangs': 'Hangs at the start under Long War',
-          'no': 'Not played from the editor'}
+# A kind's state: 'works' (played and working on this path), 'untried' (not played yet: the run named tries it),
+# 'hangs' (played: the battle stops at its start under Long War), 'no' (not played on this path at all). What the play
+# dialog says of it: only a problem (the user, 16 November 2026: nothing says a kind is untried, or that it was tried).
+STATES = {'works': '', 'untried': '', 'hangs': 'Hangs at the start under Long War', 'no': ''}
 # The enemies a play has (gamelaunch.ALIENS, or EXALT_ALIENS for EXALT_KINDS), as the dialog says them
 PODS_NOTE = 'Enemies: four pods of Sectoids.'
 TERROR_PODS_NOTE = 'Enemies: five pods of Sectoids.'
@@ -338,7 +337,6 @@ def object_risk(o):
 # A project's `missions` (optional; absent, every mission of its base map): entries {record: i} (the base map's record
 # i, the export's `missions` order) or {kind: one of ADDED_KINDS, ship: a UFO type for a UFO mission}: a kind a record
 # alone gives a map (decision 6), made from the base map's abduction record (or its first that is no council mission).
-# Each added kind is untried until EXP-54 plays it.
 BOMB_STREAM = 'URB_Slaughterhouse_Stream'     # LWR gives Boulevard, Fast Food and Street Hurricane their bomb with it
 def group_words(group):
     """A mission object's group as words: 'the bomb', 'power node XComLevelActor_6', 'capture point ...'."""
@@ -357,7 +355,7 @@ ADDED_KINDS = {
                       rotation=True, needs='Nothing under Long War (pods and Meld are placed at load); plain Enemy Within '
                                            'plays the base map\'s pods where they stood.'),
     'TerrorSite': dict(fields=dict(MissionType='eMission_TerrorSite', CouncilType='eFCMType_None', ShipType='eShip_None'),
-                       rotation=True, needs='Nothing under Long War: civilians stand at cover the game finds (not played yet).'),
+                       rotation=True, needs='Nothing under Long War: civilians stand at cover the game finds.'),
     'Special/Bomb': dict(fields=dict(MissionType='eMission_Special', CouncilType='eFCMType_Bomb', ShipType='eShip_None'),
                          rotation=False, stream=BOMB_STREAM, lwr=True,
                          needs='Long War only: its bomb mutator places Slaughterhouse\'s bomb and power nodes on the map.'),
@@ -366,7 +364,6 @@ ADDED_KINDS = {
     'LandedUFO': dict(fields=dict(MissionType='eMission_LandedUFO', CouncilType='eFCMType_None'), rotation=True, ufo=True,
                       needs='A UFO building on the map (a UFO prefab): Long War puts the commander\'s pod in it.'),
 }
-ADDED_STATE = 'Not played yet (EXP-54)'
 
 
 def valid_entry(entry, records):

@@ -78,14 +78,14 @@ class Manager(unittest.TestCase):
         self.assertEqual((row['variant'], row['build'], row['inGame'], row['map']), (VARIANT, None, None, 'URB_Bar'))
         self.assertEqual([(m['label'], m['inRotation']) for m in row['missions']],
                          [('Abduction', True), ('Terror', True), ('Council bomb', False)])
-        # each way's warnings: a mission other than an abduction; a council bomb is an extra bomb mission under Long
-        # War when additional, and takes the original's record name when it replaces
+        # each way's warnings: a council bomb is an extra bomb mission under Long War when additional, and takes the
+        # original's record name when it replaces; nothing says a mission is untried (16 November 2026)
         self.assertEqual(row['warnings'], [])
         add, replace = row['modeWarnings']['additional'], row['modeWarnings']['replace']
-        self.assertEqual((len(add), len(replace)), (2, 2))
-        self.assertIn('Terror', add[0])
-        self.assertIn('extra bomb mission', add[1])
-        self.assertIn('by name', replace[1])
+        self.assertEqual((len(add), len(replace)), (1, 1))
+        self.assertIn('extra bomb mission', add[0])
+        self.assertIn('by name', replace[0])
+        self.assertNotIn('untested', ' '.join(add + replace))
         self.package(revision=1, quick=True)
         listed = manager.listing(self.store, self.builds, player)
         row = self.row(listed)
@@ -121,7 +121,7 @@ class Manager(unittest.TestCase):
                          [('eMission_Abduction', 'True', f'{VARIANT} (Bar remix, Abduction) |0'),
                           ('eMission_Special', 'False', dep.field(council, 'DisplayName')),      # replacing: asked for by name
                           ('eMission_TerrorSite', 'True', f'{VARIANT} (Bar remix, Terror) |0')])
-        self.assertTrue(any('added to the map by the project' in w for w in done['warnings']), done['warnings'])
+        self.assertFalse(any('played' in w for w in done['warnings']), done['warnings'])
         # a play of the added terror installs the Build's record for it
         r = player.play(dict(project=ID, mission='TerrorSite'))
         self.assertEqual(r['played']['mission']['label'], 'Terror')
@@ -140,7 +140,7 @@ class Manager(unittest.TestCase):
         r = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
         done = r['results'][0]
         self.assertEqual((done['ok'], done['missions'], done['switchedOff']), (True, ['Abduction', 'Terror'], 0))
-        self.assertEqual(len(done['warnings']), 2)
+        self.assertEqual(len(done['warnings']), 1)
         mine = self.records(self.lwr, VARIANT)
         self.assertEqual([(dep.unquoted(l, 'MissionType'), dep.unquoted(l, 'bInRotation')) for l in mine],
                          [('eMission_Abduction', 'True'), ('eMission_TerrorSite', 'True'), ('eMission_Special', 'False')])

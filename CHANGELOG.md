@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Nothing in the editor says a thing is untried or not played
+
+At the user's word ("If we ship it it means it's usable, whether we tried it or not"), every warning, note, chip and
+line that said a thing is untried, untested or not played is gone; what it said of the game stays, worded as what
+happens.
+- [compiler.py](tools/editor/compiler.py): no `class-untried` or `delete-untried` warnings. `foreign-untried` is
+  now `foreign-held`, kept only for a piece hidden in its own map or linked to other pieces (`FOREIGN_WORDS`), and
+  silent for a kind not brought before. No `stage-levels-tall` or `stage-grid-large`. `stage-grown-map` is a note
+  saying what the Build does with the new area. The off-grid warning and the two mission warnings lost their "untested"
+  and "not played yet". The copies are still marked for the Build's fallback (left out only if making them fails), and
+  [build.py](tools/editor/build.py) words that failure without "untried".
+- The page: no **Untried** chip on a piece, tag in the piece and library lists, or banner on editing one
+  ([app.js](tools/viewer/web/app.js), [pieces.js](tools/viewer/web/pieces.js),
+  [library.js](tools/viewer/web/library.js): a held piece is tagged **Hidden** or **Linked** where that shows in the
+  game); no "not played" in the Off the grid chip, the prefab builder's size and test window, the prefab list's
+  **Tall** tag ([prefabs.js](tools/viewer/web/prefabs.js)) or the Map grid's notes; the Missions window and the play
+  dialog say a kind's state only when it is a problem ([missions.py](tools/viewer/missions.py) `STATES`,
+  [missions.js](tools/viewer/web/missions.js); no `ADDED_STATE`).
+- The server: the campaign install's mission warnings keep only what the game does by record name
+  ([installs.py](tools/viewer/installs.py)); a Long War install without Rebalance is an ordinary install, not a "not
+  tried" warning ([settings.py](tools/viewer/settings.py), [installer.iss](tools/release/installer.iss)).
+- Docs: [guide.html](tools/release/guide/guide.html), [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) and
+  [README.md](README.md) lose their "not played yet" lists and asides, the Untried row and "best guess" for plain
+  Enemy Within. The [release skill](.claude/skills/release/SKILL.md) no longer asks the notes to name what isn't
+  played.
+- Checked: the editor, viewer, node, release and repo suites, with the tests that expected those warnings and words
+  changed to expect none (the held piece's warning, the Build's fallback marks, the play table's states); the page on
+  a test server: URB_Bar opens with no console errors, the play table's words are empty, no element says untried.
+  Not done: the browser smoke test (needs a test server; its two library and play-dialog checks were updated).
+  The developer notes ([viewer README](tools/viewer/README.md), code comments, past release notes) keep their wording.
+
 ### Piece flags P8: a low piece's Blocks walking said, and the door's flags said as what they do
 
 After EXP-62:

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
-import { collectPieces, createPieceBrowser, destructionNote, lootNote, milestoneNote, pieceGrid, pieceMilestone, useFamilies } from './pieces.js';
+import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, STAGE_GRID_MAX, STAGE_LEVELS_MAX, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
@@ -16,11 +16,11 @@ import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
-import { ADDED_KINDS, ADDED_STATE, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
+import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
 import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
 import { createPrecache } from './precache.js';
-import { createLibraryBrowser, UNTRIED } from './library.js';
+import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
 import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP } from './prefab_document.js';
@@ -107,7 +107,6 @@ world.add(volumeLayer);
 const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id),
                    has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id),
                    values: () => [...roots.values(), ...lightRoots.values(), ...volumeRoots.values()][Symbol.iterator]() };
-const warnedNotBuilt = new Set();     // the pieces warnNotBuilt has warned about
 const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
@@ -386,8 +385,6 @@ function select(id, add = false, keep = false) {
   if (helpers?.length && !obj.added && obj.layer === 'base') text(chips, 'span', `Patch helper${helpers.length > 1 ? 's' : ''}`, 'chip').title =
     `${helpers.map(h => `${short(h.actor)} in ${h.stream}${h.match === 'near' ? ` (near: ${h.distance} units off, with other ends)` : ''}`).join(', ')}: `
     + 'a hidden ladder a streamed patch places with this one. Moved or deleted, the Build takes it out of the variant\'s copy of the patch, so the old place no longer climbs';
-  const milestone = pieceMilestone(obj);
-  if (milestone > 1 && !isStream(obj)) text(chips, 'span', 'Untried', 'chip warn').title = milestoneNote(milestone);
   const loot = isStream(obj) ? null : lootNote(obj);
   if (loot) text(chips, 'span', loot.label, 'chip').title = loot.title;
   flagChip(chips, root);
@@ -779,8 +776,7 @@ function gridNow(root) {
 const OFF_GRID_NOTE = 'Ladders, doors, cars, vans and fracturing pieces (walls, storey floors) map what the game saves '
   + 'for their tiles exactly only moved by whole tiles (96 across) and storeys (64 up) and turned by quarter turns about '
   + 'the vertical from where the original stands. This one is off that grid: it builds where it stands, with a warning '
-  + 'in the Build report, and how it plays there is untested in the game. Tile snap (96 on the snap button) keeps such '
-  + 'a piece on the grid';
+  + 'in the Build report. Tile snap (96 on the snap button) keeps such a piece on the grid';
 function refreshGrid(root) {
   if (!gridChip) return;
   const move = isStream(root?.userData.source) ? null : gridNow(root);
@@ -897,27 +893,8 @@ function editChangedNow() {
     : "Pivot: each piece's own origin. Click to move and turn about the selection's centre (C)";
   $('selected').disabled = !selected;
   projectChanged();
-  warnNotBuilt();
   lightsChanged();
   warnLights();
-}
-// A piece of a family the Build doesn't take yet (pieceMilestone > 1: doors without a frame, classes with no family
-// of their own), moved, deleted or copied: said at once, so no one spends an hour on an edit that won't build
-// (preview checklist item 5). Each piece once per page (warnedNotBuilt, with the other module state above).
-function warnNotBuilt() {
-  const fresh = [];
-  for (const [id, root] of roots) {
-    const o = root.userData.source;
-    if (warnedNotBuilt.has(id) || isStream(o) || !(o.added || root.userData.deleted || root.userData.edit)) continue;
-    const milestone = pieceMilestone(o);
-    if (milestone > 1) { warnedNotBuilt.add(id); fresh.push([o, milestone]); }
-  }
-  if (!fresh.length) return;
-  const [o, milestone] = fresh[0];
-  const name = short(data.meshes[o.mesh]?.name ?? o.actorClass ?? 'This piece');
-  banner(`${fresh.length > 1 ? `${name} and ${fresh.length - 1} more are` : `${name} is`} of a kind the Build has not made before. `
-         + `${fresh.length > 1 ? 'They are' : 'It is'} built with a warning, untried in the game, and left out (named in the Build's window) only if the Build can't make ${fresh.length > 1 ? 'them' : 'it'}.`,
-         [['Undo', () => gizmo.undo()]]);
 }
 // While a gizmo handle is held: one short line on what is moving and how to back out.
 function dragHint(dragging) {
@@ -2100,8 +2077,8 @@ async function prefabClip(doc, step = null) {
   let loaded = 0;
   await Promise.all(foreign.map(from => libraryTemplate(from).finally(() => step?.(++loaded, foreign.length, `Opening ${doc.name}: pieces loaded`)).then(t => {
     const entry = library?.entry(t.record.key);
-    // (what the library only holds back is placed, untried: library.js UNTRIED; what can't be brought is left)
-    if (entry && !entry.placeable && !UNTRIED.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
+    // (what the library only holds back is placed: library.js SOFT; what can't be brought is left)
+    if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
   }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
   const entries = [];
   for (const p of records) {
@@ -3728,7 +3705,7 @@ function gridWarning() {
     : plan.clash ? 'No single shift puts them all on the grid: move them apart from each other first (Show selects them).'
     : `Align to grid moves the whole prefab ${shiftWords(plan.delta)}, the nearest place where they all are.`;
   box.title = 'Doors, ladders, cars, vans and fracturing pieces keep to the tile grid: whole tiles (96) and levels (64) from '
-    + 'where their originals stand. Off it they build, untested in the game, and the Build and Test in game say so. ' + why;
+    + 'where their originals stand. Off it they build where they stand, and the Build and Test in game say so. ' + why;
   $('gridAlign').disabled = !plan.delta || builder.kept.length > 0;
   $('gridAlign').title = plan.delta && !builder.kept.length ? `Moves everything ${shiftWords(plan.delta)} as one: one undo step` : why;
 }
@@ -3747,14 +3724,13 @@ function refreshBuilder() {
   $('prefabRecover').disabled = builder.repairing;
   $('builderSize').textContent = `${size.tiles[0]} × ${size.tiles[1]} tiles · height ${b[2].toFixed(0)}–${b[5].toFixed(0)}, grid 0–${PREFAB_GRID_TOP}`
     + (size.warnings.length ? ' · larger than a map holds' : size.unknown.length ? ' · size unverified: missing pieces kept'
-      : size.outside.length ? ' · sticks out of the grid' : size.tall ? ` · over ${PREFAB_PLAYED_LEVELS} levels: not played` : '');
+      : size.outside.length ? ' · sticks out of the grid' : '');
   $('builderSize').title = [...size.warnings.map(w => `${w}. It is saved and placed all the same.`),
     `A map is at most 128 by 128 tiles; the tile grid is 0 to ${PREFAB_GRID_TOP} units high (${PREFAB_GRID_LEVELS} levels), `
     + `and anything may stick out to ${PREFAB_MIN_Z} under it and ${PREFAB_MAX_Z} over it, roofs and floor boxes `
     + 'included. Out of the grid there are no tiles: nothing can be stood on there or give cover.',
-    size.tall ? `The game's own maps are at most ${PREFAB_PLAYED_LEVELS} levels (${PREFAB_PLAYED_TOP} units) high: a prefab that reaches over that has not been played.` : '',
     size.outside.length ? `Out of the grid: ${size.outside.slice(0, 8).join(', ')}${size.outside.length > 8 ? ' …' : ''}.` : ''].filter(Boolean).join('\n');
-  $('builderSize').classList.toggle('warn', size.warnings.length > 0 || !size.verified || size.tall);
+  $('builderSize').classList.toggle('warn', size.warnings.length > 0 || !size.verified);
   gridWarning();
   const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / 96) * 96);
   const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / 96) * 96);
@@ -4767,7 +4743,7 @@ function playMissions() {
 function playMissionNote(value) {
   const m = headerMissions().find(x => x.value === String(value));
   if (m?.entry) {
-    return [ADDED_STATE.replace(/ \(.*\)/, ''), ADDED_KINDS[m.entry.kind]?.needs,
+    return [ADDED_KINDS[m.entry.kind]?.needs,
       ...missionNote(playStatus?.missionKinds, m.mission).split('\n').slice(1)].filter(Boolean).join('\n');
   }
   return missionNote(playStatus?.missionKinds, m?.mission);
@@ -5012,7 +4988,7 @@ async function openPrefabTest() {
   buildOptions.show({
     title: builder.doc.revision ? `Test ${label} in game` : 'Test unsaved prefab in game',
     note: [`${x} × ${y} tiles, height ${size.bounds[2].toFixed(1)}–${size.bounds[5].toFixed(1)}, on a stage ${testStageLevels(size.bounds)} levels high`
-      + `${size.tall ? ` (over ${PREFAB_PLAYED_LEVELS}, the tallest of the game's maps: not played at this height)` : ''}.`,
+      + '.',
       Math.max(x, y) > 128 ? 'It is too large for the 128 by 128 tile stage: the test will say so.' : '',
       revision, `Game install ${target}`].filter(Boolean).join(' '),
     ok: 'Build and test', bake: false, prefabTest: true, saving: { key: playStatus?.saveKey ?? 'F5' },
@@ -5714,8 +5690,6 @@ function gridPanel(dims = [...data.tileGrid.dimensions]) {
   if (cleared) notes.push(groundWords(nz));
   if (!cleared && !bareMap() && grows) notes.push('The Build lays more of the map\'s ground over the new area only where the map\'s ground is laid as planes (Bar\'s is), and makes the map\'s own low scenery there (its ground and pavements) walkable; elsewhere lay floors.');
   if (!cleared && nz > own.dims[2]) notes.push('The cursor reaches the new levels by storeys the Build adds over the whole grid, above the map\'s own.');
-  if (!cleared && !bareMap() && (grows || nz > own.dims[2])) notes.push('A map made larger as it is has not been played yet.');
-  if (nz > Math.max(STAGE_LEVELS_PLAYED, own.dims[2])) notes.push(`The game's own maps are at most ${STAGE_LEVELS_PLAYED} levels high; a grid of ${nz} levels (${nz * 64} units) has not been played.`);
   $('gridNotes').hidden = !notes.length; $('gridNotes').textContent = notes.join(' ');
 }
 function setGridTool(on) {
@@ -5813,12 +5787,11 @@ function groundWords(levels) {
   if (under >= levels) return `The ground is at ${Math.round(ground)}, above the grid's top: the grid needs ${under + 1} levels or more.`;
   return `The ground is at level ${under + 1} of ${levels}: ${under ? `${LEVEL_WORDS[under] ?? under} level${under === 1 ? '' : 's'} of the grid ${under === 1 ? 'is' : 'are'}` : 'no level of the grid is'} under it.`;
 }
-// The notes under a size, none of which blocks (warn, don't block): an unplayed width, zones outside the grid, no room
-// for LWR's pods (F-90), the ground above the grid
+// The notes under a size, none of which blocks (warn, don't block): zones outside the grid, no room for LWR's pods
+// (F-90), the ground above the grid
 function sizeNotes([nx, ny, nz], zoneList = null) {
   const notes = [], [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
   const box = [ox, oy, oz, ox + nx * sx, oy + ny * sy, oz + nz * sz];
-  if (Math.max(nx, ny) > 70) notes.push('The game\'s own maps are at most 70 tiles across; a larger grid has not been played.');
   const zones = zoneList ?? zonesNow();
   const inside = p => p[0] >= box[0] && p[0] <= box[3] && p[1] >= box[1] && p[1] <= box[4] && p[2] >= box[2] && p[2] <= box[5];
   const st = zoneState(), outside = zones.filter(z => !zoneSoldiers(z, st).every(s => inside(s.location)));
@@ -6013,14 +5986,14 @@ async function showMissions(asked = false) {
   const rows = missions.map((m, i) => {
     const objects = (m.streams ?? []).flatMap(s => data.streams?.[s]?.missionObjects ?? []);
     const lost = objects.filter(o => missionReached(o) && missionFloorLost(o)).length;
-    return { entry: { record: i }, label: labels[i], checked: has({ record: i }), words: kinds[kindKey(m)] ? `${kinds[kindKey(m)].words}.` : '',
+    return { entry: { record: i }, label: labels[i], checked: has({ record: i }), words: kinds[kindKey(m)]?.words ? `${kinds[kindKey(m)].words}.` : '',
              detail: [objects.length ? `${plural(objects.length, 'object')} in its stream${cleared ? ', standing where the original map has them' : ''}.` : '',
                       lost ? `${plural(lost, 'object')} of the map's floor taken from under ${lost === 1 ? 'it' : 'them'} (the Build warns).` : ''].filter(Boolean).join(' ') };
   });
   for (const [kind, k] of Object.entries(ADDED_KINDS)) {
     if (baseHas(kind) && !listed.some(e => e.kind === kind)) continue;     // the base map's own record is the row for it
     const entry = listed.find(e => e.kind === kind) ?? { kind, ...(k.ufo ? { ship: 'eShip_UFOSmallScout' } : {}) };
-    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: ADDED_STATE, detail: k.needs, ufo: k.ufo,
+    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: '', detail: k.needs, ufo: k.ufo,
                 disabled: k.lwr && !lwrInstall() ? 'Long War only: plain Enemy Within would play the bomb where Slaughterhouse has it.'
                   : k.ufo && !hasUfoBuilding() ? 'Place a UFO prefab first: the mission needs a UFO building on the map.' : null });
   }

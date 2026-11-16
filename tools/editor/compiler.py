@@ -153,10 +153,14 @@ FOREIGN_ASSEMBLIES = ('car', 'door', 'van')
 # - 'links': a prop that lists other pieces it takes down with it (AffectedChildren) comes with the list emptied;
 # - 'prefab': a piece whose archetype is in a Prefab comes with the Prefab as a shell (transplant.SHELLS).
 FOREIGN_UNCHECKED = ()
-# the library's verdicts on a piece of another map that the compiler warns about and builds all the same (the user,
-# 14 November 2026: warn, don't leave out): hidden in its own map, linked to other pieces, of a family not brought
-# before, waiting for a game test. 'closure' (it needs something that can't be brought) stays a piece left out.
+# the library's verdicts on a piece of another map that the compiler builds all the same (the user, 14 November 2026:
+# don't leave out): hidden in its own map, linked to other pieces, of a family not brought before, waiting for a game
+# test. 'closure' (it needs something that can't be brought) stays a piece left out. FOREIGN_WORDS: the ones that can
+# show in the game, warned of (foreign-held); none says it is untried (the user, 16 November 2026).
 FOREIGN_SOFT = ('hidden', 'assembly', 'family', 'check')
+FOREIGN_WORDS = {'hidden': '%s of %s is hidden in its own map (a helper, not something to see)',
+                 'assembly': '%s of %s is linked to other pieces in its own map (a car\'s body and its glass, a prop and '
+                             'what it turns into)'}
 # Milestone M1's classes (research/editor-contracts.md, section 6), and the milestone each other class names.
 M1_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComCollectible')
 MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not FAMILIES[f]['builds']}
@@ -734,7 +738,8 @@ class Compiler:
 
     def warn(self, code, message, **where):
         """Something that can cause a problem in the game: a piece that can't be walked on, climbed or hidden as it
-        should, a landing on nothing, a mission script acting on the wrong actor, a piece untried in the game."""
+        should, a landing on nothing, a mission script acting on the wrong actor. Never that a thing is untried (the
+        user, 16 November 2026: what ships is usable)."""
         self.warnings.append(dict(code=code, message=message, **where))
 
     def note(self, code, message, **where):
@@ -836,12 +841,13 @@ class Compiler:
             return 'car', None
         return CLASS_FAMILY.get(parts[0]['actorClass'], 'other'), None
 
-    def untried(self, code, message, **where):
-        """A piece the Build has not been tried on (the user, 14 November 2026: warn and build, don't leave out): a
-        warning, and the extra its copy carries. The Build makes it as any copy; if making it fails, the Build
-        leaves the untried copies out and builds the rest (build.py drop_untried)."""
-        self.warn(code, message + ': built all the same, untried in the game; if the Build can\'t make it, it is left '
-                  'out and the rest is built', **where)
+    def untried(self, code=None, message=None, **where):
+        """The extra a copy carries when the Build has not made its kind before (the user, 14 November 2026: build,
+        don't leave out). It is built as any copy; if making it fails, the Build leaves these copies out and builds
+        the rest (build.py drop_untried). A warning goes with it only for what can go wrong in the game (`message`):
+        never one that says it is untried (the user, 16 November 2026: what ships is usable)."""
+        if message:
+            self.warn(code, message, **where)
         return dict(untried=True)
 
     def class_untried(self, actor, parts, where):
@@ -853,8 +859,7 @@ class Compiler:
             self.error('not-a-piece', '%s is a mesh of the map\'s %s, which is no piece: a volume is not moved or '
                        'copied (the level volume holds the map\'s tile data)' % (short(actor), cls), actorClass=cls, **where)
             return None
-        return self.untried('class-untried', '%s is %s %s, a kind of piece the Build has not made before'
-                            % (short(actor), 'an' if cls[0] in 'AEIOUX' else 'a', cls), actorClass=cls, **where)
+        return self.untried()
 
     def refuse(self, family, actor, parts, where, assembly=None):
         """The error for a piece (or an assembly) of a family that isn't built yet."""
@@ -927,14 +932,15 @@ class Compiler:
             self.error(error.code, str(error), **where)
             return None
         # (an entry only the family gate holds back is checked against this build's gate below)
-        soft = None
+        soft, held = None, False
         if not entry['placeable'] and entry.get('blocked') == 'check' and 'check' in self.foreign:
             pass        # held for a game check only, and this build is that check's
         elif not entry['placeable'] and entry.get('blocked') in FOREIGN_SOFT and entry['blocked'] != 'family':
             # the library's own verdicts (hidden in its map, linked to other pieces, waiting for a game test): a
-            # refusal until 14 November 2026, a warning since
-            soft = '%s of %s is held back by the library (%s)' % (
-                short(target['actor']), record['source']['package'], str(entry.get('reason') or '').rstrip('.'))
+            # refusal until 14 November 2026, built since; a warning only for what the game shows (FOREIGN_WORDS)
+            held = True
+            if entry['blocked'] in FOREIGN_WORDS:
+                soft = FOREIGN_WORDS[entry['blocked']] % (short(target['actor']), record['source']['package'])
         elif not entry['placeable'] and entry.get('blocked') != 'family':
             self.error('not-placeable', '%s of %s can\'t be placed in another map: %s'
                        % (short(target['actor']), record['source']['package'], entry['reason']), **where)
@@ -943,11 +949,10 @@ class Compiler:
         family = whole['family'] if whole else CLASS_FAMILY.get(entry['actorClass'], 'other')
         if not (FAMILIES[family]['builds']
                 and (family in (FOREIGN_ASSEMBLIES if whole else FOREIGN_FAMILIES) or family in self.foreign)):
-            soft = soft or '%s of %s is %s, a kind of piece not brought from another map before' % (
-                short(target['actor']), record['source']['package'], FAMILIES[family]['what'])
-        if soft:
+            held = True         # a kind of piece not brought from another map before
+        if held:
             self.untried_foreign[(target['package'].casefold(), target['actor'])] = self.untried(
-                'foreign-untried', soft, **where)
+                'foreign-held', soft, **where)
         self.meshes.update(record['meshes'])
         # where the piece stands on its home map's tile grid, said on this map's: the pose rule (whole tiles, storeys
         # and quarter turns from the original) then reads as for one of the map's own pieces
@@ -1354,11 +1359,7 @@ class Compiler:
                 gated.setdefault(id(assembly), (assembly, {}))[1][target['actor']] = (target, rec, where, parts)
             elif not self.builds(family) and rec.get('deleted') is True:
                 # a delete empties the piece's slot in the level's list and needs nothing of its family (Clear map
-                # plan, section 6): taken, with a warning until a piece of its class has been played deleted
-                self.warn('delete-untried', '%s is %s %s, a kind of piece the Build does not make yet: deleted, it is '
-                          'taken out of the level, which has not been tried in the game for this class'
-                          % (short(target['actor']), 'an' if parts[0]['actorClass'][0] in 'AEIOUX' else 'a',
-                             parts[0]['actorClass']), family=family, actorClass=parts[0]['actorClass'], **where)
+                # plan, section 6)
                 self.override(target, rec, where, parts)
             elif not self.builds(family) and family == 'other':
                 extra = self.class_untried(target['actor'], parts, where)
@@ -1652,8 +1653,7 @@ class Compiler:
             self.warn('off-grid', '%s stands off the tile grid (this pose misses %s from where its original stands). It '
                       'builds where it stands, but what the map saves per tile for %s (its cover and floor, fracture '
                       'columns, a ladder\'s climb) maps exactly only for whole tiles, whole storeys and quarter turns, '
-                      'with its pitch and roll: off the grid that is untested in the game. The nearest pose on the grid '
-                      'is %s, turned %s' % (short(actor), ', '.join(move['why']), FAMILIES[family]['what'],
+                      'with its pitch and roll. The nearest pose on the grid is %s, turned %s' % (short(actor), ', '.join(move['why']), FAMILIES[family]['what'],
                                             near_loc, near_rot), family=family,
                       nearest=dict(location=near_loc, rotation=near_rot), **where)
             move = dict(move, grid=False)
@@ -2844,14 +2844,8 @@ class Compiler:
                 if grid[2] > own[2]:
                     words.append('the cursor reaches the new levels by storeys the Build adds over the whole grid, above '
                                  'the map\'s own cursor volumes')
-                self.warn('stage-grown-map', '%s made larger as it is has not been played: %s'
-                          % (self.map, '; '.join(words)), grid=grid, own=own[:3])
-            if grid[2] > max(STAGE_LEVELS_PLAYED, own[2]):
-                self.warn('stage-levels-tall', 'the game\'s own maps are at most %d levels high; a grid of %d levels '
-                          '(%d units) has not been played' % (STAGE_LEVELS_PLAYED, grid[2], grid[2] * 64), grid=grid)
-            if max(grid[:2]) > STAGE_GRID_PLAYED:
-                self.warn('stage-grid-large', 'the game\'s own maps are at most %d tiles across; a grid of %d by %d '
-                          'has not been played' % (STAGE_GRID_PLAYED, grid[0], grid[1]), grid=grid)
+                self.note('stage-grown-map', '%s made larger as it is: %s' % (self.map, '; '.join(words)),
+                          grid=grid, own=own[:3])
 
     def cleared_mark(self):
         """The project's `cleared` (Clear map plan, section 6): true says the Build takes out what the editor never
@@ -3038,11 +3032,11 @@ class Compiler:
                 for e in self.scene.get('buildings') or [])
             if not ufo:
                 self.warn('mission-ufo', 'the project is for a UFO mission and the map has no UFO building: Long War puts '
-                          'the commander\'s pod in the UFO, so place a UFO prefab (not played yet: EXP-54)')
+                          'the commander\'s pod in the UFO, so place a UFO prefab')
         if 'Special/Bomb' in kinds:
             self.note('mission-bomb', 'the bomb mission streams %s: Long War\'s bomb mutator places its bomb and power '
-                      'nodes on the map; plain Enemy Within would play them where Slaughterhouse has them (not played '
-                      'yet: EXP-54)' % missions.BOMB_STREAM)
+                      'nodes on the map; plain Enemy Within would play them where Slaughterhouse has them'
+                      % missions.BOMB_STREAM)
 
     # a mission's objects that a soldier, the operative or a VIP must reach, or that stand for an objective: a warning
     # when the edit leaves one over no floor or inside a piece (C3); drop-in points and pods only get a note (Long War
@@ -3351,7 +3345,7 @@ class Library:
 # a project's larger tile grid (Compiler.stage): the game's own maps go to 70 tiles (CSmallScout_Farm is 67 by 70)
 STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 128
 # levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b); the editor makes up to
-# 30 (1,920 units; the user, 14 November 2026), with a warning over 18: not played at that height
+# 30 (1,920 units; the user, 14 November 2026)
 STAGE_LEVELS_PLAYED, STAGE_LEVELS_MAX = 18, 30
 # the maps whose size a project may set: the bare maps that a new prefab or a new map starts from (tools/bake/shell.py)
 STAGE_MAPS = ('CB2_MP_Blank',)

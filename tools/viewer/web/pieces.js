@@ -19,12 +19,8 @@ let families = null, assemblyFamily = () => null;
 export function useFamilies(table, familyOfAssembly) { families = table; assemblyFamily = familyOfAssembly; }
 export const pieceFamily = obj => assemblyFamily(obj) ?? (obj.partner ? 'car' : families?.classFamily[obj.actorClass] ?? 'other');
 const familyRecord = obj => families?.families[pieceFamily(obj)] ?? null;
-/** 1 when the Build makes the piece, else the milestone that will. */
-export const pieceMilestone = obj => { const f = familyRecord(obj); return !f || f.builds ? 1 : f.milestone; };
 /** Whether the piece keeps the pose rule (poserule.js): whole tiles, storeys and quarter turns from its original. */
 export const pieceGrid = obj => Boolean(familyRecord(obj)?.grid);
-export const milestoneNote = n => (n === 1 ? 'The Build makes this kind'
-  : 'The Build has not made this kind of piece before: an edit to it is built with a warning, untried in the game, and left out (and named) only if the Build can\'t make it');
 // A collectible (a UFO power core and the like) is mission loot while it stands. Its copy is a destructible prop that
 // breaks at its first damage, as the original does, but isn't loot; a moved or deleted original is hidden, not
 // destroyed, so it may still count (the compiler warns the same: LOOT_NOTES in tools/editor/compiler.py).
@@ -138,7 +134,6 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
       key, id: `piece-${byKey.size}`, name: prefab ?? short(mesh), mesh, pkg: mesh.split('.')[0], kind, role: pivot.sceneryRole ?? 'interior',
       sources, pivotIndex: sources.indexOf(pivot), count: 1, materials,
       // An assembly builds when all its parts do.
-      milestone: Math.max(...sources.map(pieceMilestone)),
       // Viewer basis in the actor's frame: x is game X, y is up, z is game Y.
       frame, box, size: [size.x, size.z, size.y], extent: size.length(),
       text: [...sources.map(s => data.meshes[s.mesh].name), ...sources.map(s => s.archetype).filter(a => a !== 'None'),
@@ -214,8 +209,6 @@ export function pieceRow(entry, pixelRatio, choose) {
     ? Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Invisible', title: 'Hidden in the game' })
     : Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
       title: `${entry.count} in this map` }));
-  if (entry.milestone > 1) tags.append(Object.assign(document.createElement('span'), { className: 'tag later',
-    textContent: 'Untried', title: milestoneNote(entry.milestone) }));
   button.title = entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n');
   button.append(thumb, label, tags);
   button.onclick = choose;

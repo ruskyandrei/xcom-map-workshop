@@ -21,12 +21,12 @@ export function zoneServes(zone, m) {
   return (!zone.missionType || zone.missionType === t.missionType) && (!zone.councilType || zone.councilType === (t.councilType ?? 'eFCMType_None'));
 }
 
-/** What the play dialog says under the mission: its state, what the play goes without and the notes, one short
- * paragraph each, joined by line breaks; '' when not known. */
+/** What the play dialog says under the mission: its state where it has a problem, what the play goes without and the
+ * notes, one short paragraph each, joined by line breaks; '' when not known. */
 export function missionNote(kinds, m) {
   const k = kinds?.[kindKey(m)];
   if (!k) return '';
-  return [`${k.words}.`, ...(k.missing ?? []), ...(k.notes ?? [])].join('\n');
+  return [k.words ? `${k.words}.` : '', ...(k.missing ?? []), ...(k.notes ?? [])].filter(Boolean).join('\n');
 }
 
 /** Text with line breaks as paragraphs: one <p> for each line, in `el` (its children replaced). */
@@ -45,6 +45,5 @@ export const ADDED_KINDS = {
   Crash: { label: 'Crashed UFO', ufo: true, needs: 'A UFO building on the map (a UFO prefab): Long War puts the commander\'s pod in it.' },
   LandedUFO: { label: 'Landed UFO', ufo: true, needs: 'A UFO building on the map (a UFO prefab): Long War puts the commander\'s pod in it.' },
 };
-export const ADDED_STATE = 'Not played yet (EXP-54).';
 /** An added kind's mission as the export writes one ({type, label, streams}), for kindKey and the play dialog. */
 export const addedMission = kind => ({ type: kind.split('/')[0], label: ADDED_KINDS[kind]?.label ?? kind, streams: [], added: true });

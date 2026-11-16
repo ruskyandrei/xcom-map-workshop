@@ -359,7 +359,7 @@ class Play(unittest.TestCase):
         # played and working (EXP-53 run 6, F-107): a terror play always gets the civilians' looks
         r = self.played(dict(map='URB_Bar', mission=2))
         self.assertEqual(play_file.read_text(encoding='ascii').split('\n')[-3:], [civilians, 'open URB_Bar', ''])
-        self.assertEqual((r['played']['mission']['missing'], r['played']['mission']['words']), ([], 'Played and working'))
+        self.assertEqual((r['played']['mission']['missing'], r['played']['mission']['words']), ([], ''))
         # an install whose DefaultContent.ini gives no looks: the play goes without them and says so
         content = self.lwr / 'XEW/XComGame/Config/DefaultContent.ini'
         content.write_text('[XComGame.XComContentManager]\n', encoding='latin-1', newline='\r\n')
@@ -384,19 +384,21 @@ class Play(unittest.TestCase):
         # the page's table of kinds
         kinds = player.status()['missionKinds']
         self.assertEqual((kinds['Abduction']['state'], kinds['TerrorSite']['words'], kinds['Special/Bomb']['group']),
-                         ('works', 'Played and working', 'council'))
+                         ('works', '', 'council'))
         self.assertEqual(self.player().status()['missionKinds']['TerrorSite']['missing'], [])
         status = self.player().status()['missionKinds']
-        self.assertEqual(status['Special/Bomb']['words'], 'Played and working')
-        self.assertEqual(status['Special/Assault']['words'], 'Not played yet')
+        # the dialog says a kind's state only for a problem: never that it is untried, or that it was tried (16
+        # November 2026)
+        self.assertEqual((status['Special/Bomb']['words'], status['Special/Assault']['words']), ('', ''))
+        self.assertEqual((status['Special/Bomb']['state'], status['Special/Assault']['state']), ('works', 'untried'))
         # EXALT battles: LWR saves and reloads them as they start (F-109), so their plays have saving on (EXP-57 run 2
         # played a data recovery that way), and their pods are EXALT's; a UFO gets no commander (F-110)
         exalt = status['CaptureAndHold']
         self.assertEqual((exalt['state'], exalt['words'], exalt['saving']),
-                         ('works', 'Played and working', missions.SAVING_WHY))
+                         ('works', '', missions.SAVING_WHY))
         self.assertEqual(exalt['notes'], [missions.EXALT_PODS_NOTE, missions.OPERATIVE_NOTE])
         self.assertEqual((status['CovertOpsExtraction']['words'], status['ExaltRaid']['notes']),
-                         ('Not played yet', [missions.EXALT_PODS_NOTE]))
+                         ('', [missions.EXALT_PODS_NOTE]))
         self.assertIsNone(status['Abduction']['saving'])
         self.assertEqual(player.status()['saveKey'], gamelaunch.SAVE_KEY)
         self.assertEqual(status['Crash']['notes'], [missions.PODS_NOTE, missions.COMMANDER_NOTE])

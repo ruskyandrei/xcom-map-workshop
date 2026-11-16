@@ -279,9 +279,10 @@ class StageTests(unittest.TestCase):
                 self.assertEqual(result['report']['counts']['lights']['added'], lights)
                 self.assertEqual(result['report']['counts']['deleted'], len(stage.STOCK_PROPS))
                 self.assertEqual(sum('PrefabTest_sky' in a['actor'] for a in result['project']['added']), 2)
-        # over 18 levels the stage grows with the prefab, to 30 at most, and says it has not been played; over the
-        # height allowance the size warns and the test builds all the same (plan "sturdier prefabs", R7 and part H)
-        for top, levels, codes in ((1345, 22, {'stage-levels-tall'}), (2113, 30, {'stage-levels-tall', 'size-large'})):
+        # over 18 levels the stage grows with the prefab, to 30 at most (with no warning that it is untried, 16
+        # November 2026); over the height allowance the size warns and the test builds all the same (plan "sturdier
+        # prefabs", R7 and part H)
+        for top, levels, codes in ((1345, 22, set()), (2113, 30, {'size-large'})):
             with self.subTest(top=top):
                 try:
                     result = stage.prepare(snapshot(buildings=[floor([0, 0, 0, 96, 96, top])]), TEST, settings['cache'], game)
@@ -292,6 +293,7 @@ class StageTests(unittest.TestCase):
                 self.assertEqual(result['project']['stage']['grid'], [36, 36, levels])
                 self.assertEqual(result['report']['stageGrid'], [36, 36, levels])
                 self.assertTrue(codes <= {i['code'] for i in result['issues']}, result['issues'])
+                self.assertNotIn('stage-levels-tall', {i['code'] for i in result['issues']})
                 self.assertEqual(result['leftOut'], [])
 
 

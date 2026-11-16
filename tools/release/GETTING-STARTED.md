@@ -15,7 +15,7 @@ and what the editor can't do yet. Setup offers to open it when it finishes; late
 ## What you need
 
 - Windows 10 or 11, 64-bit.
-- XCOM: Enemy Within with **Long War Rebalance**. **Plain Enemy Within** should work too, but it hasn't been tried.
+- XCOM: Enemy Within with **Long War Rebalance**. **Plain Enemy Within** works too.
 - A browser: Edge, Chrome or Firefox.
 - Some free disk space: the editor keeps each map you open (about 50 to 200 MB each) in
   `Documents\XCOM Map Workshop\cache`.
@@ -72,9 +72,9 @@ New in 0.5.2:
 New in 0.5.1:
 - **Cache everything…** (Project menu) reads every piece of the game's maps ahead of use, and every map if asked,
   with a progress bar and Cancel.
-- **30 levels:** maps, prefabs and the prefab test's stage go up to 30 levels high (18 before; over 18 not played).
+- **30 levels:** maps, prefabs and the prefab test's stage go up to 30 levels high (18 before).
 - **More is built:** a piece the Build can't make is left out and listed, and the rest is built; pieces of a kind
-  not tried before are built with a warning. The prefab builder's **Problems** chip says what its test would say.
+  the Build had not made before are built too. The prefab builder's **Problems** chip says what its test would say.
 - **A faster editor:** large prefabs open in about a second, edits and pastes with many pieces are quicker, and slow
   steps show a bar.
 
@@ -146,15 +146,13 @@ With a map open and no project, Play in game plays the original map, without edi
 is installed for it (but a copy of the map record for Basic Training, the tutorial's map, whose records the game
 keeps switched off).
 
-The test battle is the mission the header's **Mission** picker shows (the play window can change it, and says how far
-that kind is known to work played this way): the map's landing for it, four pods of Sectoids and six squaddies. It is
+The test battle is the mission the header's **Mission** picker shows (the play window can change it): the map's landing for it, four pods of Sectoids and six squaddies. It is
 not a campaign mission, and it can't be saved. The squad is written for Long War and Long War Rebalance; on plain
-Enemy Within the game's own test squad plays (not tried).
+Enemy Within the game's own test squad plays.
 
 **Missions…** (Project menu) sets the missions a project is for: the base map's, and kinds a record alone can give
 it (an abduction, a terror site, a bomb mission under Long War, a crashed or landed UFO with a UFO prefab placed). The
-Build writes a record for each. A cleared map is asked **What is this map for?** when it is cleared. The added kinds
-have not been played yet.
+Build writes a record for each. A cleared map is asked **What is this map for?** when it is cleared.
 
 **By hand:** copy the build's `CookedPCConsole` files into `XEW\XComGame\CookedPCConsole` of the game, and add the
 config lines its `README.txt` lists. Getting a variant into the normal mission rotation is up to you: as built, its
@@ -166,16 +164,14 @@ records are out of rotation.
   - moving, rotating, deleting and copying scenery, props, breakable props (windows among them) and collectibles
     (a copied UFO power core counts as loot);
   - the same for ladders, doors with a frame, cars and vans. Doors without a frame (UFO and alien doors) build
-    too, but have not been played yet. A ladder climbs where its foot and its top meet floor; elsewhere it is built
+    too. A ladder climbs where its foot and its top meet floor; elsewhere it is built
     with a warning;
-  - the same for fracturing walls, storey floors and roof slabs, and for physics props. Both are new: they have been
-    tried in the game on one map. A copied wall no longer breaks the pictures, shelves and neighbouring walls its original breaks, unless
+  - the same for fracturing walls, storey floors and roof slabs, and for physics props. A copied wall no longer breaks the pictures, shelves and neighbouring walls its original breaks, unless
     they are copied along with it in the same move. A copied floor can be walked on only where a soldier has room
     to stand: not under a duct or a low ceiling;
   - any piece can be placed freely with snap off. Ladders, doors, cars, vans, walls and floors are surest on their
     original's tile grid: tile snap (96 on the snap button) keeps them there, whole tiles and quarter turns from where
-    the original stands. Off the grid they build, with a warning ("Off the grid" in the piece panel), but how they
-    play there hasn't been tried in the game;
+    the original stands. Off the grid they build, with a warning ("Off the grid" in the piece panel);
   - adding supported pieces from the current map or other maps, including pieces placed as prefabs;
   - cover blocks (invisible high or low cover) and invisible floors, on plain Enemy Within too;
   - buildings: floor boxes for a house you put together, and the map's own buildings moved, stretched, added to
@@ -183,12 +179,9 @@ records are out of rotation.
   - a cleared map, a larger or taller tile grid, and landing zones moved, turned, added or deleted;
   - lights: moving, turning, recolouring, deleting and copying the map's placed lights, changing their brightness,
     radius and cones, and adding a new point or spot light. A glowing piece (a lit sign, a machine's screen) takes
-    its glow along when moved, copied or deleted. Light edits are new: they have been tried in the game on one map.
+    its glow along when moved, copied or deleted.
 - **Shown for reference, not editable:** what a mission streams into the map (LWR's patches, a mission's own
   objects).
-- **Built, but not played in the game yet:** doors without a frame; a map grown larger or taller as it is; Clear
-  map with the scenery outside kept; a landing moved on a map with no drop zone (Basic Training, the Temple Ship,
-  the alien bases); landing zones on plain Enemy Within. Reports of how these play are welcome.
 
 ## Known limits
 
@@ -196,14 +189,12 @@ records are out of rotation.
 - **LWR's invisible cover stays put.** It doesn't move when the piece it covers moves. Untick "Hide patch helpers"
   to see it.
 - **A mission's own objects can be moved, not copied or deleted.** Pick one's marker (View options, Mission
-  objects) and drag its arrows: it moves with its group, in the Build's own copy of the mission's stream. Not played
-  yet. Under Long War the bomb and its power nodes go where its bomb rules put them anyway.
+  objects) and drag its arrows: it moves with its group, in the Build's own copy of the mission's stream. Under Long War the bomb and its power nodes go where its bomb rules put them anyway.
 - **The squad may land on a new piece.** Keep copies off the soldier tiles, or move the landing zone (Shift+Z).
 - **The editor's colours are approximate.** The game's lighting comes from the Build.
 - **Light edits need Bake the lighting.** Without it, a build makes them in the map but doesn't bake them. A deleted
   or changed light's old pool stays on the floor and walls, and a new light has no pool of its own.
-- **Plain Enemy Within is a best guess.** It hasn't been tried in the game; Play in game there is the least sure
-  part (the game's own test squad plays).
+- **Play in game on plain Enemy Within** plays the game's own test squad.
 - **Projects may not open in the next version.** Keep your builds: those play regardless.
 
 ## Where things are

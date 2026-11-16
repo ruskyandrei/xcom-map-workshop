@@ -93,9 +93,9 @@ begin
   if FileExists(Root + 'XEW\XComGame\Config\DefaultLWRebalance.ini') then
     Result := 'Long War Rebalance'
   else if FileExists(Root + 'XEW\XComGame\Config\DefaultLZMutator.ini') then
-    Result := 'Long War, not LWR (not tried with the editor)'
+    Result := 'Long War, not LWR'
   else
-    Result := 'Enemy Within (plain: supported as a best guess)';
+    Result := 'Enemy Within (plain)';
 end;
 
 { The game in one Steam library, or ''. }

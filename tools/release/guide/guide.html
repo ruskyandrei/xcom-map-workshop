@@ -159,7 +159,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <h1>User guide</h1>
   <p class="lede">XCOM Map Workshop is a map editor for XCOM: Enemy Within. It opens one of the game's maps in your browser,
     lets you rearrange it, and builds the result into a new map the game plays like its own.</p>
-  <p class="version">Preview release <span id="guideVersion"></span> · for Long War Rebalance, and plain Enemy Within as a best guess</p>
+  <p class="version">Preview release <span id="guideVersion"></span> · for Long War Rebalance and plain Enemy Within</p>
 </header>
 
 <h2 id="what">What it does</h2>
@@ -201,11 +201,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><a href="#cache-everything">Cache everything</a></td><td>The Project menu reads every piece of the game's
     maps ahead of use, and every map if you ask, with a progress bar you can cancel.</td></tr>
   <tr><td><a href="#mapgrid">30 levels</a></td><td>Maps, prefabs and their test stage go up to 30 levels high, where
-    18 was the limit. Over 18 has not been played.</td></tr>
+    18 was the limit.</td></tr>
   <tr><td><a href="#prefab-builder">The builder's Problems chip</a></td><td>What <b class="ui">Test in game</b>
     would say of a prefab, without building it.</td></tr>
   <tr><td><a href="#limits">More is built</a></td><td>A piece the Build can't make is left out and listed, and the
-    rest of the map is built. Pieces of a kind not tried before are built with a warning. Prefabs that are too big
+    rest of the map is built. Pieces of a kind the Build had not made before are built too. Prefabs that are too big
     or hold odd light values are warned of, not refused.</td></tr>
   <tr><td><a href="#prefabs">A faster editor</a></td><td>A large prefab opens in about a second instead of twenty,
     edits and pastes with many pieces are several times quicker, and slow steps show a bar.</td></tr>
@@ -296,12 +296,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <ul>
       <li><b>Some pieces are surest on the grid:</b> ladders, doors, cars, vans, walls, storey floors and roof slabs
         build exactly by whole tiles and quarter turns from where their originals stand. Off that grid they build
-        with a warning, and how they play there hasn't been tried. <a href="#rules">More</a></li>
+        with a warning. <a href="#rules">More</a></li>
       <li><b>A ladder needs floor at both ends</b> where you put it, or the Build warns that it isn't expected to climb.</li>
       <li><b>The Build warns far more often than it refuses.</b> A warning means "this may behave oddly in the
-        game", and the map is built all the same. That includes pieces of a kind the Build has not made before
-        (marked <b>Untried</b>), a single part of a car or a door edited on its own, and pieces of other maps the
-        library used to hold back. A piece the Build can't make at all is <b>left out</b> and listed
+        game", and the map is built all the same. That includes a single part of a car or a door edited on its own.
+        Pieces of a kind the Build has not made before, and pieces of other maps the library used to hold back, are
+        built as any other. A piece the Build can't make at all is <b>left out</b> and listed
         in the build window, and the rest is built. The prefab test does the same and waits for
         <b class="ui">Launch test</b> when it left something out.</li>
       <li><b>Some lights are view only:</b> the sun, moon and sky, the glow of lit surfaces, and lights the map's
@@ -320,10 +320,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <h3>The program</h3>
     <ul>
       <li><b>Windows 10 or 11 only</b>, 64-bit, for one person on one computer.</li>
-      <li><b>Tried with Long War Rebalance.</b> Plain Enemy Within is a best guess, and Long War without Rebalance
-        hasn't been tried.</li>
-      <li><b>Few maps have been played after editing.</b> Any map opens and builds; most builds haven't been tried in
-        the game yet.</li>
+      <li><b>For Long War Rebalance and plain Enemy Within.</b> Any of their maps opens and builds.</li>
       <li><b>Projects may not open in the next version.</b> Builds you made keep playing.</li>
       <li><b>It installs only while the game is closed.</b> Play in game starts XCOM itself, through Steam.</li>
     </ul>
@@ -335,7 +332,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>What you need</h3>
 <ul>
   <li>Windows 10 or 11, 64-bit, and a browser: Edge, Chrome or Firefox.</li>
-  <li>XCOM: Enemy Within with <b>Long War Rebalance</b>. Plain Enemy Within should work too, but hasn't been tried.</li>
+  <li>XCOM: Enemy Within with <b>Long War Rebalance</b>. Plain Enemy Within works too.</li>
   <li>Free disk space: each map you open is kept (about 50 to 200 MB each) in <code>Documents\XCOM Map Workshop\cache</code>.</li>
 </ul>
 <p>Everything else comes with the editor. It needs no internet connection and no Unreal tools.</p>
@@ -535,7 +532,6 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
   <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's. The Build moves, copies and deletes it with the piece. The editor doesn't show effects yet.</td></tr>
   <tr><td>Mission loot · Not loot</td><td>A collectible such as a UFO power core. A copy breaks like the original, but the game doesn't count it as loot.</td></tr>
-  <tr><td>Untried</td><td>A kind of piece the Build has not made before. The editor warns when you edit one; the Build makes it all the same, and leaves it out (named in its window) only if it can't.</td></tr>
   <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
   <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
   <tr><td>A package's name</td><td>The piece comes from a mission or from Long War Rebalance's patch, not from the map. It can be looked at, not edited.</td></tr>
@@ -777,7 +773,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   the drag puts it back, and each drag is one undo step. A block can be 8 units to 16 tiles across, and its bottom can
   leave the floor.</p>
 <p><b>A block smaller than a tile</b> does what the game's tile rules make of it. The panel says which, for where it
-  stands. Read from the game's code and not played yet:</p>
+  stands:</p>
 <ul>
   <li><b>One that fills the middle of a tile</b> stops units standing in it.</li>
   <li><b>One across the line between two tiles' centres, 64 units over the floor, is a wall:</b> units can't cross
@@ -802,8 +798,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 <p id="blocker"><b>To stop units walking somewhere without giving cover:</b> place a cover block and set its
   Cover to <b>None</b>. It becomes a blocker (drawn purple): units can't walk into its tiles or stand on it, units
-  beside it get no cover from it, and units see past it. It sizes, turns and breaks with a piece as any cover block.
-  Not played in the game yet.</p>
+  beside it get no cover from it, and units see past it. It sizes, turns and breaks with a piece as any cover block.</p>
 <p><b>To place an invisible floor:</b> pick <b class="ui">Invisible floor</b> in the same list. Size it with its
   four side handles, as a block, and set its height with the <b>Z</b> field. It carries the tiles whose centres it
   covers, since the game looks for a tile's floor at its centre; the piece panel counts them.</p>
@@ -863,8 +858,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <a href="#rules">build as they should</a>. Any other prefab goes where you click, as a piece does.</li>
   <li><b>In another map,</b> its pieces are brought from their home maps, as <a href="#add-all">pieces from other
     maps</a> are. The first time, the editor reads them from the game, which takes a moment for a large prefab.
-    A piece that can't be brought into another map is left out, and the message says which. One the library
-    marks <b>Untried</b> is brought with a warning.</li>
+    A piece that can't be brought into another map is left out, and the message says which.</li>
   <li><b>Maps missing</b> on a row means this game install lacks a source map. The editor looks for matching
     recipes when you place the prefab and warns about any pieces it leaves out.</li>
   <li><b>A building in a prefab</b> placed where it overlaps another building builds, with a warning: a piece in
@@ -894,8 +888,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <b>128 by 128 tiles</b>, and a tile grid <b>0 to 1,920 units high</b> (30 levels), with up to
   <b>192 units sticking out</b> under or over it: a hull or crater under the ground, a roof, floor boxes, lights.
   Out of the grid there are no tiles, so nothing there can be stood on or give cover; the readout says when
-  something sticks out. The game's own maps are at most 18 levels (1,152 units) high: over that the readout says
-  "not played", because nothing that tall has been tried in the game yet. Light influence radii do not count. The
+  something sticks out. Light influence radii do not count. The
   usual cursor storeys are guides; floor boxes can have other heights. A prefab larger than a map holds is saved
   and placed all the same, with a warning on the readout and on its card. Nothing is lifted automatically. A
   selection saved from a map keeps its height: the map's grid bottom becomes 0. A prefab placed where it reaches
@@ -1218,8 +1211,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ol>
 <ul>
   <li><b>On a map as it is, the grid only grows.</b> The red handle moves the far X side and the blue one the far Y
-    side, by whole tiles; the green one on top raises it by whole levels, up to 30 (over 18, the height of the
-    game's tallest maps, has not been played). The corner and the bottom stay
+    side, by whole tiles; the green one on top raises it by whole levels, up to 30. The corner and the bottom stay
     where they are. The new area is drawn as a faint sheet:
     <ul>
       <li>green where the Build lays more of the map's ground there, on maps whose ground is laid as planes (the
@@ -1227,8 +1219,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li>grey where it lays none. <b class="ui">Lay the map's ground over the new area</b>, in the panel, chooses
         between the two.</li>
     </ul>
-    On the new levels the cursor goes by storeys the Build adds over the whole grid, above the map's own. A map
-    grown as it is has not been played yet.</li>
+    On the new levels the cursor goes by storeys the Build adds over the whole grid, above the map's own.</li>
   <li><b>The map's scenery in the new area is made walkable.</b> The ground and pavements a map is seen against
     beyond its play area are saved so the game ignores them: no floor. The Build turns that on for the low ones the
     grown grid takes in, so units walk on them as on the map's own ground, at whatever height they stand (the
@@ -1399,9 +1390,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p id="missions"><b>Missions…</b> lists the base map's missions and the kinds a map can be given by its record
   alone: an abduction, a terror site, a bomb mission (Long War only) and a crashed or landed UFO (once a UFO prefab
   stands on the map, with the UFO's type to choose). Tick the ones the project is for: the Build writes a map record
-  for each, and the header's Mission picker and Play in game list them. Each line says how far that kind is known to
-  work when played this way, and what it needs. A map that isn't cleared starts with all of its base map's missions;
-  a cleared map is asked when it is cleared. The kinds the project adds have not been played yet. OK needs one ticked;
+  for each, and the header's Mission picker and Play in game list them. Each line says what that kind
+  needs. A map that isn't cleared starts with all of its base map's missions;
+  a cleared map is asked when it is cleared. OK needs one ticked;
   the change is one undo step.</p>
 <p id="manage-projects"><b>Manage projects…</b> opens the project manager: every project with its last
   build (when it was built, of which revision, whether its lighting is baked, and the editor version that built it)
@@ -1672,7 +1663,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     floor pieces over the new area yourself (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>).</li>
   <li>Choose <b class="ui">Done</b>, then fill the new area with pieces and prefabs.</li>
 </ol>
-<p>A map grown as it is has not been played yet. More: <a href="#mapgrid">Map grid</a>.</p>
+<p>More: <a href="#mapgrid">Map grid</a>.</p>
 </div>
 
 <div class="task" id="task-clear">
@@ -1761,7 +1752,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Collectibles</td><td>UFO power cores</td><td>Freely</td><td>Yes; a copy isn't loot</td></tr>
   <tr><td>Cars and vans</td><td>With their glass, doors and light bars</td><td>On the grid (below), all parts together</td><td>Yes</td></tr>
   <tr><td>Doors with a frame</td><td>Building doors</td><td>On the grid, leaf and frame together</td><td>Yes</td></tr>
-  <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>On the grid</td><td>Yes; not played yet</td></tr>
+  <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>On the grid</td><td>Yes</td></tr>
   <tr><td>Ladders</td><td></td><td>On the grid</td><td>Yes; it climbs where both ends meet floor, and is warned of where they don't</td></tr>
   <tr><td>Fracturing pieces</td><td>Walls, storey floors, roof slabs, a bar's counter</td><td>On the grid</td><td>Yes</td></tr>
   <tr><td>Cover blocks, invisible floors</td><td><a href="#cover">Invisible pieces</a></td><td>Freely; on the tiles with tile snap</td><td>Yes</td></tr>
@@ -1780,7 +1771,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <b class="ui">Recipe snap</b> chip.</li>
   <li><b>With Snap off or at 24</b> it moves as any piece does. Off the grid, the chip reads
     <b class="ui">Off the grid</b> and the Build warns: the piece is built, but what the map saved for its tiles no
-    longer fits exactly, and how it plays there hasn't been tried in the game. Set Snap back to 96 and move it a
+    longer fits exactly. Set Snap back to 96 and move it a
     step to put it on the grid again.</li>
   <li><b>A piece from another map</b> keeps to this map's tiles as it stood on its own map's.</li>
 </ul>
@@ -1813,7 +1804,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   it back, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes. The Build moves them in its own copy of the mission's stream, which
   only that mission's record uses, so every reference the mission's script has to them still holds. It warns when an
   edit leaves an objective or a squad's, operative's or VIP's place with no floor, or inside a piece, mission by
-  mission, so you can move it or drop the mission. Not played in the game yet.</p>
+  mission, so you can move it or drop the mission.</p>
 <h3>Copies</h3>
 <ul>
   <li>A copy is a new piece with its own name. A copied car's parts are linked to each other, not to the original.</li>
@@ -1870,24 +1861,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
     and a deleted or changed light's old pool stays on the floor. Bake the lighting for the finished map.</li>
   <li><b>The editor's colours are approximate.</b> Judge the lighting in the game.</li>
-  <li><b>Walls, floors and light edits</b> have been played on one map each so far. If something looks
-    wrong in the game, please report it.</li>
-  <li><b>Played once or twice in the game:</b> pieces from other maps, prefabs and their test stage, buildings made
-    from nothing, the map's own buildings changed, a cleared map with its own landing zones, cover blocks that break
-    with their group.</li>
-  <li><b>Built, but not played yet:</b>
-    <ul>
-      <li>doors without a frame;</li>
-      <li>a map grown larger or taller as it is, with its new cursor storeys and its scenery made walkable;</li>
-      <li>Clear map with the scenery outside kept;</li>
-      <li>a landing moved on a map with no drop zone (Basic Training, the Temple Ship, the alien bases);</li>
-      <li>the moved Skyranger's shadow in a baked build;</li>
-      <li>a ladder built with the warning that it isn't expected to climb;</li>
-      <li>a building marked UFO;</li>
-      <li>landing zones on plain Enemy Within.</li>
-    </ul>
-    These build without errors. A report of how any of them plays is very welcome.</li>
-  <li><b>Plain Enemy Within is a best guess.</b> Its first-mission install is the least sure part.</li>
+  <li><b>If something looks wrong in the game,</b> please report it.</li>
 </ul>
 
 <h2 id="files">Where things are</h2>

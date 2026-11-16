@@ -21,9 +21,10 @@ sits on the commit it was built from, so main is pushed before the release is cr
 - **Build into `dist/release`.** Never build in the scratchpad: the bundled Python's paths go past Windows' 260
   characters there. `dist/` is ignored by Git.
 - **The notes say what is true.**
-  - Check each "played", "works" or "fixed" claim against its source: the experiment notes, the findings register,
+  - Check each "works" or "fixed" claim against its source: the experiment notes, the findings register,
     and [missions.py](../../../tools/viewer/missions.py)'s `KINDS` states.
-  - Name what isn't played as not played.
+  - Call nothing untried or not played: what ships is usable, tried or not (the user, 16 November 2026). Known
+    problems are said as what happens in the game.
 - Keep each file's line endings (`.gitattributes`: `* -text`). The notes, guide and README use LF.
 - The repository is public: the notes, the ledger and the commit hold no name, account or folder of one computer
   (`python tools/run_tests.py repo` checks the files).

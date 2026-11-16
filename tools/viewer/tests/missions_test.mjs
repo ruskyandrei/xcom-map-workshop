@@ -3,7 +3,7 @@
 // ADDED_KINDS), and the project's missions in its state (project.js). Run: node tools/viewer/tests/missions_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ADDED_KINDS, ADDED_STATE, addedMission, kindKey, missionNote, missionTypes, zoneServes } from '../web/missions.js';
+import { ADDED_KINDS, addedMission, kindKey, missionNote, missionTypes, zoneServes } from '../web/missions.js';
 import { sortState, stateKey } from '../web/project.js';
 
 // ---- the kind of an export's mission
@@ -19,9 +19,11 @@ assert.ok(zoneServes({ missionType: 'eMission_Special', councilType: 'eFCMType_B
 assert.ok(!zoneServes({ missionType: 'eMission_Special', councilType: 'eFCMType_Bomb' }, abduction));
 assert.ok(zoneServes({ missionType: 'eMission_Abduction', councilType: 'eFCMType_None' }, abduction));
 
-// ---- the play dialog's note: the state, what is missing, the notes, one paragraph each
-const kinds = { Abduction: { words: 'Played and working', missing: ['No civilian looks.'], notes: ['Enemies: four pods of Sectoids.'] } };
-assert.equal(missionNote(kinds, abduction), 'Played and working.\nNo civilian looks.\nEnemies: four pods of Sectoids.');
+// ---- the play dialog's note: the state where it is a problem, what is missing, the notes, one paragraph each
+const kinds = { Abduction: { words: 'Hangs at the start under Long War', missing: ['No civilian looks.'], notes: ['Enemies: four pods of Sectoids.'] } };
+assert.equal(missionNote(kinds, abduction), 'Hangs at the start under Long War.\nNo civilian looks.\nEnemies: four pods of Sectoids.');
+assert.equal(missionNote({ Abduction: { words: '', missing: [], notes: ['Enemies: four pods of Sectoids.'] } }, abduction),
+             'Enemies: four pods of Sectoids.');
 assert.equal(missionNote(kinds, bomb), '');
 assert.equal(missionNote(null, abduction), '');
 
@@ -35,7 +37,6 @@ for (const [kind, k] of Object.entries(ADDED_KINDS)) {
   assert.equal(Boolean(k.ufo), /ufo=True/.test(row), kind);
   assert.ok(k.needs.length > 10, kind);
 }
-assert.ok(python.includes(`ADDED_STATE = '${ADDED_STATE.replace(/\.$/, '')}'`));
 assert.deepEqual(addedMission('Special/Bomb'), { type: 'Special', label: 'Council bomb', streams: [], added: true });
 assert.equal(kindKey(addedMission('Special/Bomb')), 'Special/Bomb');
 assert.equal(kindKey(addedMission('Crash')), 'Crash');

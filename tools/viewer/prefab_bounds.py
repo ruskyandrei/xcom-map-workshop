@@ -19,7 +19,7 @@ from projects import ProjectError
 
 TILE, MAX_TILES, SLACK = 96, 128, 0.5
 # Heights (prefab plan 5.6b; 30 levels since 14 November 2026): the grid is 30 levels of 64 from the prefab's ground
-# (the game's own maps go to 18, PLAYED_LEVELS: over that it has not been played), and anything may stick out 192 units
+# (the game's own maps go to 18, PLAYED_LEVELS: the test stage's least height), and anything may stick out 192 units
 # (three levels) under or over it: a hull or a crater, a roof, floor boxes, lights.
 LEVEL, GRID_LEVELS, PLAYED_LEVELS, ALLOWANCE = 64, 30, 18, 192
 GRID_TOP = LEVEL * GRID_LEVELS

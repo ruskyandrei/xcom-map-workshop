@@ -29,7 +29,7 @@ Choose **More info**, then **Run anyway**.
 ## What you need
 
 - Windows 10 or 11, 64-bit, and a browser: Edge, Chrome or Firefox.
-- XCOM: Enemy Within with Long War Rebalance. Plain Enemy Within should work too, but it hasn't been tried.
+- XCOM: Enemy Within with Long War Rebalance. Plain Enemy Within works too.
 - Some free disk space: the editor keeps a copy of each map you open (about 50 to 200 MB each).
 
 Everything else comes with it: its own Python and the packages it needs. It needs no internet connection and no

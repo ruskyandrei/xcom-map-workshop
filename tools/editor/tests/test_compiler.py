@@ -526,8 +526,9 @@ class CompilerTests(unittest.TestCase):
 
     def test_what_our_own_gates_held_back_is_warned_of_and_built(self):
         # the user, 14 November 2026: warn and build, don't leave out. A tinted copy is built untinted, a copy that
-        # names a partner alone, a class the Build has not made before as any copy; the last two are marked untried,
-        # so the Build can leave them out if it can't make them (build.py drop_untried)
+        # names a partner alone, a class the Build has not made before as any copy, without a warning saying so (16
+        # November 2026); the last two are marked untried, so the Build can leave them out if it can't make them
+        # (build.py drop_untried)
         s = scene()
         s['objects'].append(part('SkeletalMeshActor_30', cls='SkeletalMeshActor', at=(0, -1500, 0)))
         doc = document([dict(target=target('SkeletalMeshActor_30'), location=[96, -1500, 0], rotation=[0, 0, 0])],
@@ -537,7 +538,8 @@ class CompilerTests(unittest.TestCase):
         spec, report = compile_project(doc, s)
         self.assertEqual((left_out(report), built(report)), ([], 4))
         self.assertEqual(noted(report, 'tint-') + warned(report, 'partner-') + warned(report, 'class-'),
-                         ['tint-dropped', 'partner-dropped', 'class-untried', 'class-untried'])
+                         ['tint-dropped', 'partner-dropped'])
+        self.assertNotIn('untried', ' '.join(w['message'] for w in report['warnings']))
         copy = next(o for o in spec['objects'] if o['type'] == 'copy')
         self.assertEqual(dict(zip(copy['labels'], copy['untried'])),
                          {'move:SkeletalMeshActor_30': True, 'XComLevelActor_1_copy1': False, 'XComLevelActor_1_copy2': True,
@@ -596,11 +598,12 @@ class CompilerTests(unittest.TestCase):
             s['objects'].append(part('KAsset_12', cls='KAsset', at=(0, -1200, 0)))
             at = next(o for o in s['objects'] if o['actor'] == PL + name)['location']
             doc = document([dict(target=target(name), location=[at[0] + 96, at[1], at[2]], rotation=[0, 0, 0])])
-            # a delete of a family that isn't built is taken, with a warning (Clear map plan, section 6)
+            # a delete of a family that isn't built is taken (Clear map plan, section 6), with no warning saying it
+            # is untried (16 November 2026)
             with mock.patch.dict(compiler.FAMILIES[family], builds=False):
                 spec, report = compile_project(document([dict(target=target(name), deleted=True)]), s)
                 self.assertTrue(report['ok'], refused(report))
-                self.assertEqual(warned(report, 'delete-'), ['delete-untried'])
+                self.assertEqual(warned(report, 'delete-'), [])
                 self.assertEqual(spec['objects'][0]['alsoHide'], [name])
             with mock.patch.dict(compiler.FAMILIES[family], builds=False):
                 spec, report = compile_project(doc, s)
@@ -810,15 +813,16 @@ class StageTests(unittest.TestCase):
     def test_a_map_of_the_games_grows_too(self):
         _, report = self.run_stage({'grid': [61, 39]}, name='URB_Bar')
         self.assertTrue(report['ok'], refused(report))
-        self.assertIn('stage-grown-map', warned(report))
+        self.assertIn('stage-grown-map', noted(report))
         _, report = self.run_stage({'grid': [20, 39]}, name='URB_Bar')
         self.assertEqual(codes(report), ['stage-grid'])
-        # higher as it is (the user, 13 November 2026): taken, the warning saying where the cursor's new floors come from
+        # higher as it is (the user, 13 November 2026): taken, the note saying where the cursor's new floors come from
         _, report = self.run_stage({'grid': [52, 39, 16]}, name='URB_Bar')
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(report['stageGrid'], [52, 39, 16])
-        message, = [d['message'] for d in report['warnings'] if d['code'] == 'stage-grown-map']
+        message, = [d['message'] for d in report['notes'] if d['code'] == 'stage-grown-map']
         self.assertIn('new levels by storeys', message)
+        self.assertNotIn('played', message)
         self.assertNotIn('ground', message)
         _, report = self.run_stage({'grid': [52, 39, 11]}, name='URB_Bar')
         self.assertEqual(codes(report), ['stage-grid'])
@@ -840,7 +844,7 @@ class StageTests(unittest.TestCase):
 
     def test_levels_up_to_the_tallest_maps(self):
         """A third number, the levels (prefab plan 5.6b): from the map's own up to 30 (18 until 14 November 2026),
-        upward from its bottom; over 18, the tallest of the game's own maps, a warning says it has not been played."""
+        upward from its bottom; over 18, the tallest of the game's own maps, with no warning (16 November 2026)."""
         _, report = self.run_stage({'grid': [52, 39, 18]})
         self.assertTrue(report['ok'])
         self.assertEqual(report['stageGrid'], [52, 39, 18])
@@ -850,7 +854,7 @@ class StageTests(unittest.TestCase):
         for levels in (19, 30):
             _, report = self.run_stage({'grid': [52, 39, levels]})
             self.assertEqual((report['ok'], report['stageGrid']), (True, [52, 39, levels]))
-            self.assertIn('stage-levels-tall', warned(report))
+            self.assertEqual(warned(report, 'stage-'), [])
         for levels in (11, 31):
             _, report = self.run_stage({'grid': [52, 39, levels]})
             self.assertEqual(codes(report), ['stage-grid'], levels)
@@ -906,12 +910,12 @@ class StageTests(unittest.TestCase):
         _, report = self.run_stage({'grid': [61, 30]})
         self.assertEqual(codes(report), ['stage-grid'])
 
-    def test_a_grid_past_the_limit_is_refused_and_a_large_one_warned(self):
+    def test_a_grid_past_the_limit_is_refused_and_a_large_one_taken(self):
         _, report = self.run_stage({'grid': [200, 39]})
         self.assertEqual(codes(report), ['stage-grid'])
         _, report = self.run_stage({'grid': [100, 39]})
         self.assertTrue(report['ok'])
-        self.assertIn('stage-grid-large', [w['code'] for w in report['warnings']])
+        self.assertEqual(warned(report, 'stage-'), [])
 
     def test_a_malformed_stage_is_refused(self):
         for stage in ({'grid': [61]}, {'grid': [61.5, 39]}, {'grid': [61, 39], 'ground': 'yes'}, [61, 39], {'grid': [True, 39]},
@@ -965,7 +969,7 @@ class ClearTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         self.assertTrue(report['cleared'])
         # a merged actor (no family that builds) and a piece with a component offset are deleted all the same
-        self.assertIn('delete-untried', warned(report))
+        self.assertEqual(warned(report, 'delete-'), [])
         hides = next(o for o in spec['objects'] if o['type'] == 'hide')['alsoHide']
         self.assertIn('XComMergedLevelActor_62', hides)
         self.assertIn('XComLevelActor_5', hides)
@@ -1006,11 +1010,11 @@ class ClearTests(unittest.TestCase):
         for grid in ([40, 30, 8], [52, 39, 8]):
             _, report = compile_project(document(stage={'grid': grid}), s)
             self.assertEqual(codes(report), ['stage-grid'], grid)
-        # larger (the user, 13 November 2026): taken, with a warning that a map grown as it is has not been played
+        # larger (the user, 13 November 2026): taken, with a note on what the Build does with the new area
         spec, report = compile_project(document(stage={'grid': [60, 45]}), s)
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(report['stageGrid'], [60, 45, 12])
-        self.assertIn('stage-grown-map', warned(report))
+        self.assertIn('stage-grown-map', noted(report))
         _, report = compile_project(document(cleared='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
 
@@ -1609,9 +1613,9 @@ class ForeignTests(unittest.TestCase):
         doc = document(added=[foreign('XComDestructibleActor_9', 1, (96, 400, 0))])
         library = FakeLibrary(actorClass='XComDestructibleActor')
         spec, report = compile_project(doc, scene(), library=library)
-        # (a refusal until 14 November 2026: warned of, built, and marked untried for the Build's fallback)
-        self.assertEqual((codes(report), warned(report, 'foreign-untried')), ([], ['foreign-untried']))
-        self.assertIn('a destructible prop', next(w['message'] for w in report['warnings'] if w['code'] == 'foreign-untried'))
+        # (a refusal until 14 November 2026: built and marked untried for the Build's fallback; warned of until 16
+        # November 2026, when no warning says a piece is untried)
+        self.assertEqual((codes(report), warned(report, 'foreign-')), ([], []))
         self.assertEqual(spec['objects'][0]['untried'], [True])
         self.assertTrue(compiler.native_split(spec)[1]['copies'][0]['untried'])
         spec, report = compile_project(doc, scene(), library=library, foreign=['destructible'])
@@ -1619,20 +1623,23 @@ class ForeignTests(unittest.TestCase):
         self.assertEqual(spec['objects'][0]['donors'], [dict(package='URB_PoliceStation', sha256=DONOR_SHA)])
         # the index holds such a piece back by its family alone (`blocked`): this build's gate decides, not the index
         def untried(library, **options):
-            report = compile_project(doc, scene(), library=library, **options)[1]
-            return codes(report), warned(report, 'foreign-untried')
+            spec, report = compile_project(doc, scene(), library=library, **options)
+            marked = [bool(o.get('untried') and o['untried'][0]) for o in spec['objects'] if o['type'] == 'copy']
+            return codes(report), warned(report, 'foreign-'), marked
         gated = FakeLibrary(actorClass='XComDestructibleActor', placeable=False, blocked='family', reason='a later step')
-        self.assertEqual(untried(gated), ([], ['foreign-untried']))
-        self.assertEqual(untried(gated, foreign=['destructible']), ([], []))
-        # one the library holds back for being linked or hidden is warned of and built too (14 November 2026); one
-        # that needs something that can't be brought is left out, as before
-        for blocked in ('assembly', 'hidden'):
+        self.assertEqual(untried(gated), ([], [], [True]))
+        self.assertEqual(untried(gated, foreign=['destructible']), ([], [], [False]))
+        # one the library holds back for being linked or hidden is built too (14 November 2026), warned of for what
+        # shows in the game; one that needs something that can't be brought is left out, as before
+        for blocked, words in (('assembly', 'linked to other pieces'), ('hidden', 'hidden in its own map')):
             held = FakeLibrary(actorClass='XComDestructibleActor', placeable=False, blocked=blocked, reason='linked')
-            self.assertEqual(untried(held, foreign=['destructible']), ([], ['foreign-untried']), blocked)
+            self.assertEqual(untried(held, foreign=['destructible']), ([], ['foreign-held'], [True]), blocked)
+            report = compile_project(doc, scene(), library=held, foreign=['destructible'])[1]
+            self.assertIn(words, report['warnings'][-1]['message'])
         closure = FakeLibrary(actorClass='XComDestructibleActor', placeable=False, blocked='closure', reason='it needs x')
-        self.assertEqual(untried(closure, foreign=['destructible']), (['not-placeable'], []))
+        self.assertEqual(untried(closure, foreign=['destructible'])[:2], (['not-placeable'], []))
         # a class with no family of its own is brought untried as well
-        self.assertEqual(untried(FakeLibrary(actorClass='SomethingElse')), ([], ['foreign-untried']))
+        self.assertEqual(untried(FakeLibrary(actorClass='SomethingElse')), ([], [], [True]))
 
     def test_a_piece_that_keeps_the_grid_stands_on_this_maps_as_on_its_own(self):
         # a fracturing piece of a map whose grid corner is 48 off the bar's in x and a storey and a half down: where
@@ -1672,9 +1679,9 @@ class ForeignTests(unittest.TestCase):
         home = (5000 + 96 * 40, 5000 + 96 * 40, 0)             # where it stands at home, on the bar's grid
         at = (home[0] - 96 * 60, home[1] - 96 * 50, 0)
         doc = document(added=self.car(1, at))
-        # held back until its game check, as the index says
+        # held back until its game check, as the index says: built, with no warning saying so
         _r = compile_project(doc, s, library=library)[1]
-        self.assertEqual((codes(_r), warned(_r, 'foreign-untried')), ([], ['foreign-untried'] * 2))
+        self.assertEqual((codes(_r), warned(_r, 'foreign-')), ([], []))
         spec, report = compile_project(doc, s, library=library, foreign=['car'])
         self.assertTrue(report['ok'], refused(report))
         self.assertNotIn('off-grid', [w['code'] for w in report['warnings']])
@@ -1698,7 +1705,7 @@ class ForeignTests(unittest.TestCase):
         # a van is an assembly with a gate of its own (its building comes with it: the transplanter's part)
         van = FakeLibrary(whole=dict(self.CAR, family='van'), grid=self.GRID)
         _r = compile_project(doc, s, library=van)[1]
-        self.assertEqual((codes(_r), warned(_r, 'foreign-untried')), ([], ['foreign-untried'] * 2))
+        self.assertEqual((codes(_r), warned(_r, 'foreign-')), ([], []))
         self.assertIn('van', before)                 # since EXP-42
         spec, report = compile_project(doc, s, library=van, foreign=['van'])
         self.assertTrue(report['ok'], refused(report))
@@ -1713,7 +1720,7 @@ class ForeignTests(unittest.TestCase):
         self.assertIn('ladder', before)              # since EXP-40 run 2; the gate itself is checked with it off
         compiler.FOREIGN_FAMILIES = ('scenery',)
         _r = compile_project(doc, s, library=library)[1]
-        self.assertEqual((codes(_r), warned(_r, 'foreign-untried')), ([], ['foreign-untried'] * 1))
+        self.assertEqual((codes(_r), warned(_r, 'foreign-')), ([], []))
         # where it stands at home there is no floor here: the climb is warned of as a copy of the bar's own would be
         report = compile_project(doc, s, library=library, foreign=['ladder'])[1]
         self.assertEqual((codes(report), [w['code'] for w in report['warnings'] if w['code'] == 'ladder-climb']), ([], ['ladder-climb']))
@@ -1725,13 +1732,12 @@ class ForeignTests(unittest.TestCase):
                            reason='Pieces brought this way wait for their game test.')
         _, report = compile_project(doc, scene(), library=held)
         _r = report
-        self.assertEqual((codes(_r), warned(_r, 'foreign-untried')), ([], ['foreign-untried'] * 1))
-        self.assertIn('game test', next(w['message'] for w in report['warnings'] if w['code'] == 'foreign-untried'))
+        self.assertEqual((codes(_r), warned(_r, 'foreign-')), ([], []))
         self.assertTrue(compile_project(doc, scene(), library=held, foreign=['check'])[1]['ok'])
         # the check's gate lifts nothing else
         hidden = FakeLibrary(actorClass='XComDestructibleActor', placeable=False, blocked='hidden', reason='hidden')
         _r = compile_project(doc, scene(), library=hidden, foreign=['check'])[1]
-        self.assertEqual((codes(_r), warned(_r, 'foreign-untried')), ([], ['foreign-untried'] * 1))
+        self.assertEqual((codes(_r), warned(_r, 'foreign-')), ([], ['foreign-held']))
 
     def test_other_maps_are_templates_only(self):
         # an override of another map's piece, or a piece of another map's stream, is refused as before

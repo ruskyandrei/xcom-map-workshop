@@ -1,7 +1,7 @@
 // Shared document operations. Working coordinates never move; only a serialized copy
 // is normalized. Unknown geometry keeps its previous envelope.
 // Heights (prefab plan 5.6b, prefab_bounds.py; 30 levels since 14 November 2026): the grid is 30 levels of 64 from the
-// prefab's ground (the game's own maps go to 18: over that it has not been played), and anything may stick out 192
+// prefab's ground (the game's own maps go to 18: the test stage's least height), and anything may stick out 192
 // units under or over it (a hull, a roof, floor boxes, lights), with no tiles there. The limits warn and refuse
 // nothing (measurePrefab's `warnings`; `errors` stays empty and `supported` true for the callers that read them).
 export const PREFAB_GRID_LEVELS = 30, PREFAB_PLAYED_LEVELS = 18;

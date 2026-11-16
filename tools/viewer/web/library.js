@@ -10,10 +10,12 @@ import { pieceKind, inKind, setKindOptions } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
 
 // What the library only holds back (compiler.py FOREIGN_SOFT): hidden in its own map, linked to other pieces, of a
-// kind not brought before, waiting for a game test. Such a piece can be placed; the Build warns, builds it untried,
-// and leaves it out only if it can't make it. One that needs something that can't be brought ('closure') can't.
-export const UNTRIED = ['hidden', 'assembly', 'family', 'check'];
-const UNTRIED_NOTE = 'It can be placed all the same: the Build warns, builds it untried, and leaves it out only if it can not make it.';
+// kind not brought before, waiting for a game test. Such a piece is placed as any other; what shows in the game is
+// tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the user, 16 November 2026).
+// One that needs something that can't be brought ('closure') can't be placed.
+export const SOFT = ['hidden', 'assembly', 'family', 'check'];
+const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not something to see.'],
+                    assembly: ['Linked', 'Linked to other pieces in its own map (a car\'s body and its glass, a prop and what it turns into).'] };
 const ROW = 61;         // a row's height, CSS pixels (style.css .libitem.lib)
 const THUMB = 48;
 const RECENT = 30;
@@ -170,8 +172,8 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       rows.set(entry.key, item);
       return item;
     }
-    const untried = !entry.placeable && UNTRIED.includes(entry.blocked);
-    const item = el('div', { className: `libitem lib${entry.placeable || untried ? '' : ' off'}${entry.missing ? ' missing' : ''}`, tabIndex: 0 });
+    const soft = !entry.placeable && SOFT.includes(entry.blocked), tag = soft ? SOFT_TAGS[entry.blocked] : null;
+    const item = el('div', { className: `libitem lib${entry.placeable || soft ? '' : ' off'}${entry.missing ? ' missing' : ''}`, tabIndex: 0 });
     item.setAttribute('role', 'listitem'); item.dataset.id = entry.id; item.dataset.key = entry.key;
     const thumb = el('canvas');
     thumb.width = thumb.height = Math.round(THUMB * pixelRatio());
@@ -186,21 +188,19 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       const where = maps === 1 ? entry.source.package : `${maps} maps`;
       const tags = el('span', { className: 'tags' }, star);
       if (entry.here) tags.append(el('span', { className: 'tag', textContent: 'Here', title: 'This map has the piece too' }));
-      if (untried) tags.append(el('span', { className: 'tag later', textContent: 'Untried', title: `${entry.reason} ${UNTRIED_NOTE}` }));
-      else if (!entry.placeable) tags.append(el('span', { className: 'tag later', textContent: 'Later', title: entry.reason }));
+      if (tag) tags.append(el('span', { className: 'tag', textContent: tag[0], title: tag[1] }));
+      else if (!entry.placeable && !soft) tags.append(el('span', { className: 'tag later', textContent: 'Later', title: entry.reason }));
       item.append(thumb, el('span', {}, el('strong', { textContent: entry.name }),
         el('small', { textContent: `${entry.kind} · ${entry.pkg}` }),
         el('small', { textContent: `${w} × ${d} × ${h} · ${where}` })), tags);
       item.title = [entry.mesh, ...new Set(entry.recipe.parts.flatMap(p => p.materials)).values()].map((t, i) => (i ? `Material: ${t}` : t))
         .concat(`Placed ${plural(entry.placed.count, 'time')} in ${plural(maps, 'map')} (${entry.placed.in.slice(0, 8).map(n => index.donors[n].package).join(', ')}${maps > 8 ? ', …' : ''}); brought from ${entry.source.package}`,
                 ...(entry.assembly ? [`${entry.assembly.members} pieces placed as one`] : []),
-                entry.placeable ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its meshes and textures already)`
-                  : untried ? `${entry.reason} ${UNTRIED_NOTE}` : `Can't be placed yet: ${entry.reason}`).join('\n');
+                entry.placeable || soft ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its meshes and textures already)`
+                  : `Can't be placed yet: ${entry.reason}`, ...(tag ? [tag[1]] : [])).join('\n');
       const choose = () => {
-        if (!entry.placeable && !untried) { hint(`${entry.name} can't be placed yet. ${entry.reason}`); return; }
-        const note = untried && chosen?.key !== entry.key;
+        if (!entry.placeable && !soft) { hint(`${entry.name} can't be placed yet. ${entry.reason}`); return; }
         onChoose(chosen?.key === entry.key ? null : entry);
-        if (note) hint(`${entry.name}: ${entry.reason} ${UNTRIED_NOTE}`);     // after the placing's own hint
       };
       item.onclick = choose;
       item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };

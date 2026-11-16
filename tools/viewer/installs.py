@@ -983,30 +983,22 @@ def _rotation_from_build(found, m, note, mode):
 
 
 def mission_warnings(missions, base, mode, lwr=True):
-    """What may not work as hoped when a variant with these records (rotation_plan's missions) is installed for
-    campaigns, in sentences. Only abductions have been played with a variant. The missions whose records are out of
-    rotation (council missions, the story's) get their map by its record's name: a variant can replace that map but
-    not stand beside it, except that Long War's mutator makes an extra bomb mission of each extra bomb record."""
-    drawn = [x for x in missions if x['inRotation']]
+    """What happens to the missions when a variant with these records (rotation_plan's missions) is installed for
+    campaigns, in sentences. The missions whose records are out of rotation (council missions, the story's) get their
+    map by its record's name: a variant can replace that map but not stand beside it, except that Long War's mutator
+    makes an extra bomb mission of each extra bomb record. Nothing here says a mission is untried (the user, 16
+    November 2026)."""
     named = [x for x in missions if not x['inRotation']]
     out = []
-    added = [x['label'] for x in missions if x.get('added')]
-    if added:
-        out.append(f'{", ".join(added)}: added to the map by the project, with a record alone; not played in the game yet '
-                   '(EXP-54).')
-    other = list(dict.fromkeys(x['label'] for x in drawn if x['type'] != 'Abduction'))
-    if other:
-        out.append(f'It goes into the rotation for {", ".join(other)}: variants have been played in the game on '
-                   'abductions only so far, so these are untested.')
     if named and mode == 'replace':
         out.append(f'{", ".join(x["label"] for x in named)}: the game asks for {"these missions\' map" if len(named) > 1 else "this mission\'s map"} '
-                   f'by name, so the variant takes {base}\'s record name there. Not played in the game yet.')
+                   f'by name, so the variant takes {base}\'s record name there.')
     elif named:
         bombs = [x for x in named if x.get('bomb')] if lwr else []
         rest = [x for x in named if x not in bombs]
         if bombs:
             out.append(f'{", ".join(x["label"] for x in bombs)}: Long War makes an extra bomb mission of an extra bomb record, '
-                       'so the variant should turn up as one. Not played in the game yet.')
+                       'so the variant turns up as one.')
         if rest:
             out.append(f'{", ".join(x["label"] for x in rest)}: the game asks for {"these missions\' map" if len(rest) > 1 else "this mission\'s map"} '
                        f'by name, so an additional map is never picked for {"them" if len(rest) > 1 else "it"}. '

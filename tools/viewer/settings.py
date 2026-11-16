@@ -176,7 +176,7 @@ def is_game(folder):
 
 # What a game folder holds, by the config only each has (XEW\XComGame\Config): LWR's own, then Long War's
 # landing-zone mutator (Long War 1.0 and the mods built on it), else plain Enemy Within.
-KINDS = {'lwr': 'Long War Rebalance', 'longwar': 'Long War, not LWR: not tried', 'ew': 'Enemy Within'}
+KINDS = {'lwr': 'Long War Rebalance', 'longwar': 'Long War, not LWR', 'ew': 'Enemy Within'}
 
 
 def game_kind(folder):
@@ -315,9 +315,7 @@ def doctor(settings, sources=()):
     elif found is None:
         checks.append(_check('game', 'wrong', note, 'Builds read pristine maps from the game install, never the lab copy: set its game folder, or the folder holding it'))
     else:
-        other = game_kind(found) == 'longwar'
-        checks.append(_check('game', 'warn' if other else 'ok', note,
-                             'The editor is made for LWR and plain Enemy Within; other Long War versions are not tried' if other else ''))
+        checks.append(_check('game', 'ok', note, ''))
         for source in sources:
             local = found / 'XEW' / 'XComGame' / 'CookedPCConsole' / f"{source['name']}.upk"
             if not local.is_file():
