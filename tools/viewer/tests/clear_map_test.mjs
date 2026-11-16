@@ -35,16 +35,20 @@ assert.ok(validStage({ grid: [20, 30, 4] }));
 assert.ok(!validStage({ grid: [0, 30, 4] }));
 assert.ok(validStage({ grid: [20, 30, 30] }));
 assert.ok(!validStage({ grid: [20, 30, 31] }));
-// a map past the limits at its own size (TempleShip, 45 by 203 by 15) keeps its own as its limit on that axis
-// (stageMax, compiler.py stage_max's twin; 16 November 2026: the Map grid snapped back there), and the project keeps it
-const temple = [45, 203, 15];
-assert.deepEqual(stageMax(temple), [128, 203, 30]);
-assert.deepEqual(stageMax(), [128, 128, 30]);
-assert.ok(!validStage({ grid: [46, 203] }));
-for (const grid of [[46, 203], [128, 203], [45, 203, 30], [40, 150, 8]]) assert.ok(validStage({ grid }, temple), JSON.stringify(grid));
-for (const grid of [[129, 203], [45, 204], [45, 203, 31]]) assert.ok(!validStage({ grid }, temple), JSON.stringify(grid));
-assert.deepEqual(sortState({ overrides: [], added: [], stage: { grid: [46, 203], ground: false } }).stage, { grid: [46, 203], ground: false });
-assert.equal(sortState({ overrides: [], added: [], stage: { grid: [46, 203.5] } }).stage, null);
+// up to 256 tiles a side (the user, 16 November 2026; 128 before)
+assert.deepEqual(stageMax(), [256, 256, 30]);
+assert.ok(validStage({ grid: [256, 256] }) && !validStage({ grid: [257, 39] }));
+assert.ok(validStage({ grid: [45, 256] }, [45, 203, 15]) && !validStage({ grid: [45, 257] }, [45, 203, 15]));   // TempleShip
+// a map past the limits at its own size keeps its own as its limit on that axis (stageMax, compiler.py stage_max's
+// twin; T-41: TempleShip, 45 by 203 by 15, snapped back while the limit was 128), and the project keeps it. A
+// stand-in map 45 by 300 by 15 keeps the case.
+const past = [45, 300, 15];
+assert.deepEqual(stageMax(past), [256, 300, 30]);
+assert.ok(!validStage({ grid: [46, 300] }));
+for (const grid of [[46, 300], [256, 300], [45, 300, 30], [40, 150, 8]]) assert.ok(validStage({ grid }, past), JSON.stringify(grid));
+for (const grid of [[257, 300], [45, 301], [45, 300, 31]]) assert.ok(!validStage({ grid }, past), JSON.stringify(grid));
+assert.deepEqual(sortState({ overrides: [], added: [], stage: { grid: [46, 300], ground: false } }).stage, { grid: [46, 300], ground: false });
+assert.equal(sortState({ overrides: [], added: [], stage: { grid: [46, 300.5] } }).stage, null);
 
 // ---- C4: spawns.js, the twin of spawns.py
 import { place, evacBox, zoneOfFrame, ownSlots, samePlace, startingZones, ownLandings } from '../web/spawns.js';

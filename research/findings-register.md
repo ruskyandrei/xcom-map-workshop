@@ -2534,8 +2534,9 @@ word; not looked at in the game).
 - **Fix.** Each axis now goes up to 128 tiles or 30 levels, or the map's own where that is more (`project.js
   stageMax`, `compiler.py stage_max`). The drag bounds, the checks as a stage is set, loaded or recovered, and the
   compiler use it. `sortState` checks only the stage's shape, because its size was already checked against the map,
-  so a save keeps the larger grid. TempleShip now grows across to 128 and up to 30 levels. It can't be made deeper
-  than its own 203.
+  so a save keeps the larger grid. The same day, at the user's word, the limit went up to 256 tiles a side, and the
+  prefab builder's "largest map the editor makes" with it. TempleShip now grows to 256 across and deep, and up to
+  30 levels. No map of the game's is past 256, so the own-size rule only matters again if the limit comes down.
 
 ### T-40: The output-name check took the lab's earlier tests of a project for someone else's files
 **Fixed** (16 November 2026, seen by the user in the build queue: temple_improved failed at once).

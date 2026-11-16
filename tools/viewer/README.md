@@ -457,9 +457,9 @@ The plan; the guide's "Clear map and landing zones".
   - A drag follows its axis (`alongLine`) by whole tiles (96) or levels (64), within `gridRule`.
     - A map as it is, the blank map included, only grows, across and up (since 13 November any map, where the
       compiler refused all but the blank map before).
-    - Each axis goes up to 128 tiles or 30 levels, or the map's own where that is more (`project.js stageMax`,
-      `compiler.py stage_max`). TempleShip is 45 by 203 tiles, so it grows across to 128 and up to 30 levels but
-      not deeper; AlienBase01 (63 by 168) is the other map past 128.
+    - Each axis goes up to 256 tiles or 30 levels, or the map's own where that is more (`project.js stageMax`,
+      `compiler.py stage_max`). The limit was 128 until 16 November, and TempleShip (45 by 203) snapped back
+      (T-41); no map of the game's is past 256.
     - On a map that keeps its own cursor volumes, the Build's `shell.py grow_cursors` stretches those that reach the
       old far X or Y side to the new one, and with more levels clones the topmost plain one into even storeys of 192
       over the whole grid, from the top of its own up to the new top. `floors.js cursorStoreys` (given the map's own
@@ -1227,9 +1227,9 @@ nested groups, copy/paste and undo work as in a map.
 
 The Prefab menu saves the complete document, including hidden lights/boxes and preserved unreadable pieces.
 Save as may explicitly replace a different prefab; the original stays unchanged. Opening another document asks
-Save/Discard/Cancel. Saved prefabs have complete recovery snapshots. Supported contents fit 128 by 128 tiles and
-heights −192 to 1,344: the tile grid 0 to 1,152 (18 levels, the tallest map's; height 0 is the drawn grid) and 192
-units sticking out under or over it, including geometry and floor boxes. A selection is saved with its map's grid
+Save/Discard/Cancel. Saved prefabs have complete recovery snapshots. Supported contents fit 256 by 256 tiles (the
+largest map the editor makes) and heights −192 to 2,112: the tile grid 0 to 1,920 (30 levels; height 0 is the drawn
+grid) and 192 units sticking out under or over it, including geometry and floor boxes. A selection is saved with its map's grid
 bottom at 0. Old larger files open for repair. A warning over the size names the pieces that keep the pose rule and
 stand off their grid; **Show** selects them and **Align to grid** moves the whole prefab the least that puts them
 all on it (one undo step; refused while unreadable pieces are kept, as they would not move).

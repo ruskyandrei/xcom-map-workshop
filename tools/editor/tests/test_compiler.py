@@ -929,26 +929,39 @@ class StageTests(unittest.TestCase):
         self.assertEqual(codes(report), ['stage-grid'])
 
     def test_a_grid_past_the_limit_is_refused_and_a_large_one_taken(self):
-        _, report = self.run_stage({'grid': [200, 39]})
+        """Up to 256 tiles a side (the user, 16 November 2026; 128 before), with no warning."""
+        self.assertEqual(compiler.STAGE_GRID_MAX, 256)
+        _, report = self.run_stage({'grid': [257, 39]})
         self.assertEqual(codes(report), ['stage-grid'])
-        _, report = self.run_stage({'grid': [100, 39]})
-        self.assertTrue(report['ok'])
-        self.assertEqual(warned(report, 'stage-'), [])
+        for grid in ([100, 39], [200, 39], [256, 256]):
+            _, report = self.run_stage({'grid': grid})
+            self.assertTrue(report['ok'], (grid, refused(report)))
+            self.assertEqual(warned(report, 'stage-'), [])
 
     def test_a_map_past_the_limit_at_its_own_size_still_grows(self):
-        """TempleShip's grid is 45 by 203 by 15 tiles: past 128 deep at its own size, so 203 is its limit there and
-        the other axes keep 128 tiles and 30 levels (stage_max; 16 November 2026: the Map grid snapped back)."""
+        """A map past the limit at its own size keeps its own as its limit on that axis, and the other axes keep 256
+        tiles and 30 levels (stage_max; T-41: the Map grid snapped back on TempleShip, 45 by 203 by 15, while the
+        limit was 128). A stand-in map 45 by 300 by 15 keeps the case now that TempleShip is under the limit."""
+        self.assertEqual(compiler.stage_max([45, 300, 15]), [256, 300, 30])
+        self.assertEqual(compiler.stage_max([45, 203, 15]), [256, 256, 30])
+        self.assertEqual(compiler.stage_max([52, 39, 12]), [256, 256, 30])
+        past = dict(dims=(45, 300, 15), name='TempleShip')
+        for grid, want in (([46, 300], [46, 300, 15]), ([256, 300], [256, 300, 15]), ([45, 300, 16], [45, 300, 16]),
+                           ([45, 300, 30], [45, 300, 30])):
+            _, report = self.run_stage({'grid': grid}, **past)
+            self.assertTrue(report['ok'], (grid, refused(report)))
+            self.assertEqual(report['stageGrid'], want)
+        for grid in ([257, 300], [45, 301], [45, 300, 31], [45, 256]):
+            _, report = self.run_stage({'grid': grid}, **past)
+            self.assertEqual(codes(report), ['stage-grid'], grid)
+        # TempleShip itself grows deeper now, to 256
         temple = dict(dims=(45, 203, 15), name='TempleShip')
-        self.assertEqual(compiler.stage_max([45, 203, 15]), [128, 203, 30])
-        self.assertEqual(compiler.stage_max([52, 39, 12]), [128, 128, 30])
-        for grid, want in (([46, 203], [46, 203, 15]), ([128, 203], [128, 203, 15]), ([45, 203, 16], [45, 203, 16]),
-                           ([45, 203, 30], [45, 203, 30])):
+        for grid, want in (([45, 256], [45, 256, 15]), ([128, 230, 20], [128, 230, 20])):
             _, report = self.run_stage({'grid': grid}, **temple)
             self.assertTrue(report['ok'], (grid, refused(report)))
             self.assertEqual(report['stageGrid'], want)
-        for grid in ([129, 203], [45, 204], [45, 203, 31], [45, 128]):
-            _, report = self.run_stage({'grid': grid}, **temple)
-            self.assertEqual(codes(report), ['stage-grid'], grid)
+        _, report = self.run_stage({'grid': [45, 257]}, **temple)
+        self.assertEqual(codes(report), ['stage-grid'])
         # cleared: smaller on any axis, and never past its own 203 deep
         c = compiler.Compiler(document(cleared=True, stage={'grid': [40, 150, 8]}), dict(scene(), name='TempleShip'))
         c.scene['tileGrid'] = dict(c.scene['tileGrid'], dimensions=[45, 203, 15], size=[96, 96, 64])
@@ -1064,7 +1077,7 @@ class ClearTests(unittest.TestCase):
             self.assertTrue(report['ok'], (grid, refused(report)))
             self.assertEqual(report['stageGrid'], want)
             self.assertEqual(spec['cleared'], dict(grid=want))
-        for grid in ([0, 30], [52, 129], [52, 39, 31], [52, 39, 0]):
+        for grid in ([0, 30], [52, 257], [52, 39, 31], [52, 39, 0]):
             _, report = compile_project(document(cleared=True, stage={'grid': grid}), s)
             self.assertEqual(codes(report), ['stage-grid'], grid)
         _, report = compile_project(document(cleared=True, stage={'grid': [52, 39], 'ground': False}), s)

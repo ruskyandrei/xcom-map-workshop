@@ -1,0 +1,133 @@
+{
+  "scope": "Read-only inspection of two installed maps; no new geometry or game run",
+  "maps": [
+    {
+      "package": "CSmallScout_Farm",
+      "sha256": "ae812dfb72da490956f8e29e822a36be6420f414cb4e8c1ede6c7cc2e9bf9163",
+      "version": 845,
+      "licensee": 64,
+      "terrainExports": 0,
+      "landscapeExports": 0,
+      "staticMeshes": 255,
+      "fracturedMeshes": 9,
+      "fracturingActors": 107,
+      "fragmentColumns": 311,
+      "samples": [
+        {
+          "name": "TornEarth.Meshes.SmallscoutRamps",
+          "kind": "StaticMesh",
+          "vertices": 1123,
+          "triangles": 1788,
+          "lods": 1,
+          "uvChannels": 2,
+          "vertexColours": false,
+          "lightmapCoordinateIndex": 1,
+          "boundsSize": [
+            3047.2,
+            1592.265,
+            233.176
+          ],
+          "materialSlots": 1,
+          "nativeReferenceFields": 3,
+          "nativeLayoutValidated": true,
+          "collision": {
+            "bodySetup": "TornEarth.Meshes.SmallscoutRamps.RB_BodySetup_14",
+            "simpleLine": true,
+            "convexAndBoxElements": 10,
+            "skippedSpheresAndCapsules": 0
+          }
+        }
+      ]
+    },
+    {
+      "package": "URB_Bar",
+      "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+      "version": 845,
+      "licensee": 64,
+      "terrainExports": 0,
+      "landscapeExports": 0,
+      "staticMeshes": 324,
+      "fracturedMeshes": 45,
+      "fracturingActors": 70,
+      "fragmentColumns": 1037,
+      "samples": [
+        {
+          "name": "ComKit_Meshes.Walls_ExtCROWN.Wall_ExtCROWN_384A_FRACTURED",
+          "kind": "FracturedStaticMesh",
+          "vertices": 3089,
+          "triangles": 2614,
+          "lods": 1,
+          "uvChannels": 2,
+          "vertexColours": true,
+          "lightmapCoordinateIndex": 1,
+          "boundsSize": [
+            24.0,
+            1080.0,
+            406.0
+          ],
+          "materialSlots": 6,
+          "nativeReferenceFields": 9,
+          "nativeLayoutValidated": true,
+          "fragments": 77
+        },
+        {
+          "name": "ComKit_Meshes.Walls_ExtCROWN.Wall_ExtCROWN_384G_FRACTURED",
+          "kind": "FracturedStaticMesh",
+          "vertices": 2807,
+          "triangles": 2506,
+          "lods": 1,
+          "uvChannels": 2,
+          "vertexColours": true,
+          "lightmapCoordinateIndex": 1,
+          "boundsSize": [
+            24.0,
+            1080.0,
+            406.0
+          ],
+          "materialSlots": 6,
+          "nativeReferenceFields": 9,
+          "nativeLayoutValidated": true,
+          "fragments": 60
+        },
+        {
+          "name": "URB_Bar_FRAC.Meshes.URB_BarIntWallA_FRACTURED",
+          "kind": "FracturedStaticMesh",
+          "vertices": 2765,
+          "triangles": 2604,
+          "lods": 1,
+          "uvChannels": 2,
+          "vertexColours": true,
+          "lightmapCoordinateIndex": 1,
+          "boundsSize": [
+            965.933,
+            28.0,
+            400.041
+          ],
+          "materialSlots": 7,
+          "nativeReferenceFields": 10,
+          "nativeLayoutValidated": true,
+          "fragments": 55
+        },
+        {
+          "name": "URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED",
+          "kind": "FracturedStaticMesh",
+          "vertices": 1053,
+          "triangles": 902,
+          "lods": 1,
+          "uvChannels": 2,
+          "vertexColours": true,
+          "lightmapCoordinateIndex": 1,
+          "boundsSize": [
+            560.0,
+            24.0,
+            400.0
+          ],
+          "materialSlots": 6,
+          "nativeReferenceFields": 9,
+          "nativeLayoutValidated": true,
+          "fragments": 30
+        }
+      ]
+    }
+  ]
+}

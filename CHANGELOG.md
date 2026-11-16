@@ -8,6 +8,30 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Maps up to 256 tiles a side (128 before)
+
+At the user's word, a project's grid now goes up to 256 tiles across and deep (levels stay at 30). TempleShip, 45
+by 203, can now be made deeper too.
+- [project.js](tools/viewer/web/project.js) and [compiler.py](tools/editor/compiler.py) `STAGE_GRID_MAX` 256. The
+  Map grid's drag, the page's checks and the Build's check all follow it (`stageMax`, `stage_max`).
+- The prefab builder's limit is "the largest map the editor makes", so it went to 256 as well:
+  [prefab_document.js](tools/viewer/web/prefab_document.js) `PREFAB_TILES`, [prefab_bounds.py](tools/viewer/prefab_bounds.py)
+  `MAX_TILES`. That covers the size warning and the prefab test stage
+  ([prefab_stage.py](tools/editor/prefab_stage.py) `place` searches up to it). The warning text and the page's two
+  texts that said 128 now take the constant ([app.js](tools/viewer/web/app.js)).
+- Tests: [limits.json](tools/viewer/tests/limits.json), [prefab_size_cases.json](tools/viewer/tests/prefab_size_cases.json)
+  (maximum 256 by 256, over it at 257), `test_compiler` (257 refused, 200 and 256 by 256 taken; the own-size case on
+  a stand-in map 45 by 300, since TempleShip is now under the limit), `test_prefab_stage` (by `MAX_TILES`),
+  clear_map_test.
+- Docs: [the viewer README](tools/viewer/README.md) (Map grid, and the prefab limits, which still said 18 levels)
+  and [the guide](tools/release/guide/guide.html) (Map grid's 256 a side, the prefab builder's largest map).
+- Checked: `test_compiler -k Stage` and `-k Clear`, the editor and viewer prefab tests, the guide tests, the node and
+  repo suites. A browser run on a test server on TempleShip: the blue handle now grows past 203 and stops at 256
+  (stage `[45, 256]`), 220 holds, and X 77 and 30 levels hold as before. `browser_smoke --only clear-map` on URB_Bar.
+- Gaps: no Build or game run of a grid past 128. The largest game map is about 137,000 tiles (TempleShip);
+  256 × 256 × 30 is about 2 million. Bake time, load time and the game's handling of a grid that large have not
+  been seen.
+
 ### Map grid works on maps past 128 tiles at their own size (TempleShip, AlienBase01)
 
 The user dragged the Map grid larger on a temple map. It snapped back on release and nothing changed. TempleShip's

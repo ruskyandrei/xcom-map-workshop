@@ -73,8 +73,9 @@ class StageTests(unittest.TestCase):
                     self.assertTrue(lo_x <= tx + dx < hi_x and lo_y <= ty + dy < hi_y, (point, dx, dy))
 
     def test_exact_width_can_grow_the_stage_but_a_full_stage_has_no_squad_room(self):
-        limit = 128 * 96
-        self.assertEqual(stage.place([0, 0, 0, limit, 96, 64], GRID, SPAWNS)['grid'], [128, 36])
+        limit = stage.MAX_TILES * 96
+        self.assertEqual(stage.MAX_TILES, 256)
+        self.assertEqual(stage.place([0, 0, 0, limit, 96, 64], GRID, SPAWNS)['grid'], [stage.MAX_TILES, 36])
         with self.assertRaises(ProjectError) as failed:
             stage.place([0, 0, 0, limit, limit, 64], GRID, SPAWNS)
         self.assertEqual(failed.exception.extra['code'], 'squad-room')

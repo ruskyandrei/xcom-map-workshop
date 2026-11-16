@@ -2,8 +2,8 @@
 
 The test follows the Build's rules (plan "sturdier prefabs, faster editor", part R): what the Build warns about, the
 test warns about, and a piece that can't be built is left out and named, not the test refused. What still stops a
-test is the stage's own: the blank map missing or changed, a prefab that leaves the squad no room on the 128 by 128
-stage, a document the compiler can't read, or nothing left to build."""
+test is the stage's own: the blank map missing or changed, a prefab that leaves the squad no room on the 256 by 256
+stage (MAX_TILES), a document the compiler can't read, or nothing left to build."""
 from base64 import b32encode
 from copy import deepcopy
 import math

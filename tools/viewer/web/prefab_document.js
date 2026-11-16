@@ -5,7 +5,8 @@
 // units under or over it (a hull, a roof, floor boxes, lights), with no tiles there. The limits warn and refuse
 // nothing (measurePrefab's `warnings`; `errors` stays empty and `supported` true for the callers that read them).
 export const PREFAB_GRID_LEVELS = 30, PREFAB_PLAYED_LEVELS = 18;
-export const PREFAB_TILES = 128, PREFAB_SLACK = 0.5, PREFAB_GRID_TOP = PREFAB_GRID_LEVELS * 64, PREFAB_ALLOWANCE = 192;
+// (the largest map the editor makes, project.js STAGE_GRID_MAX: 256 tiles a side since 16 November 2026, 128 before)
+export const PREFAB_TILES = 256, PREFAB_SLACK = 0.5, PREFAB_GRID_TOP = PREFAB_GRID_LEVELS * 64, PREFAB_ALLOWANCE = 192;
 export const PREFAB_PLAYED_TOP = PREFAB_PLAYED_LEVELS * 64;
 export const PREFAB_MIN_Z = -PREFAB_ALLOWANCE, PREFAB_MAX_Z = PREFAB_GRID_TOP + PREFAB_ALLOWANCE;
 export function measurePrefab(boxes, unknown = []) {
@@ -19,7 +20,7 @@ export function measurePrefab(boxes, unknown = []) {
   const origin = [0, 1].map(k => Math.floor((bounds[k] + PREFAB_SLACK) / 96) * 96).concat(0);
   const tiles = [0, 1].map(k => Math.max(1, Math.ceil((bounds[k + 3] - origin[k] - PREFAB_SLACK) / 96)));
   const warnings = [];
-  if (Math.max(...tiles) > PREFAB_TILES) warnings.push(`${tiles[0]} by ${tiles[1]} tiles is over 128 by 128 tiles, the largest map the editor makes: no map holds it whole, and it can't be tested on the stage`);
+  if (Math.max(...tiles) > PREFAB_TILES) warnings.push(`${tiles[0]} by ${tiles[1]} tiles is over ${PREFAB_TILES} by ${PREFAB_TILES} tiles, the largest map the editor makes: no map holds it whole, and it can't be tested on the stage`);
   if (offenders.length) warnings.push(`height ${bounds[2].toFixed(1)} to ${bounds[5].toFixed(1)} reaches past ${PREFAB_MIN_Z} to ${PREFAB_MAX_Z} units, where a map has no tiles: ${[...new Set(offenders)].slice(0, 8).join(', ')}`);
   return { bounds, tiles, origin, unknown, errors: [], warnings, supported: true, verified: !unknown.length, outside,
            tall: bounds[5] > PREFAB_PLAYED_TOP + PREFAB_SLACK };

@@ -25,7 +25,7 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
 import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP } from './prefab_document.js';
+         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
@@ -3728,7 +3728,7 @@ function refreshBuilder() {
     + (size.warnings.length ? ' · larger than a map holds' : size.unknown.length ? ' · size unverified: missing pieces kept'
       : size.outside.length ? ' · sticks out of the grid' : '');
   $('builderSize').title = [...size.warnings.map(w => `${w}. It is saved and placed all the same.`),
-    `A map is at most 128 by 128 tiles; the tile grid is 0 to ${PREFAB_GRID_TOP} units high (${PREFAB_GRID_LEVELS} levels), `
+    `A map is at most ${PREFAB_TILES} by ${PREFAB_TILES} tiles; the tile grid is 0 to ${PREFAB_GRID_TOP} units high (${PREFAB_GRID_LEVELS} levels), `
     + `and anything may stick out to ${PREFAB_MIN_Z} under it and ${PREFAB_MAX_Z} over it, roofs and floor boxes `
     + 'included. Out of the grid there are no tiles: nothing can be stood on there or give cover.',
     size.outside.length ? `Out of the grid: ${size.outside.slice(0, 8).join(', ')}${size.outside.length > 8 ? ' …' : ''}.` : ''].filter(Boolean).join('\n');
@@ -5037,7 +5037,7 @@ async function openPrefabTest() {
     title: builder.doc.revision ? `Test ${label} in game` : 'Test unsaved prefab in game',
     note: [`${x} × ${y} tiles, height ${size.bounds[2].toFixed(1)}–${size.bounds[5].toFixed(1)}, on a stage ${testStageLevels(size.bounds)} levels high`
       + '.',
-      Math.max(x, y) > 128 ? 'It is too large for the 128 by 128 tile stage: the test will say so.' : '',
+      Math.max(x, y) > PREFAB_TILES ? `It is too large for the ${PREFAB_TILES} by ${PREFAB_TILES} tile stage: the test will say so.` : '',
       revision, `Game install ${target}`].filter(Boolean).join(' '),
     ok: 'Build and test', bake: false, prefabTest: true, saving: { key: playStatus?.saveKey ?? 'F5' },
     squad: squadLine(playStatus?.squad),
@@ -5720,8 +5720,8 @@ const gridHandleLine = new THREE.LineBasicMaterial({ color: 0xffffff, transparen
 function gridRule() {
   const own = ownSize();
   if (!own) return null;
-  // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way. Up to 128 tiles and 30
-  // levels, or the map's own where more (stageMax: TempleShip is 203 deep)
+  // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way. Up to 256 tiles and 30
+  // levels, or the map's own where more (stageMax)
   return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
 }
 // The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py)

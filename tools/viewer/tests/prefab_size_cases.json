@@ -1,7 +1,7 @@
 [
-  {"name":"maximum", "box":[0, 0, -192, 12288, 12288, 2112], "large":false, "tiles":[128, 128], "tall":true},
-  {"name":"tolerance", "box":[-0.5, -0.5, -192.5, 12288.5, 12288.5, 2112.5], "large":false, "tiles":[128, 128]},
-  {"name":"wide", "box":[0, 0, 0, 12288.51, 96, 192], "large":true, "tiles":[129, 1]},
+  {"name":"maximum", "box":[0, 0, -192, 24576, 24576, 2112], "large":false, "tiles":[256, 256], "tall":true},
+  {"name":"tolerance", "box":[-0.5, -0.5, -192.5, 24576.5, 24576.5, 2112.5], "large":false, "tiles":[256, 256]},
+  {"name":"wide", "box":[0, 0, 0, 24576.51, 96, 192], "large":true, "tiles":[257, 1]},
   {"name":"roof", "box":[0, 0, 0, 96, 96, 2112.51], "large":true, "tiles":[1, 1]},
   {"name":"cellar", "box":[0, 0, -192.51, 96, 96, 192], "large":true, "tiles":[1, 1]},
   {"name":"hull under the grid", "box":[0, 0, -145, 2208, 2208, 598], "large":false, "tiles":[23, 23], "outside":true, "tall":false},
@@ -10,5 +10,5 @@
   {"name":"the tallest map's height", "box":[0, 0, 0, 96, 96, 1152], "large":false, "tiles":[1, 1], "outside":false, "tall":false},
   {"name":"over the tallest map", "box":[0, 0, 1100, 96, 96, 1200], "large":false, "tiles":[1, 1], "outside":false, "tall":true},
   {"name":"negative footprint", "box":[-192, -96, 0, 192, 192, 240], "large":false, "tiles":[4, 3]},
-  {"name":"rounded out", "box":[-0.51, 0, 0, 12288, 96, 192], "large":true, "tiles":[129, 1]}
+  {"name":"rounded out", "box":[-0.51, 0, 0, 24576, 96, 192], "large":true, "tiles":[257, 1]}
 ]

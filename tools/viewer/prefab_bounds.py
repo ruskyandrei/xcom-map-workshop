@@ -17,7 +17,9 @@ import numpy as np
 from export_math import transform, view_matrix
 from projects import ProjectError
 
-TILE, MAX_TILES, SLACK = 96, 128, 0.5
+# MAX_TILES: the largest map the editor makes (compiler.py STAGE_GRID_MAX: 256 tiles a side since 16 November 2026,
+# 128 before)
+TILE, MAX_TILES, SLACK = 96, 256, 0.5
 # Heights (prefab plan 5.6b; 30 levels since 14 November 2026): the grid is 30 levels of 64 from the prefab's ground
 # (the game's own maps go to 18, PLAYED_LEVELS: the test stage's least height), and anything may stick out 192 units
 # (three levels) under or over it: a hull or a crater, a roof, floor boxes, lights.
@@ -49,7 +51,7 @@ def policy(boxes, unknown=()):
     _, tiles = footprint(bounds)
     warnings = []
     if max(tiles) > MAX_TILES:
-        warnings.append(f'{tiles[0]} by {tiles[1]} tiles is over 128 by 128 tiles, the largest map the editor makes: '
+        warnings.append(f'{tiles[0]} by {tiles[1]} tiles is over {MAX_TILES} by {MAX_TILES} tiles, the largest map the editor makes: '
                         'no map holds it whole, and it can\'t be tested on the stage')
     if offenders:
         warnings.append(f'height {bounds[2]:g} to {bounds[5]:g} reaches past {MIN_Z} to {MAX_Z} units, where a map has '

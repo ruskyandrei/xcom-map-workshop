@@ -891,7 +891,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   revision. <b class="ui">Save as…</b> makes another prefab, or explicitly replaces a different one after
   confirmation, leaving the original unchanged. To update the one being edited, use Save.</p>
 <p>The footprint and height appear at the bottom. Height 0 is the drawn grid. A map holds at most
-  <b>128 by 128 tiles</b>, and a tile grid <b>0 to 1,920 units high</b> (30 levels), with up to
+  <b>256 by 256 tiles</b>, and a tile grid <b>0 to 1,920 units high</b> (30 levels), with up to
   <b>192 units sticking out</b> under or over it: a hull or crater under the ground, a roof, floor boxes, lights.
   Out of the grid there are no tiles, so nothing there can be stood on or give cover; the readout says when
   something sticks out. Light influence radii do not count. The
@@ -1217,7 +1217,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ol>
 <ul>
   <li><b>On a map as it is, the grid only grows.</b> The red handle moves the far X side and the blue one the far Y
-    side, by whole tiles; the green one on top raises it by whole levels, up to 30. The corner and the bottom stay
+    side, by whole tiles, up to 256 a side; the green one on top raises it by whole levels, up to 30. The corner and the bottom stay
     where they are. The new area is drawn as a faint sheet:
     <ul>
       <li>green where the Build lays more of the map's ground there, on maps whose ground is laid as planes (the

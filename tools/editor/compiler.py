@@ -3353,8 +3353,9 @@ class Library:
 
 
 # a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all
-# (TempleShip is 45 by 203, AlienBase01 63 by 168), so a map past 128 keeps its own as its limit (stage_max)
-STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 128
+# (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
+# before), and a map past it keeps its own as its limit (stage_max)
+STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 256
 # levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b); the editor makes up to
 # 30 (1,920 units; the user, 14 November 2026)
 STAGE_LEVELS_PLAYED, STAGE_LEVELS_MAX = 18, 30

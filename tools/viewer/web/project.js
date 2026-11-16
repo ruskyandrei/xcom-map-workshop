@@ -90,7 +90,8 @@ export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b
 // ground: false to lay no ground over the new area. Absent or null: the map's own size. On a cleared project (Clear
 // map plan, section 6) the grid may also be smaller than the map's, in any of the three; the corner and the bottom
 // never move.
-export const STAGE_GRID_MAX = 128, STAGE_LEVELS_MAX = 30, STAGE_LEVELS_PLAYED = 18;
+// (256 tiles a side since 16 November 2026, at the user's word; 128 before)
+export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30, STAGE_LEVELS_PLAYED = 18;
 // The maps whose size can be set without clearing them: the bare map a new prefab or a new map starts from
 // (compiler.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.
 export const STAGE_MAPS = ['CB2_MP_Blank'];
@@ -120,9 +121,9 @@ export const tidyLandingZone = z => ({ id: z.id, location: z.location.map(tidyLo
   ...(z.missionType ? { missionType: z.missionType } : {}), ...(z.councilType ? { councilType: z.councilType } : {}),
   ...(z.alternate ? { alternate: { location: z.alternate.location.map(tidyLocation), direction: z.alternate.direction } } : {}), ...(z.lwr === false ? { lwr: false } : {}),
   ...(z.ew === true ? { ew: true } : {}), ...(z.other ? { other: z.other } : {}) });
-// The most a project's grid may be on each axis, given the map's own grid [nx, ny, nz]: 128 tiles across and deep and
-// 30 levels, or the map's own where that is more (TempleShip is 203 tiles deep, AlienBase01 168), so a map is never
-// past the limit at its own size and can still be made larger (compiler.py stage_max is the twin)
+// The most a project's grid may be on each axis, given the map's own grid [nx, ny, nz]: 256 tiles across and deep and
+// 30 levels, or the map's own where that is more, so a map is never past the limit at its own size (compiler.py
+// stage_max is the twin; while the limit was 128, TempleShip, 203 tiles deep, snapped back: T-41)
 export const stageMax = (own = null) => [STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX].map((v, k) => Math.max(v, own?.[k] ?? 0));
 // A stage's shape, whatever its size
 const stageShape = s => typeof s === 'object' && s !== null && !Array.isArray(s) && Array.isArray(s.grid) && [2, 3].includes(s.grid.length)
