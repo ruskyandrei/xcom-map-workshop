@@ -112,6 +112,7 @@ import installs  # noqa: E402
 import maplist  # noqa: E402
 import missions as mission_kinds  # noqa: E402
 import outputnames  # noqa: E402
+import publication  # noqa: E402
 import spawns  # noqa: E402
 import settings as settings_module  # noqa: E402
 from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
@@ -188,33 +189,15 @@ def owned_folder(output, variant, project_id):
 
 
 @contextlib.contextmanager
-def publish_lock(output, variant, wait=60.0, stale=900.0):
-    """One build at a time puts a variant's package in place (the server's builds and a command line's): a lock file
-    in <output>/.work/locks, made exclusively, taken over when it is older than `stale` seconds (a build that died)."""
-    folder = Path(output) / '.work' / 'locks'
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / ('%s.lock' % variant.lower())
-    deadline = time.monotonic() + wait
-    while True:
-        try:
-            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode('ascii'))
-            os.close(fd)
-            break
-        except FileExistsError:
-            try:
-                if time.time() - path.stat().st_mtime > stale:
-                    path.unlink()
-                    continue
-            except FileNotFoundError:
-                continue
-            if time.monotonic() > deadline:
-                raise BuildError('another build is putting %s in place (%s); try again' % (variant, path))
-            time.sleep(0.2)
+def publish_lock(output, variant, wait=publication.PUBLISH_WAIT):
+    """One build at a time puts a variant's package in place, and no reader copies it meanwhile (the server's builds,
+    its readers and a command line's build): the variant's guard, a lock the operating system holds for its holder
+    (publication.guard; until 16 November 2026 a lock file taken over by its age)."""
     try:
-        yield
-    finally:
-        path.unlink(missing_ok=True)
+        with publication.guard(output, variant, wait):
+            yield
+    except publication.Busy as error:
+        raise BuildError(str(error))
 
 
 def last_times(manifest, project_id):
@@ -564,8 +547,15 @@ def readme(m):
 
 class Build:
     def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
-                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=(), named=None):
+                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=(), named=None,
+                 attempt=None, saved_file=None, boundary=None):
         self.project_path = Path(project)
+        # the server's launch this build is (builds.py: a UUID), carried into the manifest so the server knows its own
+        # package, and into the build's id so two builds in one second are told apart; the project's own file when
+        # the build reads a snapshot of it (the build queue's)
+        self.attempt = attempt
+        self.saved_file = Path(saved_file) if saved_file else None
+        self.boundary = boundary        # publication.publish's step hook (tests)
         # whose names the build checks its own against (outputnames.Claims): the projects folder (the project file's
         # own, unless given), the builds folder, the game install it reads and `games` (the one Play in game uses)
         self.projects = Path(projects) if projects else self.project_path.parent
@@ -579,7 +569,7 @@ class Build:
         self.radius = radius
         self.patch_work = Path(patch_work) if patch_work else self.output / '.work' / 'patchtool'
         self.now = now or datetime.datetime.now()
-        self.stamp = self.now.strftime('%Y%m%d-%H%M%S')
+        self.stamp = self.now.strftime('%Y%m%d-%H%M%S') + ('-%s' % attempt.replace('-', '')[:8] if attempt else '')
         self.run_tool = run or self._run
         self.seed_tool = seed or self._seed
         self.name_tool = named or self._name_copy     # named_base's growing write (tests give a stand-in)
@@ -1270,8 +1260,9 @@ class Build:
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
         m = dict(schema=SCHEMA, schemaVersion=SCHEMA_VERSION, editorVersion=VERSION, buildId='%s-%s' % (self.variant, self.stamp),
                  builtAt=self.now.isoformat(timespec='seconds'), quick=self.quick,
+                 **({'attempt': self.attempt} if self.attempt else {}),
                  project=dict(id=self.doc.get('id'), name=self.doc.get('name'), revision=self.doc.get('revision'),
-                              savedAt=self.doc.get('savedAt'), file=str(self.project_path)),
+                              savedAt=self.doc.get('savedAt'), file=str(self.saved_file or self.project_path)),
                  source=dict(map=self.map, sha256=self.sha, file=str(self.install_base),
                              exporterVersion=self.scene.get('exporterVersion')), variant=self.variant,
                  **({'prefabTest': self.doc['prefabTest']} if 'prefabTest' in self.doc else {}),
@@ -1292,25 +1283,24 @@ class Build:
                  stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)
         (staging / 'manifest.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
         (staging / 'README.txt').write_bytes(readme(m).encode('latin-1', 'replace'))
-        old = self.work / 'replaced'
         with publish_lock(self.output, self.variant):
             # checked again as the package goes in: the folder is this project's, and no name it holds is taken now
             existing = owned_folder(self.output, self.variant, self.doc.get('id'))
             self.check_names(outputnames.build_names(m, self.variant))
-            if existing is not None:
-                existing.rename(old)
+            # the swap keeps a journal, so a build killed between its renames leaves the last package or this one
+            # after reconciliation (publication.py)
             try:
-                staging.rename(final)
-            except OSError as error:
-                if existing is not None:
-                    old.rename(existing)
-                raise BuildError('the new package could not be put in place (%s); the last one is as it was' % error)
+                warnings = publication.publish(self.output, self.variant, staging, existing,
+                                               dict(buildId=m['buildId'], attempt=self.attempt, project=self.doc.get('id')),
+                                               boundary=self.boundary)
+            except publication.PublishError as error:
+                raise BuildError(str(error))
+        for warning in warnings:
+            self.echo('warning: %s' % warning)
         # an earlier build's zip of the folder (builds made one until 10 November 2026): out of date now
         stale = self.output / ('%s.zip' % self.variant)
         if stale.is_file():
             stale.unlink()
-        if old.exists():
-            shutil.rmtree(old)
         self.manifest, self.folder = m, final
         return m
 
@@ -1322,12 +1312,13 @@ class Build:
         root = self.output / '.work'
         builds = {}
         for folder in root.iterdir() if root.is_dir() else ():
-            m = re.fullmatch(r'(.+)-\d{8}-\d{6}', folder.name)
+            # <Variant>-<date>-<time>, and since 16 November 2026 the server's builds' -<attempt> after it
+            m = re.fullmatch(r'([A-Za-z][A-Za-z0-9_]*)-(\d{8}-\d{6})(?:-[0-9a-f]{8})?', folder.name)
             if m and folder.is_dir():
-                builds.setdefault(m.group(1), []).append(folder)
+                builds.setdefault(m.group(1), []).append((m.group(2), folder.name, folder))
         freed = 0
         for folders in builds.values():
-            for old in sorted(folders, key=lambda f: f.name)[:-KEEP_WORK]:
+            for _, _, old in sorted(folders)[:-KEEP_WORK]:
                 for child in list(old.iterdir()):
                     try:
                         if child.is_dir() and child.name != 'logs':
@@ -1385,21 +1376,46 @@ def main(argv=None):
     a.add_argument('--quick', action='store_true',
                    help='make the edit in the map without baking its lighting: seconds instead of minutes, to check '
                         'pathing and cover in the game; the lighting is not right')
+    # the server's launches (tools/viewer/builds.py, buildqueue.py)
+    a.add_argument('--attempt', help='the server\'s id for this launch (a UUID): carried into the manifest and the '
+                                     'build\'s id')
+    a.add_argument('--projects', type=Path, help='the projects folder whose names the build\'s are checked against '
+                                                  '(default: the project file\'s folder)')
+    a.add_argument('--check-game', action='append', default=[], type=Path,
+                   help='another game install whose names the build\'s are checked against (repeatable; default: the '
+                        'install Play in game uses, from the settings)')
+    a.add_argument('--saved-file', type=Path, help='the project\'s own file, written in the manifest, when the build '
+                                                    'reads a snapshot of it')
+    a.add_argument('--pinned', action='store_true',
+                   help='take nothing from the settings: every folder comes from the arguments (no --udk: no UDK)')
     args = a.parse_args(argv)
-    s = settings_module.load_settings()
-    lwr = args.lwr or (settings_module.resolve_game(s['game'])[0] if s['game'] else None)
-    udk = args.udk or s['udk']
+    if args.attempt and not PROJECT_ID.fullmatch(args.attempt):
+        a.error('--attempt takes a UUID')
+    if args.pinned:
+        if not (args.lwr and args.cache and args.output and Path(args.project).suffix.lower() == '.json'):
+            a.error('--pinned needs the project file, --game, --cache and --output')
+        s = dict(projects=None, cache=None, output=None, udk=None)
+        lwr, udk = args.lwr, args.udk
+    else:
+        s = settings_module.load_settings()
+        lwr = args.lwr or (settings_module.resolve_game(s['game'])[0] if s['game'] else None)
+        udk = args.udk or s['udk']
     if not lwr:
         a.error('set the game install (viewer.py settings, or --lwr)')
     try:
-        project = find_project(args.project, s['projects'])
+        project = find_project(args.project, args.projects or s['projects'])
         # the install Play in game uses, where it is another: the build's names are checked against it too
-        try:
-            play = settings_module.install_game(s)[0]
-        except (OSError, ValueError):
-            play = None
+        if args.check_game or args.pinned:
+            games = list(args.check_game)
+        else:
+            try:
+                play = settings_module.install_game(s)[0]
+            except (OSError, ValueError):
+                play = None
+            games = [play] if play else []
         Build(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
-              enable=args.family, quick=args.quick, foreign=args.foreign_family, games=[play] if play else []).run()
+              enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
+              projects=args.projects, attempt=args.attempt, saved_file=args.saved_file).run()
     except BuildError as error:
         print('build failed: %s' % error)
         return 1

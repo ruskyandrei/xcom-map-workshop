@@ -1007,6 +1007,58 @@ class Builds(unittest.TestCase):
         installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}))
         self.make('112500').run()
 
+    def test_a_snapshot_build_checks_names_against_the_projects_folder_and_names_its_attempt(self):
+        """Build queue plan, 9.1 and 9.2: a build of a private snapshot (the queue's) is told the projects folder, so
+        other projects' names still stop it; its attempt goes into its id, its work folder and its manifest, with the
+        project's own file."""
+        self.spec['objects'] = [COPY, HIDE]
+        private = Path(self.tmp.name) / 'queue-attempts' / 'a1' / 'project.json'
+        private.parent.mkdir(parents=True)
+        private.write_text(json.dumps(self.doc), encoding='utf-8')
+        (self.project.parent / 'copy.json').write_text(json.dumps(dict(self.doc, id='2222-copy', name='A copy')), encoding='utf-8')
+        attempt = '0f8b1234-1d2a-4b6c-8e9f-123456789abc'
+        import datetime
+
+        def snapshot_build(projects):
+            return build.Build(private, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+                               now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed,
+                               echo=lambda *_: None, named=self.name_copy, projects=projects, attempt=attempt,
+                               saved_file=self.project)
+        # without the projects folder the snapshot's own folder is all it sees: the other project's names go unseen
+        with self.assertRaisesRegex(build.BuildError, 'the build would write names that are taken'):
+            snapshot_build(self.project.parent).run()
+        (self.project.parent / 'copy.json').unlink()
+        m = snapshot_build(self.project.parent).run()
+        self.assertEqual((m['attempt'], m['buildId']), (attempt, '%s-20261107-110000-0f8b1234' % VARIANT))
+        self.assertEqual(m['project']['file'], str(self.project))
+        self.assertTrue((self.output / '.work' / m['buildId'] / 'logs').is_dir())
+        self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['attempt'], attempt)
+
+    def test_a_pinned_command_line_reads_nothing_from_the_settings(self):
+        """Build queue plan, 9.1: the server's queue passes every folder, and the installs the names are checked
+        against, so a setting saved after the capture changes nothing of the build."""
+        seen = {}
+
+        class Recorder:
+            def __init__(self, *args, **kwargs):
+                seen.update(args=args, kwargs=kwargs)
+
+            def run(self):
+                return {}
+        attempt = '0f8b1234-1d2a-4b6c-8e9f-123456789abc'
+        with mock.patch.object(build.settings_module, 'load_settings', side_effect=AssertionError('settings read')), \
+                mock.patch.object(build, 'Build', Recorder):
+            code = build.main([str(self.project), '--pinned', '--game', str(self.lwr), '--cache', 'C', '--output', 'O',
+                               '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S'])
+        self.assertEqual(code, 0)
+        self.assertEqual(seen['args'][:5], (self.project, Path('C'), Path('O'), self.lwr, None))      # no --udk: no UDK
+        self.assertEqual((seen['kwargs']['games'], seen['kwargs']['projects'], seen['kwargs']['attempt'],
+                          seen['kwargs']['saved_file']), ([Path('I')], Path('P'), attempt, Path('S')))
+        with self.assertRaises(SystemExit):
+            build.main([str(self.project), '--pinned', '--game', str(self.lwr)])         # a folder missing
+        with self.assertRaises(SystemExit):
+            build.main([str(self.project), '--attempt', 'not-a-uuid'])
+
     def test_a_package_of_before_rebuilds_with_the_named_cache_and_quick_builds_have_none(self):
         """Output names plan 4: a project's package built with Lighting_<n> (before 16 November 2026) is replaced by
         one with <Variant>_Lighting.tfc; a quick build in between has no cache; the next full build has it again."""
@@ -1036,7 +1088,12 @@ class Builds(unittest.TestCase):
             with self.assertRaisesRegex(build.BuildError, 'could not be put in place'):
                 self.make('111500').run()
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], first['buildId'])
-        self.assertFalse((self.output / '.work' / 'locks' / ('%s.lock' % VARIANT.lower())).exists())
+        # no journal is left, and the variant's guard is free again (the lock file stays: the OS holds the lock)
+        import publication
+        self.assertEqual(publication.pending(self.output), [])
+        lock = publication.FileLock(publication.lock_path(self.output, VARIANT))
+        self.assertTrue(lock.acquire())
+        lock.release()
 
     def test_a_baked_build_keeps_its_pieces_for_the_next_and_names_the_base_map(self):
         """Faster-bake plan, 3.7: the relight is told where this variant's relit pieces are kept, and what map they

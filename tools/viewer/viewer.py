@@ -847,6 +847,10 @@ def main():
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
                      "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
                      "use --port 8790-8799.")
+        # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its
+        # package swaps settled before any request can build (builds.py recover); a server that could not bind has
+        # started nothing
+        builds.recover()
         url = f"http://127.0.0.1:{server.server_port}/"
         print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
         if not args.no_open: webbrowser.open(url)

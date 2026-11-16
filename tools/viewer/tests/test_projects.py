@@ -182,6 +182,23 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ProjectError) as error: self.store.load(project_id)
             self.assertEqual(error.exception.status, 404)
 
+    def test_a_capture_is_the_saved_file_whole_and_later_saves_change_nothing_of_it(self):
+        """Build queue plan, 9.1: what a queued build reads is captured under the store's lock, bytes and digest; a
+        save or a rename after it leaves the captured bytes as they were."""
+        import hashlib
+        self.store.save(ID, document(), 0)
+        doc, data, digest, path = self.store.capture(ID)
+        self.assertEqual((doc['revision'], digest, path.name), (1, hashlib.sha256(data).hexdigest(), 'Bar remix.json'))
+        self.assertEqual(json.loads(data), doc)
+        self.store.save(ID, document(name='Renamed'), 1)        # renames the file
+        self.assertEqual(json.loads(data)['revision'], 1)
+        self.assertFalse(path.exists())
+        self.assertEqual(self.store.capture(ID)[0]['revision'], 2)
+        with self.assertRaises(ProjectError) as error: self.store.capture(OTHER)
+        self.assertEqual(error.exception.status, 404)
+        (self.root / 'Renamed.json').write_text('{', encoding='utf8')            # torn by hand
+        with self.assertRaises(ProjectError): self.store.capture(ID)
+
     def test_recovery_is_kept_until_the_next_save(self):
         with self.assertRaises(ProjectError): self.store.save_recovery(ID, dict(baseRevision=0))
         self.store.save(ID, document(), 0)

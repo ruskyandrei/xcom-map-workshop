@@ -316,6 +316,22 @@ class ProjectStore:
             found.append(self.summary(path, document))
         return sorted(found, key=lambda p: str(p.get('savedAt') or ''), reverse=True)
 
+    def capture(self, project_id):
+        """The saved project exactly as a build of it is to read it (build queue plan, 9.1): (document, the file's bytes,
+        their SHA-256, the file), read whole under the store's lock, so a save or a rename can't replace it mid-read.
+        The caller writes those bytes to a snapshot of its own before it builds; a later save changes nothing of it."""
+        import hashlib
+        with self.lock:
+            path = self._find(project_id)
+            if path is None: raise ProjectError(404, f'No such {self.noun}.')
+            try: data = path.read_bytes()
+            except OSError as error: raise ProjectError(500, f'{path.name} could not be read: {error}')
+        try: document = json.loads(data.decode('utf8'))
+        except (UnicodeDecodeError, ValueError) as error: raise ProjectError(422, f'{path.name} could not be read: {error}')
+        self.check(document)
+        if document.get('id') != project_id: raise ProjectError(409, f'{path.name} now holds another {self.noun}.')
+        return document, data, hashlib.sha256(data).hexdigest(), path
+
     def load(self, project_id):
         path = self._find(project_id)
         document = self._read(path) if path else None

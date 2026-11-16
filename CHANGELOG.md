@@ -8,6 +8,47 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue Q0: contained builds, journalled package swaps, attempts
+
+The groundwork the build queue needs (private build queue plan, stage Q0); the queue itself is not built yet.
+
+- [procs.py](tools/viewer/procs.py), new: every build the server starts is a contained process tree. On Windows it is
+  created suspended, put in a Job Object of its own that kills its processes when its last handle closes, then
+  resumed; a process that can't be put in its job is killed before it runs. Stopping a build kills the whole tree and
+  waits until each process seen in it has ended (the job's count drops a moment before they have). A process is named
+  by its id and creation time, never by an id alone.
+- [publication.py](tools/viewer/publication.py), new: a package goes in with a journal (written before anything moves,
+  committed before the old package is deleted), and `recover` settles one left by a build that died between its two
+  renames: the new package kept when it is wholly in place and matches its manifest, else the old one put back. A
+  journal it can't read blocks that variant's builds with the reason and deletes nothing. The variant's lock is now
+  held by the operating system (a byte-range lock), released when its holder ends and never taken from a live holder
+  because time passed; until now a lock file was taken over by its age.
+- [build.py](tools/editor/build.py): the swap goes through publication.py, its backup in `.work/publish` (old work
+  folders' pruning never reaches it). New options for the server's launches: `--attempt` (a UUID, written in the
+  manifest and the build's id and work folder, so two builds in one second differ), `--projects` and `--check-game`
+  (a build of a private snapshot keeps its name checks against the projects and the other install), `--saved-file`
+  and `--pinned` (nothing read from the settings). Work-folder pruning reads the new names.
+- [builds.py](tools/viewer/builds.py): each launch is an attempt with an origin (foreground, prefab, queue) fixed
+  before it can be seen; it ends only after its processes are all gone and a journal it left is settled, even when
+  its output can't be read. A leftover process holding the output pipe no longer keeps a build running: once build.py
+  exits, leftovers get 15 s, then are killed. Cancel takes an optional attempt id (a stale cancel stops nothing).
+  Records of running builds (`<builds>/.work/writers`) let a restarted server prove an earlier server's builds gone
+  (or keep the slot busy, with the reason, until they are) and settle journals before anything builds
+  ([viewer.py](tools/viewer/viewer.py) calls it once the port is bound). The slot can be reserved (the queue's), and
+  readers can lease packages (Install, the map pack, Play: next stage). `stop_process` stays for the exporter and the
+  precache.
+- [projects.py](tools/viewer/projects.py): `capture`, the saved file's bytes and digest read under the store's lock.
+
+Checked: the viewer suite (386, new [test_procs.py](tools/viewer/tests/test_procs.py): a stand-in server killed
+outright takes its child and grandchild with it, a process that can't be contained never runs;
+[test_publication.py](tools/viewer/tests/test_publication.py): a process killed after each step of the swap leaves a
+whole package once settled; [test_builds.py](tools/viewer/tests/test_builds.py): its stand-in now writes a manifest of
+its own attempt and swaps it in with the journal, and new tests cover two builds in one second, stale cancels, cancel
+and leftovers draining the grandchild, a prefab test's build contained, a build dying between its renames, a launch
+that fails, a follower fault, a restarted server's old writers and an unsettled journal, the reservation and leases),
+the editor suite (234: a snapshot build's name checks and attempt, `--pinned`). Known gaps: nothing of the queue, its
+routes or the manager's Build yet; readers don't take the guard or leases yet; no real build was run.
+
 ### EXP-64 passed: the test squad played on LWR
 
 The user played [EXP-64](research/experiments/EXP-64-test-squad.md)'s four runs in the lab copy of LWR and reported

@@ -1,8 +1,13 @@
-"""The editor's Build from the viewer's server (builds.py and its routes), with a stand-in for tools/editor/build.py."""
+"""The editor's Build from the viewer's server (builds.py and its routes), with a stand-in for tools/editor/build.py:
+attempts with their own ids, contained process trees drained before a build ends, package swaps settled after a build
+dies between its renames, a restarted server's old writers proved gone, and the slot shared with the build queue's
+reservation and readers' leases (build queue plan, Q0)."""
 from functools import partial
 from http.client import HTTPConnection
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -11,20 +16,34 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import builds as builds_module
 from builds import BuildRunner
+import procs
+import publication
 from projects import ProjectError, ProjectStore
 from test_projects import ID, OTHER, document
 from viewer import Handler, LocalServer
 
-# Stands in for build.py: prints its stage lines (as build.py does), waits for a go file, writes a package if asked.
+VIEWER = str(Path(__file__).resolve().parents[1])
+# Stands in for build.py: prints its stage lines (as build.py does), waits for a go file, then writes a package as
+# build.py does (its id unique to the launch, the attempt in its manifest, swapped in with the journal) and prints the
+# real success line. Outcomes: ok; fail; grand (a grandchild that waits, its id printed); linger (a grandchild left
+# running after a good build); die-<step> (the process ends outright after that step of the swap).
 STANDIN = r'''
-import json, sys, time
+import datetime, hashlib, json, os, subprocess, sys, time
 from pathlib import Path
-project, output, go, ok = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4] == 'ok'
-quick = '--quick' in sys.argv[5:]
+sys.path.insert(0, %r)
+import publication
+project, output, go, outcome = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4]
+rest = sys.argv[5:]
+quick = '--quick' in rest
+attempt = rest[rest.index('--attempt') + 1] if '--attempt' in rest else None
 doc = json.loads(project.read_text(encoding='utf-8'))
 print('snapshot: ' + json.dumps(dict(project=doc['id'], revision=doc['revision'])), flush=True)
 print('compile: ' + json.dumps(dict(added=1)), flush=True)
+if outcome in ('grand', 'linger'):
+    grand = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])
+    print('grandchild: %%d' %% grand.pid, flush=True)
 if quick:
     print('  $ python -B -u native_copy.py URB_Bar.upk lit variant --copies native-edit.json', flush=True)
 else:
@@ -32,21 +51,33 @@ else:
 print('    progress: relighting 2/5', flush=True)
 while not go.exists():
     time.sleep(0.02)
-if not ok:
+if outcome == 'fail':
     print('build failed: patchtool.ps1 failed (exit 1); see the log', flush=True)
     sys.exit(1)
 for s in ('patch', 'light', 'seeds'):
     print(s + ': {}', flush=True)
 variant = doc['output']['shipAs']
-(output / variant).mkdir(parents=True, exist_ok=True)
-m = dict(buildId=variant + '-1', builtAt='2026-11-07T12:00:00', seconds=241, project=dict(id=doc['id'], revision=doc['revision']),
-         files={'CookedPCConsole/%s.upk' % variant: 'x'})
+stamp = datetime.datetime.now().strftime('%%Y%%m%%d-%%H%%M%%S') + ('-' + attempt.replace('-', '')[:8] if attempt else '')
+build_id = '%%s-%%s' %% (variant, stamp)
+staging = output / '.work' / build_id / 'package'
+(staging / 'CookedPCConsole').mkdir(parents=True)
+content = ('%%s revision %%s' %% (build_id, doc['revision'])).encode()
+(staging / 'CookedPCConsole' / ('%%s.upk' %% variant)).write_bytes(content)
+m = dict(schema='xcom-map-workshop/variant-package', schemaVersion=1, buildId=build_id, builtAt='2026-11-07T12:00:00',
+         seconds=241, project=dict(id=doc['id'], revision=doc['revision']), variant=variant,
+         files={'CookedPCConsole/%%s.upk' %% variant: hashlib.sha256(content).hexdigest()},
+         **({'attempt': attempt} if attempt else {}))
 if quick:       # a full build's manifest is written as before quick builds: no times, no quick
     m.update(quick=True, seconds=6, times=dict(full=241, quick=6), foreignPieces=2,
              donors=[dict(map='URB_PoliceStation', sha256='d' * 64, file='somewhere', pieces=2, bytes=1234, cut=[])])
-(output / variant / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-print('built ' + variant, flush=True)
-'''
+(staging / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+die = outcome[4:] if outcome.startswith('die-') else None
+existing = output / variant if (output / variant).is_dir() else None
+with publication.guard(output, variant):
+    publication.publish(output, variant, staging, existing, dict(buildId=build_id, attempt=attempt, project=doc['id']),
+                        boundary=lambda name: os._exit(70) if name == die else None)
+print('built %%s: %%s (%%s.upk %%s)' %% (build_id, output / variant, variant, hashlib.sha256(content).hexdigest()[:12]), flush=True)
+''' % VIEWER
 
 
 class Builds(unittest.TestCase):
@@ -63,6 +94,18 @@ class Builds(unittest.TestCase):
         self.outcome = 'ok'
         self.runner = BuildRunner(self.store, root / 'cache', self.output,
                                   command=lambda f: [sys.executable, '-u', str(script), str(f), str(self.output), str(self.go), self.outcome])
+
+    def grandchild(self, timeout=20):
+        """The id and identity of the stand-in's grandchild, from its line."""
+        end = time.time() + timeout
+        while time.time() < end:
+            job = self.runner.job
+            line = next((l for l in (job or {}).get('lines', []) if l.startswith('grandchild: ')), None)
+            if line:
+                pid = int(line.split(': ')[1])
+                return pid, procs.identity(pid)
+            time.sleep(0.05)
+        self.fail('no grandchild')
 
     def wait(self, project_id, state, timeout=20):
         end = time.time() + timeout
@@ -101,6 +144,12 @@ class Builds(unittest.TestCase):
         self.go.touch()
         s = self.wait(ID, 'built')
         self.assertEqual((s['package']['revision'], s['package']['seconds']), (1, 241))
+        # the launch's own id: in the job, in the build's id and in the manifest; the job is plain JSON
+        attempt = s['job']['attempt']
+        self.assertEqual(s['job']['origin'], 'foreground')
+        self.assertTrue(s['package']['buildId'].endswith('-' + attempt.replace('-', '')[:8]))
+        self.assertEqual(s['job']['buildId'], s['package']['buildId'])
+        json.dumps(s)
         # a package from before quick builds: a full one, and its time the full build's
         self.assertEqual((s['job']['quick'], s['package']['quick'], s['package']['times']), (False, False, {'full': 241}))
         self.assertEqual((s['package']['foreignPieces'], s['package']['donors']), (0, []))
@@ -147,24 +196,28 @@ class Builds(unittest.TestCase):
         # the next build starts as usual
         self.go.write_text('go')
         self.runner.start(ID)
-        self.assertEqual(self.wait(ID, 'built')['package']['buildId'], 'URB_Bar_Remix_0f8b-1')
+        self.assertTrue(self.wait(ID, 'built')['package']['buildId'].startswith('URB_Bar_Remix_0f8b-'))
 
     def test_a_bug_report_zips_the_project_package_and_logs(self):
         import zipfile
         with self.assertRaises(ProjectError): self.runner.report(ID)          # never built
         self.go.write_text('go')
         self.runner.start(ID)
-        self.wait(ID, 'built')
-        logs = self.output / '.work' / 'URB_Bar_Remix_0f8b-20261108-120000' / 'logs'
-        logs.mkdir(parents=True)
-        (logs / 'native-copy.log').write_text('relit 3 components\n', encoding='utf-8')
-        (logs.parent / 'compile-report.json').write_text('{}', encoding='utf-8')
+        s = self.wait(ID, 'built')
+        # the build's own work folder (its attempt in its name), though a later-dated one is there
+        own = s['job']['buildId']
+        for name in (own, 'URB_Bar_Remix_0f8b-20991108-120000'):
+            logs = self.output / '.work' / name / 'logs'
+            logs.mkdir(parents=True)
+            (logs / 'native-copy.log').write_text('relit 3 components\n', encoding='utf-8')
+            (logs.parent / 'compile-report.json').write_text('{}', encoding='utf-8')
         r = self.runner.report(ID)
         names = zipfile.ZipFile(r['zip']).namelist()
         self.assertEqual(Path(r['zip']).name, 'URB_Bar_Remix_0f8b-report.zip')
-        for name in ('package/manifest.json', 'work/URB_Bar_Remix_0f8b-20261108-120000/logs/native-copy.log',
-                     'work/URB_Bar_Remix_0f8b-20261108-120000/compile-report.json', 'report.json', 'build-output.txt'):
+        for name in ('package/manifest.json', f'work/{own}/logs/native-copy.log',
+                     f'work/{own}/compile-report.json', 'report.json', 'build-output.txt'):
             self.assertIn(name, names)
+        self.assertFalse(any('20991108' in n for n in names))
         self.assertTrue(any(n.startswith('project/') for n in names))
         report = json.loads(zipfile.ZipFile(r['zip']).read('report.json'))
         self.assertEqual((report['variant'], report['build']['state']), ('URB_Bar_Remix_0f8b', 'built'))
@@ -228,6 +281,181 @@ class Builds(unittest.TestCase):
             self.assertNotIn('zip', call('GET', f'/projects/{ID}/build.json')[1]['package'])
         finally:
             server.shutdown(); server.server_close(); thread.join(timeout=5)
+
+    # ------------------------------------------------------------------ attempts (build queue plan, Q0)
+
+    def test_two_builds_in_one_second_have_their_own_ids(self):
+        self.go.touch()
+        first = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        first.done.wait(20)
+        second = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        second.done.wait(20)
+        self.assertNotEqual(first.id, second.id)
+        self.assertNotEqual(first.job['buildId'], second.job['buildId'])
+        self.assertEqual(json.loads((self.output / 'URB_Bar_Remix_0f8b' / 'manifest.json').read_text())['attempt'], second.id)
+        # the runner knows its own package by the attempt, not by a later date
+        self.assertIsNotNone(self.runner.verify(second, 1))
+        self.assertIsNone(self.runner.verify(first, 1))
+        self.assertIsNone(self.runner.verify(second, 2))                # another revision
+        self.assertIsNone(self.runner.verify(second, 1, full=False))    # it is a full build
+
+    def test_a_stale_cancel_never_stops_a_newer_build(self):
+        self.go.touch()
+        old = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        old.done.wait(20)
+        with self.assertRaises(ProjectError): self.runner.stop(ID, old.id)       # it has ended: nothing to stop
+        self.go.unlink()
+        new = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        with self.assertRaises(ProjectError) as error: self.runner.cancel(ID, old.id)
+        self.assertEqual(error.exception.extra.get('code'), 'stale-attempt')
+        self.assertFalse(self.runner.stop_attempt(old.id))
+        self.assertEqual(self.runner.status(ID)['state'], 'running')
+        self.runner.cancel(ID, new.id)
+        self.assertTrue(new.done.wait(20))
+        self.assertEqual(new.job['state'], 'cancelled')
+
+    def test_cancel_ends_every_process_of_the_build_before_it_ends(self):
+        self.outcome = 'grand'
+        attempt = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        grand, born = self.grandchild()
+        self.assertIsNotNone(born)
+        self.runner.cancel(ID)
+        self.assertTrue(attempt.done.wait(30))
+        # ended only once its grandchild had: no process of it is left
+        self.assertNotEqual(procs.identity(grand), born)
+        self.assertEqual(attempt.job['state'], 'cancelled')
+        self.assertFalse(list((self.output / '.work' / 'writers').glob('*.json')))
+
+    def test_a_good_build_waits_for_its_leftover_processes(self):
+        saved = builds_module.DRAIN_GRACE
+        builds_module.DRAIN_GRACE = 0.5
+        self.addCleanup(setattr, builds_module, 'DRAIN_GRACE', saved)
+        self.outcome = 'linger'
+        self.go.touch()
+        attempt = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        grand, born = self.grandchild()
+        self.assertTrue(attempt.done.wait(30))
+        self.assertNotEqual(procs.identity(grand), born)
+        self.assertEqual(attempt.job['state'], 'built')
+
+    def test_a_prefab_tests_pinned_build_is_contained_too(self):
+        self.outcome = 'grand'
+        private = Path(self.temp.name) / 'pinned' / 'project.json'
+        private.parent.mkdir()
+        private.write_text(json.dumps(self.store.load(ID)), encoding='utf-8')
+        self.runner.pinned_command = lambda document, output, game, udk: self.runner.command(document)
+        job = self.runner.start_pinned(private, private.parent / 'artifacts', 'game', None, False, lambda pid: None)
+        self.assertEqual(job['origin'], 'prefab')
+        grand, born = self.grandchild()
+        self.runner.stop(ID)
+        end = time.time() + 30
+        while self.runner.pinned_status(job)['state'] == 'running' and time.time() < end:
+            time.sleep(0.05)
+        self.assertEqual(self.runner.pinned_status(job)['state'], 'cancelled')
+        self.assertNotEqual(procs.identity(grand), born)
+
+    def test_a_build_that_dies_between_its_renames_leaves_the_last_package(self):
+        self.go.touch()
+        first = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        first.done.wait(20)
+        for step, kept in (('old-aside', first.job['buildId']), ('new-in-place', None)):
+            with self.subTest(step=step):
+                self.outcome = 'die-' + step
+                attempt = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+                self.assertTrue(attempt.done.wait(30))
+                self.assertEqual(attempt.job['state'], 'failed')
+                self.assertEqual(publication.pending(self.output), [])           # settled before the build ended
+                built = json.loads((self.output / 'URB_Bar_Remix_0f8b' / 'manifest.json').read_text())
+                if kept:
+                    self.assertEqual(built['buildId'], kept)
+                else:       # the new one was wholly in place: kept, though its build never said so
+                    self.assertEqual(built['attempt'], attempt.id)
+                    self.assertIsNotNone(self.runner.verify(attempt, 1))
+
+    def test_a_failure_to_launch_leaves_the_slot_free(self):
+        def broken(*args, **kwargs):
+            raise OSError('no such program')
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command, launch=broken)
+        with self.assertRaises(OSError): runner.start(ID)
+        self.assertIsNone(runner.busy())
+        self.assertEqual(runner.status(ID)['state'], 'idle')
+
+    def test_a_follower_fault_still_ends_the_build(self):
+        real = self.runner._line
+        calls = []
+
+        def faulty(job, line):
+            calls.append(line)
+            if len(calls) == 2: raise RuntimeError('parser broke')
+            real(job, line)
+        self.runner._line = faulty
+        self.go.touch()
+        attempt = self.runner._start(self.store.load(ID), self.runner.command(self.store.path(ID)), False)
+        self.assertTrue(attempt.done.wait(30))
+        self.assertEqual(attempt.job['state'], 'failed')
+        self.assertIn('parser broke', attempt.job['error'])
+        self.assertIsNone(self.runner.busy())
+
+    def test_a_restarted_server_waits_for_an_earlier_servers_builds(self):
+        writers = self.output / '.work' / 'writers'
+        writers.mkdir(parents=True)
+        alive = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+        self.addCleanup(lambda: (alive.kill(), alive.wait()))
+        born = procs.identity(alive.pid)
+        (writers / 'a.json').write_text(json.dumps(dict(attempt='a', pid=alive.pid, created=born, name='Old build')))
+        (writers / 'b.json').write_text(json.dumps(dict(attempt='b', pid=alive.pid, created=born + 1, name='Gone')))
+        (writers / 'c.json').write_text(json.dumps(dict(attempt='c', pid=None, name='Never recorded')))
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
+        runner.recover()
+        self.assertEqual(runner.busy(), ('a', 'Old build'))
+        with self.assertRaises(ProjectError) as error: runner.start(ID)
+        self.assertEqual(error.exception.extra.get('code'), 'build-slot')
+        self.assertEqual(sorted(p.name for p in writers.iterdir()), ['a.json'])     # the gone ones' records dropped
+        alive.kill(); alive.wait()
+        end = time.time() + 15
+        while runner.busy() and time.time() < end: time.sleep(0.1)
+        self.assertIsNone(runner.busy())
+        self.assertFalse((writers / 'a.json').exists())
+        # an unreadable record is a writer of unknown state: the slot stays busy, with the reason
+        (writers / 'd.json').write_text('{')
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
+        runner.recover()
+        self.assertIn('can\'t be read', runner.busy()[1])
+
+    def test_a_journal_that_cannot_be_settled_blocks_that_projects_builds(self):
+        folder = publication.journals(self.output)
+        folder.mkdir(parents=True)
+        publication.journal_path(self.output, 'URB_Bar_Remix_0f8b').write_text('not json', encoding='utf-8')
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
+        runner.recover()
+        with self.assertRaises(ProjectError) as error: runner.start(ID)
+        self.assertEqual(error.exception.extra.get('code'), 'output-blocked')
+        self.assertIn('blocked', runner.status(ID))
+        self.go.touch()
+        self.assertEqual(runner.start(OTHER)['state'], 'running')                # another project builds
+        self.assertTrue(runner.attempt.done.wait(20))
+
+    def test_the_queue_reserves_the_slot_and_readers_lease_packages(self):
+        self.runner.reserve('queue-1', 'The build queue')
+        with self.assertRaises(ProjectError) as error: self.runner.start(ID)
+        self.assertEqual((error.exception.extra.get('code'), error.exception.extra.get('queue')), ('build-slot', True))
+        self.assertIsNone(self.runner.busy('queue-1'))      # not busy for the queue itself
+        with self.assertRaises(ProjectError): self.runner.reserve('queue-2', 'Another')
+        self.runner.release('queue-2')                      # not its reservation: nothing changes
+        self.assertIsNotNone(self.runner.busy())
+        self.runner.release('queue-1')
+        self.assertIsNone(self.runner.busy())
+        with self.runner.lease([ID]) as active:
+            self.assertEqual(active, set())
+            with self.assertRaises(ProjectError) as error: self.runner.start(ID)
+            self.assertEqual(error.exception.extra.get('code'), 'package-in-use')
+            self.assertFalse(self.runner.claim(ID, 'queue-1'))          # the queue waits for the reader
+        self.assertTrue(self.runner.claim(ID, 'queue-1'))
+        self.assertEqual(self.runner.active_projects(), {ID})
+        with self.runner.lease([ID, OTHER]) as active:
+            self.assertEqual(active, {ID})                  # about to be built: left out by the reader
+        self.runner.unclaim(ID, 'queue-1')
+        self.assertEqual(self.runner.active_projects(), set())
 
 
 if __name__ == '__main__':
