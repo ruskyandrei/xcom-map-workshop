@@ -85,6 +85,7 @@ sys.path.insert(0, str(HERE.parent / 'viewer'))
 from export_math import multiply, transform  # noqa: E402
 import ladders  # noqa: E402
 import missions  # noqa: E402
+import piece_flags  # noqa: E402
 import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
@@ -162,6 +163,11 @@ MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not
 # The export a project's edits build from (plan 4.1): export 18 has each light's GUIDs and bake membership and the
 # area lights' glowing pieces, without which a moved piece could leave its glow's light behind.
 EXPORT_MINIMUM = 18
+# Pieces' flags (piece flags plan, P4): read from the export's pieceFlags (export 27; a piece of another map from its
+# library record), checked with piece_flags.plan, and built by the Build's writer from the package itself (native_copy
+# set_roles). A piece this wide or tall (units) with walking, cover or sight turned off is noted (flags-wall).
+FLAGS_EXPORT = 27
+FLAGS_WALL = 192.0
 LIGHT_METADATA = 1
 # The light values an edit may set (plan 9.1), with their ranges (plan 4.2); the cone angles are spot lights' only.
 LIGHT_KEYS = ('color', 'brightness', 'radius', 'falloffExponent', 'innerConeAngle', 'outerConeAngle', 'enabled')
@@ -715,6 +721,11 @@ class Compiler:
         self.floor_sources = {}
         self.donor_buildings = {}
         self.untried_foreign = {}    # (package folded, actor path) of the pieces of other maps built untried
+        # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand (the spec's
+        # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts
+        self.flag_edits = []
+        self.floor_off, self.floor_on = set(), {}
+        self.flag_counts = dict(requested=0, applied=0, leftOut=0, roles={r: 0 for r in piece_flags.ROLES}, companions=0)
 
     # ---------------------------------------------------------------- diagnostics
     def error(self, code, message, **where):
@@ -962,6 +973,108 @@ class Compiler:
             self.foreign_assemblies[(target['package'].casefold(), target['actor'])] = kept
         return [o for o in parts if short(o['actor']) == short(target['actor'])]
 
+    # ---------------------------------------------------------------- pieces' flags (piece flags plan)
+    def flags_valid(self, rec, where):
+        """Whether a record's `flags` (if any) is well formed: an object of known roles, each strictly true or false,
+        never empty. A malformed one leaves the record out, as any malformed field does."""
+        if 'flags' not in rec:
+            return True
+        f = rec['flags']
+        if isinstance(f, dict) and f and all(k in piece_flags.ROLES for k in f) and all(isinstance(v, bool) for v in f.values()):
+            return True
+        self.error('malformed', 'flags must name walking, cover, sight, floor or mouse, each true or false (it has %r)'
+                   % (f,), **where)
+        return False
+
+    def flag_plan(self, src, flags, name, where):
+        """(the request applied, piece_flags.plan) of a piece's flags against its settings as the export has them, or
+        (None, None) with a warning when they can't be checked (the piece is built without them). Roles the class
+        doesn't have are noted and dropped; a request a prop's gate makes ambiguous (a hand-edited file: the page
+        asks) is a warning and nothing of it is built."""
+        self.flag_counts['requested'] += 1
+        record = src.get('pieceFlags')
+        cls = src.get('actorClass')
+        if not record:
+            why = ('the flags are not a setting of %s %s' % ('an' if str(cls)[:1] in 'AEIOUX' else 'a', cls)
+                   if piece_flags.family_of(cls) is None else
+                   'its export predates pieces\' flags (export %d): open the map in the editor to prepare it again, then '
+                   'build' % FLAGS_EXPORT)
+            self.warn('flags-unavailable', '%s\'s flags are not built: %s' % (name, why), **where)
+            self.flag_counts['leftOut'] += 1
+            return None, None
+        raw, assumed = piece_flags.raw_of(record)
+        plan = piece_flags.plan(cls, raw, flags, assumed)
+        for role, why in sorted(plan['unsupported'].items()):
+            self.note('flags-unsupported', '%s: %s is not built (%s)' % (name, piece_flags.LABELS.get(role, role), why),
+                      role=role, **where)
+        if plan['conflicts']:
+            self.warn('flags-conflict', '%s\'s flags are not built: %s' % (name, '; '.join(plan['conflicts'].values())),
+                      **where)
+            self.flag_counts['leftOut'] += 1
+            return None, None
+        for role, why in sorted(plan['unmet'].items()):
+            self.note('flags-limited', '%s: %s' % (name, why), role=role, **where)
+        applied = {k: v for k, v in flags.items() if k not in plan['unsupported']}
+        if not applied:
+            self.flag_counts['leftOut'] += 1
+            return None, None
+        changed = [r for r in piece_flags.ROLES if plan['after'][r] != plan['before'][r]]
+        if record.get('collides') is False and changed:
+            self.note('flags-no-collision', '%s collides with nothing, so no trace of the game meets it: its %s take effect '
+                      'only if it gets collision (the Build\'s floor for low scenery on a grown map gives some)'
+                      % (name, ' and '.join(piece_flags.LABELS[r] for r in changed)), **where)
+        elif record.get('bodySetup') is False and any(r in changed for r in ('walking', 'cover', 'sight')):
+            self.note('flags-limited', '%s\'s mesh has no simple collision (BodySetup): the pathing, cover and sight sweeps '
+                      'pass through it whatever its flags say' % name, **where)
+        if cls == 'XComInteractiveLevelActor' and any(r in changed for r in piece_flags.TILE_ROLES):
+            self.warn('flags-door', '%s is a door whose flags change: the game also blocks or opens a door\'s tiles as it '
+                      'opens and shuts, so it may not match how it is drawn; untried in the game' % name, **where)
+        box = self.boxes([src], src['location'], src['rotation']) if src.get('mesh') in self.meshes else None
+        if box and any(plan['after'][r] == 'off' and plan['before'][r] != 'off' for r in ('walking', 'cover', 'sight')) \
+                and (cls in ('XComFracLevelActor', 'XComDecoFracLevelActor') or max(box[1] - box[0], box[3] - box[2], box[5] - box[4]) > FLAGS_WALL):
+            self.note('flags-wall', '%s is a large piece (or a fracturing wall) that no longer blocks %s: units may walk or see '
+                      'through what looks solid' % (name, ' or '.join(piece_flags.LABELS[r].split()[-1] for r in ('walking', 'cover', 'sight')
+                                                                     if plan['after'][r] == 'off' and plan['before'][r] != 'off')), **where)
+        self.flag_counts['applied'] += 1
+        self.flag_counts['companions'] += len(plan['companions'])
+        for r in changed:
+            self.flag_counts['roles'][r] += 1
+        return applied, plan
+
+    def stationary_flags(self, target, parts, flags, where):
+        """An original's flags changed where it stands (no move): the spec's `pieceFlags` entry, written in the map by
+        the Build (native_copy set_roles), with its box for the tiles it rebuilds."""
+        src, name = parts[0], short(target['actor'])
+        applied, plan = self.flag_plan(src, flags, name, where)
+        if applied is None:
+            return
+        box = self.boxes(parts, src['location'], src['rotation'])
+        if plan['after']['floor'] == 'off' and plan['before']['floor'] == 'on':
+            self.floor_off.add(target['actor'])
+            owned = sum(1 for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') == target['actor'])
+            if owned:
+                self.warn('flags-floor', '%s is no floor now: the %d tiles it is the floor of lose it unless another piece '
+                          'gives floor there; the landing, mission and ladder checks count without it' % (name, owned),
+                          tiles=owned, **where)
+        elif plan['after']['floor'] == 'on' and plan['before']['floor'] != 'on':
+            self.floor_on[target['actor']] = (name, box)
+        self.flag_edits.append(dict(name=name, target=target['actor'], flags=applied, box=[tidy(v, 3) for v in box],
+                                    tiles=plan['tiles'], actorClass=src['actorClass']))
+        self.entities.append(dict(kind='flags', target=target['actor'], actorClass=src['actorClass'], flags=applied,
+                                  before=plan['before'], after=plan['after'], writes=[list(w) for w in plan['writes']],
+                                  companions=plan['companions'], tiles=plan['tiles']))
+
+    def copy_flags(self, copy, src, flags, name, where):
+        """A copy's flags (a moved original's, an added piece's): its request goes with the copy, which the Build
+        writes once it is made."""
+        applied, plan = self.flag_plan(src, flags, name, where)
+        if applied is None:
+            return
+        copy['flags'] = applied
+        copy['floorAfter'] = plan['after']['floor'] if src.get('pieceFlags', {}).get('collides') is not False else None
+        copy['flagPlan'] = dict(before=plan['before'], after=plan['after'], companions=plan['companions'],
+                                writes=[list(w) for w in plan['writes']])
+
     # ---------------------------------------------------------------- poses
     def pose(self, rec, where):
         loc, rot = rec.get('location'), rec.get('rotation')
@@ -1045,8 +1158,11 @@ class Compiler:
         # the levels as the project has them: a grid grown up has floor on its new levels too (once stage() has run)
         levels = max(dims[2], (getattr(self, 'stage_grid', None) or [0, 0, 0])[2]) if dims else None
         waiting = {id(job[0]) for job in self.ladder_jobs}
+        # (a copy whose flags make it no floor, and that collides, gives none: piece flags plan, 6.1)
         flat = [c for c in self.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
-                and id(c) not in waiting]
+                and id(c) not in waiting and c.get('floorAfter') != 'off']
+        # the map's own pieces the project's flags make floor where they stand
+        flat += [dict(box=[b[0], b[1], b[2], b[3], b[4], b[5]], label=name) for name, b in getattr(self, 'floor_on', {}).values()]
         # an invisible floor is made to carry floor (EXP-32): a plate with its top at its place
         flat += [c for c in self.covers if c.get('kind') == 'floor']
         tiles, blocked = {}, {}
@@ -1092,9 +1208,11 @@ class Compiler:
                       'climb of its own' % (self.map, name), family='ladder', **where)
             return None
         new, _ = self.added_floors()
-        e = ladders.ends(loc, rot, extent, tile_corner(grid), self.floors | set(new))
+        # (the floor of a piece the project's flags make no floor is gone: floor_now)
+        floors = self.floors & self.floor_now() if self.floor_off else self.floors
+        e = ladders.ends(loc, rot, extent, tile_corner(grid), floors | set(new))
         if e['climbs']:
-            counted = sorted({new[t] for t in (tuple(e['footTile']), tuple(e['linkedTop'])) if t not in self.floors})
+            counted = sorted({new[t] for t in (tuple(e['footTile']), tuple(e['linkedTop'])) if t not in floors})
             if counted:
                 self.warn('ladder-new-floor', '%s climbs to or from a floor this project adds (%s): it will climb if the game '
                           'makes floor of that piece' % (name, ', '.join(counted)), family='ladder', **where)
@@ -1109,10 +1227,30 @@ class Compiler:
 
     def ladder_climbs(self):
         """Each moved or copied ladder's climb (ladder_ends), worked out once the project's copies, cover blocks and
-        stage are all known: a ladder may stand on a floor a later record adds, or on a level the grid grew by."""
+        stage are all known: a ladder may stand on a floor a later record adds, or on a level the grid grew by. The
+        map's own ladders that stay are checked too where a flags edit takes a floor away (flags-floor)."""
         jobs, self.ladder_jobs = self.ladder_jobs, []
         for copy, name, src, loc, rot, where in jobs:
             copy['ladder'] = self.ladder_ends(name, src, loc, rot, where)
+        if not self.floor_off:
+            return
+        grid = self.scene.get('tileGrid') or {}
+        if not grid.get('origin'):
+            return
+        lost = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])
+                if f.get('actor') in self.floor_off}
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
+        for o in self.scene.get('objects') or []:
+            if o.get('actorClass') != 'XComLadder' or o.get('actor') in gone or o.get('layer') != 'base':
+                continue
+            extent = ladders.extent_z(dict(meshes=self.meshes), o)
+            if extent is None:
+                continue
+            e = ladders.ends(o['location'], o['rotation'], extent, tile_corner(grid), self.floors)
+            ends = [t for t in (e.get('footTile'), e.get('linkedTop')) if t is not None]
+            if any(tuple(t) in lost for t in ends):
+                self.warn('flags-floor', '%s climbs to or from a floor that a flags edit takes away: it may no longer climb'
+                          % short(o['actor']), actor=o['actor'], ends=dict(foot=e.get('footTile'), top=e.get('linkedTop')))
 
     def hide_helpers(self, actor, where):
         """The streamed patches' hidden ladders that stand in for a map ladder moved or deleted (ladders.helpers): each
@@ -1135,7 +1273,7 @@ class Compiler:
         return self.lights.get((target.get('package'), target.get('level'), target.get('actor')))
 
     def overrides(self):
-        known = {'target', 'location', 'rotation', 'deleted'}
+        known = {'target', 'location', 'rotation', 'deleted', 'flags'}
         gated = {}      # an assembly's records: id -> (assembly, {actor: (target, record, where, parts)})
         for k, rec in enumerate(self.doc.get('overrides') or []):
             where = dict(record='overrides[%d]' % k)
@@ -1158,9 +1296,19 @@ class Compiler:
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
+            if not self.flags_valid(rec, where):
+                continue
             parts = self.piece(target, where, deleting=rec.get('deleted') is True)
             if not parts:
                 continue
+            if 'flags' in rec:
+                if rec.get('deleted') is True:
+                    self.note('flags-deleted', '%s is deleted, so its flags are not built' % short(target['actor']), **where)
+                elif not self.pose_moves(rec, parts[0]):
+                    # the piece where the map has it (flags alone, or its own pose): its flags written in place, and
+                    # nothing else to build for the record (its assembly's move rule doesn't apply to flags)
+                    self.stationary_flags(target, parts, rec['flags'], where)
+                    continue
             family, assembly = self.family_of(target['actor'], parts)
             if assembly and family in ASSEMBLY_FAMILIES:
                 gated.setdefault(id(assembly), (assembly, {}))[1][target['actor']] = (target, rec, where, parts)
@@ -1183,6 +1331,16 @@ class Compiler:
         for assembly, recs in sorted(gated.values(), key=lambda e: e[0]['pivot']):
             self.assembly_overrides(assembly, recs)
         self.stream_groups()
+
+    def pose_moves(self, rec, src):
+        """Whether an override's pose (if it gives one) moves the piece from where the export has it."""
+        if 'location' not in rec and 'rotation' not in rec:
+            return False
+        loc, rot = rec.get('location', src['location']), rec.get('rotation', src['rotation'])
+        if not finite(loc, 3) or not finite(rot, 3):
+            return True         # malformed: the move path says so
+        return not (all(abs(tidy(a) - b) < EPS_LOCATION for a, b in zip(loc, src['location']))
+                    and [game_round(r) for r in rot] == [int(v) for v in src['rotation']])
 
     def stream_override(self, target, rec, where):
         """A mission object moved in its stream (mission types plan, Part E): the target names the stream as its
@@ -1300,6 +1458,8 @@ class Compiler:
         self.copies.append(dict(order=(0, target['actor']), source=name, label='move:' + name, location=loc, rotation=rot, box=new,
                                 member=original_key(target), actorClass=src['actorClass'], ladder=None,
                                 **{k: v for k, v in extra.items() if k != 'helpers'}))
+        if rec.get('flags'):
+            self.copy_flags(self.copies[-1], src, rec['flags'], name, where)
         if ladder:
             self.ladder_jobs.append((self.copies[-1], name, src, loc, rot, where))
         self.hides.append(dict(name=name, label='move:' + name, box=old))
@@ -1468,7 +1628,7 @@ class Compiler:
 
     def added(self):
         known = {'id', 'actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'light',
-                 'template', 'cover'}
+                 'template', 'cover', 'flags'}
         gated = {}      # an assembly's copies: id -> (assembly, [(source actor, record, where, parts, pose)])
         for k, rec in enumerate(self.doc.get('added') or []):
             where = dict(record='added[%d]' % k)
@@ -1482,6 +1642,12 @@ class Compiler:
             where['entity'] = out
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an added piece and is ignored' % f, **where)
+            if not self.flags_valid(rec, where):
+                continue
+            if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
+                self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
+                           'has no flags' % short(out), **where)
+                continue
             if isinstance(rec.get('template'), dict) and rec['template'].get('kind') == 'cover':
                 self.cover_add(rec, where)
                 continue
@@ -1580,6 +1746,8 @@ class Compiler:
                                      rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(1, out), source=name, label=short(out), location=loc, rotation=rot, box=new,
                                 member='added|' + out, actorClass=src['actorClass'], ladder=None, **extra))
+        if rec.get('flags'):
+            self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
             self.ladder_jobs.append((self.copies[-1], short(out), src, loc, rot, where))
         self.floor_sources[short(out)] = src
@@ -2248,6 +2416,10 @@ class Compiler:
                 copy['families'] = [c.get('family') or '' for c in copies]
                 copy['assemblies'] = [c.get('assembly') or '' for c in copies]
                 copy['assemblyMoves'] = sorted(self.moves, key=lambda m: m['id'])
+            # Pieces' flags (piece flags plan): each copy's request (None for one without), written by the Build's writer
+            # once the copy is made, from the package's own settings.
+            if any(c.get('flags') for c in copies):
+                copy['flags'] = [c.get('flags') for c in copies]
             # Ladders: each ladder copy's foot tile and linked top tile (None for other copies); the Build rebuilds the top
             # tile first, so the climb keeps both its links (plan section 5.2).
             if any(c.get('ladder') for c in copies):
@@ -2280,6 +2452,10 @@ class Compiler:
         if self.covers:
             # cover blocks (cover_add): made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='covers', blocks=sorted(self.covers, key=lambda c: c['name'])))
+        if self.flag_edits:
+            # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
+            # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
+            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits, key=lambda e: e['name'])))
         if self.new_buildings:
             # buildings made from nothing: made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='buildings', buildings=self.new_buildings))
@@ -2995,7 +3171,7 @@ class Compiler:
         x1, y1 = origin[0] + TILE * dims[0], origin[1] + TILE * dims[1]
         levels = self.stage_grid[2] if len(self.stage_grid) > 2 else dims[2]
         bottom, top = origin[2] - STOREY / 4, origin[2] + STOREY * levels
-        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | self.floor_kept_off()
         boxes = []
         for o in self.scene.get('objects') or []:
             if o.get('actorClass') != 'XComLevelActor' or o.get('actor') in gone or o.get('mesh') not in self.meshes:
@@ -3005,10 +3181,15 @@ class Compiler:
                 boxes.append(b)
         return boxes
 
+    def floor_kept_off(self):
+        """The map's own pieces whose Floor the project's flags turn off or keep off (explicit Floor off): the Build's
+        floor for low scenery on a grown map leaves them as they are (F-100 gives way to the user's flags)."""
+        return {e['target'] for e in self.flag_edits if e['flags'].get('floor') is False}
+
     def floor_now(self):
         """The map's saved floor tiles whose piece is still where it was: a deleted or moved piece takes its floor
         with it (a moved one's copy gives floor where it lands: added_floors)."""
-        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | getattr(self, 'floor_off', set())
         return {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])
                 if f.get('actor') not in gone}
 
@@ -3044,7 +3225,9 @@ class Compiler:
                                   added=sum(e['kind'] == 'add' for e in self.entities), errors=len(self.errors), warnings=len(self.warnings),
                                   leftOut=len(self.left_out),
                                   lights=dict(deleted=len(self.light_ops['deletes']), added=len(self.light_ops['adds']),
-                                              changed=len(self.light_ops['changes']), area=len(self.light_ops['area']))),
+                                              changed=len(self.light_ops['changes']), area=len(self.light_ops['area'])),
+                                  flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
+                                             onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=getattr(self, 'stage_grid', None),
                       cleared=getattr(self, 'cleared', False), clearKeepsOutside=getattr(self, 'keep_outside', False),
                       landingZones=getattr(self, 'zones', None),
@@ -3241,7 +3424,7 @@ def native_split(spec):
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
-    lights, covers, buildings, edits = None, [], [], []
+    lights, covers, buildings, edits, piece_flags_ = None, [], [], [], []
     stream_hides = out.pop('streamHides', None)
     stream_moves = out.pop('streamMoves', None)
     cleared, zones = out.pop('cleared', None), out.pop('landingZones', None)
@@ -3255,6 +3438,9 @@ def native_split(spec):
             continue
         if obj.get('type') == 'covers':
             covers += obj['blocks']
+            continue
+        if obj.get('type') == 'pieceFlags':
+            piece_flags_ += obj['pieces']
             continue
         if obj.get('type') == 'breakOriginals':
             originals += obj['originals']
@@ -3277,9 +3463,12 @@ def native_split(spec):
         families = obj.get('families') or [''] * n
         donors = obj.get('donors') or [None] * n
         untried = obj.get('untried') or [False] * n
+        flags = obj.get('flags') or [None] * n
         # a piece of another map is always made in the map: nothing else can bring what it needs; so is a copy of a
         # class the Build has not been tried on (the patch's copier has no recipe for it either)
-        in_map = [classes[k] in NATIVE_CLASSES or bool(members[k]) or bool(donors[k]) or untried[k] for k in range(n)]
+        # (and a copy with flags: only the writer sets them)
+        in_map = [classes[k] in NATIVE_CLASSES or bool(members[k]) or bool(donors[k]) or untried[k] or bool(flags[k])
+                  for k in range(n)]
         copier_groups = {groups[k] for k in range(n) if groups[k] and not in_map[k]}
         native = [k for k in range(n) if in_map[k] and groups[k] not in copier_groups]
         for k in native:
@@ -3288,6 +3477,7 @@ def native_split(spec):
                                 **({'breakGroup': groups[k]} if groups[k] else {}),
                                 **({'donor': donors[k]} if donors[k] else {}),
                                 **({'untried': True} if untried[k] else {}),
+                                **({'flags': flags[k]} if flags[k] else {}),
                                 **({'family': families[k], 'assembly': members[k]} if members[k] else {}),
                                 **({'ladder': obj['ladders'][k]} if (obj.get('ladders') or [None] * n)[k] else {})))
         made = {members[k] for k in native if members[k]}
@@ -3298,7 +3488,7 @@ def native_split(spec):
         if keep:
             rest = dict(obj)
             for f in ('from', 'poses', 'labels', 'boxes', 'classes', 'breakGroups', 'families', 'assemblies', 'ladders',
-                      'donors', 'untried'):
+                      'donors', 'untried', 'flags'):
                 if f in obj:
                     rest[f] = [obj[f][k] for k in keep]
             rest.pop('assemblyMoves', None)
@@ -3313,6 +3503,8 @@ def native_split(spec):
         native['lights'] = lights
     if covers:
         native['covers'] = covers
+    if piece_flags_:
+        native['pieceFlags'] = piece_flags_
     if buildings:
         native['buildings'] = buildings
     if edits:

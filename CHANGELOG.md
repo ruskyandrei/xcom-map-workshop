@@ -8,6 +8,34 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P4: the compiler reads, checks and carries pieces' flags
+
+- [compiler.py](tools/editor/compiler.py) takes `flags` on overrides and added pieces. Each request is checked with
+  `piece_flags.plan` against the piece's settings as export 27 has them (`pieceFlags`; a piece of another map from its
+  library record):
+  - an override with flags alone, or with the piece's own pose, is written where the piece stands: the spec's new
+    `pieceFlags` object lists each such piece with its flags, its box and whether its tiles change, and the report has
+    an entity of kind `flags` (before, after, the writes, the companions);
+  - a moved original's copy and an added copy carry their flags in the copy's `flags` list (one per copy, `null` for
+    none); `native_split` makes such a copy in the map, since only the Build's writer sets flags, and moves the
+    `pieceFlags` list into the native manifest.
+- What can't be built is said, and the rest of the record is built: malformed flags leave the record out (`malformed`);
+  flags on a cover block, a floor or a light are refused; a deleted piece's flags are noted (`flags-deleted`); a role
+  the class lacks is noted (`flags-unsupported`); a prop's gate request that needs an explicit value is warned of and
+  not built (`flags-conflict`); an export older than 27 is warned of (`flags-unavailable`). A door whose tile flags
+  change (`flags-door`, untried), a large piece or fracturing wall that stops blocking (`flags-wall`), a piece that
+  collides with nothing (`flags-no-collision`) and a mesh with no simple collision (`flags-limited`) are warned of or
+  noted.
+- Floor: a piece the flags make no floor takes its saved floor tiles out of the floor the landing, mission and ladder
+  checks count (`floor_now`), with a warning naming how many tiles it was the floor of and one for each of the map's
+  ladders that climbs to or from one of them (`flags-floor`); a flat piece made floor counts as floor, and an added copy
+  made no floor doesn't (`added_floors`). The Build's floor for low scenery on a grown map leaves a piece whose Floor
+  is explicitly off as it is (`floor_kept_off`). The report counts the flags (`counts.flags`).
+- Checked: [test_compiler_flags.py](tools/editor/tests/test_compiler_flags.py) (17 cases: in place, on copies,
+  `native_split`, each warning and note, the floor effects, a map ladder losing its end); the editor suite. An old
+  schema test in [test_compiler.py](tools/editor/tests/test_compiler.py) now refuses schema 3, since P3 made 2 readable.
+- Known gaps: the Build doesn't write them yet (P5).
+
 ### Piece flags, stages P2b and P3: the Flags group, Select all of a kind, project and prefab schema 2
 
 - The piece panel's **Flags** group ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
