@@ -3,7 +3,7 @@
 Date: 16 November 2026. The piece flags plan's first in-game probe (P7, its run 2: the Temple Ship), played by the
 user: the editor's **Mouse picks it** flag turned on for pieces Firaxis saved it off on, so the mouse can send a
 soldier onto them. It is F-102's fix made through the editor's Flags instead of
-[cursor_pick.py](../../tools/upk/cursor_pick.py), and the first play of any flag ([F-114](../findings-register.md)).
+`tools/upk/cursor_pick.py` (retired after this run), and the first play of any flag ([F-114](../findings-register.md)).
 
 ## The build (offline)
 
@@ -40,4 +40,5 @@ Against the plan's list for this run, not told by run 1:
 - **The cursor's height on the arches' curves**, and an arch cut away by the camera.
 
 What it decides: the mouse checkbox works on the arches in the game, which is the condition the plan sets for
-retiring `cursor_pick.py` (P8), with the floor-under-an-arch case left to note if it shows up in play.
+retiring `cursor_pick.py` (P8). The user retired it the same day; the floor-under-an-arch case is left to note if it
+shows up in play.

@@ -281,8 +281,9 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
   The cursor storeys play no part: the hit is dropped before its storey is looked at.
   - The map's other pieces mostly have the flag too (walls, trim, pillars, the four `alienSectopodArch` pieces);
     the floors do not.
-- **Fix:** [cursor_pick.py](../tools/upk/cursor_pick.py) clears the byte on the matching placed pieces, a
-  fixed-size edit (`package_edit.py`): 273 bytes change, from 1 to 0, and the chunk table. The patched map is
+- **Fix:** first `tools/upk/cursor_pick.py` (retired 16 November 2026 for the editor's Mouse picks it; in the
+  history before that day) cleared the byte on the matching placed pieces, a fixed-size edit (`package_edit.py`):
+  273 bytes change, from 1 to 0, and the chunk table. The patched map is
   `dist/templeship-clickable-arches/TempleShip.upk` (SHA-256 `3270f434…183850`).
 - What to expect, from the pick rules (not played):
   - with the cursor on a storey below the arch, a hit further down still wins, so the floor under an arch stays
@@ -298,8 +299,10 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 - **Correction (16 November 2026):** the flag holds for props, collectibles and ladders too, not only for
   `XComLevelActor` and `XComFracLevelActor`: the pick's tests are casts, and those classes inherit the mouse
   interface and the flag from `XComLevelActor`; only a door is tested apart and never reads it
-  ([native/piece-flags.md](native/piece-flags.md), section 3; F-114). `cursor_pick.py` still matches the two
-  classes it names.
+  ([native/piece-flags.md](native/piece-flags.md), section 3; F-114). `cursor_pick.py` matched only the two
+  classes it named.
+- **Now (16 November 2026):** turn **Mouse picks it** on for the pieces in the editor's Flags; the Build writes it on
+  each piece, any class but a door (EXP-60 played it on the arches). `cursor_pick.py` is retired.
 
 ## Damage and glass
 

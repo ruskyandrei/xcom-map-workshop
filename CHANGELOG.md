@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, P8: the cursor helper retired
+
+- `tools/upk/cursor_pick.py` and its test are removed, at the user's word after EXP-60 passed: the editor's **Mouse
+  picks it** does what it did (Temple Ship's arches made clickable), on any class but a door, through the Build. The
+  helper is in the history before this commit.
+- The links to it become plain names with a retirement note, so the history reads as it did: F-102 in the
+  [findings register](research/findings-register.md) (with a "Now" line: use the editor's Flags),
+  [native/piece-flags.md](research/native/piece-flags.md), [EXP-60](research/experiments/EXP-60-temple-arches-mouse.md)
+  and the 14 November ledger entry that added it.
+- Checked: the upk and repo suites (no other code used it). P7's other probes go on; corrections from them are P8's
+  rest.
+
 ### EXP-61 run 1 passed: a statue with every flag off, walked through and not picked
 
 - [EXP-61](research/experiments/EXP-61-intro-statue-flags-off.md), a piece flags probe played by the user: a quick
@@ -1854,11 +1866,12 @@ A modder reported, through the user, that Temple Ship's arches are floor for ali
 clicked. The shipped map sets `bIgnoreFor3DCursorCollision` on all 273 arch pieces; the user asked for a patched map
 with it cleared.
 
-- [tools/upk/cursor_pick.py](tools/upk/cursor_pick.py): lists the placed level pieces whose archetype matches a
-  pattern (default `KnuckleWorm_A.Archetypes.*`) with their flag, and with `--out` writes a copy with the flag
-  cleared (or set, `--ignore`) through `package_edit.write_edited`. A piece that takes the flag from its archetype is
-  reported and left alone (a fixed-size edit can't add a property).
-- [tools/upk/tests/test_cursor_pick.py](tools/upk/tests/test_cursor_pick.py): the property walk on synthetic tags,
+- `tools/upk/cursor_pick.py` (retired 16 November 2026 for the editor's Mouse picks it; in the history before that
+  day): lists the placed level pieces whose archetype matches a pattern (default `KnuckleWorm_A.Archetypes.*`) with
+  their flag, and with `--out` writes a copy with the flag cleared (or set, `--ignore`) through
+  `package_edit.write_edited`. A piece that takes the flag from its archetype is reported and left alone (a
+  fixed-size edit can't add a property).
+- `tools/upk/tests/test_cursor_pick.py` (retired with it): the property walk on synthetic tags,
   and on the install's `TempleShip.upk` the 273 pieces cleared with no other byte of the body changed.
 - [research/findings-register.md](research/findings-register.md): F-102, cause, fix and what to expect.
 - Made `dist/templeship-clickable-arches/TempleShip.upk` from the shipped EW map (SHA-256 `029bedca…af4d2e`, the same

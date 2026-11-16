@@ -88,7 +88,8 @@ role is half on and opening the gate would change it, it asks for an explicit va
 3. a door is tested apart and its flag is never read.
 
 **Correction.** [mouse-cursor.md](mouse-cursor.md) said `XComDestructibleActor` lacks the interface, and
-`cursor_pick.py` took only `XComLevelActor` and `XComFracLevelActor`. A prop inherits the interface and the flag from
+`cursor_pick.py` (retired since, for the editor's Mouse picks it) took only `XComLevelActor` and
+`XComFracLevelActor`. A prop inherits the interface and the flag from
 `XComLevelActor`; the cast in step 2 reads it. Both are corrected (F-102).
 
 ## 4. Where the settings come from
