@@ -113,8 +113,9 @@ Statuses:
   quick build, or a grown grid with anything made in the map, builds (16 November).
 - F-114: the five piece flags (walking, cover, sight, floor, mouse) read from the game's scripts, its class defaults
   and every listed map (16 November); the editor's Flags edits them. Played: Mouse picks it on, on Temple Ship's
-  arches (EXP-60); every flag off on a statue and its plinth, walked through and not picked (EXP-61). Not played:
-  cover and sight off on their own, the prop's gate, a ladder's or a door's flags.
+  arches (EXP-60); every flag off on a statue and its plinth, walked through and not picked (EXP-61); each flag alone
+  on copies, a door, a ladder and a hedge (EXP-62). Open: Blocks walking on a low piece stops no one; a prop's gate
+  on a tall prop, a ladder's cover and a door after opening it are not played.
 - F-111: cover, step-outs, flanking and sight inside sight radius come from the tiles' data alone (read 15
   November, checked against baked data). Not compared with a battle yet: one short run of a soldier on a known
   tile would settle the sight walk.
@@ -142,8 +143,8 @@ Statuses:
 ## Tiles, cover and placement
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
-the tile build; surveyed over the 153 listed maps; played in EXP-60 and EXP-61). A reference fact, and what the editor's Flags
-group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) has the detail.
+the tile build; surveyed over the 153 listed maps; played in EXP-60, EXP-61 and EXP-62). A reference fact, and what
+the editor's Flags group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) has the detail.
 - **The flags:** Blocks walking (`bAlwaysConsiderForCover`), Gives cover (`bIgnoreForCover` off), Blocks sight
   (`VisibilityBlockingData.bBlockUnitVisibility`), Floor (`bPathColliding` and `bCanStepUpOn`), Mouse picks it
   (`bIgnoreFor3DCursorCollision` off). Settings, the inputs the filters read; geometry and other pieces still count.
@@ -163,8 +164,20 @@ group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) h
   them: the cursor lands on an arch and a soldier is sent onto it ([EXP-60](experiments/EXP-60-temple-arches-mouse.md),
   F-102). Every flag off on Act1_IntroLevel's statue and its plinth, where they stand: a soldier walks through
   them and the cursor passes them ([EXP-61](experiments/EXP-61-intro-statue-flags-off.md)).
-- **Not known:** cover and sight off on their own are not played; nor the gate, a ladder's or a door's flags;
-  a low piece with its flags off can still change the floor under a cover location (plain engine traces).
+  On URB_Bar's copies ([EXP-62](experiments/EXP-62-piece-flags.md)), each flag alone does what the panel says: a box
+  stack with Blocks walking off is stood in, one with Gives cover off gives none, one with Floor on has its top as
+  floor (the tile over it); tall fences give high cover with Gives cover on and are seen across with Blocks sight off.
+  They break and save as the map's own. The bar's door with Blocks walking and Blocks sight off is walked through
+  shut, without opening: its edge's pathing and sight bits are gone. The ladder with Blocks walking off climbs as
+  before and changed no tile.
+- **Blocks walking on a low piece stops no one** (EXP-62): a 36-unit hedge with it on (its gate opened) leaves its
+  tiles partly occupied (the low occupancy box only, the floor kept) and under the crossing sweep, so units walk
+  in. It stops units only on a piece that reaches the crossing sweep (64 over the floor).
+- **Not known:** what opening the gate does to the sweeps on a prop tall enough to meet them (the hedge and the
+  parking blocks are too low); whether a ladder still gives cover beside it; a door's flags after it is opened and
+  shut; a shot across a fence with Blocks sight off; why EXP-62's control box stack and its Gives cover off copy
+  each occupy four tiles. A low piece with its flags off can still change the floor under a cover location (plain
+  engine traces).
 
 
 ### F-111: Cover, step-outs, flanking and sight inside sight radius are decided from the tiles' data alone

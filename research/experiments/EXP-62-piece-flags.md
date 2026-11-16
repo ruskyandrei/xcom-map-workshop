@@ -82,3 +82,41 @@ What the run adds over the offline checks (Play in game, with Enable saving for 
 10. **Save and reload:** after steps 1 to 8, save (say which slot), load it, and check BW, FC and H again. The save
     also lets the tiles be read offline (`tools/lab/save_tiles.py`: floor, occupied and the other bits per tile).
 11. Anything odd: a crash, a unit at an odd height, a piece drawn wrong.
+
+## Result
+
+**Run 1 passed, with two answers the plan didn't predict** (16 November 2026, played by the user). The user: "H does
+not block walking", "L works normally", "D soldiers walks in through door (without opening or kicking open)", and
+"everything else seems to work as expected, save made". So B0, BW, BC, BF, F0, FC and FS, the damage and the save
+and reload did what the list says.
+
+The user's save, read with `tools/lab/save_tiles.py` against the built map (tiles counted from the game's corner,
+`baked -> saved`):
+- **H, Blocks walking on, worked in the tiles but doesn't block.** The hedge's tiles (x 15 to 21, y 0 to 3) are
+  partly occupied (`0x8000` with `0x10000`), with their floor kept and no crossing bit; the control hedge's are free,
+  as baked. A 36-unit bush meets only the low occupancy box (28 to 92 over the level's bottom), not the upper one, so
+  the floor stays, and it is under the crossing sweep (64 over the floor), so no crossing is blocked: units walk into
+  a partly occupied tile. Blocks walking stops units only on a piece that reaches the crossing sweep, like the box
+  stacks. What opening a prop's pathing gate does to the sweeps is still unseen: this hedge, like the parking
+  blocks, is too low for them.
+- **D, walking and sight off on a door, works on the shut door.** The edge through it, between tiles (11, 28) and
+  (12, 28), has lost its pathing bits (`0x4` and `0x2`) and its sight bits (`0x100` and `0x80`) on both sides: the
+  shut door blocks neither walking nor sight, and the soldier walked through it without opening it. Sight through it
+  and the door after opening and shutting it were not reported apart.
+- **L, Blocks walking off on a ladder, changed no tile.** Its foot (11, 23, 0) and top (12, 23, 6) tiles are as
+  baked, the top's link bit included, and it climbs (the user). Whether it still gives cover beside it was not told
+  apart.
+- **BF, Floor on:** its tile (21, 18) is fully occupied with no floor at level 0, and the tile over it (level 1) has a
+  floor: the box's top is floor. Whether a soldier got up there was not told apart from "as expected".
+- **BW, Blocks walking off:** its tile (15, 18) is not occupied, as baked: units stand in it. B0's and BC's tiles are
+  occupied, and each fence marks the tiles on both sides of its edge occupied with their floors kept (EXP-59's B).
+  Not explained: B0 and BC each show four occupied tiles (two across, both rows of the edge y −192), where one box
+  stack stands in one tile; BW and BF don't.
+- Changed besides: two tiles inside the bar behind its front wall, (12, 22) and (13, 22), lost their pathing and sight
+  bits toward the wall, and (13, 22) its occupancy. Most likely the grenades thrown at the boxes broke the front
+  windows there; not checked.
+
+What it settles for the editor: Blocks walking, Gives cover, Blocks sight and Floor each do what the panel says on a
+copy; a door's walking and sight flags open a shut door; a ladder still climbs with walking off. Two limits to say:
+Blocks walking on a low piece (under 64 over the floor) only marks its tiles partly occupied and stops no one, and
+the door's walking and sight flags override its shut state.

@@ -8,6 +8,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### EXP-62 run 1 passed: the remaining piece flags played, with two limits found
+
+- [EXP-62](research/experiments/EXP-62-piece-flags.md)'s result, played by the user, with the save's tiles read by
+  `tools/lab/save_tiles.py`: each flag alone does what the panel says on URB_Bar's copies (box stacks with Blocks
+  walking off, Gives cover off and Floor on; tall fences with Gives cover on and Blocks sight off), and they break and
+  save as the map's own. The bar's door with Blocks walking and Blocks sight off is walked through shut, without
+  opening it (its edge's pathing and sight bits gone). The ladder with Blocks walking off climbs as before.
+- Found: Blocks walking on a low piece stops no one. The hedge (36 tall) with it on has its tiles only partly
+  occupied and under the crossing sweep, so units walk in.
+- [findings-register.md](research/findings-register.md): F-114's Played and Not known, and its Open now line.
+- Checked: the repo suite. Known gaps: a prop's gate on a tall prop, a ladder's cover, a door after opening it and a
+  shot across a fence with sight off are not played; why the control box stack and its Gives cover off copy each
+  occupy four tiles is not explained. The panel and the Build's warnings don't say the low piece limit yet.
+
 ### EXP-62 ready to play: the piece flags not played yet, in one run
 
 - [EXP-62](research/experiments/EXP-62-piece-flags.md), at the user's ask: the piece flags plan's remaining in-game
