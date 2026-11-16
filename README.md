@@ -32,6 +32,10 @@ Choose **More info**, then **Run anyway**.
 - XCOM: Enemy Within with Long War Rebalance. Plain Enemy Within works too.
 - Some free disk space: the editor keeps a copy of each map you open (about 50 to 200 MB each).
 
+The editor is developed and tested mainly with Long War Rebalance. It is meant to work with plain Enemy Within too,
+but that is less tested: reports from plain Enemy Within, or any setup other than Long War Rebalance, are welcome
+(see [Reporting a problem](#reporting-a-problem)).
+
 Everything else comes with it: its own Python and the packages it needs. It needs no internet connection and no
 Unreal tools, and it contains nothing from the game: it reads your own install.
 

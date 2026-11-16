@@ -8,6 +8,13 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### The README and the guide say the editor is tested mainly with Long War Rebalance
+
+At the user's ask: [README.md](README.md) (under What you need) and [guide.html](tools/release/guide/guide.html) (the
+program's limits, What you need, and Reporting a problem, which now has the anchor `#report`) say that the editor is
+developed and tested mainly with Long War Rebalance, that plain Enemy Within is meant to work but is less tested, and
+that reports from plain Enemy Within or any other setup are welcome. Checked: the repo suite.
+
 ### Nothing in the editor says a thing is untried or not played
 
 At the user's word ("If we ship it it means it's usable, whether we tried it or not"), every warning, note, chip and

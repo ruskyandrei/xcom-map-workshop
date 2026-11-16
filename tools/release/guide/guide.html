@@ -320,7 +320,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <h3>The program</h3>
     <ul>
       <li><b>Windows 10 or 11 only</b>, 64-bit, for one person on one computer.</li>
-      <li><b>For Long War Rebalance and plain Enemy Within.</b> Any of their maps opens and builds.</li>
+      <li><b>Developed and tested mainly with Long War Rebalance.</b> It is meant to work with plain Enemy Within
+        too, but that is less tested: reports from plain Enemy Within, or any setup other than Long War Rebalance, are
+        welcome (<a href="#report">Reporting a problem</a>).</li>
       <li><b>Projects may not open in the next version.</b> Builds you made keep playing.</li>
       <li><b>It installs only while the game is closed.</b> Play in game starts XCOM itself, through Steam.</li>
     </ul>
@@ -332,7 +334,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>What you need</h3>
 <ul>
   <li>Windows 10 or 11, 64-bit, and a browser: Edge, Chrome or Firefox.</li>
-  <li>XCOM: Enemy Within with <b>Long War Rebalance</b>. Plain Enemy Within works too.</li>
+  <li>XCOM: Enemy Within with <b>Long War Rebalance</b>. Plain Enemy Within works too, though it is less tested:
+    the editor is developed and tested mainly with Long War Rebalance.</li>
   <li>Free disk space: each map you open is kept (about 50 to 200 MB each) in <code>Documents\XCOM Map Workshop\cache</code>.</li>
 </ul>
 <p>Everything else comes with the editor. It needs no internet connection and no Unreal tools.</p>
@@ -1889,8 +1892,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     XCOM Map Workshop again.</li>
   <li>A map that looks wrong after an update of the game or of Long War Rebalance: delete its folder in the cache and open it again.</li>
 </ul>
-<h3>Reporting a problem</h3>
-<p>Say which version you have: it is at the bottom of the <b class="ui">?</b> menu, in <code>VERSION.txt</code> and in
+<h3 id="report">Reporting a problem</h3>
+<p>Reports from any setup are welcome, plain Enemy Within included. Say which version you have: it is at the bottom of the <b class="ui">?</b> menu, in <code>VERSION.txt</code> and in
   each build's <code>manifest.json</code>. After a build, or a failed or cancelled one, <b class="ui">Save a bug report</b>
   in the build window zips the project and the build's logs into the builds folder and copies the zip's path; click
   the path to see the zip in Windows Explorer. Send that zip with what you did and what you saw; a screenshot helps.</p>
