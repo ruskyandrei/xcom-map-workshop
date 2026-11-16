@@ -8,6 +8,24 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue plan: reviewed against the build, manager and prefab lifecycles
+
+Revised the private build queue plan; the feature is not implemented. The review of
+[builds.py](tools/viewer/builds.py), [build.py](tools/editor/build.py),
+[manager.py](tools/viewer/manager.py), [prefab_tests.py](tools/viewer/prefab_tests.py) and the editor's build UI
+adds immutable per-attempt inputs, preserved output-name checks, shared dispatch ownership, exact cancellation,
+process-tree containment and recoverable package publication before the queue UI. It covers package-read races
+with Zip/Install/Play, persistent request identity, corrupt state, configuration changes, two-tab discovery and
+honest progress/estimates. Clear removes finished results as well as waiting rows; adding to a stopped queue
+leaves it stopped; restart reconciles outcomes and requires Resume. Stages and fault-injection checks now follow
+those dependencies. The plan remains in the ignored private plans folder, as repository policy requires.
+
+Checked: the repository runner's focused viewer checks (`test_builds`: 6; `test_manager`: 9;
+`test_prefab_tests`: 13), private-plan relative links and unchanged LF endings, and the repo suite. The first
+manager run lacked the standard Windows PowerShell module path in its installer subprocesses; restoring that
+path for the test process made all nine pass. Known gaps: this is a design review, not validation of an implemented
+queue; the proposed concurrency, containment, crash-recovery, browser and real-build checks still need to run.
+
 ### Test squad: EXP-64 prepared; the old six's gear named as LWR names it
 
 - [EXP-64](research/experiments/EXP-64-test-squad.md) is the test squad's game check (the plan's Q0 probes and Q5
