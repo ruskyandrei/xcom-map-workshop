@@ -29,10 +29,13 @@ A texture whose mips are all inside the map package (the small lightmaps, up to 
 written there in place, at the same size; only textures with mips in Lighting.tfc are redirected to the variant
 cache.
 
-The variant cache is named like any texture cache, `<Name>_<n>`, where <Name> must already be in the map's name table:
-the cache name is stored as an FName (name index, number n + 1), so the edit keeps its size.
+The variant cache's name is stored in each redirected texture as an FName (name index, number), so the edit keeps its
+size, and its text must already be in the map's name table (cache_fname): the editor's Build names it
+`<Map>_Lighting`, which a growing write adds to the table first (native_copy.py; the Build's named copy for a relight
+alone); a name ending `_<n>` is `<Name>` numbered n + 1 (`Lighting_7000`, the Build's until 16 November 2026, needs
+only `Lighting`, which every map has).
 
-  python -B tools/bake/lighting_fixture.py <map.upk> <out dir> <variant> [--cache Lighting_7000]
+  python -B tools/bake/lighting_fixture.py <map.upk> <out dir> <variant> [--cache URB_BarFix_Lighting | Lighting_7000]
       [--noop COMPONENT] [--redirect TEXTURE] [--scale COMPONENT SLOT FACTOR] [--paint COMPONENT SLOT R G B]
 """
 import argparse
@@ -126,16 +129,43 @@ def bulk_block_size(payload):
     return block_size
 
 
+CACHE_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,62}')
+NUMBERED = re.compile(r'([A-Za-z][A-Za-z0-9_]*?)_(0|[1-9][0-9]*)')     # an FName's number: no leading zero
+FNAME_NUMBER_MAX = 2 ** 31 - 2      # the stored number is n + 1, a signed 32-bit int
+
+
+def cache_fname(cache):
+    """The FName a texture cache's name is stored as: (table text, number). A name ending _<n> (the editor's builds
+    until 16 November 2026: Lighting_7000) is <Name> numbered n + 1, as the engine splits it; any other (the
+    editor's <Map>_Lighting) is itself, number 0. A ValueError for a name that is no file name or whose number is
+    out of range."""
+    if not isinstance(cache, str) or not CACHE_NAME.fullmatch(cache):
+        raise ValueError(f'{cache!r} is not a texture cache name (letters, digits and _, starting with a letter)')
+    m = NUMBERED.fullmatch(cache)
+    if m:
+        n = int(m.group(2))
+        if n > FNAME_NUMBER_MAX:
+            raise ValueError(f'{cache}: the number is too large for a name')
+        return m.group(1), n + 1
+    return cache, 0
+
+
+def cache_table_name(cache):
+    """The text the map's name table must hold for the cache name `cache` (cache_fname): a growing write adds it
+    (native_copy.py, the Build's named copy) before the fixture writes the name."""
+    return cache_fname(cache)[0]
+
+
 def parse_cache_name(p, cache):
-    m = re.fullmatch(r'([A-Za-z][A-Za-z0-9_]*?)_(\d+)', cache)
-    if not m:
-        raise ValueError('the cache name must look like <Name>_<number>, for example Lighting_7000')
-    base, n = m.group(1), int(m.group(2))
-    if base not in p.names:
-        raise ValueError(f'{base} is not in the map\'s name table')
+    """The cache name `cache` as (name index, number) in the map `p`'s name table. Refused when its text isn't in the
+    table (a fixed-size edit can't add it), or when <cache>.tfc is beside the map already (never written over)."""
+    text, number = cache_fname(cache)
+    if text not in p.names:
+        raise ValueError(f'{text} is not in the map\'s name table' + (
+            '' if number else ' (a growing write adds it first: package_grow.Grower.name)'))
     if (p.path.parent / f'{cache}.tfc').exists():
         raise ValueError(f'{cache}.tfc already exists beside the source map')
-    return p.names.index(base), n + 1
+    return p.names.index(text), number
 
 
 class Fixture:
@@ -599,7 +629,7 @@ def main():
     a.add_argument('src', type=Path)
     a.add_argument('out', type=Path)
     a.add_argument('variant')
-    a.add_argument('--cache', help='variant texture cache name, <Name>_<n>')
+    a.add_argument('--cache', help='variant texture cache name: one the map\'s name table holds, or <Name>_<n> with <Name> in it')
     a.add_argument('--ops', type=Path, help='JSON list of operations')
     a.add_argument('--noop', action='append', default=[], metavar='COMPONENT')
     a.add_argument('--redirect', action='append', default=[], metavar='TEXTURE')

@@ -903,7 +903,7 @@ class FreshLight(unittest.TestCase):
                  rotation=[0, 0, 0])])
         cls.staged, cls.edit, _ = transplant.stage_edit(BAR, cls.out, edit, schema=game_schema())
         cls.manifest = native_copy.build(cls.staged, cls.out / 'baked', 'URB_BarFresh', cls.edit['copies'], bake=True,
-                                         cache='Lighting_9990001', receivers_near=600.0)
+                                         cache='URB_BarFresh_Lighting', receivers_near=600.0)
         cls.q = native_copy.lighting.Package(cls.out / 'baked' / 'URB_BarFresh.upk')
         cls.relit = json.loads((cls.out / 'baked' / 'URB_BarFresh.relight.json').read_text(encoding='utf-8'))
         cls.records = cls.manifest['nativeCopies']['copies']
@@ -914,6 +914,19 @@ class FreshLight(unittest.TestCase):
 
     def component(self, actor):
         return next(i for i in self.q.children[actor] if self.q.cls(i) == 'StaticMeshComponent')
+
+    def test_the_relit_textures_name_the_variants_own_cache(self):
+        """Output names plan 4: the Build's cache name, <Map>_Lighting, added to the grown map's table, is what every
+        texture the relight moved names (number 0), read back by a fresh reader; the textures it left keep theirs."""
+        q, cache = self.q, 'URB_BarFresh_Lighting'
+        self.assertEqual(self.manifest['cache'], cache)
+        self.assertTrue((self.out / 'baked' / f'{cache}.tfc').is_file())
+        moved = {e['what'].split(' of ', 1)[1].split(':')[0] for e in self.manifest['edits'] if e['what'].startswith('cache name of ')}
+        self.assertTrue(moved)
+        for path in moved:
+            self.assertEqual(q.effective(q.by_name[path], 'TextureFileCacheName'), cache, path)
+        others = [n for n in q.by_name if n.split('.')[-1].startswith('NormalizedAverageColor') and n not in moved]
+        self.assertTrue(any(q.effective(q.by_name[n], 'TextureFileCacheName') == 'Lighting' for n in others))
 
     def test_a_copys_lightmap_lists_this_maps_lights_alone(self):
         import native_lights

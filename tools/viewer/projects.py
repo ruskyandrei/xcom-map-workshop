@@ -103,15 +103,17 @@ def validate(document, project_id):
     # (ProjectStore.check_output)
     if 'output' in document and not valid_output(document['output']):
         raise ProjectError(422, '"output" must be the map\'s and its patch\'s package names (letters, digits and _, '
-                                'starting with a letter, at most 30 characters).')
+                                'starting with a letter).')
 
 
-OUTPUT_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,29}')
+# (a name UDK can't save, over 30 characters, still saves: an old project keeps its names, and the compiler says to
+# use Save as before it builds)
+OUTPUT_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,62}')
 
 
 def valid_output(output):
-    """Output names as a project saves them: {shipAs, patch}, package names of at most 30 characters (outputnames.py
-    says which are free)."""
+    """Output names as a project saves them: {shipAs, patch}, package names (outputnames.py says which are free and
+    gives a new project's, at most 24 characters)."""
     return (isinstance(output, dict) and set(output) == {'shipAs', 'patch'}
             and all(isinstance(output[k], str) and OUTPUT_NAME.fullmatch(output[k]) for k in output))
 

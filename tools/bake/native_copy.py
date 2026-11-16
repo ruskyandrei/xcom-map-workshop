@@ -35,11 +35,13 @@ With `--bake` the copy gets lighting of its own (`own_lighting`):
   get the copy's shadows. That writes the variant and its fixture manifest, which deploy_fixture.py deploys.
   `--edit-spec` adds an editor patch spec's hides (and posed copies) to that relight: the editor's Build makes its
   copies here and leaves its hidden pieces to the patch (tools/editor/build.py).
-  The grown map, in <out dir>/grown, reads the original's texture caches through tfc-folder.txt beside it.
+  The grown map, in <out dir>/grown, reads the original's texture caches through tfc-folder.txt beside it, and its
+  name table holds the variant cache's name (--cache: the Build's <Map>_Lighting), which the relight writes into the
+  textures it moves to that cache.
 Without it, the copy reads the original's lightmap and shadow maps (EXP-20 run 2).
 
   python -B tools/bake/native_copy.py <map.upk> <out dir> <variant> --copy ACTOR X Y Z [YAW] [--copy ...]
-      [--copies copies.json] [--no-tiles] [--bake --cache Lighting_7011 [--receivers-near 600] [--jobs N]
+      [--copies copies.json] [--no-tiles] [--bake --cache URB_BarFix_Lighting [--receivers-near 600] [--jobs N]
       [--edit-spec spec.json]]
   (or one copy as --actor NAME --at X Y Z [--yaw YAW]). copies.json is a list of {"actor", "location": [x, y, z],
   "rotation": [pitch, yaw, roll]}, as the editor's Build writes it. Copies with the same "assembly" (the compiler's: a
@@ -2106,6 +2108,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     out.mkdir(parents=True, exist_ok=True)
     if bake and not cache:
         raise ValueError('a baked copy needs a variant texture cache name (--cache)')
+    if bake:
+        lighting_fixture.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
     p = lighting.Package(src)
     g = package_grow.Grower(str(src))
     # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
@@ -2337,6 +2341,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                          + (light_result['actors'] if light_result else []), before_rebuild=priority)
     dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
     dst.parent.mkdir(parents=True, exist_ok=True)
+    if bake:
+        # the variant texture cache's name in the table (the Build's <Map>_Lighting), so the relight's fixture,
+        # reading the grown map afresh, can write it into the textures it redirects (lighting_fixture.cache_fname)
+        g.name(lighting_fixture.cache_table_name(cache))
     report = g.write(str(dst))
     q = lighting.Package(dst)
     for m in made:
@@ -2480,7 +2488,8 @@ def main():
                         'lights plan 9.5; covers: cover_blocks.py; flags: piece flags plan)')
     a.add_argument('--no-tiles', action='store_true', help='leave the copies out of the tiles (no seeds or rebuild)')
     a.add_argument('--bake', action='store_true', help='give the copies their own lighting (relight.py --native-copy)')
-    a.add_argument('--cache', help='with --bake: the variant texture cache, <Name>_<n>')
+    a.add_argument('--cache', help='with --bake: the variant texture cache\'s name (the Build\'s <Map>_Lighting; added to '
+                                   'the grown map\'s name table), or <Name>_<n> with <Name> in the map\'s')
     a.add_argument('--receivers-near', type=float, default=600.0,
                    help='with --bake: relight the receivers within this many units of a copy (default %(default)s)')
     a.add_argument('--jobs', type=int, help='with --bake: relight worker processes')

@@ -8,6 +8,46 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Output names N4: the guide's Save and Project menu, and EXP-63 prepared
+
+Stage N4 of the output names plan (private), all but its game run. The [guide](tools/release/guide/guide.html)
+(Project menu, Save as… and Load…) and [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) (step 3) say what Save
+shows under the name: the map's name in the game, the project's name as one word, at most 24 characters, numbered
+when taken, fixed once saved, with Save as for another; and that a build's lighting is `<Map>_Lighting.tfc`.
+[EXP-63](research/experiments/EXP-63-named-lighting-cache.md) is the game check, prepared and not run: two variants of
+URB_Bar with EXP-17's visible lighting edits, one with a 24-character map name (a 33-character cache name), made by
+[exp63_projects.py](tools/editor/examples/exp63_projects.py) in the editor's project store (saved through the store's
+rules: `OutputNamesLightingTests` and `EXP63Second`). Checked: the repo suite (public-safe notes and links). Known gaps:
+the run itself (the user plays both); no finding until it has been played.
+
+### Output names N3: a baked build's lighting file is `<Map>_Lighting.tfc`
+
+Stage N3 of the output names plan (private). A build whose relight writes a texture cache names it after the map
+(`URB_BarFix_Lighting.tfc`), no longer `Lighting_<n>` from a hash of the variant's name; quick builds and full builds
+whose lighting stays unchanged still have none. Packages built before keep theirs until rebuilt.
+- [lighting_fixture.py](tools/bake/lighting_fixture.py): `cache_fname` reads a cache name as the FName it is stored
+  as: a plain name with number 0, or a name ending `_<n>` (no leading zero, in range) as `<Name>` numbered n + 1,
+  which takes precedence; `parse_cache_name` needs the text in the map's table and still refuses a `.tfc` already
+  beside the source map.
+- [native_copy.py](tools/bake/native_copy.py): on a baked build the cache's name is added to the grown map's table
+  (`Grower.name`) before the growing write, so the relight, reading the grown map afresh, can write it.
+- [build.py](tools/editor/build.py): `cache_name` is `<Variant>_Lighting`; the relight-only branch reads a named copy
+  of the map in the work folder (`named_base`: the growing writer with the name added, the texture caches read where
+  the map's are), never the game install's file. Help and docstrings of [relight.py](tools/bake/relight.py) and the
+  tools above say the new form.
+- With it, a correction to N2: [projects.py](tools/viewer/projects.py) checks only that saved output names are
+  package names, so an old project with names over 30 characters still saves (the compiler refuses to build it and
+  says to use Save as).
+
+Checked: the editor, viewer, bake and upk suites, with new tests: cache-name vectors (plain, numbered, leading zero,
+range, bad names); a plain name refused before a growing write adds it; on a grown copy of URB_Bar a redirect writes
+the plain name (number 0) and its `.tfc`, and the map's bytes from the first chunk differ only at the texture's cache
+name and mip records; a real baked transplant (FreshLight) with `URB_BarFresh_Lighting` names it in every moved
+texture, the others keep `Lighting`; native_copy's baked builds add the name (one with the real zero-write relight);
+the Build's relight-only branch uses the named copy and leaves the install's map as it was; a package of before
+rebuilt full, quick, full; a campaign install keeps the old `Lighting_<n>.tfc` noted until Remove everything. Known
+gaps: the game itself has not read a plain-named cache yet (EXP-63, prepared: next section).
+
 ### Output names N2: a new project builds as its own name, shown before saving and fixed once saved
 
 Stage N2 of the output names plan (private), on N1's checks. A new project's map name is its project name as one

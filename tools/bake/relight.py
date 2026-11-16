@@ -102,7 +102,9 @@ faces), as in the original bake, which is black there; a texel only near the bur
 `--checker SIZE` keeps the original bake in alternate cubes SIZE units wide (both re-encoded under one slot scale),
 so that in the game any mismatch between the two bakes shows as a checkerboard on floors and walls alike.
 
-Writes <out>/<variant>.upk and the variant texture cache (as lighting_fixture.py does), <out>/<variant>.relight.npz
+Writes <out>/<variant>.upk and the variant texture cache <out>/<cache>.tfc (as lighting_fixture.py does: --cache is a
+name the map's table holds, as the Build's <Map>_Lighting once a growing write has added it, or <Name>_<n> with <Name>
+in it, as Lighting_7004), <out>/<variant>.relight.npz
 (the texel images), <out>/<variant>.relight.json (lights, scales, coverage, comparison with the original bake) and
 <out>/<variant>-<actor>.png previews: original and relit, as the light a flat surface would get (colour times the sum
 of the three directional values), on one scale.
@@ -1518,7 +1520,9 @@ def main():
     a.add_argument('src', type=Path)
     a.add_argument('out', type=Path)
     a.add_argument('variant')
-    a.add_argument('--cache', required=True, help='variant texture cache name, <Name>_<n>')
+    a.add_argument('--cache', required=True,
+                   help='variant texture cache name: one the map\'s name table holds (the Build\'s <Map>_Lighting, '
+                        'added by a growing write first), or <Name>_<n> with <Name> in it')
     a.add_argument('--component', action='append', default=[])
     a.add_argument('--component-list', type=Path, help='file of component paths, one per line')
     a.add_argument('--direct-only', action='store_true', help='no shadows, emissive or bounce (EXP-17 run 5)')

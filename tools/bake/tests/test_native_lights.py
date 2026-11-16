@@ -529,10 +529,14 @@ class BarLights(unittest.TestCase):
     def build_baked(self, d, copies, lights, name='URB_BarLit'):
         calls = []
         with mock.patch.object(native_copy.subprocess, 'run', fake_relight(calls)):
-            m = native_copy.build(BAR, d, name, copies, bake=True, cache='Lighting_7123', lights=lights)
+            m = native_copy.build(BAR, d, name, copies, bake=True, cache=f'{name}_Lighting', lights=lights)
         (cmd,) = calls
         doc = json.loads(Path(cmd[cmd.index('--light-edits') + 1]).read_text(encoding='utf-8'))
-        return m, doc, lighting.Package(Path(d) / 'grown' / 'URB_Bar.upk')
+        grown = lighting.Package(Path(d) / 'grown' / 'URB_Bar.upk')
+        # the variant cache's name is in the grown map's table for the relight to write (output names plan 4)
+        self.assertIn(f'{name}_Lighting', grown.names)
+        self.assertEqual(cmd[cmd.index('--cache') + 1], f'{name}_Lighting')
+        return m, doc, grown
 
     def test_memberships_in_a_baked_build_cover_new_lights_and_copies_and_accumulate(self):
         # regression case 2: two lights added in the open lot east of the bar, sharing receivers, and a lamp post
@@ -696,7 +700,7 @@ class ZeroWrites(unittest.TestCase):
                 dict(name='PointLight_0_copy3', **{'from': 'PointLight_0'}, location=[0.0, 0.0, -20000.0],
                      rotation=[0, 0, 0], light=dict(radius=64.0), guidSeed='proj|PointLight_0_copy3')]
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarZero', [], bake=True, cache='Lighting_7125', lights=dict(adds=adds))
+            m = native_copy.build(BAR, d, 'URB_BarZero', [], bake=True, cache='URB_BarZero_Lighting', lights=dict(adds=adds))
             out = Path(d)
             self.assertTrue(m['lightingUnchanged'])
             self.assertIsNone(m['cache'])

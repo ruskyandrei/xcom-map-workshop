@@ -906,6 +906,31 @@ class Play(unittest.TestCase):
         self.assertEqual((cooked / f'CIN_DropshipIntros_{VARIANT}.upk').read_bytes(), b'intro copy')
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())
 
+    def test_a_rebuild_with_the_named_cache_leaves_the_old_one_until_everything_is_removed(self):
+        """Output names plan 4: a campaign install of a package with Lighting_<n>.tfc, then of the project's rebuild
+        with <Variant>_Lighting.tfc: both are in the game and noted as the project's; the old one is taken out only by
+        Remove everything (reset), which takes both. A play's files go when the game closes, the old cache's too."""
+        self.package()
+        folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
+        installs.install_rotation(self.lwr, folder, 'additional')
+        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        (folder / 'CookedPCConsole' / 'Lighting_4242.tfc').unlink()
+        (folder / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'named lightmaps')
+        files = {k: v for k, v in m['files'].items() if not k.endswith('Lighting_4242.tfc')}
+        files[f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'named lightmaps').hexdigest()
+        (folder / 'manifest.json').write_text(json.dumps(dict(m, files=files, cache=f'{VARIANT}_Lighting')), encoding='utf-8')
+        installs.install_rotation(self.lwr, folder, 'additional')
+        ledger = installs.read_ledger(self.lwr)
+        self.assertTrue((cooked / 'Lighting_4242.tfc').is_file() and (cooked / f'{VARIANT}_Lighting.tfc').is_file())
+        self.assertEqual({ledger['owners'][n] for n in ('Lighting_4242.tfc', f'{VARIANT}_Lighting.tfc')}, {ID})
+        installs.reset(self.lwr)
+        self.assertFalse((cooked / 'Lighting_4242.tfc').exists() or (cooked / f'{VARIANT}_Lighting.tfc').exists())
+        # a play: both kinds of cache are the play's and go with it
+        self.package()
+        installs.install_package(self.lwr, folder)
+        installs.clear_play(self.lwr)
+        self.assertFalse((cooked / 'Lighting_4242.tfc').exists())
+
     def test_nothing_changes_while_xcom_runs(self):
         before = self.files(self.lwr)
         self.running = True

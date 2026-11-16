@@ -47,15 +47,18 @@ patch needs) and the main viewer cache. Stages, each logged in the build's work 
    lightmaps, the stage and the manifest say lightingUnchanged, and there is no texture cache.
    Hidden pieces stop casting shadows, copies cast them at their poses, a copy made in the map is lit for where it
    stands, and every texture-lightmapped component within --radius of the edit is relit as a change on the original
-   bake (--receivers-near). Writes the variant map and its texture cache, Lighting_<n>.tfc, where n comes from the
-   variant's name. A quick build runs native_copy.py without --bake (Build.edit_unbaked): the same edit, no relight,
+   bake (--receivers-near). Writes the variant map and its texture cache, <Variant>_Lighting.tfc (cache_name: the
+   name added to the map's name table first, by native_copy.py's growing write, or for the relight alone by a named
+   copy of the map in the work folder: Build.named_base; until 16 November 2026 it was Lighting_<n>, n from the
+   variant's name). A quick build runs native_copy.py without --bake (Build.edit_unbaked): the same edit, no relight,
    no texture cache.
 5. Seeds: the patch's seed plan (patchtool's seed-plan-built.tsv) is applied to the relit map
    (tools/upk/seed_map.py apply), so the copier's copies block and give cover on tiles the map left empty (F-29).
 6. Package: <output>/<Variant>/, as the plan's variant package:
      CookedPCConsole/<Variant>.upk          the base map with the edit's copies, relit and seeded, under the
                                             variant's name
-     CookedPCConsole/Lighting_<n>.tfc       its texture cache (none in a quick build)
+     CookedPCConsole/<Variant>_Lighting.tfc its texture cache (none in a quick build, nor when the lighting is
+                                            unchanged)
      CookedPCConsole/<EditPatch>.upk        the cooked edit patch (hides, the copier's copies), if there is one
      CookedPCConsole/<Intro>_<Variant>.upk  the base map's intro (CIN_DropshipIntros, CIN_FastropeIntros, or the
                                             alien bases' CIN_TP05A_EnteringAlienBase) with its scene under the
@@ -160,9 +163,11 @@ def sha256(path):
 
 
 def cache_name(variant):
-    """The variant's texture cache: Lighting (a name every map's table has) numbered from the variant's name, so two
-    variants don't share a cache file and a rebuild replaces its own."""
-    return 'Lighting_%d' % (1000 + int(hashlib.sha256(variant.encode('ascii')).hexdigest()[:6], 16))
+    """The variant's texture cache: <Variant>_Lighting (outputnames.cache_name), its own as its map name is, so a
+    rebuild replaces its own. The name is added to the map's name table before the relight writes it (native_copy.py,
+    Build.named_base). Until 16 November 2026 it was Lighting numbered from a hash of the variant's name (Lighting_<n>):
+    a package built then keeps it until it is built again."""
+    return outputnames.cache_name(variant)
 
 
 def owned_folder(output, variant, project_id):
@@ -559,7 +564,7 @@ def readme(m):
 
 class Build:
     def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
-                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=()):
+                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=(), named=None):
         self.project_path = Path(project)
         # whose names the build checks its own against (outputnames.Claims): the projects folder (the project file's
         # own, unless given), the builds folder, the game install it reads and `games` (the one Play in game uses)
@@ -577,6 +582,7 @@ class Build:
         self.stamp = self.now.strftime('%Y%m%d-%H%M%S')
         self.run_tool = run or self._run
         self.seed_tool = seed or self._seed
+        self.name_tool = named or self._name_copy     # named_base's growing write (tests give a stand-in)
         self.echo = echo
         self.stages = []
         self.started = self.stage_started = time.monotonic()
@@ -954,7 +960,8 @@ class Build:
                           + pieces + (['--edit-spec', self.spec] if self.has_patch else []),
                           self.work / 'logs' / 'native-copy.log')
         else:
-            self.run_tool([sys.executable, '-B', '-u', RELIGHT, self.base, self.lit, self.variant, '--cache',
+            # the relight alone, on a copy of the map whose name table holds the cache's name (named_base)
+            self.run_tool([sys.executable, '-B', '-u', RELIGHT, self.named_base(), self.lit, self.variant, '--cache',
                            self.cache_name, '--edit-spec', self.spec, '--receivers-near', '%g' % self.radius]
                           + pieces,
                           self.work / 'logs' / 'relight.log')
@@ -977,6 +984,30 @@ class Build:
         self.relit.update(self.building_record())
         self.relit.update(self.flag_record())
         self.stage('light', cache=self.cache_name, baked=True, **self.relit)
+
+    def named_base(self):
+        """The map the relight alone reads (an edit only the patch makes): a copy of it in the work folder, written by
+        the growing writer (package_grow.py) with the variant cache's name added to its name table, so the relight can
+        write that name into the textures it moves there (lighting_fixture.cache_fname). The game install's file is
+        never written; the copy reads the texture caches where the map does (tfc-folder.txt)."""
+        sys.path.insert(0, str(TOOLS / 'bake'))
+        import lighting_fixture
+        from package import link_caches
+        folder = self.work / 'named'
+        folder.mkdir(parents=True, exist_ok=True)
+        named = folder / Path(self.base).name
+        self.name_tool(self.base, named, lighting_fixture.cache_table_name(self.cache_name))
+        link_caches(folder, Path(self.base).parent)
+        return named
+
+    @staticmethod
+    def _name_copy(src, dst, text):
+        """`src` written to `dst` by the growing writer with `text` added to its name table (nothing else changes:
+        the tables move to the end, test_package_grow)."""
+        import package_grow
+        g = package_grow.Grower(str(src))
+        g.name(text)
+        g.write(str(dst))
 
     def needs_templates(self):
         """Whether the map must have a building and a plain floor volume to clone: a building made from nothing, or a

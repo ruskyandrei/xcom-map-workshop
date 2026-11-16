@@ -74,6 +74,21 @@ class Blocks(unittest.TestCase):
         new, n = paint_dxt1(raw, 4, 4, (0.0, 0.0), (1.0, 1.0), [solid_block((1, 0, 0)), solid_block((0, 1, 0))])
         self.assertEqual(n, 1)
 
+    def test_cache_names_plain_and_numbered(self):
+        """Output names plan 4: the Build's <Map>_Lighting is its own name (number 0); a name ending _<n>, as the
+        Build's Lighting_<n> until 16 November 2026, is <Name> numbered n + 1 and wins over a plain reading."""
+        for cache, fname in [('URB_BarFix_Lighting', ('URB_BarFix_Lighting', 0)), ('Map2ndTry_2_Lighting', ('Map2ndTry_2_Lighting', 0)),
+                             ('Lighting_7000', ('Lighting', 7001)), ('Lighting_0', ('Lighting', 1)),
+                             ('Lighting_07', ('Lighting_07', 0)),          # a leading zero: the engine keeps it whole
+                             ('Lighting_2147483646', ('Lighting', 2147483647)), ('Lighting', ('Lighting', 0))]:
+            with self.subTest(cache):
+                self.assertEqual(fx.cache_fname(cache), fname)
+                self.assertEqual(fx.cache_table_name(cache), fname[0])
+        for bad in ('Lighting_2147483647', 'Bad-name', '1x', '', 'A' * 64, None):
+            with self.subTest(bad):
+                with self.assertRaises(ValueError):
+                    fx.cache_fname(bad)
+
     def test_compressed_bulk_round_trip(self):
         raw = bytes(random.Random(5).randrange(256) for _ in range(300_001))
         payload = compressed_bulk(raw, 131072)
@@ -110,6 +125,45 @@ class RealMap(unittest.TestCase):
         with self.assertRaises(ValueError):
             fx.parse_cache_name(self.p, 'Lighting')
         self.assertEqual(fx.parse_cache_name(self.p, 'Lighting_7000'), (self.p.names.index('Lighting'), 7001))
+        # a plain name needs its text in the table, which only a growing write can add
+        with self.assertRaisesRegex(ValueError, 'growing write adds it first'):
+            fx.parse_cache_name(self.p, 'URB_BarNamed_Lighting')
+
+    def test_a_named_cache_is_added_by_a_growing_write_and_written_as_a_plain_name(self):
+        """Output names plan 4 and 5: the map grown with the cache's name alone in its table (the Build's named copy),
+        read by a fresh reader; a redirect then writes that name, number 0, into the texture, and its mips go to
+        <name>.tfc. Nothing else of the map changes: its logical bytes differ from the grown map's only at the
+        texture's cache name and mip records."""
+        import package_grow
+        name = 'URB_BarNamed_Lighting'
+        with tempfile.TemporaryDirectory() as d:
+            grown = Path(d) / 'named' / 'URB_Bar.upk'
+            grown.parent.mkdir()
+            g = package_grow.Grower(str(BAR))
+            g.name(name)
+            g.write(str(grown))
+            lighting.link_caches(grown.parent, BAR.parent)
+            src = lighting.Package(grown)
+            self.assertEqual(src.names[-1], name)
+            self.assertEqual(fx.parse_cache_name(src, name), (len(src.names) - 1, 0))
+            manifest = fx.run(grown, Path(d) / 'out', 'URB_BarNamed', [dict(op='redirect', texture='NormalizedAverageColor0_5')], cache=name)
+            self.assertEqual(manifest['cache'], name)
+            self.assertTrue((Path(d) / 'out' / f'{name}.tfc').is_file())
+            q = lighting.Package(Path(d) / 'out' / 'URB_BarNamed.upk')
+            self.assertEqual(q.effective(q.by_name['NormalizedAverageColor0_5'], 'TextureFileCacheName'), name)
+            self.assertEqual(q.effective(q.by_name['DirectionalMaxComponent0_5'], 'TextureFileCacheName'), 'Lighting')
+            t = lightmap_fields.texture_fields(q, q.by_name['NormalizedAverageColor0_5'])
+            self.assertEqual(struct.unpack_from('<ii', q.data, t['cacheNameOffset']), (len(src.names) - 1, 0))
+            # every byte as the grown map has it but the edits, and every edit a cache name or a mip record (from the
+            # first chunk: the image's first bytes are the summary's, whose chunk table follows the re-encoded blocks)
+            self.assertEqual(len(q.data), len(src.data))
+            lo = src.header['chunks'][0][0]
+            edited = np.zeros(len(src.data), bool)
+            for e in manifest['edits']:
+                self.assertRegex(e['what'], r'^(cache name of |mip \d+x\d+ of )')
+                edited[e['offset']:e['offset'] + len(bytes.fromhex(e['new']))] = True
+            diff = lo + np.nonzero(np.frombuffer(bytes(src.data), np.uint8)[lo:] != np.frombuffer(bytes(q.data), np.uint8)[lo:])[0]
+            self.assertTrue(len(diff) and edited[diff].all())
 
     def test_paint_and_scale_fixture(self):
         with tempfile.TemporaryDirectory() as d:

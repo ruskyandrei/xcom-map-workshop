@@ -211,10 +211,12 @@ class ConfigLines(unittest.TestCase):
             build.config_lines([';' + record('bar')], [], [], 'URB_Bar', VARIANT, PATCH, 'x')
 
     def test_cache_names_are_the_variants_own(self):
-        a, b = build.cache_name(VARIANT), build.cache_name('URB_Bar_Other_9999')
-        self.assertEqual(a, build.cache_name(VARIANT))
-        self.assertNotEqual(a, b)
-        self.assertRegex(a, r'^Lighting_\d+$')      # lighting_fixture.parse_cache_name's form
+        # output names plan 4: <Variant>_Lighting, a plain name (lighting_fixture.cache_fname gives number 0)
+        self.assertEqual(build.cache_name(VARIANT), VARIANT + '_Lighting')
+        self.assertEqual(build.cache_name('BarFix_2'), 'BarFix_2_Lighting')
+        sys.path.insert(0, str(HERE.parents[1] / 'bake'))
+        import lighting_fixture
+        self.assertEqual(lighting_fixture.cache_fname(build.cache_name(VARIANT)), (VARIANT + '_Lighting', 0))
 
 
 class LightCounts(unittest.TestCase):
@@ -388,7 +390,12 @@ class Builds(unittest.TestCase):
         now = datetime.datetime(2026, 11, 7, int(stamp[:2]), int(stamp[2:4]), int(stamp[4:]))
         return build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk if udk else None,
                            patch_work=self.work, now=now, run=self.run_tool, seed=self.seed, echo=lambda *_: None,
-                           quick=quick)
+                           quick=quick, named=self.name_copy)
+
+    def name_copy(self, src, dst, text):
+        """The named copy's growing write (Build.named_base), as a stand-in: the map's bytes and the name added."""
+        self.named = getattr(self, 'named', []) + [(str(src), str(dst), text)]
+        Path(dst).write_bytes(Path(src).read_bytes() + b' +' + text.encode())
 
     def test_a_moved_landing_alone_is_relit(self):
         """A project whose one change moves the map's own landing: its grounded Skyranger casts a shadow, so a full
@@ -877,6 +884,20 @@ class Builds(unittest.TestCase):
         self.assertEqual([r[4] for r in self.ran if r[0] == 'pwsh'], ['build', 'cook'])
         self.assertEqual(len(self.tool('relight.py')), 1)
         self.assertEqual(m['streams'], [PATCH])
+        # output names plan 4: the relight alone reads a named copy of the map in the work folder (the cache's name
+        # added to its table by a growing write), never the install's file, and the copy reads the install's caches
+        light, = self.tool('relight.py')
+        work = Path(m['work'])
+        k = next(i for i, a in enumerate(light) if a.endswith('relight.py'))
+        self.assertEqual(Path(light[k + 1]), work / 'named' / 'URB_Bar.upk')
+        self.assertEqual(light[light.index('--cache') + 1], VARIANT + '_Lighting')
+        self.assertEqual(self.named, [(str(self.lwr / 'XEW/XComGame/CookedPCConsole/URB_Bar.upk'),
+                                       str(work / 'named' / 'URB_Bar.upk'), VARIANT + '_Lighting')])
+        self.assertEqual((work / 'named' / 'tfc-folder.txt').read_text(encoding='utf-8').strip(),
+                         str((self.lwr / 'XEW/XComGame/CookedPCConsole').resolve()))
+        self.assertEqual((self.lwr / 'XEW/XComGame/CookedPCConsole/URB_Bar.upk').read_bytes(), BASE)
+        self.assertEqual(m['cache'], VARIANT + '_Lighting')
+        self.assertIn('CookedPCConsole/%s_Lighting.tfc' % VARIANT, m['files'])
 
     def test_a_collectibles_copy_is_made_in_the_map(self):
         collectible = dict(COPY, labels=['XComCollectible_10_copy2'], classes=['XComCollectible'],
@@ -985,6 +1006,22 @@ class Builds(unittest.TestCase):
         # a ledger from before owners were noted: left to the install step
         installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}))
         self.make('112500').run()
+
+    def test_a_package_of_before_rebuilds_with_the_named_cache_and_quick_builds_have_none(self):
+        """Output names plan 4: a project's package built with Lighting_<n> (before 16 November 2026) is replaced by
+        one with <Variant>_Lighting.tfc; a quick build in between has no cache; the next full build has it again."""
+        self.spec['objects'] = [COPY, HIDE]
+        old = self.foreign_build(VARIANT, self.doc['id'], files=['%s.upk' % VARIANT, 'Lighting_4242.tfc'])
+        m = json.loads((old / 'manifest.json').read_text(encoding='utf-8'))
+        (old / 'manifest.json').write_text(json.dumps(dict(m, cache='Lighting_4242')), encoding='utf-8')
+        caches = []
+        for stamp, quick in (('110000', False), ('111000', True), ('112000', False)):
+            m = self.make(stamp, quick=quick).run()
+            caches.append((m['cache'], sorted(Path(f).name for f in m['files'] if f.endswith('.tfc'))))
+        named = VARIANT + '_Lighting'
+        self.assertEqual(caches, [(named, [named + '.tfc']), (None, []), (named, [named + '.tfc'])])
+        self.assertFalse((self.output / VARIANT / 'CookedPCConsole' / 'Lighting_4242.tfc').exists())
+        self.assertIn('lightmaps are in %s.tfc' % named, (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
 
     def test_a_package_that_cannot_be_put_in_place_leaves_the_last_one(self):
         """Output names plan 3.4: the swap is undone when the new folder can't take the old one's place."""
