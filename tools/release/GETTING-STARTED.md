@@ -131,7 +131,7 @@ recipes in your install and warns about any it can't load. After scanning **All 
 Close XCOM first. Then:
 
 - **Play in game** (Project menu) starts XCOM **straight in a battle** on the open project's latest build: pick
-  Enemy Within in the game's launcher (if yours still shows it), and the battle starts by itself with a test squad of six. There is no campaign
+  Enemy Within in the game's launcher (if yours still shows it), and the battle starts by itself with the test squad (below). There is no campaign
   to start, and nothing of the game's own is changed.
   - It opens the same panel as Build: **Build and play** builds first (Bake the lighting off by default), and
     **Play last build** plays the last build as it is, when that is of what is on screen.
@@ -149,9 +149,16 @@ With a map open and no project, Play in game plays the original map, without edi
 is installed for it (but a copy of the map record for Basic Training, the tutorial's map, whose records the game
 keeps switched off).
 
-The test battle is the mission the header's **Mission** picker shows (the play window can change it): the map's landing for it, four pods of Sectoids and six squaddies. It is
-not a campaign mission, and it can't be saved. The squad is written for Long War and Long War Rebalance; on plain
-Enemy Within the game's own test squad plays.
+The test battle is the mission the header's **Mission** picker shows (the play window can change it): the map's landing for it, four pods of Sectoids and the test squad. It is
+not a campaign mission, and it can't be saved.
+
+**Settings → Test squad setup…** (the gear right of the header, before Import notes) sets the squad every Play in
+game lands with: one to eight units, each with its kind (soldier, MEC trooper or SHIV), name, class, rank, look,
+armour, weapons, items, perks and base stats, chosen from the install's own lists. Until you save one, it is six
+squaddies. Errors (an armour with no body, a MEC without its gun) stop a play; warnings say what the game will do
+with something odd. **Export…** and **Import…** share a squad as a `.xcomsquad.json` file. On plain Enemy Within and
+Long War without Rebalance the squad holds soldiers only, six at most. The squad is kept in
+`Documents\XCOM Map Workshop\test-squad.json`.
 
 **Missions…** (Project menu) sets the missions a project is for: the base map's, and kinds a record alone can give
 it (an abduction, a terror site, a bomb mission under Long War, a crashed or landed UFO with a UFO prefab placed). The
@@ -197,7 +204,7 @@ records are out of rotation.
 - **The editor's colours are approximate.** The game's lighting comes from the Build.
 - **Light edits need Bake the lighting.** Without it, a build makes them in the map but doesn't bake them. A deleted
   or changed light's old pool stays on the floor and walls, and a new light has no pool of its own.
-- **Play in game on plain Enemy Within** plays the game's own test squad.
+- **The test squad on plain Enemy Within** holds soldiers only (no MECs or SHIVs).
 - **Projects may not open in the next version.** Keep your builds: those play regardless.
 
 ## Where things are

@@ -699,6 +699,7 @@ def main():
     serve.add_argument("--projects",type=Path,help="Projects folder (default: the projects setting); tests use a scratch folder")
     serve.add_argument("--prefabs",type=Path,help="Prefab library folder (default: the prefabs setting; with --projects, a prefabs folder beside it)")
     serve.add_argument("--builds",type=Path,help="Builds folder (default: the output setting); tests use a scratch folder")
+    serve.add_argument("--squad",type=Path,help="The test squad's file (default: test-squad.json beside the settings): a test server points it at a scratch file, never the user's")
     serve.add_argument("--dry-play",action="store_true",help="Play in game does everything but start the game: for tests, with --install <a scratch game folder>")
     serve.add_argument("--try-mission-lines",action="store_true",help="Play in game puts in every mission command not yet known to work (missions.LINES: the open line's content options, the civilians' looks, the UFO and council types), for the game runs that try them (EXP-53)")
     serve.add_argument("--install",type=Path,help="The game folder Play in game installs into and starts (default: the install setting, else the game install); tests use a scratch copy")
@@ -811,7 +812,7 @@ def main():
                     None if exact else LibraryRunner(cache_root, settings['game']))
         # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
         from squads import SquadService, SquadStore, store_path
-        live.player.squads = SquadService(SquadStore(store_path()), lambda: live.player.target(),
+        live.player.squads = SquadService(SquadStore(args.squad or store_path()), lambda: live.player.target(),
                                           cache=Path(cache_root) / '.gamedata')
         prefab_tests = PrefabTests(builds, live)
         precache = None if exact else PrecacheRunner(live, cache_root)

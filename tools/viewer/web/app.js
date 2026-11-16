@@ -11,6 +11,7 @@ import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as pla
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
+import { createSquadDialog, squadLine } from './squad.js';
 import { createProjectManager } from './manager.js';
 import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
@@ -4798,6 +4799,8 @@ function playedMessage(r) {
     p.how === 'dry' ? `Starting XCOM is left out here (serve --dry-play): ${what}.` : `Starting XCOM: ${what}.`,
     p.how === 'steam' ? 'Pick Enemy Within if the game\'s launcher asks.' : null,
     p.saving ? `At the main menu, press ${p.saving.key} to start the battle.` : null,
+    p.squad ? `Squad: ${p.squad.name}, ${p.squad.count} unit${p.squad.count === 1 ? '' : 's'}${p.squad.warnings?.length
+      ? ` (${p.squad.warnings.length} warning${p.squad.warnings.length === 1 ? '' : 's'}: Test squad setup lists them)` : ''}.` : null,
     ...(p.mission?.missing ?? []),
     p.introBack ? 'The first mission an earlier version of the editor installed is the game\'s own again.' : null,
     p.note,
@@ -4821,6 +4824,7 @@ async function playInGame(zoned) {
       title: `Play ${mapLabel(activeMapId)} in the game`, build: false, ok: 'Play',
       note: `Plays the original map (no edits) in ${playStatus.install.sameAsLwr ? 'the game install' : 'the install under Installs'}.`,
       missions, mission: missionPickValue, missionNote: playMissionNote, saving: savingOption(only ?? missionPickValue),
+      squad: squadLine(playStatus.squad),
       onBuild: ({ mission, saving }) => {
         const chosen = mission ?? only ?? 0;
         followPlayedMission(chosen);
@@ -4844,6 +4848,7 @@ async function playInGame(zoned) {
       : 'It is built first and played when the build ends.'}`,
     times: lastBuild?.package?.times ?? {}, bakeNote: bakeNote(),
     missions, mission: missionPickValue, missionNote: playMissionNote, saving: savingOption(missionPickValue),
+    squad: squadLine(playStatus.squad),
     ok: 'Build and play', onBuild: ({ quick, mission, saving }) => playChosen(quick ? 'quick' : 'full', mission, saving),
     last: current ? 'Play last build' : null, onLast: ({ mission, saving }) => playChosen('last', mission, saving),
   });
@@ -4908,7 +4913,32 @@ const buildOptions = createBuildOptions({
          missionRow: $('buildMissionRow'), mission: $('buildMission'), missionNote: $('buildMissionNote'),
          mapBakeHelp: $('buildMapBakeHelp'), testBakeHelp: $('buildTestBakeHelp'),
          savingRow: $('buildSavingRow'), saving: $('buildSaving'), savingHelp: $('buildSavingHelp'),
-         close: $('buildOptionsClose'), cancel: $('buildOptionsCancel') } });
+         squadRow: $('buildSquadRow'), squad: $('buildSquad'),
+         close: $('buildOptionsClose'), cancel: $('buildOptionsCancel') },
+  onSquad: () => squadDialog.show() });
+// Test squad setup (squad.js; Settings menu, and the play dialog's squad line): the one squad every play lands with.
+// A save refreshes the play status, so the squad line of an open play dialog and the Settings menu follow it.
+const squadDialog = createSquadDialog({
+  els: { root: $('squadDialog'), form: $('squadForm'), title: $('squadTitle'), intro: $('squadIntro'), problem: $('squadProblem'),
+         name: $('squadName'), units: $('squadUnits'), add: $('squadAdd'), copy: $('squadCopy'), remove: $('squadRemove'),
+         up: $('squadUp'), down: $('squadDown'), count: $('squadCount'), unit: $('squadUnit'), issues: $('squadIssues'),
+         wide: $('squadWide'), status: $('squadStatus'), exportButton: $('squadExport'), importButton: $('squadImport'),
+         importFile: $('squadImportFile'), reset: $('squadReset'), cancel: $('squadCancel'), save: $('squadSave'),
+         close: $('squadClose') },
+  onSaved: () => refreshSquadLine(true),
+});
+async function refreshSquadLine(saved = false) {
+  try { playStatus = await playApi.status(); }
+  catch (e) { if (saved) flashHint(`Saved; the play status could not be read: ${e.message}`); return; }
+  const line = squadLine(playStatus.squad);
+  if (buildOptions.open) buildOptions.setSquad(line);
+  const menu = $('settingsSquadLine');
+  menu.textContent = line ? line.text : 'The squad is not known: this server starts no game.';
+  menu.title = line?.title ?? '';
+  menu.classList.toggle('warn', Boolean(line?.warn));
+  if (saved && !buildOptions.open) flashHint('Saved the test squad: the next Play in game lands with it');
+}
+$('settingsSquad').onclick = () => { showPop(null); squadDialog.show(); };
 const prefabTest = createPrefabTest({
   els: { root: $('prefabTestModal'), icon: $('prefabTestIcon'), title: $('prefabTestTitle'), note: $('prefabTestNote'),
          bar: $('prefabTestBar'), status: $('prefabTestStatus'), issues: $('prefabTestIssues'), details: $('prefabTestDetails'),
@@ -4987,6 +5017,7 @@ async function openPrefabTest() {
     const blocked = playBlocked(status);
     if (blocked) { banner(blocked, [['Try again', openPrefabTest]]); return; }
     target = status.install.folder;
+    playStatus = status;
   } catch (e) { banner(e.message, [['Try again', openPrefabTest]]); return; }
   if (buildOptions.open || prefabTest.showExisting()) return;
   const { size } = builderRecords(), [x, y] = size.tiles;
@@ -4999,6 +5030,7 @@ async function openPrefabTest() {
       Math.max(x, y) > 128 ? 'It is too large for the 128 by 128 tile stage: the test will say so.' : '',
       revision, `Game install ${target}`].filter(Boolean).join(' '),
     ok: 'Build and test', bake: false, prefabTest: true, saving: { key: playStatus?.saveKey ?? 'F5' },
+    squad: squadLine(playStatus?.squad),
     onBuild: ({ quick, saving }) => prefabTest.start(builderDocument(), quick, dirty() || !builder.doc.revision, saving),
   });
 }
@@ -8331,6 +8363,7 @@ function showPop(id) {
     if (on && pop.classList.contains('left')) pop.style.left = `${button.getBoundingClientRect().left - viewport.getBoundingClientRect().left}px`;
   }
   if (id === 'projectMenu') renderProjectMenu();
+  if (id === 'settingsMenu') refreshSquadLine();
 }
 for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });

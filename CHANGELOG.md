@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Test squad Q4: the Settings menu and the squad's panel
+
+Stage Q4 of the test squad plan (private): the squad is set up in the editor.
+- The header has a **Settings** button (the gear, right of the header before Import notes:
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)), its menu showing the squad's line
+  (*Squad: Test squad · 6 units*, amber with warnings or when it can't play) and **Test squad setup…**.
+- [squad.js](tools/viewer/web/squad.js) is the panel: the units in landing order (Add, Copy, Remove, move up and down,
+  arrow keys; a row's mark gives its warnings or errors), each unit's kind (a change says what it cleared and offers
+  Undo), names, class and rank (or the MEC's class, or none for a SHIV), look and country, armour with a line of what
+  it gives, sidearm, weapons and items as ordered lists, perks as chips picked from a list, base stats with the
+  install's own as the empty value. Every change is checked by the server (`POST /squad/check`, debounced) and the
+  squad's and units' errors, warnings and notes listed. **Show every item** widens the lists to every item of the
+  size and every perk. Save (Ctrl+S) sends the revision it read: a refusal (saved meanwhile elsewhere) keeps the draft
+  and offers the saved squad or saving over it. Reset to default and Import only change the draft; Export downloads
+  the shared file. Esc cancels.
+- The play window shows the squad's line under its options ([build_options.js](tools/viewer/web/build_options.js));
+  a click opens the panel over it, and a save updates the line. A play's result message names the squad, its count
+  and warnings ([app.js](tools/viewer/web/app.js)).
+- `serve --squad <file>` points a server at another squad file ([viewer.py](tools/viewer/viewer.py)), for test servers.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) checks the menu, the panel's lists and kind change, a
+  check's errors, and the play window's line (`--only squad`; `--squad` also saves, conflicts, exports and imports,
+  for a server on a scratch squad).
+- Docs: the guide's new section *Settings: Test squad setup*, its header legend, limits, test battle text and files
+  table ([guide.html](tools/release/guide/guide.html)); [GETTING-STARTED.md](tools/release/GETTING-STARTED.md);
+  [the viewer README](tools/viewer/README.md) (the squad's path through a play and its API).
+
+Checked: the viewer, release, repo and node suites; on a test server with a scratch squad, by hand in the browser
+(menu, panel, adding units, MEC and SHIV kinds, errors shown, save, the 409 path, export and import, the play window's
+line, Show every item, Reset, Cancel, a corrupt file) and with `browser_smoke.py --only squad --squad`. Not played:
+the panel's squads in the game are EXP-64's runs.
+
 ### Test squad Q0 to Q3: the game's own data, the saved squad and its records, in every play
 
 Stages Q0 (the scripts' part), Q1, Q2 and Q3 of the test squad plan (private). Every Play in game now lands with one

@@ -28,6 +28,7 @@
     <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 13.5L19.5 9 15 4.5"/><path d="M19.5 9h-10a5.5 5.5 0 0 0 0 11h3"/></symbol>
     <symbol id="i-notes" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17v.4"/></symbol>
     <symbol id="i-view" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.3M12 18.2v2.3M3.5 12h2.3M18.2 12h2.3M6 6l1.6 1.6M16.4 16.4L18 18M6 18l1.6-1.6M16.4 7.6L18 6"/><circle cx="12" cy="12" r="6.2"/></symbol>
     <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.6v.4"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M19.5 19.5l-4.7-4.7"/></symbol>
     <symbol id="i-add" viewBox="0 0 24 24"><path d="M10.5 3.6L3.5 7.3v8.4l7 3.8 7-3.8V7.3z"/><path d="M3.5 7.3l7 3.8 7-3.8M10.5 11.1v8.4"/><path d="M19.5 15.5v6M16.5 18.5h6"/></symbol>
@@ -52,6 +53,7 @@
     <button id="editUndo" class="icon" title="Undo (Ctrl+Z)" aria-label="Undo" hidden><svg class="i"><use href="#i-undo"/></svg></button>
     <button id="editRedo" class="icon" title="Redo (Ctrl+Y)" aria-label="Redo" hidden><svg class="i"><use href="#i-redo"/></svg></button>
     <button id="editResetAll" class="textbutton" type="button" title="Put the map back as exported: added pieces go, deleted ones return, moved ones go home, groups end (one undo step)" hidden>Reset all</button>
+    <button id="settingsButton" class="icon" title="Settings: the test squad every Play in game lands with" aria-label="Settings" aria-expanded="false" aria-haspopup="menu" data-pop="settingsMenu"><svg class="i"><use href="#i-settings"/></svg></button>
     <button id="notesButton" class="icon" title="Import notes" aria-label="Import notes" aria-expanded="false" data-pop="issues"><svg class="i"><use href="#i-notes"/></svg><span id="issueCount" class="count"></span></button>
     <button id="viewButton" class="icon" title="View options" aria-label="View options" aria-expanded="false" data-pop="viewOptions"><svg class="i"><use href="#i-view"/></svg></button>
     <button id="helpButton" class="icon" title="Controls and shortcuts" aria-label="Controls and shortcuts" aria-expanded="false" data-pop="help"><svg class="i"><use href="#i-help"/></svg></button>
@@ -319,6 +321,13 @@
       </div>
       <details id="sourceDetails"><summary>Source details</summary><dl id="sourceFields"></dl><button id="copyPaths" class="link" type="button" title="Copy the actor, mesh and material paths">Copy full paths</button></details>
     </section>
+    <section id="settingsMenu" class="panel pop settingsmenu" aria-label="Settings" hidden>
+      <h3>Settings</h3>
+      <div class="menuitems" role="menu" aria-label="Settings">
+        <button id="settingsSquad" type="button" role="menuitem" title="The one squad every Play in game lands with, unit by unit: soldiers, MEC troopers and SHIVs, their gear, perks and base stats"><span>Test squad setup…</span></button>
+      </div>
+      <p id="settingsSquadLine" class="settingsline"></p>
+    </section>
     <section id="issues" class="panel pop" aria-label="Import notes" hidden><h3>Import notes</h3><div id="composition"></div><div id="diagnostics"></div></section>
     <section id="viewOptions" class="panel pop" aria-label="View options" hidden>
       <h3>Lighting</h3>
@@ -514,6 +523,7 @@
       <p id="buildOptionsNote" class="optionsnote"></p>
       <label id="buildMissionRow" class="missionoption" for="buildMission" hidden><span>Mission</span><select id="buildMission" title="Which of the map's missions the battle is: its record's mission type, council type and streams"></select></label>
       <div id="buildMissionNote" class="optionsnote missionnote" role="note" hidden></div>
+      <p id="buildSquadRow" class="optionsnote squadline" hidden><button id="buildSquad" type="button" class="squadlink" title="Test squad setup: the squad this play lands with"></button></p>
       <label id="buildBakeRow" class="bakeoption" for="buildBake">
         <input id="buildBake" type="checkbox" aria-describedby="buildBakeNote">
         <span><strong>Bake the lighting</strong>
@@ -530,6 +540,39 @@
         </span>
       </label>
       <div class="buildoptionsfoot"><span id="buildEstimate" class="buildestimate" role="status"></span><button id="buildOptionsCancel" type="button">Cancel</button><button id="buildOptionsLast" type="button" title="Install the project's last build as it is, without building" hidden>Install last build</button><button id="buildOptionsOk" class="primary" type="submit">Build</button></div>
+    </form>
+  </div>
+  <div id="squadDialog" class="modal" hidden>
+    <form id="squadForm" class="panel filedialog squaddialog" role="dialog" aria-modal="true" aria-labelledby="squadTitle" aria-describedby="squadIntro" novalidate>
+      <div class="dialoghead"><h2 id="squadTitle">Test squad setup</h2><button id="squadClose" class="icon" type="button" title="Cancel (Esc): the saved squad stays as it was" aria-label="Cancel"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <p id="squadIntro" class="optionsnote"></p>
+      <p id="squadProblem" class="optionsnote warn squadproblem" role="alert" hidden></p>
+      <div class="squadbody">
+        <div class="squadleft">
+          <label class="squadfield"><span>Squad name</span><input id="squadName" maxlength="40" spellcheck="false" autocomplete="off"></label>
+          <ol id="squadUnits" class="squadunits" role="listbox" aria-label="Units, in landing order"></ol>
+          <div class="squadunitbar">
+            <button id="squadAdd" type="button" title="Add a soldier at the end">Add</button>
+            <button id="squadCopy" type="button" title="Copy the selected unit, after it">Copy</button>
+            <button id="squadRemove" type="button" title="Take the selected unit out">Remove</button>
+            <button id="squadUp" type="button" title="Move the selected unit up: it lands earlier" aria-label="Move up">↑</button>
+            <button id="squadDown" type="button" title="Move the selected unit down: it lands later" aria-label="Move down">↓</button>
+          </div>
+          <div id="squadCount" class="squadcount"></div>
+        </div>
+        <div id="squadUnit" class="squadunit" aria-label="The selected unit"></div>
+      </div>
+      <ul id="squadIssues" class="squadissues" hidden></ul>
+      <div class="buildoptionsfoot squadfoot">
+        <label class="check" title="Every item of the right size in each list, and every perk: for odd tests. Each choice the game won't treat as usual gets a warning"><input id="squadWide" type="checkbox"> Show every item</label>
+        <span id="squadStatus" class="buildestimate" role="status"></span>
+        <button id="squadExport" type="button" title="Save the squad as it is here to a file to share (.xcomsquad.json)">Export…</button>
+        <button id="squadImport" type="button" title="Read a shared squad file into the panel: Save keeps it">Import…</button>
+        <input id="squadImportFile" type="file" accept=".json,application/json" hidden>
+        <button id="squadReset" type="button" title="The default six squaddies, in the panel: Save keeps them">Reset to default</button>
+        <button id="squadCancel" type="button">Cancel</button>
+        <button id="squadSave" class="primary" type="submit" title="Save the squad (Ctrl+S): the next Play in game lands with it">Save</button>
+      </div>
     </form>
   </div>
   <div id="cacheModal" class="modal" tabindex="-1" hidden>

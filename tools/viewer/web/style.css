@@ -433,6 +433,72 @@ canvas { display: block; width: 100%; height: 100%; }
 .buildoptionsfoot .buildestimate { flex: 1; color: var(--muted); font-size: 11px; }
 .buildoptionsfoot button { border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; padding: 5px 12px; cursor: pointer; font-size: 12px; }
 .buildoptionsfoot button:hover { background: #31434d; }
+/* Settings and Test squad setup (squad.js): the one squad every Play in game lands with. The panel opens over the
+   play dialog when its squad line is clicked. */
+.pop.settingsmenu { width: 260px; }
+.settingsline { margin-top: 8px !important; }
+.settingsline.warn, .squadline .squadlink.warn { color: var(--warn); }
+.squadline { margin: 0; }
+.squadlink { border: 0; background: none; padding: 0; color: var(--accent-text); font: inherit; font-size: 12px; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: #4a7a76; }
+.squadlink:hover { text-decoration-color: currentColor; }
+.squaddialog { width: 1000px; height: min(820px, 100%); }
+.squadproblem { color: var(--warn); }
+.squadbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 14px; }
+.squadleft { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.squadfield { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #c8d7df; min-width: 0; }
+.squadfield > span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .8px; }
+.squadfield > small { color: #a9bcc6; font-size: 11px; line-height: 1.4; }
+.squaddialog input, .squaddialog select, .squaddialog output { border: 1px solid var(--border); border-radius: 4px; background: var(--field); color: #e6f0f4; padding: 5px 8px; font: inherit; font-size: 12px; min-width: 0; }
+.squaddialog output { background: none; border-style: dashed; color: #a9bcc6; }
+.squaddialog input[type=checkbox] { padding: 0; }
+.squadunits { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 4px; background: var(--field); }
+.squadrow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #22303a; cursor: pointer; }
+.squadrow:hover { background: #1f2b34; }
+.squadrow.on { background: var(--accent-bg); }
+.squadrow:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.squadrow .squadwho { display: flex; flex-direction: column; min-width: 0; }
+.squadrow strong { color: #eef3f6; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squadrow small { color: #a9bcc6; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squadnum { color: var(--muted); font-size: 11px; text-align: right; }
+.squadmark { color: var(--warn); font-weight: 700; font-size: 12px; }
+.squadrow.bad .squadmark { color: #ef8f78; }
+.squadunitbar { display: flex; gap: 6px; }
+.squadunitbar button, .squadstatsfoot button, .squadlistrow .squadx { border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; padding: 4px 9px; cursor: pointer; font-size: 12px; }
+.squadunitbar button:hover:not(:disabled), .squadstatsfoot button:hover:not(:disabled) { background: #31434d; }
+.squadunitbar button:disabled, .squadstatsfoot button:disabled { opacity: .4; cursor: default; }
+.squadcount { color: var(--muted); font-size: 11px; }
+.squadunit { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+.squadunithead { display: grid; grid-template-columns: 220px; }
+.squadrow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.squadkindnote { color: #c8d7df; }
+.squadkindnote .link { margin: 0; font-size: 12px; }
+.squadunitissues, .squadissues { margin: 0; padding: 0 0 0 16px; font-size: 12px; line-height: 1.45; color: #c8d7df; }
+.squadunitissues li.warn, .squadissues li.warn { color: var(--warn); }
+.squadunitissues li.bad, .squadissues li.bad { color: #ef8f78; }
+.squadissues { max-height: 96px; overflow: auto; }
+.squadlist { display: flex; flex-direction: column; gap: 4px; }
+.squadlistrow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.squadlistrow .squadx { padding: 2px 8px; }
+.squadperks { display: flex; flex-direction: column; gap: 6px; }
+.squadchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.squadchips .chip { cursor: pointer; }
+.squadnone { color: var(--muted); font-size: 11px; }
+.squadstatsbox { border: 1px solid var(--border); border-radius: 4px; margin: 0; padding: 8px 10px 10px; }
+.squadstatsbox legend { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .8px; padding: 0 4px; }
+.squadstats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.squadstats label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #a9bcc6; }
+.squadstatsfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.squadstatsfoot small { color: #a9bcc6; font-size: 11px; }
+.squadfoot .check { margin: 0; white-space: nowrap; }
+.squadfoot .buildestimate { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.squadfoot .buildestimate.warn { color: var(--warn); }
+.squadfoot .buildestimate .link { margin: 0; font-size: 11px; }
+@media (max-width: 760px) {
+  .squadbody { grid-template-columns: 1fr; overflow: auto; }
+  .squadunits { max-height: 200px; }
+  .squadrow2, .squadstats { grid-template-columns: 1fr 1fr; }
+  .squadfoot { flex-wrap: wrap; }
+}
 /* The game install and checks (setup.js): on a first run, over everything until an install is chosen. */
 #setupDialog { z-index: 55; }
 .setupdialog { width: 720px; max-height: min(760px, 100%); overflow: auto; }

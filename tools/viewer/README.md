@@ -805,10 +805,22 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     there (an install whose launcher was replaced starts the game at once: findings register F-84). Steam runs the folder its manifest names, so a game folder parked beside it under another name is refused.
     A game folder in no Steam library is started by its own `XComEW.exe` (not tried).
   - **The battle** is an ordinary one on the map: its streams and landing as its `DefaultMaps.ini` record has them,
-    and aliens of the game's choosing. The commands set a squad of six squaddies and tell the game to load soldiers'
+    and aliens of the game's choosing. The commands set the test squad and tell the game to load soldiers'
     content when it is needed; without them the squad is the game's own developer one, invisible and, under Long War,
-    half unarmed. The squad's item numbers are LWR's (Long War's are taken to be the same); on plain Enemy Within no
-    squad is set and the game's own plays, which is not tried.
+    half unarmed. The squad is resolved once for each play, before anything in the install is changed, from the
+    saved squad (`test-squad.json` beside the settings, six squaddies until one is saved) and the install's own data:
+    `gamedata.py` reads its enums (`tools/upk/script_enums.py`, cached by the package's hash under
+    `<cache>\.gamedata`), its `DefaultGameCore.ini` rows and its localisation; `squadrecords.py` checks each unit
+    under the family's rules (Long War Rebalance: soldiers, MEC troopers and SHIVs, eight units; plain Enemy Within
+    and Long War: soldiers, six) and writes the records. A squad with an error stops the play before any file is
+    touched; the play's reply carries the squad's name, count, warnings and notes. The records and the rules behind
+    them are in `research/test-squad-records.md`.
+  - **The squad API** (`squads.py`): `GET /squad.json` (the document, its revision, the install's choices and the
+    check), `PUT /squad.json` with the revision it was read at (a different one is refused with 409 and the saved
+    squad), `POST /squad/check` (a draft checked, nothing saved), `/squad/import` and `/squad/export` (the shared
+    `.xcomsquad.json` form). Saving is atomic and keeps the previous file as `test-squad.prev.json`; a file that
+    can't be read is kept aside as `test-squad.bad-<time>.json` on the next save. `serve --squad <file>` points a
+    test server at a scratch squad.
   - **With a project open, a build of it** is installed first: the package's files are copied into `CookedPCConsole`,
     a record of its own is added to `DefaultMaps.ini` after the base map's (one of the base map's records under the
     variant's name, out of rotation, with its own landing intro streamed), and the base map's landing zones are added

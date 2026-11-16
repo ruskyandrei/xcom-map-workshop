@@ -3052,6 +3052,80 @@ def check_project_menu(page):
     if not kept: page.evaluate('viewer.select(null)')
 
 
+def check_squad(page, saves=False):
+    """Settings, just before Import notes, and Test squad setup (squad.js): the panel's list and unit editor, a kind
+    change and what it cleared, an error for a name the game can't take, Escape and Cancel leaving the saved squad as
+    it was, and the play dialog's squad line opening the panel over it. saves: the server's --squad is a scratch file,
+    so the check also saves, sees a save from elsewhere refused with the draft kept, and puts the squad back."""
+    assert page.evaluate("document.querySelector('#settingsButton').nextElementSibling.id") == 'notesButton'
+    page.locator('#settingsButton').click()
+    assert page.locator('#settingsMenu').is_visible()
+    labels = [t.strip() for t in page.locator('#settingsMenu .menuitems button span').all_inner_texts()]
+    assert labels[0] == 'Test squad setup…', labels
+    page.wait_for_function("document.querySelector('#settingsSquadLine').textContent.startsWith('Squad')")
+    page.locator('#settingsSquad').click()
+    page.wait_for_selector('#squadDialog:not([hidden])')
+    page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0")
+    saved = page.evaluate("fetch('/squad.json').then(r => r.json())")
+    units = page.locator('#squadUnits li').count()
+    assert units == len(saved['document']['units'])
+    if units < 8:
+        page.locator('#squadAdd').click()
+        assert page.locator('#squadUnits li').count() == units + 1
+        page.select_option('#squad-kind', 'mec')
+        assert 'Now a MEC trooper' in page.locator('.squadkindnote').inner_text()
+        assert page.locator('#squad-armour').input_value().startswith('eItem_Mec')
+        page.select_option('#squad-kind', 'shiv')
+        assert page.locator('#squad-last').count() == 0 and page.locator('#squad-look').count() == 0
+        page.fill('#squad-first', 'Bad"Name')
+        page.wait_for_function("document.querySelector('#squadUnits li.on.bad')")
+        assert 'letters, digits, spaces' in page.locator('.squadunitissues').inner_text()
+        page.locator('#squadUp').click()
+        assert page.locator('#squadUnits li.on .squadnum').inner_text() == str(units)
+        page.locator('#squadCopy').click()
+        assert page.locator('#squadUnits li').count() == units + 2
+        page.locator('#squadRemove').click(); page.locator('#squadRemove').click()
+        assert page.locator('#squadUnits li').count() == units
+    page.locator('#squadWide').check()
+    page.locator('#squadWide').uncheck()
+    page.keyboard.press('Escape')
+    assert page.locator('#squadDialog').is_hidden()
+    assert page.evaluate("fetch('/squad.json').then(r => r.json())")['revision'] == saved['revision']
+    if saves:
+        page.locator('#settingsButton').click(); page.locator('#settingsSquad').click()
+        page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0")
+        page.fill('#squadName', 'Smoke squad')
+        page.locator('#squadSave').click()
+        page.wait_for_selector('#squadDialog', state='hidden')
+        mine = page.evaluate("fetch('/squad.json').then(r => r.json())")
+        assert mine['document']['name'] == 'Smoke squad' and mine['revision'] != saved['revision']
+        page.locator('#settingsButton').click(); page.locator('#settingsSquad').click()
+        page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0")
+        page.evaluate("""async revision => { const s = await (await fetch('/squad.json')).json();
+          await fetch('/squad.json', {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                                      body: JSON.stringify({expectedRevision: revision, document: {...s.document, name: 'Elsewhere'}})}); }""",
+                      mine['revision'])
+        page.fill('#squadName', 'Mine')
+        page.locator('#squadSave').click()
+        page.wait_for_function("document.querySelector('#squadStatus').textContent.includes('Saved elsewhere')")
+        assert page.locator('#squadName').input_value() == 'Mine' and page.locator('#squadDialog').is_visible()
+        page.locator('#squadCancel').click()
+        restore = page.evaluate("fetch('/squad.json').then(r => r.json())")
+        page.evaluate("""([revision, document]) => fetch('/squad.json', {method: 'PUT', headers: {'Content-Type': 'application/json'},
+                         body: JSON.stringify({expectedRevision: revision, document})})""", [restore['revision'], saved['document']])
+    if page.evaluate("!document.querySelector('#projectPlay').hidden && !document.querySelector('#projectPlay').disabled"):
+        page.locator('#projectButton').click(); page.locator('#projectPlay').click()
+        page.wait_for_selector('#buildOptions:not([hidden])')
+        if page.locator('#buildSquadRow').is_visible():
+            assert page.locator('#buildSquad').inner_text().startswith('Squad')
+            page.locator('#buildSquad').click()
+            page.wait_for_selector('#squadDialog:not([hidden])')
+            page.locator('#squadCancel').click()
+            assert page.locator('#squadDialog').is_hidden() and page.locator('#buildOptions').is_visible()
+        page.locator('#buildOptionsCancel').click()
+        assert page.locator('#buildOptions').is_hidden()
+
+
 def check_projects(browser, url):
     """Projects (first-editor plan E1). Only against a test server whose --projects is a scratch folder: it saves
     projects there. Saving, reopening identically, recovery after a lost tab, a stale save refused and overwritten,
@@ -3804,7 +3878,8 @@ def main():
     ap.add_argument("--play",action="store_true",help="Also check Play in game and Game maps' Undo everything: changes the server's "
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names), and stop: "
+    ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -3860,6 +3935,7 @@ def main():
             if 'text-select' in only: check_text_select(page)
             if 'play-area' in only: check_play_area(page); check_interior_whole(page)
             if 'light-grid' in only: check_light_grid(page)
+            if 'squad' in only: check_squad(page, saves=args.squad)
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
@@ -3988,6 +4064,7 @@ def main():
         check_floor_tiles(page, is_bar)
         if page.evaluate("viewer.data.scope === 'map'"): check_lights(page, is_bar)
         check_project_menu(page)
+        check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)
         if args.projects: check_prefabs(browser, page.url)
         if args.play: check_play(browser, page.url, args.play_project, args.screenshot)

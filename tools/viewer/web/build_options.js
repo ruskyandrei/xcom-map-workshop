@@ -10,6 +10,8 @@
 // Enable saving (play.py, F-89): off each time the panel opens; on, the game starts at its main menu, whose login
 // readies saving, and a key there opens the battle. A mission that needs it (Long War's EXALT missions, F-109) has it
 // on and fixed, its reason as the tooltip.
+// A play also names the test squad it lands with (squad.js): a line under the mission that opens Test squad setup,
+// refreshed when the squad is saved there (setSquad).
 import { setParagraphs } from './missions.js';
 
 export const savingHelp = key => `XCOM opens at its main menu: press ${key} there to start the battle.`;
@@ -18,9 +20,9 @@ const SAVING_OFF = 'Off: the battle starts by itself and can\'t be saved.';
 const clock = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 /** els: root, form, title, note, bake (the checkbox), estimate, ok (the submit button), last, close, cancel, the
- *  mission row: missionRow, mission (the select), missionNote, and the saving row: savingRow, saving (the checkbox),
- *  savingHelp. */
-export function createBuildOptions({ els }) {
+ *  mission row: missionRow, mission (the select), missionNote, the saving row: savingRow, saving (the checkbox),
+ *  savingHelp, and the squad's line: squadRow, squad (its button). onSquad(): the squad's line was clicked. */
+export function createBuildOptions({ els, onSquad = null }) {
   let lastFocus = null, times = {}, onBuild = null, onLast = null, noteOf = null, building = true;
   let savingOf = null, savingWanted = false;      // savingOf: show's `saving`, or null (no saving row)
   function hide() {
@@ -52,6 +54,16 @@ export function createBuildOptions({ els }) {
     setParagraphs(els.missionNote, text);
     els.missionNote.hidden = !text;
   }
+  // the test squad's line ({text, warn, title} from squad.js squadLine), or none
+  function setSquad(line) {
+    if (!els.squadRow) return;
+    els.squadRow.hidden = !line;
+    if (!line) return;
+    els.squad.textContent = line.text;
+    els.squad.title = `${line.title}. Click for Test squad setup`;
+    els.squad.classList.toggle('warn', Boolean(line.warn));
+  }
+  if (els.squad) els.squad.onclick = () => onSquad?.();
   const chosenMission = () => (els.missionRow && !els.missionRow.hidden ? els.mission.value : null);
   const chosenSaving = () => Boolean(savingOf && els.saving?.checked);
   /**
@@ -63,16 +75,18 @@ export function createBuildOptions({ els }) {
    * `mission` the value chosen first and missionNote(value) the line under it. build: false for a play that builds
    * nothing (a map alone): no bake option and no estimate. saving: null (a build alone: no saving row), or {key: the
    * key that starts the battle, mission: the mission value when there is no choice, forcedFor(value): why that
-   * mission needs saving on, or null}; the callbacks then get `saving` too.
+   * mission needs saving on, or null}; the callbacks then get `saving` too. squad: the test squad's line for a play
+   * (squad.js squadLine), or null.
    * Enter presses the focused button, Space toggles the checkbox, Esc or Cancel closes.
    */
   function show({ title, note, times: seconds = {}, ok = 'Build', onBuild: buildIt, last = null, onLast: skip = null,
                   bakeNote = null, bake = false, prefabTest = false, missions = null, mission = null, missionNote = null,
-                  build = true, saving = null }) {
+                  build = true, saving = null, squad = null }) {
     lastFocus = document.activeElement;
     times = seconds; onBuild = buildIt; onLast = skip; noteOf = missionNote; building = build;
     savingOf = saving; savingWanted = false;
     if (els.savingRow) els.savingRow.hidden = !saving;
+    setSquad(squad);
     els.title.textContent = title;
     els.note.textContent = note;
     els.ok.textContent = ok;
@@ -113,5 +127,5 @@ export function createBuildOptions({ els }) {
   };
   els.close.onclick = els.cancel.onclick = hide;
   els.root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hide(); } });
-  return { show, get open() { return !els.root.hidden; } };
+  return { show, setSquad, get open() { return !els.root.hidden; } };
 }

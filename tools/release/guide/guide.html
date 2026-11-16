@@ -139,6 +139,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#clearmap">Clear map and landing zones</a></li>
           <li><a href="#viewoptions">View options</a></li>
           <li><a href="#project">Project menu</a></li>
+          <li><a href="#squad">Settings: Test squad setup</a></li>
           <li><a href="#maps">Map browser</a></li>
           <li><a href="#build">Build</a></li>
           <li><a href="#dialogs">Other windows</a></li>
@@ -277,8 +278,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li><b>Only abductions have been played from the rotation.</b> <a href="#manage-projects">Manage
         projects</a> puts builds into campaigns, beside the original maps or in their place; maps that serve other
         missions install too, with a warning.</li>
-      <li><b>No campaign in a test battle.</b> Play in game starts the mission you pick, with a fixed squad of six
-        squaddies and four Sectoid pods (EXALT pods on EXALT's missions), not your campaign's soldiers. The battle
+      <li><b>No campaign in a test battle.</b> Play in game starts the mission you pick, with the
+        <a href="#squad">test squad</a> (six squaddies until you set it up) and four Sectoid pods (EXALT pods on
+        EXALT's missions), not your campaign's soldiers. The battle
         starts by itself and can't be saved.
         Tick <b>Enable saving</b> in the play window (and in Build and test, and in the tab on a finished build's Play
         in game button, whose words show when you point at it) to save and load in it: XCOM then opens at its main menu, and <b>F5</b> there starts the battle; Exit to
@@ -400,7 +402,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="9"><b>View options:</b> lighting, light markers, tile grid and more. <a href="#viewoptions">More</a></li>
   <li data-n="10"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
 </ol>
-<p>Items 4 to 7 show once something has changed.</p>
+<p>Items 4 to 7 show once something has changed. Between Reset all and Import notes, <b class="ui">Settings</b> opens
+  <a href="#squad">Test squad setup</a>: the squad every Play in game lands with.</p>
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
@@ -1432,6 +1435,52 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li>Opening a project starts with an empty undo history.</li>
 </ul>
 
+<h3 id="squad">Settings: Test squad setup</h3>
+<p><b class="ui">Settings</b> (the gear on the right of the header, just before Import notes) opens
+  <b class="ui">Test squad setup…</b>: the one squad every <b class="ui">Play in game</b> lands with, for maps,
+  projects, Land here and prefab tests alike. The menu and the play window show it in a line
+  (<i>Squad: Test squad · 6 units</i>); a click on that line in the play window opens the setup over it, and saving there
+  brings you back to the play window. Until you save one, the squad is six squaddies (shotgun, rifles, a machine gun
+  with a rocket launcher, a sniper rifle; grenades and a medikit).</p>
+<ul>
+  <li><b>The units</b> are listed on the left in the order they land: <b class="ui">Add</b> (a soldier at the end),
+    <b class="ui">Copy</b>, <b class="ui">Remove</b>, and the arrows to move one. A squad has one to eight; the seventh
+    and eighth land a tile behind the landing points, where the game finds room. A mark on a row means a warning
+    (<b>!</b>) or an error (<b>✕</b>); point at it to read them.</li>
+  <li><b>Kind:</b> soldier, MEC trooper or SHIV. Changing it says what changed (armour, weapons, items that kind
+    doesn't carry) and offers <b class="ui">Undo</b>. A MEC trooper is the MEC class in a MEC suit; a SHIV has a
+    chassis, a gun and one name, and no class, look or country.</li>
+  <li><b>Name, class, rank, look and country.</b> The class is rookie or one of the four base classes. The rank is the
+    badge: no stats or perks come with it here. Names take letters, digits, spaces and <code>. ' -</code>, the
+    characters the game's command can carry; anything else is kept in the squad but stops a play until it is put
+    right.</li>
+  <li><b>Armour</b> (MEC suit, chassis): the unit's body comes from it. The line under it gives its HP, defence,
+    mobility, slots and what it brings (Corsair armour's grapple, Archangel's flight).</li>
+  <li><b>Sidearm, weapons and items</b>, in order. A soldier's first weapon is in its hands and a second is carried
+    too (a heavy's machine gun goes in the sidearm's place and its rocket launcher as its weapon, as the game's own
+    heavy has it). A MEC lists its gun first, then its modules (kinetic strike, flamethrower). A SHIV fires its first
+    gun only and uses no items. Items past the third go in the backpack, which holds five.</li>
+  <li><b>Perks:</b> type a name and pick it from the list. <b>Base stats:</b> HP, aim, defence, mobility, will and
+    sight; an empty box is the install's own value, and armour, weapons, perks and the game's rules add to them.</li>
+  <li><b class="ui">Show every item</b> lists every item of the right size, and every perk, for odd tests; each choice
+    the game won't treat as usual gets a warning.</li>
+</ul>
+<p>The lists are those of the install Play in game uses, read from the game's own data, so a modded install offers
+  its own items under its own names. Each change is checked at once. <b>Errors</b> (red) stop a play: an armour with
+  no body, a MEC without its gun, a name the game can't take. <b>Warnings</b> (amber) say what the game will do with
+  something odd, and never stop it: a SHIV's second gun stays behind, Long War Rebalance gives a MEC no grenades,
+  and it lets one SHIV act each turn (its Robot Overlords option lifts that; the editor leaves the game's options
+  alone). Under Long War Rebalance a battle scanner or smoke grenade gets its charges the way a campaign soldier's
+  does. On plain Enemy Within, and Long War without Rebalance, the squad holds soldiers only, six at most.</p>
+<p><b class="ui">Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) keeps the squad; the next play lands with it.
+  <b class="ui">Cancel</b> (<kbd>Esc</kbd>) leaves the saved squad as it was. <b class="ui">Reset to default</b> brings
+  back the six squaddies, and <b class="ui">Import…</b> reads a shared squad file; both change only what the window
+  shows until you save. <b class="ui">Export…</b> saves the squad to a <code>.xcomsquad.json</code> file to share: an
+  item or perk another install lacks is kept and shown as not on this install, and left out of the play with a note
+  (a missing armour is an error, as the body comes from it). If the
+  squad was saved elsewhere meanwhile (another tab), Save says so and keeps your changes: use the saved squad, or save
+  yours over it.</p>
+
 <h3 id="maps">Map browser</h3>
 <p><b class="ui">Map</b> in the header (<kbd>M</kbd>) lists every map your install plays, in sections by mission type.
   A map that serves several types is listed under each.</p>
@@ -1699,20 +1748,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     pathing and line of sight are already right.</li>
   <li>Close XCOM, choose <b class="ui">Play in game</b>, then <b class="ui">Build and play</b>.</li>
   <li>Pick <b>Enemy Within</b> if XCOM's launcher asks. The game goes straight into a battle on your map: the Skyranger
-    lands and a test squad of six steps out. There is no campaign to start, and no save to load: a tactical save
+    lands and the <a href="#squad">test squad</a> steps out. There is no campaign to start, and no save to load: a tactical save
     from before a change ignores the new pieces' cover, so always play it this way.</li>
   <li>When the layout is right, build once more with Bake the lighting <b>on</b>, and play that.</li>
   <li><b class="ui">Game maps…</b>, <b class="ui">Undo everything</b> takes it out again: the game's config files end exactly as they were.</li>
 </ol>
 <p><b>What the test battle is.</b> A plain battle on the map, started the way the game's own developers started one:
-  the map's usual landing and aliens of the game's choosing, with six squaddies (shotgun, rifles, a machine gun with
-  a rocket launcher, a sniper rifle; grenades and a medikit). It is right for cover, pathing, line of sight,
+  the map's usual landing and aliens of the game's choosing, with the <a href="#squad">test squad</a> (six
+  squaddies until you set it up in Settings). It is right for cover, pathing, line of sight,
   destruction and lighting. It is not a campaign mission: your soldiers, the mission's story and its rewards are not
   in it. It plays the mission the header's Mission picker shows, which the play window can change; under that choice
   a line says how far that kind is known to work played this way and what it goes without (a terror site's
   civilians, a UFO's type). The aliens are four pods of Sectoids (five on a terror site), and EXALT's missions get
-  four pods of EXALT operatives, each with a heavy or a sniper. The squad is written for Long
-  War and Long War Rebalance; on plain Enemy Within the game's own test squad plays, which has not been tried.</p>
+  four pods of EXALT operatives, each with a heavy or a sniper. Under Long War Rebalance the squad can hold soldiers,
+  MEC troopers and SHIVs; on plain Enemy Within and Long War without Rebalance, soldiers.</p>
 <p><b>What Play in game changes.</b> It copies the build's files into the game and adds one line to
   <code>DefaultMaps.ini</code>: a record for your variant under its own name, kept out of the rotation, so no
   campaign ever draws it (with Long War, it also adds landing-zone lines). No line the game had is changed, and it
@@ -1880,6 +1929,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <table class="wrapfirst">
   <tr><th>What</th><th>Where</th></tr>
   <tr><td>Settings</td><td><code>Documents\XCOM Map Workshop\settings.json</code></td></tr>
+  <tr><td>The test squad</td><td><code>Documents\XCOM Map Workshop\test-squad.json</code> (beside the settings; the squad before the last save in <code>test-squad.prev.json</code>)</td></tr>
   <tr><td>Projects</td><td><code>&lt;editor folder&gt;\projects\</code> (one <code>.json</code> file each)</td></tr>
   <tr><td>Prefabs</td><td>Beside the projects by default, or the folder chosen in <code>settings.json</code> (one <code>.json</code> file each)</td></tr>
   <tr><td>Builds</td><td><code>&lt;editor folder&gt;\builds\</code></td></tr>
