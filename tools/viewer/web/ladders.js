@@ -36,8 +36,9 @@ export function ladderPoints(location, rotation, extentZ) {
 
 export const tileOf = (point, origin, size = [96, 96, 64]) => point.map((v, k) => Math.floor((v - origin[k]) / size[k]));
 
-/** The ends against `floors` (a Set of 'x,y,z' tiles with floor): { top, foot, topTile, footTile, linkedTop (or
- *  null), footFloor, climbs, why }. */
+/** The ends against `floors` (a Set of 'x,y,z' tiles with floor), their tiles counted from `origin`, the corner the
+ *  game counts its tiles from (app.js tileCorner): { top, foot, topTile, footTile, linkedTop (or null), footFloor,
+ *  climbs, why }. */
 export function ladderEnds(location, rotation, extentZ, origin, floors) {
   const { top, foot } = ladderPoints(location, rotation, extentZ);
   const t = tileOf(top, origin), f = tileOf(foot, origin), below = [t[0], t[1], t[2] - 1];

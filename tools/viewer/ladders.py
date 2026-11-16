@@ -36,7 +36,8 @@ def tile_of(point, origin, size=TILE_SIZE):
 
 
 def ends(location, rotation, extent_z, origin, floors):
-    """A ladder's ends against `floors` (a set of tiles with floor: the export's floorTiles): dict(top, foot (points),
+    """A ladder's ends against `floors` (a set of tiles with floor: the export's floorTiles), their tiles counted from
+    `origin`, the corner the game counts its tiles from (compiler.tile_corner): dict(top, foot (points),
     topTile, footTile, linkedTop (T′: the top tile, or the one below it, with floor; None if neither has), footFloor,
     climbs, why (what is missing: 'foot', 'top'))."""
     top, foot = points(location, rotation, extent_z)

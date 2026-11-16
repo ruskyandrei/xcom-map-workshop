@@ -129,6 +129,19 @@ together in the editor and saved in the project (`groups`, section 4).
   - The compiler (E3) rounds to the game's integers and must use the same rounding everywhere (plan section 2).
 - **One pose per actor.** A pose is never recovered from a mesh: the viewer computes it from the actor's render matrix
   against its own source record, and the document holds only poses.
+- **The tile grid** (16 November 2026, private/plans/done/game-grid-plan.md; the export's `tileGrid` since export 26,
+  from the map's own record, scene_metadata.game_grid) has two corners, a unit apart on every axis:
+  - `origin`, the level volume's box's low corner. The maps' own pieces stand on whole tiles from it, and the editor
+    places by it: tile snap, the lines it draws, the turn pivot, the grid rule. Every pose a project or prefab saves
+    is on it, as before export 26.
+  - `tiles`, the corner the game counts its tiles from (its world data's `WorldBounds`). Which tile a point is in
+    counts from it, as the game counts it: a ladder's ends, a mission object's tile, a soldier's spot, the floor under
+    a piece being placed. An export older than 26 has no `tiles`: the tools take a unit under `origin`, as on every
+    installed map.
+  - `dimensions` are the tile data's counts; `source` is `world-data`, or `level-volume` for a map that saves no
+    record of its own.
+  - The rules for boxes keep `origin`, as they were played: the floor a flat piece gives, the cover block panel's
+    tiles, the Build's seeds and rebuild volumes.
 
 ## 4. The project document (schema 1)
 

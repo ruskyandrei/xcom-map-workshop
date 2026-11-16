@@ -87,7 +87,8 @@ export function floorStamps(actors, kinds, floors) {
 }
 
 // ---------------------------------------------------------------- the map's tiles and levels
-/** The grid: { origin: [x, y, z], size: [96, 96, 64], dims } in game axes (the export's tileGrid). */
+/** A point's tile [x, y] on a grid { origin: [x, y, z], size: [96, 96, 64], dims } in game axes: for the game's tiles
+ *  (the floor under a point), origin is the corner the game counts them from (app.js tileCorner). */
 export const tileOf = (grid, x, y) => [Math.floor((x - grid.origin[0]) / grid.size[0]), Math.floor((y - grid.origin[1]) / grid.size[1])];
 /** The saved floor tiles by "x,y" key, each a list of the tile's floors (one per level). */
 export function floorIndex(floorTiles) {

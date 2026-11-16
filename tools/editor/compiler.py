@@ -285,6 +285,21 @@ NATIVE_CLASSES = ('XComLevelActor', 'XComOpacityFadeLevelActor', 'StaticMeshActo
                   'XComFracLevelActor', 'XComDecoFracLevelActor', 'KAsset')
 
 
+def tile_corner(grid):
+    """The corner the game counts a map's tiles from, [x, y, z] (the export's tileGrid.tiles, export 26: its world
+    data's WorldBounds' low corner); for an older export, a unit under tileGrid.origin, as on every installed map
+    (private/plans/done/game-grid-plan.md). None without a grid. A point's tile (a ladder's ends, a mission object's,
+    a soldier's spot) is counted from it, as the game counts it; placing (snap, the lines, the grid rule) and the
+    rules for boxes (the floor a flat piece gives) keep tileGrid.origin, the level volume's corner, where the maps'
+    own pieces stand on whole tiles."""
+    if not grid:
+        return None
+    if grid.get('tiles'):
+        return [float(v) for v in grid['tiles'][:3]]
+    origin = grid.get('origin')
+    return [float(v) - 1 for v in origin[:3]] if origin else None
+
+
 def game_round(n):
     """Half away from zero, as tools/viewer/resolver.py rounds."""
     return math.floor(n + 0.5) if n >= 0 else math.ceil(n - 0.5)
@@ -1076,7 +1091,7 @@ class Compiler:
                       'climb of its own' % (self.map, name), family='ladder', **where)
             return None
         new, _ = self.added_floors()
-        e = ladders.ends(loc, rot, extent, grid['origin'], self.floors | set(new))
+        e = ladders.ends(loc, rot, extent, tile_corner(grid), self.floors | set(new))
         if e['climbs']:
             counted = sorted({new[t] for t in (tuple(e['footTile']), tuple(e['linkedTop'])) if t not in self.floors})
             if counted:
@@ -2833,8 +2848,9 @@ class Compiler:
         before = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])}
         added, _ = self.added_floors()
         now = self.floor_now() | set(added)
-        tile = lambda p, dz=0: (int(math.floor((p[0] - origin[0]) / size[0])), int(math.floor((p[1] - origin[1]) / size[1])),  # noqa: E731
-                                int(math.floor((p[2] - origin[2]) / size[2])) + dz)
+        corner = tile_corner(grid)      # an object's tile as the game counts it
+        tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
+                                int(math.floor((p[2] - corner[2]) / size[2])) + dz)
         under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
         solid = [c for c in self.copies if c.get('box') and c.get('actorClass') != 'XComLadder' and c['box'][5] - c['box'][4] > FLOOR_THICK]
         seen = set()
@@ -2905,7 +2921,8 @@ class Compiler:
         if g is None:
             return
         grid = self.scene['tileGrid']
-        origin, size = grid['origin'], grid.get('size') or [TILE, TILE, STOREY]
+        # a soldier's spot's tile as the game counts it (tile_corner)
+        corner, size = tile_corner(grid), grid.get('size') or [TILE, TILE, STOREY]
         label = (lambda k: "the map's landing %d" % (k + 1)) if own else (lambda k: 'landing zone %d' % (k + 1))
         floors = self.floor_now()
         added, _ = self.added_floors()
@@ -2925,8 +2942,10 @@ class Compiler:
                 continue
             bare, blocked = [], []
             for n, p in enumerate(points):
-                tile = (int(math.floor((p[0] - origin[0]) / size[0])), int(math.floor((p[1] - origin[1]) / size[1])),
-                        int(math.floor((ground + 2.0 - origin[2]) / size[2])))
+                # (its ground's level: a ground up to a unit under a level's start is in it, as the maps' floors are
+                # a unit over the game's corner; 2 over the level volume's, as before)
+                tile = (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),
+                        int(math.floor((ground + 1.0 - corner[2]) / size[2])))
                 if (tile not in floors and tile not in added
                         and not any(b[0] <= p[0] <= b[1] and b[2] <= p[1] <= b[3] and abs(b[5] - ground) <= 20.0
                                     for b in scenery)):

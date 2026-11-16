@@ -1979,6 +1979,27 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(warning['ends']['top'][2], 7)
         self.assertFalse(any(c for o in spec['objects'] for c in (o.get('ladders') or [])))
 
+    def test_a_ladders_ends_count_from_the_corner_the_game_counts_its_tiles_from(self):
+        # export 26's tileGrid.tiles (its world data's WorldBounds); an older export's: a unit under the origin
+        self.assertEqual(compiler.tile_corner(dict(origin=[0, 10, 20])), [-1, 9, 19])
+        self.assertEqual(compiler.tile_corner(dict(origin=[0, 10, 20], tiles=[-1.5, 9, 19])), [-1.5, 9, 19])
+        self.assertIsNone(compiler.tile_corner({}))
+        # the same ends from the export's own corner as from the older rule (Bar's XComLadder_4 here 20)
+        moved = [dict(target=target('XComLadder_20'), **dict(zip(('location', 'rotation'), grid_moved(0, (0, -3))(LADDER()))))]
+        scene = assembly_scene()
+        o = scene['tileGrid']['origin']
+        scene['tileGrid']['tiles'] = [o[0] - 1, o[1] - 1, o[2] - 1]
+        spec, report = compile_project(document(moved), scene, enable=['ladder'])
+        self.assertEqual(spec['objects'][0]['ladders'], [dict(foot=[33, 30, 0], top=[33, 29, 6])])
+
+        # counted from a corner a whole tile further west, every end is a tile further east
+        def ends(report, spec):
+            warned = [w['ends'] for w in report['warnings'] if w['code'] == 'ladder-climb']
+            return warned[0] if warned else spec['objects'][0]['ladders'][0]
+        scene['tileGrid']['tiles'] = [o[0] - 1 - 96, o[1] - 1, o[2] - 1]
+        spec, report = compile_project(document(moved), scene, enable=['ladder'])
+        self.assertEqual(ends(report, spec)['foot'], [34, 30, 0])
+
     def test_a_ladder_counts_the_floor_a_flat_piece_of_the_project_adds(self):
         # the copy past the roofs' end (the test above): its top tile has no floor in the map
         far = copies_of(['XComLadder_20'], 1, grid_moved(1, (76, -5)))

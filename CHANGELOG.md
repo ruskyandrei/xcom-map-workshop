@@ -8,6 +8,41 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### A point's tile counted from the game's corner in the compiler and the page
+
+- The game-grid plan, stage G3; the plan is done (`private/plans/done/game-grid-plan.md`).
+- [compiler.py](tools/editor/compiler.py) `tile_corner`: the export's `tileGrid.tiles`, or for an older export a unit
+  under `origin`. It is used for:
+  - a ladder's ends;
+  - a mission object's tile;
+  - a soldier's spot.
+- The page's [app.js](tools/viewer/web/app.js) `tileCorner` is the same, for:
+  - a ladder's ends;
+  - a mission object's lost floor;
+  - a spot's floor top;
+  - the floor under a piece being placed.
+- Floor-level rules keep their numbers (+1 from the game's corner is +2 from the box's).
+- Placing (snap, the lines, the turn pivot, the grid rule) and the rules for boxes keep `origin`, the level volume's
+  corner. The box rules are the floor a flat piece gives and the cover block panel's tiles.
+- Documents:
+  - [editor-contracts.md](research/editor-contracts.md) section 3 describes the two corners;
+  - T-36 in the [findings register](research/findings-register.md) is brought up to date. Its line on F-113 is
+    corrected: F-113's 4 units are how thick a piece must be, not how far into a tile.
+  - [ladders.py](tools/viewer/ladders.py), [ladders.js](tools/viewer/web/ladders.js) and
+    [floors.js](tools/viewer/web/floors.js) say which corner they take.
+- Checked:
+  - Projects: the 52 saved projects and 18 example projects (the 16 newer examples' `--compile`, two of them with a
+    grid) were compiled with the code before and after the change. All 70 specs and reports are identical.
+  - Tests: a new compiler test (a ladder's ends count from `tiles`); the editor and node suites.
+  - Browser smoke, on a test server serving a scratch cache at export 26. These checks pass: floor-placing,
+    floor-tiles, cover, play-area, clear-map, streams, map-buildings, floor-boxes, pivot, box-select, copy-drag,
+    light-grid, builder (once the scratch cache had a copy of the library's index) and prefabs.
+  - Deluge opened in the page with its grid and its tile lines.
+- Known gaps:
+  - The full smoke run stops at `check_adding` (the Copy button is not visible). It stops there with the code from
+    before this change too, so this change is not the cause. Not looked into.
+  - Not played in the game.
+
 ### The Build's tile grid from the game's own record
 
 - The game-grid plan, stage G2. [native_copy.py](tools/bake/native_copy.py) `level_grid` now takes:

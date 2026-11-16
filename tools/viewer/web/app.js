@@ -178,6 +178,11 @@ function recipeOf(o) {
   return original ? { location: original.location, rotation: original.rotation } : null;
 }
 const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
+// The corner the game counts its tiles from (export 26's tileGrid.tiles, its world data's WorldBounds; for an older
+// export a unit under the origin, as on every installed map), [x, y, z]: a point's tile (a ladder's ends, a mission
+// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
+// Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
+const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 // The map's size as the project sets it (project.js validStage): { grid: [nx, ny], ground } or null for the map's own
 // (setStage, further down, draws it).
 let stage = null;
@@ -487,7 +492,7 @@ function ladderNow(root) {
   }
   const added = addedFloors(boxes, data.tileGrid.origin, data.tileGrid.dimensions);
   const pose = placedPose(o, root.matrix);
-  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], data.tileGrid.origin, new Set([...floorSet, ...added]));
+  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floorSet, ...added]));
   ends.newFloor = ends.climbs && [ends.footTile, ends.linkedTop].some(t => !floorSet.has(t.join(',')));
   return ends;
 }
@@ -1400,7 +1405,7 @@ function dropTarget(clip, at) {
   if (snapMode === 'fine') [x, y] = [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
   else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / 96) * 96, py + Math.round((y - py) / 96) * 96];
   if (clip.floor != null && levelSnap)
-    z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), tileGridOf(data), [x, y, z]).z);
+    z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
   // a light from the Add panel: at its template's height above what is under the cursor
   if (clip.lightHeight != null) z += clip.lightHeight;
   // an invisible floor from the Add panel: its top just over the ground at its first tile's centre (the pivot)
@@ -5960,7 +5965,7 @@ const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use'
 function missionFloorLost(o) {
   const grid = data?.tileGrid, tiles = data?.tactical?.floorTiles;
   if (!grid?.origin || !tiles?.length) return false;
-  const [ox, oy, oz] = grid.origin, [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
   const tx = Math.floor((o.location[0] - ox) / sx), ty = Math.floor((o.location[1] - oy) / sy), tz = Math.floor((o.location[2] - oz) / sz);
   const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
   return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
@@ -6077,8 +6082,10 @@ function floorTop(x, y, ground) {
     for (const f of data.tactical.floorTiles) tops.set(f.tile.join(','), Math.max(tops.get(f.tile.join(',')) ?? -Infinity, f.location[2]));
     floorTopIndex = { data, tops };
   }
-  const [ox, oy, oz] = grid.origin, [sx, sy, sz] = grid.size ?? [96, 96, 64];
-  const key = [Math.floor((x - ox) / sx), Math.floor((y - oy) / sy), Math.floor((ground + 2 - oz) / sz)].join(',');
+  // the spot's tile as the game counts it; its ground's level takes a ground up to a unit under a level's start (the
+  // maps' floors are a unit over the game's corner: 2 over the origin, as before)
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const key = [Math.floor((x - ox) / sx), Math.floor((y - oy) / sy), Math.floor((ground + 1 - oz) / sz)].join(',');
   const top = floorTopIndex.tops.get(key);
   return top !== undefined && top >= ground - 8 && top <= ground + sz ? top : null;
 }

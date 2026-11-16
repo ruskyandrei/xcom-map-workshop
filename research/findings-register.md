@@ -2430,7 +2430,8 @@ word; not looked at in the game).
 ## Toolchain
 
 ### T-36: A map whose level volume falls a unit short of its tiles was exported without a tile grid
-**Fixed** (16 November 2026: a tester's report from 0.5.2, a project on CSmallScout_Roadhouse that moved a van).
+**Fixed** (16 November 2026: a tester's report from 0.5.2, a project on CSmallScout_Roadhouse that moved a van;
+export 25 the same day, export 26, the game's own grid, after it).
 - **Seen.** The Build stopped with "nothing of the project can be built: its one edit is left out (the export of
   CSmallScout_Roadhouse has no tile grid, which a van needs)". Every piece of a grid family (vans, among others)
   needs the grid for its pose rule, so no such piece of the map could be moved.
@@ -2443,26 +2444,41 @@ word; not looked at in the game).
   the box's corner keeps the relation every map has, and only the far side falls short. (The game's own tiles
   start a unit lower, at `WorldBounds.Min`: native/cover-build.md and below. The box's corner is where the maps'
   pieces stand: two lattices, a unit apart.)
-- **Fix.** `scene_metadata.GRID_SLACK`: the box may miss by up to 2 units. Export 25. The reported project then
-  compiles with all ten of its moves, and one off-grid warning: its van moved 8 units.
-- **Open.** Three maps still have no grid: their boxes are taller than their levels (CBattleship_01 and
-  DLC2_2_Deluge 32 units over, DLC2_3_Furies 16). Their levels count from the box's bottom as on every other map:
-  every saved floor lies in the level it was saved under only for a corner within a few units of the bottom (a
-  corner counted down from the top puts them in the wrong levels).
+- **Fix.** First `scene_metadata.GRID_SLACK`: the box could miss by up to 2 units (export 25). The reported project
+  then compiled with all ten of its moves, and one off-grid warning: its van moved 8 units. Then, the same day, the
+  game's own record (export 26, below): every map with tile data gets its grid from what it saves, and the slack is
+  gone. The reported project compiles the same on export 26.
+- **The three tall maps** had no grid until export 26: their boxes are taller than their levels (CBattleship_01 and
+  DLC2_2_Deluge 32 units over, DLC2_3_Furies 16). Their levels count from the bottom as on every other map: every
+  saved floor lies in the level it was saved under only for a corner within a few units of the bottom (a corner
+  counted down from the top puts them in the wrong levels).
 - **The game's own record.** The level volume's XComWorldData has `WorldBounds` (the grid with one unit more on
   every side, which `shell.py` already writes when it resizes a grid) and `NumX`, `NumY`, `NumZ`. Over the 143
   installed packages with tile data, its numbers equal the tile header's, its low corner is one unit below the
-  box's, and every map's saved floors sit at the centres of the tiles counted from it. The export does not read it
-  yet. The bake's `native_copy.level_grid` also counts the levels from the box (rounded), which gives
-  CBattleship_01 16 levels where the game has 15.
+  box's, and every map's saved floors sit at the centres of the tiles counted from it, across and along (up, from
+  2 units under a level's bottom to 62 over it). Since export 26 `scene_metadata.game_grid` reads it for the export
+  and for the Build's `native_copy.level_grid`, which had counted the levels from the box, rounded: 16 on
+  CBattleship_01, where the game has 15. `tools/upk/tests/test_game_grid.py` checks every map the editor lists (it
+  runs with every suite, as the release does). Its notes say where a map's box is off (seven maps, for example
+  "the level volume's box is 32 units taller than its 15 levels").
 - **Two lattices.** The maps' pieces stand on the box's lattice, not the game's (pieces at a tile corner or centre
   of either, counted 16 November: URB_Bar 94 and 0, CSmallScout_DirtRoad 299 and 0, CLrgScout_DeepWoods 368 and 0,
-  URB_TruckStop_EWI 316 and 1), so every piece of a map stands a unit off its tiles in X and Y, which the game's
-  tile build allows for (4 units in before a piece counts: F-113). The editor places on the box's lattice, which
-  keeps what it places in line with the map's pieces. One consequence: a quarter-turned grid piece is turned about
-  a corner of the box's lattice while the Build turns its tile data by whole tiles (about a corner of the game's),
-  so its carried tile data lands 2 units off it, within the same tiles; turning about the game's corner instead
-  would put the piece 2 units out of line with the walls round it. Not seen in a game run.
+  URB_TruckStop_EWI 316 and 1), so every piece of a map stands a unit off its tiles in X and Y. The game's tile
+  build lets them: a wall on the box's lines reaches a unit into the next tile's box and does not fill it (how far
+  in a piece must reach isn't known exactly; F-113's 4 units are how thick it must be, not how far in). The editor
+  places on the box's lattice, which keeps what it places in line with the map's pieces. One consequence: a
+  quarter-turned grid piece is turned about a corner of the box's lattice while the Build turns its tile data by
+  whole tiles (about a corner of the game's), so its carried tile data lands 2 units off it, within the same tiles;
+  turning about the game's corner instead would put the piece 2 units out of line with the walls round it. Not seen
+  in a game run.
+- **Two corners** (export 26, editor-contracts.md section 3): `tileGrid.origin` stays the box's corner for placing,
+  and `tileGrid.tiles` is the game's. A point's tile counts from the game's corner (a ladder's ends, a mission
+  object's, a soldier's spot, the floor under a piece placed, `save_tiles.py --box`, the Build's model of the
+  rebuild queue); the rules for boxes keep the box's corner, as they were played (the floor a flat piece gives,
+  the cover block panel's tiles, the Build's seeds and rebuild volumes), because how the game treats a piece a unit
+  into a tile isn't known exactly. Checked on 16 November: the 52 saved projects and 18 example projects compile to
+  the same specs and reports as before; three Builds (cover blocks on Bar, the blank map grown, Bar cleared and
+  resized) come out byte for byte the same.
 
 ### T-35: A staged piece of another map is in every tool's scene unless told otherwise
 **Fixed** (11 November 2026: seen while building the relight of pieces from other maps, plan step X8).
