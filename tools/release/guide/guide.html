@@ -514,7 +514,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="1"><b>What it is:</b> the piece's name, its kind and its map, then chips with what you should know
       about it (listed below).</li>
     <li data-n="2"><b>Copy</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and <b>Delete</b> (<kbd>Del</kbd>). After Copy,
-      <kbd>Ctrl</kbd>+<kbd>V</kbd> shows the copy at the cursor and a click places it.</li>
+      <kbd>Ctrl</kbd>+<kbd>V</kbd> shows the copy at the cursor and a click places it. Beside them,
+      <b><a href="#select-kind">Select all of a kind</a></b>.</li>
     <li data-n="3"><b>Position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
     <li data-n="4"><b>Rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
     <li data-n="5"><b>Reset piece</b> puts the selected pieces back where the map has them. <b>Save as prefab…</b>
@@ -538,7 +539,50 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
   <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
   <tr><td>A package's name</td><td>The piece comes from a mission or from Long War Rebalance's patch, not from the map. It can be looked at, not edited.</td></tr>
+  <tr><td>Flags</td><td>One of its <a href="#flags">flags</a> is off, or you changed one.</td></tr>
 </table>
+
+<h4 id="flags">Flags</h4>
+<p>The <b class="ui">Flags</b> group says what the game does with the piece, and lets you change it: a wall that units
+  walk and see through, a sign the mouse never picks, a fence that gives no cover.</p>
+<table class="wrapfirst">
+  <tr><th>Flag</th><th>When it is on</th></tr>
+  <tr><td>Blocks walking</td><td>Units can't walk through the piece: the game's pathing counts it.</td></tr>
+  <tr><td>Gives cover</td><td>A unit beside it can take cover behind it.</td></tr>
+  <tr><td>Blocks sight</td><td>Units can't see through it.</td></tr>
+  <tr><td>Floor</td><td>Units can stand on it. Off, the game finds no floor on it: they walk under or through it.</td></tr>
+  <tr><td>Mouse picks it</td><td>The cursor stops on it, as on a roof. Off, it looks through to what is behind: handy
+    for a canopy or a sign over a street.</td></tr>
+</table>
+<ul>
+  <li><b>A click changes the flag for every piece you picked</b> (not the linked pieces they move with: the group
+    says so when there are some). It turns it on where some have it off, and off when all have it on. It is one undo
+    step, and the edit count says how many pieces have flags changed. <b class="ui">Reset flags</b> puts the map's
+    back.</li>
+  <li><b>What a row says.</b> Each row shows on, off, partly on or mixed (picked pieces that differ), and what limits
+    it. A row is greyed, with the reason, where the game never reads that flag for such a piece: a plain static mesh
+    has only Floor, a door's mouse is its own, a ladder gives no cover by the game's usual test.</li>
+  <li><b>Partly on</b> is a prop the map set to be skipped by the pathing sweep: its tiles are still blocked where it
+    stands, but walking and sight through it are not tested. Turning Gives cover or Blocks sight on opens that, and
+    can change another row; the group then asks what that row should be before it changes anything.</li>
+  <li><b>Copies keep them.</b> A copy, a pasted piece and a prefab carry the flags; a move keeps them; a delete and
+    its undo keep them.</li>
+  <li><b>The Build writes them on the piece itself</b> and reads them back, and works the tiles out again around a
+    piece whose walking, cover, sight or floor changed (the mouse alone needs none). Flags alone need no new lighting,
+    so a project with only flags is built without relighting. A floor taken from under a ladder's end, or from the tiles a
+    landing or a mission needs, is warned of.</li>
+  <li><b>What they don't do.</b> A flag is a setting the game reads; it doesn't change the piece's collision. A piece
+    that collides with nothing is touched by no trace whatever its flags say (the panel says so), and whether shots
+    pass through a piece with Blocks sight off has not been tried. A door's blocking also follows whether it is open or shut. None
+    of this has been played in the game yet: please report how it plays.</li>
+</ul>
+
+<h4 id="select-kind">Select all of a kind</h4>
+<p><b class="ui">Select all TV_BarRow (5)</b>, beside Copy and Delete, selects every piece drawn with the same mesh as
+  the picked one, so you can change all of a kind at once, their flags for one. <kbd>Shift</kbd>+click adds them to
+  the selection. With a <a href="#boxselect">box</a> drawn, it takes only those whose middle is inside the box.
+  Hidden and deleted pieces, a mission's or Long War Rebalance's pieces, cover blocks, lights and floor boxes are left
+  out. Selecting changes nothing in the project and is not an undo step.</p>
 
 <h3 id="boxselect">Box select</h3>
 <p>To select many pieces at once, a whole house for one, draw a box around them.</p>
@@ -574,6 +618,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>For an outline a box doesn't fit</b>, an L-shaped house for one: select one part, draw again over the
     other, and use <b class="ui">Add to selection</b>.</li>
   <li>The box is only a tool: it is not saved with the project, and making or changing it is not an undo step.</li>
+  <li><b>With a box drawn, <a href="#select-kind">Select all of a kind</a></b> takes only the pieces of that kind
+    inside it.</li>
 </ul>
 
 <h3 id="groups">Groups and Align</h3>
@@ -1837,7 +1883,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li>the moved Skyranger's shadow in a baked build;</li>
       <li>a ladder built with the warning that it isn't expected to climb;</li>
       <li>a building marked UFO;</li>
-      <li>landing zones on plain Enemy Within.</li>
+      <li>landing zones on plain Enemy Within;</li>
+      <li>pieces' <a href="#flags">flags</a>, every one of them.</li>
     </ul>
     These build without errors. A report of how any of them plays is very welcome.</li>
   <li><b>Plain Enemy Within is a best guess.</b> Its first-mission install is the least sure part.</li>

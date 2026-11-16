@@ -8,6 +8,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P6: the contracts and the guide
+
+- [editor-contracts.md](research/editor-contracts.md), section 4: the project document is schema 2; schema 1 is read and
+  a save of it refused (a page older than the server); `overrides[].flags` and `added[].flags` described (roles, strict
+  booleans, flags alone or with a pose, where the compiler and the Build take them, what they never go on).
+- The user guide ([guide.html](tools/release/guide/guide.html)): the piece panel's **Flags** (what each flag does, what
+  a click changes, the states, the prop's "partly on" and the question it asks, copies and undo, what the Build does,
+  what flags don't do) and **Select all of a kind**, the Flags chip, a line in Box select, and flags in the list of
+  what is built but not played. The descriptions keep to what is known: a flag is a setting the game reads, not
+  collision; whether shots pass through a piece with Blocks sight off is untried; nothing has been played.
+- Checked: the repo and release suites. Known gaps: the guide's "New in" rows are written with the next release. P7
+  (the in-game probes, which the user drives) and P8 (corrections from them; the cursor helper retired once the
+  mouse checkbox passes in the game) are still to do.
+
 ### Piece flags, stage P5: the Build writes pieces' flags in the map
 
 - The writer, in [native_copy.py](tools/bake/native_copy.py):

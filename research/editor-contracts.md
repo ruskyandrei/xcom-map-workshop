@@ -143,15 +143,19 @@ together in the editor and saved in the project (`groups`, section 4).
   - The rules for boxes keep `origin`, as they were played: the floor a flat piece gives, the cover block panel's
     tiles, the Build's seeds and rebuild volumes.
 
-## 4. The project document (schema 1)
+## 4. The project document (schema 2)
 
 A JSON file, named after the project (`Bar remix.json`, section 5). The server ([projects.py](../tools/viewer/projects.py)) refuses any other `schema` or
-`schemaVersion`, with a message naming the version. There is no migration before the tool is public.
+`schemaVersion`, with a message naming the version. Schema 2 (16 November 2026; piece flags plan) adds pieces' `flags`;
+the page, the server and the compiler read schema 1 and 2, and the page writes 2. The server refuses a **save** of
+schema 1: only a page older than the server writes one, and it would drop the flags of a newer document ("Not saved:
+This page is older than the editor's server…"). Prefab files are schema 2 the same way, and a prefab imported at 1
+is stored as 2.
 
 ```json
 {
   "schema": "xcom-map-workshop/project",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "5005037f-f7ac-4287-97f6-d1cab95360f9",
   "name": "Bar remix",
   "mode": "edit",
@@ -165,7 +169,9 @@ A JSON file, named after the project (`Bar remix.json`, section 5). The server (
     { "target": { "package": "URB_Bar", "level": "base", "actor": "TheWorld.PersistentLevel.KAsset_6" },
       "location": [-269, 632.9999, 19], "rotation": [0, 5461.333, 0] },
     { "target": { "package": "URB_Bar", "level": "base", "actor": "TheWorld.PersistentLevel.StaticMeshActor_105" },
-      "deleted": true }
+      "deleted": true },
+    { "target": { "package": "URB_Bar", "level": "base", "actor": "TheWorld.PersistentLevel.XComDestructibleActor_470" },
+      "flags": { "walking": false } }
   ],
   "added": [
     { "id": "5c2561b9-029a-4dd6-97d1-61e19bfeb31d",
@@ -192,6 +198,7 @@ A JSON file, named after the project (`Bar remix.json`, section 5). The server (
 | `added` | Added actors, sorted by output name. `id` is the entity's UUID. `actor` is its output name: `<template actor>_copy<serial>`, kept once given. `from` and `components` name the template. Optional `tinted: true` for a tinted spawn's copy (preview layouts only). |
 | `nextSerial` | The highest copy serial used. A new copy never reuses an output name, even one whose piece was deleted. |
 | `view` | The camera at the last save, in the viewer's basis. A convenience only: it never hides or changes pieces. |
+| `overrides[].flags`, `added[].flags` | Optional (schema 2, 16 November 2026; piece flags plan): the settings the game reads for a piece, as the user asked for them, only those asked: `walking` (blocks walking), `cover` (gives cover), `sight` (blocks sight), `floor` and `mouse` (the mouse picks it), each strictly `true` or `false`; never empty. An override may be flags alone, with no pose (the piece stays where the map has it), or flags with a pose. A deleted piece's flags are kept for an undo and not built (a note). A cover block, an invisible floor or a light has no flags (refused); a role the piece's class doesn't have is noted and left out. The compiler plans each request against the piece's settings as export 27 has them (`pieceFlags`; [piece_flags.py](../tools/viewer/piece_flags.py)): a flags-only override goes into the spec's `pieceFlags` object, written on the map's own actor by the Build ([native_copy.py](../tools/bake/native_copy.py) `set_roles`); a copy carries its flags to its clone. What each role writes, the prop's pathing gate (opening it writes the roles not asked for so they stay as they were, the companions) and what a role does not decide are in [research/native/piece-flags.md](native/piece-flags.md). |
 | `overrides[].target` in a stream | Optional (15 November 2026; mission types plan, Part E): `{ "package": "<stream>", "level": "stream", "actor": ... }` names one of a mission stream's objects (the export's `streams[<stream>].missionObjects`). Its `location` and `rotation` move it in place in the variant's copy of the stream (`<Stream>_<Variant>.upk`), which that mission's records stream instead of the original; the page moves an object with its group, one record per part. `deleted: true` takes it out of the copy, with a warning. A target in a stream that is no mission object is an error. |
 | `overrides[].light` | Optional (editor lights, 9 November 2026): a light's changed values, only the keys that differ from the export's: `color` (bytes 0 to 255), `brightness`, `radius`, `falloffExponent`, `innerConeAngle`, `outerConeAngle` (the stored values; the editor shows the effective cones) and `enabled`. A light override can also move, turn or delete the light as a piece's does. See the editor lights plan, sections 3 and 9.4. |
 | `added[]` lights | A copied light has `from` and `components` like a piece, and optional `light`. A light made from the editor's recipe has `template: { "kind": "spot", "version": 1 }` and `light` in place of `from` and `components`; its output name is `TheWorld.PersistentLevel.SpotLight_copy<serial>`. |
