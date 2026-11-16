@@ -795,6 +795,22 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     (`POST /builds/reveal`: a folder opened, a file selected, never run; only paths in the builds folder). A reload picks a running build up again, and the Project menu shows the last build. If the server stops
     answering mid-build, the window says so and can be closed.
   - The **output** setting moves the builds folder; `serve --builds <folder>` overrides it for one server.
+  - **Each build is an attempt** ([`builds.py`](builds.py)): an id of its own (`build.py --attempt`, written in the
+    manifest and at the end of the build's id) and an origin (the editor's Build or Play in game's, a prefab test, the
+    build queue's). Cancel with `{"attempt": id}` stops only that attempt, so a stale page never stops a newer build.
+  - **Its processes are contained** ([`procs.py`](procs.py)): build.py is started suspended, put in a Windows Job
+    Object that kills its processes when its last handle closes, then resumed. Cancel ends every process of the build
+    (patchtool, UDK, the relight and its workers), and so does the server's death, however it dies. A build ends only
+    once each of its processes has (findings register T-38, T-39).
+  - **A package goes in through a journal** ([`publication.py`](publication.py)): the old package aside, the new one
+    in, each step written down first in `<builds>\.work\publish\<variant>.json`. A build killed mid-swap leaves the old
+    package or the new one, never half of each: the next server settles it, or blocks that variant with the reason.
+    An operating-system lock per variant (`<builds>\.work\locks`), released when its holder ends however it ends, is
+    held while a package goes in and while Install in the game, the map pack or Play in game reads one. Command-line
+    builds (`tools/editor/build.py`) take the same lock and journal.
+  - **A restarted server proves the old one's builds gone** before anything builds: each running attempt has a
+    record in `<builds>\.work\writers` (its process and creation time, and the folder it writes). One still running,
+    or one whose state can't be known, keeps the build slot busy with the reason.
 - **Play in game** (Project menu) starts the game straight in a battle on what is open, for testing in the game: no
   campaign to start, and no line the game had is changed ([`play.py`](play.py), [`gamelaunch.py`](gamelaunch.py),
   [`installs.py`](installs.py); how it was found and played: `research/experiments/EXP-29-direct-map-launch.md`).
@@ -919,6 +935,42 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     by name.
   - Routes: `GET /manager.json`, `POST /manager/install` and `/manager/pack` (`{"projects": [id...], "mode":
     "additional" | "replace"}`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
+    Install and pack take a lease on each package they read (`builds.lease`): a project the build queue is building,
+    or about to, is refused with the reason.
+  - **Build** puts the ticked projects (in the list's order, those the filter hides included) in the **build queue**
+    ([`buildqueue.py`](buildqueue.py), [`build_queue.js`](web/build_queue.js)). The server builds them one after
+    another while the editor stays usable: each a full build (lighting baked) of the project as it is saved when its
+    turn comes, captured into a snapshot of its own (`<builds>\.work\queue-attempts\<attempt>\project.json`, with
+    the build's log beside it). Build saves the open project first when it is ticked and has unsaved changes. The
+    Show choice **Needs a full build** lists the projects not built, built quick, built from an older revision or by
+    another editor version.
+    - While it runs, the queue holds the build slot: the editor's Build, Play in game's build and prefab tests are
+      refused with the reason, and a build already running finishes first (the queue waits for it). A queue build
+      opens no window, even on the open project; the Project menu shows its last build when it ends.
+    - Each row's Last build cell says where it is (waiting with its place, building with the step and the step's
+      bar, built, failed), and a waiting row has Remove. The strip above the footer has the project building and its
+      step, a bar of the rows done, the queue's building time, the time left going by each project's last full build
+      (approximate, and saying how many have none), the failures with their reasons, and **Stop**, **Resume**,
+      **Clear** and, for a file that can't be read, **Reset the queue**. The editor's header has a chip (Building 2 of
+      5, Queue stopped, 4 built, 1 failed) that opens the manager.
+    - A failure is that row's alone: the queue goes on. Stop stops the queue's build (the project's last package
+      stays) and starts no other; Resume captures the first waiting project again, the latest save, and builds it
+      from the beginning. Rows added while it is stopped wait for Resume. Clear takes rows and results out, never a
+      project or a package.
+    - The queue lives in `<builds>\.work\build-queue.json` (replaced whole, the last good copy kept as `.bak`), owned
+      by one server through an operating-system lock taken once its port is bound. A restarted server starts
+      nothing: rows that were building settle once their builds are proved gone (one whose package went in is
+      built), and the queue is stopped until Resume. The game install, the folders and the install names are pinned
+      when a queue starts; while it runs or is stopped, Game install and checks refuses another install.
+    - The page asks for the queue every 2 seconds with the manager open and the queue running, 5 closed, 15 when
+      idle, one request at a time, backing off while the server doesn't answer.
+    - Routes (each change carries `{queueId, expectedRevision, requestId}`; a stale queue or revision is 409 with the
+      queue as it is, and a request id seen before gets the answer it got then): `GET /manager/queue.json`, `POST
+      /manager/queue` (`{"projects": [id...]}`: add), `/manager/queue/stop`, `/resume`, `/remove` (`{"items":
+      [itemId...]}`), `/clear` and `/reset` (`{"requestId", "confirm": true}`). [`test_buildqueue.py`](tests/test_buildqueue.py)
+      covers the queue with a stand-in build, [`build_queue_test.mjs`](tests/build_queue_test.mjs) the page's
+      wording and polling, and `research/experiments/EXP-65-build-queue-real-builds.md` real builds, a Stop, a
+      server killed mid-build and a result lost after its package went in.
 - **Game maps…** (Project menu, where Remove from game was) opens the Game maps window
   ([`gamemaps.js`](web/gamemaps.js), [`gamemaps.py`](gamemaps.py)): every map record of the install's
   `DefaultMaps.ini` as the game reads it now, by map, with its mission, whether it is in rotation or asked for by

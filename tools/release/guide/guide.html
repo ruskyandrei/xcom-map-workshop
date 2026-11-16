@@ -1381,8 +1381,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <a href="#mapgrid">More</a></li>
     <li data-n="8"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
     <li data-n="9"><b>Load…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
-    <li data-n="10"><b>Manage projects…</b> lists every project with its last build, to install several in the game
-      for campaigns or zip them into a map pack. <a href="#manage-projects">More</a></li>
+    <li data-n="10"><b>Manage projects…</b> lists every project with its last build, to build several one after
+      another, install them in the game for campaigns or zip them into a map pack. <a href="#manage-projects">More</a>,
+      and on building several: <a href="#build-queue">Build in the project manager</a></li>
     <li data-n="11"><b>Close project</b> goes back to the original map.</li>
     <li data-n="12"><b>Game install and checks…</b> changes which game folder the editor reads, and lists what the editor
       needs with a tick or a remedy for each.</li>
@@ -1417,6 +1418,38 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   a council mission (but a bomb mission under Long War, which makes an extra one of it). The manager warns, without
   stopping you, about a build whose lighting is not baked, a build older than its project, and maps that serve
   missions other than abductions: only abductions have been played with an edited map so far.</p>
+<p id="build-queue"><b class="ui">Build</b>, in the project manager, builds the ticked projects one after another
+  while you go on editing. Each is a full build, its lighting baked, as the editor's own Build makes it with
+  <b class="ui">Bake the lighting</b> ticked. A project is built as it is saved when its turn comes: one saved again
+  while it waits is built as saved last, and the open project's unsaved changes are saved first when it is ticked.
+  <b class="ui">Needs a full build</b>, under <b class="ui">Show</b>, lists the projects a full build would bring up
+  to date (not built, not baked, built from an older revision or by another editor version), ready to tick with
+  <kbd>Ctrl</kbd>+<kbd>A</kbd>. The manager can be closed meanwhile: a chip in the editor's header says how far the
+  queue is, and a click on it opens the manager again.</p>
+<ul>
+  <li><b>Following it.</b> Each row's Last build says where it is in the queue: waiting (with its place), building
+    (with the step), built, or failed. The strip above the buttons shows the project building and its step, a bar of
+    the projects done, how long the queue has been building, and about how long it has left, going by each project's
+    last full build. A project with no full build before has no time to go by, and the strip says so.</li>
+  <li><b>One build at a time.</b> While the queue runs, the editor's own Build, Play in game's Build and play, and
+    prefab tests can't start; they say why. A build already running when you press Build finishes first, and the
+    queue waits for it. Install in the game, Zip as a map pack and Play last build go on working with the other
+    projects' last builds, but not with the project being built.</li>
+  <li><b class="ui">Remove</b>, on a waiting row, takes that project out of the queue. Build again adds the ticked
+    projects at the end.</li>
+  <li><b class="ui">Stop</b> stops the build running (that project's last build stays as it was) and starts no other.
+    <b class="ui">Resume</b> goes on from the first waiting project, building it from the beginning as it is saved
+    then. Projects added while the queue is stopped wait for Resume.</li>
+  <li><b>A failure</b> is that project's alone: the queue goes on with the next, and the strip lists each failure with
+    its reason. Build it again once mended.</li>
+  <li><b>If the editor closes</b>, or the computer restarts, while the queue builds, its build ends with it. The next
+    time the editor starts, the queue is as it was, stopped, and Resume goes on. A build that had already put its
+    package in counts as built.</li>
+  <li><b class="ui">Clear</b> takes every row and result out of the queue once it is stopped or finished. It deletes no
+    project and no build.</li>
+  <li>While the queue runs or is stopped, Game install and checks won't switch to another game install: clear the queue
+    first.</li>
+</ul>
 <p id="game-maps"><b>Game maps…</b> opens a list of every map record in the game's <code>DefaultMaps.ini</code>, by
   map: its mission, whether missions draw it from the rotation or ask for it by name, and what the editor did to it.
   A record of the game's own has a tick: untick it and the game stops using it (its line is commented out), tick it

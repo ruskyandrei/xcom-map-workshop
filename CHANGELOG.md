@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue Q5: the guide and the viewer README
+
+The guide ([guide.html](tools/release/guide/guide.html)) has a section on Build in the project manager
+(`#build-queue`, after Manage projects, linked from the Project menu's item 10): full builds one after another while
+editing, each of the project as saved when its turn comes, Needs a full build, the strip and the chip, one build at a
+time, Remove, Stop and Resume, failures, a restart (the queue stopped until Resume), Clear, and the game install held
+while a queue runs or is stopped. The [viewer README](tools/viewer/README.md) has each build as an attempt, contained
+processes ([procs.py](tools/viewer/procs.py)), journalled package swaps and the per-variant lock
+([publication.py](tools/viewer/publication.py)), the writer records a restarted server checks, the leases Install and
+the map pack take, and the queue ([buildqueue.py](tools/viewer/buildqueue.py),
+[build_queue.js](tools/viewer/web/build_queue.js)): what it builds, the slot it holds, the strip, the chip, Stop,
+Resume, Clear, its file and owner, the page's polling, and its routes.
+
+Checked: the release and repo suites; the release's module list (`make_release.modules()`) has procs.py,
+publication.py and buildqueue.py; the guide's new section read in a browser (its anchor, its link from the menu).
+The release itself is not rebuilt here.
+
 ### Build queue Q4: EXP-65, real builds stopped, killed and restarted
 
 [EXP-65](research/experiments/EXP-65-build-queue-real-builds.md) ran the queue with the real build.py on a test server
