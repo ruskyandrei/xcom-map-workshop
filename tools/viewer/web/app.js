@@ -1408,8 +1408,13 @@ function dropTarget(clip, at) {
     z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
   // a light from the Add panel: at its template's height above what is under the cursor
   if (clip.lightHeight != null) z += clip.lightHeight;
-  // an invisible floor from the Add panel: its top just over the ground at its first tile's centre (the pivot)
-  if (clip.groundFloor) { const g = groundAt(x, y, z + 96); if (g != null) z = g + FLOOR_CLEARANCE; }
+  // an invisible floor from the Add panel: its top just over the ground at the centre of the tile under its pivot (its
+  // first tile's), where the game looks for that tile's floor and the panel measures (floorCentres), whatever the snap:
+  // with snap off the pivot stands anywhere in that tile, and the ground there can be a kerb's height off
+  if (clip.groundFloor) {
+    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + 96 * Math.floor(([x, y][k] - o[k]) / 96) + 48) : [x, y];
+    const g = groundAt(at[0], at[1], z + 96); if (g != null) z = g + FLOOR_CLEARANCE;
+  }
   return [x, y, z];
 }
 // The move (viewer space) that takes the clip's pivot to a game location, turned by quarter turns about the pivot

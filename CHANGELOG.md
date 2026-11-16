@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### The browser smoke runs to the end again; an invisible floor placed off the tile snap
+
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_pivot` (Discord S4, 15 November) cleared the
+  selection at its end. Every check after it expected the piece selected before it, so:
+  - the full run stopped at `check_adding`: the Copy button's panel is hidden with nothing selected;
+  - `check_destruction` had been passing on a stale panel.
+  `check_pivot` now puts the selection back.
+- With that, the run reached `check_cover`, which found a real fault in the editor.
+  [app.js](tools/viewer/web/app.js) placed an invisible floor 1 unit over the ground at its pivot, but the panel (and
+  the game) measure at the centre of the tile it carries. With snap off or fine snap the pivot stands anywhere in
+  that tile. On uneven ground the top came out 5.1 units over the ground there, and it could come out under it.
+  Placing now measures at the centre of the tile under the pivot.
+- Checked: the full browser smoke (`--projects`), on a test server serving a scratch cache at export 26, passes end
+  to end.
+- Known gap: a pasted floor of more than one tile is still set by its first tile's ground alone. The panel gives the
+  range, and Fit to ground fits it to all of them.
+
 ### A point's tile counted from the game's corner in the compiler and the page
 
 - The game-grid plan, stage G3; the plan is done (`private/plans/done/game-grid-plan.md`).

@@ -210,8 +210,10 @@ def check_camera_speeds(page):
 def check_pivot(page):
     """C, or the rail's pivot button, puts the gizmo on the selection's centre (Discord feedback S4): a typed turn then
     turns about the middle, so the piece's box stays where it was; with tile snap the pivot keeps to a tile's centre or
-    corner. Back to the origin, the gizmo sits on the piece's own pivot again."""
+    corner. Back to the origin, the gizmo sits on the piece's own pivot again. The selection it found is put back:
+    the checks after it go on with the piece selected before it."""
     page.evaluate('document.activeElement && document.activeElement.blur()')
+    before = page.evaluate('viewer.gizmo.active')
     page.evaluate('viewer.select(null)')
     picked = page.evaluate("""async () => {
       const T = await import('/vendor/three/three.module.js');
@@ -280,7 +282,7 @@ def check_pivot(page):
     assert page.evaluate('viewer.gizmo.pivot') == 'origin' and page.evaluate("localStorage.getItem('viewer.pivot')") == 'origin'
     back = page.evaluate(middle)
     assert max(abs(a - b) for a, b in zip(back['proxy'], at_origin['proxy'])) < 0.01, (at_origin, back)
-    page.evaluate('viewer.select(null)')
+    page.evaluate('id => viewer.select(id)', before)
 
 
 def check_text_select(page):
