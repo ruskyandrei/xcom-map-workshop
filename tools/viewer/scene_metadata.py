@@ -5,32 +5,110 @@ import struct
 from export_math import transform
 
 
-# How far a level volume's box may miss its whole tiles: the grid starts at the box's low corner (every map's saved
-# floors agree), and some boxes fall a unit or so short on the far side (CSmallScout_Roadhouse: 5471 wide for 57 tiles)
-GRID_SLACK = 2
+TILE_SIZE = [96, 96, 64]
+# how far the level volume's box may sit from the game's record (a unit inside WorldBounds on every side) before the
+# grid's notes say so; the installed maps' boxes are within 0.002 of it at the low corner
+BOX_NOTE = 0.01
+
+
+def tile_header(p, container):
+    """The tile counts [nx, ny, nz] in the header of a world data container's first store."""
+    r = p.native(container)
+    chunks, order = r.count(), r.count()
+    if chunks != order: raise ValueError('Tile chunk/order counts disagree')
+    r.take(order*4)
+    dims = list(r.unpack('3i'))
+    if not all(0 < v <= 100000 for v in dims): raise ValueError('Invalid tile dimensions')
+    return dims
+
+
+def world_record(p, volume):
+    """The grid a level volume's world data saves (XComWorldData's WorldBounds and NumX, NumY, NumZ): dict(low, high,
+    counts), or None when it saves none that reads (no world data, no valid WorldBounds, a count missing)."""
+    world = p.effective(volume, 'WorldData', 0)
+    if not world or world <= 0 or world > len(p.exports):
+        return None
+    raw = p.effective(world, 'WorldBounds')
+    counts = [p.effective(world, k) for k in ('NumX', 'NumY', 'NumZ')]
+    if not isinstance(raw, (bytes, bytearray)) or len(raw) != 25 or not raw[24] or not all(isinstance(v, int) and v > 0 for v in counts):
+        return None
+    v = struct.unpack('<6f', raw[:24])
+    if not all(math.isfinite(x) for x in v):
+        return None
+    return dict(low=list(v[:3]), high=list(v[3:]), counts=counts)
+
+
+def game_grid(p, box=None):
+    """The map's tile grid as the game has it (private/plans/done/game-grid-plan.md), or None for a package with no
+    tile data. dict(origin, tiles, dimensions, size, source, notes), every corner in game axes [x, y, z]:
+    - tiles: the corner the game counts its tiles from, its world data's WorldBounds' low corner (a tile's centre is
+      tiles + (96x + 48, 96y + 48, 64z + 32): research/native/cover-build.md; every map's saved floors sit there);
+    - origin: the level volume's box's low corner, a unit over `tiles` on every axis, where the maps' own pieces stand
+      on whole tiles: the corner the editor places by (snap, the lines, the turn pivot, the grid rule) and every
+      project and prefab is saved against. `box` (dict(min, max), game axes) is the box as the caller works it out,
+      so its numbers stay its own; read from the volume when None. Where the box can't be had, tiles plus a unit;
+    - dimensions: the tile counts of the tile data (NumX, NumY, NumZ say the same on every installed map);
+    - source: 'world-data', or 'level-volume' where the map saves no grid of its own (WorldBounds, the counts): the
+      box's corner and the tile data's counts, the game's corner a unit under it as on every installed map;
+    - notes: what disagrees (the counts with the record, the box with it), for the caller to report. They never take
+      the grid away: a map with tile data always has one."""
+    containers = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer']
+    if not containers:
+        return None
+    dims = tile_header(p, containers[0])
+    notes = []
+    volumes = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComLevelVolume' and p.effective(i, 'Brush', 0) > 0]
+    records = [(i, world_record(p, i)) for i in volumes]
+    records = [(i, r) for i, r in records if r]
+    if box is None and len(volumes) == 1:
+        box = volume_bounds(p, volumes[0])
+    if len(records) > 1 and box is not None:
+        # (none of the installed maps has more than one: the one whose corner is the box's)
+        records.sort(key=lambda ir: sum(abs(ir[1]['low'][k] + 1 - box['min'][k]) for k in range(3)))
+    record = records[0][1] if records else None
+    if record is None:
+        if box is None:
+            raise ValueError('the map saves no tile grid of its own and has no level volume to take one from')
+        origin = [float(v) for v in box['min']]
+        notes.append('the map saves no tile grid of its own (its world data\'s WorldBounds and tile counts): the grid '
+                     'is its level volume\'s, the game\'s corner taken a unit under the volume\'s as on every installed map')
+        return dict(origin=origin, tiles=[v - 1 for v in origin], dimensions=dims, size=list(TILE_SIZE),
+                    source='level-volume', notes=notes)
+    tiles = [float(v) for v in record['low']]
+    if record['counts'] != dims:
+        notes.append('the map\'s world data counts %s tiles and its tile data holds %s: the grid is the tile data\'s'
+                     % (' by '.join(map(str, record['counts'])), ' by '.join(map(str, dims))))
+    if box is None:
+        origin = [v + 1 for v in tiles]
+    else:
+        origin = [float(v) for v in box['min']]
+        if any(abs(origin[k] - tiles[k] - 1) > BOX_NOTE for k in range(3)):
+            notes.append('the level volume\'s corner is not a unit inside the world data\'s bounds (%s against %s)'
+                         % ([round(v, 3) for v in origin], [round(v, 3) for v in tiles]))
+        for k, (more, less, what) in enumerate((('wider', 'narrower', 'tiles across'), ('longer', 'shorter', 'tiles along'),
+                                                ('taller', 'lower', 'levels'))):
+            over = (box['max'][k] - box['min'][k]) - dims[k] * TILE_SIZE[k]
+            if abs(over) > BOX_NOTE:
+                notes.append('the level volume\'s box is %g units %s than its %d %s: the grid is the game\'s'
+                             % (round(abs(over), 3), more if over > 0 else less, dims[k], what))
+    return dict(origin=origin, tiles=tiles, dimensions=dims, size=list(TILE_SIZE), source='world-data', notes=notes)
 
 
 def tile_grid(p, bounds, warn):
-    """Level-volume origin and dimensions from the read-only static tile header."""
-    for i in range(1, len(p.exports)+1):
-        if p.cls(i) != 'XComWorldDataContainer': continue
-        try:
-            r = p.native(i)
-            chunks, order = r.count(), r.count()
-            if chunks != order: raise ValueError('Tile chunk/order counts disagree')
-            r.take(order*4)
-            dims = list(r.unpack('3i'))
-            if not all(0 < v <= 100000 for v in dims): raise ValueError('Invalid tile dimensions')
-            origin = [bounds['min'][0], bounds['min'][2], bounds['min'][1]]
-            extent = [bounds['max'][0]-origin[0], bounds['max'][2]-origin[1], bounds['max'][1]-origin[2]]
-            size = [96, 96, 64]
-            if any(abs(extent[k]-dims[k]*size[k]) > GRID_SLACK for k in range(3)):
-                raise ValueError('Tile dimensions do not match the selected level volume')
-            return dict(origin=origin, dimensions=dims, size=size, source='level-volume/static-tile-store')
-        except ValueError as error:
-            warn(p.name(i), f'Tile display grid unavailable: {error}')
-            return None
-    return None
+    """The export's `tileGrid` (game_grid) for a level volume's box in the viewer's basis (bounds: dict(min, max),
+    [x, z, y]), its notes reported through `warn`; None for a package with no tile data."""
+    box = dict(min=[bounds['min'][0], bounds['min'][2], bounds['min'][1]],
+               max=[bounds['max'][0], bounds['max'][2], bounds['max'][1]])
+    try:
+        grid = game_grid(p, box)
+    except (ValueError, struct.error, IndexError) as error:
+        warn('XComWorldData', f'Tile grid unavailable: {error}')
+        return None
+    if grid is None:
+        return None
+    for note in grid.pop('notes'):
+        warn('XComWorldData', f'Tile grid: {note}')
+    return grid
 
 
 def saved_floor_tiles(p, container, dimensions=None):

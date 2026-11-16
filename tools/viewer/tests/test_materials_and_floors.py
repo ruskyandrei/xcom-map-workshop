@@ -111,6 +111,7 @@ class FloorTests(unittest.TestCase):
                                  dict(name=P.paths[0],floor=2,box=boxes[1],stair=True)])
 
     def test_display_grid_uses_map_dimensions_and_validates_extent(self):
+        # a map that saves no grid of its own: the level volume's box and the tile data's counts, with a note
         class P:
             exports=[{}]
             def cls(self,i):return 'XComWorldDataContainer'
@@ -121,13 +122,55 @@ class FloorTests(unittest.TestCase):
         grid=tile_grid(P(),bounds,lambda *v:notes.append(v))
         self.assertEqual(grid['dimensions'],[45,203,15])
         self.assertEqual(grid['origin'],[100,-9408,-384])
-        # a box a unit or so short on the far side keeps its grid (CSmallScout_Roadhouse: 5471 wide for 57 tiles)
-        bounds['max'][0]-=1.004
-        self.assertEqual(tile_grid(P(),bounds,lambda *v:notes.append(v))['origin'],[100,-9408,-384])
-        self.assertEqual(notes,[])
-        bounds['max'][0]+=1.004+96
-        self.assertIsNone(tile_grid(P(),bounds,lambda *v:notes.append(v)))
+        self.assertEqual(grid['tiles'],[99,-9409,-385])
+        self.assertEqual(grid['source'],'level-volume')
         self.assertEqual(len(notes),1)
+        # a box that misses its tiles keeps its grid all the same (game-grid plan, section 4)
+        bounds['max'][0]+=96
+        self.assertEqual(tile_grid(P(),bounds,lambda *v:notes.append(v))['origin'],[100,-9408,-384])
+
+    def test_game_grid_is_the_world_datas_record(self):
+        from scene_metadata import game_grid
+
+        class P:
+            """A map: export 1 the tile data, 2 the level volume, 3 its world data."""
+            def __init__(self,low,high,counts,header,record=True):
+                self.exports=[{},{},{}]
+                self.low,self.high,self.counts,self.header,self.record=low,high,counts,header,record
+            def cls(self,i):return ['XComWorldDataContainer','XComLevelVolume','XComWorldData'][i-1]
+            def native(self,i):return Reader(struct.pack('<5i',0,0,*self.header))
+            def name(self,i):return 'X'
+            def effective(self,i,key,default=None):
+                if i==2:return {'Brush':9,'WorldData':3 if self.record else 0}.get(key,default)
+                if i==3 and key=='WorldBounds':return struct.pack('<6f',*self.low,*self.high)+b'\x01'
+                if i==3 and key in ('NumX','NumY','NumZ'):return self.counts[('NumX','NumY','NumZ').index(key)]
+                return default
+        # CSmallScout_Roadhouse: its box 1.004 short across; the game's corner is WorldBounds' low corner
+        roadhouse=P([-2880,-97,-129],[2593,7584,704],[57,80,13],[57,80,13])
+        box=dict(min=[-2879,-96,-128],max=[-2879+57*96-1.004,-96+80*96,-128+13*64])
+        g=game_grid(roadhouse,box)
+        self.assertEqual((g['origin'],g['tiles'],g['dimensions'],g['source']),
+                         ([-2879,-96,-128],[-2880,-97,-129],[57,80,13],'world-data'))
+        self.assertEqual(len(g['notes']),1)
+        self.assertIn('1.004 units narrower than its 57 tiles across',g['notes'][0])
+        # DLC2_2_Deluge: its box 32 over its 12 levels; the grid keeps the game's 12
+        deluge=P([-769,-2113,159],[2304,6817,929],[32,93,12],[32,93,12])
+        g=game_grid(deluge,dict(min=[-768,-2112,160],max=[-768+32*96,-2112+93*96,160+12*64+32]))
+        self.assertEqual((g['dimensions'],g['tiles']),([32,93,12],[-769,-2113,159]))
+        self.assertIn('32 units taller than its 12 levels',g['notes'][0])
+        # no box given: the volume's is read (here none, so a unit inside WorldBounds)
+        with patch('scene_metadata.volume_bounds',return_value=None):
+            self.assertEqual(game_grid(deluge)['origin'],[-768,-2112,160])
+        # counts that disagree with the tile data: the tile data's, with a note
+        odd=P([-769,-2113,159],[2304,6817,929],[32,93,13],[32,93,12])
+        g=game_grid(odd,dict(min=[-768,-2112,160],max=[-768+32*96,-2112+93*96,160+12*64]))
+        self.assertEqual(g['dimensions'],[32,93,12])
+        self.assertIn('counts 32 by 93 by 13 tiles',g['notes'][0])
+        # no record: the box's corner and the tile data's counts, the game's corner a unit under it, with a note
+        bare=P([0,0,0],[0,0,0],[1,1,1],[32,93,12],record=False)
+        g=game_grid(bare,dict(min=[-768,-2112,160],max=[0,0,0]))
+        self.assertEqual((g['source'],g['tiles'],g['dimensions']),('level-volume',[-769,-2113,159],[32,93,12]))
+        self.assertEqual(len(g['notes']),1)
 
     def test_only_source_cache_membership_is_used(self):
         class P:

@@ -9,12 +9,18 @@ takes about a quarter of an hour) needs no second run to be found.
   python -B tools/run_tests.py viewer editor       only these
   python -B tools/run_tests.py bake -k shell       only the tests whose names hold "shell" (unittest's -k)
   python -B tools/run_tests.py --log <folder>      where the logs go (default .scratch/tests/<date-time>)
+  python -B tools/run_tests.py upk --install       with the checks over every map of the install too
+
+The checks over every map of the install (tools/upk/tests/test_game_grid.py: two minutes, most of it opening the maps)
+run when every suite runs, as the release does, or with --install; they skip otherwise (XCOM_INSTALL_TESTS is how
+the suites are told).
 
 Exit status 0 when everything passed, 1 when anything failed or a suite could not run. The browser smoke
 (tools/viewer/tests/browser_smoke.py) needs a test server and is not run here.
 """
 import argparse
 from datetime import datetime
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -101,11 +107,15 @@ def main(argv=None):
                     help=f'which to run (default all: {", ".join(SUITES)})')
     ap.add_argument('-k', dest='pattern', help="only tests whose names hold this (unittest's -k; for node, file names)")
     ap.add_argument('--log', type=Path, help='folder for the logs (default .scratch/tests/<date-time>)')
+    ap.add_argument('--install', action='store_true',
+                    help='run the checks over every map of the install too (on when every suite runs)')
     args = ap.parse_args(argv)
     unknown = [s for s in args.suites if s not in SUITES]
     if unknown:
         ap.error(f'unknown suite {", ".join(unknown)} (one of {", ".join(SUITES)})')
     suites = args.suites or list(SUITES)
+    if args.install or not args.suites:
+        os.environ['XCOM_INSTALL_TESTS'] = '1'
     logs = args.log or REPO / '.scratch' / 'tests' / datetime.now().strftime('%Y%m%d-%H%M%S')
     logs.mkdir(parents=True, exist_ok=True)
     print(f'logs: {logs}', flush=True)

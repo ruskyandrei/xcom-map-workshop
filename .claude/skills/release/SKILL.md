@@ -42,8 +42,9 @@ sits on the commit it was built from, so main is pushed before the release is cr
      [version.py](../../../tools/viewer/version.py), and `tools/release/notes/`.
    - What changed since: the ledger entries above the last "### Release <last> published" entry, and
      `git log --oneline origin/main..<branch>`.
-2. **Run every suite on the branch being released**, in the background (about six minutes):
-   `python tools/run_tests.py`.
+2. **Run every suite on the branch being released**, in the background (about eight minutes):
+   `python tools/run_tests.py`. With every suite it also checks the tile grid of every map the editor lists
+   (`tools/upk/tests/test_game_grid.py`, two of those minutes), so a new install or DLC is covered.
    - All must pass. If one fails, stop and report it with its traceback; its logs folder is printed.
    - When they pass: `git checkout main`, then `git merge --ff-only <branch>`.
 3. **Raise the version** in [version.py](../../../tools/viewer/version.py). Then search `tools` for the old version

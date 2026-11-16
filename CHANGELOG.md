@@ -8,6 +8,43 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Every map's tile grid from the game's own record (export 26)
+
+- The game-grid plan, stages G0, G1 and the export (`private/plans/done/game-grid-plan.md`; T-36 in the
+  [findings register](research/findings-register.md)). [scene_metadata.py](tools/viewer/scene_metadata.py)
+  `game_grid` reads what the map saves: its world data's `WorldBounds` and `NumX`, `NumY`, `NumZ`. It gives:
+  - `tiles`: the corner the game counts its tiles from, `WorldBounds`' low corner;
+  - `origin`: the level volume's box's corner, a unit over `tiles`, which placing keeps;
+  - `dimensions` from the tile data;
+  - `source`: `world-data`, or `level-volume` for a map that saves no record of its own (the box's corner and the
+    tile data's counts, with a warning);
+  - notes where the box disagrees (seven installed maps), reported as the export's warnings. They never take the
+    grid away.
+- `tile_grid` is that, for the export, and export 25's 2 units of slack are gone. [export.py](tools/viewer/export.py)
+  is at version 26: every map is prepared again on its first open, and CBattleship_01, DLC2_2_Deluge and
+  DLC2_3_Furies get a grid for the first time.
+- New [test_game_grid.py](tools/upk/tests/test_game_grid.py), over every map the editor lists. Each must have:
+  - its own record, with the tile data's counts;
+  - the game's corner a unit under the box's;
+  - its saved floors at the tile centres counted from that corner.
+
+  It takes two minutes, most of them spent opening the maps. It runs with every suite (as the release does) or with
+  the new `--install` switch of [run_tests.py](tools/run_tests.py), and skips otherwise. The release skill says so.
+- Checked:
+  - offline tests in `test_materials_and_floors.py`: a box 1.004 short (Roadhouse), a box 32 over (Deluge), counts
+    that disagree, no record;
+  - the install test on the LWR install: 151 listed packages, 96 with tile data;
+  - the new grid against the 32 maps in the lab's cache: 31 have the same corner and counts as their export, and
+    Deluge gets one;
+  - the four odd maps exported to a scratch cache, each with its grid and saved floors: CBattleship_01 57 by 152 by
+    15, Deluge 32 by 93 by 12, Furies 100 by 51 by 12, Roadhouse 57 by 80 by 13;
+  - the tester's Roadhouse project compiled on export 26: ten moves, one off-grid warning, as on export 25;
+  - the viewer suite.
+- Known gaps:
+  - not checked on a plain Enemy Within install (none is set up here);
+  - the install test covers the maps the editor lists, not every package of the cooked folder (143 with tile data,
+    the lab's builds among them; two and a half minutes more).
+
 ### Piece-flags plan reviewed against the editor and Build
 
 - Updated the private plan (`private/plans/todo/piece-flags-plan.md`), which remains outside the public repository.
