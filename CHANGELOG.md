@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Custom walls: a fracturing wall first, as a proof of concept (plan changed)
+
+The user asked whether generated walls can look like the game's and break like them, and for a proof of concept of
+a fracturing custom wall before anything else. The private plan now opens with it; nothing is built.
+- [T-42](research/findings-register.md) has what one of the game's walls is, measured read only: six sections
+  (each side's face by storey, the trims, the inside faces) with the materials on the component; 30 irregular
+  fragments; one fragment column for each tile and storey, each listing `{FragIndex, MinZ}`; and a rule of the
+  boxes that gives exactly 951 of URB_Bar's 1,037 column lists and 934 of URB_PoliceStation's 1,172.
+- The proof of concept: two generated walls beside the Bar wall they copy (its twin, and one four tiles long with
+  a doorway), on the wall's cloned actor with a new mesh and new columns; four offline stages (audit, writer,
+  generator, build) and one game run, EXP-67, for the look and the break. The plan for plain walls stays as the
+  fallback.
+- Checked: the counts by read-only scratch scripts on the configured install; the `repo` suite. No tool, server or
+  game file changed.
+
 ### Plan written: custom walls and terrain shapes
 
 At the user's ask, the research proposal for custom geometry (EXP-66, T-42) was reviewed against the code and the

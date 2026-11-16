@@ -2559,6 +2559,27 @@ inspection, no new visible mesh played).
   - Breaking a generated wall a panel at a time rests on what the Build already makes: a destructible prop whose one
     destroyed event hides it, taking its collision and cover (the breaking cover block, F-101). Shown, with a
     toughness that takes damage, it is not played yet.
+- **What one of the game's fracturing walls is** (16 November 2026, read only, a scratch count; the user asked
+  whether a generated wall can look and break as the game's do, and for a proof of concept of that first):
+  - `URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED` (560 by 24 by 400, 902 triangles) has six sections: each side's
+    face in two (lower and upper storey), one for the trims (skirting, cornice, end caps, 4 units proud), one for
+    the faces inside the wall. The mesh's sections name no material: the component's `Materials` does, with a
+    `DestroyedMaterials` list beside it (the same names with `_Destroyed`). Its vertex colours are one value; 25 of
+    the Bar's 44 fracturing meshes have varying ones.
+  - Its 30 fragments are irregular chunks about 100 by 100 through the whole thickness, each saving its centre,
+    box, the fragment across each face with the shared area, three flags and an outward direction; all can be
+    destroyed, none is a root, there is no core, and EW's added index is -1 on every one. The actor is an
+    `XComDecoFracLevelActor` with a toughness of the game's table (`GameData_Toughness.Toughness_MASONRY`, health
+    80), rubble meshes and impact effects.
+  - `FragmentColumns`: one for each tile along the wall and each storey of 192 (18 here). `FragCache` holds
+    `{FragIndex, MinZ}` for each fragment in the column, sorted by `MinZ` on every column of three maps (2,520).
+  - "The fragments whose box overlaps the column's box" gives exactly the saved list on 951 of URB_Bar's 1,037
+    columns and 934 of URB_PoliceStation's 1,172, the misses going both ways (a rule on the true shape would miss
+    so against one on the boxes). On CSmallScout_Farm, whose fracturing pieces are the UFO's, it gives 24 of 311:
+    those follow something else. Unlike the neighbours' lists (F-69), a column's own fragments look derivable.
+  - Not known: what the game's code expects of a fracturing mesh beyond its saved data, and whether its checks go
+    through the triangle tree a fragment at a time (then the tree's order matters for these, as it does not for a
+    plain piece).
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).
