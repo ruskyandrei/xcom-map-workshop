@@ -8,6 +8,35 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Output names N1: a build or install never replaces another project's package or files
+
+Stage N1 of the output names plan (private), which has to be in before map names lose their id piece. New
+[outputnames.py](tools/viewer/outputnames.py) says who holds which names (`Claims`): other projects' output names in
+the projects folder, every build in the builds folder (its folder and every name its manifest lists), the packages and
+DefaultMaps.ini records of the game install the editor reads and the one it plays in, and what the editor installed
+there; names compared regardless of case, a project's own claims left out only where a manifest or the ledger says
+they are its own. It also holds the name conversion and allocation N2 uses.
+- [build.py](tools/editor/build.py): the builds folder's package of the variant's name is replaced only when its
+  manifest names the same project (`owned_folder`), checked before any tool runs; after the compile, every name the
+  build may write (map, patch, texture cache, intro and stream copies) must be free for the project (`preflight`);
+  both again as the package goes in, under a lock file in `<output>/.work/locks`, and a failed swap puts the old
+  folder back. The command line checks the install Play in game uses too.
+- [installs.py](tools/viewer/installs.py): Play in game's install and the project manager's campaign install check the
+  whole package before anything is written (`preflight`): a variant installed for another project, a file in
+  CookedPCConsole the editor didn't put there (any case), one installed for another project or for no known project,
+  and one changed since are refused. The ledger notes whose each file is (`owners`); a ledger from before gives the
+  files of the package's own list to the project it says installed the variant. The campaign install now plans and
+  checks its config lines before copying files. One install at a time per server.
+- [run_tests.py](tools/run_tests.py): the suites write UTF-8 and a console that can't show a character no longer
+  stops the run (a message with curly quotes did).
+
+Checked: the editor and viewer suites, with new tests: foreign, unreadable, case-only and missing-manifest build
+folders refused with nothing run and nothing changed (the command line too); taken intro copy, cache and duplicate
+project names refused, a quick build not stopped by a cache name; a failed swap leaves the last package; installs
+refuse each foreign or changed file and leave config and files byte for byte; a project's own files replaced, an
+identical file not the editor's used and left, an older ledger's ownership recovered or refused. Known gaps: two
+servers on one projects folder or install are not kept apart (the lock file covers builds only).
+
 ### Output-name and test-squad plans reviewed against the implementation
 
 Reviewed and revised the two private plans (kept outside the public repository). The output-name plan now covers

@@ -906,6 +906,101 @@ class Builds(unittest.TestCase):
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], m['buildId'])
         self.assertEqual([p.name for p in self.output.iterdir() if not p.name.startswith('.')], [VARIANT])
 
+    def foreign_build(self, name=VARIANT, project='1111-other', files=()):
+        """A folder in the builds folder: another project's build (its manifest names `project`), or with project
+        None a folder with no manifest."""
+        folder = self.output / name
+        (folder / 'CookedPCConsole').mkdir(parents=True)
+        (folder / 'CookedPCConsole' / 'kept.upk').write_bytes(b'theirs')
+        if project:
+            (folder / 'manifest.json').write_text(json.dumps(dict(
+                schema=build.SCHEMA, schemaVersion=1, variant=name, project=dict(id=project, name='Someone else'),
+                files={'CookedPCConsole/%s' % f: 'x' for f in files})), encoding='utf-8')
+        return folder
+
+    def test_a_build_never_replaces_a_folder_that_is_not_its_projects(self):
+        """Output names plan 3.4: the builds folder's package of the variant's name is replaced only when its manifest
+        names this project; a folder with no manifest, a malformed one, another project's or one named in another
+        case is refused before anything is built, and stays as it was."""
+        for name, project in ((VARIANT, None), (VARIANT, '1111-other'), (VARIANT.lower(), '1111-other'), (VARIANT, '')):
+            with self.subTest(name=name, project=project):
+                folder = self.foreign_build(name, project)
+                if project == '':
+                    (folder / 'manifest.json').write_text('{not json', encoding='utf-8')
+                before = {p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
+                self.ran = []
+                with self.assertRaisesRegex(build.BuildError, 'is (the build of another project|no build of this project)'):
+                    self.make().run()
+                self.assertEqual(self.ran, [])      # refused before any tool ran
+                self.assertEqual({p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}, before)
+                import shutil
+                shutil.rmtree(folder)
+        # the command line refuses the same
+        self.foreign_build(VARIANT, '1111-other')
+        with mock.patch.object(build.settings_module, 'load_settings', return_value=dict(
+                game=self.lwr, udk=None, cache=self.tmp.name, output=self.output, projects=self.project.parent, install=None)), \
+                mock.patch.object(build.settings_module, 'resolve_game', return_value=(self.lwr, None)), \
+                mock.patch('builtins.print') as said:
+            self.assertEqual(build.main([str(self.project)]), 1)
+        self.assertIn('the build of another project', said.call_args_list[-1].args[0])
+
+    def test_the_names_a_build_writes_must_be_free_for_its_project(self):
+        """Output names plan 3.4: every name the build may write (the map, its patch, its texture cache, its intro and
+        stream copies) is checked against other projects, other builds and the game install before the costly
+        stages, and again as the package goes in."""
+        self.spec['objects'] = [COPY, HIDE]
+        cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
+        cases = [
+            ('another build lists the intro copy', lambda: self.foreign_build('Other_Variant', files=['%s.upk' % INTRO])),
+            ('the install has the intro copy', lambda: (cooked / ('%s.upk' % INTRO)).write_bytes(b'by hand')),
+            ('the install has the cache in another case', lambda: (cooked / ('%s_lighting.tfc' % VARIANT.lower())).write_bytes(b'x')),
+            ('another project has the same names', lambda: (self.project.parent / 'copy.json').write_text(
+                json.dumps(dict(self.doc, id='2222-copy', name='A copy')), encoding='utf-8')),
+        ]
+        for what, make in cases:
+            with self.subTest(what):
+                make()
+                self.ran = []
+                with self.assertRaisesRegex(build.BuildError, 'the build would write names that are taken'):
+                    self.make().run()
+                self.assertFalse(self.tool('native_copy.py'))
+                self.assertFalse((self.output / VARIANT).exists())
+                import shutil
+                for p in [self.output / 'Other_Variant', cooked / ('%s.upk' % INTRO), cooked / ('%s_lighting.tfc' % VARIANT.lower()),
+                          self.project.parent / 'copy.json']:
+                    shutil.rmtree(p) if p.is_dir() else p.unlink(missing_ok=True)
+        # a quick build writes no cache: a file of the cache's name doesn't stop it
+        (cooked / ('%s_Lighting.tfc' % VARIANT)).write_bytes(b'x')
+        self.make(quick=True).run()
+        self.assertTrue((self.output / VARIANT / 'manifest.json').is_file())
+        # what the editor installed for this project (its ledger says whose) is its own
+        (cooked / ('%s_Lighting.tfc' % VARIANT)).unlink()
+        import installs
+        (cooked / ('%s.upk' % VARIANT)).write_bytes(b'installed earlier')
+        installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}, owners={'%s.upk' % VARIANT: self.doc['id']}))
+        self.make('111500').run()
+        installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}, owners={'%s.upk' % VARIANT: 'someone'}))
+        with self.assertRaisesRegex(build.BuildError, 'installed by the editor'):
+            self.make('112000').run()
+        # a ledger from before owners were noted: left to the install step
+        installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}))
+        self.make('112500').run()
+
+    def test_a_package_that_cannot_be_put_in_place_leaves_the_last_one(self):
+        """Output names plan 3.4: the swap is undone when the new folder can't take the old one's place."""
+        first = self.make('110000').run()
+        real = Path.rename
+
+        def rename(path, target):
+            if Path(path).name == 'package':
+                raise OSError('held open')
+            return real(path, target)
+        with mock.patch.object(Path, 'rename', rename):
+            with self.assertRaisesRegex(build.BuildError, 'could not be put in place'):
+                self.make('111500').run()
+        self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], first['buildId'])
+        self.assertFalse((self.output / '.work' / 'locks' / ('%s.lock' % VARIANT.lower())).exists())
+
     def test_a_baked_build_keeps_its_pieces_for_the_next_and_names_the_base_map(self):
         """Faster-bake plan, 3.7: the relight is told where this variant's relit pieces are kept, and what map they
         were made on."""

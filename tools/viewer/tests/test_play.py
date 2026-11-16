@@ -27,7 +27,7 @@ from play import Player  # noqa: E402
 import playsaves  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
 from test_deploy import record  # noqa: E402
-from test_projects import ID, document  # noqa: E402
+from test_projects import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 VARIANT = 'URB_Bar_Remix_0f8b'
@@ -818,6 +818,93 @@ class Play(unittest.TestCase):
         self.package(revision=3)
         with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
         self.assertIn('neither the editor nor patchtool wrote', error.exception.message)
+
+    def snapshot(self, game):
+        """The install's config files and every file of its CookedPCConsole with its bytes."""
+        cooked = game / 'XEW/XComGame/CookedPCConsole'
+        return self.files(game), {p.name: p.read_bytes() for p in cooked.iterdir()}
+
+    def test_another_projects_variant_or_files_are_never_replaced(self):
+        """Output names plan 3.4: a play's install and a campaign install check the whole package before anything is
+        written; a variant installed for another project, a file the editor didn't put there (named in any case) and
+        one changed since are refused, and the install is left exactly as it was."""
+        self.package()
+        folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
+        intro = f'CIN_DropshipIntros_{VARIANT}.upk'
+        cases = [
+            ('another project\'s variant', 'for another project',
+             lambda: installs.write_ledger(self.lwr, dict(installed={VARIANT: dict(kind='project', map=VARIANT, project=dict(id=OTHER))}))),
+            ('a file of the map\'s name in another case', 'didn\'t put it there',
+             lambda: (cooked / f'{VARIANT.lower()}.upk').write_bytes(b'by hand')),
+            ('an intro copy put there by hand', 'didn\'t put it there', lambda: (cooked / intro).write_bytes(b'by hand')),
+            ('a file installed for another project', 'installed for another project',
+             lambda: ((cooked / intro).write_bytes(b'theirs'),
+                      installs.write_ledger(self.lwr, dict(playFiles={intro: installs.sha256(cooked / intro)}, owners={intro: OTHER})))),
+            ('a file the editor noted for no project', 'nothing says for which project',
+             lambda: ((cooked / intro).write_bytes(b'whose?'),
+                      installs.write_ledger(self.lwr, dict(playFiles={intro: installs.sha256(cooked / intro)})))),
+        ]
+        for what, says, make in cases:
+            for install in (lambda: installs.install_package(self.lwr, folder),
+                            lambda: installs.install_rotation(self.lwr, folder, 'additional')):
+                with self.subTest(what):
+                    make()
+                    try:
+                        before = self.snapshot(self.lwr)
+                        with self.assertRaisesRegex(installs.InstallError, says): install()
+                        self.assertEqual(self.snapshot(self.lwr), before)
+                    finally:
+                        installs.reset(self.lwr)
+                        for p in (cooked / f'{VARIANT.lower()}.upk', cooked / intro): p.unlink(missing_ok=True)
+                        (self.lwr / 'XCOM Map Workshop/play.json').unlink(missing_ok=True)
+
+    def test_a_projects_own_files_are_replaced_and_others_identical_ones_kept(self):
+        """Output names plan 3.4: whose each file is goes in the ledger, so a newer build of the same project replaces
+        its files; a file changed since is refused; one the editor never put there that has the package's bytes is
+        used and left there; and a ledger from before owners were noted gives the files of the package's own list to
+        the project it says installed the variant."""
+        self.package()
+        folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
+        installs.install_rotation(self.lwr, folder, 'additional')
+        ledger = installs.read_ledger(self.lwr)
+        self.assertEqual(set(ledger['owners']), set(ledger['files']))
+        self.assertEqual(set(ledger['owners'].values()), {ID})
+        self.package(revision=2)
+        installs.install_rotation(self.lwr, folder, 'additional')
+        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 2')
+        # changed since: left alone
+        (cooked / f'{VARIANT}.upk').write_bytes(b'touched')
+        self.package(revision=3)
+        before = self.snapshot(self.lwr)
+        with self.assertRaisesRegex(installs.InstallError, 'has changed since'): installs.install_rotation(self.lwr, folder, 'additional')
+        self.assertEqual(self.snapshot(self.lwr), before)
+        installs.reset(self.lwr)
+        self.assertFalse(installs.read_ledger(self.lwr).get('owners'))
+        # a ledger from before owners: the rotation entry says the variant is this project's
+        (cooked / f'{VARIANT}.upk').unlink()
+        installs.install_rotation(self.lwr, folder, 'additional')
+        ledger = installs.read_ledger(self.lwr)
+        old = dict(ledger)
+        old.pop('owners')
+        installs.write_ledger(self.lwr, old)
+        self.package(revision=4)
+        installs.install_rotation(self.lwr, folder, 'additional')
+        self.assertEqual(set(installs.read_ledger(self.lwr)['owners'].values()), {ID})
+        # ...and when it says another project, nothing is replaced
+        ledger = installs.read_ledger(self.lwr)
+        ledger.pop('owners')
+        ledger['rotation'] = [dict(e, project=dict(e['project'], id=OTHER)) for e in ledger['rotation']]
+        installs.write_ledger(self.lwr, ledger)
+        self.package(revision=5)
+        with self.assertRaisesRegex(installs.InstallError, 'for another project'): installs.install_package(self.lwr, folder)
+        installs.reset(self.lwr)
+        # a file the editor never put there with the package's bytes: used, not noted, and left by Remove from game
+        (cooked / f'CIN_DropshipIntros_{VARIANT}.upk').write_bytes(b'intro copy')
+        installs.install_package(self.lwr, folder)
+        self.assertNotIn(f'CIN_DropshipIntros_{VARIANT}.upk', installs.read_ledger(self.lwr)['playFiles'])
+        installs.reset(self.lwr)
+        self.assertEqual((cooked / f'CIN_DropshipIntros_{VARIANT}.upk').read_bytes(), b'intro copy')
+        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
 
     def test_nothing_changes_while_xcom_runs(self):
         before = self.files(self.lwr)

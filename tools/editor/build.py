@@ -108,6 +108,7 @@ import decomp  # noqa: E402
 import installs  # noqa: E402
 import maplist  # noqa: E402
 import missions as mission_kinds  # noqa: E402
+import outputnames  # noqa: E402
 import spawns  # noqa: E402
 import settings as settings_module  # noqa: E402
 from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
@@ -162,6 +163,53 @@ def cache_name(variant):
     """The variant's texture cache: Lighting (a name every map's table has) numbered from the variant's name, so two
     variants don't share a cache file and a rebuild replaces its own."""
     return 'Lighting_%d' % (1000 + int(hashlib.sha256(variant.encode('ascii')).hexdigest()[:6], 16))
+
+
+def owned_folder(output, variant, project_id):
+    """The builds folder's entry for `variant` (its name in any case), or None when there is none. A BuildError when
+    it is there and is not a build of this project: a build replaces only its own project's last package (its
+    manifest names the same project id), never another project's or a folder that is no build."""
+    found = outputnames.find_ci(output, variant)
+    if found is None:
+        return None
+    m = outputnames.read_manifest(found) if found.is_dir() else None
+    owner = (m.get('project') or {}).get('id') if m else None
+    if project_id and owner == project_id:
+        return found
+    what = ('the build of another project (%s)' % ((m.get('project') or {}).get('name') or owner) if owner
+            else 'no build of this project (it has no readable manifest naming it)')
+    raise BuildError('%s in the builds folder is %s; the build leaves it as it is. Save the project under a new name '
+                     '(Save as) to build it under another, or move that folder away' % (found, what))
+
+
+@contextlib.contextmanager
+def publish_lock(output, variant, wait=60.0, stale=900.0):
+    """One build at a time puts a variant's package in place (the server's builds and a command line's): a lock file
+    in <output>/.work/locks, made exclusively, taken over when it is older than `stale` seconds (a build that died)."""
+    folder = Path(output) / '.work' / 'locks'
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / ('%s.lock' % variant.lower())
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode('ascii'))
+            os.close(fd)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > stale:
+                    path.unlink()
+                    continue
+            except FileNotFoundError:
+                continue
+            if time.monotonic() > deadline:
+                raise BuildError('another build is putting %s in place (%s); try again' % (variant, path))
+            time.sleep(0.2)
+    try:
+        yield
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def last_times(manifest, project_id):
@@ -511,8 +559,12 @@ def readme(m):
 
 class Build:
     def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
-                 seed=None, echo=print, enable=(), quick=False, foreign=()):
+                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=()):
         self.project_path = Path(project)
+        # whose names the build checks its own against (outputnames.Claims): the projects folder (the project file's
+        # own, unless given), the builds folder, the game install it reads and `games` (the one Play in game uses)
+        self.projects = Path(projects) if projects else self.project_path.parent
+        self.games = tuple(Path(g) for g in games if g)
         self.quick = bool(quick)        # the edit made in the map without baking its lighting (edit_unbaked)
         self.enable = tuple(enable)     # families built although the compiler doesn't build them yet (--family)
         self.foreign = tuple(foreign)   # families whose pieces from other maps build before their switch (--foreign-family)
@@ -582,6 +634,9 @@ class Build:
         self.map, self.sha = src.get('map'), src.get('sha256')
         if not (self.variant and self.patch and self.map and self.sha):
             raise BuildError('the project has no output names or source binding')
+        # the builds folder's package of this name must be this project's, checked before any costly work (and again
+        # as the new one goes in: package)
+        owned_folder(self.output, self.variant, self.doc.get('id'))
         # a generation with the light metadata (export 18), where the compiler's find_export takes a minimum
         import inspect
         minimum = {'minimum': EXPORT_MINIMUM} if 'minimum' in inspect.signature(compiler.find_export).parameters else {}
@@ -682,6 +737,37 @@ class Build:
                    # the compiler's own light counts give way to the native edit's (light_counts)
                    **({'lights': self.lights} if self.lights else {}),
                    **{k: v for k, v in report['counts'].items() if k != 'lights'})
+
+    def claims(self):
+        """Who holds which names now (outputnames.Claims), this project's own left out."""
+        games = [self.lwr] + [g for g in self.games if not outputnames.same(g, self.lwr)]
+        try:
+            return outputnames.Claims(self.projects, self.output, games, self.doc.get('id'))
+        except outputnames.NamesError as error:
+            raise BuildError('the names the build writes can\'t be checked: %s' % error)
+
+    def output_names(self):
+        """Every name this build may write: the map, its patch, its texture cache (not in a quick build), and its
+        copies of the intros its base map's records stream and of the streams the edit changes."""
+        names = [self.variant, self.patch] + ([] if self.quick else [outputnames.cache_name(self.variant)])
+        maps = installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n')
+        names += ['%s_%s' % (s, self.variant) for s in intro_streams(base_records(maps, self.map))]
+        streams = set(self.native.get('streamHides') or {}) | set(self.native.get('streamMoves') or {})
+        names += ['%s_%s' % (s, self.variant) for s in sorted(streams)]
+        return names
+
+    def check_names(self, names):
+        """A BuildError naming what holds each of `names` that anything but this project holds (another project's
+        output names, another build, a package of the game install...): a build never writes over them."""
+        clash = self.claims().conflicts(names)
+        if clash:
+            raise BuildError('the build would write names that are taken: %s. Save the project under a new name '
+                             '(Save as) to give it names of its own, or take away what holds them'
+                             % '; '.join('%s (%s)' % (n, what) for n, what in clash))
+
+    def preflight(self):
+        """Before the costly stages: every name the build may write is free for this project (check_names)."""
+        self.check_names(self.output_names())
 
     def patch_and_cook(self):
         if not self.has_patch:
@@ -1176,9 +1262,18 @@ class Build:
         (staging / 'manifest.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
         (staging / 'README.txt').write_bytes(readme(m).encode('latin-1', 'replace'))
         old = self.work / 'replaced'
-        if final.exists():
-            final.rename(old)
-        staging.rename(final)
+        with publish_lock(self.output, self.variant):
+            # checked again as the package goes in: the folder is this project's, and no name it holds is taken now
+            existing = owned_folder(self.output, self.variant, self.doc.get('id'))
+            self.check_names(outputnames.build_names(m, self.variant))
+            if existing is not None:
+                existing.rename(old)
+            try:
+                staging.rename(final)
+            except OSError as error:
+                if existing is not None:
+                    old.rename(existing)
+                raise BuildError('the new package could not be put in place (%s); the last one is as it was' % error)
         # an earlier build's zip of the folder (builds made one until 10 November 2026): out of date now
         stale = self.output / ('%s.zip' % self.variant)
         if stale.is_file():
@@ -1219,6 +1314,7 @@ class Build:
         try:
             self.snapshot()
             self.compile()
+            self.preflight()
             self.patch_and_cook()
             self.shell()
             try:
@@ -1266,8 +1362,13 @@ def main(argv=None):
         a.error('set the game install (viewer.py settings, or --lwr)')
     try:
         project = find_project(args.project, s['projects'])
+        # the install Play in game uses, where it is another: the build's names are checked against it too
+        try:
+            play = settings_module.install_game(s)[0]
+        except (OSError, ValueError):
+            play = None
         Build(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
-              enable=args.family, quick=args.quick, foreign=args.foreign_family).run()
+              enable=args.family, quick=args.quick, foreign=args.foreign_family, games=[play] if play else []).run()
     except BuildError as error:
         print('build failed: %s' % error)
         return 1

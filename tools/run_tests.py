@@ -65,8 +65,9 @@ def outcome(output, code):
 
 def run(cmd, log):
     started = time.monotonic()
+    # the suites write UTF-8 (a test's message may hold any character), which is how it is read back
     proc = subprocess.run(cmd, cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          text=True, encoding='utf-8', errors='replace')
+                          text=True, encoding='utf-8', errors='replace', env=dict(os.environ, PYTHONIOENCODING='utf-8'))
     log.write_text(proc.stdout, encoding='utf-8', newline='\n')
     return proc.stdout, proc.returncode, time.monotonic() - started
 
@@ -110,6 +111,9 @@ def main(argv=None):
     ap.add_argument('--install', action='store_true',
                     help='run the checks over every map of the install too (on when every suite runs)')
     args = ap.parse_args(argv)
+    # a console that can't show a character of a failure's message shows a stand-in rather than stopping the run
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
     unknown = [s for s in args.suites if s not in SUITES]
     if unknown:
         ap.error(f'unknown suite {", ".join(unknown)} (one of {", ".join(SUITES)})')

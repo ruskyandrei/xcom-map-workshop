@@ -49,9 +49,13 @@ Before 9 November 2026 the editor installed a map as the first mission of a new 
 map): it rewrote the one record whose DisplayName is LWR's Commercial Alley Redux (INTRO_SLOTS). A ledger of that time
 is still read: the next play, or Remove from game, puts the install's own line back (restore_intro).
 
-All of these refuse while XCOM runs. A package file that exists already is replaced only when the editor put it there
-or it has the name of one of this package's files (names come from the project's own variant name, so it is an earlier
-build of the same project); any other file is never overwritten.
+All of these refuse while XCOM runs. A play's install and a campaign install check the whole package first, before a
+file is copied or a line changed (preflight): a variant the editor installed for another project is never replaced,
+and a package file already in CookedPCConsole (the name compared regardless of case) is replaced only when the editor
+put it there for the same project and it is unchanged since. Whose each file is goes in the ledger (`owners`, since
+16 November 2026); for a ledger from before, a file of the package's own list is the project's the ledger says
+installed its variant, and anything else that nothing says is refused. A file the editor never put there is never
+overwritten (it stays whoever's it is when it already has the package's bytes).
 
 maps_text(game) is the install's DefaultMaps.ini as the install has it, the editor's lines taken out: the map list, the
 exporter and Build read the install through it, so an install of the editor's never shows up as a map or a record
@@ -532,12 +536,86 @@ def read_package(folder, game=None):
     return m, files
 
 
-def _copy_files(game, ledger, files, play=False, atomic=None):
+def noted_files(ledger):
+    """{file name in lower case: (its name, its hash as installed)} of the files the editor copied in and still notes
+    (a campaign's `files` and a play's `playFiles`)."""
+    return {k.lower(): (k, v) for key in ('files', 'playFiles') for k, v in (ledger.get(key) or {}).items()}
+
+
+def file_owners(ledger):
+    """{file name in lower case: project id} for the files the editor copied in, as noted since 16 November 2026
+    (`owners`). A ledger from before notes the files alone."""
+    return {k.lower(): v for k, v in (ledger.get('owners') or {}).items() if isinstance(v, str) and v}
+
+
+def recorded_variants(ledger):
+    """{variant: project id or None} for what the editor installed under a name of its own: the variants Play in game
+    installed (`installed`, a map's record there too) and the campaign installs (`rotation`)."""
+    found = {}
+    for name, entry in (ledger.get('installed') or {}).items():
+        found[entry.get('map') or name] = (entry.get('project') or {}).get('id') if entry.get('kind') == 'project' else None
+    for entry in ledger.get('rotation') or []:
+        found[entry['variant']] = (entry.get('project') or {}).get('id')
+    return found
+
+
+def _owner(ledger, name, m, files):
+    """The project whose a file the editor noted is: as `owners` says, else (a ledger from before owners were noted)
+    the project the ledger says installed this package's variant, for a file of this package's own list (the
+    variant's names are its project's, so that is the earlier build of it). None when nothing says."""
+    owner = file_owners(ledger).get(name.lower())
+    if owner: return owner
+    if not any(dst.name.lower() == name.lower() for _, dst, _ in files): return None
+    variant = m['variant'].lower()
+    return next((p for v, p in recorded_variants(ledger).items() if v.lower() == variant and p), None)
+
+
+def preflight(game, ledger, m, files):
+    """Before a package is installed, nothing written yet: refused (an InstallError naming each problem) when its
+    variant is installed for another project, or when one of its files is in CookedPCConsole (any case) and may not be
+    replaced. A file may be replaced only where the editor noted it, for this project (file_owners, or for a ledger
+    from before, _owner), unchanged since it was copied; a file the editor never put there is left alone, and stays
+    whoever's it is when it already has the package's bytes."""
+    project = (m.get('project') or {}).get('id')
+    variant = m['variant']
+    problems = []
+    for name, owner in recorded_variants(ledger).items():
+        if name.lower() == variant.lower() and owner != project:
+            problems.append(f'{name} is installed in this game for another project; remove it from the game (Remove '
+                            f'from game, or the project manager) or save this project under a new name')
+    there = {p.name.lower(): p for p in cooked(game).iterdir()} if cooked(game).is_dir() else {}
+    noted = noted_files(ledger)
+    for _, dst, digest in files:
+        path = there.get(dst.name.lower())
+        if path is None: continue
+        current = sha256(path)
+        entry = noted.get(dst.name.lower())
+        if entry is None:
+            if current != digest:
+                problems.append(f'{path.name} is in CookedPCConsole and the editor didn\'t put it there; it is left '
+                                f'alone (move it away to install this build)')
+            continue
+        owner = _owner(ledger, path.name, m, files)
+        if owner is None:
+            problems.append(f'{path.name} was installed by the editor, and nothing says for which project; take '
+                            f'everything back out (Remove from game) first')
+        elif owner != project:
+            problems.append(f'{path.name} was installed for another project; remove that one from the game first')
+        elif current != digest and current != entry[1]:
+            problems.append(f'{path.name} has changed since the editor installed it; it is left alone (move it '
+                            f'away to install this build)')
+    if problems:
+        raise InstallError('Not installed: ' + '; '.join(problems) + '.')
+
+
+def _copy_files(game, ledger, files, play=False, atomic=None, project=None):
     """A package's files copied into the install (read_package's list), the ones the editor put there noted in the
     ledger, which is written. A file is noted once: in `files` when an install for campaigns needs it, else in
     `playFiles` (a play's, which go when the game closes). So an install for campaigns takes over a file a play put
-    there, and a play that brings a newer build of a variant installed for campaigns leaves the file the campaign's."""
+    there, and a play that brings a newer build of a variant installed for campaigns leaves the file the campaign's.
+    `project`: whose the noted files are (`owners`). Run preflight first: this replaces what it is given."""
     kept, played = ledger.setdefault('files', {}), ledger.setdefault('playFiles', {})
+    owners = ledger.setdefault('owners', {})
     for src, dst, digest in files:
         name = dst.name
         if not (dst.exists() and sha256(dst) == digest):
@@ -556,6 +634,8 @@ def _copy_files(game, ledger, files, play=False, atomic=None):
             kept[name] = played[name]       # already there as built by a play: the campaign's from now on
         # else already there as built (ours, or put there by another tool: then it stays theirs)
         if name in kept: played.pop(name, None)
+        # a noted file is this project's (preflight has made sure of that)
+        if project and (name in kept or name in played): owners[name] = project
     write_ledger(game, ledger)
 
 
@@ -661,6 +741,10 @@ def _files_out(game, ledger, key):
         path.unlink()
         done.append(name)
     ledger[key] = {}
+    # whose each file is, for the files still noted
+    if 'owners' in ledger:
+        noted = {k for other in ('files', 'playFiles') for k in ledger.get(other) or {}}
+        ledger['owners'] = {k: v for k, v in ledger['owners'].items() if k in noted}
     return done, left
 
 
@@ -701,9 +785,19 @@ def clear_play(game, now=None):
     return done
 
 
-def install_package(game, folder, now=None, *, expected=None, test=None, zone=None, mission=None):
+# One install into a game at a time in this process (the server's), from the preflight to the last write; two servers
+# on one install are not kept apart.
+_INSTALLING = threading.RLock()
+
+
+def install_package(game, folder, now=None, **options):
+    with _INSTALLING: return _install_package(game, folder, now, **options)
+
+
+def _install_package(game, folder, now=None, *, expected=None, test=None, zone=None, mission=None):
     """Install a variant package (a folder with manifest.json) so that the game can open it by name; returns what was
-    installed. An earlier build of the same variant is replaced. `mission` (mission_id): which of the package's
+    installed. An earlier build of the same variant, of the same project, is replaced; anything of another project's,
+    or a file the editor didn't put there, is never replaced (preflight, before anything is written). `mission` (mission_id): which of the package's
     missions the record is (build_record: the Build's own line for it; None, its first); a prefab test's is
     plan_record's with TEST_MISSION. The result's `record` is the record's text, for the play's commands
     (missions.play_setup), and `mission` its id and label. `zone` (Land here: one of the project's landing
@@ -724,7 +818,7 @@ def install_package(game, folder, now=None, *, expected=None, test=None, zone=No
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
     lz = dep.lines_of(config(game, LZ).read_bytes()) if config(game, LZ).is_file() else None
     pristine = pristine_lines(game, maps)
-    foreign = [i for i, l in enumerate(pristine) if dep.is_record(l) and dep.field(l, 'Name') == variant]
+    foreign = [i for i, l in enumerate(pristine) if dep.is_record(l) and (dep.field(l, 'Name') or '').lower() == variant.lower()]
     if foreign and patchtool_record(pristine, variant) is None:
         raise InstallError(f'DefaultMaps.ini has a record named {variant} (line {foreign[0] + 1}) that neither the editor '
                            'nor patchtool wrote; take it out first')
@@ -740,6 +834,7 @@ def install_package(game, folder, now=None, *, expected=None, test=None, zone=No
     for patch in list(m.get('streams') or []) + list((m.get('replaceStreams') or {}).values()):
         if not any(dst.name.lower() == f'{patch}.upk'.lower() for _, dst, _ in files) and not (cooked(game) / f'{patch}.upk').is_file():
             raise InstallError(f'{patch}.upk is in neither the package nor the install')
+    preflight(game, ledger, m, files)
     lz_at, lz_new = plan_variant_lz(lz, m, note, zone) if lz is not None else (None, [])
     # DefaultMaps.ini: an earlier build's record of this variant out (what it stood in for back), an earlier version's
     # intro line back, the new record in place of a patchtool record of the variant, else after the base map's last one
@@ -773,7 +868,7 @@ def install_package(game, folder, now=None, *, expected=None, test=None, zone=No
         writes[LZ] = dep.EOL.join(new_lz)
     if test:
         begin_test_install(game, test, files, writes)
-    _copy_files(game, ledger, files, play=True, atomic=test)
+    _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'))
     if test:
         for name, data in writes.items():
             replace_bytes(config(game, name), data, test)
@@ -1034,10 +1129,10 @@ def _sync_off(lines, ledger, pristine):
     ledger['linesOff'], ledger['manualOff'] = kept, sorted(manual)
 
 
-def _write_rotation(game, ledger, maps, new_maps, entries, pristine):
-    """DefaultMaps.ini written with the rotation installs `entries` (the install's own records following them and the
-    ledger's manualOff: _sync_off), after a check that the editor's changes undone leave the install's own lines."""
-    import deploy_fixture as dep
+def _plan_rotation(ledger, new_maps, entries, pristine):
+    """`new_maps` and the ledger (both in place) with the rotation installs `entries` (the install's own records
+    following them and the ledger's manualOff: _sync_off), checked: the editor's changes undone leave the install's
+    own lines. Writes nothing."""
     ledger['rotation'] = entries
     _sync_off(new_maps, ledger, pristine)
     check = list(new_maps)
@@ -1045,15 +1140,27 @@ def _write_rotation(game, ledger, maps, new_maps, entries, pristine):
         _take_out(check, b)
     _strip_rotation(check, ledger)
     if check != pristine: raise InstallError('planned change touches other lines')
+
+
+def _write_rotation(game, ledger, maps, new_maps, entries, pristine):
+    """DefaultMaps.ini written with the rotation installs `entries` (_plan_rotation)."""
+    import deploy_fixture as dep
+    _plan_rotation(ledger, new_maps, entries, pristine)
     if new_maps != maps: dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
 
 
 def install_rotation(game, folder, mode, now=None):
+    with _INSTALLING: return _install_rotation(game, folder, mode, now)
+
+
+def _install_rotation(game, folder, mode, now=None):
     """Install a variant package for campaigns: its files, its landing zones and its records for the rotation
     (rotation_plan), after the base map's own records. mode 'additional': the base map's records stay as they are, so
     missions draw from both; 'replace': the base map's own records are commented out, and the variant's records for
     the missions the game asks for by name take their names (they go back when no variant replaces the map any more:
-    remove_rotation, reset). An earlier rotation install of the variant is replaced. The record Play in game adds (install_package) is separate and stays first, so a play still
+    remove_rotation, reset). An earlier rotation install of the variant, of the same project, is replaced; what belongs
+    to another project, or a file the editor didn't put there, is never replaced: everything is checked (preflight,
+    the planned config lines) before anything is written. The record Play in game adds (install_package) is separate and stays first, so a play still
     opens the variant by it. Returns what was installed, with mission_warnings."""
     import deploy_fixture as dep
     if mode not in ROTATION_MODES: raise InstallError(f'mode must be one of {", ".join(ROTATION_MODES)}')
@@ -1067,7 +1174,7 @@ def install_rotation(game, folder, mode, now=None):
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
     lz = dep.lines_of(config(game, LZ).read_bytes()) if config(game, LZ).is_file() else None
     pristine = pristine_lines(game, maps)
-    foreign = [i for i, l in enumerate(pristine) if dep.is_record(l) and dep.field(l, 'Name') == variant]
+    foreign = [i for i, l in enumerate(pristine) if dep.is_record(l) and (dep.field(l, 'Name') or '').lower() == variant.lower()]
     if foreign and patchtool_record(pristine, variant) is None:
         raise InstallError(f'DefaultMaps.ini has a record named {variant} (line {foreign[0] + 1}) that neither the editor '
                            'nor patchtool wrote; take it out first')
@@ -1075,9 +1182,8 @@ def install_rotation(game, folder, mode, now=None):
     for patch in list(m.get('streams') or []) + list((m.get('replaceStreams') or {}).values()):
         if not any(dst.name.lower() == f'{patch}.upk'.lower() for _, dst, _ in files) and not (cooked(game) / f'{patch}.upk').is_file():
             raise InstallError(f'{patch}.upk is in neither the package nor the install')
+    preflight(game, ledger, m, files)
     lz_at, lz_new = plan_variant_lz(lz, m, note) if lz is not None else (None, [])
-    ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-    _copy_files(game, ledger, files)
     new_maps = list(maps)
     left = _rotation_out(new_maps, ledger, variant)
     if left: raise InstallError(left[0])
@@ -1096,10 +1202,16 @@ def install_rotation(game, folder, mode, now=None):
                  project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
                  missions=plan['missions'])
     others = [e for e in ledger.get('rotation') or [] if e['variant'] != variant]
-    _write_rotation(game, ledger, maps, new_maps, others + [entry], pristine)
+    # the planned lines checked on copies before anything is written
+    _plan_rotation(json.loads(json.dumps(ledger)), list(new_maps), others + [entry], pristine)
+    new_lz = None
     if lz_new:
         new_lz = lz[:lz_at] + lz_new + lz[lz_at:]
         dep.check_change(lz, new_lz, inserted=(lz_at, len(lz_new)))
+    ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
+    _copy_files(game, ledger, files, project=project.get('id'))
+    _write_rotation(game, ledger, maps, new_maps, others + [entry], pristine)
+    if new_lz is not None:
         dep.write_checked(config(game, LZ), new_lz)
         ledger.setdefault('landingZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
     else:
@@ -1370,7 +1482,7 @@ def reset(game, now=None):
     done['files'].sort()
     if _commands_out(game): done['playFile'] = True
     ledger.update(slot=None, records=[], landingZones=[], files={}, playZones=[], playFiles={}, intro=None, installed={},
-                  lastPlay=None, rotation=[], linesOff=[], manualOff=[])
+                  lastPlay=None, rotation=[], linesOff=[], manualOff=[], owners={})
     ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), reset=True, records=done['records'],
                                                   files=len(done['files']), **({'introBack': True} if done['intro'] else {})))
     write_ledger(game, ledger)
