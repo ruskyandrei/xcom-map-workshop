@@ -114,8 +114,8 @@ Statuses:
 - F-114: the five piece flags (walking, cover, sight, floor, mouse) read from the game's scripts, its class defaults
   and every listed map (16 November); the editor's Flags edits them. Played: Mouse picks it on, on Temple Ship's
   arches (EXP-60); every flag off on a statue and its plinth, walked through and not picked (EXP-61); each flag alone
-  on copies, a door, a ladder and a hedge (EXP-62). Open: Blocks walking on a low piece stops no one; a prop's gate
-  on a tall prop, a ladder's cover and a door after opening it are not played.
+  on copies, a door, a ladder and a hedge (EXP-62). Blocks walking on a low piece stops no one: the editor says so
+  (`flags-low`). Open: a prop's gate on a tall prop, a ladder's cover and a door after opening it are not played.
 - F-111: cover, step-outs, flanking and sight inside sight radius come from the tiles' data alone (read 15
   November, checked against baked data). Not compared with a battle yet: one short run of a soldier on a known
   tile would settle the sight walk.
@@ -172,7 +172,8 @@ the editor's Flags group edits (piece flags plan). [native/piece-flags.md](nativ
   before and changed no tile.
 - **Blocks walking on a low piece stops no one** (EXP-62): a 36-unit hedge with it on (its gate opened) leaves its
   tiles partly occupied (the low occupancy box only, the floor kept) and under the crossing sweep, so units walk
-  in. It stops units only on a piece that reaches the crossing sweep (64 over the floor).
+  in. It stops units only on a piece that reaches the crossing sweep (64 over the floor). The editor names such a
+  piece under its Blocks walking row and warns when a project turns it on (`flags-low`, piece flags P8).
 - **Not known:** what opening the gate does to the sweeps on a prop tall enough to meet them (the hedge and the
   parking blocks are too low); whether a ladder still gives cover beside it; a door's flags after it is opened and
   shut; a shot across a fence with Blocks sight off; why EXP-62's control box stack and its Gives cover off copy

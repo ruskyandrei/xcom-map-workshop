@@ -54,7 +54,8 @@ def make_cases():
             raws.append({k: rng.choice((True, False, True, False, None) if rng.random() < 0.2 else (True, False)) for k in props})
         for raw in raws:
             assumed = [k for k in props if rng.random() < 0.08]
-            facts = dict(collides=rng.choice((True, True, False)), bodySetup=rng.choice((True, False, None)), assumed=assumed)
+            facts = dict(collides=rng.choice((True, True, False)), bodySetup=rng.choice((True, False, None)), assumed=assumed,
+                         low=rng.choice((False, False, True, None)))
             plans = []
             for request in REQUESTS:
                 p = pf.plan(cls, raw, request, assumed)
@@ -110,6 +111,15 @@ class Roles(unittest.TestCase):
         self.assertEqual(r['walking']['limits'], ['no-body-setup'])
         self.assertNotIn('limits', r['floor'])
         self.assertNotIn('limits', r['mouse'])
+        # a low piece's walking (EXP-62's hedge), only while walking is on and the piece collides
+        r = pf.roles('XComDestructibleActor', default_raw('XComDestructibleActor'), dict(collides=True, low=True))
+        self.assertEqual(r['walking']['limits'], ['low'])
+        self.assertEqual(r['cover']['limits'], ['height-test'])
+        r = pf.roles('XComDestructibleActor', dict(default_raw('XComDestructibleActor'), bAlwaysConsiderForCover=False),
+                     dict(collides=True, low=True))
+        self.assertNotIn('limits', r['walking'])
+        r = pf.roles('XComDestructibleActor', default_raw('XComDestructibleActor'), dict(collides=False, low=True))
+        self.assertEqual(r['walking']['limits'], ['no-collision'])
 
 
 class Plan(unittest.TestCase):

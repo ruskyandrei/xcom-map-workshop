@@ -124,7 +124,7 @@ class FlagsInPlaceTests(unittest.TestCase):
         self.assertEqual([o['type'] for o in spec['objects']], ['copy', 'hide'])
         self.assertNotIn('flags', spec['objects'][0])
 
-    def test_a_door_a_wall_and_a_piece_that_collides_with_nothing_are_warned_of_or_noted(self):
+    def test_a_door_a_wall_and_a_piece_that_collides_with_nothing_are_noted(self):
         s = flagged(scene())
         s['meshes']['wall'] = dict(bounds=[0, 0, 100, 200, 8, 100, 200])
         s['objects'].append(part('XComLevelActor_40', at=(0, 400, 0), mesh='wall'))
@@ -132,14 +132,54 @@ class FlagsInPlaceTests(unittest.TestCase):
         _, report = compiled([dict(target=target('XComInteractiveLevelActor_8'), flags=dict(walking=False)),
                               dict(target=target('XComLevelActor_40'), flags=dict(sight=False)),
                               dict(target=target('XComFracLevelActor_11'), flags=dict(cover=False))], s=s)
-        self.assertEqual(warned(report, 'flags'), ['flags-door'])
-        self.assertEqual(noted(report, 'flags'), ['flags-wall', 'flags-wall'])
+        # (EXP-62: a shut door with walking off is walked through; said as a note, never as untried)
+        self.assertEqual(warned(report, 'flags'), [])
+        self.assertEqual(noted(report, 'flags'), ['flags-door', 'flags-wall', 'flags-wall'])
+        door = next(n for n in report['notes'] if n['code'] == 'flags-door')
+        self.assertIn('walk through it when it is shut too', door['message'])
+        self.assertNotIn('untried', door['message'])
+        # a door's cover alone, or walking turned back on, is no note
+        _, report = compiled([dict(target=target('XComInteractiveLevelActor_8'), flags=dict(cover=False))], s=s)
+        self.assertEqual(noted(report, 'flags-door'), [])
         _, report = compiled([dict(target=target('XComLevelActor_1'), flags=dict(walking=False))],
                              s=flagged(scene(), collides=False))
         self.assertEqual(noted(report, 'flags'), ['flags-no-collision'])
         _, report = compiled([dict(target=target('XComLevelActor_1'), flags=dict(walking=False))],
                              s=flagged(scene(), body=False))
         self.assertEqual(noted(report, 'flags'), ['flags-limited'])
+
+
+    def test_blocks_walking_on_a_low_piece_is_warned_of(self):
+        # (EXP-62's hedge: a piece reaching less than 60 over its level's bottom stops no one with walking on)
+        s = scene()
+        s['meshes']['low'] = dict(bounds=[0, 0, 18, 48, 48, 18, 60])
+        s['objects'].append(part('XComDestructibleActor_40', cls='XComDestructibleActor', at=(0, 400, 0), mesh='low'))
+        s['objects'].append(part('XComDestructibleActor_41', cls='XComDestructibleActor', at=(0, 600, 0)))
+        s = flagged(s, XComDestructibleActor_40=dict(bAlwaysConsiderForCover=False),
+                    XComDestructibleActor_41=dict(bAlwaysConsiderForCover=False))
+        _, report = compiled([dict(target=target('XComDestructibleActor_40'), flags=dict(walking=True)),
+                              dict(target=target('XComDestructibleActor_41'), flags=dict(walking=True))], s=s)
+        self.assertEqual(warned(report, 'flags'), ['flags-low'])
+        low = next(w for w in report['warnings'] if w['code'] == 'flags-low')
+        self.assertIn('XComDestructibleActor_40', low['message'])
+        self.assertIn('reaches 37 over the bottom of its level', low['message'])
+        # turned off, or lifted onto the next level's floor and still low there, as a copy
+        _, report = compiled([dict(target=target('XComDestructibleActor_40'), flags=dict(cover=False))], s=s)
+        self.assertEqual(warned(report, 'flags-low'), [])
+        _, report = compiled([dict(target=target('XComDestructibleActor_40'), location=[0, 400, 63], rotation=[0, 0, 0],
+                                   flags=dict(walking=True))], s=s)
+        self.assertEqual(warned(report, 'flags-low'), ['flags-low'])
+        # tall enough there: lifted 30, it reaches 67 over the bottom of level 0
+        _, report = compiled([dict(target=target('XComDestructibleActor_40'), location=[0, 400, 30], rotation=[0, 0, 0],
+                                   flags=dict(walking=True))], s=s)
+        self.assertEqual(warned(report, 'flags-low'), [])
+
+    def test_low_piece_counts_from_the_bottom_of_its_level(self):
+        self.assertTrue(piece_flags.low_piece([0, 1, 0, 1, 16, 52], -1))      # the hedge: 53 over the level's bottom
+        self.assertFalse(piece_flags.low_piece([0, 1, 0, 1, 16, 91], -1))     # a box stack: 92
+        self.assertTrue(piece_flags.low_piece([0, 1, 0, 1, 61, 100], -1))     # sunk 2 into level 1's floor: 37 there
+        self.assertIsNone(piece_flags.low_piece(None, -1))
+        self.assertIsNone(piece_flags.low_piece([0, 1, 0, 1, 16, 52], None))
 
 
 class FlagsOnCopiesTests(unittest.TestCase):

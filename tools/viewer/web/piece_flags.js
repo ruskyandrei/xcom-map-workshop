@@ -68,13 +68,25 @@ export function roles(contract, cls, raw, facts = {}) {
   if (floorFlag && step === false) limits.floor.push('stops-floor');
   if (out.floor.value && raw.bIsValidDestination === false) limits.floor.push('destination');
   if (facts.collides === false) for (const r of ROLES) limits[r].push('no-collision');
-  else if (facts.bodySetup === false) for (const r of ['walking', 'cover', 'sight']) limits[r].push('no-body-setup');
+  else {
+    if (facts.bodySetup === false) for (const r of ['walking', 'cover', 'sight']) limits[r].push('no-body-setup');
+    if (facts.low && ['on', 'partial'].includes(out.walking.state)) limits.walking.push('low');
+  }
   const assumed = new Set(facts.assumed ?? []);
   for (const r of ROLES) {
     if (out[r].state !== 'n/a' && contract.roleInputs[r].some(p => assumed.has(p))) limits[r].push('assumed');
     if (limits[r].length && out[r].state !== 'n/a') out[r].limits = limits[r];
   }
   return out;
+}
+
+/** Whether a piece with the world box [x0, x1, y0, y1, z0, z1] is too low to stop units on a map whose tiles are
+ * counted from the height cornerZ (piece_flags.low_piece's twin): it reaches less than contract.stopsFrom over the
+ * bottom of its level. null when either is unknown. */
+export function lowPiece(contract, box, cornerZ) {
+  if (!box || cornerZ === null || cornerZ === undefined) return null;
+  const level = contract.level ?? 64, bottom = cornerZ + level * Math.floor((box[4] + 8 - cornerZ) / level);
+  return box[5] - bottom < (contract.stopsFrom ?? 60);
 }
 
 export function states(contract, cls, raw) {

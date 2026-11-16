@@ -76,7 +76,13 @@ role is half on and opening the gate would change it, it asks for an explicit va
   can still block an edge;
 - a floor hit on an actor with `bPathColliding` but without `bCanStepUpOn` ends the floor search with no floor;
 - `bIsValidDestination` decides whether a unit may end its move on the floor;
-- the filtered traces need the mesh's BodySetup (simple collision); the floor line and the mouse use other traces.
+- the filtered traces need the mesh's BodySetup (simple collision); the floor line and the mouse use other traces;
+- **a low piece stops no one** (EXP-62): the occupancy step's upper box starts 60 over the bottom of the level, so a
+  piece reaching less than that leaves its tile partly occupied (`0x8000` with `0x10000`) with its floor kept, and
+  it stays under the crossing sweep (64 over the floor). Blocks walking on such a piece (EXP-62's hedge, 36 tall)
+  stops no unit. The editor says so (`piece_flags.low_piece`: the panel's limit, the compiler's `flags-low`);
+- **a door's walking and sight flags hold when it is shut** (EXP-62): with them off, the tiles' edge through the shut
+  door has no pathing or sight bits, and units walk through it without opening it. An open door never blocks.
 
 ## 3. The mouse
 
@@ -132,8 +138,11 @@ own (`test_game_grid.py` keeps those).
 
 ## 6. Not known
 
-1. Only `bIgnoreForCover` on a colliding piece (invisible floors, F-82) and `bBlockUnitVisibility` off (blockers,
-   EXP-58) have been played. Walking off on a visible, colliding piece rests on the reading and on the maps' own.
+1. Played: `bIgnoreForCover` on a colliding piece (invisible floors, F-82), `bBlockUnitVisibility` off (blockers,
+   EXP-58), the mouse on (EXP-60), every flag off on a statue (EXP-61), and each flag alone on copies, a door, a
+   ladder and a low hedge (EXP-62). Not played: what opening the gate does to the sweeps on a prop tall enough to
+   meet them, a ladder's cover beside it, a door's flags after it is opened and shut, a shot across a piece with
+   Blocks sight off.
 2. Two steps of the cover build are plain engine traces (the floor under the cover location, the step-out's floor),
    not the filtered trace: a low piece with its flags off can still change cover where it lies.
 3. How the game's damage finds pieces was not read; the flags writer leaves collision alone.

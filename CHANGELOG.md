@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags P8: a low piece's Blocks walking said, and the door's flags said as what they do
+
+After EXP-62:
+- **A low piece:** Blocks walking on a piece reaching less than 60 over the bottom of its level stops no one (the
+  hedge in EXP-62). `piece_flags.low_piece` ([piece_flags.py](tools/viewer/piece_flags.py); twin `lowPiece` in
+  [piece_flags.js](tools/viewer/web/piece_flags.js)) tells such a piece. The Flags group names it under a Blocks
+  walking row that is on (limit `low`, from what is drawn of the piece where it stands: [app.js](tools/viewer/web/app.js)
+  flagView). The compiler warns when a project turns it on (`flags-low`, with how high the piece reaches, a copy
+  judged where it ends up: [compiler.py](tools/editor/compiler.py)).
+- **A door:** the `flags-door` warning ("untried in the game") is now a note saying what happens: with Blocks
+  walking or Blocks sight off, units walk or see through the door when it is shut too. A door's cover alone gets no
+  note. The panel's door limit says that an open door never blocks and that with the flag off a shut one doesn't
+  either.
+- [guide.html](tools/release/guide/guide.html): Blocks walking's row names the low piece; the Flags section says the
+  door's and the shot's behaviour plainly, without "not tried" or "not played", and flags are off the guide's
+  not-played list. [native/piece-flags.md](research/native/piece-flags.md): both findings, and what is still
+  unplayed. [findings-register.md](research/findings-register.md): F-114 says the editor now names the low piece.
+- Checked: the editor, viewer and node suites (new tests: the low warning in place and on a copy at two heights, the
+  door note, `low_piece` against the hedge and a box stack, the parity cases with `low`); EXP-62's project compiled
+  again (the three hedge bushes warned, the door noted); the panel on a test server: the hedge's Blocks walking row
+  shows the limit, a box stack's doesn't, the door shows its new words, no console errors.
+
 ### EXP-62 run 1 passed: the remaining piece flags played, with two limits found
 
 - [EXP-62](research/experiments/EXP-62-piece-flags.md)'s result, played by the user, with the save's tiles read by

@@ -986,11 +986,12 @@ class Compiler:
                    % (f,), **where)
         return False
 
-    def flag_plan(self, src, flags, name, where):
+    def flag_plan(self, src, flags, name, where, box=None):
         """(the request applied, piece_flags.plan) of a piece's flags against its settings as the export has them, or
         (None, None) with a warning when they can't be checked (the piece is built without them). Roles the class
         doesn't have are noted and dropped; a request a prop's gate makes ambiguous (a hand-edited file: the page
-        asks) is a warning and nothing of it is built."""
+        asks) is a warning and nothing of it is built. box: the piece's world box where it ends up (a copy's), else
+        the one where it stands."""
         self.flag_counts['requested'] += 1
         record = src.get('pieceFlags')
         cls = src.get('actorClass')
@@ -1026,10 +1027,20 @@ class Compiler:
         elif record.get('bodySetup') is False and any(r in changed for r in ('walking', 'cover', 'sight')):
             self.note('flags-limited', '%s\'s mesh has no simple collision (BodySetup): the pathing, cover and sight sweeps '
                       'pass through it whatever its flags say' % name, **where)
-        if cls == 'XComInteractiveLevelActor' and any(r in changed for r in piece_flags.TILE_ROLES):
-            self.warn('flags-door', '%s is a door whose flags change: the game also blocks or opens a door\'s tiles as it '
-                      'opens and shuts, so it may not match how it is drawn; untried in the game' % name, **where)
-        box = self.boxes([src], src['location'], src['rotation']) if src.get('mesh') in self.meshes else None
+        opened = [r for r in ('walking', 'sight') if plan['after'][r] == 'off' and plan['before'][r] != 'off']
+        if cls == 'XComInteractiveLevelActor' and opened:
+            self.note('flags-door', '%s is a door with %s off: units %s through it when it is shut too'
+                      % (name, ' and '.join(piece_flags.LABELS[r] for r in opened),
+                         ' and '.join(dict(walking='walk', sight='see')[r] for r in opened)), **where)
+        if box is None:
+            box = self.boxes([src], src['location'], src['rotation']) if src.get('mesh') in self.meshes else None
+        if flags.get('walking') is True and plan['after']['walking'] in ('on', 'partial') and record.get('collides') is not False \
+                and piece_flags.low_piece(box, (tile_corner(self.scene.get('tileGrid')) or [None] * 3)[2]):
+            corner = tile_corner(self.scene.get('tileGrid'))[2]
+            reach = box[5] - (corner + piece_flags.LEVEL * math.floor((box[4] + 8 - corner) / piece_flags.LEVEL))
+            self.warn('flags-low', '%s is too low for Blocks walking to stop anyone: it reaches %d over the bottom of its '
+                      'level, under the %d the game\'s tiles need, so its tiles are only partly occupied and units still '
+                      'walk into them' % (name, round(reach), piece_flags.STOPS_FROM), **where)
         if box and any(plan['after'][r] == 'off' and plan['before'][r] != 'off' for r in ('walking', 'cover', 'sight')) \
                 and (cls in ('XComFracLevelActor', 'XComDecoFracLevelActor') or max(box[1] - box[0], box[3] - box[2], box[5] - box[4]) > FLAGS_WALL):
             self.note('flags-wall', '%s is a large piece (or a fracturing wall) that no longer blocks %s: units may walk or see '
@@ -1067,7 +1078,7 @@ class Compiler:
     def copy_flags(self, copy, src, flags, name, where):
         """A copy's flags (a moved original's, an added piece's): its request goes with the copy, which the Build
         writes once it is made."""
-        applied, plan = self.flag_plan(src, flags, name, where)
+        applied, plan = self.flag_plan(src, flags, name, where, copy.get('box'))
         if applied is None:
             return
         copy['flags'] = applied

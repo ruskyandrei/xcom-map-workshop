@@ -18,7 +18,10 @@ not a prediction of the finished tiles. Geometry, collision, other pieces and th
   a ladder, a door and a sturdy prop whatever their cover flag says;
 - StaticMeshActor and KAsset are never counted for walking, cover or sight, and the mouse never picks them (they have
   no mouse interface); they can still be a floor;
-- a door's mouse is never read (the pick tests XComInteractiveLevelActor apart).
+- a door's mouse is never read (the pick tests XComInteractiveLevelActor apart); an open door never blocks, and a
+  shut one with walking and sight off is walked and seen through (EXP-62);
+- a piece that reaches less than 60 over the bottom of its level (`low_piece`) leaves its tiles only partly occupied
+  and stays under the crossing sweep, so Blocks walking on it stops no one (EXP-62's hedge).
 
 The class defaults are the game's own, read from its script packages (XComGame.upk, Engine.upk) beside the map when
 they are there, else from CLASS_DEFAULTS, which holds what those packages save (read 16 November 2026).
@@ -29,6 +32,7 @@ sparse request into the property writes (with the companion writes that keep the
 `contract` is what the editor page needs to do the same (web/piece_flags.js mirrors `roles` and `plan`; the parity
 cases in tests/piece_flag_cases.json hold both to one answer).
 """
+import math
 from pathlib import Path
 import threading
 
@@ -97,7 +101,7 @@ NOT_READ = {
 # Limits the panel names under a row that is a setting (what the setting does not decide)
 LIMITS = {
     'ladder-occupancy': 'a ladder never occupies a tile: this sets only whether the pathing sweep meets it',
-    'door-state': 'a door\'s blocking also follows whether it is open or shut',
+    'door-state': 'an open door never blocks; with this off it doesn\'t block when shut either',
     'height-test': 'the cover height test still counts a door or a sturdy prop whatever this says',
     'stops-floor': 'it saves bCanStepUpOn off: the floor search stops at it and finds no floor there',
     'sight-floor': 'on a tile it is the floor of, the floor\'s own flag still blocks sight upward',
@@ -108,7 +112,25 @@ LIMITS = {
     'destination': 'it saves bIsValidDestination off: a unit may not end its move on it',
     'assumed': 'part of it comes from an archetype in another package that could not be read: the class default is '
                'assumed',
+    'low': 'it is too low to stop anyone: it reaches less than 60 over the bottom of its level, so its tiles are only '
+           'partly occupied and units walk into them',
 }
+# How high a piece must reach to stop units (research/native/cover-build.md, the occupancy step; EXP-62): the tile
+# build's upper occupancy box starts 60 over the bottom of a level (64 high, counted from the tiles' corner). A piece
+# reaching less leaves its tile partly occupied with its floor kept, and stays under the crossing sweep (64 over the
+# floor), so units walk in. A piece's level is the one its bottom (plus a little, for a mesh sunk into the floor) is in.
+LEVEL = 64.0
+STOPS_FROM = 60.0
+
+
+def low_piece(box, corner_z):
+    """Whether a piece with the world box [x0, x1, y0, y1, z0, z1] is too low to stop units on a map whose tiles are
+    counted from the height corner_z (compiler.tile_corner); None when either is unknown. web/piece_flags.js lowPiece
+    is the twin."""
+    if not box or corner_z is None:
+        return None
+    bottom = corner_z + LEVEL * math.floor((box[4] + 8 - corner_z) / LEVEL)
+    return box[5] - bottom < STOPS_FROM
 
 
 def family_of(cls):
@@ -132,7 +154,7 @@ def roles(cls, raw, facts=None):
     unknown). state is 'on', 'off', 'partial' (the routes a role has disagree: a prop's occupancy on and its pathing
     sweep off), 'unknown' (an input is unknown) or 'n/a' (the class has no such setting: `why` says so). value is
     True/False, None for partial, unknown and n/a. `facts` (optional): dict(collides, bodySetup, assumed: [property])
-    adds the limits that geometry and provenance put on a role."""
+    adds the limits that geometry and provenance put on a role, and low (low_piece) the low piece's on walking."""
     family = family_of(cls)
     facts = facts or {}
     out = {}
@@ -207,9 +229,12 @@ def roles(cls, raw, facts=None):
     if facts.get('collides') is False:
         for r in ROLES:
             limits[r].append('no-collision')
-    elif facts.get('bodySetup') is False:
-        for r in ('walking', 'cover', 'sight'):
-            limits[r].append('no-body-setup')
+    else:
+        if facts.get('bodySetup') is False:
+            for r in ('walking', 'cover', 'sight'):
+                limits[r].append('no-body-setup')
+        if facts.get('low') and out['walking']['state'] in ('on', 'partial'):
+            limits['walking'].append('low')
     assumed = set(facts.get('assumed') or ())
     for r in ROLES:
         if out[r]['state'] != 'n/a' and assumed & set(ROLE_INPUTS[r]):
@@ -557,7 +582,8 @@ def contract():
                 classes=CLASSES, familyProps={k: list(v) for k, v in FAMILY_PROPS.items()}, gated=list(GATED),
                 notRead={'%s|%s' % k: v for k, v in NOT_READ.items()}, limits=LIMITS,
                 roleInputs={k: list(v) for k, v in ROLE_INPUTS.items()}, props=list(PROPS),
-                kindWords={'StaticMeshActor': 'static mesh actor', 'KAsset': 'physics prop (KAsset)'})
+                kindWords={'StaticMeshActor': 'static mesh actor', 'KAsset': 'physics prop (KAsset)'},
+                level=LEVEL, stopsFrom=STOPS_FROM)
 
 
 CONTRACT_VERSION = 1

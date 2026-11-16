@@ -547,7 +547,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   walk and see through, a sign the mouse never picks, a fence that gives no cover.</p>
 <table class="wrapfirst">
   <tr><th>Flag</th><th>When it is on</th></tr>
-  <tr><td>Blocks walking</td><td>Units can't walk through the piece: the game's pathing counts it.</td></tr>
+  <tr><td>Blocks walking</td><td>Units can't walk through the piece: the game's pathing counts it. A piece lower than
+    60 over the bottom of its level (a hedge, a kerb) stops no one even so: the row and the Build say so.</td></tr>
   <tr><td>Gives cover</td><td>A unit beside it can take cover behind it.</td></tr>
   <tr><td>Blocks sight</td><td>Units can't see through it.</td></tr>
   <tr><td>Floor</td><td>Units can stand on it. Off, the game finds no floor on it: they walk under or through it.</td></tr>
@@ -572,9 +573,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     so a project with only flags is built without relighting. A floor taken from under a ladder's end, or from the tiles a
     landing or a mission needs, is warned of.</li>
   <li><b>What they don't do.</b> A flag is a setting the game reads; it doesn't change the piece's collision. A piece
-    that collides with nothing is touched by no trace whatever its flags say (the panel says so), and whether shots
-    pass through a piece with Blocks sight off has not been tried. A door's blocking also follows whether it is open or shut. None
-    of this has been played in the game yet: please report how it plays.</li>
+    that collides with nothing is touched by no trace whatever its flags say (the panel says so), and a shot still
+    meets a piece that collides, whatever Blocks sight says. An open door never blocks; with Blocks walking or Blocks
+    sight off, units walk or see through it when it is shut too.</li>
 </ul>
 
 <h4 id="select-kind">Select all of a kind</h4>
@@ -1883,8 +1884,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li>the moved Skyranger's shadow in a baked build;</li>
       <li>a ladder built with the warning that it isn't expected to climb;</li>
       <li>a building marked UFO;</li>
-      <li>landing zones on plain Enemy Within;</li>
-      <li>pieces' <a href="#flags">flags</a>, every one of them.</li>
+      <li>landing zones on plain Enemy Within.</li>
     </ul>
     These build without errors. A report of how any of them plays is very welcome.</li>
   <li><b>Plain Enemy Within is a best guess.</b> Its first-mission install is the least sure part.</li>

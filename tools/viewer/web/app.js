@@ -7,7 +7,7 @@ import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKe
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, STAGE_GRID_MAX, STAGE_LEVELS_MAX, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
-import { ROLES as FLAG_ROLES, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
+import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
@@ -484,14 +484,17 @@ function flagTargets(ids = gizmo.picks().ids) {
   return [...out.values()];
 }
 // One actor's flags as the project has them: its settings, its request, what the request does, and each role after it
-// with its limits.
+// with its limits (a low piece's from what is drawn of it where it stands: piece_flags.js lowPiece).
 function flagView(t) {
   const c = flagContract(), pf = t.source.pieceFlags, { raw, assumed } = flagRaw(pf);
   const request = t.roots[0]?.userData.flags ?? {};
   const plan = planFlags(c, t.source.actorClass, raw, request, assumed);
   const written = new Set(plan.writes.map(([k]) => k));
+  const boxes = t.roots.map(r => boxOf(r)).filter(Boolean);
+  const box = boxes.length ? boxes.reduce((a, b) => a.map((v, k) => (k % 2 ? Math.max(v, b[k]) : Math.min(v, b[k])))) : null;
   const roles = flagRoles(c, t.source.actorClass, { ...raw, ...Object.fromEntries(plan.writes) },
-                          { collides: pf.collides, bodySetup: pf.bodySetup, assumed: assumed.filter(k => !written.has(k)) });
+                          { collides: pf.collides, bodySetup: pf.bodySetup, assumed: assumed.filter(k => !written.has(k)),
+                            low: lowPiece(c, box, tileCorner()?.[2]) });
   return { raw, assumed, request, plan, roles };
 }
 // The Flags chip: a piece with a setting off (or half on), or whose flags the project changes.
