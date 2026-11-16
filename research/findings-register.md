@@ -106,13 +106,14 @@ Statuses:
 - F-100: a map grown as it is had no floor over the map's own scenery in the new area: the scenery outside a play
   area has its collision turned off (the user's intro+ build, 13 November). Fixed offline the same day (the Build
   turns it on for the low pieces in the new area); to confirm in the game.
-- F-102: Temple Ship's arches can't be clicked: Firaxis set `bIgnoreFor3DCursorCollision` on them. A patched map
-  with it cleared is made (14 November), not played.
+- F-102: Temple Ship's arches can't be clicked: Firaxis set `bIgnoreFor3DCursorCollision` on them. Turned off with
+  the editor's Mouse picks it and played (EXP-60, 16 November): the arches can be clicked and stood on. Open: whether
+  the floor under an arch can still be clicked where the arch's top is in the same cursor storey.
 - T-37: a full build of a map grown with nothing else stops in the relight (`--receivers-near needs an edit`); a
   quick build, or a grown grid with anything made in the map, builds (16 November).
 - F-114: the five piece flags (walking, cover, sight, floor, mouse) read from the game's scripts, its class defaults
-  and every listed map (16 November); the editor's Flags edits them. Not played: walking off on a visible piece,
-  the prop's gate, a ladder's or a door's flags.
+  and every listed map (16 November); the editor's Flags edits them. Played: Mouse picks it on, on Temple Ship's
+  arches (EXP-60). Not played: walking off on a visible piece, the prop's gate, a ladder's or a door's flags.
 - F-111: cover, step-outs, flanking and sight inside sight radius come from the tiles' data alone (read 15
   November, checked against baked data). Not compared with a battle yet: one short run of a soldier on a known
   tile would settle the sight walk.
@@ -140,7 +141,7 @@ Statuses:
 ## Tiles, cover and placement
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
-the tile build; surveyed over the 153 listed maps; nothing played). A reference fact, and what the editor's Flags
+the tile build; surveyed over the 153 listed maps; the mouse played on Temple Ship's arches, EXP-60). A reference fact, and what the editor's Flags
 group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) has the detail.
 - **The flags:** Blocks walking (`bAlwaysConsiderForCover`), Gives cover (`bIgnoreForCover` off), Blocks sight
   (`VisibilityBlockingData.bBlockUnitVisibility`), Floor (`bPathColliding` and `bCanStepUpOn`), Mouse picks it
@@ -157,6 +158,9 @@ group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) h
 - **The maps:** 29,523 drawn, colliding pieces of 925 meshes have walking, cover and sight off (bushes, rubble,
   signs, posters); the same TV mesh is set differently from place to place (10 of 13 maps with TVs set them more than
   one way). 65 actors take settings from an archetype in another package the map doesn't carry.
+- **Played:** Mouse picks it on, written by the editor's Build on 68 of Temple Ship's level actors, the arches among
+  them: the cursor lands on an arch and a soldier is sent onto it ([EXP-60](experiments/EXP-60-temple-arches-mouse.md),
+  F-102).
 - **Not known:** walking off on a visible, colliding piece is not played; nor the gate, a ladder's or a door's
   flags; a low piece with its flags off can still change the floor under a cover location (plain engine traces).
 
@@ -263,7 +267,9 @@ editor-spawns-plan.md 2.4, EXP-34 is to show it). A reference fact, not a defect
 
 ### F-102: Temple Ship's arches are floor but can't be clicked
 **Fixed** (14 November 2026, read offline from the shipped `TempleShip.upk`; a modder's report relayed by the user.
-The patched map is made, not played).
+The patched map is made, not played). **Played** with the editor's Flags (16 November 2026,
+[EXP-60](experiments/EXP-60-temple-arches-mouse.md) run 1): Mouse picks it on for 40 arches and 28 other pieces, a
+quick build; the cursor lands on an arch and a soldier is sent onto it and along it.
 - What: soldiers can't be sent onto Temple Ship's arches with the mouse, though aliens walk on them and the grapple
   lands on them. The modder had lined the floors up with the cursor storeys, with no change.
 - **Cause:** all 273 placed `KnuckleWorm_A` pieces (the arches, ten archetypes) save
@@ -284,7 +290,9 @@ The patched map is made, not played).
     storeys do matter;
   - hits on the arches' curves count only where they meet the tile's floor height
     (`IsPositionOnFloorAndValidDestination`).
-- Not checked: what the editor's Build does with the flag on a copied arch.
+- Not checked: what the editor's Build does with the flag on a copied arch (EXP-60 turned it on for the map's own
+  pieces where they stand), and whether the floor under an arch can still be clicked where the arch's top is in the
+  same cursor storey.
 - **Correction (16 November 2026):** the flag holds for props, collectibles and ladders too, not only for
   `XComLevelActor` and `XComFracLevelActor`: the pick's tests are casts, and those classes inherit the mouse
   interface and the flag from `XComLevelActor`; only a door is tested apart and never reads it

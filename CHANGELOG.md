@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### EXP-60 run 1 passed: Temple Ship's arches clicked with Mouse picks it on
+
+- [EXP-60](research/experiments/EXP-60-temple-arches-mouse.md), the piece flags plan's first in-game probe (P7's
+  Temple Ship run), played by the user: a quick build of the user's Temple Ship project with Mouse picks it turned on
+  for 68 of the map's level actors (40 arches, 22 `alienKnuckleDiagnol`, 6 `AlienBase_RampD`), written on each actor
+  and read back by the Build, with no tile work. In the game the cursor lands on an arch and a soldier is sent onto it
+  and along it. [Findings register](research/findings-register.md): F-102 played, F-114 notes it.
+- Known gaps: Mouse off was not played side by side; whether the floor under an arch can still be clicked where the
+  arch's top is in the same cursor storey, the cursor on the arches' curves and a cut-away arch were not checked.
+
 ### Piece flags, stage P6: the contracts and the guide
 
 - [editor-contracts.md](research/editor-contracts.md), section 4: the project document is schema 2; schema 1 is read and
