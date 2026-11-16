@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Output-name and test-squad plans reviewed against the implementation
+
+Reviewed and revised the two private plans (kept outside the public repository). The output-name plan now covers
+atomic allocation, legacy-name compatibility, generated-file collisions, Build/install ownership and the actual
+named-lighting-cache write paths. The squad plan corrects the heavy's sidearm, grapple loading, inventory/backpack
+rules and enum identities, and adds target-aware persistence, serialization and runtime probes before the panel.
+Evidence: [project.js](tools/viewer/web/project.js), [projects.py](tools/viewer/projects.py),
+[compiler.py](tools/editor/compiler.py), [build.py](tools/editor/build.py),
+[package_grow.py](tools/upk/package_grow.py), [installs.py](tools/viewer/installs.py),
+[gamelaunch.py](tools/viewer/gamelaunch.py), [play.py](tools/viewer/play.py),
+[EXP-29](research/experiments/EXP-29-direct-map-launch.md), and local game-data/script inspection.
+Checked: the repo suite, plan links and preserved LF endings; read-only enum/config checks against the play install.
+Known gaps: no feature implementation or new game run; native character construction and cross-install behavior
+remain explicit verification work in the revised plans.
+
 ### The README and the guide say the editor is tested mainly with Long War Rebalance
 
 At the user's ask: [README.md](README.md) (under What you need) and [guide.html](tools/release/guide/guide.html) (the
