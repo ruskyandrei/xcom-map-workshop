@@ -743,9 +743,12 @@ class Build:
             raise BuildError('the names the build writes can\'t be checked: %s' % error)
 
     def output_names(self):
-        """Every name this build may write: the map, its patch, its texture cache (not in a quick build), and its
-        copies of the intros its base map's records stream and of the streams the edit changes."""
-        names = [self.variant, self.patch] + ([] if self.quick else [outputnames.cache_name(self.variant)])
+        """Every name this build may write: the map, its patch (only when the edit makes one, which the compile has
+        said by now: a file of the patch's name that the build never writes doesn't stop it), its texture cache (not
+        in a quick build), and its copies of the intros its base map's records stream and of the streams the edit
+        changes."""
+        names = ([self.variant] + ([self.patch] if self.has_patch else [])
+                 + ([] if self.quick else [outputnames.cache_name(self.variant)]))
         maps = installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n')
         names += ['%s_%s' % (s, self.variant) for s in intro_streams(base_records(maps, self.map))]
         streams = set(self.native.get('streamHides') or {}) | set(self.native.get('streamMoves') or {})

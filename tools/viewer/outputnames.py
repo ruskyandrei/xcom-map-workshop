@@ -18,6 +18,8 @@ holds it:
 - a package or other file of a game install (the one the editor reads and the one it plays in), and the names its
   DefaultMaps.ini records use (maps and the streams they load);
 - a variant the editor installed there (its ledgers), and the files it copied in;
+- in the lab copy, a file the lab's own deploy tools put there before the editor could install (installs.lab_deploys):
+  soft, as a project's earlier test;
 - a Windows device name (CON, NUL, COM1...), and the prefixes kept for other files (RESERVED_PREFIXES).
 A project's own claims don't count against it, but only where something says they are its own: its id in a build's
 manifest or in the install's ledger. A name taken locally may still be free or taken elsewhere: a pack shared with
@@ -170,7 +172,8 @@ class Claims:
 
     def add(self, name, what, owner=None, soft=False):
         """`soft`: held by something whose owner nothing says but that may be a project's own earlier work (a file
-        the editor installed under a ledger from before owners were noted, a lab deploy's record of a variant): it
+        the editor installed under a ledger from before owners were noted, a lab deploy's record of a variant or a
+        file a lab deploy put in): it
         keeps a new project from taking the name, and is left to the install step (installs.preflight) when a
         project builds."""
         if isinstance(name, str) and name:
@@ -218,12 +221,17 @@ class Claims:
             raise NamesError(f'the game install {game} can\'t be read ({error})')
         owners = installs.file_owners(ledger)
         noted = installs.noted_files(ledger)
+        lab = installs.lab_deploys(game)
         for name in files:
             if name.startswith('.'): continue
             stem = name.rsplit('.', 1)[0]
             if name.lower() in noted:
                 owner = owners.get(name.lower())
                 self.add(stem, f'{name}, installed by the editor in {game.name}', owner, soft=owner is None)
+            elif name.lower() in lab:
+                # an earlier test of a project, put there by the lab's deploy tools (by name here: the install step
+                # checks its bytes before it replaces it)
+                self.add(stem, f'{name}, put in {game.name} by the lab\'s deploy tools', soft=True)
             else:
                 self.add(stem, f'{name} in {game.name}\'s CookedPCConsole')
         for variant, owner in installs.recorded_variants(ledger).items():

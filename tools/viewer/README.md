@@ -884,8 +884,15 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   the next play, or Undo everything, puts the game's own line back.
 - **The editor reads an install the way the game does:** the map list, the exporter and Build read `DefaultMaps.ini` with the
   editor's lines taken out (`installs.maps_text`), so an installed variant never shows up as a map or a record.
-- All of these refuse, with the reason, while XCOM runs. A package file of the same name is replaced (names come from the
-  project's own variant name, so it is an earlier build of the same project).
+- All of these refuse, with the reason, while XCOM runs. A package file already in `CookedPCConsole` is replaced only
+  when the editor put it there for the same project (its ledger says whose) and it is unchanged since; anything else is
+  refused before a file is copied (`installs.preflight`), and a Build refuses at its start to write a name anything
+  but the project holds (`outputnames.Claims`; the patch's name only when the edit makes a patch). The one exception
+  is the lab copy (its `XComLab-copy.txt` marker, with the **lab** setting set): a file of the project's own names
+  that the lab's deploy tools put there before the editor could install (the bake fixtures' ledger, patchtool's
+  `deployed.txt` and `seeded.txt`: `installs.lab_deploys`) is an earlier test of the project. It doesn't stop the
+  Build, and an install replaces it if it still has the bytes the lab gave it, keeping it in that change's
+  `backups` folder (`labFiles` in the ledger) and putting it back when the editor's file comes out.
 - **Installs**, at the bottom of the Project menu: the game install the editor reads (the **game** setting, resolved
   to its game folder, with its kind: Long War Rebalance or Enemy Within), the install it plays in and whether that
   can be played now, how the game is started there, and what the editor has installed in it.

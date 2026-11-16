@@ -11,6 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -906,6 +907,76 @@ class Play(unittest.TestCase):
         installs.reset(self.lwr)
         self.assertEqual((cooked / f'CIN_DropshipIntros_{VARIANT}.upk').read_bytes(), b'intro copy')
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+
+    def lab(self, files):
+        """A lab whose bake fixtures' installer put `files` (paths in a game) there with the bytes they have now, and
+        the lab setting pointing at it for the rest of the test."""
+        lab = Path(self.temp.name) / 'lab'
+        (lab / 'bake-fixtures').mkdir(parents=True, exist_ok=True)
+        (lab / 'bake-fixtures' / 'deployed.json').write_text(
+            json.dumps({str(p): installs.sha256(p) for p in files}), encoding='utf-8')
+        import settings
+        configured = mock.patch.object(settings, 'configured', side_effect=lambda key: lab if key == 'lab' else None)
+        configured.start()
+        self.addCleanup(configured.stop)
+        return lab
+
+    def test_the_labs_earlier_tests_of_a_project_are_replaced_kept_and_put_back(self):
+        """A file of the package's own names that the lab's deploy tools put in the lab copy before the editor could
+        install is an earlier test of the project: a play and a campaign install replace it, keeping it in the change's
+        backup folder, and it goes back when the editor's file comes out (the play's end, Remove from game). Outside the
+        lab copy, or changed since the lab put it there, it is refused as any file the editor didn't put there."""
+        self.package()
+        folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
+        earlier, intro = cooked / f'{VARIANT}.upk', cooked / f'CIN_DropshipIntros_{VARIANT}.upk'
+        earlier.write_bytes(b'an earlier fixture of the project')
+        intro.write_bytes(b'its intro')
+        self.lab([earlier, intro])
+        lab_bytes = {p.name: p.read_bytes() for p in (earlier, intro)}
+        # not the lab copy (no marker): refused
+        before = self.snapshot(self.lwr)
+        with self.assertRaisesRegex(installs.InstallError, 'didn\'t put it there'): installs.install_package(self.lwr, folder)
+        self.assertEqual(self.snapshot(self.lwr), before)
+        (self.lwr / 'XComLab-copy.txt').write_text('lab')
+        for install, out in ((lambda: installs.install_package(self.lwr, folder), lambda: installs.clear_play(self.lwr)),
+                             (lambda: installs.install_rotation(self.lwr, folder, 'additional'), lambda: installs.reset(self.lwr))):
+            with self.subTest(install=install):
+                install()
+                self.assertEqual(earlier.read_bytes(), b'relit map 1')
+                ledger = installs.read_ledger(self.lwr)
+                self.assertEqual(set(ledger['labFiles']), set(lab_bytes))
+                self.assertEqual({n: (self.lwr / p).read_bytes() for n, p in ledger['labFiles'].items()}, lab_bytes)
+                self.assertTrue(all(p.startswith(installs.LEDGER_FOLDER) for p in ledger['labFiles'].values()))
+                out()
+                self.assertEqual({p.name: p.read_bytes() for p in (earlier, intro)}, lab_bytes)
+                self.assertFalse(installs.read_ledger(self.lwr).get('labFiles'))
+        # changed since the lab put it there: refused, nothing written
+        earlier.write_bytes(b'edited by hand since')
+        before = self.snapshot(self.lwr)
+        with self.assertRaisesRegex(installs.InstallError, f'{VARIANT}.upk is in CookedPCConsole and the editor didn\'t put it there'):
+            installs.install_package(self.lwr, folder)
+        self.assertEqual(self.snapshot(self.lwr), before)
+
+    def test_what_the_lab_deployed(self):
+        """lab_deploys reads the bake fixtures' ledger (files of this game's CookedPCConsole, with their hash), the
+        patches patchtool's deployed.txt names (no hash: any bytes) and the maps its seeded.txt seeded last."""
+        cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
+        (cooked / 'Fixture_Map.upk').write_bytes(b'fixture')
+        lab = self.lab([cooked / 'Fixture_Map.upk', self.copy / 'XEW/XComGame/CookedPCConsole' / 'URB_Bar.upk'])
+        (lab / 'patchtool').mkdir()
+        (lab / 'patchtool' / 'deployed.txt').write_text('patch_one\npatch_two\n# 9bad.name\n', encoding='utf-8')
+        (lab / 'patchtool' / 'seeded.txt').write_text('t1\tSeeded_Map\tpatch_one\t3\tAAAA\nt2\tSeeded_Map\tpatch_one\t4\tBBBB\n'
+                                                      'short\trow\n', encoding='utf-8')
+        self.assertEqual(installs.lab_deploys(self.lwr), {})            # not the lab copy
+        (self.lwr / 'XComLab-copy.txt').write_text('lab')
+        found = installs.lab_deploys(self.lwr)
+        self.assertEqual(found, {'fixture_map.upk': {installs.sha256(cooked / 'Fixture_Map.upk')}, 'patch_one.upk': {None},
+                                 'patch_two.upk': {None}, 'seeded_map.upk': {'bbbb'}})
+        self.assertTrue(installs.lab_file(found, 'PATCH_ONE.upk', 'any'))
+        self.assertTrue(installs.lab_file(found, 'Seeded_Map.upk', 'BBBB'))
+        self.assertFalse(installs.lab_file(found, 'Seeded_Map.upk', 'AAAA'))
+        self.assertFalse(installs.lab_file(found, 'URB_Bar.upk', 'x'))
+        self.assertEqual(installs.lab_deploys(self.lwr, lab=Path(self.temp.name) / 'no lab'), {})
 
     def test_a_rebuild_with_the_named_cache_leaves_the_old_one_until_everything_is_removed(self):
         """Output names plan 4: a campaign install of a package with Lighting_<n>.tfc, then of the project's rebuild

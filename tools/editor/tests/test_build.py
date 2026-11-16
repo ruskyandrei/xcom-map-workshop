@@ -1007,6 +1007,19 @@ class Builds(unittest.TestCase):
         installs.write_ledger(self.lwr, dict(playFiles={'%s.upk' % VARIANT: 'h'}))
         self.make('112500').run()
 
+    def test_the_patch_name_counts_only_when_the_build_makes_a_patch(self):
+        """A file of the patch's name in the install (an earlier test's, put there by the lab's patchtool) stops a
+        build whose edit needs a patch, and not one made in the map alone, which never writes it."""
+        cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
+        (cooked / ('%s.upk' % PATCH)).write_bytes(b'an earlier patchtool test of the project')
+        self.spec['objects'] = [DOOR]
+        with self.assertRaisesRegex(build.BuildError, 'the build would write names that are taken: %s ' % PATCH):
+            self.make().run()
+        self.spec['objects'] = [COPY]
+        m = self.make('111500').run()
+        self.assertIsNone(m['patch'])
+        self.assertNotIn('CookedPCConsole/%s.upk' % PATCH, m['files'])
+
     def test_a_snapshot_build_checks_names_against_the_projects_folder_and_names_its_attempt(self):
         """Build queue plan, 9.1 and 9.2: a build of a private snapshot (the queue's) is told the projects folder, so
         other projects' names still stop it; its attempt goes into its id, its work folder and its manifest, with the

@@ -138,6 +138,28 @@ class ClaimsTests(unittest.TestCase):
         self.assertEqual((mine.holders('Mine'), mine.holders('Whose')), ([], []))
         self.assertTrue(mine.holders('Campaign_X'))
 
+    def test_what_the_labs_deploys_put_in_the_lab_copy_is_soft(self):
+        """A file the lab's deploy tools put in the lab copy before the editor could install (installs.lab_deploys) is
+        a project's earlier test: it keeps a new project from taking its name, and doesn't stop a project's build (the
+        install step checks its bytes). In an install that is not the lab copy the same file is anyone's."""
+        source = game(self.root / 'LWR', packages=('URB_Bar.upk', 'URB_Bar_Exp17_7a1f.upk', 'patch_urb_bar_exp17_7a1f.upk'))
+        lab = self.root / 'lab'
+        (lab / 'bake-fixtures').mkdir(parents=True)
+        (lab / 'patchtool').mkdir()
+        fixture = source / 'XEW/XComGame/CookedPCConsole/URB_Bar_Exp17_7a1f.upk'
+        (lab / 'bake-fixtures' / 'deployed.json').write_text(json.dumps({str(fixture): installs.sha256(fixture)}), encoding='utf-8')
+        (lab / 'patchtool' / 'deployed.txt').write_text('patch_urb_bar_exp17_7a1f\n', encoding='utf-8')
+        import settings
+        from unittest import mock
+        with mock.patch.object(settings, 'configured', side_effect=lambda key: lab if key == 'lab' else None):
+            wanted = ['URB_Bar_Exp17_7a1f', 'patch_urb_bar_exp17_7a1f']
+            self.assertEqual(len(names.Claims(None, None, [source], ID).conflicts(wanted)), 2)     # not the lab copy
+            (source / 'XComLab-copy.txt').write_text('lab')
+            self.assertEqual(names.Claims(None, None, [source], ID).conflicts(wanted), [])
+            fresh = names.Claims(None, None, [source])
+            self.assertIn('the lab\'s deploy tools', fresh.taken(['URB_Bar_Exp17_7a1f']))
+            self.assertTrue(fresh.holders('patch_urb_bar_exp17_7a1f'))
+
     def test_a_source_that_is_set_but_unreadable_is_an_error(self):
         source = game(self.root / 'LWR')
         (source / installs.LEDGER_FOLDER).mkdir()

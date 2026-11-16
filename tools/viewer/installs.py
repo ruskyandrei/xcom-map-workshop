@@ -55,7 +55,11 @@ and a package file already in CookedPCConsole (the name compared regardless of c
 put it there for the same project and it is unchanged since. Whose each file is goes in the ledger (`owners`, since
 16 November 2026); for a ledger from before, a file of the package's own list is the project's the ledger says
 installed its variant, and anything else that nothing says is refused. A file the editor never put there is never
-overwritten (it stays whoever's it is when it already has the package's bytes).
+overwritten (it stays whoever's it is when it already has the package's bytes), but for one the lab's own deploy tools
+put there before the editor could install, with the bytes they gave it (lab_deploys: only in the lab copy, with the
+lab setting set). Its name is one of the project's own output names, so it is an earlier test of the same project: it
+is kept in that change's backup folder (`labFiles` in the ledger) before the build's file replaces it, and goes back
+when the editor takes its file out again (a play's end, Remove from game).
 
 maps_text(game) is the install's DefaultMaps.ini as the install has it, the editor's lines taken out: the map list, the
 exporter and Build read the install through it, so an install of the editor's never shows up as a map or a record
@@ -88,6 +92,7 @@ PACKAGE_SCHEMA = 'xcom-map-workshop/variant-package'
 INTRO_SLOTS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
 INTRO_SLOT = INTRO_SLOTS[0]
 LZ = 'DefaultLZMutator.ini'     # Long War's landing zones: absent from plain EW
+PACKAGE_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]*')     # a package's name (the lab's ledgers name packages: lab_deploys)
 PLAY_FILE = 'XComMapWorkshop-play.txt'      # in XEW\Binaries, where the game's exec command looks
 # A play with saving on starts the game with this one instead: it binds a key to the play's commands and leaves the
 # game at its main menu, whose login readies saving (F-89, EXP-56); the key then opens the battle.
@@ -548,6 +553,52 @@ def file_owners(ledger):
     return {k.lower(): v for k, v in (ledger.get('owners') or {}).items() if isinstance(v, str) and v}
 
 
+def lab_deploys(game, lab=None):
+    """{file name in lower case: {the SHA-256s it was put there with, or None for any bytes}} of the files the lab's own
+    deploy tools put into `game`'s CookedPCConsole before the editor could install, and noted in no ledger of the
+    editor's:
+    - the bake fixtures' installer (tools/bake/deploy_fixture.py): its ledger <lab>/bake-fixtures/deployed.json, each
+      file's path and hash;
+    - the lab's patchtool (<lab>/patchtool): the patches its deployed.txt names (it notes no hash) and the maps its
+      seeded.txt seeded last, with their hash (deploy_fixture.patchtool_owns reads them the same way).
+    Their names come from projects' output names, so such a file is a project's earlier test. Only for the lab copy (its
+    XComLab-copy.txt marker) with the lab setting set (`lab` stands in for it); for any other install, or with no lab,
+    nothing. A ledger that can't be read adds nothing."""
+    import settings
+    game = Path(game)
+    if not (game / settings.LAB_MARKER).is_file(): return {}
+    lab = settings.configured('lab') if lab is None else Path(lab)
+    if lab is None: return {}
+    here = os.path.normcase(os.path.abspath(cooked(game)))
+    found = {}
+
+    def add(name, digest):
+        found.setdefault(name.lower(), set()).add(digest.lower() if isinstance(digest, str) else None)
+    try: fixtures = json.loads((lab / 'bake-fixtures' / 'deployed.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError): fixtures = {}
+    for path, digest in fixtures.items() if isinstance(fixtures, dict) else ():
+        if isinstance(path, str) and isinstance(digest, str) and os.path.normcase(os.path.abspath(Path(path).parent)) == here:
+            add(Path(path).name, digest)
+    patchtool = lab / 'patchtool'
+    try: names = (patchtool / 'deployed.txt').read_text(encoding='utf-8', errors='replace').split()
+    except OSError: names = []
+    for name in names:
+        if PACKAGE_NAME.fullmatch(name): add(f'{name}.upk', None)
+    try: rows = (patchtool / 'seeded.txt').read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError: rows = []
+    last = {}
+    for row in (line.split('\t') for line in rows if line.strip()):
+        if len(row) >= 5 and PACKAGE_NAME.fullmatch(row[1].strip()): last[row[1].strip().lower()] = row[4].strip()
+    for name, digest in last.items(): add(f'{name}.upk', digest)
+    return found
+
+
+def lab_file(deploys, name, digest):
+    """Whether lab_deploys' `deploys` say the lab put the file `name` there with these bytes (`digest`)."""
+    put = deploys.get(name.lower())
+    return bool(put) and (None in put or digest.lower() in put)
+
+
 def recorded_variants(ledger):
     """{variant: project id or None} for what the editor installed under a name of its own: the variants Play in game
     installed (`installed`, a map's record there too) and the campaign installs (`rotation`)."""
@@ -575,10 +626,13 @@ def preflight(game, ledger, m, files):
     variant is installed for another project, or when one of its files is in CookedPCConsole (any case) and may not be
     replaced. A file may be replaced only where the editor noted it, for this project (file_owners, or for a ledger
     from before, _owner), unchanged since it was copied; a file the editor never put there is left alone, and stays
-    whoever's it is when it already has the package's bytes."""
+    whoever's it is when it already has the package's bytes. The one exception: a file of the package's own names that
+    the lab's deploy tools put there, with the bytes they gave it (lab_deploys), is an earlier test of the project and
+    may be replaced (_copy_files keeps it first)."""
     project = (m.get('project') or {}).get('id')
     variant = m['variant']
     problems = []
+    lab = None
     for name, owner in recorded_variants(ledger).items():
         if name.lower() == variant.lower() and owner != project:
             problems.append(f'{name} is installed in this game for another project; remove it from the game (Remove '
@@ -592,6 +646,8 @@ def preflight(game, ledger, m, files):
         entry = noted.get(dst.name.lower())
         if entry is None:
             if current != digest:
+                lab = lab_deploys(game) if lab is None else lab
+                if lab_file(lab, path.name, current): continue
                 problems.append(f'{path.name} is in CookedPCConsole and the editor didn\'t put it there; it is left '
                                 f'alone (move it away to install this build)')
             continue
@@ -608,17 +664,26 @@ def preflight(game, ledger, m, files):
         raise InstallError('Not installed: ' + '; '.join(problems) + '.')
 
 
-def _copy_files(game, ledger, files, play=False, atomic=None, project=None):
+def _copy_files(game, ledger, files, play=False, atomic=None, project=None, keep=None):
     """A package's files copied into the install (read_package's list), the ones the editor put there noted in the
     ledger, which is written. A file is noted once: in `files` when an install for campaigns needs it, else in
     `playFiles` (a play's, which go when the game closes). So an install for campaigns takes over a file a play put
     there, and a play that brings a newer build of a variant installed for campaigns leaves the file the campaign's.
-    `project`: whose the noted files are (`owners`). Run preflight first: this replaces what it is given."""
+    `project`: whose the noted files are (`owners`). Run preflight first: this replaces what it is given. `keep`: the
+    change's backup folder (_backup), where a file the editor didn't put there (preflight lets through only the lab's
+    earlier tests of the project: lab_deploys) is copied before it is replaced, and noted (`labFiles`: its name -> the
+    copy, from the game folder) so that _files_out puts it back."""
     kept, played = ledger.setdefault('files', {}), ledger.setdefault('playFiles', {})
     owners = ledger.setdefault('owners', {})
+    noted = noted_files(ledger)
     for src, dst, digest in files:
         name = dst.name
         if not (dst.exists() and sha256(dst) == digest):
+            if keep is not None and dst.exists() and name.lower() not in noted:
+                (Path(keep) / 'CookedPCConsole').mkdir(parents=True, exist_ok=True)
+                copy = Path(keep) / 'CookedPCConsole' / name
+                shutil.copy2(dst, copy)
+                ledger.setdefault('labFiles', {})[name] = str(copy.relative_to(game))
             target = test_temp(dst, atomic) if atomic else dst
             try:
                 shutil.copyfile(src, target)
@@ -730,21 +795,30 @@ def _zones_out(game, ledger, key, variants=None):
 
 
 def _files_out(game, ledger, key):
-    """The files the ledger notes under `key` deleted from the install, unless changed since: (names, what was left)."""
+    """The files the ledger notes under `key` deleted from the install, unless changed since: (names, what was left).
+    A file that replaced one of the lab's (`labFiles`: _copy_files kept it) has the lab's back in its place."""
     done, left = [], []
+    lab = ledger.get('labFiles') or {}
     for name, digest in sorted((ledger.get(key) or {}).items()):
         path = cooked(game) / name
         if not path.exists(): continue
         if sha256(path) != digest:
             left.append(f'{name} has changed since it was installed; it stays')
             continue
-        path.unlink()
+        earlier = Path(game) / lab[name] if name in lab else None
+        if earlier is not None and earlier.is_file():
+            temp = path.with_name(f'.{name}.lab.tmp')
+            shutil.copy2(earlier, temp)
+            os.replace(temp, path)
+        else:
+            path.unlink()
         done.append(name)
     ledger[key] = {}
-    # whose each file is, for the files still noted
-    if 'owners' in ledger:
-        noted = {k for other in ('files', 'playFiles') for k in ledger.get(other) or {}}
-        ledger['owners'] = {k: v for k, v in ledger['owners'].items() if k in noted}
+    # whose each file is, and the lab's files kept, for the files still noted
+    noted = {k for other in ('files', 'playFiles') for k in ledger.get(other) or {}}
+    for what in ('owners', 'labFiles'):
+        if what in ledger:
+            ledger[what] = {k: v for k, v in ledger[what].items() if k in noted}
     return done, left
 
 
@@ -862,13 +936,15 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     if lz_new:
         new_lz = lz[:lz_at] + lz_new + lz[lz_at:]
         dep.check_change(lz, new_lz, inserted=(lz_at, len(lz_new)))
-    ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
+    kept = _backup(game, stamp)
+    ledger['backups'] = ledger.get('backups', []) + [str(kept.relative_to(game))]
     writes = {'DefaultMaps.ini': dep.EOL.join(new_maps)}
     if new_lz is not None:
         writes[LZ] = dep.EOL.join(new_lz)
     if test:
         begin_test_install(game, test, files, writes)
-    _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'))
+    _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'),
+                keep=None if test else kept)
     if test:
         for name, data in writes.items():
             replace_bytes(config(game, name), data, test)
@@ -1208,8 +1284,9 @@ def _install_rotation(game, folder, mode, now=None):
     if lz_new:
         new_lz = lz[:lz_at] + lz_new + lz[lz_at:]
         dep.check_change(lz, new_lz, inserted=(lz_at, len(lz_new)))
-    ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-    _copy_files(game, ledger, files, project=project.get('id'))
+    kept = _backup(game, stamp)
+    ledger['backups'] = ledger.get('backups', []) + [str(kept.relative_to(game))]
+    _copy_files(game, ledger, files, project=project.get('id'), keep=kept)
     _write_rotation(game, ledger, maps, new_maps, others + [entry], pristine)
     if new_lz is not None:
         dep.write_checked(config(game, LZ), new_lz)

@@ -20,10 +20,15 @@ result. Each check below says what was seen.
   folder with the run.
 
 The first attempt at A and B was refused at once, before any costly stage: their output names (from the projects
-they were copied from) are held in the game install by files an earlier experiment installed by hand. That is the
+they were copied from) are held in the game install by files an earlier experiment put there. That is the
 Build's name check (output names plan) working on the queue's private snapshots, with the projects folder and the
 installs passed explicitly (build.py `--projects`, `--check-game`). For the runs, A and B were given ids, names and
 output names of their own, as Save as does (`URB_Bar_Q4Pool_00a4`, `URB_PoliceSt_Q4Cars_00b4`).
+
+Correction, later on 16 November: those files were the lab's own deploys of the same projects' earlier tests (the bake
+fixtures' installer and patchtool, EXP-17 and EXP-24), not anyone else's, and the refusal was a fault of the name
+check, not a proof of it: [findings register](../findings-register.md) T-40, fixed the same day. The snapshot's name
+check against the projects folder still stands (test_build checks it with another project's names).
 
 ## Runs
 

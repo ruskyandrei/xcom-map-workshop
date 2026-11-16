@@ -8,6 +8,35 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### The output-name check no longer takes the lab's earlier tests of a project for someone else's files
+
+The user's queued build of temple_improved failed at once: "the build would write names that are taken:
+patch_templeship_templeim_2001", a file the lab's patchtool had put in the lab copy on 7 November for that same
+project, and one the build would not even write. 24 projects were refused the same way by their own earlier tests'
+files ([findings register](research/findings-register.md) T-40).
+- [build.py](tools/editor/build.py) `output_names`: the patch's name is checked only when the edit makes a patch (the
+  compile has said so by then; the check as the package goes in already went by the manifest).
+- [installs.py](tools/viewer/installs.py) `lab_deploys`: in the lab copy (its `XComLab-copy.txt` marker) with the lab
+  setting set, the files the lab's deploy tools put there (the bake fixtures' `deployed.json` with each hash,
+  patchtool's `deployed.txt` and `seeded.txt`, as `deploy_fixture.patchtool_owns` reads them). `preflight` lets an
+  install replace such a file of the package's own names if it still has the bytes the lab gave it; `_copy_files`
+  keeps it in that change's backup folder first (`labFiles` in `installs.json`), and `_files_out` puts it back when
+  the editor's file comes out (a play's end, Remove from game). Any other install, or no lab, is as before.
+- [outputnames.py](tools/viewer/outputnames.py) `Claims`: such a file is a soft claim, so it no longer stops the
+  project's build and still keeps a new project from taking the name.
+- [viewer README](tools/viewer/README.md): the install paragraph said any file of a package's names is replaced, which
+  it hasn't been since Output names N1; it now gives the rule and the lab's exception.
+- [EXP-65](research/experiments/EXP-65-build-queue-real-builds.md) gets a correction: its first refusal (and the Q4
+  entry below, "the snapshot builds keep their name checks") was this fault, not the check working.
+
+Checked: test_build (the patch's name stops a build that makes a patch and not one made in the map alone),
+test_play (a play and a campaign install replace a lab file, keep it, and put it back byte for byte; refused outside
+the lab copy and when changed since; what lab_deploys reads), test_outputnames (soft in the lab copy, a stranger's
+outside it); the viewer, editor, bake and repo suites. On this computer's data: every project's map, patch and
+lighting names checked against the claims, 24 refused before and none after; temple_improved, EXP-24 cars on the bar
+and EXP-11 static placement through the Build's own snapshot, compile and name check (into a scratch folder, nothing
+built), all passed. Not done here: a real build or install of one of them.
+
 ### Build queue Q5: the guide and the viewer README
 
 The guide ([guide.html](tools/release/guide/guide.html)) has a section on Build in the project manager

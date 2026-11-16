@@ -2521,6 +2521,24 @@ word; not looked at in the game).
 
 ## Toolchain
 
+### T-40: The output-name check took the lab's earlier tests of a project for someone else's files
+**Fixed** (16 November 2026, seen by the user in the build queue: temple_improved failed at once).
+- **Seen.** "The build would write names that are taken: patch_templeship_templeim_2001 (… in XCom-Enemy-Unknown's
+  CookedPCConsole)". The file was the lab's patchtool deploy of the same project (EXP-14, 7 November), from before
+  the editor could install, and the build would not even have written it: no edit of the project makes a patch.
+  24 projects were refused the same way (the EXP-11 to EXP-28 projects, Large remix, Loot check), each by its own
+  earlier test's map, patch or intro copy that the bake fixtures' installer or patchtool had put in the lab copy.
+  EXP-65's first refusal was this too. Play in game and the campaign install refused those files as well.
+- **Cause.** The ownership check of the output names plan (stage N1, earlier the same day) counts a file in
+  CookedPCConsole as a stranger's unless the editor's own ledgers note it, and the lab's deploys noted theirs in the
+  lab's ledgers only. The Build also checked the patch's name whether or not it writes a patch.
+- **Fix.** build.py checks the patch's name only when the edit makes one. In the lab copy (its marker, with the lab
+  setting set) a file the lab's deploy tools put there (installs.lab_deploys: the bake fixtures' deployed.json with
+  its hash, patchtool's deployed.txt and seeded.txt) is a soft claim (outputnames.Claims: it doesn't stop the
+  project's build, and still keeps a new project from the name), and an install replaces it if it still has the
+  bytes the lab gave it, keeping it in that change's backup folder (`labFiles`) and putting it back when the editor's
+  file comes out. Anywhere else nothing changes. test_build, test_play and test_outputnames check it.
+
 ### T-39: A Job Object's count of active processes drops before they have ended
 **Fixed** (16 November 2026, found while building the build queue's containment, stage Q0).
 - **Seen.** A contained build tree (procs.py) killed with `TerminateJobObject`: the job's `ActiveProcesses` read 0 at
