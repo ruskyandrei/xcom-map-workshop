@@ -11,6 +11,7 @@ import threading
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
 import compiler  # noqa: E402
 import ladders  # noqa: E402
+import piece_flags  # noqa: E402
 
 
 def table():
@@ -24,7 +25,9 @@ def table():
                 # version while that version makes its type)
                 coverRecipes=dict(versions=sorted(compiler.COVER_RECIPES), latest=max(compiler.COVER_RECIPES),
                                   types={str(v): sorted(r['heights']) for v, r in compiler.COVER_RECIPES.items()},
-                                  **compiler.COVER_RECIPES[max(compiler.COVER_RECIPES)]))
+                                  **compiler.COVER_RECIPES[max(compiler.COVER_RECIPES)]),
+                # piece flags (piece_flags.py): the class table and the words web/piece_flags.js plans flags with
+                pieceFlags=piece_flags.contract())
 
 
 def light_table(scene):

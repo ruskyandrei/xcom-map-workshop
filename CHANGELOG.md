@@ -8,6 +8,39 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P1: the flags' policy, read from the game's own class defaults
+
+- The piece flags plan (private), stage P1, on the branch `piece-flags`: the five settings of a placed piece that
+  decide how the game's tile build and its mouse use it (Blocks walking, Gives cover, Blocks sight, Floor, Mouse
+  picks it), as one policy for the export, the library, the compiler and the Build.
+- [piece_flags.py](tools/viewer/piece_flags.py):
+  - `resolve` reads an actor's settings with where each came from: the actor, an archetype in the map, the class's
+    default, or assumed (an archetype in another package that the map doesn't carry). The class defaults are read
+    from the game's own script packages beside the map (XComGame.upk, Engine.upk, Core.upk: the Default__ objects
+    and what they take from their parents); `CLASS_DEFAULTS` holds the same values for where they can't be read.
+    `VisibilityBlockingData.bBlockUnitVisibility` is resolved field by field: a struct saved without the field takes
+    it from further up.
+  - `roles` turns settings into each role's state: on, off, partial (a prop saving `bIgnoreForPathing` has its
+    occupancy on and its pathing sweep off; its sight blocks upward only on the tile it is the floor of), unknown,
+    or n/a with the reason (a static mesh actor is never counted for walking, cover or sight; the mouse never
+    reads a door's flag; a ladder never gives cover by the normal test; an interactive prop is never cover). Limits
+    are named per role (no collision, no BodySetup, a door's open or shut state, assumed values).
+  - `plan` turns a sparse request into the property writes: turning walking, cover or sight on for a prop opens its
+    pathing gate (`bIgnoreForPathing` written false, also where it is inherited), with companion writes that keep
+    cover and sight as they were. A half-on role that opening the gate would change is a conflict that needs an
+    explicit value; nothing is written while there is one. `normalize` keeps the smallest request with the same
+    result, keeping a value that is assumed and an explicit Floor off on a piece that collides with nothing.
+  - `contract` is what the page needs; [families.py](tools/viewer/families.py) serves it as `pieceFlags`.
+- [piece_flags.js](tools/viewer/web/piece_flags.js) mirrors `roles`, `plan` and `normalize` on the page over that
+  contract (no second class table).
+- Checked: [test_piece_flags.py](tools/viewer/tests/test_piece_flags.py) (18 tests: each class's defaults, the
+  gate's half-on walking and its companions, an inherited gate, the floor's step-up flag, unsupported rows,
+  normalizing) writes and checks [piece_flag_cases.json](tools/viewer/tests/piece_flag_cases.json), 774 plans and
+  43 descriptions, which [piece_flags_test.mjs](tools/viewer/tests/piece_flags_test.mjs) runs through the page's
+  twin with the same answers. Read over URB_Bar: 7 of 6,604 settings come from an archetype the map doesn't carry.
+- Known gaps: nothing uses the policy yet (the export, the page and the Build follow in the next stages). Which field
+  an interactive prop's cover test reads is taken from the field order, not named in the game's code.
+
 ### The browser smoke runs to the end again; an invisible floor placed off the tile snap
 
 - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_pivot` (Discord S4, 15 November) cleared the
