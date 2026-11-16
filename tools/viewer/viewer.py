@@ -15,6 +15,7 @@ from projects import ProjectError, ProjectStore
 from prefabs import MAX_PICTURE, PrefabStore
 from prefab_tests import PrefabTests
 from builds import BuildRunner
+from buildqueue import BuildQueue
 from exports import ExportRunner
 from play import Player
 from gamesetup import GameSetup
@@ -103,7 +104,7 @@ class Handler(SimpleHTTPRequestHandler):
     collision_cache = CollisionCache()
 
     def __init__(self, *args, catalogue=None, projects=None, builds=None, exports=None, player=None, live=None,
-                 setup=None, library=None, prefabs=None, prefab_tests=None, precache=None, **kwargs):
+                 setup=None, library=None, prefabs=None, prefab_tests=None, precache=None, queue=None, **kwargs):
         # what a change of the game install replaces (gamesetup.py) is read from `live` on each request, since a
         # kept-alive connection outlives it
         self.live = live or Live(catalogue, exports, player, library)
@@ -112,6 +113,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.prefab_tests = prefab_tests
         self.precache = precache
         self.builds = builds
+        self.queue = queue
         self.game_setup = setup
         super().__init__(*args, directory=str(WEB), **kwargs)
 
@@ -126,10 +128,11 @@ class Handler(SimpleHTTPRequestHandler):
         default = self.catalogue['maps'].get(self.catalogue['defaultMap']) if self.catalogue['defaultMap'] else None
         return default['root'] if default and default.get('root') else None
 
-    def send_json(self, status, value, body=True):
+    def send_json(self, status, value, body=True, store=True):
         payload = json.dumps(value).encode('utf8')
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
+        if not store: self.send_header('Cache-Control', 'no-store')
         self.send_header('Content-Length', str(len(payload)))
         self.end_headers()
         if body: self.wfile.write(payload)
@@ -218,7 +221,12 @@ class Handler(SimpleHTTPRequestHandler):
             elif kind == 'build-status' and method == 'GET':
                 self.send_json(200, self.builds.status(project_id))
             elif kind == 'build-cancel' and method == 'POST':
-                self.send_json(200, self.builds.cancel(project_id))
+                # {"attempt": id}: only that launch (a stale page's cancel stops no newer build); none: the running one
+                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
+                attempt = request.get('attempt') if isinstance(request, dict) else None
+                if attempt is not None and not (isinstance(attempt, str) and self.projects.check_id(attempt)):
+                    raise ProjectError(400, 'Send {"attempt": the build\'s attempt id}.')
+                self.send_json(200, self.builds.cancel(project_id, attempt))
             elif kind == 'report' and method == 'POST':
                 self.send_json(200, self.builds.report(project_id))
             elif kind == 'reveal' and method == 'POST':
@@ -481,6 +489,33 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
+    # The build queue (buildqueue.py): GET /manager/queue.json is the queue; POST /manager/queue adds projects and
+    # /manager/queue/stop, /resume, /remove, /clear and /reset act on it, each with {queueId, expectedRevision,
+    # requestId}. A server without a queue (none was made) answers 404.
+    QUEUE_ROUTES = {'/manager/queue': 'add', '/manager/queue/stop': 'stop', '/manager/queue/resume': 'resume',
+                    '/manager/queue/remove': 'remove', '/manager/queue/clear': 'clear', '/manager/queue/reset': 'reset'}
+
+    def handle_queue(self, method):
+        path = urlsplit(self.path).path
+        if path != '/manager/queue.json' and path not in self.QUEUE_ROUTES: return False
+        self.body_read = False
+        try:
+            if self.queue is None: raise ProjectError(404, 'This server has no build queue.', code='queue-unsupported')
+            if path == '/manager/queue.json' and method == 'GET':
+                self.send_json(200, self.queue.view(), store=False)
+            elif path in self.QUEUE_ROUTES and method == 'POST':
+                if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
+                status, answer = getattr(self.queue, self.QUEUE_ROUTES[path])(self.body_json())
+                self.send_json(status, answer, store=False)
+            else: raise ProjectError(405, 'Not allowed.')
+        except ProjectError as error:
+            self.send_json(error.status, dict(error=error.message, **error.extra), store=False)
+        except OSError as error:
+            self.send_json(500, dict(error=f'The build queue could not be read or saved: {error}', code='queue-storage'), store=False)
+        finally:
+            self.drain_body()
+        return True
+
     # The library of pieces across the game's maps (library.py): GET /library.json is the scan's state and, with
     # ?index=1, the index and the keys of the thumbnails kept; POST /library/scan starts a scan and GET /library/scan.json follows it;
     # GET /library/piece.json?package=&actor= is one piece as a template, exported on first request (its files under
@@ -622,14 +657,14 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_squad, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):
         if not any(handle('PUT') for handle in (self.handle_squad, self.handle_library, self.handle_prefabs, self.handle_project)): self.send_error(405)
 
     def do_POST(self):
-        if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
+        if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
 
     def do_DELETE(self):
         if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_project)): self.send_error(405)
@@ -833,11 +868,25 @@ def main():
                 live.catalogue, live.exports = catalogue, exports
                 live.player.settings, live.player.catalogue = new_settings, catalogue
                 if live.library: live.library = LibraryRunner(cache_root, new_settings['game'])
-        setup = GameSetup(configure)
+        # the build queue (buildqueue.py): its context is what a build would use now, read from the settings file as
+        # build.py reads it (and the server's own --install); nothing of its store is touched before activate
+        def queue_context():
+            from settings import game_install as read_game, install_game
+            try: current = load_settings()
+            except (OSError, ValueError) as error: raise ProjectError(409, f'The settings can\'t be read: {error}')
+            game, note = read_game(current)
+            if game is None: raise ProjectError(409, note)
+            play = args.install or install_game(current)[0]
+            check = [str(Path(play).resolve())] if play and not outputnames.same(play, game) else []
+            return dict(projects=str(projects.root.resolve()), output=str(builds.output.resolve()),
+                        cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
+                        udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
+        queue = BuildQueue(projects, builds, queue_context)
+        setup = GameSetup(configure, guard=queue.settings_guard)
         try:
             server = LocalServer(("127.0.0.1", args.port), partial(Handler, live=live, projects=projects, builds=builds,
                                                                  setup=setup, prefabs=prefabs, prefab_tests=prefab_tests,
-                                                                 precache=precache))
+                                                                 precache=precache, queue=queue))
         except OSError as error:
             if error.errno not in (errno.EADDRINUSE,) and getattr(error,"winerror",None) != 10048: raise
             if args.reuse and running_viewer(args.port):
@@ -851,12 +900,16 @@ def main():
         # package swaps settled before any request can build (builds.py recover); a server that could not bind has
         # started nothing
         builds.recover()
+        if not queue.activate(): print(queue.unavailable, flush=True)
         url = f"http://127.0.0.1:{server.server_port}/"
         print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
         if not args.no_open: webbrowser.open(url)
         try: server.serve_forever()
         except KeyboardInterrupt: pass
-        finally: server.server_close()
+        finally:
+            server.server_close()
+            # a closing server stops its queue (its build drained, the queue left stopped for Resume)
+            queue.close()
 
 
 if __name__ == "__main__": main()

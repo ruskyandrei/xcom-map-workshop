@@ -8,6 +8,42 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Build queue Q1: the queue on the server, kept across restarts
+
+[buildqueue.py](tools/viewer/buildqueue.py), new (private build queue plan, stage Q1): projects queued for full
+builds, built one after another by one worker, each captured as saved when its turn comes into an immutable snapshot
+(`<builds>/.work/queue-attempts/<attempt>/project.json`) and built with every folder pinned from the queue's context.
+Its package is verified as that attempt's (token, project, revision, full build, files) before the row is built. A
+project that can't be read or doesn't build fails alone; a store that can't be written holds the queue and says so.
+The queue reserves the build slot while it runs, waits for a build already running and for readers of the next
+project's package, and lets go of the slot in the same step that stops or finishes it. Stop closes dispatch at once
+and stops only its own build (a row whose package went in first stays built); Resume captures again. Rows can be
+removed while waiting; Clear removes rows and results, never projects or packages.
+
+The queue is `<builds>/.work/build-queue.json` (unique temporary file, replace, last good copy as `.bak`), owned by
+one server through an OS-held lock on `build-queue.lock` taken once the port is bound. A restarted server starts
+nothing: rows left starting or building wait until an earlier server's build of them is proved gone, then become
+built if that attempt's package is in place (even without its result written) or wait again, and the queue is
+stopped. A file it can't read, or of a newer schema, is kept and reported, never taken for an empty queue; a torn file
+falls back to the last good copy, and `reset` sets it aside. Requests carry `{queueId, expectedRevision, requestId}`;
+receipts (seven days, across Clear) answer a repeated request as the first time, even after a restart.
+
+Routes in [viewer.py](tools/viewer/viewer.py): `GET /manager/queue.json` (no-store), `POST /manager/queue` (add),
+`/stop`, `/resume`, `/remove`, `/clear`, `/reset`; `build-cancel` takes `{"attempt"}` and stops the queue for a queue's
+build. A closing server stops its queue. [gamesetup.py](tools/viewer/gamesetup.py) refuses another game install while
+the queue runs, before anything is saved; a stopped queue whose context changed can't resume or take rows.
+[builds.py](tools/viewer/builds.py): `recovered_alive`.
+
+Checked: [test_buildqueue.py](tools/viewer/tests/test_buildqueue.py), new, 22 tests with test_builds.py's stand-in
+and event hooks (no timed sleeps for ordering): order and saves while waiting, failures apart, waits for another
+build and for a reader, the slot held between rows, Stop while capturing (nothing launched), while building (Resume
+builds the latest save as a new attempt), after the package went in, while waiting for another's build, Cancel from
+the build window, a late ending, Add/Remove/Clear and receipts, nine requests at once (one worker, one row each), a
+storage fault, a restart mid-row, a result lost after its package went in, an earlier server's build still running,
+torn and newer-schema files, a second owner, a queue never activated, changed settings, and the routes. Run eight
+times in a row without a failure; the whole viewer suite and the repo suite pass. Known gaps: no manager UI or editor
+chip yet (Q2, Q3); readers don't take leases yet; no real build was queued.
+
 ### Build queue Q0: contained builds, journalled package swaps, attempts
 
 The groundwork the build queue needs (private build queue plan, stage Q0); the queue itself is not built yet.

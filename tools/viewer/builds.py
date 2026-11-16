@@ -226,6 +226,19 @@ class BuildRunner:
                                 'manager, or wait until it ends.')
         return None
 
+    def recovered_alive(self):
+        """The keys of the writers this server did not start that still run (the gone ones dropped, their journals
+        then settled)."""
+        with self.lock:
+            alive = set()
+            for key, (_, active) in tuple(self.recovered.items()):
+                if active():
+                    alive.add(key)
+                else:
+                    del self.recovered[key]
+                    threading.Thread(target=self.reconcile, daemon=True, name='build-reconcile').start()
+            return alive
+
     def reserve(self, owner, label):
         """The build queue's hold on the slot: no build of anyone else's starts until release (one running finishes)."""
         with self.lock:
