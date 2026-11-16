@@ -8,6 +8,32 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### The Build's tile grid from the game's own record
+
+- The game-grid plan, stage G2. [native_copy.py](tools/bake/native_copy.py) `level_grid` now takes:
+  - the tile counts from `scene_metadata.game_grid`, so CBattleship_01 has its 15 levels (it counted 16 from the box,
+    rounded);
+  - `tx`, `ty`, `tz`, the game's corner, beside `ox`, `oy`, `oz`, the box's. The Build still places, seeds and sizes
+    by the box's corner.
+- Changed to the game's corner:
+  - `rebuild_order`, the Build's model of the battle's rebuild queue, counts the volumes' tiles from it, as the game
+    does;
+  - [world_grid.py](tools/upk/world_grid.py) `flat_floor` (and `grow`, `resize`, `check_bare`) take it: a new floor
+    is at the tile's centre and on the ground, a unit over it, the same bytes as before;
+  - [shell.py](tools/bake/shell.py) `resize` passes it to them;
+  - `world_grid.py check` and [save_tiles.py](tools/lab/save_tiles.py) `--box` read it.
+- [seed_map.py](tools/upk/seed_map.py) `grid` (the `plan` command) takes the counts from the map.
+- Deliberately left on the box's corner: the seeding rules and the rebuild volumes (seed_map's `tiles_touched`,
+  `world_of`), as they were played. On the game's corner they would seed a level more over every wall whose top is
+  on a box line. How the game treats a piece a unit into a tile isn't known exactly.
+- Checked:
+  - the upk and bake suites (110 and 390 tests, the install test included);
+  - `test_world_grid.py` with the game's corner: the same floor bytes;
+  - three Builds made with the code before and after the change, every built package byte for byte the same:
+    URB_Bar with EXP-59's cover blocks, the blank map grown (EXP-43 `--grid`), and Bar cleared to 30 by 30 by 6 with
+    two zones.
+- Not played in the game.
+
 ### Every map's tile grid from the game's own record (export 26)
 
 - The game-grid plan, stages G0, G1 and the export (`private/plans/done/game-grid-plan.md`; T-36 in the

@@ -434,6 +434,8 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
     if min(nx, ny, nz) < 1:
         raise ValueError('a grid of %d by %d by %d tiles' % (nx, ny, nz))
     origin = [float(round(grid[k])) for k in ('ox', 'oy', 'oz')]
+    # the corner the game counts the tiles from (WorldBounds', a unit under the volume's): the tile data's floor places
+    corner = [float(round(grid[k])) for k in ('tx', 'ty', 'tz')]
     container, blob = world_grid.container_of(p)
     model = world_grid.decode(blob)
     # the map's own scenery the new area takes in, made walkable below (F-100)
@@ -463,7 +465,7 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
                 add.append(clone['actor'])
                 laid.append(at)
     # a block the planes don't reach (the map's own ground has a gap there) names no floor piece
-    grown = world_grid.resize(model, nx, ny, origin,
+    grown = world_grid.resize(model, nx, ny, corner,
                               (lambda x, y: have.get((x // wide, y // deep), 0)) if plane else None, nz)
     # the tiles the walkable scenery gives floor on: put in the rebuild's queue
     seeded = 0

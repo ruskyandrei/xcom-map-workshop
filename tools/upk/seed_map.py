@@ -63,12 +63,24 @@ def inventory_for(map_path, plan_path, origin, tsv=None):
     return tsv
 
 
-def grid(inv, spec_origin):
+def grid(inv, spec_origin, map_path=None):
+    """The map's tile grid as native_copy.level_grid has it: the corner of its level volume's box (in the inventory),
+    and the counts and the game's corner (tx, ty, tz) from the map itself where `map_path` is given
+    (scene_metadata.game_grid), else the box's counts, rounded, and a unit under its corner."""
     vols = [r for r in inv.values() if r['cls'] == 'XComLevelVolume' and r['box']]
     if len(vols) != 1:
         raise SystemExit('expected one XComLevelVolume in the map, found %d' % len(vols))
     x0, x1, y0, y1, z0, z1 = vols[0]['box']
-    g = dict(ox=x0, oy=y0, oz=z0, nx=round((x1 - x0) / TILE), ny=round((y1 - y0) / TILE), nz=round((z1 - z0) / FLOOR))
+    g = dict(ox=x0, oy=y0, oz=z0, nx=round((x1 - x0) / TILE), ny=round((y1 - y0) / TILE), nz=round((z1 - z0) / FLOOR),
+             tx=x0 - 1, ty=y0 - 1, tz=z0 - 1)
+    if map_path:
+        sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'viewer'))
+        import scene_metadata
+        from package import Package
+        game = scene_metadata.game_grid(Package(map_path), dict(min=[x0, y0, z0], max=[x1, y1, z1]))
+        if game:
+            g.update(nx=game['dimensions'][0], ny=game['dimensions'][1], nz=game['dimensions'][2],
+                     tx=game['tiles'][0], ty=game['tiles'][1], tz=game['tiles'][2])
     if spec_origin and (abs(spec_origin[0] - x0) > 1 or abs(spec_origin[1] - y0) > 1):
         raise SystemExit('the spec\'s map.origin %s is not the level volume\'s corner (%g, %g)' % (spec_origin, x0, y0))
     return g
@@ -142,7 +154,7 @@ def plan(spec_path, map_path, out, inv_path=None):
     spec = json.load(open(spec_path))
     origin = (spec.get('map', {}).get('origin') or [-2784, -1920])[:2]
     inv = read_inventory(inventory_for(map_path, out, origin, inv_path))
-    g = grid(inv, spec.get('map', {}).get('origin'))
+    g = grid(inv, spec.get('map', {}).get('origin'), map_path)
     rows, notes = [], []
     if spec.get('seed', True) is not False:
         for i, o in enumerate(spec.get('objects', [])):

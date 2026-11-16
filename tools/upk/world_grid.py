@@ -8,10 +8,10 @@ again:
   model = decode(blob)          the header, the grid's size and, for each store, {tile: (element bytes, present)}
                                 and its chunk list
   encode(model)                 the container's bytes; encode(decode(blob)) is blob, byte for byte
-  grow(model, nx, ny, origin, floor, nz)
+  grow(model, nx, ny, corner, floor, nz)
                                 the model of a grid that reaches further in x and y from the same corner,
                                 and higher (nz levels)
-  resize(model, nx, ny, origin, floor, nz)
+  resize(model, nx, ny, corner, floor, nz)
                                 any size, each axis smaller, the same or larger, from the same corner and bottom
                                 (private/plans/done/clear-map-plan.md, section 7 step 5): shrink() for the
                                 axes that get smaller, then grow() for the ones that get larger
@@ -147,18 +147,18 @@ def bare_flags(model):
     return {k: c.most_common(1)[0][0] for k, c in seen.items()}
 
 
-def flat_floor(x, y, dims, origin, actor):
-    """The floor data of a bare ground tile (x, y, 0) in a grid of `dims` whose corner is `origin`: the bake's floor
-    place (a unit short of the tile's centre in x and y, at the grid's bottom), its normal, a link to each tile
-    around it that the grid has (1 across an edge, 1.414 across a corner, no path object), no ramp, the floor piece
-    `actor` (an export index), no floor volume."""
+def flat_floor(x, y, dims, corner, actor):
+    """The floor data of a bare ground tile (x, y, 0) in a grid of `dims` that the game counts from `corner` (its world
+    data's WorldBounds' low corner: scene_metadata.game_grid's `tiles`): the bake's floor place (the tile's centre
+    across and along, on the ground, which the maps have a unit over that corner, where their level volume's box
+    starts), its normal, a link to each tile around it that the grid has (1 across an edge, 1.414 across a corner, no
+    path object), no ramp, the floor piece `actor` (an export index), no floor volume."""
     links = []
     for dx, dy in AROUND:
         tx, ty = x + dx, y + dy
         if 0 <= tx < dims[0] and 0 <= ty < dims[1]:
             links.append(struct.pack('<iiifi', tx, ty, 0, 1.0 if not (dx and dy) else 1.414, 0) + bytes(8))
-    loc = struct.pack('<3f', origin[0] + TILE[0] * x + TILE[0] / 2 - 1, origin[1] + TILE[1] * y + TILE[1] / 2 - 1,
-                      origin[2])
+    loc = struct.pack('<3f', corner[0] + TILE[0] * x + TILE[0] / 2, corner[1] + TILE[1] * y + TILE[1] / 2, corner[2] + 1)
     return loc + NORMAL + struct.pack('<I', len(links)) + b''.join(links) + b'\0' + struct.pack('<ii', actor, 0)
 
 
@@ -166,7 +166,7 @@ def floor_actor(raw):
     return struct.unpack_from('<i', raw, len(raw) - 8)[0]
 
 
-def check_bare(model, origin):
+def check_bare(model, corner):
     """How far the two rules for bare ground give the map's own tiles back: dict(flags (tiles, same), floor (ground
     tiles with floor data, same), odd: the tiles either rule misses, as [x, y, z])."""
     dims = model['dims']
@@ -184,14 +184,14 @@ def check_bare(model, origin):
         if not present:
             continue
         floors[0] += 1
-        if z == 0 and flat_floor(x, y, dims, origin, floor_actor(raw)) == raw:
+        if z == 0 and flat_floor(x, y, dims, corner, floor_actor(raw)) == raw:
             floors[1] += 1
         else:
             odd.add((x, y, z))
     return dict(flags=flags, floor=floors, odd=sorted(odd))
 
 
-def grow(model, nx, ny, origin, floor, nz=None):
+def grow(model, nx, ny, corner, floor, nz=None):
     """The model of a grid of nx by ny tiles, and nz levels (None: the map's), from the same corner, at the same
     height. `floor(x, y)` is the export index of the floor piece under a new ground tile; `floor` None says no ground
     is laid there. The grid grows upward only, so every tile keeps its index; a new level gets the flags of the map's
@@ -227,11 +227,11 @@ def grow(model, nx, ny, origin, floor, nz=None):
         if new and floor is None:
             continue
         if new:
-            stores[FLOOR_STORE][(x, y, 0)] = (flat_floor(x, y, dims, origin, floor(x, y)), 1)
+            stores[FLOOR_STORE][(x, y, 0)] = (flat_floor(x, y, dims, corner, floor(x, y)), 1)
             if (x, y, 1) not in stores[FLOOR_STORE]:
                 stores[FLOOR_STORE][(x, y, 1)] = (bytes(SIZES['floor']), 0)
-        elif old and old[1] and old[0] == flat_floor(x, y, model['dims'], origin, floor_actor(old[0])):
-            stores[FLOOR_STORE][(x, y, 0)] = (flat_floor(x, y, dims, origin, floor_actor(old[0])), 1)
+        elif old and old[1] and old[0] == flat_floor(x, y, model['dims'], corner, floor_actor(old[0])):
+            stores[FLOOR_STORE][(x, y, 0)] = (flat_floor(x, y, dims, corner, floor_actor(old[0])), 1)
     return dict(model, dims=dims, stores=stores, orders=None)     # the chunks are numbered anew
 
 
@@ -277,10 +277,10 @@ def shrink(model, nx, ny, nz=None):
     return dict(model, dims=dims, stores=stores, orders=orders)
 
 
-def resize(model, nx, ny, origin, floor, nz=None):
+def resize(model, nx, ny, corner, floor, nz=None):
     """The model of a grid of nx by ny tiles and nz levels (None: the map's), from the same corner, at the same
     height: each axis smaller, the same or larger. The axes that get smaller are cut first (shrink()), then the ones
-    that get larger are grown (grow(), with `origin` and `floor` as it takes them), so a grid larger on every axis is
+    that get larger are grown (grow(), with `corner` and `floor` as it takes them), so a grid larger on every axis is
     grow()'s and one smaller on every axis shrink()'s. The corner and the bottom never move: every kept tile keeps
     its (x, y, z) and every link its tiles."""
     dims = tuple(model['dims'])
@@ -291,7 +291,7 @@ def resize(model, nx, ny, origin, floor, nz=None):
     if cut != dims:
         model = shrink(model, *cut)
     if (nx, ny, nz) != cut:
-        model = grow(model, nx, ny, origin, floor, nz)
+        model = grow(model, nx, ny, corner, floor, nz)
     return model
 
 
@@ -313,10 +313,8 @@ def main():
     same = encode(model) == blob
     print('%s: %d bytes, grid %s; written again: %s' % (p.name(index).rsplit('.', 1)[-1], len(blob), model['dims'],
                                                        'the same bytes' if same else 'DIFFERENT'))
-    volume = next(i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComLevelVolume' and p.effective(i, 'Brush', 0) > 0)
     import scene_metadata
-    origin = scene_metadata.volume_bounds(p, volume)['min']
-    r = check_bare(model, [round(v) for v in origin])
+    r = check_bare(model, [round(v) for v in scene_metadata.game_grid(p)['tiles']])
     print('bare ground by rule: flags %d of %d tiles, floor data %d of %d ground tiles; %d tiles differ'
           % (r['flags'][1], r['flags'][0], r['floor'][1], r['floor'][0], len(r['odd'])))
     if not same:

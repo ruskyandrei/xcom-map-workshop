@@ -121,9 +121,10 @@ def main(argv=None):
         import native_copy
         grid = native_copy.level_grid(p)
         for x0, x1, y0, y1, z0, z1 in args.box:
-            tx = [int((v - grid['ox']) // TILE) for v in (x0, x1 - 1e-3)]
-            ty = [int((v - grid['oy']) // TILE) for v in (y0, y1 - 1e-3)]
-            for z in range(int((z0 - grid['oz']) // LEVEL), int((z1 - 1e-3 - grid['oz']) // LEVEL) + 1):
+            # the tiles as the game counts them, from its own corner (WorldBounds', a unit under the level volume's)
+            tx = [int((v - grid['tx']) // TILE) for v in (x0, x1 - 1e-3)]
+            ty = [int((v - grid['ty']) // TILE) for v in (y0, y1 - 1e-3)]
+            for z in range(int((z0 - grid['tz']) // LEVEL), int((z1 - 1e-3 - grid['tz']) // LEVEL) + 1):
                 ranges.append((tx[0], tx[1], ty[0], ty[1], z))
     print('%s: %d x %d x %d tiles; baked -> saved, F floor, O occupied, * changed' % ((args.map.stem,) + dims))
     for x0, x1, y0, y1, z in ranges:

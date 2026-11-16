@@ -76,6 +76,7 @@ import lighting_fixture  # noqa: E402
 import lightmap_fields  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
+import scene_metadata  # noqa: E402
 import seed_map  # noqa: E402
 import seed_tiles  # noqa: E402
 
@@ -663,15 +664,28 @@ def set_vector(walker, g, data, start, name, value):
 
 
 def level_grid(p):
-    """The map's tile grid, from its one XComLevelVolume: dict(ox, oy, oz, nx, ny, nz) as seed_map.py has it."""
+    """The map's tile grid, from its one XComLevelVolume: dict(ox, oy, oz, nx, ny, nz, tx, ty, tz) as seed_map.py
+    has it (scene_metadata.game_grid; private/plans/done/game-grid-plan.md):
+    - ox, oy, oz: the level volume's box's low corner, where the maps' own pieces stand on whole tiles, which the Build
+      places, seeds and sizes by (seed_map's tile rules, the rebuild volumes, a grown grid's corner);
+    - tx, ty, tz: the corner the game counts its tiles from (its world data's WorldBounds, a unit under ox, oy, oz),
+      for what the game itself works out from it (rebuild_order);
+    - nx, ny, nz: the tile counts of the map's tile data (a box can miss them: CBattleship_01's is half a level over
+      its 15 levels). A package with no tile data takes the box's, rounded."""
     level = p.by_name['TheWorld.PersistentLevel']
     vols = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComLevelVolume'
             and p.exports[i - 1]['outer'] == level and p.own(i, 'Brush', 0) > 0]
     if len(vols) != 1:
         raise ValueError(f'expected one XComLevelVolume with a brush, found {len(vols)}')
     lo, hi = brush_box(p, vols[0])
-    return dict(ox=lo[0], oy=lo[1], oz=lo[2], nx=round((hi[0] - lo[0]) / seed_map.TILE),
-                ny=round((hi[1] - lo[1]) / seed_map.TILE), nz=round((hi[2] - lo[2]) / seed_map.FLOOR))
+    grid = scene_metadata.game_grid(p, dict(min=lo, max=hi))
+    if grid is None:
+        n = [round((hi[0] - lo[0]) / seed_map.TILE), round((hi[1] - lo[1]) / seed_map.TILE),
+             round((hi[2] - lo[2]) / seed_map.FLOOR)]
+        tiles = [v - 1 for v in lo]
+    else:
+        n, tiles = grid['dimensions'], grid['tiles']
+    return dict(ox=lo[0], oy=lo[1], oz=lo[2], nx=n[0], ny=n[1], nz=n[2], tx=tiles[0], ty=tiles[1], tz=tiles[2])
 
 
 def brush_bounds(p, volume):
@@ -917,7 +931,8 @@ def rebuild_order(p):
     blob = p.data[e['off']:e['off'] + e['size']]
     dims, where, _ = seed_tiles.parse_static_store(blob)
     size = (seed_map.TILE, seed_map.TILE, seed_map.FLOOR)
-    lo_of = (grid['ox'], grid['oy'], grid['oz'])
+    # the game works the boxes' tiles out from its own corner (WorldBounds'), a unit under the level volume's
+    lo_of = (grid['tx'], grid['ty'], grid['tz'])
 
     def flags(tile):
         at = where.get(tile)

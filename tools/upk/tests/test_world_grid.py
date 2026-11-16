@@ -18,7 +18,7 @@ from package import Package  # noqa: E402
 
 BLANK, NO_BLANK = labpaths.install_map('CB2_MP_Blank')
 BAR, NO_BAR = labpaths.install_map('URB_Bar')
-ORIGIN = [-2112, -1344, 0]
+CORNER = [-2113, -1345, -1]     # the game's corner of the blank map's grid (WorldBounds'), a unit under its level volume's
 
 
 class FlatFloor(unittest.TestCase):
@@ -27,18 +27,18 @@ class FlatFloor(unittest.TestCase):
         return v
 
     def test_an_inner_tile_links_to_the_eight_around_it_in_the_bakes_order(self):
-        v = self.links(world_grid.flat_floor(10, 10, (36, 36, 12), ORIGIN, 1152))
+        v = self.links(world_grid.flat_floor(10, 10, (36, 36, 12), CORNER, 1152))
         self.assertEqual([l['to'] for l in v['links']],
                          [(9, 10, 0), (11, 10, 0), (10, 9, 0), (10, 11, 0), (9, 11, 0), (11, 11, 0), (11, 9, 0), (9, 9, 0)])
         self.assertEqual([round(l['cost'], 3) for l in v['links']], [1.0] * 4 + [1.414] * 4)
         self.assertEqual((v['loc'], v['ramp'], v['actor'], v['volume']), ((-1105.0, -337.0, 0.0), 0, 1152, 0))
 
     def test_a_corner_tile_links_only_into_the_grid(self):
-        v = self.links(world_grid.flat_floor(0, 0, (36, 36, 12), ORIGIN, 7))
+        v = self.links(world_grid.flat_floor(0, 0, (36, 36, 12), CORNER, 7))
         self.assertEqual([l['to'] for l in v['links']], [(1, 0, 0), (0, 1, 0), (1, 1, 0)])
 
     def test_an_absent_tiles_element_is_as_long_as_an_empty_floor(self):
-        self.assertEqual(len(world_grid.flat_floor(0, 0, (1, 1, 2), ORIGIN, 0)), world_grid.SIZES['floor'])
+        self.assertEqual(len(world_grid.flat_floor(0, 0, (1, 1, 2), CORNER, 0)), world_grid.SIZES['floor'])
 
 
 class Place(unittest.TestCase):
@@ -49,9 +49,9 @@ class Place(unittest.TestCase):
 class CutLinks(unittest.TestCase):
     def test_a_flat_floor_cut_to_a_smaller_grid_is_that_grids_flat_floor(self):
         for x, y in ((29, 10), (10, 29), (29, 29), (28, 3), (28, 28)):
-            raw = world_grid.flat_floor(x, y, (54, 54, 12), ORIGIN, 1152)
-            self.assertEqual(world_grid.cut_links(raw, (30, 30, 12)), world_grid.flat_floor(x, y, (30, 30, 12), ORIGIN, 1152))
-        raw = world_grid.flat_floor(29, 29, (54, 54, 12), ORIGIN, 7)
+            raw = world_grid.flat_floor(x, y, (54, 54, 12), CORNER, 1152)
+            self.assertEqual(world_grid.cut_links(raw, (30, 30, 12)), world_grid.flat_floor(x, y, (30, 30, 12), CORNER, 1152))
+        raw = world_grid.flat_floor(29, 29, (54, 54, 12), CORNER, 7)
         cut = world_grid.cut_links(raw, (30, 30, 12))
         self.assertEqual(len(world_links.parse_element('floor', cut, 0)[0]['links']), 3)
         self.assertEqual(len(raw) - len(cut), 5 * 28)        # a plain link is 28 bytes
@@ -111,7 +111,7 @@ class BlankMap(unittest.TestCase):
         self.assertEqual(world_grid.encode(self.model), self.blob)
 
     def test_the_bare_ground_rules_give_its_own_tiles_back_but_about_its_pieces(self):
-        r = world_grid.check_bare(self.model, ORIGIN)
+        r = world_grid.check_bare(self.model, CORNER)
         self.assertEqual(r['flags'][0], 36 * 36 * 12)
         self.assertEqual(r['floor'][0], 36 * 36)
         # the wall, the van, the pickup and two edge tiles: 121 columns of tiles in all
@@ -119,19 +119,19 @@ class BlankMap(unittest.TestCase):
         self.assertGreater(r['flags'][1] / r['flags'][0], 0.97)
 
     def test_grown_to_the_same_size_nothing_changes(self):
-        same = world_grid.grow(self.model, 36, 36, ORIGIN, lambda x, y: 0)
+        same = world_grid.grow(self.model, 36, 36, CORNER, lambda x, y: 0)
         self.assertEqual(same['stores'], self.model['stores'])
 
     def test_a_smaller_grid_is_refused(self):
         with self.assertRaises(ValueError):
-            world_grid.grow(self.model, 30, 36, ORIGIN, lambda x, y: 0)
+            world_grid.grow(self.model, 30, 36, CORNER, lambda x, y: 0)
         with self.assertRaises(ValueError):
-            world_grid.grow(self.model, 36, 36, ORIGIN, lambda x, y: 0, 11)
+            world_grid.grow(self.model, 36, 36, CORNER, lambda x, y: 0, 11)
 
     def test_grown_taller(self):
         """18 levels (prefab plan 5.6b): upward only, so every tile of every store keeps its index and its data, and
         the new levels are open air as the map's top level is."""
-        grown = world_grid.decode(world_grid.encode(world_grid.grow(self.model, 36, 36, ORIGIN, None, 18)))
+        grown = world_grid.decode(world_grid.encode(world_grid.grow(self.model, 36, 36, CORNER, None, 18)))
         self.assertEqual(grown['dims'], (36, 36, 18))
         for k, store in enumerate(self.model['stores']):
             self.assertTrue(all(grown['stores'][k].get(t) == v for t, v in store.items()), k)
@@ -144,7 +144,7 @@ class BlankMap(unittest.TestCase):
         self.assertTrue(all(len(grown['stores'][k]) == len(s) for k, s in enumerate(self.model['stores']) if k))
 
     def test_grown(self):
-        grown = world_grid.grow(self.model, 54, 45, ORIGIN, lambda x, y: 900 + x // 9)
+        grown = world_grid.grow(self.model, 54, 45, CORNER, lambda x, y: 900 + x // 9)
         blob = world_grid.encode(grown)
         wd = world_links.parse_container(blob)      # every store's lists, headers and counts are checked there
         self.assertEqual(tuple(wd['dims']), (54, 45, 12))
@@ -158,22 +158,22 @@ class BlankMap(unittest.TestCase):
         # every tile is present in the flag store, and the new ground reads as bare ground by the same rules
         again = world_grid.decode(blob)
         self.assertTrue(all(present for _, present in again['stores'][0].values()))
-        r = world_grid.check_bare(again, ORIGIN)
-        before = world_grid.check_bare(self.model, ORIGIN)
+        r = world_grid.check_bare(again, CORNER)
+        before = world_grid.check_bare(self.model, CORNER)
         self.assertEqual({(x, y) for x, y, z in r['odd']}, {(x, y) for x, y, z in before['odd']})
         # the cover stores are the map's own
         self.assertEqual(sum(p for _, p in again['stores'][1].values()), sum(p for _, p in self.model['stores'][1].values()))
 
     def test_resized_larger_on_every_axis_is_grown(self):
         floor = lambda x, y: 900 + x // 9      # noqa: E731
-        self.assertEqual(world_grid.encode(world_grid.resize(self.model, 54, 45, ORIGIN, floor, 18)),
-                         world_grid.encode(world_grid.grow(self.model, 54, 45, ORIGIN, floor, 18)))
-        same = world_grid.resize(self.model, 36, 36, ORIGIN, None)
+        self.assertEqual(world_grid.encode(world_grid.resize(self.model, 54, 45, CORNER, floor, 18)),
+                         world_grid.encode(world_grid.grow(self.model, 54, 45, CORNER, floor, 18)))
+        same = world_grid.resize(self.model, 36, 36, CORNER, None)
         self.assertEqual(world_grid.encode(same), self.blob)
 
     def grown_and_back(self, floor, nz):
-        grown = world_grid.decode(world_grid.encode(world_grid.grow(self.model, 54, 54, ORIGIN, floor, nz)))
-        return world_grid.encode(world_grid.resize(grown, 36, 36, ORIGIN, None, 12))
+        grown = world_grid.decode(world_grid.encode(world_grid.grow(self.model, 54, 54, CORNER, floor, nz)))
+        return world_grid.encode(world_grid.resize(grown, 36, 36, CORNER, None, 12))
 
     def test_grown_with_ground_and_resized_back_is_its_own_container(self):
         """54 by 54 (and 18 levels) and back: byte for byte the map's container as encode() writes it with its chunk
@@ -207,7 +207,7 @@ class BlankMap(unittest.TestCase):
     def test_resized_smaller(self):
         """30 by 28 by 9: every link inside, a ground floor by rule on the new edges is the flat floor of the new grid,
         the new far edges take the edge's flags, and the cover stores lose the tiles past the edges only."""
-        small = world_grid.resize(self.model, 30, 28, ORIGIN, None, 9)
+        small = world_grid.resize(self.model, 30, 28, CORNER, None, 9)
         blob = world_grid.encode(small)
         wd = world_links.parse_container(blob)
         self.assertEqual(tuple(wd['dims']), (30, 28, 9))
@@ -223,22 +223,22 @@ class BlankMap(unittest.TestCase):
         flat = 0
         for (x, y, z), t in wd['floor'].items():
             old = self.model['stores'][world_grid.FLOOR_STORE][(x, y, z)][0]
-            if z == 0 and old == world_grid.flat_floor(x, y, (36, 36, 12), ORIGIN, world_grid.floor_actor(old)):
+            if z == 0 and old == world_grid.flat_floor(x, y, (36, 36, 12), CORNER, world_grid.floor_actor(old)):
                 flat += 1
                 self.assertEqual(small['stores'][world_grid.FLOOR_STORE][(x, y, z)][0],
-                                 world_grid.flat_floor(x, y, (30, 28, 9), ORIGIN, world_grid.floor_actor(old)))
+                                 world_grid.flat_floor(x, y, (30, 28, 9), CORNER, world_grid.floor_actor(old)))
             self.assertEqual(t['value']['actor'], before[(x, y, z)]['value']['actor'])
         self.assertGreater(flat, 700)
         self.assertEqual(len(wd['floor'][(29, 10, 0)]['value']['links']), 5)
 
     def test_larger_on_one_axis_smaller_on_another(self):
-        mixed = world_grid.encode(world_grid.resize(self.model, 45, 30, ORIGIN, None, 10))
+        mixed = world_grid.encode(world_grid.resize(self.model, 45, 30, CORNER, None, 10))
         wd = world_links.parse_container(mixed)
         self.assertEqual(tuple(wd['dims']), (45, 30, 10))
         self.assertTrue(all(all(0 <= l['to'][k] < (45, 30, 10)[k] for k in range(3)) for l in world_links.all_links(wd)))
         # the cut is made first, then the grid grown: grow() of the cut model
         cut = world_grid.shrink(self.model, 36, 30, 10)
-        self.assertEqual(mixed, world_grid.encode(world_grid.grow(cut, 45, 30, ORIGIN, None, 10)))
+        self.assertEqual(mixed, world_grid.encode(world_grid.grow(cut, 45, 30, CORNER, None, 10)))
         self.assertEqual(world_grid.decode(mixed)['stores'][0][(44, 29, 0)][0][:4],
                          (struct.unpack('<I', world_grid.bare_flags(cut)[(4, 4, 1)])[0] | world_grid.SEED).to_bytes(4, 'little'))
 
@@ -246,7 +246,7 @@ class BlankMap(unittest.TestCase):
         with self.assertRaises(ValueError):
             world_grid.shrink(self.model, 37, 36)
         with self.assertRaises(ValueError):
-            world_grid.resize(self.model, 0, 36, ORIGIN, None)
+            world_grid.resize(self.model, 0, 36, CORNER, None)
 
 
 if __name__ == '__main__':
