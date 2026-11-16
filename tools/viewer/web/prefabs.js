@@ -3,7 +3,8 @@
 // at ground level), to place in any map as one thing. The file holds references and numbers only, never game data.
 // This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; app.js makes a prefab of
 // a selection and a clip to place of a prefab.
-export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 1;
+// 2: a copied piece's flags (`flags`; piece flags plan). A prefab of schema 1 opens, and saves as 2.
+export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 2;
 export const TILE = 96, STOREY = 64;
 
 async function call(method, url, body) {

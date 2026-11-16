@@ -6,7 +6,8 @@ import { collectPieces, createPieceBrowser, destructionNote, lootNote, milestone
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, STAGE_GRID_MAX, STAGE_LEVELS_MAX, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
-         BUILDING_SAME, validLandingZone } from './project.js';
+         BUILDING_SAME, validLandingZone, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
+import { ROLES as FLAG_ROLES, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
@@ -389,6 +390,7 @@ function select(id, add = false, keep = false) {
   if (milestone > 1 && !isStream(obj)) text(chips, 'span', 'Untried', 'chip warn').title = milestoneNote(milestone);
   const loot = isStream(obj) ? null : lootNote(obj);
   if (loot) text(chips, 'span', loot.label, 'chip').title = loot.title;
+  flagChip(chips, root);
   // the generated area lights it glows with (export 18's associations, or the project's): they follow it
   const glowActor = obj.added ? obj.added.from.actor : obj.actor;
   const glows = obj.foreign ? (obj.foreign.areaLights?.[glowActor]?.lights ?? []).map(light => short(light.actor))
@@ -447,6 +449,249 @@ function select(id, add = false, keep = false) {
   const actors = [...new Set(others.filter(r => !r.userData.volume).map(r => r.userData.source.actor))].filter(a => a !== obj.actor);
   if (actors.length) field(dl, 'Moves with', actors.map(short).join('\n'));
   editChanged();
+}
+// Piece flags (piece flags plan; piece_flags.js): the five settings of a piece that decide how the game's tiles and
+// mouse use it (Blocks walking, Gives cover, Blocks sight, Floor, Mouse picks it), edited actor by actor for the
+// pieces explicitly picked (gizmo.picks, not the linked pieces the selection moves with); one actor's components
+// share one setting. root.userData.flags is the request the project saves, normalized (piece_flags.normalize: only
+// what the map doesn't have already, and what keeps a prop's other roles as they were); the export's pieceFlags
+// (export 27) are the map's own settings, an added piece's its template's. These are the settings the game's filters
+// read, not a prediction of the finished tiles.
+const FLAG_WORDS = { on: 'on', off: 'off', partial: 'partly on', unknown: 'unknown', 'n/a': '' };
+const flagContract = () => families?.pieceFlags ?? null;
+const flagKey = o => (o.added ? `added|${o.actor}` : `orig|${sourceKey(o)}`);
+const flagSentences = list => list.filter(Boolean).map(s => sentence(s).replace(/\.?$/, '.')).join(' ');
+// Why a piece takes no flags at all, or null.
+function flagBlock(o) {
+  const c = flagContract();
+  if (!c) return 'the editor\'s server is older than its page: restart it (xcom_editor.cmd restart) to set flags';
+  if (o.cover) return isFloor(o.cover) ? 'an invisible floor\'s cover is its own' : 'a cover block\'s cover is its own (its Cover setting)';
+  if (isStream(o)) return 'it is a piece of a streamed level, which the editor doesn\'t edit';
+  if (o.hidden || o.environment) return 'it is hidden in the game';
+  if (!o.pieceFlags) return c.classes[o.actorClass] ? 'its map was exported before flags: open the map again to prepare it' : `the flags are not a setting of a ${o.actorClass}`;
+  return null;
+}
+// The actors the Flags group edits, each once with all its components: [{ key, source, roots }].
+function flagTargets(ids = gizmo.picks().ids) {
+  const out = new Map();
+  for (const id of ids) {
+    const r = roots.get(id);
+    if (!r || r.userData.deleted) continue;
+    const key = flagKey(r.userData.source);
+    if (!out.has(key)) out.set(key, { key, source: r.userData.source, roots: [] });
+  }
+  if (out.size) for (const r of roots.values()) out.get(flagKey(r.userData.source))?.roots.push(r);
+  return [...out.values()];
+}
+// One actor's flags as the project has them: its settings, its request, what the request does, and each role after it
+// with its limits.
+function flagView(t) {
+  const c = flagContract(), pf = t.source.pieceFlags, { raw, assumed } = flagRaw(pf);
+  const request = t.roots[0]?.userData.flags ?? {};
+  const plan = planFlags(c, t.source.actorClass, raw, request, assumed);
+  const written = new Set(plan.writes.map(([k]) => k));
+  const roles = flagRoles(c, t.source.actorClass, { ...raw, ...Object.fromEntries(plan.writes) },
+                          { collides: pf.collides, bodySetup: pf.bodySetup, assumed: assumed.filter(k => !written.has(k)) });
+  return { raw, assumed, request, plan, roles };
+}
+// The Flags chip: a piece with a setting off (or half on), or whose flags the project changes.
+function flagChip(chips, root) {
+  const o = root.userData.source;
+  if (flagBlock(o)) return;
+  const v = flagView({ key: flagKey(o), source: o, roots: [root] }), c = flagContract();
+  const off = FLAG_ROLES.filter(r => ['off', 'partial'].includes(v.plan.after[r]));
+  const changed = Object.keys(v.request).length > 0;
+  if (!off.length && !changed) return;
+  const chip = text(chips, 'span', changed ? 'Flags · changed' : 'Flags', 'chip');
+  chip.title = [...FLAG_ROLES.filter(r => v.plan.after[r] !== 'n/a').map(r => `${c.labels[r]}: ${FLAG_WORDS[v.plan.after[r]]}`
+    + `${r in v.request ? ' (changed)' : ''}${(v.roles[r].limits ?? []).includes('assumed') ? ' (assumed)' : ''}`),
+    'How the game\'s tiles and mouse use it; set in the Flags group below'].join('\n');
+}
+// The Flags group: a row per role over the picked actors (mixed where they differ), what limits each, why a row is
+// greyed, and how many of the pieces take it.
+let flagAsk = null;      // the question open about a prop's pathing gate: { key } (the picks it was asked for)
+const flagSelectionKey = () => gizmo.picks().ids.join('|');
+function closeFlagAsk() { flagAsk = null; $('flagsAsk').hidden = true; $('flagsAsk').replaceChildren(); }
+function flagsPanel() {
+  const box = $('flagsBox');
+  const all = !data || volumesOn || lightsOn || zonesOn ? [] : flagTargets();
+  if (flagAsk && flagAsk.key !== flagSelectionKey()) closeFlagAsk();
+  if (!all.length || all.every(t => t.source.cover)) { box.hidden = true; return; }
+  box.hidden = false;
+  const c = flagContract(), usable = [], blocked = new Map();
+  for (const t of all) {
+    const why = flagBlock(t.source);
+    if (why) blocked.set(why, (blocked.get(why) ?? 0) + 1); else usable.push(t);
+  }
+  const views = new Map(usable.map(t => [t.key, flagView(t)]));
+  const rows = $('flagsRows');
+  rows.replaceChildren();
+  // a limit that holds for several rows of one piece (a prop's gate) is said once, under the rows
+  const one = usable.length === 1 ? views.get(usable[0].key) : null, seen = new Map();
+  for (const role of FLAG_ROLES) for (const k of one?.roles[role].limits ?? []) seen.set(k, (seen.get(k) ?? 0) + 1);
+  const shared = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
+  for (const role of FLAG_ROLES) {
+    const eligible = usable.filter(t => views.get(t.key).plan.after[role] !== 'n/a');
+    const states = eligible.map(t => views.get(t.key).plan.after[role]);
+    const label = document.createElement('label');
+    label.className = 'flagrow';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    label.append(input);
+    const name = text(label, 'span', c?.labels[role] ?? role, 'flagname');
+    const state = text(name, 'span', '', 'flagstate');
+    const why = text(label, 'span', '', 'flagwhy');
+    const same = states.length > 0 && states.every(x => x === states[0]);
+    input.checked = states.length > 0 && states.every(x => x === 'on');
+    input.indeterminate = states.length > 0 && (!same || states.some(x => x === 'partial' || x === 'unknown'));
+    input.disabled = !eligible.length;
+    label.classList.toggle('off', !eligible.length);
+    label.classList.toggle('changed', eligible.some(t => role in views.get(t.key).request));
+    state.textContent = !eligible.length ? '' : same ? FLAG_WORDS[states[0]] : 'mixed';
+    if (!eligible.length) {
+      why.textContent = flagSentences([usable.length ? views.get(usable[0].key).roles[role].why : [...blocked.keys()][0]]);
+    } else {
+      const notes = eligible.length === 1 ? (views.get(eligible[0].key).roles[role].limits ?? []).filter(k => !shared.includes(k)).map(k => c.limits[k]) : [];
+      const without = usable.length - eligible.length;
+      if (without) notes.push(`${eligible.length} of ${usable.length} pieces: ${plural(without, 'piece')} ${without === 1 ? 'has' : 'have'} no such setting (${[...new Set(usable.filter(t => !eligible.includes(t)).map(t => t.source.actorClass))].join(', ')})`);
+      if (eligible.length > 1 && states.includes('partial')) notes.push('partly on: a prop\'s pathing gate passes it by in the sweeps, not in the occupancy step');
+      why.textContent = flagSentences(notes);
+    }
+    input.title = `${c?.labels[role] ?? role}: click to turn it ${states.length && states.every(x => x === 'on') ? 'off' : 'on'} for ${eligible.length === 1 ? 'this piece' : `these ${eligible.length} pieces`}`;
+    input.onchange = () => flagClick(role);
+    rows.append(label);
+  }
+  $('flagsCount').textContent = all.length > 1 ? plural(usable.length, 'piece') : '';
+  const lines = [...shared.map(k => c.limits[k]), ...[...blocked].map(([why, n]) => `${all.length > 1 ? `${plural(n, 'piece')}: ` : ''}${why}`)];
+  if (usable.some(t => t.roots.length > 1)) lines.push('a piece of several parts (a mesh and its glass) has one setting for all of them');
+  const targeted = new Set(all.flatMap(t => t.roots));
+  const carried = new Set(gizmo.selection().filter(r => !r.userData.light && !r.userData.volume && !targeted.has(r)).map(r => flagKey(r.userData.source))).size;
+  if (carried) lines.push(`${plural(carried, 'piece')} that ${carried === 1 ? 'moves' : 'move'} with the selection ${carried === 1 ? 'keeps its' : 'keep their'} own flags: pick ${carried === 1 ? 'it' : 'them'} too (or Select all) to set ${carried === 1 ? 'it' : 'them'}`);
+  $('flagsTargets').textContent = flagSentences(lines);
+  $('flagsReset').disabled = !usable.some(t => t.roots[0]?.userData.flags);
+}
+// A click on a row: every picked piece that has the role turned on, or off when all of them have it on.
+function flagClick(role) {
+  const usable = flagTargets().filter(t => !flagBlock(t.source));
+  const views = new Map(usable.map(t => [t.key, flagView(t)]));
+  const eligible = usable.filter(t => views.get(t.key).plan.after[role] !== 'n/a');
+  if (!eligible.length) { flagsPanel(); return; }
+  applyFlags(eligible, { [role]: !eligible.every(t => views.get(t.key).plan.after[role] === 'on') });
+}
+// A change ({role: on}) made to these actors as one undo step, after asking where a prop's pathing gate would change a
+// half-on role (`resolve`: the answer, {actor key: {role: on}}).
+function applyFlags(targets, change, resolve = new Map()) {
+  const c = flagContract(), next = new Map(), conflicts = new Map();
+  for (const t of targets) {
+    const v = flagView(t), request = { ...v.request, ...change, ...(resolve.get(t.key) ?? {}) };
+    const p = planFlags(c, t.source.actorClass, v.raw, request, v.assumed);
+    const open = Object.keys(p.conflicts);
+    if (open.length) { conflicts.set(t.key, open); continue; }
+    const n = normalizeFlags(c, t.source.actorClass, v.raw, request, v.assumed, t.source.pieceFlags.collides);
+    next.set(t.key, Object.keys(n).length ? n : null);
+  }
+  if (conflicts.size) { askFlags(targets, change, resolve, conflicts); return; }
+  closeFlagAsk();
+  commitFlags(targets, next);
+}
+function askFlags(targets, change, resolve, conflicts) {
+  const c = flagContract(), roles = [...new Set([...conflicts.values()].flat())];
+  const names = roles.map(r => c.labels[r]);
+  const asked = Object.entries(change).map(([r, on]) => `${c.labels[r]} ${on ? 'on' : 'off'}`).join(' and ');
+  flagAsk = { key: flagSelectionKey() };
+  flagsPanel();
+  const box = $('flagsAsk');
+  box.replaceChildren();
+  text(box, 'div', `${asked} opens the pathing gate (bIgnoreForPathing) of ${conflicts.size === 1 ? 'this prop' : plural(conflicts.size, 'prop')}. `
+    + `${names.join(' and ')} ${roles.length === 1 ? 'is' : 'are'} partly on there and can't stay so: set ${roles.length === 1 ? 'it' : 'them'} too.`);
+  const row = text(box, 'div', '', 'row');
+  for (const on of [true, false]) {
+    const b = text(row, 'button', `${roles.length === 1 ? names[0] : 'Them'} ${on ? 'on' : 'off'}`);
+    b.type = 'button';
+    b.onclick = () => {
+      const more = new Map(resolve);
+      for (const [key, open] of conflicts) more.set(key, { ...(more.get(key) ?? {}), ...Object.fromEntries(open.map(r => [r, on])) });
+      applyFlags(targets, change, more);
+    };
+  }
+  const cancel = text(row, 'button', 'Cancel');
+  cancel.type = 'button';
+  cancel.onclick = () => { closeFlagAsk(); flagsPanel(); };
+  box.hidden = false;
+  row.querySelector('button')?.focus();
+}
+// The actors' new requests (null: none) as one undo step; nothing when none changes.
+function commitFlags(targets, next) {
+  const before = new Map(targets.map(t => [t.key, t.roots[0]?.userData.flags ?? null]));
+  const changed = targets.filter(t => JSON.stringify(before.get(t.key)) !== JSON.stringify(next.get(t.key) ?? null));
+  if (!changed.length) { flagsPanel(); return; }
+  const set = values => { for (const t of changed) for (const r of t.roots) r.userData.flags = values.get(t.key) ? { ...values.get(t.key) } : null; };
+  gizmo.record({ redo: () => { set(next); flagsChanged(); }, undo: () => { set(before); flagsChanged(); } });
+}
+function flagsChanged() { if (selected && roots.get(selected)) select(selected, false, true); }
+function resetFlags() {
+  const targets = flagTargets().filter(t => !flagBlock(t.source) && t.roots[0]?.userData.flags);
+  closeFlagAsk();
+  if (targets.length) commitFlags(targets, new Map());
+}
+// Select all of a kind (piece flags plan, 2.4): every drawn piece with the same mesh as a picked one, by the mesh's
+// full asset path (two packages' meshes of one short name are two kinds; another map's copy of a shared asset is the
+// same kind), selected in one go; with a box drawn (box select), only those whose middle is inside it, as Select
+// takes them. Hidden, deleted and streamed pieces, cover blocks, lights and floor boxes are left out. Selecting is no
+// edit: no undo step and nothing to save. Moving, copying and deleting still take each piece's linked pieces with it.
+function kindPiece(r) {
+  const o = r.userData.source;
+  return !r.userData.deleted && r.visible && !r.userData.light && !r.userData.volume && !isStream(o) && !o.cover && !o.hidden
+    && !o.environment && typeof data.meshes[o.mesh]?.name === 'string';
+}
+function kindSeeds() {
+  const seeds = new Map();     // full mesh path -> its short name
+  for (const id of gizmo.picks().ids) {
+    const r = roots.get(id);
+    if (r && kindPiece(r)) { const name = data.meshes[r.userData.source.mesh].name; seeds.set(name, short(name)); }
+  }
+  return seeds;
+}
+function kindMatches(seeds) {
+  const box = pickBox && !pickDrag ? pickBox : null, out = [];
+  for (const r of roots.values()) {
+    if (!kindPiece(r) || !seeds.has(data.meshes[r.userData.source.mesh].name)) continue;
+    if (box) {
+      const b = boxOf(r);
+      if (!b) continue;
+      const at = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2];
+      if (!at.every((v, k) => v >= box[k] - PICK_SLACK && v <= box[k + 3] + PICK_SLACK)) continue;
+    }
+    out.push(r);
+  }
+  return { roots: out, box: Boolean(box), actors: new Set(out.map(r => flagKey(r.userData.source))).size };
+}
+function kindButton() {
+  const button = $('editKind'), seeds = data ? kindSeeds() : new Map();
+  if (!seeds.size) {
+    button.disabled = true; button.textContent = 'Select all';
+    button.title = 'Select every piece with the same mesh as the one selected (a light, a cover block, a hidden or streamed piece has none to match)';
+    return;
+  }
+  const found = kindMatches(seeds), picked = new Set(gizmo.picks().ids);
+  const what = seeds.size === 1 ? [...seeds.values()][0] : `of these ${seeds.size} kinds`;
+  button.textContent = `Select all ${what}${found.box ? ' in box' : ''} (${found.actors})`;
+  button.disabled = !found.roots.length || (found.roots.every(r => picked.has(r.userData.source.id)) && found.roots.length === picked.size);
+  button.title = `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
+    + `${plural(found.actors, 'piece')} (${[...seeds.keys()].join(', ')}). Shift+click adds them to the selection. Hidden, deleted and streamed pieces `
+    + 'are left out. The Flags group then sets them all; moving, copying and deleting still take each one\'s linked pieces with it.';
+}
+function selectKind(add = false) {
+  const seeds = kindSeeds();
+  if (!seeds.size) return;
+  const found = kindMatches(seeds), was = gizmo.picks();
+  if (!found.roots.length) { flashHint('No drawn piece has that mesh'); return; }
+  const ids = found.roots.map(r => r.userData.source.id);
+  const next = add ? [...new Set([...was.ids.filter(id => allRoots.get(id)), ...ids])] : ids;
+  if (found.box) stopPickBox();
+  gizmo.setSelection(next, next.includes(was.active) ? was.active : next[0]);
+  select(gizmo.active, false, true);
+  flashHint(`${plural(found.actors, 'piece')} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
 }
 // A cover block's or invisible floor's panel: what it is, its size, height and cover (coverPanel), its actor and place.
 function showCover(root) {
@@ -561,10 +806,12 @@ const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
 // project's size (stage) and the project's own landing zones count once each.
 function changes() {
   let moved = 0, added = 0, deleted = 0, lights = 0;
+  const flagged = new Set();
   for (const root of roots.values()) {
     if (root.userData.source.added) added++;
     else if (root.userData.deleted) deleted++;
     else if (root.userData.edit) moved++;
+    if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
   }
   for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
   const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
@@ -572,8 +819,8 @@ function changes() {
   const built = data ? savedBuildings().length : 0;
   // a mission's objects moved in their streams (mission types plan, Part E)
   const missions = missionMoves.size;
-  return { moved, added, deleted, lights, grid, zones, buildings: built, missions,
-           total: moved + added + deleted + lights + areaBindings.size + grid + zones + built + missions };
+  return { moved, added, deleted, lights, grid, zones, buildings: built, missions, flags: flagged.size,
+           total: moved + added + deleted + lights + areaBindings.size + grid + zones + built + missions + flagged.size };
 }
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
@@ -622,12 +869,14 @@ function editChangedNow() {
     count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
     count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
     count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
-    count.missions && `${plural(count.missions, 'mission object')} moved`, saveState()].filter(Boolean).join(' · ');
+    count.missions && `${plural(count.missions, 'mission object')} moved`, count.flags && `${plural(count.flags, 'piece')} with flags changed`,
+    saveState()].filter(Boolean).join(' · ');
   $('editCount').classList.toggle('warn', saveState() !== 'saved');
   $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
   $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
   $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
+  flagsPanel(); kindButton();
   // (a building's box is in no group and is not aligned)
   if (volumeRoots.has(selected)) { $('groupBox').hidden = true; $('alignBox').hidden = true; targetHelper.visible = false; }
   else { groupPanel(); alignPanel(); }
@@ -832,7 +1081,8 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
            buildingMeta: Object.fromEntries([...[...new Set(boxes.map(r => r.userData.volume.building))].map(id => [id, { ...buildingMeta.get(id) }]),
                                              ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
-                                     ...(r.userData.light ? { values: { ...r.userData.values } } : {}) })),
+                                     ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
+                                     ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name };
 }
@@ -854,8 +1104,11 @@ function actorPose(source, matrix) {
 const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
 // An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted }) {
+function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null }) {
   return { ...template, id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
+    // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
+    // template's settings (pieceFlags) stay its baseline
+    initialFlags: flags ? { ...flags } : null,
     // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
@@ -1324,7 +1577,7 @@ async function pasteSnapshot(clip, delta, step = null) {
     return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
       partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
-      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted) });
+      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null });
   });
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
@@ -1792,7 +2045,8 @@ function prefabRecords({ complete = false } = {}) {
     pieces.push({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component).sort(),
                   ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner ?? null,
                   ...(s.provenance?.type === 'spawn' || s.added?.tinted ? { tinted: true } : {}),
-                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}) });
+                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}),
+                  ...(list[0].flags ? { flags: { ...list[0].flags } } : {}) });
     const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
     donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
   }
@@ -1864,7 +2118,7 @@ async function prefabClip(doc, step = null) {
       if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
       for (const source of sources)
         entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), unit: p.actor, key, link: p.prefab ?? null, partner: p.partner ?? null,
-                       tinted: Boolean(p.tinted) });
+                       tinted: Boolean(p.tinted), ...(p.flags ? { flags: { ...p.flags } } : {}) });
     }
   }
   const volumes = [], meta = {};
@@ -2166,13 +2420,14 @@ function floorSupportOf(sources) {
 function resetAll() {
   const all = [...roots.values()], lights = [...lightRoots.values()];
   const added = all.filter(r => r.userData.source.added), deleted = [...all, ...lights].filter(r => r.userData.deleted);
+  const flagged = all.filter(r => !r.userData.source.added && r.userData.flags), flagsBefore = flagged.map(r => r.userData.flags);
   const moved = [...all, ...lights].filter(r => r.userData.edit && !r.userData.source.added);
   const addedLights = lights.filter(r => r.userData.source.added), changed = lights.filter(r => !r.userData.source.added && valuesEdited(r));
   // the map's own buildings changed or deleted come back as the map has them too
   const edits = mapEdits(), restore = mapRestoreChange([...edits.changed, ...edits.gone]);
   // the project's own buildings go: their boxes, which the buildings are made from
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
-  if (!added.length && !deleted.length && !moved.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
+  if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
       && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
   // the map's own grid, landing zones and no clear mark
@@ -2187,6 +2442,7 @@ function resetAll() {
   const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
   gizmo.record({
     redo: () => {
+      for (const r of flagged) r.userData.flags = null;
       removeRoots(added); removeLightRoots(addedLights); for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
       for (const r of changed) setLightValues(r, r.userData.baseValues);
       restore.redo();
@@ -2195,6 +2451,7 @@ function resetAll() {
       areaBindings = new Map(); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
     },
     undo: () => {
+      flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
       addRoots(added); addLightRoots(addedLights); for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
       changed.forEach((r, k) => setLightValues(r, valuesBefore[k]));
       restore.undo();
@@ -3367,7 +3624,7 @@ function physicalBox(root) {
   const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
   physicalBoxes.set(root, { key, box }); return box;
 }
-const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id']);
+const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags']);
 function builderDocument() {
   if (!eventMemo) return builderDocumentNow();
   return eventMemo.document ??= builderDocumentNow();
@@ -3719,15 +3976,18 @@ function editStateNow() {
         entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
                    prefab: o.prefab ?? null, partner: o.partner ?? null };
         if (o.added.tinted) entity.tinted = true;
+        if (root.userData.flags) entity.flags = { ...root.userData.flags };
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
           entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
         added.set(o.actor, entity);
       }
       entity.components.push(o.component);
-    } else if ((root.userData.deleted || root.userData.edit) && !overrides.has(sourceKey(o))) {
+    } else if ((root.userData.deleted || root.userData.edit || root.userData.flags) && !overrides.has(sourceKey(o))) {
+      // (flags alone: an override with no pose, the piece where the map has it; a deleted piece has no flags)
       const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
-      overrides.set(sourceKey(o), root.userData.deleted ? { target, deleted: true } : { target, ...actorPose(o, root.matrix) });
+      overrides.set(sourceKey(o), root.userData.deleted ? { target, deleted: true }
+        : { target, ...(root.userData.edit ? actorPose(o, root.matrix) : {}), ...(root.userData.flags ? { flags: { ...root.userData.flags } } : {}) });
     }
   }
   for (const entity of added.values()) entity.components?.sort();
@@ -3752,7 +4012,7 @@ function clearEdits() {
   removeRoots(all.filter(r => r.userData.source.added));
   const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
   gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of all) r.userData.deleted = false;
+  for (const r of all) { r.userData.deleted = false; r.userData.flags = null; }
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
   cleared = false; clearKeepsOutside = false; landingZones = null; mergedBuildings = null; projectMissions = null;
@@ -3804,7 +4064,10 @@ async function applyState(state, progress = null) {
     const list = actors.get(targetKey(record.target));
     if (!list) { carried.overrides.push(record); continue; }
     if (record.deleted) { for (const r of list) if (!r.userData.source.hidden && !r.userData.source.environment) r.userData.deleted = true; }
-    else gizmo.applyMatrices(list, list.map(r => movedMatrix(r.userData.source, record.location, record.rotation)));
+    else {
+      if (record.location !== undefined) gizmo.applyMatrices(list, list.map(r => movedMatrix(r.userData.source, record.location, record.rotation)));
+      if (record.flags) for (const r of list) r.userData.flags = { ...record.flags };
+    }
   }
   const objs = [], lights = [];
   for (const entity of state.added) {
@@ -3830,7 +4093,7 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted) }));
+        tinted: Boolean(entity.tinted), flags: entity.flags ?? null }));
     }
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
@@ -4058,7 +4321,7 @@ async function saveProject({ name = null, replace = null, rename = null } = {}) 
       base = { ...target, name, source }; expected = target.revision;
     } else if (fresh) { base = { ...newDocument(name, activeMapId, data), source }; expected = 0; }
     else if (rename && project) base = { ...project.doc, name: rename };
-    const document = { ...base, ...sortState({ overrides: [...state.overrides, ...carried.overrides], added: [...state.added, ...carried.added],
+    const document = { ...base, schemaVersion: PROJECT_SCHEMA_VERSION, ...sortState({ overrides: [...state.overrides, ...carried.overrides], added: [...state.added, ...carried.added],
                                                groups: [...state.groups, ...carried.groups],
                                                areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
                                                stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
@@ -4979,6 +5242,7 @@ async function buildRoot(obj) {
   const base = await geometryCache.get(obj.mesh);
   const root = data.meshes[obj.mesh].kind === 'skeletal' ? cloneSkeleton(base.scene) : base.scene.clone(true);
   root.userData.source = obj; root.visible = !obj.hidden && !obj.environment;
+  root.userData.flags = obj.initialFlags ? { ...obj.initialFlags } : null;     // its piece flags as the project sets them
   const parts = []; root.traverse(child => { if (child.isMesh) parts.push(child); });
   for (let i=0; i<parts.length; ++i) {
     const [key, tint] = materialKey(obj, obj.materials[i]);
@@ -7392,6 +7656,7 @@ function refreshPickBox(recount = false) {
   pickBoxLayer.visible = Boolean(b);
   $('boxBar').hidden = !b;
   button.classList.toggle('on', pickTool || Boolean(b)); button.setAttribute('aria-pressed', pickTool || Boolean(b));
+  if (!pickDrag) kindButton();      // Select all of a kind narrows to a box drawn
   if (!b) { pickHits = []; return; }
   for (const part of [parts.fill, parts.line, parts.through]) {
     part.position.set((b[0] + b[3]) / 2, (b[2] + b[5]) / 2, (b[1] + b[4]) / 2);
@@ -8290,6 +8555,8 @@ $('editUndo').onclick = () => undoStep();
 $('editRedo').onclick = () => undoStep(true);
 $('editReset').onclick = () => resetSelected();
 $('editResetAll').onclick = () => resetAll();
+$('flagsReset').onclick = () => resetFlags();
+$('editKind').onclick = e => selectKind(e.shiftKey);
 $('editCopy').onclick = () => copySelection();
 $('editDelete').onclick = () => deleteSelection();
 for (const id of ['alignX', 'alignY', 'alignZ', 'alignBy']) $(id).onchange = e => { saveAlignPrefs(); e.target.blur(); };

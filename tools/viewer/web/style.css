@@ -201,6 +201,18 @@ canvas { display: block; width: 100%; height: 100%; }
 .lightreach:empty, .lightnote:empty { display: none; }
 .lightreach.warn { color: var(--warn); }
 .lightbox .row button.on { outline: 1px solid var(--accent); }
+/* Piece flags (piece flags plan): five rows, each a checkbox with its state and what limits it */
+.flagrows { display: grid; gap: 4px; }
+.flagrow { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: center; font-size: 12px; color: #c7d9e2; cursor: pointer; }
+.flagrow input { accent-color: var(--accent); margin: 0; }
+.flagrow .flagstate { margin-left: 6px; font-size: 11px; color: #7f95a1; }
+.flagrow .flagwhy { grid-column: 2; font-size: 11px; color: var(--muted); line-height: 1.35; }
+.flagrow .flagwhy:empty { display: none; }
+.flagrow.off { opacity: .55; cursor: default; }
+.flagrow.changed .flagname::after { content: ' •'; color: var(--accent); }
+.flagsask { display: grid; gap: 6px; font-size: 12px; color: var(--warn); line-height: 1.35; border: 1px solid #6f5a35; border-radius: 6px; padding: 7px 8px; background: #2b2519; }
+.flagsask[hidden] { display: none; }
+.flagsask .row { margin: 0; }
 .skylist { font-size: 12px; color: var(--muted); padding: 2px 0 4px 22px; display: grid; gap: 2px; }
 .skylist[hidden] { display: none; }
 .groupbox { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }

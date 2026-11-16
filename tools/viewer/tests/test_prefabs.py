@@ -144,12 +144,30 @@ class StoreTests(unittest.TestCase):
     def test_other_schemas_and_versions_are_refused(self):
         for doc, status, words in ((None, 422, 'not an XCOM Map Workshop prefab'), ([], 422, 'not an XCOM Map Workshop prefab'),
                                    (prefab(schema='xcom-map-workshop/project'), 422, 'not an XCOM Map Workshop prefab'),
-                                   (prefab(schemaVersion=2), 409, 'A newer editor is needed'),
+                                   (prefab(schemaVersion=3), 409, 'A newer editor is needed'),
                                    (prefab(id='../../evil'), 422, 'no valid id')):
             with self.assertRaises(ProjectError) as refused: self.store.import_file(doc)
             self.assertEqual(refused.exception.status, status, doc)
             self.assertIn(words, refused.exception.message)
         self.assertFalse(self.root.exists())
+
+    def test_schema_1_is_read_imported_as_2_and_a_stale_page_cant_save(self):
+        # schema 2 adds a copied piece's flags (piece flags plan)
+        stored = self.store.import_file(prefab(schemaVersion=1))
+        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 2)
+        with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=1), 1)
+        self.assertEqual(refused.exception.status, 409)
+        self.assertIn('older than the editor', refused.exception.message)
+        flagged = changed(['pieces', 0, 'flags'], dict(walking=False, mouse=True))
+        self.store.save(ID, flagged, 1)
+        self.assertEqual(self.store.load(ID)['pieces'][0]['flags'], dict(walking=False, mouse=True))
+        for bad in ({}, dict(walking=0), dict(ethereal=True), dict(cover=None), [True], 'off'):
+            with self.assertRaises(ProjectError, msg=repr(bad)) as refused:
+                validate(changed(['pieces', 0, 'flags'], bad), ID)
+            self.assertIn('flags', refused.exception.message)
+        # a cover block or a light has no flags
+        with self.assertRaises(ProjectError):
+            validate(changed(['pieces', 3, 'flags'], dict(walking=False)), ID)
 
     def test_a_newer_editors_small_fields_are_carried_and_named(self):
         # plan "sturdier prefabs", R6: a field this editor doesn't know is kept when its value is small, and named;

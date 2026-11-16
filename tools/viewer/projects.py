@@ -27,7 +27,8 @@ import shutil
 import threading
 
 SCHEMA = 'xcom-map-workshop/project'
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2      # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan). 1 is read too
+READ_VERSIONS = (1, 2)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
@@ -47,19 +48,26 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
 
 
-def check_schema(document):
+def check_schema(document, writing=False):
+    """A project of a schema this editor reads (READ_VERSIONS); `writing` (a save): of the schema it writes, so a page
+    older than the server (it would drop the newer fields it doesn't know) can't save over a newer document."""
     if not isinstance(document, dict) or document.get('schema') != SCHEMA:
         raise ProjectError(422, 'This is not an XCOM Map Workshop project.')
     version = document.get('schemaVersion')
-    if version != SCHEMA_VERSION:
+    if writing and version in READ_VERSIONS and version != SCHEMA_VERSION:
+        raise ProjectError(409, f'This page is older than the editor\'s server: it saves project schema {version}, the '
+                                f'server writes schema {SCHEMA_VERSION}. Reload the page and save again (the unsaved '
+                                f'changes are offered back when the project opens).', schemaVersion=version, stale=True)
+    if version not in READ_VERSIONS:
         raise ProjectError(409, f'This project was saved with project schema {version}; this editor reads schema '
-                                f'{SCHEMA_VERSION} only. Open it with the editor version that saved it.', schemaVersion=version)
+                                f'{", ".join(map(str, READ_VERSIONS))}. Open it with the editor version that saved it.',
+                           schemaVersion=version)
 
 
 def validate(document, project_id):
     """The checks the server can make without the map: shape, identity and binding. The browser checks the edits
     against the map when it opens them."""
-    check_schema(document)
+    check_schema(document, writing=True)
     if document.get('id') != project_id: raise ProjectError(422, 'The document belongs to another project.')
     name = document.get('name')
     if not isinstance(name, str) or not name.strip() or len(name) > 120: raise ProjectError(422, 'A project needs a name of 1 to 120 characters.')

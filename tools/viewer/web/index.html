@@ -232,6 +232,15 @@
       <div class="row">
         <button id="editCopy" type="button" title="Copy (Ctrl+C); Ctrl+V then shows it at the cursor, and a click places it">Copy</button>
         <button id="editDelete" type="button" title="Delete (Del); Ctrl+Z brings it back">Delete</button>
+        <button id="editKind" type="button">Select all</button>
+      </div>
+      <div id="flagsBox" class="lightbox flagsbox" hidden>
+        <div class="posehead">Flags <span id="flagsCount"></span></div>
+        <div id="flagsRows" class="flagrows" role="group" aria-label="Piece flags"></div>
+        <div id="flagsAsk" class="flagsask" hidden></div>
+        <div id="flagsTargets" class="lightnote"></div>
+        <div id="flagsNote" class="lightnote">Flags change how the game uses the piece. Its appearance, collision and destruction settings stay the same.</div>
+        <div class="row"><button id="flagsReset" type="button" title="Back to the flags the map saves for it (one undo step); where it stands is not changed">Reset flags</button></div>
       </div>
       <div id="lightBox" class="lightbox" hidden>
         <div class="posehead">Light <span id="lightKind"></span></div>

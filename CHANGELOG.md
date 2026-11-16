@@ -8,6 +8,44 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stages P2b and P3: the Flags group, Select all of a kind, project and prefab schema 2
+
+- The piece panel's **Flags** group ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)): five checkboxes (Blocks walking, Gives cover, Blocks sight, Floor, Mouse
+  picks it) for the pieces explicitly picked, one actor at a time whatever its components, not the linked pieces the
+  selection moves with (the panel says so when there are some). Each row shows its state (on, off, partly on,
+  mixed), what limits it, and greys with the reason where the class has no such setting. A click turns the role on
+  for every picked piece that has it, or off when all have it on; one undo step. Where turning a role on opens a
+  prop's pathing gate and a half-on role can't stay so, the group asks for that role's value before anything
+  changes. Reset flags puts the map's back. A **Flags** chip shows on a piece with a setting off or changed.
+- The request is kept per piece (`root.userData.flags`), normalized by `piece_flags.normalize`. It is saved as
+  `overrides[].flags` (with or without a pose: an override may be flags alone) and `added[].flags`; carried by copy
+  and paste, by prefabs (saved, placed and edited in the builder) and by recovery; cleared by Reset all; kept
+  through a delete and its undo and through Reset piece. The edit count says how many pieces have flags changed.
+- **Select all of a kind** beside Copy and Delete: every drawn piece with the same mesh as a picked one, by its
+  full asset path, in one go (Shift+click adds); with a box drawn by box select, only those whose middle is inside
+  it, and the box is taken as Select takes it. Hidden, deleted and streamed pieces, cover blocks, lights and floor
+  boxes are left out. Selecting makes no undo step and changes nothing to save. The three open decisions took the
+  plan's recommendations: the same mesh, narrowing by a drawn box, and the words "Select all TV_BarRow (5)".
+- Schema 2 for projects and prefabs: [project.js](tools/viewer/web/project.js) and
+  [prefabs.js](tools/viewer/web/prefabs.js) write it and read 1; [projects.py](tools/viewer/projects.py) and
+  [prefabs.py](tools/viewer/prefabs.py) read 1 and 2 and refuse a save of schema 1, so a page older than the server
+  (which would drop the flags) can't write over a newer document (the page says "Not saved: This page is older than
+  the editor's server…"). A prefab imported at schema 1 is stored as 2; prefabs.py checks a copied piece's flags
+  (known roles, strict booleans, never on a cover block or a light). [compiler.py](tools/editor/compiler.py) reads
+  both; [prefab_stage.py](tools/editor/prefab_stage.py) carries the flags into a prefab's test project.
+- Checked: [project_flags_test.mjs](tools/viewer/tests/project_flags_test.mjs) (records, validation, keys);
+  new tests in [test_projects.py](tools/viewer/tests/test_projects.py) and
+  [test_prefabs.py](tools/viewer/tests/test_prefabs.py) (schema 1 read, a stale save refused, prefab flags checked);
+  the viewer suite and the node tests. In the page, on a test server serving a scratch cache with URB_Bar at export
+  27: a StoreTV_B's walking turned off, Select all StoreTV_B (2), both pieces' mouse off and undone; a project saved
+  at schema 2 with a flags-only override and a pasted copy carrying the flags, reopened with both; a gated
+  ParkingBlock (walking partly on) asked about walking when Gives cover was turned on, then written walking and cover
+  on with sight left off; a move, Reset piece, delete and undo and Reset flags each kept or restored the flags as
+  they should; box select over the parking lot narrowed Select all to 28 of 34 ParkingBlocks.
+- Known gaps: the Build doesn't write the flags yet (P4 and P5). The prefab builder's flags were not tried in the
+  page.
+
 ### Piece flags, stage P2: export 27 carries each piece's flags and each mesh's collision
 
 - [export.py](tools/viewer/export.py) export 27: every component of an actor of a flag class carries `pieceFlags`

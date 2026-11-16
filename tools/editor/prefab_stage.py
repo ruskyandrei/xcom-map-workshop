@@ -36,7 +36,7 @@ MAP = 'CB2_MP_Blank'
 OWN_GRID = [36, 36, 12]
 # a piece record's fields the compiler reads; a newer editor's field a prefab carries stays out of the test's project
 PIECE_FIELDS = ('actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe',
-                'template', 'light', 'cover')
+                'template', 'light', 'cover', 'flags')
 # The backdrop (prefab plan 5.11): URB_TruckStop_EWI's sky dome (Skybox.Meshes.SkyDome with the noon sky, a hemisphere
 # 127,000 units across), centred on the stage at its ground, and the same dome turned over under it, so what shows
 # past the hidden ground is sky, not black.

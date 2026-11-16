@@ -31,7 +31,9 @@ import uuid
 from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
 
 SCHEMA = 'xcom-map-workshop/prefab'
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2      # 2: a copied piece's flags (`flags`; piece flags plan). 1 is read too
+READ_VERSIONS = (1, 2)
+FLAG_ROLES = ('walking', 'cover', 'sight', 'floor', 'mouse')
 TOP_KEYS = {'schema', 'schemaVersion', 'id', 'name', 'revision', 'created', 'savedAt', 'floor', 'pieces', 'groups',
             'buildings', 'donors', 'mission'}
 MAX_PIECES, MAX_GROUPS, MAX_BUILDINGS, MAX_DONORS, MAX_COMPONENTS, MAX_BOXES, MAX_FLOORS = 5000, 2000, 200, 200, 64, 64, 10
@@ -124,13 +126,19 @@ def listed(value, most, what, least=0):
     return value
 
 
-def check_schema(document):
+def check_schema(document, writing=False):
+    """A prefab of a schema this editor reads; `writing` (a save): of the schema it writes (projects.check_schema)."""
     if not isinstance(document, dict) or document.get('schema') != SCHEMA:
         raise ProjectError(422, 'This is not an XCOM Map Workshop prefab.')
     version = document.get('schemaVersion')
-    if version != SCHEMA_VERSION:
+    if writing and version in READ_VERSIONS and version != SCHEMA_VERSION:
+        raise ProjectError(409, f'This page is older than the editor\'s server: it saves prefab schema {version}, the '
+                                f'server writes schema {SCHEMA_VERSION}. Reload the page and save again.',
+                           schemaVersion=version, stale=True)
+    if version not in READ_VERSIONS:
         raise ProjectError(409, f'This prefab was saved with prefab schema {version!r}; this editor reads schema '
-                                f'{SCHEMA_VERSION}. A newer editor is needed to open it.', schemaVersion=version)
+                                f'{", ".join(map(str, READ_VERSIONS))}. A newer editor is needed to open it.',
+                           schemaVersion=version)
 
 
 def check_piece(piece, what):
@@ -166,7 +174,7 @@ def check_piece(piece, what):
         else:
             raise bad(f'{what} is made from a recipe this editor doesn\'t know ({kind}).')
     else:
-        record(piece, ('actor', 'from', 'components', 'location', 'rotation'), ('prefab', 'partner', 'tinted', 'recipe'), what)
+        record(piece, ('actor', 'from', 'components', 'location', 'rotation'), ('prefab', 'partner', 'tinted', 'recipe', 'flags'), what)
         source = record(piece['from'], ('package', 'level', 'actor'), (), f'{what}\'s source', True)
         named(source['package'], PACKAGE, f'{what}\'s map')
         if source['level'] != 'base': raise bad(f'{what} is not a piece of a map\'s own level.')
@@ -177,6 +185,12 @@ def check_piece(piece, what):
         if piece.get('prefab') is not None: named(piece['prefab'], TAG, f'{what}\'s link')
         if piece.get('partner') is not None: named(piece['partner'], ACTOR, f'{what}\'s partner')
         if not isinstance(piece.get('tinted', False), bool): raise bad(f'{what}\'s tinted is not true or false.')
+        if 'flags' in piece:
+            # its flags (piece flags plan): known roles, each strictly true or false, never empty
+            flags = piece['flags']
+            if not isinstance(flags, dict) or not flags or any(k not in FLAG_ROLES for k in flags) \
+                    or any(not isinstance(v, bool) for v in flags.values()):
+                raise bad(f'{what}\'s flags are not walking, cover, sight, floor and mouse, each true or false.')
         if 'recipe' in piece:
             recipe = record(piece['recipe'], ('key', 'name'), ('member',), f'{what}\'s recipe', True)
             named(recipe['key'], KEY, f'{what}\'s recipe key')
@@ -418,6 +432,8 @@ class PrefabStore(ProjectStore):
         check_schema(document)
 
     def validate(self, document, prefab_id):
+        """A save's check: the whole document, of the schema this editor writes."""
+        check_schema(document, writing=True)
         validate(document, prefab_id)
 
     def load(self, prefab_id):
@@ -492,7 +508,9 @@ class PrefabStore(ProjectStore):
         prefab_id = document.get('id')
         if not isinstance(prefab_id, str) or not ID.fullmatch(prefab_id): raise bad('it has no valid id.')
         validate(document, prefab_id)
+        # (an older schema's file is a newer one's too: stored as the schema this editor writes)
         document = {k: v for k, v in document.items() if k not in ('revision', 'savedAt')}
+        document['schemaVersion'] = SCHEMA_VERSION
         with self.lock:
             path = self._find(prefab_id)
             here = self._read(path) if path else None

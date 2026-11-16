@@ -133,10 +133,30 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(error.exception.status, 409)
         self.assertEqual(self.store.load(ID)['name'], 'Bar remix')
 
-    def test_other_schema_versions_and_bad_documents_are_refused(self):
-        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=2), 0)
+    def test_schema_1_is_read_and_a_stale_page_cant_save_it(self):
+        # schema 2 adds pieces' flags (piece flags plan): a schema 1 project opens; a page that still saves schema 1
+        # (older than the server: it would drop the flags) is refused, so it can't write over a newer document
+        self.store.save(ID, document(), 0)
+        old = dict(self.store.load(ID), schemaVersion=1)
+        path = next(self.root.glob('*.json'))
+        path.write_text(json.dumps(old), encoding='utf8', newline='\n')
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 1)
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, dict(old), old['revision'])
         self.assertEqual(error.exception.status, 409)
-        self.assertIn('schema 2', error.exception.message)
+        self.assertIn('older than the editor', error.exception.message)
+        self.assertTrue(error.exception.extra.get('stale'))
+        self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION), old['revision'])
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 2)
+        # a flags-only override and an added piece's flags are carried as the document has them
+        flags = dict(overrides=[dict(target=dict(package='URB_Bar', level='base', actor='TheWorld.PersistentLevel.XComLevelActor_1'),
+                                     flags=dict(walking=False, cover=False))])
+        self.store.save(ID, document(**flags), self.store.load(ID)['revision'])
+        self.assertEqual(self.store.load(ID)['overrides'], flags['overrides'])
+
+    def test_other_schema_versions_and_bad_documents_are_refused(self):
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=3), 0)
+        self.assertEqual(error.exception.status, 409)
+        self.assertIn('schema 3', error.exception.message)
         self.root.mkdir(parents=True)
         (self.root / 'Bar remix.json').write_text(json.dumps(document(schemaVersion=0)), encoding='utf8', newline='\n')
         with self.assertRaises(ProjectError) as error: self.store.load(ID)

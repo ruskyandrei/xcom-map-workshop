@@ -2,7 +2,10 @@
 // map as exported, bound to it by the source package's SHA-256: original pieces moved or deleted, keyed by package,
 // level and actor; added pieces, each a copy of a source actor's components under its own output name and pose; and
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 1;
+import { validFlags } from './piece_flags.js';
+
+// 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan). A project of schema 1 opens, and saves as 2.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 2, READ_VERSIONS = [1, 2];
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -152,8 +155,11 @@ const LIGHT_KEYS = ['color', 'brightness', 'radius', 'falloffExponent', 'innerCo
 const validLight = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => LIGHT_KEYS.includes(k))
   && Object.entries(v).every(([k, x]) => (k === 'color' ? Array.isArray(x) && x.length === 3 && x.every(Number.isInteger)
                                           : k === 'enabled' ? typeof x === 'boolean' : Number.isFinite(x))));
-export const validOverride = r => isTarget(r?.target) && validLight(r.light)
-  && (r.deleted === true || (finite3(r.location) && finite3(r.rotation)));
+// (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
+// map has it)
+export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
+  && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
+      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined));
 // An added actor: a copy of a source actor's components (`from`, `components`), a light made from a built-in recipe
 // (`template`: { kind, version }, editor lights plan 3.5), or a cover block or invisible floor (`template` { kind: 'cover',
 // version } and `cover` { type, size, heights } in units, an invisible floor's { type, size }, an older record's
@@ -168,7 +174,7 @@ const validCover = c => c && typeof c === 'object' && (Object.hasOwn(c, 'size')
     && (Object.keys(c).length === 4 ? typeof c.type === 'string' && Number.isInteger(c.height)
       : Object.keys(c).length === 3 && typeof c.height === 'string'));
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
-  && validLight(e.light)
+  && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')
       && e.cover === undefined

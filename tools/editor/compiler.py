@@ -89,7 +89,8 @@ import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
 SCHEMA = 'xcom-map-workshop/project'
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2      # 2: pieces' flags (piece flags plan); a project of schema 1 builds as it did
+READ_VERSIONS = (1, 2)
 # Every piece is in one family (private/plans/done/cars-doors-ladders-plan.md, section 3.4), which says whether the Build makes
 # it, how it may be posed, and, while it isn't built, the milestone its refusal names. A piece of an assembly (a car's
 # parts, a door's leaf and frame, a ladder: assemblies()) takes the assembly's family, any other piece its class's.
@@ -740,9 +741,9 @@ class Compiler:
     def check_document(self):
         d = self.doc
         self.map = None
-        if d.get('schema') != SCHEMA or d.get('schemaVersion') != SCHEMA_VERSION:
-            self.error('schema', 'not a project of schema %s version %d (it says %r version %r)'
-                       % (SCHEMA, SCHEMA_VERSION, d.get('schema'), d.get('schemaVersion')))
+        if d.get('schema') != SCHEMA or d.get('schemaVersion') not in READ_VERSIONS:
+            self.error('schema', 'not a project of schema %s version %s (it says %r version %r)'
+                       % (SCHEMA, ' or '.join(map(str, READ_VERSIONS)), d.get('schema'), d.get('schemaVersion')))
             return False
         if d.get('mode') != 'edit':
             self.error('mode', 'only edit projects build (mode %r)' % d.get('mode'))
