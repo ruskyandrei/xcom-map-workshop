@@ -21,10 +21,13 @@ pad cursor. The location comes from this chain:
    not pull the cursor to the highest floor.
 4. **`CachedHitLocation` comes from `XComTacticalHUD.GetMousePickActor`** (script, each PostRender):
    `foreach TraceActors(class'Actor', …, mouse ray)`. For each hit, nearest first:
-   - skip actors without `IMouseInteractionInterface`. XComLevelActor and XComFracLevelActor have it;
-     XComDestructibleActor does not.
+   - skip actors without `IMouseInteractionInterface`. XComLevelActor and XComFracLevelActor have it, and so does
+     every child class: XComDestructibleActor, XComCollectible, XComLadder and the doors (XComInteractiveLevelActor)
+     inherit it from XComLevelActor. StaticMeshActor and KAsset don't. (Corrected 16 November 2026: this said
+     XComDestructibleActor lacks it; [piece-flags.md](piece-flags.md), section 3.)
    - for non-interactive actors:
-     - **skip `XComLevelActor`/`XComFracLevelActor` with `bIgnoreFor3DCursorCollision`**;
+     - **skip `XComLevelActor`/`XComFracLevelActor` with `bIgnoreFor3DCursorCollision`** (casts: props, collectibles
+       and ladders too; a door is tested apart and never reads it);
      - skip points outside the LevelVolume;
      - skip hits whose normal.Z < 0.2 (walls).
    - `iHitFloor = Cursor.WorldZToCursorFloor(hit)` (from cursor volumes);

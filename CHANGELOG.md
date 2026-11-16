@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P0: the native findings and a survey of every listed map
+
+- [research/native/piece-flags.md](research/native/piece-flags.md): the five settings, which classes read them and
+  how (from the decompiled scripts and [cover-build.md](research/native/cover-build.md)), the class defaults as the
+  game's own script packages save them, the prop's pathing gate, the exceptions the settings don't control, where an
+  actor's settings come from, the survey, and what is not known.
+- [audit_piece_flags.py](tools/upk/audit_piece_flags.py): a read-only survey of every listed map's pieces with
+  `piece_flags.resolve` (each actor once; every map file's size and SHA-256 kept). Its output over the 153 listed
+  maps is [piece-flags-audit-2026-11-16.json](research/evidence/piece-flags-audit-2026-11-16.json): 29,523 drawn,
+  colliding pieces of 925 meshes with walking, cover and sight off; TVs set more than one way in 10 of the 13 maps
+  with TVs; 65 actors with an archetype the map doesn't carry. Where its counts differ from the plan's earlier
+  survey, the note says why.
+- Corrections: [mouse-cursor.md](research/native/mouse-cursor.md) said a prop lacks the mouse interface; it inherits
+  it, and the pick's flag test is a cast, so it holds for props, collectibles and ladders. F-102 in the
+  [findings register](research/findings-register.md) says so. New finding F-114.
+- Checked: the survey run end to end (about two minutes with six processes); its URB_Bar numbers read against the
+  map by hand (the TVs); the repo suite.
+- Known gaps: nothing played (P7). The interactive-prop and door variants of the cover test are named from the field
+  order and a virtual, not from the code.
+
 ### Piece flags, stage P1: the flags' policy, read from the game's own class defaults
 
 - The piece flags plan (private), stage P1, on the branch `piece-flags`: the five settings of a placed piece that

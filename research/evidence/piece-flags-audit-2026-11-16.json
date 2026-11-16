@@ -1,0 +1,4428 @@
+{
+ "files": [
+  {
+   "file": "Act1_IntroLevel.upk",
+   "map": "Act1_IntroLevel",
+   "sha256": "4555659967800e208f4b8c0c334c792faf2d7a098eee376732b033a1f151905e",
+   "size": 16844931
+  },
+  {
+   "file": "Act2_Pier.upk",
+   "map": "Act2_Pier",
+   "sha256": "b245325d945b6b2d1be5910e0d95c7c6a36eb95fbb70a9af440b17caa646b4a6",
+   "size": 14206414
+  },
+  {
+   "file": "Act2_Pier_Asian.upk",
+   "map": "Act2_Pier_Asian",
+   "sha256": "e07e31b6f70e8ca85e966dc2d254fb543c9e0b39713b7fd3a735f3ba1e0a9f7a",
+   "size": 14307393
+  },
+  {
+   "file": "Act2_Pier_script.upk",
+   "map": "Act2_Pier_script",
+   "sha256": "c550e32a1926ffda2e2a0ffd4b66dc466f45907749955f9357af3bd3dad111f3",
+   "size": 71269
+  },
+  {
+   "file": "AlienBase01.upk",
+   "map": "AlienBase01",
+   "sha256": "473a753a0beda73242d0eec7edd3ce9f5213a4dcad529b0ebcb365b9029d8051",
+   "size": 10641391
+  },
+  {
+   "file": "AlienBase02.upk",
+   "map": "AlienBase02",
+   "sha256": "7bcff42f695aa5e61009c716ed63e6a0fc955b8f14497573bf27c30b66ed989d",
+   "size": 9650500
+  },
+  {
+   "file": "CAbductor_Cliffside.upk",
+   "map": "CAbductor_Cliffside",
+   "sha256": "9c90d419316a5eaa33b384a31d1e2488b256dd9301098020808b52507bebcd70",
+   "size": 13543527
+  },
+  {
+   "file": "CAbductor_ScorchedEarth.upk",
+   "map": "CAbductor_ScorchedEarth",
+   "sha256": "79a66f741f611e5f9574697b5b08edc8ff26725c8410f45a308d581c62d79ea8",
+   "size": 13020777
+  },
+  {
+   "file": "CB2_MP_Blank.upk",
+   "map": "CB2_MP_Blank",
+   "sha256": "9b287dd4e0066bcf31e1dd230805e68a2b50beb6e78f2ea71dd1e715a297f33c",
+   "size": 5803905
+  },
+  {
+   "file": "CBattleship_01.upk",
+   "map": "CBattleship_01",
+   "sha256": "30d627668a90764890ac9a0d1153c4f568f52c3cc4f716ebca43c1bae0b267af",
+   "size": 14673095
+  },
+  {
+   "file": "CBattleship_02.upk",
+   "map": "CBattleship_02",
+   "sha256": "7b8cc511f401f7c9324151a7a020edd909d53997c6fd3c90cdec7017f7cbec90",
+   "size": 14798265
+  },
+  {
+   "file": "CIN_DLC1_ZhangIntro.upk",
+   "map": "CIN_DLC1_ZhangIntro",
+   "sha256": "c62a6fcd98b24066d552912e2f104325dc1ff95e1cd4301b1a59f4ae6dc7f319",
+   "size": 11532298
+  },
+  {
+   "file": "CIN_DLC2_Furies.upk",
+   "map": "CIN_DLC2_Furies",
+   "sha256": "11bcb6f4021c20893df60d8095d80738e598ad804370a079dc0441d74300cc7c",
+   "size": 29675
+  },
+  {
+   "file": "CIN_DropshipIntros.upk",
+   "map": "CIN_DropshipIntros",
+   "sha256": "69fb04e67e1b9a91e5fd4c22ce786f8345281802a94579cf78d9ac2328022b4b",
+   "size": 5757665
+  },
+  {
+   "file": "CIN_DropshipIntros_URB_Bar_X42.upk",
+   "map": "CIN_DropshipIntros_URB_Bar_X42",
+   "sha256": "4b8c017d5a544f0324738aaffd08559b947b89272b6dcba1663d675262d3a53e",
+   "size": 6052505
+  },
+  {
+   "file": "CIN_FastropeIntros.upk",
+   "map": "CIN_FastropeIntros",
+   "sha256": "42c88a0c9839da48f7e11f87191ecd4993fad836626b0fa9b1814e8f5fdb96f0",
+   "size": 4916771
+  },
+  {
+   "file": "CIN_TP05A_EnteringAlienBase.upk",
+   "map": "CIN_TP05A_EnteringAlienBase",
+   "sha256": "0315d972009b15986947a87965b671456bbff21d52fdf8fbd296e5592d21ed85",
+   "size": 10553307
+  },
+  {
+   "file": "CIN_TP12A_ArriveTempleShip.upk",
+   "map": "CIN_TP12A_ArriveTempleShip",
+   "sha256": "6f31c68d9166ec45fd121eb9f1b3794aec699521a0d8bce4a6a0401d2a3c5398",
+   "size": 8704063
+  },
+  {
+   "file": "CIN_XEW_Facemelt.upk",
+   "map": "CIN_XEW_Facemelt",
+   "sha256": "654e1a8c98d8cf41c2fcee410065ea95f631ba6ff9310e8a2a23926b31afecb2",
+   "size": 24689500
+  },
+  {
+   "file": "CLrgScout_City.upk",
+   "map": "CLrgScout_City",
+   "sha256": "837748759b230fbc3e5627955ed26aa7f516b6357f2e1e6c8c434e4e42bb49fa",
+   "size": 13094626
+  },
+  {
+   "file": "CLrgScout_DeepWoods.upk",
+   "map": "CLrgScout_DeepWoods",
+   "sha256": "71dff9c47b87f62f9d8d30cd3998cf6995afb5f0c397848c5171a54b2679c1cf",
+   "size": 13783508
+  },
+  {
+   "file": "CLrgScout_ForestTrench.upk",
+   "map": "CLrgScout_ForestTrench",
+   "sha256": "de5d2e0e0589468699903f77b4253753aea42c7d1df74784550abf8591db2a58",
+   "size": 15645949
+  },
+  {
+   "file": "CLrgScout_Stonewall.upk",
+   "map": "CLrgScout_Stonewall",
+   "sha256": "7dc2e89b947b7143d4c132320b3ab29f1911b53c27b664caf2bdd24b3bc766ec",
+   "size": 12021300
+  },
+  {
+   "file": "CLrgScout_TheBarrens.upk",
+   "map": "CLrgScout_TheBarrens",
+   "sha256": "5f64bef43b7807b2311c41453c05b905d0b7969d298715f4922169745d2c064e",
+   "size": 12435297
+  },
+  {
+   "file": "Command1.upk",
+   "map": "Command1",
+   "sha256": "e34c09efd2a6a2e33ee8751d1e26caa0a86235eaed8080cb097c3a194cf4229a",
+   "size": 18141199
+  },
+  {
+   "file": "COverseer_DeepWoods.upk",
+   "map": "COverseer_DeepWoods",
+   "sha256": "197fb714f4ac1e5397260d11c85b988631828d8e63dd341d2a5db2bcd5e837ed",
+   "size": 12929204
+  },
+  {
+   "file": "COverseer_ForestTrench.upk",
+   "map": "COverseer_ForestTrench",
+   "sha256": "3c827a4c47b328c7b7470a8696370cd3ee6f0dbedfe6d47ddeaf7ca7e41553f5",
+   "size": 15140674
+  },
+  {
+   "file": "COverseer_Stonewall.upk",
+   "map": "COverseer_Stonewall",
+   "sha256": "1522126ffab6c5550f86ea28dc0f86ce484214f9227d7393d91e9fab774ac49c",
+   "size": 11746294
+  },
+  {
+   "file": "COverseer_TheBarrens.upk",
+   "map": "COverseer_TheBarrens",
+   "sha256": "2fa4994df2a283e3c19c72f244379e8d35729895e9518f80ac08f065b89c3b69",
+   "size": 12007483
+  },
+  {
+   "file": "CSmallScout_Badlands.upk",
+   "map": "CSmallScout_Badlands",
+   "sha256": "25594bf5ed3db4d564d8f30b270207f1f73a47cf67e5563ecc1f64a85fd48d58",
+   "size": 10611335
+  },
+  {
+   "file": "CSmallScout_DirtRoad.upk",
+   "map": "CSmallScout_DirtRoad",
+   "sha256": "3341cb3aeda64f800023fa3fb9a9f977940a3f067642fe9419f302e527422050",
+   "size": 15808018
+  },
+  {
+   "file": "CSmallScout_DirtRoad_Tutorial.upk",
+   "map": "CSmallScout_DirtRoad_Tutorial",
+   "sha256": "c8347f502cd063533ece5c900c0219bf1b7767d5946427663ca3fc7d2ebff439",
+   "size": 10519
+  },
+  {
+   "file": "CsmallScout_Farm.upk",
+   "map": "CsmallScout_Farm",
+   "sha256": "ae812dfb72da490956f8e29e822a36be6420f414cb4e8c1ede6c7cc2e9bf9163",
+   "size": 19526928
+  },
+  {
+   "file": "CSmallScout_Marshlands.upk",
+   "map": "CSmallScout_Marshlands",
+   "sha256": "1456301a56cd0b6f0995c9762de630bd37ec42e52705d6fbf6be6ac58f762089",
+   "size": 10343559
+  },
+  {
+   "file": "CSmallScout_NukedCity.upk",
+   "map": "CSmallScout_NukedCity",
+   "sha256": "24f9406fe83ce34f0bf3532cacd4df602bdc2b94bdab572916fba4339997ea3b",
+   "size": 17467419
+  },
+  {
+   "file": "CSmallScout_Quagmire.upk",
+   "map": "CSmallScout_Quagmire",
+   "sha256": "f3f3db1c52f4a53f3a8fe7c5a90cfb7b5dc1d781859be893346adb6a4db68a9e",
+   "size": 10362880
+  },
+  {
+   "file": "CSmallScout_Roadhouse.upk",
+   "map": "CSmallScout_Roadhouse",
+   "sha256": "4e13aec911ccdda08dec3cead7f6c891b2377da55e263ae02229144457024b28",
+   "size": 19769636
+  },
+  {
+   "file": "CSupplyShip_OverlookA.upk",
+   "map": "CSupplyShip_OverlookA",
+   "sha256": "eb26cd6700f7ee437acc9398e82a34a5bb0ba43970ae13a07065a55fc800552e",
+   "size": 14597925
+  },
+  {
+   "file": "CSupplyShip_Wildfire.upk",
+   "map": "CSupplyShip_Wildfire",
+   "sha256": "d1316ff6cc50f0f938cf0ce1cd7a96fd3f52ab12bbf987414da3922758e58d55",
+   "size": 13458589
+  },
+  {
+   "file": "DEMO_SonOfFacemelt.upk",
+   "map": "DEMO_SonOfFacemelt",
+   "sha256": "e965e06def1d6eaa0845dbf39128f7482923f061749f855344a9e6cc6869255b",
+   "size": 16361424
+  },
+  {
+   "file": "DEMO_SonOfFacemelt_Stream.upk",
+   "map": "DEMO_SonOfFacemelt_Stream",
+   "sha256": "b4392a4b84bff6cefa105b96d2b0786b039326b0f1755f0f47f74344ad516b68",
+   "size": 959031
+  },
+  {
+   "file": "DLC1_1_LowFriends.upk",
+   "map": "DLC1_1_LowFriends",
+   "sha256": "5118e2d6ba7306d30f344b44a2bd606f16808ffc8a22fc2dabf035040499e13c",
+   "size": 18179162
+  },
+  {
+   "file": "DLC1_1_LowFriends_Stream.upk",
+   "map": "DLC1_1_LowFriends_Stream",
+   "sha256": "8ae833adc07bd9980097b5cb4aa186cbc146130579deffcfcf078ab6fcf2e6d9",
+   "size": 5852320
+  },
+  {
+   "file": "DLC1_2_CnfndLight.upk",
+   "map": "DLC1_2_CnfndLight",
+   "sha256": "32a6dc7574a37935fc9dbd3a0b8f6c81e848c1f657341d3206ac4e38d073a526",
+   "size": 11263119
+  },
+  {
+   "file": "DLC1_2_CnfndLight_Stream.upk",
+   "map": "DLC1_2_CnfndLight_Stream",
+   "sha256": "50de8638960936795d11e0c4230575e477da392fa60d8fdcdc47ac95700cc576",
+   "size": 514144
+  },
+  {
+   "file": "DLC1_3_Gangplank.upk",
+   "map": "DLC1_3_Gangplank",
+   "sha256": "a8a78805f07e57a575117bbff9bbc82dabe35a12a9b16d177819178670fe4ef5",
+   "size": 14429923
+  },
+  {
+   "file": "DLC1_3_Gangplank_Stream.upk",
+   "map": "DLC1_3_Gangplank_Stream",
+   "sha256": "36db58d923cc90c56e4b0a38efc329de87558e878c586549f4a926c43c0d2980",
+   "size": 2783983
+  },
+  {
+   "file": "DLC2_1_Portent.upk",
+   "map": "DLC2_1_Portent",
+   "sha256": "2f7f311009e6916aed1e2ea86b4327425e4107cd5f543c9a369db69edbaff1c5",
+   "size": 19177666
+  },
+  {
+   "file": "DLC2_1_Portent_CovExt.upk",
+   "map": "DLC2_1_Portent_CovExt",
+   "sha256": "4ad37c4a52f8c6611b8cf60e363ce59be1b0e97d9237ba49cb060b0c9ee8c5e8",
+   "size": 176698
+  },
+  {
+   "file": "DLC2_1_Portent_Stream.upk",
+   "map": "DLC2_1_Portent_Stream",
+   "sha256": "f82073cb6e0753a6221aacbde388d74b724e40c11e7f7bc25f2a10b789797b0c",
+   "size": 5696524
+  },
+  {
+   "file": "DLC2_2_Deluge.upk",
+   "map": "DLC2_2_Deluge",
+   "sha256": "ccb883a41f26894b7b5eeb1ae6893e6d213db5ddb812686bf35f0c7c3d81d9ea",
+   "size": 16333875
+  },
+  {
+   "file": "DLC2_2_Deluge_Stream.upk",
+   "map": "DLC2_2_Deluge_Stream",
+   "sha256": "8d128b4ab1511e7d679d8b592c4ef868709dec2c8230817a8480bd7228cb4fe1",
+   "size": 860899
+  },
+  {
+   "file": "DLC2_3_Furies.upk",
+   "map": "DLC2_3_Furies",
+   "sha256": "98e351e38292af8c8fe88c000effd128f23e17812b98be61d6f322049e90a04a",
+   "size": 32699293
+  },
+  {
+   "file": "DLC2_3_Furies_Stream.upk",
+   "map": "DLC2_3_Furies_Stream",
+   "sha256": "6b9c7248e3d6d0e7a0c9d7a61d38dad0fd6de55f4af9bc934a0991e580cddb72",
+   "size": 1035104
+  },
+  {
+   "file": "EWI_ChryssalidHive.upk",
+   "map": "EWI_ChryssalidHive",
+   "sha256": "337dbe5dd8b9abf648bbc31d0f66fe34b60d655489d243748f9226d2dd48b4a2",
+   "size": 19518134
+  },
+  {
+   "file": "EWI_ChryssalidHive_Stream.upk",
+   "map": "EWI_ChryssalidHive_Stream",
+   "sha256": "7f08a534c688508a800093526e3c5c5bc22c331a15839e85d05a16a0fdb1ac85",
+   "size": 268467
+  },
+  {
+   "file": "EWI_ExaltHQAssault.upk",
+   "map": "EWI_ExaltHQAssault",
+   "sha256": "966fb337d3bff1e1b8d1981f3f8437e11c9a8fa020865f230da9d2ea05434b0c",
+   "size": 12485443
+  },
+  {
+   "file": "EWI_ExaltHQAssault_Stream.upk",
+   "map": "EWI_ExaltHQAssault_Stream",
+   "sha256": "6c314dd33246cb45ee05c3840ba047f9c81f703bb92628569fd3b0ac0a532685",
+   "size": 14007
+  },
+  {
+   "file": "EWI_HQAssault.upk",
+   "map": "EWI_HQAssault",
+   "sha256": "e4714c319373edc9f4d65a01225d260c41879e42f3856f04c920d2d72b59821d",
+   "size": 14653947
+  },
+  {
+   "file": "EWI_HQAssault_MP.upk",
+   "map": "EWI_HQAssault_MP",
+   "sha256": "918c00897e675fd2d6bc6e6f558867bfc36ab4200a7cf7470ada8b8daf25fc62",
+   "size": 9023519
+  },
+  {
+   "file": "EWI_HQAssault_Stream.upk",
+   "map": "EWI_HQAssault_Stream",
+   "sha256": "a8e1ce825c32ff8af10fea027b37f4217b79c6a2708b8bb2648c936092102745",
+   "size": 466070
+  },
+  {
+   "file": "EWI_MeldTutorial.upk",
+   "map": "EWI_MeldTutorial",
+   "sha256": "52ad53f34e117b88e52fb9998e7dadbeb708da939607bdc39a145f2c152c1267",
+   "size": 16680785
+  },
+  {
+   "file": "EWI_MeldTutorial_Stream.upk",
+   "map": "EWI_MeldTutorial_Stream",
+   "sha256": "13f3cee466b421cad451461243eba49b3b8052cbd17bb4793cdb46520853e2e7",
+   "size": 106318
+  },
+  {
+   "file": "LAbductor_FarmOutskirts.upk",
+   "map": "LAbductor_FarmOutskirts",
+   "sha256": "2743bf0192b8f37e478941a1b2b271edf5b87992d0050ee81bd728e1111fa5d1",
+   "size": 12582916
+  },
+  {
+   "file": "LAbductor_WindingStream.upk",
+   "map": "LAbductor_WindingStream",
+   "sha256": "95964f779d5adf8c8cc3b1e97f3a85bdf6ce5b6217a845e91ede8b6919ba9f69",
+   "size": 12491043
+  },
+  {
+   "file": "LLrgScout_CreepyForest.upk",
+   "map": "LLrgScout_CreepyForest",
+   "sha256": "32cb24b2b9dc936f90d5ffd7be8423789a2496426fe3005f303cbb19a2b76443",
+   "size": 10449768
+  },
+  {
+   "file": "LLrgScout_Hillside.upk",
+   "map": "LLrgScout_Hillside",
+   "sha256": "7ab8089b735827d2248331a9b0d2a115530a869ad3208b6aa7ec1547c67755e8",
+   "size": 14862609
+  },
+  {
+   "file": "LSmallScout_River.upk",
+   "map": "LSmallScout_River",
+   "sha256": "f7397beb9aa904007f98b872443ff2317dcd46473cc8b0136ebea9b6a3cec97a",
+   "size": 8791064
+  },
+  {
+   "file": "LSmallScout_Rivervalley.upk",
+   "map": "LSmallScout_Rivervalley",
+   "sha256": "764f7ad08e21755b3dccf42f91cc17389f128cdc86387742cc9d8e99c817b30a",
+   "size": 9055606
+  },
+  {
+   "file": "LSupplyShip_ForestGrove.upk",
+   "map": "LSupplyShip_ForestGrove",
+   "sha256": "31fb1cfdc9e488bb6c668bbccbd9c843afa7b5598d25845d7441ad13802f57d9",
+   "size": 12381338
+  },
+  {
+   "file": "LSupplyShip_RockyGorge.upk",
+   "map": "LSupplyShip_RockyGorge",
+   "sha256": "7adc5292c756992228b592de794a92e86a254d871bc56e0ed96d3c0d42d64038",
+   "size": 10678117
+  },
+  {
+   "file": "TempleShip.upk",
+   "map": "TempleShip",
+   "sha256": "029bedcaea20c9a8d1d577fd9bd7dc733ce3976fb33b0b3f716f640caeaf4d2e",
+   "size": 9667763
+  },
+  {
+   "file": "TempleShip_Stream.upk",
+   "map": "TempleShip_Stream",
+   "sha256": "4a7a76a049fdc3825921ade3d2645ca4929346a46c5a6bab96e0dd0eb0919830",
+   "size": 1288
+  },
+  {
+   "file": "URB_Bar.upk",
+   "map": "URB_Bar",
+   "sha256": "a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5",
+   "size": 16755265
+  },
+  {
+   "file": "URB_Bar_Terror.upk",
+   "map": "URB_Bar_Terror",
+   "sha256": "27c69fac2fbb6c92fe1bd9b555c45f60ead758c894edb5ed884ed48e5f358748",
+   "size": 16056476
+  },
+  {
+   "file": "URB_Bar_X42.upk",
+   "map": "URB_Bar_X42",
+   "sha256": "c62837a3d409d1d5b0afd298e2e3ff6cfd441be7e386bfe43f93b7a49218b5e0",
+   "size": 20852068
+  },
+  {
+   "file": "URB_Boulevard.upk",
+   "map": "URB_Boulevard",
+   "sha256": "e1d7c265238c0490f018b803bbac350a3f195b3c160ddd280d75f031e87da761",
+   "size": 15335074
+  },
+  {
+   "file": "URB_Boulevard_CNH.upk",
+   "map": "URB_Boulevard_CNH",
+   "sha256": "4ef4c873159d22106b5bdfc5c13a1631157f56e7d653c1cdf476d170233f4717",
+   "size": 810096
+  },
+  {
+   "file": "URB_Boulevard_Euro.upk",
+   "map": "URB_Boulevard_Euro",
+   "sha256": "00c76f50c24695300e4fbc5dc176f96d432c80037fc454b9642ebac03950c5d6",
+   "size": 15493530
+  },
+  {
+   "file": "URB_CemeteryGrand.upk",
+   "map": "URB_CemeteryGrand",
+   "sha256": "e998d28330fd6ed90a1aa0602baa409cf32ece8d6ac7d57b776545afa8e27df2",
+   "size": 10961867
+  },
+  {
+   "file": "URB_CemeteryGrand_Bomb.upk",
+   "map": "URB_CemeteryGrand_Bomb",
+   "sha256": "5b7a0aa12495b73a4d2d45be5034639d17c9c264134b4f59d570fdc003bb0559",
+   "size": 756479
+  },
+  {
+   "file": "URB_CemeteryGrand_Stream.upk",
+   "map": "URB_CemeteryGrand_Stream",
+   "sha256": "89ab411ca833b7f418b3ed0bc2da57b8c8afd8610be68ab9dc60e5609c3efeaf",
+   "size": 11336
+  },
+  {
+   "file": "URB_CommercialAlley.upk",
+   "map": "URB_CommercialAlley",
+   "sha256": "a19f75e46dcb28227daeb04a408738da01d80d4da6e6d1896405777296f22373",
+   "size": 19030504
+  },
+  {
+   "file": "URB_CommercialAlley_CovExt.upk",
+   "map": "URB_CommercialAlley_CovExt",
+   "sha256": "ea91d1835209436c96b277944f4bf0211202ab3335a87bf6862e6e7855d342b4",
+   "size": 153119
+  },
+  {
+   "file": "URB_CommercialAlley_EWI.upk",
+   "map": "URB_CommercialAlley_EWI",
+   "sha256": "5e7b97dbfcb445eb4006e28d370133c17e3f6ef3beef8ddd0806fbd62f6949a2",
+   "size": 17112836
+  },
+  {
+   "file": "URB_CommercialAlley_Stream.upk",
+   "map": "URB_CommercialAlley_Stream",
+   "sha256": "a2337e93356c150411ed3c6c7c7569798ea7f8bfbcd748af6b91ec0a55b68d9e",
+   "size": 5723071
+  },
+  {
+   "file": "URB_CommercialAlley_Terror.upk",
+   "map": "URB_CommercialAlley_Terror",
+   "sha256": "82a28f12934b0de1b57513fd57bc793f30a5b81e164184ad824401fa9f4639c0",
+   "size": 16651946
+  },
+  {
+   "file": "URB_CommercialRestaurant.upk",
+   "map": "URB_CommercialRestaurant",
+   "sha256": "02e4c6f81bd378f358d4c27ff76ea92146976de77d6c011eaeda4de901a131a5",
+   "size": 17156210
+  },
+  {
+   "file": "URB_CommercialRestaurant_CNH.upk",
+   "map": "URB_CommercialRestaurant_CNH",
+   "sha256": "ae268a7c3afab62ecca654772c1ba2a138c949a9aa991b2efd8789fe0d865a5f",
+   "size": 834318
+  },
+  {
+   "file": "URB_CommercialStreet.upk",
+   "map": "URB_CommercialStreet",
+   "sha256": "750772d0d6f03a6c1967a750b74f058389e341eb5fe305282b969dda607f252d",
+   "size": 17170374
+  },
+  {
+   "file": "URB_CommercialStreet_Terror.upk",
+   "map": "URB_CommercialStreet_Terror",
+   "sha256": "b7d064692b632ffd107929102b8b2fdb096f3951b8f2fdcb4a4cdd2446d3d847",
+   "size": 16912533
+  },
+  {
+   "file": "URB_ConvienienceStore.upk",
+   "map": "URB_ConvienienceStore",
+   "sha256": "2254b2fd0f4dcc9f3e00f80ba73a47d184e98d4fa069ab54d34ce2b82871eb1e",
+   "size": 16518708
+  },
+  {
+   "file": "URB_ConvienienceStore_CovExt.upk",
+   "map": "URB_ConvienienceStore_CovExt",
+   "sha256": "bb1ff3bbdf5828bfe9153e4d88630e162dea36fb0aa4c1cf712b988a427ef938",
+   "size": 151561
+  },
+  {
+   "file": "URB_ConvienienceStore_EWI.upk",
+   "map": "URB_ConvienienceStore_EWI",
+   "sha256": "6ce2aae010c3bf7e5d0591cf661597db0b2df24bc28c1d7c6090ed96ff736998",
+   "size": 16617756
+  },
+  {
+   "file": "URB_ConvienienceStore_Terror.upk",
+   "map": "URB_ConvienienceStore_Terror",
+   "sha256": "7ebc5f357bbe9d6eb23fa60e27bc73cb3d17def996af06ec51d4ccc35919e449",
+   "size": 16261331
+  },
+  {
+   "file": "URB_Demolition_CNH.upk",
+   "map": "URB_Demolition_CNH",
+   "sha256": "879088e77344856fdd13b80bd87ce38644ff85e678ca4b99321f20ab67fefa3e",
+   "size": 807574
+  },
+  {
+   "file": "URB_Demolition_EWI.upk",
+   "map": "URB_Demolition_EWI",
+   "sha256": "18fbffb08a0b1870576fe2d7f24b937ec3400e17b7307d1d2da67541068f25fc",
+   "size": 14693895
+  },
+  {
+   "file": "URB_FastFood.upk",
+   "map": "URB_FastFood",
+   "sha256": "1cd8983049328b5aa66c78621928f97f1a8386df14d1426b1cfef4cefd54cc0c",
+   "size": 16485172
+  },
+  {
+   "file": "URB_FastFood_EWI.upk",
+   "map": "URB_FastFood_EWI",
+   "sha256": "e7278dfde762fb5f145ab487660f5ecd1e6b1d7f8730de2e8c1962f5af9cf2d9",
+   "size": 15731123
+  },
+  {
+   "file": "URB_GasStation_CNH.upk",
+   "map": "URB_GasStation_CNH",
+   "sha256": "8dd2261962229942a46f7c564eb0a16e5000ff91f51b18980f5f455ec961c5fc",
+   "size": 835225
+  },
+  {
+   "file": "URB_GasStation_EWI.upk",
+   "map": "URB_GasStation_EWI",
+   "sha256": "e9ab7b3503e1fa1e77604886fd5aeb855bb96ec86af509879971629460cb1d87",
+   "size": 18581163
+  },
+  {
+   "file": "URB_Highway1.upk",
+   "map": "URB_Highway1",
+   "sha256": "be5715dcaf8c100d4a5cf56599ef64f817390fb54d13966acb5e7ba7b7ea4a42",
+   "size": 17273958
+  },
+  {
+   "file": "URB_HIghwayBomb_Stream.upk",
+   "map": "URB_HIghwayBomb_Stream",
+   "sha256": "cc95c9880a97b19fa4e3405e49f565d3c9dd6edfc0a3e9ca5d7c39ff7ed2f70a",
+   "size": 746699
+  },
+  {
+   "file": "URB_HighwayBridge.upk",
+   "map": "URB_HighwayBridge",
+   "sha256": "6b879962df1e41b11bc00b9356b905e747bdbfc4c53cc474973b7ee451437018",
+   "size": 12650423
+  },
+  {
+   "file": "URB_HighwayConstruction.upk",
+   "map": "URB_HighwayConstruction",
+   "sha256": "78f92d8e6158d9370cf5381a59384449e6c7ecbf88a874c4135fa6f60b550fa5",
+   "size": 16263370
+  },
+  {
+   "file": "URB_HighwayConstruction_CNH.upk",
+   "map": "URB_HighwayConstruction_CNH",
+   "sha256": "c114cb1bcc534dd5991b332bca74f782fea513ccd7309d4e78f4bfbbeecc796e",
+   "size": 834952
+  },
+  {
+   "file": "URB_HighwayConstruction_CovExt.upk",
+   "map": "URB_HighwayConstruction_CovExt",
+   "sha256": "53762cf792f12abd85f6063de1b3b29a5c097970e5272a1c470461e94203ab99",
+   "size": 150138
+  },
+  {
+   "file": "URB_HighwayConstruction_EWI.upk",
+   "map": "URB_HighwayConstruction_EWI",
+   "sha256": "67c2c4eef9a7a536e7ac46a8a2cfaeb7b89339fcd46f4211ccd0d68b502a806d",
+   "size": 12732202
+  },
+  {
+   "file": "URB_HighwayFallen.upk",
+   "map": "URB_HighwayFallen",
+   "sha256": "52578458de68715671ce6c1c0763fb1454369fafe396c6ebea4f52b5c97483fe",
+   "size": 13156807
+  },
+  {
+   "file": "URB_HighwayFallen_Stream.upk",
+   "map": "URB_HighwayFallen_Stream",
+   "sha256": "a4eceafaf2c62dbad8607cfd1cd64db5a85d9c40441838d455f9d31d836e1cbe",
+   "size": 5972256
+  },
+  {
+   "file": "URB_IndustrialOffice.upk",
+   "map": "URB_IndustrialOffice",
+   "sha256": "29619c50df9f50dad6e6be49aec84a144bf9889bbf545b9d28c1249caa75ebaf",
+   "size": 16336967
+  },
+  {
+   "file": "URB_IndustrialOffice_CNH.upk",
+   "map": "URB_IndustrialOffice_CNH",
+   "sha256": "8415d5f59c5e4bef9e20bb27498f19099dcf9c9112a34baaa5949dfae244c844",
+   "size": 733044
+  },
+  {
+   "file": "URB_IndustrialOffice_Stream.upk",
+   "map": "URB_IndustrialOffice_Stream",
+   "sha256": "18c0510bf6927ade8f549e61ebd5bee161288bdcede03be9b09dd1424d303466",
+   "size": 11711
+  },
+  {
+   "file": "URB_LiquorStore.upk",
+   "map": "URB_LiquorStore",
+   "sha256": "16f0094f3175c44a6dc4a7982ab9a7c8943658676833309b97e68383dd4e3000",
+   "size": 15622684
+  },
+  {
+   "file": "URB_LiquorStore_CovExt.upk",
+   "map": "URB_LiquorStore_CovExt",
+   "sha256": "aa6eb28bcb47ff108f8a42c771dc5e6dbbc9edc230733a1e7963645699a289f5",
+   "size": 101860
+  },
+  {
+   "file": "URB_MilitaryAmmo.upk",
+   "map": "URB_MilitaryAmmo",
+   "sha256": "28ed22d88770b0ec7b10a73fedaf2849ebad3fbc3316226cafab07e6a7b4d8af",
+   "size": 14485310
+  },
+  {
+   "file": "URB_MilitaryAmmo_CovExt.upk",
+   "map": "URB_MilitaryAmmo_CovExt",
+   "sha256": "4a3f5bb273bc9b1727f8986cd268045697005191ae17caf7696870d25d10c04e",
+   "size": 177140
+  },
+  {
+   "file": "URB_OfficePaper.upk",
+   "map": "URB_OfficePaper",
+   "sha256": "bddd6f9b5fc53aa8e017c5b40d426db22a37a233fa5d7ae13ddcccae92e916e3",
+   "size": 16420298
+  },
+  {
+   "file": "URB_OfficePaper_CNH.upk",
+   "map": "URB_OfficePaper_CNH",
+   "sha256": "35b33f06c7fdd374a31b2203cda2c468758eff106e71dee42ae8ecc2f7ee2ac1",
+   "size": 836969
+  },
+  {
+   "file": "URB_OfficePaper_EWI.upk",
+   "map": "URB_OfficePaper_EWI",
+   "sha256": "8cf620576c539dc9183275c1be86dcc69939f4380a37a77c6815358b60fc730f",
+   "size": 17317453
+  },
+  {
+   "file": "URB_OfficePaper_Terror.upk",
+   "map": "URB_OfficePaper_Terror",
+   "sha256": "dc649ab1101297f90b15fdb953b6db9384465f3f03dc1ff77e1add613ba1b4ac",
+   "size": 17153030
+  },
+  {
+   "file": "URB_PierA.upk",
+   "map": "URB_PierA",
+   "sha256": "cc7f4589c392b09c0e17afc03a0ae6019dc807c782e66433eae3829d4ae9c5d8",
+   "size": 14267177
+  },
+  {
+   "file": "URB_PierA_Asian.upk",
+   "map": "URB_PierA_Asian",
+   "sha256": "2328c2ee2d449969d71a209717cbb6f381d132bb8bd0c32cf86788dd64d8595c",
+   "size": 14234720
+  },
+  {
+   "file": "URB_PierA_Stream.upk",
+   "map": "URB_PierA_Stream",
+   "sha256": "ef956c35778527e3c82ca9b4e64203e8baafad97c1a49638d5155fd71b03825c",
+   "size": 5536742
+  },
+  {
+   "file": "URB_PierA_StreamB.upk",
+   "map": "URB_PierA_StreamB",
+   "sha256": "c1a0601d97c1bcee251b01f5e3be39d0b92592ae58659425fa4f58edfdff44f5",
+   "size": 40080
+  },
+  {
+   "file": "URB_PierA_Terror.upk",
+   "map": "URB_PierA_Terror",
+   "sha256": "990430a84aaa6f9085b1e3e6ec509d291549eeccdc8f913ea733791ff3da7945",
+   "size": 16092087
+  },
+  {
+   "file": "URB_PoliceStation.upk",
+   "map": "URB_PoliceStation",
+   "sha256": "86785ed731811d0b337e8ab2bb9aa0215678d88b48de0beadea9bf7193f0fa29",
+   "size": 16224214
+  },
+  {
+   "file": "URB_PoliceStation_CNH.upk",
+   "map": "URB_PoliceStation_CNH",
+   "sha256": "f1713d2d979c50c30141a66e3efdb24ea35d8fe3a004575977bcaf08154cf799",
+   "size": 834849
+  },
+  {
+   "file": "URB_ResearchOutpost.upk",
+   "map": "URB_ResearchOutpost",
+   "sha256": "50ad92b70e959aacbf126a821d70d481551c5b8f5569237f6b24d44b307c113d",
+   "size": 15528831
+  },
+  {
+   "file": "URB_ResearchOutpost_EWI.upk",
+   "map": "URB_ResearchOutpost_EWI",
+   "sha256": "5b67eec237d72b68551d7efbbd24734e6eb95a56a2f3202b637ae3f2028c24da",
+   "size": 15931259
+  },
+  {
+   "file": "URB_ResearchOutpost_Rescue.upk",
+   "map": "URB_ResearchOutpost_Rescue",
+   "sha256": "6858d6858c58730eed3e6184781c829f1a40a8985f9f9dae3dda59a4cc1dd076",
+   "size": 5551939
+  },
+  {
+   "file": "URB_ResearchOutpost_Stream.upk",
+   "map": "URB_ResearchOutpost_Stream",
+   "sha256": "40681b3ddf8d15037609db86dc065a965979714e850c04c65cee696fb7491fcc",
+   "size": 40238
+  },
+  {
+   "file": "URB_RooftopsConst.upk",
+   "map": "URB_RooftopsConst",
+   "sha256": "457c5591d63ab4fac59d5f3977c905d194cbe47849ee9febc992db0bc5466275",
+   "size": 8128452
+  },
+  {
+   "file": "URB_RooftopsConst_Asian.upk",
+   "map": "URB_RooftopsConst_Asian",
+   "sha256": "82c3dd63c5ced7e953140212704b3a144976692e2e5e11e6a98154f5c5c936cc",
+   "size": 11162837
+  },
+  {
+   "file": "URB_RooftopsConst_CNH.upk",
+   "map": "URB_RooftopsConst_CNH",
+   "sha256": "8ba7aafd5d7f0ffda4c3b802bfb6d74fca72165612fb433f43e6286372fb5e21",
+   "size": 810781
+  },
+  {
+   "file": "URB_Slaughterhouse_Stream.upk",
+   "map": "URB_Slaughterhouse_Stream",
+   "sha256": "931b11d1f37ff2dc9cdca8fe11daf75deac70272263021cd7818fdc9ca292d99",
+   "size": 746376
+  },
+  {
+   "file": "URB_SlaughterhouseA.upk",
+   "map": "URB_SlaughterhouseA",
+   "sha256": "2a6fc8e21287dc08c4b804469b31ae61763ac017a76490400e19ca830435a2cb",
+   "size": 16819898
+  },
+  {
+   "file": "URB_SmallCemetery.upk",
+   "map": "URB_SmallCemetery",
+   "sha256": "e1942bc748944dca9b581f4e53ab245fef7285a1ce9e409961c17e3a1130cf85",
+   "size": 16497374
+  },
+  {
+   "file": "URB_StreetHurricane.upk",
+   "map": "URB_StreetHurricane",
+   "sha256": "036131c6fc56d16c41be7be0f0175ff5dc7de9190609416d48e9cedd14142b2f",
+   "size": 16443375
+  },
+  {
+   "file": "URB_StreetHurricane_Stream.upk",
+   "map": "URB_StreetHurricane_Stream",
+   "sha256": "c05a665f10336226b6c98f74a31ee8bbe50a6a0180162ef023ee05e82e023e44",
+   "size": 5818545
+  },
+  {
+   "file": "URB_StreetHurricane_Terror.upk",
+   "map": "URB_StreetHurricane_Terror",
+   "sha256": "eca55ecc31d617ec54344aac7aa66ddc1a83e322d0bc9b7cefc059f0d78db295",
+   "size": 14553012
+  },
+  {
+   "file": "URB_StreetOverpass.upk",
+   "map": "URB_StreetOverpass",
+   "sha256": "f734ec5f094248c7485b3fcdc755e06a23fefdd7cf49ebc324ac7dbcd1b6da17",
+   "size": 13926977
+  },
+  {
+   "file": "URB_StreetOverpass_EWI.upk",
+   "map": "URB_StreetOverpass_EWI",
+   "sha256": "38a94521e0b7888f9cdeee2042ee7e3c6c20cb4942665d13302c41bb8c5f4c21",
+   "size": 15620758
+  },
+  {
+   "file": "URB_StreetOverpass_Stream.upk",
+   "map": "URB_StreetOverpass_Stream",
+   "sha256": "42aa7932c85f53541385997a0a1b32d051f5d5c65d2046211d98523b063b665a",
+   "size": 11677
+  },
+  {
+   "file": "URB_TrainStation.upk",
+   "map": "URB_TrainStation",
+   "sha256": "a22f302338ef01fb474c5237b4144a98d737b9ab30f4c39867a1431f0d6d79e1",
+   "size": 9200570
+  },
+  {
+   "file": "URB_TrainStation_Stream.upk",
+   "map": "URB_TrainStation_Stream",
+   "sha256": "bdcc46e303f2e9e494dc78b56ed11add72534e092225889a42438705e11a3363",
+   "size": 747570
+  },
+  {
+   "file": "URB_Trainyard.upk",
+   "map": "URB_Trainyard",
+   "sha256": "f80096ab5d4e66ad8f4454327682603dfa17febc92c155c911ef46023f08cf07",
+   "size": 13237793
+  },
+  {
+   "file": "URB_Trainyard_CovExt.upk",
+   "map": "URB_Trainyard_CovExt",
+   "sha256": "811bae37c494b84e396b1353e1185c5cf64fb85534de214297023764f591f28e",
+   "size": 151839
+  },
+  {
+   "file": "URB_Trainyard_Stream.upk",
+   "map": "URB_Trainyard_Stream",
+   "sha256": "229102fe3432a59f8e486b606fb7941199ece6e1efa4db6d33a86c24cc2cfb96",
+   "size": 746690
+  },
+  {
+   "file": "URB_TruckStop.upk",
+   "map": "URB_TruckStop",
+   "sha256": "db37609371409a08716278e771f9567a5de2560547043ea066a75b1fe77a2fae",
+   "size": 18056892
+  },
+  {
+   "file": "URB_TruckStop_CNH.upk",
+   "map": "URB_TruckStop_CNH",
+   "sha256": "69b846b6cf1d36e27ba06bae32031acb8650ff73ee7ed1d8646a35c74c29f7d7",
+   "size": 834636
+  },
+  {
+   "file": "URB_TruckStop_EWI.upk",
+   "map": "URB_TruckStop_EWI",
+   "sha256": "7037aaff0e564fa6608d7f89b093936e4f2c10e4f5a3c863e2495701848dc61a",
+   "size": 17611667
+  },
+  {
+   "file": "URB_TruckStop_Stream.upk",
+   "map": "URB_TruckStop_Stream",
+   "sha256": "eb45d0da0130e10a998e59d0a52b8bda78d2c9aff2630c08e44746181fb00218",
+   "size": 13441
+  }
+ ],
+ "maps": 153,
+ "perMap": {
+  "Act1_IntroLevel": {
+   "counts": {
+    "coverOff": 174,
+    "drawnColliding": 375,
+    "gate": 1,
+    "gateWalkingCoverOff": 1,
+    "threeOff": 147,
+    "threeOffMouseOff": 1,
+    "walkingOff": 147
+   },
+   "families": {
+    "door": 1,
+    "frac": 5,
+    "level": 467,
+    "plain": 23,
+    "prop": 30
+   },
+   "sources": {
+    "actor": 724,
+    "archetype": 177,
+    "class": 2726
+   },
+   "unknown": {}
+  },
+  "Act2_Pier": {
+   "counts": {
+    "coverOff": 133,
+    "drawnColliding": 513,
+    "gate": 10,
+    "gateWalkingCoverOff": 9,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 88,
+    "threeOffMouseOff": 3,
+    "walkingOff": 91
+   },
+   "families": {
+    "door": 7,
+    "frac": 20,
+    "ladder": 3,
+    "level": 216,
+    "plain": 282,
+    "prop": 314
+   },
+   "sources": {
+    "actor": 489,
+    "archetype": 419,
+    "class": 4201
+   },
+   "unknown": {}
+  },
+  "Act2_Pier_Asian": {
+   "counts": {
+    "coverOff": 228,
+    "drawnColliding": 609,
+    "gate": 14,
+    "gateWalkingCoverOff": 13,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 170,
+    "threeOffMouseOff": 9,
+    "walkingOff": 185
+   },
+   "families": {
+    "door": 7,
+    "frac": 20,
+    "ladder": 3,
+    "level": 254,
+    "plain": 266,
+    "prop": 386
+   },
+   "sources": {
+    "actor": 632,
+    "archetype": 707,
+    "class": 4652
+   },
+   "unknown": {}
+  },
+  "Act2_Pier_script": {
+   "counts": {},
+   "families": {
+    "level": 3
+   },
+   "sources": {
+    "actor": 5,
+    "class": 16
+   },
+   "unknown": {}
+  },
+  "AlienBase01": {
+   "counts": {
+    "coverOff": 132,
+    "drawnColliding": 950,
+    "gate": 6,
+    "gateWalkingCoverOff": 6,
+    "walkingOff": 212
+   },
+   "families": {
+    "door": 6,
+    "level": 672,
+    "prop": 364
+   },
+   "sources": {
+    "actor": 1088,
+    "archetype": 931,
+    "class": 6003
+   },
+   "unknown": {}
+  },
+  "AlienBase02": {
+   "counts": {
+    "coverOff": 296,
+    "drawnColliding": 1114,
+    "gate": 2,
+    "gateWalkingCoverOff": 2,
+    "ladders": 4,
+    "threeOff": 22,
+    "threeOffMouseOff": 22,
+    "walkingOff": 169
+   },
+   "families": {
+    "door": 4,
+    "ladder": 4,
+    "level": 754,
+    "prop": 455
+   },
+   "sources": {
+    "actor": 1497,
+    "archetype": 1289,
+    "class": 6639
+   },
+   "unknown": {}
+  },
+  "CAbductor_Cliffside": {
+   "counts": {
+    "coverOff": 403,
+    "drawnColliding": 1058,
+    "gate": 117,
+    "gateWalkingCoverOff": 117,
+    "ladders": 4,
+    "threeOff": 379,
+    "walkingOff": 398
+   },
+   "families": {
+    "door": 11,
+    "frac": 46,
+    "ladder": 4,
+    "level": 708,
+    "plain": 153,
+    "prop": 338
+   },
+   "sources": {
+    "actor": 854,
+    "archetype": 1937,
+    "class": 5936
+   },
+   "unknown": {}
+  },
+  "CAbductor_ScorchedEarth": {
+   "counts": {
+    "coverOff": 583,
+    "drawnColliding": 1156,
+    "gate": 247,
+    "gateWalkingCoverOff": 247,
+    "ladders": 4,
+    "threeOff": 567,
+    "walkingOff": 587
+   },
+   "families": {
+    "door": 11,
+    "frac": 47,
+    "ladder": 4,
+    "level": 588,
+    "plain": 110,
+    "prop": 512
+   },
+   "sources": {
+    "actor": 866,
+    "archetype": 2282,
+    "assumed": 7,
+    "class": 6219
+   },
+   "unknown": {}
+  },
+  "CB2_MP_Blank": {
+   "counts": {
+    "coverOff": 2,
+    "drawnColliding": 22
+   },
+   "families": {
+    "frac": 3,
+    "level": 17,
+    "prop": 2
+   },
+   "sources": {
+    "archetype": 6,
+    "class": 152
+   },
+   "unknown": {}
+  },
+  "CBattleship_01": {
+   "counts": {
+    "coverOff": 69,
+    "drawnColliding": 939,
+    "ladders": 8,
+    "walkingOff": 61
+   },
+   "families": {
+    "door": 15,
+    "frac": 189,
+    "ladder": 8,
+    "level": 855,
+    "plain": 48,
+    "prop": 171
+   },
+   "sources": {
+    "actor": 1306,
+    "archetype": 1159,
+    "assumed": 7,
+    "class": 6624
+   },
+   "unknown": {}
+  },
+  "CBattleship_02": {
+   "counts": {
+    "coverOff": 63,
+    "drawnColliding": 953,
+    "ladders": 8,
+    "walkingOff": 71
+   },
+   "families": {
+    "door": 15,
+    "frac": 190,
+    "ladder": 8,
+    "level": 854,
+    "plain": 46,
+    "prop": 171
+   },
+   "sources": {
+    "actor": 1194,
+    "archetype": 1117,
+    "assumed": 7,
+    "class": 6774
+   },
+   "unknown": {}
+  },
+  "CIN_DLC1_ZhangIntro": {
+   "counts": {
+    "drawnColliding": 1
+   },
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "CIN_DLC2_Furies": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_DropshipIntros": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_DropshipIntros_URB_Bar_X42": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_FastropeIntros": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_TP05A_EnteringAlienBase": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_TP12A_ArriveTempleShip": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CIN_XEW_Facemelt": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CLrgScout_City": {
+   "counts": {
+    "coverOff": 102,
+    "drawnColliding": 1078,
+    "gate": 9,
+    "gateWalkingCoverOff": 8,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 16,
+    "threeOffMouseOff": 11,
+    "walkingOff": 145
+   },
+   "families": {
+    "door": 7,
+    "ladder": 3,
+    "level": 423,
+    "plain": 7,
+    "prop": 724
+   },
+   "sources": {
+    "actor": 564,
+    "archetype": 431,
+    "class": 8563
+   },
+   "unknown": {}
+  },
+  "CLrgScout_DeepWoods": {
+   "counts": {
+    "coverOff": 765,
+    "drawnColliding": 1437,
+    "gate": 455,
+    "gateWalkingCoverOff": 440,
+    "threeOff": 709,
+    "threeOffMouseOff": 2,
+    "walkingOff": 751
+   },
+   "families": {
+    "door": 7,
+    "level": 681,
+    "plain": 83,
+    "prop": 877
+   },
+   "sources": {
+    "actor": 1179,
+    "archetype": 3485,
+    "assumed": 7,
+    "class": 8204
+   },
+   "unknown": {}
+  },
+  "CLrgScout_ForestTrench": {
+   "counts": {
+    "coverOff": 715,
+    "drawnColliding": 1427,
+    "gate": 218,
+    "gateWalkingCoverOff": 195,
+    "threeOff": 507,
+    "walkingOff": 660
+   },
+   "families": {
+    "door": 7,
+    "frac": 2,
+    "level": 933,
+    "plain": 109,
+    "prop": 568
+   },
+   "sources": {
+    "actor": 1512,
+    "archetype": 2007,
+    "assumed": 7,
+    "class": 8398
+   },
+   "unknown": {}
+  },
+  "CLrgScout_Stonewall": {
+   "counts": {
+    "coverOff": 348,
+    "drawnColliding": 938,
+    "gate": 143,
+    "gateWalkingCoverOff": 141,
+    "threeOff": 343,
+    "threeOffMouseOff": 3,
+    "walkingOff": 349
+   },
+   "families": {
+    "door": 7,
+    "frac": 1,
+    "level": 560,
+    "plain": 150,
+    "prop": 457
+   },
+   "sources": {
+    "actor": 874,
+    "archetype": 1335,
+    "class": 6180
+   },
+   "unknown": {}
+  },
+  "CLrgScout_TheBarrens": {
+   "counts": {
+    "coverOff": 664,
+    "drawnColliding": 1215,
+    "gate": 217,
+    "gateWalkingCoverOff": 217,
+    "threeOff": 661,
+    "threeOffMouseOff": 3,
+    "walkingOff": 667
+   },
+   "families": {
+    "door": 7,
+    "frac": 1,
+    "level": 772,
+    "plain": 54,
+    "prop": 514
+   },
+   "sources": {
+    "actor": 1011,
+    "archetype": 2681,
+    "assumed": 7,
+    "class": 6495
+   },
+   "unknown": {}
+  },
+  "COverseer_DeepWoods": {
+   "counts": {
+    "coverOff": 761,
+    "drawnColliding": 1411,
+    "gate": 448,
+    "gateWalkingCoverOff": 416,
+    "threeOff": 719,
+    "threeOffMouseOff": 2,
+    "walkingOff": 729
+   },
+   "families": {
+    "door": 4,
+    "frac": 2,
+    "level": 628,
+    "plain": 92,
+    "prop": 842
+   },
+   "sources": {
+    "actor": 1123,
+    "archetype": 3351,
+    "assumed": 7,
+    "class": 7719
+   },
+   "unknown": {}
+  },
+  "COverseer_ForestTrench": {
+   "counts": {
+    "coverOff": 593,
+    "drawnColliding": 1338,
+    "gate": 176,
+    "gateWalkingCoverOff": 150,
+    "threeOff": 522,
+    "walkingOff": 576
+   },
+   "families": {
+    "door": 4,
+    "frac": 2,
+    "level": 864,
+    "plain": 137,
+    "prop": 523
+   },
+   "sources": {
+    "actor": 1439,
+    "archetype": 1835,
+    "class": 7797
+   },
+   "unknown": {}
+  },
+  "COverseer_Stonewall": {
+   "counts": {
+    "coverOff": 450,
+    "drawnColliding": 1058,
+    "gate": 144,
+    "gateWalkingCoverOff": 142,
+    "threeOff": 444,
+    "threeOffMouseOff": 4,
+    "walkingOff": 447
+   },
+   "families": {
+    "door": 4,
+    "frac": 2,
+    "level": 589,
+    "plain": 144,
+    "prop": 485
+   },
+   "sources": {
+    "actor": 1223,
+    "archetype": 1668,
+    "class": 5927
+   },
+   "unknown": {}
+  },
+  "COverseer_TheBarrens": {
+   "counts": {
+    "coverOff": 279,
+    "drawnColliding": 924,
+    "gate": 224,
+    "gateWalkingCoverOff": 224,
+    "threeOff": 275,
+    "threeOffMouseOff": 1,
+    "walkingOff": 278
+   },
+   "families": {
+    "door": 4,
+    "frac": 14,
+    "level": 399,
+    "plain": 47,
+    "prop": 540
+   },
+   "sources": {
+    "actor": 481,
+    "archetype": 1759,
+    "assumed": 7,
+    "class": 5626
+   },
+   "unknown": {}
+  },
+  "CSmallScout_Badlands": {
+   "counts": {
+    "coverOff": 674,
+    "drawnColliding": 1076,
+    "gate": 228,
+    "gateWalkingCoverOff": 228,
+    "threeOff": 664,
+    "threeOffMouseOff": 2,
+    "walkingOff": 670
+   },
+   "families": {
+    "door": 1,
+    "level": 738,
+    "plain": 63,
+    "prop": 512
+   },
+   "sources": {
+    "actor": 805,
+    "archetype": 3042,
+    "assumed": 7,
+    "class": 6053
+   },
+   "unknown": {}
+  },
+  "CSmallScout_DirtRoad": {
+   "counts": {
+    "coverOff": 474,
+    "drawnColliding": 957,
+    "gate": 158,
+    "gateWalkingCoverOff": 158,
+    "threeOff": 454,
+    "threeOffMouseOff": 1,
+    "walkingOff": 458
+   },
+   "families": {
+    "door": 1,
+    "frac": 1,
+    "level": 764,
+    "plain": 19,
+    "prop": 386
+   },
+   "sources": {
+    "actor": 1092,
+    "archetype": 1514,
+    "assumed": 7,
+    "class": 6261
+   },
+   "unknown": {}
+  },
+  "CSmallScout_DirtRoad_Tutorial": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "CSmallScout_Marshlands": {
+   "counts": {
+    "coverOff": 979,
+    "drawnColliding": 1619,
+    "gate": 778,
+    "gateWalkingCoverOff": 778,
+    "threeOff": 917,
+    "threeOffMouseOff": 1,
+    "walkingOff": 977
+   },
+   "families": {
+    "door": 1,
+    "level": 833,
+    "prop": 1244
+   },
+   "sources": {
+    "actor": 1782,
+    "archetype": 4574,
+    "assumed": 7,
+    "class": 10671
+   },
+   "unknown": {}
+  },
+  "CSmallScout_NukedCity": {
+   "counts": {
+    "coverOff": 225,
+    "drawnColliding": 1118,
+    "gate": 20,
+    "gateWalkingCoverOff": 11,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 56,
+    "threeOffMouseOff": 10,
+    "walkingOff": 274
+   },
+   "families": {
+    "door": 1,
+    "frac": 9,
+    "ladder": 10,
+    "level": 672,
+    "plain": 5,
+    "prop": 546
+   },
+   "sources": {
+    "actor": 257,
+    "archetype": 1045,
+    "class": 8456
+   },
+   "unknown": {}
+  },
+  "CSmallScout_Quagmire": {
+   "counts": {
+    "coverOff": 799,
+    "drawnColliding": 1286,
+    "gate": 436,
+    "gateWalkingCoverOff": 436,
+    "threeOff": 747,
+    "threeOffMouseOff": 1,
+    "walkingOff": 798
+   },
+   "families": {
+    "door": 1,
+    "level": 498,
+    "plain": 71,
+    "prop": 804
+   },
+   "sources": {
+    "actor": 1121,
+    "archetype": 2679,
+    "assumed": 7,
+    "class": 7064
+   },
+   "unknown": {}
+  },
+  "CSmallScout_Roadhouse": {
+   "counts": {
+    "coverOff": 362,
+    "drawnColliding": 1125,
+    "gate": 30,
+    "gateWalkingCoverOff": 30,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 308,
+    "threeOffMouseOff": 216,
+    "walkingOff": 326
+   },
+   "families": {
+    "door": 12,
+    "frac": 26,
+    "ladder": 4,
+    "level": 508,
+    "plain": 164,
+    "prop": 516
+   },
+   "sources": {
+    "actor": 1005,
+    "archetype": 1311,
+    "assumed": 7,
+    "class": 6495
+   },
+   "unknown": {}
+  },
+  "CSupplyShip_OverlookA": {
+   "counts": {
+    "coverOff": 1138,
+    "drawnColliding": 1908,
+    "gate": 167,
+    "gateWalkingCoverOff": 167,
+    "ladders": 19,
+    "threeOff": 1103,
+    "threeOffMouseOff": 6,
+    "walkingOff": 1122
+   },
+   "families": {
+    "door": 9,
+    "frac": 59,
+    "ladder": 19,
+    "level": 1310,
+    "plain": 479,
+    "prop": 480
+   },
+   "sources": {
+    "actor": 1799,
+    "archetype": 3461,
+    "assumed": 7,
+    "class": 9771
+   },
+   "unknown": {}
+  },
+  "CSupplyShip_Wildfire": {
+   "counts": {
+    "coverOff": 525,
+    "drawnColliding": 1423,
+    "gate": 232,
+    "gateWalkingCoverOff": 232,
+    "ladders": 19,
+    "threeOff": 509,
+    "threeOffMouseOff": 6,
+    "walkingOff": 512
+   },
+   "families": {
+    "door": 9,
+    "frac": 59,
+    "ladder": 19,
+    "level": 694,
+    "plain": 156,
+    "prop": 606
+   },
+   "sources": {
+    "actor": 1088,
+    "archetype": 1837,
+    "class": 8289
+   },
+   "unknown": {}
+  },
+  "Command1": {
+   "counts": {
+    "drawnColliding": 1
+   },
+   "families": {
+    "level": 9,
+    "plain": 1
+   },
+   "sources": {
+    "actor": 5,
+    "class": 60
+   },
+   "unknown": {}
+  },
+  "CsmallScout_Farm": {
+   "counts": {
+    "coverOff": 262,
+    "drawnColliding": 974,
+    "gate": 17,
+    "gateWalkingCoverOff": 17,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 162,
+    "walkingOff": 265
+   },
+   "families": {
+    "door": 3,
+    "frac": 98,
+    "ladder": 10,
+    "level": 704,
+    "plain": 23,
+    "prop": 405
+   },
+   "sources": {
+    "actor": 544,
+    "archetype": 1223,
+    "class": 7619
+   },
+   "unknown": {}
+  },
+  "DEMO_SonOfFacemelt": {
+   "counts": {
+    "coverOff": 247,
+    "drawnColliding": 707,
+    "ladders": 3,
+    "laddersSightOff": 1,
+    "threeOff": 99,
+    "threeOffMouseOff": 3,
+    "walkingOff": 232
+   },
+   "families": {
+    "frac": 12,
+    "ladder": 3,
+    "level": 557,
+    "plain": 32,
+    "prop": 330
+   },
+   "sources": {
+    "actor": 1206,
+    "archetype": 806,
+    "class": 5023
+   },
+   "unknown": {}
+  },
+  "DEMO_SonOfFacemelt_Stream": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "DLC1_1_LowFriends": {
+   "counts": {
+    "coverOff": 363,
+    "drawnColliding": 1015,
+    "gate": 138,
+    "gateWalkingCoverOff": 138,
+    "ladders": 1,
+    "laddersSightOff": 1,
+    "threeOff": 253,
+    "threeOffMouseOff": 12,
+    "walkingOff": 277
+   },
+   "families": {
+    "frac": 9,
+    "ladder": 1,
+    "level": 720,
+    "plain": 163,
+    "prop": 448
+   },
+   "sources": {
+    "actor": 618,
+    "archetype": 2079,
+    "class": 6770
+   },
+   "unknown": {}
+  },
+  "DLC1_1_LowFriends_Stream": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "DLC1_2_CnfndLight": {
+   "counts": {
+    "coverOff": 162,
+    "drawnColliding": 955,
+    "gate": 29,
+    "gateWalkingCoverOff": 29,
+    "ladders": 8,
+    "threeOff": 122,
+    "threeOffMouseOff": 98,
+    "walkingOff": 176
+   },
+   "families": {
+    "door": 6,
+    "ladder": 8,
+    "level": 589,
+    "plain": 113,
+    "prop": 570
+   },
+   "sources": {
+    "actor": 993,
+    "archetype": 1165,
+    "assumed": 7,
+    "class": 7404
+   },
+   "unknown": {}
+  },
+  "DLC1_2_CnfndLight_Stream": {
+   "counts": {},
+   "families": {
+    "door": 5,
+    "level": 1
+   },
+   "sources": {
+    "actor": 1,
+    "archetype": 9,
+    "class": 32
+   },
+   "unknown": {}
+  },
+  "DLC1_3_Gangplank": {
+   "counts": {
+    "coverOff": 65,
+    "drawnColliding": 888,
+    "ladders": 9,
+    "walkingOff": 61
+   },
+   "families": {
+    "door": 6,
+    "frac": 191,
+    "ladder": 9,
+    "level": 795,
+    "plain": 8,
+    "prop": 156
+   },
+   "sources": {
+    "actor": 492,
+    "archetype": 1031,
+    "class": 6895
+   },
+   "unknown": {}
+  },
+  "DLC1_3_Gangplank_Stream": {
+   "counts": {
+    "drawnColliding": 6
+   },
+   "families": {
+    "door": 6,
+    "level": 6,
+    "prop": 6
+   },
+   "sources": {
+    "actor": 6,
+    "archetype": 18,
+    "class": 114
+   },
+   "unknown": {}
+  },
+  "DLC2_1_Portent": {
+   "counts": {
+    "coverOff": 531,
+    "drawnColliding": 940,
+    "gate": 57,
+    "gateWalkingCoverOff": 53,
+    "ladders": 12,
+    "laddersSightOff": 9,
+    "threeOff": 431,
+    "threeOffMouseOff": 68,
+    "walkingOff": 462
+   },
+   "families": {
+    "door": 10,
+    "frac": 43,
+    "ladder": 12,
+    "level": 643,
+    "plain": 107,
+    "prop": 274
+   },
+   "sources": {
+    "actor": 829,
+    "archetype": 1798,
+    "assumed": 7,
+    "class": 4990
+   },
+   "unknown": {}
+  },
+  "DLC2_1_Portent_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "DLC2_1_Portent_Stream": {
+   "counts": {},
+   "families": {
+    "level": 3
+   },
+   "sources": {
+    "archetype": 6,
+    "class": 15
+   },
+   "unknown": {}
+  },
+  "DLC2_2_Deluge": {
+   "counts": {
+    "coverOff": 261,
+    "drawnColliding": 740,
+    "ladders": 5,
+    "laddersSightOff": 2,
+    "threeOff": 93,
+    "threeOffMouseOff": 3,
+    "walkingOff": 244
+   },
+   "families": {
+    "frac": 16,
+    "ladder": 5,
+    "level": 567,
+    "plain": 48,
+    "prop": 330
+   },
+   "sources": {
+    "actor": 1234,
+    "archetype": 835,
+    "class": 5108
+   },
+   "unknown": {}
+  },
+  "DLC2_2_Deluge_Stream": {
+   "counts": {},
+   "families": {
+    "door": 5,
+    "level": 1
+   },
+   "sources": {
+    "archetype": 9,
+    "class": 33
+   },
+   "unknown": {}
+  },
+  "DLC2_3_Furies": {
+   "counts": {
+    "coverOff": 495,
+    "drawnColliding": 1204,
+    "gate": 47,
+    "gateWalkingCoverOff": 47,
+    "ladders": 4,
+    "threeOff": 442,
+    "threeOffMouseOff": 264,
+    "walkingOff": 494
+   },
+   "families": {
+    "door": 8,
+    "frac": 51,
+    "ladder": 4,
+    "level": 835,
+    "plain": 89,
+    "prop": 381
+   },
+   "sources": {
+    "actor": 1156,
+    "archetype": 1978,
+    "assumed": 7,
+    "class": 6748
+   },
+   "unknown": {}
+  },
+  "DLC2_3_Furies_Stream": {
+   "counts": {
+    "drawnColliding": 1
+   },
+   "families": {
+    "door": 1,
+    "level": 1,
+    "prop": 1
+   },
+   "sources": {
+    "actor": 1,
+    "archetype": 3,
+    "class": 19
+   },
+   "unknown": {}
+  },
+  "EWI_ChryssalidHive": {
+   "counts": {
+    "coverOff": 414,
+    "drawnColliding": 1241,
+    "gate": 31,
+    "gateWalkingCoverOff": 23,
+    "ladders": 14,
+    "laddersSightOff": 14,
+    "threeOff": 192,
+    "threeOffMouseOff": 154,
+    "walkingOff": 212
+   },
+   "families": {
+    "door": 15,
+    "frac": 17,
+    "ladder": 14,
+    "level": 431,
+    "plain": 52,
+    "prop": 786
+   },
+   "sources": {
+    "actor": 1226,
+    "archetype": 1586,
+    "class": 7691
+   },
+   "unknown": {}
+  },
+  "EWI_ChryssalidHive_Stream": {
+   "counts": {},
+   "families": {
+    "door": 1,
+    "level": 2
+   },
+   "sources": {
+    "archetype": 5,
+    "class": 16
+   },
+   "unknown": {}
+  },
+  "EWI_ExaltHQAssault": {
+   "counts": {
+    "coverOff": 320,
+    "drawnColliding": 1107,
+    "gate": 14,
+    "gateWalkingCoverOff": 14,
+    "ladders": 9,
+    "laddersSightOff": 9,
+    "threeOff": 364,
+    "threeOffMouseOff": 212,
+    "walkingOff": 367
+   },
+   "families": {
+    "door": 10,
+    "frac": 37,
+    "ladder": 9,
+    "level": 267,
+    "plain": 4,
+    "prop": 814
+   },
+   "sources": {
+    "actor": 806,
+    "archetype": 2053,
+    "class": 6727
+   },
+   "unknown": {}
+  },
+  "EWI_ExaltHQAssault_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "EWI_HQAssault": {
+   "counts": {
+    "coverOff": 339,
+    "drawnColliding": 1382,
+    "ladders": 18,
+    "laddersSightOff": 18,
+    "threeOff": 35,
+    "threeOffMouseOff": 33,
+    "walkingOff": 179
+   },
+   "families": {
+    "door": 14,
+    "frac": 41,
+    "ladder": 18,
+    "level": 557,
+    "prop": 770
+   },
+   "sources": {
+    "actor": 1276,
+    "archetype": 1231,
+    "class": 8815
+   },
+   "unknown": {}
+  },
+  "EWI_HQAssault_MP": {
+   "counts": {
+    "coverOff": 343,
+    "drawnColliding": 1251,
+    "ladders": 18,
+    "laddersSightOff": 18,
+    "threeOff": 106,
+    "threeOffMouseOff": 101,
+    "walkingOff": 152
+   },
+   "families": {
+    "door": 22,
+    "frac": 34,
+    "ladder": 18,
+    "level": 527,
+    "plain": 3,
+    "prop": 693
+   },
+   "sources": {
+    "actor": 1216,
+    "archetype": 960,
+    "class": 8256
+   },
+   "unknown": {}
+  },
+  "EWI_HQAssault_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "EWI_MeldTutorial": {
+   "counts": {
+    "coverOff": 244,
+    "drawnColliding": 729,
+    "gate": 41,
+    "gateWalkingCoverOff": 41,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "threeOff": 190,
+    "threeOffMouseOff": 48,
+    "walkingOff": 208
+   },
+   "families": {
+    "door": 6,
+    "frac": 57,
+    "ladder": 6,
+    "level": 355,
+    "plain": 19,
+    "prop": 424
+   },
+   "sources": {
+    "actor": 513,
+    "archetype": 941,
+    "assumed": 7,
+    "class": 5355
+   },
+   "unknown": {}
+  },
+  "EWI_MeldTutorial_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "LAbductor_FarmOutskirts": {
+   "counts": {
+    "coverOff": 299,
+    "drawnColliding": 888,
+    "gate": 108,
+    "gateWalkingCoverOff": 108,
+    "ladders": 4,
+    "threeOff": 288,
+    "walkingOff": 314
+   },
+   "families": {
+    "door": 11,
+    "frac": 49,
+    "ladder": 4,
+    "level": 824,
+    "plain": 94,
+    "prop": 351
+   },
+   "sources": {
+    "actor": 1248,
+    "archetype": 1265,
+    "assumed": 7,
+    "class": 7039
+   },
+   "unknown": {}
+  },
+  "LAbductor_WindingStream": {
+   "counts": {
+    "coverOff": 549,
+    "drawnColliding": 1377,
+    "gate": 256,
+    "gateWalkingCoverOff": 254,
+    "ladders": 4,
+    "threeOff": 483,
+    "walkingOff": 504
+   },
+   "families": {
+    "door": 11,
+    "frac": 47,
+    "ladder": 4,
+    "level": 843,
+    "plain": 44,
+    "prop": 733
+   },
+   "sources": {
+    "actor": 1195,
+    "archetype": 2802,
+    "assumed": 7,
+    "class": 9012
+   },
+   "unknown": {}
+  },
+  "LLrgScout_CreepyForest": {
+   "counts": {
+    "coverOff": 422,
+    "drawnColliding": 975,
+    "gate": 198,
+    "gateWalkingCoverOff": 198,
+    "threeOff": 381,
+    "threeOffMouseOff": 4,
+    "walkingOff": 436
+   },
+   "families": {
+    "door": 7,
+    "frac": 1,
+    "level": 526,
+    "plain": 124,
+    "prop": 591
+   },
+   "sources": {
+    "actor": 528,
+    "archetype": 2032,
+    "assumed": 7,
+    "class": 6738
+   },
+   "unknown": {}
+  },
+  "LLrgScout_Hillside": {
+   "counts": {
+    "coverOff": 545,
+    "drawnColliding": 1157,
+    "gate": 192,
+    "gateWalkingCoverOff": 192,
+    "threeOff": 530,
+    "threeOffMouseOff": 4,
+    "walkingOff": 536
+   },
+   "families": {
+    "door": 7,
+    "frac": 1,
+    "level": 590,
+    "plain": 32,
+    "prop": 646
+   },
+   "sources": {
+    "actor": 1443,
+    "archetype": 1671,
+    "assumed": 7,
+    "class": 6943
+   },
+   "unknown": {}
+  },
+  "LSmallScout_River": {
+   "counts": {
+    "coverOff": 509,
+    "drawnColliding": 1001,
+    "gate": 246,
+    "gateWalkingCoverOff": 246,
+    "threeOff": 441,
+    "threeOffMouseOff": 4,
+    "walkingOff": 515
+   },
+   "families": {
+    "door": 1,
+    "level": 527,
+    "plain": 45,
+    "prop": 633
+   },
+   "sources": {
+    "actor": 559,
+    "archetype": 2190,
+    "class": 6734
+   },
+   "unknown": {}
+  },
+  "LSmallScout_Rivervalley": {
+   "counts": {
+    "coverOff": 775,
+    "drawnColliding": 1343,
+    "gate": 474,
+    "gateWalkingCoverOff": 454,
+    "threeOff": 645,
+    "threeOffMouseOff": 4,
+    "walkingOff": 743
+   },
+   "families": {
+    "door": 1,
+    "level": 568,
+    "plain": 55,
+    "prop": 862
+   },
+   "sources": {
+    "actor": 989,
+    "archetype": 3071,
+    "class": 7791
+   },
+   "unknown": {}
+  },
+  "LSupplyShip_ForestGrove": {
+   "counts": {
+    "coverOff": 900,
+    "drawnColliding": 1738,
+    "gate": 258,
+    "gateWalkingCoverOff": 251,
+    "ladders": 19,
+    "threeOff": 869,
+    "threeOffMouseOff": 6,
+    "walkingOff": 880
+   },
+   "families": {
+    "door": 9,
+    "frac": 59,
+    "ladder": 19,
+    "level": 1112,
+    "plain": 307,
+    "prop": 708
+   },
+   "sources": {
+    "actor": 1493,
+    "archetype": 3892,
+    "class": 9975
+   },
+   "unknown": {}
+  },
+  "LSupplyShip_RockyGorge": {
+   "counts": {
+    "coverOff": 524,
+    "drawnColliding": 1200,
+    "gate": 19,
+    "gateWalkingCoverOff": 19,
+    "ladders": 19,
+    "threeOff": 433,
+    "threeOffMouseOff": 6,
+    "walkingOff": 492
+   },
+   "families": {
+    "door": 9,
+    "frac": 59,
+    "ladder": 19,
+    "level": 856,
+    "plain": 470,
+    "prop": 307
+   },
+   "sources": {
+    "actor": 1613,
+    "archetype": 1549,
+    "assumed": 7,
+    "class": 7116
+   },
+   "unknown": {}
+  },
+  "TempleShip": {
+   "counts": {
+    "coverOff": 175,
+    "drawnColliding": 1219,
+    "ladders": 10,
+    "threeOff": 52,
+    "threeOffMouseOff": 52,
+    "walkingOff": 134
+   },
+   "families": {
+    "door": 10,
+    "ladder": 10,
+    "level": 1225,
+    "prop": 433
+   },
+   "sources": {
+    "actor": 2139,
+    "archetype": 1075,
+    "class": 9388
+   },
+   "unknown": {}
+  },
+  "TempleShip_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "URB_Bar": {
+   "counts": {
+    "coverOff": 394,
+    "drawnColliding": 777,
+    "gate": 88,
+    "gateWalkingCoverOff": 54,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 252,
+    "threeOffMouseOff": 121,
+    "walkingOff": 266
+   },
+   "families": {
+    "door": 7,
+    "frac": 60,
+    "ladder": 2,
+    "level": 257,
+    "plain": 209,
+    "prop": 434
+   },
+   "sources": {
+    "actor": 648,
+    "archetype": 1290,
+    "assumed": 7,
+    "class": 4659
+   },
+   "unknown": {}
+  },
+  "URB_Bar_Terror": {
+   "counts": {
+    "coverOff": 370,
+    "drawnColliding": 722,
+    "gate": 92,
+    "gateWalkingCoverOff": 49,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 233,
+    "threeOffMouseOff": 98,
+    "walkingOff": 241
+   },
+   "families": {
+    "door": 7,
+    "frac": 57,
+    "ladder": 2,
+    "level": 259,
+    "plain": 213,
+    "prop": 389
+   },
+   "sources": {
+    "actor": 547,
+    "archetype": 1151,
+    "assumed": 7,
+    "class": 4495
+   },
+   "unknown": {}
+  },
+  "URB_Bar_X42": {
+   "counts": {
+    "coverOff": 396,
+    "drawnColliding": 805,
+    "gate": 88,
+    "gateWalkingCoverOff": 54,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 252,
+    "threeOffMouseOff": 121,
+    "walkingOff": 266
+   },
+   "families": {
+    "door": 7,
+    "frac": 62,
+    "ladder": 2,
+    "level": 261,
+    "plain": 209,
+    "prop": 456
+   },
+   "sources": {
+    "actor": 668,
+    "archetype": 1304,
+    "assumed": 7,
+    "class": 4865
+   },
+   "unknown": {}
+  },
+  "URB_Boulevard": {
+   "counts": {
+    "coverOff": 276,
+    "drawnColliding": 510,
+    "gate": 74,
+    "gateWalkingCoverOff": 67,
+    "ladders": 1,
+    "laddersSightOff": 1,
+    "threeOff": 184,
+    "threeOffMouseOff": 1,
+    "walkingOff": 188
+   },
+   "families": {
+    "frac": 20,
+    "ladder": 1,
+    "level": 365,
+    "plain": 31,
+    "prop": 253
+   },
+   "sources": {
+    "actor": 566,
+    "archetype": 878,
+    "assumed": 7,
+    "class": 3589
+   },
+   "unknown": {}
+  },
+  "URB_Boulevard_CNH": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_Boulevard_Euro": {
+   "counts": {
+    "coverOff": 340,
+    "drawnColliding": 566,
+    "gate": 72,
+    "gateWalkingCoverOff": 65,
+    "ladders": 1,
+    "laddersSightOff": 1,
+    "threeOff": 235,
+    "walkingOff": 257
+   },
+   "families": {
+    "frac": 25,
+    "ladder": 1,
+    "level": 448,
+    "plain": 121,
+    "prop": 239
+   },
+   "sources": {
+    "actor": 917,
+    "archetype": 782,
+    "assumed": 7,
+    "class": 4004
+   },
+   "unknown": {}
+  },
+  "URB_CemeteryGrand": {
+   "counts": {
+    "coverOff": 612,
+    "drawnColliding": 1094,
+    "gate": 43,
+    "gateWalkingCoverOff": 43,
+    "threeOff": 597,
+    "threeOffMouseOff": 95,
+    "walkingOff": 597
+   },
+   "families": {
+    "frac": 22,
+    "level": 580,
+    "plain": 335,
+    "prop": 538
+   },
+   "sources": {
+    "actor": 1446,
+    "archetype": 1679,
+    "assumed": 7,
+    "class": 6594
+   },
+   "unknown": {}
+  },
+  "URB_CemeteryGrand_Bomb": {
+   "counts": {
+    "drawnColliding": 11
+   },
+   "families": {
+    "door": 11,
+    "level": 13
+   },
+   "sources": {
+    "archetype": 24,
+    "class": 144
+   },
+   "unknown": {}
+  },
+  "URB_CemeteryGrand_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "URB_CommercialAlley": {
+   "counts": {
+    "coverOff": 515,
+    "drawnColliding": 1056,
+    "gate": 135,
+    "gateWalkingCoverOff": 131,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "laddersThreeOff": 5,
+    "threeOff": 454,
+    "threeOffMouseOff": 130,
+    "walkingOff": 465
+   },
+   "families": {
+    "door": 13,
+    "frac": 96,
+    "ladder": 6,
+    "level": 368,
+    "plain": 165,
+    "prop": 589
+   },
+   "sources": {
+    "actor": 1915,
+    "archetype": 1173,
+    "class": 5918
+   },
+   "unknown": {}
+  },
+  "URB_CommercialAlley_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_CommercialAlley_EWI": {
+   "counts": {
+    "coverOff": 388,
+    "drawnColliding": 1012,
+    "gate": 129,
+    "gateWalkingCoverOff": 129,
+    "ladders": 8,
+    "laddersSightOff": 8,
+    "laddersThreeOff": 5,
+    "threeOff": 329,
+    "threeOffMouseOff": 124,
+    "walkingOff": 340
+   },
+   "families": {
+    "door": 15,
+    "frac": 96,
+    "ladder": 8,
+    "level": 200,
+    "plain": 228,
+    "prop": 628
+   },
+   "sources": {
+    "actor": 1334,
+    "archetype": 1186,
+    "assumed": 7,
+    "class": 5806
+   },
+   "unknown": {}
+  },
+  "URB_CommercialAlley_Stream": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_CommercialAlley_Terror": {
+   "counts": {
+    "coverOff": 457,
+    "drawnColliding": 941,
+    "gate": 109,
+    "gateWalkingCoverOff": 103,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "laddersThreeOff": 5,
+    "threeOff": 303,
+    "threeOffMouseOff": 111,
+    "walkingOff": 324
+   },
+   "families": {
+    "door": 11,
+    "frac": 95,
+    "ladder": 6,
+    "level": 309,
+    "plain": 140,
+    "prop": 558
+   },
+   "sources": {
+    "actor": 1376,
+    "archetype": 1253,
+    "class": 5614
+   },
+   "unknown": {}
+  },
+  "URB_CommercialRestaurant": {
+   "counts": {
+    "coverOff": 369,
+    "drawnColliding": 838,
+    "gate": 47,
+    "gateWalkingCoverOff": 41,
+    "ladders": 5,
+    "laddersSightOff": 5,
+    "threeOff": 246,
+    "threeOffMouseOff": 71,
+    "walkingOff": 294
+   },
+   "families": {
+    "door": 11,
+    "frac": 83,
+    "ladder": 5,
+    "level": 213,
+    "plain": 228,
+    "prop": 503
+   },
+   "sources": {
+    "actor": 1071,
+    "archetype": 999,
+    "assumed": 7,
+    "class": 5085
+   },
+   "unknown": {}
+  },
+  "URB_CommercialRestaurant_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_CommercialStreet": {
+   "counts": {
+    "coverOff": 352,
+    "drawnColliding": 737,
+    "gate": 117,
+    "gateWalkingCoverOff": 106,
+    "threeOff": 308,
+    "threeOffMouseOff": 97,
+    "walkingOff": 321
+   },
+   "families": {
+    "door": 11,
+    "frac": 65,
+    "level": 360,
+    "plain": 100,
+    "prop": 380
+   },
+   "sources": {
+    "actor": 1080,
+    "archetype": 1034,
+    "assumed": 7,
+    "class": 4551
+   },
+   "unknown": {}
+  },
+  "URB_CommercialStreet_Terror": {
+   "counts": {
+    "coverOff": 369,
+    "drawnColliding": 735,
+    "gate": 133,
+    "gateWalkingCoverOff": 125,
+    "threeOff": 330,
+    "threeOffMouseOff": 103,
+    "walkingOff": 343
+   },
+   "families": {
+    "door": 10,
+    "frac": 64,
+    "level": 370,
+    "plain": 87,
+    "prop": 361
+   },
+   "sources": {
+    "actor": 981,
+    "archetype": 1131,
+    "assumed": 7,
+    "class": 4412
+   },
+   "unknown": {}
+  },
+  "URB_ConvienienceStore": {
+   "counts": {
+    "coverOff": 246,
+    "drawnColliding": 672,
+    "gate": 58,
+    "gateWalkingCoverOff": 58,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 198,
+    "threeOffMouseOff": 78,
+    "walkingOff": 210
+   },
+   "families": {
+    "door": 15,
+    "frac": 79,
+    "ladder": 10,
+    "level": 189,
+    "plain": 155,
+    "prop": 376
+   },
+   "sources": {
+    "actor": 956,
+    "archetype": 707,
+    "assumed": 7,
+    "class": 4065
+   },
+   "unknown": {}
+  },
+  "URB_ConvienienceStore_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_ConvienienceStore_EWI": {
+   "counts": {
+    "coverOff": 271,
+    "drawnColliding": 745,
+    "gate": 80,
+    "gateWalkingCoverOff": 80,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 226,
+    "threeOffMouseOff": 78,
+    "walkingOff": 238
+   },
+   "families": {
+    "door": 15,
+    "frac": 81,
+    "ladder": 10,
+    "level": 207,
+    "plain": 155,
+    "prop": 427
+   },
+   "sources": {
+    "actor": 969,
+    "archetype": 861,
+    "assumed": 7,
+    "class": 4497
+   },
+   "unknown": {}
+  },
+  "URB_ConvienienceStore_Terror": {
+   "counts": {
+    "coverOff": 240,
+    "drawnColliding": 628,
+    "gate": 24,
+    "gateWalkingCoverOff": 21,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 203,
+    "threeOffMouseOff": 50,
+    "walkingOff": 206
+   },
+   "families": {
+    "door": 10,
+    "frac": 74,
+    "ladder": 10,
+    "level": 248,
+    "plain": 121,
+    "prop": 314
+   },
+   "sources": {
+    "actor": 667,
+    "archetype": 675,
+    "assumed": 7,
+    "class": 4103
+   },
+   "unknown": {}
+  },
+  "URB_Demolition_CNH": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_Demolition_EWI": {
+   "counts": {
+    "coverOff": 384,
+    "drawnColliding": 788,
+    "gate": 35,
+    "gateWalkingCoverOff": 35,
+    "ladders": 5,
+    "laddersSightOff": 5,
+    "threeOff": 275,
+    "threeOffMouseOff": 142,
+    "walkingOff": 382
+   },
+   "families": {
+    "door": 2,
+    "frac": 3,
+    "ladder": 5,
+    "level": 754,
+    "plain": 12,
+    "prop": 409
+   },
+   "sources": {
+    "actor": 1957,
+    "archetype": 1019,
+    "class": 6072
+   },
+   "unknown": {}
+  },
+  "URB_FastFood": {
+   "counts": {
+    "coverOff": 412,
+    "drawnColliding": 746,
+    "gate": 38,
+    "gateWalkingCoverOff": 36,
+    "ladders": 3,
+    "laddersSightOff": 2,
+    "threeOff": 370,
+    "threeOffMouseOff": 28,
+    "walkingOff": 381
+   },
+   "families": {
+    "door": 5,
+    "frac": 29,
+    "ladder": 3,
+    "level": 334,
+    "plain": 280,
+    "prop": 356
+   },
+   "sources": {
+    "actor": 897,
+    "archetype": 1316,
+    "assumed": 7,
+    "class": 4138
+   },
+   "unknown": {}
+  },
+  "URB_FastFood_EWI": {
+   "counts": {
+    "coverOff": 322,
+    "drawnColliding": 703,
+    "gate": 14,
+    "gateWalkingCoverOff": 14,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 263,
+    "threeOffMouseOff": 32,
+    "walkingOff": 278
+   },
+   "families": {
+    "door": 5,
+    "frac": 34,
+    "ladder": 4,
+    "level": 437,
+    "plain": 140,
+    "prop": 275
+   },
+   "sources": {
+    "actor": 777,
+    "archetype": 1030,
+    "assumed": 7,
+    "class": 4297
+   },
+   "unknown": {}
+  },
+  "URB_GasStation_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_GasStation_EWI": {
+   "counts": {
+    "coverOff": 404,
+    "drawnColliding": 777,
+    "gate": 98,
+    "gateWalkingCoverOff": 85,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 276,
+    "threeOffMouseOff": 37,
+    "walkingOff": 307
+   },
+   "families": {
+    "door": 14,
+    "frac": 25,
+    "ladder": 4,
+    "level": 515,
+    "plain": 83,
+    "prop": 392
+   },
+   "sources": {
+    "actor": 541,
+    "archetype": 1616,
+    "class": 5439
+   },
+   "unknown": {}
+  },
+  "URB_HIghwayBomb_Stream": {
+   "counts": {
+    "drawnColliding": 10
+   },
+   "families": {
+    "door": 10,
+    "level": 11
+   },
+   "sources": {
+    "archetype": 22,
+    "class": 125
+   },
+   "unknown": {}
+  },
+  "URB_Highway1": {
+   "counts": {
+    "coverOff": 507,
+    "drawnColliding": 738,
+    "gate": 10,
+    "gateWalkingCoverOff": 4,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 462,
+    "walkingOff": 463
+   },
+   "families": {
+    "frac": 23,
+    "ladder": 4,
+    "level": 679,
+    "plain": 174,
+    "prop": 164
+   },
+   "sources": {
+    "actor": 2034,
+    "archetype": 654,
+    "assumed": 7,
+    "class": 4067
+   },
+   "unknown": {}
+  },
+  "URB_HighwayBridge": {
+   "counts": {
+    "coverOff": 201,
+    "drawnColliding": 387,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 163,
+    "walkingOff": 163
+   },
+   "families": {
+    "frac": 19,
+    "ladder": 2,
+    "level": 441,
+    "plain": 85,
+    "prop": 73
+   },
+   "sources": {
+    "actor": 452,
+    "archetype": 741,
+    "assumed": 7,
+    "class": 2859
+   },
+   "unknown": {}
+  },
+  "URB_HighwayConstruction": {
+   "counts": {
+    "coverOff": 283,
+    "drawnColliding": 584,
+    "gate": 25,
+    "gateWalkingCoverOff": 16,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 181,
+    "walkingOff": 235
+   },
+   "families": {
+    "frac": 24,
+    "ladder": 2,
+    "level": 351,
+    "plain": 230,
+    "prop": 198
+   },
+   "sources": {
+    "actor": 1061,
+    "archetype": 388,
+    "assumed": 7,
+    "class": 3423
+   },
+   "unknown": {}
+  },
+  "URB_HighwayConstruction_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_HighwayConstruction_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_HighwayConstruction_EWI": {
+   "counts": {
+    "coverOff": 243,
+    "drawnColliding": 721,
+    "gate": 22,
+    "gateWalkingCoverOff": 20,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 178,
+    "walkingOff": 233
+   },
+   "families": {
+    "frac": 5,
+    "ladder": 2,
+    "level": 854,
+    "plain": 1,
+    "prop": 300
+   },
+   "sources": {
+    "actor": 966,
+    "archetype": 1387,
+    "assumed": 7,
+    "class": 6367
+   },
+   "unknown": {}
+  },
+  "URB_HighwayFallen": {
+   "counts": {
+    "coverOff": 304,
+    "drawnColliding": 503,
+    "gate": 5,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 276,
+    "walkingOff": 279
+   },
+   "families": {
+    "frac": 14,
+    "ladder": 2,
+    "level": 409,
+    "plain": 238,
+    "prop": 138
+   },
+   "sources": {
+    "actor": 845,
+    "archetype": 745,
+    "assumed": 7,
+    "class": 3094
+   },
+   "unknown": {}
+  },
+  "URB_HighwayFallen_Stream": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 4,
+    "class": 10
+   },
+   "unknown": {}
+  },
+  "URB_IndustrialOffice": {
+   "counts": {
+    "coverOff": 553,
+    "drawnColliding": 1025,
+    "gate": 72,
+    "gateWalkingCoverOff": 39,
+    "threeOff": 421,
+    "threeOffMouseOff": 49,
+    "walkingOff": 453
+   },
+   "families": {
+    "door": 18,
+    "frac": 71,
+    "level": 486,
+    "plain": 158,
+    "prop": 446
+   },
+   "sources": {
+    "actor": 1042,
+    "archetype": 1418,
+    "assumed": 7,
+    "class": 5888
+   },
+   "unknown": {}
+  },
+  "URB_IndustrialOffice_CNH": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_IndustrialOffice_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "URB_LiquorStore": {
+   "counts": {
+    "coverOff": 400,
+    "drawnColliding": 802,
+    "gate": 104,
+    "gateWalkingCoverOff": 102,
+    "ladders": 5,
+    "laddersSightOff": 5,
+    "threeOff": 297,
+    "threeOffMouseOff": 93,
+    "walkingOff": 344
+   },
+   "families": {
+    "door": 12,
+    "frac": 70,
+    "ladder": 5,
+    "level": 271,
+    "plain": 213,
+    "prop": 464
+   },
+   "sources": {
+    "actor": 912,
+    "archetype": 1179,
+    "assumed": 7,
+    "class": 5005
+   },
+   "unknown": {}
+  },
+  "URB_LiquorStore_CovExt": {
+   "counts": {
+    "drawnColliding": 1
+   },
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 12
+   },
+   "unknown": {}
+  },
+  "URB_MilitaryAmmo": {
+   "counts": {
+    "coverOff": 354,
+    "drawnColliding": 1141,
+    "gate": 9,
+    "gateWalkingCoverOff": 5,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 292,
+    "threeOffMouseOff": 43,
+    "walkingOff": 533
+   },
+   "families": {
+    "door": 7,
+    "frac": 20,
+    "ladder": 3,
+    "level": 642,
+    "plain": 133,
+    "prop": 488
+   },
+   "sources": {
+    "actor": 1778,
+    "archetype": 1042,
+    "assumed": 7,
+    "class": 6532
+   },
+   "unknown": {}
+  },
+  "URB_MilitaryAmmo_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_OfficePaper": {
+   "counts": {
+    "coverOff": 386,
+    "drawnColliding": 842,
+    "gate": 93,
+    "gateWalkingCoverOff": 70,
+    "ladders": 1,
+    "laddersSightOff": 1,
+    "threeOff": 248,
+    "threeOffMouseOff": 55,
+    "walkingOff": 291
+   },
+   "families": {
+    "door": 17,
+    "frac": 59,
+    "ladder": 1,
+    "level": 233,
+    "plain": 186,
+    "prop": 522
+   },
+   "sources": {
+    "actor": 849,
+    "archetype": 1152,
+    "assumed": 7,
+    "class": 5231
+   },
+   "unknown": {}
+  },
+  "URB_OfficePaper_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_OfficePaper_EWI": {
+   "counts": {
+    "coverOff": 417,
+    "drawnColliding": 857,
+    "gate": 68,
+    "gateWalkingCoverOff": 53,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 227,
+    "threeOffMouseOff": 41,
+    "walkingOff": 326
+   },
+   "families": {
+    "door": 16,
+    "frac": 44,
+    "ladder": 3,
+    "level": 512,
+    "plain": 21,
+    "prop": 439
+   },
+   "sources": {
+    "actor": 781,
+    "archetype": 1103,
+    "class": 6131
+   },
+   "unknown": {}
+  },
+  "URB_OfficePaper_Terror": {
+   "counts": {
+    "coverOff": 426,
+    "drawnColliding": 889,
+    "gate": 93,
+    "gateWalkingCoverOff": 73,
+    "ladders": 5,
+    "laddersSightOff": 5,
+    "threeOff": 304,
+    "threeOffMouseOff": 126,
+    "walkingOff": 341
+   },
+   "families": {
+    "door": 15,
+    "frac": 48,
+    "ladder": 5,
+    "level": 302,
+    "plain": 149,
+    "prop": 527
+   },
+   "sources": {
+    "actor": 899,
+    "archetype": 1375,
+    "assumed": 7,
+    "class": 5345
+   },
+   "unknown": {}
+  },
+  "URB_PierA": {
+   "counts": {
+    "coverOff": 252,
+    "drawnColliding": 641,
+    "gate": 10,
+    "gateWalkingCoverOff": 9,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 221,
+    "threeOffMouseOff": 18,
+    "walkingOff": 224
+   },
+   "families": {
+    "door": 7,
+    "frac": 22,
+    "ladder": 2,
+    "level": 345,
+    "plain": 265,
+    "prop": 308
+   },
+   "sources": {
+    "actor": 500,
+    "archetype": 872,
+    "assumed": 7,
+    "class": 4553
+   },
+   "unknown": {}
+  },
+  "URB_PierA_Asian": {
+   "counts": {
+    "coverOff": 342,
+    "drawnColliding": 717,
+    "gate": 15,
+    "gateWalkingCoverOff": 14,
+    "ladders": 2,
+    "laddersSightOff": 2,
+    "threeOff": 312,
+    "threeOffMouseOff": 24,
+    "walkingOff": 315
+   },
+   "families": {
+    "door": 7,
+    "frac": 22,
+    "ladder": 2,
+    "level": 358,
+    "plain": 257,
+    "prop": 376
+   },
+   "sources": {
+    "actor": 686,
+    "archetype": 1106,
+    "assumed": 7,
+    "class": 4820
+   },
+   "unknown": {}
+  },
+  "URB_PierA_Stream": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_PierA_StreamB": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 5,
+    "class": 2
+   },
+   "unknown": {}
+  },
+  "URB_PierA_Terror": {
+   "counts": {
+    "coverOff": 295,
+    "drawnColliding": 785,
+    "gate": 23,
+    "gateWalkingCoverOff": 21,
+    "ladders": 11,
+    "laddersSightOff": 11,
+    "threeOff": 134,
+    "threeOffMouseOff": 30,
+    "walkingOff": 235
+   },
+   "families": {
+    "door": 1,
+    "frac": 30,
+    "ladder": 11,
+    "level": 492,
+    "plain": 81,
+    "prop": 418
+   },
+   "sources": {
+    "actor": 464,
+    "archetype": 1190,
+    "assumed": 7,
+    "class": 5990
+   },
+   "unknown": {}
+  },
+  "URB_PoliceStation": {
+   "counts": {
+    "coverOff": 462,
+    "drawnColliding": 785,
+    "gate": 85,
+    "gateWalkingCoverOff": 69,
+    "threeOff": 252,
+    "threeOffMouseOff": 46,
+    "walkingOff": 276
+   },
+   "families": {
+    "door": 10,
+    "frac": 68,
+    "level": 309,
+    "plain": 94,
+    "prop": 442
+   },
+   "sources": {
+    "actor": 898,
+    "archetype": 1257,
+    "assumed": 7,
+    "class": 4713
+   },
+   "unknown": {}
+  },
+  "URB_PoliceStation_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_ResearchOutpost": {
+   "counts": {
+    "coverOff": 289,
+    "drawnColliding": 699,
+    "gate": 26,
+    "gateWalkingCoverOff": 26,
+    "ladders": 2,
+    "laddersSightOff": 1,
+    "threeOff": 166,
+    "threeOffMouseOff": 26,
+    "walkingOff": 179
+   },
+   "families": {
+    "door": 16,
+    "frac": 78,
+    "ladder": 2,
+    "level": 226,
+    "plain": 143,
+    "prop": 358
+   },
+   "sources": {
+    "actor": 1068,
+    "archetype": 512,
+    "assumed": 7,
+    "class": 4173
+   },
+   "unknown": {}
+  },
+  "URB_ResearchOutpost_EWI": {
+   "counts": {
+    "coverOff": 300,
+    "drawnColliding": 716,
+    "gate": 26,
+    "gateWalkingCoverOff": 26,
+    "ladders": 2,
+    "laddersSightOff": 1,
+    "threeOff": 175,
+    "threeOffMouseOff": 26,
+    "walkingOff": 188
+   },
+   "families": {
+    "door": 16,
+    "frac": 78,
+    "ladder": 2,
+    "level": 229,
+    "plain": 143,
+    "prop": 371
+   },
+   "sources": {
+    "actor": 1116,
+    "archetype": 518,
+    "assumed": 7,
+    "class": 4257
+   },
+   "unknown": {}
+  },
+  "URB_ResearchOutpost_Rescue": {
+   "counts": {
+    "drawnColliding": 1
+   },
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 12
+   },
+   "unknown": {}
+  },
+  "URB_ResearchOutpost_Stream": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 5,
+    "class": 2
+   },
+   "unknown": {}
+  },
+  "URB_RooftopsConst": {
+   "counts": {
+    "coverOff": 265,
+    "drawnColliding": 733,
+    "gate": 28,
+    "gateWalkingCoverOff": 21,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "threeOff": 116,
+    "threeOffMouseOff": 1,
+    "walkingOff": 180
+   },
+   "families": {
+    "frac": 49,
+    "ladder": 6,
+    "level": 524,
+    "plain": 229,
+    "prop": 255
+   },
+   "sources": {
+    "actor": 967,
+    "archetype": 210,
+    "assumed": 7,
+    "class": 5616
+   },
+   "unknown": {}
+  },
+  "URB_RooftopsConst_Asian": {
+   "counts": {
+    "coverOff": 217,
+    "drawnColliding": 647,
+    "gate": 25,
+    "gateWalkingCoverOff": 18,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "threeOff": 142,
+    "threeOffMouseOff": 10,
+    "walkingOff": 160
+   },
+   "families": {
+    "frac": 49,
+    "ladder": 6,
+    "level": 487,
+    "plain": 235,
+    "prop": 333
+   },
+   "sources": {
+    "actor": 1066,
+    "archetype": 532,
+    "assumed": 7,
+    "class": 5650
+   },
+   "unknown": {}
+  },
+  "URB_RooftopsConst_CNH": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_SlaughterhouseA": {
+   "counts": {
+    "coverOff": 332,
+    "drawnColliding": 646,
+    "gate": 159,
+    "gateWalkingCoverOff": 150,
+    "ladders": 6,
+    "laddersSightOff": 6,
+    "threeOff": 278,
+    "threeOffMouseOff": 74,
+    "walkingOff": 278
+   },
+   "families": {
+    "door": 18,
+    "frac": 50,
+    "ladder": 6,
+    "level": 207,
+    "plain": 301,
+    "prop": 367
+   },
+   "sources": {
+    "actor": 762,
+    "archetype": 1247,
+    "assumed": 7,
+    "class": 3850
+   },
+   "unknown": {}
+  },
+  "URB_Slaughterhouse_Stream": {
+   "counts": {
+    "drawnColliding": 9
+   },
+   "families": {
+    "door": 9,
+    "level": 10
+   },
+   "sources": {
+    "archetype": 20,
+    "class": 113
+   },
+   "unknown": {}
+  },
+  "URB_SmallCemetery": {
+   "counts": {
+    "coverOff": 659,
+    "drawnColliding": 868,
+    "gate": 172,
+    "gateWalkingCoverOff": 172,
+    "ladders": 1,
+    "laddersSightOff": 1,
+    "threeOff": 635,
+    "threeOffMouseOff": 1,
+    "walkingOff": 646
+   },
+   "families": {
+    "door": 2,
+    "frac": 24,
+    "ladder": 1,
+    "level": 627,
+    "plain": 225,
+    "prop": 292
+   },
+   "sources": {
+    "actor": 1895,
+    "archetype": 1111,
+    "assumed": 7,
+    "class": 4642
+   },
+   "unknown": {}
+  },
+  "URB_StreetHurricane": {
+   "counts": {
+    "coverOff": 148,
+    "drawnColliding": 365,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 105,
+    "walkingOff": 110
+   },
+   "families": {
+    "frac": 13,
+    "ladder": 4,
+    "level": 321,
+    "plain": 140,
+    "prop": 67
+   },
+   "sources": {
+    "actor": 681,
+    "archetype": 121,
+    "assumed": 7,
+    "class": 2436
+   },
+   "unknown": {}
+  },
+  "URB_StreetHurricane_Stream": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 4,
+    "class": 10
+   },
+   "unknown": {}
+  },
+  "URB_StreetHurricane_Terror": {
+   "counts": {
+    "coverOff": 157,
+    "drawnColliding": 364,
+    "ladders": 4,
+    "laddersSightOff": 4,
+    "threeOff": 126,
+    "walkingOff": 132
+   },
+   "families": {
+    "frac": 10,
+    "ladder": 4,
+    "level": 305,
+    "plain": 116,
+    "prop": 83
+   },
+   "sources": {
+    "actor": 483,
+    "archetype": 261,
+    "assumed": 7,
+    "class": 2457
+   },
+   "unknown": {}
+  },
+  "URB_StreetOverpass": {
+   "counts": {
+    "coverOff": 333,
+    "drawnColliding": 792,
+    "gate": 2,
+    "gateWalkingCoverOff": 1,
+    "ladders": 3,
+    "laddersSightOff": 3,
+    "threeOff": 262,
+    "walkingOff": 294
+   },
+   "families": {
+    "frac": 17,
+    "ladder": 3,
+    "level": 520,
+    "plain": 344,
+    "prop": 168
+   },
+   "sources": {
+    "actor": 486,
+    "archetype": 1027,
+    "assumed": 7,
+    "class": 4457
+   },
+   "unknown": {}
+  },
+  "URB_StreetOverpass_EWI": {
+   "counts": {
+    "coverOff": 352,
+    "drawnColliding": 649,
+    "gate": 21,
+    "gateWalkingCoverOff": 21,
+    "ladders": 7,
+    "laddersSightOff": 7,
+    "threeOff": 204,
+    "threeOffMouseOff": 16,
+    "walkingOff": 282
+   },
+   "families": {
+    "door": 2,
+    "frac": 20,
+    "ladder": 7,
+    "level": 640,
+    "plain": 40,
+    "prop": 255
+   },
+   "sources": {
+    "actor": 435,
+    "archetype": 1651,
+    "class": 4965
+   },
+   "unknown": {}
+  },
+  "URB_StreetOverpass_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  },
+  "URB_TrainStation": {
+   "counts": {
+    "coverOff": 231,
+    "drawnColliding": 588,
+    "gate": 41,
+    "gateWalkingCoverOff": 36,
+    "threeOff": 176,
+    "threeOffMouseOff": 33,
+    "walkingOff": 180
+   },
+   "families": {
+    "door": 6,
+    "frac": 31,
+    "level": 324,
+    "plain": 249,
+    "prop": 287
+   },
+   "sources": {
+    "actor": 800,
+    "archetype": 904,
+    "assumed": 7,
+    "class": 3897
+   },
+   "unknown": {}
+  },
+  "URB_TrainStation_Stream": {
+   "counts": {
+    "drawnColliding": 9
+   },
+   "families": {
+    "door": 9,
+    "level": 10
+   },
+   "sources": {
+    "archetype": 20,
+    "class": 113
+   },
+   "unknown": {}
+  },
+  "URB_Trainyard": {
+   "counts": {
+    "coverOff": 394,
+    "drawnColliding": 821,
+    "gate": 23,
+    "gateWalkingCoverOff": 23,
+    "ladders": 11,
+    "laddersSightOff": 11,
+    "threeOff": 376,
+    "walkingOff": 378
+   },
+   "families": {
+    "frac": 18,
+    "ladder": 11,
+    "level": 608,
+    "plain": 104,
+    "prop": 335
+   },
+   "sources": {
+    "actor": 893,
+    "archetype": 1424,
+    "assumed": 7,
+    "class": 5347
+   },
+   "unknown": {}
+  },
+  "URB_Trainyard_CovExt": {
+   "counts": {},
+   "families": {
+    "level": 1
+   },
+   "sources": {
+    "archetype": 2,
+    "class": 5
+   },
+   "unknown": {}
+  },
+  "URB_Trainyard_Stream": {
+   "counts": {
+    "drawnColliding": 11
+   },
+   "families": {
+    "door": 11,
+    "level": 12
+   },
+   "sources": {
+    "archetype": 24,
+    "class": 137
+   },
+   "unknown": {}
+  },
+  "URB_TruckStop": {
+   "counts": {
+    "coverOff": 250,
+    "drawnColliding": 661,
+    "gate": 51,
+    "gateWalkingCoverOff": 43,
+    "ladders": 8,
+    "laddersSightOff": 8,
+    "threeOff": 164,
+    "threeOffMouseOff": 42,
+    "walkingOff": 194
+   },
+   "families": {
+    "door": 4,
+    "frac": 47,
+    "ladder": 8,
+    "level": 303,
+    "plain": 264,
+    "prop": 342
+   },
+   "sources": {
+    "actor": 704,
+    "archetype": 711,
+    "assumed": 7,
+    "class": 4710
+   },
+   "unknown": {}
+  },
+  "URB_TruckStop_CNH": {
+   "counts": {},
+   "families": {
+    "level": 2
+   },
+   "sources": {
+    "archetype": 7,
+    "class": 7
+   },
+   "unknown": {}
+  },
+  "URB_TruckStop_EWI": {
+   "counts": {
+    "coverOff": 238,
+    "drawnColliding": 677,
+    "gate": 51,
+    "gateWalkingCoverOff": 43,
+    "ladders": 10,
+    "laddersSightOff": 10,
+    "threeOff": 158,
+    "threeOffMouseOff": 55,
+    "walkingOff": 178
+   },
+   "families": {
+    "door": 4,
+    "frac": 47,
+    "ladder": 10,
+    "level": 301,
+    "plain": 262,
+    "prop": 358
+   },
+   "sources": {
+    "actor": 699,
+    "archetype": 735,
+    "assumed": 7,
+    "class": 4829
+   },
+   "unknown": {}
+  },
+  "URB_TruckStop_Stream": {
+   "counts": {},
+   "families": {},
+   "sources": {},
+   "unknown": {}
+  }
+ },
+ "population": "library.donors: the base map of each map the editor lists, persistent level only, each actor once",
+ "threeOffMeshCount": 925,
+ "tool": "tools/upk/audit_piece_flags.py",
+ "total": {
+  "counts|coverOff": 37387,
+  "counts|drawnColliding": 88614,
+  "counts|gate": 9338,
+  "counts|gateWalkingCoverOff": 8823,
+  "counts|ladders": 455,
+  "counts|laddersSightOff": 301,
+  "counts|laddersThreeOff": 15,
+  "counts|threeOff": 29523,
+  "counts|threeOffMouseOff": 3706,
+  "counts|walkingOff": 33537,
+  "families|door": 733,
+  "families|frac": 3660,
+  "families|ladder": 455,
+  "families|level": 50972,
+  "families|plain": 12633,
+  "families|prop": 42070,
+  "sources|actor": 95874,
+  "sources|archetype": 133199,
+  "sources|assumed": 455,
+  "sources|class": 564653,
+  "states|door|cover|off": 516,
+  "states|door|cover|on": 217,
+  "states|door|floor|off": 732,
+  "states|door|floor|on": 1,
+  "states|door|mouse|n/a": 733,
+  "states|door|sight|off": 170,
+  "states|door|sight|on": 563,
+  "states|door|walking|off": 218,
+  "states|door|walking|on": 511,
+  "states|door|walking|partial": 4,
+  "states|frac|cover|off": 583,
+  "states|frac|cover|on": 3077,
+  "states|frac|floor|off": 3425,
+  "states|frac|floor|on": 235,
+  "states|frac|mouse|off": 2377,
+  "states|frac|mouse|on": 1283,
+  "states|frac|sight|off": 555,
+  "states|frac|sight|on": 3105,
+  "states|frac|walking|off": 24,
+  "states|frac|walking|on": 3636,
+  "states|ladder|cover|n/a": 455,
+  "states|ladder|floor|off": 455,
+  "states|ladder|mouse|off": 274,
+  "states|ladder|mouse|on": 181,
+  "states|ladder|sight|off": 301,
+  "states|ladder|sight|on": 154,
+  "states|ladder|walking|off": 15,
+  "states|ladder|walking|on": 440,
+  "states|level|cover|off": 24990,
+  "states|level|cover|on": 25982,
+  "states|level|floor|off": 33392,
+  "states|level|floor|on": 17580,
+  "states|level|mouse|off": 6419,
+  "states|level|mouse|on": 44553,
+  "states|level|sight|off": 20758,
+  "states|level|sight|on": 30214,
+  "states|level|walking|off": 24234,
+  "states|level|walking|on": 26738,
+  "states|plain|cover|n/a": 12633,
+  "states|plain|floor|off": 12571,
+  "states|plain|floor|on": 62,
+  "states|plain|mouse|n/a": 12633,
+  "states|plain|sight|n/a": 12633,
+  "states|plain|walking|n/a": 12633,
+  "states|prop|cover|n/a": 797,
+  "states|prop|cover|off": 16580,
+  "states|prop|cover|on": 24693,
+  "states|prop|floor|off": 39898,
+  "states|prop|floor|on": 2172,
+  "states|prop|mouse|off": 11777,
+  "states|prop|mouse|on": 30293,
+  "states|prop|sight|off": 17898,
+  "states|prop|sight|on": 24167,
+  "states|prop|sight|partial": 5,
+  "states|prop|walking|off": 14089,
+  "states|prop|walking|on": 27470,
+  "states|prop|walking|partial": 511
+ },
+ "tvs": {
+  "byMesh": {
+   "StoreTVStand": {
+    "URB_ConvienienceStore": {
+     "on|on|on|off": 2
+    },
+    "URB_ConvienienceStore_EWI": {
+     "on|on|on|off": 2
+    },
+    "URB_ConvienienceStore_Terror": {
+     "off|on|off|off": 1
+    },
+    "URB_Demolition_EWI": {
+     "on|on|off|off": 2
+    },
+    "URB_OfficePaper_EWI": {
+     "on|on|on|off": 1
+    }
+   },
+   "StoreTV_A": {
+    "URB_ConvienienceStore": {
+     "off|off|off|off": 6,
+     "off|on|off|off": 3
+    },
+    "URB_ConvienienceStore_EWI": {
+     "off|off|off|off": 6,
+     "off|on|off|off": 3
+    },
+    "URB_ConvienienceStore_Terror": {
+     "off|off|off|off": 3,
+     "off|on|on|on": 1,
+     "on|off|on|off": 3
+    },
+    "URB_FastFood_EWI": {
+     "on|off|on|on": 1
+    }
+   },
+   "StoreTV_B": {
+    "URB_Bar": {
+     "on|off|on|on": 2
+    },
+    "URB_Bar_X42": {
+     "on|off|on|on": 2
+    },
+    "URB_CommercialAlley": {
+     "off|off|off|off": 1,
+     "on|off|on|off": 2,
+     "partial|off|off|off": 4
+    },
+    "URB_CommercialAlley_EWI": {
+     "on|off|on|off": 1,
+     "on|off|on|on": 6
+    },
+    "URB_CommercialAlley_Terror": {
+     "off|off|off|off": 1,
+     "on|off|on|off": 2,
+     "partial|off|off|off": 4
+    },
+    "URB_ConvienienceStore": {
+     "off|off|off|off": 13,
+     "off|on|off|off": 8
+    },
+    "URB_ConvienienceStore_EWI": {
+     "off|off|off|off": 13,
+     "off|on|off|off": 8
+    },
+    "URB_ConvienienceStore_Terror": {
+     "off|off|off|off": 14
+    }
+   },
+   "StoreTV_B_Off": {
+    "URB_Bar": {
+     "off|off|on|on": 4
+    },
+    "URB_Bar_Terror": {
+     "off|off|off|off": 4
+    },
+    "URB_Bar_X42": {
+     "off|off|on|on": 4
+    },
+    "URB_CommercialAlley": {
+     "off|off|off|off": 2
+    },
+    "URB_CommercialAlley_EWI": {
+     "off|off|off|off": 1,
+     "off|off|on|on": 1
+    },
+    "URB_CommercialAlley_Terror": {
+     "off|off|off|off": 2
+    },
+    "URB_FastFood_EWI": {
+     "off|off|on|on": 2
+    },
+    "URB_IndustrialOffice": {
+     "off|off|on|off": 1
+    }
+   },
+   "StoreTV_Wall": {
+    "URB_ConvienienceStore": {
+     "on|on|on|off": 2
+    },
+    "URB_ConvienienceStore_EWI": {
+     "on|on|on|off": 2
+    },
+    "URB_ConvienienceStore_Terror": {
+     "on|on|on|off": 1
+    }
+   },
+   "TV_BarRow": {
+    "URB_Bar": {
+     "off|off|off|off": 5
+    },
+    "URB_Bar_Terror": {
+     "off|off|off|on": 5
+    },
+    "URB_Bar_X42": {
+     "off|off|off|off": 5
+    }
+   }
+  },
+  "maps": 13,
+  "mapsWithOneMeshTwoWays": [
+   "URB_CommercialAlley",
+   "URB_CommercialAlley_EWI",
+   "URB_CommercialAlley_Terror",
+   "URB_ConvienienceStore",
+   "URB_ConvienienceStore_EWI",
+   "URB_ConvienienceStore_Terror"
+  ],
+  "mapsWithTvsSetTwoWays": [
+   "URB_Bar",
+   "URB_Bar_Terror",
+   "URB_Bar_X42",
+   "URB_CommercialAlley",
+   "URB_CommercialAlley_EWI",
+   "URB_CommercialAlley_Terror",
+   "URB_ConvienienceStore",
+   "URB_ConvienienceStore_EWI",
+   "URB_ConvienienceStore_Terror",
+   "URB_FastFood_EWI"
+  ],
+  "meshes": 6,
+  "pieces": 156
+ },
+ "unresolved": {
+  "CAbductor_ScorchedEarth": [
+   "XComLevelActor_5"
+  ],
+  "CBattleship_01": [
+   "XComLevelActor_5"
+  ],
+  "CBattleship_02": [
+   "XComLevelActor_5"
+  ],
+  "CLrgScout_DeepWoods": [
+   "XComLevelActor_1839"
+  ],
+  "CLrgScout_ForestTrench": [
+   "XComLevelActor_1799"
+  ],
+  "CLrgScout_TheBarrens": [
+   "XComLevelActor_1664"
+  ],
+  "COverseer_DeepWoods": [
+   "XComLevelActor_5"
+  ],
+  "COverseer_TheBarrens": [
+   "XComLevelActor_5"
+  ],
+  "CSmallScout_Badlands": [
+   "XComLevelActor_5"
+  ],
+  "CSmallScout_DirtRoad": [
+   "XComLevelActor_5"
+  ],
+  "CSmallScout_Marshlands": [
+   "XComLevelActor_5"
+  ],
+  "CSmallScout_Quagmire": [
+   "XComLevelActor_5"
+  ],
+  "CSmallScout_Roadhouse": [
+   "XComLevelActor_331"
+  ],
+  "CSupplyShip_OverlookA": [
+   "XComLevelActor_660"
+  ],
+  "DLC1_2_CnfndLight": [
+   "XComLevelActor_1"
+  ],
+  "DLC2_1_Portent": [
+   "XComLevelActor_1"
+  ],
+  "DLC2_3_Furies": [
+   "XComLevelActor_5"
+  ],
+  "EWI_MeldTutorial": [
+   "XComLevelActor_5"
+  ],
+  "LAbductor_FarmOutskirts": [
+   "XComLevelActor_5"
+  ],
+  "LAbductor_WindingStream": [
+   "XComLevelActor_5"
+  ],
+  "LLrgScout_CreepyForest": [
+   "XComLevelActor_1393"
+  ],
+  "LLrgScout_Hillside": [
+   "XComLevelActor_774"
+  ],
+  "LSupplyShip_RockyGorge": [
+   "XComLevelActor_1126"
+  ],
+  "URB_Bar": [
+   "XComLevelActor_5"
+  ],
+  "URB_Bar_Terror": [
+   "XComLevelActor_5"
+  ],
+  "URB_Bar_X42": [
+   "XComLevelActor_5"
+  ],
+  "URB_Boulevard": [
+   "XComLevelActor_1"
+  ],
+  "URB_Boulevard_Euro": [
+   "XComLevelActor_1"
+  ],
+  "URB_CemeteryGrand": [
+   "XComLevelActor_1"
+  ],
+  "URB_CommercialAlley_EWI": [
+   "XComLevelActor_1"
+  ],
+  "URB_CommercialRestaurant": [
+   "XComLevelActor_1"
+  ],
+  "URB_CommercialStreet": [
+   "XComLevelActor_1"
+  ],
+  "URB_CommercialStreet_Terror": [
+   "XComLevelActor_1"
+  ],
+  "URB_ConvienienceStore": [
+   "XComLevelActor_1"
+  ],
+  "URB_ConvienienceStore_EWI": [
+   "XComLevelActor_1"
+  ],
+  "URB_ConvienienceStore_Terror": [
+   "XComLevelActor_1"
+  ],
+  "URB_FastFood": [
+   "XComLevelActor_1"
+  ],
+  "URB_FastFood_EWI": [
+   "XComLevelActor_1"
+  ],
+  "URB_Highway1": [
+   "XComLevelActor_1"
+  ],
+  "URB_HighwayBridge": [
+   "XComLevelActor_1"
+  ],
+  "URB_HighwayConstruction": [
+   "XComLevelActor_1"
+  ],
+  "URB_HighwayConstruction_EWI": [
+   "XComLevelActor_1"
+  ],
+  "URB_HighwayFallen": [
+   "XComLevelActor_1"
+  ],
+  "URB_IndustrialOffice": [
+   "XComLevelActor_1"
+  ],
+  "URB_LiquorStore": [
+   "XComLevelActor_1"
+  ],
+  "URB_MilitaryAmmo": [
+   "XComLevelActor_1"
+  ],
+  "URB_OfficePaper": [
+   "XComLevelActor_1"
+  ],
+  "URB_OfficePaper_Terror": [
+   "XComLevelActor_1"
+  ],
+  "URB_PierA": [
+   "XComLevelActor_1"
+  ],
+  "URB_PierA_Asian": [
+   "XComLevelActor_1"
+  ],
+  "URB_PierA_Terror": [
+   "XComLevelActor_1"
+  ],
+  "URB_PoliceStation": [
+   "XComLevelActor_1"
+  ],
+  "URB_ResearchOutpost": [
+   "XComLevelActor_1"
+  ],
+  "URB_ResearchOutpost_EWI": [
+   "XComLevelActor_1"
+  ],
+  "URB_RooftopsConst": [
+   "XComLevelActor_1"
+  ],
+  "URB_RooftopsConst_Asian": [
+   "XComLevelActor_1"
+  ],
+  "URB_SlaughterhouseA": [
+   "XComLevelActor_1"
+  ],
+  "URB_SmallCemetery": [
+   "XComLevelActor_1"
+  ],
+  "URB_StreetHurricane": [
+   "XComLevelActor_1"
+  ],
+  "URB_StreetHurricane_Terror": [
+   "XComLevelActor_5"
+  ],
+  "URB_StreetOverpass": [
+   "XComLevelActor_1"
+  ],
+  "URB_TrainStation": [
+   "XComLevelActor_1"
+  ],
+  "URB_Trainyard": [
+   "XComLevelActor_1"
+  ],
+  "URB_TruckStop": [
+   "XComLevelActor_1"
+  ],
+  "URB_TruckStop_EWI": [
+   "XComLevelActor_1"
+  ]
+ }
+}

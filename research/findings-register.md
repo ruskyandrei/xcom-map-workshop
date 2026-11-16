@@ -108,6 +108,9 @@ Statuses:
   turns it on for the low pieces in the new area); to confirm in the game.
 - F-102: Temple Ship's arches can't be clicked: Firaxis set `bIgnoreFor3DCursorCollision` on them. A patched map
   with it cleared is made (14 November), not played.
+- F-114: the five piece flags (walking, cover, sight, floor, mouse) read from the game's scripts, its class defaults
+  and every listed map (16 November); the editor's Flags edits them. Not played: walking off on a visible piece,
+  the prop's gate, a ladder's or a door's flags.
 - F-111: cover, step-outs, flanking and sight inside sight radius come from the tiles' data alone (read 15
   November, checked against baked data). Not compared with a battle yet: one short run of a soldier on a known
   tile would settle the sight walk.
@@ -133,6 +136,28 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ## Tiles, cover and placement
+### F-114: Five flags on a piece decide how the game's tiles and mouse use it
+**Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
+the tile build; surveyed over the 153 listed maps; nothing played). A reference fact, and what the editor's Flags
+group edits (piece flags plan). [native/piece-flags.md](native/piece-flags.md) has the detail.
+- **The flags:** Blocks walking (`bAlwaysConsiderForCover`), Gives cover (`bIgnoreForCover` off), Blocks sight
+  (`VisibilityBlockingData.bBlockUnitVisibility`), Floor (`bPathColliding` and `bCanStepUpOn`), Mouse picks it
+  (`bIgnoreFor3DCursorCollision` off). Settings, the inputs the filters read; geometry and other pieces still count.
+- **Classes:** a prop, a collectible, a ladder and a door are `XComLevelActor` children and read its flags; a
+  fracturing piece has its own copies. A static mesh actor and a KAsset are never counted for walking, cover or
+  sight, and the mouse never picks them; they can be floor. The mouse never reads a door's flag. A ladder never gives
+  cover by the normal test.
+- **Class defaults** (the game's `Default__` objects): props, ladders, doors and fracturing pieces save
+  `bPathColliding` false, so they are no floor unless the map sets it; fracturing pieces also `bCanStepUpOn` false;
+  doors `bInteractive` true.
+- **A prop's gate:** `bIgnoreForPathing` makes every world trace pass a prop (pathing, cover, sight) but not the
+  occupancy step. Turning any of the three on needs it cleared, which turns the others on unless they are written off.
+- **The maps:** 29,523 drawn, colliding pieces of 925 meshes have walking, cover and sight off (bushes, rubble,
+  signs, posters); the same TV mesh is set differently from place to place (10 of 13 maps with TVs set them more than
+  one way). 65 actors take settings from an archetype in another package the map doesn't carry.
+- **Not known:** walking off on a visible, colliding piece is not played; nor the gate, a ladder's or a door's
+  flags; a low piece with its flags off can still change the floor under a cover location (plain engine traces).
+
 
 ### F-111: Cover, step-outs, flanking and sight inside sight radius are decided from the tiles' data alone
 **Open** (15 November 2026: read from the exe copy and LWR's scripts, checked against baked data, not compared
@@ -258,6 +283,11 @@ The patched map is made, not played).
   - hits on the arches' curves count only where they meet the tile's floor height
     (`IsPositionOnFloorAndValidDestination`).
 - Not checked: what the editor's Build does with the flag on a copied arch.
+- **Correction (16 November 2026):** the flag holds for props, collectibles and ladders too, not only for
+  `XComLevelActor` and `XComFracLevelActor`: the pick's tests are casts, and those classes inherit the mouse
+  interface and the flag from `XComLevelActor`; only a door is tested apart and never reads it
+  ([native/piece-flags.md](native/piece-flags.md), section 3; F-114). `cursor_pick.py` still matches the two
+  classes it names.
 
 ## Damage and glass
 
