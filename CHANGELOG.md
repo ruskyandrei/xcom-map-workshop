@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P2: export 27 carries each piece's flags and each mesh's collision
+
+- [export.py](tools/viewer/export.py) export 27: every component of an actor of a flag class carries `pieceFlags`
+  (`piece_flags.describe`: its family, each setting the family reads with where it came from, its roles' states,
+  whether it collides, whether its static meshes have simple collision); each mesh carries `collision` (its
+  BodySetup, whether line and box checks use simple collision; a skeletal mesh says so). Streamed packages' pieces
+  carry none (the editor doesn't edit them). Every map is exported again on first open.
+- [library.py](tools/viewer/library.py) `PIECE_VERSION` 9: pieces of other maps come through the same exporter, so
+  each member of an assembly carries its own flags; old piece records are made again. Recipe keys and source hashes
+  are unchanged.
+- Checked: URB_Bar exported to a scratch cache: 968 of its 1,078 components carry flags (415 KB of a 6.5 MB
+  scene); new install tests in [test_piece_flags.py](tools/viewer/tests/test_piece_flags.py) (the game's script
+  packages hold `CLASS_DEFAULTS`; URB_Bar's TVs are set three ways; the exporter's records); the viewer suite (304
+  tests) and the node tests.
+- Known gaps: the page and the Build don't use them yet.
+
 ### Piece flags, stage P0: the native findings and a survey of every listed map
 
 - [research/native/piece-flags.md](research/native/piece-flags.md): the five settings, which classes read them and

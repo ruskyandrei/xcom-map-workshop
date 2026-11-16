@@ -18,6 +18,8 @@ from scene_metadata import (building_metadata, cursor_volumes, effect_metadata, 
 from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
+import collision
+import piece_flags
 
 # 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
 # 14: no diagnostic pink: more diffuse rules (parameter names, compiled shaders' colour textures, colours by kind,
@@ -42,7 +44,11 @@ from lights import light_metadata, light_records
 #     the world data's tile counts, and `tileGrid.tiles`, the corner the game counts its tiles from (WorldBounds' low
 #     corner, a unit under `origin`, the level volume's, which placing keeps); CBattleship_01, DLC2_2_Deluge and
 #     DLC2_3_Furies get a grid; `source` world-data, or level-volume where a map saves no record
-EXPORT_VERSION = 26   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 27: each piece's flags (piece flags plan, P2; piece_flags.describe): `pieceFlags` on every component of an actor of a
+#     class the flags apply to (its family, its settings with where each came from, its roles, whether it collides and
+#     whether its static meshes have simple collision), and each mesh's `collision` (its BodySetup, whether line and
+#     box checks use its simple collision; a skeletal mesh's kind)
+EXPORT_VERSION = 27   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
@@ -177,6 +183,33 @@ class Exporter:
         self.meshes, self.materials, self.textures = {}, {}, {}
         self.diagnostics = []
         self.progress = progress
+        self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
+
+    def piece_flags(self, actor):
+        """The actor's flags as the export carries them, or None (a class they don't apply to, a streamed package's
+        piece: the editor doesn't edit those)."""
+        if self.prefix:
+            return None
+        if actor not in self.flags:
+            try:
+                self.flags[actor] = piece_flags.describe(self.p, actor)
+            except (FormatError, ValueError, IndexError, struct.error) as error:
+                self.warn(self.p.name(actor), f'Piece flags not read: {error}')
+                self.flags[actor] = None
+        return self.flags[actor]
+
+    def mesh_collision(self, mesh):
+        """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup
+        False: its simple collision is empty, so a check that uses it passes through), dict(kind='skeletal')."""
+        p = self.p
+        if p.cls(mesh) == 'SkeletalMesh':
+            return dict(kind='skeletal')
+        try:
+            has = bool(collision.body_setup(p, mesh))
+        except (FormatError, ValueError, IndexError, struct.error):
+            has = None
+        return dict(bodySetup=has, simpleLine=p.own(mesh, 'UseSimpleLineCollision', True) is not False,
+                    simpleBox=p.own(mesh, 'UseSimpleBoxCollision', True) is not False)
 
     def warn(self, source, message):
         self.diagnostics.append(dict(source=source, message=str(message)))
@@ -418,7 +451,8 @@ class Exporter:
                 sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=mask,
                 kind='skeletal' if mesh.get('bones') else 'static',bones=mesh.get('bones',[]),
                 pose='reference' if mesh.get('bones') else None,
-                origin=mesh.get('origin'),rotOrigin=mesh.get('rotOrigin'))
+                origin=mesh.get('origin'),rotOrigin=mesh.get('rotOrigin'),
+                collision=self.mesh_collision(mi))
         mesh = self.meshes[mesh_key]
         material_refs = p.refs(p.effective(component, "Materials"))
         mats = []
@@ -459,7 +493,9 @@ class Exporter:
                     hidden=bool(p.effective(actor,"bHidden",False) or p.effective(component,"HiddenGame",False)),
                     # false when the actor collides with nothing, so touches no floor volume and no building lists it
                     # (F-87; the Build's native_copy.collides): left out otherwise, and in exports made before it
-                    **({} if collides(p, actor) else {'collides': False}))
+                    **({} if collides(p, actor) else {'collides': False}),
+                    # its flags (export 27): how the game's tiles and mouse use it, the same on each of its components
+                    **({'pieceFlags': flags} if (flags := self.piece_flags(actor)) else {}))
 
     def run(self, scope):
         p = self.p

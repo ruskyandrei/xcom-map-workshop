@@ -60,7 +60,8 @@ INDEX_VERSION = 8       # 2: an entry says what blocks it (`blocked`), and the f
                         # 6: an entry says how it is brought when that waits for a check (`held`);
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
                         # 8: vans switched on (EXP-42)
-PIECE_VERSION = 8       # 8: recipe identity for each member of a piece or assembly
+PIECE_VERSION = 9       # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags
+                        # (export 27's pieceFlags) and its meshes' collision facts
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
 GROUPED = ('car', 'van', 'door')
 STATE_SCHEMA = 'xcom-map-workshop/library-state'

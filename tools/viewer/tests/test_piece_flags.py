@@ -192,6 +192,77 @@ class Plan(unittest.TestCase):
         self.assertEqual(pf.normalize('XComLevelActor', off, dict(floor=False), collides=True), {})
 
 
+def cooked():
+    import settings
+    try:
+        return settings.lwr_cooked()
+    except (OSError, ValueError):
+        return None
+
+
+COOKED = cooked()
+BAR = COOKED / 'URB_Bar.upk' if COOKED else None
+
+
+@unittest.skipUnless(BAR and BAR.is_file(), 'the game install is not configured (python tools/viewer/viewer.py settings)')
+class Install(unittest.TestCase):
+    """Read from the configured install: the class defaults in its script packages are CLASS_DEFAULTS, and URB_Bar's
+    TVs are set as the survey found them (research/native/piece-flags.md, section 5)."""
+
+    def test_script_packages_hold_the_table(self):
+        packages = pf.ScriptDefaults.of(COOKED)
+        self.assertIsNotNone(packages)
+        for cls, table in pf.CLASS_DEFAULTS.items():
+            package = 'Engine' if cls in ('StaticMeshActor', 'KAsset') else 'XComGame'
+            chain = pf._script_chain(packages, '%s.Default__%s' % (package, cls))
+            self.assertTrue(chain, cls)
+            got = {}
+            for sp, si in chain:
+                for prop in table:
+                    if prop not in got:
+                        found, value = pf._own(sp, si, prop)
+                        if found:
+                            got[prop] = value
+            self.assertEqual({k: got.get(k, False) for k in table}, table, cls)
+
+    def test_the_bars_tvs(self):
+        from package import Package
+        p = Package(BAR)
+        found = {}
+        for i, path in enumerate(p.paths, 1):
+            if not (path.startswith('TheWorld.PersistentLevel.') and path.count('.') == 2):
+                continue
+            meshes = [p.name(p.effective(c, 'StaticMesh', 0)).split('.')[-1] for c in p.children.get(i, [])
+                      if p.cls(c) == 'StaticMeshComponent' and (p.effective(c, 'StaticMesh', 0) or 0) > 0]
+            if meshes and meshes[0] in ('TV_BarRow', 'StoreTV_B_Off', 'StoreTV_B'):
+                r = pf.resolve(p, i)
+                s = pf.states(r['cls'], r['raw'])
+                found.setdefault(meshes[0], set()).add((s['walking'], s['cover'], s['sight'], s['mouse']))
+        self.assertEqual(found, {'TV_BarRow': {('off', 'off', 'off', 'off')}, 'StoreTV_B_Off': {('off', 'off', 'on', 'on')},
+                                 'StoreTV_B': {('on', 'off', 'on', 'on')}})
+
+
+    def test_the_export_carries_them(self):
+        import tempfile
+        from package import Package
+        from export import Exporter, EXPORT_VERSION
+        self.assertGreaterEqual(EXPORT_VERSION, 27)
+        p = Package(BAR)
+        with tempfile.TemporaryDirectory() as folder:
+            e = Exporter(p, Path(folder))
+            volume = next(i for i, path in enumerate(p.paths, 1) if p.cls(i) == 'XComLevelVolume')
+            self.assertIsNone(e.piece_flags(volume))
+            props = [i for i, path in enumerate(p.paths, 1) if path.startswith('TheWorld.PersistentLevel.XComDestructibleActor_')
+                     and path.count('.') == 2]
+            record = e.piece_flags(props[0])
+            self.assertEqual(record['family'], 'prop')
+            self.assertEqual(set(record['raw']), set(pf.FAMILY_PROPS['prop']))
+            self.assertTrue(all(source in ('actor', 'archetype', 'class', 'assumed') for _, source in record['raw'].values()))
+            self.assertEqual(set(record['roles']), set(pf.ROLES))
+            mesh = next(i for i, _ in enumerate(p.paths, 1) if p.cls(i) == 'StaticMesh')
+            self.assertEqual(set(e.mesh_collision(mesh)), {'bodySetup', 'simpleLine', 'simpleBox'})
+
+
 class Parity(unittest.TestCase):
     def test_cases_are_current(self):
         """piece_flag_cases.json is what this module gives now (write it again with --write-cases)."""
