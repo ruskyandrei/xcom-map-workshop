@@ -5,6 +5,11 @@ import struct
 from export_math import transform
 
 
+# How far a level volume's box may miss its whole tiles: the grid starts at the box's low corner (every map's saved
+# floors agree), and some boxes fall a unit or so short on the far side (CSmallScout_Roadhouse: 5471 wide for 57 tiles)
+GRID_SLACK = 2
+
+
 def tile_grid(p, bounds, warn):
     """Level-volume origin and dimensions from the read-only static tile header."""
     for i in range(1, len(p.exports)+1):
@@ -19,7 +24,7 @@ def tile_grid(p, bounds, warn):
             origin = [bounds['min'][0], bounds['min'][2], bounds['min'][1]]
             extent = [bounds['max'][0]-origin[0], bounds['max'][2]-origin[1], bounds['max'][1]-origin[2]]
             size = [96, 96, 64]
-            if any(abs(extent[k]-dims[k]*size[k]) > 1 for k in range(3)):
+            if any(abs(extent[k]-dims[k]*size[k]) > GRID_SLACK for k in range(3)):
                 raise ValueError('Tile dimensions do not match the selected level volume')
             return dict(origin=origin, dimensions=dims, size=size, source='level-volume/static-tile-store')
         except ValueError as error:

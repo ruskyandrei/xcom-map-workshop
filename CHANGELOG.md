@@ -6,6 +6,24 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 16 November 2026
+
+### Export 25: Roadhouse's tile grid (a tester's build failure)
+
+- A tester's report from 0.5.2: a project on CSmallScout_Roadhouse that moved a van failed to build, its one edit
+  left out because "the export of CSmallScout_Roadhouse has no tile grid, which a van needs". Cause and survey in the
+  [findings register](research/findings-register.md), T-36: the map's level volume is 1.004 units short of its 57
+  tiles, and the export allowed one unit.
+- [scene_metadata.py](tools/viewer/scene_metadata.py) `tile_grid` allows `GRID_SLACK` (2 units);
+  [export.py](tools/viewer/export.py) is at version 25, so every map is prepared again on its first open and
+  Roadhouse gets its grid.
+- Checked: Roadhouse exported to a scratch cache (its grid 57 by 80 by 13 from the volume's corner); the tester's
+  project compiled against it with all ten moves and one off-grid warning (its van moved 8 units);
+  `test_materials_and_floors.py` (a box 1.004 short keeps its grid); the viewer, editor and repo suites. Not built
+  or played in the game.
+- Known gap: DLC2_2_Deluge still has no grid (its volume is 32 units taller than its 12 levels, and where its levels
+  start is not settled).
+
 ## 15 November 2026
 
 ### The guide as a page

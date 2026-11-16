@@ -121,7 +121,11 @@ class FloorTests(unittest.TestCase):
         grid=tile_grid(P(),bounds,lambda *v:notes.append(v))
         self.assertEqual(grid['dimensions'],[45,203,15])
         self.assertEqual(grid['origin'],[100,-9408,-384])
-        bounds['max'][0]+=96
+        # a box a unit or so short on the far side keeps its grid (CSmallScout_Roadhouse: 5471 wide for 57 tiles)
+        bounds['max'][0]-=1.004
+        self.assertEqual(tile_grid(P(),bounds,lambda *v:notes.append(v))['origin'],[100,-9408,-384])
+        self.assertEqual(notes,[])
+        bounds['max'][0]+=1.004+96
         self.assertIsNone(tile_grid(P(),bounds,lambda *v:notes.append(v)))
         self.assertEqual(len(notes),1)
 

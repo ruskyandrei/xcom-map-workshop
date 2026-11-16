@@ -2429,6 +2429,24 @@ word; not looked at in the game).
 
 ## Toolchain
 
+### T-36: A map whose level volume falls a unit short of its tiles was exported without a tile grid
+**Fixed** (16 November 2026: a tester's report from 0.5.2, a project on CSmallScout_Roadhouse that moved a van).
+- **Seen.** The Build stopped with "nothing of the project can be built: its one edit is left out (the export of
+  CSmallScout_Roadhouse has no tile grid, which a van needs)". Every piece of a grid family (vans, among others)
+  needs the grid for its pose rule, so no such piece of the map could be moved.
+- **Cause.** The export takes the grid's corner from the level volume's box and its size from the tile header, and
+  dropped the grid when the box missed the header's whole tiles by more than one unit on any side. Roadhouse's box
+  is 5470.996 wide for 57 tiles of 96 (5472): 1.004 short on the far side. Act1_IntroLevel is short by exactly 1
+  and passed.
+- **The corner is right.** On all 31 maps in the lab's cache (Roadhouse included), the floors the map saves sit
+  one unit below the tile centres counted from the box's low corner, the same on every map; so the game's grid
+  starts there, and only the far side falls short.
+- **Fix.** `scene_metadata.GRID_SLACK`: the box may miss by up to 2 units. Export 25. The reported project then
+  compiles with all ten of its moves, and one off-grid warning: its van moved 8 units.
+- **Open.** DLC2_2_Deluge has no grid either, for another reason: its box is 800 high for 12 levels of 64 (32 over).
+  Its floors suggest the levels count from the box's top (192) rather than its bottom (160); not settled, so it is
+  still left without a grid.
+
 ### T-35: A staged piece of another map is in every tool's scene unless told otherwise
 **Fixed** (11 November 2026: seen while building the relight of pieces from other maps, plan step X8).
 - `transplant.py` stages a piece of another map under the level and leaves it out of the level's actor list, where

@@ -36,7 +36,9 @@ from lights import light_metadata, light_records
 # 24: each mission stream's objects (`streams[<name>].missionObjects`: drop-in points, pods, points, landings, capture
 #     points, radar arrays, the bomb and power nodes with their parts, waves, triggers, each with what lists it and the
 #     group it moves with; scene_metadata.mission_objects, private/plans/done/mission-types-plan.md C1)
-EXPORT_VERSION = 24    # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 25: the tile grid of a map whose level volume falls a unit or so short of its whole tiles (scene_metadata.GRID_SLACK;
+#     CSmallScout_Roadhouse had none, so its vans could not be moved)
+EXPORT_VERSION = 25   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
