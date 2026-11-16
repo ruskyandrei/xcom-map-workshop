@@ -25,6 +25,9 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   taller than their levels. A survey of the 143 installed maps found the game's own grid record (the world data's
   `WorldBounds` and `NumX`, `NumY`, `NumZ`) right on every one; T-36 has it. (An earlier line here said Deluge's
   levels might count from the top: its floors show they count from the bottom.)
+- T-36 also records the two lattices a unit apart: the game's tiles start at `WorldBounds.Min`, a unit under the box's
+  corner, while the maps' pieces stand on the box's lattice (counted on four maps), and what that means for a
+  quarter-turned grid piece. An earlier line in T-36 said the game's grid starts at the box's corner; corrected.
 
 ## 15 November 2026
 

@@ -2438,9 +2438,11 @@ word; not looked at in the game).
   dropped the grid when the box missed the header's whole tiles by more than one unit on any side. Roadhouse's box
   is 5470.996 wide for 57 tiles of 96 (5472): 1.004 short on the far side. Act1_IntroLevel is short by exactly 1
   and passed.
-- **The corner is right.** On all 31 maps in the lab's cache (Roadhouse included), the floors the map saves sit
-  one unit below the tile centres counted from the box's low corner, the same on every map; so the game's grid
-  starts there, and only the far side falls short.
+- **The corner is the one every tool uses.** On all 31 maps in the lab's cache (Roadhouse included), the floors
+  the map saves sit one unit below the tile centres counted from the box's low corner, the same on every map, so
+  the box's corner keeps the relation every map has, and only the far side falls short. (The game's own tiles
+  start a unit lower, at `WorldBounds.Min`: native/cover-build.md and below. The box's corner is where the maps'
+  pieces stand: two lattices, a unit apart.)
 - **Fix.** `scene_metadata.GRID_SLACK`: the box may miss by up to 2 units. Export 25. The reported project then
   compiles with all ten of its moves, and one off-grid warning: its van moved 8 units.
 - **Open.** Three maps still have no grid: their boxes are taller than their levels (CBattleship_01 and
@@ -2453,6 +2455,14 @@ word; not looked at in the game).
   box's, and every map's saved floors sit at the centres of the tiles counted from it. The export does not read it
   yet. The bake's `native_copy.level_grid` also counts the levels from the box (rounded), which gives
   CBattleship_01 16 levels where the game has 15.
+- **Two lattices.** The maps' pieces stand on the box's lattice, not the game's (pieces at a tile corner or centre
+  of either, counted 16 November: URB_Bar 94 and 0, CSmallScout_DirtRoad 299 and 0, CLrgScout_DeepWoods 368 and 0,
+  URB_TruckStop_EWI 316 and 1), so every piece of a map stands a unit off its tiles in X and Y, which the game's
+  tile build allows for (4 units in before a piece counts: F-113). The editor places on the box's lattice, which
+  keeps what it places in line with the map's pieces. One consequence: a quarter-turned grid piece is turned about
+  a corner of the box's lattice while the Build turns its tile data by whole tiles (about a corner of the game's),
+  so its carried tile data lands 2 units off it, within the same tiles; turning about the game's corner instead
+  would put the piece 2 units out of line with the walls round it. Not seen in a game run.
 
 ### T-35: A staged piece of another map is in every tool's scene unless told otherwise
 **Fixed** (11 November 2026: seen while building the relight of pieces from other maps, plan step X8).
