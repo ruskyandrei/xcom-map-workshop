@@ -21,8 +21,10 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   project compiled against it with all ten moves and one off-grid warning (its van moved 8 units);
   `test_materials_and_floors.py` (a box 1.004 short keeps its grid); the viewer, editor and repo suites. Not built
   or played in the game.
-- Known gap: DLC2_2_Deluge still has no grid (its volume is 32 units taller than its 12 levels, and where its levels
-  start is not settled).
+- Known gap: CBattleship_01, DLC2_2_Deluge and DLC2_3_Furies still have no grid: their volumes are 16 to 32 units
+  taller than their levels. A survey of the 143 installed maps found the game's own grid record (the world data's
+  `WorldBounds` and `NumX`, `NumY`, `NumZ`) right on every one; T-36 has it. (An earlier line here said Deluge's
+  levels might count from the top: its floors show they count from the bottom.)
 
 ## 15 November 2026
 

@@ -2443,9 +2443,16 @@ word; not looked at in the game).
   starts there, and only the far side falls short.
 - **Fix.** `scene_metadata.GRID_SLACK`: the box may miss by up to 2 units. Export 25. The reported project then
   compiles with all ten of its moves, and one off-grid warning: its van moved 8 units.
-- **Open.** DLC2_2_Deluge has no grid either, for another reason: its box is 800 high for 12 levels of 64 (32 over).
-  Its floors suggest the levels count from the box's top (192) rather than its bottom (160); not settled, so it is
-  still left without a grid.
+- **Open.** Three maps still have no grid: their boxes are taller than their levels (CBattleship_01 and
+  DLC2_2_Deluge 32 units over, DLC2_3_Furies 16). Their levels count from the box's bottom as on every other map:
+  every saved floor lies in the level it was saved under only for a corner within a few units of the bottom (a
+  corner counted down from the top puts them in the wrong levels).
+- **The game's own record.** The level volume's XComWorldData has `WorldBounds` (the grid with one unit more on
+  every side, which `shell.py` already writes when it resizes a grid) and `NumX`, `NumY`, `NumZ`. Over the 143
+  installed packages with tile data, its numbers equal the tile header's, its low corner is one unit below the
+  box's, and every map's saved floors sit at the centres of the tiles counted from it. The export does not read it
+  yet. The bake's `native_copy.level_grid` also counts the levels from the box (rounded), which gives
+  CBattleship_01 16 levels where the game has 15.
 
 ### T-35: A staged piece of another map is in every tool's scene unless told otherwise
 **Fixed** (11 November 2026: seen while building the relight of pieces from other maps, plan step X8).
