@@ -8,6 +8,54 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece flags, stage P5: the Build writes pieces' flags in the map
+
+- The writer, in [native_copy.py](tools/bake/native_copy.py):
+  - `set_roles` resolves a piece's settings from the map being built (`piece_flags.resolve`: the actor, its archetypes in
+    the map, the class default), plans the request (`piece_flags.plan`) and writes each planned property on the actor
+    itself: a bool changed in place or added, and `VisibilityBlockingData.bBlockUnitVisibility` patched inside its struct
+    (`set_struct_bool`: the field changed, added to the saved struct, or a struct of that one field added; any other
+    field kept). Nothing goes on an archetype or a component; the actor's native data after its properties is checked
+    unchanged. A request a prop's gate makes ambiguous in the map itself is refused and named, not written.
+  - A copy's flags are written on its clone once it is made; a copy of low scenery whose Floor is off is not made
+    walkable (F-100 gives way). The map's own pieces (`pieceFlags`) are written after every copy is made from them and
+    after the clear, so neither a copy nor a piece the clear takes out gets them; a piece the map hasn't, or that the
+    edit takes out, stops the build.
+  - Tiles: a piece whose tile flags change is seeded as a copy is (its box, the ring round it, the level over it) and
+    its tiles rebuilt by a volume per merged region (`merge_ranges`; one over them all past 48 regions; none on a
+    cleared map, whose own volume covers the grid). The mouse alone, or a request that writes nothing, does no tile
+    work. A map ladder whose foot or top such a change reaches (the compiler's `pieceFlagLadders`) gets its top tile
+    rebuilt first and its foot after, checked by `ladder_order` as a moved ladder's.
+  - Every flag written is read back from the written map with a fresh reader (`verify_roles`); a mismatch stops the
+    build. The fixture manifest's `pieceFlags` lists, per piece, what was asked, applied, written (and how), the
+    companions, the settings and their sources, and the tile regions. The command line takes `pieceFlags`,
+    `pieceFlagLadders` and a copy's `flags` from `--copies`, and flags alone are an edit.
+- [compiler.py](tools/editor/compiler.py) names the map's ladders that a flags change reaches (`flag_ladders`), carried
+  through `native_split`.
+- [shell.py](tools/bake/shell.py): `--floor-off ACTOR` keeps a piece whose Floor the project turns off out of a grown
+  grid's scenery floor (`scenery_to_walk`; the report's `floorKeptOff`).
+- [build.py](tools/editor/build.py): flags go through the no-change check, `drop_untried`, both kinds of build and the
+  light stage's routes; flags alone (the mouse alone included, on a grown grid too, as cover blocks there) take the
+  lighting-unchanged route (native_copy.py without baking, no texture cache), with copies the baking writer. The compile stage counts `pieceFlags` and
+  `flagCopies`, the light stage and the manifest carry the writer's record (`flag_record`), and the shell stage is
+  passed and reports the pieces kept off. The Build window's steps say how many pieces had flags written and how many
+  tile regions were worked out again ([app.js](tools/viewer/web/app.js)).
+- Checked: [test_native_flags.py](tools/bake/tests/test_native_flags.py) on URB_Bar (in place and on copies, read back;
+  a gated prop opened; the mouse alone with no tile work; copies never taking the original's; every other property
+  and the native data unchanged; a second build on the built map writing nothing; missing and removed pieces refused;
+  regions merged and joined; a map ladder top first; a cleared map; the command line), the struct patch with a
+  sibling field kept, a Floor-off case in [test_shell.py](tools/bake/tests/test_shell.py), routes and records in
+  [test_build.py](tools/editor/tests/test_build.py), the ladder selection in
+  [test_compiler_flags.py](tools/editor/tests/test_compiler_flags.py); the full editor, bake, viewer, node and upk
+  suites. End to end, build.py on the install's URB_Bar into scratch folders: a flags-only project (three pieces,
+  two tile regions) full and quick, in about three seconds and the same map both ways; the same on a grid grown
+  to 56 by 39; a quick build of a project with a copy carrying flags. A baked build with copies was not run (its
+  route is tested with the writer faked). Found on the way: T-37, a grown grid with nothing else fails a full
+  build (not fixed).
+- Known gaps: nothing of this has been played (P7). The game's VisibilityBlocking struct has the one field, so the
+  sibling case is synthetic. Tile boxes are the pieces' drawn bounds; rebuilt tiles may lose diagonal cover and
+  level-edge marks, as other edits' do.
+
 ### Piece flags, stage P4: the compiler reads, checks and carries pieces' flags
 
 - [compiler.py](tools/editor/compiler.py) takes `flags` on overrides and added pieces. Each request is checked with

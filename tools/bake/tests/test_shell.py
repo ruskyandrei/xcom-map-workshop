@@ -352,6 +352,14 @@ class GrownIntroScenery(unittest.TestCase):
             self.assertTrue(g0['oz'] - 16 <= box[4] and box[5] <= g0['oz'] + 64 * 18, name)
             self.assertTrue(native_copy.in_grid(box, grown) and (box[1] > x1 or box[3] > y1), name)
 
+    def test_a_piece_whose_floor_the_project_turns_off_is_left_as_it_is(self):
+        # piece flags plan, 6.2: the user's Floor off gives way to nothing, F-100's scenery floor included
+        g0 = native_copy.level_grid(self.own)
+        names = lambda found: {self.own.name(i).rsplit('.', 1)[-1] for i, _, _ in found}    # noqa: E731
+        every = names(shell.scenery_to_walk(self.own, g0, 95, 25, 18))
+        kept = names(shell.scenery_to_walk(self.own, g0, 95, 25, 18, floor_off=['XComLevelActor_13']))
+        self.assertEqual(every - kept, {'XComLevelActor_13'})
+
     def test_nothing_else_changes_its_collision(self):
         # a street block south of the grid that crosses only the map's own area, the backdrop's buildings, and the
         # ground the map plays on keep theirs

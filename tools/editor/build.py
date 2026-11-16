@@ -619,6 +619,10 @@ class Build:
         # the map's own buildings changed or deleted (buildings.edit): edited in place by native_copy.py too
         self.building_edits = self.native.get('buildingEdits') or []
         self.any_buildings = bool(self.buildings or self.building_edits)
+        # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand, written in the map
+        # by native_copy.py (a copy's flags go with the copy); flags alone change no light
+        self.piece_flags = self.native.get('pieceFlags') or []
+        self.flags_edit = bool(self.piece_flags)
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
         self.has_lights = has_light_edits(self.native)
@@ -638,13 +642,13 @@ class Build:
         self.stream_tiles = bool(self.native.get('streamTiles'))
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.stream_moves or self.native.get('streamHides')):
+                or self.stream_moves or self.native.get('streamHides') or self.flags_edit):
             if self.left_out:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
             raise BuildError('the project changes nothing in the map: no piece is moved, deleted or added, no '
-                             'light is changed, no building is made and the map keeps its size')
+                             'light or flag is changed, no building is made and the map keeps its size')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
@@ -665,6 +669,8 @@ class Build:
                       if mission_rows else {}),
                    **({'foreignCopies': foreign} if foreign else {}),
                    **({'coverBlocks': len(self.covers)} if self.covers else {}),
+                   **({'pieceFlags': len(self.piece_flags)} if self.piece_flags else {}),
+                   **({'flagCopies': n} if (n := sum(1 for c in self.natives if c.get('flags'))) else {}),
                    **({'buildings': len(self.buildings)} if self.buildings else {}),
                    **({'buildingEdits': len(self.building_edits)} if self.building_edits else {}),
                    **({'cleared': self.cleared} if self.cleared else {}),
@@ -729,6 +735,7 @@ class Build:
                       # a cleared map lays no ground: the user lays floor pieces (Clear map plan, section 7)
                       + (['--no-ground'] if grid and (stage.get('ground') is False or cleared) else [])
                       + (['--clear'] if cleared else [])
+                      + [x for e in self.piece_flags if e['flags'].get('floor') is False for x in ('--floor-off', e['name'])]
                       + (['--building'] if self.needs_templates() else []),
                       self.work / 'logs' / 'shell.log')
         try:
@@ -751,7 +758,9 @@ class Build:
                                         walkableScenery=len(r.get('walkableScenery') or []),
                                         sceneryFloors=len(r.get('sceneryFloors') or []),
                                         sceneryTilesQueued=r.get('sceneryTilesSeeded', 0),
-                                        blocksUnderScenery=len(r.get('blocksUnderScenery') or []))
+                                        blocksUnderScenery=len(r.get('blocksUnderScenery') or []),
+                                        # the pieces whose Floor the project's flags turn off: left as they are
+                                        **({'floorKeptOff': r['floorKeptOff']} if r.get('floorKeptOff') else {}))
         if report.get('gridLines'):
             self.shelled['gridLines'] = report['gridLines']
         if report.get('hiddenGround'):
@@ -791,7 +800,8 @@ class Build:
                 shutil.rmtree(folder)
         self.stage('leftout', pieces=dropped[:LEFT_OUT_SHOWN], count=len(dropped), reason=why)
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
-                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None):
+                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
+                or self.flags_edit):
             raise BuildError('nothing of the project can be built: its %d untried piece%s could not be made (%s)'
                              % (len(gone), '' if len(gone) == 1 else 's', why))
         return True
@@ -825,21 +835,22 @@ class Build:
         if self.quick:
             return self.edit_unbaked()
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.has_patch or self.resizes):
+                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit):
             # landing-zone lines alone (Clear map plan, section 4): nothing in the map changes, so nothing is relit
             return self.edit_unbaked()
-        if (self.covers or self.any_buildings or self.cleared) and not (self.natives or self.native['hides'] or self.has_lights
-                                                                    or self.has_patch or self.moves_landings):
+        if (self.covers or self.any_buildings or self.cleared or self.flags_edit) and not (
+                self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
             # volumes and lists, no light. A landing moved in place is relit: its grounded Skyranger casts a shadow,
-            # which goes with it (F-98)
+            # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same
             self.cache_name, self.unchanged = None, True
             self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.base, self.lit, self.variant, '--copies',
                            self.copies], self.work / 'logs' / 'native-copy.log')
             self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
-                              lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record())
+                              lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record(),
+                              **self.flag_record())
             self.stage('light', cache=None, baked=True, **self.relit)
             return
         self.cache_name = cache_name(self.variant)
@@ -847,7 +858,7 @@ class Build:
         # piece's lights and reaching edits as they were (relight.py PieceCache; faster-bake plan, 3.7)
         pieces = ['--piece-cache', self.output / '.work' / 'pieces' / self.variant, '--base', sha256(self.base)]
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.moves_landings
-                or self.stream_tiles):
+                or self.stream_tiles or self.flags_edit):
             # the edit made in the map (copies, hides, light edits), lit there; anything left in the patch modelled
             # as an edit
             # (the map is the base map, or the staged one with the pieces of other maps in it: those are lit from
@@ -878,6 +889,7 @@ class Build:
         if self.lights:
             self.relit['lights'] = dict(self.lights, **self.light_record())
         self.relit.update(self.building_record())
+        self.relit.update(self.flag_record())
         self.stage('light', cache=self.cache_name, baked=True, **self.relit)
 
     def needs_templates(self):
@@ -907,6 +919,25 @@ class Build:
                                                  cutDown=sum(1 for x in f['members'] if x['cutdown']))
                                             for f in b['floors']], unread=b['unread']) for b in made])
 
+    def flag_record(self):
+        """What the writer's record says of the pieces' flags (the fixture manifest's nativeCopies `pieceFlags`): how
+        many pieces had flags written in place and on copies, the properties written, the tile regions worked out
+        again, and the pieces whose request the writer refused (named in the log too). {} without any."""
+        if not (self.flags_edit or any(c.get('flags') for c in self.natives)):
+            return {}
+        try:
+            m = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+            f = m['nativeCopies']['pieceFlags']
+        except (OSError, ValueError, KeyError):
+            return {}
+        for name in f.get('refused') or []:
+            self.echo('flags not written: %s (the writer found its settings ambiguous; see native-copy.log)' % name)
+        tiles = f.get('tiles') or {}
+        return dict(pieceFlags=dict(inPlace=len(f.get('inPlace') or []), onCopies=len(f.get('onCopies') or []),
+                                    written=f.get('written', 0), refused=f.get('refused') or [],
+                                    regions=len(tiles.get('regions') or []), seeded=tiles.get('seeded', 0),
+                                    ladders=sum(1 for l in m['nativeCopies'].get('ladders') or [] if l.get('inPlace'))))
+
     def light_record(self):
         """What the writer's record says of the light edits (the fixture manifest's `lights`): the receivers each
         light was listed in, those in reach without a texture lightmap, and the imports recipe spots made."""
@@ -927,7 +958,7 @@ class Build:
         self.cache_name = None
         self.unchanged = False
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.stream_tiles):
+                or self.moves_landings or self.stream_tiles or self.flags_edit):
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
             # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
             # other maps in it (transplant)
@@ -941,6 +972,7 @@ class Build:
             shutil.copyfile(self.base, self.lit / ('%s.upk' % self.variant))
         self.stage('light', cache=None, baked=False, nativeCopies=len(self.natives), hidden=len(self.native['hides']),
                    **({'coverBlocks': len(self.covers)} if self.covers else {}), **self.building_record(),
+                   **self.flag_record(),
                    **({'lights': dict(self.lights, **self.light_record())} if self.lights else {}))
 
     def seed(self, cooked_dir):
@@ -1135,6 +1167,7 @@ class Build:
                                for s, c in streams.items()],
                  families=list(self.enable),
                  nativeCopies=len(self.natives), nativeHides=len(self.native['hides']), coverBlocks=len(self.covers),
+                 **({'pieceFlags': len(self.piece_flags)} if self.piece_flags else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
                  lights=self.lights,

@@ -4466,12 +4466,20 @@ function lightWords(l) {
   return [placed.some(Boolean) && `lights ${placed.filter(Boolean).join(', ')}`,
           glow && `${plural(glow, 'glow light')} following ${plural(l.area.pieces?.length ?? 0, 'piece')}`].filter(Boolean).join('; ');
 }
+// the writer's record of pieces' flags (build.py flag_record): the pieces written and read back, any it refused
+function flagWords(f) {
+  if (!f) return '';
+  const pieces = (f.inPlace ?? 0) + (f.onCopies ?? 0) - (f.refused?.length ?? 0);
+  return [`flags written on ${plural(pieces, 'piece')}`, f.regions && `${plural(f.regions, 'tile region')} worked out again`,
+          f.refused?.length && `not written on ${f.refused.join(', ')}`].filter(Boolean).join(', ');
+}
 function buildStepDetail(key, stage, job, running) {
   if (key === 'compile' && stage) {
     const say = (parts, where) => (parts = parts.filter(Boolean)).length ? `${parts.join(' and ')} ${where}` : '';
     return [say([stage.nativeCopies && copyCount(stage.nativeCopies), stage.hides && plural(stage.hides, 'hidden piece')], 'made in the map'),
             say([stage.copierCopies && copyCount(stage.copierCopies), stage.patchHides && plural(stage.patchHides, 'hidden piece')], 'for the patch'),
-            lightWords(stage.lights), stage.leftOut ? `${plural(stage.leftOut, 'piece')} left out (listed below)` : '']
+            lightWords(stage.lights), stage.pieceFlags && `${plural(stage.pieceFlags, 'piece')} with flags changed in place`,
+            stage.leftOut ? `${plural(stage.leftOut, 'piece')} left out (listed below)` : '']
       .filter(Boolean).join('; ');
   }
   if (key === 'patch' && stage?.bytes) return `${Math.round(stage.bytes / 1024)} KB cooked`;
@@ -4479,11 +4487,11 @@ function buildStepDetail(key, stage, job, running) {
     + `${kilobytes(stage.donors.reduce((n, d) => n + d.bytes, 0))} more in the map`;
   if (key === 'light' && stage?.baked === false)    // a quick build's: the edit made, nothing relit
     return [stage.nativeCopies && `${copyCount(stage.nativeCopies)} made`, stage.hidden && `${stage.hidden} taken out`,
-            stage.lights && 'light edits made', 'lighting not baked'].filter(Boolean).join(', ');
+            stage.lights && 'light edits made', flagWords(stage.pieceFlags), 'lighting not baked'].filter(Boolean).join(', ');
   // a build whose light edits change no texel (a light added switched off) keeps the map's lighting
-  if (key === 'light' && stage?.lightingUnchanged) return 'lighting unchanged: no texel to relight';
+  if (key === 'light' && stage?.lightingUnchanged) return ['lighting unchanged: no texel to relight', flagWords(stage.pieceFlags)].filter(Boolean).join('; ');
   if (key === 'light' && stage) return [`${plural(stage.written, 'piece')} relit`, `${stage.unchanged} unchanged`,
-                                        stage.hidden && `${stage.hidden} taken out`].filter(Boolean).join(', ');
+                                        stage.hidden && `${stage.hidden} taken out`, flagWords(stage.pieceFlags)].filter(Boolean).join(', ');
   if (!running) return '';
   const p = job.progress;
   if (p) return sentence(p.total ? `${p.what}: ${p.done} of ${p.total}` : `${p.what}…`);

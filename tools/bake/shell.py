@@ -359,14 +359,15 @@ def ground_plane(p, model, origin):
     return template, wide, deep, have
 
 
-def scenery_to_walk(p, grid, nx, ny, nz):
+def scenery_to_walk(p, grid, nx, ny, nz, floor_off=()):
     """The map's own low ground in the area a grid grows over, which the Build makes walkable (F-100): each listed
     level actor no taller than native_copy.SCENERY_LOW whose box lies within the grid's levels (from a quarter
     level under its bottom to its top: the sky's ground plane, under the world, is not) and reaches into the new
     area (inside the grid of nx by ny tiles and past the far X or far Y side of the map's own `grid`, level_grid's),
     and that either saves its collision off (Act1_IntroLevel's backdrop: made walkable) or is a floor piece already
     (it collides and keeps bPathColliding: CsmallScout_Farm's raised backdrop, two levels over its play area's
-    ground). A piece that collides but is no floor (debris saved with bPathColliding off) is left out.
+    ground). A piece that collides but is no floor (debris saved with bPathColliding off) is left out, and so is one
+    named in `floor_off` (short names: the project's flags turn or keep its Floor off; piece flags plan, 6.2).
     Returns [(export, world box, whether its collision is to be turned on)]."""
     import seed_map
     live = listed(p)
@@ -374,8 +375,11 @@ def scenery_to_walk(p, grid, nx, ny, nz):
     x1, y1 = grid['ox'] + 96.0 * grid['nx'], grid['oy'] + 96.0 * grid['ny']
     bottom, top = grid['oz'] - seed_map.FLOOR / 4, grid['oz'] + seed_map.FLOOR * nz
     out = []
+    floor_off = set(floor_off)
     for i in sorted(live):
         if i <= 0 or p.cls(i) not in native_copy.SCENERY_CLASSES or not native_copy.has_mesh(p, i):
+            continue
+        if p.name(i).rsplit('.', 1)[-1] in floor_off:
             continue
         off = p.effective(i, 'bCollideActors', True) is False
         if not off and not (native_copy.collides(p, i) and p.effective(i, 'bPathColliding', True) is not False):
@@ -399,7 +403,7 @@ def scenery_tiles(box, origin, nx, ny):
     return [(x, y, z) for x in xs for y in ys]
 
 
-def resize(walker, g, p, nx, ny, ground=True, nz=None):
+def resize(walker, g, p, nx, ny, ground=True, nz=None, floor_off=()):
     """The map's tile grid made nx by ny tiles and nz levels (None: the map's), from the same corner and bottom
     (prefab plan 5.11; the levels 5.6b; a smaller grid, clear-map plan 7.5): each axis smaller, the same or larger,
     and the corner and the bottom never move, so every kept tile keeps its index:
@@ -419,7 +423,7 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
       (scenery_tiles: a new tile above the bottom level is open air, which the rebuild passes over), and no ground
       plane is laid in a block one of them covers (it would be a floor under the scenery's: units would walk under
       CsmallScout_Farm's raised backdrop). A piece the edit deletes or moves is taken out of the level afterwards
-      and changes nothing;
+      and changes nothing; one whose Floor the project's flags turn off (`floor_off`) is left as the map has it;
     - a rebuild volume over the whole grid's ground and the levels over it, so the battle works those tiles out
       again when it starts. It is three levels high, or up to the level over the highest walkable scenery: the
       rebuild passes over a tile whose flags have none of the low bits (native-code-notes.md, F-29), as the new
@@ -439,7 +443,7 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
     container, blob = world_grid.container_of(p)
     model = world_grid.decode(blob)
     # the map's own scenery the new area takes in, made walkable below (F-100)
-    scenery = scenery_to_walk(p, grid, nx, ny, nz)
+    scenery = scenery_to_walk(p, grid, nx, ny, nz, floor_off)
     # the ground planes: by the block of tiles each lies over
     plane = ground_plane(p, model, origin) if ground else None
     add, laid, template, covered = [], [], None, []
@@ -514,6 +518,7 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
     walked = [p.name(i).rsplit('.', 1)[-1] for i, _, off in scenery if off]
     floors = [p.name(i).rsplit('.', 1)[-1] for i, _, off in scenery if not off]
     return add, dict(walkableScenery=walked, sceneryFloors=floors, sceneryTilesSeeded=seeded,
+                     **({'floorKeptOff': sorted(floor_off)} if floor_off else {}),
                      blocksUnderScenery=covered, laidPlanes=[have[k] for k in have if have[k] in add] if plane else [],
                      before=[grid['nx'], grid['ny'], grid['nz']], grid=[nx, ny, nz],
                      groundPlane=p.name(template).rsplit('.', 1)[-1] if template else None, planesLaid=len(laid),
@@ -523,12 +528,14 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None):
 
 
 def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, ground=True, building=False, levels=None,
-          lines=False, hide=False, ambient=False, clear=False):
+          lines=False, hide=False, ambient=False, clear=False, floor_off=()):
     """The map with what needs() says it lacks, and with its tile grid made `grid` (nx, ny) tiles and `levels`
     levels high when those are given and larger, written as <out>/<map>.upk. Returns the report (also
     <out>/shell.json): dict(map, donor, needs, brought {what: [staged actor]}, placed, resized, written, shelled). A
     map that lacks nothing and keeps its grid is left alone: nothing is written. With `clear` (a cleared map) the map's
-    own cursor volumes are taken out and the donor's brought in their place (report: clearedCursors)."""
+    own cursor volumes are taken out and the donor's brought in their place (report: clearedCursors). `floor_off`
+    names the map's pieces whose Floor the project's flags turn off: a grown grid's scenery floor leaves them as they
+    are (resize)."""
     map_path, out = Path(map_path), Path(out)
     cooked = Path(cooked) if cooked else map_path.parent
     before = Package(map_path)
@@ -622,7 +629,7 @@ def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, groun
     box = grid_box(p)
     old = list(box)
     if grid:
-        more, report['resized'] = resize(walker, g, p, int(grid[0]), int(grid[1]), ground, int(levels))
+        more, report['resized'] = resize(walker, g, p, int(grid[0]), int(grid[1]), ground, int(levels), floor_off)
         add += more
         box = [box[0], box[1], box[2], box[0] + 96.0 * grid[0], box[1] + 96.0 * grid[1],
                box[5] if levels == size['nz'] else box[2] + 64.0 * levels]
@@ -733,10 +740,13 @@ def main():
                         help='also bring a building volume and a floor volume to clone, where the map has none')
     parser.add_argument('--clear', action='store_true',
                         help='a cleared map: take out its own cursor volumes and bring even storeys over the grid')
+    parser.add_argument('--floor-off', action='append', default=[], metavar='ACTOR',
+                        help="a piece whose Floor the project's flags turn off: a grown grid's scenery floor leaves it "
+                             'as it is (repeat for more)')
     args = parser.parse_args()
     report = equip(args.map, args.out, args.cooked, args.donor, grid=args.grid, ground=not args.no_ground,
                    building=args.building, levels=args.levels, lines=args.grid_lines, hide=args.hide_ground,
-                   ambient=args.ambient_light, clear=args.clear)
+                   ambient=args.ambient_light, clear=args.clear, floor_off=args.floor_off)
     if not report['shelled' if 'shelled' in report else 'written']:
         print('%s lacks nothing: left alone' % Path(args.map).name)
         return

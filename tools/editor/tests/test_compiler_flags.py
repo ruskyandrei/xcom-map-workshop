@@ -211,6 +211,22 @@ class FlagsAndFloorTests(unittest.TestCase):
         new, _ = c.added_floors()
         self.assertEqual(sorted(set(new.values())), ['XComLevelActor_1', 'XComLevelActor_2_copy2'])
 
+    def test_the_maps_ladders_near_a_tile_change_are_rebuilt_top_first(self):
+        s = assembly_scene()
+        s['objects'].append(part('XComLevelActor_42', at=(432, 1200, 16)))      # beside XComLadder_20's foot
+        s = flagged(s)
+        spec, _ = compiled([dict(target=target('XComLevelActor_42'), flags=dict(walking=False))], s=s)
+        (obj,) = [o for o in spec['objects'] if o.get('type') == 'pieceFlags']
+        (ladder,) = obj['ladders']
+        self.assertEqual(ladder['actor'], 'XComLadder_20')
+        _, native = compiler.native_split(spec)
+        self.assertEqual(native['pieceFlagLadders'], [ladder])
+        # the mouse alone changes no tile, and a piece far off reaches no ladder
+        for rec in (dict(target=target('XComLevelActor_42'), flags=dict(mouse=False)),
+                    dict(target=target('XComLevelActor_1'), flags=dict(walking=False))):
+            spec, _ = compiled([rec], s=s)
+            self.assertNotIn('ladders', next(o for o in spec['objects'] if o.get('type') == 'pieceFlags'))
+
     def test_a_maps_ladder_whose_end_loses_its_floor_is_warned_of(self):
         s = flagged(assembly_scene())
         ladder = next(o for o in s['objects'] if o['actor'] == PL + 'XComLadder_20')

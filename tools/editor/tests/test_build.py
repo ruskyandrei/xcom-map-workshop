@@ -301,6 +301,16 @@ class Builds(unittest.TestCase):
         elif any(a.endswith('stream_copy.py') for a in args):
             k = next(i for i, a in enumerate(args) if a.endswith('stream_copy.py'))
             Path(args[k + 2]).write_bytes(b'stream copy of ' + Path(args[k + 1]).read_bytes())
+        elif any(a.endswith('shell.py') for a in args):
+            # the equipped map (tools/bake/shell.py): a grown grid, with the pieces kept off named
+            k = next(i for i, a in enumerate(args) if a.endswith('shell.py'))
+            out = Path(args[k + 2])
+            out.mkdir(parents=True, exist_ok=True)
+            (out / 'URB_Bar.upk').write_bytes(b'grown ' + Path(args[k + 1]).read_bytes())
+            kept = [args[i + 1] for i, a in enumerate(args) if a == '--floor-off']
+            (out / 'shell.json').write_text(json.dumps(dict(shelled=str(out / 'URB_Bar.upk'), brought={}, resized=dict(
+                before=[52, 39, 12], grid=[60, 40, 12], ground='laid', planesLaid=2,
+                **({'floorKeptOff': kept} if kept else {})))), encoding='utf-8')
         elif any(a.endswith('intro_copy.py') for a in args):
             k = next(i for i, a in enumerate(args) if a.endswith('intro_copy.py'))
             if self.landing:
@@ -327,6 +337,7 @@ class Builds(unittest.TestCase):
             lit, variant = Path(args[k + 2]), args[k + 3]
             lit.mkdir(parents=True, exist_ok=True)
             (lit / ('%s.upk' % variant)).write_bytes(b'unbaked map of ' + Path(args[k + 1]).read_bytes())
+            self.flag_fixture(args, lit, variant)
         elif self.unchanged_lighting:
             # a completed calculation that wrote no texel (relight.py's zero-write success): the edited map, no cache
             k = next(i for i, a in enumerate(args) if a.endswith('.py'))
@@ -344,12 +355,27 @@ class Builds(unittest.TestCase):
             (lit / ('%s.upk' % variant)).write_bytes(b'relit map %d' % self.relit)
             (lit / ('%s.tfc' % cache)).write_bytes(b'lightmaps')
             native = args[k].endswith('native_copy.py')
+            if native:
+                self.flag_fixture(args, lit, variant)
             (lit / ('%s.relight.json' % variant)).write_text(json.dumps(dict(
                 components=[1, 2], unchanged=[3], skipped=[], copies=[] if native else [dict(source='X_1', triangles=5)],
                 nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [])))
 
     def tool(self, name):
         return [r for r in self.ran if r[0] != 'pwsh' and any(a.endswith(name) for a in r)]
+
+    @staticmethod
+    def flag_fixture(args, lit, variant):
+        """The writer's record of the native edit's flags (native_copy.py's pieceFlags section), as it writes it."""
+        edit = json.loads(Path(args[args.index('--copies') + 1]).read_text(encoding='utf-8'))
+        pieces, copies = edit.get('pieceFlags') or [], [c for c in edit.get('copies') or [] if c.get('flags')]
+        if not (pieces or copies):
+            return
+        rec = lambda name, flags: dict(actor=name, applied=flags, written=[['bIgnoreFor3DCursorCollision', True, 'added']])  # noqa: E731
+        (lit / ('%s.fixture.json' % variant)).write_text(json.dumps(dict(nativeCopies=dict(ladders=[], pieceFlags=dict(
+            inPlace=[rec(e['name'], e['flags']) for e in pieces], onCopies=[rec(c['actor'], c['flags']) for c in copies],
+            tiles=dict(regions=[dict(tiles=[1, 2, 1, 2, 1, 2], volume=900)], seeded=4) if pieces else None,
+            written=len(pieces) + len(copies), refused=[])))), encoding='utf-8')
 
     @staticmethod
     def seed(src, dst, plan):
@@ -409,6 +435,75 @@ class Builds(unittest.TestCase):
         self.assertIn('--bake', light)
         edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
         self.assertEqual(([c['actor'] for c in edit['copies']], edit['covers']), (['XComLevelActor_1'], [block]))
+
+    def test_flags_alone_are_written_in_the_map_with_the_lighting_unchanged(self):
+        """A project whose only change is pieces' flags (piece flags plan, 6.3): flags are settings the game reads, not
+        light, so a full build makes the map as a quick build does (native_copy.py without --bake) and keeps its
+        lighting; the writer's record of them is in the light stage and the manifest. The mouse alone is an edit too."""
+        mouse = dict(name='XComLevelActor_9', target='TheWorld.PersistentLevel.XComLevelActor_9', flags=dict(mouse=False),
+                     box=[0, 96, 0, 96, 0, 64], tiles=False, actorClass='XComLevelActor')
+        self.spec['objects'] = [dict(type='pieceFlags', pieces=[mouse])]
+        m = self.make().run()
+        light, = self.tool('native_copy.py')
+        for flag in ('--bake', '--cache', '--receivers-near'):
+            self.assertNotIn(flag, light)
+        edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+        self.assertEqual((edit['copies'], edit['hides'], edit['pieceFlags']), ([], [], [mouse]))
+        self.assertEqual(self.tool('relight.py'), [])
+        compiled = next(s for s in m['stages'] if s['stage'] == 'compile')
+        self.assertEqual(compiled['pieceFlags'], 1)
+        stage = next(s for s in m['stages'] if s['stage'] == 'light')
+        self.assertEqual((stage['baked'], stage['cache'], stage['lightingUnchanged']), (True, None, True))
+        self.assertEqual(stage['pieceFlags'], dict(inPlace=1, onCopies=0, written=1, refused=[], regions=1, seeded=4, ladders=0))
+        self.assertEqual((m['cache'], m['lightingUnchanged'], m['pieceFlags']), (None, True, 1))
+        # a quick build makes them the same way
+        self.ran.clear()
+        m = self.make(stamp='110100', quick=True).run()
+        light, = self.tool('native_copy.py')
+        self.assertNotIn('--bake', light)
+        self.assertEqual(next(s for s in m['stages'] if s['stage'] == 'light')['pieceFlags']['inPlace'], 1)
+        # with a copy: the baking writer makes both, and the copy carries its own flags
+        self.ran.clear()
+        self.spec['objects'] = [dict(COPY, flags=[dict(cover=False)]), dict(type='pieceFlags', pieces=[mouse])]
+        m = self.make(stamp='110200').run()
+        light, = self.tool('native_copy.py')
+        self.assertIn('--bake', light)
+        edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+        self.assertEqual(([c.get('flags') for c in edit['copies']], edit['pieceFlags']), ([dict(cover=False)], [mouse]))
+        compiled = next(s for s in m['stages'] if s['stage'] == 'compile')
+        self.assertEqual((compiled['pieceFlags'], compiled['flagCopies']), (1, 1))
+        stage = next(s for s in m['stages'] if s['stage'] == 'light')
+        self.assertEqual((stage['pieceFlags']['inPlace'], stage['pieceFlags']['onCopies']), (1, 1))
+        # with a grid grown: the lighting unchanged too, as cover blocks on a grown grid have it
+        self.ran.clear()
+        self.spec['objects'] = [dict(type='pieceFlags', pieces=[mouse])]
+        self.report['stageGrid'] = [60, 40, 12]
+        m = self.make(stamp='110300').run()
+        light, = self.tool('native_copy.py')
+        self.assertNotIn('--bake', light)
+        self.assertEqual(self.tool('relight.py'), [])
+        self.assertTrue(m['lightingUnchanged'])
+
+    def test_a_grown_grid_leaves_a_piece_whose_floor_is_turned_off_as_it_is(self):
+        """F-100's scenery floor on a grown grid gives way to the user's Floor off (piece flags plan, 6.2): shell.py is
+        told which pieces to leave."""
+        sys.path.insert(0, str(Path(build.__file__).resolve().parents[1] / 'bake'))
+        import package
+        import shell
+        off = dict(name='XComLevelActor_13', target='TheWorld.PersistentLevel.XComLevelActor_13', flags=dict(floor=False),
+                   box=[0, 96, 0, 96, 0, 4], tiles=True, actorClass='XComLevelActor')
+        on = dict(off, name='XComLevelActor_14', target='TheWorld.PersistentLevel.XComLevelActor_14', flags=dict(floor=True))
+        self.spec['objects'] = [dict(type='pieceFlags', pieces=[off, on])]
+        self.report['stageGrid'] = [60, 40, 12]
+        self.doc['stage'] = dict(grid=[60, 40])
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        with mock.patch.object(package, 'Package', lambda path: None), \
+                mock.patch.object(shell, 'needs', lambda p, building=False: []):
+            m = self.make().run()
+        run, = self.tool('shell.py')
+        self.assertEqual([run[i + 1] for i, a in enumerate(run) if a == '--floor-off'], ['XComLevelActor_13'])
+        shelled = next(s for s in m['stages'] if s['stage'] == 'shell')
+        self.assertEqual(shelled['grid']['floorKeptOff'], ['XComLevelActor_13'])
 
     def test_a_quick_build_makes_the_edit_in_the_map_without_baking_its_lighting(self):
         self.spec['objects'] = [COPY, HIDE]

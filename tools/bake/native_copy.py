@@ -1805,6 +1805,227 @@ def add_to_level(g, p, actors, *, before_rebuild=()):
     return dict(level=level, actorsBefore=count, actorsAfter=len(after))
 
 
+# ---------------------------------------------------------------- pieces' flags (piece flags plan, P5)
+# More separate tile regions than this for the map's own pieces whose flags change, and one rebuild volume covers
+# them all (their seeds stay each piece's own)
+FLAG_REGIONS = 48
+
+
+def props_end(walker, data, start):
+    """Where an export's tagged properties end (after their closing None)."""
+    gen = walker.walk(bytes(data), start, len(data))
+    try:
+        while True:
+            next(gen)
+    except StopIteration as done:
+        return done.value
+
+
+def set_struct_bool(walker, g, data, start, outer, struct_name, field, value):
+    """(data, how) with the bool `field` of the struct property `outer` (of struct `struct_name`, saved as tagged
+    fields) set to `value`, its other fields left as they are: the field changed in place ('changed'), added to the
+    struct the export saves ('field added': the struct's tag grows by it), or, where the export saves no such struct,
+    a struct of that one field added ('struct added'): the game loads a struct field by field over the actor's
+    archetype, so the fields it doesn't save keep what the archetype or the class gives them (as cover_blocks' low
+    cover saves VisibilityBlockingData)."""
+    import native_lights
+    raw = b'\x01' if value else b'\x00'
+    for prop, kind, sub, at, size in walker.walk(bytes(data), start, len(data)):
+        if prop != f'{outer}[0]':
+            continue
+        if kind != 'StructProperty' or sub != struct_name:
+            raise ValueError(f'{outer} is saved as a {kind} {sub}, not a StructProperty {struct_name}')
+        if not walker.looks_tagged(bytes(data), at, at + size):
+            raise ValueError(f'{outer} is not saved as tagged fields')
+        had = native_lights.saves(walker, data[:at + size], at, field)
+        before = len(data)
+        data = native_lights.set_property(walker, g, data, at, field, 'BoolProperty', None, raw)
+        grown = len(data) - before
+        if grown:
+            struct.pack_into('<i', data, at - 16, size + grown)
+        return data, 'changed' if had else 'field added'
+    body = (struct.pack('<iiiiii', g.name(field), 0, g.name('BoolProperty'), 0, 0, 0) + raw
+            + struct.pack('<ii', g.name('None'), 0))
+    data = native_lights.set_property(walker, g, data, start, outer, 'StructProperty', struct_name, body)
+    return data, 'struct added'
+
+
+def set_roles(g, p, source, index, request, known=None, label=None):
+    """A piece's flags (piece flags plan, 3.2) written on the export `index` of the map being built: the source actor
+    `source` (the same export for a piece of the map left where it stands, the original for a copy) has its settings
+    resolved from the package (piece_flags.resolve: the actor, its archetypes in the map, the class default), with
+    `known` ({property: value}) the writes this build has made on it already (make_walkable's bPathColliding), and
+    the request {role: bool} planned against them (piece_flags.plan). Each planned write goes on the actor itself:
+    a bool in place or added, VisibilityBlockingData's field patched in its struct (set_struct_bool); nothing on an
+    archetype or a component, and the bytes after the properties (the actor's native tail) stay as they were. A
+    request that a prop's gate makes ambiguous here is refused (nothing written). Returns the manifest's record."""
+    import native_lights
+    import piece_flags
+    r = piece_flags.resolve(p, source)
+    cls = r['cls']
+    raw, sources = dict(r['raw']), dict(r['source'])
+    for k, v in (known or {}).items():
+        if k in raw:
+            raw[k], sources[k] = v, 'build'
+    assumed = sorted(k for k, v in sources.items() if v == 'assumed')
+    plan = piece_flags.plan(cls, raw, request, assumed)
+    rec = dict(actor=p.name(source).split('.')[-1], label=label, export=index, actorClass=cls, requested=dict(request),
+               applied={k: v for k, v in request.items() if k not in plan['unsupported']},
+               before=plan['before'], after=plan['after'], companions=list(plan['companions']),
+               settings={k: [raw[k], sources[k]] for k in raw}, assumed=assumed, written=[], tiles=False)
+    if plan['unsupported']:
+        rec['unsupported'] = dict(plan['unsupported'])
+    if plan['unmet']:
+        rec['unmet'] = dict(plan['unmet'])
+    if plan['conflicts']:
+        rec.update(refused=dict(plan['conflicts']), applied={}, after=plan['before'])
+        return rec
+    if not plan['writes']:
+        return rec
+    walker = Walker(p)
+    walker.names = g.names
+    data = bytearray(g.export_data(index))
+    start = native_lights.props_start(p, source)
+    tail = bytes(data[props_end(walker, data, start):])
+    for prop, value in plan['writes']:
+        if prop in piece_flags.STRUCT_FIELDS:
+            outer, struct_name = piece_flags.STRUCT_FIELDS[prop]
+            data, how = set_struct_bool(walker, g, data, start, outer, struct_name, prop, value)
+        else:
+            how = 'changed' if native_lights.saves(walker, data, start, prop) else 'added'
+            data = native_lights.set_property(walker, g, data, start, prop, 'BoolProperty', None,
+                                              b'\x01' if value else b'\x00')
+        rec['written'].append([prop, bool(value), how])
+    if bytes(data[props_end(walker, data, start):]) != tail:
+        raise ValueError(f"{rec['actor']}'s flags: writing them changed the actor's native data")
+    g.relocate(index, bytes(data))
+    rec['tiles'] = bool(plan['tiles'])
+    return rec
+
+
+def verify_roles(q, rec):
+    """A flags record (set_roles) read back from the written map `q` with a fresh reader: every property written is
+    saved by the actor with its value, and each role asked for and each companion is in the state planned. Raises
+    ValueError where not: the edit is not in the map, and the build must not say it is."""
+    import piece_flags
+    if not rec['written']:
+        return
+    r = piece_flags.resolve(q, rec['export'])
+    for prop, value, _ in rec['written']:
+        if r['source'].get(prop) != 'actor' or r['raw'].get(prop) is not value:
+            raise ValueError(f"{rec['actor']}'s flags: {prop} reads back as {r['raw'].get(prop)!r} "
+                             f"({r['source'].get(prop)}), not {value!r} on the actor")
+    now = piece_flags.states(rec['actorClass'], r['raw'])
+    for role in list(rec['applied']) + rec['companions']:
+        if now[role] != rec['after'][role]:
+            raise ValueError(f"{rec['actor']}'s flags: {role} reads back {now[role]}, not {rec['after'][role]}")
+    rec['readBack'] = True
+
+
+def merge_ranges(ranges):
+    """Tile ranges (x0, x1, y0, y1, z0, z1) merged where they overlap or touch in x and y (each region's volume
+    reaches down to the ground, so the levels just join)."""
+    out = [list(t) for t in ranges]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(out)):
+            for j in range(i + 1, len(out)):
+                a, b = out[i], out[j]
+                if a[0] <= b[1] + 1 and b[0] <= a[1] + 1 and a[2] <= b[3] + 1 and b[2] <= a[3] + 1:
+                    out[i] = [min(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), max(a[3], b[3]),
+                              min(a[4], b[4]), max(a[5], b[5])]
+                    del out[j]
+                    merged = True
+                    break
+            if merged:
+                break
+    return [tuple(t) for t in sorted(out)]
+
+
+def flag_tiles(g, p, boxes, volumes=True, max_regions=FLAG_REGIONS):
+    """The tiles of the map's own pieces whose flags change where they stand (`boxes`: [(name, world box)]): each
+    piece's tiles seeded as a copy's are (seed_tiles_under: its box, the ring round it and the level over it, where
+    the bake left no mark), and a rebuild volume over each region those tiles make (merge_ranges), from the ground up,
+    or one over them all past `max_regions`; none with `volumes` False (a cleared map's own volume covers the grid).
+    Returns (the manifest's record, the volumes' exports)."""
+    grid = level_grid(p)
+    ranges, seeded, already, outside = [], 0, 0, []
+    for name, box in boxes:
+        s = seed_tiles_under(g, p, box, grid)
+        if s['tiles'] is None:
+            outside.append(name)
+            continue
+        ranges.append(tuple(s['tiles']))
+        seeded += len(s['seeded'])
+        already += s['already']
+    regions = merge_ranges(ranges)
+    joined = len(regions) > max_regions
+    if joined:
+        regions = [tuple(f(t[k] for t in regions) for k in range(6) for f in [(min, max)[k % 2]])]
+    made, listed = [], []
+    for t in regions:
+        v = None
+        if volumes:
+            x0, x1, y0, y1, _, z1 = seed_map.world_of(t, grid)
+            v = add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1])
+            made.append(v['export'])
+        listed.append(dict(tiles=list(t), **({'volume': v['export']} if v else {})))
+    record = dict(regions=listed, seeded=seeded, alreadyMarked=already, outside=outside, joined=joined,
+                  volumes='own' if volumes else "the cleared map's", bounds='drawn')
+    return record, made
+
+
+def flags_in_place(g, p, pieces, ladders=(), gone=(), tiles=True, volumes=True):
+    """The map's own pieces whose flags change where they stand (the compiler's `pieceFlags`: name, flags): each
+    written on the actor (set_roles), after the copies are made from the map's pieces, so a copy never takes a flag
+    meant for its original. A piece whose tile flags change gets its tiles worked out again (flag_tiles); the mouse
+    alone, or a request that writes nothing, needs no tile work. A map ladder whose foot or top tile such a change
+    reaches (the compiler's `ladders`: actor, foot, top) gets its top tile rebuilt first and its foot after, as a
+    moved ladder's are. A piece the edit takes out of the level, or that the map hasn't, is an error. Returns (record,
+    the volumes to add after the copies', the volumes to rebuild first, the ladders for ladder_order)."""
+    level = p.by_name['TheWorld.PersistentLevel']
+    gone = set(gone)
+    records, boxes = [], []
+    for e in pieces:
+        index = p.by_name.get(PL + e['name'])
+        if index is None or p.exports[index - 1]['outer'] != level:
+            raise ValueError(f"{e['name']}'s flags: the map has no such actor in its persistent level")
+        if index in gone:
+            raise ValueError(f"{e['name']}'s flags: the edit takes the piece out of the level")
+        rec = set_roles(g, p, index, index, e['flags'], label=e['name'])
+        records.append(rec)
+        if not (rec['tiles'] and tiles):
+            continue
+        if not has_mesh(p, index):
+            rec['tileWork'] = 'none: the piece has no mesh to box'
+            continue
+        boxes.append((e['name'], piece_box(p, index, p.own(index, 'Location', [0.0, 0.0, 0.0]),
+                                           p.own(index, 'Rotation', [0, 0, 0]))))
+    tile_record, volumes_made = flag_tiles(g, p, boxes, volumes) if boxes else (None, [])
+    firsts, after, ladder_records = [], [], []
+    for l in ladders if boxes else ():
+        index = p.by_name.get(PL + l['actor'])
+        if index is None or index in gone:
+            continue
+        top, foot = tile_volume(g, p, l['top']), tile_volume(g, p, l['foot'])
+        firsts.append(top['export'])
+        after.append(foot['export'])
+        ladder_records.append(dict(actor=l['actor'], export=index, foot=list(l['foot']), top=list(l['top']),
+                                   topVolume=top, footVolume=foot['export'], inPlace=True))
+    return dict(pieces=records, tiles=tile_record), volumes_made + after, firsts, ladder_records
+
+
+def flags_summary(rec):
+    """One line of a flags record (set_roles) for the log."""
+    words = ', '.join(f"{k} {'on' if v else 'off'}" for k, v in rec['applied'].items()) or 'nothing'
+    if rec.get('refused'):
+        return f"{rec['actor']}: flags refused ({'; '.join(rec['refused'].values())})"
+    wrote = ', '.join(f"{p}={'true' if v else 'false'} ({how})" for p, v, how in rec['written']) or 'no write needed'
+    return (f"{rec['actor']}: {words}: {wrote}" + (f"; companions {', '.join(rec['companions'])}" if rec['companions'] else '')
+            + (f"; not a setting of it: {', '.join(rec['unsupported'])}" if rec.get('unsupported') else ''))
+
+
 def by_assembly(copies):
     """The copies in their order, as [(assembly id or None, [copies])]: the copies of one assembly together, at the
     place of its first; every other copy alone."""
@@ -1824,7 +2045,7 @@ def by_assembly(copies):
 def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
           edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
           building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=()):
+          stream_tiles=(), piece_flags=(), flag_ladders=()):
     """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
     <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
@@ -1871,7 +2092,14 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     that follow their piece's move, copy or delete (native_effects.py).
 
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
-    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved."""
+    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
+
+    Pieces' flags (piece flags plan): a copy's `flags` ({role: bool}) are written on its clone once it is made
+    (set_roles; a copy of low scenery whose Floor is off is not made walkable), and `piece_flags` (the compiler's
+    `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
+    made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
+    Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
+    read back."""
     import cover_blocks
     import native_lights
     src, out = Path(src), Path(out)
@@ -1889,6 +2117,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         after_lights = list(state['after'].values()) if state else list(native_lights.source_registry(p).values())
     meshes = {}
     made, actors, firsts, ladders, vans = [], [], [], [], []
+    flag_copies, flag_record = [], None
     scenery_grid = None     # the tile grid, read when a copy of low scenery needs it (F-100)
     for assembly, group in by_assembly(copies):
         members = []
@@ -1947,14 +2176,23 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         # low scenery the map turned the collision off on (a ground plane or pavement of its backdrop), copied into
         # the play area, gets its collision on: it is floor there, as the map's own floor pieces are (F-100)
         walked = set()
-        for _, ai, location, rotation, _ in members:
+        for c, ai, location, rotation, _ in members:
             if p.cls(ai) not in SCENERY_CLASSES or p.effective(ai, 'bCollideActors', True) is not False or not has_mesh(p, ai):
+                continue
+            # (the user's Floor off gives way to nothing: such a copy keeps its collision off, piece flags plan 6.2)
+            if (c.get('flags') or {}).get('floor') is False:
                 continue
             box = piece_box(p, ai, location, rotation)
             scenery_grid = scenery_grid or level_grid(p)
             if walkable_scenery(p, ai, box) and in_grid(box, scenery_grid):
                 make_walkable(g, p, ai, infos[[m[1] for m in members].index(ai)]['mapping'])
                 walked.add(ai)
+        # the copies' flags, on their clones (the bPathColliding make_walkable wrote counts as theirs)
+        for (c, ai, *_), info in zip(members, infos):
+            if c.get('flags'):
+                flag_copies.append(set_roles(g, p, ai, info['actor'], c['flags'],
+                                             known={'bPathColliding': True} if ai in walked else None,
+                                             label=c.get('label') or c['actor']))
         # (a piece that collides with nothing, a sky dome 127,000 units across, changes no tile: seeding the whole
         # grid under it only made the game re-check every tile, F-93)
         tile_info = (add_tiles_box(g, p, assembly_box(p, [(ai, loc, rot) for _, ai, loc, rot, _ in members]))
@@ -2068,6 +2306,18 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         gone_now = {h['export'] for h in hidden} | set(edit_slots) | effect_gone
         landing_record, landing_volumes = native_spawns.apply(g, p, landing_zones, gone_now)
         hide_volumes = hide_volumes + landing_volumes
+    # the map's own pieces whose flags change where they stand: after every copy is made from them and the clear
+    # has run, so neither a copy nor a piece the clear takes out gets them
+    if piece_flags:
+        gone_now = ({h['export'] for h in hidden} | set(edit_slots) | set((light_result or {}).get('gone') or ())
+                    | effect_gone)
+        if cleared_record:
+            gone_now |= {p.by_name[PL + n] for n in cleared_record['taken'] if PL + n in p.by_name}
+        flag_record, flag_volumes, flag_firsts, flag_ladder_records = flags_in_place(
+            g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not cleared)
+        hide_volumes = hide_volumes + flag_volumes
+        firsts += flag_firsts
+        ladders += flag_ladder_records
     # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
     # baked tiles rebuilt where each stood, and seeded and rebuilt where it stands now, as a moved landing's are
     stream_record = []
@@ -2093,6 +2343,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         check_vertex_lightmaps(q, m['info']['mapping'])
     if state:
         native_lights.verify(q, state, light_result)
+    # the flags read back with a fresh reader: an edit not in the map is an error, never a success
+    for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
+        verify_roles(q, rec)
     ladders = ladder_order(q, [dict(l, copy=q.name(l['export']).split('.')[-1]) for l in ladders]) if ladders else []
     # the copies' components and the lights listed in them by membership
     copy_members = {q.name(m['info']['mapping'][ci]): [(x['guid'].hex(), x['light']) for x in found
@@ -2141,6 +2394,12 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),
+                  **({'pieceFlags': dict(
+                      onCopies=[dict(r, copy=q.name(r['export']).split('.')[-1]) for r in flag_copies],
+                      inPlace=(flag_record or {}).get('pieces') or [], tiles=(flag_record or {}).get('tiles'),
+                      written=sum(len(r['written']) for r in flag_copies + ((flag_record or {}).get('pieces') or [])),
+                      refused=[r['actor'] for r in flag_copies + ((flag_record or {}).get('pieces') or []) if r.get('refused')])}
+                     if flag_copies or flag_record else {}),
                   vans=[dict(v, building=dict(v['building'], copy=q.name(v['building']['export'])),
                              floorVolumes=[dict(f, copy=q.name(f['export'])) for f in v['floorVolumes']]) for v in vans])
     if not bake:
@@ -2216,8 +2475,9 @@ def main():
                         '"breakGroup": n}, or {"copies": [...], "breakOriginals": [{"name", "group"}], "hides": '
                         '[{"name", "box"}], "lights": {"deletes", "changes", "adds", "area"}, "covers": [{"name", '
                         '"kind", "location", "rotation", "size", "heights", "box"}], "buildings": [{"id", "name", "kind", "floors": '
-                        '[{"boxes"}]}]} (the editor\'s Build writes it; lights: editor '
-                        'lights plan 9.5; covers: cover_blocks.py)')
+                        '[{"boxes"}]}], "pieceFlags": [{"name", "flags"}], "pieceFlagLadders": [{"actor", "foot", '
+                        '"top"}]} with a copy\'s "flags" {role: bool} (the editor\'s Build writes it; lights: editor '
+                        'lights plan 9.5; covers: cover_blocks.py; flags: piece flags plan)')
     a.add_argument('--no-tiles', action='store_true', help='leave the copies out of the tiles (no seeds or rebuild)')
     a.add_argument('--bake', action='store_true', help='give the copies their own lighting (relight.py --native-copy)')
     a.add_argument('--cache', help='with --bake: the variant texture cache, <Name>_<n>')
@@ -2233,7 +2493,7 @@ def main():
     args = a.parse_args()
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = None
-    stream_tiles = []
+    stream_tiles, piece_flags, flag_ladders = [], [], []
     if args.copies:
         doc = json.loads(args.copies.read_text(encoding='utf-8'))
         if isinstance(doc, dict):
@@ -2246,6 +2506,8 @@ def main():
             landing_zones = doc.get('landingZones')
             carried_effects = doc.get('carriedEffects')
             stream_tiles = doc.get('streamTiles') or []
+            piece_flags = doc.get('pieceFlags') or []
+            flag_ladders = doc.get('pieceFlagLadders') or []
             doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
         for c in doc:
             copies.append(dict(actor=c['actor'], label=c.get('label'), location=[float(v) for v in c['location']],
@@ -2253,6 +2515,8 @@ def main():
                                yaw=c.get('yaw'), breakGroup=int(c.get('breakGroup') or 0),
                                **({'assembly': c['assembly'], 'family': c.get('family')} if c.get('assembly') else {}),
                                **({'ladder': c['ladder']} if c.get('ladder') else {}),
+                               # its flags (piece flags plan), written on its clone
+                               **({'flags': c['flags']} if c.get('flags') else {}),
                                # a piece of another map, staged in the map by transplant.py
                                **({'staged': True, 'donor': c.get('donor')} if c.get('staged') else {})))
     for item in args.copy:
@@ -2266,7 +2530,7 @@ def main():
         copies.append(dict(actor=args.actor, location=args.at, yaw=args.yaw))
     import native_lights
     if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
-            and not stream_tiles and native_lights.is_empty(lights):
+            and not stream_tiles and not piece_flags and native_lights.is_empty(lights):
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
@@ -2274,7 +2538,8 @@ def main():
               tiles=not args.no_tiles, edit_spec=args.edit_spec, break_originals=break_originals, hides=hides,
               assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
               cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
-              piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles)
+              piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
+              flag_ladders=flag_ladders)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']
@@ -2306,6 +2571,17 @@ def main():
         print(f"effect {r['effect']} ({r['template']}) {r['how']} with {r['piece']}"
               + (f" -> {r['copy']}" if r.get('copy') else '')
               + (f" at {[round(v, 1) for v in r['location']]} {r['rotation']}" if r['how'] != 'deleted' else ''))
+    flagged = m['nativeCopies'].get('pieceFlags')
+    for rec in (flagged or {}).get('onCopies') or []:
+        print(f"flags of copy {rec['copy']} ({rec['label']}): {flags_summary(rec)}")
+    for rec in (flagged or {}).get('inPlace') or []:
+        print(f"flags in place: {flags_summary(rec)}" + (f" ({rec['tileWork']})" if rec.get('tileWork') else ''))
+    if flagged and flagged.get('tiles'):
+        t = flagged['tiles']
+        print(f"flags' tiles: {len(t['regions'])} region{'s' if len(t['regions']) != 1 else ''}"
+              + (' (joined)' if t['joined'] else '') + f", {t['seeded']} seeded, {t['alreadyMarked']} already marked"
+              + (f", outside the map's tiles: {', '.join(t['outside'])}" if t['outside'] else '')
+              + f"; rebuild volumes: {t['volumes']}")
     for l in m['nativeCopies']['ladders']:
         print(f"ladder {l['copy']}: foot {l['foot']} rebuilt at place {l['footPlace']}, top {l['top']} at "
               f"{l['topPlace']} (volume {l['topVolume']['export']} first)")

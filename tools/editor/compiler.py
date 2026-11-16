@@ -1252,6 +1252,35 @@ class Compiler:
                 self.warn('flags-floor', '%s climbs to or from a floor that a flags edit takes away: it may no longer climb'
                           % short(o['actor']), actor=o['actor'], ends=dict(foot=e.get('footTile'), top=e.get('linkedTop')))
 
+    def flag_ladders(self):
+        """The map's own ladders that stay and climb whose foot or top tile is near a piece whose tile flags change
+        where it stands (its box with a quarter tile and a tile round it, from the ground to the level over its top):
+        the Build rebuilds their top tile first and their foot after, as a moved ladder's, so the climb keeps both its
+        links (native_copy.flags_in_place). [{actor, foot, top}], sorted."""
+        edits = [e for e in self.flag_edits if e['tiles']]
+        grid = self.scene.get('tileGrid') or {}
+        if not edits or not self.floors or not grid.get('origin'):
+            return []
+        corner = tile_corner(grid)
+        near = [(math.floor((b[0] - 24.0 - corner[0]) / 96.0) - 1, math.floor((b[1] + 24.0 - corner[0]) / 96.0) + 1,
+                 math.floor((b[2] - 24.0 - corner[1]) / 96.0) - 1, math.floor((b[3] + 24.0 - corner[1]) / 96.0) + 1,
+                 math.floor((b[5] - corner[2]) / 64.0) + 1) for b in (e['box'] for e in edits)]
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
+        out = []
+        for o in self.scene.get('objects') or []:
+            if o.get('actorClass') != 'XComLadder' or o.get('layer') != 'base' or o.get('actor') in gone:
+                continue
+            extent = ladders.extent_z(dict(meshes=self.meshes), o)
+            if extent is None:
+                continue
+            e = ladders.ends(o['location'], o['rotation'], extent, corner, self.floors)
+            if not e['climbs']:
+                continue
+            ends = [tuple(e['footTile']), tuple(e['linkedTop'])]
+            if any(x0 <= t[0] <= x1 and y0 <= t[1] <= y1 and t[2] <= z1 for t in ends for x0, x1, y0, y1, z1 in near):
+                out.append(dict(actor=short(o['actor']), foot=list(e['footTile']), top=list(e['linkedTop'])))
+        return sorted(out, key=lambda l: l['actor'])
+
     def hide_helpers(self, actor, where):
         """The streamed patches' hidden ladders that stand in for a map ladder moved or deleted (ladders.helpers): each
         goes into its stream's hides, so the old place doesn't climb. A near one (not at the ladder's own ends) is a
@@ -2455,7 +2484,10 @@ class Compiler:
         if self.flag_edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
-            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits, key=lambda e: e['name'])))
+            # (and the map's ladders near them, whose top tiles the Build rebuilds first)
+            near = self.flag_ladders()
+            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits, key=lambda e: e['name']),
+                                **({'ladders': near} if near else {})))
         if self.new_buildings:
             # buildings made from nothing: made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='buildings', buildings=self.new_buildings))
@@ -3424,7 +3456,7 @@ def native_split(spec):
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
-    lights, covers, buildings, edits, piece_flags_ = None, [], [], [], []
+    lights, covers, buildings, edits, piece_flags_, flag_ladders = None, [], [], [], [], []
     stream_hides = out.pop('streamHides', None)
     stream_moves = out.pop('streamMoves', None)
     cleared, zones = out.pop('cleared', None), out.pop('landingZones', None)
@@ -3441,6 +3473,7 @@ def native_split(spec):
             continue
         if obj.get('type') == 'pieceFlags':
             piece_flags_ += obj['pieces']
+            flag_ladders += obj.get('ladders') or []
             continue
         if obj.get('type') == 'breakOriginals':
             originals += obj['originals']
@@ -3505,6 +3538,8 @@ def native_split(spec):
         native['covers'] = covers
     if piece_flags_:
         native['pieceFlags'] = piece_flags_
+        if flag_ladders:
+            native['pieceFlagLadders'] = flag_ladders
     if buildings:
         native['buildings'] = buildings
     if edits:

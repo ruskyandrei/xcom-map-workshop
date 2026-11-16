@@ -108,6 +108,8 @@ Statuses:
   turns it on for the low pieces in the new area); to confirm in the game.
 - F-102: Temple Ship's arches can't be clicked: Firaxis set `bIgnoreFor3DCursorCollision` on them. A patched map
   with it cleared is made (14 November), not played.
+- T-37: a full build of a map grown with nothing else stops in the relight (`--receivers-near needs an edit`); a
+  quick build, or a grown grid with anything made in the map, builds (16 November).
 - F-114: the five piece flags (walking, cover, sight, floor, mouse) read from the game's scripts, its class defaults
   and every listed map (16 November); the editor's Flags edits them. Not played: walking off on a visible piece,
   the prop's gate, a ladder's or a door's flags.
@@ -2458,6 +2460,19 @@ word; not looked at in the game).
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
 ## Toolchain
+
+### T-37: A full build of a map grown with nothing else stops in the relight
+**Open** (16 November 2026, found while checking the piece flags plan's Build routes; not fixed).
+- **Seen.** A scratch project on URB_Bar whose only change is a grid grown from 52 by 39 to 56 by 39 tiles: its quick
+  build is made, its full build stops with `relight.py: error: --receivers-near needs an edit`.
+- **Cause.** The Build's light stage sends a project that changes nothing in the map but its size to `relight.py`
+  with the patch spec as `--edit-spec` and with `--receivers-near`. The spec has no objects, and with no copy, hide,
+  light edit or landing moved the relight has no edit to model, so it refuses the option.
+- **Not affected.** A grown grid with anything made in the map: cover blocks, buildings, a cleared map and pieces'
+  flags take the lighting-unchanged route (`native_copy.py` without baking); copies, hides and light edits give the
+  relight its edit.
+- **Fix.** Not made. The likely one: a resize alone takes the lighting-unchanged route too (the ground planes a
+  grown grid lays read the original's lightmaps).
 
 ### T-36: A map whose level volume falls a unit short of its tiles was exported without a tile grid
 **Fixed** (16 November 2026: a tester's report from 0.5.2, a project on CSmallScout_Roadhouse that moved a van;
