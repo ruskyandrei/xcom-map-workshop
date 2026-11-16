@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### EXP-62 ready to play: the piece flags not played yet, in one run
+
+- [EXP-62](research/experiments/EXP-62-piece-flags.md), at the user's ask: the piece flags plan's remaining in-game
+  probes in one URB_Bar project ([exp62_project.py](tools/editor/examples/exp62_project.py), in the editor's project
+  store as `EXP-62 piece flags`, built quick as `URB_Bar_X62`):
+  - copies on the pavement in front of the bar, each beside a control: box stacks with Blocks walking off, Gives
+    cover off and Floor on alone; tall fences with Gives cover on, and three in a line with Blocks sight off;
+  - the map's own pieces where they stand: a hedge with Blocks walking on (its pathing gate opened), the bar's west
+    door with walking and sight off, the west wall's ladder with walking off, each with an unedited one of its kind;
+  - the run's list: each case, damage to the edited boxes, and a save and reload.
+  [EXP-62-shots.json](research/experiments/EXP-62-shots.json) makes the six marked editor shots (kept privately).
+- Checked offline: it compiles with the expected door warning; the built map read back with a fresh reader has every
+  flag as asked, the hedge's gate open, two tile regions rebuilt and the ladder's top tile queued before its foot.
+- Known gaps: a parking block's "partly on" can't be seen on this map (12 tall, under what the tile build reads); the
+  hedge tests opening the gate instead. Nothing played yet.
+
 ### Piece flags, P8: the cursor helper retired
 
 - `tools/upk/cursor_pick.py` and its test are removed, at the user's word after EXP-60 passed: the editor's **Mouse

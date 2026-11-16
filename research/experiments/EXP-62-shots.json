@@ -1,0 +1,39 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e62", "shots": [
+ {"out": "EXP-62-row.png", "title": "EXP-62: the copies along the pavement in front of the bar",
+  "target": [-380, -144, 16], "camera": [0, -1500, 1500],
+  "marks": [
+   {"n": "B0", "at": [-1584, -144, 60], "color": "#ff6b6b", "r": 40, "text": "box stack, control: no way in, low cover beside it"},
+   {"n": "BW", "at": [-1296, -144, 60], "color": "#e0a040", "r": 40, "text": "Blocks walking off: stand in it; probably no cover"},
+   {"n": "BC", "at": [-1008, -144, 60], "color": "#5ad17a", "r": 40, "text": "Gives cover off: no way in, no cover beside it"},
+   {"n": "BF", "at": [-720, -144, 60], "color": "#4aa8ff", "r": 40, "text": "Floor on: its top may become a place to stand"},
+   {"n": "F0", "at": [-384, -192, 80], "color": "#d07ad0", "r": 44, "text": "tall fence, control: no crossing, no cover, no sight"},
+   {"n": "FC", "at": [0, -192, 80], "color": "#ffe27a", "r": 44, "text": "Gives cover on: high cover toward it, both sides"},
+   {"n": "FS", "at": [576, -192, 80], "color": "#7ae0e0", "r": 60, "text": "Blocks sight off (3 fences): no crossing, sight across"}]},
+ {"out": "EXP-62-boxes.png", "title": "EXP-62: the box stacks, closer",
+  "target": [-1150, -144, 16], "camera": [0, -760, 820],
+  "marks": [
+   {"n": "B0", "at": [-1584, -144, 60], "color": "#ff6b6b", "r": 36, "text": "control"},
+   {"n": "BW", "at": [-1296, -144, 60], "color": "#e0a040", "r": 36, "text": "Blocks walking off"},
+   {"n": "BC", "at": [-1008, -144, 60], "color": "#5ad17a", "r": 36, "text": "Gives cover off"},
+   {"n": "BF", "at": [-720, -144, 60], "color": "#4aa8ff", "r": 36, "text": "Floor on"}]},
+ {"out": "EXP-62-fences.png", "title": "EXP-62: the tall fences on the tile edge y -192, closer",
+  "target": [190, -192, 16], "camera": [0, -900, 900],
+  "marks": [
+   {"n": "F0", "at": [-384, -192, 80], "color": "#d07ad0", "r": 40, "text": "control"},
+   {"n": "FC", "at": [0, -192, 80], "color": "#ffe27a", "r": 40, "text": "Gives cover on"},
+   {"n": "FS", "at": [576, -192, 80], "color": "#7ae0e0", "r": 56, "text": "Blocks sight off, six tiles long"}]},
+ {"out": "EXP-62-hedges.png", "title": "EXP-62: the hedges south of the car park",
+  "target": [-1500, -1728, 24], "camera": [0, 900, 1100],
+  "marks": [
+   {"n": "H", "at": [-1043, -1728, 40], "color": "#ff6b6b", "r": 60, "text": "Blocks walking on (its pathing gate opened): no standing in it?"},
+   {"n": "H0", "at": [-1899, -1728, 40], "color": "#5ad17a", "r": 60, "text": "control: units stand in it, as the map has it"}]},
+ {"out": "EXP-62-west-wall.png", "title": "EXP-62: the bar's west wall: its door and ladder",
+  "target": [-1640, 600, 60], "camera": [-1000, -250, 700],
+  "marks": [
+   {"n": "D", "at": [-1632, 816, 120], "color": "#ff6b6b", "r": 44, "text": "door: Blocks walking and Blocks sight off"},
+   {"n": "L", "at": [-1647, 336, 140], "color": "#e0a040", "r": 44, "text": "ladder: Blocks walking off: does it still climb (routes up)?"}]},
+ {"out": "EXP-62-north-wall.png", "title": "EXP-62: the controls on the bar's north wall",
+  "target": [-100, 1260, 60], "camera": [0, 1100, 800],
+  "marks": [
+   {"n": "D0", "at": [-624, 1248, 120], "color": "#5ad17a", "r": 44, "text": "door, control"},
+   {"n": "L0", "at": [432, 1263, 140], "color": "#4aa8ff", "r": 44, "text": "ladder, control"}]}]}
