@@ -113,7 +113,10 @@ recipes in your install and warns about any it can't load. After scanning **All 
    - **Copy:** Ctrl+C, then Ctrl+V; click to place the copy. Or hold Shift as you take a move handle.
    - **Add:** P opens the piece list: this map's pieces, all maps' and your prefabs. Click one, then click in the view.
    - The **?** button lists every control, and links to the user guide.
-3. **Save** your edits as a project (Ctrl+S, then give it a name). Until then they are only a trial.
+3. **Save** your edits as a project (Ctrl+S, then give it a name). Until then they are only a trial. Under the name,
+   the Save window shows the map's name in the game: your project's name as one word, at most 24 characters
+   (`Commercial restaurant fix` builds as `CommercialRestaurantFix`), numbered when another project or map has it.
+   It stays the same once saved; **Save as…** under a new name makes a new project with a name of its own.
 4. **Build…** (Ctrl+B) opens a small panel, then saves the project and makes the variant.
    - **Bake the lighting** is off by default. The build then takes seconds, and pathing, cover and line of sight in
      the game are right, but the lighting around your changes isn't. Use it to try a layout in the game.

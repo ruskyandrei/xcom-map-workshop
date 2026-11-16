@@ -1364,10 +1364,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <div class="split">
   <figure><img src="shots/project-menu.webp" width="354" height="684" alt="The Project menu, its items numbered"></figure>
   <ol class="legend">
-    <li data-n="1"><b>The open project:</b> its name, revision, when it was saved, the name its variant builds as, and
-      its last build.</li>
+    <li data-n="1"><b>The open project:</b> its name, revision, when it was saved, the name its map builds as in the
+      game (fixed when the project was first saved), and its last build.</li>
     <li data-n="2"><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) saves the next revision. With no project open, it asks for a name.</li>
-    <li data-n="3"><b>Save as…</b> saves what is on screen under a name: a new project, or in place of another.</li>
+    <li data-n="3"><b>Save as…</b> saves what is on screen under a name: a new project, with a map name of its own, or
+      in place of another, which keeps its map name.</li>
     <li data-n="4"><b>Build…</b> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) makes the project's variant. <a href="#build">More</a></li>
     <li data-n="5"><b>Play in game</b> starts XCOM in a battle on the project's build. With no project open, on the
       original open map, without edits. <a href="#task-play">More</a></li>
@@ -1485,7 +1486,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Save as… and Load…</b> open a list of your projects with each one's map, revision and when it was saved.
     Click a column head to sort. Type a name, or pick one; <kbd>Enter</kbd> or a double-click chooses.
     Saving under another project's name asks before replacing it. <b class="ui">Show</b> switches between this map's
-    projects and all of them.</li>
+    projects and all of them.
+    <br>Under the name, Save shows what the project <b>builds as</b>: the name its map has in the game, its package and
+    the files beside it (<code>CommercialRestaurantFix.upk</code>, its lighting in
+    <code>CommercialRestaurantFix_Lighting.tfc</code>). A new project's is its name as one word, accents taken off, at
+    most 24 characters (so the files that go with it fit the game's limit), numbered (<code>_2</code>,
+    <code>_3</code>…) when another project, a build or a map of the game already has it; the window says why. It is
+    fixed once the project is saved, so a build always replaces its own files: to build under another name, use
+    <b class="ui">Save as…</b> with a new name, which makes a new project. Projects saved with an earlier version keep
+    the names they had.</li>
   <li id="cache-everything"><b>Cache everything…</b> (above <b class="ui">Game install and checks…</b> in the menu)
     reads every piece of the game's maps into the editor's cache now, so placing a piece of another map or opening a
     prefab never waits for it. Tick <b class="ui">Every map, ready to open</b> to prepare every map as well, which
