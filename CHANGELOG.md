@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 16 November 2026
 
+### Piece-flags plan reviewed against the editor and Build
+
+- Updated the private plan (`private/plans/todo/piece-flags-plan.md`), which remains outside the public repository.
+  The review covers coupled flags and native trace exceptions, inherited and partial values, document migration,
+  explicit actor selection, prefab round trips, flag-only Build routing, automatic floor writes and tile rebuilds.
+- Checked the proposal against [compiler.py](tools/editor/compiler.py), [build.py](tools/editor/build.py),
+  [native_copy.py](tools/bake/native_copy.py), the viewer's document/selection code and the
+  [native cover notes](research/native/cover-build.md). Added acceptance cases for the missing paths and separated
+  reported survey results from verified behaviour. The three selection decisions remain open.
+- Checked: the private plan's relative links and LF endings; the `repo` suite. Documentation only: no feature
+  implementation, new native audit, map build or in-game run. The private plan is updated locally; this commit
+  records the review without publishing it.
+
 ### Export 25: Roadhouse's tile grid (a tester's build failure)
 
 - A tester's report from 0.5.2: a project on CSmallScout_Roadhouse that moved a van failed to build, its one edit
