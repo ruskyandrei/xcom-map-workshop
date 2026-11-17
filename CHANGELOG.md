@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### EXP-70 prepared: effect and sound values in the game (effects and sounds plan, EXP-E)
+
+- [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md): ten values set on URB_Bar's own effects and
+  sounds and on copies of them (a beam's colour and a number where its system reads a vector, two sizes, one even and
+  one uneven, an effect and a simple sound set to start off, three copies of one steam: one green, one with a
+  parameter it doesn't save, one untouched; a sound's pitch and reach, a copy's pitch and volume), built with the
+  value families lifted; its project [exp70_project.py](tools/editor/examples/exp70_project.py) and marked shots
+  ([EXP-70-shots.json](research/experiments/EXP-70-shots.json)).
+
+Checked: the project compiles with the two meant warnings (two starting off with nothing to switch them on); the
+built map read back with a fresh export-28 reader, every value as set and everything else as the map has it. Not
+played yet.
+
 ### Effects' and sounds' values in the editor page (effects and sounds plan, stage FX5, part 2)
 
 - Where the `effect-values` and `sound-values` families build (an experiment's server: `serve --family effect-values

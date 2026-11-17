@@ -1,0 +1,21 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e70", "shots": [
+ {"out": "EXP-70-carpark.png", "title": "EXP-70: effect and sound values, the car park in front of the bar",
+  "target": [300, -950, 0], "camera": [300, -3300, 2900], "effects": true,
+  "marks": [
+   {"n": "1", "at": [1385, -620, 48], "color": "#ff6b6b", "r": 40, "text": "a headlight beam: red, its Brightness 0.5 to 2; its twin beside it as it was"},
+   {"n": "2", "at": [1354, -188, 26], "color": "#e0a040", "r": 40, "text": "steam: three times its size"},
+   {"n": "3", "at": [525, -1049, 43], "color": "#c58cff", "r": 40, "side": "left", "text": "alien vapour (drawn unevenly): three times its size, same shape"},
+   {"n": "4", "at": [531, -942, 120], "color": "#9a9a9a", "r": 40, "side": "left", "text": "the big steam: set to start off (none there)"},
+   {"n": "5", "at": [-600, -1650, 26], "color": "#5ad17a", "r": 36, "side": "left", "text": "a copy of steam 2: green"},
+   {"n": "6", "at": [-300, -1650, 26], "color": "#e0a040", "r": 36, "text": "a copy: Spawn 4 (a parameter the steam doesn't save)"},
+   {"n": "7", "at": [0, -1650, 26], "color": "#ffffff", "r": 36, "text": "a copy as the map has it (half size)"},
+   {"n": "8", "at": [-852, -550, 62], "color": "#4aa8ff", "r": 44, "side": "left", "text": "the pickup's idle: higher pitch, heard to 2,000 (was 750)"},
+   {"n": "9", "at": [1344, -522, 140], "color": "#9a9a9a", "r": 44, "text": "a car's idle (CarTaxiIdle): set not to play (silent)"},
+   {"n": "10", "at": [1500, -1500, 60], "color": "#4aa8ff", "r": 44, "text": "a copy of the pickup's idle: low pitch, half volume"}]},
+ {"out": "EXP-70-close.png", "title": "EXP-70: the beams, the steam and the vapour",
+  "target": [950, -780, 40], "camera": [950, -2000, 900], "effects": true,
+  "marks": [
+   {"n": "1", "at": [1385, -620, 48], "color": "#ff6b6b", "r": 34, "text": "red, brighter beam"},
+   {"n": "2", "at": [1354, -188, 26], "color": "#e0a040", "r": 34, "text": "steam three times its size"},
+   {"n": "3", "at": [525, -1049, 43], "color": "#c58cff", "r": 34, "side": "left", "text": "vapour three times its size"},
+   {"n": "4", "at": [531, -942, 120], "color": "#9a9a9a", "r": 34, "side": "left", "text": "no big steam"}]}]}
