@@ -6,6 +6,33 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 17 November 2026
+
+### Project manager: the list on the left, the selection on the right; editor projects in map packs
+
+At the user's ask (a review of the dialog, then layout B of three mockups), the project manager is laid out again
+to read more easily and with less said twice, and a map pack can carry the maps' editor projects.
+- [manager.js](tools/viewer/web/manager.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css), [app.js](tools/viewer/web/app.js): each row is the name, the base map and
+  when it was saved, an In the game badge, and the last build in one word (Ready, Not baked, Out of date, Not built)
+  with its revision or the older editor version that built it; the rest is in its tooltip. The Map, Saved, Last
+  build, In the game and Install as columns are gone, and the Show list is four chips with counts (All, Ready,
+  Needs a build, In the game) with a Sort list beside them. The selected projects are listed on the right, each
+  with its own Additional or Replace (the way it is in the game now, else Additional; Set all to for every one) and
+  its warnings under it, which replaces the "As below" choices, the dialog-wide radio buttons and the warnings list.
+  Build, Install in the game and Export map pack (was Zip as a map pack) are under them with their counts; Select
+  all shown, Clear selection's button and the second Close button are gone (the header's box, Ctrl+A, a Clear link
+  and the X stay). A queue that has built everything is one line.
+- [manager.py](tools/viewer/manager.py): `POST /manager/pack` takes `"projectFiles": true` (the panel's Include
+  editor project files, remembered by the browser): each packed map's saved project goes under `projects/` byte for
+  byte, `pack.json` lists them, and the README says where to copy them and which were saved after their build.
+- [README](tools/viewer/README.md) and the [guide](tools/release/guide/guide.html) say it.
+- Checked: `test_manager.py` has a new test of the projects in a pack (byte for byte, pack.json, the README, a
+  project saved after its build) and one that a pack has none unless asked; the `viewer` suite; the dialog in a
+  test server on a copy of the projects (filters, sort, Ctrl+A, Set all to, taking one out of the selection, Tab out
+  of the list, an export of a mixed pack with the projects, no console errors). Not checked: Install in the game
+  from the new dialog (its request is the one the pack sends, which the server tests cover).
+
 ## 16 November 2026
 
 ### Custom walls: a fracturing wall first, as a proof of concept (plan changed)

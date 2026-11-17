@@ -905,19 +905,26 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     everything but start the game.
 - **Manage projects…** (Project menu) opens the project manager ([`manager.js`](web/manager.js),
   [`manager.py`](manager.py)): every project with its last build (when, of which revision, baked or not, the editor
-  version that built it), the missions its base map serves and what is in the game of it.
-  - The list filters by text (name, map, mission, "baked", "not built"…) and by state (**Show**), sorts by any
-    column, and rows are ticked one by one, as a Shift+click run, or all that the filter shows (the header's box,
-    **Select all shown**, Ctrl+A). The selection keeps projects the filter hides, and says how many.
-  - The ticked projects' last builds go into campaigns one of two ways: **Additional maps** (the variant's records
-    go into the rotation beside the base map's) or **Replace the original maps** (as well, the base map's own records
+  version that built it), the missions its base map serves and what is in the game of it. The projects are listed
+  on the left, the selected ones on the right with what to do with them.
+  - Each row has the project's name, its base map and when it was saved, a badge when it is in the game, and its
+    last build's state in one word: **Ready** (built, baked, of the saved revision), **Not baked** (a quick build),
+    **Out of date** (built from an older revision) or **Not built**, beside its revision (`rev. 1 of 3` when out of
+    date) or, for a build by another editor version, that version. The tooltip has the rest (when, the build id,
+    the folder).
+  - The list filters by text (name, map, mission, "baked", "not built"…) and by state (the chips **All**,
+    **Ready**, **Needs a build**, **In the game**, each with its count), sorts by **Sort** (last saved, last built,
+    name, map), and rows are ticked one by one, as a Shift+click run, or all that the filter shows (the header's
+    box, Ctrl+A). The selection keeps projects the filter hides, and says how many.
+  - Each selected project with a build goes into campaigns its own way, chosen on the right: **Additional** (the
+    variant's records go into the rotation beside the base map's) or **Replace** (as well, the base map's own records
     are commented out, a `;` before each line: that is known to stop the game using a record, which
-    `bInRotation=False` is not). A variant gets one record per record of its base map, each in or out of rotation as
-    the base map's is.
-  - **Install as**, on each row, gives that project its own way (Additional or Replace) in place of the choice
-    below ("As below"), so one install, or one map pack, can hold maps that replace their originals beside maps that
-    are added. The requests carry it as `"modes": {project id: mode}`; a pack with both says `"mode": "mixed"` and
-    each of its maps its own `mode`, which the pack's scripts go by.
+    `bInRotation=False` is not). It starts as the way it is in the game now, else Additional; **Set all to** sets
+    every selected one. A variant gets one record per record of its base map, each in or out of rotation as the base
+    map's is. So one install, or one map pack, can hold maps that replace their originals beside maps that are
+    added. The requests carry each project's way as `"modes": {project id: mode}`; a pack with both says
+    `"mode": "mixed"` and each of its maps its own `mode`, which the pack's scripts go by. The warnings for a
+    selected project (below) are listed under it.
   - **Council missions** (and the story's) don't come from the rotation: the game asks for their map by its record's
     display name (`XGFundingCouncil.BuildMission`; Long War's `XGFundingCouncil_Mod.FixDisplayName` takes the last
     record of that council type whose name contains it), and their records are out of rotation in the install. So a
@@ -928,7 +935,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     landing zones added, the records added after the base map's (after Play in game's own record, which stays first
     and separate). The Game maps window undoes it. The map list, the exporter and Build still read the install
     without any of it (`installs.maps_text`).
-  - **Zip as a map pack** writes `<builds>\Map packs\<name> <time>.zip`: the builds' files under
+  - **Export map pack** writes `<builds>\Map packs\<name> <time>.zip`: the builds' files under
     `XEW\XComGame\CookedPCConsole` (to copy over the game folder), `README.txt` with the config lines for the chosen
     way (worked out from the game install the editor reads), each build's own README and manifest under `packages\`,
     and `pack.json`. It also carries **`Install.cmd`** and **`Uninstall.cmd`** ([`pack_scripts.py`](pack_scripts.py);
@@ -940,11 +947,16 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     `Uninstall.cmd` undoes exactly that and says whether `DefaultMaps.ini` is then as it was before the pack. A map
     whose base map the game has no record for is left out, as is one the game already has a record for. The lines
     are the ones worked out from the install the pack was made from; the README still lists them, to add by hand.
+  - **Include editor project files** (above Export map pack; the browser remembers it) adds each packed map's saved
+    project under `projects\` in the zip, byte for byte as it is in the projects folder, so whoever gets the pack
+    can open and change the maps in the editor. `pack.json` lists them under `projects` (file, revision, the
+    build's revision, SHA-256), and the README says where to copy them and which were saved again after their
+    build. The request carries it as `"projectFiles": true`.
   - Warnings never stop it: a quick build (lighting not baked), a build of an older revision, missions other than
     abductions (variants have been played on abductions only), and what each way does for the missions asked for
     by name.
   - Routes: `GET /manager.json`, `POST /manager/install` and `/manager/pack` (`{"projects": [id...], "mode":
-    "additional" | "replace"}`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
+    "additional" | "replace", "modes": {id: mode}}`, and for the pack `"projectFiles"`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
     Install and pack take a lease on each package they read (`builds.lease`): a project the build queue is building,
     or about to, is refused with the reason.
   - **Build** puts the ticked projects (in the list's order, those the filter hides included) in the **build queue**
@@ -952,16 +964,17 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     another while the editor stays usable: each a full build (lighting baked) of the project as it is saved when its
     turn comes, captured into a snapshot of its own (`<builds>\.work\queue-attempts\<attempt>\project.json`, with
     the build's log beside it). Build saves the open project first when it is ticked and has unsaved changes. The
-    Show choice **Needs a full build** lists the projects not built, built quick, built from an older revision or by
-    another editor version.
+    chip **Needs a build** lists the projects not built, built quick, built from an older revision or by another
+    editor version.
     - While it runs, the queue holds the build slot: the editor's Build, Play in game's build and prefab tests are
       refused with the reason, and a build already running finishes first (the queue waits for it). A queue build
       opens no window, even on the open project; the Project menu shows its last build when it ends.
-    - Each row's Last build cell says where it is (waiting with its place, building with the step and the step's
+    - Each row's build state says where it is in the queue (waiting with its place, building with the step and the step's
       bar, built, failed), and a waiting row has Remove. The strip above the footer has the project building and its
       step, a bar of the rows done, the queue's building time, the time left going by each project's last full build
       (approximate, and saying how many have none), the failures with their reasons, and **Stop**, **Resume**,
-      **Clear** and, for a file that can't be read, **Reset the queue**. The editor's header has a chip (Building 2 of
+      **Clear** and, for a file that can't be read, **Reset the queue**; once every project in it is built, it is one
+      line. The editor's header has a chip (Building 2 of
       5, Queue stopped, 4 built, 1 failed) that opens the manager.
     - A failure is that row's alone: the queue goes on. Stop stops the queue's build (the project's last package
       stays) and starts no other; Resume captures the first waiting project again, the latest save, and builds it

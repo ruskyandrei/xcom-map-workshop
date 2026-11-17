@@ -20,10 +20,12 @@ have been played in the game with a variant. All of that is said as warnings, ne
   POST /manager/install   {"projects": [id...], "mode": "additional" | "replace", "modes": {id: mode} optional}: each
                           project's last build installed its own way (modes), or else the request's (mode)
                           for campaigns; one that can't be is reported and the others go on
-  POST /manager/pack      {"projects": [id...], "mode": ..., "name": optional}: one zip in <builds>/Map packs with
-                          every build's files laid out as the game folder is, Install.cmd and Uninstall.cmd (which
-                          put the pack into a game folder and take it out again: pack_scripts.py), a README, each
-                          build's own manifest and README, and pack.json, which the scripts read
+  POST /manager/pack      {"projects": [id...], "mode": ..., "modes": optional, "name": optional, "projectFiles":
+                          optional}: one zip in <builds>/Map packs with every build's files laid out as the game
+                          folder is, Install.cmd and Uninstall.cmd (which put the pack into a game folder and take it
+                          out again: pack_scripts.py), a README, each build's own manifest and README, and pack.json,
+                          which the scripts read; with "projectFiles": true, each packed map's saved editor project
+                          too, under projects/ (the file as it is in the projects folder), for others to open and edit
 
 The pack's config lines are worked out from the game install the editor reads (the same lines install_rotation would
 add there); the README says so, since another install's records may differ.
@@ -270,6 +272,16 @@ def pack_readme(pack, parts):
                   '   map\'s lines beside its base map\'s.']
         for p in zones:
             lines += ['', '   %s (beside %s\'s):' % (p['variant'], p['base'])] + p['landingZones']
+    shared = pack.get('projects') or []
+    if shared:
+        lines += ['', 'Editor projects. The projects folder has the XCOM Map Workshop project of %s, to open and change in the'
+                  % ('this map' if len(shared) == 1 else 'these maps'),
+                  'editor: copy the .json file into the editor\'s projects folder (by default <editor folder>\\projects), then open',
+                  'it with Load in the Project menu. The editor reads the base map from your own game install.']
+        for s in shared:
+            later = s['revision'] != s['buildRevision'] and s['buildRevision'] is not None
+            lines += ['  projects\\%s%s' % (s['file'], ' (saved after this build: the project is at revision %s, the map is of revision %s)'
+                                            % (s['revision'], s['buildRevision']) if later else '')]
     warned = [p for p in parts if p['warnings']]
     if warned:
         lines += ['', 'Notes:']
@@ -352,6 +364,17 @@ def _pack(projects, builds, player, request, chosen, mode, now):
     if not parts:
         raise ProjectError(409, 'Not made: none of the chosen projects has a build to pack. '
                            + ' '.join(f'{s["name"]}: {s["error"]}' for s in skipped), skipped=skipped)
+    # the packed maps' editor projects, when asked for: each saved file as it is on disk, under projects/
+    shared, project_data = [], {}
+    if request.get('projectFiles') is True:
+        for p in parts:
+            try: document, data, digest, path = projects.capture(p['id'])
+            except ProjectError as error:
+                p['warnings'].append(f'Its editor project is not in the pack: {error.message}')
+                continue
+            project_data[path.name] = data
+            shared.append(dict(id=p['id'], name=p['name'], file=path.name, revision=document.get('revision'),
+                               buildRevision=p['revision'], sha256=digest))
     # the pack's mode: its maps' own, or "mixed" when some replace and some are added
     mode = parts[0]['mode'] if len({p['mode'] for p in parts}) == 1 else 'mixed'
     name = _safe(request.get('name') if isinstance(request.get('name'), str) else '') or (
@@ -362,7 +385,8 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                      maps=[{**{k: p[k] for k in ('id', 'name', 'variant', 'base', 'mode', 'quick', 'revision', 'buildId', 'files',
                                               'records', 'switch', 'landingZones', 'donors', 'warnings')},
                            **({'ownZones': True} if p.get('ownZones') else {})} for p in parts],
-                     files={n: digest for n, (_, digest) in sorted(files.items())})
+                     files={n: digest for n, (_, digest) in sorted(files.items())},
+                     **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f'{name} {stamp}.zip'
@@ -378,7 +402,9 @@ def _pack(projects, builds, player, request, chosen, mode, now):
         for p in parts:
             for n in ('README.txt', 'manifest.json'):
                 if (p['folder'] / n).is_file(): z.write(p['folder'] / n, f'packages/{p["variant"]}/{n}')
+        for n, data in sorted(project_data.items()):
+            z.writestr(f'projects/{n}', data)
     temp.replace(target)
     return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size,
                 packed=[dict(id=p['id'], name=p['name'], variant=p['variant'], mode=p['mode'], warnings=p['warnings']) for p in parts],
-                skipped=skipped)
+                skipped=skipped, projects=[s['file'] for s in shared])

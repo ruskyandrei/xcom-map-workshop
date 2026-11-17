@@ -398,26 +398,43 @@
     </form>
   </div>
   <div id="managerDialog" class="modal" hidden>
-    <form id="managerForm" class="panel filedialog managerdialog" role="dialog" aria-modal="true" aria-labelledby="managerTitle" novalidate>
+    <form id="managerForm" class="panel filedialog managerdialog pmdialog" role="dialog" aria-modal="true" aria-labelledby="managerTitle" novalidate>
       <div class="dialoghead"><h2 id="managerTitle">Project manager</h2><button id="managerClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
-      <div class="mapfind">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="managerSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: name, map, mission, built, baked…" aria-label="Filter projects" aria-controls="managerList">
-        <label>Show <select id="managerShow" aria-label="Show">
-          <option value="all">All projects</option><option value="built">Built</option><option value="baked">Built, lighting baked</option>
-          <option value="unbaked">Built, lighting not baked</option><option value="stale">Built from an older revision</option>
-          <option value="unbuilt">Not built</option><option value="needsfull" title="Not built, not baked, built from an older revision, or by another editor version: the projects a full build would bring up to date">Needs a full build</option><option value="ingame">In the game</option></select></label>
+      <div class="pmbody">
+        <div class="pmleft">
+          <div class="mapfind">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input id="managerSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: name, map, mission…" aria-label="Filter projects" aria-controls="managerList">
+          </div>
+          <div class="pmbar">
+            <div id="managerShow" class="pmchips" role="radiogroup" aria-label="Show">
+              <button type="button" role="radio" data-show="all" title="Every project">All <span></span></button>
+              <button type="button" role="radio" data-show="ready" title="Built, its lighting baked, of the revision saved now">Ready <span></span></button>
+              <button type="button" role="radio" data-show="needsfull" title="Not built, not baked, built from an older revision, or by another editor version: the projects a full build would bring up to date">Needs a build <span></span></button>
+              <button type="button" role="radio" data-show="ingame" title="Installed in the game, for campaigns or for Play in game">In the game <span></span></button>
+            </div>
+            <label class="pmsort">Sort <select id="managerSort" aria-label="Sort by">
+              <option value="savedAt">Last saved</option><option value="build">Last built</option><option value="name">Name</option><option value="map">Map</option></select></label>
+          </div>
+          <div class="filetable">
+            <div id="managerHead" class="filehead pmhead"><label title="Select or clear every project the filter shows (Ctrl+A selects them)"><input id="managerAll" type="checkbox"> <span id="managerShown">Select all shown</span></label></div>
+            <div id="managerList" class="filelist mlist" role="listbox" aria-multiselectable="true" aria-label="Projects"></div>
+          </div>
+        </div>
+        <aside class="pmside" aria-label="Selected projects">
+          <div class="pmsidehead"><strong id="managerCount">Nothing selected</strong><button id="managerPickNone" class="link" type="button">Clear</button></div>
+          <div id="managerAllModes" class="pmallmodes" hidden>Set all to <button type="button" class="link" data-mode="additional">Additional</button> · <button type="button" class="link" data-mode="replace">Replace</button></div>
+          <ul id="managerPicked" class="pmpicked" aria-label="Selected projects and how each goes into the game"></ul>
+          <div class="pmactions">
+            <button id="managerBuild" type="button">Build</button>
+            <button id="managerInstall" class="primary" type="button">Install in the game</button>
+          </div>
+          <div class="pmexport">
+            <label title="Each map's saved project file goes into the pack's projects folder, to open in the XCOM Map Workshop"><input id="managerProjectFiles" type="checkbox"> <span>Include editor project files<small>So others can open and edit the maps</small></span></label>
+            <button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Export map pack</button>
+          </div>
+        </aside>
       </div>
-      <div class="filetable">
-        <div id="managerHead" class="filehead mhead"><input id="managerAll" type="checkbox" aria-label="Select every project shown" title="Select or clear every project the filter shows"><button type="button" data-sort="name">Name</button><button type="button" data-sort="map">Map</button><button type="button" data-sort="savedAt">Saved</button><button type="button" data-sort="build">Last build</button><button type="button" data-sort="inGame">In the game</button><span title="How this project goes into the game or a pack: as the choice below says, or its own way. One install or pack can hold both">Install as</span></div>
-        <div id="managerList" class="filelist mlist" role="listbox" aria-multiselectable="true" aria-label="Projects"></div>
-      </div>
-      <div class="mpick"><span id="managerCount"></span><button id="managerPickShown" type="button" title="Tick every project the filter shows (Ctrl+A)">Select all shown</button><button id="managerPickNone" type="button">Clear selection</button></div>
-      <fieldset class="mmode"><legend>With the selected projects' last builds (each as its row says; "As below" follows this choice)</legend>
-        <label title="The new map's records go into the rotation beside its base map's: missions draw from both"><input type="radio" name="managerMode" value="additional" checked> <span><strong>Additional maps</strong> in the rotation, beside the originals</span></label>
-        <label title="As well, the base map's own records are commented out, so the game no longer uses the original: missions draw the new map where they drew it, and a council mission that asks for the original by name gets the new map"><input type="radio" name="managerMode" value="replace"> <span><strong>Replace the original maps</strong>, council missions too</span></label>
-      </fieldset>
-      <ul id="managerWarnings" class="mwarnings" hidden></ul>
       <div id="managerMessage" class="filemessage" role="status" hidden></div>
       <section id="managerQueue" class="mqueue" aria-label="Build queue" hidden>
         <div class="mqhead"><strong id="managerQueueTitle"></strong><span id="managerQueueClock" class="mqclock" title="How long the queue has been building (its waits for other builds included; not while it was stopped)"></span></div>
@@ -428,7 +445,7 @@
         <ul id="managerQueueFailures" class="mqfailures" hidden></ul>
         <div class="mqbuttons"><span id="managerQueueLive" class="visually-hidden" role="status" aria-live="polite"></span><button id="managerQueueStop" type="button" title="Stop the queue: its build stops (that project's last package stays as it was) and no other starts. Resume goes on">Stop</button><button id="managerQueueResume" type="button">Resume</button><button id="managerQueueClear" type="button" title="Take every row and result out of the queue. No project or package is deleted">Clear</button><button id="managerQueueReset" type="button" title="Set the queue's unreadable file aside (it is kept) and start with an empty queue" hidden>Reset the queue</button></div>
       </section>
-      <div class="mapfoot"><span id="managerWhere"></span><button id="managerBuild" type="button">Build</button><button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Zip as a map pack</button><button id="managerInstall" class="primary" type="button">Install in the game</button><button id="managerDone" type="button">Close</button></div>
+      <div class="mapfoot"><span id="managerWhere"></span></div>
     </form>
   </div>
   <div id="gameMapsDialog" class="modal" hidden>

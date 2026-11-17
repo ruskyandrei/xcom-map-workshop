@@ -1,10 +1,13 @@
 // The project manager (Project menu, Manage projects; tools/viewer/manager.py): every project with its last build
-// (when, of which revision, baked or not, by which editor version) and what is in the game of it. The list filters by
-// text and by state, and rows are ticked one by one, by a Shift+click range, or all that the filter shows. The ticked
-// projects' last builds are then installed in the game for campaigns or zipped into one map pack, by the chosen way:
-// additional maps in the rotation, or replacing the original maps. A row's Install as gives that project its own way,
-// so one install or one pack can hold maps that replace their originals beside maps that are added. Taking them out again is the Game maps window's
-// (gamemaps.js). Warnings (a quick build, a build older than the project, missions other than abductions) never stop it.
+// and what is in the game of it, on the left; the selected projects and what to do with them, on the right.
+// The list filters by text and by state (the chips, with their counts), and rows are ticked one by one, by a
+// Shift+click range, or all that the filter shows. Each selected project with a build says on the right how it goes
+// into the game or a pack: additional (beside its base map in the rotation) or replace (in its place), Additional to
+// begin with, or the way it is in the game now. So one install or one pack can hold maps that replace their originals
+// beside maps that are added. Install in the game puts the selected projects' last builds into the game for
+// campaigns; Export map pack zips them into one map pack, with their editor project files when ticked. Taking them out
+// again is the Game maps window's (gamemaps.js). Warnings (a quick build, a build older than the project, missions
+// other than abductions) are said under each selected project and never stop anything.
 // Build puts the ticked projects in the build queue (build_queue.js, tools/viewer/buildqueue.py): full builds, one
 // after another on the server, each of the project as saved when its turn comes. The rows say where each is in the
 // queue, and a strip above the footer follows the whole queue with its buttons (Stop, Resume, Clear). The manager can
@@ -22,7 +25,7 @@ async function call(method, url, body) {
 export const managerApi = {
   list: () => call('GET', '/manager.json'),
   install: (projects, mode, modes) => call('POST', '/manager/install', { projects, mode, modes }),
-  pack: (projects, mode, modes, name) => call('POST', '/manager/pack', { projects, mode, modes, name }),
+  pack: (projects, mode, modes, name, projectFiles = false) => call('POST', '/manager/pack', { projects, mode, modes, name, projectFiles }),
 };
 
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
@@ -31,28 +34,45 @@ const byName = (a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {
 const lighting = b => b.quick ? 'not baked' : b.lightingUnchanged ? 'baked (lighting unchanged)' : 'baked';
 const inGameText = g => !g ? '' : [g.rotation === 'replace' ? 'Replaces the map' : g.rotation === 'additional' ? 'In rotation' : null,
                                    g.play && !g.rotation ? 'For Play in game' : null].filter(Boolean).join(', ') + (g.current ? '' : ' (an older build)');
+const MODE_TITLES = {
+  additional: 'Additional: its records go into the rotation beside its base map\'s, so missions draw from both',
+  replace: 'Replace: as well, its base map\'s own records are commented out, so the game no longer uses the original: missions draw this map where they drew it, and a council mission that asks for the original by name gets this map',
+};
+const FILES_KEY = 'xcom-map-workshop.manager.projectFiles';
+const remembered = () => { try { return localStorage.getItem(FILES_KEY) === '1'; } catch { return false; } };
+const remember = on => { try { localStorage.setItem(FILES_KEY, on ? '1' : '0'); } catch { /* not kept: the box still works */ } };
 const SORTS = {
   name: byName,
   map: (a, b) => (a.mapLabel ?? '').localeCompare(b.mapLabel ?? '') || byName(a, b),
   savedAt: (a, b) => (a.savedAt ?? '').localeCompare(b.savedAt ?? '') || byName(a, b),
   build: (a, b) => (a.build?.builtAt ?? '').localeCompare(b.build?.builtAt ?? '') || byName(a, b),
-  inGame: (a, b) => inGameText(a.inGame).localeCompare(inGameText(b.inGame)) || byName(a, b),
 };
+// the newest first for the dates, A to Z for the names
+const DOWN = { savedAt: true, build: true, name: false, map: false };
 const SHOWS = {
   all: () => true,
-  built: p => Boolean(p.build),
-  baked: p => Boolean(p.build) && !p.build.quick,
-  unbaked: p => Boolean(p.build) && p.build.quick,
-  stale: p => Boolean(p.build) && p.build.stale,
-  unbuilt: p => !p.build && !p.error,
-  ingame: p => Boolean(p.inGame),
+  ready: p => Boolean(p.build) && !p.build.quick && !p.build.stale,
   // not built, not baked, of an older revision, or by another editor version (build_queue.js needsFullBuild)
   needsfull: (p, version) => needsFullBuild(p, version),
+  ingame: p => Boolean(p.inGame),
 };
 
+// A build's state in one word, with a note: { text, kind (ok, warn, none), note, noteWarn, title }.
+export function buildStatus(p, editorVersion) {
+  const b = p.build;
+  if (!b) return { text: 'Not built', kind: 'none', note: '', title: 'Never built: Build makes a full build of it' };
+  const older = Boolean(editorVersion && b.editorVersion && b.editorVersion !== editorVersion);
+  const note = b.stale ? `rev. ${b.revision} of ${p.revision}` : older ? `v${b.editorVersion}` : `rev. ${b.revision}`;
+  const title = [`Built ${savedWhen(b.builtAt)} from revision ${b.revision}${b.stale ? ` (the project is at revision ${p.revision})` : ''}`,
+    `lighting ${lighting(b)}`, b.editorVersion ? `by the editor ${b.editorVersion}` : null].filter(Boolean).join(' · ') + `\n${b.buildId}\n${b.folder}`;
+  if (b.quick) return { text: 'Not baked', kind: 'warn', note, noteWarn: b.stale || older, title: `A quick build: pathing, cover and line of sight are right, the lighting is not.\n${title}` };
+  if (b.stale) return { text: 'Out of date', kind: 'warn', note, noteWarn: true, title: `The project was saved again after this build.\n${title}` };
+  return { text: 'Ready', kind: 'ok', note, noteWarn: older, title };
+}
+
 /**
- * els: the dialog's elements (root, form, close, search, show, head, all, list, count, pickShown, pickNone, mode
- * (the two radio inputs' form name), warnings, message, pack, install, done, where).
+ * els: the dialog's elements (root, form, close, search, show (the chips' group), sort, all, shownLabel, list, count,
+ * pickNone, allModes, picked (the selected projects' list), message, pack, projectFiles, install, where).
  * mapLabel(id): a map's display name. onOpen(summary): open that project. reveal(path): show a file in Explorer.
  * onChanged(): the game install's contents changed (the Project menu's Installs section follows).
  * queue: the page's build queue controller (build_queue.js createQueueController), or none; its elements: build,
@@ -61,30 +81,31 @@ const SHOWS = {
  * unsaved changes (true when Build may go on).
  */
 export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, reveal, onChanged, queue = null, ensureSaved = null }) {
-  let listed = null, projects = [], picked = new Set(), sort = { key: 'savedAt', down: true }, anchor = null, busy = false;
+  let listed = null, projects = [], picked = new Set(), showing = 'all', anchor = null, busy = false;
   let lastFocus = null, queueBusy = false, ticker = null, lastLive = '';
-  const mode = () => els.form.elements.managerMode.value;
-  // a project's own way (Install as), where it has one; else the choice below
+  // a project's way, where one was chosen here; else the way it is in the game now, else additional
   const own = new Map();
-  const modeOf = p => own.get(p.id) ?? mode();
-  const modes = list => Object.fromEntries(list.filter(id => own.has(id)).map(id => [id, own.get(id)]));
-  const sorter = (a, b) => (sort.down ? -1 : 1) * SORTS[sort.key](a, b);
+  const modeOf = p => own.get(p.id) ?? (p.inGame?.rotation || 'additional');
+  const sortKey = () => (SORTS[els.sort.value] ? els.sort.value : 'savedAt');
+  const sorter = (a, b) => (DOWN[sortKey()] ? -1 : 1) * SORTS[sortKey()](a, b);
+  const words = () => els.search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const shown = () => {
-    const words = els.search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    const keep = SHOWS[els.show.value] ?? SHOWS.all;
+    const w = words(), keep = SHOWS[showing] ?? SHOWS.all;
     // a row with a result in the queue stays shown, though the filter would hide it now it is built
-    return projects.filter(p => (keep(p, listed?.editorVersion) || (els.show.value !== 'all' && queued(p)))
-      && words.every(w => p.haystack.includes(w))).sort(sorter);
+    return projects.filter(p => (keep(p, listed?.editorVersion) || (showing !== 'all' && queued(p)))
+      && w.every(x => p.haystack.includes(x))).sort(sorter);
   };
   const queueItem = p => queue?.state?.items?.find(i => i.project === p.id) ?? null;
   const queued = p => Boolean(queueItem(p)) && !['idle', 'unavailable'].includes(queue?.state?.state);
-  const chosen = () => projects.filter(p => picked.has(p.id));
+  const chosen = () => projects.filter(p => picked.has(p.id)).sort(sorter);
+  const warningsOf = p => [...(p.warnings ?? []), ...(p.modeWarnings?.[modeOf(p)] ?? [])];
+  els.projectFiles.checked = remembered();
 
   function say(content, warn = false) {
     els.message.replaceChildren(...(content == null ? [] : [].concat(content)));
     els.message.hidden = content == null; els.message.classList.toggle('warn', warn);
   }
-  // The row's place in the build queue, above its last build's line (a failed attempt hides no usable last build).
+  // The row's place in the build queue, above its last build's state (a failed attempt hides no usable last build).
   function queueLine(p, cell) {
     const item = queued(p) ? queueItem(p) : null, line = item ? rowLine(item, queue.state) : null;
     if (!line) return null;
@@ -113,16 +134,12 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     const rest = line ? el('span', { className: 'mqrest' }) : cell;
     if (line) cell.append(rest);
     cell.dataset.sig = JSON.stringify([line, p.build?.buildId, p.building, queue?.state?.actions?.remove]);
-    if (p.building && !line) { cell.append('Building…'); return cell; }
-    if (!p.build) { if (!line) cell.append(el('em', { textContent: 'Not built' })); return cell; }
-    const b = p.build;
-    rest.append(savedWhen(b.builtAt), el('small', { textContent: `rev. ${b.revision}`, className: b.stale ? 'warn' : '',
-      title: b.stale ? `The project is at revision ${p.revision}: this build is of an older one` : 'The build is of the saved revision' }),
-      el('small', { textContent: lighting(b), className: b.quick ? 'warn' : '',
-        title: b.quick ? 'A quick build: pathing, cover and line of sight are right, the lighting is not' : 'Its lighting was calculated' }));
-    if (b.editorVersion) rest.append(el('small', { textContent: `v${b.editorVersion}`, title: `Built by the XCOM Map Workshop ${b.editorVersion}`,
-      className: listed?.editorVersion && b.editorVersion !== listed.editorVersion ? 'warn' : '' }));
-    rest.title = `${b.buildId} · built ${savedWhen(b.builtAt)} from revision ${b.revision} · lighting ${lighting(b)}${b.editorVersion ? ` · editor ${b.editorVersion}` : ''}\n${b.folder}`;
+    if (p.building && !line) { cell.append(el('span', { className: 'pmstate', textContent: 'Building…' })); return cell; }
+    if (!p.build && line) return cell;
+    const s = buildStatus(p, listed?.editorVersion);
+    if (s.note) rest.append(el('small', { className: s.noteWarn ? 'warn' : '', textContent: s.note }));
+    rest.append(el('span', { className: `pmstate ${s.kind}`, textContent: s.text }));
+    rest.title = s.title;
     return cell;
   }
   // A new answer from the queue: only the cells that changed are drawn again (focus, scroll and the rest stay).
@@ -134,12 +151,14 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       if (fresh.dataset.sig !== old.dataset.sig) old.replaceWith(fresh);
     }
   }
-  // The strip above the footer: the whole queue, its time, its bar (rows processed of all), its buttons.
+  // The strip above the footer: the whole queue, its time, its bar (rows processed of all), its buttons; one line
+  // once every project in it is built.
   function renderStrip() {
     const q = queue?.state, words = stripWords(q);
     els.queueBox.hidden = !words;
     if (!words) { els.queueLive.textContent = ''; lastLive = ''; return; }
     const active = q.state === 'running' || q.state === 'stopping';
+    els.queueBox.classList.toggle('done', q.state === 'finished' && !words.failures.length && !q.fault && !q.notice);
     els.queueTitle.textContent = words.title;
     els.queueClock.textContent = active ? clock(queue.activeSeconds()) : q.activeSeconds ? `${clock(q.activeSeconds)} in all` : '';
     els.queueStep.textContent = words.step ?? '';
@@ -178,34 +197,17 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
   const removeFromQueue = item => queueAct('Not removed', 'remove', { items: [item.itemId] });
   function render() {
     const list = shown();
-    for (const button of els.head.querySelectorAll('[data-sort]')) {
-      button.classList.toggle('sorted', button.dataset.sort === sort.key);
-      button.classList.toggle('down', button.dataset.sort === sort.key && sort.down);
-    }
     els.list.replaceChildren();
     for (const p of list) {
       const box = el('input', { type: 'checkbox', checked: picked.has(p.id), disabled: Boolean(p.error), tabIndex: -1 });
       box.setAttribute('aria-label', `Select ${p.name ?? p.id}`);
-      const name = el('span', { className: 'fname' }, p.error ? p.id : (p.name ?? p.id));
-      const warned = [...(p.warnings ?? []), ...(p.modeWarnings?.[modeOf(p)] ?? [])];
-      if (warned.length) name.append(el('small', { className: 'warn', textContent: '!', title: warned.join('\n') }));
-      const row = el('div', { className: 'mrow', tabIndex: p.error ? -1 : 0 }, box, name,
-        el('span', { textContent: p.error ? 'unreadable' : p.mapLabel, title: p.error ? '' : `${p.map}${p.missions?.length ? ` · ${p.missions.map(m => m.label + (m.inRotation ? '' : ' (out of rotation)')).join(', ')}` : ''}` }),
-        el('span', { textContent: savedWhen(p.savedAt), title: p.error ? '' : `Revision ${p.revision}` }),
-        p.error ? el('span') : buildCell(p),
-        el('span', { textContent: inGameText(p.inGame), title: p.inGame ? `In ${listed?.install?.folder ?? 'the game'}` : '' }));
-      if (p.error) row.append(el('span'));
-      else {
-        const pick = el('select', { tabIndex: -1, title: 'How this project goes into the game or a pack: as the choice below, or its own way' });
-        pick.setAttribute('aria-label', `Install ${p.name ?? p.id} as`);
-        for (const [value, label] of [['', 'As below'], ['additional', 'Additional'], ['replace', 'Replace']]) pick.append(el('option', { value, textContent: label }));
-        pick.value = own.get(p.id) ?? '';
-        pick.classList.toggle('own', own.has(p.id));
-        pick.onclick = pick.ondblclick = e => e.stopPropagation();
-        pick.onkeydown = e => { if (e.key === ' ' || e.key.startsWith('Arrow')) e.stopPropagation(); };
-        pick.onchange = () => { pick.value ? own.set(p.id, pick.value) : own.delete(p.id); const at = els.list.scrollTop; render(); els.list.scrollTop = at; };
-        row.append(pick);
-      }
+      const title = el('span', { className: 'pmtitle' }, el('span', { className: 'fname', textContent: p.error ? p.id : (p.name ?? p.id) }));
+      if (p.inGame) title.append(el('small', { className: `pmgame${p.inGame.current ? '' : ' warn'}`, textContent: inGameText(p.inGame),
+        title: `In ${listed?.install?.folder ?? 'the game'}${p.inGame.current ? '' : ': an older build than the last one'}` }));
+      const meta = el('small', { className: 'pmmeta', textContent: p.error ? 'Unreadable' : `${p.mapLabel} · saved ${savedWhen(p.savedAt)}`,
+        title: p.error ? '' : `${p.map} · revision ${p.revision}${p.missions?.length ? ` · ${p.missions.map(m => m.label + (m.inRotation ? '' : ' (out of rotation)')).join(', ')}` : ''}` });
+      const row = el('div', { className: 'mrow', tabIndex: p.error ? -1 : 0 }, box, el('span', { className: 'pmname' }, title, meta),
+        p.error ? el('span') : buildCell(p));
       row.dataset.id = p.id; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', picked.has(p.id));
       row.classList.toggle('on', picked.has(p.id)); row.classList.toggle('off', Boolean(p.error));
       if (p.error) row.title = `${p.file ?? p.id}: ${p.error}`;
@@ -217,10 +219,45 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       els.list.append(row);
     }
     if (!list.length) {
-      els.list.append(el('div', { className: 'empty', textContent: !projects.length ? 'No projects yet: save one from the Project menu.'
+      els.list.append(el('div', { className: 'empty', textContent: !projects.length ? (listed ? 'No projects yet: save one from the Project menu.' : '')
         : 'No project matches. Clear the filter to see them all.' }));
     }
+    renderPicked();
     update();
+  }
+  // The selected projects on the right, in the list's order: how each goes into the game or a pack, and its warnings.
+  function renderPicked() {
+    const all = chosen();
+    els.picked.replaceChildren();
+    if (!all.length) {
+      els.picked.append(el('li', { className: 'pmhint', textContent: 'Select projects on the left to build them, install them in the game or export them as a map pack. Shift+click selects a run of them, Ctrl+A all shown; a double-click opens one.' }));
+    }
+    for (const p of all) {
+      const drop = el('button', { type: 'button', className: 'icon pmdrop', textContent: '×', title: 'Take it out of the selection' });
+      drop.setAttribute('aria-label', `Take ${p.name ?? p.id} out of the selection`);
+      drop.onclick = () => { picked.delete(p.id); redraw(); };
+      const item = el('li', { className: 'pmitem' }, el('div', { className: 'pmitemhead' }, el('span', { className: 'fname', textContent: p.name ?? p.id, title: `${p.mapLabel}` }), drop));
+      if (p.build && !p.building) {
+        const seg = el('div', { className: 'pmseg', role: 'radiogroup' });
+        seg.setAttribute('aria-label', `How ${p.name ?? p.id} goes into the game`);
+        for (const [value, label] of [['additional', 'Additional'], ['replace', 'Replace']]) {
+          const on = modeOf(p) === value;
+          const button = el('button', { type: 'button', textContent: label, title: MODE_TITLES[value], className: on ? 'on' : '' });
+          button.setAttribute('role', 'radio'); button.setAttribute('aria-checked', on);
+          button.onclick = () => { own.set(p.id, value); renderPicked(); update(); };
+          seg.append(button);
+        }
+        item.append(seg);
+      } else {
+        item.append(el('div', { className: 'pmnote', textContent: p.building ? 'Building: Install and Export can use it once it is built.'
+          : 'Not built: Install and Export leave it out. Build builds it.' }));
+      }
+      const warned = p.build ? warningsOf(p) : [];
+      if (warned.length) item.append(el('ul', { className: 'pmwarn' }, ...warned.map(text => el('li', { textContent: text }))));
+      els.picked.append(item);
+    }
+    const built = all.filter(p => p.build && !p.building);
+    els.allModes.hidden = built.length < 2;
   }
   // A click ticks or unticks a row; Shift+click does the same for every shown row from the last one clicked.
   function toggle(id, range, list) {
@@ -239,14 +276,21 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     els.all.checked = list.length > 0 && ticked === list.length;
     els.all.indeterminate = ticked > 0 && ticked < list.length;
     els.all.disabled = !list.length;
+    els.shownLabel.textContent = list.length === projects.length ? `Select all ${list.length}` : `Select all ${list.length} shown`;
+    for (const chip of els.show.querySelectorAll('[data-show]')) {
+      const on = chip.dataset.show === showing;
+      chip.classList.toggle('on', on); chip.setAttribute('aria-checked', on);
+      chip.querySelector('span').textContent = projects.filter(p => !p.error && SHOWS[chip.dataset.show](p, listed?.editorVersion)).length;
+    }
     const hidden = all.length - ticked;
-    els.count.textContent = `${all.length} of ${plural(projects.filter(p => !p.error).length, 'project')} selected`
-      + (hidden ? ` (${hidden} not shown by the filter)` : '') + (list.length !== projects.length ? ` · ${list.length} shown` : '');
-    els.pickNone.disabled = !all.length;
+    els.count.textContent = all.length ? `${all.length} selected${hidden ? ` (${hidden} not shown)` : ''}` : 'Nothing selected';
+    els.pickNone.hidden = !all.length;
     const built = all.filter(p => p.build && !p.building);
     const ready = listed?.install?.ready;
     els.pack.disabled = busy || !built.length;
     els.install.disabled = busy || !built.length || !ready;
+    els.pack.textContent = `Export map pack${built.length > 1 ? ` (${built.length})` : ''}`;
+    els.install.textContent = `Install in the game${built.length > 1 ? ` (${built.length})` : ''}`;
     // Build: the ticked readable projects into the build queue
     if (els.build) {
       const readable = all.filter(p => !p.error), q = queue?.state;
@@ -255,24 +299,14 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
         : q.state === 'stopping' ? 'the queue is stopping; add them once it has stopped'
         : q.state === 'stopped' && q.contextChanged ? 'the settings changed since the queue started; clear it first' : null;
       els.build.disabled = queueBusy || !readable.length || Boolean(cant);
-      els.build.textContent = readable.length ? `Build (${readable.length})` : 'Build';
+      els.build.textContent = `Build${readable.length > 1 ? ` (${readable.length})` : ''}`;
       els.build.title = cant ? `Not now: ${cant}` : `Full builds with baked lighting of the selected projects, one after another, each of the project as saved when its turn comes${hidden ? ` (${hidden} selected not shown by the filter)` : ''}. The open project's unsaved changes are saved first. The manager can be closed meanwhile`;
     }
     els.install.title = !listed?.install?.folder ? (listed?.install?.why ?? '') : !ready ? `Not now: ${listed.install.why}`
-      : `Install the selected projects' last builds in ${listed.install.folder} for campaigns, each as its row says (${mode() === 'replace' ? 'in place of its base map' : 'beside its base map'} unless it has its own way). Game maps (Project menu) shows what the game then uses, and undoes it`;
+      : `Install the selected projects' last builds in ${listed.install.folder} for campaigns, each as it says above. Game maps (Project menu) shows what the game then uses, and undoes it`;
     els.where.textContent = listed?.install?.folder ? `Installs into ${listed.install.folder}${listed.install.kind ? ` (${listed.install.kind})` : ''}${ready ? '' : ` · ${listed.install.why}`}`
       : (listed?.install?.why ?? '');
     els.where.classList.toggle('warn', Boolean(listed) && !ready);
-    // what to know about the selection before acting on it
-    const notes = [];
-    const unbuilt = all.filter(p => !p.build);
-    if (unbuilt.length) notes.push([`Not built, so Install and Zip leave out: ${unbuilt.map(p => p.name).join(', ')}.`]);
-    for (const p of built) {
-      const warnings = [...(p.warnings ?? []), ...(p.modeWarnings?.[modeOf(p)] ?? [])];
-      if (warnings.length) notes.push([el('b', { textContent: `${p.name}: ` }), warnings.join(' ')]);
-    }
-    els.warnings.replaceChildren(...notes.map(parts => el('li', {}, ...parts)));
-    els.warnings.hidden = !notes.length;
   }
   async function refresh(keep = false) {
     if (!keep) els.list.replaceChildren(el('div', { className: 'empty', textContent: 'Reading the projects and their builds…' }));
@@ -280,7 +314,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     catch (e) {
       projects = []; listed = null;
       els.list.replaceChildren(el('div', { className: 'empty', textContent: `The projects could not be listed: ${e.message}` }));
-      update();
+      renderPicked(); update();
     }
   }
   function take(value) {
@@ -308,10 +342,12 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     busy = false; update();
   }
   const ids = () => chosen().filter(p => p.build).map(p => p.id);
+  // every project its own way (the request's "modes"); "mode" is only what a project without one would take
+  const modes = list => Object.fromEntries(list.map(id => [id, modeOf(projects.find(p => p.id === id))]));
   const failed = results => results.filter(r => !r.ok).map(r => `${r.name}: ${r.error}`);
 
   els.install.onclick = () => act('Installing…', async () => {
-    const r = await api.install(ids(), mode(), modes(ids()));
+    const r = await api.install(ids(), 'additional', modes(ids()));
     take(r); onChanged?.();
     const ok = r.results.filter(x => x.ok), bad = failed(r.results);
     const off = ok.reduce((n, x) => n + x.switchedOff, 0);
@@ -324,14 +360,18 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     if (bad.length) lines.push(`Not installed: ${bad.join(' ')}`);
     say(lines.map(text => el('div', { textContent: text })), Boolean(bad.length));
   });
-  els.pack.onclick = () => act('Zipping…', async () => {
-    const r = await api.pack(ids(), mode(), modes(ids()));
+  els.pack.onclick = () => act('Exporting…', async () => {
+    const r = await api.pack(ids(), 'additional', modes(ids()), undefined, els.projectFiles.checked);
     const show = el('button', { type: 'button', className: 'link', textContent: 'Show it in its folder' });
     show.onclick = () => reveal(r.zip).catch(e => say(e.message, true));
-    const lines = [el('div', {}, `Zipped ${plural(r.packed.length, 'map')} into ${r.zip} (${(r.size / 1048576).toFixed(1)} MB), with Install.cmd and Uninstall.cmd ${r.mode === 'mixed' ? `to put them into a game (${r.packed.filter(x => x.mode === 'replace').length} replacing their originals, ${r.packed.filter(x => x.mode !== 'replace').length} added to the rotation)` : r.mode === 'replace' ? 'to replace the original maps in a game' : 'to add them to a game\'s rotation'} and undo it. `, show)];
+    const n = r.projects?.length ?? 0;
+    const shared = !n ? '' : n === r.packed.length ? `${n === 1 ? 'Its editor project is' : 'Their editor projects are'} in its projects folder. `
+      : `${plural(n, 'editor project')} ${n === 1 ? 'is' : 'are'} in its projects folder. `;
+    const lines = [el('div', {}, `Exported ${plural(r.packed.length, 'map')} into ${r.zip} (${(r.size / 1048576).toFixed(1)} MB), with Install.cmd and Uninstall.cmd ${r.mode === 'mixed' ? `to put them into a game (${r.packed.filter(x => x.mode === 'replace').length} replacing their originals, ${r.packed.filter(x => x.mode !== 'replace').length} added to the rotation)` : r.mode === 'replace' ? 'to replace the original maps in a game' : 'to add them to a game\'s rotation'} and undo it. ${shared}`, show)];
     if (r.skipped.length) lines.push(el('div', { textContent: `Left out: ${r.skipped.map(s => `${s.name}: ${s.error}`).join(' ')}` }));
     say(lines, Boolean(r.skipped.length));
   });
+  els.projectFiles.onchange = () => remember(els.projectFiles.checked);
   // Build: the open project saved first if it is ticked and changed, then the ticked readable projects queued in the
   // list's order (the ones the filter hides too). A stopped queue takes them and stays stopped.
   if (els.build) els.build.onclick = async () => {
@@ -362,28 +402,24 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       finally { queueBusy = false; renderStrip(); update(); }
     };
   }
+  const pickShown = () => { for (const p of shown()) if (!p.error) picked.add(p.id); render(); };
   els.all.onchange = () => {
     for (const p of shown()) if (!p.error) els.all.checked ? picked.add(p.id) : picked.delete(p.id);
     render();
   };
-  els.pickShown.onclick = () => { for (const p of shown()) if (!p.error) picked.add(p.id); render(); };
   els.pickNone.onclick = () => { picked.clear(); anchor = null; render(); };
-  els.search.addEventListener('input', render);
-  els.show.addEventListener('change', render);
-  for (const radio of els.form.querySelectorAll('[name=managerMode]')) radio.addEventListener('change', render);
-  for (const button of els.head.querySelectorAll('[data-sort]')) {
-    button.onclick = () => {
-      const key = button.dataset.sort;
-      sort = sort.key === key ? { key, down: !sort.down } : { key, down: key === 'savedAt' || key === 'build' };
-      render();
-    };
+  for (const button of els.allModes.querySelectorAll('[data-mode]')) {
+    button.onclick = () => { for (const p of chosen()) if (p.build) own.set(p.id, button.dataset.mode); renderPicked(); update(); };
   }
+  els.search.addEventListener('input', render);
+  for (const chip of els.show.querySelectorAll('[data-show]')) chip.onclick = () => { showing = chip.dataset.show; render(); };
+  els.sort.addEventListener('change', render);
   els.form.addEventListener('submit', e => e.preventDefault());
-  els.close.onclick = els.done.onclick = () => close();
+  els.close.onclick = () => close();
   // The dialog keeps its keys: nothing reaches the editor's shortcuts behind it while it is open.
   els.root.addEventListener('keydown', e => {
     const key = e.key, typing = e.target.matches('input[type=search]');
-    if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'a' && !typing) { e.preventDefault(); els.pickShown.onclick(); }
+    if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'a' && !typing) { e.preventDefault(); pickShown(); }
     else if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'b'].includes(key.toLowerCase())) e.preventDefault();
     else if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'f') { e.preventDefault(); els.search.focus(); els.search.select(); }
     else if (key === 'Escape') { e.preventDefault(); if (typing && els.search.value) { els.search.value = ''; render(); } else close(); }
@@ -392,9 +428,12 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       const rows = [...els.list.querySelectorAll('.mrow:not(.off)')], at = rows.indexOf(e.target.closest('.mrow'));
       rows[Math.max(0, Math.min(rows.length - 1, at + (key === 'ArrowDown' ? 1 : -1)))]?.focus();
     } else if (key === 'Tab') {
-      const items = [...els.root.querySelectorAll('button:not(:disabled), input:not(:disabled):not([tabindex="-1"]), select:not(:disabled)')].filter(x => x.offsetParent);
-      const inRow = e.target.closest('.mrow'), i = items.indexOf(document.activeElement);
-      const next = inRow ? (e.shiftKey ? els.all : els.pickShown) : items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length];
+      // the rows are one stop: Tab leaves the list for the selection's controls, Shift+Tab for the header's box
+      const items = [...els.root.querySelectorAll('button:not(:disabled), input:not(:disabled):not([tabindex="-1"]), select:not(:disabled)')]
+        .filter(x => x.offsetParent && !x.closest('.mrow'));
+      const inRow = e.target.closest('.mrow');
+      const next = inRow ? (e.shiftKey ? els.all : items.find(x => els.list.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING))
+        : items[(items.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + items.length) % items.length];
       if (next) { e.preventDefault(); next.focus(); }
     }
     e.stopPropagation();
@@ -411,7 +450,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     return refresh();
   }
   // Each answer of the page's queue controller: the cells and the strip follow; a row that ended brings the listing
-  // again (its new build's line).
+  // again (its new build's state).
   let queuedKey = '';
   function queueChanged(state, info) {
     if (els.root.hidden) return;

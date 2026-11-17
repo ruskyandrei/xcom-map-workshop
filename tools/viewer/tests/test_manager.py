@@ -298,6 +298,32 @@ class Manager(unittest.TestCase):
         with zipfile.ZipFile(r['zip']) as z: readme = z.read('README.txt').decode('latin-1')
         self.assertNotIn('comment out', readme)
         self.assertEqual(r['name'], 'Bar remix')
+        self.assertEqual(r['projects'], [])                               # no editor project unless asked for
+        with zipfile.ZipFile(r['zip']) as z:
+            self.assertNotIn('projects', json.loads(z.read('pack.json')))
+            self.assertFalse(any(n.startswith('projects/') for n in z.namelist()))
+
+    def test_a_pack_carries_the_editor_projects_when_asked(self):
+        self.package()
+        self.second()
+        saved = self.store.path(ID).read_bytes()
+        r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID, OTHER_ID], mode='additional', projectFiles=True))
+        files = sorted(self.store.path(i).name for i in (ID, OTHER_ID))
+        self.assertEqual(sorted(r['projects']), files)
+        with zipfile.ZipFile(r['zip']) as z:
+            self.assertEqual(z.read(f'projects/{self.store.path(ID).name}'), saved)       # byte for byte as saved
+            described = json.loads(z.read('pack.json'))
+            readme = z.read('README.txt').decode('latin-1')
+        self.assertEqual(sorted(s['file'] for s in described['projects']), files)
+        self.assertEqual({s['id'] for s in described['projects']}, {ID, OTHER_ID})
+        self.assertIn('Editor projects.', readme)
+        self.assertIn(f'projects\\{self.store.path(OTHER_ID).name}', readme)
+        # a project saved after its build says so
+        document = self.store.load(OTHER_ID)
+        self.store.save(OTHER_ID, document, document['revision'])
+        r = manager.pack(self.store, self.builds, self.player(), dict(projects=[OTHER_ID], mode='additional', projectFiles=True))
+        with zipfile.ZipFile(r['zip']) as z: readme = z.read('README.txt').decode('latin-1')
+        self.assertIn('saved after this build', readme)
 
     def run_script(self, folder, name, game):
         """A pack's Install.cmd or Uninstall.cmd run on a game folder: its output."""

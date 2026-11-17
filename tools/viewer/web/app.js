@@ -5096,9 +5096,9 @@ async function ensureSavedFor(ids) {
 // The project manager (manager.js): every project and its last build, to install or zip several at once, or to build.
 const projectManager = createProjectManager({
   els: { root: $('managerDialog'), form: $('managerForm'), close: $('managerClose'), search: $('managerSearch'), show: $('managerShow'),
-         head: $('managerHead'), all: $('managerAll'), list: $('managerList'), count: $('managerCount'), pickShown: $('managerPickShown'),
-         pickNone: $('managerPickNone'), warnings: $('managerWarnings'), message: $('managerMessage'), pack: $('managerPack'),
-         install: $('managerInstall'), done: $('managerDone'), where: $('managerWhere'), build: $('managerBuild'),
+         sort: $('managerSort'), all: $('managerAll'), shownLabel: $('managerShown'), list: $('managerList'), count: $('managerCount'),
+         pickNone: $('managerPickNone'), allModes: $('managerAllModes'), picked: $('managerPicked'), message: $('managerMessage'),
+         pack: $('managerPack'), projectFiles: $('managerProjectFiles'), install: $('managerInstall'), where: $('managerWhere'), build: $('managerBuild'),
          queueBox: $('managerQueue'), queueTitle: $('managerQueueTitle'), queueClock: $('managerQueueClock'),
          queueStep: $('managerQueueStep'), queueStage: $('managerQueueStage'), queueBar: $('managerQueueBar'),
          queueNote: $('managerQueueNote'), queueFailures: $('managerQueueFailures'), queueLive: $('managerQueueLive'),

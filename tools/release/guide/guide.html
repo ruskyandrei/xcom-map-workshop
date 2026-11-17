@@ -1382,7 +1382,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="8"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
     <li data-n="9"><b>Load…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
     <li data-n="10"><b>Manage projects…</b> lists every project with its last build, to build several one after
-      another, install them in the game for campaigns or zip them into a map pack. <a href="#manage-projects">More</a>,
+      another, install them in the game for campaigns or export them as a map pack. <a href="#manage-projects">More</a>,
       and on building several: <a href="#build-queue">Build in the project manager</a></li>
     <li data-n="11"><b>Close project</b> goes back to the original map.</li>
     <li data-n="12"><b>Game install and checks…</b> changes which game folder the editor reads, and lists what the editor
@@ -1402,38 +1402,43 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   needs. A map that isn't cleared starts with all of its base map's missions;
   a cleared map is asked when it is cleared. OK needs one ticked;
   the change is one undo step.</p>
-<p id="manage-projects"><b>Manage projects…</b> opens the project manager: every project with its last
-  build (when it was built, of which revision, whether its lighting is baked, and the editor version that built it)
-  and what is in the game of it. Type to filter, or pick a state under <b class="ui">Show</b>; tick projects one by
-  one, a run of them with <kbd>Shift</kbd>+click, or all that the filter shows (<kbd>Ctrl</kbd>+<kbd>A</kbd>). Then
-  choose how the ticked projects' last builds go into campaigns, as <b class="ui">Additional maps</b> in the rotation
-  beside the originals or to <b class="ui">Replace the original maps</b>, and either <b class="ui">Install in the
-  game</b> (with XCOM closed) or <b class="ui">Zip as a map pack</b>: one zip in the builds folder's
-  <i>Map packs</i>, with the files laid out as the game folder is, a README, and two scripts for whoever gets it:
-  <b>Install.cmd</b> puts the maps into their game (it asks for the game folder and keeps a copy of
-  <code>DefaultMaps.ini</code> first) and <b>Uninstall.cmd</b> takes them out again, neither needing the editor.
-  A row's <b class="ui">Install as</b> gives that project its own way, so one install or one pack can replace
-  some maps and add others. Replacing comments the original map's records out, so the game no longer uses it; for a council mission, which
-  asks for its map by name, your map takes the original's record name. Beside the original, a map is never picked for
-  a council mission (but a bomb mission under Long War, which makes an extra one of it). The manager warns, without
-  stopping you, about a build whose lighting is not baked, a build older than its project, and maps that serve
-  missions other than abductions: only abductions have been played with an edited map so far.</p>
+<p id="manage-projects"><b>Manage projects…</b> opens the project manager: every project on the left, with its
+  base map, when it was saved, a badge if it is in the game, and its last build in one word:
+  <b class="ui">Ready</b>, <b class="ui">Not baked</b> (a quick build), <b class="ui">Out of date</b> (saved again
+  since) or <b class="ui">Not built</b>; its tooltip says when it was built and by which editor version. Type to
+  filter, or pick <b class="ui">All</b>, <b class="ui">Ready</b>, <b class="ui">Needs a build</b> or
+  <b class="ui">In the game</b>; tick projects one by one, a run of them with <kbd>Shift</kbd>+click, or all that the
+  filter shows (<kbd>Ctrl</kbd>+<kbd>A</kbd>). A double-click opens one. The ticked projects are listed on the right,
+  each with how it goes into campaigns: <b class="ui">Additional</b>, in the rotation beside the original map, or
+  <b class="ui">Replace</b>, in its place (<b class="ui">Set all to</b> does them all). One install or one pack can
+  replace some maps and add others. Then <b class="ui">Install in the game</b> (with XCOM closed) or
+  <b class="ui">Export map pack</b>: one zip in the builds folder's <i>Map packs</i>, with the files laid out as the
+  game folder is, a README, and two scripts for whoever gets it: <b>Install.cmd</b> puts the maps into their game (it
+  asks for the game folder and keeps a copy of <code>DefaultMaps.ini</code> first) and <b>Uninstall.cmd</b> takes
+  them out again, neither needing the editor. Tick <b class="ui">Include editor project files</b> to put each map's
+  project in the pack too, so others can open and change it: they copy it into their projects folder and open it
+  with <b class="ui">Load</b>. Replacing comments the original map's records out, so the game no longer uses it; for
+  a council mission, which asks for its map by name, your map takes the original's record name. Beside the original,
+  a map is never picked for a council mission (but a bomb mission under Long War, which makes an extra one of it).
+  The manager warns under each ticked project, without stopping you, about a build whose lighting is not baked, a
+  build older than its project, and maps that serve missions other than abductions: only abductions have been
+  played with an edited map so far.</p>
 <p id="build-queue"><b class="ui">Build</b>, in the project manager, builds the ticked projects one after another
   while you go on editing. Each is a full build, its lighting baked, as the editor's own Build makes it with
   <b class="ui">Bake the lighting</b> ticked. A project is built as it is saved when its turn comes: one saved again
   while it waits is built as saved last, and the open project's unsaved changes are saved first when it is ticked.
-  <b class="ui">Needs a full build</b>, under <b class="ui">Show</b>, lists the projects a full build would bring up
+  <b class="ui">Needs a build</b>, above the list, lists the projects a full build would bring up
   to date (not built, not baked, built from an older revision or by another editor version), ready to tick with
   <kbd>Ctrl</kbd>+<kbd>A</kbd>. The manager can be closed meanwhile: a chip in the editor's header says how far the
   queue is, and a click on it opens the manager again.</p>
 <ul>
-  <li><b>Following it.</b> Each row's Last build says where it is in the queue: waiting (with its place), building
+  <li><b>Following it.</b> Each row's build state says where it is in the queue: waiting (with its place), building
     (with the step), built, or failed. The strip above the buttons shows the project building and its step, a bar of
     the projects done, how long the queue has been building, and about how long it has left, going by each project's
     last full build. A project with no full build before has no time to go by, and the strip says so.</li>
   <li><b>One build at a time.</b> While the queue runs, the editor's own Build, Play in game's Build and play, and
     prefab tests can't start; they say why. A build already running when you press Build finishes first, and the
-    queue waits for it. Install in the game, Zip as a map pack and Play last build go on working with the other
+    queue waits for it. Install in the game, Export map pack and Play last build go on working with the other
     projects' last builds, but not with the project being built.</li>
   <li><b class="ui">Remove</b>, on a waiting row, takes that project out of the queue. Build again adds the ticked
     projects at the end.</li>
