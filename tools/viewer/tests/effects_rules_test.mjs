@@ -1,4 +1,4 @@
-// The Effects view's words (effects_rules.js; private/plans/todo/effects-and-sounds-plan.md, Part B, stage FX1): each
+// The Effects view's words (effects_rules.js; private/plans/done/effects-and-sounds-plan.md, Part B, stage FX1): each
 // record's name and chips, its panel lines, its parameters as rows, where a sound is heard and whether a clear keeps
 // it, on records shaped as export 28 makes them (tools/viewer/effects_metadata.py; URB_Bar's actors); and their values
 // (stage FX5): the parameters the panel offers, the record as edited, what a project saves.

@@ -1,4 +1,4 @@
-"""Effects and sounds in the library (private/plans/todo/effects-and-sounds-plan.md, Part E, stage FX4): each donor
+"""Effects and sounds in the library (private/plans/done/effects-and-sounds-plan.md, Part E, stage FX4): each donor
 map's effects (Emitter actors) and ambient sounds as recipes the Add panel can place in another map, the kinds the
 panel sorts them into, and what keeps one from being placed.
 

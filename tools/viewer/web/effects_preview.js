@@ -1,4 +1,4 @@
-// The likeness's drawing (private/plans/todo/effects-and-sounds-plan.md, Part J2, stage FXV2): a particle system
+// The likeness's drawing (private/plans/done/effects-and-sounds-plan.md, Part J2, stage FXV2): a particle system
 // drawn roughly as the game draws it, from its export's draw data (effects_draw.py) stepped by effects_sim.js. Each
 // sprite emitter is one set of instanced quads that face the camera (or lie along their speed), textured with the
 // picture and mask the export picked and blended as its material says; each mesh emitter is one instanced mesh.

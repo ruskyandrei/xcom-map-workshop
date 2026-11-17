@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### The effects and sounds plan is built: its references point at the built plans
+
+- The plan's file moved from the plans not built to the plans built (`private/plans/done`), and the eleven files that
+  name it (this ledger, the effects' modules and their tests) name it there. Its stages for sounds from one's own
+  files and for retuned particle systems were left out at the user's word, and the optional game shots as Add panel
+  pictures were not built.
+
+Checked: repo and node suites.
+
 ### EXP-71 passed: lens flares are edited in every project (effects and sounds plan, EXP-F)
 
 - [EXP-71](research/experiments/EXP-71-lens-flares.md) run 1, played unattended by the game-test skill's hidden
@@ -833,7 +842,7 @@ The effects and sounds plan was checked again, at the user's ask, against the co
   map into a copy of another, and `native_copy.clone_actor` cloned both and two of the map's own. Read back, each
   clone has its own component, light environment, cue and node, with the system and the wave shared. Nothing was
   played, and the trial is not kept as a test: the plan makes it stage FX4's first.
-- **The private plan** (`private/plans/todo/effects-and-sounds-plan.md`, outside the public repository) has the
+- **The private plan** (`private/plans/done/effects-and-sounds-plan.md`, outside the public repository) has the
   second census's numbers, the floor lists' rule as the maps have it, export 28 and document schema 3 for its
   records, the stage of evidence gathering marked done, and its warnings brought in line with "warn, don't block"
   and "nothing says untried". Its status: ready to build from stage FX1, waiting for the go-ahead.

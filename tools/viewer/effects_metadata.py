@@ -1,4 +1,4 @@
-"""A map's effects, sounds and lens flares for the editor (export 28; private/plans/todo/effects-and-sounds-plan.md,
+"""A map's effects, sounds and lens flares for the editor (export 28; private/plans/done/effects-and-sounds-plan.md,
 Part A, stage FX1): what each one is, where it stands, where each of its values comes from, what of the map uses it,
 and what the editor may do with it and why not. Read only: nothing here changes a package.
 

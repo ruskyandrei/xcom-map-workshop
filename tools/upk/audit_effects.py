@@ -2,7 +2,7 @@
 record names, the Emitter actors (placed particle systems), the ambient sound actors, the lens flares and a count of
 the other effect actors (decals, weather, fog), with what the mission's script does to them, the particle systems and
 sound waves they play, and whether tools/bake/transplant.py could bring each to another map. Read-only; made for
-private/plans/todo/effects-and-sounds-plan.md.
+private/plans/done/effects-and-sounds-plan.md.
 
   python -B tools/upk/audit_effects.py <game install> <out.json> [--jobs 6] [--closure] [--maps NAME ...]
 

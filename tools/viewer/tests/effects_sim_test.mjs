@@ -1,4 +1,4 @@
-// The likeness's simulator (effects_sim.js; private/plans/todo/effects-and-sounds-plan.md, Part J2, stage FXV2): a
+// The likeness's simulator (effects_sim.js; private/plans/done/effects-and-sounds-plan.md, Part J2, stage FXV2): a
 // table read at a time, a random range, a locked vector, a particle parameter through its mode, particles spawned by a
 // rate and by a burst, their lives, their move and their change over a life, the budget's thinning, and the same seed
 // giving the same particles. On draw records shaped as export 29 makes them (tools/viewer/effects_draw.py).

@@ -1,4 +1,4 @@
-// The likeness's simulator (private/plans/todo/effects-and-sounds-plan.md, Part J2, stage FXV2): one emitter of a
+// The likeness's simulator (private/plans/done/effects-and-sounds-plan.md, Part J2, stage FXV2): one emitter of a
 // particle system stepped from its export's draw data (effects_draw.py; contract section 8): particles spawned by the
 // rate and the bursts, each given a life, a place, a speed, a size, a colour and a turn from the game's baked tables
 // or the effect's own particle parameters, then moved and changed over their lives by the followed modules. No three.js

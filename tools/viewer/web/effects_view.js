@@ -1,4 +1,4 @@
-// The Effects view's drawing (private/plans/todo/effects-and-sounds-plan.md, Part B, stage FX1): a marker for each
+// The Effects view's drawing (private/plans/done/effects-and-sounds-plan.md, Part B, stage FX1): a marker for each
 // effect, sound and lens flare, one size on screen and drawn over everything (a spark, a speaker, a star), the picked
 // effect's fixed box and a picked sound's two spheres. What the markers say is effects_rules.js's; app.js keeps the
 // view, the picking and the panel.

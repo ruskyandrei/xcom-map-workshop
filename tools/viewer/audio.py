@@ -1,4 +1,4 @@
-"""A sound's wave for the page's Play button (private/plans/todo/effects-and-sounds-plan.md, Part D's audio route,
+"""A sound's wave for the page's Play button (private/plans/done/effects-and-sounds-plan.md, Part D's audio route,
 stage FX2): the Ogg Vorbis stream a SoundNodeWave keeps in its PC bulk record (effects_metadata.pc_sound), checked as
 an Ogg stream before it is served, and kept in a bounded cache so a wave is read from its package once.
 

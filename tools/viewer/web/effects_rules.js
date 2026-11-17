@@ -1,4 +1,4 @@
-// What the Effects view says of the map's effects, sounds and lens flares (private/plans/todo/effects-and-sounds-plan.md,
+// What the Effects view says of the map's effects, sounds and lens flares (private/plans/done/effects-and-sounds-plan.md,
 // Part B, stage FX1): each one's name, its chips, the lines of its panel and whether a clear keeps it, from export 28's
 // records (tools/viewer/effects_metadata.py). No three.js here: effects_view.js draws, app.js wires the view, and
 // tools/viewer/tests/effects_rules_test.mjs checks these.
