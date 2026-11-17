@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### An update-guide skill, guide checks in the tests, and guide_tools.py
+
+At the user's ask, the way the guide was brought up to date today is now a project skill, with its checks in the
+repository rather than in scratch scripts.
+- [update-guide](.claude/skills/update-guide/SKILL.md): read the whole guide against the editor and the ledger,
+  explore the new panels on a test server, script the shots in take_shots.py, take them into a fresh scratch folder,
+  look at each picture, replace only the pictures whose part of the editor changed, edit the text and legends, check,
+  commit, and push only on the user's word (a push republishes the guide page), then check the workflow run and that
+  the live page equals the local one. Its rules: nothing called untried, nothing personal in a picture, test servers
+  on 8790-8799 only, a fresh scratch folder per run, LF endings, one ledger entry. The guide's and README's "New in"
+  tables stay the release skill's.
+- [test_guide.py](tools/viewer/tests/test_guide.py), two new tests: each picture's `width` and `height` in the page
+  are half its pixels and every picture in `shots/` is used; the guide has none of the untried words ("untried",
+  "not played", "not been tried", "known to work", "best guess"...). The wording test finds seven such phrases in the
+  guide as it was before today's update.
+- [guide_tools.py](tools/release/guide/guide_tools.py), new: `compare` (each new picture against the guide's: NEW,
+  SIZE or how far it differs), `sheet` (the two side by side in one image) and `look` (the guide made one page,
+  opened in headless Edge and photographed where given pictures or anchors are), the steps done by hand today.
+- [take_shots.py](tools/release/guide/take_shots.py)'s docstring points to them and to the skill.
+- Checked: `viewer -k guide` (6 tests), `release`, `repo`; `guide_tools.py compare` on today's shots, `sheet` of two,
+  `look` of two sections. The skill itself has not been run end to end; today's update is what it describes.
+
 ### The user guide brought up to date, with pictures of the new features
 
 At the user's ask: the [guide](tools/release/guide/guide.html) gone over against the editor as it stands, updated

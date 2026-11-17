@@ -1,6 +1,9 @@
 """The user guide's screenshots (tools/release/guide/shots/*.webp): the editor driven through a small demo project
 on the Bar, each shot with numbered marks on the controls the guide explains (guide.html's lists use the same
 numbers). Run it again when the editor's window changes, then check each picture and guide.html's lists against it.
+Take them into a scratch folder (--out) and compare them with the guide's own (guide_tools.py compare and sheet)
+before copying the changed ones into shots/; the update-guide skill (.claude/skills/update-guide/SKILL.md) has the
+whole process.
 
 It saves projects and builds them (the project manager's shot: two quick builds and a queue of full builds, stopped
 once its second build is under way), but never installs or plays, so run it against a test server (ports 8790-8799)

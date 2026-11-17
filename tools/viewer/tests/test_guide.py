@@ -62,6 +62,33 @@ class GuideTests(unittest.TestCase):
         for words in ('Clear map…', 'Map grid', 'Ground grid', 'Landing zones', 'Land here', 'Plain EW', 'Used by'):
             self.assertIn(words, text)
 
+    def test_each_picture_shows_at_half_its_pixels_and_every_picture_is_used(self):
+        # take_shots.py takes the pictures at device scale 2, and the page shows them at half their pixels; a picture
+        # taken again at another size must have its width and height changed in the page (the update-guide skill)
+        import re
+        from PIL import Image
+        text = guide.SOURCE.read_text(encoding='utf-8')
+        shots = guide.SOURCE.parent / 'shots'
+        tags = re.findall(r'<img src="shots/([^"]+)"([^>]*)>', text)
+        self.assertTrue(tags)
+        wrong = []
+        for name, rest in tags:
+            size = re.search(r'width="(\d+)" height="(\d+)"', rest)
+            with Image.open(shots / name) as picture: want = tuple(round(v / 2) for v in picture.size)
+            if not size or tuple(map(int, size.groups())) != want: wrong.append((name, size and size.groups(), want))
+        self.assertEqual(wrong, [])
+        self.assertEqual(sorted(p.name for p in shots.glob('*.webp') if p.name not in {n for n, _ in tags}), [])
+
+    def test_the_guide_never_calls_a_thing_untried(self):
+        # what ships is usable, tried or not (the user, 16 November 2026): the guide says what happens, never that a
+        # thing is untried, not played or how far it is known to work
+        import re
+        text = guide.SOURCE.read_text(encoding='utf-8')
+        # ("not tested" alone stays: the guide uses it of the game's own checks, a prop's pathing sweep)
+        words = re.compile(r'untried|untested|not (?:yet )?been (?:tried|played|tested)|not (?:yet )?(?:played|tried)\b'
+                           r'|known to work|best guess|been played this way|has been tried', re.I)
+        self.assertEqual([m.group(0) for m in words.finditer(re.sub(r'\s+', ' ', text))], [])
+
     def test_the_server_sends_it_at_guide_html(self):
         scene = self.root / 'cache' / 'URB_Bar' / 'current'; scene.mkdir(parents=True)
         (scene / 'scene.json').write_text(json.dumps(dict(schemaVersion=1, exporterVersion=12, name='URB_Bar', scope='map')), encoding='utf8', newline='\n')
