@@ -176,7 +176,7 @@ const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'ob
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
 // map has it; an effect's may be its values alone)
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
-  && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound)
+  && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
       || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
       || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
@@ -195,11 +195,12 @@ const validCover = c => c && typeof c === 'object' && (Object.hasOwn(c, 'size')
     && (Object.keys(c).length === 4 ? typeof c.type === 'string' && Number.isInteger(c.height)
       : Object.keys(c).length === 3 && typeof c.height === 'string'));
 // An added effect, sound or lens flare (effects and sounds plan, Part C): `kind` and the original it copies (`from`),
-// with its own values object at most, and nothing a piece's copy has.
+// with its own values object at most, and nothing a piece's copy has. A lens flare has no values object (stage FX6b:
+// its template and colour stay as the map has them).
 export const EFFECT_KINDS = ['effect', 'sound', 'flare'];
 const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) && ['components', 'template', 'light', 'cover', 'flags',
   'prefab', 'partner', 'tinted'].every(k => e[k] === undefined) && validEffectValues(e.effect, 'effect') && validEffectValues(e.sound, 'sound')
-  && (e.kind === 'effect' || e.effect === undefined) && (e.kind === 'sound' || e.sound === undefined);
+  && (e.kind === 'effect' || e.effect === undefined) && (e.kind === 'sound' || e.sound === undefined) && e.flare === undefined;
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
   && (e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))

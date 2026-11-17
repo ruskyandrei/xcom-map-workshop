@@ -130,6 +130,8 @@ LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
 # 9.3), passed to compiler.find_export where it takes a minimum
 EXPORT_MINIMUM = 18
+# the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
+EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
 # what a quick build does with light edits (editor lights plan, 4.3). Its wording stays conditional until EXP-26 run 2
 # has shown what the game does; the editor's build panel can show the same text beside Bake the lighting
@@ -676,8 +678,9 @@ class Build:
         self.flags_edit = bool(self.piece_flags)
         # effects and ambient sounds moved, copied or deleted (the effects and sounds plan, Part D): made in the map by
         # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
-        # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept
-        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in ('effects', 'sounds')
+        # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept. Lens flares
+        # (stage FX6b) are the same: a glare drawn over the picture, no baked light
+        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in EFFECT_LANES
                                 for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
@@ -703,7 +706,7 @@ class Build:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
-            raise BuildError('the project changes nothing in the map: no piece, effect or sound is moved, deleted or '
+            raise BuildError('the project changes nothing in the map: no piece, effect, sound or lens flare is moved, deleted or '
                              'added, no light or flag is changed, no building is made and the map keeps its size')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
@@ -712,7 +715,7 @@ class Build:
         self.compiled = report['counts']
         # pieces, effects and sounds of other maps (the effects and sounds plan, FX4): the transplant stage's step
         foreign = sum(1 for c in self.natives if c.get('donor')) + sum(
-            1 for k in ('effects', 'sounds') for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
+            1 for k in EFFECT_LANES for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
         for row in self.left_out[:LEFT_OUT_SHOWN]:
             self.echo('left out: %s' % row['message'])
         # what the edit does to the missions the variant keeps (mission types plan, C3): the build window lists them by
@@ -900,11 +903,11 @@ class Build:
 
     def transplant(self):
         """Pieces of other maps (the native edit's copies with a donor), and effects and sounds of other maps (its
-        `effects` and `sounds` lanes' copies with a donor: the effects and sounds plan, stage FX4): each staged in a
+        `effects`, `sounds` and `flares` lanes' copies with a donor: the effects and sounds plan, stage FX4): each staged in a
         copy of the base map, with what it depends on (tools/bake/transplant.py). The copier then reads the staged map
         and the edit naming the staged actors. Without such a piece nothing is done."""
         self.source, self.donors = self.base, []
-        foreign_effects = any(c.get('donor') for k in ('effects', 'sounds')
+        foreign_effects = any(c.get('donor') for k in EFFECT_LANES
                               for c in (self.native.get(k) or {}).get('copies') or [])
         if not (any(c.get('donor') for c in self.natives) or foreign_effects):
             return
@@ -919,11 +922,12 @@ class Build:
         except (OSError, ValueError, KeyError) as error:
             raise BuildError('transplant.py staged no map (%s); see %s' % (error, self.work / 'logs' / 'transplant.log'))
         self.donors = [dict(map=d['map'], sha256=d['sha256'], file=d['file'], pieces=d['pieces'],
-                            effects=d.get('effects', 0), objectsBrought=d['objectsBrought'],
+                            effects=d.get('effects', 0), flares=d.get('flares', 0), objectsBrought=d['objectsBrought'],
                             objectsReused=d['objectsReused'], cut=d['cut'], sizes=d.get('sizes', []),
                             bytes=d['bytes']) for d in report['donors']]
         self.stage('transplant', staged=str(self.source), foreignPieces=report['foreignPieces'],
-                   donors=[dict(map=d['map'], pieces=d['pieces'], effects=d['effects'], objectsBrought=d['objectsBrought'],
+                   donors=[dict(map=d['map'], pieces=d['pieces'], effects=d['effects'], flares=d['flares'],
+                                objectsBrought=d['objectsBrought'],
                                 bytes=d['bytes'], cut=len(d['cut']), otherSizes=len(d['sizes'])) for d in self.donors])
 
     def light(self):
@@ -1271,7 +1275,7 @@ class Build:
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
                            TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
                            TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
-                           TOOLS / 'bake' / 'native_sounds.py') if p.is_file()}
+                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py') if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})

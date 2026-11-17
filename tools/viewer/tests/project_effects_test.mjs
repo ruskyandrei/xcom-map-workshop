@@ -29,6 +29,14 @@ assert.ok(validAdded({ ...copy, kind: 'sound', sound: { volume: [0.5, 0.5] } }))
 for (const bad of [{ kind: 'decal' }, { components: ['c'] }, { template: { kind: 'spot', version: 1 } }, { light: {} }, { flags: { walking: false } },
                    { from: undefined }, { kind: 'sound', effect: { follow: 'none' } }, { location: [0, 0] }, { prefab: 'p' }])
   assert.ok(!validAdded({ ...copy, ...bad }), JSON.stringify(bad));
+// a lens flare's copy (stage FX6b): its kind and its original, never a values object; nor has its override one
+const glare = { ...copy, actor: 'TheWorld.PersistentLevel.LensFlareSource_7_copy2', kind: 'flare', from: { ...target, actor: 'TheWorld.PersistentLevel.LensFlareSource_7' } };
+assert.ok(validAdded(glare));
+for (const bad of [{ flare: {} }, { flare: { colour: [1, 0, 0, 1] } }, { effect: { scale: 2 } }, { sound: { volume: [1, 1] } }, { components: ['c'] }])
+  assert.ok(!validAdded({ ...glare, ...bad }), JSON.stringify(bad));
+assert.ok(validOverride({ target: glare.from, ...pose }));
+assert.ok(validOverride({ target: glare.from, deleted: true }));
+assert.ok(!validOverride({ target: glare.from, ...pose, flare: {} }));
 // a piece's copy takes no effect or sound values
 const piece = { id: 'b', actor: 'TheWorld.PersistentLevel.XComLevelActor_9_copy2', from: { ...target, actor: 'TheWorld.PersistentLevel.XComLevelActor_9' },
                 components: ['TheWorld.PersistentLevel.XComLevelActor_9.StaticMeshComponent_0'], ...pose };

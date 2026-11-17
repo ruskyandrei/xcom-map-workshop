@@ -1,8 +1,8 @@
 """Effects and ambient sounds in the compiler (the effects and sounds plan, Part C, stages FX3 to FX5): their
 overrides and added records, checked against the export's effects and sounds (export 28: `can`, `why`, carrying, the
 landing's, the mission's script), the families' gates, carrying taken away by a record of the effect's own, the
-floors' note, their values (stage FX5) and the native edit's `effects` and `sounds` lanes. A made-up scene: no
-install needed."""
+floors' note, their values (stage FX5) and the native edit's `effects` and `sounds` lanes; and lens flares (stage
+FX6b: the `flare` family and the `flares` lane). A made-up scene: no install needed."""
 import copy
 import sys
 import unittest
@@ -159,10 +159,13 @@ class Records(unittest.TestCase):
     def test_what_the_export_says_can_not_be_done(self):
         for record, words in ((moved('Emitter_41', (510, 500, 0)), 'landing'), (dict(target=target('Emitter_42'), deleted=True), 'rides on'),
                               (moved('Emitter_9', (5, 0, 0)) | dict(target=target('Emitter_9', 'stream', 'patch_bar')), 'patch_bar'),
-                              (moved('LensFlareSource_60', (305, 0, 0)), 'lens flare')):
+                              ):
             _, report = self.compile([record])
             self.assertEqual(codes(report), ['effect-view-only'], record)
             self.assertIn(words, (report['errors'] + report['leftOut'])[0]['message'])
+        # a lens flare is its own family's (Flares)
+        _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))])
+        self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
         _, report = self.compile([], [copied('Emitter_42', 1, (0, 0, 0))])
         self.assertEqual(codes(report), ['effect-view-only'])
 
@@ -232,9 +235,9 @@ class FakeEffects:
         if self.fail:
             raise compiler.LibraryError(self.fail, 'the library says %s' % self.fail)
         name = wanted['actor'].rsplit('.', 1)[-1]
-        kind = 'sound' if name.startswith('Ambient') else 'effect'
-        rec = effect(name, at=(5000, 5000, 0), kind=kind, cls='AmbientSoundSimple' if kind == 'sound' else 'Emitter',
-                     sourcePackage='URB_PierA', **self.record)
+        kind = 'sound' if name.startswith('Ambient') else 'flare' if name.startswith('LensFlare') else 'effect'
+        rec = effect(name, at=(5000, 5000, 0), kind=kind, sourcePackage='URB_PierA',
+                     cls=dict(sound='AmbientSoundSimple', flare='LensFlareSource', effect='Emitter')[kind], **self.record)
         template = dict(kind=kind, key='fx', record=rec, systems={}, waves={},
                         source=dict(kind='map', package='URB_PierA', level='base', actor=name, sha256=DONOR_SHA))
         # (held by the foreign gate until its game check: placeable as any copy, FOREIGN_SOFT)
@@ -292,6 +295,134 @@ class Foreign(unittest.TestCase):
             self.assertEqual(codes(report), [code], code)
         _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0))], FakeEffects(entry=dict(placeable=True, blocked=None)))
         self.assertEqual(codes(report), [])
+
+
+class Flares(unittest.TestCase):
+    """Lens flares (stage FX6b): the `flare` family's gate, their overrides and copies in the `flares` lane, no
+    values object, and a flare of another map through the library."""
+    ON = ('effect', 'sound', 'flare')
+
+    def scene(self):
+        s = effects_scene()
+        s['flares'] += [
+            effect('LensFlareSource_61', at=(400, 0, 0), kind='flare', cls='LensFlareSource', referencedBy=['SeqAct_Toggle_9']),
+            effect('LensFlareSource_62', at=(500, 0, 0), kind='flare', cls='LensFlareSource',
+                   attachedTo=dict(actor=PL + 'SkeletalMeshActor_1'), can=dict(move=False, copy=False, delete=False),
+                   why={k: 'it rides on SkeletalMeshActor_1 and moves with it' for k in ('move', 'copy', 'delete')}),
+            effect('LensFlareSource_63', at=(600, 0, 0), kind='flare', cls='LensFlareSource', can=dict(copy=False),
+                   why=dict(copy='it names no flare template'))]
+        return s
+
+    def compile(self, overrides=(), added=(), enable=ON, library=None, **changes):
+        return compile_project(doc(overrides, added, **changes), self.scene(), enable, library)
+
+    def test_the_gate(self):
+        self.assertFalse(compiler.FAMILIES['flare']['builds'])
+        self.assertFalse(compiler.FAMILIES['flare']['grid'])
+        self.assertNotIn('flare', compiler.FOREIGN_FAMILIES)
+        for overrides, added in (([moved('LensFlareSource_60', (305, 0, 0))], []),
+                                 ([dict(target=target('LensFlareSource_60'), deleted=True)], []),
+                                 ([], [copied('LensFlareSource_60', 1, (0, 0, 0), kind='flare')])):
+            _, report = self.compile(overrides, added, enable=())
+            self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
+            self.assertIn('is a lens flare edit. Lens flares are moved, copied and deleted where the flare family builds',
+                          report['leftOut'][0]['message'])
+            _, report = self.compile(overrides, added)
+            self.assertEqual(codes(report), [])
+        # the effect and sound families don't lift it, nor it theirs
+        _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))], enable=('effect', 'sound'))
+        self.assertEqual(codes(report), ['family'])
+
+    def test_move_delete_copy_reach_the_flares_lane(self):
+        spec, report = self.compile([moved('LensFlareSource_60', (305, 0, 0), (0, 16384, 0)),
+                                     dict(target=target('LensFlareSource_61'), deleted=True)],
+                                    [copied('LensFlareSource_60', 1, (320, 0, 64), kind='flare')])
+        self.assertEqual(codes(report), [])
+        self.assertEqual(spec['objects'], [dict(
+            type='flares',
+            moves=[dict(name='LensFlareSource_60', actorClass='LensFlareSource', location=[305.0, 0.0, 0.0], rotation=[0, 16384, 0],
+                        before=dict(location=[300.0, 0.0, 0.0], rotation=[0, 0, 0]))],
+            deletes=[dict(name='LensFlareSource_61', actorClass='LensFlareSource', location=[400.0, 0.0, 0.0])],
+            copies=[dict(id='00000000-0000-4000-8000-000000000001', name='LensFlareSource_60_copy1', source='LensFlareSource_60',
+                         actorClass='LensFlareSource', location=[320.0, 0.0, 64.0], rotation=[0, 0, 0])],
+            values=[])])
+        patch, native = native_split(stream_only(spec))
+        self.assertEqual(patch['objects'], [])
+        self.assertEqual(sorted(native['flares']), ['copies', 'deletes', 'moves', 'values'])
+        self.assertEqual(native['flares']['copies'], spec['objects'][0]['copies'])
+        self.assertNotIn('effects', native)
+        self.assertEqual(report['counts']['flares'], dict(moved=1, deleted=1, added=1, valued=0))
+        self.assertEqual(report['counts']['effects'], dict(moved=0, deleted=0, added=0, valued=0))
+        self.assertEqual(sorted((e['kind'], e['op']) for e in report['entities']),
+                         [('flare', 'add'), ('flare', 'delete'), ('flare', 'move')])
+        # the script names LensFlareSource_61: deleted, what the script does with it does nothing
+        self.assertEqual([w['code'] for w in report['warnings']], ['mission-linked'])
+        # no floor lists a flare: no cutaway note
+        _, report = self.compile([moved('LensFlareSource_60', (100, 100, 200))])
+        self.assertFalse(any(n['code'] == 'effect-floors' for n in report['notes']))
+
+    def test_a_flare_has_no_values(self):
+        cases = [moved('LensFlareSource_60', (305, 0, 0), flare=dict(colour=[1, 0, 0, 1])),
+                 dict(target=target('LensFlareSource_60'), flare={}),
+                 moved('LensFlareSource_60', (305, 0, 0), effect=dict(scale=2.0)),
+                 moved('LensFlareSource_60', (305, 0, 0), sound=dict(volume=[1, 1])),
+                 dict(target=target('LensFlareSource_60'))]
+        for record in cases:
+            _, report = self.compile([record])
+            self.assertEqual(codes(report), ['malformed'], record)
+        for extra in (dict(flare=dict(colour=[1, 0, 0, 1])), dict(effect=dict(scale=2.0)), dict(sound=dict(volume=[1, 1]))):
+            _, report = self.compile([], [copied('LensFlareSource_60', 1, (0, 0, 0), kind='flare', **extra)])
+            self.assertEqual(codes(report), ['malformed'], extra)
+        # a piece's override or an added piece with a flare object is as malformed as with an effect's
+        _, report = self.compile([moved('XComLevelActor_1', (0, 96, 0), flare={})])
+        self.assertEqual(codes(report), ['malformed'])
+
+    def test_what_the_export_says_can_not_be_done(self):
+        for overrides, added, words in (
+                ([moved('LensFlareSource_62', (505, 0, 0))], [], 'rides on'),
+                ([dict(target=target('LensFlareSource_62'), deleted=True)], [], 'rides on'),
+                ([], [copied('LensFlareSource_62', 1, (0, 0, 0), kind='flare')], 'rides on'),
+                ([], [copied('LensFlareSource_63', 1, (0, 0, 0), kind='flare')], 'no flare template')):
+            _, report = self.compile(overrides, added)
+            self.assertEqual(codes(report), ['effect-view-only'], (overrides, added))
+            self.assertIn(words, (report['errors'] + report['leftOut'])[0]['message'])
+        # one without a template can still be moved and deleted
+        _, report = self.compile([moved('LensFlareSource_63', (605, 0, 0))])
+        self.assertEqual(codes(report), [])
+        # a kind that isn't its source's
+        for kind, name in (('effect', 'LensFlareSource_60'), ('flare', 'Emitter_43')):
+            _, report = self.compile([], [copied(name, 1, (0, 0, 0), kind=kind)])
+            self.assertEqual(codes(report), ['malformed'], kind)
+
+    def test_a_copy_of_one_the_script_names_is_noted(self):
+        _, report = self.compile([], [copied('LensFlareSource_61', 1, (0, 0, 0), kind='flare')])
+        note, = [n for n in report['notes'] if n['code'] == 'effect-script-copy']
+        self.assertIn('an ordinary lens flare', note['message'])
+
+    def test_groups_hold_them(self):
+        groups = [dict(id='g', locked=True, members=[target('LensFlareSource_60'), {'added': PL + 'LensFlareSource_60_copy1'},
+                                                     target('XComDestructibleActor_4')])]
+        _, report = self.compile([], [copied('LensFlareSource_60', 1, (320, 0, 0), kind='flare')], groups=groups)
+        self.assertEqual(codes(report), [])
+
+    def test_a_flare_of_another_map(self):
+        library = FakeEffects()
+        added = [dict(copied('LensFlareSource_0', 1, (100, 100, 0), kind='flare'), **{'from': target('LensFlareSource_0', package='URB_PierA')})]
+        spec, report = self.compile([], added, library=library)
+        self.assertEqual(codes(report), [])
+        _, native = native_split(stream_only(spec))
+        donor = dict(package='URB_PierA', sha256=DONOR_SHA)
+        self.assertEqual(native['flares']['copies'], [dict(
+            id='00000000-0000-4000-8000-000000000001', name='LensFlareSource_0_copy1', source='LensFlareSource_0',
+            actorClass='LensFlareSource', location=[100.0, 100.0, 0.0], rotation=[0, 0, 0], donor=donor)])
+        self.assertEqual(report['donors'], [dict(donor, pieces=['LensFlareSource_0'])])
+        # without the family it is the family's refusal, and what the library can't bring is refused
+        _, report = self.compile([], added, enable=(), library=library)
+        self.assertEqual(codes(report), ['family'])
+        _, report = self.compile([], added, library=FakeEffects(entry=dict(blocked='unavailable', reason='It rides on X.')))
+        self.assertEqual(codes(report), ['not-placeable'])
+        _, report = self.compile([], added)
+        self.assertEqual(codes(report), ['no-library'])
 
 
 def values_scene():

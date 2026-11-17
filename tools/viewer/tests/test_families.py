@@ -56,11 +56,11 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(got['map'], 'URB_Bar')
         self.assertEqual(set(got['families']), {'scenery', 'destructible', 'collectible', 'ladder', 'door', 'frameless-door',
                                                 'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
-                                                'effect', 'sound', 'effect-values', 'sound-values'})
-        # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed; their values (FX5) have
-        # gates of their own, off until their game check
-        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound', 'effect-values', 'sound-values')},
-                         {'effect': True, 'sound': True, 'effect-values': False, 'sound-values': False})
+                                                'effect', 'sound', 'effect-values', 'sound-values', 'flare'})
+        # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed; their values (FX5) and
+        # lens flares (FX6b) have gates of their own, off until their game check
+        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound', 'effect-values', 'sound-values', 'flare')},
+                         {'effect': True, 'sound': True, 'effect-values': False, 'sound-values': False, 'flare': False})
         self.assertTrue(got['families']['ladder']['grid'])
         # the page takes what builds and what keeps the pose rule from here: fracturing pieces build on the grid,
         # physics props at any pose (9 November 2026); doors without a frame still wait

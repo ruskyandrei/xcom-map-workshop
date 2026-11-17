@@ -167,7 +167,8 @@ def resolve_sources(snapshot, cache, game):
             continue
         where = dict(actor=piece['actor'], source=source)
         if 'kind' in piece:
-            # an effect or a sound (the effects and sounds plan, stage FX6a): read from its map as a project's copy is
+            # an effect, a sound (the effects and sounds plan, stage FX6a) or a lens flare (FX6b): read from its map
+            # as a project's copy is
             try:
                 template = piece_library.effect(cache, game, dict(source, actor=compiler.short(source['actor'])), shared)
             except ProjectError as error:
@@ -176,7 +177,7 @@ def resolve_sources(snapshot, cache, game):
             package, sha = template['source']['package'], template['source']['sha256']
             if template['kind'] != piece['kind']:
                 gone.append(left('piece-missing', f'{piece["actor"]}: {compiler.short(source["actor"])} of {package} is '
-                                 f'not {"an effect" if piece["kind"] == "effect" else "a sound"}.', **where))
+                                 f'not {compiler.EFFECT_WORDS.get(piece["kind"], "of that kind")}.', **where))
                 continue
             if expected.get(package.casefold(), sha) != sha or donors.get(package, sha) != sha:
                 gone.append(left('donor-changed', f'{piece["actor"]}: {package} is not the file this prefab was saved '
@@ -275,7 +276,7 @@ def make_project(snapshot, scene, placement, targets, test_id, levels=PLAYED_LEV
         record = dict(deepcopy({k: v for k, v in p.items() if k in PIECE_FIELDS}),
                       id=str(uuid5(namespace, 'actor:' + source)), actor=actor, location=translate(p['location'], shift))
         kind = record.get('kind')
-        if kind and isinstance(record.get(kind), dict) and not compiler.FAMILIES[kind + '-values']['builds']:
+        if kind and isinstance(record.get(kind), dict) and not compiler.FAMILIES.get(kind + '-values', {}).get('builds'):
             # its values are built where their family builds: until then the test plays it as its map has it
             kept = {k: v for k, v in record[kind].items() if k == 'follow'}
             if kept: record[kind] = kept

@@ -7,7 +7,8 @@
 // they are the same in every browser; the panel's own view choices stay in this browser.
 // The base maps' effects and ambient sounds are listed too (the effects and sounds plan, Part E, stage FX4): a row
 // with the Effects view's spark or speaker for its picture, sorted into the panel's effect and sound kinds; placing
-// one is app.js's (an effect's template, /library/effect.json).
+// one is app.js's (an effect's template, /library/effect.json). Their lens flares too (stage FX6b): a row with the
+// view's star.
 
 import { pieceKind, inKind, setKindOptions, effectKind } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
@@ -97,14 +98,14 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     const name = mapName().toLowerCase();
     here = index.donors.findIndex(d => d.package.toLowerCase() === name);
     for (const e of index.entries) {
-      if (e.family === 'effect' || e.family === 'sound') {
-        // an effect or a sound: no mesh, no size; its kind the panel's (effect or sound kinds), its package its
-        // system's or its first wave's
-        const kind = effectKind(e.family, e.kind), pkg = String(e.system ?? e.waves?.[0] ?? e.cue ?? '').split('.')[0];
+      if (e.family === 'effect' || e.family === 'sound' || e.family === 'flare') {
+        // an effect, a sound or a lens flare: no mesh, no size; its kind the panel's (effect or sound kinds), its
+        // package its system's, its first wave's or its flare template's
+        const kind = effectKind(e.family, e.kind), pkg = String(e.system ?? e.flare ?? e.waves?.[0] ?? e.cue ?? '').split('.')[0];
         const entry = { ...e, kind, group: e.kind, effect: e.family, floor: false, id: `lib-${e.key}`, library: true, extent: 0,
           here: e.placed.in.includes(here), pkg,
-          text: [e.name, e.family === 'effect' ? 'effect particles' : 'sound ambient', e.kind, e.actorClass, e.source.package,
-                 e.system ?? '', ...(e.waves ?? []), e.sharedCue ? e.cue : '', e.startsOn === false ? 'starts off' : '',
+          text: [e.name, e.family === 'effect' ? 'effect particles' : e.family === 'flare' ? 'lens flare glare' : 'sound ambient', e.kind, e.actorClass, e.source.package,
+                 e.system ?? '', e.flare ?? '', ...(e.waves ?? []), e.sharedCue ? e.cue : '', e.startsOn === false ? 'starts off' : '',
                  ...(e.emitters ?? [])].join(' ').toLowerCase() };
         entries.push(entry); byKey.set(e.key, entry);
         continue;
@@ -241,7 +242,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   // and the kinds of its emitters, a sound's wave and length) and where it is placed
   function effectRow(entry, item, thumb, star, soft, tag) {
     const maps = entry.placed.maps, where = maps === 1 ? entry.source.package : `${maps} maps`;
-    const sound = entry.effect === 'sound', label = sound ? 'Sound' : 'Effect';
+    const sound = entry.effect === 'sound', flare = entry.effect === 'flare', label = sound ? 'Sound' : 'Effect';
     const tags = el('span', { className: 'tags' }, star);
     if (entry.here) tags.append(el('span', { className: 'tag', textContent: 'Here', title: 'This map has it too' }));
     if (entry.startsOn === false) tags.append(el('span', { className: 'tag', textContent: 'Starts off',
@@ -249,15 +250,16 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     if (tag) tags.append(el('span', { className: 'tag', textContent: tag[0], title: tag[1] }));
     else if (!entry.placeable && !soft) tags.append(el('span', { className: 'tag later', textContent: entry.blocked === 'unavailable' ? 'Not brought' : 'Later', title: entry.reason }));
     const what = sound ? [entry.seconds ? `${entry.seconds.toFixed(entry.seconds < 10 ? 1 : 0)} s` : null, entry.sharedCue ? 'shared cue' : null]
+      : flare ? [entry.colour ? `colour ${entry.colour.slice(0, 3).map(v => Number(Number(v).toFixed(2))).join(', ')}` : null]
       : [entry.emitters?.length ? entry.emitters.join(', ') : null, entry.lit ? 'lit' : null];
     item.append(thumb, el('span', {}, el('strong', { textContent: entry.name }),
-      el('small', { textContent: `${label}: ${entry.group} · ${entry.pkg}` }),
+      el('small', { textContent: flare ? `Lens flare · ${entry.pkg}` : `${label}: ${entry.group} · ${entry.pkg}` }),
       el('small', { textContent: [...what.filter(Boolean), where].join(' · ') })), tags);
-    item.title = [sound ? (entry.waves?.length ? entry.waves.map(w => `Wave: ${w}`).join('\n') : 'No wave') : `Particle system: ${entry.system}`,
+    item.title = [sound ? (entry.waves?.length ? entry.waves.map(w => `Wave: ${w}`).join('\n') : 'No wave') : flare ? `Flare template: ${entry.flare}` : `Particle system: ${entry.system}`,
       ...(sound && entry.sharedCue ? [`Its cue is a game asset others play too: ${entry.cue}`] : []),
       ...(entry.scripted ? ['Its map\'s script names it: a copy is an ordinary one, which no script switches'] : []),
       `Placed ${plural(entry.placed.count, 'time')} in ${plural(maps, 'map')} (${entry.placed.in.slice(0, 8).map(n => index.donors[n].package).join(', ')}${maps > 8 ? ', …' : ''}); brought from ${entry.source.package}`,
-      entry.placeable || soft ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its ${sound ? 'waves' : 'particle system'} already)`
+      entry.placeable || soft ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its ${sound ? 'waves' : flare ? 'flare template' : 'particle system'} already)`
         : `Can't be placed: ${entry.reason}`, ...(tag ? [tag[1]] : [])].join('\n');
     const choose = () => {
       if (!entry.placeable && !soft) { hint(`${entry.name} can't be placed. ${entry.reason}`); return; }
@@ -266,7 +268,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     item.onclick = choose;
     item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
     // an effect plays beside its row while the pointer is on it
-    if (!sound && onHover) { item.onmouseenter = () => onHover(entry, item); item.onmouseleave = () => onHover(null, item); }
+    if (!sound && !flare && onHover) { item.onmouseenter = () => onHover(entry, item); item.onmouseleave = () => onHover(null, item); }
   }
   function filtered() {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);

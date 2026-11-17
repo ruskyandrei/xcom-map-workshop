@@ -16,7 +16,9 @@ only. Every later editor reads schema 1 (plan D11).
                   partner, tinted?, recipe? } | { actor, template: {kind: "cover", version}, cover, location,
                   rotation } | { actor, template: {kind: "spot" | "point", version}, light, location, rotation }
                   | { actor, kind: "effect" | "sound", from, location, rotation, effect? | sound? } (schema 3: a copy
-                  of a map's effect or ambient sound, with the values a project's record has) ],
+                  of a map's effect or ambient sound, with the values a project's record has)
+                  | { actor, kind: "flare", from, location, rotation } (schema 3 too, since stage FX6b: a copy of a
+                  map's lens flare; it has no values) ],
       "groups": [ { id, breakTogether?, members: [ {added} | {group} | {building} ] } ],
       "buildings": [ { id, name, kind, floors: [ { boxes: [[x0, y0, z0, x1, y1, z1]] } ] } ],
       "donors": [ { package, sha256? } ], "mission": null }
@@ -34,10 +36,11 @@ from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
 
 SCHEMA = 'xcom-map-workshop/prefab'
 # 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`; the effects and
-# sounds plan, stage FX6a). 1 and 2 are read too
+# sounds plan, stage FX6a; a lens flare is one more `kind` since stage FX6b, with no values object: an editor of
+# before FX6b says it doesn't know the kind). 1 and 2 are read too
 SCHEMA_VERSION = 3
 READ_VERSIONS = (1, 2, 3)
-EFFECT_KINDS = ('effect', 'sound')
+EFFECT_KINDS = ('effect', 'sound', 'flare')
 EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
                      'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
 MAX_PARAMETERS = 64
@@ -177,11 +180,11 @@ def check_values(values, kind, what):
 def check_piece(piece, what):
     if not isinstance(piece, dict): raise bad(f'{what} is not a record.')
     if 'kind' in piece and 'template' not in piece:
-        # an effect or an ambient sound: a copy of a map's own, with its values at most
+        # an effect, an ambient sound or a lens flare: a copy of a map's own, with its values at most (a flare has none)
         kind = piece['kind']
         if kind not in EFFECT_KINDS:
             raise bad(f'{what} is of a kind this editor doesn\'t know ({str(kind)[:40]}).')
-        record(piece, ('actor', 'kind', 'from', 'location', 'rotation'), (kind,), what, True)
+        record(piece, ('actor', 'kind', 'from', 'location', 'rotation'), (kind,) if kind in EFFECT_VALUE_KEYS else (), what, True)
         source = record(piece['from'], ('package', 'level', 'actor'), (), f'{what}\'s source', True)
         named(source['package'], PACKAGE, f'{what}\'s map')
         if source['level'] != 'base': raise bad(f'{what} is not of a map\'s own level.')
@@ -491,10 +494,11 @@ class PrefabStore(ProjectStore):
         pieces = [p for p in document.get('pieces') if isinstance(p, dict)] if isinstance(document.get('pieces'), list) else []
         lights = sum(1 for p in pieces if isinstance(p.get('template'), dict) and p['template'].get('kind') in LIGHT_KINDS)
         floor = document.get('floor') if isinstance(document.get('floor'), dict) else {}
-        effects, sounds = (sum(1 for p in pieces if 'template' not in p and p.get('kind') == kind) for kind in EFFECT_KINDS)
+        effects, sounds, flares = (sum(1 for p in pieces if 'template' not in p and p.get('kind') == kind)
+                                   for kind in EFFECT_KINDS)
         summary = dict(id=document['id'], name=document.get('name'), file=path.name, revision=document.get('revision'),
-                    savedAt=document.get('savedAt'), pieces=len(pieces) - lights - effects - sounds, lights=lights,
-                    effects=effects, sounds=sounds,
+                    savedAt=document.get('savedAt'), pieces=len(pieces) - lights - effects - sounds - flares, lights=lights,
+                    effects=effects, sounds=sounds, flares=flares,
                     buildings=len(document['buildings']) if isinstance(document.get('buildings'), list) else 0,
                     tiles=floor.get('tiles'),
                     maps=sorted({str(d.get('package')) for d in (document.get('donors') if isinstance(document.get('donors'), list) else [])

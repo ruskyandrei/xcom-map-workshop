@@ -391,9 +391,9 @@ def sha256(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
-# the native edit's lanes of effects and sounds (the effects and sounds plan, Part D): a copy there names its source
-# actor by `source`, and one from another map carries its `donor` (stage FX4)
-LANES = ('effects', 'sounds')
+# the native edit's lanes of effects, sounds and lens flares (the effects and sounds plan, Part D): a copy there names
+# its source actor by `source`, and one from another map carries its `donor` (stage FX4; flares since FX6b)
+LANES = ('effects', 'sounds', 'flares')
 
 
 def stage_edit(map_path, out, edit, cooked=None, schema=None):
@@ -401,8 +401,9 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
     Returns (map to give native_copy.py, the edit for it, report). With no foreign copy nothing is written: the map
     and the edit come back as they are, the report with no donors. Otherwise <out>/staged/<map>.upk is written (it
     reads the game's texture caches through package.link_caches), and the report is also <out>/transplant.json:
-    dict(map, staged, donors [dict(map, file, sha256, pieces, effects, staged {actor: staged actor}, objectsBrought,
-    objectsReused, cut, sizes, bytes, brought)], foreignPieces, writer). The effects and sounds lanes' copies with a
+    dict(map, staged, donors [dict(map, file, sha256, pieces, effects (the lanes' actors, lens flares among them),
+    flares (how many of those are lens flares), staged {actor: staged actor}, objectsBrought,
+    objectsReused, cut, sizes, bytes, brought)], foreignPieces, writer). The effects, sounds and flares lanes' copies with a
     donor (LANES) are staged as pieces are, each actor alone and once however many copies name it, and come back
     naming the staged actor as their `source`."""
     map_path, out = Path(map_path), Path(out)
@@ -418,10 +419,13 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
     for c in copies:
         if c.get('donor'):
             wanted.setdefault(c['donor']['package'].lower(), []).append(c)
-    for ops in lanes.values():
+    flare_sources = set()       # (donor, actor) of the flares lane's copies, for the report's count
+    for lane, ops in lanes.items():
         for c in ops.get('copies') or []:
             if c.get('donor'):
                 effects_wanted.setdefault(c['donor']['package'].lower(), []).append(c)
+                if lane == 'flares':
+                    flare_sources.add((c['donor']['package'].lower(), c['source']))
     report = dict(map=str(map_path), staged=None, donors=[], foreignPieces=0)
     if foreign_area.keys() - wanted.keys():
         raise DonorError('no-donor', 'a generated area light has no piece from its donor in the edit')
@@ -468,7 +472,7 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
             sets.setdefault(find(a), []).append(a)
         staged, shared = {}, {}
         row = dict(map=path.stem, file=str(path), sha256=digest, pieces=len(actors), effects=len(effect_actors),
-                   staged=staged, objectsBrought=0, objectsReused=0, cut=[], sizes=[], bytes=0, brought=[], newNames=0,
+                   flares=sum(1 for a in effect_actors if (key, a) in flare_sources), staged=staged, objectsBrought=0, objectsReused=0, cut=[], sizes=[], bytes=0, brought=[], newNames=0,
                    addedImports=0, shelled=[])
 
         def stage_roots(roots, remap):
@@ -665,7 +669,7 @@ def main():
         (args.out / 'native-edit.staged.json').write_text(json.dumps(new_edit, indent=1) + '\n', encoding='utf-8',
                                                           newline='\n')
     for d in report['donors']:
-        print('%s: %d pieces and %d effects or sounds staged (%s), %d objects brought (%d bytes), %d reused, %d '
+        print('%s: %d pieces and %d effects, sounds or flares staged (%s), %d objects brought (%d bytes), %d reused, %d '
               'references cut' % (d['map'], d['pieces'], d.get('effects', 0),
                                   ', '.join('%s -> %s' % kv for kv in d['staged'].items()), d['objectsBrought'],
                                   d['bytes'], d['objectsReused'], len(d['cut'])))

@@ -21,6 +21,16 @@ SHA = 'a' * 64
 PL = 'TheWorld.PersistentLevel.'
 import settings  # noqa: E402
 CACHE = Path(os.environ.get('XCOM_VIEWER_CACHE') or settings.configured('cache') or 'no-cache-configured')
+
+
+def library_scanned():
+    """Whether the configured cache holds a library index this version reads (an older one waits for its rescan)."""
+    try:
+        index = json.loads((CACHE / 'library' / 'index.json').read_text(encoding='utf-8'))
+        import library
+        return index.get('version') == library.INDEX_VERSION
+    except (OSError, ValueError):
+        return False
 BAR_SHA = 'a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5'
 
 
@@ -1802,8 +1812,8 @@ class ForeignTests(unittest.TestCase):
         spec, report = compile_project(doc, scene(), library=library)
         self.assertEqual((codes(report), library.asked), (['level'], []))
 
-    @unittest.skipUnless((CACHE / 'library' / 'index.json').is_file() and settings.configured('game'),
-                         'needs the game install and its library scanned into the cache')
+    @unittest.skipUnless(library_scanned() and settings.configured('game'),
+                         'needs the game install and its library scanned into the cache (by this version of the index)')
     def test_the_installs_library_gives_a_piece_and_says_what_it_lacks(self):
         game = settings.resolve_game(settings.configured('game'))[0]
         library = compiler.Library(CACHE, game)

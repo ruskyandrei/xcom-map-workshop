@@ -45,4 +45,14 @@ const kept = select();
 kept.value = 'fx:Fire';
 setKindOptions(kept, [fire]);
 assert.equal(kept.value, 'fx:Fire');
+// lens flares (stage FX6b): one kind, a menu line of their own only where there are some
+const glare = { effect: 'flare', kind: effectKind('flare', 'Lens flare') };
+assert.equal(glare.kind, 'flare:Lens flare');
+assert.deepEqual([steam, hum, glare, crate].filter(e => inKind(e, 'flares')), [glare]);
+assert.deepEqual([steam, hum, glare, crate].filter(e => inKind(e, 'effects')), [steam]);
+const withFlares = select();
+setKindOptions(withFlares, [steam, glare, glare, crate]);
+assert.equal(withFlares.options.find(o => o.value === 'flares')?.text, 'Lens flares (2)');
+assert.equal(withFlares.options.find(o => o.value === 'effects')?.text, 'Effects (1)');
+assert.equal(s.options.some(o => o.value === 'flares'), false);
 console.log('piece_categories: ok');

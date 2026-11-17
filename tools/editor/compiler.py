@@ -76,7 +76,13 @@ effect_override and effect_add check each against the export's `can` and `why` (
 (tools/bake/native_effects.py, native_sounds.py); a copy of another map's comes from the library (foreign_effect,
 stage FX4) and the Build stages it as a piece of another map. An effect's own pose, delete or follow none takes it out of its
 piece's carrying (`carriedEffects`). Both families build for every project since EXP-68 passed (17 November 2026);
-lens flares and a stream's are view only.
+a stream's are view only.
+
+Lens flares (LensFlareSource actors; stage FX6b) are the `flare` family, made the same way: an override moves, turns
+or deletes one in place, an added record with `kind: flare` copies one (this map's, or another map's through the
+library), and they go into the spec's `flares` object, which the Build's tools/bake/native_flares.py makes. A flare
+has no values object (its template and colour stay as the map has them). The family builds where it is enabled
+(`enable`, --family flare) until its game check.
 
 Rotators are rounded to whole rotation units half away from zero, as the viewer's resolver rounds (game_round); the
 report gives each pose's rounding. Each copy's world box (its mesh bounds, turned by the full rotation and scaled) is
@@ -152,6 +158,11 @@ FAMILIES = {
                           note='An effect\'s size, starting state and parameters build once their game test passes.'),
     'sound-values': dict(builds=False, milestone=None, grid=False, what='a sound\'s values',
                          note='A sound\'s reach, volume, pitch and starting state build once their game test passes.'),
+    # lens flares (LensFlareSource actors) moved, turned, copied or deleted (the effects and sounds plan, stage FX6b):
+    # off until their game check (EXP-F: EXP-71); --family flare lifts it for an experiment's build, and the page
+    # offers their edits only where the family builds (families.json; viewer.py serve --family flare)
+    'flare': dict(builds=False, milestone=None, grid=False, what='a lens flare',
+                  note='Lens flares are moved, copied and deleted where the flare family builds.'),
 }
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
                 'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
@@ -199,13 +210,17 @@ MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not
 EXPORT_MINIMUM = 18
 # Effects and sounds (the effects and sounds plan, Part C): their records name actors of the export's `effects` and
 # `sounds` (export 28, effects_metadata.py), each with what an edit may do with it (`can`, `why`). EFFECT_CLASSES:
-# what each kind is. A lens flare (`flares`) is view only until stage FX6. An effect that is moved or new is listed by
+# what each kind is (a lens flare, `flares`, since stage FX6b). An effect that is moved or new is listed by
 # each upper floor (index 1 up) one of whose boxes holds its place within EFFECT_SLACK (buildings.SLACK; plan Part D):
 # the report's note says which floors it joins and leaves.
 EFFECTS_EXPORT = 28
 EFFECT_CLASSES = {'effect': ('Emitter',),
-                  'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable')}
+                  'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable'),
+                  'flare': ('LensFlareSource',)}
 EFFECT_KINDS = ('effect', 'sound', 'flare')
+# each kind's object of the spec and of the native edit (its lane), and what the messages call one
+EFFECT_LANES = (('effect', 'effects'), ('sound', 'sounds'), ('flare', 'flares'))
+EFFECT_WORDS = {'effect': 'an effect', 'sound': 'a sound', 'flare': 'a lens flare'}
 EFFECT_SLACK = 2.0
 # the values objects (plan Part C): `follow` (an effect's carrying by the piece it stands on: 'none' once it is moved
 # by itself, 'auto' to follow again) is FX3's; the others are stage FX5's, behind the effect-values and sound-values
@@ -784,7 +799,7 @@ class Compiler:
         # effects and sounds (the effects and sounds plan, Part C): the spec's `effects` and `sounds` objects (moves,
         # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
         # project's own takes from the piece that carries them (they leave carriedEffects)
-        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in ('effect', 'sound')}
+        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
         self.effect_members = set()
         self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
@@ -1423,9 +1438,9 @@ class Compiler:
                 self.error('malformed', '%s is not a light of the export, so it has no light values' % short(
                     str((target or {}).get('actor'))), **where)
                 continue
-            if 'effect' in rec or 'sound' in rec:
-                self.error('malformed', '%s is no effect or sound of the export, so it has no %s values' % (
-                    short(str((target or {}).get('actor'))), 'effect' if 'effect' in rec else 'sound'), **where)
+            if 'effect' in rec or 'sound' in rec or 'flare' in rec:
+                self.error('malformed', '%s is no effect, sound or lens flare of the export, so it has no %s values' % (
+                    short(str((target or {}).get('actor'))), next(k for k in EFFECT_KINDS if k in rec)), **where)
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
@@ -2225,16 +2240,23 @@ class Compiler:
         effect's {scale, startsOn, parameters: [{name, type, value}]}, a sound's {radiusMin, radiusMax, volume,
         pitch, startsOn}. Refused: a malformed value, one outside what a value may be, a parameter its effect neither
         saves in a kind the editor writes nor its system offers in one kind, and values while their family doesn't
-        build (effect-values, sound-values)."""
-        other = 'sound' if kind == 'effect' else 'effect'
-        what = 'an effect' if kind == 'effect' else 'a sound'
-        if other in rec:
+        build (effect-values, sound-values). A lens flare has no values object at all (its template and colour stay
+        as the map has them)."""
+        what = EFFECT_WORDS[kind]
+        other = next((k for k in ('effect', 'sound') if k != kind and k in rec), None)
+        if other:
             self.error('malformed', '%s is %s, so it has no %s values' % (name, what, other), **where)
             return None, None, False
+        if kind == 'flare':
+            if 'flare' in rec:
+                self.error('malformed', '%s is a lens flare, whose template and colour stay as the map has them: it '
+                           'has no values' % name, **where)
+                return None, None, False
+            return None, None, True
         values = rec.get(kind)
         if values is None:
             return None, None, True
-        if kind == 'flare' or not isinstance(values, dict):
+        if not isinstance(values, dict):
             self.error('malformed', '%s: "%s" must be an object of %s values' % (name, kind, kind), **where)
             return None, None, False
         bad = sorted(set(values) - set(EFFECT_VALUE_KEYS[kind]))
@@ -2379,14 +2401,10 @@ class Compiler:
 
     def effect_gate(self, kind, name, where):
         """The family's refusal while it doesn't build: True when the edit may go on."""
-        if kind == 'flare':
-            self.error('effect-view-only', '%s is a lens flare, which this editor version shows but doesn\'t change'
-                       % name, family='flare', **where)
-            return False
         if self.builds(kind):
             return True
-        self.error('family', '%s is %s edit. %s' % (name, 'an effect' if kind == 'effect' else 'a sound',
-                                                    FAMILIES[kind]['note']), family=kind, **where)
+        self.error('family', '%s is %s edit. %s' % (name, EFFECT_WORDS[kind], FAMILIES[kind]['note']), family=kind,
+                   **where)
         return False
 
     def effect_usable(self, rec, can, name, where):
@@ -2440,13 +2458,12 @@ class Compiler:
         """An original effect or sound moved, turned or deleted (the effects and sounds plan, Part C), in place: the
         Build keeps its actor, so what names it still does."""
         kind, name = effect['kind'], short(target['actor'])
-        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'effect', 'sound'}):
-            self.note('unknown-field', 'field %r is not part of an effect\'s or a sound\'s override and is ignored' % f,
+        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'effect', 'sound', 'flare'}):
+            self.note('unknown-field', 'field %r is not part of the override of %s and is ignored' % (f, EFFECT_WORDS[kind]),
                       **where)
         if target['level'] != 'base' or str(target['package']).casefold() != self.map.casefold():
             self.error('effect-view-only', '%s is %s of %s level %s, which the editor shows but doesn\'t change'
-                       % (name, 'an effect' if kind == 'effect' else 'a sound' if kind == 'sound' else 'a lens flare',
-                          target['package'], target['level']), **where)
+                       % (name, EFFECT_WORDS[kind], target['package'], target['level']), **where)
             return
         if not self.effect_gate(kind, name, where):
             return
@@ -2472,8 +2489,8 @@ class Compiler:
         if 'location' not in rec and 'rotation' not in rec:
             if follow is None:
                 if not values:
-                    self.error('malformed', 'an effect\'s or a sound\'s override is deleted, gives a pose or values',
-                               **where)
+                    self.error('malformed', 'the override of %s is deleted%s' % (
+                        EFFECT_WORDS[kind], ' or gives a pose' if kind == 'flare' else ', gives a pose or values'), **where)
             else:
                 # follow alone: carrying as the map has it ('auto') or not ('none', where it stands)
                 if follow == 'none' and effect.get('carriedBy'):
@@ -2515,19 +2532,21 @@ class Compiler:
                                   location=loc, rotation=rot, rotationRounding=tidy(rounding, 6)))
 
     def effect_add(self, rec, where):
-        """A copy of one of the map's effects or sounds (the effects and sounds plan, Part C): the Build clones the
-        actor and what it owns (its component, light environment and own cue) and shares the system or wave. A copy of
+        """A copy of one of the map's effects, sounds or lens flares (the effects and sounds plan, Part C): the Build
+        clones the actor and what it owns (its component, light environment and own cue) and shares the system, the
+        wave or the flare's template. A copy of
         another map's (`from` names a base map other than this one: stage FX4) comes from the library
         (foreign_effect): the Build stages its donor actor with what it needs (transplant.stage_edit) and clones that."""
         out = rec['actor']
         name = short(out)
         kind = rec.get('kind')
-        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'effect', 'sound'}):
+        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'effect', 'sound', 'flare'}):
             if f in ('components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted'):
-                self.error('malformed', '%s is a copy of %s, so it has no %s' % (name, 'an effect' if kind == 'effect'
-                                                                                 else 'a sound', f), **where)
+                self.error('malformed', '%s is a copy of %s, so it has no %s' % (
+                    name, EFFECT_WORDS.get(kind, 'an effect'), f), **where)
                 return
-            self.note('unknown-field', 'field %r is not part of an added effect or sound and is ignored' % f, **where)
+            self.note('unknown-field', 'field %r is not part of an added effect, sound or lens flare and is ignored' % f,
+                      **where)
         if kind not in EFFECT_KINDS:
             self.error('malformed', '%s: kind must be one of %s' % (name, ', '.join(EFFECT_KINDS)), **where)
             return
@@ -2572,7 +2591,8 @@ class Compiler:
             self.effect_floor_note(name, None, loc, where)
         if source.get('referencedBy'):
             self.note('effect-script-copy', '%s is a copy of %s, which its map\'s Kismet names: the copy is an ordinary '
-                      '%s, which the script doesn\'t switch on or off' % (name, short(src['actor']), kind), **where)
+                      '%s, which the script doesn\'t switch on or off' % (
+                          name, short(src['actor']), 'lens flare' if kind == 'flare' else kind), **where)
         if (values or {}).get('startsOn', source.get('startsOn')) is False:
             self.warn('effect-starts-off', '%s is a copy of %s, %s: nothing switches the copy on' % (
                 name, short(src['actor']), 'set to start off' if (values or {}).get('startsOn') is False
@@ -2601,13 +2621,14 @@ class Compiler:
                                   rotationRounding=tidy(rounding, 6), **({'donor': donor} if donor else {})))
 
     def foreign_effect(self, src, name, where):
-        """(record, donor, systems) of the effect or ambient sound of another map a copy names (the effects and sounds
-        plan, stage FX4): its export 28 record as the library reads it from its map (library.effect), its donor
+        """(record, donor, systems) of the effect, ambient sound or lens flare of another map a copy names (the effects
+        and sounds plan, stage FX4; a flare since FX6b): its export 28 record as the library reads it from its map (library.effect), its donor
         {package, sha256} for the Build's staging and its system's record ({key: record}); (None, None, None) with an
         error. What the library can't bring is
         refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
-        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69) is built as any
-        copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
+        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69, and lists no
+        lens flare until its game check) is built as any copy, as the pieces of a kind not brought before are
+        (FOREIGN_SOFT)."""
         if self.library is None:
             self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
                        % (name, short(src['actor']), src['package']), **where)
@@ -3005,11 +3026,11 @@ class Compiler:
         if self.covers:
             # cover blocks (cover_add): made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='covers', blocks=sorted(self.covers, key=lambda c: c['name'])))
-        for kind, key in (('effect', 'effects'), ('sound', 'sounds')):
+        for kind, key in EFFECT_LANES:
             ops = self.effect_ops[kind]
             if any(ops.values()):
-                # effects and sounds (the effects and sounds plan, Part D): moved in place, deleted from the level's
-                # list and copied in the map by the Build's writer (native_split moves them there)
+                # effects, sounds and lens flares (the effects and sounds plan, Part D): moved in place, deleted from
+                # the level's list and copied in the map by the Build's writer (native_split moves them there)
                 objects.append(dict(type=key, moves=sorted(ops['moves'], key=lambda d: d['name']),
                                     deletes=sorted(ops['deletes'], key=lambda d: d['name']),
                                     copies=sorted(ops['copies'], key=lambda d: d['name']),
@@ -3793,7 +3814,7 @@ class Compiler:
                                                added=len(self.effect_ops[kind]['copies']),
                                                valued=len(self.effect_ops[kind]['values'])
                                                + sum(1 for c in self.effect_ops[kind]['copies'] if c.get('values')))
-                                     for kind, key in (('effect', 'effects'), ('sound', 'sounds'))},
+                                     for kind, key in EFFECT_LANES},
                                   flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=getattr(self, 'stage_grid', None),
@@ -3896,7 +3917,7 @@ class Library:
                 raise LibraryError('donor-missing', 'the game install has no map %s, which %s comes from'
                                    % (target['package'], short(target['actor'])))
             if code == 'effect-missing':
-                raise LibraryError('donor-changed', 'the map %s has no effect or ambient sound %s any more'
+                raise LibraryError('donor-changed', 'the map %s has no effect, ambient sound or lens flare %s any more'
                                    % (target['package'], short(target['actor'])))
             raise LibraryError('not-placeable', error.message)
         known = donors.get(template['source']['package'].casefold())
@@ -3905,7 +3926,7 @@ class Library:
                                'library again' % template['source']['package'])
         entry = entries.get(template['key'])
         if entry is None or entry.get('family') != template['kind']:
-            raise LibraryError('not-placeable', '%s of %s is not an effect or sound the library lists'
+            raise LibraryError('not-placeable', '%s of %s is not an effect, sound or lens flare the library lists'
                                % (short(target['actor']), template['source']['package']))
         return template, entry
 
@@ -4035,8 +4056,8 @@ def native_split(spec):
     carries its `ladder` ends
     ({foot, top} tiles), and `streamHides` ({stream: [actor]}) the streamed patches' pieces to take out of the
     variant's copies of them (a moved or deleted ladder's helpers), `lights` the light edits (plan 9.5: deletes,
-    changes, adds and the area lights the piece edits take along), and `effects` and `sounds` the effects' and
-    sounds' lanes (each `moves`, `deletes`, `copies` and `values`; the effects and sounds plan, Part D). A group with a copy of another class stays
+    changes, adds and the area lights the piece edits take along), and `effects`, `sounds` and `flares` the effects',
+    sounds' and lens flares' lanes (each `moves`, `deletes`, `copies` and `values`; the effects and sounds plan, Part D). A group with a copy of another class stays
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
@@ -4066,7 +4087,7 @@ def native_split(spec):
         if obj.get('type') == 'lights':
             lights = {k: obj[k] for k in ('deletes', 'changes', 'adds', 'area')}
             continue
-        if obj.get('type') in ('effects', 'sounds'):
+        if obj.get('type') in ('effects', 'sounds', 'flares'):
             effect_lanes[obj['type']] = {k: obj.get(k) or [] for k in ('moves', 'deletes', 'copies', 'values')}
             continue
         if obj.get('type') == 'hide' and obj.get('exact'):

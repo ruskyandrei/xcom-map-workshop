@@ -1,0 +1,17 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e71", "shots": [
+ {"out": "EXP-71-street.png", "title": "EXP-71: lens flares, the car park in front of the bar",
+  "target": [0, -900, 100], "camera": [0, -2900, 2300], "effects": true,
+  "marks": [
+   {"n": "1", "at": [-300, -1200, 150], "color": "#ffffff", "r": 40, "text": "Bar's own flare, moved here from the street lamp at 2 (faint: strength 0.03)"},
+   {"n": "2", "at": [995, -284, 344], "color": "#9a9a9a", "r": 40, "text": "the lamp's other flare, deleted: no glare at this lamp any more (1 left it too)"},
+   {"n": "3", "at": [-600, -1200, 150], "color": "#ffffff", "r": 40, "side": "left", "text": "a copy of Bar's own flare (as faint as 1)"},
+   {"n": "4", "at": [0, -1200, 150], "color": "#ff9a3c", "r": 40, "text": "the hyperwave beacon's glare, from AlienBase01: orange, in the open"},
+   {"n": "5", "at": [300, -1200, 150], "color": "#ff6b6b", "r": 40, "text": "an alien ambient glow, from AlienBase01: orange-red, in the open"},
+   {"n": "6", "at": [200, 600, 100], "color": "#ff9a3c", "r": 44, "text": "the beacon's glare again, inside the bar: only where the camera sees the spot"}]},
+ {"out": "EXP-71-row.png", "title": "EXP-71: the row over the car park",
+  "target": [-150, -1200, 150], "camera": [0, -1500, 700], "effects": true,
+  "marks": [
+   {"n": "3", "at": [-600, -1200, 150], "color": "#ffffff", "r": 34, "side": "left", "text": "copy of Bar's own"},
+   {"n": "1", "at": [-300, -1200, 150], "color": "#ffffff", "r": 34, "side": "left", "text": "Bar's own, moved"},
+   {"n": "4", "at": [0, -1200, 150], "color": "#ff9a3c", "r": 34, "text": "beacon's glare"},
+   {"n": "5", "at": [300, -1200, 150], "color": "#ff6b6b", "r": 34, "text": "alien glow"}]}]}

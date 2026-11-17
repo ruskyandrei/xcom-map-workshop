@@ -7,8 +7,8 @@ placed can be placed in another map (tools/bake/transplant.py brings it and what
   load_index(cache)            the index, or None
   piece(cache, game, source)   one piece as a template: its scene objects, meshes, materials and textures, exported
                                into <cache>/library/pieces/<donor>/<sha16>-v<exporter>/ on first request
-  effect(cache, game, source)  one effect or ambient sound as a template: its export 28 record, its particle system or
-                               waves (the donor's described once, effects-v<n>.json in the same folder)
+  effect(cache, game, source)  one effect, ambient sound or lens flare as a template: its export 28 record, its
+                               particle system or waves (the donor's described once, effects-v<n>.json in the same folder)
   load_state(), save_state()   the user's favourites and recently used pieces: library.json beside settings.json
   LibraryRunner                the scan as the server runs it: one at a time, with its progress
 
@@ -39,6 +39,8 @@ The index (version 1):
   `emitters` (its emitters' kinds), `lit`, `startsOn`, `scripted` for an effect, `waves`, `seconds`, `cue`,
   `sharedCue` for a sound. One the editor can't bring (a landing's actor, one that rides on another, one that plays
   nothing) is listed `blocked` 'unavailable' with the reason. A stream's are a mission's own and are not scanned.
+- The base maps' lens flares (LensFlareSource actors) are entries the same way since stage FX6b (index 10): `family`
+  flare, `kind` effects_library.FLARE_KIND, `flare` its template's path and `colour` its colour; no system, no waves.
 """
 import datetime
 import hashlib
@@ -62,12 +64,13 @@ from export_math import multiply, transform  # noqa: E402
 from projects import ProjectError  # noqa: E402
 from settings import resolve_game, settings_path  # noqa: E402
 
-INDEX_VERSION = 8       # 2: an entry says what blocks it (`blocked`), and the family gate is the compiler's;
+INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the family gate is the compiler's;
                         # 3: scanned with the families EXP-39 switched on, and assemblies are one entry each;
                         # 4: with cars and framed doors switched on (EXP-40 run 1); 5: and ladders (run 2);
                         # 6: an entry says how it is brought when that waits for a check (`held`);
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
-                        # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4)
+                        # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4: the
+                        # number itself stayed 8 until FX6b); 10: the base maps' lens flares (FX6b)
 PIECE_VERSION = 9       # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags
                         # (export 27's pieceFlags) and its meshes' collision facts
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
@@ -91,10 +94,11 @@ LINKED = ('XComDestructibleActor', 'XComFracLevelActor', 'XComDecoFracLevelActor
 LOOSE_LINKS = ('AffectedChildren',)
 # classes that are a map's own fixtures, not pieces
 LEFT_OUT = ('XComLevelVolume', 'XComBuildingVolume', 'XComFloorVolume')
-# the entries that are effects and ambient sounds (no mesh: effect(), not piece(), reads them)
-EFFECT_FAMILIES = ('effect', 'sound')
-# what an effect or sound entry says of itself beside the mesh entries' fields
-EFFECT_FIELDS = ('system', 'emitters', 'lit', 'startsOn', 'scripted', 'waves', 'seconds', 'cue', 'sharedCue')
+# the entries that are effects, ambient sounds and lens flares (no mesh: effect(), not piece(), reads them)
+EFFECT_FAMILIES = ('effect', 'sound', 'flare')
+# what an effect, sound or flare entry says of itself beside the mesh entries' fields
+EFFECT_FIELDS = ('system', 'emitters', 'lit', 'startsOn', 'scripted', 'waves', 'seconds', 'cue', 'sharedCue', 'flare',
+                 'colour')
 EFFECTS_VERSION = 1     # a donor's effects record (effect_records)
 THUMB_LIMIT = 512 << 10
 PNG = b'\x89PNG\r\n\x1a\n'
@@ -392,9 +396,9 @@ def scan_donor(job):
 
 
 def scan_effects(donor):
-    """A base donor's effects and ambient sounds as library pieces (effects_library.py; the effects and sounds plan,
-    Part E): [dict(kind, actor, key, recipe, name, actorClass, group, system, emitters, lit, startsOn, scripted,
-    waves, seconds, cue, sharedCue, closure, refused, cuts, reason)]. `reason`: why one can't be brought
+    """A base donor's effects, ambient sounds and lens flares as library pieces (effects_library.py; the effects and
+    sounds plan, Part E; flares since FX6b): [dict(kind, actor, key, recipe, name, actorClass, group, system, emitters,
+    lit, startsOn, scripted, waves, seconds, cue, sharedCue, flare, colour, closure, refused, cuts, reason)]. `reason`: why one can't be brought
     (effects_library.blocked), with no closure worked out for it; `closure` what one copy brings into a map that has
     none of it, worked out once per recipe."""
     import effects_library
@@ -404,7 +408,7 @@ def scan_effects(donor):
     described = effects_metadata.describe(p)
     systems, waves = described['systems'], described['waves']
     out, closures = [], {}
-    for record in described['effects'] + described['sounds']:
+    for record in described['effects'] + described['sounds'] + described['flares']:
         actor = p.by_name.get(record['actor'])
         if actor is None:
             continue
@@ -428,7 +432,9 @@ def scan_effects(donor):
                         recipe=effects_library.recipe(record), name=effects_library.name_of(record),
                         actorClass=record['actorClass'],
                         group=effects_library.kind_of(record['kind'], effects_library.kind_path(record)),
-                        system=record.get('template'),
+                        system=record.get('template') if record['kind'] == 'effect' else None,
+                        flare=record.get('template') if record['kind'] == 'flare' else None,
+                        colour=record.get('colour') if record['kind'] == 'flare' else None,
                         emitters=sorted({e['kind'] for e in system.get('emitters') or [] if e.get('kind')}),
                         lit=bool(record.get('lit')), startsOn=record.get('startsOn'),
                         scripted=bool(record.get('referencedBy')), waves=[w['path'] for w in heard],
@@ -439,7 +445,7 @@ def scan_effects(donor):
 
 
 def effect_reason(piece, families, placeable=None):
-    """reason_of for an effect or sound: 'unavailable' (the editor can't bring it: its own map's data says why),
+    """reason_of for an effect, sound or lens flare: 'unavailable' (the editor can't bring it: its own map's data says why),
     'closure' (something it needs can't be brought, or it names something of its map that doesn't come with it) or
     'family' (the compiler's gate, FOREIGN_FAMILIES or `placeable`, which an experiment's build lifts)."""
     if placeable is None:
@@ -539,11 +545,11 @@ def build_index(results, seconds=None):
             if e['best'] is None or rank < e['best'][0]:
                 e['best'] = (rank, r['package'], piece, reason, blocked)
         for piece in r.get('effects') or []:
-            # an effect or sound (scan_effects): one entry per recipe, its exemplar ranked as a piece's is
+            # an effect, sound or flare (scan_effects): one entry per recipe, its exemplar ranked as a piece's is
             blocked, reason = effect_reason(piece, compiler.FAMILIES)
             e = entries.setdefault(piece['key'], dict(
                 key=piece['key'], name=piece['name'], family=piece['kind'], kind=piece['group'],
-                actorClass=piece['actorClass'], recipe=piece['recipe'], **{k: piece[k] for k in EFFECT_FIELDS},
+                actorClass=piece['actorClass'], recipe=piece['recipe'], **{k: piece.get(k) for k in EFFECT_FIELDS},
                 count=0, donors=set(), floorMaps=set(), best=None))
             e['count'] += 1
             e['donors'].add(number)
@@ -888,7 +894,7 @@ def donor_path(game, package, shared):
 
 
 def effect_records(cache, game, package, shared=None):
-    """A donor map's effects and ambient sounds as export 28 describes a map's (effects_metadata.describe), kept in
+    """A donor map's effects, ambient sounds and lens flares as export 28 describes a map's (effects_metadata.describe), kept in
     its pieces folder (<cache>/library/pieces/<donor>/<generation>/effects-v<n>.json) once read: dict(version,
     metadata, source {kind 'map', package, level, sha256}, effects, sounds, flares, systems, waves). `shared` as
     piece()'s."""
@@ -969,23 +975,24 @@ def effect_draw(cache, game, package, system, shared=None):
 
 
 def effect(cache, game, source, shared=None):
-    """One effect or ambient sound of a donor map, `source` ({package, level, actor}), as a template for the page
+    """One effect, ambient sound or lens flare of a donor map, `source` ({package, level, actor}), as a template for the page
     and the compiler (the effects and sounds plan, Part E): dict(version, kind, key, source {kind 'map', package,
     level, actor, sha256}, record (export 28's, as effects_metadata gives it), systems {id: its particle system},
     waves {id: each wave it reaches}). `key` is its recipe's (effects_library.recipe_key), the index's entry key.
     An effect's system comes with its draw data (effect_draw), and `draw`: dict(base, meshes, materials, textures),
-    what that drawing names."""
+    what that drawing names. A lens flare's template has its record alone (no system, no waves, no drawing)."""
     import effects_library
     package, actor = str(source.get('package') or ''), str(source.get('actor') or '')
     if not NAME.fullmatch(package) or not NAME.fullmatch(actor):
         raise ProjectError(400, 'An effect is named by its map and its actor.')
     if (source.get('level') or 'base') != 'base':
-        raise ProjectError(400, 'Only the effects and sounds of a map\'s own level can be taken.')
+        raise ProjectError(400, 'Only the effects, sounds and lens flares of a map\'s own level can be taken.')
     records = effect_records(cache, game, package, shared)
     want = LEVEL + '.' + actor
-    record = next((r for r in records['effects'] + records['sounds'] if r['actor'] == want), None)
+    record = next((r for r in records['effects'] + records['sounds'] + (records.get('flares') or [])
+                   if r['actor'] == want), None)
     if record is None:
-        raise ProjectError(404, '%s has no effect or ambient sound called %s.' % (records['source']['package'], actor),
+        raise ProjectError(404, '%s has no effect, ambient sound or lens flare called %s.' % (records['source']['package'], actor),
                            code='effect-missing')
     systems = records.get('systems') or {}
     waves = records.get('waves') or {}

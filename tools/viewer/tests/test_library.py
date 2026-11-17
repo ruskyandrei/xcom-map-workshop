@@ -214,6 +214,40 @@ class IndexTests(unittest.TestCase):
             read = {e['name']: e for e in library.load_index(d)['entries']}
             self.assertEqual((read['Steam_Small']['placeable'], read['Hum']['placeable']), (True, True))
 
+    def test_lens_flares_are_entries_of_their_own(self):
+        """The base maps' lens flares (stage FX6b, index 10): one entry per recipe, family flare, held by the foreign
+        gate until their game check."""
+        import compiler
+        import effects_library
+
+        def glare(actor, template='FX_Lens_Flares.LF_Alien_Ambient_A', **changes):
+            recipe = dict(v=1, kind='flare', actorClass='LensFlareSource', template=template, colour=[3.0, 0.5, 0.2, 1.0])
+            return effect_piece(actor, kind='flare', system=template, **dict(dict(
+                key=library.recipe_key(recipe), recipe=recipe, actorClass='LensFlareSource', group=effects_library.FLARE_KIND,
+                emitters=[], waves=[], flare=template, colour=[3.0, 0.5, 0.2, 1.0], closure=dict(objects=40, bytes=50000)),
+                **changes))
+        self.assertGreaterEqual(library.INDEX_VERSION, 10)
+        self.assertIn('flare', library.EFFECT_FAMILIES)
+        index = library.build_index([
+            donor('AlienBase01', [], effects=[glare('LensFlareSource_1'), glare('LensFlareSource_3'), effect_piece('Emitter_1'),
+                                              glare('LensFlareSource_9', template='FX_Lens_Flares.LF_Riding', closure=None,
+                                                    reason='it rides on SkeletalMeshActor_1 and moves with it')]),
+            donor('URB_Two', [], effects=[glare('LensFlareSource_0')])])
+        by = {e['name']: e for e in index['entries']}
+        one = by['LF_Alien_Ambient_A']
+        self.assertEqual((one['family'], one['kind'], one['actorClass'], one['flare'], one['colour'], one['system'], one['waves']),
+                         ('flare', 'Lens flare', 'LensFlareSource', 'FX_Lens_Flares.LF_Alien_Ambient_A', [3.0, 0.5, 0.2, 1.0], None, []))
+        self.assertEqual(one['placed'], {'maps': 2, 'count': 3, 'in': [0, 1]})
+        self.assertEqual(one['closure'], dict(objects=40, bytes=50000))
+        gated = 'flare' not in compiler.FOREIGN_FAMILIES or not compiler.FAMILIES['flare']['builds']
+        self.assertEqual((one['placeable'], one['blocked']), (not gated, 'family' if gated else None))
+        if gated:
+            self.assertIn('a lens flare', one['reason'])
+        self.assertEqual((by['LF_Riding']['blocked'], by['LF_Riding']['placeable']), ('unavailable', False))
+        self.assertIn('rides on', by['LF_Riding']['reason'])
+        # (an effect's entry has the flare's fields empty)
+        self.assertEqual((by['Steam_Small']['flare'], by['Steam_Small']['colour']), (None, None))
+
     def test_an_effect_that_can_not_be_brought_says_why(self):
         index = library.build_index([donor('URB_One', [], effects=[
             effect_piece('Emitter_1', system='FX.Landing', closure=None,
@@ -462,7 +496,7 @@ class GameTests(unittest.TestCase):
         index = self.index
         fx = [e for e in index['entries'] if e['family'] in library.EFFECT_FAMILIES]
         self.assertEqual(sum(e['placed']['count'] for e in fx), sum(d['effects'] for d in index['donors']))
-        self.assertEqual(index['donors'][0]['effects'], 76)            # Bar's 71 effects and 5 ambient sounds
+        self.assertEqual(index['donors'][0]['effects'], 78)            # Bar's 71 effects, 5 ambient sounds, 2 lens flares
         for e in fx:
             self.assertEqual(e['placeable'], e['reason'] is None)
             self.assertIn(e['blocked'], (None, 'family', 'unavailable', 'closure'))
@@ -480,6 +514,13 @@ class GameTests(unittest.TestCase):
         self.assertEqual((music['family'], music['kind'], music['source']['actor'], music['sharedCue']),
                          ('sound', 'Music and voices', 'AmbientSoundSimple_2', False))
         self.assertGreater(music['seconds'], 60)
+        # Bar's two lens flares are one entry (one template, one colour), which brings its template and archetype
+        glare, = [e for e in fx if e['family'] == 'flare']
+        self.assertEqual((glare['name'], glare['kind'], glare['flare'], glare['placed']['count'], glare['cuts']),
+                         ('LF_XCom_Base_C', 'Lens flare', 'FX_Lens_Flares.LF_XCom_Base_C', 2, []))
+        self.assertIn(glare['source']['actor'], ('LensFlareSource_7', 'LensFlareSource_8'))
+        self.assertGreater(glare['closure']['bytes'], 1000)
+        self.assertIn(glare['blocked'], (None, 'family'))
 
     def test_an_effect_or_sound_is_read_as_a_template(self):
         steam = library.effect(self.cache, self.game, dict(package='urb_bar', level='base', actor='Emitter_16'))
@@ -491,6 +532,10 @@ class GameTests(unittest.TestCase):
         folder = self.cache / 'library' / 'pieces' / 'URB_Bar'
         self.assertTrue(any((g / ('effects-v%d.json' % library.EFFECTS_VERSION)).is_file() for g in folder.iterdir()))
         music = library.effect(self.cache, self.game, dict(package='URB_Bar', actor='AmbientSoundSimple_2'))
+        glare = library.effect(self.cache, self.game, dict(package='URB_Bar', actor='LensFlareSource_7'))
+        self.assertEqual((glare['kind'], glare['record']['template'], glare['systems'], glare['waves'], glare['draw']),
+                         ('flare', 'FX_Lens_Flares.LF_XCom_Base_C', {}, {}, None))
+        self.assertEqual(next(e for e in self.index['entries'] if e['key'] == glare['key'])['family'], 'flare')
         self.assertEqual(list(music['waves']), ['URB_Bar|SoundBarMuzak.BarMuzakStereo'])
         self.assertTrue(music['waves']['URB_Bar|SoundBarMuzak.BarMuzakStereo']['playable'])
         # many at once, and what can't be had

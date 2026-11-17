@@ -157,6 +157,28 @@ class StageTests(unittest.TestCase):
             self.assertEqual((snd['kind'], snd['from'], 'sound' in snd, 'components' in snd, 'partner' in snd), ('sound', hum['from'], False, False, False))
             self.assertEqual(project['groups'][0]['members'], [dict(added=fx['actor']), dict(added=snd['actor'])])
 
+    def test_a_lens_flare_is_read_from_its_map_and_goes_into_the_test(self):
+        # effects and sounds plan, stage FX6b: a prefab's lens flare is a project's copy of its original, without values
+        glare = dict(actor='Glare', kind='flare', location=[96, 0, 300], rotation=[0, 8192, 0],
+                     **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.LensFlareSource_7')})
+        wrong = dict(glare, actor='Wrong', **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.Emitter_3')})
+
+        def effect(cache, game, source, shared=None):
+            return dict(kind='flare' if source['actor'].startswith('LensFlare') else 'effect',
+                        source=dict(package=source['package'], sha256='a' * 64, actor=source['actor']))
+        doc = snapshot(pieces=[glare, wrong], donors=[dict(package='Donor', sha256='a' * 64)])
+        with patch.object(stage, 'read_pieces', return_value=iter(())), patch.object(stage.piece_library, 'effect', effect):
+            left, records, targets, donors, notes = stage.resolve_sources(doc, None, None)
+        self.assertEqual([(e['actor'], e['code']) for e in notes], [('Wrong', 'piece-missing')])
+        self.assertIn('is not a lens flare', notes[0]['message'])
+        self.assertEqual(([p['actor'] for p in left['pieces']], targets), (['Glare'], dict(Glare=glare['from'])))
+        scene = dict(name=stage.MAP, source=dict(sha256='a' * 64), exporterVersion=29, tileGrid=GRID)
+        with patch.object(stage, 'stock_overrides', return_value=[]):
+            project, ids = stage.make_project(left, scene, dict(grid=[36, 36], translation=[384, -192, 0]), targets, TEST)
+        flare, = project['added']
+        self.assertEqual((flare['kind'], flare['from'], flare['location'], flare['rotation']), ('flare', glare['from'], [480, -192, 300], [0, 8192, 0]))
+        self.assertFalse({'flare', 'effect', 'sound', 'components', 'partner'} & set(flare))
+
     def test_a_piece_left_out_takes_its_place_in_groups_and_partners_with_it(self):
         body, glass = source('Body'), source('Glass', actor='XComFracLevelActor_1')
         body['partner'] = 'Glass'

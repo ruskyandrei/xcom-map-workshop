@@ -4,7 +4,7 @@
 // This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; app.js makes a prefab of
 // a selection and a clip to place of a prefab.
 // 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`: effects and
-// sounds plan, stage FX6a). A prefab of schema 1 or 2 opens, and saves as 3.
+// sounds plan, stage FX6a; a lens flare is one more kind since FX6b). A prefab of schema 1 or 2 opens, and saves as 3.
 export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 3;
 export const TILE = 96, STOREY = 64;
 
@@ -44,7 +44,8 @@ export function newPrefab(id, name, { tiles, pieces, groups, buildings, donors }
 export function prefabWords(p) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const parts = [p.pieces && plural(p.pieces, 'piece'), p.lights && plural(p.lights, 'light'), p.effects && plural(p.effects, 'effect'),
-                 p.sounds && plural(p.sounds, 'sound'), p.buildings && plural(p.buildings, 'building')].filter(Boolean);
+                 p.sounds && plural(p.sounds, 'sound'), p.flares && plural(p.flares, 'lens flare'),
+                 p.buildings && plural(p.buildings, 'building')].filter(Boolean);
   const what = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? 'nothing';
   return Array.isArray(p.tiles) ? `${what} · ${p.tiles[0]} by ${p.tiles[1]} tiles` : what;
 }

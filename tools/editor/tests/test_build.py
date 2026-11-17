@@ -326,7 +326,7 @@ class Builds(unittest.TestCase):
             staged.write_bytes(b'staged ' + Path(args[k + 1]).read_bytes())
             edit['copies'] = [dict(c, actor=c['actor'] + '_900', staged=True) if c.get('donor') else c
                               for c in edit['copies']]
-            for lane in ('effects', 'sounds'):
+            for lane in ('effects', 'sounds', 'flares'):
                 if edit.get(lane):
                     edit[lane]['copies'] = [dict(c, source=c['source'] + '_900', staged=True) if c.get('donor') else c
                                             for c in edit[lane]['copies']]
@@ -568,7 +568,7 @@ class Builds(unittest.TestCase):
         self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'transplant', 'light', 'seeds'])
         self.assertEqual(m['stages'][1]['foreignCopies'], 1)       # the page shows the stage's step from the compile on
         self.assertEqual((m['foreignPieces'], m['donors']),
-                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, effects=0, objectsBrought=7,
+                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, effects=0, flares=0, objectsBrought=7,
                                    objectsReused=3, cut=[], sizes={}, bytes=1234)]))
         # a full build: the same staging, and the baking copier reads the staged map (it lights them from nothing)
         self.ran.clear()
@@ -612,6 +612,32 @@ class Builds(unittest.TestCase):
         self.spec['objects'] = [dict(type='effects', moves=[], deletes=[], copies=[{k: v for k, v in foam.items() if k != 'donor'}])]
         self.make(stamp='110200', quick=True).run()
         self.assertEqual(self.tool('transplant.py'), [])
+
+    def test_lens_flares_alone_build_as_effects_do(self):
+        """The flares' lane (stage FX6b), the project's only change: made by native_copy.py in both kinds of build with
+        the lighting kept; one of another map is staged first, one of the map's own stages nothing."""
+        glare = dict(id='a', name='LensFlareSource_0_copy1', source='LensFlareSource_0', actorClass='LensFlareSource',
+                     location=[0.0, 640.0, 200.0], rotation=[0, 0, 0], donor=dict(package='AlienBase01', sha256='d' * 64))
+        move = dict(name='LensFlareSource_7', actorClass='LensFlareSource', location=[900.0, -220.0, 300.0], rotation=[0, 0, 0])
+        self.spec['objects'] = [dict(type='flares', moves=[move], deletes=[], copies=[glare], values=[])]
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            self.assertEqual(len(self.tool('transplant.py')), 1)
+            light, = self.tool('native_copy.py')
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual([(c['source'], c['staged']) for c in edit['flares']['copies']], [('LensFlareSource_0_900', True)])
+            self.assertEqual([x['name'] for x in edit['flares']['moves']], ['LensFlareSource_7'])
+            self.assertNotIn('effects', edit)
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+        # the map's own flare moved, the project's only change: built, nothing staged
+        self.ran.clear()
+        self.spec['objects'] = [dict(type='flares', moves=[move], deletes=[], copies=[], values=[])]
+        self.make(stamp='110200', quick=True).run()
+        self.assertEqual(self.tool('transplant.py'), [])
+        self.assertEqual(len(self.tool('native_copy.py')), 1)
 
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]

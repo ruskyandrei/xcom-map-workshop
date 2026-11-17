@@ -1,5 +1,6 @@
 """Effects and sounds in the library (effects_library.py, stage FX4): what makes two placed actors one entry, the
-panel's kinds and what keeps one from another map. Made-up records: no install needed."""
+panel's kinds and what keeps one from another map; lens flares the same way (stage FX6b). Made-up records: no install
+needed."""
 from pathlib import Path
 import sys
 import unittest
@@ -25,6 +26,42 @@ def sound(**changes):
                stream=None, landingActor=False, landingRole=None)
     out.update(changes)
     return out
+
+
+def flare(**changes):
+    out = dict(kind='flare', actor='TheWorld.PersistentLevel.LensFlareSource_7', actorClass='LensFlareSource',
+               template='FX_Lens_Flares.LF_XCom_Base_C', colour=[1.0, 1.0, 1.0, 0.03], scale=[1.0, 1.0, 1.0],
+               can=dict(move=True, copy=True, delete=True, values=False), why={}, stream=None, landingActor=False,
+               landingRole=None, location=[0.0, 0.0, 0.0])
+    out.update(changes)
+    return out
+
+
+class Flares(unittest.TestCase):
+    """Lens flares (stage FX6b): one recipe per template, colour and scale; one kind; named by the template."""
+
+    def test_recipes(self):
+        base = fx.recipe_key(flare())
+        self.assertEqual(fx.recipe_key(flare(actor='TheWorld.PersistentLevel.LensFlareSource_8', location=[9.0, 0.0, 0.0])), base)
+        self.assertEqual(fx.recipe_key(flare(colour=[1.0, 1.0, 1.0, 0.03000001])), base)
+        for change in (dict(template='FX_Lens_Flares.LF_Alien_Ambient_A'), dict(colour=[2.0, 0.5, 0.2, 1.0]), dict(colour=None),
+                       dict(scale=[2.0, 2.0, 2.0])):
+            self.assertNotEqual(fx.recipe_key(flare(**change)), base, change)
+        self.assertNotEqual(base, fx.recipe_key(effect(template='FX_Lens_Flares.LF_XCom_Base_C')))
+        self.assertEqual(fx.recipe(flare())['kind'], 'flare')
+
+    def test_kind_and_name(self):
+        self.assertEqual(fx.kind_of('flare', 'FX_Lens_Flares.LF_Fire_A'), fx.FLARE_KIND)
+        self.assertEqual(fx.kind_of('flare', None), fx.FLARE_KIND)
+        self.assertEqual((fx.name_of(flare()), fx.kind_path(flare())), ('LF_XCom_Base_C', 'FX_Lens_Flares.LF_XCom_Base_C'))
+        self.assertEqual(fx.name_of(flare(template=None)), 'LensFlareSource_7')
+
+    def test_what_keeps_one_from_another_map(self):
+        self.assertIsNone(fx.blocked(flare()))
+        riding = {k: 'it rides on SkeletalMeshActor_1 and moves with it' for k in ('move', 'copy', 'delete')}
+        self.assertIn('rides on', fx.blocked(flare(can=dict(move=False, copy=False, delete=False), why=riding)))
+        self.assertEqual(fx.blocked(flare(template=None, can=dict(move=True, copy=False), why=dict(copy='it names no flare template'))),
+                         'it names no flare template')
 
 
 class Recipes(unittest.TestCase):

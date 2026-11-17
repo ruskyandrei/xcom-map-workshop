@@ -669,14 +669,16 @@ function kindPiece(r) {
   return !r.userData.deleted && r.visible && !r.userData.light && !r.userData.volume && !isStream(o) && !o.cover && !o.hidden
     && !o.environment && typeof data.meshes[o.mesh]?.name === 'string';
 }
-// An effect's or a sound's kind (effects and sounds plan, FX3b): its particle system, or the waves it plays; null for
-// a flare, a sound with no wave, one not drawn or one the editor doesn't change.
+// An effect's, a sound's or a lens flare's kind (effects and sounds plan, FX3b; a flare since FX6b): its particle
+// system, the waves it plays or its flare template; null for a sound with no wave, a flare with no template, one not
+// drawn or one the editor doesn't change.
 function effectKind(r) {
   const o = r.userData.source;
   if (!r.visible || r.userData.deleted || isStream(o) || !effectsShown()) return null;
   if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) return null;
   if (o.kind === 'effect' && o.system) return `system:${o.system}`;
   if (o.kind === 'sound' && o.waves?.length) return `waves:${[...o.waves].sort().join('+')}`;
+  if (o.kind === 'flare' && o.template) return `flare:${o.template}`;
   return null;
 }
 function kindSeeds() {
@@ -701,25 +703,27 @@ function kindMatches(seeds) {
     }
     out.push(r);
   }
-  let effects = 0;
+  let effects = 0, flares = 0;
   for (const r of effectRoots.values()) {
     const kind = effectKind(r), e = r.matrix.elements;
     if (!kind || !seeds.has(kind) || (box && !inBox([e[12], e[14], e[13]]))) continue;
     out.push(r); effects++;
+    if (r.userData.source.kind === 'flare') flares++;
   }
-  return { roots: out, box: Boolean(box), effects, actors: new Set(out.map(r => (r.userData.effect ? r.userData.source.id : flagKey(r.userData.source)))).size };
+  return { roots: out, box: Boolean(box), effects, flares, actors: new Set(out.map(r => (r.userData.effect ? r.userData.source.id : flagKey(r.userData.source)))).size };
 }
 // what Select all of a kind counts, in words: pieces, or effects and sounds where only those match
-const kindCount = found => (found.effects && found.effects === found.roots.length ? `${found.actors} ${found.actors === 1 ? 'effect or sound' : 'effects and sounds'}` : plural(found.actors, 'piece'));
+const kindCount = found => (found.flares && found.flares === found.roots.length ? plural(found.actors, 'lens flare')
+  : found.effects && found.effects === found.roots.length ? `${found.actors} ${found.actors === 1 ? 'effect or sound' : 'effects and sounds'}` : plural(found.actors, 'piece'));
 function kindButton() {
   const button = $('editKind'), seeds = data ? kindSeeds() : new Map();
   // the effect panel's own button (a picked effect's or sound's panel stands in the piece panel's place)
-  const twin = $('effectKind'), mirror = () => { twin.hidden = !seeds.size || ![...seeds.keys()].some(k => /^(system|waves):/.test(k));
+  const twin = $('effectKind'), mirror = () => { twin.hidden = !seeds.size || ![...seeds.keys()].some(k => /^(system|waves|flare):/.test(k));
     twin.textContent = button.textContent; twin.title = button.title; twin.disabled = button.disabled; };
   if (!seeds.size) {
     mirror();
     button.disabled = true; button.textContent = 'Select all';
-    button.title = 'Select every piece with the same mesh as the one selected, or every effect of the same particle system, every sound of the same wave (a light, a cover block, a hidden or streamed piece has none to match)';
+    button.title = 'Select every piece with the same mesh as the one selected, or every effect of the same particle system, every sound of the same wave, every lens flare of the same template (a light, a cover block, a hidden or streamed piece has none to match)';
     return;
   }
   const found = kindMatches(seeds), picked = new Set(gizmo.picks().ids);
@@ -727,7 +731,7 @@ function kindButton() {
   button.textContent = `Select all ${what}${found.box ? ' in box' : ''} (${found.actors})`;
   button.disabled = !found.roots.length || (found.roots.every(r => picked.has(r.userData.source.id)) && found.roots.length === picked.size);
   button.title = found.effects && found.effects === found.roots.length
-    ? `Select every drawn effect of the same particle system and every sound of the same wave ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
+    ? `Select every drawn effect of the same particle system, every sound of the same wave and every lens flare of the same template ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
     : `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
     + `${plural(found.actors, 'piece')} (${[...seeds.keys()].join(', ')}). Shift+click adds them to the selection. Hidden, deleted and streamed pieces `
     + 'are left out. The Flags group then sets them all; moving, copying and deleting still take each one\'s linked pieces with it.';
@@ -1851,7 +1855,8 @@ function libraryTemplate(source) {
   }
   return libraryRecords.get(id);
 }
-// An effect or ambient sound of another map (effects and sounds plan, stage FX4): its template read from its map
+// An effect, ambient sound or lens flare of another map (effects and sounds plan, stage FX4; a flare since FX6b): its
+// template read from its map
 // (/library/effect.json: export 28's record, its particle system or waves), kept for the placing and the project's
 // copies (foreignEffects, by its target), its system and waves joined to the map's (the panel, the box, the Wave
 // preview read them by their ids, which name the donor). Gives the record as an effect root's source.
@@ -1964,7 +1969,7 @@ async function chooseLibraryEntry(entry) {
                 pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry };
   startPlacing(clipboard, entry);
 }
-// An effect or sound of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
+// An effect, sound or lens flare of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
 // Ctrl+C copies it, another map's read from it (effectTemplate); then placed as a copied effect is.
 async function chooseLibraryEffect(entry, token) {
   let source;
@@ -2134,8 +2139,8 @@ function prefabRecords({ complete = false } = {}) {
   const grow = b => { for (let k = 0; k < 3; k++) { low[k] = Math.min(low[k], b[k]); high[k] = Math.max(high[k], b[k + 3]); } };
   const offGrid = [];
   for (const r of copyable()) {
-    // (an effect or a sound is where it stands: a sound's reach is no part of the footprint; a flare is not held yet)
-    if (r.userData.effect) { if (r.userData.source.kind !== 'flare') { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); } continue; }
+    // (an effect, a sound or a lens flare is where it stands: a sound's reach is no part of the footprint)
+    if (r.userData.effect) { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); continue; }
     if (r.userData.light) { const p = lightPose(r).location; grow([...p, ...p]); continue; }
     const b = physicalBox(r);
     if (b) grow(b);
@@ -2187,20 +2192,20 @@ function prefabRecords({ complete = false } = {}) {
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
   for (const p of pieces) if (p.from) p.partner = names.get(p.partner) ?? null;
-  // its effects and sounds (effects and sounds plan, stage FX6a): each a copy of its original, with the values set
-  // on it. One its piece carries isn't in the clip: the piece's copy brings it (snapshot)
-  let effects = 0, sounds = 0;
+  // its effects and sounds (effects and sounds plan, stage FX6a) and its lens flares (FX6b): each a copy of its
+  // original, with the values set on it (a flare has none). One its piece carries isn't in the clip: the piece's
+  // copy brings it (snapshot)
+  let effects = 0, sounds = 0, flares = 0;
   for (const e of clip.entries) {
     if (!e.source.isEffect) continue;
-    const s = e.source, kind = s.kind, from = fromOf(s), what = kind === 'sound' ? 'a sound' : 'an effect';
-    if (kind === 'flare') { left.push(`${recordName(s, data)}: a lens flare, which a prefab doesn't hold`); continue; }
+    const s = e.source, kind = s.kind, from = fromOf(s), what = kind === 'sound' ? 'a sound' : kind === 'flare' ? 'a lens flare' : 'an effect';
     if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
-    const name = `${from.actor}_copy${++n}`, values = savedValues(e.values);
+    const name = `${from.actor}_copy${++n}`, values = kind === 'flare' ? null : savedValues(e.values);
     copied.push([memberOf(s), { added: name }]);
     pieces.push({ actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
                   ...actorPose(s, shift.clone().multiply(e.matrix)), ...(values ? { [kind]: values } : {}) });
     donor(from);
-    if (kind === 'sound') sounds++; else effects++;
+    if (kind === 'sound') sounds++; else if (kind === 'flare') flares++; else effects++;
   }
   let lights = 0;
   for (const e of clip.entries) {
@@ -2230,7 +2235,7 @@ function prefabRecords({ complete = false } = {}) {
   const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
   const normalized = normalizePrefab({ pieces, groups, buildings }, [['Selection', [...low, ...high].map((v, k) => v - origin[k % 3])]]);
   return { ...normalized, groups, donors: [...donors.values()].sort((a, b) => a.package.localeCompare(b.package)), left, offGrid, clip,
-    counts: { pieces: pieces.length - lights - effects - sounds, lights, effects, sounds, buildings: buildings.length, tiles: normalized.tiles },
+    counts: { pieces: pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: buildings.length, tiles: normalized.tiles },
            box: new THREE.Box3(new THREE.Vector3(low[0], low[2], low[1]), new THREE.Vector3(high[0], high[2], high[1])) };
 }
 // A prefab as a clip to place in this map: its records put on the map's tile grid (the prefab's origin on the grid's
@@ -2265,12 +2270,12 @@ async function prefabClip(doc, step = null) {
       const failure = failed.get(targetKey(p.from));
       if (failure) { left.push(failure); continue; }
       const source = isForeignTarget(p.from) ? foreignEffects.get(targetKey(p.from)) : effectIndex.get(targetKey(p.from))?.userData.source;
-      const what = p.kind === 'sound' ? 'sound' : 'effect';
+      const what = p.kind === 'sound' ? 'sound' : p.kind === 'flare' ? 'lens flare' : 'effect';
       if (!source || source.kind !== p.kind) { left.push(`${short(p.from.actor)} of ${p.from.package}: this export of the map has no such ${what}`); continue; }
       const why = effectViewOnly(source, 'copy');
       if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
       // its values are placed where their family builds (families.json); the prefab keeps them either way
-      const values = families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
+      const values = p.kind !== 'flare' && families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
       entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), ...(values ? { values } : {}), unit: p.actor, key });
       continue;
     }
@@ -3919,7 +3924,7 @@ function builderKey() {
 function builderBounds() {
   const boxes = [...allRoots.values()].filter(r => !r.userData.deleted).map(r => [rootName(r), physicalBox(r)]).filter(([, b]) => b);
   for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind) || (p.kind && !p.template)) boxes.push([p.actor, [...p.location, ...p.location]]);
-  // (an effect or a sound is where it stands)
+  // (an effect, a sound or a lens flare is where it stands)
   for (const r of effectRoots.values()) {
     if (r.userData.deleted || !r.userData.source.added) continue;
     const p = actorPose(r.userData.source, r.matrix).location;
@@ -3931,10 +3936,10 @@ function builderRecords() {
   const doc = builderDocument(), clip = snapshot([...allRoots.values()], new Set()) ?? { entries: [], volumes: [], name: doc.name };
   const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.filter(p => !p.kind || p.template).map(p => p.actor) });
   const lights = records.pieces.filter(p => ['point', 'spot'].includes(p.template?.kind)).length;
-  const [effects, sounds] = ['effect', 'sound'].map(kind => records.pieces.filter(p => !p.template && p.kind === kind).length);
+  const [effects, sounds, flares] = ['effect', 'sound', 'flare'].map(kind => records.pieces.filter(p => !p.template && p.kind === kind).length);
   const b = records.size.bounds;
   return { ...records, clip, left: [], offGrid: [...roots.values()].filter(r => gridNow(r)?.valid === false).map(rootName),
-    counts: { pieces: records.pieces.length - lights - effects - sounds, lights, effects, sounds, buildings: records.buildings.length, tiles: records.tiles },
+    counts: { pieces: records.pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: records.buildings.length, tiles: records.tiles },
     box: new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])) };
 }
 // Align to grid (the builder's warning, prefab plan 5.6b): the pieces keeping the pose rule (doors, ladders, cars, vans,
@@ -4775,9 +4780,11 @@ function buildStepDetail(key, stage, job, running) {
   }
   if (key === 'patch' && stage?.bytes) return `${Math.round(stage.bytes / 1024)} KB cooked`;
   if (key === 'transplant' && stage) {
-    // pieces, and effects and sounds (effects and sounds plan, FX4), each donor's actors staged once
-    const sum = k => stage.donors.reduce((n, d) => n + (d[k] ?? 0), 0), pieces = sum('pieces'), effects = sum('effects');
-    const what = [pieces && plural(pieces, 'piece'), effects && `${effects} ${effects === 1 ? 'effect or sound' : 'effects and sounds'}`]
+    // pieces, and effects and sounds (effects and sounds plan, FX4) and lens flares (FX6b: counted among the
+    // effects, and of their own), each donor's actors staged once
+    const sum = k => stage.donors.reduce((n, d) => n + (d[k] ?? 0), 0), pieces = sum('pieces'), flares = sum('flares'), effects = sum('effects') - flares;
+    const what = [pieces && plural(pieces, 'piece'), effects && `${effects} ${effects === 1 ? 'effect or sound' : 'effects and sounds'}`,
+                  flares && plural(flares, 'lens flare')]
       .filter(Boolean).join(' and ') || plural(stage.foreignPieces, 'piece');
     return `${what} from ${stage.donors.map(d => d.map).join(', ')}: ${kilobytes(sum('bytes'))} more in the map`;
   }
@@ -6784,12 +6791,12 @@ function buildEffects() {
   const all = [...effectRecords(data, null), ...Object.values(data.streams ?? {}).flatMap(st => [...(st.effects ?? []), ...(st.sounds ?? []), ...(st.flares ?? [])])];
   addEffectRoots(all.filter(r => r.kind && Array.isArray(r.location)).map(r => makeEffectRoot(effectSource(r))));
 }
-// Why an effect, sound or flare can't be moved, copied or deleted (`cap`), or null: a stream's and a flare are view
-// only, as are all of a kind whose family doesn't build (families.json); an original as its record's `can` says.
+// Why an effect, sound or flare can't be moved, copied or deleted (`cap`), or null: a stream's is view only, as are
+// all of a kind whose family doesn't build (families.json: effect, sound, flare); an original as its record's `can`
+// says.
 function effectViewOnly(o, cap = 'move') {
   if (isStream(o)) return `it belongs to the stream ${o.stream}, which the editor shows but doesn't change`;
-  if (o.kind === 'flare') return 'a lens flare is shown, not changed, in this editor version';
-  if (!families?.families?.[o.kind]?.builds) return `${o.kind === 'sound' ? 'sounds' : 'effects'} are shown, not changed, in this editor version`;
+  if (!families?.families?.[o.kind]?.builds) return `${o.kind === 'sound' ? 'sounds' : o.kind === 'flare' ? 'lens flares' : 'effects'} are shown, not changed, in this editor version`;
   if (o.added) return null;
   return o.can?.[cap] ? null : (o.why?.[cap] ?? 'the map\'s export doesn\'t say it can');
 }
@@ -7107,7 +7114,7 @@ function effectPanel() {
   const root = m.userData.root, r = m.userData.record, now = effectNow(root, r), { title, lines } = recordLines(now, { ...data, effectSystems: effectSystemsOf(r) });
   // what an edit does with it here (effects and sounds plan, FX3), where its family builds
   if (!effectViewOnly(r, 'move') || !effectViewOnly(r, 'copy') || !effectViewOnly(r, 'delete')) {
-    if (r.added?.base?.foreign) lines.unshift(`A copy of ${short(r.added.from.actor)} of ${r.added.from.package}: the Build brings it into this map with the ${r.kind === 'sound' ? 'waves' : 'particle system'} it needs (or this map's, where it has them already) and makes it an actor of its own.`);
+    if (r.added?.base?.foreign) lines.unshift(`A copy of ${short(r.added.from.actor)} of ${r.added.from.package}: the Build brings it into this map with the ${r.kind === 'sound' ? 'waves' : r.kind === 'flare' ? 'flare template' : 'particle system'} it needs (or this map's, where it has them already) and makes it an actor of its own.`);
     else if (r.added) lines.unshift(`A copy of ${short(r.added.from.actor)}: the Build makes it an actor of its own.`);
     else if (root.userData.deleted) lines.unshift('Deleted: the Build takes it out of the level (Ctrl+Z brings it back).');
     else if (root.userData.edit) lines.unshift(`Moved${r.carriedBy ? `: it stays where it is put when ${short(r.carriedBy)} moves` : ''}. Reset puts it back${r.carriedBy ? ' and lets it follow its piece again' : ''}.`);
@@ -7513,7 +7520,7 @@ function setEffectsShown(on) {
   if (on) {
     const all = [...effectRecords(data, streamSet), ...[...effectRoots.values()].filter(r => r.userData.source.added && !r.userData.deleted).map(r => r.userData.source)];
     const n = kind => all.filter(r => r.kind === kind).length;
-    const editable = ['effect', 'sound'].some(k => families?.families?.[k]?.builds);
+    const editable = ['effect', 'sound', 'flare'].some(k => families?.families?.[k]?.builds);
     flashHint(`Effects view: ${plural(n('effect'), 'effect')}, ${plural(n('sound'), 'sound')}, ${plural(n('flare'), 'lens flare')} · click one to ${editable ? 'select it (Ctrl adds)' : 'see what it is'} · Shift+X leaves it`);
   }
 }

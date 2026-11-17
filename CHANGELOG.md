@@ -8,6 +8,70 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Lens flares become editable (effects and sounds plan, stage FX6b, the flare part)
+
+- [compiler.py](tools/editor/compiler.py): a `flare` family (not gridded; off until its game check, EXP-71:
+  `--family flare` lifts it), `EFFECT_CLASSES['flare']` (`LensFlareSource`), and a flare's override (move, turn,
+  delete) and copy (`kind: flare`) compiled into a `flares` object of the spec and of the native edit, as a sound's
+  are (`EFFECT_LANES`, `EFFECT_WORDS`). A flare has no values object: `flare`, `effect` or `sound` on its record is
+  malformed. A copy of another map's flare goes through the library as an effect's does (`foreign_effect`;
+  `FOREIGN_FAMILIES` lists no flare until the game check, so the library marks one "family" and the compiler builds
+  it all the same). The refusal "a lens flare, which this editor version shows but doesn't change" is gone: with the
+  family off it is the family's refusal.
+- [native_flares.py](tools/bake/native_flares.py) (new): the `flares` lane on
+  [native_effects.py](tools/bake/native_effects.py) `apply` (`FLARE_CLASSES`). A LensFlareSource owns its
+  LensFlareComponent alone; the component names the flare template itself or through the archetype the actor was
+  made from. A copy is those two exports (`native_copy.clone_actor`), the template and the archetype shared; values
+  are refused. [native_copy.py](tools/bake/native_copy.py): `build(flares=)`, the lane read back
+  (`native_flares.verify`: the copy's component its own, a template to show), the manifest's `flares` section, and
+  on a cleared map a flare the project moves itself is kept as a moved effect is (the map's other flares go with
+  the clear, as before). [transplant.py](tools/bake/transplant.py): `LANES` has `flares`, and a donor's row counts
+  them (`flares`, among its `effects`). [build.py](tools/editor/build.py): `EFFECT_LANES`; a flares-only edit
+  builds with the lighting kept, and the transplant step's row carries `flares`.
+- The page ([app.js](tools/viewer/web/app.js)): where the flare family builds a flare is selected, moved, turned,
+  copied, pasted, deleted, box-selected and grouped as a sound is (`effectViewOnly` asks the family and the
+  record's `can`), saved as an override or an added record with no values
+  ([project.js](tools/viewer/web/project.js) refuses a `flare` object), and **Select all** takes the flares of its
+  template. Its panel says what it shows and offers no values. A prefab holds flares (`prefabRecords`,
+  `prefabClip`, the builder's counts; [prefabs.js](tools/viewer/web/prefabs.js) "2 lens flares"). The Build
+  window's transplant step names the lens flares brought.
+- Prefabs ([prefabs.py](tools/viewer/prefabs.py), [prefab_bounds.py](tools/viewer/prefab_bounds.py),
+  [prefab_stage.py](tools/editor/prefab_stage.py)): a piece of `kind: flare` (`{actor, kind, from, location,
+  rotation}`, never a values object), counted as `flares` in the summary, a point for the size, read from its map
+  for Test in game. Prefab schema stays 3.
+- The library ([library.py](tools/viewer/library.py), [effects_library.py](tools/viewer/effects_library.py)): the
+  base maps' lens flares are entries of `family` `flare` (recipe: class, template, colour, scale; kind "Lens
+  flare"; `flare` and `colour` on the entry), `library.effect` reads one as a template, and the index is version 10
+  (the constant had stayed 8 through stage FX4, whose notes call it 9), so every library is scanned again. The Add
+  panel's All maps has **Lens flares** in its Kind menu ([piece_categories.js](tools/viewer/web/piece_categories.js))
+  and a row with the star, the template and the colour ([library.js](tools/viewer/web/library.js)).
+- EXP-71 prepared, not played: [EXP-71-lens-flares.md](research/experiments/EXP-71-lens-flares.md),
+  [exp71_project.py](tools/editor/examples/exp71_project.py), [EXP-71-shots.json](research/experiments/EXP-71-shots.json).
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_native_effects.py](tools/bake/tests/test_native_effects.py) `FlareLanes` (URB_Bar's two flares moved,
+deleted and copied, read back with the package reader and export 28; refusals; a cleared map) and `ForeignFlares`
+(two of AlienBase01's staged in Bar and cloned, nothing cut); [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py)
+`Flares` (the gate, the lane, no values, what the export forbids, groups, another map's);
+[test_build.py](tools/editor/tests/test_build.py) (a flares-only build, staged or not);
+[test_prefabs.py](tools/viewer/tests/test_prefabs.py), [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py),
+[test_library.py](tools/viewer/tests/test_library.py), [test_effects_library.py](tools/viewer/tests/test_effects_library.py),
+[test_families.py](tools/viewer/tests/test_families.py), the node tests
+([piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs),
+[project_effects_test.mjs](tools/viewer/tests/project_effects_test.mjs)). The browser smoke
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)) has two new checks, run on URB_Bar against test servers
+with a library scanned at index 10: `flares` (with the family off: view only, Delete says why; with `--family
+flare`: the panel, a move, a delete, a copy, a prefab's records, Select all, box select, all undone) and
+`library-flares` (All maps' Lens flares, one of AlienBase01 placed, a prefab of it and one of Bar's saved and
+placed, the project saved, reopened and built without baking: 1 lens flare from AlienBase01); `effects`,
+`library-effects`, `prefabs` and `prefab_effects` again. EXP-71's project built offline into a scratch folder and
+read back (six flares listed, each at its place with its template). Known gaps: not played in the game (EXP-71),
+so the family is off and the Add panel marks other maps' flares as held; a flare has no likeness (its marker is
+its picture) and no values; the fog pod's wider carrying, the other half of FX6b, is not built; a library scanned
+before this is scanned again on first use (about half a minute), and
+[test_compiler.py](tools/editor/tests/test_compiler.py)'s test on the configured cache's library is skipped until
+it is.
+
 ### Prefabs hold effects and sounds (effects and sounds plan, stage FX6a)
 
 - [prefabs.py](tools/viewer/prefabs.py): prefab schema 3 (1 and 2 read, stored as 3). A piece with a `kind` is an

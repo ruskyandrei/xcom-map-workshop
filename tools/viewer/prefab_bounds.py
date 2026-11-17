@@ -106,7 +106,7 @@ def measure(document, library=None, *, resolved=None, recipes=None):
     for piece in document['pieces']:
         name = piece['actor']; template = piece.get('template', {})
         if template.get('kind') in ('point', 'spot') or (not template and 'kind' in piece):
-            # a light, an effect or a sound is where it stands: a sound's reach is no part of the footprint
+            # a light, an effect, a sound or a lens flare is where it stands: a sound's reach is no part of the footprint
             boxes.append((name, piece['location'] * 2))
         elif template.get('kind') == 'cover':
             recipe = COVER_RECIPES.get(template['version'])

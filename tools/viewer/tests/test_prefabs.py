@@ -84,7 +84,8 @@ class StoreTests(unittest.TestCase):
         previous = json.loads((self.root / '.workshop' / ID / 'prefab.prev.json').read_text(encoding='utf8'))
         self.assertEqual((previous['revision'], previous['name']), (1, 'Corner shop'))
         self.assertEqual(self.store.list(), [dict(id=ID, name='Corner shop 2', file='Corner shop 2.json', revision=2,
-                                                  savedAt=second['savedAt'], pieces=4, lights=1, effects=0, sounds=0, buildings=1, tiles=[8, 6],
+                                                  savedAt=second['savedAt'], pieces=4, lights=1, effects=0, sounds=0, flares=0, buildings=1,
+                                                  tiles=[8, 6],
                                                   maps=['URB_Bar', 'URB_Street'], picture=False)])
         self.assertEqual(self.store.load(ID)['pieces'], prefab()['pieces'])
         with self.assertRaises(ProjectError) as stale: self.store.save(ID, prefab(), 1)
@@ -174,7 +175,7 @@ class StoreTests(unittest.TestCase):
         size = measure(only)
         self.assertEqual((size['bounds'], size['tiles'], size['unknown']), ([96, 96, 32, 200, 300, 64], [2, 3], []))
         for path, value in (
-                (['kind'], 'flare'), (['kind'], 'weather'), (['components'], ['x']), (['partner'], None), (['sound'], dict(volume=[1, 1])),
+                (['kind'], 'flare'), (['kind'], 'weather'), (['components'], ['x']),      # (a flare with an effect's values) (['partner'], None), (['sound'], dict(volume=[1, 1])),
                 (['from', 'level'], 'stream'), (['from', 'package'], '..\\x'), (['effect'], 'big'), (['effect', 'scale'], 0),
                 (['effect', 'scale'], 'two'), (['effect', 'startsOn'], 1), (['effect', 'follow'], 'me'), (['effect', 'script'], 'x'),
                 (['effect', 'parameters'], dict(Color=1)), (['effect', 'parameters', 0, 'value'], [1, 2]),
@@ -190,6 +191,31 @@ class StoreTests(unittest.TestCase):
                               None, lambda source: None)
         self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([steam, hum], [], []))
         self.assertEqual([d['package'] for d in out['document']['donors']], ['URB_Bar', 'URB_Street'])
+
+    def test_a_lens_flare_is_a_piece_of_its_own_kind_without_values(self):
+        # effects and sounds plan, stage FX6b: a copy of a map's lens flare, in schema 3 still; never a values object
+        glare = dict(actor=PL + 'LensFlareSource_7_copy8', kind='flare', location=[48, 144, 300], rotation=[0, 8192, 0],
+                     **{'from': dict(package='URB_Bar', level='base', actor=PL + 'LensFlareSource_7')})
+        other = dict(glare, actor=PL + 'LensFlareSource_8_copy9', location=[48, 240, 300])
+        doc = prefab()
+        doc['pieces'] += [other, glare]
+        doc['groups'].append(dict(id='g-flare', members=[dict(added=glare['actor']), dict(added=other['actor'])]))
+        self.assertEqual(validate(doc, ID), [])
+        self.assertEqual(doc['schemaVersion'], 3)
+        self.store.save(ID, doc, 0)
+        self.assertEqual(self.store.load(ID)['pieces'][-1], glare)
+        row = self.store.list()[0]
+        self.assertEqual((row['pieces'], row['lights'], row['effects'], row['sounds'], row['flares']), (4, 1, 0, 0, 2))
+        from prefab_bounds import measure
+        size = measure(dict(doc, pieces=[glare], groups=[], buildings=[]))
+        self.assertEqual((size['bounds'], size['unknown']), ([48, 144, 300, 48, 144, 300], []))
+        at = ['pieces', len(doc['pieces']) - 1]
+        for path, value in ((['flare'], dict(colour=[1, 0, 0, 1])), (['flare'], {}), (['effect'], dict(scale=2)), (['sound'], dict(volume=[1, 1])),
+                            (['components'], ['x']), (['from', 'level'], 'stream'), (['template'], dict(kind='spot', version=1))):
+            with self.assertRaises(ProjectError, msg=path):
+                validate(changed(at + path, value, doc), ID)
+        out = recover_sources(dict(doc, pieces=[glare], groups=[], donors=[dict(package='URB_Bar', sha256='a' * 64)]), None, lambda source: None)
+        self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([glare], [], []))
 
     def test_schema_1_is_read_imported_as_3_and_a_stale_page_cant_save(self):
         # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds

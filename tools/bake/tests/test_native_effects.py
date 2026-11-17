@@ -2,7 +2,8 @@
 copied and deleted with its lights (Emitter_4), on the configured install's Act1_IntroLevel; and the effects' and
 sounds' lanes of the effects and sounds plan (stage FX3) on URB_Bar: moves in place, deletes off the level's list,
 copies that own what is under them, the floors' effect lists, read back; an effect and a sound of URB_PierA copied
-into URB_Bar, staged by transplant.stage_edit first (stage FX4); and values set on originals and copies (stage FX5).
+into URB_Bar, staged by transplant.stage_edit first (stage FX4); values set on originals and copies (stage FX5); and
+the lens flares' lane (stage FX6b: native_flares.py), Bar's own two and two of AlienBase01's.
 Each skipped without its maps."""
 from pathlib import Path
 import sys
@@ -434,6 +435,189 @@ class ForeignLanes(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             native_effects.lane_actor(q, 'Emitter_2', ('Emitter',), listed, 'an effect', staged=True)
         self.assertIn('staged from another map', str(caught.exception))
+
+
+# ---------------------------------------------------------------- lens flares (plan Part D, stage FX6b)
+BASE, NO_BASE = labpaths.install_map('AlienBase01')
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class FlareLanes(unittest.TestCase):
+    """One build of Bar with the flares' lane: its two lens flares (made from an archetype, which names their
+    template) moved, deleted and copied, read back; and what a cleared map keeps of them."""
+    FLARES = dict(
+        moves=[dict(name='LensFlareSource_7', location=[900.0, -220.0, 300.0], rotation=[0, 8192, 0])],
+        deletes=[dict(name='LensFlareSource_8')],
+        copies=[dict(id='a', name='LensFlareSource_7_copy1', source='LensFlareSource_7', location=[0.0, 640.0, 200.0],
+                     rotation=[0, 0, 0]),
+                dict(id='b', name='LensFlareSource_8_copy2', source='LensFlareSource_8', location=[96.0, 640.0, 200.0],
+                     rotation=[0, 16384, 0])])
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(BAR)
+        out = Path(cls.tmp.name) / 'Flares'
+        cls.m = native_copy.build(BAR, out, 'Flares', [], flares=cls.FLARES)
+        cls.q = Package(out / 'Flares.upk')
+        cls.section = cls.m['nativeCopies']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_a_flare_is_an_actor_and_its_component(self):
+        p, i = self.p, self.p.by_name[PL + 'LensFlareSource_7']
+        tree = native_copy.subtree(p, i)
+        self.assertEqual(sorted(p.cls(j) for j in tree), ['LensFlareComponent', 'LensFlareSource'])
+        self.assertEqual(p.cls(p.effective(p.own(i, 'LensFlareComp'), 'Template')), 'LensFlare')
+
+    def test_the_move_is_in_place(self):
+        q, m = self.q, self.FLARES['moves'][0]
+        i = q.by_name[PL + m['name']]
+        self.assertEqual(i, self.p.by_name[PL + m['name']])
+        self.assertIn(i, native_copy.level_actors(q))
+        self.assertEqual(([round(v, 3) for v in q.own(i, 'Location')], list(q.own(i, 'Rotation', [0, 0, 0]))),
+                         (m['location'], m['rotation']))
+
+    def test_the_delete_leaves_the_list_and_keeps_the_export(self):
+        self.assertIn(PL + 'LensFlareSource_8', self.q.by_name)
+        self.assertNotIn(self.q.by_name[PL + 'LensFlareSource_8'], native_copy.level_actors(self.q))
+
+    def test_a_copy_has_a_component_of_its_own_and_shares_the_template(self):
+        q, listed = self.q, set(native_copy.level_actors(self.q))
+        rows = {r['actor']: r for r in self.section['flares'] if r['how'] == 'copied'}
+        self.assertEqual(sorted(rows), ['LensFlareSource_7_copy1', 'LensFlareSource_8_copy2'])
+        components = set()
+        for name, r in rows.items():
+            i = q.by_name[PL + r['copy']]
+            source = self.p.by_name[PL + r['source']]
+            self.assertIn(i, listed)
+            self.assertEqual(q.cls(i), 'LensFlareSource')
+            self.assertEqual(len(r['exports']), 2)                  # the actor and its component, nothing else
+            component = q.own(i, 'LensFlareComp')
+            self.assertTrue(q.name(component).startswith(q.name(i) + '.'), q.name(component))
+            self.assertNotEqual(component, self.p.own(source, 'LensFlareComp'))
+            components.add(component)
+            # the template (its archetype's) and the colour as the source has them
+            theirs = self.p.own(source, 'LensFlareComp')
+            self.assertEqual(q.name(q.effective(component, 'Template')), self.p.name(self.p.effective(theirs, 'Template')))
+            self.assertEqual(q.own(component, 'SourceColor'), self.p.own(theirs, 'SourceColor'))
+            self.assertEqual(q.exports[i - 1]['arch'], self.p.exports[source - 1]['arch'])
+            self.assertEqual([round(v, 3) for v in q.own(i, 'Location')], r['location'])
+        self.assertEqual(len(components), 2)
+        self.assertEqual(list(q.own(q.by_name[PL + rows['LensFlareSource_8_copy2']['copy']], 'Rotation')), [0, 16384, 0])
+
+    def test_the_sources_are_untouched_but_for_the_move(self):
+        for name in ('LensFlareSource_8', 'LensFlareSource_7.LensFlareComponent_7'):
+            i = self.p.by_name[PL + name]
+            e, f = self.p.exports[i - 1], self.q.exports[self.q.by_name[PL + name] - 1]
+            self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(self.q.data[f['off']:f['off'] + f['size']]))
+
+    def test_export_28_reads_them(self):
+        import effects_metadata
+        import piece_flags
+        scripts = piece_flags.ScriptDefaults.of(Path(BAR).parent)
+        read = effects_metadata.describe(self.q, defaults=effects_metadata.Defaults(self.q, scripts))
+        by = {r['actor'].rsplit('.', 1)[-1]: r for r in read['flares']}
+        copies = {r['actor']: r['copy'] for r in self.section['flares'] if r['how'] == 'copied'}
+        self.assertEqual(by['LensFlareSource_7']['location'], [900.0, -220.0, 300.0])
+        self.assertFalse(by['LensFlareSource_8']['listed'])
+        for name in copies.values():
+            r = by[name]
+            self.assertTrue(r['listed'])
+            self.assertEqual((r['template'], r['colour'], r['can']['copy']),
+                             ('FX_Lens_Flares.LF_XCom_Base_C', by['LensFlareSource_7']['colour'], True))
+
+    def test_lane_refusals(self):
+        out = Path(self.tmp.name) / 'Refused'
+        at = dict(location=[0, 0, 0], rotation=[0, 0, 0])
+        for flares, words in ((dict(moves=[dict(name='Emitter_2', **at)]), 'not a lens flare'),
+                              (dict(deletes=[dict(name='LensFlareSource_99')]), 'no actor LensFlareSource_99'),
+                              (dict(copies=[dict(id='x', name='x', source='LensFlareSource_7', values=dict(scale=2.0), **at)]),
+                               'no values to set'),
+                              (dict(values=[dict(name='LensFlareSource_7', flare=dict(colour=[1, 0, 0, 1]))]),
+                               'no values to set')):
+            with self.assertRaises(ValueError, msg=words) as caught:
+                native_copy.build(BAR, out, 'Refused', [], flares=flares)
+            self.assertIn(words, str(caught.exception))
+
+    def test_a_cleared_map_keeps_the_moved_one_and_the_copies(self):
+        out = Path(self.tmp.name) / 'Cleared'
+        flares = dict(moves=self.FLARES['moves'], copies=self.FLARES['copies'][:1])
+        m = native_copy.build(BAR, out, 'Cleared', [], flares=flares, cleared=dict(grid=[52, 39, 12]))
+        q = Package(out / 'Cleared.upk')
+        listed = set(native_copy.level_actors(q))
+        self.assertIn(q.by_name[PL + 'LensFlareSource_7'], listed)             # moved by the project: kept
+        self.assertNotIn(q.by_name[PL + 'LensFlareSource_8'], listed)          # the map's own: out with the clear
+        copy, = [r['copy'] for r in m['nativeCopies']['flares'] if r['how'] == 'copied']
+        self.assertIn(q.by_name[PL + copy], listed)
+
+
+@unittest.skipUnless(BAR and BAR.exists() and BASE and BASE.exists(), NO_BAR or NO_BASE)
+class ForeignFlares(unittest.TestCase):
+    """A lens flare of another map: AlienBase01's hyperwave beacon glare (LensFlareSource_0, which saves its template
+    itself) and an alien ambient glow (LensFlareSource_1), neither of which URB_Bar has, staged in Bar by
+    transplant.stage_edit and cloned by the flares' lane; two copies of the one staged actor."""
+    BEACON, GLOW = 'LensFlareSource_0', 'LensFlareSource_1'
+
+    @classmethod
+    def setUpClass(cls):
+        import transplant
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        donor = dict(package='AlienBase01', sha256=transplant.sha256(BASE))
+        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])
+        cls.edit = dict(copies=[], flares=dict(moves=[], deletes=[], copies=[
+            dict(id='a', name='LensFlareSource_0_copy1', source=cls.BEACON, actorClass='LensFlareSource', donor=donor, **at(0.0, 640.0, 200.0)),
+            dict(id='b', name='LensFlareSource_0_copy2', source=cls.BEACON, actorClass='LensFlareSource', donor=donor, **at(96.0, 640.0, 200.0)),
+            dict(id='c', name='LensFlareSource_1_copy3', source=cls.GLOW, actorClass='LensFlareSource', donor=donor, **at(192.0, 640.0, 200.0))]))
+        cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, out / 'transplant', cls.edit)
+        cls.m = native_copy.build(cls.staged, out / 'build', 'ForeignFlares', cls.new_edit['copies'],
+                                  flares=cls.new_edit['flares'])
+        cls.q = Package(out / 'build' / 'ForeignFlares.upk')
+        cls.base = Package(BASE)
+        cls.section = cls.m['nativeCopies']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_is_staged_once_and_nothing_is_cut(self):
+        row, = self.report['donors']
+        self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('AlienBase01', 0, 2, []))
+        beacon, again, glow = self.new_edit['flares']['copies']
+        self.assertEqual((beacon['source'], again['source'], glow['source']),
+                         (row['staged'][self.BEACON], row['staged'][self.BEACON], row['staged'][self.GLOW]))
+        self.assertTrue(beacon['staged'] and again['staged'] and glow['staged'])
+
+    def test_the_clones_are_listed_with_their_templates_and_the_staged_actors_not(self):
+        q, listed = self.q, set(native_copy.level_actors(self.q))
+        for c in self.new_edit['flares']['copies']:
+            self.assertNotIn(q.by_name[PL + c['source']], listed)
+        rows = {r['actor']: r for r in self.section['flares']}
+        self.assertEqual(sorted(rows), ['LensFlareSource_0_copy1', 'LensFlareSource_0_copy2', 'LensFlareSource_1_copy3'])
+        for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_0_copy2', self.BEACON),
+                             ('LensFlareSource_1_copy3', self.GLOW)):
+            i = q.by_name[PL + rows[name]['copy']]
+            self.assertIn(i, listed)
+            component = q.own(i, 'LensFlareComp')
+            self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
+            theirs = self.base.own(self.base.by_name[PL + source], 'LensFlareComp')
+            template = q.own(component, 'Template')
+            self.assertEqual(q.name(template), self.base.name(self.base.own(theirs, 'Template')))
+            self.assertEqual(q.cls(template), 'LensFlare')
+            self.assertEqual(q.own(component, 'SourceColor'), self.base.own(theirs, 'SourceColor'))
+
+    def test_export_28_reads_them_as_the_donor_has_them(self):
+        import effects_metadata
+        mine = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(self.q)['flares']}
+        home = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(self.base)['flares']}
+        rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in self.section['flares']}
+        for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_1_copy3', self.GLOW)):
+            r, h = mine[rows[name]], home[source]
+            self.assertTrue(r['listed'])
+            self.assertEqual((r['template'], r['colour'], r['can']), (h['template'], h['colour'], h['can']))
 
 
 if __name__ == '__main__':

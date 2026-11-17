@@ -466,17 +466,23 @@ on the rail button hides a kind; F or a double-click brings the camera to the pi
 
 **Editing** (stage FX3; project schema 3). Where an effect's family builds, a picked effect or sound moves and turns
 with the gizmo, copies (Ctrl+C, Ctrl+V), deletes, resets and groups with pieces (Ctrl+G) as a piece does, each one
-undo step; a lens flare, a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why. An
+undo step; a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why. A **lens flare**
+is edited the same way where the `flare` family builds (stage FX6b; the family is off until its game check, EXP-71:
+`serve --family flare` and `build.py --family flare` lift it, and until then a flare is view only): moved, turned,
+copied, deleted, box-selected and grouped, with no values (its template and colour stay as the map has them); one
+that rides on another actor (a dropship's) stays view only, and one that names no template is not copied. An
 effect a piece carries follows it until it is moved by itself; its panel's **Keep where it is** leaves it where the
 map has it (`effect.follow: "none"` in its override) and **Follow** lets it follow again. The Normal button's flyout
 has **Effects and sounds**: their markers drawn with the pieces and selected with them, so pieces and effects move,
 copy and group as one selection. **Box select** (T) takes the effects and sounds inside the box with the pieces
 while that switch is on, and counts them in its bar; in the Effects view it takes markers only and the view stays. A
 picked effect's or sound's panel has **Select all**: every drawn effect of the same particle system, every sound of
-the same waves, inside the box where one is drawn. A project records an effect's or a sound's pose or delete as an override of its
+the same waves (every lens flare of the same template, where flares are edited), inside the box where one is drawn. A project records an effect's or a sound's pose or delete as an override of its
 actor, a copy as an added record with `kind` and the original it copies ([project.js](web/project.js)
-`validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects` and `sounds`
-lanes, which [native_effects.py](../bake/native_effects.py) and [native_sounds.py](../bake/native_sounds.py) write:
+`validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects`, `sounds` and
+`flares` lanes, which [native_effects.py](../bake/native_effects.py), [native_sounds.py](../bake/native_sounds.py) and
+[native_flares.py](../bake/native_flares.py) write (a flare's copy is its actor and a LensFlareComponent of its own;
+the flare template, and the archetype some are made from, stay shared):
 moves in place, deletes out of the level's list, copies as actors of their own, then the buildings' floors list the
 effects anew (contract section 8). The effect and sound families build for every project since EXP-68 passed
 (17 November 2026); a family held back again (its `builds` off in the compiler's FAMILIES) shows view only, unless the
@@ -491,7 +497,10 @@ Water, Light beams and glows, Nature, Alien, Wreckage and trash; Machines, Engin
 and voices; Other where no rule matches). A row shows the Effects view's marker, what it plays (its emitters' kinds and
 whether it is lit; a sound's length and a shared cue), where it is placed, and **Starts off** for one that waits for its
 map's script. A landing's, one that rides on another and one that plays nothing are listed and can't be placed
-(**Not brought**, with why). Placing one reads it from its map (`GET /library/effect.json?package=&actor=`: its export
+(**Not brought**, with why). The base maps' **lens flares** are listed too since stage FX6b (library index 10, so a
+library scanned before is scanned again): the Kind menu's **Lens flares**, one entry per template, colour and scale,
+a row with the view's star, its template and its colour; one is placed where the flare family builds, as a sound
+is. Placing one reads it from its map (`GET /library/effect.json?package=&actor=`: its export
 28 record and its particle system or waves, described once per map into `effects-v1.json` in the map's pieces folder;
 `POST /library/effects.json {sources}` many at once, as a project's opening asks) and places a copy as Ctrl+V places a
 copy of the map's own; the project saves it as an added record whose `from` names the other map. Its panel's Wave
@@ -513,7 +522,7 @@ each least and most. The sizes are dragged in the view, as a light's radius is: 
 its marker (1/64 to 64 times the map's size, on a log scale; its box follows) and a sound's two handles on its
 spheres (where it is heard at full volume, where it fades out). Each change is one undo step, ↺ and Reset put one
 back, Reset piece and Reset all put them all back, and a copy takes the values of what it copies. A shared cue's
-sound and a lens flare show their values read only. The project saves them in the override's or copy's `effect` or
+sound shows its values read only, and a lens flare has none to set. The project saves them in the override's or copy's `effect` or
 `sound` ([effects_rules.js](web/effects_rules.js) `parameterControls`, `withValues`, `savedValues`; contract
 section 4), and the Build writes them on the actor's own exports ([native_effects.py](../bake/native_effects.py)
 `set_values`).
@@ -1376,8 +1385,10 @@ values set on it and its place in the prefab's groups; a sound's reach is no par
 piece carries is not listed: the piece's copy brings it. Placing the prefab places them as the Add panel places an
 effect of another map (read from their home map, built by the same path), with the effect's likeness under the
 cursor; their values are placed where the value families build and kept in the file either way. The builder shows
-them (its Effects view, Shift+X, and the likeness), and Test in game plays them. A lens flare is left out with a
-sentence.
+them (its Effects view, Shift+X, and the likeness), and Test in game plays them. A **lens flare** is held the same
+way where the flare family builds (stage FX6b; prefab schema 3 still): a piece of `kind: flare`, a copy of its
+original with no values, counted as a lens flare in the prefab's line; where the family doesn't build it can't be
+selected, so it isn't saved, and a prefab that holds one places it only where the family builds.
 
 Acceptance uses scratch stores on a test port; stop the server afterwards:
 

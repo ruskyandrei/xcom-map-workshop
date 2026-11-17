@@ -3437,6 +3437,215 @@ def check_effects_box(page):
     page.evaluate('id => viewer.select(id)', held)
 
 
+def check_flares(page):
+    """Lens flares edited (effects and sounds plan, stage FX6b), on a map with a free one, in the Effects view. With
+    the flare family held back (the server's default until its game check) a picked flare is view only and Delete says
+    why. With it built (serve --family flare): its panel says what it is and offers no values; a move and Delete are
+    undo steps and its override has a pose and nothing else; a copy pastes as a copy of the flare, saved with its kind
+    and no values; box select takes it and counts it; Select all of a kind takes the flares of its template; a prefab
+    of it holds a flare piece. Everything is undone at the end."""
+    if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return
+    flare = page.evaluate("""(() => { const all = [...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'flare' && !o.stream
+        && o.layer === 'base' && o.template && o.can?.move && o.can?.delete && o.can?.copy);
+      return all.length ? { id: all[0].id, actor: all[0].actor, template: all[0].template, same: all.filter(o => o.template === all[0].template).length } : null; })()""")
+    if not flare: return
+    held = page.evaluate('viewer.gizmo.active')
+    before = page.evaluate('viewer.projectState()')
+    blur = lambda: page.evaluate('document.activeElement?.blur()')
+    state = lambda id: page.evaluate('id => { viewer.effectMarkers(); return viewer.effectState(id); }', id)
+    drag = lambda dx: page.evaluate("""dx => { const c = viewer.gizmo.controls, p = c.object; c.dispatchEvent({type: 'mouseDown'});
+        p.position.x += dx; p.updateMatrixWorld(true); c.dispatchEvent({type: 'objectChange'}); c.dispatchEvent({type: 'mouseUp'}); }""", dx)
+    snap = page.evaluate('viewer.gizmo.snap')
+    page.evaluate("viewer.gizmo.setSnap('off')")
+    fx = flare['id']
+    page.evaluate('viewer.select(null); viewer.setNormalEffects(false); viewer.setEffectsShown(true)')
+    page.evaluate('id => viewer.pickEffect(id)', fx)
+    assert page.evaluate('viewer.pickedEffect()') == fx
+    assert page.locator('#effectTitle').text_content() == 'Lens flare: ' + flare['template'].split('.')[-1]
+    assert 'Shows ' + flare['template'] in page.locator('#effectInfo').inner_text()
+    assert page.locator('#effectValues').is_hidden() and page.locator('#effectWaves').is_hidden()
+    blur()
+    done = lambda: (page.evaluate('s => { viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false); viewer.gizmo.setSnap(s); }', snap),
+                    page.evaluate('id => viewer.select(id)', held))
+    if state(fx)['viewOnly']:
+        assert not page.evaluate('viewer.families().families.flare.builds')
+        page.keyboard.press('Delete')
+        assert not state(fx)['deleted'] and 'lens flares are shown, not changed' in page.locator('#dragHint').inner_text()
+        assert 'The gizmo' not in page.locator('#effectInfo').inner_text()
+        done(); return
+    assert page.evaluate('viewer.families().families.flare.builds')
+    assert 'The gizmo moves and turns it, Ctrl+C and Ctrl+V copy it, Delete deletes it' in page.locator('#effectInfo').inner_text()
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    # a move: an override with a pose and nothing else; undone
+    start = state(fx)['at']
+    drag(96)
+    moved = state(fx)
+    assert moved['moved'] and abs(moved['at'][0] - start[0] - 96) < 0.01, (start, moved)
+    override, = page.evaluate('a => viewer.editState().overrides.filter(o => o.target.actor === a)', flare['actor'])
+    assert sorted(override) == ['location', 'rotation', 'target'], override
+    assert page.locator('#effectInfo').inner_text().startswith('Moved')
+    blur(); page.keyboard.press('Control+z')
+    assert not state(fx)['moved'] and state(fx)['at'] == start
+    # Delete, undone
+    page.evaluate('id => viewer.pickEffect(id)', fx); blur()
+    page.keyboard.press('Delete')
+    assert state(fx)['deleted'] and not state(fx)['visible']
+    assert page.evaluate('a => viewer.editState().overrides.find(o => o.target.actor === a)', flare['actor']) == dict(
+        target=dict(package=page.evaluate('viewer.data.name'), level='base', actor=flare['actor']), deleted=True)
+    page.keyboard.press('Control+z')
+    assert not state(fx)['deleted'] and state(fx)['visible']
+    # a copy pasted: a copy of the flare, said and saved as one, with no values
+    base = page.evaluate('viewer.effectRoots.size')
+    page.evaluate('id => viewer.pickEffect(id)', fx); blur()
+    box = page.locator('#viewport > canvas').bounding_box()
+    cx, cy = box['x'] + box['width'] * 0.45, box['y'] + box['height'] * 0.55
+    page.keyboard.press('Control+c')
+    assert 'Copied 1 lens flare' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
+    page.mouse.move(cx, cy); page.keyboard.press('Control+v')
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(cx, cy)
+    page.wait_for_function('n => viewer.effectRoots.size > n', arg=base)
+    copy = page.evaluate('viewer.gizmo.active')
+    assert copy.startswith('effect-added:') and state(copy)['added'] and state(copy)['kind'] == 'flare', copy
+    added, = page.evaluate('viewer.editState().added')
+    assert sorted(added) == ['actor', 'from', 'id', 'kind', 'location', 'rotation'] and added['kind'] == 'flare', added
+    assert added['from']['actor'] == flare['actor'] and added['actor'].startswith(flare['actor'] + '_copy')
+    assert page.locator('#effectTitle').text_content().startswith('Lens flare: ')
+    assert page.locator('#effectInfo').inner_text().startswith('A copy of ' + flare['actor'].split('.')[-1])
+    assert page.locator('#effectValues').is_hidden()
+    # a prefab of the copy and its original holds two flare pieces, each where it stands
+    page.evaluate('([a, b]) => { viewer.pickEffect(a); viewer.pickEffect(b, true); }', [fx, copy])
+    records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { pieces: r.pieces, left: r.left, counts: r.counts, donors: r.donors }; })()")
+    assert records['left'] == [] and (records['counts']['flares'], records['counts']['pieces'], records['counts']['effects']) == (2, 0, 0), records
+    assert all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' and p['from']['actor'] == flare['actor']
+               for p in records['pieces']), records['pieces']
+    # Select all of a kind: the flares of its template (the copy among them)
+    page.evaluate('id => { viewer.select(null); viewer.pickEffect(id); }', fx)
+    button = page.locator('#effectKind')
+    assert button.is_visible() and f"({flare['same'] + 1})" in button.inner_text() and flare['template'].split('.')[-1] in button.inner_text(), button.inner_text()
+    button.click()
+    assert len(page.evaluate('viewer.gizmo.picks().ids')) == flare['same'] + 1
+    assert 'lens flare' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
+    # box select takes it and counts it
+    page.evaluate('viewer.select(null)')
+    at = state(fx)['at']
+    page.evaluate('box => viewer.setPickBox(box)', [at[0] - 6, at[1] - 6, at[2] - 6, at[0] + 6, at[1] + 6, at[2] + 6])
+    assert fx in page.evaluate('viewer.pickHits()')
+    assert re.search(r'\d+ lens flares?\b', page.locator('#boxBarText').inner_text()), page.locator('#boxBarText').inner_text()
+    page.locator('#boxCancel').click()
+    page.evaluate('id => viewer.pickEffect(id)', copy)
+    blur(); page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.effectRoots.size') == base
+    done()
+    assert page.evaluate('viewer.gizmo.undoDepth()') == depth and page.evaluate('viewer.projectState()') == before
+
+
+def check_library_flares(browser, url):
+    """Lens flares of other maps and in a prefab (effects and sounds plan, stage FX6b), on URB_Bar against a test
+    server started with --family flare, --projects and --builds scratch folders, its cache's library scanned at index
+    10: All maps lists them under Lens flares, each row with the view's star and its template; one of another map
+    (a hyperwave beacon's glare) is placed, its panel naming its map; it and one of Bar's own are saved as a prefab
+    (two flare pieces, two donors), which is placed; the project is saved, reopened and built without baking, the
+    step naming the lens flare brought."""
+    errors = []
+    page = open_viewer(browser, url, errors, expected=(409, 422))
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"
+                         " && Boolean(viewer.families()?.families?.flare?.builds)"):
+        page.close(); return
+    page.evaluate("localStorage.removeItem('workshop.libraryView')")
+    page.keyboard.press('p')
+    choose(page, 'libScope', 'all')
+    page.wait_for_function('viewer.library.ready()', timeout=60000)
+    if not page.evaluate("viewer.library.entries().some(e => e.effect === 'flare')"):
+        page.close(); return
+    page.locator('#libAllPlaceable').uncheck()
+    page.locator('#libAllKind').select_option('flares')
+    shown = page.evaluate("viewer.library.shown().map(e => ({ effect: e.effect, kind: e.kind, blocked: e.blocked, name: e.name }))")
+    assert len(shown) > 10 and all(e['effect'] == 'flare' and e['kind'] == 'flare:Lens flare' for e in shown), shown[:3]
+    assert re.match(r'Lens flares \(\d+\)', page.locator('#libAllKind option:checked').inner_text())
+    # one that rides on another actor is listed and can't be placed
+    assert any(e['blocked'] == 'unavailable' for e in shown)
+    page.locator('#libAllFilter').fill('LF_Hyperwave_Beacon')
+    key = page.evaluate("viewer.library.shown().find(e => e.effect === 'flare' && e.source.package !== 'URB_Bar')?.key")
+    assert key
+    entry = page.evaluate('k => viewer.library.entry(k)', key)
+    row = page.locator(f'#libAllList .libitem[data-key="{key}"]')
+    row.wait_for()
+    page.wait_for_function("k => document.querySelector(`#libAllList .libitem[data-key=\"${k}\"] canvas`)?.dataset.drawn", arg=key)
+    assert 'Lens flare · FX_Lens_Flares' in row.inner_text() and 'Flare template: FX_Lens_Flares.LF_Hyperwave_Beacon' in row.get_attribute('title'), row.inner_text()
+    count = page.evaluate('viewer.effectRoots.size')
+    row.click()
+    page.wait_for_function('viewer.placing()', timeout=60000)
+    box = page.locator('#viewport > canvas').bounding_box()
+    x, y = box['x'] + box['width'] * 0.45, box['y'] + box['height'] * 0.5
+    page.mouse.move(x, y)
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(x, y)
+    page.wait_for_function("document.querySelector('#dragHint').textContent.startsWith('Placed')")
+    assert page.evaluate('viewer.effectRoots.size') == count + 1 and page.evaluate('viewer.effectsOn()')
+    added, = page.evaluate('viewer.editState().added')
+    assert (added['kind'], added['from']['package']) == ('flare', entry['source']['package']) and 'flare' not in added and 'components' not in added, added
+    page.keyboard.press('p')
+    foreign = page.evaluate("[...viewer.effectRoots.values()].find(r => r.userData.source.added).userData.source.id")
+    page.evaluate('id => viewer.pickEffect(id)', foreign)
+    info = page.locator('#effectPanel').inner_text()
+    assert f"of {entry['source']['package']}" in info and 'with the flare template it needs' in info, info
+    # it and one of Bar's own as a prefab: two flare pieces, two donors
+    own = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).find(o => o.kind === 'flare' && !o.added && !o.stream && o.can?.copy).id")
+    page.evaluate('([a, b]) => { viewer.pickEffect(a); viewer.pickEffect(b, true); }', [foreign, own])
+    records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { pieces: r.pieces, left: r.left, counts: r.counts, donors: r.donors }; })()")
+    assert records['left'] == [] and records['counts']['flares'] == 2 and records['counts']['pieces'] == 0, records
+    assert sorted(d['package'] for d in records['donors']) == sorted(['URB_Bar', entry['source']['package']])
+    saved = page.evaluate("viewer.savePrefab('Smoke flares').then(s => ({ id: s.id, revision: s.revision }))")
+    listed = page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs']
+    prefab, = [p for p in listed if p['id'] == saved['id']]
+    assert (prefab['pieces'], prefab['effects'], prefab['sounds'], prefab['flares']) == (0, 0, 0, 2), prefab
+    doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
+    assert doc['schemaVersion'] == 3 and all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' for p in doc['pieces']), doc['pieces']
+    page.keyboard.press('p')
+    choose(page, 'libScope', 'prefabs')
+    page.wait_for_selector('#prefabList .libitem')
+    item = page.locator('#prefabList .libitem', has_text='Smoke flares')
+    assert '2 lens flares' in item.inner_text(), item.inner_text()
+    fxs = page.evaluate('viewer.effectRoots.size')
+    item.click()
+    page.wait_for_function('viewer.placing()?.fromList', timeout=180000)
+    px, py = box['x'] + box['width'] * 0.6, box['y'] + box['height'] * 0.6
+    page.mouse.move(px, py)
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(px, py)
+    page.wait_for_function('n => viewer.effectRoots.size === n + 2', arg=fxs)
+    added = page.evaluate('viewer.editState().added')
+    assert [a['kind'] for a in added] == ['flare'] * 3 and sorted({a['from']['package'] for a in added}) == sorted(['URB_Bar', entry['source']['package']]), added
+    page.keyboard.press('p')
+    page.evaluate('viewer.pickEffect(null)')
+    state = page.evaluate('viewer.projectState()')
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
+    type_project_name(page, 'Library flares smoke')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    project = page.evaluate('viewer.project().id')
+    page.reload(); page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.project()", timeout=120000)
+    assert page.evaluate('viewer.projectState()') == state and not any(page.evaluate('viewer.project().carried').values())
+    assert page.evaluate("[...viewer.effectRoots.values()].filter(r => r.userData.source.added && r.userData.source.kind === 'flare').length") == 3
+    page.keyboard.press('Control+b')
+    page.wait_for_selector('#buildOptions:not([hidden])')
+    page.locator('#buildOptionsOk').click()
+    page.locator('#buildModal').wait_for(state='visible')
+    page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=600000)
+    assert page.locator('#buildTitle').inner_text().startswith('Built Library flares smoke'), page.locator('#buildModal').inner_text()
+    steps = page.locator('#buildSteps').inner_text()
+    assert f"1 lens flare from {entry['source']['package']}" in steps, steps
+    build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
+    donor, = build['package']['donors']
+    assert build['state'] == 'built' and donor['map'] == entry['source']['package'] and donor['effects'] == 1, build['package']
+    page.locator('#buildClose').click()
+    page.evaluate('id => viewer.prefabApi.remove(id)', saved['id'])
+    assert not errors, errors
+    page.close()
+
+
 def check_likeness(page):
     """The likeness (effects and sounds plan, FXV2; export 29): every effect the map has and the page can draw is
     drawn in the normal view, with no marker shown, stepped while it is in the picture; the picture round a framed
@@ -4210,7 +4419,7 @@ def check_prefabs(browser, url):
     page.evaluate("([ids, volume]) => { for (const id of [ids.light, ids.point]) if (id) viewer.select(id, true); viewer.select(volume, true); }", [ids, volumes[0]])
     records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { tiles: r.tiles, pieces: r.pieces, groups: r.groups, buildings: r.buildings, donors: r.donors, left: r.left, counts: r.counts }; })()")
     lights = sum(1 for k in ('light', 'point') if ids[k])
-    assert records['counts'] == dict(pieces=ids['cars'] + 1, lights=lights, effects=0, sounds=0, buildings=1, tiles=records['tiles']), records['counts']
+    assert records['counts'] == dict(pieces=ids['cars'] + 1, lights=lights, effects=0, sounds=0, flares=0, buildings=1, tiles=records['tiles']), records['counts']
     assert records['left'] == [] and [d['package'] for d in records['donors']] == [here] and len(records['donors'][0]['sha256']) == 64
     # in a space of its own: whole tiles from the origin, a tile corner at the building's ground; the floors as they were
     (low,), (high,) = (f['boxes'] for f in records['buildings'][0]['floors'])
@@ -4618,7 +4827,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects, likeness), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects, flares, library-flares, likeness), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -4646,6 +4855,8 @@ def main():
             if 'floor-tiles' in only: check_floor_tiles(page, is_bar)
             if 'lights' in only: check_lights(page, is_bar)
             if 'effects' in only: check_effects_view(page); check_effects_editing(page); check_effects_box(page)
+            if 'flares' in only: check_flares(page)
+            if 'library-flares' in only: check_library_flares(browser, page.url)
             if 'likeness' in only: print(json.dumps(dict(likeness=check_likeness(page))))
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
@@ -4811,6 +5022,7 @@ def main():
         check_effects_view(page)
         check_effects_editing(page)
         check_effects_box(page)
+        check_flares(page)
         check_likeness(page)
         check_project_menu(page)
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)

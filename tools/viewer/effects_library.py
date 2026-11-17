@@ -15,6 +15,10 @@ mission's own and are not scanned: the donors are the base maps.
 
 Kinds come from the system's or the wave's name (KINDS): for the panel's filter only, never to hide an entry (an
 effect matching no rule is Other).
+
+Lens flares (LensFlareSource actors) are listed the same way since stage FX6b: a flare's recipe is its class, its
+flare template, its colour and its scale, its name its template's, and all of them are one kind (FLARE_KIND). One
+that names no template, or rides on another actor, is not offered.
 """
 import hashlib
 import json
@@ -42,10 +46,14 @@ SOUND_KINDS = (
                  r'laundromat|fog'),
 )
 OTHER = 'Other'
+FLARE_KIND = 'Lens flare'       # every lens flare's kind: the panel has one filter for them
 
 
 def kind_of(kind, path):
-    """The panel's kind of an effect (its system's path) or a sound (its first wave's path, or its cue's)."""
+    """The panel's kind of an effect (its system's path) or a sound (its first wave's path, or its cue's); a lens
+    flare's is FLARE_KIND whatever its template."""
+    if kind == 'flare':
+        return FLARE_KIND
     text = (path or '').casefold().replace('.', '_')
     for label, pattern in EFFECT_KINDS if kind == 'effect' else SOUND_KINDS:
         if re.search(pattern, text):
@@ -64,6 +72,11 @@ def recipe(record):
         return dict(v=RECIPE_VERSION, kind='effect', actorClass=record['actorClass'], system=record.get('template'),
                     parameters=record.get('parameters') or [], scale=[round(float(v), 4) for v in record['scale']],
                     componentPose=record.get('componentPose'), startsOn=record.get('startsOn'))
+    if record['kind'] == 'flare':
+        colour = record.get('colour')
+        return dict(v=RECIPE_VERSION, kind='flare', actorClass=record['actorClass'], template=record.get('template'),
+                    colour=[round(float(v), 4) for v in colour] if colour else None,
+                    scale=[round(float(v), 4) for v in record.get('scale') or [1.0, 1.0, 1.0]])
     cue = record.get('cue') or {}
     return dict(v=RECIPE_VERSION, kind='sound', actorClass=record['actorClass'],
                 cue=None if cue.get('private') else cue.get('path'), nodes=record.get('nodes'),
@@ -91,8 +104,8 @@ def blocked(record):
 
 def name_of(record, systems=None):
     """What the panel calls it: the system's short name (Steam_Small), the first wave's (CarPickupIdle), else the
-    cue's or the actor's."""
-    if record['kind'] == 'effect':
+    cue's or the actor's; a lens flare's template's (LF_Alien_Ambient_A)."""
+    if record['kind'] in ('effect', 'flare'):
         return short(record.get('template')) or short(record['actor'])
     waves = record.get('waves') or []
     if waves:
@@ -102,7 +115,7 @@ def name_of(record, systems=None):
 
 def kind_path(record):
     """The path a record's kind is read from."""
-    if record['kind'] == 'effect':
+    if record['kind'] in ('effect', 'flare'):
         return record.get('template')
     waves = record.get('waves') or []
     return waves[0].split('|', 1)[1] if waves else (record.get('cue') or {}).get('path')

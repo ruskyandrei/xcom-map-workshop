@@ -20,7 +20,7 @@ rule picks every Skyranger's idle lights, URB_Bar's claw machine lights and DEMO
 
 Since the effects and sounds plan's stage FX3 the editor edits effects as records of their own (the Effects view):
 the native edit's `effects` lane ({moves, deletes, copies}: apply), which native_sounds.py runs for the ambient
-sounds too. A carried effect stays the piece's until the project gives it a record: the compiler leaves those out of
+sounds too and native_flares.py for the lens flares (stage FX6b). A carried effect stays the piece's until the project gives it a record: the compiler leaves those out of
 `carriedEffects`. Then:
 - a move: the actor posed in place (its Location and Rotation set), keeping its export and everything that names it;
 - a delete: the actor's slot in the level's list emptied (native_copy.empty_slots), its export left as it is, so what
@@ -53,6 +53,7 @@ import native_copy
 PL = 'TheWorld.PersistentLevel.'
 EFFECT_CLASSES = ('Emitter',)
 SOUND_CLASSES = ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable')
+FLARE_CLASSES = ('LensFlareSource',)
 SLACK = 2.0         # buildings.SLACK: how far outside a floor's box a new effect may stand and be listed by it
 
 
@@ -297,7 +298,8 @@ def set_values(g, p, source, kind, values, mapping=None):
                                          for x in values['parameters']]
         return written
     if kind != 'sound':
-        raise ValueError("values are an effect's or a sound's, not a %s's" % kind)
+        raise ValueError("values are an effect's or a sound's: a lens flare has none to set" if kind == 'flare'
+                         else "values are an effect's or a sound's, not a %s's" % kind)
     if values.get('startsOn') is not None:
         _set(walker, g, p, actor, source,
              [('bAutoPlay', 'BoolProperty', None, bytes((int(bool(values['startsOn'])),)))])
@@ -384,14 +386,14 @@ def pose_of(p, i):
 
 
 def apply(g, p, ops, classes=EFFECT_CLASSES, what='an effect'):
-    """A lane of the native edit (the compiler's `effects` or `sounds`: {moves: [{name, location, rotation}],
+    """A lane of the native edit (the compiler's `effects`, `sounds` or `flares`: {moves: [{name, location, rotation}],
     deletes: [{name}], copies: [{id, name, source, location, rotation, values?}], values: [{name, effect | sound}]})
     made in `g`, the grower of package `p`. Returns (the clones to add to the level's list, the actors to take out of
     it, the record: [dict(actor, how: moved | deleted | copied | valued, export, cls, location?, rotation?, before?,
     id?, source?, mapping?, values?)]): `values` what set_values wrote."""
     if not ops or not any(ops.get(k) for k in ('moves', 'deletes', 'copies', 'values')):
         return [], set(), []
-    kind = 'effect' if tuple(classes) == EFFECT_CLASSES else 'sound'
+    kind = ('effect' if tuple(classes) == EFFECT_CLASSES else 'flare' if tuple(classes) == FLARE_CLASSES else 'sound')
     walker = native_copy.Walker(p)
     listed = set(native_copy.level_actors(p))
     edited, clones, gone, record = set(), [], set(), []
