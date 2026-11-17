@@ -58,7 +58,9 @@ import piece_flags
 #     each emitter of `effectSystems` gains `draw` (sprites or meshes, its textures and blend, its spawn rate, bursts
 #     and followed modules' tables or particle parameters) or `draw: null` with `why`; the particle textures and
 #     meshes are written with the map's others
-EXPORT_VERSION = 29   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 30: an effect placed by a prefab instance at whose own place one mesh piece stands is carried by that piece
+#     (`carriedBy`, `carriedHow: prefab`; scene_metadata.effect_metadata): the fog pod's smoke follows its pod (F-50)
+EXPORT_VERSION = 30   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
@@ -218,7 +220,7 @@ class Exporter:
         stream = self.prefix[len('stream-'):-1] if self.prefix.startswith('stream-') else None
         if scope != 'map' or (self.prefix and stream is None):
             return dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
-        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how='place')
+        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how=e['carriedHow'])
                                      for e in effect_metadata(p) if e['carriedBy']}
         defaults = effects_metadata.Defaults(p)
         found = effects_metadata.describe(p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix,

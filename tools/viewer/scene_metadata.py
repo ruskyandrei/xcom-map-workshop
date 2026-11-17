@@ -353,7 +353,18 @@ def effect_metadata(p):
     """The persistent level's effects (export 23; the user, 13 November 2026: the export carries them for the editor's
     effects to come): [dict(actor (path), location, rotation, scale (DrawScale3D times DrawScale), template (the
     particle system's path or None), listed (in the level's actor list), hidden (bHidden), prefab (its prefab
-    instance's name or None), carriedBy (the piece's path, EFFECT_SAME's rule, or None))], by actor."""
+    instance's name or None), carriedBy (the piece's path, or None), carriedHow ('place': EFFECT_SAME's rule; 'prefab':
+    the effect is placed by a prefab instance at whose own place exactly one mesh piece stands, as the fog pod's five
+    smoke emitters stand around the pod (F-50; the effects and sounds plan, stage FX6b); None))], by actor."""
+    origins = {}
+
+    def at_origin(prefab):
+        # the pieces standing at a prefab instance's own place
+        if prefab not in origins:
+            instance = p.by_name.get("TheWorld.PersistentLevel." + prefab)
+            at = p.effective(instance, "Location", [0.0, 0.0, 0.0]) if instance else None
+            origins[prefab] = [] if at is None else [n for n, where in pieces if all(abs(where[k] - at[k]) <= EFFECT_SAME for k in range(3))]
+        return origins[prefab]
     level = p.by_name.get("TheWorld.PersistentLevel")
     if level is None:
         return []
@@ -376,13 +387,18 @@ def effect_metadata(p):
         component = p.effective(index, "ParticleSystemComponent", 0) or 0
         template = p.effective(component, "Template", 0) if component > 0 else 0
         on = [n for n, at in pieces if all(abs(at[k] - location[k]) <= EFFECT_SAME for k in range(3))]
+        prefab = str(members[index]).rsplit(".", 1)[-1] if index in members else None
+        how = "place" if len(on) == 1 else None
+        # no piece at its own place, or several: the one piece at its prefab's place carries it
+        if how is None and prefab and index in listed and len(at_origin(prefab)) == 1:
+            on, how = at_origin(prefab), "prefab"
         out.append(dict(actor=p.paths[index - 1], location=location,
                         rotation=[int(v) for v in p.effective(index, "Rotation", [0, 0, 0])],
                         scale=[float(v) * float(p.effective(index, "DrawScale", 1.0)) for v in p.effective(index, "DrawScale3D", [1.0, 1.0, 1.0])],
                         template=p.name(template) if template else None, listed=index in listed,
                         hidden=bool(p.effective(index, "bHidden", False)),
-                        prefab=str(members[index]).rsplit(".", 1)[-1] if index in members else None,
-                        carriedBy=on[0] if len(on) == 1 and index in listed else None))
+                        prefab=prefab, carriedBy=on[0] if how and index in listed else None,
+                        carriedHow=how if how and index in listed else None))
     return sorted(out, key=lambda e: e["actor"])
 
 

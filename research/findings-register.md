@@ -1069,7 +1069,10 @@ first-editor plan defines the proposed runtime tests and snapping rules.
 
 ### F-50: Effects placed around a piece stay behind when it is moved or deleted
 
-**Open** (EXP-11 run 2).
+**Open for the light and the decals; the smoke fixed offline** (17 November 2026, export 30: an effect placed by a
+prefab instance at whose own place one piece stands is carried by that piece, `scene_metadata.effect_metadata`,
+`carriedHow: prefab`. URB_Bar's pod moved a tile east and two north and turned a quarter, built and read back: its
+five smoke emitters stand around it as before. Not played.) Found in EXP-11 run 2.
 - Symptom: the fog pod moved one tile east, but its green smoke kept rising from the old tile. The user's note: "can
   path through but there's some green smoke emitter still going".
 - Cause: the map placed the smoke as separate actors around the pod, not as part of it:

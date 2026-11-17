@@ -426,7 +426,12 @@ Projects). Nothing is built into the game yet.
 The export lists the level's effects (`effects`: its Emitter actors, placed particle systems such as fires, rain
 run-off and a Skyranger's idle lights; `scene_metadata.effect_metadata`): each one's actor, place, turn, scale, particle
 system, whether the level lists it, `hidden`, its prefab and `carriedBy`. A mesh piece carries an effect standing at its
-own place (within 2 units on each axis) when it is the only piece there.
+own place (within 2 units on each axis) when it is the only piece there. Since export 30 a piece also carries the
+effects a prefab instance places around it: an effect that no piece carries by its place, placed by a prefab
+instance at whose own place exactly one piece stands, is that piece's (`carriedHow: prefab`), and keeps its offset
+and turn about the piece when the piece is moved, copied or deleted. The alien vapour pods' five smoke emitters
+follow their pod so, and URB_Boulevard's splashes and glows their fountain's piece: 65 effects in 8 of the game's
+maps. Where no piece or several stand at the prefab's place, nothing is guessed.
 The compiler passes the carried pairs to the Build (`carriedEffects`), and
 [native_effects.py](../bake/native_effects.py) moves, copies or deletes each with its piece: the tutorial's loose
 Skyranger takes its lights along, as do Bar's claw machine and DEMO_SonOfFacemelt's water valves.

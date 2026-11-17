@@ -8,6 +8,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### A piece carries the effects its prefab places around it (effects and sounds plan, stage FX6b; export 30)
+
+- [scene_metadata.py](tools/viewer/scene_metadata.py) `effect_metadata`: an effect that no piece carries by its own
+  place, placed by a prefab instance at whose own place exactly one mesh piece stands, is carried by that piece
+  (`carriedBy`, with the new `carriedHow`: `place` or `prefab`). No piece there, or several: nothing is guessed.
+  [export.py](tools/viewer/export.py): export 30 passes the kind on. The Build and the page already move, copy and
+  delete a carried effect by its piece's own move, so each keeps its offset and its turn about the piece; an effect
+  moved or deleted by itself is its own from then on, as before.
+- Across the install's maps (a count by script, not kept): 65 effects in 8 maps gain a carrier: the alien vapour
+  pods' five smoke emitters each (URB_Bar's two pods, URB_IndustrialOffice, URB_LiquorStore, URB_StreetHurricane,
+  URB_StreetOverpass), URB_Boulevard's 17 splashes and glows round its fountain's piece (and its Euro twin's), a
+  Skyranger's idle lights. 297 effects of a prefab stay free: no one piece stands at their prefab's place.
+- [Findings register](research/findings-register.md) F-50: the smoke fixed offline; the pod's light and decals stay
+  open. [tools/viewer/README.md](tools/viewer/README.md).
+
+Checked: [test_effects_metadata.py](tools/viewer/tests/test_effects_metadata.py) (Bar's five smoke emitters carried
+by one piece, by their prefab, each off its place); viewer and editor suites, the bake suite's effect tests; URB_Bar
+exported at 30, its pod moved a tile east and two north and turned a quarter in a project, built without baking
+and read back: all five emitters at their offsets turned with it (within 0.6 units). Not played in the game. Every
+map is exported again on its next opening (export 30).
+
 ### EXP-70 passed: effects' and sounds' values build for every project (effects and sounds plan, EXP-E)
 
 - [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md) run 2, played unattended by the game-test

@@ -202,7 +202,7 @@ def records(name, stream=None):
         from package import Package
         p = Package(INSTALL.parent / (name + '.upk'))
         landings = [] if stream else scene_metadata.landing_metadata(p)
-        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how='place')
+        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how=e['carriedHow'])
                                      for e in scene_metadata.effect_metadata(p) if e['carriedBy']}
         out = em.describe(p, landings=landings, carried=carried, prefix=('stream-%s-' % stream) if stream else '',
                           layer='stream' if stream else 'base', stream=stream)
@@ -238,9 +238,16 @@ class Fixtures(unittest.TestCase):
         self.assertTrue(by['Emitter_18']['lit'])
         self.assertIn('mesh', {e['kind'] for e in bar['systems'][by['Emitter_18']['system']]['emitters']})
         self.assertGreater(len(set(by['Emitter_15']['drawScale3D'])), 1)
-        # the fog pod's five smoke emitters: placed by its prefab instance, carried by no piece (FX6's rule)
+        # the fog pod's five smoke emitters stand around the pod, placed by a prefab instance at the pod's own place:
+        # the pod carries them (export 30; F-50), each keeping its offset
+        pod = {by[n]['carriedBy'] for n in ('Emitter_39', 'Emitter_43', 'Emitter_48', 'Emitter_49', 'Emitter_50')}
+        self.assertEqual(len(pod), 1)
+        self.assertTrue(next(iter(pod)).startswith('TheWorld.PersistentLevel.XComLevelActor_'), pod)
         for n in ('Emitter_39', 'Emitter_43', 'Emitter_48', 'Emitter_49', 'Emitter_50'):
-            self.assertEqual((by[n]['prefab'], by[n]['carriedBy']), ('PrefabInstance_12', None), n)
+            self.assertEqual((by[n]['prefab'], by[n]['carriedHow']), ('PrefabInstance_12', 'prefab'), n)
+            self.assertGreater(max(abs(a - b) for a, b in zip(by[n]['location'], by['Emitter_39']['location'])) if n != 'Emitter_39' else 9, 2)
+        # (one standing on its piece is carried by its place, as before)
+        self.assertEqual({e['carriedHow'] for e in by.values() if e['carriedBy']}, {'place', 'prefab'})
         # the grounded Skyranger's lights and dust: the landing's, which a clear keeps
         self.assertEqual(by['Emitter_78']['landingRole'], 'emitter')
         self.assertFalse(by['Emitter_78']['can']['move'])
