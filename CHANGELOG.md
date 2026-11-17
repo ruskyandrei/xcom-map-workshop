@@ -48,6 +48,16 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Unattended game tests run silent
+
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs) mutes the game's audio session in Windows while a hidden run
+  lasts and unmutes it before the game ends (`XCOM_HIDDEN_SOUND=1` leaves the sound on);
+  [hidden_game.py](tools/lab/hidden_game.py)'s header and the [game-test skill](.claude/skills/game-test/SKILL.md)
+  say so.
+- Checked: a hidden battle on URB_Bar ("sound muted" 1.5 s in, `ListWaves` answered as before, "sound unmuted (1
+  session)" at the end); the `lab` suite. Gap: a run ended from outside leaves the game muted until the next run
+  that ends by itself; nobody listened, the silence rests on Windows taking the mute.
+
 ### Unattended game tests: listening
 
 - [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `listen <folder> <x> <y> <z> [--distance <d>]` puts the

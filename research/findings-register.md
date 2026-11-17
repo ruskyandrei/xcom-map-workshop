@@ -2711,8 +2711,14 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
       700, 0.27 from 800, 0.07 from 950 and not at all from 1256; the machine hum on the roof (radii 100 and 300) at
       0.32 from 150. So the list follows the radii, and 0.60 is a full ambient sound here.
     - `hidden_game.py listen <folder> <x> <y> <z> [--distance <d>]` does this and prints the list.
-    - Not told: whether the hidden game sounds on the computer's speakers, and nothing was recorded: the list is
-      the engine's own account of what plays, not a recording.
+    - Nothing was recorded: the list is the engine's own account of what plays, not a recording.
+    - **Muted for the run** (later the same night): `GameRemote` mutes the game's audio session (Core Audio,
+      `ISimpleAudioVolume.SetMute` on the session of the game's process on the default output) as soon as it exists,
+      1.5 seconds after the start, and unmutes it before ending the game, because Windows keeps an application's
+      mute for its next start. A battle on URB_Bar run so: "sound muted", `ListWaves` answered as before (two
+      ambience loops 0.18 and 0.60, the music 0.60), "sound unmuted (1 session)". Not heard by anyone: that the
+      speakers were silent rests on Windows taking the mute. A run ended from outside keeps the mute until the next
+      run ends by itself or the mixer is used.
   - Not tried: a save, stairs inside a building, a climb down, more than one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,

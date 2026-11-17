@@ -45,6 +45,9 @@ the game there and does the steps (its header lists them: wait, waitlog, console
   place and prints the game's own list of what it is playing (ListWaves: volume, wave, the actor it belongs to).
   The game hears from the camera, so whether an ambient sound is heard goes by the camera's distance from it and
   the sound's radii (getall SoundNodeAmbient RadiusMin / RadiusMax / SoundSlots).
+- No sound comes out: GameRemote mutes the game's audio session in Windows for the run and unmutes it before the
+  game ends (Windows keeps an application's mute for its next start). The game still plays its sounds, so `listen`
+  works. XCOM_HIDDEN_SOUND=1 in the environment leaves the sound on.
 - Out folder (default <lab>\\hidden-runs\\<time>): the shots as <name>.png, steps.txt, Launch.log, DXVK's log,
   run.log (what GameRemote printed).
 - Exit code: GameRemote's (0, 1 the game ended, 3 a waitlog or shot ran out of time), 124 when --timeout ended the

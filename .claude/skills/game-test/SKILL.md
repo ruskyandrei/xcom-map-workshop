@@ -114,6 +114,9 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
   SoundNodeAmbient SoundSlots`; its place: `getall AmbientSoundSimple Location`. Full volume inside RadiusMin, none
   beyond RadiusMax; a full ambient sound lists at 0.60.
 - A sound that plays once (a shot, a voice) is in the list only while it sounds: ask right after what causes it.
+- The run is silent: the tool mutes the game in Windows' mixer while it runs and unmutes it at the end, and the
+  list is not touched by that. If a run was ended from outside (a timeout, a killed process) the game may stay muted
+  for the user's own next play: say so in the report; the next run that ends by itself takes the mute off.
 - This is the engine's own list, not a recording: it says a sound plays and how loud, not how it sounds.
 
 ## What it cannot do
@@ -127,4 +130,5 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
 - The pictures stay in the out folder under `<lab>`; a note or a finding says in words what a picture showed (copy
   one to `private/shots/` only when the check's record needs it). Nothing from a run is committed.
 - A finding goes into the findings register, a tool change into the change ledger, as for any check.
+- End a session with `send <out> quit`, not by killing it, so the game's sound is unmuted again.
 - Check that no game is left running (`tasklist` for `XComEW.exe`) and that no `d3d9.dll` stays beside the game.
