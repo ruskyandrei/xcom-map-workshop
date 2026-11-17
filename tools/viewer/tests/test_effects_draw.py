@@ -100,8 +100,8 @@ def texture(key, name, parameter=None, grey=False, shape=False, packed=False, re
 
 
 class Pictures(unittest.TestCase):
-    def pick(self, candidates, grid=False, solid=False):
-        d = ed.pick_textures(candidates, grid, solid)
+    def pick(self, candidates, grid=False, solid=False, added=False):
+        d = ed.pick_textures(candidates, grid, solid, added)
         return d['picture'], d['opacity'], d['mask'], d['maskFrom']
 
     def test_the_fire_colour_from_its_flame_and_its_shape_from_a_grey_mask(self):
@@ -127,9 +127,21 @@ class Pictures(unittest.TestCase):
     def test_a_packed_mask_with_no_red_shapes_by_its_brightness(self):
         self.assertEqual(self.pick([texture('0', 'T_Circle_Glare', packed=True, red=0.03)]), (None, 'none', '0', 'brightness'))
 
-    def test_a_moth_on_a_card_is_cut_by_its_alpha(self):
+    def test_a_moth_on_a_card_is_cut_by_its_alpha_and_nothing_else(self):
         self.assertEqual(self.pick([texture('0', 'T_Moth_Blurry', shape=True), texture('1', 'T_Moth_Sharp', shape=True)]),
-                         ('0', 'alpha', '1', 'alpha'))
+                         ('0', 'alpha', None, None))
+
+    def test_an_added_glow_takes_its_grey_texture_as_its_picture(self):
+        # the police lights: a round grey glow with its shape in its alpha, never a gradient that fills the quad alone
+        glow = texture('0', 'T_glowBit', grey=True, shape=True, bright=0.159)
+        self.assertEqual(self.pick([glow], added=True), ('0', 'alpha', None, None))
+        core = [glow, texture('1', 'T_StarburstBW', grey=True), texture('2', 'T_Beam_Gradient_Vertical_3Channel', red=1.0)]
+        self.assertEqual(self.pick(core, added=True), ('0', 'alpha', '2', 'red'))        # its gradient is named as a mask
+        # see-through, the same glow alone shapes the particle's own colour by its alpha
+        self.assertEqual(self.pick([glow]), (None, 'none', '0', 'alpha'))
+        # with no picture, a texture with an alpha shape shapes before a packed one
+        self.assertEqual(self.pick([texture('0', 'T_Noise_Specks_Sparse', packed=True, red=0.38),
+                                    texture('1', 'T_ExplosionDust_3Channel', shape=True, packed=True, red=1.0)]), (None, 'none', '1', 'red'))
 
     def test_a_grey_picture_where_nothing_else_is(self):
         self.assertEqual(self.pick([texture('0', 'T_softSmoke2', grey=True), texture('1', 't_Smoke_Alpha_Light', 'Mask', grey=True)]),
@@ -267,6 +279,19 @@ class Fixtures(unittest.TestCase):
         # what isn't read is a curve the cook kept as an object, never a table of another shape
         self.assertTrue(all(why.startswith('kept as Distribution') for why in unread), unread)
         self.assertLess(len(unread), 6)
+
+    def test_an_emitter_that_only_sends_events_says_so(self):
+        # each fire's last emitter (CsmallScout_Farm's P_Fire_Big's seventh): the engine's default particle material,
+        # one particle after ten seconds and an event generator, nothing the game shows (no material missing)
+        import copy
+        from export import compiled_textures
+        farm = records('CsmallScout_Farm')
+        systems = copy.deepcopy(farm['systems'])
+        ed.attach(farm['package'], em.Defaults(farm['package']), systems, Stub(farm['package']), compiled_textures)
+        fire = next(s for s in systems.values() if s and s['name'] == 'P_Fire_Big')
+        self.assertEqual(fire['emitters'][6].get('why'), 'it only sends events: nothing is seen')
+        whys = [e.get('why') for s in systems.values() for e in (s or {}).get('emitters', []) if e.get('draw') is None]
+        self.assertNotIn('its material is in another package', whys)
 
 
 if __name__ == '__main__':

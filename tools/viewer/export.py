@@ -63,7 +63,9 @@ import piece_flags
 # 31: draw version 4 (effects_draw.texture_traits): each particle texture's traits from its pixels, and an emitter's
 #     colour and shape taken from different textures (`maskFrom`, `opacity: none`): the fires drawn as flames; the
 #     material's own colour parameters (`colours`): the night smoke drawn dark, not pink
-EXPORT_VERSION = 31   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 32: draw version 5: an added particle's grey texture is its picture, and a picture whose alpha holds its shape
+#     takes only a named mask (the police lights round again, not squares); an emitter that only sends events says so
+EXPORT_VERSION = 32   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION

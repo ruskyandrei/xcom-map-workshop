@@ -8,6 +8,32 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Police lights round again; the fires' event emitters say what they are (export 32)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 5 ([export.py](tools/viewer/export.py) export 32).
+  Version 4's rule that a packed texture shapes first, where there is no picture, gave the police lights' core the
+  packed `T_Beam_Gradient_Vertical_3Channel`, which fills its quad: blue squares over the cars.
+  - An added (additive) particle's picture is its first grey texture: the lights' round `T_glowBit`.
+  - A picture whose alpha holds its shape takes only a texture named as a mask besides it. The moths and the
+    holograms lose the second mask version 4 gave them; draw version 3 had none either.
+  - With no picture, a texture whose alpha holds a shape shapes before a packed one.
+- The emitters said to have their "material in another package" all carry the engine's default particle material
+  and an event generator: one particle after ten seconds, the last emitter of each fire and of the embers. They draw
+  nothing in the game either (the farm-fires reference shows no smoke over the fires). They now say "it only sends
+  events: nothing is seen" (`sends_events_only`). No emitter of an effect brought from another map is affected.
+- [editor-contracts.md](research/editor-contracts.md): draw version 5.
+
+Checked:
+- Act1_IntroLevel, URB_Bar and CSmallScout_Farm re-exported. Every texture pick that changed from draw version 4
+  was listed and looked over: police lights, headlight beams, power core, LockedGlow, moths, holograms, the bar's
+  metal template.
+- The intro map's two police light effects drawn on a test server: soft blue and red glows on the light bars, no
+  squares. The Add panel's pane shows the lights, moths and a headlight beam.
+- [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py): an added glow's picture, a moth with no second
+  mask, the farm fire's event emitter.
+- Browser smoke: likeness, library-effects, effects, effect-values, prefabs.
+- Viewer, editor, node and repo suites.
+
 ### Effects drawn closer to the game: fires look like fire, the night smoke is no longer pink (export 31)
 
 - [effects_draw.py](tools/viewer/effects_draw.py), draw version 4 ([export.py](tools/viewer/export.py) export 31):
@@ -60,7 +86,8 @@ Checked:
 
 Known gaps:
 - The night smoke's foot, lit orange by its fire in the game, is not drawn.
-- An emitter whose material is in another package is still not drawn (P_Fire_Big's smoke).
+- An emitter whose material is in another package is still not drawn (P_Fire_Big's last emitter; the entry above
+  found that these only send events and show nothing in the game).
 - The intro map's own steam is set so faint (opacity 0.1) that the pane shows almost nothing.
 
 ### The effects and sounds plan is built: its references point at the built plans

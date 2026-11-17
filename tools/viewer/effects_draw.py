@@ -20,10 +20,11 @@ import struct
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 4     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+DRAW_VERSION = 5     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
                      # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
                      # 4: textures told apart by their pixels (texture_traits): the colour from a picture, the shape
                      #    from a mask (`maskFrom`); `opacity` none where the mask alone shapes it
+                     # 5: an added particle's grey texture its picture; a picture with an alpha shape no other mask
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -269,19 +270,24 @@ def texture_traits(path):
                 bright=round(float(top.mean()) / 255, 3))
 
 
-def pick_textures(candidates, grid=False, solid=False):
+def pick_textures(candidates, grid=False, solid=False, added=False):
     """Which of an emitter's textures gives its colour and which its shape: candidates [dict(key, name, parameter,
     grey, shape, packed)] -> dict(picture (key or None), opacity ('alpha' | 'brightness' | 'none': what of the
     picture shapes it besides the mask), mask (key or None), maskFrom ('brightness' | 'alpha' | 'red')). `solid`:
-    an opaque or cut-out material (a mesh: its picture is its surface, cut by an alpha shape only).
+    an opaque or cut-out material (a mesh: its picture is its surface, cut by an alpha shape only); `added`: an
+    additive one (its particles show only their brightness).
     - A normal map, a distortion or a reflection is neither.
-    - The picture is the first texture with colour (one named for sub-images first where the emitter has a grid); a
-      grey texture or a packed one is a picture only where nothing else is.
-    - The mask is the first other texture that can shape: one named as a mask (Mask, Alpha, Gradient), then a grey
-      one, then one whose alpha holds a shape, then a packed one (its red channel). It shapes by its alpha where that
-      holds the shape, by its red channel where it is packed (by its brightness where its red is nearly empty: the
-      blue glare T_Circle_Glare), else by its brightness. A grey picture is used only where no packed texture gives the
-      shape (URB_Bar's steam: its grey T_fireyblast01 is not its look; its packed dust is).
+    - The picture is the first texture with colour (one named for sub-images first where the emitter has a grid).
+      Where none has colour, an added particle's picture is its first grey texture (the police lights' round
+      T_glowBit); a see-through one's a grey texture only where it holds no shape, there is another texture and no
+      packed one (URB_Bar's steam: its grey T_fireyblast01 is not its look; its packed dust is). Else none: the mask
+      shapes the particle's own colour.
+    - A picture whose alpha holds its shape takes only a texture named as a mask besides (the moths, the lights).
+    - Else the mask is the first other texture that can shape: one named as a mask (Mask, Alpha, Gradient), then a
+      grey one, one whose alpha holds a shape, a packed one; with no picture, one whose alpha holds a shape, a packed
+      one, a grey one (a packed gradient that fills the quad, the police lights' T_Beam_Gradient_Vertical_3Channel,
+      shapes nothing round). It shapes by its alpha where that holds the shape, by its red channel where it is packed
+      (by its brightness where its red is nearly empty: the blue glare T_Circle_Glare), else by its brightness.
     - A see-through picture shapes by its alpha where that holds a shape (a moth on a white card), else by its
       brightness (the flames' dark gaps). A solid picture is cut by its alpha only."""
     def named(c, which):
@@ -293,14 +299,20 @@ def pick_textures(candidates, grid=False, solid=False):
         colour.sort(key=lambda c: 'SUB' not in words(short(c['name'])))
     picture = colour[0] if colour else None
     if picture is None and not solid:
-        # nothing with colour: a grey picture named as no mask, or none (the mask shapes the particle's own colour)
-        plain = [c for c in usable if c.get('grey') and not named(c, MASK_WORDS) and not c.get('shape')]
-        picture = plain[0] if plain and len(usable) > 1 and not any(packed(c) for c in usable) else None
+        greys = [c for c in usable if c.get('grey') and not named(c, MASK_WORDS)]
+        if added:
+            picture = greys[0] if greys else None
+        else:
+            plain = [c for c in greys if not c.get('shape')]
+            picture = plain[0] if plain and len(usable) > 1 and not any(packed(c) for c in usable) else None
     rest = [c for c in usable if c is not picture]
-    # (with no picture, a packed texture shapes before a grey one: it is the particle's look, as the steam's dust)
-    order = ([c for c in rest if named(c, MASK_WORDS)] +
-             ([c for c in rest if packed(c)] if picture is None else []) + [c for c in rest if c.get('grey')] +
-             [c for c in rest if c.get('shape')] + [c for c in rest if packed(c)])
+    masks = [c for c in rest if named(c, MASK_WORDS)]
+    if picture is not None and picture.get('shape'):
+        order = masks
+    elif picture is None:
+        order = masks + [c for c in rest if c.get('shape')] + [c for c in rest if packed(c)] + [c for c in rest if c.get('grey')]
+    else:
+        order = masks + [c for c in rest if c.get('grey')] + [c for c in rest if c.get('shape')] + [c for c in rest if packed(c)]
     order = list({id(c): c for c in order}.values())
     if not solid and picture is None and not order and usable:
         order = usable[:1]
@@ -319,6 +331,17 @@ def pick_textures(candidates, grid=False, solid=False):
         opacity = 'alpha' if picture.get('shape') else 'brightness'
     return dict(picture=picture['key'] if picture else None, opacity=opacity,
                 mask=mask['key'] if mask else None, maskFrom=mask_from)
+
+
+def sends_events_only(p, lod):
+    """Whether an emitter's LOD level is one that sends events and draws nothing: an event generator among its
+    modules. Firaxis left the engine's default particle material on these (each fire's last emitter: one particle
+    after ten seconds, a lifetime and an event generator); the game shows nothing for them."""
+    try:
+        modules = [m for m in p.refs(p.own(lod, 'Modules')) if m > 0]
+    except (FormatError, ValueError, struct.error):
+        return False
+    return any(p.cls(m) == P + 'EventGenerator' for m in modules)
 
 
 def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
@@ -384,7 +407,7 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
             return None, 'not drawn here'
         grid = draw['subImages'] != [1, 1]
         solid = draw['blend'] in ('BLEND_Opaque', 'BLEND_Masked')
-        picked = pick_textures(candidates, grid, solid)
+        picked = pick_textures(candidates, grid, solid, added=draw['blend'] == 'BLEND_Additive')
         by_name = {short(c['name']): c['key'] for c in candidates}
         if rule.get('picture') in by_name:
             picked['picture'] = by_name[rule['picture']]
@@ -394,6 +417,8 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
             if rule.get(key):
                 picked[key] = rule[key]
         if not candidates and material <= 0 and kind == 'sprite':
+            if material < 0 and p.name(material) == 'EngineMaterials.DefaultParticle' and sends_events_only(p, lod):
+                return None, 'it only sends events: nothing is seen'
             return None, 'its material is in another package' if material < 0 else 'no material'
         draw.update(textures=candidates, **picked)
         colours = material_colours(p, material) if material > 0 else {}
