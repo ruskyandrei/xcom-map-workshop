@@ -326,6 +326,10 @@ class Builds(unittest.TestCase):
             staged.write_bytes(b'staged ' + Path(args[k + 1]).read_bytes())
             edit['copies'] = [dict(c, actor=c['actor'] + '_900', staged=True) if c.get('donor') else c
                               for c in edit['copies']]
+            for lane in ('effects', 'sounds'):
+                if edit.get(lane):
+                    edit[lane]['copies'] = [dict(c, source=c['source'] + '_900', staged=True) if c.get('donor') else c
+                                            for c in edit[lane]['copies']]
             (out / 'native-edit.staged.json').write_text(json.dumps(edit), encoding='utf-8')
             if not self.no_staged_report:
                 (out / 'transplant.json').write_text(json.dumps(dict(
@@ -564,8 +568,8 @@ class Builds(unittest.TestCase):
         self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'transplant', 'light', 'seeds'])
         self.assertEqual(m['stages'][1]['foreignCopies'], 1)       # the page shows the stage's step from the compile on
         self.assertEqual((m['foreignPieces'], m['donors']),
-                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, objectsBrought=7,
-                                   objectsReused=3, cut=[], bytes=1234)]))
+                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, effects=0, objectsBrought=7,
+                                   objectsReused=3, cut=[], sizes={}, bytes=1234)]))
         # a full build: the same staging, and the baking copier reads the staged map (it lights them from nothing)
         self.ran.clear()
         m = self.make('110500').run()
@@ -582,6 +586,32 @@ class Builds(unittest.TestCase):
         with self.assertRaises(build.BuildError) as raised:
             self.make('111000', quick=True).run()
         self.assertIn('staged no map', str(raised.exception))
+
+    def test_effects_of_other_maps_alone_are_staged_and_keep_the_lighting(self):
+        """An effect of another map (the effects and sounds plan, stage FX4), the project's only change: staged in the
+        map first, then made by native_copy.py from the staged map in both kinds of build, with the lighting kept."""
+        foam = dict(id='a', name='Emitter_10_copy1', source='Emitter_10', actorClass='Emitter', location=[0.0, 0.0, 0.0],
+                    rotation=[0, 0, 0], donor=dict(package='URB_PierA', sha256='d' * 64))
+        self.spec['objects'] = [dict(type='effects', moves=[], deletes=[], copies=[foam])]
+        work = self.output / '.work' / ('%s-20261107-110000' % VARIANT)
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            work = self.output / '.work' / ('%s-%s' % (VARIANT, m['buildId'].split('-', 1)[1]))
+            self.assertEqual(len(self.tool('transplant.py')), 1)
+            light, = self.tool('native_copy.py')
+            k = light.index(str(build.NATIVE_COPY))
+            self.assertEqual(light[k + 1], str(work / 'transplant' / 'staged' / 'URB_Bar.upk'))
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual([(c['source'], c['staged']) for c in edit['effects']['copies']], [('Emitter_10_900', True)])
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+        # a copy of the map's own effect stages nothing
+        self.ran.clear()
+        self.spec['objects'] = [dict(type='effects', moves=[], deletes=[], copies=[{k: v for k, v in foam.items() if k != 'donor'}])]
+        self.make(stamp='110200', quick=True).run()
+        self.assertEqual(self.tool('transplant.py'), [])
 
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]

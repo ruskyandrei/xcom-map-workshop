@@ -1923,7 +1923,10 @@ def check_library_all(browser, url):
         page.wait_for_function('viewer.library.ready()', timeout=300000)
     assert page.locator('#libScan').is_hidden()
     kinds = "id => [...document.getElementById(id).options].map(o => [o.value, o.textContent.split(' (')[0]])"
-    assert page.evaluate(kinds, 'libAllKind') == page.evaluate(kinds, 'libKind')
+    # (All maps lists the base maps' effects and sounds too: their kinds after the pieces')
+    effect_kinds = "id => [...document.getElementById(id).options].filter(o => /^(effects|sounds|fx:|snd:)/.test(o.value)).length"
+    assert page.evaluate(kinds, 'libAllKind')[:len(page.evaluate(kinds, 'libKind'))] == page.evaluate(kinds, 'libKind')
+    assert page.evaluate(effect_kinds, 'libAllKind') > 2 and page.evaluate(effect_kinds, 'libKind') == 0
     for kind in ('Invisible', 'lights'):
         page.locator('#libAllKind').select_option(kind)
         assert page.locator('#libAllList .libitem strong').all_inner_texts() == page.evaluate(
@@ -1943,14 +1946,14 @@ def check_library_all(browser, url):
     # what the library only holds back (hidden, linked, a kind not switched on, waiting for its game test) is placed
     # since 14 November 2026, and since 16 November 2026 nothing says it is untried; what can't be brought stays off
     soft = "['hidden', 'assembly', 'family', 'check']"
-    later = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.placeable && !%s.includes(e.blocked))" % soft)
+    later = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.effect && !e.placeable && !%s.includes(e.blocked))" % soft)
     if later >= 0:
         page.evaluate("i => { document.getElementById('libAllList').scrollTop = i * 61; }", later)
         page.wait_for_selector('#libAllList .libitem.off .tag.later')
         # a piece that can't be placed yet says why, and is not placed
         page.locator('#libAllList .libitem.off').first.click()
         assert "can't be placed yet" in page.locator('#dragHint').inner_text() and page.evaluate('viewer.placing()') is None
-    untried = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.placeable && %s.includes(e.blocked))" % soft)
+    untried = page.evaluate("viewer.library.shown().findIndex(e => e.library && !e.effect && !e.placeable && %s.includes(e.blocked))" % soft)
     if untried >= 0:
         page.evaluate("i => { document.getElementById('libAllList').scrollTop = i * 61; }", untried)
         row = page.locator(f'#libAllList .libitem:not(.off)[data-key="{page.evaluate("i => viewer.library.shown()[i].key", untried)}"]')
@@ -2067,6 +2070,126 @@ def check_library_all(browser, url):
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
     assert build['state'] == 'built' and build['package']['quick'], build      # (a baked one: test_transplant FreshLight)
     assert build['package']['foreignPieces'] == 1 and [d['map'] for d in build['package']['donors']] == ['URB_PoliceStation'], build['package']
+    page.locator('#buildClose').click()
+    assert not errors, errors
+    page.close()
+
+
+def check_library_effects(browser, url):
+    """Effects and sounds of other maps in the Add panel's All maps (effects and sounds plan, stage FX4), on URB_Bar:
+    their kinds, a row's picture and words, a landing's listed and not placed; an effect (moths, which Bar lacks) and a
+    sound with a shared cue (a hyperwave beacon) placed, their panel and the Wave preview through the library's route;
+    saved, reopened (read from their maps again) and built without baking. Only against a test server as
+    check_library_all's (its --projects and --builds scratch folders, its cache's library scanned at index 9)."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    if not page.evaluate("viewer.data.scope === 'map' && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
+        page.close(); return
+    page.evaluate("localStorage.removeItem('workshop.libraryView')")
+    page.keyboard.press('p')
+    choose(page, 'libScope', 'all')
+    page.wait_for_function('viewer.library.ready()', timeout=60000)
+    fx = page.evaluate("viewer.library.entries().filter(e => e.effect).length")
+    assert fx > 1000, fx
+    # (held by the foreign gate until their game check, as any kind not brought before: shown with Placeable only off)
+    page.locator('#libAllPlaceable').uncheck()
+    # the kinds: Effects, Sounds and each of theirs, with counts
+    page.locator('#libAllKind').select_option('effects')
+    assert page.evaluate("viewer.library.shown().length > 0 && viewer.library.shown().every(e => e.effect === 'effect')")
+    page.locator('#libAllKind').select_option('snd:Alien')
+    assert page.evaluate("viewer.library.shown().every(e => e.effect === 'sound' && e.group === 'Alien')")
+    page.locator('#libAllKind').select_option('all')
+    # a landing's actor is listed and can't be placed, with the reason
+    page.locator('#libAllFilter').fill('P_Skyranger_Idle')
+    page.wait_for_selector('#libAllList .libitem.off .tag.later')
+    assert page.locator('#libAllList .libitem.off .tag.later').first.inner_text() == 'Not brought'
+    page.locator('#libAllList .libitem.off').first.click()
+    assert "can't be placed" in page.locator('#dragHint').inner_text() and 'landing' in page.locator('#dragHint').inner_text()
+    assert page.evaluate('viewer.placing()') is None
+    count = page.evaluate('viewer.effectRoots.size')
+
+    def place(words, at):
+        page.locator('#libAllFilter').fill(words)
+        key = page.evaluate("w => viewer.library.shown().find(e => e.effect && e.name === w && e.source.package !== 'URB_Bar')?.key", words)
+        assert key, words
+        row = page.locator(f'#libAllList .libitem[data-key="{key}"]')
+        row.wait_for()
+        entry = page.evaluate("k => viewer.library.entry(k)", key)
+        # its picture is the Effects view's marker, drawn at once; its lines say what it is and where it is from
+        page.wait_for_function("k => document.querySelector(`#libAllList .libitem[data-key=\"${k}\"] canvas`)?.dataset.drawn", arg=key)
+        text = row.inner_text()
+        assert ('Effect: ' if entry['effect'] == 'effect' else 'Sound: ') + entry['group'] in text, text
+        row.click()
+        page.wait_for_function('viewer.placing()', timeout=60000)
+        box = page.locator('#viewport > canvas').bounding_box()
+        x, y = box['x'] + box['width'] * at[0], box['y'] + box['height'] * at[1]
+        page.mouse.move(x, y)
+        page.wait_for_function('viewer.placing()?.ghost.visible')
+        page.mouse.click(x, y)
+        page.wait_for_function("document.querySelector('#dragHint').textContent.startsWith('Placed')")
+        return entry
+
+    moths = place('P_Moths_Wandering', (0.45, 0.5))
+    beacon = place('HyperWaveBeacon', (0.6, 0.55))
+    assert page.evaluate('viewer.effectRoots.size') == count + 2
+    added = page.evaluate('viewer.editState().added')
+    assert sorted((a['kind'], a['from']['package']) for a in added) == [('effect', moths['source']['package']), ('sound', beacon['source']['package'])], added
+    assert all(not a.get('components') for a in added)
+    # selected once placed, which shows the Effects view (as a paste of the map's own does)
+    assert page.evaluate('viewer.effectsOn()')
+    page.keyboard.press('p')
+    sound = page.evaluate("[...viewer.effectRoots.values()].find(r => r.userData.source.added && r.userData.source.kind === 'sound').userData.source.id")
+    page.evaluate(f'viewer.pickEffect({sound!r})')
+    info = page.locator('#effectPanel').inner_text()
+    assert f"of {beacon['source']['package']}" in info and 'the Build brings it into this map' in info, info
+    # the Wave preview plays the beacon's wave from its own map (/library/wave.ogg)
+    wave = page.locator('#effectWaves button[data-wave]').first
+    assert wave.is_enabled(), page.locator('#effectWaves').inner_html()
+    wave.click()
+    page.wait_for_function("viewer.wave() && ['playing', 'failed'].includes(viewer.wave().state)", timeout=15000)
+    assert page.evaluate('viewer.wave().state') == 'playing', page.evaluate('viewer.wave()')
+    page.evaluate('viewer.stopWave()')
+    # a copy of the copy is another copy of the same map's sound
+    page.evaluate('document.activeElement?.blur()')
+    page.keyboard.press('Control+c')
+    assert 'Copied 1 sound' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
+    box = page.locator('#viewport > canvas').bounding_box()
+    cx, cy = box['x'] + box['width'] * 0.5, box['y'] + box['height'] * 0.6
+    page.mouse.move(cx, cy); page.keyboard.press('Control+v')
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(cx, cy)
+    page.wait_for_function('n => viewer.effectRoots.size === n + 3', arg=count)
+    copy = page.evaluate('viewer.gizmo.active')
+    assert page.evaluate('id => viewer.effectRoots.get(id).userData.source.added.from.package', copy) == beacon['source']['package']
+    page.evaluate('document.activeElement?.blur()')
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.effectRoots.size') == count + 2
+    page.evaluate('viewer.pickEffect(null)')
+    # saved and reopened: each read from its map again, nothing carried
+    state = page.evaluate('viewer.projectState()')
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
+    type_project_name(page, 'Library effects smoke')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    project = page.evaluate('viewer.project().id')
+    page.reload(); page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.project()", timeout=120000)
+    assert page.evaluate('viewer.projectState()') == state
+    carried = page.evaluate('viewer.project().carried')
+    assert not any(carried.values()), carried
+    assert page.evaluate("[...viewer.effectRoots.values()].filter(r => r.userData.source.added?.base?.foreign).length") == 2
+    # Build: the step says what comes from which map
+    page.keyboard.press('Control+b')
+    page.wait_for_selector('#buildOptions:not([hidden])')
+    page.locator('#buildOptionsOk').click()
+    page.locator('#buildModal').wait_for(state='visible')
+    page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=300000)
+    assert page.locator('#buildTitle').inner_text().startswith('Built Library effects smoke'), page.locator('#buildModal').inner_text()
+    steps = page.locator('#buildSteps').inner_text()
+    assert 'Bring the pieces from other maps' in steps and '2 effects and sounds from' in steps, steps
+    build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
+    assert build['state'] == 'built' and build['package']['foreignEffects'] == 2, build['package']
+    assert sorted(d['map'] for d in build['package']['donors']) == sorted([moths['source']['package'], beacon['source']['package']])
     page.locator('#buildClose').click()
     assert not errors, errors
     page.close()
@@ -3142,11 +3265,18 @@ def check_wave_preview(page):
     page.keyboard.press('Escape')
     assert page.evaluate('viewer.wave()') is None and page.evaluate('viewer.pickedEffect()') is None
     page.evaluate(f'viewer.pickEffect({sound!r})')
-    page.evaluate("viewer.playWave('No|Such.Wave')")
+    bogus = page.evaluate("viewer.data.name + '|No.Such.Wave'")
+    page.evaluate(f"viewer.playWave({bogus!r})")
     page.wait_for_function('viewer.wave()?.why', timeout=10000)
     assert 'not one of this map' in page.evaluate('viewer.wave().why')
-    refused = page.evaluate("location.origin + '/maps/' + encodeURIComponent(viewer.mapId) + '/wave.ogg?id=No%7CSuch.Wave'")
-    EXPECTED.update({'Failed to load resource: the server responded with a status of 404 (Not Found)', f'HTTP 404: {refused}'})
+    refused = page.evaluate("w => location.origin + '/maps/' + encodeURIComponent(viewer.mapId) + '/wave.ogg?id=' + encodeURIComponent(w)", bogus)
+    # another map's wave (a copy of its sound, FX4) is asked of the library, which says what it can't find
+    page.evaluate("viewer.playWave('URB_NoSuchMap|No.Such.Wave')")
+    page.wait_for_function("viewer.wave()?.wave === 'URB_NoSuchMap|No.Such.Wave' && viewer.wave()?.why", timeout=10000)
+    assert 'URB_NoSuchMap' in page.evaluate('viewer.wave().why'), page.evaluate('viewer.wave()')
+    elsewhere = page.evaluate("location.origin + '/library/wave.ogg?' + new URLSearchParams({ package: 'URB_NoSuchMap', id: 'URB_NoSuchMap|No.Such.Wave' })")
+    EXPECTED.update({'Failed to load resource: the server responded with a status of 404 (Not Found)', f'HTTP 404: {refused}',
+                     f'HTTP 404: {elsewhere}'})
     page.evaluate('viewer.stopWave(); viewer.pickEffect(null)')
 
 
@@ -4083,7 +4213,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -4113,6 +4243,7 @@ def main():
             if 'effects' in only: check_effects_view(page); check_effects_editing(page)
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
+            if 'library-effects' in only: check_library_effects(browser, page.url)
             if 'prefabs' in only: check_prefabs(browser, page.url)
             if 'prefab-test' in only:
                 from browser_prefab_test import check_prefab_test

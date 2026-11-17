@@ -192,11 +192,15 @@ class Destination:
     def import_of(self, donor, ref, object_of):
         """The import of this map for the donor's import `ref` (negative): found by class, name and outer, else
         added, its outer first."""
-        if ref not in self._imports.setdefault(id(donor), {}):
+        # kept by the donor's file, or by the donor itself (held, so alive): never by id(), which a later donor takes
+        # once an earlier one is freed, and would then be given that map's imports for its own (F-121)
+        path = getattr(donor, 'path', None)
+        known = self._imports.setdefault(str(Path(path).resolve()).casefold() if path else donor, {})
+        if ref not in known:
             i = donor.p.imports[-ref - 1]
             outer = object_of(i['outer']) if i['outer'] else 0
-            self._imports[id(donor)][ref] = self.g.add_import(i['cpkg'], i['cls'], outer, i['name'])
-        return self._imports[id(donor)][ref]
+            known[ref] = self.g.add_import(i['cpkg'], i['cls'], outer, i['name'])
+        return known[ref]
 
 
 class Plan:
@@ -387,44 +391,58 @@ def sha256(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
+# the native edit's lanes of effects and sounds (the effects and sounds plan, Part D): a copy there names its source
+# actor by `source`, and one from another map carries its `donor` (stage FX4)
+LANES = ('effects', 'sounds')
+
+
 def stage_edit(map_path, out, edit, cooked=None, schema=None):
     """The foreign copies of the native edit `edit` ({copies: [...]}, or the list itself) staged in a copy of the map.
     Returns (map to give native_copy.py, the edit for it, report). With no foreign copy nothing is written: the map
     and the edit come back as they are, the report with no donors. Otherwise <out>/staged/<map>.upk is written (it
     reads the game's texture caches through package.link_caches), and the report is also <out>/transplant.json:
-    dict(map, staged, donors [dict(map, file, sha256, pieces, staged {actor: staged actor}, objectsBrought,
-    objectsReused, cut, sizes, bytes, brought)], foreignPieces, writer)."""
+    dict(map, staged, donors [dict(map, file, sha256, pieces, effects, staged {actor: staged actor}, objectsBrought,
+    objectsReused, cut, sizes, bytes, brought)], foreignPieces, writer). The effects and sounds lanes' copies with a
+    donor (LANES) are staged as pieces are, each actor alone and once however many copies name it, and come back
+    naming the staged actor as their `source`."""
     map_path, out = Path(map_path), Path(out)
     cooked = Path(cooked) if cooked else map_path.parent
     copies = edit['copies'] if isinstance(edit, dict) else edit
     lights = (edit.get('lights') or {}) if isinstance(edit, dict) else {}
+    lanes = {k: edit[k] for k in LANES if isinstance(edit.get(k), dict)} if isinstance(edit, dict) else {}
     foreign_area = {}
     for op in lights.get('area') or []:
         if donor := op.get('donor'):
             foreign_area.setdefault(donor['package'].lower(), []).append(op)
-    wanted = {}
+    wanted, effects_wanted = {}, {}
     for c in copies:
         if c.get('donor'):
             wanted.setdefault(c['donor']['package'].lower(), []).append(c)
+    for ops in lanes.values():
+        for c in ops.get('copies') or []:
+            if c.get('donor'):
+                effects_wanted.setdefault(c['donor']['package'].lower(), []).append(c)
     report = dict(map=str(map_path), staged=None, donors=[], foreignPieces=0)
     if foreign_area.keys() - wanted.keys():
         raise DonorError('no-donor', 'a generated area light has no piece from its donor in the edit')
-    if not wanted:
+    if not wanted and not effects_wanted:
         return map_path, edit, report
     if schema is None:
         schema = schema_module.Schema(schema_module.build(cooked))
     dest = Destination(map_path)
     names, area_names = {}, {}
-    for key, group in wanted.items():
-        path = donor_file(cooked, group[0]['donor']['package'])
+    for key in sorted(set(wanted) | set(effects_wanted)):
+        group, effect_group = wanted.get(key, []), effects_wanted.get(key, [])
+        path = donor_file(cooked, (group or effect_group)[0]['donor']['package'])
         digest = sha256(path)
-        for c in group:
+        for c in group + effect_group:
             if c['donor'].get('sha256') and c['donor']['sha256'].lower() != digest:
                 raise DonorError('donor-changed', 'the map %s is not the file the piece %s was taken from'
-                                 % (path.name, c['actor']))
+                                 % (path.name, c.get('actor') or c['source']))
         donor = Donor(path, schema)
         actors = list(dict.fromkeys(c['actor'] for c in group))
-        for actor in actors:
+        effect_actors = [a for a in dict.fromkeys(c['source'] for c in effect_group) if a not in actors]
+        for actor in actors + effect_actors:
             if donor.p.by_name.get(LEVEL + '.' + actor) is None:
                 raise DonorError('donor-changed', '%s has no actor %s' % (path.name, actor))
         # the parts of one assembly (a car's body, glass and parts: copies with one `assembly`) are brought together,
@@ -449,8 +467,9 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
         for a in actors:
             sets.setdefault(find(a), []).append(a)
         staged, shared = {}, {}
-        row = dict(map=path.stem, file=str(path), sha256=digest, pieces=len(actors), staged=staged, objectsBrought=0,
-                   objectsReused=0, cut=[], sizes=[], bytes=0, brought=[], newNames=0, addedImports=0, shelled=[])
+        row = dict(map=path.stem, file=str(path), sha256=digest, pieces=len(actors), effects=len(effect_actors),
+                   staged=staged, objectsBrought=0, objectsReused=0, cut=[], sizes=[], bytes=0, brought=[], newNames=0,
+                   addedImports=0, shelled=[])
 
         def stage_roots(roots, remap):
             r = bring(dest.g, dest, donor, roots, remap)
@@ -478,6 +497,11 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
                 roots += volumes
             placed = stage_roots(roots, shared)
             staged.update({a: placed[a] for a in members})
+        # an effect or a sound (the lanes' copies): its actor alone, as a piece is; what it names of its home map's
+        # other actors is cut (the library offers none that rides on another), its system or waves reused where this
+        # map has them by path already (transplant's rule for any asset; `sizes` lists those of another size)
+        for a in effect_actors:
+            staged.update(stage_roots([donor.p.by_name[LEVEL + '.' + a]], shared))
         if key in foreign_area:
             world = [i for i in dest.p.children[dest.level] if dest.p.cls(i) == 'WorldInfo']
             if len(world) != 1:
@@ -493,7 +517,7 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
             area_names[key] = row['stagedAreas'] = stage_roots(list(roots.values()), remap)
         names[key] = staged
         report['donors'].append(row)
-        report['foreignPieces'] += len(actors)
+        report['foreignPieces'] += len(actors) + len(effect_actors)
     target = out / 'staged' / map_path.name
     target.parent.mkdir(parents=True, exist_ok=True)
     report['writer'] = dest.g.write(str(target))
@@ -507,6 +531,15 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
                     donor=dict(c['donor'], actor=c['actor']))
     new_copies = [rewritten(c) for c in copies]
     new_edit = dict(edit, copies=new_copies) if isinstance(edit, dict) else new_copies
+
+    def lane_copy(c):
+        if not c.get('donor'):
+            return c
+        return dict(c, source=names[c['donor']['package'].lower()][c['source']], staged=True,
+                    donor=dict(c['donor'], actor=c['source']))
+    for k, ops in lanes.items():
+        if ops.get('copies'):
+            new_edit[k] = dict(ops, copies=[lane_copy(c) for c in ops['copies']])
     if area_names:
         area = [dict(op, light=area_names[op['donor']['package'].lower()][op['light']]) if op.get('donor') else op
                 for op in lights['area']]
@@ -632,9 +665,10 @@ def main():
         (args.out / 'native-edit.staged.json').write_text(json.dumps(new_edit, indent=1) + '\n', encoding='utf-8',
                                                           newline='\n')
     for d in report['donors']:
-        print('%s: %d pieces staged (%s), %d objects brought (%d bytes), %d reused, %d references cut'
-              % (d['map'], d['pieces'], ', '.join('%s -> %s' % kv for kv in d['staged'].items()),
-                 d['objectsBrought'], d['bytes'], d['objectsReused'], len(d['cut'])))
+        print('%s: %d pieces and %d effects or sounds staged (%s), %d objects brought (%d bytes), %d reused, %d '
+              'references cut' % (d['map'], d['pieces'], d.get('effects', 0),
+                                  ', '.join('%s -> %s' % kv for kv in d['staged'].items()), d['objectsBrought'],
+                                  d['bytes'], d['objectsReused'], len(d['cut'])))
     print('map: %s' % staged)
 
 

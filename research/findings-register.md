@@ -2528,6 +2528,25 @@ word; not looked at in the game).
   with 32, as copies of placed lights do; a baked recipe spot's shadow edges come out a little sharper than
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
+### F-121: A piece or effect from a third map could be staged with an earlier map's imports
+**Fixed** (17 November 2026, offline, found while preparing EXP-69; not seen in the game).
+- **Seen.** One build of EXP-69's project (effects and sounds of six maps into URB_Bar) staged URB_Boulevard's
+  fountain sound with its node's class `Engine.SoundNodeWave` where the donor's is `Engine.SoundNodeAmbient`: the
+  node read as a wave holding no sound data, so the copy had nothing to play. The same edit staged again came out
+  right.
+- **Cause.** The transplanter keeps, for each donor, which of the destination's imports stands for each of the donor's
+  (`transplant.Destination.import_of`), and kept them by `id(donor)`. The staging opens one donor after another; once
+  an earlier donor is freed a later one can get its id, and is then given the earlier map's imports for its own wherever
+  the import numbers meet: classes, archetypes and outers named wrong. Whether it happens depends on how memory is
+  reused, so one run differs from the next.
+- **Reach.** Any build bringing pieces or effects from three or more maps, since the cross-map pieces (X4). Where the
+  two maps' import tables agree at the numbers met (the low numbers, Core's and Engine's classes, often do) nothing
+  shows; where they don't, a brought object can be of the wrong class. The cross-map experiments (EXP-37 to EXP-42)
+  passed in the game; whether any of their builds met it is not known.
+- **Fix.** The imports are kept by the donor's file (a donor with no file by the donor itself, held). A regression test
+  gives two donors one id (`test_transplant.ImportsKeptByDonor`); EXP-69's edit staged five times as the Build stages
+  it gives every brought object (141) its donor's class and archetype.
+
 ### F-120: Under Long War the Skyranger is gone after a reload, its shadow left on the ground
 **Accepted** (17 November 2026, EXP-68 run 1: Long War's own behaviour, not the build's).
 - **Seen.** In EXP-68's battle on a variant of URB_Bar, the Skyranger stood at its landing at the start; after a save

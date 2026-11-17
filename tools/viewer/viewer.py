@@ -422,9 +422,13 @@ class Handler(SimpleHTTPRequestHandler):
     # (the map's own only while it is the file the map was exported from), checked, kept, and answered with its length,
     # an ETag (If-None-Match: 304) and one byte range at a time (206; 416 outside it). An id the export doesn't list is
     # 404, a wave it can't serve 422 with why: one bad wave never fails the map.
+    # GET or HEAD /library/wave.ogg?package=<map>&id=<wave id> is a wave of an effect or sound of another map (the Add
+    # panel's All maps; library.effect_records lists the donor's waves), read from that map in the install as it was
+    # when its records were made.
     def handle_wave(self, method):
         split = urlsplit(self.path)
         parts = split.path.strip('/').split('/')
+        if parts == ['library', 'wave.ogg']: return self.library_wave(method, split)
         if len(parts) != 3 or parts[0] != 'maps' or parts[2] != 'wave.ogg': return False
         entry = self.catalogue['maps'].get(parts[1])
         wave_id = (parse_qs(split.query).get('id') or [''])[0]
@@ -439,6 +443,22 @@ class Handler(SimpleHTTPRequestHandler):
                 data, etag, record = self.wave_cache.get(
                     root, scene, wave_id, find, lambda name: stream_package(cooked(), name))
             except KeyError: self.send_json(404, dict(error='That wave is not one of this map\'s.'), body=method == 'GET')
+            except OggError as error: self.send_json(422, dict(error=f'The wave can\'t be played: {error}'), body=method == 'GET')
+            except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the wave: {error}'), body=method == 'GET')
+            else: self.send_wave(data, f'"{etag}"', method == 'GET')
+        return True
+
+    def library_wave(self, method, split):
+        query = parse_qs(split.query)
+        package, wave_id = (query.get('package') or [''])[0], (query.get('id') or [''])[0]
+        if method not in ('GET', 'HEAD'): self.send_json(405, dict(error='Not allowed.'))
+        elif self.library is None: self.send_json(404, dict(error='This server has no library.'), body=method == 'GET')
+        else:
+            try:
+                path, scene = self.library.wave_scene(package)
+                data, etag, _ = self.wave_cache.get('library:' + scene['name'], scene, wave_id, lambda: path, lambda name: None)
+            except KeyError: self.send_json(404, dict(error=f'That wave is not one of {package}\'s.'), body=method == 'GET')
             except OggError as error: self.send_json(422, dict(error=f'The wave can\'t be played: {error}'), body=method == 'GET')
             except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
             except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the wave: {error}'), body=method == 'GET')
@@ -577,6 +597,9 @@ class Handler(SimpleHTTPRequestHandler):
     # once (a prefab's first use), and answers {errors: [null or why]}; POST /library/pieces.json {sources} (at most 200)
     # answers the records themselves, {pieces: [{record} or {error}]}; GET and PUT /library/thumbs/<key>.png keep the thumbnails the page draws; GET and PUT
     # /library/state.json ({expectedRevision, document}) are the user's favourites and recently used pieces.
+    # GET /library/effect.json?package=&actor= is one effect or ambient sound of another map as a template (library.effect:
+    # its export 28 record, its particle system or waves), POST /library/effects.json {sources} (at most 200) many,
+    # {effects: [{record} or {error}]} (a project's opening).
     def handle_library(self, method):
         split = urlsplit(self.path)
         parts = split.path.strip('/').split('/')
@@ -615,6 +638,15 @@ class Handler(SimpleHTTPRequestHandler):
                 if not isinstance(sources, list) or len(sources) > 200 or not all(isinstance(s, dict) for s in sources):
                     raise ProjectError(400, 'Send {sources: [{package, level, actor}]}, at most 200.')
                 self.send_json(200, dict(pieces=self.library.records(sources)))
+            elif parts == ['library', 'effect.json'] and method == 'GET':
+                query = parse_qs(split.query)
+                self.send_json(200, self.library.effect({k: (query.get(k) or [''])[0] for k in ('package', 'level', 'actor')}))
+            elif parts == ['library', 'effects.json'] and method == 'POST':
+                request = self.body_json()
+                sources = request.get('sources') if isinstance(request, dict) else None
+                if not isinstance(sources, list) or len(sources) > 200 or not all(isinstance(s, dict) for s in sources):
+                    raise ProjectError(400, 'Send {sources: [{package, level, actor}]}, at most 200.')
+                self.send_json(200, dict(effects=self.library.effects(sources)))
             elif parts == ['library', 'state.json'] and method == 'GET': self.send_json(200, self.library.load_state())
             elif parts == ['library', 'state.json'] and method == 'PUT':
                 request = self.body_json()

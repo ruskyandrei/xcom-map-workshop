@@ -47,6 +47,20 @@ function icon(kind, hollow) {
   return texture;
 }
 
+/** The marker's icon drawn into a 2D canvas (a row of the Add panel's All maps: stage FX4), in its kind's colour on
+ *  the row's dark ground. */
+export function drawEffectIcon(kind, hollow, canvas) {
+  const image = icon(kind, hollow).image, g = canvas.getContext('2d'), n = canvas.width, pad = n * 0.16;
+  g.clearRect(0, 0, n, n);
+  g.drawImage(image, pad, pad, n - 2 * pad, n - 2 * pad);
+  g.globalCompositeOperation = 'multiply';
+  g.fillStyle = `#${(COLOURS[kind] ?? 0xffffff).toString(16).padStart(6, '0')}`;
+  g.fillRect(0, 0, n, n);
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(image, pad, pad, n - 2 * pad, n - 2 * pad);
+  g.globalCompositeOperation = 'source-over';
+}
+
 /** A marker for a record (export 28's effect, sound or flare): a sprite one size on screen, over everything. */
 export function makeEffectMarker(record) {
   const material = new THREE.SpriteMaterial({ map: icon(record.kind, record.startsOn === false), depthTest: false,

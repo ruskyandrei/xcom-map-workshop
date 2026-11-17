@@ -643,9 +643,10 @@ class BuildRunner:
             {'full': m['seconds']} if m.get('seconds') is not None and not m.get('quick') else {})
         return dict(folder=str(folder), buildId=m.get('buildId'), builtAt=m.get('builtAt'), seconds=m.get('seconds'),
                     quick=bool(m.get('quick')), times=times,
-                    # its pieces of other maps, and the maps they were brought from (build.py transplant)
-                    foreignPieces=m.get('foreignPieces') or 0,
-                    donors=[{k: d.get(k) for k in ('map', 'pieces', 'bytes')} for d in m.get('donors') or []],
+                    # its pieces, effects and sounds of other maps, and the maps they were brought from (build.py
+                    # transplant; effects and sounds since the effects and sounds plan's FX4)
+                    foreignPieces=m.get('foreignPieces') or 0, foreignEffects=m.get('foreignEffects') or 0,
+                    donors=[{k: d.get(k) for k in ('map', 'pieces', 'effects', 'bytes')} for d in m.get('donors') or []],
                     revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}))
 
     def status(self, project_id):

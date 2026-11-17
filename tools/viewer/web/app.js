@@ -1820,17 +1820,62 @@ function libraryTemplate(source) {
   }
   return libraryRecords.get(id);
 }
-// The templates of the foreign pieces some added records name, read before the records are applied. Gives what
-// could not be had, as sentences.
+// An effect or ambient sound of another map (effects and sounds plan, stage FX4): its template read from its map
+// (/library/effect.json: export 28's record, its particle system or waves), kept for the placing and the project's
+// copies (foreignEffects, by its target), its system and waves joined to the map's (the panel, the box, the Wave
+// preview read them by their ids, which name the donor). Gives the record as an effect root's source.
+const effectTemplates = new Map(), foreignEffects = new Map(), fetchedEffects = new Map();
+function effectTemplate(source) {
+  const id = recordId(source);
+  if (!effectTemplates.has(id)) {
+    const promise = (async () => {
+      let t = fetchedEffects.get(id);
+      fetchedEffects.delete(id);
+      if (!t) {
+        const response = await fetch(`/library/effect.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
+        t = await response.json().catch(() => ({}));
+        if (!response.ok) throw Error(t.error ?? `it could not be read (${response.status})`);
+      }
+      data.effectSystems ??= {}; data.soundWaves ??= {};
+      for (const [k, v] of Object.entries(t.systems ?? {})) data.effectSystems[k] ??= v;
+      for (const [k, v] of Object.entries(t.waves ?? {})) data.soundWaves[k] ??= v;
+      if (t.source.sha256) donorHashes.set(t.source.package.toLowerCase(), t.source.sha256);
+      const out = effectSource({ ...t.record, foreign: { package: t.source.package, key: t.key } });
+      foreignEffects.set(targetKey({ package: out.sourcePackage, level: 'base', actor: out.actor }), out);
+      return out;
+    })();
+    promise.catch(() => effectTemplates.delete(id));
+    effectTemplates.set(id, promise);
+  }
+  return effectTemplates.get(id);
+}
+// Many effects' templates in a few requests (a project's opening), kept for effectTemplate
+async function readEffectRecords(sources) {
+  for (let k = 0; k < sources.length; k += RECORD_CHUNK) {
+    const chunk = sources.slice(k, k + RECORD_CHUNK);
+    try {
+      const response = await fetch('/library/effects.json', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: chunk.map(s => ({ package: s.package, level: 'base', actor: short(s.actor) })) }) });
+      if (!response.ok) break;
+      const answer = await response.json();
+      answer.effects.forEach((r, i) => { if (r.record) fetchedEffects.set(recordId(chunk[i]), r.record); });
+    } catch { break; }
+  }
+}
+// The templates of the foreign pieces, effects and sounds some added records name, read before the records are
+// applied. Gives what could not be had, as sentences.
 async function loadForeignTemplates(added, progress = null) {
-  const wanted = new Map(), failed = [];
-  for (const e of added) if (!e.template && isForeignTarget(e.from)) wanted.set(targetKey(e.from), e.from);
-  const list = [...wanted.values()];
+  const wanted = new Map(), effects = new Map(), failed = [];
+  for (const e of added) if (!e.template && isForeignTarget(e.from)) (e.kind ? effects : wanted).set(targetKey(e.from), e.from);
+  const list = [...wanted.values()], effectList = [...effects.values()];
   if (list.length > 1) await readLibraryRecords(list, (done, total) => progress?.('reading', done, total));
+  if (effectList.length > 1) await readEffectRecords(effectList);
   let made = 0;
-  await Promise.all(list.map(from => libraryTemplate(from)
+  await Promise.all([...list.map(from => libraryTemplate(from)
     .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`))
-    .finally(() => progress?.('loading', ++made, list.length))));
+    .finally(() => progress?.('loading', ++made, list.length))),
+    ...effectList.map(from => effectTemplate(from)
+      .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`)))]);
   return failed;
 }
 const foreignCount = () => new Set([...roots.values()].map(r => r.userData.source).filter(o => o.added && o.foreign).map(o => o.actor)).size;
@@ -1862,6 +1907,7 @@ function setLibraryScope(scope) {
 async function chooseLibraryEntry(entry) {
   const token = ++chooseToken;
   if (!entry) { stopPlacing(); return; }
+  if (entry.effect) { chooseLibraryEffect(entry, token); return; }
   let template;
   if (!isForeignTarget({ ...entry.source, level: 'base' })) {
     // the map's own piece: a copy of it, as from This map
@@ -1879,6 +1925,27 @@ async function chooseLibraryEntry(entry) {
   const { sources, pivotIndex } = template;
   clipboard = { entries: sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })),
                 pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry };
+  startPlacing(clipboard, entry);
+}
+// An effect or sound of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
+// Ctrl+C copies it, another map's read from it (effectTemplate); then placed as a copied effect is.
+async function chooseLibraryEffect(entry, token) {
+  let source;
+  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
+    source = [...effectRoots.values()].map(r => r.userData.source)
+      .find(o => !o.added && o.layer === 'base' && short(o.actor) === entry.source.actor);
+    if (!source) { flashHint(`${entry.name} is not in this export of the map`); return; }
+  } else {
+    flashHint(`Reading ${entry.name} from ${entry.source.package}…`);
+    const done = busyStart(`Reading ${entry.name} from ${entry.source.package}…`);
+    try { source = await effectTemplate(entry.source); }
+    catch (error) { if (token === chooseToken) flashHint(`${entry.name} could not be placed: ${error.message}`); return; }
+    finally { done(); }
+    if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
+  }
+  if (effectViewOnly({ ...source, added: true }, 'copy')) { flashHint(`${entry.name} can't be placed: ${effectViewOnly({ ...source, added: true }, 'copy')}`); return; }
+  clipboard = { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }], pivot: [...source.location], pivotIndex: 0,
+                name: entry.name, libraryEntry: entry };
   startPlacing(clipboard, entry);
 }
 function showPieces(on) {
@@ -4559,8 +4626,13 @@ function buildStepDetail(key, stage, job, running) {
       .filter(Boolean).join('; ');
   }
   if (key === 'patch' && stage?.bytes) return `${Math.round(stage.bytes / 1024)} KB cooked`;
-  if (key === 'transplant' && stage) return `${plural(stage.foreignPieces, 'piece')} from ${stage.donors.map(d => d.map).join(', ')}: `
-    + `${kilobytes(stage.donors.reduce((n, d) => n + d.bytes, 0))} more in the map`;
+  if (key === 'transplant' && stage) {
+    // pieces, and effects and sounds (effects and sounds plan, FX4), each donor's actors staged once
+    const sum = k => stage.donors.reduce((n, d) => n + (d[k] ?? 0), 0), pieces = sum('pieces'), effects = sum('effects');
+    const what = [pieces && plural(pieces, 'piece'), effects && `${effects} ${effects === 1 ? 'effect or sound' : 'effects and sounds'}`]
+      .filter(Boolean).join(' and ') || plural(stage.foreignPieces, 'piece');
+    return `${what} from ${stage.donors.map(d => d.map).join(', ')}: ${kilobytes(sum('bytes'))} more in the map`;
+  }
   if (key === 'light' && stage?.baked === false)    // a quick build's: the edit made, nothing relit
     return [stage.nativeCopies && `${copyCount(stage.nativeCopies)} made`, stage.hidden && `${stage.hidden} taken out`,
             stage.lights && 'light edits made', flagWords(stage.pieceFlags), 'lighting not baked'].filter(Boolean).join(', ');
@@ -6664,7 +6736,8 @@ function effectPanel() {
   const root = m.userData.root, r = m.userData.record, { title, lines } = recordLines(r.added ? r.added.base : r, data);
   // what an edit does with it here (effects and sounds plan, FX3), where its family builds
   if (!effectViewOnly(r, 'move') || !effectViewOnly(r, 'copy') || !effectViewOnly(r, 'delete')) {
-    if (r.added) lines.unshift(`A copy of ${short(r.added.from.actor)}: the Build makes it an actor of its own.`);
+    if (r.added?.base?.foreign) lines.unshift(`A copy of ${short(r.added.from.actor)} of ${r.added.from.package}: the Build brings it into this map with the ${r.kind === 'sound' ? 'waves' : 'particle system'} it needs (or this map's, where it has them already) and makes it an actor of its own.`);
+    else if (r.added) lines.unshift(`A copy of ${short(r.added.from.actor)}: the Build makes it an actor of its own.`);
     else if (root.userData.deleted) lines.unshift('Deleted: the Build takes it out of the level (Ctrl+Z brings it back).');
     else if (root.userData.edit) lines.unshift(`Moved${r.carriedBy ? `: it stays where it is put when ${short(r.carriedBy)} moves` : ''}. Reset puts it back${r.carriedBy ? ' and lets it follow its piece again' : ''}.`);
     else if (r.carriedBy && root.userData.stays) lines.unshift(`Kept where it is: it doesn't move with ${short(r.carriedBy)}. Reset lets it follow again.`);
@@ -6728,11 +6801,17 @@ function stopWave() {
   if (player) { player.audio.pause(); player.audio.removeAttribute('src'); player.audio.load(); }
   paintWaves();
 }
+function ownWave(wave) {
+  const pkg = wave.split('|')[0].toLowerCase(), file = String(data.source?.file ?? '').split(/[\\/]/).pop().replace(/\.upk$/i, '');
+  return [data.name, file, ...Object.keys(data.streams ?? {})].some(n => String(n).toLowerCase() === pkg);
+}
 function playWave(record, wave) {
   const again = wavePlayer?.wave === wave && wavePlayer.record === record.id && wavePlayer.state !== 'failed';
   stopWave();
   if (again) return;      // its Stop button
-  const url = `/maps/${encodeURIComponent(activeMapId)}/wave.ogg?id=${encodeURIComponent(wave)}`;
+  // a wave of this map or its streams through the map's export; another map's (a copy of its sound: FX4) from that map
+  const url = ownWave(wave) ? `/maps/${encodeURIComponent(activeMapId)}/wave.ogg?id=${encodeURIComponent(wave)}`
+    : `/library/wave.ogg?${new URLSearchParams({ package: wave.split('|')[0], id: wave })}`;
   const audio = new Audio(), player = wavePlayer = { audio, wave, record: record.id, state: 'loading', why: null };
   const mine = () => wavePlayer === player;
   audio.volume = 0.6;
@@ -6872,7 +6951,8 @@ function addedEffect(source, placed, actor = null, entity = null) {
   return makeEffectRoot(o);
 }
 function addedEffectOf(entity) {
-  const template = effectIndex.get(targetKey(entity.from ?? {}))?.userData.source;
+  // the map's own, or one of another map (its template read first: loadForeignTemplates)
+  const template = effectIndex.get(targetKey(entity.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(entity.from ?? {}));
   if (!template || template.kind !== entity.kind || !Array.isArray(entity.location) || !Array.isArray(entity.rotation)) return null;
   const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;

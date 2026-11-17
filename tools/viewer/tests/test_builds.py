@@ -174,8 +174,8 @@ class Builds(unittest.TestCase):
         s = self.wait(ID, 'built')
         self.assertEqual((s['package']['quick'], s['package']['times']), (True, {'full': 241, 'quick': 6}))
         # its pieces of other maps and where they came from, without the donor's folder
-        self.assertEqual((s['package']['foreignPieces'], s['package']['donors']),
-                         (2, [dict(map='URB_PoliceStation', pieces=2, bytes=1234)]))
+        self.assertEqual((s['package']['foreignPieces'], s['package']['foreignEffects'], s['package']['donors']),
+                         (2, 0, [dict(map='URB_PoliceStation', pieces=2, effects=None, bytes=1234)]))
 
     def test_a_failed_build_says_why(self):
         self.outcome = 'fail'

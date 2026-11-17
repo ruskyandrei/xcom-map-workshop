@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import compiler  # noqa: E402
 from compiler import compile_project, native_split, stream_only  # noqa: E402
-from test_compiler import PL, document, scene, target  # noqa: E402
+from test_compiler import DONOR_SHA, PL, document, scene, target  # noqa: E402
 
 CAN = dict(move=True, copy=True, delete=True, values=False)
 
@@ -131,6 +131,16 @@ class Records(unittest.TestCase):
         self.assertEqual(sorted(w['code'] for w in report['warnings']), ['effect-starts-off', 'mission-linked'])
         self.assertIn('effect-script-copy', [n['code'] for n in report['notes']])
 
+    def test_a_copy_of_a_landing_actor_is_warned_of(self):
+        """Long War's landing mutator destroys the landing's actors by archetype at every load (F-120): a copy of one
+        builds, with the warning."""
+        spec, report = self.compile([], [copied('Emitter_41', 7, (900, 0, 0))])
+        self.assertEqual(codes(report), [])
+        self.assertEqual([w['code'] for w in report['warnings']], ['effect-landing-copy'])
+        self.assertIn('Long War', report['warnings'][0]['message'])
+        _, report = self.compile([], [copied('Emitter_44', 8, (900, 0, 0))])
+        self.assertEqual(report['warnings'], [])
+
     def test_a_record_of_its_own_takes_it_from_its_piece(self):
         spec, _ = self.compile([moved('XComLevelActor_1', (0, 96, 0))])
         self.assertEqual(spec['carriedEffects'], {'XComLevelActor_1': ['Emitter_40']})
@@ -205,6 +215,81 @@ class Records(unittest.TestCase):
         _, report = self.compile([], [copied('Emitter_43', 1, (720, 0, 0))], groups=groups)
         self.assertEqual(codes(report), [])
         self.assertFalse([w for w in report['warnings'] if w['code'] == 'group-member'])
+
+
+
+class FakeEffects:
+    """The library as the compiler asks it for another map's effect or sound (Library.effect): URB_PierA's, by actor;
+    `entry` changes the index entry, `record` the export 28 record."""
+
+    def __init__(self, fail=None, entry=None, record=None):
+        self.fail, self.entry, self.record, self.asked = fail, entry or {}, record or {}, []
+
+    def effect(self, wanted):
+        self.asked.append(wanted)
+        if self.fail:
+            raise compiler.LibraryError(self.fail, 'the library says %s' % self.fail)
+        name = wanted['actor'].rsplit('.', 1)[-1]
+        kind = 'sound' if name.startswith('Ambient') else 'effect'
+        rec = effect(name, at=(5000, 5000, 0), kind=kind, cls='AmbientSoundSimple' if kind == 'sound' else 'Emitter',
+                     sourcePackage='URB_PierA', **self.record)
+        template = dict(kind=kind, key='fx', record=rec, systems={}, waves={},
+                        source=dict(kind='map', package='URB_PierA', level='base', actor=name, sha256=DONOR_SHA))
+        # (held by the foreign gate until its game check: placeable as any copy, FOREIGN_SOFT)
+        return template, dict(dict(key='fx', family=kind, placeable=False, blocked='family', reason='later'), **self.entry)
+
+
+def foreign(name, serial, at, kind='effect'):
+    return dict(copied(name, serial, at, kind=kind), **{'from': target(name, package='URB_PierA')})
+
+
+class Foreign(unittest.TestCase):
+    """Copies of other maps' effects and sounds (stage FX4): from the library, staged by the Build with their donor."""
+
+    def compile(self, added, library):
+        return compile_project(doc([], added), effects_scene(), (), library)
+
+    def test_they_reach_the_lanes_with_their_donor(self):
+        library = FakeEffects()
+        spec, report = self.compile([foreign('Emitter_10', 1, (100, 100, 0)), foreign('Emitter_10', 2, (300, 100, 0)),
+                                     foreign('AmbientSoundSimple_1', 3, (200, 0, 0), kind='sound')], library)
+        self.assertEqual(codes(report), [])
+        self.assertEqual(report['warnings'], [])
+        _, native = native_split(stream_only(spec))
+        donor = dict(package='URB_PierA', sha256=DONOR_SHA)
+        self.assertEqual(native['effects']['copies'], [
+            dict(id='00000000-0000-4000-8000-000000000001', name='Emitter_10_copy1', source='Emitter_10', actorClass='Emitter',
+                 location=[100.0, 100.0, 0.0], rotation=[0, 0, 0], donor=donor),
+            dict(id='00000000-0000-4000-8000-000000000002', name='Emitter_10_copy2', source='Emitter_10', actorClass='Emitter',
+                 location=[300.0, 100.0, 0.0], rotation=[0, 0, 0], donor=donor)])
+        self.assertEqual([(c['source'], c['donor']) for c in native['sounds']['copies']], [('AmbientSoundSimple_1', donor)])
+        self.assertEqual(native['copies'], [])
+        self.assertEqual(report['donors'], [dict(donor, pieces=['AmbientSoundSimple_1', 'Emitter_10'])])
+        self.assertEqual(report['counts']['effects'], dict(moved=0, deleted=0, added=2))
+        self.assertEqual({e['donor']['package'] for e in report['entities']}, {'URB_PierA'})
+        self.assertEqual(library.asked[0], target('Emitter_10', package='URB_PierA'))
+
+    def test_the_donors_record_is_checked_as_a_copys_source(self):
+        """What the donor's record says goes as for a copy of the map's own: a copy that starts off is warned of, one
+        its map's script names is noted, one of another kind than the record says is malformed."""
+        _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0))],
+                                 FakeEffects(record=dict(startsOn=False, referencedBy=['SeqAct_Toggle_1'])))
+        self.assertEqual([w['code'] for w in report['warnings']], ['effect-starts-off'])
+        self.assertIn('effect-script-copy', [n['code'] for n in report['notes']])
+        _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0), kind='sound')], FakeEffects())
+        self.assertEqual(codes(report), ['malformed'])
+
+    def test_what_the_library_can_not_bring_is_refused(self):
+        cases = [(FakeEffects(entry=dict(blocked='unavailable', reason='It can not be brought: it rides on X.')), 'not-placeable'),
+                 (FakeEffects(entry=dict(blocked='closure', reason='It needs a TextureMovie.')), 'not-placeable'),
+                 (FakeEffects(fail='donor-changed'), 'donor-changed'),
+                 (FakeEffects(fail='donor-missing'), 'donor-missing'),
+                 (None, 'no-library')]
+        for library, code in cases:
+            _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0))], library)
+            self.assertEqual(codes(report), [code], code)
+        _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0))], FakeEffects(entry=dict(placeable=True, blocked=None)))
+        self.assertEqual(codes(report), [])
 
 
 if __name__ == '__main__':

@@ -710,7 +710,9 @@ class Build:
         self.copies = self.work / 'native-edit.json'
         compiler.write_json(self.copies, self.native)
         self.compiled = report['counts']
-        foreign = sum(1 for c in self.natives if c.get('donor'))
+        # pieces, effects and sounds of other maps (the effects and sounds plan, FX4): the transplant stage's step
+        foreign = sum(1 for c in self.natives if c.get('donor')) + sum(
+            1 for k in ('effects', 'sounds') for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
         for row in self.left_out[:LEFT_OUT_SHOWN]:
             self.echo('left out: %s' % row['message'])
         # what the edit does to the missions the variant keeps (mission types plan, C3): the build window lists them by
@@ -897,11 +899,14 @@ class Build:
         return True
 
     def transplant(self):
-        """Pieces of other maps (the native edit's copies with a donor): each staged in a copy of the base map, with
-        what it depends on (tools/bake/transplant.py). The copier then reads the staged map and the edit naming the
-        staged actors. Without such a piece nothing is done."""
+        """Pieces of other maps (the native edit's copies with a donor), and effects and sounds of other maps (its
+        `effects` and `sounds` lanes' copies with a donor: the effects and sounds plan, stage FX4): each staged in a
+        copy of the base map, with what it depends on (tools/bake/transplant.py). The copier then reads the staged map
+        and the edit naming the staged actors. Without such a piece nothing is done."""
         self.source, self.donors = self.base, []
-        if not any(c.get('donor') for c in self.natives):
+        foreign_effects = any(c.get('donor') for k in ('effects', 'sounds')
+                              for c in (self.native.get(k) or {}).get('copies') or [])
+        if not (any(c.get('donor') for c in self.natives) or foreign_effects):
             return
         out = self.work / 'transplant'
         self.run_tool([sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
@@ -914,11 +919,12 @@ class Build:
         except (OSError, ValueError, KeyError) as error:
             raise BuildError('transplant.py staged no map (%s); see %s' % (error, self.work / 'logs' / 'transplant.log'))
         self.donors = [dict(map=d['map'], sha256=d['sha256'], file=d['file'], pieces=d['pieces'],
-                            objectsBrought=d['objectsBrought'], objectsReused=d['objectsReused'], cut=d['cut'],
+                            effects=d.get('effects', 0), objectsBrought=d['objectsBrought'],
+                            objectsReused=d['objectsReused'], cut=d['cut'], sizes=d.get('sizes', []),
                             bytes=d['bytes']) for d in report['donors']]
         self.stage('transplant', staged=str(self.source), foreignPieces=report['foreignPieces'],
-                   donors=[dict(map=d['map'], pieces=d['pieces'], objectsBrought=d['objectsBrought'], bytes=d['bytes'],
-                                cut=len(d['cut'])) for d in self.donors])
+                   donors=[dict(map=d['map'], pieces=d['pieces'], effects=d['effects'], objectsBrought=d['objectsBrought'],
+                                bytes=d['bytes'], cut=len(d['cut']), otherSizes=len(d['sizes'])) for d in self.donors])
 
     def light(self):
         self.lit = self.work / 'lit'
@@ -935,9 +941,10 @@ class Build:
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
             # volumes and lists, no light. A landing moved in place is relit: its grounded Skyranger casts a shadow,
             # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same. So are
-            # effects and sounds moved, copied or deleted (the effects and sounds plan)
+            # effects and sounds moved, copied or deleted (the effects and sounds plan). The map is the base map, or
+            # the staged one with the effects and sounds of other maps in it (transplant)
             self.cache_name, self.unchanged = None, True
-            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.base, self.lit, self.variant, '--copies',
+            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
                            self.copies], self.work / 'logs' / 'native-copy.log')
             self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
                               lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record(),
@@ -1263,7 +1270,8 @@ class Build:
                  for p in (Path(__file__).resolve(), TOOLS / 'editor' / 'compiler.py', PATCHTOOL, RELIGHT,
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
                            TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
-                           TOOLS / 'upk' / 'seed_map.py') if p.is_file()}
+                           TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
+                           TOOLS / 'bake' / 'native_sounds.py') if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
@@ -1287,6 +1295,7 @@ class Build:
                  **({'pieceFlags': len(self.piece_flags)} if self.piece_flags else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
+                 foreignEffects=sum(d.get('effects', 0) for d in self.donors),
                  lights=self.lights,
                  lightingUnchanged=self.unchanged,
                  stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)

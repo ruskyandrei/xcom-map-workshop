@@ -73,7 +73,8 @@ an original Emitter or ambient sound moved, turned or deleted in place (an overr
 added record with `kind` and `from`), and an effect a piece carries kept where it is (`effect.follow: none`).
 effect_override and effect_add check each against the export's `can` and `why` (export 28) and write the spec's
 `effects` and `sounds` objects (moves, deletes, copies), which native_split hands to the Build's writer
-(tools/bake/native_effects.py, native_sounds.py). An effect's own pose, delete or follow none takes it out of its
+(tools/bake/native_effects.py, native_sounds.py); a copy of another map's comes from the library (foreign_effect,
+stage FX4) and the Build stages it as a piece of another map. An effect's own pose, delete or follow none takes it out of its
 piece's carrying (`carriedEffects`). Both families build for every project since EXP-68 passed (17 November 2026);
 lens flares and a stream's are view only.
 
@@ -2353,7 +2354,9 @@ class Compiler:
 
     def effect_add(self, rec, where):
         """A copy of one of the map's effects or sounds (the effects and sounds plan, Part C): the Build clones the
-        actor and what it owns (its component, light environment and own cue) and shares the system or wave."""
+        actor and what it owns (its component, light environment and own cue) and shares the system or wave. A copy of
+        another map's (`from` names a base map other than this one: stage FX4) comes from the library
+        (foreign_effect): the Build stages its donor actor with what it needs (transplant.stage_edit) and clones that."""
         out = rec['actor']
         name = short(out)
         kind = rec.get('kind')
@@ -2370,17 +2373,24 @@ class Compiler:
             self.error('malformed', '%s has no id' % name, **where)
             return
         src = rec.get('from')
-        source = self.effect_of(src)
-        if source is None:
-            self.error('missing', '%s copies %s, which is no effect, sound or lens flare of the export'
-                       % (name, short(str((src or {}).get('actor')))), **where)
-            return
+        donor = None
+        if (isinstance(src, dict) and src.get('level') == 'base' and isinstance(src.get('package'), str)
+                and isinstance(src.get('actor'), str) and src['package'].casefold() != self.map.casefold()):
+            source, donor = self.foreign_effect(src, name, where)
+            if source is None:
+                return
+        else:
+            source = self.effect_of(src)
+            if source is None:
+                self.error('missing', '%s copies %s, which is no effect, sound or lens flare of the export'
+                           % (name, short(str((src or {}).get('actor')))), **where)
+                return
         if source['kind'] != kind:
             self.error('malformed', '%s says it is %s but copies %s, which is %s' % (
                 name, kind, short(src['actor']), source['kind']), **where)
             return
-        if src['level'] != 'base' or str(src['package']).casefold() != self.map.casefold():
-            self.error('effect-view-only', '%s copies %s of %s level %s; only the base map\'s own are copied here'
+        if src['level'] != 'base':
+            self.error('effect-view-only', '%s copies %s of %s level %s; only a base map\'s own are copied'
                        % (name, short(src['actor']), src['package'], src['level']), **where)
             return
         follow, ok = self.effect_values(rec, kind, name, where)
@@ -2396,16 +2406,52 @@ class Compiler:
         if kind == 'effect':
             self.effect_floor_note(name, None, loc, where)
         if source.get('referencedBy'):
-            self.note('effect-script-copy', '%s is a copy of %s, which the map\'s Kismet names: the copy is an ordinary '
+            self.note('effect-script-copy', '%s is a copy of %s, which its map\'s Kismet names: the copy is an ordinary '
                       '%s, which the script doesn\'t switch on or off' % (name, short(src['actor']), kind), **where)
         if source.get('startsOn') is False:
             self.warn('effect-starts-off', '%s is a copy of %s, which starts off and waits for the script to switch it '
                       'on: nothing switches the copy on' % (name, short(src['actor'])), **where)
-        self.effect_ops[kind]['copies'].append(dict(id=rec['id'], name=name, source=short(src['actor']),
-                                                    actorClass=source['actorClass'], location=loc, rotation=rot))
+        if source.get('landingActor') or source.get('landingRole'):
+            # Long War's landing mutator (XComLZMutator.HideDropShip) destroys every actor made from the grounded
+            # Skyranger's archetypes when a battle loads, and a copy keeps its source's archetype (F-120)
+            self.warn('effect-landing-copy', '%s is a copy of %s, one of the landing\'s actors: under Long War the '
+                      'landing mutator takes out every actor made like the landing\'s when the battle loads, the copy '
+                      'among them (plain Enemy Within keeps it)' % (name, short(src['actor'])), **where)
+        copy = dict(id=rec['id'], name=name, source=short(src['actor']), actorClass=source['actorClass'], location=loc,
+                    rotation=rot)
+        if donor:
+            # the Build stages the donor's actor in the map (transplant.stage_edit) and clones the staged one
+            copy['donor'] = donor
+            row = self.donor_report.setdefault(donor['package'], dict(donor, pieces=[]))
+            if short(src['actor']) not in row['pieces']:
+                row['pieces'].append(short(src['actor']))
+        self.effect_ops[kind]['copies'].append(copy)
         self.entities.append(dict(kind=kind, op='add', entity=out, id=rec['id'], actorClass=source['actorClass'],
                                   template=src['actor'], location=loc, rotation=rot,
-                                  rotationRounding=tidy(rounding, 6)))
+                                  rotationRounding=tidy(rounding, 6), **({'donor': donor} if donor else {})))
+
+    def foreign_effect(self, src, name, where):
+        """(record, donor) of the effect or ambient sound of another map a copy names (the effects and sounds plan,
+        stage FX4): its export 28 record as the library reads it from its map (library.effect), and its donor
+        {package, sha256} for the Build's staging; (None, None) with an error. What the library can't bring is
+        refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
+        foreign gate holds back (FOREIGN_FAMILIES: it waits for its game check) is built as any copy, as the pieces
+        of a kind not brought before are (FOREIGN_SOFT)."""
+        if self.library is None:
+            self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
+                       % (name, short(src['actor']), src['package']), **where)
+            return None, None
+        try:
+            template, entry = self.library.effect(src)
+        except LibraryError as error:
+            self.error(error.code, str(error), **where)
+            return None, None
+        if not entry['placeable'] and entry.get('blocked') != 'family':
+            self.error('not-placeable', '%s copies %s of %s, which can\'t be placed in another map: %s'
+                       % (name, short(src['actor']), template['source']['package'], entry['reason']), **where)
+            return None, None
+        source = template['source']
+        return template['record'], dict(package=source['package'], sha256=source['sha256'])
 
     def reaching(self, location, values):
         """How many of the base map's pieces a light's radius reaches at `location` (the report's estimate of what a
@@ -3618,14 +3664,7 @@ class Library:
             sys.path.append(viewer)
         import library
         from projects import ProjectError
-        if self.index is None:
-            index = library.load_index(self.cache)
-            if index is None:
-                raise LibraryError('no-library', 'the library of other maps\' pieces has not been scanned: open the '
-                                   'Add panel\'s "All maps" and scan, then build again')
-            self.index = (index, {e['key']: e for e in index['entries']},
-                          {d['package'].casefold(): d for d in index['donors']})
-        index, entries, donors = self.index
+        index, entries, donors = self.load()
         try:
             record = library.piece(self.cache, self.game, dict(package=target['package'], level=target['level'],
                                                                actor=short(target['actor'])), self.shared)
@@ -3650,6 +3689,50 @@ class Library:
             raise LibraryError('not-placeable', '%s of %s is not a piece the library lists'
                                % (short(target['actor']), record['source']['package']))
         return record, entry
+
+    def load(self):
+        """(index, {key: entry}, {package folded: donor}), read once; LibraryError when it was never scanned."""
+        viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
+        if viewer not in sys.path:
+            sys.path.append(viewer)
+        import library
+        if self.index is None:
+            index = library.load_index(self.cache)
+            if index is None:
+                raise LibraryError('no-library', 'the library of other maps\' pieces has not been scanned: open the '
+                                   'Add panel\'s "All maps" and scan, then build again')
+            self.index = (index, {e['key']: e for e in index['entries']},
+                          {d['package'].casefold(): d for d in index['donors']})
+        return self.index
+
+    def effect(self, target):
+        """(the template, its index entry) of an effect or ambient sound of another map, `target` {package, level,
+        actor} (library.effect: its export 28 record, its system or waves); LibraryError otherwise. The donor must be
+        the file the library was scanned from, and the effect one the library lists as it is now."""
+        _, entries, donors = self.load()       # (the viewer's folder on the path first)
+        import library
+        from projects import ProjectError
+        try:
+            template = library.effect(self.cache, self.game, dict(package=target['package'], level=target['level'],
+                                                                  actor=short(target['actor'])), self.shared)
+        except ProjectError as error:
+            code = error.extra.get('code')
+            if code == 'donor-missing':
+                raise LibraryError('donor-missing', 'the game install has no map %s, which %s comes from'
+                                   % (target['package'], short(target['actor'])))
+            if code == 'effect-missing':
+                raise LibraryError('donor-changed', 'the map %s has no effect or ambient sound %s any more'
+                                   % (target['package'], short(target['actor'])))
+            raise LibraryError('not-placeable', error.message)
+        known = donors.get(template['source']['package'].casefold())
+        if known is None or known['sha256'] != template['source']['sha256']:
+            raise LibraryError('donor-changed', 'the map %s is not the file the library was scanned from: scan the '
+                               'library again' % template['source']['package'])
+        entry = entries.get(template['key'])
+        if entry is None or entry.get('family') != template['kind']:
+            raise LibraryError('not-placeable', '%s of %s is not an effect or sound the library lists'
+                               % (short(target['actor']), template['source']['package']))
+        return template, entry
 
 
 # a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all

@@ -5,14 +5,19 @@
 // once drawn; until then the page reads the piece (the server exports it on first request) and draws it.
 // The user's favourites and recently used pieces are a file beside the settings (GET and PUT /library/state.json), so
 // they are the same in every browser; the panel's own view choices stay in this browser.
+// The base maps' effects and ambient sounds are listed too (the effects and sounds plan, Part E, stage FX4): a row
+// with the Effects view's spark or speaker for its picture, sorted into the panel's effect and sound kinds; placing
+// one is app.js's (an effect's template, /library/effect.json).
 
-import { pieceKind, inKind, setKindOptions } from './piece_categories.js';
+import { pieceKind, inKind, setKindOptions, effectKind } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
+import { drawEffectIcon } from './effects_view.js';
 
 // What the library only holds back (compiler.py FOREIGN_SOFT): hidden in its own map, linked to other pieces, of a
 // kind not brought before, waiting for a game test. Such a piece is placed as any other; what shows in the game is
 // tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the user, 16 November 2026).
-// One that needs something that can't be brought ('closure') can't be placed.
+// One that needs something that can't be brought ('closure') can't be placed, nor an effect or sound the editor can't
+// bring ('unavailable': a landing's actor, one riding on another).
 export const SOFT = ['hidden', 'assembly', 'family', 'check'];
 const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not something to see.'],
                     assembly: ['Linked', 'Linked to other pieces in its own map (a car\'s body and its glass, a prop and what it turns into).'] };
@@ -83,6 +88,18 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     const name = mapName().toLowerCase();
     here = index.donors.findIndex(d => d.package.toLowerCase() === name);
     for (const e of index.entries) {
+      if (e.family === 'effect' || e.family === 'sound') {
+        // an effect or a sound: no mesh, no size; its kind the panel's (effect or sound kinds), its package its
+        // system's or its first wave's
+        const kind = effectKind(e.family, e.kind), pkg = String(e.system ?? e.waves?.[0] ?? e.cue ?? '').split('.')[0];
+        const entry = { ...e, kind, group: e.kind, effect: e.family, floor: false, id: `lib-${e.key}`, library: true, extent: 0,
+          here: e.placed.in.includes(here), pkg,
+          text: [e.name, e.family === 'effect' ? 'effect particles' : 'sound ambient', e.kind, e.actorClass, e.source.package,
+                 e.system ?? '', ...(e.waves ?? []), e.sharedCue ? e.cue : '', e.startsOn === false ? 'starts off' : '',
+                 ...(e.emitters ?? [])].join(' ').toLowerCase() };
+        entries.push(entry); byKey.set(e.key, entry);
+        continue;
+      }
       const kind = pieceKind(e.actorClass, e.family), floor = Boolean(e.floorMaps?.length);
       const entry = { ...e, kind, floor, id: `lib-${e.key}`, library: true, extent: Math.hypot(...e.size), here: e.placed.in.includes(here),
         pkg: e.mesh.split('.')[0],
@@ -183,6 +200,8 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       item.append(thumb, el('span', {}, el('strong', { textContent: entry.name }),
         el('small', { textContent: 'A favourite this install\'s maps don\'t have' })), el('span', { className: 'tags' }, star));
       item.title = 'Kept as a favourite; no map of this game install has the piece';
+    } else if (entry.effect) {
+      effectRow(entry, item, thumb, star, soft, tag);
     } else {
       const [w, d, h] = entry.size.map(Math.round), maps = entry.placed.maps;
       const where = maps === 1 ? entry.source.package : `${maps} maps`;
@@ -208,6 +227,35 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     item.thumb = thumb; item.star = star;
     rows.set(entry.key, item);
     return item;
+  }
+  // An effect's or a sound's row: its picture the Effects view's marker, its lines what it plays (an effect's system
+  // and the kinds of its emitters, a sound's wave and length) and where it is placed
+  function effectRow(entry, item, thumb, star, soft, tag) {
+    const maps = entry.placed.maps, where = maps === 1 ? entry.source.package : `${maps} maps`;
+    const sound = entry.effect === 'sound', label = sound ? 'Sound' : 'Effect';
+    const tags = el('span', { className: 'tags' }, star);
+    if (entry.here) tags.append(el('span', { className: 'tag', textContent: 'Here', title: 'This map has it too' }));
+    if (entry.startsOn === false) tags.append(el('span', { className: 'tag', textContent: 'Starts off',
+      title: 'It starts off in its map and waits for the map\'s script to switch it on: a copy comes with no script, so it stays off' }));
+    if (tag) tags.append(el('span', { className: 'tag', textContent: tag[0], title: tag[1] }));
+    else if (!entry.placeable && !soft) tags.append(el('span', { className: 'tag later', textContent: entry.blocked === 'unavailable' ? 'Not brought' : 'Later', title: entry.reason }));
+    const what = sound ? [entry.seconds ? `${entry.seconds.toFixed(entry.seconds < 10 ? 1 : 0)} s` : null, entry.sharedCue ? 'shared cue' : null]
+      : [entry.emitters?.length ? entry.emitters.join(', ') : null, entry.lit ? 'lit' : null];
+    item.append(thumb, el('span', {}, el('strong', { textContent: entry.name }),
+      el('small', { textContent: `${label}: ${entry.group} · ${entry.pkg}` }),
+      el('small', { textContent: [...what.filter(Boolean), where].join(' · ') })), tags);
+    item.title = [sound ? (entry.waves?.length ? entry.waves.map(w => `Wave: ${w}`).join('\n') : 'No wave') : `Particle system: ${entry.system}`,
+      ...(sound && entry.sharedCue ? [`Its cue is a game asset others play too: ${entry.cue}`] : []),
+      ...(entry.scripted ? ['Its map\'s script names it: a copy is an ordinary one, which no script switches'] : []),
+      `Placed ${plural(entry.placed.count, 'time')} in ${plural(maps, 'map')} (${entry.placed.in.slice(0, 8).map(n => index.donors[n].package).join(', ')}${maps > 8 ? ', …' : ''}); brought from ${entry.source.package}`,
+      entry.placeable || soft ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its ${sound ? 'waves' : 'particle system'} already)`
+        : `Can't be placed: ${entry.reason}`, ...(tag ? [tag[1]] : [])].join('\n');
+    const choose = () => {
+      if (!entry.placeable && !soft) { hint(`${entry.name} can't be placed. ${entry.reason}`); return; }
+      onChoose(chosen?.key === entry.key ? null : entry);
+    };
+    item.onclick = choose;
+    item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
   }
   function filtered() {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -271,6 +319,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   }
   function picture(entry, canvas) {
     if (canvas.dataset.drawn || failed.has(entry.key)) return;
+    if (entry.effect) { drawEffectIcon(entry.effect, entry.startsOn === false, canvas); canvas.dataset.drawn = '1'; return; }
     if (!kept.has(entry.key)) return;       // make() draws it
     if (!pictures.has(entry.key)) {
       const image = new Image();
@@ -289,7 +338,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   async function make() {
     if (making || els.box.hidden) return;
     const next = [...windowed.children].map(item => byKey.get(item.dataset.key))
-      .filter(e => e && !kept.has(e.key) && !failed.has(e.key) && !rows.get(e.key).thumb.dataset.drawn).at(0);
+      .filter(e => e && !e.effect && !kept.has(e.key) && !failed.has(e.key) && !rows.get(e.key).thumb.dataset.drawn).at(0);
     if (!next) return;
     making = true;
     readingFrom(next);

@@ -1,7 +1,8 @@
 """Effects in the Build (native_effects.py, native_sounds.py): carried by their piece, the tutorial's Skyranger moved,
 copied and deleted with its lights (Emitter_4), on the configured install's Act1_IntroLevel; and the effects' and
 sounds' lanes of the effects and sounds plan (stage FX3) on URB_Bar: moves in place, deletes off the level's list,
-copies that own what is under them, the floors' effect lists, read back (each skipped without its map)."""
+copies that own what is under them, the floors' effect lists, read back; and an effect and a sound of URB_PierA copied
+into URB_Bar, staged by transplant.stage_edit first (stage FX4). Each skipped without its maps."""
 from pathlib import Path
 import sys
 import tempfile
@@ -190,6 +191,112 @@ class Lanes(unittest.TestCase):
             with self.assertRaises(ValueError, msg=words) as caught:
                 native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
             self.assertIn(words, str(caught.exception))
+
+
+# ---------------------------------------------------------------- another map's effects and sounds (plan Part D, FX4)
+PIER, NO_PIER = labpaths.install_map('URB_PierA')
+
+
+@unittest.skipUnless(BAR and BAR.exists() and PIER and PIER.exists(), NO_BAR or NO_PIER)
+class ForeignLanes(unittest.TestCase):
+    """The 17 November offline trial made a test (plan 2.7): URB_PierA's lit sea foam (Emitter_10) and air conditioner
+    (AmbientSoundSimple_1), which URB_Bar lacks, staged in Bar by transplant.stage_edit and cloned by the lanes; two
+    copies of the effect from the one staged actor."""
+    FOAM, AIR = 'Emitter_10', 'AmbientSoundSimple_1'
+
+    @classmethod
+    def setUpClass(cls):
+        import transplant
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        donor = dict(package='URB_PierA', sha256=transplant.sha256(PIER))
+        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])
+        cls.edit = dict(copies=[], effects=dict(moves=[], deletes=[], copies=[
+            dict(id='a', name='Emitter_10_copy1', source=cls.FOAM, actorClass='Emitter', donor=donor, **at(200.0, -600.0, 2.0)),
+            dict(id='b', name='Emitter_10_copy2', source=cls.FOAM, actorClass='Emitter', donor=donor, **at(400.0, -600.0, 2.0))]),
+            sounds=dict(moves=[], deletes=[], copies=[
+                dict(id='c', name='AmbientSoundSimple_1_copy3', source=cls.AIR, actorClass='AmbientSoundSimple', donor=donor,
+                     **at(-300.0, -1000.0, 60.0))]))
+        cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, out / 'transplant', cls.edit)
+        cls.m = native_copy.build(cls.staged, out / 'build', 'Foreign', cls.new_edit['copies'],
+                                  effects=cls.new_edit['effects'], sounds=cls.new_edit['sounds'])
+        cls.q = Package(out / 'build' / 'Foreign.upk')
+        cls.pier = Package(PIER)
+        cls.section = cls.m['nativeCopies']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_donor_actor_is_staged_once_and_the_lanes_name_it(self):
+        row, = self.report['donors']
+        self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('URB_PierA', 0, 2, []))
+        self.assertEqual(self.report['foreignPieces'], 2)
+        foam, again = self.new_edit['effects']['copies']
+        air, = self.new_edit['sounds']['copies']
+        self.assertEqual(foam['source'], row['staged'][self.FOAM])
+        self.assertEqual(again['source'], foam['source'])
+        self.assertEqual(air['source'], row['staged'][self.AIR])
+        self.assertTrue(foam['staged'] and again['staged'] and air['staged'])
+        self.assertEqual((foam['donor']['actor'], air['donor']['actor']), (self.FOAM, self.AIR))
+        self.assertEqual(self.edit['effects']['copies'][0]['source'], self.FOAM)    # the edit given is not changed
+
+    def test_the_clones_are_listed_and_the_staged_actors_not(self):
+        q, listed = self.q, set(native_copy.level_actors(self.q))
+        for name in (self.new_edit['effects']['copies'][0]['source'], self.new_edit['sounds']['copies'][0]['source']):
+            self.assertNotIn(q.by_name[PL + name], listed)
+        rows = {r['actor']: r for r in self.section['effects'] + self.section['sounds']}
+        self.assertEqual(sorted(rows), ['AmbientSoundSimple_1_copy3', 'Emitter_10_copy1', 'Emitter_10_copy2'])
+        foam = self.pier.own(self.pier.by_name[PL + self.FOAM], 'ParticleSystemComponent')
+        for name in ('Emitter_10_copy1', 'Emitter_10_copy2'):
+            i = q.by_name[PL + rows[name]['copy']]
+            self.assertIn(i, listed)
+            component = q.own(i, 'ParticleSystemComponent')
+            self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
+            self.assertEqual(q.name(q.own(component, 'Template')), self.pier.name(self.pier.own(foam, 'Template')))
+            self.assertGreater(q.own(i, 'LightEnvironment', 0), 0)               # lit: a light environment of its own
+            self.assertTrue(q.name(q.own(i, 'LightEnvironment')).startswith(q.name(i) + '.'))
+        sound = q.by_name[PL + rows['AmbientSoundSimple_1_copy3']['copy']]
+        self.assertIn(sound, listed)
+        cue = q.own(q.own(sound, 'AudioComponent'), 'SoundCue')
+        self.assertTrue(q.name(cue).startswith(q.name(sound) + '.'))
+        self.assertEqual(q.own(cue, 'FirstNode'), q.own(sound, 'SoundNodeInstance'))
+
+    def test_export_28_reads_them_as_the_donor_has_them(self):
+        import effects_metadata
+        import piece_flags
+        # (read with the install's script packages, as an export of the map in the install is)
+        scripts = piece_flags.ScriptDefaults.of(Path(PIER).parent)
+        mine = effects_metadata.describe(self.q, defaults=effects_metadata.Defaults(self.q, scripts))
+        theirs = effects_metadata.describe(self.pier)
+        copies = {r['actor'].rsplit('.', 1)[-1]: r for r in mine['effects'] + mine['sounds']}
+        rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in self.section['effects'] + self.section['sounds']}
+        home = {r['actor'].rsplit('.', 1)[-1]: r for r in theirs['effects'] + theirs['sounds']}
+        for name, source in (('Emitter_10_copy1', self.FOAM), ('Emitter_10_copy2', self.FOAM),
+                             ('AmbientSoundSimple_1_copy3', self.AIR)):
+            r, h = copies[rows[name]], home[source]
+            self.assertTrue(r['listed'])
+            if r['kind'] == 'effect':
+                self.assertEqual((r['template'], r['lit'], r['parameters']), (h['template'], h['lit'], h['parameters']))
+                # (the fingerprint hashes the bytes, whose object indices the bring renumbers: what it says is compared)
+                said = ('objects', 'lodLevels', 'emitters', 'offers', 'fixedBox')
+                self.assertEqual({k: mine['systems'][r['system']][k] for k in said},
+                                 {k: theirs['systems'][h['system']][k] for k in said})
+            else:
+                self.assertEqual([w.split('|')[1] for w in r['waves']], [w.split('|')[1] for w in h['waves']])
+                self.assertTrue(all(mine['waves'][w]['playable'] for w in r['waves']))
+                self.assertEqual(r['values'], h['values'])
+
+    def test_a_staged_source_must_be_staged_and_unlisted(self):
+        import native_effects
+        q, listed = self.q, set(native_copy.level_actors(self.q))
+        staged = self.new_edit['effects']['copies'][0]['source']
+        with self.assertRaises(ValueError) as caught:
+            native_effects.lane_actor(q, staged, ('Emitter',), listed, 'an effect')
+        self.assertIn('not in the level', str(caught.exception))
+        with self.assertRaises(ValueError) as caught:
+            native_effects.lane_actor(q, 'Emitter_2', ('Emitter',), listed, 'an effect', staged=True)
+        self.assertIn('staged from another map', str(caught.exception))
 
 
 if __name__ == '__main__':

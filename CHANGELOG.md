@@ -8,6 +8,68 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds from other maps (effects and sounds plan, stage FX4)
+
+The Add panel's All maps lists the base maps' effects and ambient sounds, and one placed from there is brought into
+the map by the Build, as a piece of another map is.
+- **The library** ([library.py](tools/viewer/library.py), index 9; [effects_library.py](tools/viewer/effects_library.py),
+  new): each base map's effects and sounds are scanned with its pieces (`scan_effects`, through
+  [effects_metadata.py](tools/viewer/effects_metadata.py)'s `describe`) into entries of family `effect` or `sound`,
+  one per recipe (an effect's class, system, saved parameters, scale, component offset, starting state; a sound's
+  class, cue, waves, values, starting state), from the map whose copy brings least, with the panel's kind (from the
+  system's or wave's name). A stream's are not scanned; a landing's, one riding on another and one playing nothing
+  are listed `unavailable` with why; the TextureMovie system's closure is refused as before. `library.effect` gives
+  one as a template (its export 28 record, its system or waves), the donor described once into
+  `effects-v1.json` in its pieces folder; the precache skips them. The full scan of 151 maps took 29 s and has 1,826
+  effect and sound entries (1,671 effects, 155 sounds; 40 can't be placed).
+- **The server** ([viewer.py](tools/viewer/viewer.py)): `GET /library/effect.json`, `POST /library/effects.json` (a
+  project's opening) and `GET`/`HEAD /library/wave.ogg?package=&id=` (the Wave preview of another map's sound, through
+  the same WaveCache). The build summary ([builds.py](tools/viewer/builds.py)) says `foreignEffects` and each donor's
+  `effects`.
+- **The page**: All maps' rows for them ([library.js](tools/viewer/web/library.js): the Effects view's marker as the
+  picture, what each plays, where it is placed, Starts off, Not brought), the Kind menu's Effects and Sounds with their
+  kinds ([piece_categories.js](tools/viewer/web/piece_categories.js)); placing one reads its template and places a copy
+  as Ctrl+V does ([app.js](tools/viewer/web/app.js) `chooseLibraryEffect`, `effectTemplate`), its system and waves
+  joined to the map's; a project's copies of them read back on opening (`loadForeignTemplates`); the panel says where
+  one comes from; the Wave preview plays another map's wave from that map; the Build window's step counts them.
+  [effects_view.js](tools/viewer/web/effects_view.js) `drawEffectIcon` draws a row's picture.
+- **The compiler** ([compiler.py](tools/editor/compiler.py) `foreign_effect`, `Library.effect`): an added effect or
+  sound whose `from` names another base map is checked against the library (the file it was scanned from, an entry
+  of its family; `unavailable` and `closure` refused) and goes to its lane with its `donor`; the report's `donors`
+  list it.
+- **The Build** ([transplant.py](tools/bake/transplant.py) `stage_edit`, [build.py](tools/editor/build.py),
+  [native_effects.py](tools/bake/native_effects.py)): the lanes' copies with a donor are staged in the map (each donor
+  actor once, outside the level's list; a system or wave the map has by path is the map's own), the copies rewritten
+  to clone the staged actor (`lane_actor` takes a staged source only outside the list); an effects-only full build
+  reads the staged map too. The manifest says `foreignEffects`.
+- **[F-121](research/findings-register.md), fixed:** the transplanter kept each donor's imports by `id(donor)`, which a
+  later donor could take once an earlier one was freed: one build of EXP-69 staged URB_Boulevard's fountain with
+  another map's class for its node. They are kept by the donor's file now ([transplant.py](tools/bake/transplant.py)
+  `Destination.import_of`); any build bringing from three or more maps could meet it before.
+- Docs: contract section 8's From other maps and the added-records row ([editor-contracts.md](research/editor-contracts.md)),
+  [tools/viewer/README.md](tools/viewer/README.md)'s From other maps.
+- Foreign effects and sounds wait for their game check (EXP-69): the compiler's `FOREIGN_FAMILIES` doesn't list
+  them, so the library marks them as a kind not brought before (listed with Can be placed unticked) and the Build
+  makes them as any copy. The run is prepared: [EXP-69](research/experiments/EXP-69-effects-and-sounds-from-other-maps.md)
+  (URB_Bar, seven copies from six maps), its project [exp69_project.py](tools/editor/examples/exp69_project.py) and
+  its marked shots ([EXP-69-shots.json](research/experiments/EXP-69-shots.json)).
+
+Checked: [test_effects_library.py](tools/viewer/tests/test_effects_library.py) (new: recipes, kinds, what blocks);
+[test_library.py](tools/viewer/tests/test_library.py) (effect entries in the index, the gate and its lift, the two-map
+scan's effects and sounds, the templates, the routes and a donor wave played); test_compiler_effects (copies of other
+maps' effects and sounds: lanes with donors, the donor record's checks, refusals);
+[test_native_effects.py](tools/bake/tests/test_native_effects.py) ForeignLanes (the plan's 17 November offline trial
+made a test: URB_PierA's lit sea foam and air conditioner staged in URB_Bar and cloned, two copies from one staged
+actor, read back as export 28 reads the donor's); test_build (an effects-only project with a foreign effect staged,
+both kinds of build reading the staged map); test_builds; [piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs)
+(new); the browser smoke's new `library-effects` check (placed, panel, Wave preview from the donor, copy, saved,
+reopened, built) and its `library-all` and `effects` checks; EXP-69's project built offline both ways (seven copies of
+six donors' actors, read back: listed, own cues and nodes, the shared cue the game's, the fountain's radii still its
+archetype's, waves playable), and its edit staged five times as the Build stages it, every brought object (141) of
+its donor's class and archetype; test_transplant ImportsKeptByDonor (F-121). Known gaps: two cues of one wave and
+recipes that differ only by values show as rows of one name, told apart only by the row's tooltip; the full browser
+smoke stops in its cover-block check (a handle off the screen after the checks before it), on the last commit too.
+
 ### Effects and sounds build for every project (EXP-68 passed)
 
 EXP-68 run 1 passed in the game (the user: "verified in game, almost all of it works as expected"), so the `effect`

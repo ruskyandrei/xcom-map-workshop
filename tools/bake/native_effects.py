@@ -119,15 +119,19 @@ def carry(g, p, copies, hidden, pairs):
 
 
 # ---------------------------------------------------------------- the effects and sounds lanes (plan Part D)
-def lane_actor(p, name, classes, listed, what):
-    """The export of `name` (a short name) in the level: one of `classes`, in the level's actor list. Raises
-    ValueError for anything else (the compiler checks the same against the export)."""
+def lane_actor(p, name, classes, listed, what, staged=False):
+    """The export of `name` (a short name) in the level: one of `classes`, in the level's actor list, or for
+    `staged` (a copy's source another map's actor brought in by transplant.stage_edit: stage FX4) one outside it.
+    Raises ValueError for anything else (the compiler checks the same against the export)."""
     i = p.by_name.get(PL + str(name))
     if i is None:
         raise ValueError('the map has no actor %s (%s)' % (name, what))
     if p.cls(i) not in classes:
         raise ValueError('%s is %s, not %s' % (name, p.cls(i), what))
-    if i not in listed:
+    if staged:
+        if i in listed:
+            raise ValueError('%s, staged from another map, is in the level\'s actor list' % name)
+    elif i not in listed:
         raise ValueError('%s is not in the level\'s actor list' % name)
     return i
 
@@ -165,12 +169,13 @@ def apply(g, p, ops, classes=EFFECT_CLASSES, what='an effect'):
         gone.add(i)
         record.append(dict(actor=d['name'], how='deleted', export=i, cls=p.cls(i)))
     for c in ops.get('copies') or []:
-        i = lane_actor(p, c['source'], classes, listed, what)
+        i = lane_actor(p, c['source'], classes, listed, what, staged=bool(c.get('staged')))
         loc, rot = [float(v) for v in c['location']], [int(v) for v in c['rotation']]
         made = native_copy.clone_actor(g, p, i, loc, rot)
         clones.append(made['actor'])
         record.append(dict(actor=c['name'], id=c.get('id'), source=c['source'], how='copied', export=made['actor'],
-                           cls=p.cls(i), location=loc, rotation=rot, mapping=made['mapping']))
+                           cls=p.cls(i), location=loc, rotation=rot, mapping=made['mapping'],
+                           **({'donor': c['donor']} if c.get('donor') else {})))
     return clones, gone, record
 
 

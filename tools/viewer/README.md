@@ -466,6 +466,26 @@ effects anew (contract section 8). The effect and sound families build for every
 (17 November 2026); a family held back again (its `builds` off in the compiler's FAMILIES) shows view only, unless the
 server is started with `serve --family <family>` (its Builds get the same `--family`).
 
+**From other maps** (stage FX4). The Add panel's **All maps** lists the base maps' effects and ambient sounds beside
+their pieces ([library.py](library.py) `scan_effects`; [effects_library.py](effects_library.py)): one entry per recipe
+(an effect's class, particle system, saved parameters, scale, component offset and starting state; a sound's class,
+cue, waves, values and starting state), so an effect placed the same way in two maps is one entry, brought from the
+map whose copy brings least. The Kind menu has **Effects** and **Sounds**, each with its kinds (Fire, Smoke and steam,
+Water, Light beams and glows, Nature, Alien, Wreckage and trash; Machines, Engines, Nature and weather, Alien, Music
+and voices; Other where no rule matches). A row shows the Effects view's marker, what it plays (its emitters' kinds and
+whether it is lit; a sound's length and a shared cue), where it is placed, and **Starts off** for one that waits for its
+map's script. A landing's, one that rides on another and one that plays nothing are listed and can't be placed
+(**Not brought**, with why). Placing one reads it from its map (`GET /library/effect.json?package=&actor=`: its export
+28 record and its particle system or waves, described once per map into `effects-v1.json` in the map's pieces folder;
+`POST /library/effects.json {sources}` many at once, as a project's opening asks) and places a copy as Ctrl+V places a
+copy of the map's own; the project saves it as an added record whose `from` names the other map. Its panel's Wave
+preview plays the wave from that map (`GET` or `HEAD /library/wave.ogg?package=&id=`, the donor read as it was when
+its records were made). The compiler checks it against the library (the map the library was scanned from, an entry it
+lists); the Build stages the actor in the map with what it needs ([transplant.py](../bake/transplant.py)
+`stage_edit`: once, however many copies name it; a system or wave the map has by path is the map's own) and clones the
+staged one. While their game check is to come (EXP-69) the compiler's foreign gate holds them as a kind not brought
+before: the list shows them with **Can be placed** unticked, and the Build makes them as any copy.
+
 A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
 at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not
 reproduced). The button turns to Stop, the clock shows how far it has got, and picking something else, Escape,
