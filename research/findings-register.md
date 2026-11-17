@@ -14,7 +14,8 @@ Statuses:
 
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
-  fracturing is a separate gap (EXP-66, read-only audit, 16 November).
+  fracturing is a separate gap (EXP-66, read-only audit, 16 November). 17 November: a fracturing wall made from
+  numbers is built and checked offline; EXP-67 (its look and its break in the game) is prepared, not played.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
   the user saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
@@ -2580,6 +2581,31 @@ inspection, no new visible mesh played).
   - Not known: what the game's code expects of a fracturing mesh beyond its saved data, and whether its checks go
     through the triangle tree a fragment at a time (then the tree's order matters for these, as it does not for a
     plain piece).
+- **The proof of concept, built** (17 November 2026, offline: the custom geometry plan's section 0, stages F0 to F3;
+  [EXP-67](experiments/EXP-67-fracturing-wall-poc.md) prepared, not played):
+  - The audit over the install's 151 maps ([frac-wall-audit.py](evidence/frac-wall-audit.py),
+    [its numbers](evidence/frac-wall-audit-2026-11-17.json)): every one of 25,209 static and 1,679 fracturing meshes
+    is written back from its numbers byte for byte (tools/bake/gen_mesh.py). On all 664 fracturing meshes the node
+    count follows the static rule, the last node is zero padding, and a collision triangle's fourth value is its
+    section's slot times the fragment count plus its fragment (858,183 of 858,183). The collision triangles are the
+    index buffer's on 646 of them, never in its order; the inner nodes narrow on all but 50 of 249,031 (the byte
+    rule is read, its rounding is not pinned).
+  - The columns of the 644 placed walls (246 meshes named "wall"): 13,392 columns. The box rule gives 11,069 of the
+    11,463 a tile long and a storey tall, 11,074 of all; every column of 521 walls. The rule on the true shape is
+    worse (8,409). A column's `MinZ` is its fragment's lowest corner (57,112 of 57,112, within 0.01) and `FragCache`
+    is sorted by it (13,392). The component's `FragmentBoundsMinZ` and `MaxZ` are the fragments' world heights (620
+    and 621 of 621) and `NumResourceIndices` the index count (644 of 644).
+  - Built on that (tools/bake/frac_wall.py, frac_walls.py): a wall from its numbers on the donor's six slots, its
+    cross-section and texture repeats, Voronoi fragments with their inside faces, records and neighbours, lightmap
+    coordinates, one collision box for each solid round its openings; in the map, the donor's clone given the mesh,
+    its body setup, the component's numbers and painted colours (the donor's LOD 0 overrides all 1,053 of its
+    vertices' colours), its columns by the box rule, lit from nothing. The twin (the donor's size) has its box,
+    30 fragments; the custom wall (four tiles, a doorway) 27 and 3 boxes. Every fragment is closed, the neighbours
+    mutual, every triangle faces out; the built map reads back whole and its export shows the walls on the donor's
+    materials.
+  - Left as they are, for the run to judge: the tree's nodes don't narrow (every check tests every triangle); the
+    lightmap packing leaves about 30% of its square unused; the columns' lists of props and neighbouring walls are
+    empty (F-69).
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).

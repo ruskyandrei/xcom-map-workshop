@@ -8,6 +8,52 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Custom walls, proof of concept F2 and F3: fracturing walls made from numbers, built into the map; EXP-67 prepared
+
+The section's next two stages, offline, and the game run made ready for the user. A wall made from numbers is a
+copy of one of the map's fracturing walls (the donor) with a new mesh and new fragment columns; everything else
+(materials, toughness, rubble, effects) is the donor's.
+- [tools/bake/frac_wall.py](tools/bake/frac_wall.py) (new): the generator. A wall's numbers (its ends, its openings,
+  a seed) give its mesh built as URB_Bar's inside wall `URB_BarIntWallB_FRACTURED` is: the six slots (each side's
+  face by storey, the trims, the inside faces), the donor's cross-section with its skirting and cornice, its texture
+  repeats and vertex colours, Voronoi fragments through the thickness (openings cut first) with their inside faces,
+  records and neighbours, lightmap coordinates packed in the square, and one collision box for each solid round the
+  openings. The same numbers always give the same mesh and name.
+- [tools/bake/frac_walls.py](tools/bake/frac_walls.py) (new): in the map. A fracturing copy that carries
+  `generated` (`fracWall` with the wall's numbers, or `relit`: the donor's own mesh lit as a made wall is, for a
+  reference beside one) gets the mesh and its body setup under the package `XComMapEdGeo`, the component's
+  `FragmentBoundsMinZ`, `FragmentBoundsMaxZ` and `NumResourceIndices` as the game's walls save them, one painted
+  colour for each new vertex, and its `FragmentColumns` by the audit's box rule.
+- [native_copy.py](tools/bake/native_copy.py): such copies are made after the fracturing copies, their tiles seeded
+  and rebuilt over the made wall's own box; the manifest lists them (`generatedWalls`), the log has a line for each,
+  and the relight lights each from nothing. [relight.py](tools/bake/relight.py): `--fresh-copy COPY`, a new actor of
+  the map lit from nothing as a foreign copy is.
+- [compiler.py](tools/editor/compiler.py): an added copy's `generated` is checked (malformed, or on anything but a
+  fracturing piece's copy: the record is left out), the copy stands in the made wall's box (`world_box`'s `along`),
+  and the request goes through the spec and `native_split` to the Build; a note says a blast doesn't spread from a
+  made wall to the walls beside it, nor from them to it. [web/app.js](tools/viewer/web/app.js) keeps a copy's
+  `generated` through load, save and paste (the view draws the template's mesh).
+- [examples/exp67_project.py](tools/editor/examples/exp67_project.py) (new): EXP-67's project on URB_Bar (a reference,
+  the twin, a custom wall four tiles long with a doorway), saved in the editor's store and built there, or in a
+  scratch folder. [EXP-67](research/experiments/EXP-67-fracturing-wall-poc.md) with
+  [its shots file](research/experiments/EXP-67-shots.json) is the run, which the user drives; T-42 has the build.
+- Checked: [test_frac_wall.py](tools/bake/tests/test_frac_wall.py) (16 tests: every fragment closed, neighbours
+  mutual, every triangle facing out, lightmap coordinates in the square, the collision values, the faces covering the
+  outline but the doorway, nothing in the doorway, the mesh written and read back, the same numbers the same mesh;
+  with the install, the template, the section and the face repeats against the donor);
+  [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) (10: the columns rule, the request's checks; a scratch
+  build on the bar read back: meshes whole, the components' numbers, painted colours, columns, tiles);
+  [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) (5); the project's Build through the
+  editor's code, quick and full (44 s), read back; the built map's export on a test server with marked shots; the
+  project opened in the editor on a test server: each copy keeps its `generated` and the project reads as saved; the
+  editor, node, repo and viewer suites (a build-queue timing test failed once in the viewer run and passed run on its
+  own; that code is untouched here) and the bake tests of the mesh writer, the generator, native copies (40) and
+  flags (13). test_relight's run ends early with exit 0 after 27 tests, the same on main: not this change's, and not
+  looked into.
+- Known gaps: the collision tree's nodes don't narrow; the lightmap packing leaves about 30% of its square unused;
+  the columns' lists of props and neighbouring walls are empty (F-69); the editor draws a made wall as its template
+  and has no tool to make one (the project comes from the example script). Not played: EXP-67 waits for the user.
+
 ### Custom walls, proof of concept F0 and F1: the fracturing walls audited, meshes written from numbers
 
 The custom geometry plan's section 0 (a fracturing wall made from numbers, as a proof of concept), at the user's

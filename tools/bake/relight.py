@@ -15,7 +15,8 @@ bar's floor, it made the match worse), masked materials' holes (they shadow as s
       [--component-list FILE] [--direct-only] [--no-emissive] [--samples 64] [--bounce-rays 64] [--stride 2]
       [--checker SIZE] [--source-radius R] [--remove-caster ACTOR ...] [--remove-caster-list FILE]
       [--remove-light LIGHT ...]
-      [--edit-spec SPEC] [--native-copy COPY=SOURCE ...] [--light-edits FILE] [--receivers-near R] [--no-quick]
+      [--edit-spec SPEC] [--native-copy COPY=SOURCE ...] [--foreign-copy COPY=STAGED ...] [--fresh-copy COPY ...]
+      [--light-edits FILE] [--receivers-near R] [--no-quick]
       [--jobs N] [--band-texels N] [--floor F] [--as-before] [--piece-cache DIR --base SHA]
 
 An edit is relit as a change on the original bake (see `apply_change`). `--edit-spec` takes the edit from an editor
@@ -42,6 +43,10 @@ their bake.
 its lightmap is our light on it where it stands, from the lights its lightmap lists (native_copy.py gave it this map's),
 with the area lights and the bounce; the texels our light doesn't reach are black. Its shadow maps of the map's
 dominant light are their whole field, from the scene after the edit.
+
+`--fresh-copy COPY` names a new actor of this map lit from nothing as a foreign copy is, with no staged piece: a copy
+whose mesh the Build made (a generated fracturing wall, frac_walls.py), whose cloned lightmap holds its donor's bake
+on another shape. The scene before the edit leaves it out; the scene after has it as it stands.
 
 `--light-edits FILE` takes the light edits native_copy.py made in this map (lights deleted, changed, added, generated
 area lights moved, copied or deleted; private/plans/done/editor-lights-plan.md, 4.4), as native_lights.relight_edits writes
@@ -1554,6 +1559,9 @@ def main():
     a.add_argument('--foreign-copy', action='append', default=[], metavar='COPY=STAGED',
                    help='edit: the actor COPY is a copy of STAGED, a piece of another map staged in this one '
                         '(transplant.py): both scenes leave STAGED out, and COPY is lit from nothing')
+    a.add_argument('--fresh-copy', action='append', default=[], metavar='COPY',
+                   help='edit: the actor COPY is a new actor of this map lit from nothing, as a foreign copy is, '
+                        'with no staged piece (a generated wall, frac_walls.py): the scene before leaves it out')
     a.add_argument('--light-edits', type=Path, metavar='FILE',
                    help='edit: the light edits native_copy.py made in this map, with their lights before and after '
                         'and the GUIDs it added to receivers\' lightmaps (native_lights.relight_edits; delta mode)')
@@ -1617,9 +1625,10 @@ def main():
     if args.component_list:
         components += [line.split('#')[0].strip() for line in args.component_list.read_text(encoding='utf-8').splitlines()
                        if line.split('#')[0].strip()]
-    if not components and args.receivers_near is None and not natives and not foreign and not moved:
-        a.error('give --component, --component-list, --receivers-near, --native-copy, --foreign-copy or '
-                '--moved-in-place')
+    if (not components and args.receivers_near is None and not natives and not foreign and not moved
+            and not args.fresh_copy):
+        a.error('give --component, --component-list, --receivers-near, --native-copy, --foreign-copy, --fresh-copy '
+                'or --moved-in-place')
     args.out.mkdir(parents=True, exist_ok=True)
     started = time.perf_counter()
     timings = {}
@@ -1635,7 +1644,8 @@ def main():
         states = resolve_light_states(p, doc, args.remove_light)
         print('light edits:', json.dumps([(e['op'], e['name']) for e in states['edits']]))
     # the scene before the edit has no native copies: they are new actors of this map
-    before_args = dict(remove_casters=[c for c, _ in natives + foreign]) if natives or foreign else {}
+    before_args = (dict(remove_casters=[c for c, _ in natives + foreign] + list(args.fresh_copy))
+                   if natives or foreign or args.fresh_copy else {})
     # an actor moved in place stands at its new pose in the map: the scene before has it at its old one instead
     if moved:
         before_args['remove_casters'] = before_args.get('remove_casters', []) + [m['source'] for m in moved]
@@ -1649,7 +1659,7 @@ def main():
         print('scene:', json.dumps(scene.counts), 'level scale', scene.level_scale, 'environment',
               np.round(scene.environment, 4).tolist())
     after, after_args = None, None
-    if args.remove_caster or states or add_casters or natives or foreign or moved:
+    if args.remove_caster or states or add_casters or natives or foreign or moved or args.fresh_copy:
         if scene is None:
             a.error('an edit needs the shadowed model (no --direct-only)')
         after_args = dict(remove_casters=args.remove_caster, add_casters=add_casters, ignore_casters=ignore)
@@ -1675,6 +1685,14 @@ def main():
     fresh = fresh_components(p, foreign)
     if foreign:
         print('copies of pieces of other maps:', json.dumps(fresh))
+    # new actors of this map lit from nothing (generated walls): their mesh components, no staged piece to leave out
+    for copy in args.fresh_copy:
+        ai = p.by_name.get('TheWorld.PersistentLevel.' + copy)
+        if ai is None:
+            a.error(f'--fresh-copy: no actor {copy}')
+        fresh += [p.name(ci) for ci in p.children.get(ai, []) if p.cls(ci).endswith('StaticMeshComponent')]
+    if args.fresh_copy:
+        print('copies lit from nothing:', json.dumps(args.fresh_copy))
     if args.receivers_near is not None:
         if after is None:
             a.error('--receivers-near needs an edit')

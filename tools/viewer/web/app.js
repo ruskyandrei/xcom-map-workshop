@@ -1086,7 +1086,7 @@ function actorPose(source, matrix) {
 const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
 // An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null }) {
+function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null }) {
   return { ...template, id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
     // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
     // template's settings (pieceFlags) stay its baseline
@@ -1094,7 +1094,9 @@ function addedObject(template, placed, { actor, entity, prefab, partner, locatio
     // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
-    added: { from: fromOf(template), entity, tinted,
+    // `generated`: a fracturing wall the Build makes from numbers on this piece's materials (custom geometry plan,
+    // section 0), kept as the project has it; the view draws the template's own mesh
+    added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
              ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
 }
 // Cover blocks (cover.js): invisible pieces that give cover, made by the Build from a recipe (compiler.COVER_RECIPES,
@@ -1559,7 +1561,8 @@ async function pasteSnapshot(clip, delta, step = null) {
     return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
       partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
-      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null });
+      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null,
+      generated: source.added?.generated ?? null });
   });
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
@@ -3957,6 +3960,7 @@ function editStateNow() {
         entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
                    prefab: o.prefab ?? null, partner: o.partner ?? null };
         if (o.added.tinted) entity.tinted = true;
+        if (o.added.generated) entity.generated = o.added.generated;
         if (root.userData.flags) entity.flags = { ...root.userData.flags };
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
@@ -4074,7 +4078,7 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted), flags: entity.flags ?? null }));
+        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null }));
     }
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));

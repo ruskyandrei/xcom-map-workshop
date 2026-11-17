@@ -2199,8 +2199,15 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                              label=c.get('label') or c['actor']))
         # (a piece that collides with nothing, a sky dome 127,000 units across, changes no tile: seeding the whole
         # grid under it only made the game re-check every tile, F-93)
-        tile_info = (add_tiles_box(g, p, assembly_box(p, [(ai, loc, rot) for _, ai, loc, rot, _ in members]))
-                     if tiles and any(collides(p, ai) or ai in walked for _, ai, _, _, _ in members) else None)
+        box = None
+        if tiles and any(collides(p, ai) or ai in walked for _, ai, _, _, _ in members):
+            box = assembly_box(p, [(ai, loc, rot) for _, ai, loc, rot, _ in members])
+            # a generated wall (frac_walls.py) stands in its own box, not its donor's
+            gen = [(c, ai, loc, rot) for c, ai, loc, rot, _ in members if c.get('generated')]
+            if gen:
+                import frac_walls
+                box = frac_walls.wall_box(p, gen[0][1], gen[0][2], gen[0][3], gen[0][0]['generated']) or box
+        tile_info = add_tiles_box(g, p, box) if box is not None else None
         actors += ([info['actor'] for info in infos] + [info['actor'] for info in volume_infos]
                    + ([tile_info['volume']['export']] if tile_info else []))
         # a ladder's linked top tile rebuilt before anything reaches its foot (plan section 5.2, recipe 1)
@@ -2212,7 +2219,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                     top=list(c['ladder']['top']), topVolume=top))
         for k, ((c, ai, location, rotation, extra), info) in enumerate(zip(members, infos)):
             made.append(dict(actor=c['actor'], label=c.get('label'), location=location, rotation=rotation, info=info, extra=extra,
-                             staged=bool(c.get('staged')), donor=c.get('donor'),
+                             staged=bool(c.get('staged')), donor=c.get('donor'), generated=c.get('generated'),
                              breakGroup=c.get('breakGroup') or 0, tiles=tile_info if k == 0 else None,
                              walkable=ai in walked,
                              **({'assembly': assembly, 'family': c.get('family')} if assembly else {})))
@@ -2240,6 +2247,19 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         # the fragments' saved world heights go up or down with a storey move
         shift_fragment_heights(g, p, m['info']['mapping'], after[0][2] - before[0][2])
         fracturing.append((original, copy))
+    # generated walls (frac_walls.py, plan section 0): a fracturing copy's mesh and columns made from numbers
+    generated = [dict(original=original, info=m['info'], generated=m['generated'], location=after[0], rotation=after[1],
+                      label=m.get('label') or m['actor'])
+                 for m, (original, copy, before, after, _) in zip(made, poses) if m.get('generated')]
+    generated_records = []
+    if generated:
+        import frac_walls
+        generated_records = frac_walls.add_walls(g, p, generated, level_grid(p))
+        for r in generated_records:
+            if r['kind'] == 'fracWall':
+                print('    %s: made from numbers as %s, %d fragments, %d triangles, %d collision boxes; its columns '
+                      'are its own (%d)' % (r['label'], r['meshName'], r['fragments'], r['triangles'], r['solids'],
+                                            r['columns']))
     groups, children = link_children(g, p, made, break_originals,
                                      [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')])
     hidden, hide_volumes = hide_pieces(g, p, hides, volumes=not cleared) if hides else ([], [])
@@ -2374,6 +2394,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                              **({'staged': True, 'donor': m['donor'], 'lighting': 'fresh' if bake else 'its home map\'s'}
                                 if m['staged'] else {}),
                              **({'columns': info['columns']} if info.get('columns') else {}),
+                             **({'generated': m['generated']['kind']} if m.get('generated') else {}),
                              parts=children[new],
                              **({'assembly': m['assembly'], 'family': m['family']} if m.get('assembly') else {})))
     tool = dict(path='tools/bake/native_copy.py', sha256=lighting.digest(__file__))
@@ -2399,6 +2420,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                                      for f in r['floors']]} if not r['deleted'] else {}))
                                  for r in edit_records],
                   coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
+                  **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
+                                              **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
+                                         for r in generated_records]} if generated_records else {}),
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),
@@ -2420,6 +2444,11 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         cmd = [sys.executable, '-B', '-u', str(HERE / 'relight.py'), str(dst), str(out), variant, '--cache', cache,
                '--receivers-near', str(receivers_near)]
         for sec in sections:
+            if sec.get('generated'):
+                # a generated wall (or its reference beside it): its cloned lightmap holds its donor's bake on another
+                # shape, so it is lit from nothing
+                cmd += ['--fresh-copy', sec['copy'].split('.')[-1]]
+                continue
             cmd += ['--foreign-copy' if sec.get('staged') else '--native-copy',
                     f"{sec['copy'].split('.')[-1]}={sec['actor']}"]
         if len(hidden) > CASTER_ARGS:
@@ -2526,6 +2555,8 @@ def main():
                                **({'ladder': c['ladder']} if c.get('ladder') else {}),
                                # its flags (piece flags plan), written on its clone
                                **({'flags': c['flags']} if c.get('flags') else {}),
+                               # a fracturing wall made from numbers on its materials (frac_walls.py)
+                               **({'generated': c['generated']} if c.get('generated') else {}),
                                # a piece of another map, staged in the map by transplant.py
                                **({'staged': True, 'donor': c.get('donor')} if c.get('staged') else {})))
     for item in args.copy:

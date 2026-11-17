@@ -1,0 +1,23 @@
+{"map": "URB_Bar_X67", "shots": [
+ {"out": "EXP-67-row.png", "title": "EXP-67: the three walls on the pavement in front of the bar (the built map's export)",
+  "target": [-760, -192, 200], "camera": [0, -1700, 1000], "lighting": "map",
+  "marks": [
+   {"n": "R", "at": [-1440, -192, 200], "color": "#5ad17a", "r": 60, "text": "reference: the donor's own mesh, lit as the made walls are"},
+   {"n": "T", "at": [-672, -192, 200], "color": "#4aa8ff", "r": 60, "text": "twin: made from numbers at the donor's size; should look like R"},
+   {"n": "C", "at": [0, -192, 200], "color": "#ffe27a", "r": 60, "text": "custom: four tiles, made from numbers"},
+   {"n": "D", "at": [-48, -192, 80], "color": "#ff6b6b", "r": 40, "text": "its doorway, one tile wide: walk through it"}]},
+ {"out": "EXP-67-twin.png", "title": "EXP-67: the reference and the twin, from the south (side B)",
+  "target": [-1056, -192, 190], "camera": [0, -1100, 420], "lighting": "map",
+  "marks": [
+   {"n": "R", "at": [-1440, -192, 200], "color": "#5ad17a", "r": 50, "text": "reference"},
+   {"n": "T", "at": [-672, -192, 200], "color": "#4aa8ff", "r": 50, "text": "twin: the same materials, trims and storey line"}]},
+ {"out": "EXP-67-custom.png", "title": "EXP-67: the custom wall and its doorway, from the south (side B)",
+  "target": [0, -192, 180], "camera": [0, -700, 260], "lighting": "map",
+  "marks": [
+   {"n": "C", "at": [-144, -192, 260], "color": "#ffe27a", "r": 44, "text": "custom wall"},
+   {"n": "D", "at": [-48, -192, 80], "color": "#ff6b6b", "r": 44, "text": "doorway: cover either side of it, a way through it"}]},
+ {"out": "EXP-67-custom-north.png", "title": "EXP-67: the custom wall from the north (side A)",
+  "target": [0, -192, 160], "camera": [420, 170, 220], "fov": 70, "lighting": "map",
+  "marks": [
+   {"n": "C", "at": [144, -192, 260], "color": "#ffe27a", "r": 44, "text": "custom wall, the other face"},
+   {"n": "D", "at": [-48, -192, 80], "color": "#ff6b6b", "r": 44, "text": "doorway"}]}]}

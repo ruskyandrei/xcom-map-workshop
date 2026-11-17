@@ -327,9 +327,13 @@ def finite(v, n):
                                                        and math.isfinite(x) for x in v)
 
 
-def world_box(obj, meshes, location, rotation):
-    """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given."""
-    b = meshes[obj['mesh']]['bounds']
+def world_box(obj, meshes, location, rotation, along=None):
+    """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given. `along` (x0, x1) puts
+    the mesh's x range in its own frame in place of its bounds' (a fracturing wall made from numbers on the component's
+    materials, tools/bake/frac_wall.py: its section, so its y and z, are the template's)."""
+    b = list(meshes[obj['mesh']]['bounds'])
+    if along is not None:
+        b[0], b[3] = (along[0] + along[1]) / 2, (along[1] - along[0]) / 2
     m = multiply(transform(location, rotation, obj['scale']), obj.get('componentTransform') or IDENTITY)
     pts = []
     for sx, sy, sz in product((-1, 1), repeat=3):
@@ -987,6 +991,29 @@ class Compiler:
         return [o for o in parts if short(o['actor']) == short(target['actor'])]
 
     # ---------------------------------------------------------------- pieces' flags (piece flags plan)
+    def generated_valid(self, rec, where):
+        """Whether a record's `generated` (if any) is well formed (custom geometry plan, section 0): {kind 'fracWall',
+        version 1, wall {x0, x1, openings [{x0, x1, z0, z1}], seed}}, a fracturing wall made from numbers in its
+        template's frame (tools/bake/frac_wall.py), or {kind 'relit', version 1}, the template's own mesh lit as a made
+        wall is. A malformed one leaves the record out, as any malformed field does."""
+        if 'generated' not in rec:
+            return True
+        g = rec['generated']
+        num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
+        ok = isinstance(g, dict) and g.get('version') == 1 and g.get('kind') in ('fracWall', 'relit')
+        if ok and g['kind'] == 'fracWall':
+            w = g.get('wall')
+            ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= 24
+                  and isinstance(w.get('seed', 1), int)
+                  and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
+                          and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
+                          for o in w.get('openings') or []))
+        if ok:
+            return True
+        self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
+                   '{x0, x1, openings, seed}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
+        return False
+
     def flags_valid(self, rec, where):
         """Whether a record's `flags` (if any) is well formed: an object of known roles, each strictly true or false,
         never empty. A malformed one leaves the record out, as any malformed field does."""
@@ -1111,8 +1138,8 @@ class Compiler:
             return None
         return [tidy(v) for v in loc], whole, max(abs(w - r) for w, r in zip(whole, rot))
 
-    def boxes(self, parts, loc, rot):
-        return union([world_box(p, self.meshes, loc, rot) for p in parts])
+    def boxes(self, parts, loc, rot, along=None):
+        return union([world_box(p, self.meshes, loc, rot, along) for p in parts])
 
     # ---------------------------------------------------------------- ladders (plan section 5)
     def cursor_storeys(self):
@@ -1676,7 +1703,7 @@ class Compiler:
 
     def added(self):
         known = {'id', 'actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'light',
-                 'template', 'cover', 'flags'}
+                 'template', 'cover', 'flags', 'generated'}
         gated = {}      # an assembly's copies: id -> (assembly, [(source actor, record, where, parts, pose)])
         for k, rec in enumerate(self.doc.get('added') or []):
             where = dict(record='added[%d]' % k)
@@ -1690,7 +1717,7 @@ class Compiler:
             where['entity'] = out
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an added piece and is ignored' % f, **where)
-            if not self.flags_valid(rec, where):
+            if not self.flags_valid(rec, where) or not self.generated_valid(rec, where):
                 continue
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
                 self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
@@ -1758,10 +1785,17 @@ class Compiler:
         out = rec['actor']
         loc, rot, rounding = pose
         src = parts[0]
+        made = rec.get('generated')
+        if made and src['actorClass'] not in ('XComFracLevelActor', 'XComDecoFracLevelActor'):
+            self.error('malformed', "%s copies a %s: only a fracturing piece's copy is made from numbers"
+                       % (short(out), src['actorClass']), **where)
+            return
         self.loot(src, short(out), 'add', where)
         if not extra.get('assembly') and self.single_grid_rule(short(out), src, loc, rot, where) is None:
             return
-        new = self.boxes(parts, loc, rot)
+        # a wall made from numbers stands in its own box, not its template's
+        along = (made['wall']['x0'], made['wall']['x1']) if made and made['kind'] == 'fracWall' else None
+        new = self.boxes(parts, loc, rot, along)
         name = short(rec['from']['actor'])
         donor = self.donors.get((rec['from']['package'].casefold(), rec['from']['actor']))
         if (rec['from']['package'].casefold(), rec['from']['actor']) in self.untried_foreign:
@@ -1794,6 +1828,13 @@ class Compiler:
                                      rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(1, out), source=name, label=short(out), location=loc, rotation=rot, box=new,
                                 member='added|' + out, actorClass=src['actorClass'], ladder=None, **extra))
+        if rec.get('generated'):
+            # a fracturing wall made from numbers on the template's materials (custom geometry plan, section 0)
+            self.copies[-1]['generated'] = rec['generated']
+            if rec['generated']['kind'] == 'fracWall':
+                self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: a blast "
+                          'does not spread from it to the walls beside it, nor from them to it' % (short(out), name),
+                          **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
@@ -2468,6 +2509,10 @@ class Compiler:
             # once the copy is made, from the package's own settings.
             if any(c.get('flags') for c in copies):
                 copy['flags'] = [c.get('flags') for c in copies]
+            # Fracturing walls made from numbers (custom geometry plan, section 0): each copy's request (None for one
+            # without), made by the Build's writer on the copy (tools/bake/frac_walls.py).
+            if any(c.get('generated') for c in copies):
+                copy['generated'] = [c.get('generated') for c in copies]
             # Ladders: each ladder copy's foot tile and linked top tile (None for other copies); the Build rebuilds the top
             # tile first, so the climb keeps both its links (plan section 5.2).
             if any(c.get('ladder') for c in copies):
@@ -3522,11 +3567,12 @@ def native_split(spec):
         donors = obj.get('donors') or [None] * n
         untried = obj.get('untried') or [False] * n
         flags = obj.get('flags') or [None] * n
+        generated = obj.get('generated') or [None] * n
         # a piece of another map is always made in the map: nothing else can bring what it needs; so is a copy of a
         # class the Build has not been tried on (the patch's copier has no recipe for it either)
         # (and a copy with flags: only the writer sets them)
         in_map = [classes[k] in NATIVE_CLASSES or bool(members[k]) or bool(donors[k]) or untried[k] or bool(flags[k])
-                  for k in range(n)]
+                  or bool(generated[k]) for k in range(n)]
         copier_groups = {groups[k] for k in range(n) if groups[k] and not in_map[k]}
         native = [k for k in range(n) if in_map[k] and groups[k] not in copier_groups]
         for k in native:
@@ -3536,6 +3582,7 @@ def native_split(spec):
                                 **({'donor': donors[k]} if donors[k] else {}),
                                 **({'untried': True} if untried[k] else {}),
                                 **({'flags': flags[k]} if flags[k] else {}),
+                                **({'generated': generated[k]} if generated[k] else {}),
                                 **({'family': families[k], 'assembly': members[k]} if members[k] else {}),
                                 **({'ladder': obj['ladders'][k]} if (obj.get('ladders') or [None] * n)[k] else {})))
         made = {members[k] for k in native if members[k]}
@@ -3546,7 +3593,7 @@ def native_split(spec):
         if keep:
             rest = dict(obj)
             for f in ('from', 'poses', 'labels', 'boxes', 'classes', 'breakGroups', 'families', 'assemblies', 'ladders',
-                      'donors', 'untried', 'flags'):
+                      'donors', 'untried', 'flags', 'generated'):
                 if f in obj:
                     rest[f] = [obj[f][k] for k in keep]
             rest.pop('assemblyMoves', None)
