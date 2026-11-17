@@ -567,8 +567,8 @@ same thing to place), `system`, `emitters`, `lit`, `startsOn`, `scripted`, `wave
 `mesh` or `size`, with `source`, `placed`, `closure` as a piece's. `blocked` is `unavailable` for one the editor can't
 bring (effects_library `blocked`: a stream's, a landing's, one its export says can't be copied), `closure` for one
 whose closure the transplant refuses or that names another actor of its map, `family` while the compiler's
-`FOREIGN_FAMILIES` doesn't list its kind. `library.effect` gives one as a template: its export 28 record (as this
-section describes, read from the donor), its system or waves, the donor's SHA-256 and its recipe key. An added record
+`FOREIGN_FAMILIES` doesn't list its kind (it lists effects and sounds since EXP-69). `library.effect` gives one as a
+template: its export 28 record (as this section describes, read from the donor), its system or waves, the donor's SHA-256 and its recipe key. An added record
 whose `from` names another base map goes through `foreign_effect`: the library must have been scanned from the file
 the install has (`donor-changed` otherwise), the record's key must be an entry of the right family, and an entry
 `unavailable` or `closure` is refused (`not-placeable`); the record's own checks are a copy's (starts off, named by its

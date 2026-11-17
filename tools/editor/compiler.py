@@ -162,8 +162,10 @@ SCENERY_LOW = 32.0
 CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
-# without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day.
-FOREIGN_FAMILIES = ('scenery', 'destructible', 'collectible', 'fracturing', 'door', 'frameless-door', 'physics', 'ladder')
+# without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
+# and ambient sounds since EXP-69 (17 November 2026; the effects and sounds plan's FX4).
+FOREIGN_FAMILIES = ('scenery', 'destructible', 'collectible', 'fracturing', 'door', 'frameless-door', 'physics', 'ladder',
+                    'effect', 'sound')
 # The assemblies that can come whole from another map (the library lists each as one entry: a car's body, glass and
 # parts; a door's leaf and frame), since EXP-40 run 1 (11 November 2026), and a van (its parts, with its own building
 # and floor volumes, which the transplanter stages with them) since EXP-42 the same day.
@@ -2435,8 +2437,8 @@ class Compiler:
         stage FX4): its export 28 record as the library reads it from its map (library.effect), and its donor
         {package, sha256} for the Build's staging; (None, None) with an error. What the library can't bring is
         refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
-        foreign gate holds back (FOREIGN_FAMILIES: it waits for its game check) is built as any copy, as the pieces
-        of a kind not brought before are (FOREIGN_SOFT)."""
+        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69) is built as any
+        copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
         if self.library is None:
             self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
                        % (name, short(src['actor']), src['package']), **where)

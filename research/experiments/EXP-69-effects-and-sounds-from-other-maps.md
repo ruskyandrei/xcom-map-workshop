@@ -2,7 +2,8 @@
 
 Date: 17 November 2026. The effects and sounds plan's game check after stage FX4 (its EXP-D, section 7.2), in one
 project on URB_Bar, under Long War (the lab copy). Plain EW is not played in this run. Effects and sounds of other
-maps wait for this run (the compiler's `FOREIGN_FAMILIES` doesn't list them yet); the Build makes them all the same.
+maps waited for this run (the compiler's `FOREIGN_FAMILIES` didn't list them); the Build made them all the same.
+**Run 1 passed: the compiler's `FOREIGN_FAMILIES` lists effects and sounds since.**
 
 ## What the offline checks settled
 
@@ -54,4 +55,12 @@ What the run adds over the offline checks (Play in game from the editor, on the 
 
 ## Result
 
-Not played yet.
+**Run 1 passed** (17 November 2026, played by the user: "tested in game all looks good"). Every effect played and
+every sound sounded as predicted, and the save and reload changed nothing; nothing odd was reported. So effects and
+ambient sounds brought from other maps play as in their own map: a lit one, one with mesh particles, one whose
+system the map has already, two copies of one, a simple sound with its own cue, a shared cue and a sound whose reach
+is its archetype's. The compiler's `FOREIGN_FAMILIES` lists `effect` and `sound` since, so the library marks them
+placeable.
+
+Not told apart in this run: where the game's listener is (the camera or the soldiers). The report gave no silent
+sound, so the soldier question didn't come up; EXP-E still needs it for its reach check.

@@ -2091,7 +2091,10 @@ def check_library_effects(browser, url):
     page.wait_for_function('viewer.library.ready()', timeout=60000)
     fx = page.evaluate("viewer.library.entries().filter(e => e.effect).length")
     assert fx > 1000, fx
-    # (held by the foreign gate until their game check, as any kind not brought before: shown with Placeable only off)
+    # placeable since EXP-69 (the compiler's foreign gate lists effects and sounds)
+    page.locator('#libAllKind').select_option('effects')
+    assert page.evaluate("viewer.library.shown().length > 0 && viewer.library.shown().every(e => e.effect === 'effect' && e.placeable)")
+    # (what the editor can't bring, a landing's, shows with Placeable only off)
     page.locator('#libAllPlaceable').uncheck()
     # the kinds: Effects, Sounds and each of theirs, with counts
     page.locator('#libAllKind').select_option('effects')

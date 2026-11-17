@@ -483,8 +483,8 @@ preview plays the wave from that map (`GET` or `HEAD /library/wave.ogg?package=&
 its records were made). The compiler checks it against the library (the map the library was scanned from, an entry it
 lists); the Build stages the actor in the map with what it needs ([transplant.py](../bake/transplant.py)
 `stage_edit`: once, however many copies name it; a system or wave the map has by path is the map's own) and clones the
-staged one. While their game check is to come (EXP-69) the compiler's foreign gate holds them as a kind not brought
-before: the list shows them with **Can be placed** unticked, and the Build makes them as any copy.
+staged one. EXP-69 played them in the game (17 November 2026), and the compiler's foreign gate lists them since, so
+the list shows them placeable.
 
 A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
 at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not

@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds from other maps placeable: EXP-69 passed
+
+- [EXP-69](research/experiments/EXP-69-effects-and-sounds-from-other-maps.md) run 1 passed in the game (the effects
+  and sounds plan's EXP-D): seven copies of six maps' effects and ambient sounds in URB_Bar played and sounded as in
+  their own maps, and a save and reload changed nothing. So the compiler's `FOREIGN_FAMILIES` lists `effect` and
+  `sound` ([compiler.py](tools/editor/compiler.py)), and the library marks them placeable (its index reads the gate
+  when loaded: no rescan).
+- Docs: [tools/viewer/README.md](tools/viewer/README.md)'s From other maps and contract section 8
+  ([editor-contracts.md](research/editor-contracts.md)) say so.
+
+Checked: the editor, viewer and repo suites (the library's tests take the gate either way); the browser smoke's
+`library-effects` check, which now finds the effects placeable with Placeable only on
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)), on a test server. Known gaps: plain EW not played with
+them; where the game's listener is (camera or soldiers) still not told apart.
+
 ### Effects and sounds from other maps (effects and sounds plan, stage FX4)
 
 The Add panel's All maps lists the base maps' effects and ambient sounds, and one placed from there is brought into
