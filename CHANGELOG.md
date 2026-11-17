@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Release 0.5.3 published
+
+- With the user's go-ahead ("go ahead and publish the release"), main was pushed (`cbc7357`), then
+  [v0.5.3](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.5.3) was created, its tag on that commit.
+- It is titled "XCOM Map Workshop 0.5.3 (preview)" and marked Latest, with the Setup.exe, the zip and the notes file
+  (`gh release create --notes-file tools/release/notes/0.5.3.md --target main --latest`).
+- Checked:
+  - GitHub's digests and sizes of both files equal the local ones (`b56bab56…ef116f39`, 63,704,732 bytes;
+    `5307b161…8781e6c35`, 101,973,605 bytes);
+  - `releases/latest` names v0.5.3, the remote tag points at `cbc7357`, and both `releases/latest/download/` links
+    answer 200;
+  - the published notes equal the file, trailing blank lines aside.
+
 ### Release 0.5.3: piece flags, the test squad, Build in the project manager, maps named after their project
 
 At the user's ask ("let's push, and prepare a new patch release with the changes since last release"). Main was
