@@ -44,6 +44,8 @@ import props as legacy_props  # noqa: E402
 PACKAGE = 'XComMapEdGeo'
 KINDS = ('fracWall', 'relit')
 TILE, STOREY = 96.0, 192.0
+# the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
+MIN_LENGTH = 24 + 2 * int(frac_wall.RECIPE['endInset'])
 FORCED_EXPORT = 0x1
 
 
@@ -59,8 +61,9 @@ def check(generated):
     wall = generated.get('wall')
     if not isinstance(wall, dict) or not all(isinstance(wall.get(k), (int, float)) for k in ('x0', 'x1')):
         raise ValueError('a generated wall needs its ends, x0 and x1')
-    if wall['x1'] - wall['x0'] < 24:
-        raise ValueError('a generated wall shorter than 24 units')
+    if wall['x1'] - wall['x0'] < MIN_LENGTH:
+        raise ValueError('a generated wall shorter than %d units (its solid %d, its ends stopping %d short)'
+                         % (MIN_LENGTH, MIN_LENGTH - 2 * frac_wall.RECIPE['endInset'], frac_wall.RECIPE['endInset']))
     for o in wall.get('openings') or []:
         if not all(isinstance(o.get(k), (int, float)) for k in ('x0', 'x1', 'z0', 'z1')) \
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
@@ -69,8 +72,10 @@ def check(generated):
 
 
 def local_box(wall):
+    """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall)."""
     h = max(y for y, _, _ in frac_wall.RECIPE['section'])
-    return [float(wall['x0']), float(wall['x1']), -h, h, frac_wall.RECIPE['bottom'], frac_wall.RECIPE['top']]
+    solid = frac_wall.solid_wall(wall)
+    return [solid['x0'], solid['x1'], -h, h, frac_wall.RECIPE['bottom'], frac_wall.RECIPE['top']]
 
 
 def world_box(box, matrix):

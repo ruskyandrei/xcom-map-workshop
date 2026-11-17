@@ -89,6 +89,11 @@ import piece_flags  # noqa: E402
 import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
+# A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, its solid stops
+# this short of each end and it is at least this long (tools/bake/frac_wall.py RECIPE['endInset'], frac_walls.MIN_LENGTH;
+# test_frac_walls checks they agree)
+FRAC_WALL_END_INSET = 8.0
+FRAC_WALL_MIN_LENGTH = 40.0
 SCHEMA = 'xcom-map-workshop/project'
 SCHEMA_VERSION = 2      # 2: pieces' flags (piece flags plan); a project of schema 1 builds as it did
 READ_VERSIONS = (1, 2)
@@ -994,7 +999,7 @@ class Compiler:
     def generated_valid(self, rec, where):
         """Whether a record's `generated` (if any) is well formed (custom geometry plan, section 0): {kind 'fracWall',
         version 1, wall {x0, x1, openings [{x0, x1, z0, z1}], seed}}, a fracturing wall made from numbers in its
-        template's frame (tools/bake/frac_wall.py), or {kind 'relit', version 1}, the template's own mesh lit as a made
+        template's frame (tools/bake/frac_wall.py; x0 and x1 its tile edges, FRAC_WALL_MIN_LENGTH apart or more), or {kind 'relit', version 1}, the template's own mesh lit as a made
         wall is. A malformed one leaves the record out, as any malformed field does."""
         if 'generated' not in rec:
             return True
@@ -1003,7 +1008,7 @@ class Compiler:
         ok = isinstance(g, dict) and g.get('version') == 1 and g.get('kind') in ('fracWall', 'relit')
         if ok and g['kind'] == 'fracWall':
             w = g.get('wall')
-            ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= 24
+            ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
                   and isinstance(w.get('seed', 1), int)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
@@ -1793,8 +1798,9 @@ class Compiler:
         self.loot(src, short(out), 'add', where)
         if not extra.get('assembly') and self.single_grid_rule(short(out), src, loc, rot, where) is None:
             return
-        # a wall made from numbers stands in its own box, not its template's
-        along = (made['wall']['x0'], made['wall']['x1']) if made and made['kind'] == 'fracWall' else None
+        # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
+        along = ((made['wall']['x0'] + FRAC_WALL_END_INSET, made['wall']['x1'] - FRAC_WALL_END_INSET)
+                 if made and made['kind'] == 'fracWall' else None)
         new = self.boxes(parts, loc, rot, along)
         name = short(rec['from']['actor'])
         donor = self.donors.get((rec['from']['package'].casefold(), rec['from']['actor']))

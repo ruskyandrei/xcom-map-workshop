@@ -8,6 +8,31 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Fracturing walls made from numbers end 8 short of their tile edges, as the game's do; EXP-67 run 1 passed
+
+EXP-67 run 1 passed (the user played it): the twin looks like the bar's wall beside it, all three walls break like
+the game's, and cover, sight, walking and a save and reload work. The one odd thing, a tile at the custom wall's
+doorway acting as invisible cover, is [F-116](research/findings-register.md). The game counts its tiles from a unit
+under the grid the pieces stand on, so a wall side lying on a piece-grid edge reaches a unit into the next tile
+column and marks it partly occupied. The game's walls never end there (their inside walls stop 8 short), so ours
+now don't either.
+- [frac_wall.py](tools/bake/frac_wall.py): a wall's `x0` and `x1` are its tile edges, and its solid stops
+  `RECIPE['endInset']` (8) short of each (`solid_wall`), as the donor's −376 and 184 for the tiles −384 to 192; an
+  opening's sides stay as given, on the edges as the game's doorways have them. A mesh's name now hashes the whole
+  recipe, so a changed recipe never reuses a name.
+- [frac_walls.py](tools/bake/frac_walls.py) (the box the tiles are rebuilt over, the shortest wall: 40) and
+  [compiler.py](tools/editor/compiler.py) (`FRAC_WALL_END_INSET`, `FRAC_WALL_MIN_LENGTH`: the copy's box and the
+  request's check) follow; [exp67_project.py](tools/editor/examples/exp67_project.py) gives the twin its tiles
+  (−384 to 192). The EXP-67 project is saved again and rebuilt in the editor's store.
+- [EXP-67](research/experiments/EXP-67-fracturing-wall-poc.md) has the result and what the user's save showed;
+  T-42 has the run.
+- Checked: the game's occupancy test, run offline on the rebuilt custom wall's triangles, marks only its own four
+  columns (and the doorway's, as the game's own doorways); before, it also marked the doorway's and the column past
+  the east end on both sides, which the save confirmed. test_frac_wall (17 tests), test_frac_walls (11),
+  test_compiler_generated (5), the editor and repo suites.
+- Known gap: the doorway's own tile still gives cover toward its sides, by the game's rule for a tile between two
+  pieces of wall. The game's doorways hold doors, whose tiles carry none; a door in this one is not tried.
+
 ### Custom walls, proof of concept F2 and F3: fracturing walls made from numbers, built into the map; EXP-67 prepared
 
 The section's next two stages, offline, and the game run made ready for the user. A wall made from numbers is a

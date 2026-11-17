@@ -16,9 +16,13 @@ storeys), and RECIPE holds what was measured on it (research/evidence/frac-wall-
               unwraps them (the v of each corner of the section); the inside faces 0 to 1 over each face.
   colours     every vertex (B, G, R, A) 255, 255, 254, 255; an inside face's 255, 255, 255, 255.
 
-A wall is its numbers: dict(x0, x1 (its ends along x, in the mesh's frame, as the donor's -376 and 184), openings
-[dict(x0, x1, z0, z1)] (rectangles through it; a doorway's z0 is the floor, -16), seed (the cells' seed: the same wall
-is always the same mesh)). build(wall) gives dict(mesh: gen_mesh's form, ready to write, but for its bodySetup and the
+A wall is its numbers: dict(x0, x1 (the edges of its tiles along x, in the mesh's frame: the donor's are -384 and
+192), openings [dict(x0, x1, z0, z1)] (rectangles through it; a doorway's z0 is the floor, -16), seed (the cells' seed:
+the same wall is always the same mesh)). Its solid stops RECIPE['endInset'] short of each end, as the game's inside
+walls do (the donor's ends are -376 and 184): an end on a tile edge would reach a unit into the next tile column (the
+game counts its tiles from a unit under the grid the pieces stand on), where the game's occupancy test finds it and
+marks that empty tile partly occupied (EXP-67). An opening's sides stay where they are given, as the game's own
+doorways have them (solid_wall). build(wall) gives dict(mesh: gen_mesh's form, ready to write, but for its bodySetup and the
 kdop's place, fragments: [dict(box: [x0, x1, y0, y1, z0, z1] in the mesh's frame, minZ)], solids: the collision boxes
 [(lo, hi)], counts).
 
@@ -50,6 +54,9 @@ RECIPE = {
     'donor': 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED',
     'bottom': -16.0, 'top': 384.0, 'storey': 192.0,
     'face': [12.0, 372.0], 'half': 8.0,
+    # the solid's ends this short of the wall's tile edges (the donor's -376 and 184 for -384 and 192; the inside walls
+    # of URB_Bar, URB_PoliceStation and URB_CommercialStreet end 8 short of theirs too)
+    'endInset': 8.0,
     # the section's corners, bottom to top on the +y side: (y, z, the trim set's v there)
     'section': [[11.0, -16.0, 0.5], [11.0, 0.0, 0.5835], [10.0, 9.0, 0.6499], [8.0, 12.0, 0.6694],
                 [8.0, 372.0, 0.0117], [12.0, 374.0, 0.039], [12.0, 384.0, 0.0917]],
@@ -159,6 +166,19 @@ def bands():
 
 
 # ---------------------------------------------------------------------------------------------------- cells
+def solid_wall(wall):
+    """The wall as it is built: its ends RECIPE['endInset'] in from its tile edges, its openings cut to what is left
+    (an opening's own sides are kept: the game's doorways have them on the tile edges too)."""
+    inset = RECIPE['endInset']
+    x0, x1 = float(wall['x0']) + inset, float(wall['x1']) - inset
+    openings = []
+    for o in wall.get('openings') or ():
+        a, b = max(float(o['x0']), x0), min(float(o['x1']), x1)
+        if b - a > 1e-6:
+            openings.append(dict(x0=a, x1=b, z0=float(o['z0']), z1=float(o['z1'])))
+    return dict(wall, x0=x0, x1=x1, openings=openings)
+
+
 def seeds(wall):
     rng = random.Random(wall.get('seed', 1))
     x0, x1 = float(wall['x0']), float(wall['x1'])
@@ -559,6 +579,7 @@ def build(wall, template=None):
     solids, counts)."""
     R = RECIPE
     template = template or default_template()
+    wall = solid_wall(wall)
     faces = Faces()
     found = cells(wall)
     edges = {}
@@ -689,6 +710,8 @@ def build(wall, template=None):
 
 
 def mesh_name(wall):
-    """A name for the wall's mesh from its numbers: the same wall is the same mesh in every build."""
-    digest = hashlib.sha256(repr((RECIPE['version'], sorted((k, repr(v)) for k, v in wall.items()))).encode()).hexdigest()
+    """A name for the wall's mesh from its numbers and the recipe: the same wall is the same mesh in every build, and
+    a changed recipe never reuses a name (the meshes are forced exports, one object per name in the game)."""
+    digest = hashlib.sha256(repr((sorted((k, repr(v)) for k, v in RECIPE.items()),
+                                  sorted((k, repr(v)) for k, v in wall.items()))).encode()).hexdigest()
     return 'FracWall_%d_%s' % (round(float(wall['x1']) - float(wall['x0'])), digest[:10])

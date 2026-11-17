@@ -6,10 +6,12 @@ same piece at yaw 0 along the tile edge y -192 between the pavement's middle and
 west to east (x rising):
 - Reference: the donor's own mesh, lit fresh as the made walls are (generated kind `relit`), so that it and the twin
   differ only in their meshes. Its box runs from x -1720 to -1160.
-- Twin: a wall made from numbers at the donor's own size and place in its frame (x -376 to 184 there), its slots and
-  materials the donor's, its fragments new (seed 1). Its box runs from x -952 to -392.
-- Custom: a wall made from numbers four tiles long (x 0 to 384 in its frame) with a doorway one tile wide and 176 tall
-  (x 96 to 192, z -16 to 160), seed 2. Its box runs from x -192 to 192, the doorway from -96 to 0.
+- Twin: a wall made from numbers on the donor's own tiles in its frame (x -384 to 192 there; its solid, 8 in from
+  each end, is the donor's -376 to 184), its slots and materials the donor's, its fragments new (seed 1). Its box runs
+  from x -952 to -392.
+- Custom: a wall made from numbers four tiles long (x 0 to 384 in its frame, its solid 8 to 376) with a doorway one
+  tile wide and 176 tall (x 96 to 192, z -16 to 160), seed 2. Its box runs from x -184 to 184, the doorway from -96
+  to 0.
 The build makes their meshes and fragment columns (tools/bake/frac_walls.py) and lights them from nothing.
 
 Usage: exp67_project.py [--build] [--quick] [--out <folder>]
@@ -40,7 +42,7 @@ Z, EDGE = 16.0, -192.0          # the pavement's top (the donor's own z in the b
 WALLS = (
     # (label, x, generated)
     ('Reference', -1344.0, dict(kind='relit', version=1)),
-    ('Twin', -576.0, dict(kind='fracWall', version=1, wall=dict(x0=-376.0, x1=184.0, openings=[], seed=1))),
+    ('Twin', -576.0, dict(kind='fracWall', version=1, wall=dict(x0=-384.0, x1=192.0, openings=[], seed=1))),
     ('Custom', -192.0, dict(kind='fracWall', version=1,
                             wall=dict(x0=0.0, x1=384.0, openings=[dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)], seed=2))),
 )

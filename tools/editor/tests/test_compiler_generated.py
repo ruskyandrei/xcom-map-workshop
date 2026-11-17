@@ -45,7 +45,8 @@ class GeneratedTests(unittest.TestCase):
         _, native = compiler.native_split(spec)
         wall, relit = (c['box'] for c in native['copies'])
         # the template's mesh is 96 square and 100 tall about its pivot: the wall keeps its y and z, its x is its own
-        self.assertEqual(wall, [0.0, 384.0, 552.0, 648.0, 0.0, 100.0])
+        # solid, 8 in from its tile edges at each end
+        self.assertEqual(wall, [8.0, 376.0, 552.0, 648.0, 0.0, 100.0])
         self.assertEqual(relit, [-48.0, 48.0, 1152.0, 1248.0, 0.0, 100.0])
 
     def test_none_without_a_request(self):
@@ -54,7 +55,7 @@ class GeneratedTests(unittest.TestCase):
 
     def test_a_malformed_request_leaves_the_record_out(self):
         bad = [dict(kind='wall', version=1), dict(RELIT, version=2), 'fracWall',
-               dict(WALL, wall=dict(x0=0, x1=12)),
+               dict(WALL, wall=dict(x0=0, x1=12)), dict(WALL, wall=dict(x0=0, x1=39)),
                dict(WALL, wall=dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
                dict(WALL, wall=dict(x0=0, x1=96, seed='one')),
                dict(WALL, wall=dict(x0=0, x1=float('nan')))]

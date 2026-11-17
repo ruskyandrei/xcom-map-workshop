@@ -1,7 +1,7 @@
 """A fracturing wall made from numbers (frac_wall.py; custom geometry plan, section 0, stage F2).
 
-The walls are the proof of concept's two: the twin (the donor's own size, x -376 to 184, seed 1) and the custom wall
-(four tiles, x 0 to 384, a doorway at x 96 to 192 up to z 160, seed 2). Their meshes are checked on their own: every
+The walls are the proof of concept's two: the twin (the donor's own tiles, x -384 to 192, seed 1) and the custom wall
+(four tiles, x 0 to 384, a doorway at x 96 to 192 up to z 160, seed 2); a wall's solid stops 8 short of its ends. Their meshes are checked on their own: every
 fragment a closed solid, the neighbours mutual, every triangle facing out, the lightmap coordinates in the square,
 the collision triangles naming their slot and fragment, the faces covering the outline but the doorway, the mesh
 written and read back, the same numbers the same mesh. With the configured install (tools/viewer/settings.py) the
@@ -22,7 +22,7 @@ import gen_mesh  # noqa: E402
 import labpaths  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
-TWIN = dict(x0=-376.0, x1=184.0, openings=[], seed=1)
+TWIN = dict(x0=-384.0, x1=192.0, openings=[], seed=1)
 DOOR = dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)
 CUSTOM = dict(x0=0.0, x1=384.0, openings=[DOOR], seed=2)
 BUILT = {}
@@ -68,8 +68,24 @@ class Walls(unittest.TestCase):
         for got, want in zip(b[:6], (-96.0, 0.0, 184.0, 280.0, 12.0, 200.0)):
             self.assertAlmostEqual(got, want, 3)
         b = built(CUSTOM)['mesh']['bounds']
-        for got, want in zip(b[:6], (192.0, 0.0, 184.0, 192.0, 12.0, 200.0)):
+        for got, want in zip(b[:6], (192.0, 0.0, 184.0, 184.0, 12.0, 200.0)):
             self.assertAlmostEqual(got, want, 3)
+
+    def test_the_ends_stop_short_of_the_tile_edges_and_the_openings_sides_do_not(self):
+        # as the game's inside walls end (EXP-67: an end on a tile edge reached a unit into the next tile column)
+        inset = frac_wall.RECIPE['endInset']
+        for wall in (TWIN, CUSTOM):
+            out = built(wall)
+            xs = [p[0] for p in out['mesh']['lods'][0]['positions']]
+            self.assertAlmostEqual(min(xs), wall['x0'] + inset, 3)
+            self.assertAlmostEqual(max(xs), wall['x1'] - inset, 3)
+            self.assertAlmostEqual(min(lo[0] for lo, _ in out['solids']), wall['x0'] + inset, 3)
+            self.assertAlmostEqual(max(hi[0] for _, hi in out['solids']), wall['x1'] - inset, 3)
+        sides = sorted({v for lo, hi in built(CUSTOM)['solids'] for v in (lo[0], hi[0])})
+        self.assertEqual(sides, [8.0, 96.0, 192.0, 376.0])
+        # an opening reaching past an end is cut to the solid
+        self.assertEqual(frac_wall.solid_wall(dict(x0=0, x1=192, openings=[dict(x0=0, x1=96, z0=-16, z1=160)]))['openings'],
+                         [dict(x0=8.0, x1=96.0, z0=-16.0, z1=160.0)])
 
     def test_every_fragment_is_a_closed_solid(self):
         for wall in (TWIN, CUSTOM):
@@ -133,7 +149,8 @@ class Walls(unittest.TestCase):
             for slots, y in ((R['slots']['sideA'], R['half']), (R['slots']['sideB'], -R['half'])):
                 got = sum(area(tri) for slot, _, tri, _ in triangles(m)
                           if slot in slots and all(abs(p[1] - y) < 1e-3 for p in tri))
-                self.assertAlmostEqual(got, (wall['x1'] - wall['x0']) * face - hole, delta=0.5)
+                length = wall['x1'] - wall['x0'] - 2 * R['endInset']
+                self.assertAlmostEqual(got, length * face - hole, delta=0.5)
 
     def test_nothing_stands_in_the_doorway(self):
         out = built(CUSTOM)
@@ -166,7 +183,7 @@ class Walls(unittest.TestCase):
         self.assertNotEqual(a, gen_mesh.write(dict(frac_wall.build(other)['mesh'], bodySetup=0), 0))
         self.assertEqual(frac_wall.mesh_name(CUSTOM), frac_wall.mesh_name(dict(CUSTOM)))
         self.assertNotEqual(frac_wall.mesh_name(CUSTOM), frac_wall.mesh_name(other))
-        self.assertTrue(frac_wall.mesh_name(TWIN).startswith('FracWall_560_'))
+        self.assertTrue(frac_wall.mesh_name(TWIN).startswith('FracWall_576_'))
 
     def test_fragment_counts(self):
         self.assertEqual(built(TWIN)['counts']['fragments'], 30)

@@ -34,7 +34,7 @@ COPIES = [
     dict(actor=DONOR, location=[-1344.0, -192.0, 16.0], rotation=[0, 0, 0], label='Reference',
          generated=dict(kind='relit', version=1)),
     dict(actor=DONOR, location=[-576.0, -192.0, 16.0], rotation=[0, 0, 0], label='Twin',
-         generated=dict(kind='fracWall', version=1, wall=dict(x0=-376.0, x1=184.0, openings=[], seed=1))),
+         generated=dict(kind='fracWall', version=1, wall=dict(x0=-384.0, x1=192.0, openings=[], seed=1))),
     dict(actor=DONOR, location=[-192.0, -192.0, 16.0], rotation=[0, 0, 0], label='Custom',
          generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[DOOR], seed=2))),
 ]
@@ -73,12 +73,19 @@ class Columns(unittest.TestCase):
         self.assertEqual(frac_walls.check(dict(kind='relit', version=1))['kind'], 'relit')
         for bad in (None, dict(kind='wall'), dict(kind='fracWall', version=2, wall=ok['wall']),
                     dict(kind='fracWall', version=1, wall=dict(x0=0, x1=12)),
+                    dict(kind='fracWall', version=1, wall=dict(x0=0, x1=39)),
                     dict(kind='fracWall', version=1, wall=dict(x0=0, x1=96, openings=[dict(x0=90, x1=120, z0=0, z1=10)]))):
             with self.assertRaises(ValueError):
                 frac_walls.check(bad)
 
-    def test_a_walls_local_box_is_its_ends_and_the_recipes_section(self):
-        self.assertEqual(frac_walls.local_box(dict(x0=0.0, x1=384.0)), [0.0, 384.0, -12.0, 12.0, -16.0, 384.0])
+    def test_a_walls_local_box_is_its_solid_and_the_recipes_section(self):
+        self.assertEqual(frac_walls.local_box(dict(x0=0.0, x1=384.0)), [8.0, 376.0, -12.0, 12.0, -16.0, 384.0])
+
+    def test_the_compiler_knows_the_same_inset_and_shortest_wall(self):
+        sys.path.insert(0, str(TOOLS / 'editor'))
+        import compiler
+        self.assertEqual(compiler.FRAC_WALL_END_INSET, frac_wall.RECIPE['endInset'])
+        self.assertEqual(compiler.FRAC_WALL_MIN_LENGTH, frac_walls.MIN_LENGTH)
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)

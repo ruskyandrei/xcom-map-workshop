@@ -15,7 +15,9 @@ Statuses:
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November). 17 November: a fracturing wall made from
-  numbers is built and checked offline; EXP-67 (its look and its break in the game) is prepared, not played.
+  numbers is built, and EXP-67 run 1 passed its look and its break in the game (one tile at its doorway: F-116).
+- F-116 (the doorway part): a one-tile doorway with no door gives cover toward its sides, by the game's own rule; a
+  door in it is not tried.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
   the user saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
@@ -2525,6 +2527,35 @@ word; not looked at in the game).
 
 ## Toolchain
 
+### F-116: A wall's end on a tile edge reaches a unit into the next tile; a one-tile doorway with no door gives cover toward its sides
+**Fixed** for the ends (17 November 2026; seen in [EXP-67](experiments/EXP-67-fracturing-wall-poc.md) run 1); the
+doorway's cover is the game's own rule, **open**.
+- **Seen.** In EXP-67 run 1 the user found "a tile that was acting like an invisible cover/blocker near the custom
+  door gap": with the move cursor on the doorway's tile, its picture shows a shield toward each side of the doorway.
+- **Cause.** The game counts its tiles from a unit under the grid the pieces stand on (`WorldBounds.Min`,
+  [cover-build.md](native/cover-build.md)), and its occupancy test is a box the size of the whole tile against each
+  piece's collision (section 2). So a solid whose side lies on a piece-grid edge reaches one unit into the tile column
+  beyond it, and that tile is marked partly occupied (`0x8000` with `0x10000`): every direction gets a cover test
+  there, and its neighbours test toward it. The custom wall's doorway side at x −96 and its east end at x 192 did
+  this. The game's test, run on the wall's own triangles (all fragments standing), marks the doorway's column (game
+  tile x 28) and the column past the east end (x 31) partly occupied on both sides at every level, and the user's
+  save shows both so at level 1, where the wall still stood. The doorway's tile then gets cover toward both of its
+  sides, each 47 to 49 units from its centre. The twin, whose ends stand inside its tiles, marks exactly its own.
+- **The game's walls.** Their inside walls end 8 short of their tile edges: on URB_Bar, URB_PoliceStation and
+  URB_CommercialStreet no wall end lies within 6 units past a tile boundary. Their openings' sides do lie on the
+  edges (242 of the openings in seven URB maps' fracturing walls; the bar's `URB_BarIntWallA` has its jambs'
+  collision boxes exactly there, 176 tall as ours), and their doorway tiles are partly occupied likewise (24 of 26
+  measured). But 68 of the 74 spilled doorway tiles measured have a door in them, and 67 of those carry no cover. No
+  open one-tile doorway at ground level was found in the game's fracturing walls to compare with.
+- **Fix.** [frac_wall.py](../tools/bake/frac_wall.py): a wall's numbers are its tile edges, and its solid stops
+  8 short of each end (`RECIPE['endInset']`, `solid_wall`), as the donor's −376 and 184 for −384 and 192. The
+  compiler's box for the copy and the shortest wall (40) follow; an opening's sides stay where they are given, as the
+  game's do. Checked: the same test on the rebuilt custom wall marks its own four columns only, the doorway's
+  included; test_frac_wall, test_frac_walls and test_compiler_generated.
+- **Open.** The doorway tile's cover follows from the game's own rule for a tile between two pieces of wall. The
+  game's doorways hold doors; whether a door in this one (a copy of one of the bar's) takes the cover away is not
+  tried.
+
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code
 inspection, no new visible mesh played).
@@ -2606,6 +2637,10 @@ inspection, no new visible mesh played).
   - Left as they are, for the run to judge: the tree's nodes don't narrow (every check tests every triangle); the
     lightmap packing leaves about 30% of its square unused; the columns' lists of props and neighbouring walls are
     empty (F-69).
+  - **EXP-67 run 1 passed** (17 November 2026, played by the user: "all checks out in game"): the twin looks like
+    the reference beside it, all three break under rifle fire and grenades, cover, sight and walking through the
+    doorway and the holes, and a save and reload with them broken. One tile at the custom wall's doorway acted as
+    invisible cover (F-116, its end part fixed). By the plan's section 0.2, both questions pass.
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).
