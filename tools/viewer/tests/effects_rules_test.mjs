@@ -4,7 +4,7 @@
 // (stage FX5): the parameters the panel offers, the record as edited, what a project saves.
 // Run: node tools/viewer/tests/effects_rules_test.mjs
 import assert from 'node:assert/strict';
-import { effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues, soundReach,
+import { colourNamed, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues, soundReach,
          survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from '../web/effects_rules.js';
 
 const PL = 'TheWorld.PersistentLevel.';
@@ -142,6 +142,20 @@ assert.deepEqual(parameterControls(glow, glowSystems, { Speed: 9 }).find(c => c.
 const edited = parameterControls(glow, glowSystems, { Opacity: 0.25, Wobble: 3 });
 assert.deepEqual([edited.find(c => c.name === 'Opacity').value, edited.find(c => c.name === 'Opacity').edited], [0.25, true]);
 assert.equal(edited.find(c => c.name === 'Wobble').edited, false);
+// a vector named for a colour is a tint whatever reads it (P_Power_Core_Persistent's Color scales its colour over
+// life); a colour scale that is no colour (Brightness) keeps its three numbers, called red, green and blue
+const core = { ...beam, system: 'F|Core', parameters: [] };
+const coreSystems = { 'F|Core': { emitters: [], offers: [
+  { name: 'Color', kind: 'vector', colour: false, module: 'ParticleModuleColorScaleOverLife', modes: ['DPM_Direct'], constant: [0.2, 1, 0.1] },
+  { name: 'Brightness', kind: 'vector', colour: false, module: 'ParticleModuleColorScaleOverLife', modes: ['DPM_Direct'], constant: [1, 1, 1] },
+  { name: 'Acceleration', kind: 'vector', colour: false, module: 'ParticleModuleAcceleration', modes: ['DPM_Direct'], constant: [20, 0, 0] }] } };
+const coreControls = parameterControls(core, coreSystems);
+assert.deepEqual(coreControls.map(c => [c.name, c.control, c.channels]), [['Acceleration', 'vector', false], ['Brightness', 'vector', true], ['Color', 'tint', false]]);
+assert.ok(colourNamed('Dark_Color') && colourNamed('colour') && colourNamed('Tint') && !colourNamed('Brightness') && !colourNamed(undefined));
+assert.deepEqual(parameterRows({ ...core, parameters: [{ name: 'Color', type: 'PSPT_Vector', vector: [0.2, 1, 0.1], offered: 'yes' }] }, { effectSystems: coreSystems })[0].kind, 'colour');
+// a colour saved with a vector and no colour field shows that vector (URB_Bar's webbing)
+const webbing = parameterControls({ ...core, parameters: [{ name: 'Color', type: 'PSPT_Color', vector: [0.12, 0.18, 0.1], offered: 'yes' }] }, coreSystems);
+assert.deepEqual(webbing.find(c => c.name === 'Color').base, [0.12, 0.18, 0.1, 1]);
 // a tint: its colour and strength, and back
 assert.deepEqual(tintOf([1.5, 0.75, 0]), { colour: [1, 0.5, 0], strength: 1.5 });
 assert.deepEqual(tintVector([1, 0.5, 0], 3), [3, 1.5, 0]);

@@ -63,11 +63,11 @@ const FROM = { actor: 'as saved', cue: 'as its cue saves it', archetype: 'as its
 
 /** The particle parameters an effect saves, as rows: [{ name, kind ('scalar', 'range', 'vector', 'colour', 'other'),
  *  text, colour ([r, g, b] 0-1 for a swatch, or null), note }]. A vector shows as a colour only where the system's
- *  parameter of that name feeds a particle's colour or the map saved it as a colour. */
+ *  parameter of that name feeds a particle's colour, its name says it is one, or the map saved it as a colour. */
 export function parameterRows(r, data) {
   const offers = data?.effectSystems?.[r.system]?.offers ?? [];
   return (r.parameters ?? []).map(p => {
-    const colourOffer = offers.some(o => o.name === p.name && o.kind === 'vector' && o.colour);
+    const colourOffer = colourNamed(p.name) || offers.some(o => o.name === p.name && o.kind === 'vector' && o.colour);
     // (the game reads it all the same: a number on each axis of the vector, EXP-70 run 2)
     const note = p.offered === 'otherKind' ? `its system reads ${p.name} as a ${p.type.includes('Scalar') ? 'vector, and takes this number for each part of it' : 'scalar'}`
       : p.offered === 'no' ? 'its system has no parameter of that name' : null;
@@ -142,10 +142,14 @@ export function recordLines(r, data) {
 // SOUND_PITCH, PARAMETER_MAX)
 export const VALUE_LIMITS = { scale: [1 / 64, 64], radius: [0, 65536], volume: [0, 16], pitch: [1 / 16, 16], parameter: 1e6 };
 const PARAMETER_TYPES = { PSPT_Scalar: 'scalar', PSPT_Vector: 'vector', PSPT_Color: 'colour' };
+/** Whether a parameter's name says it is a colour (Color, Colour, Tint): a vector of that name is shown and edited as
+ *  a colour whatever its system reads it with (P_Power_Core_Persistent's Color scales its colour over life). */
+export const colourNamed = name => /colou?r|tint/i.test(String(name ?? ''));
 const clean = v => Number(Number(v).toPrecision(6));
 
 /** The parameters of an effect as the panel offers them: [{ name, control ('scalar', 'vector', 'tint': a vector that
- *  feeds a particle's colour, shown as a colour and a strength, 'colour': saved as a colour), type (the PSPT_ type an
+ *  feeds a particle's colour or is named for one, shown as a colour and a strength, 'colour': saved as a colour),
+ *  channels (a vector read by a colour module: its parts are red, green, blue), type (the PSPT_ type an
  *  edit writes), base (the value as the map has it: the saved entry's, else the system's own constant), value (as
  *  edited), guide ([least, most] for a slider, a scalar's), edited, readOnly (why it can't change, or null) }]. A
  *  parameter its effect saves keeps the type it is saved in (the first entry of the name, as the game reads it); one
@@ -155,7 +159,7 @@ export function parameterControls(r, systems, edits = {}) {
   const byName = new Map();
   for (const o of offers) { if (!byName.has(o.name)) byName.set(o.name, []); byName.get(o.name).push(o); }
   const out = [], seen = new Set();
-  const tinted = name => { const vs = (byName.get(name) ?? []).filter(o => o.kind === 'vector'); return vs.length > 0 && vs.every(o => o.colour); };
+  const tinted = name => { const vs = (byName.get(name) ?? []).filter(o => o.kind === 'vector'); return colourNamed(name) || (vs.length > 0 && vs.every(o => o.colour)); };
   const guideOf = (name, value) => {
     const o = (byName.get(name) ?? []).find(x => x.kind === 'scalar');
     let lo = 0, hi = 1;
@@ -167,13 +171,18 @@ export function parameterControls(r, systems, edits = {}) {
     const control = type === 'PSPT_Vector' && tinted(name) ? 'tint' : PARAMETER_TYPES[type] ?? 'other';
     const edited = Object.prototype.hasOwnProperty.call(edits, name) && !readOnly;
     const value = edited ? edits[name] : base;
-    return { name, control, type, base, value, edited, readOnly, guide: control === 'scalar' ? guideOf(name, Number(value)) : null };
+    // (a vector its system reads in a colour module that is no colour itself, a colour scale such as Brightness: its
+    // three numbers are red, green and blue, not x, y and z)
+    const channels = control === 'vector' && (byName.get(name) ?? []).some(o => o.kind === 'vector' && /Color/.test(String(o.module ?? '')));
+    return { name, control, type, base, value, edited, readOnly, channels, guide: control === 'scalar' ? guideOf(name, Number(value)) : null };
   };
   for (const p of r?.parameters ?? []) {
     if (!p.name || seen.has(p.name)) continue;
     seen.add(p.name);
     if (!PARAMETER_TYPES[p.type]) { out.push(row(p.name, p.type, null, `it is a ${String(p.type).replace('PSPT_', '').toLowerCase()} parameter, kept as the map has it`)); continue; }
-    const base = p.type === 'PSPT_Scalar' ? p.scalar ?? 0 : p.type === 'PSPT_Vector' ? [...(p.vector ?? [0, 0, 0])] : [...(p.colour ?? [0, 0, 0, 0])];
+    // (a colour saved with a vector and no colour field, as URB_Bar's webbing's, shows that vector: effects_sim.parametersOf)
+    const base = p.type === 'PSPT_Scalar' ? p.scalar ?? 0 : p.type === 'PSPT_Vector' ? [...(p.vector ?? [0, 0, 0])]
+      : [...(p.colour ?? (p.vector ? [...p.vector.slice(0, 3), 1] : [0, 0, 0, 0]))];
     out.push(row(p.name, p.type, base));
   }
   for (const [name, list] of [...byName].sort((a, b) => a[0].localeCompare(b[0]))) {

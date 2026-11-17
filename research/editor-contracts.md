@@ -528,14 +528,22 @@ LOD level as read: `kind` sprite, mesh, ribbon, beam or trail, `lods`, `cookedOu
 ranges, `colour`: whether it feeds a particle's start colour or colour over life). No "looping" or "plays once" is made
 from `loops` (the plan's 2.2): the page says nothing of how long an effect lasts.
 
-**An emitter's `draw`** (export 29, [effects_draw.py](../tools/viewer/effects_draw.py); the system's `drawVersion`):
-what the page draws its likeness from, or `null` with `why` (a ribbon, no level of detail left, a mesh or material in
-another package, nothing spawns it). `kind` sprite or mesh; `blend`, `lit`, `twoSided`, `material`; a sprite's
-`textures` (`key` into the scene's `textures`, `name`, `parameter`, `alpha`), its `picture` and `mask` keys (picked by
-name: a normal map, distortion or reflection is neither; a texture named Mask, Alpha or Gradient is the mask) and
-`opacity` (`alpha`, `brightness` where the picture has no alpha channel, or `channel` where it is a texture of
-three packed channels: one channel is the opacity and it has no colour); a mesh emitter's `mesh` (a key into
-`meshes`) and `materials`, with the same texture fields for the material it is drawn with; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
+**An emitter's `draw`** (export 29, draw version 4 since export 31, [effects_draw.py](../tools/viewer/effects_draw.py);
+the system's `drawVersion`): what the page draws its likeness from, or `null` with `why` (a ribbon, no level of detail
+left, a mesh or material in another package, nothing spawns it). `kind` sprite or mesh; `blend`, `lit`, `twoSided`,
+`material`; a sprite's `textures` (`key` into the scene's `textures`, `name`, `parameter`, `alpha`, and the texture's
+traits from its pixels, `texture_traits`: `grey`, `shape` (its alpha holds a shape), `packed` (pictures in its channels,
+not a colour: no blue with red and green unrelated, or mostly blue to pink), `redShare`, `bright`); the colour and the
+shape come from different textures (`pick_textures`): `picture` (the colour: the first texture with colour, a grey one
+only where no packed one shapes; or null: the particle's own colour), `opacity` (what of the picture shapes it:
+`alpha` where its alpha holds a shape, `brightness`, or `none`), `mask` (the shape: a texture named Mask, Alpha or
+Gradient, else a packed one where there is no picture, a grey one, one with an alpha shape, a packed one) and
+`maskFrom` (`brightness`, `alpha` or `red`: a packed texture's red channel, its brightness where its red is all but
+empty); a normal map, distortion or reflection is neither. `colours`: the material's own colour parameters (vector
+parameters named Color, Colour or Tint, not specular ones, through its parents: `{ name: [r, g, b] }`), which tint a
+see-through particle with no picture (the night smoke's are all but black). Draw version 3's `opacity` `channel` (the
+picture a packed texture: its red channel the opacity, no colour) is still read so by the page. A mesh emitter's
+`mesh` (a key into `meshes`) and `materials`, with the same texture fields for the material it is drawn with; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
 `duration`, `loops`, `delay`; `rate`, `rateScale` and each followed module of `modules` (`cls` without
 `ParticleModule`, then its properties) as numbers, flags and **distributions**; `bursts` (`count`, `countLow`,
 `time`); `ignored`: the classes of its modules the drawing doesn't follow.

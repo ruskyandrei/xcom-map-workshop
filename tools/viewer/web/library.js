@@ -51,7 +51,7 @@ async function json(url, options) {
  */
 // The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
-const PICTURE_VERSION = 1;
+const PICTURE_VERSION = 2;
 function pictureKey(entry) {
   if (!entry.effect) return entry.key;
   let a = 0x811c9dc5, b = 0x01000193;

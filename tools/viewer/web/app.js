@@ -22,7 +22,7 @@ import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneSer
 import { createMissionsPanel } from './missions_panel.js';
 import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
-import { SWAP, drawable, leftOut, makeLikeness } from './effects_preview.js';
+import { SWAP, drawable, leftOut, makeLikeness, viewHeight } from './effects_preview.js';
 import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues,
          soundReach, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from './effects_rules.js';
@@ -7033,8 +7033,9 @@ async function effectPicture(entry) {
   await likeness.ready();
   likeness.step(1 / 30, 1, scale);
   // one that has nothing alive at its warm start (a rare spark) is run on until it has, for a few seconds
-  let box = likeness.bounds();
-  for (let t = 0; !box && t < 6; t += 1 / 15) { likeness.step(1 / 15, 1, scale); box = likeness.bounds(); }
+  // (framed on what most of it fills: a fire's far sparks would make its flames a speck)
+  let box = likeness.bounds(0.8);
+  for (let t = 0; !box && t < 6; t += 1 / 15) { likeness.step(1 / 15, 1, scale); box = likeness.bounds(0.8); }
   if (!box) { likeness.dispose(); return null; }
   return { object: likeness.group, box: box.applyMatrix4(likeness.group.matrix), dispose: () => likeness.dispose() };
 }
@@ -7051,12 +7052,16 @@ function hoverLikeness(entry, item) {
   clearTimeout(likenessHover);
   const pane = $('likenessPane'), token = ++likenessPane.token;
   const close = () => { if (likenessPane.shown) { likenessPane.scene.remove(likenessPane.shown.likeness.group); likenessPane.shown.likeness.dispose(); likenessPane.shown = null; } pane.hidden = true; };
-  if (!entry || !likenessOn) { close(); return; }
+  // the row's tip is said in the pane while the pointer is on the row: the browser's own tooltip would cover it
+  const giveBack = () => { if (item && item.dataset.tip !== undefined) { item.title = item.dataset.tip; delete item.dataset.tip; } };
+  if (!entry || !likenessOn) { giveBack(); close(); return; }
+  const tip = item.dataset.tip ?? item.title ?? '';
+  item.dataset.tip = tip; item.title = '';
   likenessHover = setTimeout(async () => {
     const made = await likenessOfEntry(entry, 3).catch(() => null);
     if (token !== likenessPane.token) { made?.likeness.dispose(); return; }
     close();
-    if (!made) return;
+    if (!made) { giveBack(); return; }
     likenessPane.shown = made; likenessPane.sphere.set(new THREE.Vector3(0, 48, 0), 96);
     likenessPane.scene.add(made.likeness.group);
     const row = item.getBoundingClientRect(), host = viewport.getBoundingClientRect();
@@ -7068,6 +7073,7 @@ function hoverLikeness(entry, item) {
     const out = leftOut(made.system), small = document.createElement('small');
     small.textContent = [`${entry.group} · the square is one tile`, out.ignored.length ? 'drawn roughly' : null].filter(Boolean).join(' · ');
     text.append(small);
+    for (const line of tip.split('\n').filter(Boolean)) { const more = document.createElement('small'); more.textContent = line; text.append(more); }
     pane.hidden = false;
   }, 300);
 }
@@ -7077,7 +7083,7 @@ function drawLikenessPane(dt) {
   const shown = likenessPane.shown, canvas = renderer.domElement, size = renderer.getSize(new THREE.Vector2());
   if (!shown || $('likenessPane').hidden || size.x < 220 || size.y < 220) return;
   shown.likeness.step(dt, 1, shown.scale);
-  const box = shown.likeness.bounds();
+  const box = shown.likeness.bounds(0.85);
   if (box) {
     // the camera follows what is alive, easing, and never closer than a tile
     const s = box.applyMatrix4(shown.likeness.group.matrix).getBoundingSphere(new THREE.Sphere());
@@ -7092,7 +7098,10 @@ function drawLikenessPane(dt) {
   const px = Math.round(220 * renderer.getPixelRatio());
   renderer.setScissorTest(true);
   renderer.setViewport(0, 0, 220, 220); renderer.setScissor(0, 0, 220, 220);
+  const height = viewHeight.value;
+  viewHeight.value = 220;
   renderer.render(likenessPane.scene, c);
+  viewHeight.value = height;
   renderer.setScissorTest(false); renderer.setViewport(0, 0, size.x, size.y);
   const out = $('likenessCanvas');
   if (out.width !== px) out.width = out.height = px;
@@ -7399,7 +7408,8 @@ function effectParameterRow(box, root, c) {
     slider.onchange = () => set(fixed(slider.value, 4));
     row.insertBefore(slider, field.parentElement);
   } else if (c.control === 'vector') {
-    ['x', 'y', 'z'].forEach((axis, k) => numberField(row, axis, c.value[k], { title: `${c.name}: its ${axis}`, onCommit: v => { const next = [...c.value]; next[k] = v; set(next); } }));
+    const parts = c.channels ? [['r', 'red'], ['g', 'green'], ['b', 'blue']] : [['x', 'x'], ['y', 'y'], ['z', 'z']];
+    parts.forEach(([label, part], k) => numberField(row, label, c.value[k], { title: `${c.name}: its ${part}`, onCommit: v => { const next = [...c.value]; next[k] = v; set(next); } }));
   } else if (c.control === 'tint') {
     const { colour, strength } = tintOf(c.value);
     const swatch = document.createElement('input');
@@ -9525,6 +9535,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       particles: likenessPane.shown?.likeness.count() ?? 0 }), ghostLikenesses: () => ghostLikenesses.filter(g => !g.idle).length,
     likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
       drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
+    // one effect's likeness, emitter by emitter (effects_preview.js describe)
+    likenessOf: id => { const k = likenesses.get(effectRoots.get(id)); return k ? k.likeness.describe() : null; },
     effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
       deleted: r.userData.deleted, moved: Boolean(r.userData.edit), stays: r.userData.stays, gone: Boolean(r.userData.derivedGone), visible: r.visible,
       at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move'),
@@ -9774,7 +9786,12 @@ library = createLibraryBrowser({
   onChoose: chooseLibraryEntry, onChooseRecipe: chooseEntry, hint: flashHint, recall, remember,
   // an effect's picture and its moving preview (the likeness, stage FXV3)
   effectPicture: entry => (likenessOn ? effectPicture(entry) : null), onHover: hoverLikeness,
-  paintObject: (object, box, thumb) => pieces.paintThumbs([{ object, box, thumb }]),
+  paintObject: (object, box, thumb) => {
+    // (an effect's picture: its sprites' least size is the picture's pixels, not the view's)
+    const height = viewHeight.value;
+    viewHeight.value = 96;
+    try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
+  },
 });
 prefabTab = createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
@@ -10178,6 +10195,7 @@ renderer.setAnimationLoop(() => {
     renderer.shadowMap.needsUpdate = true; shadowBeat = now;
     if (shadowsUntil === Infinity && data) touchShadows();      // (every frame until a scene is open)
   }
+  viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
   renderer.render(world,camera);
 });
 setInterval(() => {

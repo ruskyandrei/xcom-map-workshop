@@ -8,6 +8,61 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects drawn closer to the game: fires look like fire, the night smoke is no longer pink (export 31)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 4 ([export.py](tools/viewer/export.py) export 31):
+  - Each particle texture's traits come from its pixels (`texture_traits`): grey, an alpha that holds a shape, packed
+    channels, red share, brightness. Packed means no blue with red and green unrelated, or mostly blue to pink, as the
+    night smoke's `T_Roiling_Smoke_SubUV`, whose red, green and blue are its light from below, from above and its
+    density.
+  - The colour and the shape come from different textures (`pick_textures`: `picture`, `opacity` alpha, brightness
+    or none, `mask`, `maskFrom` brightness, alpha or red). The fires' colour is their Flame picture and their shape a
+    grey mask; before, names alone gave the debris the packed smoke noise and the Flame's near-empty alpha hid them.
+  - A material's own colour parameters are read (`material_colours` into `colours`) and tint a see-through particle
+    with no picture. The night smoke plume's are all but black.
+- [effects_sim.js](tools/viewer/web/effects_sim.js):
+  - Colour channels that carry data are drawn as the mean of the others (`dataChannels`). The fires' green and blue
+    offsets reach 50, and the night smoke's green is scaled by up to 200 over its life (a colour scale that differs
+    by channel).
+  - An alpha that rises above 1.2 erodes the shape rather than making it solid (`alphaErodes`: the fire chunks).
+  - A colour saved with only a vector, as URB_Bar's webbing's, is read as that vector, not white.
+- [effects_preview.js](tools/viewer/web/effects_preview.js):
+  - See-through and added particles are blended premultiplied, as the game lays a bright colour at a low opacity.
+  - A sprite is never thinner than two pixels (`viewHeight`).
+  - A solid mesh with no colour of its own is drawn charred.
+  - A dark see-through colour is lifted to a dull grey: the bar's steam is a faint wisp, not black.
+  - `materialTint` gives the material's tint.
+  - `describe()` gives the page's `likenessOf` hook for checks.
+- [app.js](tools/viewer/web/app.js):
+  - The Add panel's pane shows the row's tip inside itself; the browser's own tooltip no longer covers the drawing.
+  - Pictures and the pane frame the size-weighted bulk of the particles.
+  - A vector read by a colour module is labelled r, g, b, not x, y, z.
+- [effects_rules.js](tools/viewer/web/effects_rules.js): a vector parameter named Color, Colour or Tint is shown and
+  edited as a colour and a strength (`colourNamed`), such as `P_Power_Core_Persistent`'s Color, which scales its
+  colour over life.
+- [library.js](tools/viewer/web/library.js): picture version 2, so the Add panel's effect pictures are drawn again.
+- [editor-contracts.md](research/editor-contracts.md): the draw record's version 4 fields.
+
+Checked:
+- Re-exports of CSmallScout_Farm, URB_Bar and Act1_IntroLevel drawn on a test server and compared with the
+  hidden-game references (farm fires, likeness-bar1):
+  - farm fires: bright, yellow-white at the core, in charred debris;
+  - bar steam: a faint grey wisp;
+  - moths: small tan cards;
+  - webbing: pale grey-green;
+  - intro night smoke: a grey plume, not pink and green.
+- [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py) (traits on made-up pictures, role picks, material
+  colours, the steam's fixture),
+  [effects_sim_test.mjs](tools/viewer/tests/effects_sim_test.mjs),
+  [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs).
+- Browser smoke: likeness, library-effects, effects, effect-values, prefabs.
+- Viewer, editor and node suites.
+
+Known gaps:
+- The night smoke's foot, lit orange by its fire in the game, is not drawn.
+- An emitter whose material is in another package is still not drawn (P_Fire_Big's smoke).
+- The intro map's own steam is set so faint (opacity 0.1) that the pane shows almost nothing.
+
 ### The effects and sounds plan is built: its references point at the built plans
 
 - The plan's file moved from the plans not built to the plans built (`private/plans/done`), and the eleven files that

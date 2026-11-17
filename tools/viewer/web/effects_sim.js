@@ -30,7 +30,9 @@ export function parametersOf(record) {
     if (!p.name || p.name in out) continue;
     if (p.type === 'PSPT_Scalar' || p.type === 'PSPT_ScalarRand') out[p.name] = Number(p.scalar ?? 0);
     else if (p.type === 'PSPT_Vector' || p.type === 'PSPT_VectorRand') out[p.name] = (p.vector ?? [0, 0, 0]).slice(0, 3).map(Number);
-    else if (p.type === 'PSPT_Color') out[p.name] = (p.colour ?? [1, 1, 1]).slice(0, 3).map(Number);
+    // (a colour saved with no colour field but a vector, as URB_Bar's webbing's Color, 0.12 0.18 0.10: the vector,
+    // not white; the game shows that webbing a pale grey-green, likeness-bar1)
+    else if (p.type === 'PSPT_Color') out[p.name] = (p.colour ?? p.vector ?? [1, 1, 1]).slice(0, 3).map(Number);
   }
   return out;
 }
@@ -206,6 +208,7 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     turn: f(1), baseRate: f(1), rate: f(1), age: f(1), life: f(1), image: f(1), own: f(1), meshTurn: f(3), meshBase: f(3), meshRate: f(3),
   };
   const births = (draw.modules ?? []).filter(m => BIRTH[m.cls]).map(m => [BIRTH[m.cls], m]);
+  const data = dataChannels(draw);
   const steps = (draw.modules ?? []).filter(m => STEP[m.cls]).map(m => [STEP[m.cls], m]);
   const fields = [['pos', 3], ['base', 3], ['vel', 3], ['accel', 3], ['baseSize', 3], ['size', 3], ['baseColour', 4], ['colour', 4], ['turn', 1],
                   ['baseRate', 1], ['rate', 1], ['age', 1], ['life', 1], ['image', 1], ['own', 1], ['meshTurn', 3], ['meshBase', 3], ['meshRate', 3]];
@@ -255,6 +258,12 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
       for (let k = 0; k < 4; k++) s.colour[4 * p + k] = s.baseColour[4 * p + k];
       s.rate[p] = s.baseRate[p];
       for (const [step, m] of steps) step(m, s, p, rel, own, dt);
+      if (data) {
+        // a channel that carries a number for the material, not a colour: the others' brightness in its place
+        let sum = 0, n = 0;
+        for (let k = 0; k < 3; k++) if (!data[k]) { sum += s.colour[4 * p + k]; n++; }
+        for (let k = 0; k < 3; k++) if (data[k]) s.colour[4 * p + k] = n ? sum / n : 1;
+      }
       for (let k = 0; k < 3; k++) { s.pos[3 * p + k] += s.vel[3 * p + k] * dt; s.meshTurn[3 * p + k] += s.meshRate[3 * p + k] * dt; }
       s.turn[p] += s.rate[p] * dt;
     }
@@ -269,6 +278,71 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     return d.entries ? Math.max(0, ...d.entries.flat()) : 0;
   };
   return s;
+}
+
+/** The colour channels an emitter uses to carry numbers to its material rather than colour: [r, g, b] true where its
+ *  colour modules reach over DATA_COLOUR in that channel, or null for none. The game's fires do it: their start
+ *  colour is red 1 to 3 (the brightness) and green and blue anything up to 50 (each flame's own offset into its
+ *  scrolling texture), which as a colour would draw them cyan-white. */
+export const DATA_COLOUR = 8;
+export function dataChannels(draw) {
+  const most = [0, 0, 0];
+  const look = d => {
+    if (!d || d.unread) return;
+    const rows = d.parameter ? [d.constant, ...(d.output ?? [])].filter(Array.isArray) : (d.entries ?? []);
+    for (const row of rows) {
+      const width = d.parameter ? 3 : (d.op === 1 ? d.chunk : d.chunk / 2);
+      if (width !== 3) continue;
+      for (let k = 0; k < row.length; k++) most[k % 3] = Math.max(most[k % 3], Math.abs(Number(row[k]) || 0));
+    }
+  };
+  for (const m of draw.modules ?? []) {
+    if (m.cls === 'Color' || m.cls === 'Color_Seeded') look(m.StartColor);
+    else if (m.cls === 'ColorOverLife') look(m.ColorOverLife);
+  }
+  // a colour scale over life that is not the same in every channel carries data too, by the reach it gives the
+  // start colour: the night smoke plumes' green is scaled by up to 200 (the fire's light on the plume's foot),
+  // which as a colour drew them pink and green. A scale the same in all three is a brightness and is left alone.
+  for (const m of draw.modules ?? []) {
+    if (m.cls !== 'ColorScaleOverLife') continue;
+    const scale = [0, 0, 0], before = [...most];
+    const d = m.ColorScaleOverLife;
+    if (!d || d.unread) continue;
+    const rows = d.parameter ? [d.constant, ...(d.output ?? [])].filter(Array.isArray) : (d.entries ?? []);
+    for (const row of rows) {
+      if ((d.parameter ? 3 : (d.op === 1 ? d.chunk : d.chunk / 2)) !== 3) continue;
+      for (let k = 0; k < row.length; k++) scale[k % 3] = Math.max(scale[k % 3], Math.abs(Number(row[k]) || 0));
+    }
+    if (Math.max(...scale) - Math.min(...scale) < 1e-6) continue;
+    for (let k = 0; k < 3; k++) most[k] = Math.max(before[k], (before[k] || 1) * scale[k]);
+  }
+  const out = most.map(v => v > DATA_COLOUR);
+  return out.some(Boolean) ? out : null;
+}
+
+/** Whether an emitter's alpha erodes its shape rather than fading it: true where its alpha rises over each
+ *  particle's life (to half as much again or more) and never goes under ERODE_FROM (its start alpha times its alpha
+ *  over life, at their least). The fires' chunks do so: their alpha rises from 1.5 to 10 as they rise, and each
+ *  dissolves; as a plain opacity it would make them solid squares. An alpha set above 1 and held (a steam's
+ *  Opacity 2) is a plain opacity. The drawing then takes the shape to the power of the alpha. */
+export const ERODE_FROM = 1.2;
+export function alphaErodes(draw) {
+  const least = d => {
+    if (!d || d.unread) return null;
+    if (d.parameter) return Math.min(...[d.constant, ...(d.output ?? [])].map(Number).filter(Number.isFinite));
+    const rows = d.entries ?? [];
+    return rows.length ? Math.min(...rows.flat().map(Number)) : null;
+  };
+  // a table over life that ends at half as much again as it starts or more
+  const rises = d => Boolean(d && !d.unread && !d.parameter && d.entries?.length > 1 && d.op === 1
+    && Number(d.entries.at(-1)[0]) >= 1.5 * Number(d.entries[0][0]) && Number(d.entries.at(-1)[0]) > Number(d.entries[0][0]));
+  let start = 1, life = 1, rising = false;
+  for (const m of draw.modules ?? []) {
+    if (m.cls === 'Color' || m.cls === 'Color_Seeded') start = least(m.StartAlpha) ?? start;
+    else if (m.cls === 'ColorOverLife') { start = least(m.AlphaOverLife) ?? start; rising ||= rises(m.AlphaOverLife); }
+    else if (m.cls === 'ColorScaleOverLife') { life *= least(m.AlphaScaleOverLife) ?? 1; rising ||= rises(m.AlphaScaleOverLife); }
+  }
+  return rising && start * life >= ERODE_FROM;
 }
 
 /** How far ahead a new likeness is run so it shows at its full reach: its longest life, at most `most` seconds. */

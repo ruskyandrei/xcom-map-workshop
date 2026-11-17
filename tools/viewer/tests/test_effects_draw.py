@@ -1,8 +1,10 @@
-"""What the page draws an effect's likeness from (export 29; tools/viewer/effects_draw.py; the effects and sounds
-plan, Part J1, stage FXV1). The first tests run on made-up values: a lookup table's shape, which texture is the
-picture and which the mask. The install tests pin systems of URB_Bar whose numbers are known from the map."""
+"""What the page draws an effect's likeness from (export 29, draw version 4 since export 31;
+tools/viewer/effects_draw.py; the effects and sounds plan, Part J1, stage FXV1). The first tests run on made-up values:
+a lookup table's shape, what a texture's pixels hold, which texture gives the colour and which the shape. The install
+tests pin systems of URB_Bar whose numbers are known from the map."""
 import struct
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -46,33 +48,149 @@ class Tables(unittest.TestCase):
         self.assertIsNone(ed.table({}, False))
 
 
+class Traits(unittest.TestCase):
+    """texture_traits on made-up pictures (64 by 64 PNGs), each standing for one kind the game's effects use."""
+    def traits(self, rgba):
+        import numpy as np
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 't.png'
+            Image.fromarray(np.asarray(rgba, dtype=np.uint8), 'RGBA').save(path)
+            return ed.texture_traits(path)
+
+    def picture(self, rgb, alpha=255):
+        import numpy as np
+        ramp = np.linspace(0, 1, 64)[None, :, None] * np.ones((64, 1, 1))
+        out = np.concatenate([ramp * np.asarray(rgb, dtype=float)[None, None, :], np.full((64, 64, 1), 0.0)], axis=2)
+        out[..., 3] = alpha if not callable(alpha) else alpha(ramp[..., 0])
+        return out
+
+    def test_a_grey_ramp_is_grey_and_holds_no_shape(self):
+        t = self.traits(self.picture([200, 200, 200]))
+        self.assertEqual((t['grey'], t['packed'], t['shape']), (True, False, False))
+
+    def test_an_orange_flame_is_a_colour(self):
+        t = self.traits(self.picture([255, 140, 20]))
+        self.assertEqual((t['grey'], t['packed']), (False, False))
+
+    def test_magenta_and_blue_are_packed_channels(self):
+        # the night smoke's T_Roiling_Smoke_SubUV: red the light from below, green from above, blue the density
+        t = self.traits(self.picture([230, 20, 200]))
+        self.assertEqual((t['grey'], t['packed']), (False, True))
+        self.assertGreater(t['redShare'], 0.9)
+        glare = self.traits(self.picture([2, 40, 230]))
+        self.assertTrue(glare['packed'])
+        self.assertLess(glare['redShare'], 0.33)       # its red is all but empty: it shapes by its brightness
+
+    def test_red_and_green_unrelated_with_no_blue_are_packed(self):
+        import numpy as np
+        rng = np.random.default_rng(1)
+        out = np.zeros((64, 64, 4))
+        out[..., 0], out[..., 1], out[..., 3] = rng.uniform(0, 250, (64, 64)), rng.uniform(0, 250, (64, 64)), 255
+        self.assertTrue(self.traits(out)['packed'])
+
+    def test_an_alpha_shape_and_a_nearly_empty_alpha(self):
+        self.assertTrue(self.traits(self.picture([200, 160, 90], alpha=lambda r: r * 255))['shape'])
+        # GEN_MaterialParents' Flame: an alpha that varies but stays near nothing holds no shape
+        self.assertFalse(self.traits(self.picture([255, 140, 20], alpha=lambda r: (r > 0.97) * 59))['shape'])
+
+
+def texture(key, name, parameter=None, grey=False, shape=False, packed=False, red=1.0, bright=0.5):
+    return dict(key=key, name='Pkg.' + name, parameter=parameter, grey=grey, shape=shape, packed=packed, redShare=red, bright=bright)
+
+
 class Pictures(unittest.TestCase):
-    def pick(self, names, grid=False):
-        return ed.pick_textures([(str(n), 'Pkg.' + name, parameter, alpha) for n, (name, parameter, alpha) in enumerate(names)], grid)
+    def pick(self, candidates, grid=False, solid=False):
+        d = ed.pick_textures(candidates, grid, solid)
+        return d['picture'], d['opacity'], d['mask'], d['maskFrom']
 
-    def test_a_normal_map_is_no_picture_and_a_mask_is_the_mask(self):
-        self.assertEqual(self.pick([('T_Smoke_Cloud_Scrolling_NML', None, False), ('T_FireSmoke_Scrolling', None, False),
-                                    ('T_Fire_Licks', 'Flame_Mask', False)]), ('1', '2'))
-        self.assertEqual(self.pick([('T_softSmoke2', None, False), ('t_Smoke_Alpha_Light', 'Mask', False)]), ('0', '1'))
+    def test_the_fire_colour_from_its_flame_and_its_shape_from_a_grey_mask(self):
+        # M_Fire_Chunk: a colour picture whose alpha holds nothing, the grey licks, the packed scrolling noise
+        self.assertEqual(self.pick([texture('0', 'Flame'), texture('1', 'T_Fire_Licks_Large', grey=True),
+                                    texture('2', 'T_Roiling_Smoke_Scrolling', packed=True, red=0.7)]),
+                         ('0', 'brightness', '1', 'brightness'))
 
-    def test_a_mask_alone_shapes_a_plain_colour(self):
-        self.assertEqual(self.pick([('T_Distortion_Wave_NonClamped', None, False), ('T_square_edge_mask', None, False)]), (None, '1'))
+    def test_a_normal_map_is_neither(self):
+        self.assertEqual(self.pick([texture('0', 'T_Smoke_Cloud_Scrolling_NML'), texture('1', 'T_FireSmoke_Scrolling'),
+                                    texture('2', 'T_Fire_Licks', 'Flame_Mask', grey=True)]), ('1', 'brightness', '2', 'brightness'))
+
+    def test_the_steam_is_shaped_by_its_packed_dust_not_its_grey_blast(self):
+        self.assertEqual(self.pick([texture('0', 'T_Dust_Grainy_3Channel', packed=True, red=0.497),
+                                    texture('1', 'T_fireyblast01', grey=True, bright=0.086)]), (None, 'none', '0', 'red'))
+
+    def test_the_night_smoke_has_no_colour_picture(self):
+        self.assertEqual(self.pick([texture('0', 'T_Roiling_Smoke_Soft_SubUV', 'Smoke_SubUV', packed=True, red=1.0),
+                                    texture('1', 'T_Smoke_Cloud_Scrolling_Blurred_NML'),
+                                    texture('2', 'T_Roiling_Smoke_Scrolling', packed=True, red=0.7)], grid=True),
+                         (None, 'none', '0', 'red'))
+
+    def test_a_packed_mask_with_no_red_shapes_by_its_brightness(self):
+        self.assertEqual(self.pick([texture('0', 'T_Circle_Glare', packed=True, red=0.03)]), (None, 'none', '0', 'brightness'))
+
+    def test_a_moth_on_a_card_is_cut_by_its_alpha(self):
+        self.assertEqual(self.pick([texture('0', 'T_Moth_Blurry', shape=True), texture('1', 'T_Moth_Sharp', shape=True)]),
+                         ('0', 'alpha', '1', 'alpha'))
+
+    def test_a_grey_picture_where_nothing_else_is(self):
+        self.assertEqual(self.pick([texture('0', 'T_softSmoke2', grey=True), texture('1', 't_Smoke_Alpha_Light', 'Mask', grey=True)]),
+                         ('0', 'brightness', '1', 'brightness'))
+        self.assertEqual(self.pick([texture('0', 'Fogged_Body_Webbing_SubUV', grey=True)]), (None, 'none', '0', 'brightness'))
+
+    def test_a_solid_picture_is_cut_by_its_alpha_only(self):
+        self.assertEqual(self.pick([texture('0', 'T_Log_Masked', shape=True)], solid=True), ('0', 'alpha', None, None))
+        self.assertEqual(self.pick([texture('0', 'Rough_Debris')], solid=True), ('0', 'none', None, None))
 
     def test_sub_images_take_the_texture_named_for_them(self):
-        self.assertEqual(self.pick([('T_Fire', None, False), ('T_Chunk_SubUV', None, False)], grid=True)[0], '1')
-        self.assertEqual(self.pick([('T_Fire', None, False), ('T_Chunk_SubUV', None, False)])[0], '0')
+        both = [texture('0', 'T_Fire'), texture('1', 'T_Chunk_SubUV')]
+        self.assertEqual(self.pick(both, grid=True)[0], '1')
+        self.assertEqual(self.pick(both)[0], '0')
 
     def test_nothing_to_pick(self):
-        self.assertEqual(self.pick([]), (None, None))
+        self.assertEqual(self.pick([]), (None, 'none', None, None))
+
+
+class MaterialColours(unittest.TestCase):
+    def test_only_colours_and_tints_and_no_specular(self):
+        class P:
+            children = {5: [6, 7, 8, 9]}
+            classes = {6: 'MaterialExpressionVectorParameter', 7: 'MaterialExpressionVectorParameter',
+                       8: 'MaterialExpressionVectorParameter', 9: 'MaterialExpressionTextureSampleParameter2D'}
+            values = {6: ('Dark_Color', [0.015, 0.017, 0.027, 1.0]), 7: ('SPC_Color', [1, 1, 1, 64]), 8: ('Tiling', [2, 2, 0, 1])}
+
+            def own(self, index, key, default=None):
+                if key == 'Parent':
+                    return 0
+                if key == 'VectorParameterValues':
+                    return None
+                name, value = self.values.get(index, (None, None))
+                return {'ParameterName': name, 'DefaultValue': value}.get(key, default)
+
+            def cls(self, index):
+                return self.classes.get(index, 'Material')
+
+            def structs(self, raw):
+                return []
+        self.assertEqual(ed.material_colours(P(), 5), {'Dark_Color': [0.015, 0.017, 0.027]})
+
+
+# what URB_Bar's textures' pixels hold (texture_traits on the export's PNGs), for an exporter that writes none
+BAR_TRAITS = {'T_Dust_Grainy_3Channel': dict(grey=False, shape=False, packed=True, redShare=0.497, bright=0.418),
+              'T_fireyblast01': dict(grey=True, shape=False, packed=False, redShare=0.998, bright=0.086),
+              'T_Moth_Blurry': dict(grey=False, shape=True, packed=False, redShare=1.0, bright=0.49),
+              'T_Moth_Sharp': dict(grey=False, shape=True, packed=False, redShare=1.0, bright=0.481)}
 
 
 class Stub:
-    """An exporter that keeps nothing: a texture's key is its export index."""
+    """An exporter that keeps nothing: a texture's key is its export index (its traits as BAR_TRAITS has them)."""
     def __init__(self, p):
         self.p, self.textures = p, {}
 
     def texture(self, index):
-        self.textures[str(index)] = dict(format=self.p.effective(index, 'Format'))
+        info = dict(format=self.p.effective(index, 'Format'))
+        known = BAR_TRAITS.get(self.p.name(index).rsplit('.', 1)[-1])
+        if known:
+            info['traits'] = dict(known)
+        self.textures[str(index)] = info
         return str(index)
 
     def particle_mesh(self, mesh, override=0):
@@ -101,9 +219,10 @@ class Fixtures(unittest.TestCase):
         self.assertTrue(live)
         d = live[0]
         self.assertEqual((d['kind'], d['blend'], d['facing'], d['subImages'], d['loops']), ('sprite', 'BLEND_Translucent', 'PSA_Square', [1, 1], 0))
-        # its picture is a texture of three channels: one of them is its opacity, and it has no colour of its own
-        self.assertTrue(d['picture'])
-        self.assertEqual(d['opacity'], 'channel')
+        # no colour picture: its shape is the red channel of its packed dust (not its grey blast), its colour its own
+        names = {t['key']: t['name'] for t in d['textures']}
+        self.assertIsNone(d['picture'])
+        self.assertEqual((names[d['mask']], d['maskFrom'], d['opacity']), ('FX_Shared.T_Dust_Grainy_3Channel', 'red', 'none'))
         # its rate is fed by the Wind_Strength parameter; its colour by Color, as its offers say
         self.assertEqual((d['rate']['parameter'], d['rate']['kind'], d['rate']['output']), ('Wind_Strength', 'scalar', [1.0, 4.0]))
         colour = next(m for m in d['modules'] if m['cls'] == 'Color')

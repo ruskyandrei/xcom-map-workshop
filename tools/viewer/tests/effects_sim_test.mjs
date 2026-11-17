@@ -4,7 +4,7 @@
 // giving the same particles. On draw records shaped as export 29 makes them (tools/viewer/effects_draw.py).
 // Run: node tools/viewer/tests/effects_sim_test.mjs
 import assert from 'node:assert/strict';
-import { LIMITS, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
+import { LIMITS, alphaErodes, dataChannels, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
 
 const near = (a, b, e = 1e-4) => assert.ok(Math.abs(a - b) <= e, `${a} is not ${b}`);
 const constant = (...v) => ({ op: 1, lock: 0, per: 1, chunk: v.length, scale: 0, start: 0, min: Math.min(...v), max: Math.max(...v), entries: [v, v] });
@@ -163,5 +163,35 @@ const steam = {
   odd.step(0.1);
   assert.ok(odd.count > 0 && odd.size[0] === 0);
 }
+
+// --- colour that carries data (draw version 4): the fires' green and blue offsets, the night smoke's green scale
+{
+  const fire = { modules: [{ cls: 'Color', StartColor: between([2, 0, 0], [2, 50, 50]) }] };
+  assert.deepEqual(dataChannels(fire), [false, true, true]);
+  // a colour scale over life that differs by channel gives the start colour its reach: green 2 x 200
+  const plume = { modules: [{ cls: 'Color', StartColor: constant(1, 2, 1) }, { cls: 'ColorScaleOverLife', ColorScaleOverLife: { ...constant(1, 200, 1), entries: [[1, 200, 1], [1, 0.2, 1]] } }] };
+  assert.deepEqual(dataChannels(plume), [false, true, false]);
+  // one the same in all three is a brightness: no data
+  assert.equal(dataChannels({ modules: [{ cls: 'Color', StartColor: constant(1, 1, 1) }, { cls: 'ColorScaleOverLife', ColorScaleOverLife: constant(100, 100, 100) }] }), null);
+  assert.equal(dataChannels({ modules: [{ cls: 'Color', StartColor: constant(6.4, 1.92, 0.64) }] }), null);      // a hot core
+  // the data channel is drawn as the mean of the others: the plume white, not green and pink
+  const sim = makeEmitter({ kind: 'sprite', rate: constant(20), life: null, duration: 1, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(2) }, ...plume.modules] }, { seed: 2 });
+  sim.step(0.5);
+  assert.ok(sim.count > 0);
+  near(sim.colour[1], 1);
+}
+
+// --- an alpha that erodes: one that rises over a life and never goes under 1.2 (the fires' chunks, 1.5 to 10); one
+// set above 1 and held (a steam's Opacity 2) is a plain opacity
+{
+  assert.equal(alphaErodes({ modules: [{ cls: 'ColorOverLife', AlphaOverLife: curve([1.5, 4, 10]) }] }), true);
+  assert.equal(alphaErodes({ modules: [{ cls: 'Color', StartAlpha: constant(2) }] }), false);
+  assert.equal(alphaErodes({ modules: [{ cls: 'ColorOverLife', AlphaOverLife: curve([1, 0.5, 0]) }] }), false);
+}
+
+// --- a colour saved with no colour field but a vector (URB_Bar's webbing): the vector, not white
+assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', vector: [0.12, 0.18, 0.1] }] }), { Color: [0.12, 0.18, 0.1] });
+assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', colour: [1, 0, 0, 1] }] }), { Color: [1, 0, 0] });
 
 console.log('effects_sim: ok');

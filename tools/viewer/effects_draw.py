@@ -20,8 +20,10 @@ import struct
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 3     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+DRAW_VERSION = 4     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
                      # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
+                     # 4: textures told apart by their pixels (texture_traits): the colour from a picture, the shape
+                     #    from a mask (`maskFrom`); `opacity` none where the mask alone shapes it
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -41,10 +43,11 @@ HOUSEKEEPING = frozenset(('LODValidity', 'bSpawnModule', 'bUpdateModule', 'bFina
 NOT_PICTURE = frozenset('NML NRM NORM NOR NORMAL NORMALS DISTORTION REFLECTION REFL CUBE CUBEMAP'.split())
 MASK_WORDS = frozenset('MASK MSK ALPHA GRADIENT GRAD OPACITY OPA'.split())
 # a texture whose three channels are three pictures (T_Dust_Grainy_3Channel): one channel is the opacity, no colour
-PACKED_WORDS = frozenset('CHANNEL CHANNELS PACKED'.split())
+PACKED_WORDS = frozenset('CHANNEL CHANNELS PACKED 3CHANNEL'.split())
 ALPHA_FORMATS = ('PF_DXT5', 'PF_DXT3', 'PF_A8R8G8B8')
-# Sprite materials whose textures the name rule (pick_textures) gets wrong, by material path: {picture: a texture's
-# short name, mask: one or None, opacity: 'alpha' | 'brightness', markerOnly: True (not drawn: its marker alone)}.
+# Sprite materials whose textures the rule (pick_textures) gets wrong, by material path: {picture: a texture's short
+# name, mask: one or None, opacity: 'alpha' | 'brightness' | 'none', maskFrom: 'brightness' | 'alpha' | 'red',
+# markerOnly: True (not drawn: its marker alone)}.
 # Filled from the comparison with the game's own pictures (plan Part G); a change here needs DRAW_VERSION raised.
 RULES = {}
 
@@ -201,20 +204,121 @@ def sprite_textures(p, material, compiled_textures):
     return out
 
 
-def pick_textures(candidates, grid=False):
-    """Which of a sprite's textures is its picture and which its mask, by their names: [(key, texture name, parameter
-    name, has alpha)] -> (picture key or None, mask key or None). A normal map, a distortion or a reflection is
-    neither. A mask is a texture named as one (Mask, Alpha, Gradient); the picture is the first other, one named for
-    sub-images first where the emitter has a grid. With no picture the mask alone shapes a plain colour."""
-    usable = [c for c in candidates if not words(short(c[1])) & NOT_PICTURE and not words(c[2] or '') & NOT_PICTURE]
-    is_mask = lambda c: bool((words(short(c[1])) | words(c[2] or '')) & MASK_WORDS)  # noqa: E731
-    pictures = [c for c in usable if not is_mask(c)]
-    masks = [c for c in usable if is_mask(c)]
+COLOUR_WORDS = frozenset('COLOR COLOUR TINT'.split())
+NOT_COLOUR = frozenset('SPC SPEC SPECULAR'.split())
+
+
+def material_colours(p, material):
+    """A material's own colour parameters (its vector parameters named for a colour or a tint, not a specular one),
+    through its parents, the nearest's value: {name: [r, g, b]}. The night smoke's are all but black (Dark_Color,
+    Bright_Color: its plume is dark smoke, lit only at its foot), the fires' run from Outer_Color to Core_Color."""
+    out = {}
+    for mat in reversed(material_chain(p, material)):
+        for c in p.children.get(mat, []):
+            if p.cls(c) == 'MaterialExpressionVectorParameter':
+                name, value = p.own(c, 'ParameterName'), p.own(c, 'DefaultValue')
+                if name is not None and isinstance(value, list) and len(value) >= 3:
+                    out[str(name)] = value[:3]
+        try:
+            for row in p.structs(p.own(mat, 'VectorParameterValues')):
+                name = row.get(('ParameterName', 0), {}).get('value')
+                value = row.get(('ParameterValue', 0), {}).get('value')
+                if name is not None and isinstance(value, list) and len(value) >= 3:
+                    out[str(name)] = value[:3]
+        except (FormatError, ValueError, IndexError, struct.error, TypeError):
+            pass
+    return {name: [round(float(v), 4) for v in value] for name, value in out.items()
+            if words(name) & COLOUR_WORDS and not words(name) & NOT_COLOUR}
+
+
+def texture_traits(path):
+    """What a particle texture holds, from its pixels (a 64-pixel copy of the PNG the export wrote): dict(grey (no
+    colour to speak of: a shape, a gradient, a noise), shape (its alpha channel holds a shape: it varies by a fifth of
+    its range or more), packed (pictures in its channels rather than a colour: no blue at all and red and green
+    unrelated, as the fire's scrolling noise T_Roiling_Smoke_Scrolling; or a colour that is mostly blue to pink, which
+    no smoke, dust or glow of the game is, as the night smoke's T_Roiling_Smoke_SubUV: its red the light from below,
+    its green the light from above, its blue the density), redShare (its red channel's mean over its strongest
+    channel's: whether the red holds the shape), bright (its mean brightness, 0 to 1)). The fires showed why names
+    alone are not enough: their colour picture (GEN_MaterialParents' Flame) has an alpha channel that is nearly empty,
+    and their shape is a grey mask (T_Fire_Licks_Large)."""
+    import numpy as np
+    from PIL import Image
+    with Image.open(path) as image:
+        image.load()
+        rgba = image.convert('RGBA')
+    # (colour and alpha shrunk apart: shrinking RGBA weighs the colour by the alpha, and a near-empty alpha loses it)
+    rgb = np.asarray(rgba.convert('RGB').resize((64, 64)), dtype=float)
+    alpha = np.asarray(rgba.getchannel('A').resize((64, 64)), dtype=float)
+    top, low = rgb.max(-1), rgb.min(-1)
+    grey = float((top - low).mean() / max(top.mean(), 1.0)) < 0.18
+    r, g, b = rgb[..., 0].ravel(), rgb[..., 1].ravel(), rgb[..., 2].ravel()
+    related = 1.0
+    if r.std() > 4 and g.std() > 4:
+        related = float(np.corrcoef(r, g)[0, 1])
+    # the colour's hue where it has one, weighed by its brightness and how strong the colour is
+    saturation = np.where(top > 8, (top - low) / np.maximum(top, 1.0), 0.0)
+    weight = top / 255 * saturation
+    hue = (np.degrees(np.arctan2(np.sqrt(3) * (rgb[..., 1] - rgb[..., 2]), 2 * rgb[..., 0] - rgb[..., 1] - rgb[..., 2])) + 360) % 360
+    cool = float(weight[(hue >= 190) & (hue < 350)].sum() / max(float(weight.sum()), 1e-9))
+    strength = float((saturation * top).sum() / max(float(top.sum()), 1e-9))
+    packed = not grey and ((b.max() < 24 and related < 0.4) or (strength >= 0.2 and cool >= 0.6))
+    means = rgb.reshape(-1, 3).mean(0)
+    # (an alpha channel that is almost empty everywhere, as the Flame's, holds no shape however much it varies)
+    shape = alpha.max() - alpha.min() >= 48 and alpha.mean() >= 8
+    return dict(grey=grey, shape=bool(shape), packed=bool(packed), redShare=round(float(means[0] / max(float(means.max()), 1.0)), 3),
+                bright=round(float(top.mean()) / 255, 3))
+
+
+def pick_textures(candidates, grid=False, solid=False):
+    """Which of an emitter's textures gives its colour and which its shape: candidates [dict(key, name, parameter,
+    grey, shape, packed)] -> dict(picture (key or None), opacity ('alpha' | 'brightness' | 'none': what of the
+    picture shapes it besides the mask), mask (key or None), maskFrom ('brightness' | 'alpha' | 'red')). `solid`:
+    an opaque or cut-out material (a mesh: its picture is its surface, cut by an alpha shape only).
+    - A normal map, a distortion or a reflection is neither.
+    - The picture is the first texture with colour (one named for sub-images first where the emitter has a grid); a
+      grey texture or a packed one is a picture only where nothing else is.
+    - The mask is the first other texture that can shape: one named as a mask (Mask, Alpha, Gradient), then a grey
+      one, then one whose alpha holds a shape, then a packed one (its red channel). It shapes by its alpha where that
+      holds the shape, by its red channel where it is packed (by its brightness where its red is nearly empty: the
+      blue glare T_Circle_Glare), else by its brightness. A grey picture is used only where no packed texture gives the
+      shape (URB_Bar's steam: its grey T_fireyblast01 is not its look; its packed dust is).
+    - A see-through picture shapes by its alpha where that holds a shape (a moth on a white card), else by its
+      brightness (the flames' dark gaps). A solid picture is cut by its alpha only."""
+    def named(c, which):
+        return bool((words(short(c['name'])) | words(c.get('parameter') or '')) & which)
+    usable = [c for c in candidates if not named(c, NOT_PICTURE)]
+    packed = lambda c: c.get('packed') or named(c, PACKED_WORDS)  # noqa: E731
+    colour = [c for c in usable if not c.get('grey') and not packed(c) and not named(c, MASK_WORDS)]
     if grid:
-        pictures.sort(key=lambda c: 'SUB' not in words(short(c[1])))
-    picture = pictures[0][0] if pictures else None
-    mask = masks[0][0] if masks else None
-    return picture, mask
+        colour.sort(key=lambda c: 'SUB' not in words(short(c['name'])))
+    picture = colour[0] if colour else None
+    if picture is None and not solid:
+        # nothing with colour: a grey picture named as no mask, or none (the mask shapes the particle's own colour)
+        plain = [c for c in usable if c.get('grey') and not named(c, MASK_WORDS) and not c.get('shape')]
+        picture = plain[0] if plain and len(usable) > 1 and not any(packed(c) for c in usable) else None
+    rest = [c for c in usable if c is not picture]
+    # (with no picture, a packed texture shapes before a grey one: it is the particle's look, as the steam's dust)
+    order = ([c for c in rest if named(c, MASK_WORDS)] +
+             ([c for c in rest if packed(c)] if picture is None else []) + [c for c in rest if c.get('grey')] +
+             [c for c in rest if c.get('shape')] + [c for c in rest if packed(c)])
+    order = list({id(c): c for c in order}.values())
+    if not solid and picture is None and not order and usable:
+        order = usable[:1]
+    mask = order[0] if order else None
+    mask_from = None
+    if mask is not None:
+        mask_from = ('red' if mask.get('redShare', 1) >= 0.33 else 'brightness') if packed(mask) and not mask.get('grey') else 'alpha' if mask.get('shape') and (
+            not mask.get('grey') or named(mask, frozenset(('ALPHA', 'OPACITY', 'OPA')))) else 'brightness'
+        if mask.get('shape') and mask.get('grey') and mask_from == 'brightness' and mask.get('bright', 1) < 0.25:
+            mask_from = 'alpha'     # (flat dark grey with the shape in its alpha: T_smokey)
+    if picture is None:
+        opacity = 'none'
+    elif solid:
+        opacity = 'alpha' if picture.get('shape') else 'none'
+    else:
+        opacity = 'alpha' if picture.get('shape') else 'brightness'
+    return dict(picture=picture['key'] if picture else None, opacity=opacity,
+                mask=mask['key'] if mask else None, maskFrom=mask_from)
 
 
 def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
@@ -268,23 +372,33 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
             key = exporter.texture(tex)
             if key:
                 info = exporter.textures[key]
-                candidates.append((key, p.name(tex), name, info.get('format') in ALPHA_FORMATS))
+                traits = info.get('traits')
+                if traits is None:
+                    try:
+                        traits = info['traits'] = texture_traits(exporter.folder / info['url'])
+                    except (OSError, ValueError, KeyError, AttributeError):
+                        traits = info['traits'] = dict(grey=False, shape=info.get('format') in ALPHA_FORMATS, packed=False, bright=0.5)
+                candidates.append(dict(key=key, name=p.name(tex), parameter=name, alpha=info.get('format') in ALPHA_FORMATS, **traits))
         rule = (rules or {}).get(draw['material']) or {}
         if rule.get('markerOnly'):
             return None, 'not drawn here'
         grid = draw['subImages'] != [1, 1]
-        picture, mask = pick_textures(candidates, grid)
-        by_name = {short(c[1]): c[0] for c in candidates}
+        solid = draw['blend'] in ('BLEND_Opaque', 'BLEND_Masked')
+        picked = pick_textures(candidates, grid, solid)
+        by_name = {short(c['name']): c['key'] for c in candidates}
         if rule.get('picture') in by_name:
-            picture = by_name[rule['picture']]
+            picked['picture'] = by_name[rule['picture']]
         if 'mask' in rule:
-            mask = by_name.get(rule['mask'])
+            picked['mask'] = by_name.get(rule['mask'])
+        for key in ('opacity', 'maskFrom'):
+            if rule.get(key):
+                picked[key] = rule[key]
         if not candidates and material <= 0 and kind == 'sprite':
             return None, 'its material is in another package' if material < 0 else 'no material'
-        draw.update(textures=[dict(key=c[0], name=c[1], parameter=c[2], alpha=c[3]) for c in candidates],
-                    picture=picture, mask=mask,
-                    opacity=rule.get('opacity') or ('channel' if picture and words(short(next(c[1] for c in candidates if c[0] == picture))) & PACKED_WORDS
-                                                    else 'alpha' if picture and dict((c[0], c[3]) for c in candidates)[picture] else 'brightness'))
+        draw.update(textures=candidates, **picked)
+        colours = material_colours(p, material) if material > 0 else {}
+        if colours:
+            draw['colours'] = colours
     spawn = p.own(lod, 'SpawnModule', 0) or 0
     draw['rate'] = distribution(defaults, p, spawn, 'Rate') if spawn > 0 else None
     draw['rateScale'] = distribution(defaults, p, spawn, 'RateScale') if spawn > 0 else None
