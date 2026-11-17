@@ -29,8 +29,31 @@ behave as written.
   verified: the agent's words are a report, not proof.
 - The brief says: the map and how it gets into the lab copy, each thing to check and what would count as passed or
   failed, the tiles or objects involved (world units, from the project or the viewer), the out folder, this skill's
-  name, and the pause protocol (on a usage limit: finish the step in hand, `send <out> quit`, write where it stood in
+  name, that each check gets one pass and at most one second take (below), and the pause protocol (on a usage limit: finish the step in hand, `send <out> quit`, write where it stood in
   `report.md`).
+
+## How far to take each check
+
+The agent's job is an honest first reading of everything it was asked, not a perfect one of each thing.
+
+- **First pass: every asked check once.** Do each in the plainest way, note what the log and one or two shots show,
+  and move on to the next, whatever the outcome. Nothing gets a second try until every check has had its first.
+- **Second take: only for what was unclear, and only once.** A check is unclear when its first pass could not tell
+  pass from fail (the shot does not show the thing, the readback was empty, the soldier ended on another tile).
+  Change one thing that could settle it (another camera, another tile, another readback) and try again.
+- **Still unclear after that: report it as unclear and go on.** Say what was tried both times, what was seen, and
+  what would settle it. That is a complete answer; the requester decides whether to ask for more.
+- **Then end the run's turn**: write the report and hand back. Do not keep the game busy polishing.
+
+What this rules out:
+
+- retaking a shot because it could be better framed, lit or zoomed, when it already shows what was asked;
+- confirming by a second method something the first already showed;
+- chasing a side observation nobody asked about (note it in a line instead);
+- calling a check passed that was not seen: "unclear" and "not seen" are results, and better than a pass that
+  took ten tries to produce.
+
+Each check ends as **passed**, **failed** or **unclear**, with the evidence in a line or two.
 
 ## Before a run
 

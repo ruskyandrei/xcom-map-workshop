@@ -48,6 +48,13 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### The game-test skill: one pass, one second take
+
+- [.claude/skills/game-test/SKILL.md](.claude/skills/game-test/SKILL.md) has a section on how far to take each
+  check: every asked check once, a single second take for what stayed unclear, then a report with each check passed,
+  failed or unclear, and the run's turn ends. No retakes for a better picture, no second proof of what was shown.
+  Checked by the `repo` suite; a document only.
+
 ### Unattended game tests can save and load
 
 - [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--saving` starts the game at its main menu with a file that
