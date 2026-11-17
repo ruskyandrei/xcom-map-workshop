@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Prefabs hold effects and sounds (effects and sounds plan, stage FX6a)
+
+- [prefabs.py](tools/viewer/prefabs.py): prefab schema 3 (1 and 2 read, stored as 3). A piece with a `kind` is an
+  effect or an ambient sound: `{actor, kind, from, location, rotation}` and the values object of its kind at most,
+  checked whole as every piece is (`check_values`: known keys, numbers in range, at most 64 parameters). The summary
+  counts `effects` and `sounds`; the recipes' recovery leaves them as saved.
+  [prefab_bounds.py](tools/viewer/prefab_bounds.py): each is the point where it stands, so a sound's reach is no
+  part of the footprint.
+- [app.js](tools/viewer/web/app.js): `prefabRecords` writes the selection's effects and sounds (their values, their
+  group, their map among the donors; a flare and a stream's are left out with a sentence); `prefabClip` reads them
+  back (this map's from its export, another map's by its template, values where their family builds) and the paste
+  makes the copies it makes of any effect. The builder keeps, shows and edits them: the Effects view and the
+  likeness are on there too (`effectsAvailable`), its size takes their places, its counts name them. The Effects
+  view's bar counts added effects and sounds. [prefabs.js](tools/viewer/web/prefabs.js) (schema 3, "1 piece, 1
+  effect and 1 sound"), [prefab_document.js](tools/viewer/web/prefab_document.js) (no partner written on them).
+- [prefab_stage.py](tools/editor/prefab_stage.py): Test in game plays them. Each is read from its map
+  (`library.effect`), left out with its reason when it is not there, of another kind, or its map is not the file
+  the prefab was saved from; its values go into the test where their family builds.
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_prefabs.py](tools/viewer/tests/test_prefabs.py) (the two kinds saved, listed, measured, 22 malformed
+ones refused, the recovery), [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py) (read, left out, into
+the test's project with and without the value families); the browser smoke's new `prefab_effects` check
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)) on URB_Bar: a prop, an effect and a sound grouped, saved,
+placed in the map, then placed in AlienBase01, saved, reopened and built without baking (the build's donor row: 2
+effects and 1 piece from URB_Bar); `prefabs`, `effects` and `likeness` checks and
+[browser_builder.py](tools/viewer/tests/browser_builder.py) again; a prefab with both opened in the builder by a
+script (the document comes back the same, a delete and its undo). No game run: a placed prefab's effects are the
+added records EXP-68 and EXP-69 played. Known gaps: a lens flare is not held (FX6b); a prefab's picture shows an
+effect as its likeness only when its textures were read by then, as its marker otherwise.
+
 ### Effects in the Add panel as they look (effects and sounds plan, stage FXV3)
 
 - [library.js](tools/viewer/web/library.js): an effect's row shows its likeness as its picture. The marker is drawn

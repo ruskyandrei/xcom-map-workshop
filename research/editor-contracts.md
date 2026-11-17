@@ -153,8 +153,13 @@ This page is older than the editor's server…"). Prefab files are schema 2 the 
 is stored as 2.
 Schema 3 (17 November 2026; the effects and sounds plan, stage FX3) adds effects' and sounds' records (the rows
 `overrides[]` and `added[]` of effects and sounds below): the page, the server and the compiler read 1, 2 and 3, and
-the page writes 3; the server refuses a save of 1 or 2 as it did of 1. Prefab files stay schema 2: a prefab takes no
-effects or sounds yet (stage FX6).
+the page writes 3; the server refuses a save of 1 or 2 as it did of 1.
+Prefab files are schema 3 since stage FX6a (17 November 2026): a piece with a `kind` is a copy of a map's effect or
+ambient sound, `{actor, kind: effect | sound, from: {package, level: base, actor}, location, rotation}` with the
+values object of its kind at most (`effect` or `sound`, as an added record of a project has it), a member of the
+prefab's groups by its `actor` as any piece is, its map among the `donors`. It has no components, partner, link or
+recipe. The server reads prefab schema 1, 2 and 3 and stores 3; an editor before this stage refuses a schema 3 file
+by its number ("A newer editor is needed to open it"). A lens flare is not held yet (stage FX6b).
 
 ```json
 {

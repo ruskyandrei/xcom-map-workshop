@@ -4210,7 +4210,7 @@ def check_prefabs(browser, url):
     page.evaluate("([ids, volume]) => { for (const id of [ids.light, ids.point]) if (id) viewer.select(id, true); viewer.select(volume, true); }", [ids, volumes[0]])
     records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { tiles: r.tiles, pieces: r.pieces, groups: r.groups, buildings: r.buildings, donors: r.donors, left: r.left, counts: r.counts }; })()")
     lights = sum(1 for k in ('light', 'point') if ids[k])
-    assert records['counts'] == dict(pieces=ids['cars'] + 1, lights=lights, buildings=1, tiles=records['tiles']), records['counts']
+    assert records['counts'] == dict(pieces=ids['cars'] + 1, lights=lights, effects=0, sounds=0, buildings=1, tiles=records['tiles']), records['counts']
     assert records['left'] == [] and [d['package'] for d in records['donors']] == [here] and len(records['donors'][0]['sha256']) == 64
     # in a space of its own: whole tiles from the origin, a tile corner at the building's ground; the floors as they were
     (low,), (high,) = (f['boxes'] for f in records['buildings'][0]['floors'])
@@ -4490,6 +4490,124 @@ def check_prefabs(browser, url):
     page.close()
 
 
+def check_prefab_effects(browser, url):
+    """Effects and sounds in a prefab (effects and sounds plan, stage FX6a), on URB_Bar against check_prefabs' kind of
+    test server, after it (its prefab is deleted at the end): a prop, a free effect and a sound grouped and saved as
+    a prefab (schema 3, each of its kind with its source, counted, no footprint from the sound's reach); placed in
+    this map (copies of their kinds, one group marked with the prefab, the effect's likeness with the cursor); then
+    in another map, read from their home map, saved, reopened and built without baking."""
+    errors = []
+    page = open_viewer(browser, url, errors, expected=(409, 422))
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 29 && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
+        page.close(); return
+    here = page.evaluate('viewer.data.name')
+    page.evaluate('viewer.setNormalEffects(true)')
+    ids = page.evaluate("""(() => { viewer.effectMarkers();
+      const free = kind => [...viewer.effectRoots.values()].find(r => { const o = r.userData.source; return !o.stream && o.layer === 'base' && o.kind === kind
+        && !o.carriedBy && !o.landingActor && !viewer.effectState(o.id).viewOnly && (kind !== 'effect' || viewer.data.effectSystems[o.system]?.emitters.some(e => e.draw)); });
+      const fx = free('effect'), snd = free('sound');
+      if (!fx || !snd) return null;
+      const at = fx.userData.source.location, far = r => Math.hypot(r.userData.source.location[0] - at[0], r.userData.source.location[1] - at[1]);
+      const prop = [...viewer.roots.values()].filter(r => { const o = r.userData.source; return o.layer === 'base' && o.actorClass === 'XComLevelActor' && !o.hidden && !o.environment
+        && !viewer.recipeOf(o.id) && !(viewer.families()?.assemblies ?? []).some(a => a.members.includes(o.actor)); }).sort((a, b) => far(a) - far(b))[0];
+      return { fx: fx.userData.source.id, snd: snd.userData.source.id, prop: prop.userData.source.id,
+               fxActor: fx.userData.source.actor, sndActor: snd.userData.source.actor, sndAt: snd.userData.source.location, fxAt: at }; })()""")
+    if not ids: page.close(); return
+    page.evaluate("ids => { viewer.select(ids.prop); viewer.select(ids.fx, true); viewer.select(ids.snd, true); }", ids)
+    page.keyboard.press('Control+g')
+    assert len(page.evaluate('viewer.groupList()')) == 1
+    records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { tiles: r.tiles, pieces: r.pieces, groups: r.groups, donors: r.donors, left: r.left, counts: r.counts }; })()")
+    assert records['left'] == [] and {k: records['counts'][k] for k in ('pieces', 'lights', 'effects', 'sounds')} == dict(pieces=1, lights=0, effects=1, sounds=1), records
+    fx, = [p for p in records['pieces'] if p.get('kind') == 'effect']
+    snd, = [p for p in records['pieces'] if p.get('kind') == 'sound']
+    assert fx['from'] == dict(package=here, level='base', actor=ids['fxActor']) and snd['from'] == dict(package=here, level='base', actor=ids['sndActor'])
+    assert all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['actor'].startswith(p['from']['actor'] + '_copy') for p in (fx, snd)), (fx, snd)
+    # they are where they stand: the footprint spans the three places, not the sound's reach
+    reach = max(abs(ids['sndAt'][k] - ids['fxAt'][k]) for k in (0, 1)) / 96 + 12
+    assert max(records['tiles']) <= reach, (records['tiles'], reach)
+    assert len(records['groups']) == 1 and sorted(m['added'] for m in records['groups'][0]['members']) == sorted(p['actor'] for p in records['pieces'])
+    assert [d['package'] for d in records['donors']] == [here]
+    saved = page.evaluate("viewer.savePrefab('Smoke effects').then(s => ({ id: s.id, revision: s.revision }))")
+    listed = lambda: page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs']
+    row, = [p for p in listed() if p['id'] == saved['id']]
+    assert (row['pieces'], row['lights'], row['effects'], row['sounds'], row['maps']) == (1, 0, 1, 1, [here]), row
+    doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
+    assert doc['schemaVersion'] == 3 and sorted(p.get('kind', 'piece') for p in doc['pieces']) == ['effect', 'piece', 'sound']
+    page.keyboard.press('p')
+    choose(page, 'libScope', 'prefabs')
+    page.wait_for_selector('#prefabList .libitem')
+    assert '1 piece, 1 effect and 1 sound' in page.locator('#prefabList .libitem', has_text='Smoke effects').inner_text()
+
+    def place(page):
+        count, fxs = page.evaluate('viewer.roots.size'), page.evaluate('viewer.effectRoots.size')
+        page.locator('#prefabList .libitem', has_text='Smoke effects').click()
+        page.wait_for_function('viewer.placing()?.fromList', timeout=180000)
+        page.evaluate("viewer.frame('playable')")
+        canvas = page.locator('#viewport > canvas').bounding_box()
+        points = [(canvas['x'] + canvas['width'] * x, canvas['y'] + canvas['height'] * y) for y in (0.5, 0.6, 0.7, 0.4, 0.3) for x in (0.6, 0.7, 0.5, 0.8, 0.4)]
+        at = next((p for p in points if page.evaluate('at=>viewer.placementProblem(at)', list(p)) is None), points[0])
+        page.mouse.move(*at)
+        page.wait_for_function('viewer.placing()?.ghost.visible')
+        page.wait_for_function('viewer.ghostLikenesses() >= 1')      # the effect's likeness comes with the cursor
+        page.mouse.click(*at)
+        page.wait_for_function('n => viewer.effectRoots.size === n + 2', arg=fxs)
+        assert page.evaluate('viewer.roots.size') == count + 1
+        added = page.evaluate('viewer.editState().added')
+        assert sorted(a.get('kind', 'piece') for a in added) == ['effect', 'piece', 'sound'], added
+        assert all(a['from']['package'] == here for a in added) and {a['from']['actor'] for a in added if a.get('kind')} == {ids['fxActor'], ids['sndActor']}
+        marked, = [g for g in page.evaluate('viewer.groupList()') if g['prefab']]
+        assert marked['prefab']['name'] == 'Smoke effects' and len(marked['members']) == 3, marked
+        return added
+
+    here_added = place(page)
+    # each copy is its own: the copies stand apart from their originals as the prop's copy does from the prop
+    assert page.evaluate("[...viewer.effectRoots.values()].filter(r => r.userData.source.added).length") == 2
+    page.keyboard.press('Control+z')
+    page.wait_for_function("![...viewer.effectRoots.values()].some(r => r.userData.source.added && !r.userData.deleted && r.parent)")
+    assert not errors, errors
+    maps = page.evaluate("fetch('/maps.json').then(r => r.json())")['maps']
+    ready = [m['id'] for m in maps if m.get('ready') and not m.get('outdated') and m['id'] != page.evaluate('viewer.mapId')]
+    page.close()
+    other = ready[0] if ready else None
+    if other:
+        page = open_viewer(browser, url.split('?')[0] + f'?map={other}', errors, expected=(409, 422))
+        page.wait_for_timeout(500)
+        if page.locator('#prepareModal').is_visible(): page.locator('#prepareLater').click()
+        if page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"):
+            page.keyboard.press('p')
+            choose(page, 'libScope', 'prefabs')
+            page.wait_for_selector('#prefabList .libitem')
+            added = place(page)
+            assert page.evaluate("[...viewer.effectRoots.values()].filter(r => r.userData.source.added && r.userData.source.foreign?.package).length") == 2
+            page.keyboard.press('p')
+            page.keyboard.press('Control+s')
+            page.wait_for_selector('#fileDialog:not([hidden])')
+            type_project_name(page, 'Prefab effects smoke')
+            page.locator('#fileName').press('Enter')
+            page.wait_for_function('viewer.project()?.revision === 1')
+            project = page.evaluate('viewer.project().id')
+            key = page.evaluate('viewer.projectState()')
+            page.reload(); page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.project()", timeout=180000)
+            assert page.evaluate('viewer.projectState()') == key and not any(page.evaluate('viewer.project().carried').values())
+            page.keyboard.press('Control+b')
+            page.wait_for_selector('#buildOptions:not([hidden])')
+            page.locator('#buildOptionsOk').click()
+            page.locator('#buildModal').wait_for(state='visible')
+            page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=600000)
+            assert page.locator('#buildTitle').inner_text().startswith('Built Prefab effects smoke'), page.locator('#buildModal').inner_text()
+            build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
+            donor, = build['package']['donors']
+            assert build['state'] == 'built' and donor['map'] == here and donor['effects'] == 2 and build['package']['foreignPieces'] == 1, build['package']
+            page.locator('#buildClose').click()
+        assert not errors, errors
+        page.evaluate('id => viewer.prefabApi.remove(id)', saved['id'])
+        page.close()
+    else:
+        page = open_viewer(browser, url, errors)
+        page.evaluate('id => viewer.prefabApi.remove(id)', saved['id'])
+        page.close()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url",default="http://127.0.0.1:8768/")
@@ -4534,6 +4652,7 @@ def main():
             if 'library-effects' in only: check_library_effects(browser, page.url)
             if 'effect-values' in only: print(json.dumps(dict(effectValues=check_effect_values(browser, page.url))))
             if 'prefabs' in only: check_prefabs(browser, page.url)
+            if 'prefab_effects' in only: check_prefab_effects(browser, page.url)
             if 'prefab-test' in only:
                 from browser_prefab_test import check_prefab_test
                 print(json.dumps(dict(prefabTest=check_prefab_test(browser, page.url, args.screenshot)), indent=2))
@@ -4697,6 +4816,7 @@ def main():
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)
         if args.projects: check_prefabs(browser, page.url)
+        if args.projects: check_prefab_effects(browser, page.url)
         if args.play: check_play(browser, page.url, args.play_project, args.screenshot)
         check_prepare(browser, page.url, args.play_project if args.play else None)
         page.locator("#selected").click()

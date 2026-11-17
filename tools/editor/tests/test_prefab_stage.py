@@ -121,6 +121,42 @@ class StageTests(unittest.TestCase):
                          (['Kept'], [], ['Kept'], {'Donor': 'a' * 64}))
         self.assertEqual(len(doc['pieces']), 6)     # (the snapshot given is not changed)
 
+    def test_effects_and_sounds_are_read_from_their_maps_and_go_into_the_test(self):
+        # effects and sounds plan, stage FX6a: a prefab's effect or sound is a project's copy of its original
+        steam = dict(actor='Steam', kind='effect', location=[96, 0, 32], rotation=[0, 0, 0], effect=dict(scale=2.0, follow='none'),
+                     **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.Emitter_3')})
+        hum = dict(actor='Hum', kind='sound', location=[0, 96, 64], rotation=[0, 0, 0],
+                   **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.AmbientSoundSimple_2')})
+        lost = dict(steam, actor='Lost', **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.Emitter_9')})
+        wrong = dict(hum, actor='Wrong', **{'from': dict(package='Donor', level='base', actor=stage.LEVEL + '.Emitter_3')})
+        moved = dict(steam, actor='Moved', **{'from': dict(package='Other', level='base', actor=stage.LEVEL + '.Emitter_1')})
+        asked = []
+
+        def effect(cache, game, source, shared=None):
+            asked.append((source['package'], source['actor']))
+            if source['actor'] == 'Emitter_9': raise ProjectError(404, 'Donor has no effect or ambient sound called Emitter_9.', code='effect-missing')
+            return dict(kind='sound' if source['actor'].startswith('Ambient') else 'effect',
+                        source=dict(package=source['package'], sha256='a' * 64, actor=source['actor']))
+        doc = snapshot(pieces=[steam, hum, lost, wrong, moved], donors=[dict(package='Donor', sha256='a' * 64), dict(package='Other', sha256='b' * 64)],
+                       groups=[dict(id='g', members=[dict(added='Steam'), dict(added='Hum'), dict(added='Lost')])])
+        with patch.object(stage, 'read_pieces', return_value=iter(())), patch.object(stage.piece_library, 'effect', effect):
+            left, records, targets, donors, notes = stage.resolve_sources(doc, None, None)
+        self.assertEqual({e['actor']: e['code'] for e in notes}, dict(Lost='effect-missing', Wrong='piece-missing', Moved='donor-changed'))
+        self.assertEqual(asked[0], ('Donor', 'Emitter_3'))      # (asked by its short name, as a project's copy is)
+        self.assertEqual(([p['actor'] for p in left['pieces']], records, donors), (['Steam', 'Hum'], {}, {'Donor': 'a' * 64}))
+        self.assertEqual(targets, dict(Steam=steam['from'], Hum=hum['from']))
+        self.assertEqual(left['groups'], [dict(id='g', members=[dict(added='Steam'), dict(added='Hum')])])
+        scene = dict(name=stage.MAP, source=dict(sha256='a' * 64), exporterVersion=29, tileGrid=GRID)
+        for builds, values in ((False, dict(follow='none')), (True, steam['effect'])):
+            gates = {k: dict(v, builds=builds) if k.endswith('-values') else v for k, v in stage.compiler.FAMILIES.items()}
+            with patch.object(stage, 'stock_overrides', return_value=[]), patch.object(stage.compiler, 'FAMILIES', gates):
+                project, ids = stage.make_project(left, scene, dict(grid=[36, 36], translation=[384, -192, 0]), targets, TEST)
+            fx, snd = project['added']
+            # its values go into the test where their family builds; what says how it follows always does
+            self.assertEqual((fx['kind'], fx['from'], fx['location'], fx['effect']), ('effect', steam['from'], [480, -192, 32], values))
+            self.assertEqual((snd['kind'], snd['from'], 'sound' in snd, 'components' in snd, 'partner' in snd), ('sound', hum['from'], False, False, False))
+            self.assertEqual(project['groups'][0]['members'], [dict(added=fx['actor']), dict(added=snd['actor'])])
+
     def test_a_piece_left_out_takes_its_place_in_groups_and_partners_with_it(self):
         body, glass = source('Body'), source('Glass', actor='XComFracLevelActor_1')
         body['partner'] = 'Glass'

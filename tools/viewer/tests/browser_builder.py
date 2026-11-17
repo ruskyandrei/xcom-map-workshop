@@ -281,7 +281,9 @@ def check_real_sources(browser, url, box_id, screenshot=None):
       const delta=new T.Matrix4().makeTranslation(g.origin[0]+dx+96,g.origin[2],g.origin[1]+96).multiply(turn)
         .multiply(new T.Matrix4().makeTranslation(-g.origin[0],-g.origin[2],-g.origin[1]));
       await viewer.pasteSnapshot(clip,delta);
-      if (!await viewer.saveProject({name:'Builder compiled '+Date.now()})) throw Error('Project not saved');
+      // (a new project is saved with the map names the server proposes for it: output names plan)
+      const name='Builder '+Date.now(), names=await fetch('/projects/output-names',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,map:viewer.mapId,target:null})}).then(r=>r.json());
+      if (!await viewer.saveProject({name,output:names.output})) throw Error('Project not saved');
       return viewer.project().doc;
     }''', prefab_id)
     assert len(project['buildings'][0]['floors']) == 2

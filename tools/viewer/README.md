@@ -1370,6 +1370,15 @@ test and explicitly launch a ready result. The game watch takes out the test ins
 Glowing props carry their source map's matched generated area lights into the prefab preview and every build.
 Quick builds carry the live lights. Baking also updates the light that reaches nearby static surfaces.
 
+A prefab holds **effects and ambient sounds** too (prefab schema 3): select them with the pieces (the Normal
+button's Effects and sounds switch, or the Effects view) and save. Each is kept as a copy of its original with the
+values set on it and its place in the prefab's groups; a sound's reach is no part of the footprint. An effect its
+piece carries is not listed: the piece's copy brings it. Placing the prefab places them as the Add panel places an
+effect of another map (read from their home map, built by the same path), with the effect's likeness under the
+cursor; their values are placed where the value families build and kept in the file either way. The builder shows
+them (its Effects view, Shift+X, and the likeness), and Test in game plays them. A lens flare is left out with a
+sentence.
+
 Acceptance uses scratch stores on a test port; stop the server afterwards:
 
 ```powershell

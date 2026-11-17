@@ -94,7 +94,7 @@ def measure(document, library=None, *, resolved=None, recipes=None):
     boxes, unknown, records = [], [], {}
     hashes = {d['package'].casefold(): d.get('sha256') for d in document.get('donors', [])} if recipes is not None else {}
     sources = {(p['from']['package'], p['from']['actor']): dict(p['from'], actor=p['from']['actor'].split('.')[-1])
-               for p in document['pieces'] if p.get('from')}
+               for p in document['pieces'] if p.get('from') and 'kind' not in p}
     # Every record read in one batch (the server's library: the install found and its maps listed once, each donor
     # opened once, a piece not exported yet exported then): asked one by one, each piece looked the install up and
     # listed its cooked folder again, about 13 s for an 800-piece selection with every piece already exported. A
@@ -105,7 +105,8 @@ def measure(document, library=None, *, resolved=None, recipes=None):
         resolved = {key: answer['record'] for key, answer in zip(keys, answers) if answer.get('record')}
     for piece in document['pieces']:
         name = piece['actor']; template = piece.get('template', {})
-        if template.get('kind') in ('point', 'spot'):
+        if template.get('kind') in ('point', 'spot') or (not template and 'kind' in piece):
+            # a light, an effect or a sound is where it stands: a sound's reach is no part of the footprint
             boxes.append((name, piece['location'] * 2))
         elif template.get('kind') == 'cover':
             recipe = COVER_RECIPES.get(template['version'])

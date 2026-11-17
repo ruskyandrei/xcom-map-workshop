@@ -2134,7 +2134,8 @@ function prefabRecords({ complete = false } = {}) {
   const grow = b => { for (let k = 0; k < 3; k++) { low[k] = Math.min(low[k], b[k]); high[k] = Math.max(high[k], b[k + 3]); } };
   const offGrid = [];
   for (const r of copyable()) {
-    if (r.userData.effect) continue;      // a prefab takes no effects or sounds yet (the effects and sounds plan's FX6)
+    // (an effect or a sound is where it stands: a sound's reach is no part of the footprint; a flare is not held yet)
+    if (r.userData.effect) { if (r.userData.source.kind !== 'flare') { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); } continue; }
     if (r.userData.light) { const p = lightPose(r).location; grow([...p, ...p]); continue; }
     const b = physicalBox(r);
     if (b) grow(b);
@@ -2155,12 +2156,15 @@ function prefabRecords({ complete = false } = {}) {
   const units = new Map();
   for (const e of clip.entries) {
     if (e.source.isLight) continue;
-    // (effects and sounds: a prefab doesn't hold them in this editor version; plan decision 6)
-    if (e.source.isEffect) { left.push(`${recordName(e.source, data)}: ${e.source.kind === 'sound' ? 'a sound' : e.source.kind === 'flare' ? 'a lens flare' : 'an effect'}, which a prefab doesn't hold`); continue; }
+    if (e.source.isEffect) continue;        // (below, with the lights)
     if (!units.has(e.source.actor)) units.set(e.source.actor, []);
     units.get(e.source.actor).push(e);
   }
   const tags = new Map();
+  const donor = from => {
+    const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
+    donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
+  };
   for (const [actor, list] of units) {
     const s = list[0].source, placed = shift.clone().multiply(list[0].matrix), from = fromOf(s);
     if (s.cover) {
@@ -2179,11 +2183,25 @@ function prefabRecords({ complete = false } = {}) {
                   ...(s.provenance?.type === 'spawn' || s.added?.tinted ? { tinted: true } : {}),
                   ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}),
                   ...(list[0].flags ? { flags: { ...list[0].flags } } : {}) });
-    const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
-    donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
+    donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
   for (const p of pieces) if (p.from) p.partner = names.get(p.partner) ?? null;
+  // its effects and sounds (effects and sounds plan, stage FX6a): each a copy of its original, with the values set
+  // on it. One its piece carries isn't in the clip: the piece's copy brings it (snapshot)
+  let effects = 0, sounds = 0;
+  for (const e of clip.entries) {
+    if (!e.source.isEffect) continue;
+    const s = e.source, kind = s.kind, from = fromOf(s), what = kind === 'sound' ? 'a sound' : 'an effect';
+    if (kind === 'flare') { left.push(`${recordName(s, data)}: a lens flare, which a prefab doesn't hold`); continue; }
+    if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
+    const name = `${from.actor}_copy${++n}`, values = savedValues(e.values);
+    copied.push([memberOf(s), { added: name }]);
+    pieces.push({ actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
+                  ...actorPose(s, shift.clone().multiply(e.matrix)), ...(values ? { [kind]: values } : {}) });
+    donor(from);
+    if (kind === 'sound') sounds++; else effects++;
+  }
   let lights = 0;
   for (const e of clip.entries) {
     if (!e.source.isLight) continue;
@@ -2212,7 +2230,7 @@ function prefabRecords({ complete = false } = {}) {
   const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
   const normalized = normalizePrefab({ pieces, groups, buildings }, [['Selection', [...low, ...high].map((v, k) => v - origin[k % 3])]]);
   return { ...normalized, groups, donors: [...donors.values()].sort((a, b) => a.package.localeCompare(b.package)), left, offGrid, clip,
-    counts: { pieces: pieces.length - lights, lights, buildings: buildings.length, tiles: normalized.tiles },
+    counts: { pieces: pieces.length - lights - effects - sounds, lights, effects, sounds, buildings: buildings.length, tiles: normalized.tiles },
            box: new THREE.Box3(new THREE.Vector3(low[0], low[2], low[1]), new THREE.Vector3(high[0], high[2], high[1])) };
 }
 // A prefab as a clip to place in this map: its records put on the map's tile grid (the prefab's origin on the grid's
@@ -2221,7 +2239,9 @@ function prefabRecords({ complete = false } = {}) {
 async function prefabClip(doc, step = null) {
   const base = gridBase(), here = v => v.map((x, k) => x + base[k]), left = [];
   const records = doc.pieces.map(p => ({ ...p, location: here(p.location) }));
-  const foreign = [...new Map(records.filter(p => !p.template && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
+  const foreign = [...new Map(records.filter(p => !p.template && !p.kind && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
+  // (its effects and sounds of other maps: their templates, as a project's copies read them)
+  const foreignFx = [...new Map(records.filter(p => p.kind && !p.template && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
   const unread = foreign.filter(f => !libraryRecords.has(`${f.package}|${short(f.actor)}`.toLowerCase()));
   // the first use reads each piece from the game's maps: all of them asked for at once, so each map is opened once
   if (unread.length > 1) await readLibraryRecords(unread, (done, total) => step?.(done, total, `Opening ${doc.name}: pieces read`));
@@ -2232,9 +2252,28 @@ async function prefabClip(doc, step = null) {
     // (what the library only holds back is placed: library.js SOFT; what can't be brought is left)
     if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
   }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
+  const unreadFx = foreignFx.filter(f => !effectTemplates.has(recordId(f)));
+  if (unreadFx.length > 1) await readEffectRecords(unreadFx);
+  await Promise.all(foreignFx.map(from => effectTemplate(from).then(t => {
+    const entry = t.foreign?.key ? library?.entry(t.foreign.key) : null;
+    if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
+  }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
   const entries = [];
   for (const p of records) {
     const key = memberKey({ added: p.actor });
+    if (p.kind && !p.template) {
+      const failure = failed.get(targetKey(p.from));
+      if (failure) { left.push(failure); continue; }
+      const source = isForeignTarget(p.from) ? foreignEffects.get(targetKey(p.from)) : effectIndex.get(targetKey(p.from))?.userData.source;
+      const what = p.kind === 'sound' ? 'sound' : 'effect';
+      if (!source || source.kind !== p.kind) { left.push(`${short(p.from.actor)} of ${p.from.package}: this export of the map has no such ${what}`); continue; }
+      const why = effectViewOnly(source, 'copy');
+      if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
+      // its values are placed where their family builds (families.json); the prefab keeps them either way
+      const values = families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
+      entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), ...(values ? { values } : {}), unit: p.actor, key });
+      continue;
+    }
     if (p.template?.kind === COVER_KIND) {
       const source = coverOf(p);
       if (!source) { left.push(`${short(p.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
@@ -2331,7 +2370,7 @@ const PREFAB_EXPORT_CHUNK = 20;
 async function savePrefab(name, records = prefabRecords(), replace = null, { step = null, going = () => true } = {}) {
   if (!records || (!records.pieces.length && !records.buildings.length)) throw Error('Nothing selected can go into a prefab');
   if (records.size && !records.size.supported) throw Error(records.size.errors.join('; '));
-  const sources = [...new Map(records.pieces.filter(p => p.from).map(p => {
+  const sources = [...new Map(records.pieces.filter(p => p.from && !p.kind).map(p => {
     const source = { package: p.from.package, level: 'base', actor: short(p.from.actor) };
     return [recordId(source), source];
   })).values()];
@@ -3846,7 +3885,8 @@ function physicalBox(root) {
   const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
   physicalBoxes.set(root, { key, box }); return box;
 }
-const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags']);
+const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags',
+                              'kind', 'effect', 'sound']);
 function builderDocument() {
   if (!eventMemo) return builderDocumentNow();
   return eventMemo.document ??= builderDocumentNow();
@@ -3878,16 +3918,23 @@ function builderKey() {
 }
 function builderBounds() {
   const boxes = [...allRoots.values()].filter(r => !r.userData.deleted).map(r => [rootName(r), physicalBox(r)]).filter(([, b]) => b);
-  for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind)) boxes.push([p.actor, [...p.location, ...p.location]]);
+  for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind) || (p.kind && !p.template)) boxes.push([p.actor, [...p.location, ...p.location]]);
+  // (an effect or a sound is where it stands)
+  for (const r of effectRoots.values()) {
+    if (r.userData.deleted || !r.userData.source.added) continue;
+    const p = actorPose(r.userData.source, r.matrix).location;
+    boxes.push([short(r.userData.source.actor), [...p, ...p]]);
+  }
   return boxes;
 }
 function builderRecords() {
   const doc = builderDocument(), clip = snapshot([...allRoots.values()], new Set()) ?? { entries: [], volumes: [], name: doc.name };
-  const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.map(p => p.actor) });
+  const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.filter(p => !p.kind || p.template).map(p => p.actor) });
   const lights = records.pieces.filter(p => ['point', 'spot'].includes(p.template?.kind)).length;
+  const [effects, sounds] = ['effect', 'sound'].map(kind => records.pieces.filter(p => !p.template && p.kind === kind).length);
   const b = records.size.bounds;
   return { ...records, clip, left: [], offGrid: [...roots.values()].filter(r => gridNow(r)?.valid === false).map(rootName),
-    counts: { pieces: records.pieces.length - lights, lights, buildings: records.buildings.length, tiles: records.tiles },
+    counts: { pieces: records.pieces.length - lights - effects - sounds, lights, effects, sounds, buildings: records.buildings.length, tiles: records.tiles },
     box: new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])) };
 }
 // Align to grid (the builder's warning, prefab plan 5.6b): the pieces keeping the pose rule (doors, ladders, cars, vans,
@@ -3962,7 +4009,7 @@ let builderGroundKey = '';
 function refreshBuilder() {
   if (!builderMode || builder.loading || !data) return;
   const records = builderRecords(), { size } = records, b = size.bounds;
-  $('prefabRecover').hidden = !records.pieces.some(p => p.from);
+  $('prefabRecover').hidden = !records.pieces.some(p => p.from && !p.kind);
   $('prefabRecover').disabled = builder.repairing;
   $('builderSize').textContent = `${size.tiles[0]} × ${size.tiles[1]} tiles · height ${b[2].toFixed(0)}–${b[5].toFixed(0)}, grid 0–${PREFAB_GRID_TOP}`
     + (size.warnings.length ? ' · larger than a map holds' : size.unknown.length ? ' · size unverified: missing pieces kept'
@@ -6684,7 +6731,7 @@ const effectLayer = new THREE.Group(); effectLayer.visible = false; world.add(ef
 const effectShapes = new THREE.Group(); world.add(effectShapes);
 const effectFilters = { effect: true, sound: true, flare: true };
 try { Object.assign(effectFilters, JSON.parse(recall(EFFECT_FILTERS) || '{}')); } catch { /* the defaults */ }
-const effectsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
+const effectsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview;
 // An actor's matrix (view basis) with its scale, as a record has its pose
 function effectMatrix(location, rotation, scale = [1, 1, 1]) {
   return actorMatrix(location, rotation ?? [0, 0, 0]).multiply(new THREE.Matrix4().makeScale(scale[0], scale[2], scale[1]));
@@ -7464,7 +7511,8 @@ function setEffectsShown(on) {
   if (!on && gizmo.picks().ids.some(id => effectRoots.has(id))) select(null);
   refreshEffects(); lightButton();
   if (on) {
-    const all = effectRecords(data, streamSet), n = kind => all.filter(r => r.kind === kind).length;
+    const all = [...effectRecords(data, streamSet), ...[...effectRoots.values()].filter(r => r.userData.source.added && !r.userData.deleted).map(r => r.userData.source)];
+    const n = kind => all.filter(r => r.kind === kind).length;
     const editable = ['effect', 'sound'].some(k => families?.families?.[k]?.builds);
     flashHint(`Effects view: ${plural(n('effect'), 'effect')}, ${plural(n('sound'), 'sound')}, ${plural(n('flare'), 'lens flare')} · click one to ${editable ? 'select it (Ctrl adds)' : 'see what it is'} · Shift+X leaves it`);
   }
