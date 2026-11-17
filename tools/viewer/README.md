@@ -446,6 +446,11 @@ system's own textures, blend and baked tables and the effect's own parameters an
 distorting textures, lit particles, swirls, bounces and what one emitter sets off in another are not followed, and
 the game stays the judge of how an effect looks. View options' **Effects as they look** switches it off; an effect
 that starts off is drawn only while it is picked; a likeness is never picked (its marker is the handle).
+The Add panel uses the same drawing: an effect's row shows its likeness as its picture (drawn once, kept under
+`/library/thumbs/` by a key of its own, `PICTURE_VERSION` in [library.js](web/library.js); the marker until then,
+and for good where nothing can be drawn), the pointer on a row plays it in a small pane beside the panel, over the
+outline of one tile for size, and while an effect is being placed its likeness comes with the cursor. A sound keeps
+its marker.
 
 The page's **Effects view** (Shift+X, the rail's spark; [effects_view.js](web/effects_view.js) draws,
 [effects_rules.js](web/effects_rules.js) words) shows them as markers drawn over everything: a spark for an effect,

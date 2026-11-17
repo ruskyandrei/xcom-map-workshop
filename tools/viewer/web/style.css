@@ -104,6 +104,11 @@ canvas { display: block; width: 100%; height: 100%; }
 /* A saved floor tile's piece, by the cursor (View options, Floor tiles). */
 .floortip { padding: 4px 9px; font-size: 11px; color: #e3eaef; pointer-events: none; white-space: nowrap; transform: translate(14px, 14px); }
 .floortip small { color: #a9bcc6; margin-left: 6px; }
+/* An effect of the Add panel, played beside its row (the likeness: effects_preview.js). */
+.likenesspane { position: absolute; z-index: 30; padding: 6px; pointer-events: none; box-shadow: 0 8px 24px #0008; }
+.likenesspane canvas { display: block; width: 220px; height: 220px; border-radius: 4px; background: #10161b; }
+.likenesspane div { max-width: 220px; margin-top: 5px; font-size: 11px; color: #c9d6de; }
+.likenesspane small { display: block; color: #8fa3ae; }
 
 /* The piece list (Add): beside the rail and clear of the dock. */
 #library { left: 66px; top: 12px; width: 330px; max-height: calc(100% - 80px); display: flex; flex-direction: column; padding-top: 8px; box-shadow: 0 8px 24px #0006; }

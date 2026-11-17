@@ -5540,6 +5540,7 @@ function previewGroup(parts, override, frame) {
       const holder = new THREE.Group(), marker = makeEffectMarker(source);
       holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
       group.add(holder);
+      ghostLikeness(holder, source);
       continue;
     }
     if (source.isLight) {
@@ -6922,6 +6923,126 @@ function stepLikenesses(dt) {
   // towards the budget, a little a frame, so nothing pops
   const want = count > LIKENESS_LIMITS.view ? likenessThin * LIKENESS_LIMITS.view / count : Math.min(1, likenessThin * 1.05);
   likenessThin = Math.max(0.02, likenessThin + (want - likenessThin) * 0.2);
+}
+// A drawn-only copy of an effect (what is being placed, under the cursor): its likeness plays there while the copy is
+// in the view; it goes a little after the copy does.
+const ghostLikenesses = [];
+function ghostLikeness(holder, source) {
+  if (!likenessOn || source.kind !== 'effect' || !data) return;
+  const record = source.added ? { ...source.added.base, scale: source.scale ?? source.added.base.scale } : source;
+  const system = effectSystemsOf(record)?.[record.system];
+  if (!drawable(system)) return;
+  const likeness = makeLikeness(system, likenessDeps, { params: parametersOf(record), seed: 11 });
+  holder.add(likeness.group);
+  ghostLikenesses.push({ likeness, holder, record, idle: 0 });
+}
+function stepGhostLikenesses(dt) {
+  for (let k = ghostLikenesses.length - 1; k >= 0; k--) {
+    const g = ghostLikenesses[k];
+    let top = g.holder;
+    while (top.parent) top = top.parent;
+    if (top !== world) { if (++g.idle > 180) { g.likeness.dispose(); g.holder.remove(g.likeness.group); ghostLikenesses.splice(k, 1); } continue; }
+    g.idle = 0;
+    const s = g.record.scale ?? [1, 1, 1], cp = g.record.componentPose, cs = cp?.scale ?? [1, 1, 1], m = g.likeness.group.matrix;
+    m.makeScale(s[0], s[2], s[1]);
+    if (cp) m.multiply(effectMatrix(cp.translation, cp.rotation, cp.scale));
+    m.multiply(SWAP);
+    g.likeness.group.matrixWorldNeedsUpdate = true;
+    g.likeness.step(dt, 1, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+  }
+}
+// ---- An effect of the Add panel as a picture and as a moving preview (stage FXV3). The picture: its likeness, warm,
+// with its textures read, handed to the list to draw in a frame as a piece's is. The preview: the likeness of the row
+// under the pointer, played in a small pane beside the list, turning slowly over a tile's square.
+async function likenessOfEntry(entry, seed) {
+  if (!data) return null;
+  const source = await effectTemplateOf(entry);
+  const system = source && effectSystemsOf(source)?.[source.system];
+  if (!drawable(system)) return null;
+  const likeness = makeLikeness(system, likenessDeps, { params: parametersOf(source), seed });
+  const s = source.scale ?? [1, 1, 1];
+  likeness.group.matrix.makeScale(s[0], s[2], s[1]).multiply(SWAP);
+  likeness.group.matrixWorldNeedsUpdate = true;
+  return { likeness, scale: [Math.abs(s[0]), Math.abs(s[1])], source, system };
+}
+// this map's own effect by its record, another map's by its template (read from its map)
+async function effectTemplateOf(entry) {
+  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
+    return [...effectRoots.values()].map(r => r.userData.source).find(o => !o.added && o.layer === 'base' && short(o.actor) === entry.source.actor) ?? null;
+  }
+  return effectTemplate(entry.source);
+}
+async function effectPicture(entry) {
+  const made = await likenessOfEntry(entry, 7);
+  if (!made) return null;
+  const { likeness, scale } = made;
+  await likeness.ready();
+  likeness.step(1 / 30, 1, scale);
+  // one that has nothing alive at its warm start (a rare spark) is run on until it has, for a few seconds
+  let box = likeness.bounds();
+  for (let t = 0; !box && t < 6; t += 1 / 15) { likeness.step(1 / 15, 1, scale); box = likeness.bounds(); }
+  if (!box) { likeness.dispose(); return null; }
+  return { object: likeness.group, box: box.applyMatrix4(likeness.group.matrix), dispose: () => likeness.dispose() };
+}
+const likenessPane = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(32, 1, 1, 100000), shown: null, token: 0, turn: 0, sphere: new THREE.Sphere(new THREE.Vector3(), 96) };
+likenessPane.scene.background = new THREE.Color(0x10161b);
+{
+  // a tile's square on the ground, for size
+  const h = 48, pts = [[-h, -h], [h, -h], [h, -h], [h, h], [h, h], [-h, h], [-h, h], [-h, -h]].map(([x, z]) => new THREE.Vector3(x, 0, z));
+  const tile = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x5f7684 }));
+  likenessPane.scene.add(tile);
+}
+let likenessHover = null;
+function hoverLikeness(entry, item) {
+  clearTimeout(likenessHover);
+  const pane = $('likenessPane'), token = ++likenessPane.token;
+  const close = () => { if (likenessPane.shown) { likenessPane.scene.remove(likenessPane.shown.likeness.group); likenessPane.shown.likeness.dispose(); likenessPane.shown = null; } pane.hidden = true; };
+  if (!entry || !likenessOn) { close(); return; }
+  likenessHover = setTimeout(async () => {
+    const made = await likenessOfEntry(entry, 3).catch(() => null);
+    if (token !== likenessPane.token) { made?.likeness.dispose(); return; }
+    close();
+    if (!made) return;
+    likenessPane.shown = made; likenessPane.sphere.set(new THREE.Vector3(0, 48, 0), 96);
+    likenessPane.scene.add(made.likeness.group);
+    const row = item.getBoundingClientRect(), host = viewport.getBoundingClientRect();
+    pane.style.left = `${row.right - host.left + 10}px`;
+    pane.style.top = `${Math.max(8, Math.min(row.top - host.top - 90, host.height - 290))}px`;
+    const text = $('likenessText');
+    text.replaceChildren();
+    text.append(entry.name);
+    const out = leftOut(made.system), small = document.createElement('small');
+    small.textContent = [`${entry.group} · the square is one tile`, out.ignored.length ? 'drawn roughly' : null].filter(Boolean).join(' · ');
+    text.append(small);
+    pane.hidden = false;
+  }, 300);
+}
+// Each frame, before the view is drawn: the pane's likeness stepped and drawn into its canvas (through the view's own
+// renderer, as the list's pictures are)
+function drawLikenessPane(dt) {
+  const shown = likenessPane.shown, canvas = renderer.domElement, size = renderer.getSize(new THREE.Vector2());
+  if (!shown || $('likenessPane').hidden || size.x < 220 || size.y < 220) return;
+  shown.likeness.step(dt, 1, shown.scale);
+  const box = shown.likeness.bounds();
+  if (box) {
+    // the camera follows what is alive, easing, and never closer than a tile
+    const s = box.applyMatrix4(shown.likeness.group.matrix).getBoundingSphere(new THREE.Sphere());
+    likenessPane.sphere.center.lerp(s.center, 0.08);
+    likenessPane.sphere.radius += (Math.max(70, s.radius) - likenessPane.sphere.radius) * 0.08;
+  }
+  likenessPane.turn += dt * 0.35;
+  const c = likenessPane.camera, r = likenessPane.sphere.radius, d = r / Math.sin(THREE.MathUtils.degToRad(c.fov / 2)) * 1.05;
+  c.position.set(Math.cos(likenessPane.turn) * d * 0.87, d * 0.5, Math.sin(likenessPane.turn) * d * 0.87).add(likenessPane.sphere.center);
+  c.near = Math.max(1, d - r * 3); c.far = d + r * 4;
+  c.lookAt(likenessPane.sphere.center); c.updateProjectionMatrix();
+  const px = Math.round(220 * renderer.getPixelRatio());
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, 0, 220, 220); renderer.setScissor(0, 0, 220, 220);
+  renderer.render(likenessPane.scene, c);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, size.x, size.y);
+  const out = $('likenessCanvas');
+  if (out.width !== px) out.width = out.height = px;
+  out.getContext('2d').drawImage(canvas, 0, canvas.height - px, px, px, 0, 0, px, px);
 }
 function setLikeness(on) {
   likenessOn = Boolean(on);
@@ -9345,6 +9466,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // the Wave preview (FX2): what plays, how far it has got and why it failed
     playWave: wave => { const r = effectRoots.get(pickedEffect)?.userData.source; if (r) playWave(r, wave); }, stopWave,
     // effects and sounds edited (FX3): each root's state, the normal view's switch, keep where it is
+    likenessPane: () => ({ shown: likenessPane.shown ? likenessPane.shown.source.system : null, hidden: $('likenessPane').hidden,
+      particles: likenessPane.shown?.likeness.count() ?? 0 }), ghostLikenesses: () => ghostLikenesses.filter(g => !g.idle).length,
     likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
       drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
     effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
@@ -9594,6 +9717,9 @@ library = createLibraryBrowser({
   recipesForScene: pieceRecipes,
   paintRecipe: (entry, thumb) => pieces.paintThumbs([{ object: previewGroup(entryParts(entry), null, entry.frame), box: entry.box, thumb }]),
   onChoose: chooseLibraryEntry, onChooseRecipe: chooseEntry, hint: flashHint, recall, remember,
+  // an effect's picture and its moving preview (the likeness, stage FXV3)
+  effectPicture: entry => (likenessOn ? effectPicture(entry) : null), onHover: hoverLikeness,
+  paintObject: (object, box, thumb) => pieces.paintThumbs([{ object, box, thumb }]),
 });
 prefabTab = createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
@@ -9985,6 +10111,8 @@ renderer.setAnimationLoop(() => {
   if (placing && ghostDirty) moveGhost();
   if (effectsDirty) refreshEffects();
   stepLikenesses(sinceFrame);
+  stepGhostLikenesses(sinceFrame);
+  drawLikenessPane(sinceFrame);
   if (tipDirty && (effectsOn || (normalEffects && effectsShown()))) effectTip();
   else if (tipDirty && floorTileLayer) floorTip();
   updateTileGrid();

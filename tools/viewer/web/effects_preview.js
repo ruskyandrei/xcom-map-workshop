@@ -49,7 +49,8 @@ void main() {
   // (uAlpha: 0 the picture's brightness, 1 its alpha channel, 2 its red channel alone: a packed texture, no colour)
   if (uAlpha > 1.5) { a = t.r; t = vec4(1.0); }
   else if (uHasPicture > 0.5 && uMode < 0.5) a = uAlpha > 0.5 ? t.a : max(max(t.r, t.g), t.b);
-  else if (uHasPicture > 0.5 && uMode > 2.5) a = uAlpha > 0.5 ? t.a : 1.0;
+  // (a cut-out sprite with no alpha channel is cut by its brightness: a rat on black; a solid mesh is drawn whole)
+  else if (uHasPicture > 0.5 && uMode > 2.5) a = uAlpha > 0.5 ? t.a : uSoft > 0.5 ? max(max(t.r, t.g), t.b) * 3.0 : 1.0;
   if (uHasMask > 0.5) { vec4 m = texture2D(uMask, vUv); a *= max(max(m.r, m.g), m.b); }
   // nothing to shape it: a soft round dot
   if (uSoft > 0.5 && uHasPicture < 0.5 && uHasMask < 0.5) a *= smoothstep(0.5, 0.15, length(vCorner));
@@ -99,7 +100,7 @@ function spriteObject(sim, draw, deps) {
   object.frustumCulled = false; object.renderOrder = 6; object.raycast = () => {};
   // until its textures are in, nothing: a white square would flash
   object.visible = !(draw.picture || draw.mask);
-  Promise.all([load(draw.picture, 'uPicture', 'uHasPicture'), load(draw.mask, 'uMask', 'uHasMask')]).then(() => { object.visible = true; });
+  object.userData.ready = Promise.all([load(draw.picture, 'uPicture', 'uHasPicture'), load(draw.mask, 'uMask', 'uHasMask')]).then(() => { object.visible = true; });
   object.userData.sync = scale => {
     const c = sim.count;
     material.uniforms.uScale.value.set(scale[0], scale[1]);
@@ -117,7 +118,7 @@ const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(
 function meshObjects(sim, draw, deps, group) {
   const n = sim.pos.length / 3, made = [];
   const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); group.remove(o); } } };
-  deps.meshParts(draw).then(async parts => {
+  holder.ready = deps.meshParts(draw).then(async parts => {
     // its own picture and mask where the export picked them (a see-through sheet of vapour), else its material's
     // colour texture as a piece's (a rat, a sheet of paper)
     const [picture, mask] = await Promise.all([draw.picture, draw.mask].map(k => (k ? deps.texture(k).catch(() => null) : null)));
@@ -182,8 +183,8 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   const start = () => { sims = draws.map((d, k) => makeEmitter(d, { params, seed: seed * 7919 + k * 104729 + 1, limit })); parts.forEach((p, k) => p.rebind(sims[k])); };
   const parts = draws.map(d => {
     const part = { rebind(sim) { part.release?.(); part.sim = sim; part.make(sim); } };
-    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.release = () => h.dispose(); };
-    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.release = () => { o.userData.dispose(); group.remove(o); }; };
+    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.release = () => h.dispose(); };
+    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.release = () => { o.userData.dispose(); group.remove(o); }; };
     return part;
   });
   start();
@@ -199,5 +200,18 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
       for (const part of parts) part.sync(scale);
     },
     dispose() { for (const part of parts) part.release?.(); },
+    /** Once its textures and meshes are read (a picture taken before shows nothing of them). */
+    ready: () => Promise.all(parts.map(part => part.ready)).then(() => {}, () => {}),
+    /** The box its particles fill now, in the group's own frame (the game's axes), each with its size about it;
+     *  null with none alive. */
+    bounds() {
+      const box = new THREE.Box3();
+      for (const sim of sims) for (let p = 0; p < sim.count; p++) {
+        const r = Math.max(Math.abs(sim.size[3 * p]), Math.abs(sim.size[3 * p + 1]), 1) * (sim.draw.kind === 'mesh' ? 12 : 0.5);
+        v3.set(sim.pos[3 * p], sim.pos[3 * p + 1], sim.pos[3 * p + 2]);
+        box.expandByPoint(s3.copy(v3).addScalar(r)); box.expandByPoint(s3.copy(v3).addScalar(-r));
+      }
+      return box.isEmpty() ? null : box;
+    },
   };
 }

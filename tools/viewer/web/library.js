@@ -48,8 +48,17 @@ async function json(url, options) {
  * recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover thumbnail;
  * onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
  */
+// The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
+// pictures made by an older one (the server keeps a picture under 16 hex digits)
+const PICTURE_VERSION = 1;
+function pictureKey(entry) {
+  if (!entry.effect) return entry.key;
+  let a = 0x811c9dc5, b = 0x01000193;
+  for (const c of `${entry.key}|likeness${PICTURE_VERSION}`) { a = Math.imul(a ^ c.charCodeAt(0), 0x01000193) >>> 0; b = Math.imul(b + c.charCodeAt(0), 0x85ebca6b) >>> 0; b ^= b >>> 13; }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
 export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint, recipesForScene, paintRecipe,
-                                       onChoose, onChooseRecipe, hint, recall, remember }) {
+                                       onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null }) {
   let index = null, entries = [], byKey = new Map(), shown = [], chosen = null, status = null, loading = null, scanTimer = null;
   let state = null, stateLoad = null, here = -1;
   let recipes = null;
@@ -256,6 +265,8 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     };
     item.onclick = choose;
     item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
+    // an effect plays beside its row while the pointer is on it
+    if (!sound && onHover) { item.onmouseenter = () => onHover(entry, item); item.onmouseleave = () => onHover(null, item); }
   }
   function filtered() {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -318,32 +329,50 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     make();
   }
   function picture(entry, canvas) {
-    if (canvas.dataset.drawn || failed.has(entry.key)) return;
-    if (entry.effect) { drawEffectIcon(entry.effect, entry.startsOn === false, canvas); canvas.dataset.drawn = '1'; return; }
-    if (!kept.has(entry.key)) return;       // make() draws it
-    if (!pictures.has(entry.key)) {
+    if (canvas.dataset.drawn) return;
+    // an effect's or a sound's marker first; an effect's likeness over it once it is drawn (a sound has no look)
+    if (entry.effect && !canvas.dataset.icon) { drawEffectIcon(entry.effect, entry.startsOn === false, canvas); canvas.dataset.icon = '1'; }
+    if (entry.effect && (entry.effect !== 'effect' || !effectPicture)) { canvas.dataset.drawn = '1'; return; }
+    if (failed.has(entry.key)) { if (entry.effect) canvas.dataset.drawn = '1'; return; }    // its marker stays
+    const k = pictureKey(entry);
+    if (!kept.has(k)) return;       // make() draws it
+    if (!pictures.has(k)) {
       const image = new Image();
-      pictures.set(entry.key, image);
+      pictures.set(k, image);
       image.onload = () => { for (const c of [rows.get(entry.key)?.thumb].filter(Boolean)) show(c, image); };
-      image.onerror = () => { kept.delete(entry.key); pictures.delete(entry.key); make(); };
-      image.src = `/library/thumbs/${entry.key}.png`;
-    } else if (pictures.get(entry.key).complete) show(canvas, pictures.get(entry.key));
+      image.onerror = () => { kept.delete(k); pictures.delete(k); make(); };
+      image.src = `/library/thumbs/${k}.png`;
+    } else if (pictures.get(k).complete) show(canvas, pictures.get(k));
   }
   function show(canvas, image) {
     canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
     canvas.dataset.drawn = '1';
+    if (canvas.dataset.icon) canvas.dataset.likeness = '1';
   }
   // A picture the server doesn't keep yet: the piece read (one at a time, the last row to come into view first),
   // drawn in a frame (drawThumbs), and put to the server.
   async function make() {
     if (making || els.box.hidden) return;
     const next = [...windowed.children].map(item => byKey.get(item.dataset.key))
-      .filter(e => e && !e.effect && !kept.has(e.key) && !failed.has(e.key) && !rows.get(e.key).thumb.dataset.drawn).at(0);
+      .filter(e => e && (!e.effect || (e.effect === 'effect' && effectPicture && e.placeable)) && !kept.has(pictureKey(e)) && !failed.has(e.key)
+        && !rows.get(e.key).thumb.dataset.drawn).at(0);
     if (!next) return;
     making = true;
     readingFrom(next);
-    try { toPaint.push({ entry: next, template: await template(next.source) }); readingFrom(null); }
-    catch { failed.add(next.key); making = false; readingFrom(null); make(); }
+    try {
+      if (next.effect) {
+        // its likeness, warm and with its textures read: drawn in a frame like a piece's picture
+        const paintable = await effectPicture(next);
+        if (!paintable) throw Error('not drawn');
+        toPaint.push({ entry: next, paintable });
+      } else toPaint.push({ entry: next, template: await template(next.source) });
+      readingFrom(null);
+    }
+    catch {
+      failed.add(next.key); making = false; readingFrom(null);
+      if (next.effect && rows.get(next.key)) rows.get(next.key).thumb.dataset.drawn = '1';
+      make();
+    }
   }
   /** Called each frame before the view is drawn: a picture read by make() is drawn and kept. */
   function drawThumbs() {
@@ -355,13 +384,15 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     }
     const job = toPaint.shift();
     if (!job) return;
-    const canvas = rows.get(job.entry.key)?.thumb;
+    const canvas = rows.get(job.entry.key)?.thumb, k = pictureKey(job.entry);
     making = false;
-    if (canvas && paint(job.template, canvas)) {
+    if (canvas && (job.paintable ? paintObject(job.paintable.object, job.paintable.box, canvas) : paint(job.template, canvas))) {
       canvas.dataset.drawn = '1';
-      canvas.toBlob(blob => blob && fetch(`/library/thumbs/${job.entry.key}.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob })
-        .then(r => { if (r.ok) kept.add(job.entry.key); }).catch(() => {}), 'image/png');
-    } else failed.add(job.entry.key);
+      canvas.toBlob(blob => blob && fetch(`/library/thumbs/${k}.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob })
+        .then(r => { if (r.ok) kept.add(k); }).catch(() => {}), 'image/png');
+      if (job.entry.effect) canvas.dataset.likeness = '1';
+    } else { failed.add(job.entry.key); if (canvas && job.entry.effect) canvas.dataset.drawn = '1'; }
+    job.paintable?.dispose();
     make();
   }
 

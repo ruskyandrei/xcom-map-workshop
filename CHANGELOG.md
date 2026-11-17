@@ -8,6 +8,34 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects in the Add panel as they look (effects and sounds plan, stage FXV3)
+
+- [library.js](tools/viewer/web/library.js): an effect's row shows its likeness as its picture. The marker is drawn
+  at once; the likeness is made warm, with its textures read, drawn in a frame like a piece's picture and kept by the
+  server (`/library/thumbs/<key>.png`, a key of the effect's source and `PICTURE_VERSION`, so a change of the drawing
+  makes them anew); where nothing can be drawn the marker stays. New options `effectPicture`, `paintObject`,
+  `onHover`.
+- [app.js](tools/viewer/web/app.js): the pointer on an effect's row plays it in a pane beside the panel
+  (`hoverLikeness`, `drawLikenessPane`: its own scene, a camera that turns slowly round the particles' bounds, one
+  tile outlined for size, the row's words under it); an effect being placed carries its likeness with the cursor
+  (`ghostLikeness`, for a prefab's or a group's effects too); an effect of this map takes its own record, one of
+  another map its template. All of it follows View options' Effects as they look.
+- [effects_preview.js](tools/viewer/web/effects_preview.js): a likeness says when its textures are read (`ready`) and
+  how far its particles reach (`bounds`); a masked sprite without an alpha channel is cut by its brightness.
+- [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the pane.
+  [tools/viewer/README.md](tools/viewer/README.md).
+- The game's own pictures of URB_Bar's fifteen systems (a hidden game, game-test skill): eleven described, among
+  them the webbing (hair-thin pale grey-green strands, still), the rats and the blowing trash (solid little meshes),
+  the blinking light (a dot a few units wide, on a third of the time); the large steam, the headlight beam and the
+  claw machine lights could not be told from what stands around them.
+
+Checked: the browser smoke's `library_effects` check ([browser_smoke.py](tools/viewer/tests/browser_smoke.py): a
+row's likeness picture, the pane on the pointer and gone with it, sounds without either, the likeness with the
+cursor) on URB_Bar against a scanned test library; the panel's list, pane and a placing looked at in pictures (the
+blinking lights, the fire glows and the flare smokes are told apart at a glance); node and viewer suites. Known
+gaps: the likeness of the webbing is whiter and denser than the game's; the pane is not drawn in a window under 220
+pixels.
+
 ### Effects drawn as they look: the likeness in the view (effects and sounds plan, stage FXV2)
 
 - [effects_sim.js](tools/viewer/web/effects_sim.js), new, no three.js: one emitter stepped from its draw data. `sample`

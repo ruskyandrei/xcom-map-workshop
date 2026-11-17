@@ -2128,9 +2128,35 @@ def check_library_effects(browser, url):
         x, y = box['x'] + box['width'] * at[0], box['y'] + box['height'] * at[1]
         page.mouse.move(x, y)
         page.wait_for_function('viewer.placing()?.ghost.visible')
+        # an effect's likeness comes with the cursor (stage FXV3)
+        if entry['effect'] == 'effect': page.wait_for_function('viewer.ghostLikenesses() >= 1')
         page.mouse.click(x, y)
         page.wait_for_function("document.querySelector('#dragHint').textContent.startsWith('Placed')")
         return entry
+
+    # stage FXV3: an effect's row shows its likeness, kept by the server; the pointer on a row plays it in the pane
+    page.locator('#libAllPlaceable').check()
+    page.locator('#libAllKind').select_option('effects')
+    page.locator('#libAllFilter').fill('Fire')
+    page.wait_for_function("[...document.querySelectorAll('#libAllList .libitem canvas')].some(c => c.dataset.likeness)", timeout=120000)
+    key = page.evaluate("document.querySelector('#libAllList .libitem canvas[data-likeness]').closest('.libitem').dataset.key")
+    row = page.locator(f'#libAllList .libitem[data-key="{key}"]')
+    row.hover()
+    page.wait_for_function('!viewer.likenessPane().hidden && viewer.likenessPane().shown', timeout=60000)
+    assert page.locator('#likenessPane').is_visible()
+    page.mouse.move(900, 500)
+    page.wait_for_function('viewer.likenessPane().hidden')
+    # (sounds keep their marker: no likeness, no pane)
+    page.locator('#libAllKind').select_option('sounds')
+    page.wait_for_function("document.querySelector('#libAllList .libitem canvas')?.dataset.drawn")
+    assert page.evaluate("![...document.querySelectorAll('#libAllList .libitem canvas')].some(c => c.dataset.likeness)")
+    page.locator('#libAllList .libitem').first.hover()
+    page.wait_for_timeout(600)
+    assert page.evaluate('viewer.likenessPane().hidden')
+    page.mouse.move(900, 500)
+    page.locator('#libAllPlaceable').uncheck()
+    page.locator('#libAllKind').select_option('all')
+    page.locator('#libAllFilter').fill('')
 
     moths = place('P_Moths_Wandering', (0.45, 0.5))
     beacon = place('HyperWaveBeacon', (0.6, 0.55))
@@ -3460,6 +3486,10 @@ def check_likeness(page):
         assert not off['on'] and off['effects'] == 0 and off['particles'] == 0, off
         assert not page.locator('#likenessToggle').is_checked() and page.evaluate("localStorage.getItem('workshop.likeness')") == '0'
         hidden = page.screenshot(clip=clip)
+        for _ in range(5):                                   # (the camera's glide to the effect may still be ending)
+            again = page.screenshot(clip=clip)
+            if again == hidden: break
+            hidden = again; page.wait_for_timeout(400)
         assert page.screenshot(clip=clip) == hidden          # (a still picture without it)
         without = without or frame_time()
         page.evaluate('viewer.setLikeness(true)')
