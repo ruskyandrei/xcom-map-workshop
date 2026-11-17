@@ -8,6 +8,33 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects' and sounds' values in the editor page (effects and sounds plan, stage FX5, part 2)
+
+- Where the `effect-values` and `sound-values` families build (an experiment's server: `serve --family effect-values
+  --family sound-values`), a picked effect's or simple sound's panel has **Values**
+  ([app.js](tools/viewer/web/app.js) `effectValueControls`, `effectParameterRow`, `changeEffectValues`): its starting
+  state; an effect's parameters ([effects_rules.js](tools/viewer/web/effects_rules.js) `parameterControls`): those it
+  saves, in the kind each is saved in, then those its system offers that it doesn't save, as a number with a slider
+  guided by the system's range, a vector, a colour, or a colour and a strength for a vector that feeds a particle's
+  colour; a random, untyped or two-kind one read only with why; a sound's volume and pitch, least and most.
+- Handles in the view (the lights' handle code: `effectHandles`, `effectHandleValues`; [lights_view.js](tools/viewer/web/lights_view.js)
+  colours and sizes): an effect's size beside its marker (1/64 to 64 times the map's, log scale) and a sound's inner
+  and outer radius on its spheres; drawn live, one undo step at the release, Escape puts it back. F frames a sound
+  from as far as shows its spheres.
+- The record as edited (`withValues`) is what the panel, the chips, the box and the spheres show; a project saves the
+  values in the override's or copy's `effect` or `sound` (`savedValues`, `keptValues`), a copy takes the values of
+  what it copies, Reset piece and Reset all put them back.
+- [tools/viewer/README.md](tools/viewer/README.md): Values.
+
+Checked: [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs) (the controls, guides, tints, the record
+as edited, saving and reading back); the browser smoke's new `effect-values` check
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py): Emitter_38's starting state, a scalar on a vector
+distribution, a colour and a parameter it didn't save; its size handle dragged, undone and redone; a copy keeping its
+values; a sound's outer radius dragged, its volume and pitch; a shared cue's sound with none; saved, reopened, built)
+and the built package read back (Emitter_38 at 1.6 times its size, starting off, its parameters; the sound's reach,
+volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
+until EXP-70; the user guide has no section for the Effects view yet.
+
 ### Finding T-43: the game does not start on a hidden desktop
 
 - [research/findings-register.md](research/findings-register.md), T-43: two starts of the lab copy's `XComEW.exe` on a

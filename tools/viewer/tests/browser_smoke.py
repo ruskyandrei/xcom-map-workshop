@@ -2198,6 +2198,120 @@ def check_library_effects(browser, url):
     page.close()
 
 
+def check_effect_values(browser, url):
+    """An effect's and a sound's values (effects and sounds plan, stage FX5), on URB_Bar against a test server whose
+    page edits them (serve --family effect-values --family sound-values, its --projects and --builds scratch
+    folders): Emitter_38's starting state, a parameter it saves (a scalar on a vector distribution), its colour and
+    one it doesn't save; its size handle dragged (one undo step); a simple sound's radius handle, volume and pitch;
+    a copy keeps the values it was copied with; a shared cue's sound shows no values; saved, reopened, built without
+    baking, the Build's values read in its report."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    if not page.evaluate("viewer.data.scope === 'map' && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
+        page.close(); return
+    if not page.evaluate("viewer.families()?.families?.['effect-values']?.builds"):
+        page.close(); return
+    page.evaluate('viewer.setEffectsShown(true)')
+    root = lambda actor: page.evaluate("a => [...viewer.effectRoots.values()].find(r => r.userData.source.actor.endsWith('.' + a)).userData.source.id", actor)
+    fx = root('Emitter_38')
+    page.evaluate(f'viewer.pickEffect({fx!r})')
+    page.wait_for_selector('#effectValues:not([hidden])')
+    row = lambda name: page.locator('#effectValues .effectvalue').filter(has=page.locator('.name', has_text=name)).first
+    # (every saved parameter first, as saved; then what its system offers that it doesn't save)
+    names = page.locator('#effectValues .effectvalue .name').all_inner_texts()
+    assert names[:2] == ['Chunk_Color', 'Chunk_Brightness'] and 'Dust_Desaturation' in names, names
+    page.locator('#effectValues input[type=checkbox]').uncheck()
+    row('Chunk_Brightness').locator('input[type=number]').fill('3')
+    row('Chunk_Brightness').locator('input[type=number]').press('Enter')
+    page.wait_for_function("id => viewer.effectState(id).values?.parameters?.Chunk_Brightness === 3", arg=fx)
+    row('Dust_Desaturation').locator('input[type=number]').fill('0.5')
+    row('Dust_Desaturation').locator('input[type=number]').press('Enter')
+    page.wait_for_function("id => viewer.effectState(id).values?.parameters?.Dust_Desaturation === 0.5", arg=fx)
+    row('Chunk_Color').locator('input[type=color]').evaluate("e => { e.value = '#ff0000'; e.dispatchEvent(new Event('change')); }")
+    page.wait_for_function("id => viewer.effectState(id).values?.parameters?.Chunk_Color?.[0] === 1", arg=fx)
+    assert 'edited' in row('Chunk_Brightness').get_attribute('class')
+    assert 'Starts off (as set here)' in page.locator('#effectInfo').inner_text()
+    # the size handle: dragged out, the box and the panel follow; one undo step puts it back
+    page.evaluate('document.activeElement?.blur()')
+    page.keyboard.press('f')
+    page.wait_for_timeout(300)
+    handle = page.evaluate('viewer.lightHandles()')
+    assert [h['key'] for h in handle] == ['size'], handle
+    hx, hy = handle[0]['screen']
+    ox, oy = handle[0]['origin']
+    page.mouse.move(hx, hy); page.mouse.down(); page.mouse.move(hx + (hx - ox) * 0.6, hy, steps=6); page.mouse.up()
+    scale = page.evaluate('id => viewer.effectState(id).values.scale', fx)
+    assert scale and scale > 1.2, scale
+    assert f'Size {scale} times' in page.locator('#effectValues .valueline').inner_text()
+    page.keyboard.press('Control+z')
+    assert page.evaluate('id => viewer.effectState(id).values.scale', fx) is None
+    page.keyboard.press('Control+y')
+    assert page.evaluate('id => viewer.effectState(id).values.scale', fx) == scale
+    # a copy keeps what it was copied with
+    page.keyboard.press('Control+c')
+    box = page.locator('#viewport > canvas').bounding_box()
+    cx, cy = box['x'] + box['width'] * 0.4, box['y'] + box['height'] * 0.6
+    page.mouse.move(cx, cy); page.keyboard.press('Control+v')
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(cx, cy)
+    page.wait_for_function("id => viewer.gizmo.active && viewer.gizmo.active !== id && viewer.effectRoots.get(viewer.gizmo.active)?.userData.source.added", arg=fx)
+    copy = page.evaluate('viewer.gizmo.active')
+    assert page.evaluate('id => viewer.effectState(id).values', copy) == page.evaluate('id => viewer.effectState(id).values', fx)
+    # a simple sound: its outer radius dragged, its volume and pitch set
+    sound = root('AmbientSoundSimple_0')
+    page.evaluate(f'viewer.pickEffect({sound!r})')
+    page.evaluate('document.activeElement?.blur()')
+    page.keyboard.press('f')
+    page.wait_for_timeout(300)
+    handles = {h['key']: h for h in page.evaluate('viewer.lightHandles()')}
+    assert sorted(handles) == ['radiusMax', 'radiusMin'], handles
+    hx, hy = handles['radiusMax']['screen']
+    ox, oy = handles['radiusMax']['origin']
+    page.mouse.move(hx, hy); page.mouse.down(); page.mouse.move(hx + (hx - ox) * 0.3, hy, steps=6); page.mouse.up()
+    outer = page.evaluate('id => viewer.effectState(id).values?.radiusMax', sound)
+    assert outer and outer > 750, (outer, handles, page.evaluate('viewer.lightHandles()'))
+    pair = page.locator('#effectValues .valuepair').first.locator('input[type=number]')
+    pair.nth(0).fill('0.5'); pair.nth(0).press('Enter')
+    page.wait_for_function("id => viewer.effectState(id).values?.volume?.[0] === 0.5", arg=sound)
+    pitch = page.locator('#effectValues .valuepair').nth(1).locator('input[type=number]')
+    pitch.nth(1).fill('1.2'); pitch.nth(1).press('Enter')
+    page.wait_for_function("id => viewer.effectState(id).values?.pitch?.[1] === 1.2", arg=sound)
+    assert page.evaluate('id => viewer.effectState(id).values', sound) == dict(radiusMax=outer, volume=[0.5, 1], pitch=[1, 1.2])
+    # a sound that plays a shared cue: no values to set, what it has shown
+    shared = page.evaluate("[...viewer.effectRoots.values()].find(r => r.userData.source.kind === 'sound' && r.userData.source.cue && !r.userData.source.cue.private)?.userData.source.id")
+    if shared:
+        page.evaluate(f'viewer.pickEffect({shared!r})')
+        assert page.locator('#effectValues').is_hidden()
+    page.evaluate('viewer.pickEffect(null)')
+    # saved and reopened as they were
+    saved = [o for o in page.evaluate('viewer.editState().overrides') if o['target']['actor'].endswith(('.Emitter_38', '.AmbientSoundSimple_0'))]
+    assert sorted(o['target']['actor'].rsplit('.', 1)[1] for o in saved) == ['AmbientSoundSimple_0', 'Emitter_38'], saved
+    assert next(o for o in saved if 'Emitter' in o['target']['actor'])['effect']['parameters'] == [
+        dict(name='Chunk_Brightness', value=3), dict(name='Chunk_Color', value=[1, 0, 0, 1]), dict(name='Dust_Desaturation', value=0.5)]
+    state = page.evaluate('viewer.projectState()')
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
+    type_project_name(page, 'Effect values smoke')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    project = page.evaluate('viewer.project().id')
+    page.reload(); page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.project()", timeout=120000)
+    assert page.evaluate('viewer.projectState()') == state
+    # built: the report counts them and the Build's record says what it wrote
+    page.keyboard.press('Control+b')
+    page.wait_for_selector('#buildOptions:not([hidden])')
+    page.locator('#buildOptionsOk').click()
+    page.locator('#buildModal').wait_for(state='visible')
+    page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=300000)
+    assert page.locator('#buildTitle').inner_text().startswith('Built Effect values smoke'), page.locator('#buildModal').inner_text()
+    build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
+    assert build['state'] == 'built', build
+    page.locator('#buildClose').click()
+    assert not errors, errors
+    page.close()
+    return project
+
+
 def check_blocker(page, recipe, count, cx, cy, drawn):
     """The blocker (Discord feedback S6): a cover block with Cover set to None is of type 'block' (blocks walking, no
     cover), saved by a recipe version that makes it; a block saved by version 1 turned into a blocker is saved by the
@@ -4216,7 +4330,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -4247,6 +4361,7 @@ def main():
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
             if 'library-effects' in only: check_library_effects(browser, page.url)
+            if 'effect-values' in only: print(json.dumps(dict(effectValues=check_effect_values(browser, page.url))))
             if 'prefabs' in only: check_prefabs(browser, page.url)
             if 'prefab-test' in only:
                 from browser_prefab_test import check_prefab_test

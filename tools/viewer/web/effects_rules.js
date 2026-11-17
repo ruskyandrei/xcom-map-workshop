@@ -59,7 +59,7 @@ export function recordChips(r, data) {
 }
 
 const FROM = { actor: 'as saved', cue: 'as its cue saves it', archetype: 'as its archetype has it', class: 'as its class has it',
-               table: 'as its class has it', unresolved: 'unknown: its archetype is in another package' };
+               table: 'as its class has it', unresolved: 'unknown: its archetype is in another package', edited: 'as set here' };
 
 /** The particle parameters an effect saves, as rows: [{ name, kind ('scalar', 'range', 'vector', 'colour', 'other'),
  *  text, colour ([r, g, b] 0-1 for a swatch, or null), note }]. A vector shows as a colour only where the system's
@@ -134,6 +134,131 @@ export function recordLines(r, data) {
   const why = [...new Set(Object.entries(r.why ?? {}).filter(([k]) => k !== 'audition').map(([, v]) => v))];
   if (why.length && Object.entries(r.can ?? {}).every(([k, v]) => k === 'audition' || !v)) lines.push(`View only: ${why[0]}.`);
   return { title: `${KIND_LABEL[r.kind] ?? r.kind}: ${recordName(r, data)}`, lines };
+}
+
+// ---------------------------------------------------------------- values (the effects and sounds plan, stage FX5)
+// What a value may be, as the compiler checks it (compiler.py EFFECT_SCALE, SOUND_RADIUS_MAX, SOUND_VOLUME_MAX,
+// SOUND_PITCH, PARAMETER_MAX)
+export const VALUE_LIMITS = { scale: [1 / 64, 64], radius: [0, 65536], volume: [0, 16], pitch: [1 / 16, 16], parameter: 1e6 };
+const PARAMETER_TYPES = { PSPT_Scalar: 'scalar', PSPT_Vector: 'vector', PSPT_Color: 'colour' };
+const clean = v => Number(Number(v).toPrecision(6));
+
+/** The parameters of an effect as the panel offers them: [{ name, control ('scalar', 'vector', 'tint': a vector that
+ *  feeds a particle's colour, shown as a colour and a strength, 'colour': saved as a colour), type (the PSPT_ type an
+ *  edit writes), base (the value as the map has it: the saved entry's, else the system's own constant), value (as
+ *  edited), guide ([least, most] for a slider, a scalar's), edited, readOnly (why it can't change, or null) }]. A
+ *  parameter its effect saves keeps the type it is saved in (the first entry of the name, as the game reads it); one
+ *  it doesn't save is offered in the kind its system's distribution has. Sorted: saved ones first, as saved. */
+export function parameterControls(r, systems, edits = {}) {
+  const offers = systems?.[r?.system]?.offers ?? [];
+  const byName = new Map();
+  for (const o of offers) { if (!byName.has(o.name)) byName.set(o.name, []); byName.get(o.name).push(o); }
+  const out = [], seen = new Set();
+  const tinted = name => { const vs = (byName.get(name) ?? []).filter(o => o.kind === 'vector'); return vs.length > 0 && vs.every(o => o.colour); };
+  const guideOf = (name, value) => {
+    const o = (byName.get(name) ?? []).find(x => x.kind === 'scalar');
+    let lo = 0, hi = 1;
+    if (o && !String(o.modes?.[0] ?? '').includes('Direct') && o.input?.[1] > o.input?.[0]) [lo, hi] = o.input;
+    else { const c = Math.abs(Number(o?.constant ?? 1)); hi = Math.max(1, 2 * c, 2 * Math.abs(value)); lo = Math.min(0, value); }
+    return [Math.min(lo, value), Math.max(hi, value)];
+  };
+  const row = (name, type, base, readOnly = null) => {
+    const control = type === 'PSPT_Vector' && tinted(name) ? 'tint' : PARAMETER_TYPES[type] ?? 'other';
+    const edited = Object.prototype.hasOwnProperty.call(edits, name) && !readOnly;
+    const value = edited ? edits[name] : base;
+    return { name, control, type, base, value, edited, readOnly, guide: control === 'scalar' ? guideOf(name, Number(value)) : null };
+  };
+  for (const p of r?.parameters ?? []) {
+    if (!p.name || seen.has(p.name)) continue;
+    seen.add(p.name);
+    if (!PARAMETER_TYPES[p.type]) { out.push(row(p.name, p.type, null, `it is a ${String(p.type).replace('PSPT_', '').toLowerCase()} parameter, kept as the map has it`)); continue; }
+    const base = p.type === 'PSPT_Scalar' ? p.scalar ?? 0 : p.type === 'PSPT_Vector' ? [...(p.vector ?? [0, 0, 0])] : [...(p.colour ?? [0, 0, 0, 0])];
+    out.push(row(p.name, p.type, base));
+  }
+  for (const [name, list] of [...byName].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (seen.has(name)) continue;
+    const kinds = new Set(list.map(o => o.kind));
+    if (kinds.size > 1) { out.push(row(name, 'PSPT_None', null, 'its system reads it both as a number and as a vector')); continue; }
+    const o = list[0];
+    out.push(row(name, o.kind === 'scalar' ? 'PSPT_Scalar' : 'PSPT_Vector', o.kind === 'scalar' ? Number(o.constant ?? 0) : [...(o.constant ?? [0, 0, 0])]));
+  }
+  return out;
+}
+
+/** A tint's colour and strength from a vector ([r, g, b], any size): { colour ([r, g, b], 0 to 1), strength }. */
+export function tintOf(v) {
+  const strength = Math.max(...v.map(x => Math.abs(x)), 0);
+  return { colour: strength > 0 ? v.map(x => Math.max(0, x) / strength) : [1, 1, 1], strength: clean(strength) };
+}
+/** And back: the vector a tint's colour and strength make. */
+export const tintVector = (colour, strength) => colour.map(c => clean(c * strength));
+
+/** The record as the project has it: `r` with `values` (an effect's { scale, startsOn, parameters: {name: value} }, a
+ *  sound's { radiusMin, radiusMax, volume, pitch, startsOn }) put on it, what they set said to be set here. */
+export function withValues(r, values, systems) {
+  if (!values || !Object.keys(values).length) return r;
+  const out = { ...r };
+  if (values.startsOn != null) Object.assign(out, { startsOn: values.startsOn, startsOnFrom: 'edited' });
+  if (r.kind === 'effect') {
+    if (values.scale != null) {
+      const m = Number(values.scale);
+      Object.assign(out, { drawScale: (r.drawScale ?? 1) * m, scale: (r.scale ?? [1, 1, 1]).map(v => v * m) });
+    }
+    const edits = values.parameters ?? {};
+    if (Object.keys(edits).length) {
+      const params = (r.parameters ?? []).map(p => ({ ...p }));
+      for (const c of parameterControls(r, systems, edits)) {
+        if (!c.edited) continue;
+        const field = { scalar: 'scalar', vector: 'vector', tint: 'vector', colour: 'colour' }[c.control];
+        const at = params.find(p => p.name === c.name);
+        if (at) at[field] = Array.isArray(c.value) ? [...c.value] : c.value;
+        else params.push({ name: c.name, type: c.type, [field]: Array.isArray(c.value) ? [...c.value] : c.value, offered: 'yes' });
+      }
+      Object.assign(out, { parameters: params, parametersFrom: 'edited' });
+    }
+    return out;
+  }
+  if (r.kind === 'sound') {
+    const v = { ...(r.values ?? {}) }, from = { ...(r.valuesFrom ?? {}) };
+    for (const k of ['radiusMin', 'radiusMax']) if (values[k] != null) { v[k] = values[k]; from[k] = 'edited'; }
+    for (const k of ['volume', 'pitch']) if (values[k]) { [v[`${k}Min`], v[`${k}Max`]] = values[k]; from[`${k}Min`] = from[`${k}Max`] = 'edited'; }
+    Object.assign(out, { values: v, valuesFrom: from });
+  }
+  return out;
+}
+
+/** The values object a project saves for an effect or a sound (its `effect` or `sound`, without `follow`): only what
+ *  is set, the parameters as [{name, value}] sorted by name; null when nothing is. */
+export function savedValues(values) {
+  if (!values) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(values)) {
+    if (v == null) continue;
+    if (k === 'parameters') {
+      const list = Object.entries(v).sort((a, b) => a[0].localeCompare(b[0])).map(([name, value]) => ({ name, value: Array.isArray(value) ? [...value] : value }));
+      if (list.length) out.parameters = list;
+    } else out[k] = Array.isArray(v) ? [...v] : v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+/** And back: a saved values object (an override's or a copy's `effect` or `sound`) as the page keeps it. */
+export function keptValues(saved) {
+  if (!saved || typeof saved !== 'object') return null;
+  const out = {};
+  for (const [k, v] of Object.entries(saved)) {
+    if (k === 'follow' || v == null) continue;
+    if (k === 'parameters') {
+      if (Array.isArray(v) && v.length) out.parameters = Object.fromEntries(v.filter(p => p && typeof p.name === 'string').map(p => [p.name, Array.isArray(p.value) ? [...p.value] : p.value]));
+    } else out[k] = Array.isArray(v) ? [...v] : v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Why the values of `r` (an original's record, or a copy's original) can't be set here, or null. */
+export function valuesViewOnly(r) {
+  if (r?.stream) return `it belongs to the stream ${r.stream}`;
+  if (r?.kind === 'flare') return 'a lens flare\'s template and colour aren\'t edited';
+  return r?.can?.values ? null : (r?.why?.values ?? 'the map\'s export doesn\'t say its values can change');
 }
 
 /** Whether a cleared map keeps a record (tools/bake/native_copy.py clear_level): every sound stays; an effect or a

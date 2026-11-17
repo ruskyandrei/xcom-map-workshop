@@ -486,6 +486,22 @@ lists); the Build stages the actor in the map with what it needs ([transplant.py
 staged one. EXP-69 played them in the game (17 November 2026), and the compiler's foreign gate lists them since, so
 the list shows them placeable.
 
+**Values** (stage FX5). Where the `effect-values` and `sound-values` families build (off until their game check;
+`serve --family effect-values --family sound-values` lifts them), a picked effect's or simple sound's panel has
+**Values**: **Starts with the mission** (a sound's **Plays from the start**); an effect's particle parameters, each
+the first of its name the effect saves in the kind it is saved in (a number with a slider guided by its system's
+range, a vector's x, y and z, a colour; a vector that feeds a particle's colour as a colour and a strength, the maps'
+going past 1) and then each its system offers that it doesn't save, in its distribution's kind; one saved as a random
+or untyped value, or read as both kinds, shows why it stays as the map has it. A sound has **Volume** and **Pitch**,
+each least and most. The sizes are dragged in the view, as a light's radius is: an effect's **size handle** beside
+its marker (1/64 to 64 times the map's size, on a log scale; its box follows) and a sound's two handles on its
+spheres (where it is heard at full volume, where it fades out). Each change is one undo step, ↺ and Reset put one
+back, Reset piece and Reset all put them all back, and a copy takes the values of what it copies. A shared cue's
+sound and a lens flare show their values read only. The project saves them in the override's or copy's `effect` or
+`sound` ([effects_rules.js](web/effects_rules.js) `parameterControls`, `withValues`, `savedValues`; contract
+section 4), and the Build writes them on the actor's own exports ([native_effects.py](../bake/native_effects.py)
+`set_values`).
+
 A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
 at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not
 reproduced). The button turns to Stop, the clock shows how far it has got, and picking something else, Escape,

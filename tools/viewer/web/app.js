@@ -22,7 +22,8 @@ import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneSer
 import { createMissionsPanel } from './missions_panel.js';
 import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
-import { KIND_LABEL, effectRecords, parameterRows, recordChips, recordLines, recordName, soundReach, survivesClear } from './effects_rules.js';
+import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues,
+         soundReach, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
@@ -898,7 +899,7 @@ function editChangedNow() {
   $('editCount').classList.toggle('warn', saveState() !== 'saved');
   $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
   $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
-  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)));
+  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
   flagsPanel(); kindButton();
   // (a building's box is in no group and is not aligned)
@@ -1100,6 +1101,7 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
                                              ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
+                                     ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
                                      ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
@@ -1575,7 +1577,7 @@ async function pasteSnapshot(clip, delta, step = null) {
     return tags.get(was);
   };
   const lights = lightEntries.map(e => addedLight(e.source, delta.clone().multiply(e.matrix), e.values));
-  const effects = effectEntries.map(e => addedEffect(e.source, delta.clone().multiply(e.matrix)));
+  const effects = effectEntries.map(e => addedEffect(e.source, delta.clone().multiply(e.matrix), null, null, e.values));
   // the copied buildings: each a new building with the same floors, its boxes moved (and turned) as the pieces are
   const twins = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
   const boxes = (clip.volumes ?? []).map(v => {
@@ -2450,12 +2452,14 @@ function resetSelected() {
   const selection = gizmo.selection(), lights = selection.filter(r => r.userData.light && valuesEdited(r));
   // an effect kept where it stands (follow none): back to following its piece (effects and sounds plan, Part C)
   const stays = selection.filter(r => r.userData.effect && r.userData.stays);
-  if (!lights.length && !stays.length) { gizmo.resetSelection(); return; }
+  // an effect's or sound's values (stage FX5): back to the map's
+  const valued = selection.filter(r => r.userData.effect && r.userData.values), fxValues = valued.map(r => r.userData.values);
+  if (!lights.length && !stays.length && !valued.length) { gizmo.resetSelection(); return; }
   const moved = selection.filter(r => r.userData.edit), before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r));
   const values = lights.map(r => ({ ...r.userData.values }));
   gizmo.record({
-    redo: () => { gizmo.applyMatrices(moved, home); for (const r of lights) setLightValues(r, r.userData.baseValues); for (const r of stays) r.userData.stays = false; sceneChanged(); },
-    undo: () => { gizmo.applyMatrices(moved, before); lights.forEach((r, k) => setLightValues(r, values[k])); for (const r of stays) r.userData.stays = true; sceneChanged(); },
+    redo: () => { gizmo.applyMatrices(moved, home); for (const r of lights) setLightValues(r, r.userData.baseValues); for (const r of stays) r.userData.stays = false; for (const r of valued) r.userData.values = null; sceneChanged(); },
+    undo: () => { gizmo.applyMatrices(moved, before); lights.forEach((r, k) => setLightValues(r, values[k])); for (const r of stays) r.userData.stays = true; valued.forEach((r, k) => { r.userData.values = fxValues[k]; }); sceneChanged(); },
   });
 }
 
@@ -2533,6 +2537,7 @@ function resetAll() {
   // effects and sounds: copies go, deleted ones return, moved ones go home, kept ones follow their piece again
   const fx = [...effectRoots.values()].filter(r => !isStream(r.userData.source));
   const addedEffects = fx.filter(r => r.userData.source.added), stays = fx.filter(r => r.userData.stays);
+  const valued = fx.filter(r => !r.userData.source.added && r.userData.values), fxValues = valued.map(r => r.userData.values);
   deleted.push(...fx.filter(r => r.userData.deleted && !r.userData.source.added));
   moved.push(...fx.filter(r => r.userData.edit && !r.userData.source.added));
   // the map's own buildings changed or deleted come back as the map has them too
@@ -2540,7 +2545,7 @@ function resetAll() {
   // the project's own buildings go: their boxes, which the buildings are made from
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
   if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
-      && !addedEffects.length && !stays.length
+      && !addedEffects.length && !stays.length && !valued.length
       && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
   // the map's own grid, landing zones and no clear mark
@@ -2557,6 +2562,7 @@ function resetAll() {
     redo: () => {
       for (const r of flagged) r.userData.flags = null;
       removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects); for (const r of stays) r.userData.stays = false;
+      for (const r of valued) r.userData.values = null;
       for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
       for (const r of changed) setLightValues(r, r.userData.baseValues);
       restore.redo();
@@ -2567,6 +2573,7 @@ function resetAll() {
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
       addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects); for (const r of stays) r.userData.stays = true;
+      valued.forEach((r, k) => { r.userData.values = fxValues[k]; });
       for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
       changed.forEach((r, k) => setLightValues(r, valuesBefore[k]));
       restore.undo();
@@ -3288,15 +3295,53 @@ const handleGuide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new
                                    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthTest: false }));
 handleGuide.renderOrder = 8; handleGuide.raycast = () => {}; handleLayer.add(handleGuide);
 const HANDLE_PICK = 10;
-const HANDLE_WORDS = { radius: 'Radius', outer: 'Outer cone', inner: 'Inner cone' };
+const HANDLE_WORDS = { radius: 'Radius', outer: 'Outer cone', inner: 'Inner cone', size: 'Size',
+                       radiusMin: 'Heard fully within', radiusMax: 'Fades out by' };
 const HANDLE_TITLES = { radius: 'Drag to change the radius', outer: 'Drag to widen or narrow the outer cone',
-                        inner: 'Drag to widen or narrow the inner cone' };
+                        inner: 'Drag to widen or narrow the inner cone', size: 'Drag to make the effect larger or smaller',
+                        radiusMin: 'Drag to change where the sound is heard at full volume',
+                        radiusMax: 'Drag to change where the sound fades out' };
 // The selected light when its handles show: shown, editable, with a radius, and nothing being placed.
 function handleRoot() {
   const root = lightRoots.get(selected);
   if (!root || !lightsShown || !root.visible || root.userData.deleted || placing || root.userData.values.radius == null
-      || lightViewOnly(root.userData.source)) return null;
+      || lightViewOnly(root.userData.source)) return effectHandleRoot();
   return root;
+}
+// The picked effect or sound when its handles show (stage FX5): alone in the selection, drawn, its values editable;
+// a sound only where its record gives it spheres.
+function effectHandleRoot() {
+  if (!effectsShown() || placing || gizmo.picks().ids.length !== 1) return null;
+  const root = pickedEffect ? effectRoots.get(pickedEffect) : null;
+  if (!root?.visible || !effectValuesEditable(root)) return null;
+  return root.userData.source.kind === 'effect' || soundReach(effectNow(root)) ? root : null;
+}
+// Its handles: an effect's size on the camera's left at a distance that grows with it (its fixed box, as the map
+// sizes it, else 64 units, at 1), a sound's outer radius on the left and its inner one on the right (game units).
+function effectHandles(root, side) {
+  const origin = new THREE.Vector3().setFromMatrixPosition(root.matrix), out = side.clone().normalize(), now = effectNow(root);
+  if (now.kind === 'sound') {
+    const reach = soundReach(now), back = out.clone().negate(), [, top] = VALUE_LIMITS.radius;
+    return [{ key: 'radiusMax', value: reach.outer, lo: Math.max(1, reach.inner), hi: top, log: true, origin, at: s => origin.clone().addScaledVector(out, s) },
+            { key: 'radiusMin', value: Math.max(1, reach.inner), lo: 1, hi: Math.max(1, reach.outer), log: true, origin, at: s => origin.clone().addScaledVector(back, s) }];
+  }
+  const box = data.effectSystems?.[now.system]?.fixedBox, mapScale = Math.max(...(root.userData.source.added?.base ?? root.userData.source).scale ?? [1]);
+  const unit = box?.used && box.valid ? Math.max(16, Math.max(...box.max.map((v, k) => v - box.min[k])) / 2 * mapScale) : 64;
+  const m = root.userData.values?.scale ?? 1, [lo, hi] = VALUE_LIMITS.scale;
+  return [{ key: 'size', value: m, lo, hi, log: true, origin, at: x => origin.clone().addScaledVector(out, unit * x) }];
+}
+// An effect's or sound's values after a drag of handle `h` to `raw`: a size to three places (1 is the map's own, no
+// value), radii in whole units, the inner never beyond the outer.
+function effectHandleValues(before, h, raw) {
+  const next = structuredClone(before ?? {});
+  if (h.key === 'size') {
+    const value = Math.min(h.hi, Math.max(h.lo, Number(raw.toFixed(3))));
+    if (Math.abs(value - 1) < 1e-3) delete next.scale; else next.scale = value;
+    return { next, value };
+  }
+  const value = Math.min(h.hi, Math.max(h.key === 'radiusMin' ? 0 : h.lo, Math.round(raw)));
+  next[h.key] = value;
+  return { next, value };
 }
 // the camera's left: the panel covers the view's right
 const cameraSide = () => new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize().negate();
@@ -3312,7 +3357,8 @@ function projector() {
 // Each frame: the handles where the selected light's shapes are (they lean to the camera's right).
 function updateLightHandles() {
   const root = lightDrag?.root ?? handleRoot();
-  handleDefs = root ? lightHandles(root.userData.source.kind, root.userData.values, root.matrix, lightDrag?.side ?? cameraSide()) : [];
+  handleDefs = !root ? [] : root.userData.effect ? effectHandles(root, lightDrag?.side ?? cameraSide())
+    : lightHandles(root.userData.source.kind, root.userData.values, root.matrix, lightDrag?.side ?? cameraSide());
   handleLayer.visible = handleDefs.length > 0;
   if (!handleDefs.length && handleHover) hoverHandle(null);
   for (const mesh of handleMeshes.values()) mesh.visible = false;
@@ -3324,8 +3370,8 @@ function updateLightHandles() {
     mesh.userData.material.color.setHex(h.key === lit ? HANDLE_COLOURS.hover : HANDLE_COLOURS[h.key]);
     scaleMarker(mesh, camera, mesh.position);
   }
-  // a thin line from the light to its radius handle
-  const radius = handleDefs.find(h => h.key === 'radius');
+  // a thin line from the light to its radius handle (an effect's to its size handle, a sound's to its outer radius's)
+  const radius = handleDefs.find(h => h.key === 'radius' || h.key === 'size' || h.key === 'radiusMax');
   if (radius) {
     const at = handleGuide.geometry.attributes.position;
     at.setXYZ(0, ...radius.origin.toArray()); at.setXYZ(1, ...radius.at(radius.value).toArray()); at.needsUpdate = true;
@@ -3358,7 +3404,7 @@ function lightDragHint(key, value) {
   const hint = $('dragHint');
   clearTimeout(hintTimer);
   hint.hidden = false;
-  hint.replaceChildren(`${HANDLE_WORDS[key]} ${key === 'radius' ? `${value} units` : `${value}°`} · `);
+  hint.replaceChildren(`${HANDLE_WORDS[key]} ${key === 'size' ? `${value} times the map's size` : key === 'radius' || key.startsWith('radius') ? `${value} units` : `${value}°`} · `);
   text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
 }
 function startLightDrag(e) {
@@ -3370,7 +3416,8 @@ function startLightDrag(e) {
   // two handles under the press (a spot's inner cone at 0 sits on its radius handle): the first move picks the one
   // whose way it goes
   const handle = near.length === 1 || near[1].d - near[0].d > 3 ? near[0] : null;
-  lightDrag = { root, before: { ...root.userData.values }, side: cameraSide(), start: [e.clientX, e.clientY], pointerId: e.pointerId,
+  lightDrag = { root, before: root.userData.effect ? structuredClone(root.userData.values ?? {}) : { ...root.userData.values },
+                side: cameraSide(), start: [e.clientX, e.clientY], pointerId: e.pointerId,
                 near, handle, offset: handle ? [handle.s[0] - e.clientX, handle.s[1] - e.clientY] : null };
   renderer.domElement.style.cursor = 'grabbing';
   return true;
@@ -3391,6 +3438,14 @@ function moveLightDrag(e) {
     d.offset = [d.handle.s[0] - d.start[0], d.handle.s[1] - d.start[1]];
   }
   const h = d.handle.h, raw = nearestValue(h, projector(), [e.clientX + d.offset[0], e.clientY + d.offset[1]]);
+  if (d.root.userData.effect) {
+    // an effect's size or a sound's radius: drawn live, one undo step at the release (endLightDrag)
+    const { next, value } = effectHandleValues(d.before, h, raw);
+    lightDragHint(h.key, value);
+    d.root.userData.values = Object.keys(next).length ? next : null;
+    drawEffectShape();
+    return;
+  }
   const { next, value } = handleValues(d.before, h, raw);
   lightDragHint(h.key, value);
   if (!Object.keys(changedValues(next, d.root.userData.values)).length) return;
@@ -3405,6 +3460,17 @@ function endLightDrag(keep) {
   lightDrag = null;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
   renderer.domElement.style.cursor = handleHover ? 'grab' : '';
+  if (d.root.userData.effect) {
+    const after = d.root.userData.values ? structuredClone(d.root.userData.values) : null, before = Object.keys(d.before).length ? d.before : null;
+    setEffectValues(d.root, before);
+    if (keep && JSON.stringify(after) !== JSON.stringify(before)) {
+      const id = d.root.userData.source.id;
+      gizmo.record({ redo: () => { setEffectValues(d.root, after); select(id, false, true); },
+                     undo: () => { setEffectValues(d.root, before); select(id, false, true); } });
+    }
+    restingHint();
+    return true;
+  }
   const after = { ...d.root.userData.values };
   setLightValues(d.root, d.before);
   if (keep && Object.keys(changedValues(after, d.before)).length)
@@ -6611,7 +6677,7 @@ function makeEffectRoot(source) {
   const marker = makeEffectMarker(source);
   marker.userData.record = source;
   root.add(marker);
-  root.userData = { source, effect: true, marker, deleted: false, edit: null, stays: false, parts: [] };
+  root.userData = { source, effect: true, marker, deleted: false, edit: null, stays: false, parts: [], values: null };
   marker.userData.root = root;
   return root;
 }
@@ -6648,7 +6714,12 @@ function effectViewOnly(o, cap = 'move') {
 const effectFollows = r => Boolean(r.userData.source.carriedBy && !r.userData.source.added && !r.userData.source.landingRole
   && !r.userData.edit && !r.userData.stays && !r.userData.deleted);
 const effectEdited = r => !isStream(r.userData.source) && Boolean(r.userData.source.added || r.userData.deleted || r.userData.edit
-  || (r.userData.stays && r.userData.source.carriedBy));
+  || (r.userData.stays && r.userData.source.carriedBy) || r.userData.values);
+// The record as the project has it (stage FX5): its values put on it (a copy's on its original's record)
+const effectNow = (root, r = root.userData.source) => withValues(r.added ? { ...r.added.base, ...poseOf(r) } : r, root.userData.values, effectSystemsOf(r));
+const poseOf = r => ({ location: r.location, rotation: r.rotation, actor: r.actor });
+// The particle systems effects name: the map's, with those of other maps' copies joined (effectTemplate)
+const effectSystemsOf = () => data?.effectSystems;
 // Where each original stands now (a carried one with its piece, the landing's with its zone, one with a pose of its
 // own where it was put), whether its piece's delete takes it away, and the copies each copy of its piece carries
 // (markers of their own, drawn greyed, never picked)
@@ -6733,7 +6804,7 @@ function effectPanel() {
   if (wavePlayer && (!m || m.userData.record.id !== wavePlayer.record)) stopWave();
   $('effectPanel').hidden = !m;
   if (!m) return;
-  const root = m.userData.root, r = m.userData.record, { title, lines } = recordLines(r.added ? r.added.base : r, data);
+  const root = m.userData.root, r = m.userData.record, now = effectNow(root, r), { title, lines } = recordLines(now, { ...data, effectSystems: effectSystemsOf(r) });
   // what an edit does with it here (effects and sounds plan, FX3), where its family builds
   if (!effectViewOnly(r, 'move') || !effectViewOnly(r, 'copy') || !effectViewOnly(r, 'delete')) {
     if (r.added?.base?.foreign) lines.unshift(`A copy of ${short(r.added.from.actor)} of ${r.added.from.package}: the Build brings it into this map with the ${r.kind === 'sound' ? 'waves' : 'particle system'} it needs (or this map's, where it has them already) and makes it an actor of its own.`);
@@ -6752,7 +6823,7 @@ function effectPanel() {
   $('effectTitle').textContent = title;
   const chips = $('effectChips');
   chips.replaceChildren();
-  for (const c of recordChips(r, data)) text(chips, 'span', c.text, 'chip').title = c.title;
+  for (const c of recordChips(r.added ? { ...now, carriedBy: null, landingRole: null, referencedBy: [], floors: [], prefab: null } : now, data)) text(chips, 'span', c.text, 'chip').title = c.title;
   chips.hidden = !chips.children.length;
   setParagraphs($('effectInfo'), lines.join('\n'));
   // a sound's waves, each with its Play button
@@ -6772,7 +6843,12 @@ function effectPanel() {
     }
   }
   paintWaves();
-  const rows = r.kind === 'effect' ? parameterRows(r, data) : [], table = $('effectParams');
+  // its values, where they build and its record says they can change (stage FX5); else what it has, read only
+  const valueBox = $('effectValues'), editable = effectValuesEditable(root);
+  valueBox.replaceChildren();
+  valueBox.hidden = !editable;
+  if (editable) effectValueControls(valueBox, root, now);
+  const rows = r.kind === 'effect' && !editable ? parameterRows(now, { ...data, effectSystems: effectSystemsOf(r) }) : [], table = $('effectParams');
   table.replaceChildren();
   table.hidden = !rows.length;
   if (rows.length) {
@@ -6857,12 +6933,12 @@ function drawEffectShape() {
   for (const c of [...effectShapes.children]) { c.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); }); effectShapes.remove(c); }
   const m = effectsShown() ? pickedMarker() : null;
   if (!m) return;
-  const r = m.userData.record, matrix = m.userData.root.matrix;
+  const r = effectNow(m.userData.root, m.userData.record), matrix = m.userData.root.matrix;
   if (r.kind === 'effect') {
     const cp = r.componentPose;
     const component = cp ? effectMatrix(cp.translation, cp.rotation, cp.scale) : new THREE.Matrix4();
     const scaled = matrix.clone().multiply(new THREE.Matrix4().makeScale(r.scale?.[0] ?? 1, r.scale?.[2] ?? 1, r.scale?.[1] ?? 1));
-    const shape = boxShape(data.effectSystems?.[r.system], scaled.multiply(component));
+    const shape = boxShape(effectSystemsOf(m.userData.record)?.[r.system], scaled.multiply(component));
     if (shape) effectShapes.add(shape);
   } else if (r.kind === 'sound') effectShapes.add(reachShape(soundReach(r), new THREE.Vector3().setFromMatrixPosition(matrix)));
 }
@@ -6881,9 +6957,11 @@ function pickEffect(id, add = false) {
 function frameEffect() {
   const m = pickedMarker();
   if (!m) return false;
-  const r = m.userData.record, reach = Math.max(500, Math.min(4000, (soundReach(r)?.outer ?? 400) * 1.6));
+  // (far enough to see a sound's outer sphere and its handles whole)
+  const r = effectNow(m.userData.root, m.userData.record), reach = Math.max(600, Math.min(8000, (soundReach(r)?.outer ?? 240) * 2.6));
   const at = new THREE.Vector3().setFromMatrixPosition(m.userData.root.matrix), away = camera.position.clone().sub(controls.target);
-  if (away.length() > reach) away.setLength(reach);
+  // (a sound from as far as shows its spheres whole; an effect from no further than that)
+  if (away.length() > reach || (r.kind === 'sound' && soundReach(r))) away.setLength(reach);
   controls.target.copy(at); camera.position.copy(at).add(away); controls.update();
   return true;
 }
@@ -6903,6 +6981,126 @@ function setEffectStays(root, stays) {
   gizmo.record({ redo: () => { root.userData.stays = stays; sceneChanged(); select(root.userData.source.id, false, true); },
                  undo: () => { root.userData.stays = !stays; sceneChanged(); select(root.userData.source.id, false, true); } });
 }
+// An effect's or sound's values (stage FX5): offered where their family builds (families.json effect-values,
+// sound-values) and the record (a copy's original's) says they can change. Each change is one undo step.
+function effectValuesEditable(root) {
+  const o = root.userData.source, base = o.added ? o.added.base : o;
+  if (isStream(o) || o.kind === 'flare' || root.userData.deleted) return false;
+  if (!families?.families?.[`${o.kind}-values`]?.builds) return false;
+  return !valuesViewOnly(base);
+}
+function setEffectValues(root, values) {
+  const v = values && Object.keys(values).length ? values : null;
+  root.userData.values = v ? structuredClone(v) : null;
+  sceneChanged();
+}
+// One change of values: `patch` merged in (a key set to undefined goes back to the map's), one undo step
+function changeEffectValues(root, patch) {
+  const before = root.userData.values ? structuredClone(root.userData.values) : null;
+  const after = { ...(before ?? {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === 'parameters') {
+      const params = { ...(after.parameters ?? {}) };
+      for (const [name, value] of Object.entries(v)) { if (value === undefined) delete params[name]; else params[name] = value; }
+      if (Object.keys(params).length) after.parameters = params; else delete after.parameters;
+    } else if (v === undefined) delete after[k];
+    else after[k] = v;
+  }
+  if (JSON.stringify(after) === JSON.stringify(before ?? {})) return;
+  const id = root.userData.source.id;
+  gizmo.record({ redo: () => { setEffectValues(root, after); select(id, false, true); },
+                 undo: () => { setEffectValues(root, before); select(id, false, true); } });
+}
+const fixed = (v, places = 3) => Number(Number(v).toFixed(places));
+const hexOf = rgb => `#${rgb.slice(0, 3).map(v => Math.round(Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2) * 255).toString(16).padStart(2, '0')).join('')}`;
+const rgbOf = hex => [1, 3, 5].map(k => fixed(Math.pow(parseInt(hex.slice(k, k + 2), 16) / 255, 2.2), 4));
+const byteRgbOf = hex => [1, 3, 5].map(k => fixed(parseInt(hex.slice(k, k + 2), 16) / 255, 4));
+const byteHexOf = rgb => `#${rgb.slice(0, 3).map(v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
+// A number field: committed on change when finite and within [lo, hi], else put back with why
+function numberField(parent, label, value, { lo = -VALUE_LIMITS.parameter, hi = VALUE_LIMITS.parameter, step = 'any', title = '', onCommit }) {
+  const wrap = text(parent, 'label', label);
+  wrap.title = title;
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = step; input.value = String(fixed(value, 4));
+  input.onchange = () => {
+    const v = Number(input.value);
+    if (!input.value.trim() || !Number.isFinite(v) || v < lo || v > hi) { flashHint(`${label || 'It'} is ${fixed(lo, 4)} to ${fixed(hi, 4)}`); input.value = String(fixed(value, 4)); return; }
+    onCommit(v);
+  };
+  wrap.append(input);
+  return input;
+}
+function effectValueControls(box, root, now) {
+  const o = root.userData.source, kind = o.kind, values = root.userData.values ?? {}, base = o.added ? o.added.base : o;
+  const head = text(box, 'div', kind === 'effect' ? 'Values' : 'Sound', 'posehead');
+  head.title = 'What the Build sets on this one (its own actor: a copy\'s are its own)';
+  const on = text(box, 'label', '', 'check');
+  const tick = document.createElement('input');
+  tick.type = 'checkbox'; tick.checked = now.startsOn !== false;
+  tick.onchange = () => changeEffectValues(root, { startsOn: tick.checked === (base.startsOn !== false) ? undefined : tick.checked });
+  on.append(tick, kind === 'effect' ? ' Starts with the mission' : ' Plays from the start');
+  on.title = kind === 'effect' ? 'Off, its particles wait for the mission\'s script to start them' : 'Off, it waits for the mission\'s script to start it';
+  if (kind === 'effect') {
+    const line = text(box, 'div', '', 'valueline');
+    const m = values.scale ?? 1;
+    text(line, 'span', m === 1 ? 'Size as the map has it' : `Size ${fixed(m, 3)} times the map's`);
+    line.title = 'Drag the handle beside its marker to make it larger or smaller';
+    if (values.scale != null) { const b = text(line, 'button', 'Reset'); b.type = 'button'; b.onclick = () => changeEffectValues(root, { scale: undefined }); }
+    const controls = parameterControls(base, effectSystemsOf(o), values.parameters ?? {});
+    if (controls.length) text(box, 'div', 'Particle parameters', 'posehead').title = 'Values its particle system reads by name: a parameter the effect saves keeps its kind; one it doesn\'t is set in the kind its system reads';
+    for (const c of controls) effectParameterRow(box, root, c);
+    return;
+  }
+  const v = now.values ?? {};
+  const reach = text(box, 'div', '', 'valueline');
+  text(reach, 'span', `Heard fully within ${Math.round(v.radiusMin ?? 0)}, fading out by ${Math.round(v.radiusMax ?? 0)} units`);
+  reach.title = 'Drag the handles on its spheres to change where it is heard';
+  if (values.radiusMin != null || values.radiusMax != null) { const b = text(reach, 'button', 'Reset'); b.type = 'button'; b.onclick = () => changeEffectValues(root, { radiusMin: undefined, radiusMax: undefined }); }
+  for (const [key, label, [lo, hi]] of [['volume', 'Volume', VALUE_LIMITS.volume], ['pitch', 'Pitch', VALUE_LIMITS.pitch]]) {
+    const row = text(box, 'div', '', 'valuepair');
+    text(row, 'span', label, 'name');
+    const pair = [v[`${key}Min`] ?? 1, v[`${key}Max`] ?? 1];
+    const commit = (k, x) => {
+      const next = [...pair]; next[k] = x;
+      if (next[0] > next[1]) next[1 - k] = x;
+      const same = next[0] === (base.values?.[`${key}Min`]) && next[1] === (base.values?.[`${key}Max`]);
+      changeEffectValues(root, { [key]: same ? undefined : next });
+    };
+    numberField(row, 'least', pair[0], { lo, hi, title: `The least ${key} it plays at (${lo} to ${hi}): each time it plays, the game picks one between least and most`, onCommit: x => commit(0, x) });
+    numberField(row, 'most', pair[1], { lo, hi, title: `The most ${key} it plays at (${lo} to ${hi})`, onCommit: x => commit(1, x) });
+    if (values[key]) { const b = text(row, 'button', '↺'); b.type = 'button'; b.title = 'As the map has it'; b.onclick = () => changeEffectValues(root, { [key]: undefined }); }
+  }
+}
+function effectParameterRow(box, root, c) {
+  const row = text(box, 'div', '', `effectvalue${c.edited ? ' edited' : ''}`);
+  text(row, 'span', c.name, 'name');
+  const set = value => changeEffectValues(root, { parameters: { [c.name]: value } });
+  if (c.readOnly) { row.classList.add('odd'); row.title = `Kept as the map has it: ${c.readOnly}`; text(row, 'span', '—', 'value'); return; }
+  if (c.control === 'scalar') {
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = String(c.guide[0]); slider.max = String(c.guide[1]); slider.step = 'any'; slider.value = String(c.value);
+    const field = numberField(row, '', c.value, { title: `${c.name}: a number`, onCommit: set });
+    slider.oninput = () => { field.value = String(fixed(slider.value, 4)); };
+    slider.onchange = () => set(fixed(slider.value, 4));
+    row.insertBefore(slider, field.parentElement);
+  } else if (c.control === 'vector') {
+    ['x', 'y', 'z'].forEach((axis, k) => numberField(row, axis, c.value[k], { title: `${c.name}: its ${axis}`, onCommit: v => { const next = [...c.value]; next[k] = v; set(next); } }));
+  } else if (c.control === 'tint') {
+    const { colour, strength } = tintOf(c.value);
+    const swatch = document.createElement('input');
+    swatch.type = 'color'; swatch.value = hexOf(colour); swatch.title = `${c.name}: its colour`;
+    swatch.onchange = () => set(tintVector(rgbOf(swatch.value), strength || 1));
+    row.append(swatch);
+    numberField(row, '×', strength, { lo: 0, title: `${c.name}: its strength (how bright; the map's go past 1)`, onCommit: v => set(tintVector(colour, v)) });
+  } else if (c.control === 'colour') {
+    const swatch = document.createElement('input');
+    swatch.type = 'color'; swatch.value = byteHexOf(c.value); swatch.title = `${c.name}: its colour (saved as a colour)`;
+    swatch.onchange = () => set([...byteRgbOf(swatch.value), c.value[3] ?? 1]);
+    row.append(swatch);
+  }
+  if (c.edited) { const b = text(row, 'button', '↺'); b.type = 'button'; b.title = 'As the map has it'; b.onclick = () => set(undefined); }
+}
+
 // The project's records of effects and sounds (effects and sounds plan, Part C): an original moved (with
 // effect.follow none where a piece carries it), kept where it is (follow none alone) or deleted; a copy with its kind
 // and the original it copies. A stream's and those the view can't change are never saved.
@@ -6910,14 +7108,19 @@ function effectState(overrides, added) {
   for (const root of effectRoots.values()) {
     const o = root.userData.source;
     if (isStream(o)) continue;
+    const values = savedValues(root.userData.values);
     if (o.added) {
-      added.set(o.actor, { id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from }, ...actorPose(o, root.matrix) });
+      added.set(o.actor, { id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from }, ...actorPose(o, root.matrix),
+                           ...(values ? { [o.added.kind]: values } : {}) });
       continue;
     }
     const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
+    // its values object: what the project sets (stage FX5), with an effect's follow none where a piece carries it
+    const follow = o.carriedBy && o.kind === 'effect' && (root.userData.edit || root.userData.stays) ? { follow: 'none' } : {};
+    const own = values || Object.keys(follow).length ? { [o.kind]: { ...follow, ...(values ?? {}) } } : {};
     if (root.userData.deleted) overrides.set(effectKey(o), { target, deleted: true });
-    else if (root.userData.edit) overrides.set(effectKey(o), { target, ...actorPose(o, root.matrix), ...(o.carriedBy && o.kind === 'effect' ? { effect: { follow: 'none' } } : {}) });
-    else if (root.userData.stays && o.carriedBy && o.kind === 'effect') overrides.set(effectKey(o), { target, effect: { follow: 'none' } });
+    else if (root.userData.edit) overrides.set(effectKey(o), { target, ...actorPose(o, root.matrix), ...own });
+    else if (Object.keys(own).length) overrides.set(effectKey(o), { target, ...own });
   }
 }
 // Back to the effects as exported
@@ -6925,7 +7128,7 @@ function clearEffectEdits() {
   removeEffectRoots([...effectRoots.values()].filter(r => r.userData.source.added));
   const moved = [...effectRoots.values()].filter(r => r.userData.edit);
   gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of effectRoots.values()) { r.userData.deleted = false; r.userData.stays = false; }
+  for (const r of effectRoots.values()) { r.userData.deleted = false; r.userData.stays = false; r.userData.values = null; }
   effectsDirty = true;
 }
 // An override of a project state put on the map, or false when it names no effect, sound or flare of this export
@@ -6935,11 +7138,13 @@ function applyEffectRecord(record) {
   if (record.deleted) root.userData.deleted = true;
   else if (Array.isArray(record.location)) gizmo.applyMatrices([root], [actorMatrix(record.location, record.rotation ?? root.userData.source.rotation)]);
   else if (record.effect?.follow === 'none') root.userData.stays = true;
+  // its values (stage FX5), as saved: a deleted one's are kept for an undo, as the Build ignores them
+  root.userData.values = keptValues(record[root.userData.source.kind]);
   return true;
 }
 // A copy of an effect, sound or flare (`source`: an original's or a copy's), at a render matrix; `actor` its output
 // name (a project's record), else a new one with the next serial
-function addedEffect(source, placed, actor = null, entity = null) {
+function addedEffect(source, placed, actor = null, entity = null, values = null) {
   const base = source.added ? source.added.base : source;
   const from = source.added ? source.added.from : { package: source.sourcePackage, level: source.layer, actor: source.actor };
   actor ??= `${from.actor}_copy${++copySerial}`;
@@ -6948,7 +7153,9 @@ function addedEffect(source, placed, actor = null, entity = null) {
               location: pose.location, rotation: pose.rotation, referencedBy: [], floors: [], carriedBy: null, carriedHow: null,
               landingRole: null, landingActor: false, listed: true, prefab: null, attachedTo: null,
               added: { from, entity: entity ?? uuid(), kind: base.kind, base } };
-  return makeEffectRoot(o);
+  const root = makeEffectRoot(o);
+  root.userData.values = values ? structuredClone(values) : null;
+  return root;
 }
 function addedEffectOf(entity) {
   // the map's own, or one of another map (its template read first: loadForeignTemplates)
@@ -6956,7 +7163,7 @@ function addedEffectOf(entity) {
   if (!template || template.kind !== entity.kind || !Array.isArray(entity.location) || !Array.isArray(entity.rotation)) return null;
   const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;
-  const root = addedEffect(template, actorMatrix(entity.location, entity.rotation), entity.actor, entity.id);
+  const root = addedEffect(template, actorMatrix(entity.location, entity.rotation), entity.actor, entity.id, keptValues(entity[entity.kind]));
   Object.assign(root.userData.source, { location: [...entity.location], rotation: [...entity.rotation] });
   return root;
 }
@@ -8989,7 +9196,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // effects and sounds edited (FX3): each root's state, the normal view's switch, keep where it is
     effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
       deleted: r.userData.deleted, moved: Boolean(r.userData.edit), stays: r.userData.stays, gone: Boolean(r.userData.derivedGone), visible: r.visible,
-      at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move') }; },
+      at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move'),
+      // its values (FX5), as the project keeps them, and its record as edited
+      values: r.userData.values ? structuredClone(r.userData.values) : null, now: effectNow(r) }; },
     setNormalEffects, normalEffects: () => normalEffects, setEffectStays: (id, on) => { const r = effectRoots.get(id); if (r) setEffectStays(r, on); },
     seekWave: t => { if (wavePlayer) wavePlayer.audio.currentTime = t; },
     wave: () => wavePlayer && { wave: wavePlayer.wave, record: wavePlayer.record, state: wavePlayer.state, why: wavePlayer.why,

@@ -1,9 +1,11 @@
 // The Effects view's words (effects_rules.js; private/plans/todo/effects-and-sounds-plan.md, Part B, stage FX1): each
 // record's name and chips, its panel lines, its parameters as rows, where a sound is heard and whether a clear keeps
-// it, on records shaped as export 28 makes them (tools/viewer/effects_metadata.py; URB_Bar's actors).
+// it, on records shaped as export 28 makes them (tools/viewer/effects_metadata.py; URB_Bar's actors); and their values
+// (stage FX5): the parameters the panel offers, the record as edited, what a project saves.
 // Run: node tools/viewer/tests/effects_rules_test.mjs
 import assert from 'node:assert/strict';
-import { effectRecords, parameterRows, recordChips, recordLines, recordName, soundReach, survivesClear } from '../web/effects_rules.js';
+import { effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues, soundReach,
+         survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from '../web/effects_rules.js';
 
 const PL = 'TheWorld.PersistentLevel.';
 const beam = {
@@ -108,5 +110,69 @@ assert.deepEqual(effectRecords(exported, null).map(r => r.id), ['effect:2158', '
 assert.deepEqual(effectRecords(exported, new Set(['S'])).map(r => r.id), ['effect:2158', 'sound:10', 'stream-S-effect:1']);
 assert.deepEqual(effectRecords({ effects: [{ actor: 'x' }] }, null), []);                 // export 23's records: no kind
 assert.deepEqual(effectRecords(null, null), []);
+
+// ---- values (stage FX5)
+const glowSystems = { 'URB_Bar|FX.Glow': { emitters: [], offers: [
+  { name: 'Brightness', kind: 'vector', colour: false, modes: ['DPM_Direct'], constant: [1, 1, 1] },
+  { name: 'Color', kind: 'vector', colour: true, modes: ['DPM_Direct'], constant: [1, 1, 1] },
+  { name: 'Opacity', kind: 'scalar', modes: ['DPM_Direct'], constant: 1, input: [0, 1], output: [0, 1] },
+  { name: 'Speed', kind: 'scalar', modes: ['DPM_Normal'], constant: 1, input: [0, 4], output: [0, 1] },
+  { name: 'Size', kind: 'scalar', modes: ['DPM_Direct'], constant: 1 }, { name: 'Size', kind: 'vector', colour: false, constant: [1, 1, 1] }] } };
+const glow = { ...beam, system: 'URB_Bar|FX.Glow', parameters: [
+  { name: 'Brightness', type: 'PSPT_Scalar', scalar: 0.5, offered: 'otherKind' },
+  { name: 'Color', type: 'PSPT_Vector', vector: [1.5, 0.75, 0], offered: 'yes' },
+  { name: 'Tint', type: 'PSPT_Color', colour: [1, 0, 0, 1], offered: 'no' },
+  { name: 'Wobble', type: 'PSPT_ScalarRand', scalar: 1, scalarLow: 0.5, offered: 'no' },
+  { name: 'Color', type: 'PSPT_Scalar', scalar: 9, offered: 'otherKind' }] };
+const controls = parameterControls(glow, glowSystems);
+// saved ones first in the type they are saved in (a scalar where the distribution is a vector stays a scalar); the
+// first of a name only; then what the system offers that it doesn't save, in the distribution's kind
+assert.deepEqual(controls.map(c => [c.name, c.control, c.type]), [
+  ['Brightness', 'scalar', 'PSPT_Scalar'], ['Color', 'tint', 'PSPT_Vector'], ['Tint', 'colour', 'PSPT_Color'],
+  ['Wobble', 'other', 'PSPT_ScalarRand'], ['Opacity', 'scalar', 'PSPT_Scalar'], ['Size', 'other', 'PSPT_None'], ['Speed', 'scalar', 'PSPT_Scalar']]);
+assert.match(controls[3].readOnly, /scalarrand parameter/);
+assert.match(controls[5].readOnly, /both as a number and as a vector/);
+// a slider's guide: a Direct parameter from 0 past twice its value; a Normal one its input range
+assert.deepEqual(controls.find(c => c.name === 'Opacity').guide, [0, 2]);
+assert.deepEqual(controls.find(c => c.name === 'Speed').guide, [0, 4]);
+assert.deepEqual(controls.find(c => c.name === 'Opacity').base, 1);
+// a value outside the guide widens it, never the other way round
+assert.deepEqual(parameterControls(glow, glowSystems, { Speed: 9 }).find(c => c.name === 'Speed').guide, [0, 9]);
+// edits show as edited; a read-only one can't be
+const edited = parameterControls(glow, glowSystems, { Opacity: 0.25, Wobble: 3 });
+assert.deepEqual([edited.find(c => c.name === 'Opacity').value, edited.find(c => c.name === 'Opacity').edited], [0.25, true]);
+assert.equal(edited.find(c => c.name === 'Wobble').edited, false);
+// a tint: its colour and strength, and back
+assert.deepEqual(tintOf([1.5, 0.75, 0]), { colour: [1, 0.5, 0], strength: 1.5 });
+assert.deepEqual(tintVector([1, 0.5, 0], 3), [3, 1.5, 0]);
+assert.deepEqual(tintOf([0, 0, 0]), { colour: [1, 1, 1], strength: 0 });
+
+// the record as edited: an effect's size and starting state, a parameter changed and one added
+const now = withValues(glow, { scale: 2, startsOn: false, parameters: { Brightness: 2, Opacity: 0.5 } }, glowSystems);
+assert.deepEqual([now.startsOn, now.startsOnFrom, now.drawScale, now.scale], [false, 'edited', 2, [1.294, 1.294, 1.294]]);
+assert.deepEqual(now.parameters.filter(p => ['Brightness', 'Opacity'].includes(p.name)).map(p => [p.name, p.type, p.scalar]),
+                 [['Brightness', 'PSPT_Scalar', 2], ['Opacity', 'PSPT_Scalar', 0.5]]);
+assert.equal(glow.parameters[0].scalar, 0.5);                 // the export's record untouched
+assert.match(recordLines(now, { effectSystems: glowSystems }).lines.join(' '), /Starts off \(as set here\)/);
+assert.equal(withValues(glow, null, glowSystems), glow);
+// a sound's
+const humming = { kind: 'sound', actor: `${PL}AmbientSoundSimple_0`, values: { radiusMin: 300, radiusMax: 750, volumeMin: 1, volumeMax: 1, pitchMin: 1, pitchMax: 1, attenuate: true },
+              valuesFrom: { radiusMin: 'actor', radiusMax: 'actor' }, can: { values: true } };
+const louder = withValues(humming, { radiusMax: 1200, volume: [0.5, 0.8] });
+assert.deepEqual(soundReach(louder), { inner: 300, outer: 1200 });
+assert.deepEqual([louder.values.volumeMin, louder.values.volumeMax, louder.valuesFrom.radiusMax, louder.valuesFrom.volumeMin], [0.5, 0.8, 'edited', 'edited']);
+assert.equal(humming.values.radiusMax, 750);
+
+// what a project saves, and back
+assert.deepEqual(savedValues({ scale: 2, parameters: { Size: [1, 2, 3], Opacity: 0.5 }, startsOn: null }),
+                 { scale: 2, parameters: [{ name: 'Opacity', value: 0.5 }, { name: 'Size', value: [1, 2, 3] }] });
+assert.equal(savedValues({ parameters: {} }), null);
+assert.equal(savedValues(null), null);
+assert.deepEqual(keptValues({ follow: 'none', scale: 2, parameters: [{ name: 'Opacity', value: 0.5 }] }), { scale: 2, parameters: { Opacity: 0.5 } });
+assert.equal(keptValues({ follow: 'none' }), null);
+// why values can't be set
+assert.equal(valuesViewOnly(glow), null);
+assert.equal(valuesViewOnly({ ...humming, can: { values: false }, why: { values: 'its cue Hum is a game asset, not its own' } }), 'its cue Hum is a game asset, not its own');
+assert.match(valuesViewOnly({ kind: 'flare' }), /lens flare/);
 
 console.log('effects_rules: ok');
