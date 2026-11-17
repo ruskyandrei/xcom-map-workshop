@@ -8,6 +8,45 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Release 0.5.3: piece flags, the test squad, Build in the project manager, maps named after their project
+
+At the user's ask ("let's push, and prepare a new patch release with the changes since last release"). Main was
+pushed first (`ca20844`), after the `repo` suite; the release is made on main.
+
+- [version.py](tools/viewer/version.py) 0.5.3: the patch step.
+- Release notes: [tools/release/notes/0.5.3.md](tools/release/notes/0.5.3.md), drawn from the entries since 0.5.2.
+  - **Upgrading:** every map is read again on its first open (export 27, 0.5.2 had 24), and pieces of other maps on
+    first use (piece records 9). A project or prefab saved in 0.5.3 can't be opened in 0.5.2, which reads schema 1
+    only. Projects saved before keep their output names.
+  - **New features:** piece flags, Select all of a kind, the test squad, Build in the project manager, the project
+    manager's new layout and project files in map packs, maps named after their project, grids up to 256 a side.
+  - **Changes:** the tile grid from the game's own record (Battleship, Deluge, Furies), the guide online. A line on
+    the editor no longer saying untried was taken out at the user's ask.
+  - **Bugs fixed:** Roadhouse's van (T-36), F-117, F-118, Map grid on maps past 128 (T-41), an invisible floor off the
+    tile snap.
+  - **Known limits, four:** a low piece's Blocks walking and a door's flags (EXP-62), a test battle isn't a campaign
+    mission, a new map from one of the game's with only its pieces, tested mainly with Long War Rebalance.
+- The guide's New in this version ([guide.html](tools/release/guide/guide.html)) gains a New in 0.5.3 table above
+  0.5.2's. The testers' README ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) gains the same list.
+- The [release skill](.claude/skills/release/SKILL.md)'s step 4 no longer asks the Known limits to say what isn't
+  played, which its rules (and the 16 November entry) had already dropped.
+- Made in `dist/release` beside the earlier ones:
+  - `XCOM-Map-Workshop-0.5.3.zip`: 101,973,605 bytes, 142 of our files, SHA-256 `5307b161…8781e6c35`;
+  - `XCOM-Map-Workshop-0.5.3-Setup.exe`: 63,704,732 bytes, Inno Setup 6, SHA-256 `b56bab56…ef116f39`.
+
+  The staged Python's import check passed.
+- **Checked.**
+  - `tools/run_tests.py`, every suite, on main at `ca20844`: viewer 417, editor 236 (4 skipped), upk 119 (the tile
+    grid of every listed map included), bake 407 (1 skipped), release 6, repo 3, node 9 files, all pass. After the
+    version and text changes, release and viewer `-k guide` pass.
+  - `smoke_release.py`: 10 of 10 steps passed. The two files and their SHA-256s (confirmed with `sha256sum`); the zip
+    read back, 141 of our files equal to the repository's; the release started with its own Python on port 8795,
+    `/setup.json` says 0.5.3, URB_Bar listed and opened in headless Edge (966 pieces) with no page errors, the help
+    says "XCOM Map Workshop 0.5.3 (preview)", `browser_smoke --only light-grid,text-select` passed. Server stopped,
+    trial folder deleted.
+- Not published (ask first). Known gaps: the installer wasn't run. Nothing was played for this release beyond the
+  experiments the ledger names; EXP-63 (a baked build's lighting under its new file name) is prepared, not played.
+
 ### Effects census, version 2: copies left out, the plan's evidence gaps closed
 
 The effects and sounds plan was checked again, at the user's ask, against the code as it stands and the packages.

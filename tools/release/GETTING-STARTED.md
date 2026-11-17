@@ -59,6 +59,15 @@ checks, if something seems wrong.
 
 Each of these has its own section in the user guide, with pictures.
 
+New in 0.5.3:
+- **Piece flags** in the piece panel: Blocks walking, Gives cover, Blocks sight, Floor and Mouse picks it.
+  **Select all of a kind** picks every piece with the same mesh.
+- **Test squad setup** (Settings, the gear in the header): the squad every Play in game lands with; under Long War
+  Rebalance up to eight soldiers, MEC troopers and SHIVs with their gear.
+- **Build** in the project manager builds the ticked projects one after another while you go on editing. The
+  manager is laid out again, and a map pack can carry the maps' editor projects.
+- **Maps named after their project**, shown in Save, and **maps up to 256 tiles a side**.
+
 New in 0.5.2:
 - **Play in game plays the mission you pick** (the header's Mission picker), not always an abduction, and says how
   far that kind is known to work. **Missions…** (Project menu) chooses a project's missions and can add some.
