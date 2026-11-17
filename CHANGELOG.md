@@ -48,6 +48,22 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### hidden_game.py plays turns: sessions, goto, aim
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--serve <idle seconds>` keeps the hidden game running and
+  `send <folder> <steps>` hands it more steps and prints what the game's log answered, so a step can go by an earlier
+  one's answer; `goto <folder> <x> <y>` walks the active soldier to a tile and `aim <folder> <x> <y> [steps]` puts the
+  game's 3D cursor on one (the camera's field of view and yaw put the picture's corner, where the game's mouse stands,
+  over the tile; the cursor is read back and corrected); `--squad <file>` lands a squad of records (the game's own
+  can't walk).
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs): steps `serve` and `quit`; a console step takes several commands
+  (` | ` between them, run in one frame) and its files have short names (`xmwh<N>.txt`), which type faster.
+- Checked: the `lab` suite (14 tests: the aim's camera against the four yaws measured in the game, the log answers),
+  and two sessions in the lab copy on URB_Bar: a soldier walked to two tiles, a Sectoid dropped on a chosen tile was
+  shot dead, another killed by a grenade aimed the same way, the turn ended and turn 2 began, cover values read back.
+  Findings in [T-43](research/findings-register.md). Gaps: upper floors and roofs, saves, the LWR install not tried;
+  a grenade's aim is set with the camera commands by hand.
+
 ### Game checks nobody watches: hidden_game.py
 
 - [tools/lab/hidden_game.py](tools/lab/hidden_game.py) runs the lab copy's game on a private desktop and works through

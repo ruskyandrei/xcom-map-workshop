@@ -2647,9 +2647,40 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
       soldier (his name and weapon in the shot), E three times and G four turned and pulled back the camera.
   - **No mouse there.** Posted `WM_MOUSEMOVE` and button messages at the main menu's Options button did nothing (no
     highlight, no screen), and `SetCursorPos` and `GetCursorPos` are refused on a desktop that isn't the one shown
-    (error 5), so the game has no cursor to read. A soldier can't be sent to a tile by pointing; what a check needs
-    there must come from the console (`TeleportToCursor` has no cursor either) or the keyboard.
-  - Not tried: a turn played by keys, a save, more than one game at once, the LWR install.
+    (error 5), so the game has no cursor to move. Pointing goes by the camera instead (below).
+  - **Turns played there** (17 November, evening; URB_Bar, the default LWR test squad, two sessions of
+    `hidden_game.py --serve` with steps sent as the answers came back):
+    - Where the mouse is: the game's `UIMouseCursor.m_v2MouseLoc` stays 0,0 (a timer reads it from the interface ten
+      times a second, so `set` doesn't hold), and the tile under the picture's top left corner is where its 3D cursor
+      goes, every frame. Edge scrolling stays off (the mouse never left its first place).
+    - Pointing at a tile: with the camera straight down on the active soldier (`SetOverheadCameraParameters <fov>
+      1256 -89`), the corner's tile lies 1440 × tan(fov / 2) world units from him, in the direction of the camera's
+      yaw plus 72° (`SetCameraYaw`; yaw 0 gave the tile 96,288 from him, 90 gave -288,96, 180 gave -96,-288, 270 gave
+      288,-96). The cursor's place read back (`getall XCom3DCursor Location`) was the asked tile each time, once the
+      camera had stopped turning.
+    - A look-at (`ViewLocation`) is no way to point: while one is up the camera hides the cursor
+      (`m_bHiddenOverride`) and no path is built.
+    - The order: `Right_Mouse_Button_Press` and `Right_Mouse_Button_Release` as two console commands. The log:
+      "Alpha moved 2 tiles", and his place was the tile's (1583,911, then 1391,1103 by `hidden_game.py goto`). The
+      controller's `A_Button_Press` does nothing while the mouse is on (the game drops controller events then), and
+      `UseController` stops the game at "Please Reconnect Controller".
+    - **The game's own squad for this path can't walk**: its soldiers stand and show, but their animation trees have
+      no movement node (`Accessed None 'Animations'` in `PostInitAnimTree` as they spawn), so an ordered move starts
+      and never ends (`XGAction_Move_Direct`, `Accessed None 'MovementNode'` every frame) and the console stops
+      answering. With the test squad's records (`--squad`) the soldiers walk.
+    - Aliens: `DropSectoid` with the cursor aimed (`hidden_game.py aim`) put a Sectoid on that tile.
+    - A shot: key 1 opened Standard Shot on it (100% to hit), Enter fired; the log has the hit, 9 damage and the
+      death.
+    - A grenade: its key opened the view aimed at the thrower's own tile, and Tab did not move it; the same camera
+      commands while the view was open moved the aim onto the Sectoid (the view stays on the thrower), Enter threw,
+      a second Enter answered the box about a friendly unit in the blast. The log: 29 damage and the Sectoid's
+      death, 16 to the soldier beside it.
+    - The turn: `EndTurn` ran the aliens' turn (15 seconds) and XCOM's turn 2 began with a pod revealed.
+    - Read back: `getall XGUnit m_bInCover`, `m_iCurrentCoverValue` (50 for the one soldier in cover) and
+      `CurrentCoverPointFlags`; `getall XGUnit m_arrVisibleEnemies` printed nothing for anyone (an array `getall`
+      doesn't print, or nobody in sight: not told apart).
+  - Not tried: a save, a move upstairs or onto a roof (the cursor's floor), a target hidden under a roof, more than
+    one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
   `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get

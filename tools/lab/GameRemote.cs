@@ -9,7 +9,12 @@
 //   wait <s>                    sleep
 //   waitlog <s> <text>          wait until the game's log holds <text> (any case), at most <s>; the run fails if it doesn't
 //   console <command>           run a console command: written to a file in XEW\Binaries and run by typing
-//                               "exec <file>" in the game's one-line console (so any character can be in it)
+//                               "exec <file>" in the game's one-line console (so any character can be in it);
+//                               several commands with " | " between them go in one file, run in one frame
+//   serve <idle s>              take further steps from files while the game runs: <out>\inbox\<name>.txt, in the
+//                               order of the names; <name>.done then says "ok" or why it stopped. Ends at a quit
+//                               step or after <idle s> without a file (hidden_game.py's --serve and send)
+//   quit                        end the run now
 //   type <command>              type the command itself in the console (letters, digits, space, '-' and '.' only)
 //   shot <name>                 the game's own "shot"; the picture is saved as <out>\<name>.png
 //   key <name> [count]          a key: A-Z, 0-9, F1-F12, RETURN, ESCAPE, SPACE, TAB, BACK, the arrows, HOME, END,
@@ -215,6 +220,8 @@ internal static class GameRemote
                     if (n != 1 || step.Args[0].IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) throw new Fail(2, "line " + step.Line + ": shot <name>");
                     break;
                 case "key": if (n < 1 || n > 2) throw new Fail(2, "line " + step.Line + ": key <name> [count]"); VkFromName(step.Args[0], step.Line); if (n == 2) Number(step.Args[1], step.Line); break;
+                case "serve": if (n != 1) throw new Fail(2, "line " + step.Line + ": serve <idle seconds>"); Number(step.Args[0], step.Line); break;
+                case "quit": if (n != 0) throw new Fail(2, "line " + step.Line + ": quit takes nothing"); break;
                 default: throw new Fail(2, "line " + step.Line + ": unknown step " + step.Verb);
             }
             steps.Add(step);
@@ -250,9 +257,9 @@ internal static class GameRemote
                 }
                 case "console":
                 {
-                    string name = string.Format("XComMapWorkshop-hidden-{0}.txt", ++execCount);
+                    string name = string.Format("xmwh{0}.txt", ++execCount);
                     string file = Path.Combine(binaries, name);
-                    File.WriteAllText(file, step.Rest + "\r\n", new UTF8Encoding(false));
+                    File.WriteAllText(file, step.Rest.Replace(" | ", "\r\n") + "\r\n", new UTF8Encoding(false));
                     execFiles.Add(file);
                     Say("console {0}", step.Rest);
                     TypeCommand("exec " + name);
@@ -269,8 +276,40 @@ internal static class GameRemote
                     for (int i = 0; i < count; i++) { Key(vk); Thread.Sleep(60); }
                     break;
                 }
+                case "serve": Serve(Number(step.Args[0], step.Line)); break;
+                case "quit": throw new Quit();
             }
         }
+    }
+
+    sealed class Quit : Exception { }
+
+    // Takes further steps while the game runs: each file <out>\inbox\<name>.txt is a list of steps, done in the order
+    // of the names; <name>.done then holds "ok" or why it stopped (the game goes on), and the file is removed. Ends
+    // at a quit step, or when no file came for `idle` seconds.
+    static void Serve(double idle)
+    {
+        string inbox = Path.Combine(outFolder, "inbox");
+        Directory.CreateDirectory(inbox);
+        Say("serving {0} (idle limit {1} s)", inbox, idle);
+        DateTime last = DateTime.UtcNow;
+        while ((DateTime.UtcNow - last).TotalSeconds < idle)
+        {
+            string[] files = Directory.GetFiles(inbox, "*.txt");
+            if (files.Length == 0) { Sleep(0.25); continue; }
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+            string file = files[0], result = "ok";
+            Thread.Sleep(100);                                                   // let the writer finish
+            bool quit = false;
+            try { Run(ReadSteps(file)); }
+            catch (Quit) { quit = true; }
+            catch (Fail fail) { if (fail.Code == 1) throw; result = "FAIL: " + fail.Message; Say(result); }
+            File.Delete(file);
+            File.WriteAllText(Path.ChangeExtension(file, ".done"), result + "\r\n");
+            if (quit) throw new Quit();
+            last = DateTime.UtcNow;
+        }
+        Say("no steps for {0} s", idle);
     }
 
     static int Main(string[] args)
@@ -304,6 +343,7 @@ internal static class GameRemote
             Run(steps);
             Say("steps done");
         }
+        catch (Quit) { Say("quit"); }
         catch (Fail fail) { Say("FAIL: " + fail.Message); code = fail.Code; }
         catch (Exception error) { Say("FAIL: " + error.Message); code = 1; }
         finally

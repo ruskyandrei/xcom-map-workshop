@@ -63,7 +63,7 @@ class PreparedCopy(unittest.TestCase):
             (config / 'XComContent.ini').write_bytes(b'[content]\r\nbAllowJITLoad=True\r\n')
             (config / 'XComNew.ini').write_bytes(b'new')
             (config / 'XComEngine.ini').unlink()
-            (play.parent / 'XComMapWorkshop-hidden-1.txt').write_bytes(b'shot')
+            (play.parent / 'xmwh1.txt').write_bytes(b'shot')
             self.assertEqual(sorted(prepared.restore()), ['XComContent.ini', 'XComEngine.ini', 'XComNew.ini'])
             self.assertEqual((config / 'XComContent.ini').read_bytes(), b'[content]\r\n')
             self.assertEqual((config / 'XComEngine.ini').read_bytes(), b'[engine]\r\n')
@@ -91,6 +91,50 @@ class PreparedCopy(unittest.TestCase):
             game, dll = make_game(root, marker=False), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
             with self.assertRaisesRegex(RunError, 'not the lab copy'): Prepared(game, dll)
             self.assertFalse((hidden_game.win32(game) / 'd3d9.dll').exists())
+
+
+class Pointing(unittest.TestCase):
+    """The camera that puts the picture's corner over a tile, against what the game answered (17 November 2026, a
+    soldier at 1583,911, field of view 20: yaw 0 gave the tile 96,288 from him, yaw 90 the tile -288,96)."""
+
+    def corner(self, fov, yaw):
+        import math
+        reach = hidden_game.AIM_REACH * math.tan(math.radians(fov / 2))
+        angle = math.radians(yaw + hidden_game.AIM_ANGLE)
+        return reach * math.cos(angle), reach * math.sin(angle)
+
+    def test_measured_yaws_fall_on_their_tiles(self):
+        for yaw, tile in ((0, (96, 288)), (90, (-288, 96)), (180, (-96, -288)), (270, (288, -96))):
+            x, y = self.corner(20, yaw)
+            self.assertTrue(hidden_game.on_tile((x, y), tile), (yaw, x, y))
+
+    def test_camera_for_a_target_points_back_at_it(self):
+        unit = (1583.0, 911.0)
+        for target in ((1391.0, 1103.0), (1583.0, 719.0), (2543.0, 911.0), (1487.0, 911.0)):
+            fov, yaw = hidden_game.aim_camera(unit, target)
+            x, y = self.corner(fov, yaw)
+            self.assertAlmostEqual(unit[0] + x, target[0], places=3)
+            self.assertAlmostEqual(unit[1] + y, target[1], places=3)
+
+    def test_own_tile_refused(self):
+        with self.assertRaisesRegex(RunError, 'stands on'): hidden_game.aim_camera((0, 0), (10, 10))
+
+
+class Answers(unittest.TestCase):
+    LOG = ("[0134.67] Log: 2) XGUnit URB_Bar.TheWorld:PersistentLevel.XGUnit_2.Location = (X=1582.961426,Y=911.033325,Z=67.178223)\n"
+           "[0134.67] ScriptWarning: Accessed None 'm_kInventory'\n"
+           "\tFunction LWRebalance.LWRGfx_UnitFlag:SetOWDamage:00E2\n"
+           "[0134.68] Log: Execing ..\\..\\Binaries\\xmwh3.txt\n"
+           "[0134.68] ExecWarning: Unrecognized property m_iMovesLeft\n")
+
+    def test_log_gain_keeps_answers_only(self):
+        lines = hidden_game.log_gain(self.LOG)
+        self.assertEqual(len(lines), 2)
+        self.assertIn('XGUnit_2.Location', lines[0])
+        self.assertIn('Unrecognized property', lines[1])
+
+    def test_vectors_by_object(self):
+        self.assertEqual(hidden_game.vectors(hidden_game.log_gain(self.LOG)), {'XGUnit_2': (1582.961426, 911.033325, 67.178223)})
 
 
 class Arguments(unittest.TestCase):
