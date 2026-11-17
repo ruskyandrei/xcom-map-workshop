@@ -123,6 +123,9 @@ class Manager(unittest.TestCase):
                           ('eMission_Special', 'False', dep.field(council, 'DisplayName')),      # replacing: asked for by name
                           ('eMission_TerrorSite', 'True', f'{VARIANT} (Bar remix, Terror) |0')])
         self.assertFalse(any('played' in w for w in done['warnings']), done['warnings'])
+        # F-118: Bar's own terror record, which the build has no record for, stays in use; the others are replaced
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [terror])
+        self.assertTrue(any(w.startswith('Terror: the build has no record') for w in done['warnings']), done['warnings'])
         # a play of the added terror installs the Build's record for it
         r = player.play(dict(project=ID, mission='TerrorSite'))
         self.assertEqual(r['played']['mission']['label'], 'Terror')
@@ -487,6 +490,82 @@ class Manager(unittest.TestCase):
         self.assertEqual(self.named(self.copy, installs.INTRO_SLOT), [VARIANT])
         manager.install(self.store, self.builds, player, request)
         self.assertEqual(self.files(self.copy), self.files(self.lwr))
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual(self.files(self.copy), before)
+
+    def covert_only(self, *games):
+        """Bar as the first mission's map with a covert extraction record too, and a build for covert extraction only
+        (mission types plan, D4): its one record stands for Bar's second record. Returns (first, covert)."""
+        for game in games:
+            first = self.first_mission_bar(game)
+            path = game / 'XEW/XComGame/Config/DefaultMaps.ini'
+            lines = dep.lines_of(path.read_bytes())
+            covert = dep.set_field(dep.set_field(first, 'MissionType', 'eMission_CovertOpsExtraction', quoted=False),
+                                   'DisplayName', 'URB_Bar (Covert Extraction) |0')
+            lines[lines.index(first) + 1:lines.index(first) + 1] = [covert]
+            path.write_bytes(dep.EOL.join(lines))
+        line = dep.set_field(dep.set_field(covert, 'Name', VARIANT), 'DisplayName', f'{VARIANT} (Bar remix, Covert extraction) |0')
+        self.package(maps=[line.decode('latin-1')], record_missions=[[1]])
+        folder = self.output / VARIANT
+        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        m['config']['missionsFromProject'] = True
+        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        return first, covert
+
+    def test_a_variant_for_other_missions_leaves_the_first_missions_record_in_use(self):
+        # F-118: replacing commented out every record of the base map, also those of missions the build has no record
+        # for, so a variant for covert extraction only left a new campaign's first mission with no map
+        first, covert = self.covert_only(self.lwr)
+        before = self.files(self.lwr)
+        player = self.player()
+        replace = self.row(manager.listing(self.store, self.builds, player))['modeWarnings']['replace']
+        self.assertTrue(any('Abduction: the build has no record' in w and 'first mission' in w for w in replace), replace)
+        done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))['results'][0]
+        self.assertEqual((done['ok'], done['switchedOff']), (True, 1))
+        self.assertTrue(any('first mission' in w for w in done['warnings']), done['warnings'])
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [first])
+        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), ['URB_Bar'])
+        self.assertIn(b';' + covert, dep.lines_of(self.files(self.lwr)['DefaultMaps.ini']))
+        # the Game maps window: the abduction record in use, the covert extraction record replaced by the project
+        bar = next(m for m in gamemaps.listing(player)['maps'] if m['name'] == 'URB_Bar')
+        self.assertEqual([(x['mission'], x['state'], x['by']) for x in bar['records'][:2]],
+                         [('Abduction', 'on', None), ('Covert extraction', 'replaced', ['Bar remix'])])
+        # an install written before standsFor replaced every record of its base map, and still does
+        ledger = installs.read_ledger(self.lwr)
+        old = [{k: v for k, v in e.items() if k != 'standsFor'} for e in ledger['rotation']]
+        self.assertEqual(set(installs.replaced_records(dict(ledger, rotation=old), dep.lines_of(before['DefaultMaps.ini']))),
+                         {first.decode('latin-1'), covert.decode('latin-1')})
+        installs.reset(self.lwr)
+        self.assertEqual(self.files(self.lwr), before)
+
+    @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use(self):
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        first, covert = self.covert_only(self.lwr, self.copy)
+        before = self.files(self.copy)
+        player = self.player()
+        request = dict(projects=[ID], mode='replace', modes={})
+        r = manager.pack(self.store, self.builds, player, dict(request, name='Covert only'))
+        folder = Path(self.temp.name) / 'unzipped covert only'
+        with zipfile.ZipFile(r['zip']) as z: z.extractall(folder)
+        packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
+        self.assertEqual((packed['switch'], packed['keep']), (['URB_Bar (Covert Extraction) |0'], [installs.INTRO_SLOT]))
+        readme = (folder / 'README.txt').read_bytes().decode('latin-1')
+        self.assertIn("URB_Bar's own records to leave as they are", readme)
+        self.run_script(folder, 'Install.cmd', self.copy)
+        self.assertEqual(self.records(self.copy, 'URB_Bar'), [first])
+        self.assertEqual(self.named(self.copy, installs.INTRO_SLOT), ['URB_Bar'])
+        manager.install(self.store, self.builds, player, request)
+        self.assertEqual(self.files(self.copy), self.files(self.lwr))
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual(self.files(self.copy), before)
+        # a pack from before switch comments out every record of the base map, as it did
+        described = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))
+        for m in described['maps']: m.pop('switch'); m.pop('keep')
+        (folder / 'pack.json').write_text(json.dumps(described), encoding='utf-8')
+        self.run_script(folder, 'Install.cmd', self.copy)
+        self.assertEqual(self.records(self.copy, 'URB_Bar'), [])
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
         self.assertEqual(self.files(self.copy), before)
 

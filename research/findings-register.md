@@ -12,9 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-117: a variant replacing Commercial Alley Redux now keeps the first mission's record name (fixed offline, 17
-  November); not played in a new campaign. Open: a replacing variant whose project leaves the abduction out still
-  leaves the first mission without a map.
+- F-117, F-118: a variant replacing Commercial Alley Redux now keeps the first mission's record name, and Replace
+  comments out only the base map's records the variant has records for, so the first mission always has a map
+  (fixed offline, 17 November); not played in a new campaign.
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November).
@@ -2545,9 +2545,24 @@ and `test_a_packs_scripts_give_the_first_missions_name_to_the_variant_that_repla
   warnings say the variant plays the first mission. Beside the original (Additional) nothing changes: the original
   keeps the first mission. The user's pack was mended by hand, with that record's DisplayName changed in its
   `pack.json`; a pack made before the fix needs the same.
-- **Not done.** A replacing variant whose build has records for the project's missions only, without the abduction
-  (mission types plan, D4), has no record for the first mission while the original's is commented out, so the first
-  mission would again find no map. The same goes for a council mission the project leaves out.
+- A replacing variant whose build has no abduction record left the first mission without a map too: F-118.
+
+### F-118: Replacing commented out the base map's records for missions the variant has no record for
+**Fixed** (17 November 2026, offline: `test_manager` `test_a_variant_for_other_missions_leaves_the_first_missions_record_in_use`
+and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not played).
+- **Cause.** A build has records for its project's missions only (mission types plan, D4), but Replace commented
+  out every record of the base map: the editor's install by the base map's name (`_sync_off`), a pack's script by
+  the `Name` field. A mission the variant has no record for lost the map altogether: harmless for a rotation
+  mission (other maps serve it), but a mission that asks for its map by name found none. A variant of
+  `URB_CommercialAlley_EWI` for covert extraction only left a new campaign's first mission with no map (F-117),
+  and one leaving out a council mission left that mission with none.
+- **Fix.** A rotation install records the base map's records its build has records for (`standsFor`, from
+  `recordMissions`); only those are commented out (`installs.replaced_records`, `_sync_off`), and the others stay in
+  use. An install written before `standsFor` still replaces every record of its base map. A pack lists them in
+  `pack.json` (`switch`, the display names `Install.cmd` comments out; `keep`, the ones it leaves), and a pack from
+  before `switch` comments out every one. The Replace warnings name the missions left to the original (and say when
+  the original plays the first mission); the project manager works them out from the last build's records. The Game
+  maps window marks only the replaced records.
 
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code

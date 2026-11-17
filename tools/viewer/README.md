@@ -918,8 +918,9 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     box, Ctrl+A). The selection keeps projects the filter hides, and says how many.
   - Each selected project with a build goes into campaigns its own way, chosen on the right: **Additional** (the
     variant's records go into the rotation beside the base map's) or **Replace** (as well, the base map's own records
-    are commented out, a `;` before each line: that is known to stop the game using a record, which
-    `bInRotation=False` is not). It starts as the way it is in the game now, else Additional; **Set all to** sets
+    for the missions the variant has records for are commented out, a `;` before each line: that is known to stop the
+    game using a record, which `bInRotation=False` is not; a record of a mission the build has none for, its project
+    being for other missions, stays in use: F-118). It starts as the way it is in the game now, else Additional; **Set all to** sets
     every selected one. A variant gets one record per record of its base map, each in or out of rotation as the base
     map's is. So one install, or one map pack, can hold maps that replace their originals beside maps that are
     added. The requests carry each project's way as `"modes": {project id: mode}`; a pack with both says
@@ -934,7 +935,11 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - **A new campaign's first mission** asks for its map by name too, though its record is in rotation: under LWR the
     record `URB_CommercialAlley_EWI (Commercial Alley Redux) |0` (`installs.FIRST_MISSION`; EXP-03). A replacing
     variant's record for it keeps that display name and stays in rotation, so the variant plays the first mission;
-    with a name of its own the first mission found no map (F-117). Beside the original, the original keeps it.
+    with a name of its own the first mission found no map (F-117). Beside the original, the original keeps it, as it
+    does when the variant's build has no abduction record (F-118).
+  - **Map packs** say which records each replacing map comments out: `pack.json`'s `switch` (their display names,
+    which `Install.cmd` goes by) and `keep` (the base map's records left in use); the README lists both. A pack
+    from before `switch` comments out every record of the base map.
   - **Install in the game** does that in the install Play in game uses (`installs.install_rotation`): files copied,
     landing zones added, the records added after the base map's (after Play in game's own record, which stays first
     and separate). The Game maps window undoes it. The map list, the exporter and Build still read the install

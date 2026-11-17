@@ -89,6 +89,16 @@ def _missions(lines, base):
     return out
 
 
+def _mode_warnings(lines, m, missions, base, mode, lwr):
+    """What installing the project one way does to the missions (installs.mission_warnings): from its last build's
+    records when it has one (which of the base map's missions it has records for, F-118), else from the base map's."""
+    if m and lines is not None:
+        try: plan = installs.rotation_plan(lines, m, '', mode)
+        except (KeyError, TypeError, ValueError, installs.InstallError): plan = None
+        if plan: return installs.mission_warnings(plan['missions'], base, mode, lwr=lwr, kept=plan['kept'])
+    return installs.mission_warnings(missions, base, mode, lwr=lwr) if missions else []
+
+
 def _targets(player):
     """(the game the manager installs into or None, why not, the game install the editor reads or None)."""
     if player is None: return None, 'This server installs nothing.', None
@@ -133,8 +143,7 @@ def listing(projects, builds, player):
         if build and build['quick']: warnings.append('Its last build is a quick one: its lighting is not baked.')
         if build and build['stale']:
             warnings.append(f'Its last build is of revision {build["revision"]}; the project is at revision {summary.get("revision")}.')
-        by_mode = {mode: installs.mission_warnings(missions, summary.get('map'), mode, lwr=lwr) if missions else []
-                   for mode in installs.ROTATION_MODES}
+        by_mode = {mode: _mode_warnings(lines, m, missions, summary.get('map'), mode, lwr) for mode in installs.ROTATION_MODES}
         in_game = None
         if variant in played or variant in rotation:
             entry = rotation.get(variant)
@@ -221,8 +230,8 @@ def _safe(name):
 
 def pack_readme(pack, parts):
     """The map pack's README: what is in it and how it goes into a game by hand. parts: one per build, dict(name,
-    variant, base, mode, files, records (text lines), switch (the base map's display names to comment out),
-    landingZones (text lines or None), warnings, quick)."""
+    variant, base, mode, files, records (text lines), switch (the base map's display names to comment out), keep
+    (those of its records to leave in use: the build has no record for their missions), landingZones (text lines or None), warnings, quick)."""
     replace = any(p['mode'] == 'replace' for p in parts)
     mixed = pack['mode'] == 'mixed'
     lines = [
@@ -267,8 +276,12 @@ def pack_readme(pack, parts):
         if p['mode'] == 'replace' and p['switch']:
             lines += ['', '   %s\'s own records to comment out (a ; before the line), by their DisplayName:' % p['base']]
             lines += ['     %s' % d for d in p['switch']]
-        elif p['mode'] == 'replace':
+        elif p['mode'] == 'replace' and not p.get('keep'):
             lines += ['', '   %s has no live record here: nothing to comment out.' % p['base']]
+        if p['mode'] == 'replace' and p.get('keep'):
+            lines += ['', '   %s\'s own records to leave as they are (the map has no record for their missions, so the' % p['base'],
+                      '   original stays in use there):']
+            lines += ['     %s' % d for d in p['keep']]
     zones = [p for p in parts if p['landingZones']]
     if zones:
         lines += ['', '3. XEW\\XComGame\\Config\\DefaultLZMutator.ini (Long War\'s landing zones; skip this without Long War): add each',
@@ -348,20 +361,23 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                 if files.get(src.name, (src, digest))[1] != digest:
                     raise installs.InstallError(f'{src.name} is in two of the builds with different contents')
                 files[src.name] = (src, digest)
-            # the base map's live records (a map whose records the install comments out has none)
-            switch = [dep.field(l, 'DisplayName') or '' for l in lines
-                      if dep.is_record(l) and dep.field(l, 'Name') == base] if its == 'replace' else []
+            # replacing: the base map's live records the build has records for are commented out (switch), the others
+            # stay in use (keep, F-118); a map whose records the install comments out has none
+            live = [l for l in lines if dep.is_record(l) and dep.field(l, 'Name') == base] if its == 'replace' else []
+            stands = set(plan['standsFor'])
+            switch = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') in stands]
+            keep = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') not in stands]
             _, zones = installs.plan_variant_lz(lz, m, note) if lz is not None else (None, [])
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
-                              records=[l.decode('latin-1') for l in plan['block']], switch=switch,
+                              records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
                               landingZones=[l.decode('latin-1') for l in zones] or None,
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
                               donors=[{k: d.get(k) for k in ('map', 'sha256', 'pieces')} for d in m.get('donors') or []],
                               warnings=(['Its lighting is not baked (a quick build).'] if m.get('quick') else [])
-                              + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr')))
+                              + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr', kept=plan['kept'])))
         except (OSError, ValueError, KeyError, installs.InstallError) as error:
             skipped.append(dict(id=project_id, name=name, error=str(error)))
     if not parts:
@@ -386,7 +402,7 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                      id=re.sub(r'[^A-Za-z0-9_.-]+', '-', f'{name}-{stamp}'),
                      madeAt=now.isoformat(timespec='seconds'), game=kind_label(game) if game is not None else None,
                      maps=[{**{k: p[k] for k in ('id', 'name', 'variant', 'base', 'mode', 'quick', 'revision', 'buildId', 'files',
-                                              'records', 'switch', 'landingZones', 'donors', 'warnings')},
+                                              'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings')},
                            **({'ownZones': True} if p.get('ownZones') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
                      **({'projects': shared} if shared else {}))

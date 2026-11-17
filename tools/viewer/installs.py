@@ -377,7 +377,7 @@ def status(game):
     at = _ours(ledger, lines)
     intro = None if at is None else dict(map=dep.field(lines[at], 'Name'),
                                          ownMap=dep.field(ledger['slot']['original'].encode('latin-1'), 'Name'))
-    rotation = [{k: v for k, v in entry.items() if k != 'lines'} for entry in ledger.get('rotation') or []]
+    rotation = [{k: v for k, v in entry.items() if k not in ('lines', 'standsFor')} for entry in ledger.get('rotation') or []]
     off = ledger.get('linesOff') or []
     return dict(installed=installed, intro=intro, playFile=play_file(game).is_file(), rotation=rotation,
                 recordsOff=len(off), switchedOff=len(ledger.get('manualOff') or []),
@@ -1087,13 +1087,16 @@ def rotation_plan(lines, m, note='', mode='additional'):
     one record per record of the base map (its missions), each under the variant's name, in or out of rotation as the
     base map's record is, streaming the package's patch (if any) in a free slot and its own copies of the intros in
     place of the originals. dict(block=[a comment line, the records], missions=[{type, label, group, inRotation,
-    byName, bomb, firstMission (when true)}] one per record). Two records the renaming makes the same give one.
+    byName, bomb, firstMission (when true)}] one per record, standsFor=[the base map's records (text) the variant has a
+    record for], kept=[the missions, as in missions, of the base map's records it has none for]). Two records the
+    renaming makes the same give one.
 
     Display names: the game asks for a council mission's map (and the story's) by its record's DisplayName, not through
     the rotation; those records are out of rotation in the install (byName). So does a new campaign's first mission,
     whose record is in rotation (FIRST_MISSION, F-117). To replace the map, the variant's record for such a mission
     keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every other record gets a
-    name of its own: <variant> (<project>[, <mission>])."""
+    name of its own: <variant> (<project>[, <mission>]). Replacing comments out only the records in standsFor: a base
+    record the build has no record for (its project is for other missions) stays in use (F-118)."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
@@ -1127,7 +1130,17 @@ def rotation_plan(lines, m, note='', mode='additional'):
                              bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {})))
     how = 'in place of' if mode == 'replace' else 'beside'
     comment = f'; {variant}: {base}\'s records under its own name, {how} {base}\'s ({note})'.encode()
-    return dict(block=[comment] + records, missions=missions)
+    return dict(block=[comment] + records, missions=missions, standsFor=[l.decode('latin-1') for _, l in found], kept=[])
+
+
+def _base_mission(line):
+    """A base map record's mission, as rotation_plan's missions give it."""
+    import deploy_fixture as dep
+    import maplist
+    group, kind, label = maplist.mission_of(line.decode('latin-1'))
+    in_rotation, first = _in_rotation(line), _first_mission(line)
+    return dict(type=kind, label=label, group=group, inRotation=in_rotation, byName=not in_rotation or first,
+                bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {}))
 
 
 def _rotation_from_build(found, m, note, mode):
@@ -1135,12 +1148,14 @@ def _rotation_from_build(found, m, note, mode):
     for (config.recordMissions): the Build's own records (the project's missions only, mission types plan D4), each in
     or out of rotation as the base map's record is (an added kind as ADDED_KINDS says: a bomb out, the rest in), and
     in replace mode a record the game asks for by name (out of rotation, or the first mission's) with the base map's
-    display name."""
+    display name. standsFor: the base map's records any of them names; kept: the others' missions."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
     variant, base = m['variant'], m['source']['map']
     records, out = [], []
+    stood = sorted({i for ids in m['config']['recordMissions'] for i in ids or []
+                    if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(found)})
     for line, ids in zip(m['config']['maps'], m['config']['recordMissions']):
         new = line.encode('latin-1')
         first = ids[0] if ids else None
@@ -1164,18 +1179,26 @@ def _rotation_from_build(found, m, note, mode):
     how = 'in place of' if mode == 'replace' else 'beside'
     what = 'the records of the missions the project is for' if m['config'].get('missionsFromProject') else f'{base}\'s records'
     comment = f'; {variant}: {what} under its own name, {how} {base}\'s ({note})'.encode()
-    return dict(block=[comment] + records, missions=out)
+    return dict(block=[comment] + records, missions=out, standsFor=[found[i][1].decode('latin-1') for i in stood],
+                kept=[_base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
 
 
-def mission_warnings(missions, base, mode, lwr=True):
+def mission_warnings(missions, base, mode, lwr=True, kept=()):
     """What happens to the missions when a variant with these records (rotation_plan's missions) is installed for
     campaigns, in sentences. The missions whose records are out of rotation (council missions, the story's) get their
     map by its record's name: a variant can replace that map but not stand beside it, except that Long War's mutator
     makes an extra bomb mission of each extra bomb record. A replacing variant's first-mission record (in rotation, but
     asked for by name too: F-117) takes the original's name, so the variant plays a new campaign's first mission.
-    Nothing here says a mission is untried (the user, 16 November 2026)."""
+    kept: the missions of the base map's records the variant has no record for (rotation_plan's kept), which a
+    replacing variant leaves to the original (F-118). Nothing here says a mission is untried (the user, 16 November
+    2026)."""
     named = [x for x in missions if not x['inRotation']]
     out = []
+    if mode == 'replace' and kept:
+        labels = list(dict.fromkeys(x['label'] for x in kept))
+        out.append(f'{", ".join(labels)}: the build has no record for {"these missions" if len(labels) > 1 else "this mission"}, '
+                   f'so {base}\'s own {"records stay" if len(kept) > 1 else "record stays"} in use there'
+                   + (', and the original plays a new campaign\'s first mission.' if any(x.get('firstMission') for x in kept) else '.'))
     if mode == 'replace':
         for x in missions:
             if x.get('firstMission'):
@@ -1197,16 +1220,34 @@ def mission_warnings(missions, base, mode, lwr=True):
     return out
 
 
+def replaced_records(ledger, lines):
+    """{record text: [the rotation entries that replace it]} over the install's own records in `lines` (pristine): an
+    entry in replace mode replaces the base map's records it stands for (standsFor: those its build has records for,
+    F-118), or, an entry written before standsFor, every record of its base map."""
+    import deploy_fixture as dep
+    entries = [e for e in ledger.get('rotation') or [] if e['mode'] == 'replace']
+    out = {}
+    for line in lines:
+        if not entries or not dep.is_record(line): continue
+        text = line.decode('latin-1')
+        for e in entries:
+            stands = e.get('standsFor')
+            if (text in stands) if stands is not None else dep.field(line, 'Name') == e['base']:
+                out.setdefault(text, []).append(e)
+    return out
+
+
 def _sync_off(lines, ledger, pristine):
     """The install's own records in `lines` (in place) commented out or live again, to follow the ledger: a record is
     commented out (a ';' before it: the game then never uses it, where bInRotation=False is not known to stop it)
-    while a variant replaces its map (a rotation install with mode 'replace') or it is switched off by hand (manualOff:
-    the Game maps window). What is commented out is kept in the ledger's linesOff ([{base, original, written}])."""
+    while a variant replaces it (a rotation install with mode 'replace' whose build has a record for its mission:
+    replaced_records) or it is switched off by hand (manualOff: the Game maps window). What is commented out is kept in
+    the ledger's linesOff ([{base, original, written}])."""
     import deploy_fixture as dep
-    replaced = {e['base'] for e in ledger.get('rotation') or [] if e['mode'] == 'replace'}
+    replaced = replaced_records(ledger, pristine)
     own = [l for l in pristine if dep.is_record(l)]
     manual = set(ledger.get('manualOff') or []) & {l.decode('latin-1') for l in own}
-    want = [l for l in own if dep.field(l, 'Name') in replaced or l.decode('latin-1') in manual]
+    want = [l for l in own if l.decode('latin-1') in replaced or l.decode('latin-1') in manual]
     wanted = {l.decode('latin-1') for l in want}
     kept = []
     for change in ledger.get('linesOff') or []:
@@ -1252,9 +1293,9 @@ def install_rotation(game, folder, mode, now=None):
 def _install_rotation(game, folder, mode, now=None):
     """Install a variant package for campaigns: its files, its landing zones and its records for the rotation
     (rotation_plan), after the base map's own records. mode 'additional': the base map's records stay as they are, so
-    missions draw from both; 'replace': the base map's own records are commented out, and the variant's records for
-    the missions the game asks for by name take their names (they go back when no variant replaces the map any more:
-    remove_rotation, reset). An earlier rotation install of the variant, of the same project, is replaced; what belongs
+    missions draw from both; 'replace': the base map's own records the variant has records for are commented out (the
+    entry's standsFor; the others stay in use, F-118), and the variant's records for the missions the game asks for by
+    name take their names (they go back when no variant replaces them any more: remove_rotation, reset). An earlier rotation install of the variant, of the same project, is replaced; what belongs
     to another project, or a file the editor didn't put there, is never replaced: everything is checked (preflight,
     the planned config lines) before anything is written. The record Play in game adds (install_package) is separate and stays first, so a play still
     opens the variant by it. Returns what was installed, with mission_warnings."""
@@ -1296,7 +1337,7 @@ def _install_rotation(game, folder, mode, now=None):
     entry = dict(variant=variant, base=base, mode=mode, lines=[l.decode('latin-1') for l in plan['block']],
                  installedAt=now.isoformat(timespec='seconds'), buildId=m.get('buildId'), quick=bool(m.get('quick')),
                  project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
-                 missions=plan['missions'])
+                 missions=plan['missions'], standsFor=plan['standsFor'])
     others = [e for e in ledger.get('rotation') or [] if e['variant'] != variant]
     # the planned lines checked on copies before anything is written
     _plan_rotation(json.loads(json.dumps(ledger)), list(new_maps), others + [entry], pristine)
@@ -1319,11 +1360,11 @@ def _install_rotation(game, folder, mode, now=None):
     ledger.setdefault('history', []).append(dict(at=entry['installedAt'], rotation=variant, mode=mode, buildId=m.get('buildId')))
     write_ledger(game, ledger)
     import settings
-    warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr')
-    rivals = [e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
+    warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr', kept=plan['kept'])
+    rivals =[e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
     if rivals and any(x['byName'] for x in plan['missions']):
         warnings.append(f'{", ".join(rivals)} replace{"s" if len(rivals) == 1 else ""} {base} too: for a mission the game asks for by name, it plays one of them.')
-    return dict({k: v for k, v in entry.items() if k != 'lines'},
+    return dict({k: v for k, v in entry.items() if k not in ('lines', 'standsFor')},
                 switchedOff=sum(1 for c in ledger.get('linesOff') or [] if c.get('base') == base) if mode == 'replace' else 0,
                 warnings=warnings)
 
@@ -1365,8 +1406,8 @@ def remove_rotation(game, variants, now=None, everything=False):
 
 def set_records_use(game, originals, use, now=None):
     """Switch records of the install's own off (commented out: the game then never uses them) or back on, from the Game
-    maps window. originals: the records' lines as the install has them (text). A record whose map a variant replaces
-    stays commented out while it does, whatever is asked here. Returns dict(changed, replaced: the lines that stay off
+    maps window. originals: the records' lines as the install has them (text). A record a variant replaces
+    (replaced_records) stays commented out while it does, whatever is asked here. Returns dict(changed, replaced: the lines that stay off
     because a variant replaces their map)."""
     import deploy_fixture as dep
     game = Path(game)

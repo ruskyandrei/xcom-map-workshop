@@ -4,8 +4,9 @@ with Windows' own PowerShell (5.1 or later).
 
 Install asks for the game folder (or takes it as its argument; it offers the Steam installs it finds), refuses while
 XCOM runs, keeps copies of DefaultMaps.ini and DefaultLZMutator.ini as they are, copies the pack's files, adds each
-map's records after its base map's (and, for a map made to replace its original, comments the base map's own records
-out: each map says which in pack.json, so one pack can hold both kinds), adds its landing zones where the install has Long War's file, and writes down what it did in
+map's records after its base map's (and, for a map made to replace its original, comments out the base map's own
+records it has records for, by their DisplayName in pack.json's switch, leaving the others in use (F-118): each map
+says which way in pack.json, so one pack can hold both kinds), adds its landing zones where the install has Long War's file, and writes down what it did in
 <game>\\XCOM Map Workshop\\packs\\<pack id>.json. Uninstall undoes exactly that: the lines it added go, the lines it
 commented out come back, the files it copied are deleted if unchanged; it says whether DefaultMaps.ini is then byte
 for byte as it was before the pack (it is, unless something else changed the file meanwhile, whose changes stay).
@@ -194,8 +195,18 @@ foreach ($map in @($pack.maps)) {
     $way = $map.mode
     if (-not $way) { $way = $pack.mode }
     if ($way -eq 'replace') {
+        # the base map's records the map has records for, by their DisplayName (switch); the others stay in use. A
+        # pack from before switch comments out every one.
+        $only = $null
+        if ($map.PSObject.Properties.Name -contains 'switch') { $only = [string[]]@($map.switch) }
         for ($i = 0; $i -lt $maps.Count; $i++) {
-            if ($maps[$i] -match $live) { $commented += $maps[$i]; $maps[$i] = ';' + $maps[$i] }
+            if ($maps[$i] -notmatch $live) { continue }
+            if ($null -ne $only) {
+                $display = ''
+                if ($maps[$i] -match 'DisplayName="([^"]*)"') { $display = $Matches[1] }
+                if ($only -cnotcontains $display) { continue }
+            }
+            $commented += $maps[$i]; $maps[$i] = ';' + $maps[$i]
         }
     }
     if ($hasLz -and $map.landingZones) {

@@ -8,6 +8,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Replace comments out only the base map's records the variant has records for (F-118)
+
+A build has records for its project's missions only, but Replace commented out every record of its base map, so a
+mission the variant has no record for lost the map. A mission that asks for its map by name then found none: a
+variant of Commercial Alley Redux for covert extraction only left a new campaign's first mission without a map.
+- [installs.py](tools/viewer/installs.py): `rotation_plan` returns `standsFor` (the base map's records the build has
+  records for, from `recordMissions`) and `kept` (the missions of the others); a rotation install keeps `standsFor`
+  in its ledger entry, and `replaced_records` / `_sync_off` comment out only those. An entry written before still
+  replaces every record of its base map. `mission_warnings` names, under Replace, the missions left to the original
+  and says when the original plays the first mission.
+- [pack_scripts.py](tools/viewer/pack_scripts.py): `pack.ps1` comments out the base map's live records whose
+  DisplayName is in the map's `switch`, leaving the rest; a `pack.json` without `switch` (an older pack) comments out
+  every one, as before. [manager.py](tools/viewer/manager.py) writes `switch` for the covered records only and
+  `keep` for the others, and the pack's README lists both. The project manager's Replace warnings come from the last
+  build's records when there is one.
+- [gamemaps.py](tools/viewer/gamemaps.py): the Game maps window marks only the replaced records.
+- The [README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html) and
+  [F-118](research/findings-register.md) say it.
+- Checked: two new tests in [test_manager.py](tools/viewer/tests/test_manager.py) (a covert-extraction-only variant
+  on the first mission's map through the editor, the Game maps window, an old ledger entry, and through a pack's
+  scripts, an old pack without `switch` too, each out byte for byte) and an assertion in the D4 test; they fail on
+  the code before the change. The `viewer`, `repo` and `release` suites pass. Not played in the game.
+
 ### A variant replacing Commercial Alley Redux keeps the first mission's record name (F-117)
 
 A user's map pack, installed with its scripts, left a new campaign unable to start its first mission. The first
