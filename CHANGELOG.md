@@ -8,6 +8,48 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds, stage FX1: export 28 and the Effects view (view only)
+
+The first stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's effects, sounds and lens
+flares in the export, and a view that shows them. Nothing a Build makes changes.
+- [effects_metadata.py](tools/viewer/effects_metadata.py), new: each effect, sound and flare with its identity, pose,
+  starting state, script users, attachment, landing role, carrying piece and what the editor may do with it (`can`,
+  `why`); an effect's saved particle parameters against what its system offers, its floors and component transform;
+  a sound's cue, waves and radii, volume and pitch; each value with where it came from (the actor, a cue, an
+  archetype, the class default read from the game's script packages, or unresolved). `effectSystems` describes each
+  particle system once (LOD levels, emitters, parameter distributions with the module that reads each, fixed box),
+  `soundWaves` each wave (its PC bulk record read by its header: playable or why not).
+- [export.py](tools/viewer/export.py) export 28: `effects` keeps export 23's keys and gains the new ones; `sounds`,
+  `flares`, `effectSystems`, `soundWaves` and `effectsMetadata` are new; a mission stream's own are in its layer, read
+  only. Every map is exported again on first open (about 0.3 MB more on Bar's 6.8 MB scene).
+- The page's Effects view, Shift+X (the rail's spark; Shift+E, the plan's choice, is taken by the camera's fast turn):
+  [effects_view.js](tools/viewer/web/effects_view.js) draws the markers (spark, speaker, star; hollow when it starts
+  off, greyed for a stream's), the picked effect's fixed box and a picked sound's two spheres;
+  [effects_rules.js](tools/viewer/web/effects_rules.js) names them, makes their chips and panel lines and decides what
+  a cleared map keeps; [app.js](tools/viewer/web/app.js) wires the view as the Landing zones view is wired (only its
+  markers are picked; a carried effect follows its piece's move, delete and copies, the landing's follow their zone, a
+  cleared map keeps what `clear_level` keeps), F and a double-click bring the camera to the picked one, the rail's
+  flyout hides a kind, and the piece panel's "Carries an effect" chip opens the view on it.
+  [index.html](tools/viewer/web/index.html) has the button, flyout, panel and help entry.
+- The contract is [editor-contracts.md](research/editor-contracts.md) section 8; the viewer
+  [README](tools/viewer/README.md) describes the view.
+- Checked: [test_effects_metadata.py](tools/viewer/tests/test_effects_metadata.py) (16 tests: made-up objects for
+  where values come from, waves' bulk records, parameters and capabilities; the plan's fixture list pinned to the
+  install: Bar's five effects listed by a floor they stand outside, its silent sound, the Skyranger's inherited sound,
+  four script-named effects, a finite and a looping system, lit mesh particles, an uneven scale, the fog pod's five
+  smoke emitters, flares; Pier A's lit sea foam and air conditioner; Alien Base 1's shared stasis pod cue and an effect
+  that starts off; Command1's effects riding on the globe; the tutorial's carried Skyranger lights; Furies' stream;
+  the class defaults against the script packages; the landing rule against the Build's);
+  [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs); the module run over the census's 237
+  packages (every count the census has matches it package by package, no read errors, about a second a map); Bar and
+  Slaughterhouse Redux exported to a scratch cache and opened on a test server: markers, picking, panels, box,
+  spheres, kind filters, a moved, copied and deleted claw machine, a moved landing zone, a cleared map, the bomb
+  mission's stream effects, the view keys; the browser smoke test's new `effects` check on both; the viewer (435),
+  editor (236) and node suites.
+- Known gaps: the user guide has no section or picture of the view yet. Counts differ from the census where the export
+  reads more: script users by the fuller Kismet reader (1,270 base-map effects named against the census's 1,166), and
+  parameters, light environments and scales as an archetype gives them, not only as saved.
+
 ### An update-guide skill, guide checks in the tests, and guide_tools.py
 
 At the user's ask, the way the guide was brought up to date today is now a project skill, with its checks in the

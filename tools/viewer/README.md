@@ -421,15 +421,35 @@ Projects). Nothing is built into the game yet.
 - Linked pieces need export version 12 (re-export the map). Run `setup_vendor.py` once more: it adds the pinned
   three.js `TransformControls` addon.
 
-### Effects (export 23)
+### Effects, sounds and lens flares (export 23, 28)
 
 The export lists the level's effects (`effects`: its Emitter actors, placed particle systems such as fires, rain
 run-off and a Skyranger's idle lights; `scene_metadata.effect_metadata`): each one's actor, place, turn, scale, particle
 system, whether the level lists it, `hidden`, its prefab and `carriedBy`. A mesh piece carries an effect standing at its
-own place (within 2 units on each axis) when it is the only piece there. The page does not show or edit effects yet.
+own place (within 2 units on each axis) when it is the only piece there.
 The compiler passes the carried pairs to the Build (`carriedEffects`), and
 [native_effects.py](../bake/native_effects.py) moves, copies or deletes each with its piece: the tutorial's loose
 Skyranger takes its lights along, as do Bar's claw machine and DEMO_SonOfFacemelt's water valves.
+
+Since export 28 ([effects_metadata.py](effects_metadata.py); the effects and sounds plan's stage FX1) each effect also
+carries its identity, where its starting state comes from, the particle parameters it saves (each against what its
+system offers), the building floors that hide it, what of the mission's script names it, what it rides on, its
+component's transform and what the editor may do with it (`can`, `why`). `sounds` (the ambient sound actors: cue, waves,
+radii, volume and pitch, each value with where it came from) and `flares` (lens flares) are new, and `effectSystems` and
+`soundWaves` describe each particle system and wave once. A mission stream's own are in its layer, read only. The
+contract is section 8 of [editor-contracts.md](../../research/editor-contracts.md).
+
+The page's **Effects view** (Shift+X, the rail's spark; [effects_view.js](web/effects_view.js) draws,
+[effects_rules.js](web/effects_rules.js) words) shows them as markers drawn over everything: a spark for an effect,
+a speaker for a sound, a star for a flare, hollow when it starts off, greyed for a stream's. While it is on a click
+picks one (never a piece) and the panel says what it plays, whether it starts with the mission and as what saves it,
+its chips (starts off, named by the mission's script, carried by a piece, the landing's, hides with a floor, placed by
+a prefab, rides on an actor, no sound set, shared cue) and an effect's particle parameters. A picked effect shows its
+system's fixed box through its pose, scale and component, or says the bounds are unavailable; a picked sound shows
+where it is heard. Each marker stands where the Build will have it: an effect a piece carries follows the piece, goes
+with its delete and is copied with its copies (greyed); the landing's follow their moved zone; a cleared map keeps what
+`clear_level` keeps (every sound, the landing's, a moved carrier's, and the scenery outside when asked). The flyout
+on the rail button hides a kind; F or a double-click brings the camera to the picked one. Nothing is edited there.
 
 ### Clear map, the ground grid and landing zones
 

@@ -2946,6 +2946,50 @@ def check_output_names(browser, url, errors):
     return dict(first=word, numbered=f'{word}_3')
 
 
+def check_effects_view(page):
+    """The Effects view (export 28; effects and sounds plan, FX1): Shift+X shows a marker for each effect, sound and lens
+    flare (Full scene), a click on one picks it (never a piece) and its panel says what it is, a picked sound shows its
+    reach, the flyout's boxes hide a kind, Escape lets the picked one go, and plain X still flips the gizmo's axes."""
+    if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return
+    page.evaluate('viewer.select(null)')
+    if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
+    page.keyboard.press('Shift+X')
+    assert page.evaluate('viewer.effectsOn()') and page.locator('#editEffects').get_attribute('aria-pressed') == 'true'
+    marks = page.evaluate('viewer.effectMarkers()')
+    own = page.evaluate('(viewer.data.effects ?? []).length + (viewer.data.sounds ?? []).length + (viewer.data.flares ?? []).length')
+    assert len([m for m in marks if not m['derived'] and not m['id'].startswith('stream-')]) == own, (len(marks), own)
+    if not marks:
+        page.keyboard.press('Shift+X'); return
+    box = page.evaluate('(() => { const r = viewer.renderer.domElement.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()')
+    on_screen = [m for m in marks if m['screen'] and box[0] + 40 < m['screen'][0] < box[2] - 340 and box[1] + 40 < m['screen'][1] < box[3] - 80]
+    if on_screen:
+        target = on_screen[0]
+        page.mouse.click(*target['screen'])
+        assert page.evaluate('viewer.pickedEffect()') == target['id'], (page.evaluate('viewer.pickedEffect()'), target)
+        assert page.locator('#effectPanel').is_visible() and page.evaluate('viewer.gizmo.picks().ids.length') == 0
+        assert re.match(r'(Effect|Sound|Lens flare): ', page.locator('#effectTitle').inner_text(), re.I)
+        page.keyboard.press('Escape')
+        assert page.evaluate('viewer.pickedEffect()') is None and page.locator('#effectPanel').is_hidden()
+    heard = page.evaluate("(viewer.data.sounds ?? []).find(s => s.values?.radiusMax > 0 && s.values?.attenuate !== false)?.id ?? null")
+    if heard:
+        page.evaluate(f'viewer.pickEffect({heard!r})')
+        assert page.evaluate('viewer.effectShapes.children.length') == 1
+        page.evaluate('viewer.pickEffect(null)')
+    # the flyout's Sounds box hides the sounds and brings them back
+    count = lambda kind: page.evaluate(f"viewer.effectMarkers().filter(m => m.kind === {kind!r}).length")
+    if count('sound'):
+        page.evaluate("(() => { const b = document.getElementById('effectShow-sound'); b.checked = false; b.onchange({ target: b }); })()")
+        assert count('sound') == 0
+        page.evaluate("(() => { const b = document.getElementById('effectShow-sound'); b.checked = true; b.onchange({ target: b }); })()")
+        assert count('sound') > 0
+    space = page.evaluate('viewer.gizmo.space')
+    page.keyboard.press('x')
+    assert page.evaluate('viewer.gizmo.space') != space and page.evaluate('viewer.effectsOn()')
+    page.keyboard.press('x')
+    page.keyboard.press('Shift+X')
+    assert not page.evaluate('viewer.effectsOn()') and not page.evaluate('viewer.effectMarkers().length')
+
+
 def check_streams(page):
     """The packages the map's missions stream (export 13): their pieces show with the chosen mission only, LWR's hidden
     helpers hidden by default (Hide patch helpers) and as a wireframe when it is unticked, and a streamed piece can be
@@ -3879,7 +3923,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -3906,6 +3950,7 @@ def main():
             if 'floor-placing' in only: check_floor_rules(page); check_floor_placing(page, is_bar)
             if 'floor-tiles' in only: check_floor_tiles(page, is_bar)
             if 'lights' in only: check_lights(page, is_bar)
+            if 'effects' in only: check_effects_view(page)
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
             if 'prefabs' in only: check_prefabs(browser, page.url)
@@ -4063,6 +4108,7 @@ def main():
         check_floor_placing(page, is_bar)
         check_floor_tiles(page, is_bar)
         if page.evaluate("viewer.data.scope === 'map'"): check_lights(page, is_bar)
+        check_effects_view(page)
         check_project_menu(page)
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)

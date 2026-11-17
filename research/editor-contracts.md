@@ -462,6 +462,75 @@ used). It now warns when the stream it replaces is not a patch (T-08).
 **Choosing the base record.** The editor must choose the base record by `DisplayName`, not just by `Name`: 65 map
 names have several records, and for 38 of them the free slot differs.
 
+## 8. Effects, sounds and lens flares in the export (export 28)
+
+Written 17 November 2026 for stage FX1 of the effects and sounds plan. The export carries them for the page's
+Effects view (Shift+X), which shows them and edits nothing. No project record names them yet: the records the editing
+stages add (`effect` and `sound` values objects on overrides and added records, project and prefab schema 3) are the
+plan's Part C and come with its stage FX3. [effects_metadata.py](../tools/viewer/effects_metadata.py) builds the
+records; [test_effects_metadata.py](../tools/viewer/tests/test_effects_metadata.py) pins them to actors of the install.
+
+**Where.** The map's own are the scene's `effects`, `sounds` and `flares` (sorted by actor). A mission stream's own are
+its layer's (`streams[<name>].effects`, `.sounds`, `.flares`), with `layer: "stream"` and `stream` its name; the
+cinematic streams (`CIN_`) are not read, as for pieces. `effectSystems` and `soundWaves` are keyed
+`<package>|<object path>` and hold every system and wave the map's and its streams' records name. `effectsMetadata`
+is `{ version: 1, defaults: "script" | "table" }`: whether class defaults came from the game's script packages or,
+where those can't be read, from the module's `CLASS_DEFAULTS`.
+
+**Every record:**
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `effect` (an `Emitter`), `sound` (`AmbientSound` and its kin) or `flare` (a `LensFlareSource`) |
+| `id` | `<prefix><kind>:<export index>`, as a light's `<prefix>light:<index>`; a stream's prefix is `stream-<name>-` |
+| `sourcePackage`, `layer`, `actor`, `actorClass`, `component` | Its identity: package, `base` or `stream`, actor path, class, and its particle, audio or flare component's path |
+| `location`, `rotation`, `scale`, `drawScale`, `drawScale3D` | Its pose: game units, rotator units, and its scale both as the product and as the two saved values |
+| `listed` | Whether its level's actor list holds it (the game loads only those) |
+| `prefab` | The prefab instance that placed it (short name), or null |
+| `referencedBy` | What of its package's Kismet names it (`scene_metadata.kismet_references`, the reader lights and buildings use) |
+| `attachedTo` | `{ actor, actorClass, bone }` from its saved `Base` / `BaseSkelComponent` / `BaseBoneName`, or null |
+| `landingRole`, `landingActor` | Export 22's role where a landing names it (the grounded Skyranger's `emitter` and `sound`); whether a clear keeps it as the landing's (native_copy.landing_actor's archetype rule) |
+| `carriedBy`, `carriedHow` | The mesh piece that carries it (export 23's place rule, `place`), or null; always null for sounds and flares in this stage |
+| `can`, `why` | What the editor may do with it by its own data (`move`, `copy`, `delete`, `values`; a sound also `audition`) and, for each it may not, why in words. A stream's actor, an actor its level doesn't list and one that rides on another may do none of the first four; hearing a wave changes nothing, so `audition` depends only on the wave |
+
+**Where a value comes from** (`startsOnFrom`, `valuesFrom`, `parametersFrom`): `actor` (saved by the actor or its own
+component or node), `cue` (saved by a node of the cue asset a sound plays), `archetype` (an archetype the map holds),
+`class` (the class's default in the game's script packages, or the type's zero where none saves it), `table`
+(`CLASS_DEFAULTS`, where those packages can't be read), `unresolved` (an archetype in a package the map doesn't hold).
+
+**An effect** adds `template` (its particle system's path, or null), `system` (its `effectSystems` key), `hidden`,
+`floors` (every building floor whose `m_aCachedEmitters` names it: `{ building, floor }`, the building as
+`buildings[].id`), `lit` (a light environment of its own), `componentPose` (`{ translation, rotation, scale }` of its
+particle component), `startsOn` (its component's `bAutoActivate`: the class default is true) and `parameters`: the
+`InstanceParameters` it saves (or its archetype does), each `{ name, type (its PSPT_ value), the fields it saves
+(scalar, scalarLow, vector, vectorLow, colour, actor, material), offered }`, `offered` being `yes` (the system has a
+parameter distribution of that name and kind), `otherKind` (of that name, the other kind), `no` or `unknown`.
+
+**A system** (`effectSystems`): `path`, `name`, `package`, `fingerprint` (SHA-256 of everything under it, first 16
+digits), `objects`, `bytes`, `lodLevels`, `fixedBox` (`{ used, min, max, valid }` or null), `emitters` (each its first
+LOD level as read: `kind` sprite, mesh, ribbon, beam or trail, `lods`, `cookedOut`, `material`, `loops`, `duration`,
+`delay`, `bursts`, `lifetime` [least, most] of its lifetime table) and `offers` (each particle parameter distribution:
+`name`, `kind` scalar or vector, the `module` and `property` that read it, `modes`, `constant`, `input` and `output`
+ranges, `colour`: whether it feeds a particle's start colour or colour over life). No "looping" or "plays once" is made
+from `loops` (the plan's 2.2): the page says nothing of how long an effect lasts.
+
+**A sound** adds `startsOn` (`bAutoPlay`: true for `AmbientSound` and `AmbientSoundSimple`, false for the toggleable
+one, unless saved), `cue` (`{ path, private: whether it is the sound's own, under the actor, sharedBy: how many other
+sounds of the package play it }`), `node` (`{ path, nodeClass }` of its `SoundNodeInstance`), `nodes` (the classes of
+its cue's nodes, counted), `waves` (`soundWaves` keys), `noSound` (why it reaches no wave, or null: "a sound slot names
+no wave" and "its node has no sound slots" are the silent actors Firaxis left in) and `values` with `valuesFrom`
+(`radiusMin`, `radiusMax`, `volumeMin`, `volumeMax`, `pitchMin`, `pitchMax`, `attenuate`, `spatialize`,
+`distanceModel`, `lowPass`, `lowPassMin`, `lowPassMax`) from its own ambient node, or from the one attenuation node of
+a cue asset (no volume or pitch then), `valuesNode` naming the node. `can.values` holds only for a simple sound whose
+cue and node are its own.
+
+**A wave** (`soundWaves`): `path`, `name`, `package`, `seconds`, `channels`, `rate`, `size`, `ogg` (the Ogg stream's
+bytes) and `playable`: its PC bulk record (the second of five, read by its header) is in the export, uncompressed
+(flags 0, element count equal to its size) and starts as an Ogg stream; otherwise `why` says what it is.
+
+**A flare** adds `template`, `colour` (its component's `SourceColor`, RGBA) and `hidden`; `can.values` is false (its
+template and colour aren't edited in this plan).
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the

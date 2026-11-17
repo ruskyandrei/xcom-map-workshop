@@ -19,6 +19,7 @@ from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
 import collision
+import effects_metadata
 import piece_flags
 
 # 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
@@ -48,9 +49,14 @@ import piece_flags
 #     class the flags apply to (its family, its settings with where each came from, its roles, whether it collides and
 #     whether its static meshes have simple collision), and each mesh's `collision` (its BodySetup, whether line and
 #     box checks use its simple collision; a skeletal mesh's kind)
-EXPORT_VERSION = 27   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 28: the map's effects, sounds and lens flares for the Effects view (effects and sounds plan, Part A, stage FX1;
+#     effects_metadata.describe): `effects` gains its identity, starting state, saved particle parameters, floors,
+#     script users, attachment and what the editor may do with it; `sounds` and `flares` are new; `effectSystems`
+#     and `soundWaves` describe each particle system and wave once; a mission stream's own are in its layer
+EXPORT_VERSION = 28   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
+EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
 SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
 
 
@@ -197,6 +203,24 @@ class Exporter:
                 self.warn(self.p.name(actor), f'Piece flags not read: {error}')
                 self.flags[actor] = None
         return self.flags[actor]
+
+    def effects(self, scope):
+        """The package's effects, sounds and flares (export 28; effects_metadata.describe): the map's own, each effect
+        with the piece that carries it (export 23's rule), and a mission stream's, read only; none for a sample or
+        for the patch a preview builds on. Sets self.landings (export 22), which they are matched against."""
+        p = self.p
+        self.landings = [] if self.prefix or scope != 'map' else landing_metadata(p, self.warn)
+        stream = self.prefix[len('stream-'):-1] if self.prefix.startswith('stream-') else None
+        if scope != 'map' or (self.prefix and stream is None):
+            return dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
+        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how='place')
+                                     for e in effect_metadata(p) if e['carriedBy']}
+        defaults = effects_metadata.Defaults(p)
+        found = effects_metadata.describe(p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix,
+                                          layer='stream' if stream else 'base', stream=stream, defaults=defaults,
+                                          warn=self.warn)
+        found['defaults'] = 'script' if defaults.scripts else 'table'
+        return found
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup
@@ -557,13 +581,16 @@ class Exporter:
             if bounds is None or area > bounds[0]: bounds = (area,candidate)
         grid=tile_grid(p,bounds[1],self.warn) if bounds else None
         tactical=tactical_metadata(p,objects,self.meshes,grid,self.warn) if grid else None
+        effects = self.effects(scope)
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
                     cursorVolumes=[] if self.prefix else cursor_volumes(p),
-                    landings=[] if self.prefix or scope != "map" else landing_metadata(p, self.warn),
-                    effects=[] if self.prefix or scope != "map" else effect_metadata(p),
+                    landings=self.landings,
+                    effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
+                    effectSystems=effects['systems'], soundWaves=effects['waves'],
+                    effectsMetadata=dict(version=EFFECTS_METADATA_VERSION, defaults=effects['defaults']),
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
                     source=dict(file=str(p.path),sha256=sha256(p.path),
                     version=p.header["ver"],licensee=p.header["lic"]),
@@ -636,10 +663,14 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
         for key in ('meshes','materials','textures'):
             if set(result[key]) & set(layer[key]): raise ValueError(f'Asset identity collision in {name}')
             result[key].update(layer[key])
+        # its effects, sounds and flares (export 28), read only; their systems and waves are keyed by package
+        for key, into in (('effectSystems', 'effectSystems'), ('soundWaves', 'soundWaves')):
+            result.setdefault(into, {}).update(layer.get(key) or {})
         for record in layer['objects'] + layer.get('lights', []):
             record.update(layer='stream', stream=name)
         for obj in layer['objects']:
             obj.update(floors=[], sceneryRole=None)
+        entry.update(effects=layer.get('effects', []), sounds=layer.get('sounds', []), flares=layer.get('flares', []))
         entry.update(objects=layer['objects'], lights=layer.get('lights', []),
                      hiddenComponents=sum(bool(o['hidden']) for o in layer['objects']),
                      rebuildVolumes=sum(r.get('actorClass') == 'XComRebuildWorldDataVolume'

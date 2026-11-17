@@ -21,6 +21,8 @@ import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
 import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
+import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
+import { KIND_LABEL, effectRecords, parameterRows, recordChips, recordLines, recordName, soundReach, survivesClear } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
@@ -105,6 +107,8 @@ let pickTool = false, pickBox = null, pickDrag = null, pickHits = [], pickCentre
 let boxesShown = false, lightsOn = false, normalLights = false;
 // the Landing zones view (the user, 13 November 2026): the zones over everything, and only they are picked
 let zonesOn = false, zonesHidBefore = false;
+// the Effects view (effects and sounds plan, FX1; below the mission objects): its markers, and only they are picked
+let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers = [];
 world.add(volumeLayer);
 const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id),
                    has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id),
@@ -332,6 +336,7 @@ function select(id, add = false, keep = false) {
   if (volumesOn && id && !volumeRoots.has(id)) setVolumesShown(false);
   // the Landing zones view picks zones only: anything selected another way (a list, a paste, a placed piece) leaves it
   if (zonesOn && id) setZonesShown(false);
+  if (effectsOn && id) setEffectsShown(false);     // (the Effects view picks its markers only)
   if (lightsOn && id && !lightRoots.has(id)) setLightsShown(false);
   else if (id && lightRoots.has(id) && !lightsShown) setLightsShown(true);
   if (id) ownPicked = null;
@@ -404,13 +409,14 @@ function select(id, add = false, keep = false) {
     chip.onclick = () => { areaShown = true; remember(AREA_SHOWN, '1'); setLightsShown(true); };
   }
   // the effects it carries (export 23's carriedBy; tools/bake/native_effects.py): the Build moves, copies and deletes
-  // them with it. The page doesn't draw effects yet.
+  // them with it. A click shows them in the Effects view.
   const effects = obj.foreign || isStream(obj) ? [] : (data?.effects ?? []).filter(e => e.carriedBy === glowActor);
   if (effects.length) {
-    text(chips, 'span', effects.length === 1 ? 'Carries an effect' : `Carries ${effects.length} effects`, 'chip').title =
-      `${effects.map(e => `${short(e.actor)} (${String(e.template ?? 'a particle system').split('.').at(-1)})`).join(', ')}: `
+    const chip = text(chips, 'span', effects.length === 1 ? 'Carries an effect' : `Carries ${effects.length} effects`, 'chip');
+    chip.title = `${effects.map(e => `${short(e.actor)} (${String(e.template ?? 'a particle system').split('.').at(-1)})`).join(', ')}: `
       + 'a particle effect standing on it, such as a Skyranger\'s lights. The Build moves, copies and deletes it with the piece. '
-      + 'The editor doesn\'t show effects yet';
+      + (effects[0].id ? 'Click to see it in the Effects view (Shift+X)' : 'Prepare the map again to see it in the Effects view');
+    if (effects[0].id) chip.onclick = () => { setEffectsShown(true); pickEffect(effects[0].id); };
   }
   if (unsettled.length && !obj.added && !isStream(obj)) {
     const chip = text(chips, 'span', `May glow · ${plural(unsettled.length, 'light')} to settle`, 'chip warn');
@@ -836,6 +842,7 @@ function editChanged() {
   try { return editChangedNow(); } finally { eventMemo = null; }
 }
 function editChangedNow() {
+  effectsDirty = true;     // (the Effects view's markers follow the pieces that carry them)
   // A command (undo of a paste, a delete) can change the selection under us: follow the gizmo.
   if (data && selected !== gizmo.active) { select(gizmo.active, false, true); return; }
   // the Buildings view: the project's buildings follow the boxes; a box is never turned
@@ -1073,7 +1080,7 @@ const boxMatrix = b => new THREE.Matrix4().makeScale(b[3] - b[0], b[5] - b[2], b
 const UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
 // (and back: the box a clip's volume covers, in game units)
 const matrixBox = matrix => { const b = UNIT_BOX.clone().applyMatrix4(matrix); return [b.min.x, b.min.z, b.min.y, b.max.x, b.max.z, b.max.y]; };
-function sceneChanged() { touchShadows(); liveCache = null; cutaway(); catalogue(); refreshGroundGrid(false); }
+function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); catalogue(); refreshGroundGrid(false); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
 function actorPose(source, matrix) {
@@ -2787,6 +2794,7 @@ function setLightsShown(on) {
   if (on === lightsOn) { syncLights(); return; }
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);
+  if (on && effectsOn) setEffectsShown(false);
   if (on) stopPickBox();
   lightsOn = on;
   syncLights();
@@ -2797,11 +2805,12 @@ function setNormalLights(on) {
   normalLights = Boolean(on) && Boolean(data);
   syncLights();
 }
-// The normal view: out of the Buildings view, the Lights view and the Landing zones view.
+// The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
 function setNormalView() {
   if (volumesOn) setVolumesShown(false);
   if (lightsOn) setLightsShown(false);
   if (zonesOn) setZonesShown(false);
+  if (effectsOn) setEffectsShown(false);
 }
 // The Landing zones view (Shift+Z): the zones shown and drawn over everything (under a floor, inside a piece), and a
 // click picks a zone or lets the picked one go, never a piece or a light. The zones' layer is put back as it was after.
@@ -2811,6 +2820,7 @@ function setZonesShown(on) {
   if (on) {
     if (volumesOn) setVolumesShown(false);
     if (lightsOn) setLightsShown(false);
+    if (effectsOn) setEffectsShown(false);
     stopPickBox(); select(null);
     zonesHidBefore = !landingLayer.visible;
     landingLayer.visible = true;
@@ -2835,7 +2845,8 @@ function syncLights() {
   if (data) select(gizmo.active, false, true);
 }
 function lightButton() {
-  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn], ['editBuildings', volumesOn], ['editLights', lightsOn], ['editZones', zonesOn]]) {
+  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
+                          ['editZones', zonesOn], ['editEffects', effectsOn]]) {
     $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on);
   }
   $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown;
@@ -6409,6 +6420,202 @@ $('missionObjectsToggle').onchange = e => {
   if (!e.target.checked) setPickedMission(null);
   e.target.blur();
 };
+
+// ---------------------------------------------------------------- the Effects view (effects and sounds plan, FX1)
+// The map's effects, sounds and lens flares (export 28; effects_view.js draws them, effects_rules.js says what they
+// are), and those of the streams the header's Mission picker shows. Shift+X (the rail's spark) shows them as markers
+// drawn over everything; while it is on a click picks one, never a piece, a light or a zone, and its panel says what
+// it is, where its values come from and what of the map uses it. View only. Each marker stands where the Build will
+// have it: an effect a piece carries follows the piece's move and goes with its delete, and each copy of the piece
+// gets one (drawn greyed, never picked); the landing's follow their moved zone; a cleared map keeps what clear_level
+// keeps. The rail button's flyout chooses which of the three kinds show.
+const EFFECT_FILTERS = 'workshop.effectFilters';
+const effectLayer = new THREE.Group(); effectLayer.visible = false; world.add(effectLayer);
+const effectShapes = new THREE.Group(); world.add(effectShapes);
+const effectFilters = { effect: true, sound: true, flare: true };
+try { Object.assign(effectFilters, JSON.parse(recall(EFFECT_FILTERS) || '{}')); } catch { /* the defaults */ }
+const effectsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
+// An actor's matrix (view basis) with its scale, as a record has its pose
+function effectMatrix(location, rotation, scale = [1, 1, 1]) {
+  return actorMatrix(location, rotation ?? [0, 0, 0]).multiply(new THREE.Matrix4().makeScale(scale[0], scale[2], scale[1]));
+}
+// The map's own landings moved to another zone: actor path -> { from, to } for their Skyrangers' actors
+function landingShifts() {
+  const out = new Map();
+  if (!effectsAvailable()) return out;
+  const { zones, own, slots } = zoneState();
+  for (const [k, j] of slots) {
+    const o = own[j], z = zones[k];
+    if (z.direction === o.zone.direction && z.location.every((v, i) => Math.abs(v - o.zone.location[i]) < 0.5)) continue;
+    for (const a of o.landing?.skyranger?.actors ?? []) out.set(a.path, { from: o.zone, to: z });
+  }
+  return out;
+}
+// Where each record is drawn now: [{ record, matrix, derived }] (derived: a copy the Build makes with a piece's copy)
+function effectPlacements() {
+  const out = [], shifts = landingShifts(), copies = new Map();
+  for (const r of roots.values()) {
+    const o = r.userData.source;
+    if (!o.added?.from || o.foreign || r.userData.deleted) continue;
+    const k = `${o.added.from.actor}|${o.component}`;
+    if (!copies.has(k)) copies.set(k, []);
+    copies.get(k).push(r);
+  }
+  for (const rec of effectRecords(data, streamSet)) {
+    if (!effectFilters[rec.kind]) continue;
+    let matrix = effectMatrix(rec.location, rec.rotation, rec.scale), shown = true;
+    const shift = !rec.stream && rec.landingRole ? shifts.get(rec.actor) : null;
+    const carrier = !rec.stream && !rec.landingRole && rec.carriedBy ? ownerRoot(rec.carriedBy) : null;
+    if (shift) {
+      const d = yawOf(shift.to.direction) - yawOf(shift.from.direction), [p, y, w] = rec.rotation ?? [0, 0, 0];
+      matrix = effectMatrix(carried(rec.location, shift.from, shift.to), [p, y + d, w], rec.scale);
+    } else if (carrier?.userData.deleted) shown = false;
+    else if (carrier?.userData.edit) matrix = carrier.userData.edit.clone().multiply(matrix);
+    const carrierMoved = Boolean(carrier && !carrier.userData.deleted && carrier.userData.edit);
+    if (shown && survivesClear(rec, { cleared, outside: pointOutside, carrierMoved })) out.push({ record: rec, matrix, derived: false });
+    if (!carrier) continue;
+    const back = baseMatrix(carrier).invert(), base = effectMatrix(rec.location, rec.rotation, rec.scale);
+    for (const copy of copies.get(`${carrier.userData.source.actor}|${carrier.userData.source.component}`) ?? []) {
+      out.push({ record: rec, matrix: copy.matrix.clone().multiply(back).multiply(base), derived: true });
+    }
+  }
+  return out;
+}
+const pickedMarker = () => (pickedEffect ? effectMarkers.find(m => !m.userData.derived && m.userData.record.id === pickedEffect) ?? null : null);
+function paintEffects() {
+  for (const m of effectMarkers) {
+    paintEffectMarker(m, { picked: !m.userData.derived && m.userData.record.id === pickedEffect, dim: m.userData.derived || Boolean(m.userData.record.stream) });
+  }
+}
+// The markers made again from the records and where they stand now (each refresh: a few hundred sprites at most)
+function refreshEffects() {
+  effectsDirty = false;
+  for (const m of effectMarkers) { m.material.dispose(); effectLayer.remove(m); }
+  effectMarkers = [];
+  if (effectsOn && effectsAvailable()) {
+    // Interior shows what stands in the play area (view basis, as playableBounds)
+    const play = $('scenery').value === 'interior' ? data.playableBounds : null;
+    for (const p of effectPlacements()) {
+      const m = makeEffectMarker(p.record);
+      m.position.setFromMatrixPosition(p.matrix);
+      if (play && ![0, 1, 2].every(k => m.position.getComponent(k) >= play.min[k] - 48 && m.position.getComponent(k) <= play.max[k] + 48)) { m.material.dispose(); continue; }
+      m.userData.matrix = p.matrix; m.userData.derived = p.derived;
+      effectLayer.add(m); effectMarkers.push(m);
+    }
+  }
+  if (pickedEffect && !pickedMarker()) pickedEffect = null;
+  paintEffects(); effectPanel(); drawEffectShape();
+}
+function effectPanel() {
+  const m = effectsOn ? pickedMarker() : null;
+  $('effectPanel').hidden = !m;
+  if (!m) return;
+  const r = m.userData.record, { title, lines } = recordLines(r, data);
+  $('effectTitle').textContent = title;
+  const chips = $('effectChips');
+  chips.replaceChildren();
+  for (const c of recordChips(r, data)) text(chips, 'span', c.text, 'chip').title = c.title;
+  chips.hidden = !chips.children.length;
+  setParagraphs($('effectInfo'), lines.join('\n'));
+  const rows = r.kind === 'effect' ? parameterRows(r, data) : [], table = $('effectParams');
+  table.replaceChildren();
+  table.hidden = !rows.length;
+  if (rows.length) {
+    const head = text(table, 'div', `Particle parameters${r.parametersFrom && r.parametersFrom !== 'actor' ? ` (${r.parametersFrom === 'archetype' ? 'its archetype\'s' : 'its class\'s'})` : ''}`, 'posehead');
+    head.title = 'What the map sets on this effect\'s particle system: values its system reads by name';
+    for (const row of rows) {
+      const line = text(table, 'div', '', 'effectparam');
+      text(line, 'span', row.name, 'name');
+      const value = text(line, 'span', row.text, 'value');
+      if (row.colour) {
+        const swatch = document.createElement('i');
+        swatch.className = 'swatch';
+        swatch.style.background = `rgb(${row.colour.map(v => Math.round(Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2) * 255)).join(',')})`;
+        value.prepend(swatch);
+      }
+      if (row.note) { line.classList.add('odd'); line.title = row.note; }
+    }
+  }
+}
+// The picked effect's fixed box through its pose, scale and component, or a picked sound's spheres
+function drawEffectShape() {
+  for (const c of [...effectShapes.children]) { c.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); }); effectShapes.remove(c); }
+  const m = effectsOn ? pickedMarker() : null;
+  if (!m) return;
+  const r = m.userData.record;
+  if (r.kind === 'effect') {
+    const cp = r.componentPose;
+    const component = cp ? effectMatrix(cp.translation, cp.rotation, cp.scale) : new THREE.Matrix4();
+    const shape = boxShape(data.effectSystems?.[r.system], m.userData.matrix.clone().multiply(component));
+    if (shape) effectShapes.add(shape);
+  } else if (r.kind === 'sound') effectShapes.add(reachShape(soundReach(r), m.position.clone()));
+}
+function pickEffect(id) {
+  if (effectsDirty) refreshEffects();
+  const drawn = Boolean(id) && effectMarkers.some(m => !m.userData.derived && m.userData.record.id === id);
+  if (id && !drawn) {
+    const r = effectRecords(data, streamSet).find(x => x.id === id);
+    if (r) flashHint(!effectFilters[r.kind] ? `${KIND_LABEL[r.kind]}s are hidden: tick them in the Effects view's flyout`
+      : $('scenery').value === 'interior' ? 'It stands outside the play area: Full shows it' : 'It isn\'t drawn: its piece is deleted or the clear takes it out');
+  }
+  pickedEffect = drawn ? id : null;
+  paintEffects(); effectPanel(); drawEffectShape();
+}
+// F in the Effects view: the camera on the picked marker, brought within `reach` of it (a sound: its reach)
+function frameEffect() {
+  const m = pickedMarker();
+  if (!m) return false;
+  const r = m.userData.record, reach = Math.max(500, Math.min(4000, (soundReach(r)?.outer ?? 400) * 1.6));
+  const at = m.position.clone(), away = camera.position.clone().sub(controls.target);
+  if (away.length() > reach) away.setLength(reach);
+  controls.target.copy(at); camera.position.copy(at).add(away); controls.update();
+  return true;
+}
+function pickEffectAt(clientX, clientY) {
+  const m = nearestMarker(effectMarkers.filter(x => !x.userData.derived), camera, renderer.domElement.getBoundingClientRect(), clientX, clientY);
+  pickEffect(m ? m.userData.record.id : null);
+}
+// The name of the marker under the pointer (the floor tiles' tip)
+function effectTip() {
+  tipDirty = false;
+  const tip = $('floorTip');
+  const m = pointer && !gizmo.controls.dragging ? nearestMarker(effectMarkers, camera, renderer.domElement.getBoundingClientRect(), ...pointer) : null;
+  tip.hidden = !m;
+  if (!m) return;
+  const r = m.userData.record;
+  tip.replaceChildren();
+  text(tip, 'strong', recordName(r, data));
+  text(tip, 'small', `${KIND_LABEL[r.kind]} · ${short(r.actor)}${r.stream ? ` · ${r.stream}` : ''}`);
+  if (m.userData.derived) text(tip, 'small', `the copy the Build makes with a copy of ${short(r.carriedBy)}`);
+  const rect = viewport.getBoundingClientRect();
+  tip.style.left = `${pointer[0] - rect.left}px`; tip.style.top = `${pointer[1] - rect.top}px`;
+}
+// The Effects view on or off (Shift+X, the rail's spark): the other views step aside and the selection goes
+function setEffectsShown(on) {
+  on = Boolean(on) && effectsAvailable();
+  if (on === effectsOn) return;
+  if (on) {
+    if (volumesOn) setVolumesShown(false);
+    if (lightsOn) setLightsShown(false);
+    if (zonesOn) setZonesShown(false);
+    stopPickBox(); select(null);
+    if (pickedMission) setPickedMission(null);
+  } else {
+    pickedEffect = null;
+    $('floorTip').hidden = true;
+  }
+  effectsOn = on; effectLayer.visible = on;
+  refreshEffects(); lightButton();
+  if (on) {
+    const all = effectRecords(data, streamSet), n = kind => all.filter(r => r.kind === kind).length;
+    flashHint(`Effects view: ${plural(n('effect'), 'effect')}, ${plural(n('sound'), 'sound')}, ${plural(n('flare'), 'lens flare')} · click one to see what it is · Shift+X leaves it`);
+  }
+}
+for (const kind of ['effect', 'sound', 'flare']) {
+  const box = $(`effectShow-${kind}`);
+  box.checked = effectFilters[kind] !== false;
+  box.onchange = e => { effectFilters[kind] = e.target.checked; remember(EFFECT_FILTERS, JSON.stringify(effectFilters)); effectsDirty = true; e.target.blur(); };
+}
 const ZONE_OWN = 0x4aa3ff, ZONE_LWR = 0xffb347, ZONE_PICKED = 0xffffff;
 let pickedZone = null, zonePlacing = false;
 // While the zone gizmo is dragged: { id, change } drawn in place of the zone (zoneState)
@@ -6542,6 +6749,7 @@ function setZones(next, words) {
 }
 function zonesChanged() {
   if (pickedZone && !zonesNow().some(z => z.id === pickedZone)) pickedZone = null;
+  effectsDirty = true;     // (the landing's effects and sound follow a moved zone)
   refreshLandingZones(); refreshGroundGrid(); cutaway(); projectChanged(); editChanged();
 }
 // The zones with plain EW's marks written out (`ew: true`): a list saved before the mark goes by order (ownSlots),
@@ -6780,6 +6988,7 @@ function clearedChanged() {
   mergedBuildings = null;
   refreshMissionPicker();     // a project's missions, or none
   refreshLightVisibility();
+  effectsDirty = true;
   if (!builderMode) cutaway();
   refreshGroundGrid(); refreshLandingZones();
 }
@@ -6963,6 +7172,7 @@ function setVolumesShown(on) {
   if (next === volumesOn) return;
   if (next) {
     if (zonesOn) setZonesShown(false);
+    if (effectsOn) setEffectsShown(false);
     // the pieces selected on the way in: "Boxes around them" makes a building of them
     aroundIds = gizmo.selection().filter(r => roots.has(r.userData.source.id) && !r.userData.source.cover && !r.userData.deleted).map(r => r.userData.source.id);
     stopPickBox();
@@ -7773,6 +7983,7 @@ function setPickTool(on) {
   if (on && (!data || placing)) return;
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);     // box select takes pieces, which the Landing zones view doesn't
+  if (on && effectsOn) setEffectsShown(false);  // (nor the Effects view)
   pickTool = Boolean(on);
   if (!pickTool) { pickBox = null; pickDrag = null; }
   renderer.domElement.style.cursor = pickTool ? 'crosshair' : '';
@@ -8134,6 +8345,7 @@ function chooseMission(value) {
 async function open() {
   stopPickBox();
   boxesShown = false; normalLights = false; lightsOn = false; lightsShown = false; zonesOn = false;
+  effectsOn = false; pickedEffect = null; effectLayer.visible = false; effectsDirty = true;
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -8370,6 +8582,12 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
     missionLayer, pickMissionObject: picked => setPickedMission(picked), pickedMission: () => pickedMission,
+    // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
+    // screen point and whether it is a copy the Build makes with a piece
+    effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
+    effectMarkers: () => { if (effectsDirty) refreshEffects(); const project = projector();
+      return effectMarkers.map(m => ({ id: m.userData.record.id, kind: m.userData.record.kind, derived: Boolean(m.userData.derived),
+                                       at: [m.position.x, m.position.z, m.position.y], screen: project(m.position) })); },
     zoneHit: (x, y) => zoneHit(x, y), movedLandingActors: () => [...movedLandingActors()],
     // for the browser smoke test: floor pieces (each carrying actor's kind, and the floor stamps' supports), the
     // screen point of a game point, building-floor listings and the overlay
@@ -8460,11 +8678,12 @@ $('mission').onchange = e => {
   if (isStream(allRoots.get(selected)?.userData.source) && !streamSet.has(allRoots.get(selected).userData.source.stream)) select(null);
   refreshLightVisibility();
   refreshMissionObjects();
+  effectsDirty = true;     // (the Effects view shows the streams of the mission picked)
   cutaway(); catalogue();
 };
 segmented($('floor'), () => { cutaway(); ghostDirty = true; restingHint(); });
 $('hideHelpers').onchange = () => {cutaway();catalogue();};
-segmented($('scenery'), () => {cutaway();catalogue();frame();refreshLightVisibility();});
+segmented($('scenery'), () => {cutaway();catalogue();frame();refreshLightVisibility();effectsDirty = true;});
 $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; tileKey = null; };
@@ -8529,6 +8748,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (zonePlacing) { if (e.button === 0) placeZone(e.clientX, e.clientY); return; }
   // the Landing zones view: only zones are picked; a click beside them lets the picked one go
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
+  // the Effects view: only its markers are picked; a click beside them lets the picked one go
+  if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY); return; }
   // a light's marker is picked ahead of the piece behind it
   const light = pickLight(e.clientX, e.clientY);
   if (light) { select(light.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
@@ -8555,7 +8776,7 @@ renderer.domElement.addEventListener('pointerup', e => {
 renderer.domElement.addEventListener('pointermove', e => { pointer = [e.clientX, e.clientY]; ghostDirty = true; tipDirty = true; });
 renderer.domElement.addEventListener('pointerleave', () => { pointer = null; ghostDirty = true; tipDirty = true; });
 controls.addEventListener('change', () => { ghostDirty = true; tipDirty = true; });
-renderer.domElement.addEventListener('dblclick', () => selected && !gizmo.busy() && frame(allRoots.get(selected)));
+renderer.domElement.addEventListener('dblclick', () => (effectsOn ? frameEffect() : selected && !gizmo.busy() && frame(allRoots.get(selected))));
 $('editMove').onclick = () => gizmo.setMode('translate');
 $('editRotate').onclick = () => gizmo.setMode('rotate');
 $('editOff').onclick = () => gizmo.setMode('off');
@@ -8694,6 +8915,7 @@ $('lightKeep').onclick = () => { const root = lightRoots.get(selected); if (root
 $('lightAuto').onclick = () => { const root = lightRoots.get(selected); if (root) setBinding(root, undefined); };
 $('editLights').onclick = () => data && setLightsShown(!lightsOn);
 $('editZones').onclick = () => data && setZonesShown(!zonesOn);
+$('editEffects').onclick = () => data && setEffectsShown(!effectsOn);
 $('editNormal').onclick = () => data && setNormalView();
 $('normalLights').onchange = e => { setNormalLights(e.target.checked); e.target.blur(); };
 $('areaToggle').onchange = e => { areaShown = e.target.checked; remember(AREA_SHOWN, areaShown ? '1' : '0'); refreshLightVisibility(); e.target.blur(); };
@@ -8901,6 +9123,8 @@ document.addEventListener('keydown', e => {
     }
     if (key === 'escape') { pickZone(null); e.preventDefault(); return; }
   }
+  // the Effects view: Escape lets the picked marker go
+  if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey) { pickEffect(null); e.preventDefault(); return; }
   // the select box: Enter takes what is inside (Shift+Enter adds it to the selection), Escape puts the box away
   if ((pickTool || pickBox) && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
     if (key === 'escape' && !gizmo.controls.dragging) { stopPickBox(); e.preventDefault(); return; }
@@ -8943,7 +9167,7 @@ document.addEventListener('keydown', e => {
   else if (key === 'v') gizmo.setMode('off');
   else if (key === 't') { if (data && !e.repeat) setPickTool(!(pickTool || pickBox)); }
   else if (key === 'g') gizmo.setMode('translate');
-  else if (key === 'x') gizmo.toggleSpace();
+  else if (key === 'x') { if (e.shiftKey) { if (data) setEffectsShown(!effectsOn); } else gizmo.toggleSpace(); }
   else if (key === 'c') togglePivot();
   else if (key === 'b') {
     if (e.shiftKey) { if (data) setVolumesShown(!volumesOn); }
@@ -8953,7 +9177,7 @@ document.addEventListener('keydown', e => {
   else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
   else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
   else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
-  else if (key === 'f') frame(selected ? allRoots.get(selected) : undefined);
+  else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
   else return;
   e.preventDefault();
 });
@@ -8983,7 +9207,9 @@ renderer.setAnimationLoop(() => {
   drawCursorRings();
   if (lightsDirty && !soloOn && $('lighting').value !== 'neutral' && now - lastLightSync > 120) applyLighting();
   if (placing && ghostDirty) moveGhost();
-  if (tipDirty && floorTileLayer) floorTip();
+  if (effectsOn && effectsDirty) refreshEffects();
+  if (tipDirty && effectsOn) effectTip();
+  else if (tipDirty && floorTileLayer) floorTip();
   updateTileGrid();
   pieces.drawThumbs();
   library.drawThumbs();
