@@ -462,9 +462,9 @@ actor, a copy as an added record with `kind` and the original it copies ([projec
 `validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects` and `sounds`
 lanes, which [native_effects.py](../bake/native_effects.py) and [native_sounds.py](../bake/native_sounds.py) write:
 moves in place, deletes out of the level's list, copies as actors of their own, then the buildings' floors list the
-effects anew (contract section 8). The effect and sound families build only on a server started with
-`serve --family effect --family sound` (its Builds get the same `--family`) until their game check passes; otherwise
-the editor shows them, view only.
+effects anew (contract section 8). The effect and sound families build for every project since EXP-68 passed
+(17 November 2026); a family held back again (its `builds` off in the compiler's FAMILIES) shows view only, unless the
+server is started with `serve --family <family>` (its Builds get the same `--family`).
 
 A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
 at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not

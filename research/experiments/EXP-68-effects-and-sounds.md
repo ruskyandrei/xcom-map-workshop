@@ -70,4 +70,23 @@ What the run adds over the offline checks (Play in game from the editor, on the 
 
 ## Result
 
-Not played yet.
+**Run 1 passed** (17 November 2026, played by the user under Long War). The user: "verified in game, almost all of it
+works as expected", the one thing noticed being that after a reload the Skyranger was gone, its shadow left on the
+ground. That is Long War's own doing, not the build's ([F-120](../findings-register.md), accepted):
+- The lab game's log: on loading the battle, Long War's landing-zone mutator (`XComLZMutator.PostLevelLoaded`) picked
+  one of the map's seven landings at random (entry 1, the squad's spawn points round (-1297, -1361)), and its
+  `HideDropShip` hid and destroyed the map's grounded Skyranger (`XComLevelActor_138`), its lights (`Emitter_78`), its
+  idle sound and its dust (`Emitter_0`), as it does on every Long War battle whatever landing it picks. The ship seen
+  at the start was the intro's dropship (in the streamed `CIN_DropshipIntros_URB_Bar_X68`), parked where it landed.
+- On the reload the travel names the intro stream but the game doesn't stream it (no `AddStreamingMap` for it, none of
+  its actors in the checkpoint), and the mutator's `PostLoadSaveGame` runs `HideDropShip` again with the saved landing.
+  So there is no Skyranger at all; its shadow is baked into the ground's lightmap.
+- An unedited Long War map shows the same in the lab's log of 15 November (`URB_OfficePaper_EWI`, a play and a
+  reload): the intro streamed on each new battle, not on the reload, and the mutator destroying the map's grounded
+  Skyranger (`XComLevelActor_551`) each time.
+
+What it settles for the editor (the user reported nothing else amiss): effects and sounds moved, turned, copied and
+deleted play as the Build writes them, a copy on its own, a delete stays deleted through cutaways and a save and
+reload, and a floor's list is all the cutaway needs. Not told apart in the report: whether the rats' triggers were
+walked (step 3), and whether the music was heard with only the camera at its copy (step 4's question of where the
+game's listener is), which EXP-E still needs. The `effect` and `sound` families build for every project from now on.

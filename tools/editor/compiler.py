@@ -74,7 +74,7 @@ added record with `kind` and `from`), and an effect a piece carries kept where i
 effect_override and effect_add check each against the export's `can` and `why` (export 28) and write the spec's
 `effects` and `sounds` objects (moves, deletes, copies), which native_split hands to the Build's writer
 (tools/bake/native_effects.py, native_sounds.py). An effect's own pose, delete or follow none takes it out of its
-piece's carrying (`carriedEffects`). The families stay off until their game check (`enable` builds them for one);
+piece's carrying (`carriedEffects`). Both families build for every project since EXP-68 passed (17 November 2026);
 lens flares and a stream's are view only.
 
 Rotators are rounded to whole rotation units half away from zero, as the viewer's resolver rounds (game_round); the
@@ -136,11 +136,12 @@ FAMILIES = {
     'building': dict(builds=True, milestone=None, grid=False, what='a building made from nothing',
                      note='Buildings are saved; the Build makes them once their game test passes.'),
     # effects (Emitter actors) and ambient sounds moved, turned, copied or deleted in the same map (the effects and
-    # sounds plan, stage FX3): off while the stage is built; an experiment's build lifts them with --family (EXP-C),
-    # and the page offers their edits only where they build (families.json; viewer.py serve --family)
-    'effect': dict(builds=False, milestone=None, grid=False, what='an effect',
+    # sounds plan, stage FX3): on since EXP-68 passed (17 November 2026); `builds` off again brings back the refusal,
+    # which an experiment's build lifts with --family, and the page offers their edits only where they build
+    # (families.json; viewer.py serve --family)
+    'effect': dict(builds=True, milestone=None, grid=False, what='an effect',
                    note='Effects are moved, copied and deleted where the effect family builds.'),
-    'sound': dict(builds=False, milestone=None, grid=False, what='an ambient sound',
+    'sound': dict(builds=True, milestone=None, grid=False, what='an ambient sound',
                   note='Ambient sounds are moved, copied and deleted where the sound family builds.'),
 }
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',

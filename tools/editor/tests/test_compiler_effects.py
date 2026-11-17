@@ -5,6 +5,7 @@ and the native edit's `effects` and `sounds` lanes. A made-up scene: no install 
 import copy
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -69,9 +70,20 @@ def codes(report):
     return [d['code'] for d in report['errors'] + report['leftOut']]
 
 
+def families_off():
+    """The effect and sound families held back, as they were until EXP-68 passed: their gate's refusal."""
+    return mock.patch.dict(compiler.FAMILIES, {k: dict(compiler.FAMILIES[k], builds=False) for k in ('effect', 'sound')})
+
+
 class Gates(unittest.TestCase):
+    def test_on_since_exp68(self):
+        self.assertTrue(compiler.FAMILIES['effect']['builds'] and compiler.FAMILIES['sound']['builds'])
+        _, report = compile_project(doc([moved('Emitter_43', (710, 0, 0)), moved('AmbientSoundSimple_50', (110, 0, 0))]),
+                                    effects_scene())
+        self.assertEqual(codes(report), [])
+
+    @families_off()
     def test_off_until_enabled(self):
-        self.assertFalse(compiler.FAMILIES['effect']['builds'] or compiler.FAMILIES['sound']['builds'])
         spec, report = compile_project(doc([moved('Emitter_43', (710, 0, 0))]), effects_scene())
         self.assertEqual(codes(report), ['family'])
         spec, report = compile_project(doc([moved('Emitter_43', (710, 0, 0))]), effects_scene(), enable=('effect',))
@@ -80,6 +92,7 @@ class Gates(unittest.TestCase):
             name='Emitter_43', actorClass='Emitter', location=[710.0, 0.0, 0.0], rotation=[0, 0, 0],
             before=dict(location=[700.0, 0.0, 0.0], rotation=[0, 0, 0]))], deletes=[], copies=[])])
 
+    @families_off()
     def test_each_family_its_own_gate(self):
         records = [moved('Emitter_43', (710, 0, 0)), moved('AmbientSoundSimple_50', (110, 0, 0))]
         _, report = compile_project(doc(records), effects_scene(), enable=('effect',))

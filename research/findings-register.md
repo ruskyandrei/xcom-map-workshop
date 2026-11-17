@@ -13,7 +13,8 @@ Statuses:
 ## Open now
 
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
-  editor shows it there too (found offline, 17 November, while preparing EXP-68).
+  editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
+  destroys that dust on every load anyway (F-120), so this matters for plain EW.
 - F-117, F-118: a variant replacing Commercial Alley Redux now keeps the first mission's record name, and Replace
   comments out only the base map's records the variant has records for, so the first mission always has a map
   (fixed offline, 17 November); not played in a new campaign.
@@ -2526,6 +2527,25 @@ word; not looked at in the game).
 - Fix: `recipe_source_radius` reads the value the recipe's component saves. Recipe spot and point lights now bake
   with 32, as copies of placed lights do; a baked recipe spot's shadow edges come out a little sharper than
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
+
+### F-120: Under Long War the Skyranger is gone after a reload, its shadow left on the ground
+**Accepted** (17 November 2026, EXP-68 run 1: Long War's own behaviour, not the build's).
+- **Seen.** In EXP-68's battle on a variant of URB_Bar, the Skyranger stood at its landing at the start; after a save
+  and reload it was gone, its shadow still on the ground.
+- **Cause.** Long War's landing-zone mutator (`XComLZMutator`) runs `HideDropShip` whenever a battle's level loads,
+  whatever landing it picks: it hides and destroys every actor of the grounded Skyranger's prefab by archetype (the
+  ship `PRE_SkyrangerGrounded_*`, its emitter, its idle sound after stopping it, and the dust
+  `ARC_Skyranger_Ground_Periphery`). The ship seen at the start is the intro's dropship, in the streamed
+  `CIN_DropshipIntros`, parked where its flight ends. A reload doesn't stream the intro again (the log shows no
+  `AddStreamingMap` for it, though the travel names it), and the mutator's `PostLoadSaveGame` runs `HideDropShip`
+  again. The shadow is baked into the ground's lightmap from the map's own grounded ship.
+- **Evidence.** The lab game's logs: EXP-68 (`URB_Bar_X68`) and an unedited map (`URB_OfficePaper_EWI`, 15 November)
+  show the same sequence on a reload. Mutator source: `XComLZMutator.uc` (`HideDropShip`, `PostLoadSaveGame`), kept in
+  `private/research/evidence/upstream/`.
+- **Plain EW** has no mutator: the map's Kismet hides the grounded ship for the intro (`CIN_HideForIntro`) and shows it
+  after (`CIN_IntroFinished`), and nothing hides it on a load, so it most likely stays (not played).
+- Not the editor's to fix: a ship of the variant's own would stand at the map's landing even when Long War picks
+  another, and beside the intro's parked dropship at the start.
 
 ### F-119: A moved landing leaves the grounded Skyranger's dust where the landing was
 **Open** (17 November 2026, found offline in FX3's clear and landing check; not seen in the game).

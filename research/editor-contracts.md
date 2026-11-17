@@ -544,8 +544,8 @@ template and colour aren't edited in this plan).
 **Edited** (stage FX3, 17 November 2026). The project records of section 4 (schema 3) name the effects and sounds by
 their actors. The compiler ([compiler.py](../tools/editor/compiler.py) `effect_override`, `effect_add`) checks each
 against the export (`can`, `why`: an edit the export says no to is an error with its reason; a stream's or a flare's
-too) and the family table (`effect`, `sound`: until their game check passes, the Build takes them only with
-`--family effect --family sound`, which `serve --family` passes on), and writes the spec's `effects` and `sounds`
+too) and the family table (`effect`, `sound`: on since EXP-68 passed, 17 November 2026; held back, the Build takes them
+only with `--family`, which `serve --family` passes on), and writes the spec's `effects` and `sounds`
 objects: `moves` (`name`, `actorClass`, `location`, `rotation`, `before`), `deletes` (`name`, `actorClass`, `location`)
 and `copies` (`id`, `name`, `source`, `actorClass`, `location`, `rotation`). A carried effect whose piece is moved,
 copied or deleted goes with it (`carriedEffects`, export 23) unless its own record moves it, deletes it or says

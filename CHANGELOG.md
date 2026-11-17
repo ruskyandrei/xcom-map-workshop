@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds build for every project (EXP-68 passed)
+
+EXP-68 run 1 passed in the game (the user: "verified in game, almost all of it works as expected"), so the `effect`
+and `sound` families are switched on ([compiler.py](tools/editor/compiler.py) FAMILIES): the editor offers effect and
+sound edits and every Build makes them, with no `serve --family`.
+- Tests: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py) checks they are on and keeps the
+  gate's refusal under a patched table; test_compiler's families table and
+  [test_families.py](tools/viewer/tests/test_families.py) (the lift now tried on `other`).
+- Docs: [tools/viewer/README.md](tools/viewer/README.md), contract section 8, the compiler's notes;
+  [EXP-68](research/experiments/EXP-68-effects-and-sounds.md)'s result.
+- [F-120](research/findings-register.md), accepted: the Skyranger gone after a reload is Long War's landing-zone
+  mutator (it destroys the map's grounded ship on every load, and a reload doesn't stream the intro whose dropship
+  stood there), seen the same on an unedited map in the lab's logs.
+
+Checked: the editor, node and families tests; the browser smoke's effects checks on a default test server (now the
+editing path, with no `--family`).
+
 ### EXP-68 prepared: the game check of effects and sounds edited (FX3's EXP-C)
 
 - [exp68_project.py](tools/editor/examples/exp68_project.py), new: EXP-68's project on URB_Bar (an exhaust steam

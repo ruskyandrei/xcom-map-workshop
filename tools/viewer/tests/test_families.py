@@ -41,15 +41,15 @@ def scene():
 
 class FamilyTests(unittest.TestCase):
     def test_serve_family_lifts_a_family(self):
-        """`serve --family effect` (families.ENABLED): the page is told the family builds, as the Build is."""
+        """`serve --family other` (families.ENABLED): the page is told a family held back builds, as the Build is."""
         import families as module
-        module.ENABLED.add('effect')
+        module.ENABLED.add('other')
         try:
             got = families(scene())['families']
         finally:
-            module.ENABLED.discard('effect')
-        self.assertEqual((got['effect']['builds'], got['sound']['builds']), (True, False))
-        self.assertFalse(families(scene())['families']['effect']['builds'])
+            module.ENABLED.discard('other')
+        self.assertTrue(got['other']['builds'])
+        self.assertFalse(families(scene())['families']['other']['builds'])
 
     def test_the_table_and_the_assemblies_each_once(self):
         got = families(scene())
@@ -57,8 +57,8 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(set(got['families']), {'scenery', 'destructible', 'collectible', 'ladder', 'door', 'frameless-door',
                                                 'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
                                                 'effect', 'sound'})
-        # effects and sounds (the effects and sounds plan, FX3) wait for their game check, unless the server lifts them
-        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound')}, {'effect': False, 'sound': False})
+        # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed
+        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound')}, {'effect': True, 'sound': True})
         self.assertTrue(got['families']['ladder']['grid'])
         # the page takes what builds and what keeps the pose rule from here: fracturing pieces build on the grid,
         # physics props at any pose (9 November 2026); doors without a frame still wait
