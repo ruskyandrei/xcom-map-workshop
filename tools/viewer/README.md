@@ -457,7 +457,10 @@ undo step; a lens flare, a stream's and one the export says no to stay view only
 effect a piece carries follows it until it is moved by itself; its panel's **Keep where it is** leaves it where the
 map has it (`effect.follow: "none"` in its override) and **Follow** lets it follow again. The Normal button's flyout
 has **Effects and sounds**: their markers drawn with the pieces and selected with them, so pieces and effects move,
-copy and group as one selection. A project records an effect's or a sound's pose or delete as an override of its
+copy and group as one selection. **Box select** (T) takes the effects and sounds inside the box with the pieces
+while that switch is on, and counts them in its bar; in the Effects view it takes markers only and the view stays. A
+picked effect's or sound's panel has **Select all**: every drawn effect of the same particle system, every sound of
+the same waves, inside the box where one is drawn. A project records an effect's or a sound's pose or delete as an override of its
 actor, a copy as an added record with `kind` and the original it copies ([project.js](web/project.js)
 `validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects` and `sounds`
 lanes, which [native_effects.py](../bake/native_effects.py) and [native_sounds.py](../bake/native_sounds.py) write:

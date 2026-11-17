@@ -3347,6 +3347,70 @@ def check_effects_editing(page):
     page.evaluate('id => viewer.select(id)', held)
 
 
+def check_effects_box(page):
+    """Box select and effects (effects and sounds plan, FX3b): in the normal view the box takes pieces only until the
+    Normal button's Effects and sounds switch is on, then the effects and sounds inside with them, counted in the
+    bar; in the Effects view it takes markers only and the view stays; Select all of a kind takes every effect of a
+    picked one's particle system, in the box where one is drawn. Nothing of it is an edit."""
+    if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return
+    held = page.evaluate('viewer.gizmo.active')
+    state = page.evaluate('viewer.projectState()')
+    page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(true)')
+    fx = page.evaluate("""(() => { viewer.effectMarkers(); const all = [...viewer.effectRoots.values()].filter(r => r.visible && !r.userData.source.stream
+        && r.userData.source.kind === 'effect' && r.userData.source.system && !viewer.effectState(r.userData.source.id).viewOnly);
+      const by = new Map(); for (const r of all) by.set(r.userData.source.system, (by.get(r.userData.source.system) ?? 0) + 1);
+      const r = all.find(r => by.get(r.userData.source.system) > 1) ?? all[0];
+      return r ? { id: r.userData.source.id, at: viewer.effectState(r.userData.source.id).at, same: by.get(r.userData.source.system) } : null; })()""")
+    if not fx:
+        page.evaluate('viewer.setNormalEffects(false)'); page.evaluate('id => viewer.select(id)', held); return
+    at = fx['at']
+    around = lambda r: [at[0] - r, at[1] - r, at[2] - r, at[0] + r, at[1] + r, at[2] + r]
+    wide = around(400)
+    # switch off: the box holds pieces only
+    page.evaluate('viewer.setNormalEffects(false)')
+    page.evaluate('box => viewer.setPickBox(box)', wide)
+    assert fx['id'] not in page.evaluate('viewer.pickHits()')
+    # switch on: the effect is inside, and the bar counts it
+    page.evaluate('viewer.setNormalEffects(true)')
+    page.evaluate('box => viewer.setPickBox(box)', wide)
+    hits = page.evaluate('viewer.pickHits()')
+    assert fx['id'] in hits, hits
+    words = page.locator('#boxBarText').inner_text()
+    assert re.search(r'\d+ effects?\b', words) and words.endswith(' inside'), words
+    page.keyboard.press('Enter')
+    assert fx['id'] in page.evaluate('viewer.gizmo.picks().ids') and page.evaluate('viewer.pickBox()') is None
+    assert not page.evaluate('viewer.effectsOn()')
+    # the Effects view: markers only, and the view stays
+    page.evaluate('viewer.select(null); viewer.setEffectsShown(true)')
+    page.keyboard.press('t')
+    assert page.evaluate('viewer.pickTool()') and page.evaluate('viewer.effectsOn()')
+    page.keyboard.press('Escape')
+    page.evaluate('box => viewer.setPickBox(box)', wide)
+    hits = page.evaluate('viewer.pickHits()')
+    assert fx['id'] in hits and all(page.evaluate('id => viewer.effectRoots.has(id)', h) for h in hits), hits
+    assert 'piece' not in page.locator('#boxBarText').inner_text()
+    page.locator('#boxTake').click()
+    picked = page.evaluate('viewer.gizmo.picks().ids')
+    assert fx['id'] in picked and page.evaluate('viewer.effectsOn()'), picked
+    page.evaluate('box => viewer.setPickBox(box)', [at[0], at[1], at[2] + 90000, at[0] + 10, at[1] + 10, at[2] + 90010])
+    assert page.locator('#boxBarText').inner_text() == 'No effect or sound inside'
+    page.locator('#boxCancel').click()
+    # Select all of a kind: every drawn effect of the same system; with a box, those inside
+    page.evaluate('id => { viewer.select(null); viewer.pickEffect(id); }', fx['id'])
+    button = page.locator('#effectKind')
+    if fx['same'] > 1:
+        assert button.is_enabled() and f"({fx['same']})" in button.inner_text(), button.inner_text()
+        button.click()
+        assert len(page.evaluate('viewer.gizmo.picks().ids')) == fx['same']
+        page.evaluate('id => { viewer.select(null); viewer.pickEffect(id); }', fx['id'])
+        page.evaluate('box => viewer.setPickBox(box)', around(6))
+        assert 'in box (1)' in button.inner_text(), button.inner_text()
+        page.locator('#boxCancel').click()
+    page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false)')
+    assert page.evaluate('viewer.projectState()') == state
+    page.evaluate('id => viewer.select(id)', held)
+
+
 # what a check makes go wrong on purpose (a refused request it asks for): left out of the run's errors
 EXPECTED = set()
 
@@ -4357,7 +4421,7 @@ def main():
             if 'floor-placing' in only: check_floor_rules(page); check_floor_placing(page, is_bar)
             if 'floor-tiles' in only: check_floor_tiles(page, is_bar)
             if 'lights' in only: check_lights(page, is_bar)
-            if 'effects' in only: check_effects_view(page); check_effects_editing(page)
+            if 'effects' in only: check_effects_view(page); check_effects_editing(page); check_effects_box(page)
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
             if 'library-effects' in only: check_library_effects(browser, page.url)
@@ -4520,6 +4584,7 @@ def main():
         if page.evaluate("viewer.data.scope === 'map'"): check_lights(page, is_bar)
         check_effects_view(page)
         check_effects_editing(page)
+        check_effects_box(page)
         check_project_menu(page)
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)

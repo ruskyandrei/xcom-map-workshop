@@ -667,54 +667,81 @@ function kindPiece(r) {
   return !r.userData.deleted && r.visible && !r.userData.light && !r.userData.volume && !isStream(o) && !o.cover && !o.hidden
     && !o.environment && typeof data.meshes[o.mesh]?.name === 'string';
 }
+// An effect's or a sound's kind (effects and sounds plan, FX3b): its particle system, or the waves it plays; null for
+// a flare, a sound with no wave, one not drawn or one the editor doesn't change.
+function effectKind(r) {
+  const o = r.userData.source;
+  if (!r.visible || r.userData.deleted || isStream(o) || !effectsShown()) return null;
+  if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) return null;
+  if (o.kind === 'effect' && o.system) return `system:${o.system}`;
+  if (o.kind === 'sound' && o.waves?.length) return `waves:${[...o.waves].sort().join('+')}`;
+  return null;
+}
 function kindSeeds() {
-  const seeds = new Map();     // full mesh path -> its short name
+  const seeds = new Map();     // full mesh path -> its short name; an effect's system or a sound's waves -> its name
   for (const id of gizmo.picks().ids) {
-    const r = roots.get(id);
+    const r = roots.get(id), fx = r ? null : effectRoots.get(id);
     if (r && kindPiece(r)) { const name = data.meshes[r.userData.source.mesh].name; seeds.set(name, short(name)); }
+    const kind = fx && effectKind(fx);
+    if (kind) seeds.set(kind, recordName(fx.userData.source, data));
   }
   return seeds;
 }
 function kindMatches(seeds) {
   const box = pickBox && !pickDrag ? pickBox : null, out = [];
+  const inBox = at => at.every((v, k) => v >= box[k] - PICK_SLACK && v <= box[k + 3] + PICK_SLACK);
   for (const r of roots.values()) {
     if (!kindPiece(r) || !seeds.has(data.meshes[r.userData.source.mesh].name)) continue;
     if (box) {
       const b = boxOf(r);
       if (!b) continue;
-      const at = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2];
-      if (!at.every((v, k) => v >= box[k] - PICK_SLACK && v <= box[k + 3] + PICK_SLACK)) continue;
+      if (!inBox([(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2])) continue;
     }
     out.push(r);
   }
-  return { roots: out, box: Boolean(box), actors: new Set(out.map(r => flagKey(r.userData.source))).size };
+  let effects = 0;
+  for (const r of effectRoots.values()) {
+    const kind = effectKind(r), e = r.matrix.elements;
+    if (!kind || !seeds.has(kind) || (box && !inBox([e[12], e[14], e[13]]))) continue;
+    out.push(r); effects++;
+  }
+  return { roots: out, box: Boolean(box), effects, actors: new Set(out.map(r => (r.userData.effect ? r.userData.source.id : flagKey(r.userData.source)))).size };
 }
+// what Select all of a kind counts, in words: pieces, or effects and sounds where only those match
+const kindCount = found => (found.effects && found.effects === found.roots.length ? `${found.actors} ${found.actors === 1 ? 'effect or sound' : 'effects and sounds'}` : plural(found.actors, 'piece'));
 function kindButton() {
   const button = $('editKind'), seeds = data ? kindSeeds() : new Map();
+  // the effect panel's own button (a picked effect's or sound's panel stands in the piece panel's place)
+  const twin = $('effectKind'), mirror = () => { twin.hidden = !seeds.size || ![...seeds.keys()].some(k => /^(system|waves):/.test(k));
+    twin.textContent = button.textContent; twin.title = button.title; twin.disabled = button.disabled; };
   if (!seeds.size) {
+    mirror();
     button.disabled = true; button.textContent = 'Select all';
-    button.title = 'Select every piece with the same mesh as the one selected (a light, a cover block, a hidden or streamed piece has none to match)';
+    button.title = 'Select every piece with the same mesh as the one selected, or every effect of the same particle system, every sound of the same wave (a light, a cover block, a hidden or streamed piece has none to match)';
     return;
   }
   const found = kindMatches(seeds), picked = new Set(gizmo.picks().ids);
   const what = seeds.size === 1 ? [...seeds.values()][0] : `of these ${seeds.size} kinds`;
   button.textContent = `Select all ${what}${found.box ? ' in box' : ''} (${found.actors})`;
   button.disabled = !found.roots.length || (found.roots.every(r => picked.has(r.userData.source.id)) && found.roots.length === picked.size);
-  button.title = `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
+  button.title = found.effects && found.effects === found.roots.length
+    ? `Select every drawn effect of the same particle system and every sound of the same wave ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
+    : `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
     + `${plural(found.actors, 'piece')} (${[...seeds.keys()].join(', ')}). Shift+click adds them to the selection. Hidden, deleted and streamed pieces `
     + 'are left out. The Flags group then sets them all; moving, copying and deleting still take each one\'s linked pieces with it.';
+  mirror();
 }
 function selectKind(add = false) {
   const seeds = kindSeeds();
   if (!seeds.size) return;
   const found = kindMatches(seeds), was = gizmo.picks();
-  if (!found.roots.length) { flashHint('No drawn piece has that mesh'); return; }
+  if (!found.roots.length) { flashHint('Nothing drawn is of that kind'); return; }
   const ids = found.roots.map(r => r.userData.source.id);
   const next = add ? [...new Set([...was.ids.filter(id => allRoots.get(id)), ...ids])] : ids;
   if (found.box) stopPickBox();
   gizmo.setSelection(next, next.includes(was.active) ? was.active : next[0]);
   select(gizmo.active, false, true);
-  flashHint(`${plural(found.actors, 'piece')} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
+  flashHint(`${kindCount(found)} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
 }
 // A cover block's or invisible floor's panel: what it is, its size, height and cover (coverPanel), its actor and place.
 function showCover(root) {
@@ -6772,7 +6799,7 @@ function paintEffects() {
 // What is drawn now: each root shown or not (its kind ticked, not deleted or taken by its piece's delete, its stream's
 // mission chosen, kept by a clear, in the play area under Interior), and the carried copies
 function refreshEffects() {
-  effectsDirty = false;
+  effectsDirty = false; pickCentres = null;
   if (!effectsAvailable()) { effectMarkers = []; effectLayer.visible = false; return; }
   deriveEffects();
   const shown = effectsShown();
@@ -8521,7 +8548,7 @@ for (let axis = 0; axis < 3; axis++) for (let u = 0; u < 2; u++) for (let v = 0;
 function pickCandidates() {
   if (!pickCentres) {
     pickCentres = [];
-    for (const root of lightsOn ? [] : roots.values()) {
+    for (const root of lightsOn || effectsOn ? [] : roots.values()) {
       const o = root.userData.source;
       if (root.userData.deleted || !root.visible || isStream(o)) continue;
       const b = boxOf(root);
@@ -8533,13 +8560,21 @@ function pickCandidates() {
       if (!root.visible || root.userData.deleted || isStream(o) || lightViewOnly(o)) continue;
       pickCentres.push({ id: o.id, kind: 'light', at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
     }
-    if (boxesShown && !lightsOn) for (const root of volumeRoots.values()) {
+    // with the markers drawn (the Effects view, where only they are taken, or the Normal button's switch), the
+    // effects, sounds and flares the editor changes (effects and sounds plan, FX3b)
+    if (effectsShown() && !lightsOn) for (const root of effectRoots.values()) {
+      const o = root.userData.source, e = root.matrix.elements;
+      if (!root.visible || root.userData.deleted || isStream(o)) continue;
+      if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) continue;
+      pickCentres.push({ id: o.id, kind: o.kind, at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
+    }
+    if (boxesShown && !lightsOn && !effectsOn) for (const root of volumeRoots.values()) {
       if (!root.visible) continue;
       const b = volumeBox(root);
       pickCentres.push({ id: root.userData.source.id, kind: 'box', at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
     }
     // and the map's own boxes: taken to be copied
-    if (boxesShown && !lightsOn) ownVolumeLayer.children.filter(c => c.userData.own).forEach((mesh, n) => {
+    if (boxesShown && !lightsOn && !effectsOn) ownVolumeLayer.children.filter(c => c.userData.own).forEach((mesh, n) => {
       const b = mesh.userData.own.box;
       pickCentres.push({ id: `own:${n}`, kind: 'own', mesh, at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
     });
@@ -8567,13 +8602,16 @@ function refreshPickBox(recount = false) {
   }
   parts.hits.geometry.dispose();
   parts.hits.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(points, 3));
-  $('boxBarText').textContent = pickHits.length ? `${pickWords()} inside` : lightsOn ? 'No light inside' : 'No piece inside';
+  $('boxBarText').textContent = pickHits.length ? `${pickWords()} inside` : lightsOn ? 'No light inside' : effectsOn ? 'No effect or sound inside' : 'No piece inside';
   $('boxTake').disabled = $('boxAdd').disabled = !pickHits.length;
 }
 // what the box holds, in words: pieces, lights and floor boxes
 function pickWords() {
-  const lights = pickHits.filter(c => c.kind === 'light').length, boxes = pickHits.filter(c => c.kind === 'box' || c.kind === 'own').length, n = pickHits.length - lights - boxes;
-  const parts = [n && plural(n, 'piece'), lights && plural(lights, 'light'), boxes && `${boxes} floor ${boxes === 1 ? 'box' : 'boxes'}`].filter(Boolean);
+  const of = kind => pickHits.filter(c => c.kind === kind).length;
+  const lights = of('light'), boxes = of('box') + of('own'), effects = of('effect'), sounds = of('sound'), flares = of('flare');
+  const n = pickHits.length - lights - boxes - effects - sounds - flares;
+  const parts = [n && plural(n, 'piece'), lights && plural(lights, 'light'), boxes && `${boxes} floor ${boxes === 1 ? 'box' : 'boxes'}`,
+                 effects && plural(effects, 'effect'), sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare')].filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
 }
 const pickMovePoint = () => [(pickBox[0] + pickBox[3]) / 2, (pickBox[1] + pickBox[4]) / 2, (pickBox[2] + pickBox[5]) / 2];
@@ -8588,7 +8626,7 @@ function setPickTool(on) {
   if (on && (!data || placing)) return;
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);     // box select takes pieces, which the Landing zones view doesn't
-  if (on && effectsOn) setEffectsShown(false);  // (nor the Effects view)
+  // (the Effects view stays: there the box takes its markers only, as the Lights view's takes lights)
   pickTool = Boolean(on);
   if (!pickTool) { pickBox = null; pickDrag = null; }
   renderer.domElement.style.cursor = pickTool ? 'crosshair' : '';
@@ -8639,7 +8677,7 @@ function movePickDrag(e) {
     } else pickBox = [Math.min(d.from[0], at.x), Math.min(d.from[1], at.z), d.level - PICK_DROP, Math.max(d.from[0], at.x), Math.max(d.from[1], at.z), d.top].map(Math.round);
   }
   refreshPickBox();
-  volumeHint(`Box select: ${pickHits.length ? `${pickWords()} inside` : 'no piece inside'}`);
+  volumeHint(`Box select: ${pickHits.length ? `${pickWords()} inside` : effectsOn ? 'no effect or sound inside' : 'no piece inside'}`);
 }
 function endPickDrag(keep) {
   const d = pickDrag;
@@ -8661,7 +8699,7 @@ function takePickBox(add = false) {
   if (!pickBox) return;
   refreshPickBox(true);
   const owns = pickHits.filter(c => c.kind === 'own'), ids = pickHits.filter(c => c.kind !== 'own').map(c => c.id), was = gizmo.picks();
-  if (!ids.length && !owns.length) { flashHint(lightsOn ? 'No light is inside the box' : 'No piece has its middle inside the box'); return; }
+  if (!ids.length && !owns.length) { flashHint(lightsOn ? 'No light is inside the box' : effectsOn ? 'No effect or sound is inside the box' : 'No piece has its middle inside the box'); return; }
   const before = add ? was.ids.filter(id => allRoots.get(id)) : [];
   stopPickBox();
   // a piece holds the pivot when there is one
@@ -9483,6 +9521,7 @@ $('editReset').onclick = () => resetSelected();
 $('editResetAll').onclick = () => resetAll();
 $('flagsReset').onclick = () => resetFlags();
 $('editKind').onclick = e => selectKind(e.shiftKey);
+$('effectKind').onclick = e => { selectKind(e.shiftKey); e.target.blur(); };
 $('editCopy').onclick = () => copySelection();
 $('editDelete').onclick = () => deleteSelection();
 for (const id of ['alignX', 'alignY', 'alignZ', 'alignBy']) $(id).onchange = e => { saveAlignPrefs(); e.target.blur(); };

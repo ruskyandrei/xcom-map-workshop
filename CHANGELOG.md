@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Box select takes effects and sounds (effects and sounds plan, stage FX3b)
+
+- [app.js](tools/viewer/web/app.js): with the Normal button's **Effects and sounds** switch on, the select box
+  (`pickCandidates`) takes the effects and sounds inside it with the pieces, and its bar counts them ("12 pieces, 3
+  effects and 1 sound inside"); in the Effects view the box takes markers only, and the tool no longer closes the
+  view. Only what is drawn and the editor changes is taken (not a stream's, not a view-only one).
+- **Select all** for a picked effect or sound (`effectKind`, `kindSeeds`, `kindMatches`; the effect panel's own
+  button, [index.html](tools/viewer/web/index.html) `effectKind`): every drawn effect of the same particle system,
+  every sound of the same waves, inside the box where one is drawn.
+- [tools/viewer/README.md](tools/viewer/README.md) says so.
+
+Checked: the browser smoke's new `check_effects_box` on URB_Bar ([browser_smoke.py](tools/viewer/tests/browser_smoke.py):
+the box without and with the switch, the bar's words, Enter, the Effects view's box, an empty box, Select all of
+eight moth effects and of the one in a box) with the `effects` and `box-select` checks; the node and repo suites.
+No Build or project change, so nothing to play.
+
 ### EXP-70 prepared: effect and sound values in the game (effects and sounds plan, EXP-E)
 
 - [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md): ten values set on URB_Bar's own effects and
