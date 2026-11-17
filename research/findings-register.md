@@ -2620,6 +2620,22 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   the original plays the first mission); the project manager works them out from the last build's records. The Game
   maps window marks only the replaced records.
 
+### T-43: The game does not start on a hidden desktop: DirectX 9 finds no hardware there, and it has no working DirectX 11
+**Verified** (17 November 2026, the lab copy, two starts; no EXP file).
+- What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
+  `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get
+  Caps bits info from the D3D Object`, pixel and vertex shader version 0, compatibility level 0, and then nothing
+  more: it stood for 70 seconds (a box nobody sees, as in T-01) until the timeout ended it.
+- With `-dx11` added it took the DirectX 11 path (`Shader platform (RHI): PC-D3D-SM5`) and stopped after 3 seconds:
+  `Failed to compile global shader FResolveVertexShader` (`Common.usf(789,55)`: undeclared identifier
+  `ViewportPositionScaleBias`). The shipped game has no DirectX 11 shaders, so T-01's way out is closed for it.
+- So a game test nobody watches needs another way to keep the game off the user's screen: a DirectX 9 layer that
+  doesn't ask the display (DXVK's `d3d9.dll` in the lab copy, not tried), a window on the user's desktop that never
+  takes the keyboard (commands by window messages or from a file, pictures by the game's own `shot`), or a second
+  display that is not a real one. None tried.
+- The second start rewrote the lab copy's `XComEngine.ini` (its compatibility levels unchanged: 2, 2, 4) and left a
+  crash dump in its `Logs`.
+
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code
 inspection, no new visible mesh played).

@@ -8,6 +8,13 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Finding T-43: the game does not start on a hidden desktop
+
+- [research/findings-register.md](research/findings-register.md), T-43: two starts of the lab copy's `XComEW.exe` on a
+  private desktop (`HiddenRun`), asked for while looking into game tests nobody watches. DirectX 9 finds no hardware
+  there and the game stands still; with `-dx11` it stops at a global shader that doesn't compile. Checked by the two
+  `Launch.log`s. No tool changed; the other ways to keep the game off the screen are listed there, none tried.
+
 ### Effects' and sounds' values in the compiler and the Build (effects and sounds plan, stage FX5, part 1)
 
 - An effect's size, starting state and particle parameters, and a sound's radii, volume, pitch and starting state,
