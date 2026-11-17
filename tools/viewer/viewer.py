@@ -9,7 +9,7 @@ from pathlib import Path
 import socket
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
-from export import export_map, EXPORT_VERSION
+from export import export_map, stream_package, EXPORT_VERSION
 from catalogue import load_catalogue, public_catalogue, with_install
 from projects import ProjectError, ProjectStore
 from prefabs import MAX_PICTURE, PrefabStore
@@ -21,6 +21,7 @@ from play import Player
 from gamesetup import GameSetup
 from families import FamilyCache
 from collision import CollisionCache
+from audio import OggError, WaveCache, byte_range
 from library import LibraryRunner, pieces_root
 from precache import PrecacheRunner
 import guide
@@ -102,6 +103,8 @@ class Handler(SimpleHTTPRequestHandler):
     family_cache = FamilyCache()
     # each map's line-check collision by mesh (collision.py), its package read once per server
     collision_cache = CollisionCache()
+    # each wave the Effects view previews (audio.py), read from its package once and kept within a bound
+    wave_cache = WaveCache()
 
     def __init__(self, *args, catalogue=None, projects=None, builds=None, exports=None, player=None, live=None,
                  setup=None, library=None, prefabs=None, prefab_tests=None, precache=None, queue=None, **kwargs):
@@ -414,6 +417,57 @@ class Handler(SimpleHTTPRequestHandler):
             except (OSError, ValueError, KeyError) as error: self.send_json(500, dict(error=f'Could not read the map\'s collision: {error}'))
         return True
 
+    # A sound's wave for the Effects view's Wave preview (audio.py): GET or HEAD /maps/<id>/wave.ogg?id=<wave id>, the
+    # id a key of the export's soundWaves ('<package>|<path>'). The Ogg stream is read from the package in the install
+    # (the map's own only while it is the file the map was exported from), checked, kept, and answered with its length,
+    # an ETag (If-None-Match: 304) and one byte range at a time (206; 416 outside it). An id the export doesn't list is
+    # 404, a wave it can't serve 422 with why: one bad wave never fails the map.
+    def handle_wave(self, method):
+        split = urlsplit(self.path)
+        parts = split.path.strip('/').split('/')
+        if len(parts) != 3 or parts[0] != 'maps' or parts[2] != 'wave.ogg': return False
+        entry = self.catalogue['maps'].get(parts[1])
+        wave_id = (parse_qs(split.query).get('id') or [''])[0]
+        if method not in ('GET', 'HEAD'): self.send_json(405, dict(error='Not allowed.'))
+        elif not entry or entry.get('root') is None: self.send_json(404, dict(error='That map is not exported.'), body=method == 'GET')
+        else:
+            try:
+                root = Path(entry['root'])
+                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
+                find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
+                cooked = lambda: Path(find())
+                data, etag, record = self.wave_cache.get(
+                    root, scene, wave_id, find, lambda name: stream_package(cooked(), name))
+            except KeyError: self.send_json(404, dict(error='That wave is not one of this map\'s.'), body=method == 'GET')
+            except OggError as error: self.send_json(422, dict(error=f'The wave can\'t be played: {error}'), body=method == 'GET')
+            except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the wave: {error}'), body=method == 'GET')
+            else: self.send_wave(data, f'"{etag}"', method == 'GET')
+        return True
+
+    def send_wave(self, data, etag, body):
+        if etag in [t.strip() for t in self.headers.get('If-None-Match', '').split(',')]:
+            self.send_response(304)
+            self.send_header('ETag', etag)
+            self.end_headers()
+            return
+        span = byte_range(self.headers.get('Range'), len(data))
+        if span is False:
+            self.send_response(416)
+            self.send_header('Content-Range', f'bytes */{len(data)}')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        start, end = span or (0, len(data) - 1)
+        self.send_response(206 if span else 200)
+        self.send_header('Content-Type', 'audio/ogg')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('ETag', etag)
+        if span: self.send_header('Content-Range', f'bytes {start}-{end}/{len(data)}')
+        self.send_header('Content-Length', str(end - start + 1))
+        self.end_headers()
+        if body: self.wfile.write(data[start:end + 1])
+
     # Play in game (play.py): GET /play.json says which installs the editor works with and what it has installed
     # there; POST /play/start ({project} or {map}) starts the game on a map and POST /play/remove takes the editor's
     # installs back out.
@@ -657,7 +711,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):
@@ -672,7 +726,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
-        else: super().do_HEAD()
+        elif not self.handle_wave('HEAD'): super().do_HEAD()
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)

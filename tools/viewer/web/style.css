@@ -184,6 +184,16 @@ canvas { display: block; width: 100%; height: 100%; }
 #effectParams .effectparam.odd { color: var(--muted); }
 #effectParams .effectparam .value { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 #effectParams .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0006; display: inline-block; }
+/* its Wave preview (FX2): each wave of a sound, its Play/Stop button and how far it has got, or why it didn't play */
+#effectWaves { display: grid; gap: 4px; font-size: 12px; }
+#effectWaves[hidden] { display: none; }
+#effectWaves .waverow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; color: #c7d9e2; }
+#effectWaves .waverow .name { overflow-wrap: anywhere; }
+#effectWaves .waverow button { min-width: 52px; }
+#effectWaves .waverow button.on { background: var(--accent-bg); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent); }
+#effectWaves .waverow .status { grid-column: 1 / -1; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#effectWaves .waverow .status:empty { display: none; }
+#effectWaves .waverow .status.bad { color: #f0b37a; }
 #landingPanel .row { margin: 0; flex-wrap: wrap; }
 #landingPanel .landingusers { display: flex; align-items: center; gap: 14px; font-size: 12px; color: #c7d9e2; }
 #landingPanel .landingusers .check { margin-top: 0; }

@@ -527,6 +527,10 @@ cue and node are its own.
 **A wave** (`soundWaves`): `path`, `name`, `package`, `seconds`, `channels`, `rate`, `size`, `ogg` (the Ogg stream's
 bytes) and `playable`: its PC bulk record (the second of five, read by its header) is in the export, uncompressed
 (flags 0, element count equal to its size) and starts as an Ogg stream; otherwise `why` says what it is.
+Since stage FX2 the page plays a playable wave through `GET`/`HEAD /maps/<id>/wave.ogg?id=<soundWaves key>`
+([audio.py](../tools/viewer/audio.py)): the key's package is the map's own (its file checked against `source.sha256`)
+or one of its `streams`; any other key is 404. The stream is checked as Ogg Vorbis before it is sent (a refusal is 422
+with why) and answered as `audio/ogg` with its length, an ETag and single byte ranges.
 
 **A flare** adds `template`, `colour` (its component's `SourceColor`, RGBA) and `hidden`; `can.values` is false (its
 template and colour aren't edited in this plan).

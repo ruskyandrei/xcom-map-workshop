@@ -109,6 +109,7 @@ let boxesShown = false, lightsOn = false, normalLights = false;
 let zonesOn = false, zonesHidBefore = false;
 // the Effects view (effects and sounds plan, FX1; below the mission objects): its markers, and only they are picked
 let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers = [];
+let wavePlayer = null;     // the Wave preview's player: { audio, wave, record (its id), state: loading, playing or failed, why }
 world.add(volumeLayer);
 const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id),
                    has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id),
@@ -6508,6 +6509,7 @@ function refreshEffects() {
 }
 function effectPanel() {
   const m = effectsOn ? pickedMarker() : null;
+  if (wavePlayer && (!m || m.userData.record.id !== wavePlayer.record)) stopWave();
   $('effectPanel').hidden = !m;
   if (!m) return;
   const r = m.userData.record, { title, lines } = recordLines(r, data);
@@ -6517,6 +6519,23 @@ function effectPanel() {
   for (const c of recordChips(r, data)) text(chips, 'span', c.text, 'chip').title = c.title;
   chips.hidden = !chips.children.length;
   setParagraphs($('effectInfo'), lines.join('\n'));
+  // a sound's waves, each with its Play button
+  const waves = r.kind === 'sound' ? [...new Set(r.waves ?? [])] : [], box = $('effectWaves');
+  box.replaceChildren();
+  box.hidden = !waves.length;
+  if (waves.length) {
+    text(box, 'div', 'Wave preview', 'posehead').title = 'Plays the wave by itself at a preview volume: the game\'s sound (its reach, volume, pitch, random choice and looping) is not reproduced';
+    for (const w of waves) {
+      const info = data.soundWaves?.[w], line = text(box, 'div', '', 'waverow');
+      text(line, 'span', info?.name ?? w.split('|').at(-1), 'name').title = w.split('|').at(-1);
+      const button = text(line, 'button', 'Play');
+      button.type = 'button'; button.dataset.wave = w;
+      if (info?.playable) button.onclick = () => playWave(r, w);
+      else { button.disabled = true; button.title = `It can't be played: ${info?.why ?? 'the map doesn\'t describe it'}`; }
+      text(line, 'span', '', 'status').dataset.wave = w;
+    }
+  }
+  paintWaves();
   const rows = r.kind === 'effect' ? parameterRows(r, data) : [], table = $('effectParams');
   table.replaceChildren();
   table.hidden = !rows.length;
@@ -6534,6 +6553,60 @@ function effectPanel() {
         value.prepend(swatch);
       }
       if (row.note) { line.classList.add('odd'); line.title = row.note; }
+    }
+  }
+}
+// The Wave preview (effects and sounds plan, FX2): one wave of the picked sound at a time, played by a click through
+// /maps/<id>/wave.ogg (audio.py), which checks it before sending it. Picking something else, leaving the view or
+// opening another map or project stops it and lets it go; a refusal shows the server's reason.
+function stopWave() {
+  const player = wavePlayer;
+  wavePlayer = null;
+  if (player) { player.audio.pause(); player.audio.removeAttribute('src'); player.audio.load(); }
+  paintWaves();
+}
+function playWave(record, wave) {
+  const again = wavePlayer?.wave === wave && wavePlayer.record === record.id && wavePlayer.state !== 'failed';
+  stopWave();
+  if (again) return;      // its Stop button
+  const url = `/maps/${encodeURIComponent(activeMapId)}/wave.ogg?id=${encodeURIComponent(wave)}`;
+  const audio = new Audio(), player = wavePlayer = { audio, wave, record: record.id, state: 'loading', why: null };
+  const mine = () => wavePlayer === player;
+  audio.volume = 0.6;
+  audio.addEventListener('playing', () => { if (mine()) { player.state = 'playing'; paintWaves(); } });
+  audio.addEventListener('timeupdate', () => { if (mine()) paintWaves(); });
+  audio.addEventListener('ended', () => { if (mine()) stopWave(); });
+  audio.addEventListener('error', () => { if (mine()) waveFailed(player, url); });
+  audio.src = url;
+  audio.play().catch(e => { if (mine() && e.name !== 'AbortError') waveFailed(player, url, e); });
+  paintWaves();
+}
+async function waveFailed(player, url, error) {
+  if (player.state === 'failed') return;
+  player.state = 'failed';
+  player.audio.pause(); player.audio.removeAttribute('src');
+  paintWaves();
+  // the server's reason when it refused the wave; else the browser couldn't play what it was sent
+  let why = error?.name === 'NotAllowedError' ? 'the browser did not let it play' : 'the browser could not decode it';
+  try {
+    const reply = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+    if (!reply.ok) why = (await reply.json().catch(() => null))?.error ?? `the server answered ${reply.status}`;
+  } catch { why = 'the server did not answer'; }
+  player.why = why;
+  if (wavePlayer === player) paintWaves();
+}
+function paintWaves() {
+  const clock = t => (Number.isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '');
+  for (const el of $('effectWaves').querySelectorAll('[data-wave]')) {
+    const p = wavePlayer?.wave === el.dataset.wave && wavePlayer.record === pickedEffect ? wavePlayer : null;
+    if (el.tagName === 'BUTTON') {
+      if (el.disabled) continue;
+      el.textContent = p && p.state !== 'failed' ? 'Stop' : 'Play';
+      el.classList.toggle('on', Boolean(p && p.state !== 'failed'));
+    } else {
+      el.textContent = !p ? '' : p.state === 'loading' ? 'loading…' : p.state === 'failed' ? (p.why ? `Not played: ${p.why}` : 'Not played…')
+        : `${clock(p.audio.currentTime)} / ${clock(p.audio.duration)}`;
+      el.classList.toggle('bad', p?.state === 'failed');
     }
   }
 }
@@ -8345,7 +8418,7 @@ function chooseMission(value) {
 async function open() {
   stopPickBox();
   boxesShown = false; normalLights = false; lightsOn = false; lightsShown = false; zonesOn = false;
-  effectsOn = false; pickedEffect = null; effectLayer.visible = false; effectsDirty = true;
+  effectsOn = false; pickedEffect = null; effectLayer.visible = false; effectsDirty = true; stopWave();
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -8585,6 +8658,11 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
     // screen point and whether it is a copy the Build makes with a piece
     effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
+    // the Wave preview (FX2): what plays, how far it has got and why it failed
+    playWave: wave => { const r = effectMarkers.find(m => m.userData.record.id === pickedEffect)?.userData.record; if (r) playWave(r, wave); }, stopWave,
+    seekWave: t => { if (wavePlayer) wavePlayer.audio.currentTime = t; },
+    wave: () => wavePlayer && { wave: wavePlayer.wave, record: wavePlayer.record, state: wavePlayer.state, why: wavePlayer.why,
+                                time: wavePlayer.audio.currentTime, duration: wavePlayer.audio.duration, paused: wavePlayer.audio.paused, volume: wavePlayer.audio.volume },
     effectMarkers: () => { if (effectsDirty) refreshEffects(); const project = projector();
       return effectMarkers.map(m => ({ id: m.userData.record.id, kind: m.userData.record.kind, derived: Boolean(m.userData.derived),
                                        at: [m.position.x, m.position.z, m.position.y], screen: project(m.position) })); },

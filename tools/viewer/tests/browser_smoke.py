@@ -2975,6 +2975,7 @@ def check_effects_view(page):
         page.evaluate(f'viewer.pickEffect({heard!r})')
         assert page.evaluate('viewer.effectShapes.children.length') == 1
         page.evaluate('viewer.pickEffect(null)')
+    check_wave_preview(page)
     # the flyout's Sounds box hides the sounds and brings them back
     count = lambda kind: page.evaluate(f"viewer.effectMarkers().filter(m => m.kind === {kind!r}).length")
     if count('sound'):
@@ -2988,6 +2989,49 @@ def check_effects_view(page):
     page.keyboard.press('x')
     page.keyboard.press('Shift+X')
     assert not page.evaluate('viewer.effectsOn()') and not page.evaluate('viewer.effectMarkers().length')
+
+
+# what a check makes go wrong on purpose (a refused request it asks for): left out of the run's errors
+EXPECTED = set()
+
+
+def check_wave_preview(page):
+    """The Effects view's Wave preview (effects and sounds plan, FX2; /maps/<id>/wave.ogg, audio.py): a click on a
+    sound's Play plays its wave, decoded by the browser at the length the export gives; a seek moves it and it lets go
+    at its end; Stop, Escape and picking something else stop it; an id the map doesn't list shows the server's reason."""
+    sound = page.evaluate("(viewer.data.sounds ?? []).find(s => (s.waves ?? []).some(w => viewer.data.soundWaves?.[w]?.playable))?.id ?? null")
+    if not sound: return
+    page.evaluate(f'viewer.pickEffect({sound!r})')
+    wave = page.evaluate(f"viewer.data.sounds.find(s => s.id === {sound!r}).waves.find(w => viewer.data.soundWaves[w].playable)")
+    button = page.locator('#effectWaves button[data-wave]').filter(has_text='Play').first
+    assert page.locator('#effectWaves').is_visible() and button.get_attribute('data-wave') == wave
+    playing = "viewer.wave() && ['playing', 'failed'].includes(viewer.wave().state)"
+    button.click()
+    page.wait_for_function(playing, timeout=15000)
+    state = page.evaluate('viewer.wave()')
+    assert state['state'] == 'playing' and state['wave'] == wave and state['volume'] == 0.6, state
+    seconds = page.evaluate(f'viewer.data.soundWaves[{wave!r}].seconds')
+    if seconds and state['duration']: assert abs(state['duration'] - seconds) < 0.1, (state, seconds)
+    stop = page.locator(f'#effectWaves button[data-wave]').first
+    assert stop.inner_text() == 'Stop'
+    page.evaluate(f"viewer.seekWave({max(0, (state['duration'] or 0) - 0.5)})")
+    page.wait_for_function('viewer.wave() === null', timeout=10000)     # the end lets it go
+    assert stop.inner_text() == 'Play'
+    stop.click()
+    page.wait_for_function(playing, timeout=15000)
+    stop.click()                                                        # Stop
+    assert page.evaluate('viewer.wave()') is None and stop.inner_text() == 'Play'
+    stop.click()
+    page.wait_for_function(playing, timeout=15000)
+    page.keyboard.press('Escape')
+    assert page.evaluate('viewer.wave()') is None and page.evaluate('viewer.pickedEffect()') is None
+    page.evaluate(f'viewer.pickEffect({sound!r})')
+    page.evaluate("viewer.playWave('No|Such.Wave')")
+    page.wait_for_function('viewer.wave()?.why', timeout=10000)
+    assert 'not one of this map' in page.evaluate('viewer.wave().why')
+    refused = page.evaluate("location.origin + '/maps/' + encodeURIComponent(viewer.mapId) + '/wave.ogg?id=No%7CSuch.Wave'")
+    EXPECTED.update({'Failed to load resource: the server responded with a status of 404 (Not Found)', f'HTTP 404: {refused}'})
+    page.evaluate('viewer.stopWave(); viewer.pickEffect(null)')
 
 
 def check_streams(page):
@@ -3986,6 +4030,7 @@ def main():
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
                 errors.update(found)
             page.screenshot(path=str(args.screenshot))
+            errors -= EXPECTED
             print(json.dumps(dict(only=sorted(only), errors=sorted(errors)), indent=2))
             browser.close()
             if errors: raise SystemExit(1)
@@ -4252,6 +4297,7 @@ def main():
             page.screenshot(path=str(args.screenshot.with_stem(args.screenshot.stem+'-'+option.removesuffix('.json'))))
             previews.append(page.evaluate("({name:viewer.data.name,pieces:[...viewer.roots.values()].filter(r=>r.visible).length,notes:viewer.data.preview.notes.length})"))
         report['previews']=previews
+        errors-=EXPECTED
         result=dict(**report,initialView=initial_view,interiorPieces=interior_count,errors=sorted(errors),screenshot=str(args.screenshot))
         args.screenshot.with_suffix('.json').write_text(json.dumps(result,indent=2),encoding='utf8',newline='\n')
         print(json.dumps(result,indent=2))

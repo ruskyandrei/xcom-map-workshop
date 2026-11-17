@@ -389,7 +389,6 @@ def wave_record(p, index):
     where that record is in the export, uncompressed (flags 0, element count equal to its size) and starts as an Ogg
     stream; otherwise `why` says what it is. The stream itself is checked where it is played (FX2)."""
     e = p.exports[index - 1]
-    end = e['off'] + e['size']
 
     def value(key):
         v = p.own(index, key)
@@ -397,6 +396,21 @@ def wave_record(p, index):
     out = dict(path=p.name(index), name=short(p.name(index)), package=p.path.stem, seconds=value('Duration'),
                channels=value('NumChannels'), rate=value('SampleRate'), size=e['size'], ogg=None, playable=False,
                why=None)
+    at, size, why = pc_sound(p, index)
+    if why:
+        out['why'] = why
+    else:
+        out.update(ogg=size, playable=True)
+    return out
+
+
+def pc_sound(p, index):
+    """(where the PC's Ogg stream of a SoundNodeWave starts in p.data, its size, None), or (None, None, why not): its
+    bulk records read by their 16-byte headers (flags, element count, size, offset), the second being the PC's. Only
+    a record in the export, uncompressed (flags 0, element count equal to its size) and starting as an Ogg stream is
+    given; the stream itself is checked where it is played (audio.validate)."""
+    e = p.exports[index - 1]
+    end = e['off'] + e['size']
     try:
         pos = p.properties(index)[1]
         records = []
@@ -407,27 +421,22 @@ def wave_record(p, index):
             records.append((flags, count, size, offset, pos if inline else None))
             if inline:
                 if offset != pos or pos + size > end:
-                    out['why'] = 'its sound data is not where its header says'
-                    return out
+                    return None, None, 'its sound data is not where its header says'
                 pos += size
     except (FormatError, struct.error) as error:
-        out['why'] = 'its sound data does not read: %s' % error
-        return out
+        return None, None, 'its sound data does not read: %s' % error
     if len(records) < 2:
-        out['why'] = 'it holds no PC sound data'
-        return out
+        return None, None, 'it holds no PC sound data'
     flags, count, size, offset, at = records[1]
     if size <= 0:
-        out['why'] = 'it holds no PC sound data'
-    elif at is None:
-        out['why'] = 'its PC sound data is stored outside the map'
-    elif flags or count != size:
-        out['why'] = 'its PC sound data is compressed'
-    elif p.data[at:at + 4] != b'OggS':
-        out['why'] = 'its PC sound data is not an Ogg stream'
-    else:
-        out.update(ogg=size, playable=True)
-    return out
+        return None, None, 'it holds no PC sound data'
+    if at is None:
+        return None, None, 'its PC sound data is stored outside the map'
+    if flags or count != size:
+        return None, None, 'its PC sound data is compressed'
+    if p.data[at:at + 4] != b'OggS':
+        return None, None, 'its PC sound data is not an Ogg stream'
+    return at, size, None
 
 
 def sound_graph(p, cue, node):

@@ -451,6 +451,18 @@ with its delete and is copied with its copies (greyed); the landing's follow the
 `clear_level` keeps (every sound, the landing's, a moved carrier's, and the scenery outside when asked). The flyout
 on the rail button hides a kind; F or a double-click brings the camera to the picked one. Nothing is edited there.
 
+A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
+at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not
+reproduced). The button turns to Stop, the clock shows how far it has got, and picking something else, Escape,
+leaving the view or opening another map or project stops it and lets it go; a wave that can't be played shows why.
+The server's route is `GET` or `HEAD /maps/<id>/wave.ogg?id=<wave id>`, the id a key of the export's `soundWaves`
+([audio.py](audio.py)): the wave's Ogg Vorbis stream is read from its package in the install (the map's own only
+while it is the file the map was exported from, by its SHA-256; a stream's from its folder), checked as an Ogg stream
+(one logical stream, every page's checksum and number, the three Vorbis headers, the end) before it is sent, and kept
+in a cache of at most 64 MB. It answers with `audio/ogg`, its length, an ETag (`If-None-Match`: 304) and one byte
+range at a time (206, 416 outside it); an id the export doesn't list is 404 and a wave it can't serve 422 with why,
+so one bad wave never fails the map. Every wave of the 97 LWR maps' packages (7,192) passes the check.
+
 ### Clear map, the ground grid and landing zones
 
 The plan; the guide's "Clear map and landing zones".

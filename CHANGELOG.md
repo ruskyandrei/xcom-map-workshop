@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds, stage FX2: the Wave preview
+
+The second stage of the effects and sounds plan, on branch `effects-and-sounds`: a picked sound's waves can be heard
+in the Effects view. Nothing a Build makes changes, and the export stays at 28.
+- [audio.py](tools/viewer/audio.py), new: a wave's Ogg Vorbis stream read from its PC bulk record
+  ([effects_metadata.py](tools/viewer/effects_metadata.py)'s new `pc_sound`, which `wave_record` now uses too) and
+  checked before it is served: one logical stream, each page's capture pattern, version, checksum and number, the
+  continued-packet flags against the lacing, the identification header alone on the first page, the comment and setup
+  headers before the first audio page, the end flag on the last page, granules that never go back, at most 32 MB and an
+  hour. A bounded cache (64 MB) keeps each wave read; the map's own package is used only while it is the file the map
+  was exported from (its SHA-256), a stream's by its size and time.
+- [viewer.py](tools/viewer/viewer.py): `GET`/`HEAD /maps/<id>/wave.ogg?id=<soundWaves key>`, `audio/ogg` with its
+  length, an ETag (`If-None-Match`: 304) and one byte range at a time (206; 416 outside it). An id the export doesn't
+  list (a stale or made-up one, a path) is 404, a wave it can't serve 422 with why; one bad wave never fails the map.
+- The effect panel's **Wave preview** ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)): each wave of a picked sound with Play/Stop, one at a time, at volume 0.6,
+  the clock while it plays; picking something else, Escape, leaving the view or opening another map or project stops
+  and releases it; a refusal shows the server's reason, a decode failure says so.
+- Docs: [tools/viewer/README.md](tools/viewer/README.md) and section 8 of
+  [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_audio.py](tools/viewer/tests/test_audio.py), new (made-up Ogg streams: a good one, one with a packet
+over a page boundary, and each of 25 refusals; Ogg's CRC check value; byte ranges; the cache's refusals; on the
+install, Bar's Skyranger idle wave against its own properties, the cache and its bound, and the route: GET, HEAD,
+ranges, 416, 304, 404 and 422); the effects metadata tests; a sweep of every SoundNodeWave in the 97 LWR map packages
+(7,192, all pass, about 0.2 s for the largest, 2.3 MB); in the browser on a test server, Play decoded Bar's
+DropshipIdle at its 12.75 s, a seek went by byte range (206), Stop, the end, Escape, picking another sound, leaving
+the view and rapid switching each left no player behind, and a made-up id showed the server's reason;
+[browser_smoke.py](tools/viewer/tests/browser_smoke.py)'s Effects check plays, seeks, stops and refuses (its expected
+404 left out of the run's errors). Known gap: the user guide has no part on the Effects view yet.
+
 ### Effects and sounds, stage FX1: export 28 and the Effects view (view only)
 
 The first stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's effects, sounds and lens
