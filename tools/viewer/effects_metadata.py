@@ -26,7 +26,7 @@ from pathlib import Path
 
 from package import FormatError, Reader
 
-METADATA_VERSION = 1
+METADATA_VERSION = 2     # 2: each emitter's draw data (effects_draw.py, export 29)
 LEVEL = 'TheWorld.PersistentLevel'
 SOUND_CLASSES = ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop',
                  'AmbientSoundMovable')
@@ -118,6 +118,48 @@ class Defaults:
         if table is None:
             return None, 'unresolved'
         return table.get(key, zero), 'table'
+
+    def chain(self, index):
+        """The objects a property of export `index` can come from, nearest first, as (package, export index): itself,
+        its archetypes in the map, then the class's default in the game's script packages and that default's own
+        chain. Stops where the chain leaves what can be read (a prefab archetype in another package, no script
+        packages)."""
+        p, i, seen, last = self.p, index, set(), index
+        if index <= 0:
+            return
+        while i > 0:
+            if i in seen:
+                raise FormatError('Archetype cycle')
+            seen.add(i)
+            yield p, i
+            last, i = i, p.exports[i - 1]['arch']
+        path = p.name(i) if i < 0 else None
+        cls = p.cls(last)
+        if (path is not None and path.split('.')[0] not in SCRIPT_PACKAGES) or not self.scripts:
+            return
+        met = set()
+        while True:
+            if path is None:
+                path = next(('%s.Default__%s' % (n, cls) for n in ('Engine', 'XComGame', 'Core')
+                             if 'Default__' + cls in self.scripts[n].by_name), None)
+                if path is None:
+                    return
+            pkg, _, rest = path.partition('.')
+            sp = self.scripts.get(pkg)
+            j = sp.by_name.get(rest) if sp else None
+            if not j or (pkg, j) in met:
+                return
+            met.add((pkg, j))
+            yield sp, j
+            arch = sp.exports[j - 1]['arch']
+            if arch < 0:
+                path = sp.name(arch)
+            elif arch > 0:
+                path = '%s.%s' % (pkg, sp.name(arch))
+            elif rest.startswith('Default__') and '.' not in rest:
+                return
+            else:
+                path, cls = None, sp.cls(j)
 
     def _script(self, path, cls, key):
         """(True, value or ZERO) from the script packages' defaults, or None where the chain can't be followed."""

@@ -19,6 +19,7 @@ from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
 import collision
+import effects_draw
 import effects_metadata
 import piece_flags
 
@@ -53,7 +54,11 @@ import piece_flags
 #     effects_metadata.describe): `effects` gains its identity, starting state, saved particle parameters, floors,
 #     script users, attachment and what the editor may do with it; `sounds` and `flares` are new; `effectSystems`
 #     and `soundWaves` describe each particle system and wave once; a mission stream's own are in its layer
-EXPORT_VERSION = 28   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 29: what the page draws an effect's likeness from (effects and sounds plan, Part J1, stage FXV1; effects_draw.py):
+#     each emitter of `effectSystems` gains `draw` (sprites or meshes, its textures and blend, its spawn rate, bursts
+#     and followed modules' tables or particle parameters) or `draw: null` with `why`; the particle textures and
+#     meshes are written with the map's others
+EXPORT_VERSION = 29   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
@@ -220,7 +225,30 @@ class Exporter:
                                           layer='stream' if stream else 'base', stream=stream, defaults=defaults,
                                           warn=self.warn)
         found['defaults'] = 'script' if defaults.scripts else 'table'
+        # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
+        effects_draw.attach(p, defaults, found['systems'], self, compiled_textures, effects_draw.RULES, self.warn)
         return found
+
+    def particle_mesh(self, mi, override=0):
+        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section),
+        or (None, []) where it doesn't read. `override`: the emitter's own material, drawn on every section."""
+        p = self.p
+        mesh_key = self.prefix + str(mi)
+        if mesh_key not in self.meshes:
+            try:
+                mesh = read_mesh(p, mi)
+                write_glb(mesh, self.folder / f"mesh-{mesh_key}.glb")
+            except (ValueError, OSError, struct.error, IndexError, KeyError) as error:
+                self.warn(p.name(mi), f'Particle mesh not read: {error}')
+                return None, []
+            self.meshes[mesh_key] = dict(name=p.name(mi), url=f"mesh-{mesh_key}.glb",
+                vertices=len(mesh["positions"])//3, triangles=len(mesh["indices"])//3,
+                sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=None, kind='static', bones=[],
+                pose=None, origin=mesh.get('origin'), rotOrigin=mesh.get('rotOrigin'),
+                collision=self.mesh_collision(mi))
+        mats = [self.section_material(override if override > 0 else s["material"], mi)
+                for s in self.meshes[mesh_key]["sections"] if s["count"]]
+        return mesh_key, mats
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup

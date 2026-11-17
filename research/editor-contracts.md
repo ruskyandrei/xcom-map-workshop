@@ -468,7 +468,7 @@ used). It now warns when the stream it replaces is not a patch (T-08).
 **Choosing the base record.** The editor must choose the base record by `DisplayName`, not just by `Name`: 65 map
 names have several records, and for 38 of them the free slot differs.
 
-## 8. Effects, sounds and lens flares in the export (export 28)
+## 8. Effects, sounds and lens flares in the export (export 28; draw data: export 29)
 
 Written 17 November 2026 for stage FX1 of the effects and sounds plan. The export carries them for the page's
 Effects view (Shift+X), which shows them and edits nothing. No project record names them yet: the records the editing
@@ -519,6 +519,28 @@ LOD level as read: `kind` sprite, mesh, ribbon, beam or trail, `lods`, `cookedOu
 `name`, `kind` scalar or vector, the `module` and `property` that read it, `modes`, `constant`, `input` and `output`
 ranges, `colour`: whether it feeds a particle's start colour or colour over life). No "looping" or "plays once" is made
 from `loops` (the plan's 2.2): the page says nothing of how long an effect lasts.
+
+**An emitter's `draw`** (export 29, [effects_draw.py](../tools/viewer/effects_draw.py); the system's `drawVersion`):
+what the page draws its likeness from, or `null` with `why` (a ribbon, no level of detail left, a mesh or material in
+another package, nothing spawns it). `kind` sprite or mesh; `blend`, `lit`, `twoSided`, `material`; a sprite's
+`textures` (`key` into the scene's `textures`, `name`, `parameter`, `alpha`), its `picture` and `mask` keys (picked by
+name: a normal map, distortion or reflection is neither; a texture named Mask, Alpha or Gradient is the mask) and
+`opacity` (`alpha`, or `brightness` where the picture has no alpha channel); a mesh emitter's `mesh` (a key into
+`meshes`) and `materials`; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
+`duration`, `loops`, `delay`; `rate`, `rateScale` and each followed module of `modules` (`cls` without
+`ParticleModule`, then its properties) as numbers, flags and **distributions**; `bursts` (`count`, `countLow`,
+`time`); `ignored`: the classes of its modules the drawing doesn't follow.
+
+**A distribution** is one of:
+- a table, `{ op, lock, per, chunk, scale, start, min, max, entries }`: the game's baked lookup table. An entry is
+  `chunk` floats: the value (`op` 1), or its least then its most (`op` 2 random between them, 3 one or the other).
+  The entry at a time is `(time - start) * scale`, blended to the next and held at the last; `lock` ties a vector's
+  axes to one random number (4: all three). A cooked struct saves only its difference from the module class's
+  default, so the shape is read through the archetype chain (`Defaults.chain`);
+- a particle parameter, `{ parameter, kind, modes, constant, input, output }`: the value is the effect's saved
+  instance parameter of that name, else `constant`;
+- `{ unread: why }`: a curve the cook kept as an object, or a table of another shape; the page uses the module's
+  neutral value.
 
 **A sound** adds `startsOn` (`bAutoPlay`: true for `AmbientSound` and `AmbientSoundSimple`, false for the toggleable
 one, unless saved), `cue` (`{ path, private: whether it is the sound's own, under the actor, sharedBy: how many other

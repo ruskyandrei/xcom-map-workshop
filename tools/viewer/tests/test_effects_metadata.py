@@ -337,13 +337,27 @@ class Fixtures(unittest.TestCase):
         import export
         from package import Package
         import scene_metadata
-        self.assertGreaterEqual(export.EXPORT_VERSION, 28)
+        import tempfile
+        self.assertGreaterEqual(export.EXPORT_VERSION, 29)
         p = Package(INSTALL)
-        ex = export.Exporter(p, None)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ex = export.Exporter(p, Path(tmp.name))
         ex.prefabs, ex.kismet = scene_metadata.prefab_members(p), scene_metadata.kismet_references(p)
         found = ex.effects('map')
         self.assertEqual((len(found['effects']), len(found['sounds']), len(found['flares'])), (70, 6, 2))
         self.assertEqual(found['defaults'], 'script')
+        # export 29: every emitter drawn or saying why, its textures and meshes written beside the map's
+        emitters = [e for s in found['systems'].values() if s for e in s['emitters']]
+        self.assertTrue(all('draw' in e and (e['draw'] or e['why']) for e in emitters))
+        drawn = [e['draw'] for e in emitters if e['draw']]
+        for d in drawn:
+            if d['kind'] == 'mesh':
+                self.assertTrue((Path(tmp.name) / ex.meshes[d['mesh']]['url']).is_file())
+                self.assertTrue(all(m in ex.materials for m in d['materials']))
+            for t in d.get('textures', []):
+                self.assertTrue((Path(tmp.name) / ex.textures[t['key']]['url']).is_file())
+        self.assertGreater(sum(1 for d in drawn if d['kind'] == 'sprite' and (d['picture'] or d['mask'])), 20)
         self.assertEqual(len(ex.landings), len(scene_metadata.landing_metadata(p)))
         # export 23's carriedBy is still there, for the compiler's carried effects
         self.assertEqual(sorted(e['actor'] for e in found['effects'] if e['carriedBy']),

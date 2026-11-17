@@ -925,11 +925,56 @@ def effect_records(cache, game, package, shared=None):
     return out
 
 
+def effect_draw(cache, game, package, system, shared=None):
+    """What the page draws a donor map's particle system from (the effects and sounds plan, Part J1; export 29's
+    effects_draw): its record with `draw` on each emitter, and the textures, meshes and materials the drawing names,
+    written into the donor's pieces folder as a piece's are: dict(version, system, base, meshes, materials,
+    textures). Kept beside them once read (draw-v<n>-<the system's fingerprint>.json). `system` is its record as
+    effect_records gives it."""
+    import copy
+    import effects_draw
+    import effects_metadata
+    from export import EXPORT_VERSION, Exporter, compiled_textures
+    from package import Package
+    shared = {} if shared is None else shared
+    path = donor_path(game, package, shared)
+    digest = digest_of(path)
+    generation = '%s-v%d' % (digest[:16], EXPORT_VERSION)
+    folder = pieces_root(cache) / path.stem / generation
+    record = folder / ('draw-v%d-%s.json' % (effects_draw.DRAW_VERSION, system['fingerprint']))
+    if record.is_file():
+        try:
+            kept = json.loads(record.read_text(encoding='utf-8'))
+            if kept.get('version') == effects_draw.DRAW_VERSION:
+                return kept
+        except ValueError:
+            pass
+    p = shared.setdefault('packages', {}).get(str(path))
+    if p is None:
+        p = shared['packages'][str(path)] = Package(path)
+    folder.mkdir(parents=True, exist_ok=True)
+    exporter = Exporter(p, folder, namespace='lib-' + path.stem)
+    drawn = copy.deepcopy(system)
+    defaults = shared.setdefault('effect_defaults', {}).get(str(path))
+    if defaults is None:
+        defaults = shared['effect_defaults'][str(path)] = effects_metadata.Defaults(p)
+    effects_draw.attach(p, defaults, {'one': drawn}, exporter, compiled_textures, effects_draw.RULES, exporter.warn)
+    out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),
+               meshes=exporter.meshes, materials=exporter.materials,
+               textures={k: v for k, v in exporter.textures.items() if v})
+    part = record.with_suffix('.json.part')
+    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
+    os.replace(part, record)
+    return out
+
+
 def effect(cache, game, source, shared=None):
     """One effect or ambient sound of a donor map, `source` ({package, level, actor}), as a template for the page
     and the compiler (the effects and sounds plan, Part E): dict(version, kind, key, source {kind 'map', package,
     level, actor, sha256}, record (export 28's, as effects_metadata gives it), systems {id: its particle system},
-    waves {id: each wave it reaches}). `key` is its recipe's (effects_library.recipe_key), the index's entry key."""
+    waves {id: each wave it reaches}). `key` is its recipe's (effects_library.recipe_key), the index's entry key.
+    An effect's system comes with its draw data (effect_draw), and `draw`: dict(base, meshes, materials, textures),
+    what that drawing names."""
     import effects_library
     package, actor = str(source.get('package') or ''), str(source.get('actor') or '')
     if not NAME.fullmatch(package) or not NAME.fullmatch(actor):
@@ -944,9 +989,17 @@ def effect(cache, game, source, shared=None):
                            code='effect-missing')
     systems = records.get('systems') or {}
     waves = records.get('waves') or {}
+    one, draw = {}, None
+    if systems.get(record.get('system')):
+        one = {record['system']: systems[record['system']]}
+        try:
+            drawn = effect_draw(cache, game, package, systems[record['system']], shared)
+            one = {record['system']: drawn['system']}
+            draw = {k: drawn[k] for k in ('base', 'meshes', 'materials', 'textures')}
+        except (OSError, ValueError, KeyError, IndexError, struct.error):
+            pass                # its marker and its values without a likeness
     return dict(version=EFFECTS_VERSION, kind=record['kind'], key=effects_library.recipe_key(record),
-                source=dict(records['source'], actor=actor), record=record,
-                systems={record['system']: systems[record['system']]} if record.get('system') in systems else {},
+                source=dict(records['source'], actor=actor), record=record, systems=one, draw=draw,
                 waves={w: waves[w] for w in record.get('waves') or [] if w in waves})
 
 

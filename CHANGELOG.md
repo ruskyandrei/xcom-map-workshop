@@ -8,6 +8,36 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### What an effect's likeness is drawn from: export 29 (effects and sounds plan, stage FXV1)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), new: for each emitter of a particle system (its first level of
+  detail) what the page needs to draw it: sprites or meshes, the textures its material samples (its parameters, then
+  its compiled shaders' list) with the picture and the mask picked by name, the blend, how its particles face the
+  camera, its sub-images, its spawn rate, bursts and every followed module's numbers, each as the game's baked lookup
+  table or as the particle parameter that feeds it; `draw: null` with `why` for what can't be drawn (a ribbon, no level
+  of detail left, a mesh or material in another package, an emitter another's event starts). `RULES` is where a
+  material the name rule gets wrong is given its textures by hand (empty).
+- A cooked distribution struct saves only its difference from the module class's default, so a table's shape is read
+  through the archetype chain: [effects_metadata.py](tools/viewer/effects_metadata.py) `Defaults.chain` (the object,
+  its archetypes in the map, the class default in the script packages and its own chain). Effects metadata version 2.
+- [export.py](tools/viewer/export.py): `EXPORT_VERSION` 29; `Exporter.effects` attaches the draw data, the particle
+  textures go through `Exporter.texture` and a mesh particle's mesh and materials through the new `particle_mesh`,
+  written beside the map's others. A map is exported again when it is next opened, as with every bump.
+- [library.py](tools/viewer/library.py): `effect_draw` gives one particle system of another map its draw data and
+  writes its textures and meshes into that map's pieces folder, kept once read; `effect()`'s template carries the
+  system so drawn and `draw` (`base`, `meshes`, `materials`, `textures`).
+- [editor-contracts.md](research/editor-contracts.md) section 8: an emitter's `draw` and the three forms of a
+  distribution.
+
+Checked: [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py) (a table's shapes and the ones not read;
+the picture and the mask by name; on the install's URB_Bar: the steam's rate and life fed by `Wind_Strength`, its
+colour by `Color`, a beam's one burst, the moths' mesh, a turn whose shape is the class default's, every emitter drawn
+or saying why, nothing unread but curves kept as objects); `test_the_exporter_carries_them` now writes into a folder
+and finds each drawn emitter's textures, mesh and materials there; the viewer suite (471 tests). URB_Bar exported
+whole in 22 seconds, its 17 systems' draw data 265 KB of a 7.7 MB scene. Nothing draws it yet (stage FXV2). Known
+gaps: a curve kept as an object (three in Bar) is not read; the texture pick is by name and unproven until the
+comparison with the game's pictures.
+
 ### Box select takes effects and sounds (effects and sounds plan, stage FX3b)
 
 - [app.js](tools/viewer/web/app.js): with the Normal button's **Effects and sounds** switch on, the select box
