@@ -198,7 +198,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <table class="wrapfirst">
   <tr><th>New in 0.5.2</th><th>What it is</th></tr>
   <tr><td><a href="#task-play">The mission you pick</a></td><td><b class="ui">Play in game</b> plays the mission the
-    header's Mission picker shows, not always an abduction, and says how far that kind is known to work.</td></tr>
+    header's Mission picker shows, not always an abduction.</td></tr>
   <tr><td><a href="#missions">Missions…</a></td><td>Which of the base map's missions a project is for, and missions a
     map can be given by its record (abduction, terror, a council bomb, a UFO). Clear map asks what the map is
     for.</td></tr>
@@ -257,8 +257,6 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><a href="#rules">What builds</a></td><td>Doors without a frame build now. A ladder that isn't expected to
     climb is warned of and built, where it used to stop the build.</td></tr>
 </table>
-<p>Most of these have been played in the game on one or two maps. The ones that have not are listed under
-  <a href="#ingame">In the game: known limits</a>.</p>
 
 <h2 id="limits">What it can't do yet</h2>
 <p>This is a preview. Before you plan a map around it, these are the things it does not do.</p>
@@ -293,9 +291,6 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li><b>Cover, pathing and line of sight aren't shown or set by hand.</b> The game works them out from the pieces
         when the map loads. The editor's tile grid is a guide, not the game's answer.</li>
       <li><b>No play-testing in the editor.</b> No units, no fog of war, no destruction. You test in the game.</li>
-      <li><b>Only abductions have been played from the rotation.</b> <a href="#manage-projects">Manage
-        projects</a> puts builds into campaigns, beside the original maps or in their place; maps that serve other
-        missions install too, with a warning.</li>
       <li><b>No campaign in a test battle.</b> Play in game starts the mission you pick, with the
         <a href="#squad">test squad</a> (six squaddies until you set it up) and four Sectoid pods (EXALT pods on
         EXALT's missions), not your campaign's soldiers. The battle
@@ -304,11 +299,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         in game button, whose words show when you point at it) to save and load in it: XCOM then opens at its main menu, and <b>F5</b> there starts the battle; Exit to
         Main Menu and F5 starts it again. Its saves go to new slots, never over a campaign's. Without it, a save never
         finishes and the broken file is moved out of the game's list once the game closes (into the install's
-        <code>XCOM Map Workshop\broken saves</code>), and a campaign save it replaced is put back. The abduction, terror
-        site, council bomb and rescue, crashed UFO, base defence, alien base, Confounding Light and data recovery have
-        been played this way; UFOs and alien bases come without their commander. Under Long War the EXALT missions
-        (data recovery, covert extraction, the EXALT raid) always have saving on, because Long War saves and reloads
-        them as they start. The play window says how far each kind is known to work.</li>
+        <code>XCOM Map Workshop\broken saves</code>), and a campaign save it replaced is put back. UFOs and alien bases
+        come without their commander. Under Long War the EXALT missions (data recovery, covert extraction, the EXALT
+        raid) always have saving on, because Long War saves and reloads them as they start.</li>
     </ul>
   </section>
   <section>
@@ -343,7 +336,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li><b>Developed and tested mainly with Long War Rebalance.</b> It is meant to work with plain Enemy Within
         too, but that is less tested: reports from plain Enemy Within, or any setup other than Long War Rebalance, are
         welcome (<a href="#report">Reporting a problem</a>).</li>
-      <li><b>Projects may not open in the next version.</b> Builds you made keep playing.</li>
+      <li><b>A project or prefab saved in a newer version doesn't open in an older one.</b> A newer version opens
+        what an older one saved, and builds you made keep playing.</li>
       <li><b>It installs only while the game is closed.</b> Play in game starts XCOM itself, through Steam.</li>
     </ul>
   </section>
@@ -383,7 +377,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figcaption>The Bar with a project open, cut down to its ground floor, a pool table selected with the Move tool. Click a picture to enlarge it.</figcaption>
 </figure>
 <ol class="legend">
-  <li data-n="A"><b>Header:</b> the project, the map, the search, and on the right what has changed, undo, and three menus. <a href="#header">More</a></li>
+  <li data-n="A"><b>Header:</b> the project, the map, the search, and on the right what has changed, undo, Settings and the menus. <a href="#header">More</a></li>
   <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, buildings, lights, and how pieces snap. <a href="#tools">More</a></li>
   <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
   <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
@@ -405,7 +399,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   which mission's extra objects are shown (see <a href="#mission-objects">what a mission adds</a>) and which mission
   <b class="ui">Play in game</b> plays. With a project open it lists the project's <a href="#missions">missions</a>,
   the kinds the project adds marked <i>(added)</i>.</p>
-<figure><img src="shots/header-right.webp" width="510" height="78" alt="The right of the header: the edit count, Undo, Redo, Reset all, Import notes, View options and help"></figure>
+<figure><img src="shots/header-right.webp" width="552" height="78" alt="The right of the header: the edit count, Undo, Redo, Reset all, Settings, Import notes, View options and help"></figure>
 <ol class="legend">
   <li data-n="4"><b>What has changed:</b> how many pieces are moved, added and deleted, how many lights and
     buildings are edited, a resized grid and changed landing zones, and whether that is saved: "not saved" with no
@@ -415,13 +409,16 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="7"><b>Reset all</b> puts the whole map back to the original: added pieces go, deleted ones return,
     moved ones go home, groups end, your buildings go and the map's own are restored, and the grid, the landing
     zones and a clear are undone. It is one undo step, so Undo brings your edits back.</li>
-  <li data-n="8"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
+  <li data-n="8"><b>Settings</b> opens <a href="#squad">Test squad setup</a>: the squad every Play in game lands
+    with. The menu shows it in a line (<i>Squad: Test squad · 6 units</i>).</li>
+  <li data-n="9"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
     approximate colour, say), with their count. They are about the picture, not about your edits.</li>
-  <li data-n="9"><b>View options:</b> lighting, light markers, tile grid and more. <a href="#viewoptions">More</a></li>
-  <li data-n="10"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
+  <li data-n="10"><b>View options:</b> lighting, light markers, tile grid and more. <a href="#viewoptions">More</a></li>
+  <li data-n="11"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
 </ol>
-<p>Items 4 to 7 show once something has changed. Between Reset all and Import notes, <b class="ui">Settings</b> opens
-  <a href="#squad">Test squad setup</a>: the squad every Play in game lands with.</p>
+<p>Items 4 to 7 show once something has changed. While the project manager's <a href="#build-queue">build queue</a>
+  runs, a chip beside the count follows it (<i>Building 2 of 5</i>, <i>Queue stopped</i>, <i>5 built, 1 failed</i>);
+  a click on it opens the manager.</p>
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
@@ -530,20 +527,22 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="piece">Piece panel</h3>
 <p>The panel on the right appears when something is selected.</p>
 <div class="split">
-  <figure><img src="shots/piece-panel.webp" width="348" height="651" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
+  <figure><img src="shots/piece-panel.webp" width="348" height="939" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>What it is:</b> the piece's name, its kind and its map, then chips with what you should know
       about it (listed below).</li>
     <li data-n="2"><b>Copy</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and <b>Delete</b> (<kbd>Del</kbd>). After Copy,
       <kbd>Ctrl</kbd>+<kbd>V</kbd> shows the copy at the cursor and a click places it. Beside them,
       <b><a href="#select-kind">Select all of a kind</a></b>.</li>
-    <li data-n="3"><b>Position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
-    <li data-n="4"><b>Rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
-    <li data-n="5"><b>Reset piece</b> puts the selected pieces back where the map has them. <b>Save as prefab…</b>
+    <li data-n="3"><b><a href="#flags">Flags</a>:</b> what the game does with the piece (walking, cover, sight,
+      floor, the mouse), to change.</li>
+    <li data-n="4"><b>Position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
+    <li data-n="5"><b>Rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
+    <li data-n="6"><b>Reset piece</b> puts the selected pieces back where the map has them. <b>Save as prefab…</b>
       saves what is selected as a <a href="#prefabs">prefab</a>.</li>
-    <li data-n="6"><b>Source details</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
+    <li data-n="7"><b>Source details</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
       and its health, which building floor it belongs to, and what moves with it.</li>
-    <li data-n="7"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
+    <li data-n="8"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
   </ol>
 </div>
 <h4>The chips</h4>
@@ -565,6 +564,18 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h4 id="flags">Flags</h4>
 <p>The <b class="ui">Flags</b> group says what the game does with the piece, and lets you change it: a wall that units
   walk and see through, a sign the mouse never picks, a fence that gives no cover.</p>
+<div class="split">
+  <figure><img src="shots/flags.webp" width="353" height="393" alt="The Flags group for the Bar's six dumpsters, Blocks sight turned off for all of them"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The Flags chip:</b> one of the piece's flags is off, or <i>changed</i> by you.</li>
+    <li data-n="2"><b>Select all of a kind</b> picked every dumpster of the map: six.</li>
+    <li data-n="3"><b>The five flags,</b> each with its state for the pieces picked (here 6 pieces), and under it
+      what limits it.</li>
+    <li data-n="4"><b>A flag you changed</b> has a dot after its state: Blocks sight turned off for all six, so units
+      see over them.</li>
+    <li data-n="5"><b>Reset flags</b> puts the map's back.</li>
+  </ol>
+</div>
 <table class="wrapfirst">
   <tr><th>Flag</th><th>When it is on</th></tr>
   <tr><td>Blocks walking</td><td>Units can't walk through the piece: the game's pathing counts it. A piece lower than
@@ -646,7 +657,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="groups">Groups and Align</h3>
 <p>With two or more pieces selected, the piece panel gains two sections.</p>
 <div class="split">
-  <figure><img src="shots/group.webp" width="350" height="292" alt="The group section of the piece panel, for a group of two kegs"></figure>
+  <figure><img src="shots/group.webp" width="350" height="164" alt="The group section of the piece panel, for a group of two kegs"></figure>
   <ol class="legend">
     <li data-n="1"><b>The group.</b> <b class="ui">Group</b> (<kbd>Ctrl</kbd>+<kbd>G</kbd>) joins the selected
       pieces. A group selects and moves as one: picking any of its pieces picks them all. It shows in gold.</li>
@@ -843,7 +854,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   building with its lights. Prefabs are kept in a library of their own, apart from maps and projects, so one can be
   placed in any map and passed on as a file. They are listed under <b class="ui">Prefabs</b> in the piece list.</p>
 <div class="split">
-  <figure><img src="shots/prefabs.webp" width="436" height="652" alt="The piece list showing the prefab library"></figure>
+  <figure><img src="shots/prefabs.webp" width="436" height="690" alt="The piece list showing the prefab library"></figure>
   <ol class="legend">
     <li data-n="1"><b>Prefabs</b>, beside This map and All maps.</li>
     <li data-n="2"><b>Filter</b> by name, or by the name of a map its pieces come from.</li>
@@ -925,8 +936,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   draws its own tile grid under the cursor. A noon sky surrounds the stage, above and below. A test battle has no
   aliens.</p>
 <p>Doors, ladders, cars, vans and fracturing pieces are meant to stand whole tiles and levels from where their
-  originals stand. When one is off that grid, a warning over the size names it; it still builds and tests, and how
-  it plays there has not been tried. <b class="ui">Show</b> selects it;
+  originals stand. When one is off that grid, a warning over the size names it; it still builds and tests, but what
+  the map saved for its tiles no longer fits exactly. <b class="ui">Show</b> selects it;
   <b class="ui">Align to grid</b> moves the whole prefab, lights and floor boxes too, the smallest distance that puts
   every such piece on the grid, in one undo step. Move it by whole levels afterwards to set its height: it stays
   aligned.</p>
@@ -1086,10 +1097,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>So choose UFO only for the building that is the alien ship of a UFO mission, where the aliens should gather in
   and around it. On any other building the mark does no good, and it may put a mission's aliens around the wrong
   building.</p>
-<p>How far this goes is not settled. It is read from the game's own scripts and has not been tried in a battle
-  here; Long War Rebalance places its aliens by rules of its own, which may not look at the mark at all; and a
-  working UFO mission needs more than this building (the ship's own doors, power source and mission objects), which
-  the editor does not make yet.</p>
+<p>A UFO building is also what lets <a href="#missions">Missions…</a> give the map a crashed or landed UFO
+  mission: under Long War Rebalance, the commander's pod is put in it. A UFO prefab brings the ship's own pieces
+  with it; a building you draw yourself is only the boxes.</p>
 
 <h4>Where a floor's box goes</h4>
 <p>Each floor's box starts at that storey's walking level and runs up to where the next storey's walking level
@@ -1203,7 +1213,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Everything in the box is part of that floor.</b> A car, a tree, a lamp post or a neighbour's wall inside an
     upper floor's box hides along with the roof whenever someone is inside your building.</li>
   <li><b>Standing in the box counts as being inside.</b> The roof would go while a soldier only stands in the yard
-    beside the house. This is expected from how the game reads the boxes, and has not been tried in a battle here.</li>
+    beside the house: that is how the game reads the boxes.</li>
   <li><b>Boxes of two buildings had better not overlap.</b> It builds, with a warning: a piece in both is listed by
     both, so a generous box can make the building next door hide with yours.</li>
 </ul>
@@ -1260,7 +1270,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b class="ui">Clear map…</b> in the Project menu takes every piece off the map, the ground too, so that you can
   build a new map with pieces and prefabs on an old map's light and landing. It is meant for an unchanged map, but it
   works on any.</p>
-<figure><img src="shots/clear-map.webp" width="484" height="297" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
+<figure><img src="shots/clear-map.webp" width="484" height="343" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
 <ul>
   <li><b>A window comes first.</b> It warns what will go and counts it for this map: the pieces, the lights, and the
     pieces the mission's script names. It also counts what stays:
@@ -1383,7 +1393,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>A project is your set of edits on one base map. Until you save one, edits are a trial that a reload loses (the
   browser asks first).</p>
 <div class="split">
-  <figure><img src="shots/project-menu.webp" width="354" height="684" alt="The Project menu, its items numbered"></figure>
+  <figure><img src="shots/project-menu.webp" width="354" height="740" alt="The Project menu, its items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>The open project:</b> its name, revision, when it was saved, the name its map builds as in the
       game (fixed when the project was first saved), and its last build.</li>
@@ -1397,29 +1407,37 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       it. <a href="#game-maps">More</a></li>
     <li data-n="7"><b>Map grid</b> shows the play area's handles, as the tool strip's button does.
       <a href="#mapgrid">More</a></li>
-    <li data-n="8"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
-    <li data-n="9"><b>Load…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
-    <li data-n="10"><b>Manage projects…</b> lists every project with its last build, to build several one after
+    <li data-n="8"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
+    <li data-n="9"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
+    <li data-n="10"><b>Load…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
+    <li data-n="11"><b>Manage projects…</b> lists every project with its last build, to build several one after
       another, install them in the game for campaigns or export them as a map pack. <a href="#manage-projects">More</a>,
       and on building several: <a href="#build-queue">Build in the project manager</a></li>
-    <li data-n="11"><b>Close project</b> goes back to the original map.</li>
-    <li data-n="12"><b>Game install and checks…</b> changes which game folder the editor reads, and lists what the editor
+    <li data-n="12"><b>Close project</b> goes back to the original map.</li>
+    <li data-n="13"><b>Cache everything…</b> reads every piece of the game's maps, and every map if you ask, ahead of
+      use. <a href="#cache-everything">More</a></li>
+    <li data-n="14"><b>Game install and checks…</b> changes which game folder the editor reads, and lists what the editor
       needs with a tick or a remedy for each.</li>
-    <li data-n="13"><b>Recent:</b> the last three projects. Click one to open it.</li>
-    <li data-n="14"><b>Installs:</b> the game folder the editor reads, the one it plays in, how the game is started
+    <li data-n="15"><b>Recent:</b> the last three projects. Click one to open it.</li>
+    <li data-n="16"><b>Installs:</b> the game folder the editor reads, the one it plays in, how the game is started
       there, and what the editor has installed in it.</li>
   </ol>
 </div>
-<p>On a whole map the menu also has <b class="ui">Clear map…</b>, which takes every piece off it
-  (<a href="#clearmap">more</a>), <b class="ui">Map grid</b>, which shows the play area's handles to resize the
-  grid (<a href="#mapgrid">more</a>), and <b class="ui">Missions…</b>, the missions the project is for.</p>
+<p>Items 7 to 9 show on a whole map only.</p>
 <p id="missions"><b>Missions…</b> lists the base map's missions and the kinds a map can be given by its record
-  alone: an abduction, a terror site, a bomb mission (Long War only) and a crashed or landed UFO (once a UFO prefab
-  stands on the map, with the UFO's type to choose). Tick the ones the project is for: the Build writes a map record
-  for each, and the header's Mission picker and Play in game list them. Each line says what that kind
-  needs. A map that isn't cleared starts with all of its base map's missions;
-  a cleared map is asked when it is cleared. OK needs one ticked;
-  the change is one undo step.</p>
+  alone: an abduction, a terror site, a bomb mission (Long War only) and a crashed or landed UFO (once a UFO prefab,
+  or a building of kind UFO, stands on the map, with the UFO's type to choose). Tick the ones the project is for: the
+  Build writes a map record for each, and the header's Mission picker and Play in game list them. Each line says what
+  that kind needs. A map that isn't cleared starts with all of its base map's missions; a cleared map is asked when it
+  is cleared.</p>
+<div class="split">
+  <figure><img src="shots/missions.webp" width="512" height="571" alt="The Missions window on the Bar: Abduction ticked, Terror ticked as an added kind, and the other kinds with what they need"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The base map's missions:</b> the Bar has an abduction.</li>
+    <li data-n="2"><b>A kind added by its record</b>, here a terror site, with what that kind needs under it.</li>
+    <li data-n="3"><b>OK</b> needs one ticked; the change is one undo step.</li>
+  </ol>
+</div>
 <p id="manage-projects"><b>Manage projects…</b> opens the project manager: every project on the left, with its
   base map, when it was saved, a badge if it is in the game, and its last build in one word:
   <b class="ui">Ready</b>, <b class="ui">Not baked</b> (a quick build), <b class="ui">Out of date</b> (saved again
@@ -1441,8 +1459,26 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   new campaign's first mission, which asks for Commercial Alley Redux by name. Beside the original,
   a map is never picked for a council mission (but a bomb mission under Long War, which makes an extra one of it).
   The manager warns under each ticked project, without stopping you, about a build whose lighting is not baked, a
-  build older than its project, and maps that serve missions other than abductions: only abductions have been
-  played with an edited map so far.</p>
+  build older than its project, and what happens to its missions: the ones the game asks for by name, and under
+  Replace the ones left to the original.</p>
+<figure class="zoom">
+  <img src="shots/manager.webp" width="855" height="622" alt="The project manager: four projects on the left, two ticked and listed on the right, and a queue of two full builds, the second building">
+  <figcaption>Two projects ticked and built as a queue: the first is built, the second building.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Filter</b> by name, map or mission.</li>
+  <li data-n="2"><b>Show:</b> All, Ready, Needs a build or In the game, each with how many.</li>
+  <li data-n="3"><b>Sort:</b> last saved, last built, name or map.</li>
+  <li data-n="4"><b>A project's last build</b> in one word, its revision and whether it is baked; while the queue
+    runs, its place in the queue.</li>
+  <li data-n="5"><b>The ticked projects</b>, with × to take one out. A project not built yet says so.</li>
+  <li data-n="6"><b>Additional</b> or <b>Replace</b>: how this one goes into campaigns. Its warnings are listed under
+    it.</li>
+  <li data-n="7"><b>The queue:</b> the project building, its step, the time so far, and about how long is left, with
+    Stop, Resume and Clear. <a href="#build-queue">More</a></li>
+  <li data-n="8"><b>Build</b>, <b>Install in the game</b> and <b>Export map pack</b>, for the ticked projects.</li>
+  <li data-n="9"><b>Include editor project files</b> puts each map's project in the pack too.</li>
+</ol>
 <p id="build-queue"><b class="ui">Build</b>, in the project manager, builds the ticked projects one after another
   while you go on editing. Each is a full build, its lighting baked, as the editor's own Build makes it with
   <b class="ui">Bake the lighting</b> ticked. A project is built as it is saved when its turn comes: one saved again
@@ -1501,6 +1537,21 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   brings you back to the play window. Until you save one, the squad is six squaddies, the ones Play in game always
   landed with; the panel names their gear as the install does (under Long War Rebalance a shotgun and Gauss weapons,
   a recoilless launcher, grenades and a medikit).</p>
+<figure class="zoom">
+  <img src="shots/squad.webp" width="810" height="656" alt="Test squad setup: the default six on the left, the first soldier's kind, names, class, armour, weapons and items on the right">
+  <figcaption>The default squad, its first soldier open.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The units</b> in the order they land. Click one to set it up on the right.</li>
+  <li data-n="2"><b>Add</b>, <b>Copy</b>, <b>Remove</b> and the arrows that move a unit.</li>
+  <li data-n="3"><b>Kind:</b> soldier, MEC trooper or SHIV.</li>
+  <li data-n="4"><b>Names, class, rank, look and country.</b></li>
+  <li data-n="5"><b>Armour</b>, and under it what it gives.</li>
+  <li data-n="6"><b>Sidearm, weapons and items</b> in order; perks and base stats follow below.</li>
+  <li data-n="7"><b>Show every item</b> widens the lists.</li>
+  <li data-n="8"><b>Export…</b>, <b>Import…</b> and <b>Reset to default</b>.</li>
+  <li data-n="9"><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>); <b>Cancel</b> leaves the saved squad as it was.</li>
+</ol>
 <ul>
   <li><b>The units</b> are listed on the left in the order they land: <b class="ui">Add</b> (a soldier at the end),
     <b class="ui">Copy</b>, <b class="ui">Remove</b>, and the arrows to move one. A squad has one to eight; the seventh
@@ -1603,6 +1654,17 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     fixed once the project is saved, so a build always replaces its own files: to build under another name, use
     <b class="ui">Save as…</b> with a new name, which makes a new project. Projects saved with an earlier version keep
     the names they had.</li>
+</ul>
+<figure class="zoom">
+  <img src="shots/save-as.webp" width="696" height="517" alt="Save project: the projects listed, a new name typed, and under it what the project builds as">
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Your projects</b>, this map's or all of them.</li>
+  <li data-n="2"><b>The name</b> to save under.</li>
+  <li data-n="3"><b>Show:</b> this map's projects, or all.</li>
+  <li data-n="4"><b>Builds as:</b> the map's name in the game for that name.</li>
+</ol>
+<ul>
   <li id="cache-everything"><b>Cache everything…</b> (above <b class="ui">Game install and checks…</b> in the menu)
     reads every piece of the game's maps into the editor's cache now, so placing a piece of another map or opening a
     prefab never waits for it. Tick <b class="ui">Every map, ready to open</b> to prepare every map as well, which
@@ -1817,8 +1879,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   squaddies until you set it up in Settings). It is right for cover, pathing, line of sight,
   destruction and lighting. It is not a campaign mission: your soldiers, the mission's story and its rewards are not
   in it. It plays the mission the header's Mission picker shows, which the play window can change; under that choice
-  a line says how far that kind is known to work played this way and what it goes without (a terror site's
-  civilians, a UFO's type). The aliens are four pods of Sectoids (five on a terror site), and EXALT's missions get
+  a line says what that kind goes without played this way, if anything (a terror site's civilians, a UFO's type). The aliens are four pods of Sectoids (five on a terror site), and EXALT's missions get
   four pods of EXALT operatives, each with a heavy or a sniper. Under Long War Rebalance the squad can hold soldiers,
   MEC troopers and SHIVs; on plain Enemy Within and Long War without Rebalance, soldiers.</p>
 <p><b>What Play in game changes.</b> It copies the build's files into the game and adds one line to
@@ -1842,7 +1903,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ul>
   <li><b>A project</b> is one file: <code>&lt;editor folder&gt;\projects\&lt;name&gt;.json</code>. Send it. To open one
     sent to you, put it in that folder and choose <b class="ui">Load…</b>. It opens on the same version of the map only;
-    on another it says so.</li>
+    on another it says so. A project saved in a newer version of the editor needs that version or a later one.</li>
+  <li><b>Several maps at once:</b> the project manager's <a href="#manage-projects">Export map pack</a> zips their
+    builds with scripts that install them, and with <b class="ui">Include editor project files</b> ticked, their
+    projects too.</li>
   <li><b>A build</b> is its folder in <code>&lt;editor folder&gt;\builds\</code> (zip it to send it). Its
     <code>README.txt</code> says what each file is and lists the config lines the game needs.</li>
   <li><b>Installing a build by hand:</b> copy its <code>CookedPCConsole</code> files into the game's
@@ -1925,6 +1989,18 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   only that mission's record uses, so every reference the mission's script has to them still holds. It warns when an
   edit leaves an objective or a squad's, operative's or VIP's place with no floor, or inside a piece, mission by
   mission, so you can move it or drop the mission.</p>
+<figure class="zoom">
+  <img src="shots/mission-objects.webp" width="1080" height="675" alt="Slaughterhouse Redux with its council bomb's objects shown: the bomb picked with its arrows and its panel, power nodes, drop-in points and pods around it">
+  <figcaption>The council bomb's objects on Slaughterhouse Redux, cut down to its ground floor, the bomb picked.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Mission</b> in the header: the mission whose objects are shown, here the council bomb.</li>
+  <li data-n="2"><b>The picked object's arrows:</b> the bomb moves with its group, by whole tiles and levels.</li>
+  <li data-n="3"><b>A power node</b> (an orange gem).</li>
+  <li data-n="4"><b>A drop-in point</b> (a red arrow), where a wave of aliens comes in.</li>
+  <li data-n="5"><b>A pod</b> (an orange ring): where a group of aliens starts.</li>
+  <li data-n="6"><b>Its panel:</b> what it is, what moves with it, and what lists it.</li>
+</ol>
 <h3>Copies</h3>
 <ul>
   <li>A copy is a new piece with its own name. A copied car's parts are linked to each other, not to the original.</li>
@@ -1992,6 +2068,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Projects</td><td><code>&lt;editor folder&gt;\projects\</code> (one <code>.json</code> file each)</td></tr>
   <tr><td>Prefabs</td><td>Beside the projects by default, or the folder chosen in <code>settings.json</code> (one <code>.json</code> file each)</td></tr>
   <tr><td>Builds</td><td><code>&lt;editor folder&gt;\builds\</code></td></tr>
+  <tr><td>Map packs</td><td><code>&lt;editor folder&gt;\builds\Map packs\</code></td></tr>
   <tr><td>Opened maps</td><td><code>Documents\XCOM Map Workshop\cache\</code> (safe to delete: maps are read again when opened)</td></tr>
   <tr><td>Build logs</td><td><code>&lt;editor folder&gt;\builds\.work\&lt;variant&gt;-&lt;time&gt;\logs\</code></td></tr>
   <tr><td>What Play in game installed</td><td><code>&lt;game folder&gt;\XCOM Map Workshop\</code> (records and backups)</td></tr>

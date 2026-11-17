@@ -8,6 +8,38 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### The user guide brought up to date, with pictures of the new features
+
+At the user's ask: the [guide](tools/release/guide/guide.html) gone over against the editor as it stands, updated
+where it had fallen behind, with new pictures, and republished as the guide page.
+- **New pictures, each with a numbered legend:** the Flags group (the Bar's six dumpsters picked with Select all of
+  a kind, Blocks sight turned off), Test squad setup, the Missions window, the project manager with a queue of two
+  full builds (the first built, the second building), the Save dialog's "builds as", and a council bomb's mission
+  objects on Slaughterhouse Redux (the bomb picked, power nodes, drop-in points, pods).
+- **Pictures taken again** where the editor changed: the window and the header's right half (Settings, now
+  numbered 8), the Project menu (Missions… and Cache everything… numbered, 16 items), the piece panel (the Flags
+  group, numbered 3), the group section, View options, the Build window, Clear map and the prefabs tab (the tool
+  strip's Pivot button). The other pictures showed no change and are kept.
+- **Text:** "not played" lines taken out (the limits' "only abductions have been played", the list of mission kinds
+  played, "has not been tried in a battle here" twice, an off-grid prefab piece "not tried", the 0.5.2 row and the
+  play window's "how far that kind is known to work", the sentence pointing to a list of what isn't played); the
+  project manager's warnings as they are now (missions asked for by name, those left to the original); a project
+  saved in a newer version doesn't open in an older one; the UFO kind with what Missions… now does with it; the
+  build queue's chip in the header; sharing several maps as a map pack with their projects; map packs' folder in
+  Where things are.
+- [take_shots.py](tools/release/guide/take_shots.py): the new shots (`flags`, `missions`, `squad`, `manager`,
+  `save-as`, `mission-objects`); the header and Project menu numbering; the piece panel taken in a taller window
+  (the panel with its flags is taller than 900 pixels); the group crop without the Flags group; the squad's and the
+  project manager's answers name a usual install, as the others did. The manager's shot saves three more projects,
+  makes two quick builds and runs a queue of full builds into the scratch builds folder, stopped and cleared after;
+  the mission objects' shot opens URB_SlaughterhouseA, read from the game on its first open.
+- Checked: every shot run on a test server (port 8790, scratch projects, builds and squad; stopped after), each new
+  or retaken picture looked at, the others compared with the ones kept; every picture's size in the page equal to
+  half its pixels (33 pictures); the guide made one page as the release and the Pages workflow make it, opened in a
+  browser with every picture loaded, the new sections looked at; `release`, `repo` and `viewer -k guide` pass. The
+  pictures name no folder of this computer.
+- Gaps: the release 0.5.3 zip and installer carry the guide as it was; the next release carries this one.
+
 ### Release 0.5.3 published
 
 - With the user's go-ahead ("go ahead and publish the release"), main was pushed (`cbc7357`), then

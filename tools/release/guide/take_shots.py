@@ -2,15 +2,17 @@
 on the Bar, each shot with numbered marks on the controls the guide explains (guide.html's lists use the same
 numbers). Run it again when the editor's window changes, then check each picture and guide.html's lists against it.
 
-It saves a project and never builds or installs, so run it against a test server (ports 8790-8799) with scratch
-projects and builds folders, and stop the server after:
+It saves projects and builds them (the project manager's shot: two quick builds and a queue of full builds, stopped
+once its second build is under way), but never installs or plays, so run it against a test server (ports 8790-8799)
+with scratch projects, builds and squad, and stop the server after:
 
-  python tools/viewer/viewer.py serve --port 8790 --no-open --projects <scratch>/projects --builds <scratch>/builds
+  python tools/viewer/viewer.py serve --port 8790 --no-open --projects <scratch>/projects --builds <scratch>/builds --squad <scratch>/test-squad.json
   python tools/release/guide/take_shots.py [--server http://127.0.0.1:8790/] [--only window,header] [--out <folder>]
 
 The scratch projects folder must be empty (the demo project is saved under a fixed name), and so must the prefabs
-folder beside it (the prefabs shot saves two). It needs the Bar exported
-in the server's cache, Playwright (pip install playwright; it drives the installed Edge) and Pillow.
+folder beside it (the prefabs shot saves two). It needs the Bar exported in the server's cache (the mission objects'
+shot opens URB_SlaughterhouseA, read from the game on its first open), Playwright (pip install playwright; it drives
+the installed Edge) and Pillow. The whole run takes about five minutes, most of it the manager's builds.
 
 The server's answers that would name a folder of this computer are replaced by a usual install's (typical()).
 """
@@ -22,6 +24,7 @@ HERE = Path(__file__).resolve().parent
 MAP = 'URB_Bar'
 PROJECT = 'Bar remix'
 WIDTH, HEIGHT, SCALE = 1440, 900, 2
+TALL = 1200                     # the piece panel's shot: a window tall enough for the whole panel
 QUALITY = 82
 
 # pieces of the Bar the demo uses, by actor (the export's ids change with its version; actors don't)
@@ -29,6 +32,11 @@ ACTOR = 'TheWorld.PersistentLevel.%s'
 POOL_TABLE, CLAW_MACHINE, ATM = (ACTOR % ('XComDestructibleActor_%s' % n) for n in ('491', '316', '4'))
 KEG_A, KEG_B, KEG_C = (ACTOR % ('XComDestructibleActor_%s' % n) for n in ('157', '159', '108'))
 SUV = ACTOR % 'XComDestructibleActor_14'
+DUMPSTER = ACTOR % 'XComDestructibleActor_61'            # one of the Bar's six Dumpster_A
+# the mission objects' shot: a council bomb's map and the stream with its bomb and power nodes
+BOMB_MAP, BOMB_STREAM = 'URB_SlaughterhouseA', 'URB_Slaughterhouse_Stream'
+# the project manager's shot: the demo saved again under these names, each with one more edit (the last never built)
+MORE_PROJECTS = (('Car park cover', SUV), ('Back alley', KEG_C), ('Bar after hours', KEG_B))
 # cameras, in game units: what the camera looks at, and its offset from there
 BAR_VIEW = ([150, 640, 20], [600, -1450, 1250])
 LIGHT_VIEW = ([375, 300, 60], [500, -900, 700])
@@ -94,8 +102,17 @@ def typical(page):
         body = answer.json()
         body['folder'] = PROJECTS_FOLDER
         route.fulfill(response=answer, json=body)
+    def install_named(route):
+        """An answer that names the game install (the squad's and the project manager's), named as a usual one."""
+        answer = route.fetch()
+        body = answer.json()
+        if isinstance(body.get('install'), dict):
+            body['install'].update({k: GAME_FOLDER for k in ('folder', 'note') if k in body['install']})
+        route.fulfill(response=answer, json=body)
     page.route('**/play.json', play)
     page.route('**/projects.json', projects)
+    page.route('**/squad.json', install_named)
+    page.route('**/manager.json', install_named)
 
 
 class Shots:
@@ -129,7 +146,8 @@ class Shots:
         rects = [self.rect(s) for s in selectors]
         x0, y0 = min(r[0] for r in rects) - pad[0], min(r[1] for r in rects) - pad[1]
         x1, y1 = max(r[0] + r[2] for r in rects) + pad[2], max(r[1] + r[3] for r in rects) + pad[3]
-        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(WIDTH, x1), min(HEIGHT, y1)
+        view = self.page.viewport_size
+        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(view['width'], x1), min(view['height'], y1)
         return dict(x=x0, y=y0, width=x1 - x0, height=y1 - y0)
 
     def panel_rows(self, panel, rows, side='left', gap=16):
@@ -207,7 +225,7 @@ class Shots:
 
     def header(self):
         controls = ('#projectButton', '#mapButton', '#finder', '#editCount', '#editUndo', '#editRedo', '#editResetAll',
-                    '#notesButton', '#viewButton', '#helpButton')
+                    '#settingsButton', '#notesButton', '#viewButton', '#helpButton')
         marks = [dict(n=k + 1, sel=s, side='bottom', gap=17) for k, s in enumerate(controls)]
         # in two halves, the empty middle left out, so that both show at their full size in the guide
         h = self.rect('header')[3] + 32
@@ -243,8 +261,9 @@ class Shots:
         page.wait_for_selector('#projectRecent > *')
         page.wait_for_timeout(600)
         rows = [(1, '#projectInfo'), (2, '#projectSave'), (3, '#projectSaveAs'), (4, '#projectBuild'), (5, '#projectPlay'),
-                (6, '#projectMaps'), (7, '#projectSize'), (8, '#projectClear'), (9, '#projectLoad'), (10, '#projectManage'),
-                (11, '#projectClose'), (12, '#projectSetup'), (13, '#projectRecent'), (14, '#installInfo')]
+                (6, '#projectMaps'), (7, '#projectSize'), (8, '#projectMissions'), (9, '#projectClear'), (10, '#projectLoad'),
+                (11, '#projectManage'), (12, '#projectClose'), (13, '#projectCache'), (14, '#projectSetup'),
+                (15, '#projectRecent'), (16, '#installInfo')]
         self.shot('project-menu', self.panel_rows('#projectMenu', rows, side='right'),
                   clip=self.around('#projectButton', '#projectMenu', pad=(10, 6, 44, 12)))
         self.close_pops()
@@ -270,11 +289,37 @@ class Shots:
         page.evaluate('id => { viewer.select(null); viewer.select(id); }', self.copy)
         page.keyboard.press('v')
         page.evaluate("document.getElementById('sourceDetails').open = true")
-        page.wait_for_timeout(500)
-        rows = [(1, '#details'), (2, '#editCopy'), (3, '#posX'), (4, '#rotP'), (5, '#editReset'), (6, '#sourceDetails summary'),
-                (7, '#copyPaths')]
+        page.set_viewport_size(dict(width=WIDTH, height=TALL))      # the panel with its flags is taller than the window
+        page.wait_for_timeout(800)
+        rows = [(1, '#details'), (2, '#editCopy'), (3, '#flagsBox .posehead'), (4, '#posX'), (5, '#rotP'), (6, '#editReset'),
+                (7, '#sourceDetails summary'), (8, '#copyPaths')]
         self.shot('piece-panel', self.panel_rows('#inspector', rows), clip=self.around('#inspector', pad=(40, 8, 8, 8)))
         page.evaluate("document.getElementById('sourceDetails').open = false")
+        page.set_viewport_size(dict(width=WIDTH, height=HEIGHT))
+        page.wait_for_timeout(500)
+
+    def flags(self):
+        """The Flags group: the Bar's six dumpsters picked with Select all of a kind, Blocks sight turned off for them.
+        Undone after."""
+        page = self.page
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        page.locator('#floor button[data-value="all"]').click()
+        self.select(DUMPSTER)
+        page.locator('#editKind').click()
+        page.wait_for_function('viewer.gizmo.selection().length > 1')
+        page.locator('#flagsRows .flagrow').nth(2).locator('input').click()
+        page.wait_for_function("document.getElementById('flagsReset').disabled === false")
+        page.wait_for_timeout(500)
+        chip = page.evaluate("""() => { const c = [...document.querySelectorAll('#details .chip')].find(c => c.textContent.startsWith('Flags'));
+          const b = c?.getBoundingClientRect(); return b && [b.left, b.top, b.width, b.height]; }""")
+        if not chip: raise SystemExit('no Flags chip on the picked dumpsters')
+        marks = [dict(n=1, rect=chip, side='right', gap=18)]
+        marks += self.panel_rows('#inspector', [(2, '#editKind'), (3, '#flagsRows .flagrow:nth-child(1)'),
+                                                (4, '#flagsRows .flagrow:nth-child(3)'), (5, '#flagsReset')])
+        self.shot('flags', marks, clip=self.around('#details', '#flagsBox', pad=(56, 14, 50, 12)))
+        while page.evaluate('viewer.gizmo.undoDepth()') > steps: page.keyboard.press('Control+z')
+        page.evaluate('viewer.select(null)')
+        page.locator('#floor button[data-value="1"]').click()
 
     def box_select(self):
         """Box select: a box drawn over part of the car park, its top pulled down, with its handles and its bar. Put away
@@ -326,7 +371,7 @@ class Shots:
         page.locator('#groupBreak').check()
         page.wait_for_timeout(400)
         rows = [(1, '#groupHead'), (2, '#groupDissolve'), (3, '#groupBreakRow')]
-        self.shot('group', self.panel_rows('#inspector', rows), clip=self.around('#details', '#groupBox', pad=(56, 22, 24, 12)))
+        self.shot('group', self.panel_rows('#inspector', rows), clip=self.around('#groupBox', pad=(56, 14, 24, 12)))
         page.evaluate('([id]) => viewer.select(id, true)', [self.id(KEG_C)])
         page.locator('#alignX').check()
         page.wait_for_timeout(400)
@@ -631,6 +676,181 @@ class Shots:
         self.shot('clear-map', clip=self.around('#clearMapForm', pad=(12, 12, 12, 12)))
         page.locator('#clearMapCancel').click()
 
+    def missions(self):
+        """The Missions window on the Bar, Terror ticked as an added kind. Cancelled: nothing changes."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.evaluate("document.getElementById('projectMissions').click()")
+        page.wait_for_selector('#missionsDialog:not([hidden]) #missionsList label')
+        terror = page.locator('#missionsList label', has_text='Terror').first
+        terror.locator('input').check()
+        page.wait_for_timeout(400)
+        base = page.locator('#missionsList label').first
+        marks = [dict(n=1, rect=self.box(base), side='left', gap=22),
+                 dict(n=2, rect=self.box(terror), side='left', gap=22),
+                 dict(n=3, sel='#missionsOk', side='bottom', gap=20)]
+        self.shot('missions', marks, clip=self.around('#missionsForm', pad=(40, 12, 12, 34)))
+        page.locator('#missionsCancel').click()
+
+    def squad(self):
+        """Settings, Test squad setup: the default six, the first unit open. Cancelled: nothing is saved."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#settingsButton').click()
+        page.locator('#settingsSquad').click()
+        page.wait_for_function("document.querySelectorAll('#squadUnits > *').length >= 6", timeout=60000)
+        page.wait_for_timeout(800)
+        field = """t => { const f = [...document.querySelectorAll('#squadUnit .squadfield')].find(f => f.querySelector('span')?.textContent.trim() === t);
+          const b = f?.getBoundingClientRect(); return b && [b.left, b.top, b.width, b.height]; }"""
+        at = {t: page.evaluate(field, t) for t in ('Kind', 'First name', 'Armour', 'Weapons')}
+        missing = [t for t, r in at.items() if not r]
+        if missing: raise SystemExit('the squad panel has no %s field' % ', '.join(missing))
+        marks = [dict(n=1, sel='#squadUnits', side='left', gap=22, at=0.25),
+                 dict(n=2, sel='#squadAdd', side='top', gap=20),
+                 dict(n=3, rect=at['Kind'], side='right', gap=22),
+                 dict(n=4, rect=at['First name'], side='top', at=0.92, gap=12),
+                 dict(n=5, rect=at['Armour'], side='right', gap=22),
+                 dict(n=6, rect=at['Weapons'], side='right', gap=22),
+                 dict(n=7, sel='#squadWide', side='bottom', gap=20),
+                 dict(n=8, sel='#squadExport', side='bottom', gap=20),
+                 dict(n=9, sel='#squadSave', side='bottom', gap=20)]
+        self.shot('squad', marks, clip=self.around('#squadForm', pad=(40, 14, 40, 40)), resize=0.75)
+        page.locator('#squadCancel').click()
+
+    # --- the project manager: more projects, two quick builds, then a queue of full builds
+    def box(self, locator):
+        b = locator.bounding_box()
+        if not b: raise SystemExit('nothing shows for %s' % locator)
+        return [b['x'], b['y'], b['width'], b['height']]
+
+    def nudge(self, actor, dx=96):
+        """Moves a piece along X by typing its position (one edit)."""
+        page = self.page
+        self.select(actor)
+        x = float(page.locator('#posX').input_value())
+        page.locator('#posX').fill('%g' % (x + dx))
+        page.locator('#posX').press('Enter')
+        page.evaluate('viewer.select(null)')
+
+    def save_project_as(self, name):
+        page = self.page
+        page.evaluate("document.getElementById('projectSaveAs').click()")
+        page.wait_for_selector('#fileDialog:not([hidden])')
+        page.locator('#fileName').fill(name)
+        page.wait_for_function("document.getElementById('fileOutput').textContent.includes('Builds as')", timeout=20000)
+        page.locator('#fileOk').click()
+        page.wait_for_function('n => viewer.project()?.name === n && !viewer.project().dirty', arg=name, timeout=30000)
+        self.close_pops()
+
+    def quick_build(self):
+        """Builds the open project without baking, and closes the build window."""
+        page = self.page
+        page.keyboard.press('Control+b')
+        page.wait_for_selector('#buildForm', state='visible')
+        if page.locator('#buildBake').is_checked(): page.locator('#buildBake').uncheck()
+        page.locator('#buildOptionsOk').click()
+        page.wait_for_function("""() => { const t = document.getElementById('buildTitle').textContent;
+          return !document.getElementById('buildModal').hidden && !document.getElementById('buildClose').hidden && !t.startsWith('Building'); }""",
+                               timeout=300000)
+        title = page.locator('#buildTitle').text_content()
+        page.locator('#buildClose').click()
+        if not title.startswith('Built'): raise SystemExit('a build for the project manager failed: %s' % title)
+
+    def manager(self):
+        """The project manager with four projects: the demo, two quick builds (one saved again since) and one never
+        built, the demo and the unbuilt one ticked and building as a queue of full builds, the demo done and the other
+        building. The queue is stopped and cleared after."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        for k, (name, actor) in enumerate(MORE_PROJECTS):
+            self.nudge(actor)
+            self.save_project_as(name)
+            if k < 2: self.quick_build()
+            if k == 1:                       # saved again after its build: out of date
+                self.nudge(actor)
+                page.keyboard.press('Control+s')
+                page.wait_for_function('!viewer.project().dirty', timeout=30000)
+        page.evaluate("document.getElementById('projectManage').click()")
+        page.wait_for_selector('#managerList .mrow')
+        page.wait_for_timeout(600)
+        for name in (PROJECT, MORE_PROJECTS[-1][0]):
+            page.locator('#managerList .mrow', has_text=name).first.click()
+        page.locator('#managerBuild').click()
+        page.wait_for_function("/Building 2 of 2/.test(document.getElementById('managerQueue').textContent)", timeout=600000)
+        page.wait_for_timeout(5000)
+        row = page.locator('#managerList .mrow', has_text=PROJECT).first
+        marks = [dict(n=1, sel='#managerSearch', side='top', gap=20, at=0.3),
+                 dict(n=2, sel='#managerShow', side='top', gap=20),
+                 dict(n=3, sel='#managerSort', side='top', gap=20),
+                 dict(n=4, rect=self.box(row.locator('.mbuild')), side='left', gap=22),
+                 dict(n=5, sel='#managerPicked .pmitem', side='right', gap=22),
+                 dict(n=6, sel='#managerPicked .pmseg', side='right', gap=22),
+                 dict(n=7, sel='#managerQueue', side='left', gap=22, at=0.3),
+                 dict(n=8, sel='#managerBuild', side='top', gap=20),
+                 dict(n=9, sel='#managerProjectFiles', side='left', gap=18)]
+        self.shot('manager', marks, clip=self.around('#managerForm', pad=(40, 30, 40, 40)), resize=0.75)
+        page.locator('#managerQueueStop').click()
+        page.wait_for_function("!document.getElementById('managerQueueClear').hidden && !document.getElementById('managerQueueClear').disabled",
+                               timeout=120000)
+        page.locator('#managerQueueClear').click()
+        page.locator('#managerClose').click()
+
+    def save_as(self):
+        """Save as… with a new name typed: the projects listed, and what it would build as. Cancelled."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.evaluate("document.getElementById('projectSaveAs').click()")
+        page.wait_for_selector('#fileDialog:not([hidden])')
+        page.locator('#fileName').fill('Rooftop fight')
+        page.wait_for_function("document.getElementById('fileOutput').textContent.includes('RooftopFight')", timeout=20000)
+        page.wait_for_timeout(400)
+        marks = self.panel_rows('#fileForm', [(1, '#fileList'), (2, '#fileName'), (3, '#fileShow'), (4, '#fileOutput')])
+        self.shot('save-as', marks, clip=self.around('#fileForm', pad=(44, 12, 12, 12)))
+        page.locator('#fileCancel').click()
+
+    def mission_objects(self):
+        """A council bomb's objects on its own map (another map: this shot comes last): the bomb picked, with its
+        arrows and its panel, the power nodes, the drop-in points and the pods round it."""
+        page = self.page
+        page.goto('%s?map=%s' % (self.server, BOMB_MAP))
+        page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=300000)
+        page.wait_for_timeout(1500)
+        index = page.evaluate('s => viewer.data.missions.findIndex(m => (m.streams ?? []).includes(s))', BOMB_STREAM)
+        if index < 0: raise SystemExit('%s has no mission with %s' % (BOMB_MAP, BOMB_STREAM))
+        page.locator('#mission').select_option(str(index))
+        page.wait_for_timeout(1500)
+        page.evaluate("t => { const box = document.getElementById(t); if (!box.checked) box.click(); }", 'missionObjectsToggle')
+        page.locator('#floor button[data-value="1"]').click()
+        objects = page.evaluate('s => viewer.data.streams[s].missionObjects', BOMB_STREAM)
+        bomb = next(o for o in objects if o['kind'] == 'bomb')
+        page.evaluate('o => viewer.setPickedMission(o)', dict(stream=BOMB_STREAM, actor=bomb['actor']))
+        at = page.evaluate('viewer.missionGizmo().at')
+        self.camera([at[0] + 150, at[1] - 150, at[2]], [900, -1500, 1500])
+        self.settle(3000)
+        top, bottom = self.rect('header')[3] + 40, self.rect('.dock')[1] - 30
+        panel = self.rect('#missionPanel')
+
+        def nearest(kind):
+            """The object of a kind nearest the bomb that shows in the picture, clear of the panel."""
+            best = None
+            for o in objects:
+                if o['kind'] != kind: continue
+                s = page.evaluate('p => viewer.screenOf(p)', o['location'])
+                if not (90 < s[0] < panel[0] - 40 and top < s[1] < bottom): continue
+                d = sum((a - b) ** 2 for a, b in zip(o['location'], bomb['location']))
+                if best is None or d < best[0]: best = (d, s)
+            if not best: raise SystemExit('no %s of %s shows in the picture' % (kind, BOMB_STREAM))
+            return best[1]
+        g = page.evaluate('p => viewer.screenOf(p)', at)
+        marks = [dict(n=1, sel='#missionPick', side='bottom', gap=20),
+                 dict(n=2, rect=[g[0] - 8, g[1] - 8, 16, 16], side='left', gap=60, dy=-30)]
+        for n, kind in ((3, 'powerNode'), (4, 'dropIn'), (5, 'pod')):
+            s = nearest(kind)
+            marks.append(dict(n=n, rect=[s[0] - 6, s[1] - 6, 12, 12], side='bottom', gap=34, inset=3))
+        marks.append(dict(n=6, sel='#missionPanel', frame=True, side='left', gap=3, at=0.1))
+        self.shot('mission-objects', marks, resize=0.75)
+        page.evaluate('viewer.setPickedMission(null)')
+
 
 def prefab_test_shot(browser, server, out):
     from PIL import Image
@@ -648,8 +868,10 @@ def prefab_test_shot(browser, server, out):
     page.close()
 
 
-ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map')
+# the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
+ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
+         'landing-zones', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
+         'manager', 'save-as', 'mission-objects')
 
 
 def main():
@@ -676,6 +898,7 @@ def main():
         page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=180000)
         page.wait_for_timeout(1500)
         shots = Shots(page, args.out, only)
+        shots.server = args.server.split('?')[0]
         shots.demo_project()
         for name in ORDER:
             if name != 'prefab-test' and (not only or name in only): getattr(shots, name.replace('-', '_'))()
