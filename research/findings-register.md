@@ -2636,7 +2636,20 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
     `PrintWindow` from outside gives a black picture.
   - Left as it was: the DLL is out of the lab copy again (DXVK is unpacked in `<lab>\dxvk`), `XComContent.ini` put
     back after the battle (F-73). Steam's shader cache for the game got DXVK's pipelines.
-  - Not tried: a mouse click or move, a turn played, a save, more than one game at once, the LWR install.
+  - **The tool** (17 November, later): [tools/lab/hidden_game.py](../tools/lab/hidden_game.py) puts the DLL in for
+    the run, starts the game through [GameRemote.cs](../tools/lab/GameRemote.cs) on the desktop `XComLab-Game`, does
+    a list of steps (wait, wait for a log line, a console command, a key, a shot) and puts back the DLL and every
+    config file the run changed (`XComContent.ini`, and `XComInput.ini` too). Three runs with it:
+    - the main menu: Right twice and Enter opened Options, so menus go by the keyboard;
+    - a battle on URB_Bar: the log's `m_bTacticalIntroDone` came 21 seconds in and the first shot at 73 showed turn
+      1; a console command written to a file and run by a typed `exec <file>` worked (`ToggleFOW`: the bar's inside
+      showed in the next shots; a `getall` with a wrong property name was answered in the log); Tab picked the next
+      soldier (his name and weapon in the shot), E three times and G four turned and pulled back the camera.
+  - **No mouse there.** Posted `WM_MOUSEMOVE` and button messages at the main menu's Options button did nothing (no
+    highlight, no screen), and `SetCursorPos` and `GetCursorPos` are refused on a desktop that isn't the one shown
+    (error 5), so the game has no cursor to read. A soldier can't be sent to a tile by pointing; what a check needs
+    there must come from the console (`TeleportToCursor` has no cursor either) or the keyboard.
+  - Not tried: a turn played by keys, a save, more than one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
   `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get

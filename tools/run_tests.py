@@ -28,7 +28,7 @@ import sys
 import time
 
 REPO = Path(__file__).resolve().parents[1]
-PYTHON_SUITES = ('viewer', 'editor', 'upk', 'bake', 'release', 'repo')
+PYTHON_SUITES = ('viewer', 'editor', 'upk', 'bake', 'lab', 'release', 'repo')
 SUITES = PYTHON_SUITES + ('node',)
 HEADER = re.compile(r'^(FAIL|ERROR): (\S+) \((\S+)\)')
 SUMMARY = re.compile(r'^Ran (\d+) tests? in ([\d.]+)s$')

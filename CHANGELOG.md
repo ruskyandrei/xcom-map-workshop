@@ -48,6 +48,23 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Game checks nobody watches: hidden_game.py
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py) runs the lab copy's game on a private desktop and works through
+  a list of steps: it puts DXVK's `d3d9.dll` (from `<lab>\dxvk`) beside the game for the run, starts a battle on a map
+  (`--map`, Play in game's commands) or with a commands file, or stops at the main menu, and afterwards takes the DLL
+  out and puts back every config file the run changed. Shots, the game's log and the run's own log go to
+  `<lab>\hidden-runs\<time>`. It refuses any folder but the lab copy, and a run while the game is open.
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs), new: starts the game on that desktop and does the steps (wait,
+  wait for a log line, a console command through a typed `exec`, a typed command, a key, the game's own `shot` saved
+  as a PNG). No mouse steps: the game takes no mouse there (T-43).
+- [tools/run_tests.py](tools/run_tests.py) has a `lab` suite; [tools/lab/tests/test_hidden_game.py](tools/lab/tests/test_hidden_game.py)
+  checks the steps, the DXVK pick and what is put in and back, on a made-up game folder.
+- Checked: the `lab` suite (9 tests), and three runs in the lab copy (the main menu by arrow keys; a battle on URB_Bar
+  with console commands, Tab and camera keys; the lab copy as it was after each). Findings in
+  [T-43](research/findings-register.md). Gaps: no mouse, so no soldier is moved by pointing; a played turn, saves and
+  the LWR install not tried.
+
 ### Finding T-43 extended: with DXVK the game runs on a hidden desktop
 
 - [research/findings-register.md](research/findings-register.md), T-43: with DXVK 3.1.1's `d3d9.dll` beside the lab
