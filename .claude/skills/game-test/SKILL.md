@@ -103,6 +103,19 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
 - **Next soldier**: `key TAB`. **End the turn**: `console EndTurn`, then wait about 25 seconds.
 - Menus go by the arrow keys and Enter, `key ESCAPE` backs out.
 
+### Sounds
+
+- `hidden_game.py listen <out> <x> <y> <z> [--distance <d>]` puts the camera `<d>` world units from that place and
+  prints what the game is playing there: volume, wave, the actor it belongs to (the console's `ListWaves`).
+- **The game hears from the camera, not from the place it looks at.** The play camera stands 1256 from its target,
+  farther than most ambient sounds reach, so "is it heard here" is asked with a `--distance` a player's zoom would
+  give, or one inside the sound's reach to prove it plays at all.
+- A sound's reach and wave: `console getall SoundNodeAmbient RadiusMin | getall SoundNodeAmbient RadiusMax | getall
+  SoundNodeAmbient SoundSlots`; its place: `getall AmbientSoundSimple Location`. Full volume inside RadiusMin, none
+  beyond RadiusMax; a full ambient sound lists at 0.60.
+- A sound that plays once (a shot, a voice) is in the list only while it sounds: ask right after what causes it.
+- This is the engine's own list, not a recording: it says a sound plays and how loud, not how it sounds.
+
 ## What it cannot do
 
 - No real mouse: no clicking on the interface, no dragging. Controller mode stops the game at a reconnect box.

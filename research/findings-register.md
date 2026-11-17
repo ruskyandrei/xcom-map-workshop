@@ -2697,6 +2697,22 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
       more. A look-at (`ViewLocation`, then `RemoveLookAt`) still serves to take a picture of a place.
     - Aiming at a roof from 26 tiles away failed (the aim's correction ran off: "59 tiles away"); from three tiles
       it held. `hidden_game.py`'s `--floor` set the storey to 3 and back to 0 in a fourth, short session.
+  - **Sounds** (17 November, night; a session on URB_Bar without aliens):
+    - The console's `ListWaves` writes the sounds playing now to the log, a line each: whether it started, a time,
+      the volume, the wave and the actor it belongs to. At the landing: the dropship's idle (0.09), two ambience
+      loops and the music of the sound manager (0.18, 0.60, 0.60). `ListSounds` lists loaded waves only and
+      `ListAudioComponents` every component, playing or not: neither says what is heard.
+    - The game hears from the camera, not from the place it looks at. The map's five `AmbientSoundSimple` have a
+      reach of 300 to 1000 (`getall SoundNodeAmbient RadiusMin`, `RadiusMax`, `SoundSlots` give radii and wave), the
+      play camera stands 1256 from what it looks at, and none of the five was in the list with the camera looking
+      straight at them.
+    - With the camera brought closer (`ViewLocation` at the sound, `SetOverheadCameraParameters 70 <distance> -45`)
+      the bar's music (`SoundBarMuzak.BarMuzakStereo`, radii 550 and 1000) was listed at 0.60 from 400, 0.40 from
+      700, 0.27 from 800, 0.07 from 950 and not at all from 1256; the machine hum on the roof (radii 100 and 300) at
+      0.32 from 150. So the list follows the radii, and 0.60 is a full ambient sound here.
+    - `hidden_game.py listen <folder> <x> <y> <z> [--distance <d>]` does this and prints the list.
+    - Not told: whether the hidden game sounds on the computer's speakers, and nothing was recorded: the list is
+      the engine's own account of what plays, not a recording.
   - Not tried: a save, stairs inside a building, a climb down, more than one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,

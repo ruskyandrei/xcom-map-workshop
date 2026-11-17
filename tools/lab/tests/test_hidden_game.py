@@ -137,6 +137,15 @@ class Answers(unittest.TestCase):
         self.assertEqual(hidden_game.vectors(hidden_game.log_gain(self.LOG)), {'XGUnit_2': (1582.961426, 911.033325, 67.178223)})
 
 
+class Sounds(unittest.TestCase):
+    def test_waves_of_the_games_list(self):
+        lines = ['[0178.75] Log:    0.    Yes 178.75   0.18  SoundAmbience-NorthAmerica.FlyingPaperLoop   XComTacticalSoundManager_0',
+                 '[0178.75] Log:    2.    Yes 178.75   0.60  SoundBarMuzak.BarMuzakStereo   AmbientSoundSimple_2',
+                 '[0178.75] Log: Total: 4']
+        self.assertEqual(hidden_game.waves(lines), [(0.18, 'SoundAmbience-NorthAmerica.FlyingPaperLoop', 'XComTacticalSoundManager_0'),
+                                                    (0.6, 'SoundBarMuzak.BarMuzakStereo', 'AmbientSoundSimple_2')])
+
+
 class Arguments(unittest.TestCase):
     def test_exec_only_with_a_commands_file(self):
         self.assertEqual(hidden_game.game_arguments((1280, 720)),

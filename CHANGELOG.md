@@ -48,6 +48,16 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Unattended game tests: listening
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `listen <folder> <x> <y> <z> [--distance <d>]` puts the
+  camera that far from a place and prints what the game says it is playing (the console's `ListWaves`: volume, wave,
+  owner). The [game-test skill](.claude/skills/game-test/SKILL.md) has a section on sounds.
+- Checked: the `lab` suite (15 tests) and a session on URB_Bar: the bar's music listed at 0.60, 0.40, 0.27 and 0.07
+  from 400, 700, 800 and 950 units and gone from 1256, as its radii (550, 1000) say; the roof's machine hum from 150.
+  Findings in [T-43](research/findings-register.md). Gap: this is the engine's list, not a recording of what comes
+  out of the speakers.
+
 ### Unattended game tests: the storey option and the game-test skill
 
 - [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `goto` and `aim` take `--floor <n>`, the storey the game's

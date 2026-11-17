@@ -41,6 +41,10 @@ the game there and does the steps (its header lists them: wait, waitlog, console
   turn's end by `console EndTurn`. A grenade's aim follows the same corner while its view is open: set the camera by
   hand then (aim_camera gives the field of view and yaw). What a soldier sees and his cover come back from `getall`
   (XGUnit m_bInCover, m_iCurrentCoverValue, Location).
+- Sounds: `hidden_game.py listen <folder> <x> <y> <z> [--distance <d>]` puts the camera <d> world units from that
+  place and prints the game's own list of what it is playing (ListWaves: volume, wave, the actor it belongs to).
+  The game hears from the camera, so whether an ambient sound is heard goes by the camera's distance from it and
+  the sound's radii (getall SoundNodeAmbient RadiusMin / RadiusMax / SoundSlots).
 - Out folder (default <lab>\\hidden-runs\\<time>): the shots as <name>.png, steps.txt, Launch.log, DXVK's log,
   run.log (what GameRemote printed).
 - Exit code: GameRemote's (0, 1 the game ended, 3 a waitlog or shot ran out of time), 124 when --timeout ended the
@@ -358,6 +362,29 @@ def set_floor(out, log, floor, echo=print):
     raise RunError(f'The cursor\'s floor stays at {now}, not {floor} (the map has no such storey here?)')
 
 
+WAVE = re.compile(r'Log:\s+\d+\.\s+(Yes|No)\s+[\d.]+\s+([\d.]+)\s+(\S+)\s+(\S+)\s*$')
+
+
+def waves(lines):
+    """[(volume, wave, owner)] of ListWaves' lines: the sounds the game is playing now."""
+    return [(float(m[2]), m[3], m[4]) for m in map(WAVE.search, lines) if m]
+
+
+def listen(out, log, place, distance=None, echo=print):
+    """What the game plays with the camera looking at `place` (x, y, z) from `distance` world units (default: the
+    play camera's 1256): [(volume, wave, owner)], loudest first. The game hears from the camera itself, not from
+    the place it looks at, so an ambient sound with a reach shorter than the distance is not heard."""
+    x, y, z = place
+    camera = PLAY_CAMERA if distance is None else f'SetOverheadCameraParameters 70 {distance:g} -45'
+    lines = ask(out, log, [f'console ViewLocation {x:g} {y:g} {z:g} | {camera}', 'wait 5', 'console ListWaves',
+                           'console RemoveLookAt | ' + PLAY_CAMERA])
+    heard = sorted(waves(lines), reverse=True)
+    if not any('Total:' in line for line in lines): raise RunError('ListWaves did not answer')
+    for volume, wave, owner in heard: echo(f'{volume:.2f}  {wave}  ({owner})')
+    echo(f'{len(heard)} sounds playing')
+    return heard
+
+
 def session_command(argv):
     """send, aim and goto: the commands that talk to a serving run."""
     verb = argv[0]
@@ -366,6 +393,13 @@ def session_command(argv):
     if verb == 'send':
         ap.description = 'Hand steps to a serving run and wait for them.'
         ap.add_argument('steps', nargs='+', help='the steps (GameRemote.cs lists them)')
+    elif verb == 'listen':
+        ap.description = 'List the sounds the game plays with the camera looking at a place.'
+        ap.add_argument('x', type=float, help='the place the camera looks at, in world units')
+        ap.add_argument('y', type=float)
+        ap.add_argument('z', type=float)
+        ap.add_argument('--distance', type=float, help='how far the camera is from the place (default 1256, the '
+                        'play camera; the game hears from the camera)')
     else:
         ap.description = ('Order the active soldier to a tile and wait until he stands there.' if verb == 'goto' else
                           'Put the game\'s 3D cursor on a tile (for a console command that works at the cursor), do '
@@ -381,7 +415,10 @@ def session_command(argv):
     try:
         log = Path(args.game or labpaths.active_game()) / 'XEW' / 'XComGame' / 'Logs' / 'Launch.log'
         if verb == 'send': return send(args.out, args.steps, log, args.wait)
-        if args.floor is not None: set_floor(args.out, log, args.floor)
+        if verb == 'listen':
+            listen(args.out, log, (args.x, args.y, args.z), args.distance)
+            return 0
+        if getattr(args, 'floor', None) is not None: set_floor(args.out, log, args.floor)
         if verb == 'goto': return goto(args.out, log, (args.x, args.y), args.wait)
         aim(args.out, log, (args.x, args.y))
         code = send(args.out, args.steps, log, 300) if args.steps else 0
@@ -394,7 +431,7 @@ def session_command(argv):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
-    if argv[:1] in (['send'], ['aim'], ['goto']): return session_command(argv)
+    if argv[:1] in (['send'], ['aim'], ['goto'], ['listen']): return session_command(argv)
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--map', help='start a battle on this map (Play in game\'s commands, the game\'s own squad)')
     ap.add_argument('--squad', type=Path, help='with --map: a file holding the squad to land, the value of m_aSoldiers '
