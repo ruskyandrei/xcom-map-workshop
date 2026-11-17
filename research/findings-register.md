@@ -2620,8 +2620,24 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   the original plays the first mission); the project manager works them out from the last build's records. The Game
   maps window marks only the replaced records.
 
-### T-43: The game does not start on a hidden desktop: DirectX 9 finds no hardware there, and it has no working DirectX 11
-**Verified** (17 November 2026, the lab copy, two starts; no EXP file).
+### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
+**Verified** (17 November 2026, the lab copy, five starts; no EXP file).
+- **With DXVK it runs.** DXVK 3.1.1's 32-bit `d3d9.dll` (DirectX 9 over Vulkan) beside `XComEW.exe`, the same start:
+  compatibility level 2/2/4 as on the screen, the main menu after 3.8 seconds, still running when the timeout ended it.
+  - A battle: `-EXEC=<file>` with `set XComContentManager bAllowJITLoad True` and `open URB_Bar` loaded the map and
+    stood at turn 1 with the squad and the interface drawn, 75 seconds after the start.
+  - Commands: a helper on the same desktop posted `WM_KEYDOWN`/`WM_KEYUP` to the game's window (class
+    `LaunchUnrealUWindowsClient`): backslash, the command's keys, Enter. The log shows each (`Console Command Use:
+    shot`, `togglefow`), and the fog was gone in the next picture. No window is in front on that desktop
+    (`GetForegroundWindow` is 0) and the game doesn't mind. Only keys were posted: no mouse, and no character that
+    needs Shift (an underscore), which a commands file run with `exec` gets round.
+  - Pictures: the game's own `shot` writes `XComGame\Screenshots\PCConsole\ScreenShotNNNNN.bmp` at the asked size
+    (1280 by 720, though the window's client area was 1024 by 576) and they show the game as it looks on the screen.
+    `PrintWindow` from outside gives a black picture.
+  - Left as it was: the DLL is out of the lab copy again (DXVK is unpacked in `<lab>\dxvk`), `XComContent.ini` put
+    back after the battle (F-73). Steam's shader cache for the game got DXVK's pipelines.
+  - Not tried: a mouse click or move, a turn played, a save, more than one game at once, the LWR install.
+- **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
   `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get
   Caps bits info from the D3D Object`, pixel and vertex shader version 0, compatibility level 0, and then nothing
@@ -2629,10 +2645,6 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - With `-dx11` added it took the DirectX 11 path (`Shader platform (RHI): PC-D3D-SM5`) and stopped after 3 seconds:
   `Failed to compile global shader FResolveVertexShader` (`Common.usf(789,55)`: undeclared identifier
   `ViewportPositionScaleBias`). The shipped game has no DirectX 11 shaders, so T-01's way out is closed for it.
-- So a game test nobody watches needs another way to keep the game off the user's screen: a DirectX 9 layer that
-  doesn't ask the display (DXVK's `d3d9.dll` in the lab copy, not tried), a window on the user's desktop that never
-  takes the keyboard (commands by window messages or from a file, pictures by the game's own `shot`), or a second
-  display that is not a real one. None tried.
 - The second start rewrote the lab copy's `XComEngine.ini` (its compatibility levels unchanged: 2, 2, 4) and left a
   crash dump in its `Logs`.
 

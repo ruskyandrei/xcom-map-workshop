@@ -35,6 +35,14 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Finding T-43 extended: with DXVK the game runs on a hidden desktop
+
+- [research/findings-register.md](research/findings-register.md), T-43: with DXVK 3.1.1's `d3d9.dll` beside the lab
+  copy's `XComEW.exe` the game reached the main menu and a battle on URB_Bar on a private desktop, took console
+  commands posted as key messages and saved its own `shot` pictures. Checked by three starts: the logs and the
+  pictures (the menu; the battle at turn 1 with squad and interface; the same with the fog off). The helper that
+  posted the keys was a throwaway; no tool changed. Mouse input, a played turn and saves not tried.
+
 ### Finding T-43: the game does not start on a hidden desktop
 
 - [research/findings-register.md](research/findings-register.md), T-43: two starts of the lab copy's `XComEW.exe` on a
