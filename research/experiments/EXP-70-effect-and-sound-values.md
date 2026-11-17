@@ -58,4 +58,27 @@ What the run adds (Play in game from the editor, on the project):
 
 ## Result
 
-Not played yet.
+**Run 1** (17 November 2026, unattended: the game-test skill's hidden game in the lab copy, `URB_Bar_X70` installed
+as Play in game installs it, opened by name; the same camera places on the unedited URB_Bar for comparison). Every
+value the project set is what the game loaded (`getall`), and what could be seen or heard behaved as predicted;
+three things could not be judged by eye.
+
+| No. | Result |
+| --- | --- |
+| 1 | **Passed for the colour.** The beam's cone on the ground is saturated red where the unedited map's is warm white, the same size; the twin's warm white shows only as a haze at the red cone's edge. Brighter: **not judged** (by eye a colour change and a brightness change can't be told apart). The game holds Brightness 2.0 as a number (`PSPT_Scalar`) and Color (1.5, 0.1, 0.1). |
+| 2 | **Larger, yes; three times not measurable.** A grey wisp about a tile and a half across where the unedited map shows none to the eye: the steam is very dim at night (its Brightness 0.05). The game holds DrawScale 1.5 (0.5 in the unedited map). |
+| 3 | **Passed.** A wide green cloud over about two tiles on its side of the alien power source, much larger than its neighbours' wisps, the same soft shape; a small puff in the unedited map. DrawScale 1.8 with DrawScale3D (0.6, 1, 1). |
+| 4 | **Passed, by the game's state.** The plume is too small and dim to show in either map's pictures; the game holds its component `bAutoActivate = False` and `bIsActive = False` (`True` in the unedited map). |
+| 5 | **Passed.** A small, faint green wisp on the pavement; the game holds its Color (0.2, 1.5, 0.2). |
+| 6, 7 | **Loaded; denser not judged.** All three copies are active, and copy 6's list has its fourth entry, Spawn 4.0, so the new entry loads; but copies 6 and 7, at half size and Brightness 0.05, can't be seen at night. |
+| 8 | **Passed.** The game lists it at 0.60 from 200 and 400 units, 0.43 from 1,000 and 0.30 from 1,300: full volume inside 600 and a straight fade to 2,000 (0.6 × (1 − 400/1,400) = 0.43), so heard far beyond its old 750. Pitch 1.6 read from `getall` only (the game's list has no pitch). |
+| 9 | **Passed.** Not listed from 200 or 100 units; the game holds `bAutoPlay = False`. A simple sound saved not to play stays silent. |
+| 10 | **Passed.** 0.30 from 200 units, half of 8's 0.60 there, and 0.17 from 500; pitch 0.6, volume 0.5. |
+
+- The game hears from the camera (the game-test skill's sound checks, findings register T-43), which settles the
+  listener question EXP-68 and EXP-69 left open: what a player hears depends on the camera's distance from the sound.
+- Save and reload: not done (a battle started this way can't be saved or loaded).
+- Not settled by this run: whether a number set where the system reads a vector (item 1's Brightness, as the game's
+  maps do) changes the brightness, and whether a parameter added that the effect didn't save (item 6's Spawn) changes
+  what it plays (the entry loads). Both need an effect bright enough to judge, each value set alone.
+- The run's pictures and logs stay in the lab's hidden-runs folder; nothing from them is checked in.
