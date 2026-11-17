@@ -439,6 +439,14 @@ radii, volume and pitch, each value with where it came from) and `flares` (lens 
 `soundWaves` describe each particle system and wave once. A mission stream's own are in its layer, read only. The
 contract is section 8 of [editor-contracts.md](../../research/editor-contracts.md).
 
+Since export 29 each effect is also **drawn as it looks**, in every view: a likeness, moving, made from its particle
+system's own textures, blend and baked tables and the effect's own parameters and size
+([effects_draw.py](effects_draw.py) reads them, [effects_sim.js](web/effects_sim.js) steps the particles,
+[effects_preview.js](web/effects_preview.js) draws them). It is a likeness, not the game's shader: scrolling and
+distorting textures, lit particles, swirls, bounces and what one emitter sets off in another are not followed, and
+the game stays the judge of how an effect looks. View options' **Effects as they look** switches it off; an effect
+that starts off is drawn only while it is picked; a likeness is never picked (its marker is the handle).
+
 The page's **Effects view** (Shift+X, the rail's spark; [effects_view.js](web/effects_view.js) draws,
 [effects_rules.js](web/effects_rules.js) words) shows them as markers drawn over everything: a spark for an effect,
 a speaker for a sound, a star for a flare, hollow when it starts off, greyed for a stream's. While it is on a click

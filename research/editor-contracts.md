@@ -525,8 +525,9 @@ what the page draws its likeness from, or `null` with `why` (a ribbon, no level 
 another package, nothing spawns it). `kind` sprite or mesh; `blend`, `lit`, `twoSided`, `material`; a sprite's
 `textures` (`key` into the scene's `textures`, `name`, `parameter`, `alpha`), its `picture` and `mask` keys (picked by
 name: a normal map, distortion or reflection is neither; a texture named Mask, Alpha or Gradient is the mask) and
-`opacity` (`alpha`, or `brightness` where the picture has no alpha channel); a mesh emitter's `mesh` (a key into
-`meshes`) and `materials`; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
+`opacity` (`alpha`, `brightness` where the picture has no alpha channel, or `channel` where it is a texture of
+three packed channels: one channel is the opacity and it has no colour); a mesh emitter's `mesh` (a key into
+`meshes`) and `materials`, with the same texture fields for the material it is drawn with; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
 `duration`, `loops`, `delay`; `rate`, `rateScale` and each followed module of `modules` (`cls` without
 `ParticleModule`, then its properties) as numbers, flags and **distributions**; `bursts` (`count`, `countLow`,
 `time`); `ignored`: the classes of its modules the drawing doesn't follow.

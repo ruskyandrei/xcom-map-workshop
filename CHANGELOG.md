@@ -8,6 +8,46 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects drawn as they look: the likeness in the view (effects and sounds plan, stage FXV2)
+
+- [effects_sim.js](tools/viewer/web/effects_sim.js), new, no three.js: one emitter stepped from its draw data. `sample`
+  reads a distribution at a time (a table's entry blended to the next, a random range with its locked axes, a particle
+  parameter through its mode's ranges); `makeEmitter` spawns by the rate and the bursts, gives each particle its life,
+  place (a point, a box, a sphere, a cylinder), speed, size, colour, turn and sub-image, and changes them over its
+  life by the followed modules; seeded, so the same effect draws the same; `LIMITS` (400 particles an emitter, 1,500
+  an effect, 30,000 in the view).
+- [effects_preview.js](tools/viewer/web/effects_preview.js), new: `makeLikeness` draws a system: each sprite emitter
+  as instanced quads that face the camera (or lie along their speed), each mesh emitter as an instanced mesh, both
+  through one shader with the picture and mask the export picked, blended as the material says (see-through, added,
+  multiplied, solid). It starts warm (run ahead by its longest life) and a system that has played out starts again
+  after two seconds.
+- [app.js](tools/viewer/web/app.js): a likeness for every effect the Build will have (`refreshLikenesses`: the
+  markers' own rule, without their filters), in every view, never picked; one that starts off only while it is
+  picked; made anew when its parameters change; put where its effect stands each frame, so a drag and a size edit
+  show at once; stepped only when in the picture and more than a few pixels of it (`stepLikenesses`), thinned evenly
+  over the view's budget. **View options: Effects as they look**, kept in the browser. The effect panel says what the
+  drawing leaves out ("Drawn here without its swirl"). An effect of another map brings its textures and meshes with
+  its template.
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 3: a mesh emitter carries its own textures and takes
+  its blend from the material it is drawn with; a texture of three packed channels gives one channel as the opacity
+  and no colour (`opacity: channel`); an emitter whose material only bends the light is not drawn.
+- **From the game's own pictures** (a hidden game on URB_Bar, game-test skill): a number saved where the system reads
+  a vector (and the other way) is not found by the game, which plays the distribution's constant. Bar's steam saves
+  Brightness 0.05 as a number and is a dull grey wisp, not near black. `sample` does the same. This is what EXP-70
+  could not judge.
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md) section 8.
+
+Checked: [effects_sim_test.mjs](tools/viewer/tests/effects_sim_test.mjs) (tables, random ranges, locked axes,
+parameters and the other kind, a steady emitter's count, lives, move, colour and growth, the same seed twice, the
+thinning, the limits, a burst played once, where particles are born, an unknown module); the browser smoke's new
+`likeness` check ([browser_smoke.py](tools/viewer/tests/browser_smoke.py): every drawable effect has one, the picture
+round a framed effect differs with the switch on and off, off steps nothing and is kept, a delete and its undo) on
+URB_Bar (70 effects), AlienBase01 (130 drawn, 4,091 particles: 11.0 ms a frame against 10.0 without, headless) and
+URB_CemeteryGrand (136); pictures of one effect of each of Bar's 17 systems looked at beside the game's (the steam and
+the alien vapour agree in colour, size and shape). Known gaps: orbit, collision, events and attractors are not
+followed; a curve the cook kept as an object is not read; a world-space emitter's pull follows its effect's turn; the
+comparison covers Bar's systems only so far.
+
 ### What an effect's likeness is drawn from: export 29 (effects and sounds plan, stage FXV1)
 
 - [effects_draw.py](tools/viewer/effects_draw.py), new: for each emitter of a particle system (its first level of

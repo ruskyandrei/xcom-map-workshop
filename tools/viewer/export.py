@@ -230,8 +230,8 @@ class Exporter:
         return found
 
     def particle_mesh(self, mi, override=0):
-        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section),
-        or (None, []) where it doesn't read. `override`: the emitter's own material, drawn on every section."""
+        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section, each
+        section's own material export), or (None, [], []) where it doesn't read. `override`: the emitter's own material, drawn on every section."""
         p = self.p
         mesh_key = self.prefix + str(mi)
         if mesh_key not in self.meshes:
@@ -240,15 +240,15 @@ class Exporter:
                 write_glb(mesh, self.folder / f"mesh-{mesh_key}.glb")
             except (ValueError, OSError, struct.error, IndexError, KeyError) as error:
                 self.warn(p.name(mi), f'Particle mesh not read: {error}')
-                return None, []
+                return None, [], []
             self.meshes[mesh_key] = dict(name=p.name(mi), url=f"mesh-{mesh_key}.glb",
                 vertices=len(mesh["positions"])//3, triangles=len(mesh["indices"])//3,
                 sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=None, kind='static', bones=[],
                 pose=None, origin=mesh.get('origin'), rotOrigin=mesh.get('rotOrigin'),
                 collision=self.mesh_collision(mi))
-        mats = [self.section_material(override if override > 0 else s["material"], mi)
-                for s in self.meshes[mesh_key]["sections"] if s["count"]]
-        return mesh_key, mats
+        drawn = [s for s in self.meshes[mesh_key]["sections"] if s["count"]]
+        mats = [self.section_material(override if override > 0 else s["material"], mi) for s in drawn]
+        return mesh_key, mats, [s["material"] for s in drawn]
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup

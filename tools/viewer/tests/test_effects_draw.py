@@ -76,7 +76,7 @@ class Stub:
         return str(index)
 
     def particle_mesh(self, mesh, override=0):
-        return 'mesh-%d' % mesh, ['material']
+        return 'mesh-%d' % mesh, ['material'], [override]
 
 
 @unittest.skipUnless(INSTALL and INSTALL.exists(), WHY)
@@ -101,7 +101,9 @@ class Fixtures(unittest.TestCase):
         self.assertTrue(live)
         d = live[0]
         self.assertEqual((d['kind'], d['blend'], d['facing'], d['subImages'], d['loops']), ('sprite', 'BLEND_Translucent', 'PSA_Square', [1, 1], 0))
-        self.assertTrue(d['picture'] and d['opacity'] in ('alpha', 'brightness'))
+        # its picture is a texture of three channels: one of them is its opacity, and it has no colour of its own
+        self.assertTrue(d['picture'])
+        self.assertEqual(d['opacity'], 'channel')
         # its rate is fed by the Wind_Strength parameter; its colour by Color, as its offers say
         self.assertEqual((d['rate']['parameter'], d['rate']['kind'], d['rate']['output']), ('Wind_Strength', 'scalar', [1.0, 4.0]))
         colour = next(m for m in d['modules'] if m['cls'] == 'Color')

@@ -22,6 +22,8 @@ import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneSer
 import { createMissionsPanel } from './missions_panel.js';
 import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
+import { SWAP, drawable, leftOut, makeLikeness } from './effects_preview.js';
+import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues,
          soundReach, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from './effects_rules.js';
 import { createPrecache } from './precache.js';
@@ -352,7 +354,7 @@ function select(id, add = false, keep = false) {
   if (id) ownPicked = null;
   if (!add && !keep) ownSet.clear();
   selected = id;
-  pickedEffect = effectRoots.has(id) ? id : null;
+  { const was = pickedEffect; pickedEffect = effectRoots.has(id) ? id : null; if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
   const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id);
   for (const button of $('objects').querySelectorAll('.piece')) button.classList.toggle('active', button.dataset.id === id);
   $('inspector').hidden = !root || Boolean(root.userData.volume);
@@ -1868,6 +1870,12 @@ function effectTemplate(source) {
       data.effectSystems ??= {}; data.soundWaves ??= {};
       for (const [k, v] of Object.entries(t.systems ?? {})) data.effectSystems[k] ??= v;
       for (const [k, v] of Object.entries(t.waves ?? {})) data.soundWaves[k] ??= v;
+      // what its likeness is drawn from (export 29): the donor's textures, meshes and materials, by their own keys
+      if (t.draw) {
+        for (const [k, m] of Object.entries(t.draw.meshes ?? {})) data.meshes[k] ??= { ...m, url: t.draw.base + m.url };
+        for (const [k, m] of Object.entries(t.draw.materials ?? {})) data.materials[k] ??= m;
+        for (const [k, x] of Object.entries(t.draw.textures ?? {})) data.textures[k] ??= { ...x, url: t.draw.base + x.url };
+      }
       if (t.source.sha256) donorHashes.set(t.source.package.toLowerCase(), t.source.sha256);
       const out = effectSource({ ...t.record, foreign: { package: t.source.package, key: t.key } });
       foreignEffects.set(targetKey({ package: out.sourcePackage, level: 'base', actor: out.actor }), out);
@@ -6800,32 +6808,129 @@ function paintEffects() {
 // mission chosen, kept by a clear, in the play area under Interior), and the carried copies
 function refreshEffects() {
   effectsDirty = false; pickCentres = null;
-  if (!effectsAvailable()) { effectMarkers = []; effectLayer.visible = false; return; }
+  if (!effectsAvailable()) { effectMarkers = []; effectLayer.visible = false; refreshLikenesses(); return; }
   deriveEffects();
   const shown = effectsShown();
   effectLayer.visible = shown;
   // Interior shows what stands in the play area (view basis, as playableBounds)
-  const play = shown && $('scenery').value === 'interior' ? data.playableBounds : null;
-  const at = new THREE.Vector3(), inPlay = v => !play || [0, 1, 2].every(k => v.getComponent(k) >= play.min[k] - 48 && v.getComponent(k) <= play.max[k] + 48);
+  const play = $('scenery').value === 'interior' ? data.playableBounds : null;
+  const at = new THREE.Vector3(), inAnyPlay = v => !play || [0, 1, 2].every(k => v.getComponent(k) >= play.min[k] - 48 && v.getComponent(k) <= play.max[k] + 48);
   effectMarkers = [];
   for (const root of effectRoots.values()) {
     const o = root.userData.source;
     at.setFromMatrixPosition(root.matrix);
-    root.visible = shown && effectFilters[o.kind] !== false && !root.userData.deleted && !root.userData.derivedGone
+    // (the Build will have it, and the view shows where it stands: what its likeness needs too)
+    root.userData.there = !root.userData.deleted && !root.userData.derivedGone
       && (!isStream(o) || streamSet.has(o.stream))
       && (Boolean(o.added) || survivesClear(o, { cleared, outside: pointOutside, carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) }))
-      && inPlay(at);
+      && inAnyPlay(at);
+    root.visible = shown && effectFilters[o.kind] !== false && root.userData.there;
     if (root.visible) effectMarkers.push(root.userData.marker);
   }
   for (const m of derivedEffects.children) {
-    m.visible = shown && effectFilters[m.userData.record.kind] !== false && inPlay(m.position);
+    m.userData.there = inAnyPlay(m.position);
+    m.visible = shown && effectFilters[m.userData.record.kind] !== false && m.userData.there;
     if (m.visible) effectMarkers.push(m);
   }
   // what can't be seen can't stay selected
   const picks = gizmo.picks(), keep = picks.ids.filter(id => !effectRoots.has(id) || effectRoots.get(id).visible || !shown);
   if (keep.length !== picks.ids.length) gizmo.setSelection(keep, keep.includes(picks.active) ? picks.active : keep[0] ?? null);
-  paintEffects(); effectPanel(); drawEffectShape();
+  paintEffects(); effectPanel(); drawEffectShape(); refreshLikenesses();
 }
+// ---- The likeness (effects and sounds plan, Part J2, stage FXV2; effects_preview.js, effects_sim.js): each effect the
+// Build will have, drawn where it stands, moving, roughly as the game draws it, in every view (View options' Effects
+// as they look). One that starts off is drawn only while it is picked. A likeness is never picked: its marker is the
+// handle. `likenesses`: a root's or a carried copy's marker -> { likeness, key }.
+const likenessLayer = new THREE.Group(); world.add(likenessLayer);
+const likenesses = new Map();
+let likenessOn = recall('workshop.likeness') !== '0', likenessThin = 1, likenessCount = 0;
+const likenessDeps = {
+  texture: key => texture(key, true),
+  // a mesh particle's mesh as the map's pieces' are read, each drawn part with its material's colour texture
+  async meshParts(draw) {
+    if (!data.meshes[draw.mesh]) return [];
+    track(geometryCache, draw.mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[draw.mesh].url)));
+    const gltf = await geometryCache.get(draw.mesh), parts = [];
+    gltf.scene.updateMatrixWorld(true);
+    gltf.scene.traverse(child => { if (child.isMesh) parts.push(child); });
+    return Promise.all(parts.map(async (child, i) => {
+      const info = data.materials[draw.materials?.[i] ?? draw.materials?.[0]];
+      return { geometry: child.geometry, map: info?.diffuse ? await texture(info.diffuse, true).catch(() => null) : null };
+    }));
+  },
+};
+function dropLikeness(owner) {
+  const kept = likenesses.get(owner);
+  if (!kept) return;
+  likenessLayer.remove(kept.likeness.group); kept.likeness.dispose(); likenesses.delete(owner);
+}
+// What a likeness is made of: its system, the effect's parameters as edited and its seed; a change makes it anew
+function refreshLikenesses() {
+  const wanted = new Map();
+  if (likenessOn && effectsAvailable()) {
+    const want = (owner, record, id) => {
+      const system = effectSystemsOf(record)?.[record.system];
+      if (drawable(system)) wanted.set(owner, { record, system, id });
+    };
+    for (const root of effectRoots.values()) {
+      const o = root.userData.source;
+      if (o.kind !== 'effect' || !root.userData.there) continue;
+      const now = effectNow(root, o);
+      if (now.startsOn === false && pickedEffect !== o.id) continue;
+      want(root, now, o.id);
+    }
+    for (const m of derivedEffects.children) if (m.userData.there && m.userData.record.kind === 'effect' && m.userData.record.startsOn !== false) want(m, m.userData.record, `derived:${m.id}`);
+  }
+  for (const owner of [...likenesses.keys()]) if (!wanted.has(owner)) dropLikeness(owner);
+  for (const [owner, { record, system, id }] of wanted) {
+    const params = parametersOf(record), key = `${record.system}|${system.fingerprint}|${JSON.stringify(params)}`;
+    if (likenesses.get(owner)?.key === key) { likenesses.get(owner).record = record; continue; }
+    dropLikeness(owner);
+    let seed = 0;
+    for (const c of String(id)) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+    const likeness = makeLikeness(system, likenessDeps, { params, seed: seed % 100003 });
+    likenessLayer.add(likeness.group);
+    likenesses.set(owner, { likeness, key, record });
+  }
+}
+const likenessBox = new THREE.Box3(), likenessFrustum = new THREE.Frustum(), likenessAt = new THREE.Vector3(), likenessMatrix = new THREE.Matrix4();
+// Each frame: every likeness put where its effect stands now (a drag moves it) and stepped, unless it is out of the
+// picture or too far to tell; over the view's budget of particles, what they spawn is thinned evenly
+function stepLikenesses(dt) {
+  if (!likenesses.size) { likenessCount = 0; return; }
+  likenessFrustum.setFromProjectionMatrix(likenessMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  let count = 0;
+  const pixelsPerUnit = renderer.domElement.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  for (const [owner, { likeness, record }] of likenesses) {
+    const matrix = owner.userData.effect ? owner.matrix : owner.userData.matrix, cp = record.componentPose;
+    const s = record.scale ?? [1, 1, 1], cs = cp?.scale ?? [1, 1, 1];
+    const g = likeness.group;
+    g.matrix.copy(matrix).multiply(likenessMatrix.makeScale(s[0], s[2], s[1]));
+    if (cp) g.matrix.multiply(effectMatrix(cp.translation, cp.rotation, cp.scale));
+    g.matrix.multiply(SWAP);
+    g.matrixWorldNeedsUpdate = true;
+    likenessAt.setFromMatrixPosition(matrix);
+    const reach = 1200 * Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2]), 1);
+    likenessBox.setFromCenterAndSize(likenessAt, likenessAt.clone().setScalar(2 * reach));
+    // (in the picture, and more than a few pixels of it: a whole large map seen from afar steps nothing)
+    g.visible = likenessFrustum.intersectsBox(likenessBox) && reach * pixelsPerUnit / Math.max(1, camera.position.distanceTo(likenessAt)) > 6;
+    if (!g.visible) continue;
+    likeness.step(dt, likenessThin, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+    count += likeness.count();
+  }
+  likenessCount = count;
+  // towards the budget, a little a frame, so nothing pops
+  const want = count > LIKENESS_LIMITS.view ? likenessThin * LIKENESS_LIMITS.view / count : Math.min(1, likenessThin * 1.05);
+  likenessThin = Math.max(0.02, likenessThin + (want - likenessThin) * 0.2);
+}
+function setLikeness(on) {
+  likenessOn = Boolean(on);
+  remember('workshop.likeness', likenessOn ? '1' : '0');
+  $('likenessToggle').checked = likenessOn;
+  refreshLikenesses();
+}
+$('likenessToggle').checked = likenessOn;
+$('likenessToggle').onchange = e => { setLikeness(e.target.checked); e.target.blur(); };
 function effectPanel() {
   const m = effectsShown() ? pickedMarker() : null;
   if (wavePlayer && (!m || m.userData.record.id !== wavePlayer.record)) stopWave();
@@ -6852,6 +6957,14 @@ function effectPanel() {
   chips.replaceChildren();
   for (const c of recordChips(r.added ? { ...now, carriedBy: null, landingRole: null, referencedBy: [], floors: [], prefab: null } : now, data)) text(chips, 'span', c.text, 'chip').title = c.title;
   chips.hidden = !chips.children.length;
+  // what its likeness leaves out, in words about the drawing
+  if (r.kind === 'effect' && likenessOn) {
+    const system = effectSystemsOf(r)?.[r.system], out = leftOut(system);
+    const WORDS = { Orbit: 'its swirl', Collision: 'its bounces', CollisionPrediction: 'its bounces', AttractorPoint: 'its pull to a point', EventGenerator: 'what its particles set off', EventReceiverSpawn: 'what another emitter sets off' };
+    const named = [...new Set(out.ignored.map(k => WORDS[k]).filter(Boolean))];
+    if (system && !drawable(system)) lines.push(`Not drawn here${out.undrawn.length ? `: ${out.undrawn[0]}` : ''}.`);
+    else if (named.length) lines.push(`Drawn here without ${named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0]}.`);
+  }
   setParagraphs($('effectInfo'), lines.join('\n'));
   // a sound's waves, each with its Play button
   const waves = r.kind === 'sound' ? [...new Set(r.waves ?? [])] : [], box = $('effectWaves');
@@ -9232,6 +9345,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // the Wave preview (FX2): what plays, how far it has got and why it failed
     playWave: wave => { const r = effectRoots.get(pickedEffect)?.userData.source; if (r) playWave(r, wave); }, stopWave,
     // effects and sounds edited (FX3): each root's state, the normal view's switch, keep where it is
+    likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
+      drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
     effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
       deleted: r.userData.deleted, moved: Boolean(r.userData.edit), stays: r.userData.stays, gone: Boolean(r.userData.derivedGone), visible: r.visible,
       at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move'),
@@ -9852,8 +9967,8 @@ let builderRefresh = 0, builderTarget = '';
 renderer.setAnimationLoop(() => {
   if (zoneGizmo.enabled !== zoneGizmoWanted() && !zoneGizmo.dragging) placeZoneGizmo();     // (a view or placing began or ended)
   if (missionGizmo.enabled !== missionGizmoWanted() && !missionGizmo.dragging) placeMissionGizmo();
-  const now = performance.now();
-  panCamera(Math.min(0.05, (now - lastFrame) / 1000));
+  const now = performance.now(), sinceFrame = Math.min(0.05, (now - lastFrame) / 1000);
+  panCamera(sinceFrame);
   lastFrame = now;
   controls.update();
   if (builderMode && now - builderRefresh > 250) {
@@ -9869,6 +9984,7 @@ renderer.setAnimationLoop(() => {
   if (lightsDirty && !soloOn && $('lighting').value !== 'neutral' && now - lastLightSync > 120) applyLighting();
   if (placing && ghostDirty) moveGhost();
   if (effectsDirty) refreshEffects();
+  stepLikenesses(sinceFrame);
   if (tipDirty && (effectsOn || (normalEffects && effectsShown()))) effectTip();
   else if (tipDirty && floorTileLayer) floorTip();
   updateTileGrid();

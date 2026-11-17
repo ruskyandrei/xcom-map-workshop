@@ -20,7 +20,8 @@ import struct
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 1
+DRAW_VERSION = 3     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+                     # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -39,6 +40,8 @@ HOUSEKEEPING = frozenset(('LODValidity', 'bSpawnModule', 'bUpdateModule', 'bFina
                           'IdenticalIgnoreProperties'))
 NOT_PICTURE = frozenset('NML NRM NORM NOR NORMAL NORMALS DISTORTION REFLECTION REFL CUBE CUBEMAP'.split())
 MASK_WORDS = frozenset('MASK MSK ALPHA GRADIENT GRAD OPACITY OPA'.split())
+# a texture whose three channels are three pictures (T_Dust_Grainy_3Channel): one channel is the opacity, no colour
+PACKED_WORDS = frozenset('CHANNEL CHANNELS PACKED'.split())
 ALPHA_FORMATS = ('PF_DXT5', 'PF_DXT3', 'PF_A8R8G8B8')
 # Sprite materials whose textures the name rule (pick_textures) gets wrong, by material path: {picture: a texture's
 # short name, mask: one or None, opacity: 'alpha' | 'brightness', markerOnly: True (not drawn: its marker alone)}.
@@ -238,6 +241,17 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
                 interp=str(req('InterpolationMethod', 'PSUVIM_None')), localSpace=bool(req('bUseLocalSpace', False)),
                 duration=float(req('EmitterDuration', 1.0) or 0.0), loops=int(req('EmitterLoops', 0) or 0),
                 delay=float(req('EmitterDelay', 0.0) or 0.0), blend='BLEND_Opaque', lit=False, twoSided=False)
+    if kind == 'mesh':
+        mesh = p.own(type_data, 'Mesh', 0) or 0
+        if mesh <= 0 or p.cls(mesh) != 'StaticMesh':
+            return None, 'its mesh is in another package' if mesh < 0 else 'no mesh'
+        override = material if material > 0 and defaults.value(type_data, 'bOverrideMaterial', False)[0] else 0
+        key, materials, own = exporter.particle_mesh(mesh, override)
+        if not key:
+            return None, 'its mesh could not be read'
+        draw.update(mesh=key, materials=materials)
+        # what it is drawn with: the emitter's material where it overrides, else the mesh's own first
+        material = override or next((m for m in own if m > 0), 0)
     chain = material_chain(p, material)
     lighting = 'MLM_Phong'
     for mat in reversed(chain):
@@ -246,16 +260,9 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
         draw['twoSided'] = bool(p.own(mat, 'TwoSided', draw['twoSided']))
     draw['lit'] = lighting != 'MLM_Unlit'
     draw['material'] = p.name(material) if material else None
-    if kind == 'mesh':
-        mesh = p.own(type_data, 'Mesh', 0) or 0
-        if mesh <= 0 or p.cls(mesh) != 'StaticMesh':
-            return None, 'its mesh is in another package' if mesh < 0 else 'no mesh'
-        override = material if material > 0 and defaults.value(type_data, 'bOverrideMaterial', False)[0] else 0
-        key, materials = exporter.particle_mesh(mesh, override)
-        if not key:
-            return None, 'its mesh could not be read'
-        draw.update(mesh=key, materials=materials)
-    else:
+    if material and 'DISTORTION' in words(short(p.name(material))):
+        return None, 'it only bends the light behind it'
+    if True:        # (sprites and meshes alike: the textures the material draws with)
         candidates = []
         for tex, name in (sprite_textures(p, material, compiled_textures) if material > 0 else []):
             key = exporter.texture(tex)
@@ -272,11 +279,12 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
             picture = by_name[rule['picture']]
         if 'mask' in rule:
             mask = by_name.get(rule['mask'])
-        if not candidates and material <= 0:
+        if not candidates and material <= 0 and kind == 'sprite':
             return None, 'its material is in another package' if material < 0 else 'no material'
         draw.update(textures=[dict(key=c[0], name=c[1], parameter=c[2], alpha=c[3]) for c in candidates],
                     picture=picture, mask=mask,
-                    opacity=rule.get('opacity') or ('alpha' if picture and dict((c[0], c[3]) for c in candidates)[picture] else 'brightness'))
+                    opacity=rule.get('opacity') or ('channel' if picture and words(short(next(c[1] for c in candidates if c[0] == picture))) & PACKED_WORDS
+                                                    else 'alpha' if picture and dict((c[0], c[3]) for c in candidates)[picture] else 'brightness'))
     spawn = p.own(lod, 'SpawnModule', 0) or 0
     draw['rate'] = distribution(defaults, p, spawn, 'Rate') if spawn > 0 else None
     draw['rateScale'] = distribution(defaults, p, spawn, 'RateScale') if spawn > 0 else None

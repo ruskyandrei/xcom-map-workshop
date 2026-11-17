@@ -3411,6 +3411,82 @@ def check_effects_box(page):
     page.evaluate('id => viewer.select(id)', held)
 
 
+def check_likeness(page):
+    """The likeness (effects and sounds plan, FXV2; export 29): every effect the map has and the page can draw is
+    drawn in the normal view, with no marker shown, stepped while it is in the picture; the picture round a framed
+    effect differs with View options' Effects as they look on and off; switched off nothing is drawn or stepped, and
+    the choice is kept; a deleted effect's likeness goes and Ctrl+Z brings it back; nothing of it is an edit. Gives
+    the frame time with and without it."""
+    if page.evaluate("!(viewer.data.exporterVersion >= 29) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return None
+    held = page.evaluate('viewer.gizmo.active')
+    state = page.evaluate('viewer.projectState()')
+    page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false); viewer.setLikeness(true)')
+    if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
+    page.evaluate('viewer.frame()')
+    page.wait_for_timeout(1500)
+    like = lambda: page.evaluate('viewer.likenessState()')
+    can = page.evaluate("""[...viewer.effectRoots.values()].filter(r => r.userData.source.kind === 'effect' && !r.userData.source.stream
+        && r.userData.source.startsOn !== false && viewer.data.effectSystems[r.userData.source.system]?.emitters.some(e => e.draw)).map(r => r.userData.source.id)""")
+    now = like()
+    assert now['on'] and not page.evaluate('viewer.effectMarkers().length')
+    if not can:
+        assert now['effects'] == 0
+        page.evaluate('id => viewer.select(id)', held); return None
+    assert now['effects'] >= len(can), now      # (seen whole from afar, a large map's are too small to step)
+    assert page.locator('#likenessToggle').is_checked()
+
+    def frame_time():
+        return page.evaluate("""() => new Promise(done => { let n = 0, t0 = performance.now(); const tick = () => { if (++n === 60) done((performance.now() - t0) / 60); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })""")
+    with_it = frame_time()
+    # one effect close: the picture with the likeness is not the picture without (a system that spawns seldom, as far
+    # traffic does, may show nothing for a while: the next is tried)
+    ranked = page.evaluate("""ids => ids.map(id => viewer.effectRoots.get(id).userData.source).sort((a, b) =>
+        (viewer.data.effectSystems[b.system].emitters.filter(e => e.draw).length) - (viewer.data.effectSystems[a.system].emitters.filter(e => e.draw).length))
+        .filter((o, i, all) => all.findIndex(x => x.system === o.system) === i).map(o => o.id)""", can)
+    box = page.locator('#viewport > canvas').first.bounding_box()
+    clip = dict(x=box['x'] + box['width'] / 2 - 200, y=box['y'] + box['height'] / 2 - 200, width=400, height=400)
+    without = seen = target = None
+    for target in ranked[:6]:
+        page.evaluate('viewer.setLikeness(true)')
+        page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
+        page.keyboard.press('f')
+        page.wait_for_timeout(300)
+        page.evaluate('viewer.setEffectsShown(false)')
+        page.wait_for_timeout(700)
+        assert target in like()['drawn'], like()
+        page.evaluate('viewer.setLikeness(false)')
+        page.wait_for_timeout(300)
+        off = like()
+        assert not off['on'] and off['effects'] == 0 and off['particles'] == 0, off
+        assert not page.locator('#likenessToggle').is_checked() and page.evaluate("localStorage.getItem('workshop.likeness')") == '0'
+        hidden = page.screenshot(clip=clip)
+        assert page.screenshot(clip=clip) == hidden          # (a still picture without it)
+        without = without or frame_time()
+        page.evaluate('viewer.setLikeness(true)')
+        page.wait_for_timeout(300)
+        assert like()['effects'] >= len(can) and page.evaluate("localStorage.getItem('workshop.likeness')") == '1'
+        for _ in range(12):                                  # (its textures and meshes are read first)
+            if page.screenshot(clip=clip) != hidden: seen = target; break
+            page.wait_for_timeout(250)
+        if seen: break
+    assert seen, 'no likeness changes anything in the picture'
+    # a deleted effect is not drawn; Ctrl+Z draws it again (where the editor changes effects)
+    page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
+    if not page.evaluate('id => viewer.effectState(id).viewOnly', target):
+        page.evaluate('document.activeElement?.blur()')
+        page.keyboard.press('Delete')
+        page.wait_for_timeout(200)
+        assert target not in like()['drawn'] and like()['effects'] < now['effects'], like()      # (its linked effects go with it)
+        page.keyboard.press('Control+z')
+        page.wait_for_timeout(200)
+        assert like()['effects'] == now['effects']
+    page.evaluate('viewer.select(null); viewer.setEffectsShown(false)')
+    assert page.evaluate('viewer.projectState()') == state
+    page.evaluate('viewer.frame()')
+    page.evaluate('id => viewer.select(id)', held)
+    return dict(effects=now['effects'], particles=now['particles'], frameWith=round(with_it, 2), frameWithout=round(without, 2))
+
+
 # what a check makes go wrong on purpose (a refused request it asks for): left out of the run's errors
 EXPECTED = set()
 
@@ -4394,7 +4470,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects, likeness), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -4422,6 +4498,7 @@ def main():
             if 'floor-tiles' in only: check_floor_tiles(page, is_bar)
             if 'lights' in only: check_lights(page, is_bar)
             if 'effects' in only: check_effects_view(page); check_effects_editing(page); check_effects_box(page)
+            if 'likeness' in only: print(json.dumps(dict(likeness=check_likeness(page))))
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
             if 'library-effects' in only: check_library_effects(browser, page.url)
@@ -4585,6 +4662,7 @@ def main():
         check_effects_view(page)
         check_effects_editing(page)
         check_effects_box(page)
+        check_likeness(page)
         check_project_menu(page)
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)
