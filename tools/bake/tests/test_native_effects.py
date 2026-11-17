@@ -1,8 +1,9 @@
 """Effects in the Build (native_effects.py, native_sounds.py): carried by their piece, the tutorial's Skyranger moved,
 copied and deleted with its lights (Emitter_4), on the configured install's Act1_IntroLevel; and the effects' and
 sounds' lanes of the effects and sounds plan (stage FX3) on URB_Bar: moves in place, deletes off the level's list,
-copies that own what is under them, the floors' effect lists, read back; and an effect and a sound of URB_PierA copied
-into URB_Bar, staged by transplant.stage_edit first (stage FX4). Each skipped without its maps."""
+copies that own what is under them, the floors' effect lists, read back; an effect and a sound of URB_PierA copied
+into URB_Bar, staged by transplant.stage_edit first (stage FX4); and values set on originals and copies (stage FX5).
+Each skipped without its maps."""
 from pathlib import Path
 import sys
 import tempfile
@@ -188,6 +189,142 @@ class Lanes(unittest.TestCase):
                                        (dict(deletes=[dict(name='Emitter_999')]), None, 'no actor Emitter_999'),
                                        (dict(moves=[dict(name='Emitter_2', **at)], deletes=[dict(name='Emitter_2')]), None, 'twice'),
                                        (None, dict(copies=[dict(id='x', name='x', source='Emitter_2', **at)]), 'not an ambient sound')):
+            with self.assertRaises(ValueError, msg=words) as caught:
+                native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
+            self.assertIn(words, str(caught.exception))
+
+
+# ---------------------------------------------------------------- values (plan Part D, stage FX5)
+def component_bytes(p, actor, prop='ParticleSystemComponent'):
+    i = p.own(p.by_name[PL + actor], prop)
+    e = p.exports[i - 1]
+    return bytes(p.data[e['off']:e['off'] + e['size']])
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class ValueLanes(unittest.TestCase):
+    """One build of Bar with values: on originals in place (an effect's size, starting state and parameters, among
+    them a scalar saved where its system's distribution is a vector, a colour and one it didn't save; a simple sound's
+    radii, volume, pitch and starting state) and on copies (an effect that saves no parameters at all), read back."""
+    EFFECTS = dict(
+        values=[dict(name='Emitter_38', effect=dict(scale=2.0, startsOn=False, parameters=[
+                    dict(name='Chunk_Brightness', type='PSPT_Scalar', value=3.0),
+                    dict(name='Chunk_Color', type='PSPT_Color', value=[1.0, 0.0, 0.0, 1.0]),
+                    dict(name='Dust_Desaturation', type='PSPT_Scalar', value=2.0)])),
+                # the value it has already: the bytes stay as they were
+                dict(name='Emitter_0', effect=dict(parameters=[dict(name='Speed', type='PSPT_Scalar', value=1.0)]))],
+        copies=[dict(id='a', name='Emitter_10_copy1', source='Emitter_10', location=[200.0, 600.0, 250.0], rotation=[0, 0, 0],
+                     values=dict(scale=0.5, startsOn=False, parameters=[
+                         dict(name='Opacity', type='PSPT_Scalar', value=0.25),
+                         dict(name='Size', type='PSPT_Vector', value=[2.0, 2.0, 3.0])])),
+                dict(id='b', name='Emitter_10_copy2', source='Emitter_10', location=[220.0, 600.0, 250.0], rotation=[0, 0, 0])])
+    SOUNDS = dict(
+        values=[dict(name='AmbientSoundSimple_2', sound=dict(radiusMin=200.0, radiusMax=1500.0, volume=[0.4, 0.6],
+                                                             pitch=[0.9, 1.1], startsOn=False))],
+        copies=[dict(id='c', name='AmbientSoundSimple_0_copy3', source='AmbientSoundSimple_0', location=[-900.0, -550.0, 62.0],
+                     rotation=[0, 0, 0], values=dict(radiusMax=1200.0)),
+                dict(id='d', name='AmbientSoundSimple_0_copy4', source='AmbientSoundSimple_0', location=[-950.0, -550.0, 62.0],
+                     rotation=[0, 0, 0])])
+
+    @classmethod
+    def setUpClass(cls):
+        import native_effects
+        cls.fx = native_effects
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(BAR)
+        out = Path(cls.tmp.name) / 'Values'
+        cls.m = native_copy.build(BAR, out, 'Values', [], effects=cls.EFFECTS, sounds=cls.SOUNDS)
+        cls.q = Package(out / 'Values.upk')
+        cls.section = cls.m['nativeCopies']
+        cls.copy = {r['actor']: cls.q.by_name[PL + r['copy']] for r in cls.section['effects'] + cls.section['sounds']
+                    if r['how'] == 'copied'}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def params(self, p, i):
+        raw = p.own(p.own(i, 'ParticleSystemComponent'), 'InstanceParameters')
+        return [{k[0]: v['value'] for k, v in row.items() if k[1] == 0} for row in p.structs(raw)] if raw else []
+
+    def test_an_effects_values_in_place(self):
+        q, i = self.q, self.q.by_name[PL + 'Emitter_38']
+        got = self.fx.read_values(q, i, 'effect')
+        self.assertEqual((got['drawScale'], got['startsOn']), (2.0, False))
+        prm = got['parameters']
+        self.assertEqual((prm['Chunk_Brightness']['type'], prm['Chunk_Brightness']['scalar']), ('PSPT_Scalar', 3.0))
+        self.assertEqual((prm['Chunk_Color']['type'], prm['Chunk_Color']['colour']), ('PSPT_Color', [1.0, 0.0, 0.0, 1.0]))
+        self.assertEqual((prm['Dust_Desaturation']['type'], prm['Dust_Desaturation']['scalar']), ('PSPT_Scalar', 2.0))
+        # the others, their order and their fields as they were; the new one last
+        before, after = self.params(self.p, self.p.by_name[PL + 'Emitter_38']), self.params(q, i)
+        self.assertEqual([r['Name'] for r in after], [r['Name'] for r in before] + ['Dust_Desaturation'])
+        for b, a in zip(before, after):
+            if b['Name'] not in ('Chunk_Brightness', 'Chunk_Color'):
+                self.assertEqual(a, b)
+        self.assertEqual(after[0]['Vector'], before[0]['Vector'])          # Chunk_Color's other field kept
+        # the same export: what names it still does
+        self.assertEqual(i, self.p.by_name[PL + 'Emitter_38'])
+
+    def test_an_unchanged_value_keeps_the_bytes(self):
+        self.assertEqual(component_bytes(self.q, 'Emitter_0'), component_bytes(self.p, 'Emitter_0'))
+
+    def test_a_copys_values_are_on_the_copy_alone(self):
+        q = self.q
+        got = self.fx.read_values(q, self.copy['Emitter_10_copy1'], 'effect')
+        self.assertEqual((got['drawScale'], got['startsOn']), (0.5, False))
+        self.assertEqual((got['parameters']['Opacity']['scalar'], got['parameters']['Size']['vector']), (0.25, [2.0, 2.0, 3.0]))
+        # the other copy and the source as the map has them (the source saved no parameters at all)
+        other = self.fx.read_values(q, self.copy['Emitter_10_copy2'], 'effect')
+        self.assertEqual((other['drawScale'], other['parameters']), (1.0, {}))
+        for name in ('Emitter_10', 'AmbientSoundSimple_0'):
+            for j in native_copy.subtree(self.p, self.p.by_name[PL + name]):
+                e, f = self.p.exports[j - 1], q.exports[q.by_name[self.p.name(j)] - 1]
+                self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(q.data[f['off']:f['off'] + f['size']]),
+                                 self.p.name(j))
+
+    def test_a_sounds_values(self):
+        q = self.q
+        got = self.fx.read_values(q, q.by_name[PL + 'AmbientSoundSimple_2'], 'sound')
+        self.assertEqual(got, dict(startsOn=False, radiusMin=200.0, radiusMax=1500.0, volume=[0.4000000059604645, 0.6000000238418579],
+                                   pitch=[0.8999999761581421, 1.100000023841858]))
+        # a copy's one value on its own node; what it didn't set as its source has it
+        mine = self.fx.read_values(q, self.copy['AmbientSoundSimple_0_copy3'], 'sound')
+        self.assertEqual((mine['radiusMin'], mine['radiusMax']), (300.0, 1200.0))
+        other = self.fx.read_values(q, self.copy['AmbientSoundSimple_0_copy4'], 'sound')
+        self.assertEqual((other['radiusMin'], other['radiusMax']), (300.0, 750.0))
+
+    def test_export_28_reads_the_values(self):
+        import effects_metadata
+        import piece_flags
+        scripts = piece_flags.ScriptDefaults.of(Path(BAR).parent)
+        read = effects_metadata.describe(self.q, defaults=effects_metadata.Defaults(self.q, scripts))
+        by = {r['actor'].rsplit('.', 1)[-1]: r for r in read['effects'] + read['sounds']}
+        fx = by['Emitter_38']
+        self.assertEqual((fx['drawScale'], fx['startsOn'], fx['startsOnFrom']), (2.0, False, 'actor'))
+        self.assertEqual([(x['name'], x['offered']) for x in fx['parameters'] if x['name'] in ('Chunk_Brightness', 'Dust_Desaturation')],
+                         [('Chunk_Brightness', 'otherKind'), ('Dust_Desaturation', 'yes')])
+        sound = by['AmbientSoundSimple_2']
+        self.assertEqual((sound['startsOn'], sound['startsOnFrom']), (False, 'actor'))
+        self.assertEqual((sound['values']['radiusMin'], sound['values']['radiusMax']), (200.0, 1500.0))
+        copy = by[self.q.name(self.copy['Emitter_10_copy1']).rsplit('.', 1)[-1]]
+        self.assertEqual([(x['name'], x['type'], x['offered']) for x in copy['parameters']],
+                         [('Opacity', 'PSPT_Scalar', 'yes'), ('Size', 'PSPT_Vector', 'yes')])
+
+    def test_the_record_says_what_was_written(self):
+        rows = {r['actor']: r for r in self.section['effects'] + self.section['sounds']}
+        self.assertEqual(rows['Emitter_38']['how'], 'valued')
+        self.assertEqual(rows['Emitter_38']['values']['drawScale'], 2.0)
+        self.assertEqual(rows['AmbientSoundSimple_0_copy3']['values'], dict(radiusMax=1200.0))
+        self.assertNotIn('values', rows['AmbientSoundSimple_0_copy4'])
+
+    def test_value_refusals(self):
+        out = Path(self.tmp.name) / 'Refused'
+        bad = [(dict(values=[dict(name='Emitter_38', effect=dict(parameters=[dict(name='Chunk_Color', type='PSPT_Scalar', value=1.0)]))]),
+                None, 'saved as PSPT_Color'),
+               (dict(values=[dict(name='Emitter_38', effect=dict(parameters=[dict(name='X', type='PSPT_ScalarRand', value=1.0)]))]),
+                None, 'not written'),
+               (dict(values=[dict(name='Emitter_45', effect=dict(scale=2.0))], deletes=[dict(name='Emitter_45')]), None, 'deleted')]
+        for effects, sounds, words in bad:
             with self.assertRaises(ValueError, msg=words) as caught:
                 native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
             self.assertIn(words, str(caught.exception))

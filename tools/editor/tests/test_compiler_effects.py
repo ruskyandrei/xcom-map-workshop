@@ -1,7 +1,8 @@
-"""Effects and ambient sounds in the compiler (the effects and sounds plan, Part C, stage FX3): their overrides and
-added records, checked against the export's effects and sounds (export 28: `can`, `why`, carrying, the landing's,
-the mission's script), the families' gates, carrying taken away by a record of the effect's own, the floors' note
-and the native edit's `effects` and `sounds` lanes. A made-up scene: no install needed."""
+"""Effects and ambient sounds in the compiler (the effects and sounds plan, Part C, stages FX3 to FX5): their
+overrides and added records, checked against the export's effects and sounds (export 28: `can`, `why`, carrying, the
+landing's, the mission's script), the families' gates, carrying taken away by a record of the effect's own, the
+floors' note, their values (stage FX5) and the native edit's `effects` and `sounds` lanes. A made-up scene: no
+install needed."""
 import copy
 import sys
 import unittest
@@ -90,7 +91,7 @@ class Gates(unittest.TestCase):
         self.assertEqual(codes(report), [])
         self.assertEqual(spec['objects'], [dict(type='effects', moves=[dict(
             name='Emitter_43', actorClass='Emitter', location=[710.0, 0.0, 0.0], rotation=[0, 0, 0],
-            before=dict(location=[700.0, 0.0, 0.0], rotation=[0, 0, 0]))], deletes=[], copies=[])])
+            before=dict(location=[700.0, 0.0, 0.0], rotation=[0, 0, 0]))], deletes=[], copies=[], values=[])])
 
     @families_off()
     def test_each_family_its_own_gate(self):
@@ -99,8 +100,8 @@ class Gates(unittest.TestCase):
         self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'sound')])
         _, report = compile_project(doc(records), effects_scene(), enable=('effect', 'sound'))
         self.assertEqual(codes(report), [])
-        self.assertEqual(report['counts']['effects'], dict(moved=1, deleted=0, added=0))
-        self.assertEqual(report['counts']['sounds'], dict(moved=1, deleted=0, added=0))
+        self.assertEqual(report['counts']['effects'], dict(moved=1, deleted=0, added=0, valued=0))
+        self.assertEqual(report['counts']['sounds'], dict(moved=1, deleted=0, added=0, valued=0))
 
     def test_schema_three(self):
         self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (3, (1, 2, 3)))
@@ -166,11 +167,12 @@ class Records(unittest.TestCase):
         self.assertEqual(codes(report), ['effect-view-only'])
 
     def test_malformed_and_later_values(self):
-        cases = [(moved('Emitter_43', (710, 0, 0), effect=dict(scale=2.0)), 'effect-values'),
+        # (values while their families don't build: the gate's refusal, stage FX5's)
+        cases = [(moved('Emitter_43', (710, 0, 0), effect=dict(scale=2.0)), 'family'),
                  (moved('Emitter_43', (710, 0, 0), effect=dict(colour=1)), 'malformed'),
                  (moved('Emitter_43', (710, 0, 0), effect=dict(follow='sometimes')), 'malformed'),
                  (moved('Emitter_43', (710, 0, 0), sound=dict(volume=[1, 1])), 'malformed'),
-                 (moved('AmbientSoundSimple_50', (110, 0, 0), sound=dict(radiusMax=900)), 'effect-values'),
+                 (moved('AmbientSoundSimple_50', (110, 0, 0), sound=dict(radiusMax=900)), 'family'),
                  (dict(target=target('Emitter_43')), 'malformed'),
                  (moved('XComLevelActor_1', (0, 96, 0), effect=dict(follow='none')), 'malformed')]
         for record, code in cases:
@@ -265,7 +267,7 @@ class Foreign(unittest.TestCase):
         self.assertEqual([(c['source'], c['donor']) for c in native['sounds']['copies']], [('AmbientSoundSimple_1', donor)])
         self.assertEqual(native['copies'], [])
         self.assertEqual(report['donors'], [dict(donor, pieces=['AmbientSoundSimple_1', 'Emitter_10'])])
-        self.assertEqual(report['counts']['effects'], dict(moved=0, deleted=0, added=2))
+        self.assertEqual(report['counts']['effects'], dict(moved=0, deleted=0, added=2, valued=0))
         self.assertEqual({e['donor']['package'] for e in report['entities']}, {'URB_PierA'})
         self.assertEqual(library.asked[0], target('Emitter_10', package='URB_PierA'))
 
@@ -290,6 +292,163 @@ class Foreign(unittest.TestCase):
             self.assertEqual(codes(report), [code], code)
         _, report = self.compile([foreign('Emitter_10', 1, (0, 0, 0))], FakeEffects(entry=dict(placeable=True, blocked=None)))
         self.assertEqual(codes(report), [])
+
+
+def values_scene():
+    """effects_scene with values that can change: Emitter_43 (scalar Opacity, vector Color, colour Tint, a random
+    Wobble saved; its system offers Opacity, Color and Spawn, and Size both as a number and as a vector) and the
+    simple sound AmbientSoundSimple_50 (radii 400 to 2,000); AmbientSound_51 plays a shared cue."""
+    s = effects_scene()
+    fx = {e['actor']: e for e in s['effects'] + s['sounds']}
+    fx[PL + 'Emitter_43'].update(system='URB_Bar|FX.Glow', parameters=[
+        dict(name='Opacity', type='PSPT_Scalar', scalar=1.0, offered='yes'),
+        dict(name='Color', type='PSPT_Vector', vector=[1.0, 0.5, 0.0], offered='yes'),
+        dict(name='Tint', type='PSPT_Color', colour=[1.0, 1.0, 1.0, 1.0], offered='no'),
+        dict(name='Wobble', type='PSPT_ScalarRand', scalar=1.0, scalarLow=0.5, offered='no'),
+        dict(name='Opacity', type='PSPT_Vector', vector=[0, 0, 0], offered='otherKind')])
+    fx[PL + 'Emitter_44'].update(system='URB_Bar|FX.Glow', parameters=[])
+    for name in ('Emitter_43', 'Emitter_44', 'AmbientSoundSimple_50'):
+        fx[PL + name]['can'] = dict(fx[PL + name]['can'], values=True)
+    fx[PL + 'AmbientSoundSimple_50']['values'] = dict(radiusMin=400.0, radiusMax=2000.0, volumeMin=0.7, volumeMax=0.7,
+                                                      pitchMin=1.0, pitchMax=1.0)
+    fx[PL + 'AmbientSound_51']['why'] = dict(values='its cue Hum is a game asset, not its own')
+    offer = lambda name, kind: dict(name=name, kind=kind, module='M', property='P', modes=['DPM_Direct'], constant=1.0,
+                                    input=[0.0, 1.0], output=[0.0, 1.0], colour=False)
+    s['effectSystems'] = {'URB_Bar|FX.Glow': dict(path='FX.Glow', offers=[
+        offer('Color', 'vector'), offer('Opacity', 'scalar'), offer('Size', 'scalar'), offer('Size', 'vector'),
+        offer('Spawn', 'scalar')])}
+    return s
+
+
+class Values(unittest.TestCase):
+    """An effect's size, starting state and parameters and a sound's radii, volume, pitch and starting state (stage
+    FX5): checked against the export's record and its system, and passed to the lanes as the writer takes them."""
+    ON = ('effect', 'sound', 'effect-values', 'sound-values')
+
+    def compile(self, overrides=(), added=(), enable=ON):
+        return compile_project(doc(overrides, added), values_scene(), enable=enable)
+
+    def test_their_gates_are_their_own(self):
+        self.assertFalse(compiler.FAMILIES['effect-values']['builds'] or compiler.FAMILIES['sound-values']['builds'])
+        records = [dict(target=target('Emitter_43'), effect=dict(scale=2.0)),
+                   dict(target=target('AmbientSoundSimple_50'), sound=dict(radiusMax=900.0))]
+        _, report = self.compile(records, enable=('effect', 'sound'))
+        self.assertEqual(sorted((e['code'], e.get('family')) for e in report['errors'] + report['leftOut']),
+                         [('family', 'effect-values'), ('family', 'sound-values')])
+        _, report = self.compile(records, enable=('effect', 'sound', 'effect-values'))
+        self.assertEqual([(e['code'], e.get('family')) for e in report['errors'] + report['leftOut']],
+                         [('family', 'sound-values')])
+        # a move alone builds whatever the value gates say
+        _, report = self.compile([moved('Emitter_43', (710, 0, 0))], enable=('effect',))
+        self.assertEqual(codes(report), [])
+
+    def test_values_alone_reach_the_values_lane(self):
+        spec, report = self.compile([
+            dict(target=target('Emitter_43'), effect=dict(scale=2.5, startsOn=True, parameters=[
+                dict(name='Opacity', value=0.5), dict(name='Color', value=[0.2, 0.4, 3.0]),
+                dict(name='Tint', value=[1.0, 0.0, 0.0, 1.0]), dict(name='Spawn', value=4)])),
+            dict(target=target('AmbientSoundSimple_50'), sound=dict(radiusMax=900.0, volume=[0.5, 0.9], pitch=[0.9, 1.1],
+                                                                     startsOn=False))])
+        self.assertEqual(codes(report), [])
+        _, native = native_split(stream_only(spec))
+        self.assertEqual(native['effects']['values'], [dict(name='Emitter_43', actorClass='Emitter', effect=dict(
+            scale=2.5, startsOn=True, parameters=[
+                dict(name='Opacity', type='PSPT_Scalar', value=0.5),
+                dict(name='Color', type='PSPT_Vector', value=[0.2, 0.4, 3.0]),
+                dict(name='Tint', type='PSPT_Color', value=[1.0, 0.0, 0.0, 1.0]),
+                dict(name='Spawn', type='PSPT_Scalar', value=4.0)]))])
+        self.assertEqual(native['sounds']['values'], [dict(name='AmbientSoundSimple_50', actorClass='AmbientSoundSimple', sound=dict(
+            radiusMax=900.0, volume=[0.5, 0.9], pitch=[0.9, 1.1], startsOn=False))])
+        self.assertEqual((native['effects']['moves'], native['sounds']['moves']), ([], []))
+        self.assertEqual(report['counts']['effects']['valued'], 1)
+        # the script switches Emitter_43 (SeqAct_Toggle_3): what it starts as lasts until then; the sound starts off
+        # with nothing to switch it on
+        self.assertEqual(sorted(w['code'] for w in report['warnings']), ['effect-starts-off', 'mission-linked'])
+        self.assertEqual([e['op'] for e in report['entities']], ['values', 'values'])
+
+    def test_a_move_with_values_and_a_copy_with_values(self):
+        spec, report = self.compile([moved('Emitter_44', (130, 120, 200), effect=dict(scale=0.5))],
+                                    [copied('Emitter_43', 1, (720, 0, 0), effect=dict(startsOn=True, parameters=[dict(name='Opacity', value=2)])),
+                                     copied('AmbientSoundSimple_50', 2, (150, 0, 0), kind='sound', sound=dict(radiusMin=100.0))])
+        self.assertEqual(codes(report), [])
+        _, native = native_split(stream_only(spec))
+        self.assertEqual([m['name'] for m in native['effects']['moves']], ['Emitter_44'])
+        self.assertEqual(native['effects']['values'], [dict(name='Emitter_44', actorClass='Emitter', effect=dict(scale=0.5))])
+        self.assertEqual(native['effects']['copies'][0]['values'], dict(startsOn=True, parameters=[
+            dict(name='Opacity', type='PSPT_Scalar', value=2.0)]))
+        self.assertEqual(native['sounds']['copies'][0]['values'], dict(radiusMin=100.0))
+        # the copy of Emitter_43 (which starts off) is set to start on: no starts-off warning
+        self.assertNotIn('effect-starts-off', [w['code'] for w in report['warnings']])
+        self.assertEqual(report['counts']['effects']['valued'], 2)
+
+    def test_a_copy_set_to_start_off_is_warned_of(self):
+        _, report = self.compile([], [copied('Emitter_44', 1, (720, 0, 0), effect=dict(startsOn=False))])
+        self.assertEqual([w['code'] for w in report['warnings']], ['effect-starts-off'])
+        self.assertIn('set to start off', report['warnings'][0]['message'])
+
+    def test_parameters_the_script_sets_are_warned_of(self):
+        s = values_scene()
+        next(e for e in s['effects'] if e['actor'] == PL + 'Emitter_44')['referencedBy'] = ['SeqAct_SetParticleSysParam_1 Target']
+        _, report = compile_project(doc([dict(target=target('Emitter_44'), effect=dict(parameters=[dict(name='Opacity', value=0.1)]))]),
+                                    s, enable=self.ON)
+        self.assertEqual(codes(report), [])
+        self.assertEqual([w['code'] for w in report['warnings']], ['mission-linked'])
+        self.assertIn('replaces these', report['warnings'][0]['message'])
+
+    def test_deletion_wins(self):
+        spec, report = self.compile([dict(target=target('Emitter_43'), deleted=True, effect=dict(scale=2.0))])
+        self.assertEqual(codes(report), [])
+        _, native = native_split(stream_only(spec))
+        self.assertEqual((native['effects']['values'], [d['name'] for d in native['effects']['deletes']]), ([], ['Emitter_43']))
+
+    def test_what_can_not_be_set(self):
+        cases = [
+            # the export says its values can't change: a shared cue's, an effect with no particle component
+            (dict(target=target('AmbientSound_51'), sound=dict(radiusMax=900.0)), 'effect-view-only', 'game asset'),
+            (dict(target=target('Emitter_40'), effect=dict(scale=2.0)), 'effect-view-only', 'values'),
+            # parameters: a random one is kept; a name its system reads as both kinds; a name it doesn't have
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Wobble', value=1)])), 'effect-view-only', 'PSPT_ScalarRand'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Size', value=1)])), 'effect-view-only', 'both'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Glow', value=1)])), 'malformed', 'no parameter Glow'),
+            # shapes and ranges
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Color', value=1)])), 'malformed', 'three numbers'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Tint', value=[2, 0, 0, 1])])), 'malformed', 'colour'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Opacity', value=float('inf'))])), 'malformed', 'a number'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=[dict(name='Opacity', value=1), dict(name='Opacity', value=2)])), 'malformed', 'twice'),
+            (dict(target=target('Emitter_43'), effect=dict(parameters=dict(Opacity=1))), 'malformed', 'list'),
+            (dict(target=target('Emitter_43'), effect=dict(scale=0)), 'malformed', 'multiplier'),
+            (dict(target=target('Emitter_43'), effect=dict(scale=100)), 'malformed', 'multiplier'),
+            (dict(target=target('Emitter_43'), effect=dict(startsOn='yes')), 'malformed', 'true or false'),
+            (dict(target=target('AmbientSoundSimple_50'), sound=dict(radiusMin=3000.0)), 'malformed', 'beyond its outer'),
+            (dict(target=target('AmbientSoundSimple_50'), sound=dict(radiusMax=-1)), 'malformed', '0 to'),
+            (dict(target=target('AmbientSoundSimple_50'), sound=dict(volume=[0.9, 0.5])), 'malformed', 'least, most'),
+            (dict(target=target('AmbientSoundSimple_50'), sound=dict(pitch=[0, 1])), 'malformed', 'least, most'),
+            (dict(target=target('AmbientSoundSimple_50'), sound=dict(volume=0.5)), 'malformed', 'least, most')]
+        for record, code, words in cases:
+            _, report = self.compile([record])
+            self.assertEqual(codes(report), [code], record)
+            self.assertIn(words, (report['errors'] + report['leftOut'])[0]['message'], record)
+        # a copy's values are checked against its source as an override's are
+        _, report = self.compile([], [copied('AmbientSound_51', 1, (0, 0, 0), kind='sound', sound=dict(volume=[1, 1]))])
+        self.assertEqual(codes(report), ['effect-view-only'])
+
+    def test_a_foreign_copys_values_are_checked_against_its_donor(self):
+        library = FakeEffects(record=dict(system='URB_PierA|FX.Foam', can=dict(CAN, values=True), parameters=[]))
+        original = library.effect
+
+        def effect_with_system(wanted):
+            template, entry = original(wanted)
+            template['systems'] = {'URB_PierA|FX.Foam': dict(offers=[dict(name='Spawn', kind='scalar')])}
+            return template, entry
+        library.effect = effect_with_system
+        spec, report = compile_project(doc([], [dict(foreign('Emitter_10', 1, (0, 0, 0)), effect=dict(parameters=[dict(name='Spawn', value=3)]))]),
+                                       effects_scene(), self.ON, library)
+        self.assertEqual(codes(report), [])
+        _, native = native_split(stream_only(spec))
+        self.assertEqual(native['effects']['copies'][0]['values'], dict(parameters=[dict(name='Spawn', type='PSPT_Scalar', value=3.0)]))
+        _, report = compile_project(doc([], [dict(foreign('Emitter_10', 1, (0, 0, 0)), effect=dict(parameters=[dict(name='Opacity', value=3)]))]),
+                                    effects_scene(), self.ON, library)
+        self.assertEqual(codes(report), ['malformed'])
 
 
 if __name__ == '__main__':

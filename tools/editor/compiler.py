@@ -144,6 +144,14 @@ FAMILIES = {
                    note='Effects are moved, copied and deleted where the effect family builds.'),
     'sound': dict(builds=True, milestone=None, grid=False, what='an ambient sound',
                   note='Ambient sounds are moved, copied and deleted where the sound family builds.'),
+    # an effect's or a sound's values (the effects and sounds plan, stage FX5: an effect's size, starting state and
+    # particle parameters; a sound's radii, volume, pitch and starting state): a gate of their own, so the moves,
+    # copies and deletes build while these wait for their game check (EXP-E); --family lifts it for an experiment's
+    # build, and the page offers the values only where it builds
+    'effect-values': dict(builds=False, milestone=None, grid=False, what='an effect\'s values',
+                          note='An effect\'s size, starting state and parameters build once their game test passes.'),
+    'sound-values': dict(builds=False, milestone=None, grid=False, what='a sound\'s values',
+                         note='A sound\'s reach, volume, pitch and starting state build once their game test passes.'),
 }
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
                 'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
@@ -199,12 +207,25 @@ EFFECT_CLASSES = {'effect': ('Emitter',),
                   'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable')}
 EFFECT_KINDS = ('effect', 'sound', 'flare')
 EFFECT_SLACK = 2.0
-# the values objects of stage FX5 (an effect's scale, starting state and parameters; a sound's radii, volume, pitch
-# and starting state): a record may carry them, the Build doesn't make them yet; `follow` (an effect's carrying by the
-# piece it stands on: 'none' once it is moved by itself, 'auto' to follow again) is FX3's
+# the values objects (plan Part C): `follow` (an effect's carrying by the piece it stands on: 'none' once it is moved
+# by itself, 'auto' to follow again) is FX3's; the others are stage FX5's, behind the effect-values and sound-values
+# families: an effect's `scale` (a multiplier on the size the map gives it), `startsOn` and `parameters` ([{name,
+# value}]: a scalar, a vector [x, y, z] or a colour [r, g, b, a], each 0 to 1, by the kind its effect saves it in, else
+# by its system's parameter); a sound's `radiusMin`, `radiusMax`, `volume` and `pitch` ([least, most]) and `startsOn`
 EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
                      'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
 EFFECT_FOLLOW = ('none', 'auto')
+# what a value may be (refused outside: nothing the game's maps come near; the page's handles and sliders stay well
+# inside): an effect's size multiplier, a parameter's magnitude, a sound's radius, volume and pitch
+EFFECT_SCALE = (1 / 64, 64.0)
+PARAMETER_MAX = 1e6
+SOUND_RADIUS_MAX = 65536.0
+SOUND_VOLUME_MAX = 16.0
+SOUND_PITCH = (1 / 16, 16.0)
+# the particle parameter types the editor writes, by the kind of value: what a saved entry's type takes, and the type
+# a parameter the effect doesn't save gets from its system's distribution
+PARAMETER_TYPES = {'PSPT_Scalar': 'scalar', 'PSPT_Vector': 'vector', 'PSPT_Color': 'colour'}
+DISTRIBUTION_TYPES = {'scalar': 'PSPT_Scalar', 'vector': 'PSPT_Vector'}
 # Pieces' flags (piece flags plan, P4): read from the export's pieceFlags (export 27; a piece of another map from its
 # library record), checked with piece_flags.plan, and built by the Build's writer from the package itself (native_copy
 # set_roles). A piece this wide or tall (units) with walking, cover or sight turned off is noted (flags-wall).
@@ -763,7 +784,7 @@ class Compiler:
         # effects and sounds (the effects and sounds plan, Part C): the spec's `effects` and `sounds` objects (moves,
         # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
         # project's own takes from the piece that carries them (they leave carriedEffects)
-        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[]) for k in ('effect', 'sound')}
+        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in ('effect', 'sound')}
         self.effect_members = set()
         self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
@@ -2196,37 +2217,165 @@ class Compiler:
             return None
         return self.effect_actors.get((target.get('package'), target.get('level'), target.get('actor')))
 
-    def effect_values(self, rec, kind, name, where):
-        """A record's values object checked (the effects and sounds plan, Part C): (follow or None, ok). `follow` is
-        stage FX3's ('none': it doesn't follow the piece it stands on; 'auto': it does); the other keys are FX5's,
-        which this Build doesn't make: such a record is refused, never built without them."""
+    def effect_values(self, rec, kind, name, where, source=None, systems=None):
+        """A record's values object checked (the effects and sounds plan, Part C): (follow or None, values or None,
+        ok). `follow` is stage FX3's ('none': it doesn't follow the piece it stands on; 'auto': it does); `values` the
+        others (stage FX5), checked against `source` (the export record of the effect or sound they are set on, or
+        that a copy copies) and `systems` (its particle systems' records), as the Build's writer takes them: an
+        effect's {scale, startsOn, parameters: [{name, type, value}]}, a sound's {radiusMin, radiusMax, volume,
+        pitch, startsOn}. Refused: a malformed value, one outside what a value may be, a parameter its effect neither
+        saves in a kind the editor writes nor its system offers in one kind, and values while their family doesn't
+        build (effect-values, sound-values)."""
         other = 'sound' if kind == 'effect' else 'effect'
+        what = 'an effect' if kind == 'effect' else 'a sound'
         if other in rec:
-            self.error('malformed', '%s is %s, so it has no %s values' % (name, 'an effect' if kind == 'effect' else
-                                                                          'a sound', other), **where)
-            return None, False
+            self.error('malformed', '%s is %s, so it has no %s values' % (name, what, other), **where)
+            return None, None, False
         values = rec.get(kind)
         if values is None:
-            return None, True
+            return None, None, True
         if kind == 'flare' or not isinstance(values, dict):
             self.error('malformed', '%s: "%s" must be an object of %s values' % (name, kind, kind), **where)
-            return None, False
+            return None, None, False
         bad = sorted(set(values) - set(EFFECT_VALUE_KEYS[kind]))
         if bad:
             self.error('malformed', '%s: %s %s not %s value (they are %s)' % (
-                name, ', '.join(bad), 'is' if len(bad) == 1 else 'are', 'an effect' if kind == 'effect' else 'a sound',
-                ', '.join(EFFECT_VALUE_KEYS[kind])), **where)
-            return None, False
-        later = sorted(set(values) - {'follow'})
-        if later:
-            self.error('effect-values', '%s sets its %s, which this editor version can\'t build: only its place, turn, '
-                       'copies and deletion build' % (name, ', '.join(later)), **where)
-            return None, False
+                name, ', '.join(bad), 'is' if len(bad) == 1 else 'are', what, ', '.join(EFFECT_VALUE_KEYS[kind])), **where)
+            return None, None, False
         follow = values.get('follow')
         if follow is not None and follow not in EFFECT_FOLLOW:
             self.error('malformed', '%s: follow must be one of %s' % (name, ', '.join(EFFECT_FOLLOW)), **where)
-            return None, False
-        return follow, True
+            return None, None, False
+        given = {k: v for k, v in values.items() if k != 'follow'}
+        if not given:
+            return follow, None, True
+        gate = kind + '-values'
+        if not self.builds(gate):
+            self.error('family', '%s sets its %s. %s' % (name, ', '.join(sorted(given)), FAMILIES[gate]['note']),
+                       family=gate, **where)
+            return None, None, False
+        source = source or {}
+        if not (source.get('can') or {}).get('values'):
+            why = (source.get('why') or {}).get('values') or 'the export doesn\'t say its values can change'
+            self.error('effect-view-only', '%s\'s values can\'t be set: %s' % (name, why), **where)
+            return None, None, False
+        out = {}
+        number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+        if 'startsOn' in given:
+            if not isinstance(given['startsOn'], bool):
+                self.error('malformed', '%s: startsOn is true or false' % name, **where)
+                return None, None, False
+            out['startsOn'] = given['startsOn']
+        if kind == 'effect':
+            if 'scale' in given:
+                v = given['scale']
+                if not number(v) or not EFFECT_SCALE[0] <= v <= EFFECT_SCALE[1]:
+                    self.error('malformed', '%s: its size is a multiplier of %g to %g of the size the map gives it'
+                               % (name, EFFECT_SCALE[0], EFFECT_SCALE[1]), **where)
+                    return None, None, False
+                out['scale'] = float(v)
+            if 'parameters' in given:
+                params = self.effect_parameters(given['parameters'], name, where, source, systems)
+                if params is None:
+                    return None, None, False
+                if params:
+                    out['parameters'] = params
+            return follow, out, True
+        have = source.get('values') or {}
+        for key in ('radiusMin', 'radiusMax'):
+            if key in given:
+                v = given[key]
+                if not number(v) or not 0 <= v <= SOUND_RADIUS_MAX:
+                    self.error('malformed', '%s: %s is 0 to %g units' % (name, key, SOUND_RADIUS_MAX), **where)
+                    return None, None, False
+                out[key] = float(v)
+        lo, hi = out.get('radiusMin', have.get('radiusMin')), out.get('radiusMax', have.get('radiusMax'))
+        if ('radiusMin' in out or 'radiusMax' in out) and number(lo) and number(hi) and lo > hi:
+            self.error('malformed', '%s: its inner radius (%g) is beyond its outer one (%g)' % (name, lo, hi), **where)
+            return None, None, False
+        for key, (least, most) in (('volume', (0.0, SOUND_VOLUME_MAX)), ('pitch', SOUND_PITCH)):
+            if key not in given:
+                continue
+            v = given[key]
+            if (not isinstance(v, list) or len(v) != 2 or not all(number(x) for x in v) or v[0] > v[1]
+                    or v[0] < least or v[1] > most):
+                self.error('malformed', '%s: %s is [least, most], each %g to %g' % (name, key, least, most), **where)
+                return None, None, False
+            out[key] = [float(x) for x in v]
+        return follow, out, True
+
+    def effect_parameters(self, given, name, where, source, systems):
+        """An effect's parameters ([{name, value}]) as the writer takes them ([{name, type, value}]), or None with an
+        error: a parameter the effect saves keeps the type it is saved in (a scalar, vector or colour entry; the
+        first of the name, as the game reads it), one it doesn't is added in the kind its system's distribution of
+        that name has (all of them one kind)."""
+        if not isinstance(given, list):
+            self.error('malformed', '%s: parameters is a list of {name, value}' % name, **where)
+            return None
+        saved = {}
+        for prm in source.get('parameters') or []:
+            if prm.get('name') and prm['name'] not in saved:
+                saved[prm['name']] = prm
+        offers = {}
+        system = (systems or {}).get(source.get('system')) if source.get('system') else None
+        for o in (system or {}).get('offers') or []:
+            offers.setdefault(o['name'], set()).add(o['kind'])
+        number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+        out, seen = [], set()
+        for prm in given:
+            if not isinstance(prm, dict) or set(prm) != {'name', 'value'} or not isinstance(prm['name'], str) or not prm['name']:
+                self.error('malformed', '%s: each parameter is {name, value}' % name, **where)
+                return None
+            pname = prm['name']
+            if pname in seen:
+                self.error('malformed', '%s sets parameter %s twice' % (name, pname), **where)
+                return None
+            seen.add(pname)
+            if pname in saved:
+                type_ = saved[pname].get('type')
+                if type_ not in PARAMETER_TYPES:
+                    self.error('effect-view-only', '%s\'s parameter %s is of type %s, which the editor keeps as the map '
+                               'has it' % (name, pname, type_), **where)
+                    return None
+            elif len(offers.get(pname, ())) == 1:
+                type_ = DISTRIBUTION_TYPES[next(iter(offers[pname]))]
+            elif pname in offers:
+                self.error('effect-view-only', '%s\'s system reads parameter %s both as a number and as a vector, so it '
+                           'is kept as the map has it' % (name, pname), **where)
+                return None
+            else:
+                self.error('malformed', '%s\'s system has no parameter %s%s' % (
+                    name, pname, '' if system else ' (its system didn\'t resolve)'), **where)
+                return None
+            v, shape = prm['value'], PARAMETER_TYPES[type_]
+            ok = (number(v) and abs(v) <= PARAMETER_MAX if shape == 'scalar'
+                  else isinstance(v, list) and len(v) == 3 and all(number(x) and abs(x) <= PARAMETER_MAX for x in v)
+                  if shape == 'vector'
+                  else isinstance(v, list) and len(v) == 4 and all(number(x) and 0 <= x <= 1 for x in v))
+            if not ok:
+                self.error('malformed', '%s: parameter %s is %s' % (name, pname, dict(
+                    scalar='a number', vector='three numbers [x, y, z]',
+                    colour='a colour [r, g, b, a], each 0 to 1')[shape]), **where)
+                return None
+            out.append(dict(name=pname, type=type_, value=float(v) if shape == 'scalar' else [float(x) for x in v]))
+        return out
+
+    def effect_value_warnings(self, name, kind, values, source, where, copy=False):
+        """The warnings for an effect's or sound's values (decision 9: what may behave oddly in the game): one that
+        starts off with nothing to switch it on, and values the map's script changes too."""
+        if not values:
+            return
+        users = ' '.join(source.get('referencedBy') or []) if not copy else ''
+        starts = values.get('startsOn', source.get('startsOn'))
+        if 'startsOn' in values and starts is False and 'Toggle' not in users:
+            self.warn('effect-starts-off', '%s starts off, and nothing in the map\'s script switches it on' % name,
+                      **where)
+        elif 'startsOn' in values and 'Toggle' in users:
+            self.warn('mission-linked', '%s is switched on and off by the map\'s Kismet (%s): what it starts as lasts '
+                      'until the script switches it' % (name, '; '.join(source['referencedBy'][:4])), **where)
+        if values.get('parameters') and 'SetParticleSysParam' in users:
+            self.warn('mission-linked', '%s\'s parameters are set by the map\'s Kismet too (%s): what the script sets '
+                      'replaces these when it runs' % (name, '; '.join(source['referencedBy'][:4])), **where)
 
     def effect_gate(self, kind, name, where):
         """The family's refusal while it doesn't build: True when the edit may go on."""
@@ -2299,8 +2448,10 @@ class Compiler:
                        % (name, 'an effect' if kind == 'effect' else 'a sound' if kind == 'sound' else 'a lens flare',
                           target['package'], target['level']), **where)
             return
-        follow, ok = self.effect_values(rec, kind, name, where)
-        if not ok or not self.effect_gate(kind, name, where):
+        if not self.effect_gate(kind, name, where):
+            return
+        follow, values, ok = self.effect_values(rec, kind, name, where, effect, self.scene.get('effectSystems'))
+        if not ok:
             return
         ops = self.effect_ops[kind]
         if rec.get('deleted') is True:
@@ -2312,16 +2463,24 @@ class Compiler:
             ops['deletes'].append(dict(name=name, actorClass=effect['actorClass'], location=list(effect['location'])))
             self.entities.append(dict(kind=kind, op='delete', target=target['actor'], actorClass=effect['actorClass']))
             return
+        if values:
+            # its values, set on the actor in place (stage FX5)
+            self.effect_value_warnings(name, kind, values, effect, where)
+            ops['values'].append(dict(name=name, actorClass=effect['actorClass'], **{kind: values}))
+            self.entities.append(dict(kind=kind, op='values', target=target['actor'], actorClass=effect['actorClass'],
+                                      **{kind: values}))
         if 'location' not in rec and 'rotation' not in rec:
             if follow is None:
-                self.error('malformed', 'an effect\'s or a sound\'s override is deleted, or gives a pose', **where)
+                if not values:
+                    self.error('malformed', 'an effect\'s or a sound\'s override is deleted, gives a pose or values',
+                               **where)
             else:
                 # follow alone: carrying as the map has it ('auto') or not ('none', where it stands)
                 if follow == 'none' and effect.get('carriedBy'):
                     self.effect_own.add(target['actor'])
                     self.note('effect-detached', '%s stays where it is when %s moves' % (
                         name, short(effect['carriedBy'])), **where)
-                else:
+                elif not values:
                     self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
             return
         p = self.pose(dict(location=rec.get('location', effect['location']),
@@ -2336,7 +2495,8 @@ class Compiler:
                        % (name, short(effect['carriedBy'])), **where)
             return
         if not moved:
-            self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
+            if not values:
+                self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
             return
         if not self.effect_usable(effect, 'move', name, where):
             return
@@ -2375,10 +2535,10 @@ class Compiler:
             self.error('malformed', '%s has no id' % name, **where)
             return
         src = rec.get('from')
-        donor = None
+        donor, systems = None, None
         if (isinstance(src, dict) and src.get('level') == 'base' and isinstance(src.get('package'), str)
                 and isinstance(src.get('actor'), str) and src['package'].casefold() != self.map.casefold()):
-            source, donor = self.foreign_effect(src, name, where)
+            source, donor, systems = self.foreign_effect(src, name, where)
             if source is None:
                 return
         else:
@@ -2395,13 +2555,16 @@ class Compiler:
             self.error('effect-view-only', '%s copies %s of %s level %s; only a base map\'s own are copied'
                        % (name, short(src['actor']), src['package'], src['level']), **where)
             return
-        follow, ok = self.effect_values(rec, kind, name, where)
+        if not self.effect_gate(kind, name, where):
+            return
+        follow, values, ok = self.effect_values(rec, kind, name, where, source,
+                                                systems if donor else self.scene.get('effectSystems'))
         if not ok:
             return
         if follow is not None:
             self.note('unknown-field', '%s is a copy, which no piece carries: its follow is ignored' % name, **where)
         p = self.pose(rec, where)
-        if not p or not self.effect_gate(kind, name, where) or not self.effect_usable(source, 'copy', name, where):
+        if not p or not self.effect_usable(source, 'copy', name, where):
             return
         loc, rot, rounding = p
         self.effect_members.add('added|' + out)
@@ -2410,9 +2573,12 @@ class Compiler:
         if source.get('referencedBy'):
             self.note('effect-script-copy', '%s is a copy of %s, which its map\'s Kismet names: the copy is an ordinary '
                       '%s, which the script doesn\'t switch on or off' % (name, short(src['actor']), kind), **where)
-        if source.get('startsOn') is False:
-            self.warn('effect-starts-off', '%s is a copy of %s, which starts off and waits for the script to switch it '
-                      'on: nothing switches the copy on' % (name, short(src['actor'])), **where)
+        if (values or {}).get('startsOn', source.get('startsOn')) is False:
+            self.warn('effect-starts-off', '%s is a copy of %s, %s: nothing switches the copy on' % (
+                name, short(src['actor']), 'set to start off' if (values or {}).get('startsOn') is False
+                else 'which starts off and waits for the script to switch it on'), **where)
+        self.effect_value_warnings(name, kind, {k: v for k, v in (values or {}).items() if k != 'startsOn'}, source,
+                                   where, copy=True)
         if source.get('landingActor') or source.get('landingRole'):
             # Long War's landing mutator (XComLZMutator.HideDropShip) destroys every actor made from the grounded
             # Skyranger's archetypes when a battle loads, and a copy keeps its source's archetype (F-120)
@@ -2421,6 +2587,8 @@ class Compiler:
                       'among them (plain Enemy Within keeps it)' % (name, short(src['actor'])), **where)
         copy = dict(id=rec['id'], name=name, source=short(src['actor']), actorClass=source['actorClass'], location=loc,
                     rotation=rot)
+        if values:
+            copy['values'] = values
         if donor:
             # the Build stages the donor's actor in the map (transplant.stage_edit) and clones the staged one
             copy['donor'] = donor
@@ -2433,27 +2601,29 @@ class Compiler:
                                   rotationRounding=tidy(rounding, 6), **({'donor': donor} if donor else {})))
 
     def foreign_effect(self, src, name, where):
-        """(record, donor) of the effect or ambient sound of another map a copy names (the effects and sounds plan,
-        stage FX4): its export 28 record as the library reads it from its map (library.effect), and its donor
-        {package, sha256} for the Build's staging; (None, None) with an error. What the library can't bring is
+        """(record, donor, systems) of the effect or ambient sound of another map a copy names (the effects and sounds
+        plan, stage FX4): its export 28 record as the library reads it from its map (library.effect), its donor
+        {package, sha256} for the Build's staging and its system's record ({key: record}); (None, None, None) with an
+        error. What the library can't bring is
         refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
         foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69) is built as any
         copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
         if self.library is None:
             self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
                        % (name, short(src['actor']), src['package']), **where)
-            return None, None
+            return None, None, None
         try:
             template, entry = self.library.effect(src)
         except LibraryError as error:
             self.error(error.code, str(error), **where)
-            return None, None
+            return None, None, None
         if not entry['placeable'] and entry.get('blocked') != 'family':
             self.error('not-placeable', '%s copies %s of %s, which can\'t be placed in another map: %s'
                        % (name, short(src['actor']), template['source']['package'], entry['reason']), **where)
-            return None, None
+            return None, None, None
         source = template['source']
-        return template['record'], dict(package=source['package'], sha256=source['sha256'])
+        return (template['record'], dict(package=source['package'], sha256=source['sha256']),
+                template.get('systems') or {})
 
     def reaching(self, location, values):
         """How many of the base map's pieces a light's radius reaches at `location` (the report's estimate of what a
@@ -2842,7 +3012,8 @@ class Compiler:
                 # list and copied in the map by the Build's writer (native_split moves them there)
                 objects.append(dict(type=key, moves=sorted(ops['moves'], key=lambda d: d['name']),
                                     deletes=sorted(ops['deletes'], key=lambda d: d['name']),
-                                    copies=sorted(ops['copies'], key=lambda d: d['name'])))
+                                    copies=sorted(ops['copies'], key=lambda d: d['name']),
+                                    values=sorted(ops['values'], key=lambda d: d['name'])))
         if self.flag_edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
@@ -3619,7 +3790,9 @@ class Compiler:
                                               changed=len(self.light_ops['changes']), area=len(self.light_ops['area'])),
                                   **{key: dict(moved=len(self.effect_ops[kind]['moves']),
                                                deleted=len(self.effect_ops[kind]['deletes']),
-                                               added=len(self.effect_ops[kind]['copies']))
+                                               added=len(self.effect_ops[kind]['copies']),
+                                               valued=len(self.effect_ops[kind]['values'])
+                                               + sum(1 for c in self.effect_ops[kind]['copies'] if c.get('values')))
                                      for kind, key in (('effect', 'effects'), ('sound', 'sounds'))},
                                   flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
@@ -3863,7 +4036,7 @@ def native_split(spec):
     ({foot, top} tiles), and `streamHides` ({stream: [actor]}) the streamed patches' pieces to take out of the
     variant's copies of them (a moved or deleted ladder's helpers), `lights` the light edits (plan 9.5: deletes,
     changes, adds and the area lights the piece edits take along), and `effects` and `sounds` the effects' and
-    sounds' lanes (each `moves`, `deletes` and `copies`; the effects and sounds plan, Part D). A group with a copy of another class stays
+    sounds' lanes (each `moves`, `deletes`, `copies` and `values`; the effects and sounds plan, Part D). A group with a copy of another class stays
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
@@ -3894,7 +4067,7 @@ def native_split(spec):
             lights = {k: obj[k] for k in ('deletes', 'changes', 'adds', 'area')}
             continue
         if obj.get('type') in ('effects', 'sounds'):
-            effect_lanes[obj['type']] = {k: obj[k] for k in ('moves', 'deletes', 'copies')}
+            effect_lanes[obj['type']] = {k: obj.get(k) or [] for k in ('moves', 'deletes', 'copies', 'values')}
             continue
         if obj.get('type') == 'hide' and obj.get('exact'):
             boxes = obj.get('boxes') or [None] * len(obj['alsoHide'])

@@ -2620,7 +2620,8 @@ def main():
     for key in ('effects', 'sounds'):
         for r in m['nativeCopies'].get(key) or []:
             print(f"{key[:-1]} {r['actor']} {r['how']}" + (f" from {r['source']} -> {r['copy']}" if r['how'] == 'copied' else '')
-                  + (f" at {[round(v, 1) for v in r['location']]} {r['rotation']}" if r['how'] != 'deleted' else ''))
+                  + (f" at {[round(v, 1) for v in r['location']]} {r['rotation']}" if 'location' in r else '')
+                  + (f" values {r['values']}" if r.get('values') else ''))
     for f in m['nativeCopies'].get('floorEmitters') or []:
         print(f"effect {f['effect']} {f['how']} floor {f['floor']} of {f['building']}")
     for r in m['nativeCopies'].get('carriedEffects') or []:

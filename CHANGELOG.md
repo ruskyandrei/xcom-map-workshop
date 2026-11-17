@@ -8,6 +8,40 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects' and sounds' values in the compiler and the Build (effects and sounds plan, stage FX5, part 1)
+
+- An effect's size, starting state and particle parameters, and a sound's radii, volume, pitch and starting state,
+  are checked by the compiler and written by the Build, behind two gates of their own: the families `effect-values`
+  and `sound-values` ([compiler.py](tools/editor/compiler.py) `FAMILIES`), off until their game check, so moves,
+  copies and deletes go on building as they do (`--family effect-values` lifts one for an experiment's build). The
+  page doesn't offer them yet.
+- The compiler (`effect_values`, `effect_parameters`, `effect_value_warnings`): a value-only override, a move with
+  values and a copy with values reach the lanes' `values` (originals, in place) and each copy's `values`, as the
+  writer takes them: a parameter keeps the type its effect saves it in (a scalar saved where the system's
+  distribution is a vector stays a scalar), a name it doesn't save gets the distribution's kind; refused: values
+  where the export's `can.values` says no (a shared cue's), a random or untyped parameter, a name the system reads as
+  both kinds or lacks, a malformed value or one outside what a value may be (`EFFECT_SCALE`, `SOUND_RADIUS_MAX`,
+  `SOUND_VOLUME_MAX`, `SOUND_PITCH`, `PARAMETER_MAX`), an inner radius beyond the outer one; warned of: one set to
+  start off with nothing in the script to switch it on, a starting state the script switches anyway, parameters the
+  script sets too. Deletion wins over values. The report counts `valued`.
+- The Build ([native_effects.py](tools/bake/native_effects.py) `set_values`, `set_parameters`, `read_values`,
+  `check_values`): on the actor's own exports only (never a clone's source, an archetype or a cue asset): the
+  actor's `DrawScale` multiplied (its `DrawScale3D` kept), the component's `bAutoActivate`, its `InstanceParameters`
+  patched by name (an entry's value field set in place, a new name added at the end, every other entry byte for
+  byte, an array added where the component saves none), a sound's node `RadiusMin`, `RadiusMax`, `VolumeMin`,
+  `VolumeMax`, `PitchMin`, `PitchMax` and its actor's `bAutoPlay`; read back in the lane's verify. The native edit,
+  `native_split` and the Build's dispatch carry the `values` lane ([compiler.py](tools/editor/compiler.py),
+  [build.py](tools/editor/build.py), [native_copy.py](tools/bake/native_copy.py)).
+- Contract: the effects' and sounds' override row ([editor-contracts.md](research/editor-contracts.md)).
+
+Checked: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py) `Values` (the gates, value-only and
+mixed records, copies, a foreign copy against its donor's system, every refusal and warning);
+[test_native_effects.py](tools/bake/tests/test_native_effects.py) `ValueLanes` on the install's URB_Bar (Emitter_38's
+size, starting state, a scalar on a vector distribution, a colour and a new parameter; a value it has already leaves
+the component's bytes as they were; a copy's values on the copy alone, its source and the other copy as the map has
+them; a simple sound's values in place and a copy's one radius; export 28 reads them all back); test_families; the
+editor, viewer and bake effect, transplant and copy suites. Known gaps: no game check yet (EXP-E), no page controls.
+
 ### Effects and sounds from other maps placeable: EXP-69 passed
 
 - [EXP-69](research/experiments/EXP-69-effects-and-sounds-from-other-maps.md) run 1 passed in the game (the effects

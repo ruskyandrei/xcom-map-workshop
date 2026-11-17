@@ -678,7 +678,7 @@ class Build:
         # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
         # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept
         self.effects_edit = any((self.native.get(k) or {}).get(op) for k in ('effects', 'sounds')
-                                for op in ('moves', 'deletes', 'copies'))
+                                for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
         self.has_lights = has_light_edits(self.native)
