@@ -6,6 +6,28 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 17 November 2026
+
+### Custom walls, proof of concept F0 and F1: the fracturing walls audited, meshes written from numbers
+
+The custom geometry plan's section 0 (a fracturing wall made from numbers, as a proof of concept), at the user's
+ask, on the branch `fracturing-wall-poc`: its two first stages, offline.
+- [tools/bake/gen_mesh.py](tools/bake/gen_mesh.py) (new): a StaticMesh's or FracturedStaticMesh's native data read
+  as numbers (bounds, body setup, collision tree, LODs with their sections and fragment ranges, the position, vertex
+  and colour streams and index buffers, the tail, the fracturing tail with its fragments) and written back, every
+  value kept. For new triangles it makes the collision tree (the node count the game's rule gives, every node keeping
+  its parent's box), a fracturing triangle's fourth value (slot times fragments plus fragment) and the bounds.
+- [research/evidence/frac-wall-audit.py](research/evidence/frac-wall-audit.py) (new) and
+  [its numbers](research/evidence/frac-wall-audit-2026-11-17.json): stage F0 over the install's 151 maps, read only:
+  every static and fracturing mesh written back, the collision trees' rules, the placed walls' slots, trims and
+  materials, their fragment columns against the box rule and the true-shape rule, `MinZ`, and the component's saved
+  numbers. [T-42](research/findings-register.md) has what it found.
+- Checked: [test_gen_mesh.py](tools/bake/tests/test_gen_mesh.py) (9 tests: every mesh of URB_Bar and
+  URB_PoliceStation written back byte for byte, the node-count and fourth-value rules, a new tree); the audit over
+  the whole install (25,209 static and 1,679 fracturing meshes written back byte for byte).
+- Known gap: the tree made for new triangles doesn't narrow its nodes (the game's byte rule is read, not its
+  rounding), so a check through it tests every triangle.
+
 ## 16 November 2026
 
 ### Custom walls: a fracturing wall first, as a proof of concept (plan changed)
