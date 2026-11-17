@@ -2679,8 +2679,25 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
     - Read back: `getall XGUnit m_bInCover`, `m_iCurrentCoverValue` (50 for the one soldier in cover) and
       `CurrentCoverPointFlags`; `getall XGUnit m_arrVisibleEnemies` printed nothing for anyone (an array `getall`
       doesn't print, or nobody in sight: not told apart).
-  - Not tried: a save, a move upstairs or onto a roof (the cursor's floor), a target hidden under a roof, more than
-    one game at once, the LWR install.
+  - **A ladder, a roof and the inside of the bar** (17 November, later; a third session):
+    - The storey the cursor picks on is the mouse wheel's count, `XCom3DCursor.m_iRequestedFloor`:
+      `Mouse_Scroll_Up` and `Mouse_Scroll_Down` as console commands change it by one and it stays (the F and C keys
+      did nothing). On 0 the pick over a building goes through its cut-away roof to the ground floor inside (URB_Bar
+      at 431,1199: height 81); on 1 the same tile read 221, on 3 the bar's roof (335,1103: 466).
+    - Up the ladder: Alpha, teleported beside the ladder at 432,1296 (`TeleportToCursor` with the cursor aimed, then
+      Tab round to him again), was ordered to the roof tile 335,1103 on storey 3: "Alpha moved 5 tiles", and he
+      stood at height 472 on the roof above the ladder (the shot shows him there). The game took the ladder by
+      itself. Orders to 431,1199 on storey 1 and to tiles the pick could not reach gave no move: the first has no
+      path (the readout's `PathActionEmpty: True`), though the cursor stood on it.
+    - Inside the bar: Delta, teleported to -241,1103 on storey 0, walked to -433,1007 ("Delta moved 2 tiles") and
+      the shot shows him on the bar's floor between the counters, the roof cut away. A tile with a counter on it
+      (47,1199: height 148) took no order. Bravo's order to -145,1295 ended on the pavement outside the fence, in
+      cover (value 50): that tile is outside, the bar's floor starts north of it.
+    - After a move the game goes on to the next soldier, and one who has no move left is not in Tab's round any
+      more. A look-at (`ViewLocation`, then `RemoveLookAt`) still serves to take a picture of a place.
+    - Aiming at a roof from 26 tiles away failed (the aim's correction ran off: "59 tiles away"); from three tiles
+      it held. `hidden_game.py`'s `--floor` set the storey to 3 and back to 0 in a fourth, short session.
+  - Not tried: a save, stairs inside a building, a climb down, more than one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
   `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get

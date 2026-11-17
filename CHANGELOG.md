@@ -48,6 +48,19 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Unattended game tests: the storey option and the game-test skill
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `goto` and `aim` take `--floor <n>`, the storey the game's
+  cursor picks on (the mouse wheel's count, set by the game's scroll functions and read back): 0 for the ground and
+  the inside of a building, higher for upper storeys and roofs. The aim corrects itself up to six times.
+- [.claude/skills/game-test/SKILL.md](.claude/skills/game-test/SKILL.md), new: how to run a game test nobody watches
+  with these tools, as an Opus 5.5 agent at high effort that keeps the game open, reports while it runs and takes
+  further tests from the one who asked.
+- Checked: the `lab` suite; a third session on URB_Bar (a soldier up the ladder onto the bar's roof, another walking
+  inside the bar with the roof cut away, shots of both) and a short fourth one for `--floor` (3, then 0). Findings in
+  [T-43](research/findings-register.md). Gaps: an aim at a roof from far away fails (start within ten tiles); stairs,
+  a climb down and saves not tried.
+
 ### hidden_game.py plays turns: sessions, goto, aim
 
 - [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--serve <idle seconds>` keeps the hidden game running and

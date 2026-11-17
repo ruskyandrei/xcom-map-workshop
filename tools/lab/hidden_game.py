@@ -33,7 +33,11 @@ the game there and does the steps (its header lists them: wait, waitlog, console
                                                      TeleportToCursor), the camera put back
   Both turn the camera straight down on the active soldier with a field of view and a yaw that put the picture's
   top left corner, where the game's mouse stands, over the tile; goto then runs the game's own right-click
-  functions. A shot goes by its ability key and Enter (`key 1`, `key RETURN`), the next soldier by `key TAB`, the
+  functions. --floor <n> first sets the storey the cursor picks on (the mouse wheel's count): 0 is the ground and
+  the inside of a building with its roof cut away, a roof or an upper storey needs a higher one (URB_Bar's roof: 3),
+  and a move there takes the ladder or stairs by itself. A tile nobody can stand on (a table, a counter) gives no
+  path and goto says he did not move; after a move the game goes on to the next soldier, and one without moves left
+  is no longer in Tab's round. A shot goes by its ability key and Enter (`key 1`, `key RETURN`), the next soldier by `key TAB`, the
   turn's end by `console EndTurn`. A grenade's aim follows the same corner while its view is open: set the camera by
   hand then (aim_camera gives the field of view and yaw). What a soldier sees and his cover come back from `getall`
   (XGUnit m_bInCover, m_iCurrentCoverValue, Location).
@@ -300,7 +304,7 @@ def aim(out, log, target, echo=print):
     corner moves the tile it picks."""
     name, unit = active_unit(out, log)
     point = target
-    for _ in range(3):
+    for _ in range(6):
         fov, yaw = aim_camera(unit, point)
         ask(out, log, [f'console SetOverheadCameraParameters {fov:.2f} {AIM_DISTANCE} {AIM_PITCH} | SetCameraYaw {yaw:.2f}'])
         cursor = None
@@ -338,6 +342,22 @@ def goto(out, log, target, wait=40, echo=print):
     return 0 if arrived else 3
 
 
+def set_floor(out, log, floor, echo=print):
+    """Sets the storey the game's cursor picks on: 0 the ground (and the inside of a building, its roof cut away),
+    higher ones the storeys and roofs above. It is the mouse wheel's count (m_iRequestedFloor), one notch a frame,
+    and it stays until it is set again."""
+    for _ in range(8):
+        lines = ask(out, log, ['console getall XCom3DCursor m_iRequestedFloor'])
+        found = next((re.search(r'm_iRequestedFloor = (-?\d+)', line) for line in lines if 'm_iRequestedFloor' in line), None)
+        if not found: raise RunError('The cursor\'s floor did not come back')
+        now = int(found[1])
+        if now == floor:
+            echo(f'cursor floor {now}')
+            return
+        ask(out, log, ['console ' + ('Mouse_Scroll_Up' if now < floor else 'Mouse_Scroll_Down'), 'wait 1'])
+    raise RunError(f'The cursor\'s floor stays at {now}, not {floor} (the map has no such storey here?)')
+
+
 def session_command(argv):
     """send, aim and goto: the commands that talk to a serving run."""
     verb = argv[0]
@@ -353,12 +373,15 @@ def session_command(argv):
         ap.add_argument('x', type=float, help='the tile\'s place in world units (a tile is 96 wide)')
         ap.add_argument('y', type=float)
         if verb == 'aim': ap.add_argument('steps', nargs='*', help='steps to do while the cursor is there')
+        ap.add_argument('--floor', type=int, help='the storey to pick on first: 0 the ground and the inside of a '
+                        'building, higher ones the storeys and roofs above (it stays set)')
     ap.add_argument('--game', type=Path, help='the lab copy (default: the folder Steam runs)')
     ap.add_argument('--wait', type=int, default=300 if verb == 'send' else 40, help='seconds to wait')
     args = ap.parse_args(argv[1:])
     try:
         log = Path(args.game or labpaths.active_game()) / 'XEW' / 'XComGame' / 'Logs' / 'Launch.log'
         if verb == 'send': return send(args.out, args.steps, log, args.wait)
+        if args.floor is not None: set_floor(args.out, log, args.floor)
         if verb == 'goto': return goto(args.out, log, (args.x, args.y), args.wait)
         aim(args.out, log, (args.x, args.y))
         code = send(args.out, args.steps, log, 300) if args.steps else 0
