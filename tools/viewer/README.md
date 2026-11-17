@@ -931,6 +931,10 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     replacing variant's record for such a mission keeps the base map's display name, and the base map's is commented
     out. Beside the original, a variant is never picked there, but for bombs under Long War, whose mutator makes an
     extra bomb mission of each extra bomb record. None of this has been played in the game yet.
+  - **A new campaign's first mission** asks for its map by name too, though its record is in rotation: under LWR the
+    record `URB_CommercialAlley_EWI (Commercial Alley Redux) |0` (`installs.FIRST_MISSION`; EXP-03). A replacing
+    variant's record for it keeps that display name and stays in rotation, so the variant plays the first mission;
+    with a name of its own the first mission found no map (F-117). Beside the original, the original keeps it.
   - **Install in the game** does that in the install Play in game uses (`installs.install_rotation`): files copied,
     landing zones added, the records added after the base map's (after Play in game's own record, which stays first
     and separate). The Game maps window undoes it. The map list, the exporter and Build still read the install

@@ -91,6 +91,10 @@ PACKAGE_SCHEMA = 'xcom-map-workshop/variant-package'
 # Only an install from before Play in game changed it (restore_intro).
 INTRO_SLOTS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
 INTRO_SLOT = INTRO_SLOTS[0]
+# A record in rotation that the game also asks for by its DisplayName: a new campaign's first mission
+# (XGGeoscape.TakeFirstMission -> DetermineMap, EXP-03). A variant that replaces its map keeps this name on the record
+# that stands for it, or the first mission finds no map (F-117).
+FIRST_MISSION = frozenset(INTRO_SLOTS)
 LZ = 'DefaultLZMutator.ini'     # Long War's landing zones: absent from plain EW
 PACKAGE_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]*')     # a package's name (the lab's ledgers name packages: lab_deploys)
 PLAY_FILE = 'XComMapWorkshop-play.txt'      # in XEW\Binaries, where the game's exec command looks
@@ -1072,17 +1076,24 @@ def _in_rotation(line):
     return (dep.unquoted(line, 'bInRotation') or '').lower() == 'true'
 
 
+def _first_mission(line):
+    """Whether a record of the install is the one a new campaign's first mission asks for by name (FIRST_MISSION)."""
+    import deploy_fixture as dep
+    return (dep.field(line, 'DisplayName') or '') in FIRST_MISSION
+
+
 def rotation_plan(lines, m, note='', mode='additional'):
     """A package's records for campaigns, from the install's own lines (pristine_lines) and the package's manifest:
     one record per record of the base map (its missions), each under the variant's name, in or out of rotation as the
     base map's record is, streaming the package's patch (if any) in a free slot and its own copies of the intros in
     place of the originals. dict(block=[a comment line, the records], missions=[{type, label, group, inRotation,
-    byName, bomb}] one per record). Two records the renaming makes the same give one.
+    byName, bomb, firstMission (when true)}] one per record). Two records the renaming makes the same give one.
 
     Display names: the game asks for a council mission's map (and the story's) by its record's DisplayName, not through
-    the rotation; those records are out of rotation in the install (byName). To replace the map, the variant's record
-    for such a mission keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every
-    other record gets a name of its own: <variant> (<project>[, <mission>])."""
+    the rotation; those records are out of rotation in the install (byName). So does a new campaign's first mission,
+    whose record is in rotation (FIRST_MISSION, F-117). To replace the map, the variant's record for such a mission
+    keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every other record gets a
+    name of its own: <variant> (<project>[, <mission>])."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
@@ -1098,7 +1109,8 @@ def rotation_plan(lines, m, note='', mode='additional'):
         group, kind, label = maplist.mission_of(line.decode('latin-1'))
         seen[label] = seen.get(label, 0) + 1
         mission = label if seen[label] == 1 else f'{label} {seen[label]}'      # a map with two records of one mission
-        by_name = not _in_rotation(line)
+        in_rotation, first = _in_rotation(line), _first_mission(line)
+        by_name = not in_rotation or first
         new = dep.set_field(line, 'Name', variant)
         if not (by_name and mode == 'replace'):
             display = dep.field(line, 'DisplayName') or ''
@@ -1111,8 +1123,8 @@ def rotation_plan(lines, m, note='', mode='additional'):
             new = new.replace(f'MapName="{was}"'.encode(), f'MapName="{now}"'.encode())
         if new in records: continue
         records.append(new)
-        missions.append(dict(type=kind, label=mission, group=group, inRotation=not by_name, byName=by_name,
-                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb'))
+        missions.append(dict(type=kind, label=mission, group=group, inRotation=in_rotation, byName=by_name,
+                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {})))
     how = 'in place of' if mode == 'replace' else 'beside'
     comment = f'; {variant}: {base}\'s records under its own name, {how} {base}\'s ({note})'.encode()
     return dict(block=[comment] + records, missions=missions)
@@ -1122,7 +1134,8 @@ def _rotation_from_build(found, m, note, mode):
     """rotation_plan for a package whose manifest names the base map record (or added kind) each of its records stands
     for (config.recordMissions): the Build's own records (the project's missions only, mission types plan D4), each in
     or out of rotation as the base map's record is (an added kind as ADDED_KINDS says: a bomb out, the rest in), and
-    in replace mode a record the game asks for by name with the base map's display name."""
+    in replace mode a record the game asks for by name (out of rotation, or the first mission's) with the base map's
+    display name."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
@@ -1136,7 +1149,8 @@ def _rotation_from_build(found, m, note, mode):
             in_rotation = _in_rotation(base_line)
         else:
             in_rotation = (missions_module.ADDED_KINDS.get(first) or {}).get('rotation', True)
-        by_name = not in_rotation
+        first = base_line is not None and _first_mission(base_line)
+        by_name = not in_rotation or first
         if dep.unquoted(new, 'bInRotation') is not None:
             new = dep.set_field(new, 'bInRotation', 'True' if in_rotation else 'False', quoted=False)
         if by_name and mode == 'replace' and base_line is not None:
@@ -1146,7 +1160,7 @@ def _rotation_from_build(found, m, note, mode):
         group, kind, label = maplist.mission_of(new.decode('latin-1'))
         out.append(dict(type=kind, label=label, group=group, inRotation=in_rotation, byName=by_name,
                         bomb=dep.unquoted(new, 'CouncilType') == 'eFCMType_Bomb',
-                        **({} if base_line is not None else {'added': True})))
+                        **({} if base_line is not None else {'added': True}), **({'firstMission': True} if first else {})))
     how = 'in place of' if mode == 'replace' else 'beside'
     what = 'the records of the missions the project is for' if m['config'].get('missionsFromProject') else f'{base}\'s records'
     comment = f'; {variant}: {what} under its own name, {how} {base}\'s ({note})'.encode()
@@ -1157,10 +1171,16 @@ def mission_warnings(missions, base, mode, lwr=True):
     """What happens to the missions when a variant with these records (rotation_plan's missions) is installed for
     campaigns, in sentences. The missions whose records are out of rotation (council missions, the story's) get their
     map by its record's name: a variant can replace that map but not stand beside it, except that Long War's mutator
-    makes an extra bomb mission of each extra bomb record. Nothing here says a mission is untried (the user, 16
-    November 2026)."""
+    makes an extra bomb mission of each extra bomb record. A replacing variant's first-mission record (in rotation, but
+    asked for by name too: F-117) takes the original's name, so the variant plays a new campaign's first mission.
+    Nothing here says a mission is untried (the user, 16 November 2026)."""
     named = [x for x in missions if not x['inRotation']]
     out = []
+    if mode == 'replace':
+        for x in missions:
+            if x.get('firstMission'):
+                out.append(f'{x["label"]}: a new campaign\'s first mission asks for {base}\'s record by name, so the variant '
+                           'takes that record\'s name and plays the first mission.')
     if named and mode == 'replace':
         out.append(f'{", ".join(x["label"] for x in named)}: the game asks for {"these missions\' map" if len(named) > 1 else "this mission\'s map"} '
                    f'by name, so the variant takes {base}\'s record name there.')

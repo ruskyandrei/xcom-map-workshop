@@ -74,15 +74,18 @@ def _lines(game):
 
 
 def _missions(lines, base):
-    """The missions the base map serves in the install: [{type, label, group, inRotation}], or None when not known."""
+    """The missions the base map serves in the install: [{type, label, group, inRotation, byName, bomb, firstMission
+    (when true)}], or None when not known."""
     if lines is None or not base: return None
     import deploy_fixture as dep
     import maplist
     out = []
     for _, line in installs.base_records(lines, base):
         group, kind, label = maplist.mission_of(line.decode('latin-1'))
+        first = installs._first_mission(line)
         out.append(dict(type=kind, label=label, group=group, inRotation=installs._in_rotation(line),
-                        byName=not installs._in_rotation(line), bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb'))
+                        byName=not installs._in_rotation(line) or first, bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb',
+                        **({'firstMission': True} if first else {})))
     return out
 
 

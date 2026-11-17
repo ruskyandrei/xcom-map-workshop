@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### A variant replacing Commercial Alley Redux keeps the first mission's record name (F-117)
+
+A user's map pack, installed with its scripts, left a new campaign unable to start its first mission. The first
+mission asks for its map by the DisplayName `URB_CommercialAlley_EWI (Commercial Alley Redux) |0`, whose record is
+in rotation. A replacing variant of that map gave its record a name of its own while the original's was commented
+out.
+- [installs.py](tools/viewer/installs.py): `FIRST_MISSION` names the record; in replace mode the variant's record
+  standing for it keeps that DisplayName and stays in rotation (`rotation_plan`, `_rotation_from_build`), is marked
+  `byName` and `firstMission`, and `mission_warnings` says under Replace that the variant plays the first mission.
+  Map packs (their `pack.json` and README) and the editor's Install in the game both take their records from here.
+- [manager.py](tools/viewer/manager.py): the listing's missions mark the first mission's record the same way.
+- The [README](tools/viewer/README.md) and the [guide](tools/release/guide/guide.html) say it;
+  [F-117](research/findings-register.md) has the cause.
+- Checked: two new tests in [test_manager.py](tools/viewer/tests/test_manager.py) (the editor's install in both
+  ways, from a build with and without its own records, and a pack's scripts against the editor, out byte for byte)
+  fail on the code before the fix with the pack's wrong name; the `viewer` suite passes. Not played in the game.
+- Known gap: a replacing variant whose project leaves the abduction out still leaves the first mission without a
+  map.
+
 ### Project manager: the list on the left, the selection on the right; editor projects in map packs
 
 At the user's ask (a review of the dialog, then layout B of three mockups), the project manager is laid out again

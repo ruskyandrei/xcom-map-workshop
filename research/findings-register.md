@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-117: a variant replacing Commercial Alley Redux now keeps the first mission's record name (fixed offline, 17
+  November); not played in a new campaign. Open: a replacing variant whose project leaves the abduction out still
+  leaves the first mission without a map.
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November).
@@ -2523,6 +2526,28 @@ word; not looked at in the game).
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
 ## Toolchain
+
+### F-117: A variant replacing Commercial Alley Redux left a new campaign's first mission with no map
+**Fixed** (17 November 2026, offline: `test_manager` `test_a_variant_replacing_the_first_missions_map_takes_its_record_name`
+and `test_a_packs_scripts_give_the_first_missions_name_to_the_variant_that_replaces_its_map`; not played).
+- **Seen.** A user installed a map pack with its `Install.cmd`: 15 maps made with 0.5.2, each replacing its
+  original, one of them a variant of `URB_CommercialAlley_EWI`. A new campaign's first mission didn't start.
+- **Cause.** The first mission asks for its map by the record's DisplayName,
+  `URB_CommercialAlley_EWI (Commercial Alley Redux) |0` (`XGGeoscape.TakeFirstMission` calls `DetermineMap`, EXP-03),
+  although that record is in rotation. A replacing variant kept the base map's DisplayName only on records out of
+  rotation (council and story missions), so its abduction record took a name of its own, and replacing commented the
+  original's record out. No live record had the name, and the travel falls back to `Command1` (EXP-03, route 2). The
+  pack's scripts and the editor's Install in the game (Replace) both did it: both take the records from
+  `installs.rotation_plan`.
+- **Fix.** `installs.FIRST_MISSION` names that record (LWR's name, and plain EW's guessed one without ` |0`). In replace
+  mode the variant's record that stands for it keeps that DisplayName and stays in rotation (`rotation_plan`,
+  `_rotation_from_build`); the record counts as asked for by name (`byName`, `firstMission`), and the Replace
+  warnings say the variant plays the first mission. Beside the original (Additional) nothing changes: the original
+  keeps the first mission. The user's pack was mended by hand, with that record's DisplayName changed in its
+  `pack.json`; a pack made before the fix needs the same.
+- **Not done.** A replacing variant whose build has records for the project's missions only, without the abduction
+  (mission types plan, D4), has no record for the first mission while the original's is commented out, so the first
+  mission would again find no map. The same goes for a council mission the project leaves out.
 
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code

@@ -418,6 +418,78 @@ class Manager(unittest.TestCase):
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
         self.assertEqual(self.files(self.copy), before)
 
+    def first_mission_bar(self, game):
+        """Bar made what LWR's URB_CommercialAlley_EWI is: its abduction record, in rotation, is the one a new campaign's
+        first mission asks for by name (installs.FIRST_MISSION), and no other record has that name."""
+        path = game / 'XEW/XComGame/Config/DefaultMaps.ini'
+        lines = [l for l in dep.lines_of(path.read_bytes()) if l != self.default]
+        first = dep.set_field(record('bar'), 'DisplayName', installs.INTRO_SLOT)
+        lines[lines.index(record('bar'))] = first
+        path.write_bytes(dep.EOL.join(lines))
+        return first
+
+    def named(self, game, display):
+        """The Names of the live records with this DisplayName."""
+        maps = dep.lines_of(self.files(game)['DefaultMaps.ini'])
+        return [dep.field(l, 'Name') for l in maps if dep.is_record(l) and dep.field(l, 'DisplayName') == display]
+
+    def test_a_variant_replacing_the_first_missions_map_takes_its_record_name(self):
+        # F-117: the first mission asks for its map's record by DisplayName although the record is in rotation; a
+        # variant that replaces the map took a name of its own, its original's record was commented out, and a new
+        # campaign's first mission found no map
+        first = self.first_mission_bar(self.lwr)
+        before = self.files(self.lwr)
+        player = self.player()
+        row = self.row(manager.listing(self.store, self.builds, player))
+        self.assertEqual([(m['label'], m['inRotation'], m['byName'], m.get('firstMission')) for m in row['missions']],
+                         [('Abduction', True, True, True)])
+        self.assertTrue(any('first mission' in w for w in row['modeWarnings']['replace']))
+        self.assertEqual(row['modeWarnings']['additional'], [])
+        self.package()
+        done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))['results'][0]
+        self.assertTrue(done['ok'], done)
+        self.assertTrue(any('first mission' in w for w in done['warnings']), done['warnings'])
+        mine, = self.records(self.lwr, VARIANT)
+        self.assertEqual((dep.field(mine, 'DisplayName'), dep.unquoted(mine, 'bInRotation')), (installs.INTRO_SLOT, 'True'))
+        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), [VARIANT])
+        self.assertIn(b';' + first, dep.lines_of(self.files(self.lwr)['DefaultMaps.ini']))
+        # beside the original, the variant has a name of its own and the original keeps the first mission
+        manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
+        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), ['URB_Bar'])
+        self.assertNotEqual(dep.field(self.records(self.lwr, VARIANT)[0], 'DisplayName'), installs.INTRO_SLOT)
+        installs.reset(self.lwr)
+        self.assertEqual(self.files(self.lwr), before)
+        # a build with its own records (mission types plan, D4) does the same
+        line = dep.set_field(dep.set_field(first, 'Name', VARIANT), 'DisplayName', f'{VARIANT} (Bar remix, Abduction) |0')
+        self.package(maps=[line.decode('latin-1')], record_missions=[[0]])
+        manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
+        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), [VARIANT])
+        installs.reset(self.lwr)
+        self.assertEqual(self.files(self.lwr), before)
+
+    @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_packs_scripts_give_the_first_missions_name_to_the_variant_that_replaces_its_map(self):
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        self.first_mission_bar(self.lwr)
+        self.first_mission_bar(self.copy)
+        before = self.files(self.copy)
+        player = self.player()
+        self.package()
+        request = dict(projects=[ID], mode='replace', modes={})
+        r = manager.pack(self.store, self.builds, player, dict(request, name='First mission'))
+        folder = Path(self.temp.name) / 'unzipped first mission'
+        with zipfile.ZipFile(r['zip']) as z: z.extractall(folder)
+        packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
+        self.assertEqual([dep.field(l.encode('latin-1'), 'DisplayName') for l in packed['records'][1:]], [installs.INTRO_SLOT])
+        self.assertTrue(any('first mission' in w for w in packed['warnings']), packed['warnings'])
+        self.run_script(folder, 'Install.cmd', self.copy)
+        self.assertEqual(self.named(self.copy, installs.INTRO_SLOT), [VARIANT])
+        manager.install(self.store, self.builds, player, request)
+        self.assertEqual(self.files(self.copy), self.files(self.lwr))
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual(self.files(self.copy), before)
+
     def test_install_pack_and_play_lease_their_packages_and_hold_their_guards(self):
         """Build queue plan, 9.4: a reader leases the packages it reads (the queue can't start those projects meanwhile)
         and holds each one's guard while it reads and copies it (no build swaps it); a project being built, or about
