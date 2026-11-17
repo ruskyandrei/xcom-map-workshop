@@ -5,8 +5,8 @@
 import assert from 'node:assert/strict';
 import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride } from '../web/project.js';
 
-assert.equal(SCHEMA_VERSION, 2);
-assert.deepEqual(READ_VERSIONS, [1, 2]);
+assert.equal(SCHEMA_VERSION, 3);      // 3: effects' and sounds' records (project_effects_test.mjs)
+assert.deepEqual(READ_VERSIONS, [1, 2, 3]);
 const target = { package: 'URB_Bar', level: 'base', actor: 'TheWorld.PersistentLevel.XComLevelActor_9' };
 const pose = { location: [1, 2, 3], rotation: [0, 16384, 0] };
 

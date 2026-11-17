@@ -27,8 +27,10 @@ import shutil
 import threading
 
 SCHEMA = 'xcom-map-workshop/project'
-SCHEMA_VERSION = 2      # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan). 1 is read too
-READ_VERSIONS = (1, 2)
+# 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
+# the effects and sounds plan, Part C). 1 and 2 are read too, and saved as 3.
+SCHEMA_VERSION = 3
+READ_VERSIONS = (1, 2, 3)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')

@@ -137,13 +137,14 @@ export function recordLines(r, data) {
 }
 
 /** Whether a cleared map keeps a record (tools/bake/native_copy.py clear_level): every sound stays; an effect or a
- *  flare goes unless it is the landing's, its carrying piece survives the clear moved (the Build keeps a moved
- *  piece's effects), or the clear keeps the scenery outside the play area and it stands outside it.
+ *  flare goes unless it is the landing's, the project moved it itself or its carrying piece survives the clear moved
+ *  (the Build keeps both), or the clear keeps the scenery outside the play area and it stands outside it. (A copy is
+ *  made after the clear: it always stays.)
  *  ctx: { cleared, outside(x, y): whether the clear keeps that point as outside scenery, carrierMoved: whether the
- *  piece that carries it is kept and moved }. */
+ *  piece that carries it is kept and moved, moved: whether the project moves it itself }. */
 export function survivesClear(r, ctx) {
   if (!ctx?.cleared || r.kind === 'sound' || r.stream) return true;
-  if (r.landingActor) return true;
+  if (r.landingActor || ctx.moved) return true;
   if (r.carriedBy && ctx.carrierMoved) return true;
   return Boolean(ctx.outside?.(r.location[0], r.location[1]));
 }

@@ -8,6 +8,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects and sounds, stage FX3: effects and sounds moved, copied and deleted
+
+The third stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's own effects (Emitter actors)
+and ambient sounds are edited as pieces are, and the Build makes the edits. The `effect` and `sound` families stay
+off until the plan's game check (EXP-C): a server started with `serve --family effect --family sound` builds them.
+- Projects are **schema 3** ([projects.py](tools/viewer/projects.py), [project.js](tools/viewer/web/project.js),
+  [compiler.py](tools/editor/compiler.py)): an effect's or a sound's override (a pose, a delete, or `effect.follow`
+  alone) and its copy as an added record with `kind` and `from`; schema 1 and 2 still read, a save of either refused
+  as a stale page's; prefab files stay schema 2.
+- The page ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [effects_rules.js](tools/viewer/web/effects_rules.js)): in the Effects view a picked effect or sound moves and turns
+  with the gizmo, copies, deletes, resets and groups with pieces; the panel says what an edit does with it, and an
+  effect a piece carries has **Keep where it is** / **Follow**; markers of carried copies and of the landing's follow
+  as the Build will have them; the Normal button's flyout has **Effects and sounds**, drawing and selecting them with
+  the pieces; a lens flare, a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why;
+  the copy hint names what is copied by kind; Align, the flags panel, the tile footprint and a prefab's bounds leave
+  effects out.
+- The compiler's `effect_override` and `effect_add`: checked against the export's `can` and `why`, the family table
+  and the carrying (an effect's own pose, delete or follow none takes it out of its piece's carrying), notes for the
+  floors' cutaways an edit joins or leaves, a warning for an effect the mission's script names; the spec's `effects`
+  and `sounds` objects, which `native_split` hands to the Build. [build.py](tools/editor/build.py) builds an
+  effects-only project without relighting; [families.py](tools/viewer/families.py) and
+  [builds.py](tools/viewer/builds.py) take `serve --family` ([viewer.py](tools/viewer/viewer.py)) to every Build.
+- The Build's writer: [native_effects.py](tools/bake/native_effects.py) and [native_sounds.py](tools/bake/native_sounds.py),
+  new, called by [native_copy.py](tools/bake/native_copy.py) after the carried pairs: a move in place, a delete out of
+  the level's actor list (its export stays), a copy cloned with everything under it (a sound with its own cue and
+  node); then each building's floors list the effects anew (`m_aCachedEmitters`: untouched ones keep their listings,
+  a moved one or a copy joins the upper floors whose boxes hold it, a deleted one leaves), read back after writing;
+  the manifest has each lane's rows and `floorEmitters`.
+- Docs: contract sections 4 and 8 ([editor-contracts.md](research/editor-contracts.md)),
+  [tools/viewer/README.md](tools/viewer/README.md), the compiler's docstrings and the page's help.
+
+Checked: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py), new (moves, deletes, copies,
+follow, carrying precedence, refusals, the families' gate, notes and warnings); [test_native_effects.py](tools/bake/tests/test_native_effects.py)'s
+lanes on Bar (moves in place, deletes, copies with their own cues, the sources byte for byte, floor 1's listings
+with Emitter_14 out and Emitter_1 in, a copy joining floor 2, other buildings unchanged, refusals);
+[project_effects_test.mjs](tools/viewer/tests/project_effects_test.mjs), new, and the schema tests; in the browser on
+a test server with the families on, a project with a moved and a deleted effect, a moved sound and a copy saved and
+reopened; the claw machine moved with its effect, Keep where it is and undo; a piece and an effect grouped and moved
+as one; Clear map keeping what the Build keeps; [browser_smoke.py](tools/viewer/tests/browser_smoke.py)'s new
+editing check, both view only (default server) and with the families on. Known gaps: the families are off until
+EXP-C is played; no value of an effect or sound is edited yet (stage FX5); prefabs take no effects (FX6); the user
+guide has no part on the Effects view.
+
 ### Effects and sounds, stage FX2: the Wave preview
 
 The second stage of the effects and sounds plan, on branch `effects-and-sounds`: a picked sound's waves can be heard

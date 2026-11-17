@@ -2047,7 +2047,7 @@ def by_assembly(copies):
 def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
           edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
           building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=(), piece_flags=(), flag_ladders=()):
+          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None):
     """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
     <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
@@ -2092,6 +2092,13 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
 
     `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
     that follow their piece's move, copy or delete (native_effects.py).
+
+    `effects` and `sounds` (the compiler's lanes: {moves, deletes, copies}; the effects and sounds plan, stage FX3) are
+    the effects and ambient sounds the project moves in place, takes out of the level's list or copies
+    (native_effects.apply, native_sounds.apply); after every other writer, native_effects.floor_lists lists the moved
+    and new effects (the lanes' and the carried ones) in the building floors whose boxes hold them and takes the moved
+    and deleted ones out of the lists that named them. A directly moved effect stays on a cleared map. The manifest's
+    `effects`, `sounds` and `floorEmitters` sections say what was done, read back (native_effects.verify).
 
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
     theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
@@ -2248,9 +2255,17 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     effect_clones, effect_gone, effect_record = native_effects.carry(
         g, p, [(original, m.get('label'), before, after) for m, (original, _, before, after, _) in zip(made, poses)
                if m.get('staged') is not True], {h['export'] for h in hidden}, carried_effects)
+    # the effects and sounds the project edits itself (the effects and sounds plan, Part D): moved in place, deleted
+    # from the level's list, copied with what they own
+    import native_sounds
+    lane_clones, lane_gone, lane_effects = native_effects.apply(g, p, effects)
+    sound_clones, sound_gone, lane_sounds = native_sounds.apply(g, p, sounds)
+    effect_gone = set(effect_gone) | lane_gone | sound_gone
+    effect_clones = list(effect_clones) + lane_clones + sound_clones
     if effect_gone:
         empty_slots(g, p, effect_gone)
-    effect_moved = {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
+    effect_moved = ({p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
+                    | {r['export'] for r in lane_effects if r['how'] == 'moved'})
     # a moved or deleted van's building and floor volumes go with it
     edited = {p.by_name[PL + e['actor']] for e in building_edits if PL + e['actor'] in p.by_name}
     hidden_buildings = hide_van_buildings(g, p, {h['export'] for h in hidden}, edited) if hidden else []
@@ -2337,6 +2352,16 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         # first, highest first when two climbs share a tile. A map of the game's as it is has none.
         priority = [l['topVolume']['export'] for l in sorted(ladders, key=lambda l: -l['top'][2])]
         firsts = []
+    # the building floors' effect lists, once, against the final effects and floors (plan Part D): after the copies'
+    # cutaways, the buildings made and edited, the clear and the landings
+    moved_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'moved'}
+    moved_now.update({p.by_name[PL + r['effect']]: r['location'] for r in effect_record if r['how'] == 'moved'})
+    new_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'copied'}
+    new_now.update({r['copy']: r['location'] for r in effect_record if r['how'] == 'copied'})
+    gone_effects = ({r['export'] for r in lane_effects if r['how'] == 'deleted'}
+                    | {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'deleted'})
+    floor_emitters = native_effects.floor_lists(g, p, moved_now, new_now, gone_effects, building_edits,
+                                                building_records)
     level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones
                          + (light_result['actors'] if light_result else []), before_rebuild=priority)
     dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
@@ -2351,6 +2376,12 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         check_vertex_lightmaps(q, m['info']['mapping'])
     if state:
         native_lights.verify(q, state, light_result)
+    # the effects' and sounds' lanes and the floors' effect lists read back
+    if lane_effects or lane_sounds or floor_emitters:
+        from package import Package as Reader
+        r = Reader(dst)
+        native_effects.verify(r, lane_effects, floor_emitters)
+        native_sounds.verify(r, lane_sounds)
     # the flags read back with a fresh reader: an edit not in the map is an error, never a success
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
@@ -2387,6 +2418,15 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   hidden=hidden, assemblies=list(assemblies), ladders=ladders, columns=columns,
                   carriedEffects=[dict(r, copy=q.name(r['copy']).split('.')[-1]) if 'copy' in r else r
                                   for r in effect_record],
+                  **{key: [dict({k: v for k, v in r.items() if k not in ('export', 'mapping')},
+                                **({'copy': q.name(r['export']).split('.')[-1],
+                                    'exports': {p.name(o): q.name(n) for o, n in r['mapping'].items()}}
+                                   if r['how'] == 'copied' else {}))
+                           for r in lane]
+                     for key, lane in (('effects', lane_effects), ('sounds', lane_sounds)) if lane},
+                  **({'floorEmitters': [dict(effect=q.name(f['effect']).split('.')[-1],
+                                             building=q.name(f['building']).split('.')[-1], floor=f['floor'],
+                                             how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
                   floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
                   buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
                                   floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
@@ -2501,7 +2541,7 @@ def main():
     a.add_argument('--base', metavar='SHA', help='with --piece-cache: the SHA-256 of the map before any of the edit')
     args = a.parse_args()
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
-    cleared = landing_zones = carried_effects = None
+    cleared = landing_zones = carried_effects = effects = sounds = None
     stream_tiles, piece_flags, flag_ladders = [], [], []
     if args.copies:
         doc = json.loads(args.copies.read_text(encoding='utf-8'))
@@ -2514,6 +2554,7 @@ def main():
             cleared = doc.get('cleared')
             landing_zones = doc.get('landingZones')
             carried_effects = doc.get('carriedEffects')
+            effects, sounds = doc.get('effects'), doc.get('sounds')
             stream_tiles = doc.get('streamTiles') or []
             piece_flags = doc.get('pieceFlags') or []
             flag_ladders = doc.get('pieceFlagLadders') or []
@@ -2539,7 +2580,7 @@ def main():
         copies.append(dict(actor=args.actor, location=args.at, yaw=args.yaw))
     import native_lights
     if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
-            and not stream_tiles and not piece_flags and native_lights.is_empty(lights):
+            and not stream_tiles and not piece_flags and native_lights.is_empty(lights) and not effects and not sounds:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
@@ -2548,7 +2589,7 @@ def main():
               assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
               cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
               piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
-              flag_ladders=flag_ladders)
+              flag_ladders=flag_ladders, effects=effects, sounds=sounds)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']
@@ -2576,6 +2617,12 @@ def main():
               + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}" if h['volume']
                  else 'outside the map\'s tiles, no rebuild volume')
               + (f", unlinked from {', '.join(h['unlinkedFrom'])}" if h['unlinkedFrom'] else ''))
+    for key in ('effects', 'sounds'):
+        for r in m['nativeCopies'].get(key) or []:
+            print(f"{key[:-1]} {r['actor']} {r['how']}" + (f" from {r['source']} -> {r['copy']}" if r['how'] == 'copied' else '')
+                  + (f" at {[round(v, 1) for v in r['location']]} {r['rotation']}" if r['how'] != 'deleted' else ''))
+    for f in m['nativeCopies'].get('floorEmitters') or []:
+        print(f"effect {f['effect']} {f['how']} floor {f['floor']} of {f['building']}")
     for r in m['nativeCopies'].get('carriedEffects') or []:
         print(f"effect {r['effect']} ({r['template']}) {r['how']} with {r['piece']}"
               + (f" -> {r['copy']}" if r.get('copy') else '')

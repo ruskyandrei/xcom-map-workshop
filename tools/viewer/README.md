@@ -449,7 +449,22 @@ system's fixed box through its pose, scale and component, or says the bounds are
 where it is heard. Each marker stands where the Build will have it: an effect a piece carries follows the piece, goes
 with its delete and is copied with its copies (greyed); the landing's follow their moved zone; a cleared map keeps what
 `clear_level` keeps (every sound, the landing's, a moved carrier's, and the scenery outside when asked). The flyout
-on the rail button hides a kind; F or a double-click brings the camera to the picked one. Nothing is edited there.
+on the rail button hides a kind; F or a double-click brings the camera to the picked one.
+
+**Editing** (stage FX3; project schema 3). Where an effect's family builds, a picked effect or sound moves and turns
+with the gizmo, copies (Ctrl+C, Ctrl+V), deletes, resets and groups with pieces (Ctrl+G) as a piece does, each one
+undo step; a lens flare, a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why. An
+effect a piece carries follows it until it is moved by itself; its panel's **Keep where it is** leaves it where the
+map has it (`effect.follow: "none"` in its override) and **Follow** lets it follow again. The Normal button's flyout
+has **Effects and sounds**: their markers drawn with the pieces and selected with them, so pieces and effects move,
+copy and group as one selection. A project records an effect's or a sound's pose or delete as an override of its
+actor, a copy as an added record with `kind` and the original it copies ([project.js](web/project.js)
+`validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects` and `sounds`
+lanes, which [native_effects.py](../bake/native_effects.py) and [native_sounds.py](../bake/native_sounds.py) write:
+moves in place, deletes out of the level's list, copies as actors of their own, then the buildings' floors list the
+effects anew (contract section 8). The effect and sound families build only on a server started with
+`serve --family effect --family sound` (its Builds get the same `--family`) until their game check passes; otherwise
+the editor shows them, view only.
 
 A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
 at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not

@@ -2949,8 +2949,10 @@ def check_output_names(browser, url, errors):
 def check_effects_view(page):
     """The Effects view (export 28; effects and sounds plan, FX1): Shift+X shows a marker for each effect, sound and lens
     flare (Full scene), a click on one picks it (never a piece) and its panel says what it is, a picked sound shows its
-    reach, the flyout's boxes hide a kind, Escape lets the picked one go, and plain X still flips the gizmo's axes."""
+    reach, the flyout's boxes hide a kind, Escape lets the picked one go, and plain X still flips the gizmo's axes.
+    The selection it found is selected again at its end."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return
+    held = page.evaluate('viewer.gizmo.active')
     page.evaluate('viewer.select(null)')
     if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
     page.keyboard.press('Shift+X')
@@ -2959,14 +2961,14 @@ def check_effects_view(page):
     own = page.evaluate('(viewer.data.effects ?? []).length + (viewer.data.sounds ?? []).length + (viewer.data.flares ?? []).length')
     assert len([m for m in marks if not m['derived'] and not m['id'].startswith('stream-')]) == own, (len(marks), own)
     if not marks:
-        page.keyboard.press('Shift+X'); return
+        page.keyboard.press('Shift+X'); page.evaluate('id => viewer.select(id)', held); return
     box = page.evaluate('(() => { const r = viewer.renderer.domElement.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()')
     on_screen = [m for m in marks if m['screen'] and box[0] + 40 < m['screen'][0] < box[2] - 340 and box[1] + 40 < m['screen'][1] < box[3] - 80]
     if on_screen:
         target = on_screen[0]
         page.mouse.click(*target['screen'])
         assert page.evaluate('viewer.pickedEffect()') == target['id'], (page.evaluate('viewer.pickedEffect()'), target)
-        assert page.locator('#effectPanel').is_visible() and page.evaluate('viewer.gizmo.picks().ids.length') == 0
+        assert page.locator('#effectPanel').is_visible() and page.evaluate('viewer.gizmo.picks().ids') == [target['id']]
         assert re.match(r'(Effect|Sound|Lens flare): ', page.locator('#effectTitle').inner_text(), re.I)
         page.keyboard.press('Escape')
         assert page.evaluate('viewer.pickedEffect()') is None and page.locator('#effectPanel').is_hidden()
@@ -2989,6 +2991,120 @@ def check_effects_view(page):
     page.keyboard.press('x')
     page.keyboard.press('Shift+X')
     assert not page.evaluate('viewer.effectsOn()') and not page.evaluate('viewer.effectMarkers().length')
+    page.evaluate('id => viewer.select(id)', held)
+
+
+def check_effects_editing(page):
+    """Effects and sounds edited (effects and sounds plan, FX3), in the Effects view: with their families held back
+    (the server's default until their game check passes) a picked effect is view only and Delete says why. With them
+    built (serve --family effect --family sound): a typed move and Delete are undo steps; a copy pastes as a copy of
+    the effect, its hint naming an effect; the normal view's Effects and sounds switch draws and picks them with
+    pieces; a piece and an effect grouped move together; an effect a piece carries follows it, and Keep where it is
+    keeps it where the map has it. Everything is undone at the end, and the selection it found selected again."""
+    if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"): return
+    held = page.evaluate('viewer.gizmo.active')
+    blur = lambda: page.evaluate('document.activeElement?.blur()')
+    state = lambda id: page.evaluate('id => { viewer.effectMarkers(); return viewer.effectState(id); }', id)
+    # a drag of the gizmo along game X, as TransformControls makes one (an effect's panel has no pose fields)
+    drag = lambda dx: page.evaluate('''dx => { const c = viewer.gizmo.controls, p = c.object; c.dispatchEvent({type: 'mouseDown'});
+        p.position.x += dx; p.updateMatrixWorld(true); c.dispatchEvent({type: 'objectChange'}); c.dispatchEvent({type: 'mouseUp'}); }''', dx)
+    snap = page.evaluate('viewer.gizmo.snap')
+    page.evaluate("viewer.gizmo.setSnap('off')")
+    fx = page.evaluate("""[...viewer.effectRoots.values()].map(r => r.userData.source).find(o => o.kind === 'effect' && !o.stream
+        && !o.carriedBy && !o.landingActor && o.can?.move && o.can?.delete && o.can?.copy)?.id ?? null""")
+    if not fx: return
+    page.evaluate('viewer.select(null); viewer.setNormalEffects(false); viewer.setEffectsShown(true)')
+    page.evaluate('id => viewer.pickEffect(id)', fx)
+    assert page.evaluate('viewer.effectsOn()') and page.evaluate('viewer.pickedEffect()') == fx
+    blur()
+    if state(fx)['viewOnly']:
+        page.keyboard.press('Delete')
+        assert not state(fx)['deleted'] and 'shown, not changed' in page.locator('#dragHint').inner_text()
+        page.keyboard.press('Control+c')
+        assert "It isn't copied" in page.locator('#dragHint').inner_text()
+        page.keyboard.press('Shift+X'); page.evaluate('([s, id]) => { viewer.gizmo.setSnap(s); viewer.select(id); }', [snap, held]); return
+    edits = 'viewer.gizmo.undoDepth()'
+    depth = page.evaluate(edits)
+    # a move, undone
+    start = state(fx)['at']
+    drag(96)
+    moved = state(fx)
+    assert moved['moved'] and abs(moved['at'][0] - start[0] - 96) < 0.01, (start, moved)
+    actor = page.evaluate('id => viewer.effectRoots.get(id).userData.source.actor', fx)
+    assert page.evaluate('a => viewer.editState().overrides.some(o => o.target.actor === a && o.location)', actor)
+    blur(); page.keyboard.press('Control+z')
+    assert not state(fx)['moved'] and state(fx)['at'] == start
+    # Delete, undone
+    page.evaluate('id => viewer.pickEffect(id)', fx); blur()
+    page.keyboard.press('Delete')
+    assert state(fx)['deleted'] and not state(fx)['visible']
+    page.keyboard.press('Control+z')
+    assert not state(fx)['deleted'] and state(fx)['visible']
+    # a copy pasted: a copy of the effect, said as one
+    roots = 'viewer.effectRoots.size'
+    base = page.evaluate(roots)
+    page.evaluate('id => viewer.pickEffect(id)', fx); blur()
+    box = page.locator('#viewport > canvas').bounding_box()
+    cx, cy = box['x'] + box['width'] * 0.45, box['y'] + box['height'] * 0.55
+    page.keyboard.press('Control+c')
+    assert 'Copied 1 effect' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
+    page.mouse.move(cx, cy); page.keyboard.press('Control+v')
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(cx, cy)
+    page.wait_for_function('n => viewer.effectRoots.size > n', arg=base)
+    copy = page.evaluate('viewer.gizmo.active')
+    assert copy.startswith('effect-added:') and state(copy)['added'] and state(copy)['kind'] == 'effect', copy
+    assert page.evaluate('id => viewer.effectRoots.get(id).userData.source.added.from.actor', copy) == actor
+    blur(); page.keyboard.press('Control+z')
+    assert page.evaluate(roots) == base
+    page.keyboard.press('Shift+X')
+    assert not page.evaluate('viewer.effectsOn()')
+    # the normal view's switch: effects drawn and picked with pieces; a piece and an effect grouped move together
+    page.evaluate('viewer.setNormalEffects(true)')
+    assert page.evaluate('viewer.normalEffects()') and page.evaluate('viewer.effectMarkers().length') > 0 and not page.evaluate('viewer.effectsOn()')
+    piece = page.evaluate("""[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.hidden
+        && !r.userData.source.environment && !r.userData.source.cover && !r.userData.source.stream && r.userData.source.layer === 'base'
+        && r.userData.source.actorClass === 'XComLevelActor')?.userData.source.id ?? null""")
+    if piece:
+        page.evaluate('id => viewer.select(id)', piece)
+        page.evaluate('id => viewer.pickEffect(id, true)', fx)
+        assert not page.evaluate('viewer.effectsOn()') and sorted(page.evaluate('viewer.gizmo.picks().ids')) == sorted([piece, fx])
+        blur(); page.keyboard.press('Control+g')
+        group = page.evaluate('viewer.editState().groups')
+        assert len(group) == 1 and len(group[0]['members']) == 2, group
+        start = state(fx)['at']
+        page.evaluate('id => viewer.select(id)', piece)
+        assert sorted(page.evaluate('viewer.gizmo.selection().map(r => r.userData.source.id)')) == sorted([piece, fx])
+        drag(96)
+        assert abs(state(fx)['at'][0] - start[0] - 96) < 0.01, (start, state(fx))
+        blur(); page.keyboard.press('Control+z'); page.keyboard.press('Control+z')
+        assert state(fx)['at'] == start and not page.evaluate('viewer.editState().groups')
+    # an effect a piece carries follows it; Keep where it is keeps it where the map has it
+    carried = page.evaluate("""(() => { const own = r => [...viewer.roots.values()].find(p => p.userData.source.actor === r.userData.source.carriedBy
+        && !p.userData.source.added && !p.userData.deleted);
+      const r = [...viewer.effectRoots.values()].find(r => r.userData.source.carriedBy && !r.userData.source.landingActor
+        && !r.userData.source.stream && r.visible && own(r));
+      return r ? [r.userData.source.id, own(r).userData.source.id] : null; })()""")
+    if carried and not state(carried[0])['viewOnly']:
+        effect, carrier = carried
+        start = state(effect)['at']
+        page.evaluate('id => viewer.select(id)', carrier)
+        drag(96)
+        assert abs(state(effect)['at'][0] - start[0] - 96) < 0.5, (start, state(effect))
+        page.evaluate('id => viewer.pickEffect(id)', effect)
+        assert page.locator('#effectStay').is_visible()
+        page.locator('#effectStay').click()
+        kept = state(effect)
+        assert kept['stays'] and max(abs(a - b) for a, b in zip(kept['at'], start)) < 0.01, (start, kept)
+        held = page.evaluate('id => viewer.effectRoots.get(id).userData.source.actor', effect)
+        assert page.evaluate("a => viewer.editState().overrides.some(o => o.target.actor === a && o.effect?.follow === 'none')", held)
+        blur(); page.keyboard.press('Control+z')
+        assert not state(effect)['stays'] and abs(state(effect)['at'][0] - start[0] - 96) < 0.5
+        page.keyboard.press('Control+z')
+        assert state(effect)['at'] == start
+    page.evaluate('s => { viewer.select(null); viewer.setNormalEffects(false); viewer.gizmo.setSnap(s); }', snap)
+    assert page.evaluate(edits) == depth and not page.evaluate('viewer.effectMarkers().length')
+    page.evaluate('id => viewer.select(id)', held)
 
 
 # what a check makes go wrong on purpose (a refused request it asks for): left out of the run's errors
@@ -3994,7 +4110,7 @@ def main():
             if 'floor-placing' in only: check_floor_rules(page); check_floor_placing(page, is_bar)
             if 'floor-tiles' in only: check_floor_tiles(page, is_bar)
             if 'lights' in only: check_lights(page, is_bar)
-            if 'effects' in only: check_effects_view(page)
+            if 'effects' in only: check_effects_view(page); check_effects_editing(page)
             if 'library' in only: check_library(page, is_bar)
             if 'library-all' in only: check_library_all(browser, page.url)
             if 'prefabs' in only: check_prefabs(browser, page.url)
@@ -4154,6 +4270,7 @@ def main():
         check_floor_tiles(page, is_bar)
         if page.evaluate("viewer.data.scope === 'map'"): check_lights(page, is_bar)
         check_effects_view(page)
+        check_effects_editing(page)
         check_project_menu(page)
         check_squad(page, saves=False)      # read-only unless --only squad --squad (its save sees a refusal: a 409 logged)
         if args.projects: check_projects(browser, page.url)

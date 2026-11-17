@@ -674,6 +674,11 @@ class Build:
         # by native_copy.py (a copy's flags go with the copy); flags alone change no light
         self.piece_flags = self.native.get('pieceFlags') or []
         self.flags_edit = bool(self.piece_flags)
+        # effects and ambient sounds moved, copied or deleted (the effects and sounds plan, Part D): made in the map by
+        # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
+        # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept
+        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in ('effects', 'sounds')
+                                for op in ('moves', 'deletes', 'copies'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
         self.has_lights = has_light_edits(self.native)
@@ -693,13 +698,13 @@ class Build:
         self.stream_tiles = bool(self.native.get('streamTiles'))
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.stream_moves or self.native.get('streamHides') or self.flags_edit):
+                or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit):
             if self.left_out:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
-            raise BuildError('the project changes nothing in the map: no piece is moved, deleted or added, no '
-                             'light or flag is changed, no building is made and the map keeps its size')
+            raise BuildError('the project changes nothing in the map: no piece, effect or sound is moved, deleted or '
+                             'added, no light or flag is changed, no building is made and the map keeps its size')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
@@ -886,7 +891,7 @@ class Build:
         self.stage('leftout', pieces=dropped[:LEFT_OUT_SHOWN], count=len(dropped), reason=why)
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.flags_edit):
+                or self.flags_edit or self.effects_edit):
             raise BuildError('nothing of the project can be built: its %d piece%s could not be made (%s)'
                              % (len(gone), '' if len(gone) == 1 else 's', why))
         return True
@@ -920,16 +925,17 @@ class Build:
         if self.quick:
             return self.edit_unbaked()
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit):
+                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit):
             # landing-zone lines alone (Clear map plan, section 4): nothing in the map changes, so nothing is relit
             return self.edit_unbaked()
-        if (self.covers or self.any_buildings or self.cleared or self.flags_edit) and not (
+        if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit) and not (
                 self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
             # volumes and lists, no light. A landing moved in place is relit: its grounded Skyranger casts a shadow,
-            # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same
+            # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same. So are
+            # effects and sounds moved, copied or deleted (the effects and sounds plan)
             self.cache_name, self.unchanged = None, True
             self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.base, self.lit, self.variant, '--copies',
                            self.copies], self.work / 'logs' / 'native-copy.log')
@@ -1068,7 +1074,7 @@ class Build:
         self.cache_name = None
         self.unchanged = False
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.stream_tiles or self.flags_edit):
+                or self.moves_landings or self.stream_tiles or self.flags_edit or self.effects_edit):
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
             # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
             # other maps in it (transplant)

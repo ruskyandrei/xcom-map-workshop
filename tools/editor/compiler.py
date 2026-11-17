@@ -1,6 +1,6 @@
 """The editor's compiler for static pieces (first-editor plan, slice E3).
 
-Turns a saved project (research/editor-contracts.md, schema 1) and the viewer export of its source map into a
+Turns a saved project (research/editor-contracts.md, schema 1 to 3) and the viewer export of its source map into a
 patchtool spec (tools/patch/README.md) plus a report. The spec is a snapshot of one project revision: the same
 project and export always give the same spec, byte for byte.
 
@@ -68,6 +68,15 @@ object of the spec (each block's corner, rotation, size, heights and world box),
 Build's writer (tools/bake/cover_blocks.py: hidden level actors on box meshes, made from a recipe as LWR's own helpers
 are, on any install).
 
+Effects and sounds (the effects and sounds plan, stage FX3; project schema 3) are the `effect` and `sound` families:
+an original Emitter or ambient sound moved, turned or deleted in place (an override of its actor), a copy of one (an
+added record with `kind` and `from`), and an effect a piece carries kept where it is (`effect.follow: none`).
+effect_override and effect_add check each against the export's `can` and `why` (export 28) and write the spec's
+`effects` and `sounds` objects (moves, deletes, copies), which native_split hands to the Build's writer
+(tools/bake/native_effects.py, native_sounds.py). An effect's own pose, delete or follow none takes it out of its
+piece's carrying (`carriedEffects`). The families stay off until their game check (`enable` builds them for one);
+lens flares and a stream's are view only.
+
 Rotators are rounded to whole rotation units half away from zero, as the viewer's resolver rounds (game_round); the
 report gives each pose's rounding. Each copy's world box (its mesh bounds, turned by the full rotation and scaled) is
 in the spec for seed planning; each target's box before the edit is in the report.
@@ -90,8 +99,10 @@ import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
 SCHEMA = 'xcom-map-workshop/project'
-SCHEMA_VERSION = 2      # 2: pieces' flags (piece flags plan); a project of schema 1 builds as it did
-READ_VERSIONS = (1, 2)
+# 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
+# sounds plan, Part C). A project of schema 1 or 2 builds as it did.
+SCHEMA_VERSION = 3
+READ_VERSIONS = (1, 2, 3)
 # Every piece is in one family (private/plans/done/cars-doors-ladders-plan.md, section 3.4), which says whether the Build makes
 # it, how it may be posed, and, while it isn't built, the milestone its refusal names. A piece of an assembly (a car's
 # parts, a door's leaf and frame, a ladder: assemblies()) takes the assembly's family, any other piece its class's.
@@ -124,6 +135,13 @@ FAMILIES = {
     # (11 November 2026); `builds` off again brings back the refusal with its note
     'building': dict(builds=True, milestone=None, grid=False, what='a building made from nothing',
                      note='Buildings are saved; the Build makes them once their game test passes.'),
+    # effects (Emitter actors) and ambient sounds moved, turned, copied or deleted in the same map (the effects and
+    # sounds plan, stage FX3): off while the stage is built; an experiment's build lifts them with --family (EXP-C),
+    # and the page offers their edits only where they build (families.json; viewer.py serve --family)
+    'effect': dict(builds=False, milestone=None, grid=False, what='an effect',
+                   note='Effects are moved, copied and deleted where the effect family builds.'),
+    'sound': dict(builds=False, milestone=None, grid=False, what='an ambient sound',
+                  note='Ambient sounds are moved, copied and deleted where the sound family builds.'),
 }
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
                 'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
@@ -167,6 +185,22 @@ MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not
 # The export a project's edits build from (plan 4.1): export 18 has each light's GUIDs and bake membership and the
 # area lights' glowing pieces, without which a moved piece could leave its glow's light behind.
 EXPORT_MINIMUM = 18
+# Effects and sounds (the effects and sounds plan, Part C): their records name actors of the export's `effects` and
+# `sounds` (export 28, effects_metadata.py), each with what an edit may do with it (`can`, `why`). EFFECT_CLASSES:
+# what each kind is. A lens flare (`flares`) is view only until stage FX6. An effect that is moved or new is listed by
+# each upper floor (index 1 up) one of whose boxes holds its place within EFFECT_SLACK (buildings.SLACK; plan Part D):
+# the report's note says which floors it joins and leaves.
+EFFECTS_EXPORT = 28
+EFFECT_CLASSES = {'effect': ('Emitter',),
+                  'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable')}
+EFFECT_KINDS = ('effect', 'sound', 'flare')
+EFFECT_SLACK = 2.0
+# the values objects of stage FX5 (an effect's scale, starting state and parameters; a sound's radii, volume, pitch
+# and starting state): a record may carry them, the Build doesn't make them yet; `follow` (an effect's carrying by the
+# piece it stands on: 'none' once it is moved by itself, 'auto' to follow again) is FX3's
+EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
+                     'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
+EFFECT_FOLLOW = ('none', 'auto')
 # Pieces' flags (piece flags plan, P4): read from the export's pieceFlags (export 27; a piece of another map from its
 # library record), checked with piece_flags.plan, and built by the Build's writer from the package itself (native_copy
 # set_roles). A piece this wide or tall (units) with walking, cover or sight turned off is noted (flags-wall).
@@ -722,6 +756,12 @@ class Compiler:
         self.cover_members = set()   # their group member keys ('added|' and the output name)
         self.cover_by_member = {}    # member key -> its block in self.covers
         self.light_members = set()   # the same for the lights the project adds
+        # effects and sounds (the effects and sounds plan, Part C): the spec's `effects` and `sounds` objects (moves,
+        # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
+        # project's own takes from the piece that carries them (they leave carriedEffects)
+        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[]) for k in ('effect', 'sound')}
+        self.effect_members = set()
+        self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
         self.building_edits = []     # the map's own buildings changed or deleted: the spec's `buildingEdits` object
         self.floor_sources = {}
@@ -830,6 +870,13 @@ class Compiler:
         for light in self.scene.get('lights') or []:
             self.lights.setdefault((light.get('sourcePackage'), light.get('layer'), light.get('actor')), light)
         self.by_id = {o.get('id'): o for o in self.scene.get('objects') or []}
+        # the map's effects, sounds and lens flares by the key pieces use (export 28), the streams' too (view only)
+        self.effect_actors = {}
+        for kind, key in (('effect', 'effects'), ('sound', 'sounds'), ('flare', 'flares')):
+            layers = [self.scene.get(key) or []] + [(s or {}).get(key) or [] for s in (self.scene.get('streams') or {}).values()]
+            for rec in (r for layer in layers for r in layer):
+                self.effect_actors.setdefault((rec.get('sourcePackage'), rec.get('layer'), rec.get('actor')), dict(rec, kind=kind))
+        self.building_names = {b.get('id'): b.get('name') for b in self.scene.get('buildings') or []}
         self.object_boxes = None
         # the map's meshes, and those of the pieces of other maps as they are looked up (foreign_piece)
         self.meshes = dict(self.scene.get('meshes') or {})
@@ -1336,6 +1383,10 @@ class Compiler:
             target = rec.get('target')
             if isinstance(target, dict) and isinstance(target.get('actor'), str):
                 where['target'] = target['actor']
+            effect = self.effect_of(target)
+            if effect is not None:
+                self.effect_override(target, rec, where, effect)
+                continue
             light = self.light_of(target)
             if light is not None:
                 self.light_override(target, rec, where, light)
@@ -1346,6 +1397,10 @@ class Compiler:
             if 'light' in rec:
                 self.error('malformed', '%s is not a light of the export, so it has no light values' % short(
                     str((target or {}).get('actor'))), **where)
+                continue
+            if 'effect' in rec or 'sound' in rec:
+                self.error('malformed', '%s is no effect or sound of the export, so it has no %s values' % (
+                    short(str((target or {}).get('actor'))), 'effect' if 'effect' in rec else 'sound'), **where)
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
@@ -1676,7 +1731,7 @@ class Compiler:
 
     def added(self):
         known = {'id', 'actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'light',
-                 'template', 'cover', 'flags'}
+                 'template', 'cover', 'flags', 'kind', 'effect', 'sound'}
         gated = {}      # an assembly's copies: id -> (assembly, [(source actor, record, where, parts, pose)])
         for k, rec in enumerate(self.doc.get('added') or []):
             where = dict(record='added[%d]' % k)
@@ -1688,6 +1743,13 @@ class Compiler:
                 self.error('malformed', 'the added piece has no output name', **where)
                 continue
             where['entity'] = out
+            if 'kind' in rec:
+                # an effect, a sound or a flare copied (the effects and sounds plan, Part C)
+                self.effect_add(rec, where)
+                continue
+            if 'effect' in rec or 'sound' in rec:
+                self.error('malformed', '%s copies a piece, so it has no effect or sound values' % short(out), **where)
+                continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an added piece and is ignored' % f, **where)
             if not self.flags_valid(rec, where):
@@ -2122,6 +2184,228 @@ class Compiler:
                                   location=loc, rotation=rot, rotationRounding=tidy(rounding, 6),
                                   reaches=self.reaching(loc, after)))
 
+    # ---------------------------------------------------------------- effects and sounds (the effects and sounds plan)
+    def effect_of(self, target):
+        """The export's effect, sound or flare a target {package, level, actor} names (its record with `kind`), or
+        None."""
+        if not isinstance(target, dict):
+            return None
+        return self.effect_actors.get((target.get('package'), target.get('level'), target.get('actor')))
+
+    def effect_values(self, rec, kind, name, where):
+        """A record's values object checked (the effects and sounds plan, Part C): (follow or None, ok). `follow` is
+        stage FX3's ('none': it doesn't follow the piece it stands on; 'auto': it does); the other keys are FX5's,
+        which this Build doesn't make: such a record is refused, never built without them."""
+        other = 'sound' if kind == 'effect' else 'effect'
+        if other in rec:
+            self.error('malformed', '%s is %s, so it has no %s values' % (name, 'an effect' if kind == 'effect' else
+                                                                          'a sound', other), **where)
+            return None, False
+        values = rec.get(kind)
+        if values is None:
+            return None, True
+        if kind == 'flare' or not isinstance(values, dict):
+            self.error('malformed', '%s: "%s" must be an object of %s values' % (name, kind, kind), **where)
+            return None, False
+        bad = sorted(set(values) - set(EFFECT_VALUE_KEYS[kind]))
+        if bad:
+            self.error('malformed', '%s: %s %s not %s value (they are %s)' % (
+                name, ', '.join(bad), 'is' if len(bad) == 1 else 'are', 'an effect' if kind == 'effect' else 'a sound',
+                ', '.join(EFFECT_VALUE_KEYS[kind])), **where)
+            return None, False
+        later = sorted(set(values) - {'follow'})
+        if later:
+            self.error('effect-values', '%s sets its %s, which this editor version can\'t build: only its place, turn, '
+                       'copies and deletion build' % (name, ', '.join(later)), **where)
+            return None, False
+        follow = values.get('follow')
+        if follow is not None and follow not in EFFECT_FOLLOW:
+            self.error('malformed', '%s: follow must be one of %s' % (name, ', '.join(EFFECT_FOLLOW)), **where)
+            return None, False
+        return follow, True
+
+    def effect_gate(self, kind, name, where):
+        """The family's refusal while it doesn't build: True when the edit may go on."""
+        if kind == 'flare':
+            self.error('effect-view-only', '%s is a lens flare, which this editor version shows but doesn\'t change'
+                       % name, family='flare', **where)
+            return False
+        if self.builds(kind):
+            return True
+        self.error('family', '%s is %s edit. %s' % (name, 'an effect' if kind == 'effect' else 'a sound',
+                                                    FAMILIES[kind]['note']), family=kind, **where)
+        return False
+
+    def effect_usable(self, rec, can, name, where):
+        """Whether the export says an edit may `can` (move, copy, delete) the effect or sound `rec`: True, or False
+        with the export's reason as an error."""
+        if (rec.get('can') or {}).get(can):
+            return True
+        if 'can' not in rec:
+            self.error('export-version', '%s: this map\'s export predates the effects and sounds data (export %d): '
+                       'prepare it again' % (name, EFFECTS_EXPORT), minimum=EFFECTS_EXPORT, **where)
+            return False
+        why = (rec.get('why') or {}).get(can) or 'the export doesn\'t say it can'
+        self.error('effect-view-only', '%s can\'t be %s: %s' % (
+            name, dict(move='moved', copy='copied', delete='deleted')[can], why), **where)
+        return False
+
+    def effect_listing(self, location):
+        """[(building path, floor index)]: the upper floors (index 1 up) one of whose boxes, as the project has them,
+        holds `location` within EFFECT_SLACK: where the Build lists a moved or new effect (plan Part D)."""
+        out = []
+        for name, index, boxes in self.floor_boxes_now() or []:
+            if index >= 1 and any(all(b['min'][a] - EFFECT_SLACK <= location[a] <= b['max'][a] + EFFECT_SLACK
+                                      for a in range(3)) for b in boxes):
+                out.append((name, index))
+        return out
+
+    def effect_floor_note(self, name, rec, location, where):
+        """The note (not a warning) saying which floors' cutaways a moved or new effect joins and leaves: listed, it
+        hides when its floor is cut away. A sound is in no floor's list."""
+        if self.floor_boxes is None:
+            return
+        old = {(self.building_names.get(f.get('building')), f.get('floor')) for f in (rec or {}).get('floors') or []}
+        new = set(self.effect_listing(location))
+        words = lambda fs: ', '.join('floor %d of %s' % (k + 1, short(str(b))) for b, k in sorted(fs, key=str))
+        joins, leaves = new - old, old - new
+        if joins or leaves:
+            self.note('effect-floors', '%s%s%s' % (name, ' joins the cutaway of %s' % words(joins) if joins else '',
+                                                   ('%s leaves the cutaway of %s' % (',' if joins else '', words(leaves)))
+                                                   if leaves else ''),
+                      joins=[[short(str(b)), k] for b, k in sorted(joins, key=str)],
+                      leaves=[[short(str(b)), k] for b, k in sorted(leaves, key=str)], **where)
+
+    def effect_script(self, name, rec, what, where):
+        """The warning for an edit of an effect or sound the mission's script names (export 15's referencedBy): the
+        script acts on the original, wherever it is, and not on a copy."""
+        if rec.get('referencedBy'):
+            self.warn('mission-linked', '%s is named by the map\'s Kismet (%s): %s' % (
+                name, '; '.join(rec['referencedBy'][:4]), what), **where)
+
+    def effect_override(self, target, rec, where, effect):
+        """An original effect or sound moved, turned or deleted (the effects and sounds plan, Part C), in place: the
+        Build keeps its actor, so what names it still does."""
+        kind, name = effect['kind'], short(target['actor'])
+        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'effect', 'sound'}):
+            self.note('unknown-field', 'field %r is not part of an effect\'s or a sound\'s override and is ignored' % f,
+                      **where)
+        if target['level'] != 'base' or str(target['package']).casefold() != self.map.casefold():
+            self.error('effect-view-only', '%s is %s of %s level %s, which the editor shows but doesn\'t change'
+                       % (name, 'an effect' if kind == 'effect' else 'a sound' if kind == 'sound' else 'a lens flare',
+                          target['package'], target['level']), **where)
+            return
+        follow, ok = self.effect_values(rec, kind, name, where)
+        if not ok or not self.effect_gate(kind, name, where):
+            return
+        ops = self.effect_ops[kind]
+        if rec.get('deleted') is True:
+            if not self.effect_usable(effect, 'delete', name, where):
+                return
+            self.effect_own.add(target['actor'])
+            self.effect_script(name, effect, 'it is taken out of the level, so what the script does with it does '
+                               'nothing', where)
+            ops['deletes'].append(dict(name=name, actorClass=effect['actorClass'], location=list(effect['location'])))
+            self.entities.append(dict(kind=kind, op='delete', target=target['actor'], actorClass=effect['actorClass']))
+            return
+        if 'location' not in rec and 'rotation' not in rec:
+            if follow is None:
+                self.error('malformed', 'an effect\'s or a sound\'s override is deleted, or gives a pose', **where)
+            else:
+                # follow alone: carrying as the map has it ('auto') or not ('none', where it stands)
+                if follow == 'none' and effect.get('carriedBy'):
+                    self.effect_own.add(target['actor'])
+                    self.note('effect-detached', '%s stays where it is when %s moves' % (
+                        name, short(effect['carriedBy'])), **where)
+                else:
+                    self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
+            return
+        p = self.pose(dict(location=rec.get('location', effect['location']),
+                           rotation=rec.get('rotation', effect['rotation'])), where)
+        if not p:
+            return
+        loc, rot, rounding = p
+        moved = not (all(abs(a - b) < EPS_LOCATION for a, b in zip(loc, effect['location']))
+                     and rot == [int(v) for v in effect['rotation']])
+        if follow == 'auto' and effect.get('carriedBy'):
+            self.error('malformed', '%s follows %s (follow auto), so it has no pose of its own'
+                       % (name, short(effect['carriedBy'])), **where)
+            return
+        if not moved:
+            self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
+            return
+        if not self.effect_usable(effect, 'move', name, where):
+            return
+        # its own pose: the piece it stood on no longer takes it along (plan Part C, ownership and precedence)
+        self.effect_own.add(target['actor'])
+        if effect.get('carriedBy'):
+            self.note('effect-detached', '%s has a place of its own, so it no longer moves with %s'
+                      % (name, short(effect['carriedBy'])), **where)
+        self.effect_script(name, effect, 'the script still acts on it where it stands now (and a Matinee can put it '
+                           'back where it was)', where)
+        if kind == 'effect':
+            self.effect_floor_note(name, effect, loc, where)
+        ops['moves'].append(dict(name=name, actorClass=effect['actorClass'], location=loc, rotation=rot,
+                                 before=dict(location=list(effect['location']), rotation=list(effect['rotation']))))
+        self.entities.append(dict(kind=kind, op='move', target=target['actor'], actorClass=effect['actorClass'],
+                                  location=loc, rotation=rot, rotationRounding=tidy(rounding, 6)))
+
+    def effect_add(self, rec, where):
+        """A copy of one of the map's effects or sounds (the effects and sounds plan, Part C): the Build clones the
+        actor and what it owns (its component, light environment and own cue) and shares the system or wave."""
+        out = rec['actor']
+        name = short(out)
+        kind = rec.get('kind')
+        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'effect', 'sound'}):
+            if f in ('components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted'):
+                self.error('malformed', '%s is a copy of %s, so it has no %s' % (name, 'an effect' if kind == 'effect'
+                                                                                 else 'a sound', f), **where)
+                return
+            self.note('unknown-field', 'field %r is not part of an added effect or sound and is ignored' % f, **where)
+        if kind not in EFFECT_KINDS:
+            self.error('malformed', '%s: kind must be one of %s' % (name, ', '.join(EFFECT_KINDS)), **where)
+            return
+        if not isinstance(rec.get('id'), str) or not rec['id']:
+            self.error('malformed', '%s has no id' % name, **where)
+            return
+        src = rec.get('from')
+        source = self.effect_of(src)
+        if source is None:
+            self.error('missing', '%s copies %s, which is no effect, sound or lens flare of the export'
+                       % (name, short(str((src or {}).get('actor')))), **where)
+            return
+        if source['kind'] != kind:
+            self.error('malformed', '%s says it is %s but copies %s, which is %s' % (
+                name, kind, short(src['actor']), source['kind']), **where)
+            return
+        if src['level'] != 'base' or str(src['package']).casefold() != self.map.casefold():
+            self.error('effect-view-only', '%s copies %s of %s level %s; only the base map\'s own are copied here'
+                       % (name, short(src['actor']), src['package'], src['level']), **where)
+            return
+        follow, ok = self.effect_values(rec, kind, name, where)
+        if not ok:
+            return
+        if follow is not None:
+            self.note('unknown-field', '%s is a copy, which no piece carries: its follow is ignored' % name, **where)
+        p = self.pose(rec, where)
+        if not p or not self.effect_gate(kind, name, where) or not self.effect_usable(source, 'copy', name, where):
+            return
+        loc, rot, rounding = p
+        self.effect_members.add('added|' + out)
+        if kind == 'effect':
+            self.effect_floor_note(name, None, loc, where)
+        if source.get('referencedBy'):
+            self.note('effect-script-copy', '%s is a copy of %s, which the map\'s Kismet names: the copy is an ordinary '
+                      '%s, which the script doesn\'t switch on or off' % (name, short(src['actor']), kind), **where)
+        if source.get('startsOn') is False:
+            self.warn('effect-starts-off', '%s is a copy of %s, which starts off and waits for the script to switch it '
+                      'on: nothing switches the copy on' % (name, short(src['actor'])), **where)
+        self.effect_ops[kind]['copies'].append(dict(id=rec['id'], name=name, source=short(src['actor']),
+                                                    actorClass=source['actorClass'], location=loc, rotation=rot))
+        self.entities.append(dict(kind=kind, op='add', entity=out, id=rec['id'], actorClass=source['actorClass'],
+                                  template=src['actor'], location=loc, rotation=rot,
+                                  rotationRounding=tidy(rounding, 6)))
+
     def reaching(self, location, values):
         """How many of the base map's pieces a light's radius reaches at `location` (the report's estimate of what a
         full build relights; plan 4.2): object boxes within its radius."""
@@ -2374,9 +2658,11 @@ class Compiler:
             for m, key in zip(members, keys):
                 if 'group' in m:
                     continue   # a group inside it breaks by its own option
-                if 'building' in m or key in self.light_members \
-                        or ('actor' in m and (m['package'], m['level'], m['actor']) in self.lights):
-                    continue   # a building's boxes and a light move with the group in the editor; they don't break
+                if 'building' in m or key in self.light_members or key in self.effect_members \
+                        or ('actor' in m and ((m['package'], m['level'], m['actor']) in self.lights
+                                              or (m['package'], m['level'], m['actor']) in self.effect_actors)):
+                    continue   # a building's boxes, a light, an effect or a sound move with the group in the editor;
+                    # they don't break
                 if key in deleted:
                     continue   # it isn't there to break
                 if key in linked:
@@ -2500,6 +2786,14 @@ class Compiler:
         if self.covers:
             # cover blocks (cover_add): made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='covers', blocks=sorted(self.covers, key=lambda c: c['name'])))
+        for kind, key in (('effect', 'effects'), ('sound', 'sounds')):
+            ops = self.effect_ops[kind]
+            if any(ops.values()):
+                # effects and sounds (the effects and sounds plan, Part D): moved in place, deleted from the level's
+                # list and copied in the map by the Build's writer (native_split moves them there)
+                objects.append(dict(type=key, moves=sorted(ops['moves'], key=lambda d: d['name']),
+                                    deletes=sorted(ops['deletes'], key=lambda d: d['name']),
+                                    copies=sorted(ops['copies'], key=lambda d: d['name'])))
         if self.flag_edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
@@ -2528,10 +2822,11 @@ class Compiler:
             if box:
                 extra['cleared']['keepOutside'] = box
         # the effects the map's pieces carry (export 23; tools/bake/native_effects.py): each follows its piece's move,
-        # copy or delete in the Build ({piece: [effect]}, short names)
+        # copy or delete in the Build ({piece: [effect]}, short names), but for one the project moves, deletes or
+        # detaches itself (the effects and sounds plan, Part C: a record of its own takes it from its piece)
         carried = {}
         for e in self.scene.get('effects') or []:
-            if e.get('carriedBy'):
+            if e.get('carriedBy') and e['actor'] not in self.effect_own:
                 carried.setdefault(e['carriedBy'].rsplit('.', 1)[-1], []).append(e['actor'].rsplit('.', 1)[-1])
         if carried:
             extra['carriedEffects'] = {k: sorted(v) for k, v in sorted(carried.items())}
@@ -3273,6 +3568,10 @@ class Compiler:
                                   leftOut=len(self.left_out),
                                   lights=dict(deleted=len(self.light_ops['deletes']), added=len(self.light_ops['adds']),
                                               changed=len(self.light_ops['changes']), area=len(self.light_ops['area'])),
+                                  **{key: dict(moved=len(self.effect_ops[kind]['moves']),
+                                               deleted=len(self.effect_ops[kind]['deletes']),
+                                               added=len(self.effect_ops[kind]['copies']))
+                                     for kind, key in (('effect', 'effects'), ('sound', 'sounds'))},
                                   flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=getattr(self, 'stage_grid', None),
@@ -3476,12 +3775,14 @@ def native_split(spec):
     deleted, moved, floors of boxes and volumes, old: each floor's volumes and their boxes as exported); a ladder copy
     carries its `ladder` ends
     ({foot, top} tiles), and `streamHides` ({stream: [actor]}) the streamed patches' pieces to take out of the
-    variant's copies of them (a moved or deleted ladder's helpers), and `lights` the light edits (plan 9.5: deletes,
-    changes, adds and the area lights the piece edits take along). A group with a copy of another class stays
+    variant's copies of them (a moved or deleted ladder's helpers), `lights` the light edits (plan 9.5: deletes,
+    changes, adds and the area lights the piece edits take along), and `effects` and `sounds` the effects' and
+    sounds' lanes (each `moves`, `deletes` and `copies`; the effects and sounds plan, Part D). A group with a copy of another class stays
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
     lights, covers, buildings, edits, piece_flags_, flag_ladders = None, [], [], [], [], []
+    effect_lanes = {}
     stream_hides = out.pop('streamHides', None)
     stream_moves = out.pop('streamMoves', None)
     cleared, zones = out.pop('cleared', None), out.pop('landingZones', None)
@@ -3505,6 +3806,9 @@ def native_split(spec):
             continue
         if obj.get('type') == 'lights':
             lights = {k: obj[k] for k in ('deletes', 'changes', 'adds', 'area')}
+            continue
+        if obj.get('type') in ('effects', 'sounds'):
+            effect_lanes[obj['type']] = {k: obj[k] for k in ('moves', 'deletes', 'copies')}
             continue
         if obj.get('type') == 'hide' and obj.get('exact'):
             boxes = obj.get('boxes') or [None] * len(obj['alsoHide'])
@@ -3581,6 +3885,7 @@ def native_split(spec):
         native['landingZones'] = zones
     if carried:
         native['carriedEffects'] = carried
+    native.update(effect_lanes)
     return out, native
 
 

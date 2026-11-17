@@ -771,6 +771,12 @@ def running_viewer(port):
         return False
 
 
+def compiler_families():
+    """The compiler's families (compiler.FAMILIES), for serve --family's choices."""
+    import families
+    return families.compiler.FAMILIES
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="command",required=True)
@@ -790,6 +796,7 @@ def main():
     serve.add_argument("--builds",type=Path,help="Builds folder (default: the output setting); tests use a scratch folder")
     serve.add_argument("--squad",type=Path,help="The test squad's file (default: test-squad.json beside the settings): a test server points it at a scratch file, never the user's")
     serve.add_argument("--dry-play",action="store_true",help="Play in game does everything but start the game: for tests, with --install <a scratch game folder>")
+    serve.add_argument("--family",action="append",default=[],choices=sorted(f for f, v in compiler_families().items() if not v['builds']),help="A family the compiler doesn't build yet that this server's page edits and its Build makes, for an experiment's runs (as build.py --family; EXP-C: effect, sound)")
     serve.add_argument("--try-mission-lines",action="store_true",help="Play in game puts in every mission command not yet known to work (missions.LINES: the open line's content options, the civilians' looks, the UFO and council types), for the game runs that try them (EXP-53)")
     serve.add_argument("--install",type=Path,help="The game folder Play in game installs into and starts (default: the install setting, else the game install); tests use a scratch copy")
     conf = sub.add_parser("settings",help="Show the editor settings, or set them (a folder path, or an empty string to clear)")
@@ -890,7 +897,10 @@ def main():
         except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
         # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
         cache_root = args.scene.parent.parent if exact else args.scene
-        builds = BuildRunner(projects, cache_root, args.builds or settings['output'])
+        if args.family:
+            import families as family_table
+            family_table.ENABLED.update(args.family)
+        builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
         if not (WEB/"vendor/three/three.module.js").is_file():
             ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
         # Serving a cache root lists every map the game install plays; those not exported yet export on first open.

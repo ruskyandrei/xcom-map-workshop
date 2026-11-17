@@ -40,11 +40,25 @@ def scene():
 
 
 class FamilyTests(unittest.TestCase):
+    def test_serve_family_lifts_a_family(self):
+        """`serve --family effect` (families.ENABLED): the page is told the family builds, as the Build is."""
+        import families as module
+        module.ENABLED.add('effect')
+        try:
+            got = families(scene())['families']
+        finally:
+            module.ENABLED.discard('effect')
+        self.assertEqual((got['effect']['builds'], got['sound']['builds']), (True, False))
+        self.assertFalse(families(scene())['families']['effect']['builds'])
+
     def test_the_table_and_the_assemblies_each_once(self):
         got = families(scene())
         self.assertEqual(got['map'], 'URB_Bar')
         self.assertEqual(set(got['families']), {'scenery', 'destructible', 'collectible', 'ladder', 'door', 'frameless-door',
-                                                'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building'})
+                                                'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
+                                                'effect', 'sound'})
+        # effects and sounds (the effects and sounds plan, FX3) wait for their game check, unless the server lifts them
+        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound')}, {'effect': False, 'sound': False})
         self.assertTrue(got['families']['ladder']['grid'])
         # the page takes what builds and what keeps the pose rule from here: fracturing pieces build on the grid,
         # physics props at any pose (9 November 2026); doors without a frame still wait

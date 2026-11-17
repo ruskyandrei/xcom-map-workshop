@@ -98,6 +98,8 @@ assert.ok(survivesClear(sky, { cleared: true, outside: () => false }));         
 assert.ok(survivesClear({ ...beam, landingActor: true }, { cleared: true }));
 assert.ok(survivesClear(off, { cleared: true, carrierMoved: true }));
 assert.ok(!survivesClear(off, { cleared: true, carrierMoved: false, outside: () => false }));
+// (FX3) an effect the project moves itself stays, as the Build keeps it
+assert.ok(survivesClear(beam, { cleared: true, moved: true, outside: () => false }));
 assert.ok(survivesClear({ ...beam, stream: 'URB_Bar_Stream' }, { cleared: true }));      // a stream's own: never cleared
 
 // ---- the records of an export and its streams

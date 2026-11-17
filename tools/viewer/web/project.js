@@ -4,8 +4,10 @@
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
 
-// 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan). A project of schema 1 opens, and saves as 2.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 2, READ_VERSIONS = [1, 2];
+// 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
+// plan, Part C: an override of an effect or a sound, and an added record with a `kind`). A project of schema 1 or 2
+// opens, and saves as 3.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 3, READ_VERSIONS = [1, 2, 3];
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -165,11 +167,20 @@ const LIGHT_KEYS = ['color', 'brightness', 'radius', 'falloffExponent', 'innerCo
 const validLight = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => LIGHT_KEYS.includes(k))
   && Object.entries(v).every(([k, x]) => (k === 'color' ? Array.isArray(x) && x.length === 3 && x.every(Number.isInteger)
                                           : k === 'enabled' ? typeof x === 'boolean' : Number.isFinite(x))));
+// An effect's or a sound's values (effects and sounds plan, Part C): `effect` {scale?, startsOn?, parameters?, follow?}
+// or `sound` {radiusMin?, radiusMax?, volume?, pitch?, startsOn?}, known keys only. `follow` ('none': it stays where
+// it is when the piece that carries it moves; 'auto': it follows) is stage FX3's; the others are carried as saved.
+export const EFFECT_VALUE_KEYS = { effect: ['scale', 'startsOn', 'parameters', 'follow'], sound: ['radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn'] };
+const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
+  && Object.keys(v).every(k => EFFECT_VALUE_KEYS[kind].includes(k)) && (v.follow === undefined || ['none', 'auto'].includes(v.follow)));
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
-// map has it)
+// map has it; an effect's may be its values alone)
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
+  && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound)
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
-      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined));
+      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
+      || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
+          && r.light === undefined && r.flags === undefined));
 // An added actor: a copy of a source actor's components (`from`, `components`), a light made from a built-in recipe
 // (`template`: { kind, version }, editor lights plan 3.5), or a cover block or invisible floor (`template` { kind: 'cover',
 // version } and `cover` { type, size, heights } in units, an invisible floor's { type, size }, an older record's
@@ -183,14 +194,21 @@ const validCover = c => c && typeof c === 'object' && (Object.hasOwn(c, 'size')
   : Number.isInteger(c.width) && Number.isInteger(c.length)
     && (Object.keys(c).length === 4 ? typeof c.type === 'string' && Number.isInteger(c.height)
       : Object.keys(c).length === 3 && typeof c.height === 'string'));
+// An added effect, sound or lens flare (effects and sounds plan, Part C): `kind` and the original it copies (`from`),
+// with its own values object at most, and nothing a piece's copy has.
+export const EFFECT_KINDS = ['effect', 'sound', 'flare'];
+const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) && ['components', 'template', 'light', 'cover', 'flags',
+  'prefab', 'partner', 'tinted'].every(k => e[k] === undefined) && validEffectValues(e.effect, 'effect') && validEffectValues(e.sound, 'sound')
+  && (e.kind === 'effect' || e.effect === undefined) && (e.kind === 'sound' || e.sound === undefined);
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
+  && (e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')
       && e.cover === undefined
     : e.template?.kind === 'cover'
       ? validRecipe(e.template) && validCover(e.cover) && e.from === undefined && e.components === undefined && e.light === undefined
-      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined);
+      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined));
 // An area light's glowing piece as the project sets it: { target, owner: { target, component } } or owner null (kept
 // fixed).
 export const validBinding = b => isTarget(b?.target) && (b.owner === null
