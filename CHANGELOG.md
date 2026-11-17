@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### EXP-71 passed: lens flares are edited in every project (effects and sounds plan, EXP-F)
+
+- [EXP-71](research/experiments/EXP-71-lens-flares.md) run 1, played unattended by the game-test skill's hidden
+  game (the lab copy; the unedited URB_Bar first, for the lamp): a flare moved, one deleted, one copied and two
+  brought from AlienBase01 draw where they are put (the beacon's glare a clear orange glow over the car park), the
+  deleted one's wash is gone from its lamp, and a quicksave's load brings back the same five, each once. Whether a
+  wall hides a flare could not be judged: the game cuts the bar open round the one inside it.
+- [compiler.py](tools/editor/compiler.py): the `flare` family builds and `flare` is in `FOREIGN_FAMILIES`. The
+  Effects view moves, turns, copies and deletes a flare in every project, the Add panel's Lens flares can be placed,
+  and a prefab's flares are placed with it.
+- [editor-contracts.md](research/editor-contracts.md).
+
+Checked: the run's readbacks and pictures (the orange glow looked at); the gate tests
+([test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py),
+[test_families.py](tools/viewer/tests/test_families.py), [test_compiler.py](tools/editor/tests/test_compiler.py));
+node, viewer, editor and repo suites. Not played: plain Enemy Within; occlusion.
+
 ### A piece carries the effects its prefab places around it (effects and sounds plan, stage FX6b; export 30)
 
 - [scene_metadata.py](tools/viewer/scene_metadata.py) `effect_metadata`: an effect that no piece carries by its own

@@ -575,7 +575,7 @@ template and colour aren't edited in this plan). `can.copy` is false for one tha
 
 **Lens flares edited** (stage FX6b, 17 November 2026). A flare's override (`target`, then `location` and `rotation`, or
 `deleted: true`) and its copy (an added record of `kind: flare`) are checked as an effect's are and never carry a
-values object (`flare`, `effect` or `sound` on one is malformed). The family is `flare` (off until EXP-71; `--family
+values object (`flare`, `effect` or `sound` on one is malformed). The family is `flare` (it builds for every project since EXP-71 passed, 17 November 2026; before, `--family
 flare`), the spec's and the native edit's object is `flares` (`moves`, `deletes`, `copies`, an always empty
 `values`), and the Build's writer is [native_flares.py](../tools/bake/native_flares.py): a LensFlareSource owns its
 LensFlareComponent alone, so a copy is those two exports, the flare template (the component's `Template`, or its

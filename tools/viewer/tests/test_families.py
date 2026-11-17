@@ -58,9 +58,9 @@ class FamilyTests(unittest.TestCase):
                                                 'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
                                                 'effect', 'sound', 'effect-values', 'sound-values', 'flare'})
         # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed; their values (FX5) and
-        # lens flares (FX6b) have gates of their own, off until their game check
+        # lens flares (FX6b) have a gate of their own, on since EXP-71
         self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound', 'effect-values', 'sound-values', 'flare')},
-                         {'effect': True, 'sound': True, 'effect-values': True, 'sound-values': True, 'flare': False})
+                         {'effect': True, 'sound': True, 'effect-values': True, 'sound-values': True, 'flare': True})
         self.assertTrue(got['families']['ladder']['grid'])
         # the page takes what builds and what keeps the pose rule from here: fracturing pieces build on the grid,
         # physics props at any pose (9 November 2026); doors without a frame still wait

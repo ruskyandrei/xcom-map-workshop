@@ -1852,7 +1852,7 @@ class FamilyTests(unittest.TestCase):
 
     def test_the_families_table(self):
         self.assertEqual(sorted(f for f, v in compiler.FAMILIES.items() if v['builds']),
-                         ['building', 'car', 'collectible', 'destructible', 'door', 'effect', 'effect-values', 'fracturing',
+                         ['building', 'car', 'collectible', 'destructible', 'door', 'effect', 'effect-values', 'flare', 'fracturing',
                           'frameless-door', 'ladder', 'light', 'physics', 'scenery', 'sound', 'sound-values', 'van'])
         self.assertTrue(all(compiler.FAMILIES[compiler.CLASS_FAMILY[c]]['builds'] for c in compiler.M1_CLASSES))
         # every class with a family builds (fracturing pieces and physics props since 9 November), in the map itself

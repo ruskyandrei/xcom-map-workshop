@@ -163,8 +163,9 @@ class Records(unittest.TestCase):
             _, report = self.compile([record])
             self.assertEqual(codes(report), ['effect-view-only'], record)
             self.assertIn(words, (report['errors'] + report['leftOut'])[0]['message'])
-        # a lens flare is its own family's (Flares)
-        _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))])
+        # a lens flare is its own family's (Flares): switched off, it holds a flare's edit back
+        with mock.patch.object(compiler, 'FAMILIES', {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
+            _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))])
         self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
         _, report = self.compile([], [copied('Emitter_42', 1, (0, 0, 0))])
         self.assertEqual(codes(report), ['effect-view-only'])
@@ -319,21 +320,28 @@ class Flares(unittest.TestCase):
         return compile_project(doc(overrides, added, **changes), self.scene(), enable, library)
 
     def test_the_gate(self):
-        self.assertFalse(compiler.FAMILIES['flare']['builds'])
+        # on for every project since EXP-71 passed (17 November 2026), other maps' flares too
+        self.assertTrue(compiler.FAMILIES['flare']['builds'])
         self.assertFalse(compiler.FAMILIES['flare']['grid'])
-        self.assertNotIn('flare', compiler.FOREIGN_FAMILIES)
+        self.assertIn('flare', compiler.FOREIGN_FAMILIES)
+        off = {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}
         for overrides, added in (([moved('LensFlareSource_60', (305, 0, 0))], []),
                                  ([dict(target=target('LensFlareSource_60'), deleted=True)], []),
                                  ([], [copied('LensFlareSource_60', 1, (0, 0, 0), kind='flare')])):
             _, report = self.compile(overrides, added, enable=())
-            self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
-            self.assertIn('is a lens flare edit. Lens flares are moved, copied and deleted where the flare family builds',
-                          report['leftOut'][0]['message'])
-            _, report = self.compile(overrides, added)
             self.assertEqual(codes(report), [])
+            # the family switched off holds a flare's edit back, with its sentence
+            with mock.patch.object(compiler, 'FAMILIES', off):
+                _, report = self.compile(overrides, added, enable=())
+                self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
+                self.assertIn('is a lens flare edit. Lens flares are moved, copied and deleted where the flare family builds',
+                              report['leftOut'][0]['message'])
+                _, report = self.compile(overrides, added)
+                self.assertEqual(codes(report), [])
         # the effect and sound families don't lift it, nor it theirs
-        _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))], enable=('effect', 'sound'))
-        self.assertEqual(codes(report), ['family'])
+        with mock.patch.object(compiler, 'FAMILIES', off):
+            _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))], enable=('effect', 'sound'))
+            self.assertEqual(codes(report), ['family'])
 
     def test_move_delete_copy_reach_the_flares_lane(self):
         spec, report = self.compile([moved('LensFlareSource_60', (305, 0, 0), (0, 16384, 0)),
@@ -418,8 +426,9 @@ class Flares(unittest.TestCase):
             id='00000000-0000-4000-8000-000000000001', name='LensFlareSource_0_copy1', source='LensFlareSource_0',
             actorClass='LensFlareSource', location=[100.0, 100.0, 0.0], rotation=[0, 0, 0], donor=donor)])
         self.assertEqual(report['donors'], [dict(donor, pieces=['LensFlareSource_0'])])
-        # without the family it is the family's refusal, and what the library can't bring is refused
-        _, report = self.compile([], added, enable=(), library=library)
+        # with the family switched off it is the family's refusal, and what the library can't bring is refused
+        with mock.patch.object(compiler, 'FAMILIES', {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
+            _, report = self.compile([], added, enable=(), library=library)
         self.assertEqual(codes(report), ['family'])
         _, report = self.compile([], added, library=FakeEffects(entry=dict(blocked='unavailable', reason='It rides on X.')))
         self.assertEqual(codes(report), ['not-placeable'])

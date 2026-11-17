@@ -3,7 +3,8 @@
 Date: 17 November 2026. The effects and sounds plan's game check after stage FX6b (the flare part of its EXP-F,
 section 7.2), in one project on URB_Bar, under Long War (the lab copy). Plain EW is not played in this run. Lens
 flares moved, deleted, copied and brought from another map wait for this run: their family (`flare`) is off in the
-compiler, and this project's build lifts it (`--family flare`). **Prepared, not played.**
+compiler, and this project's build lifts it (`--family flare`). **Run 1 played the same day: passed, bar the
+occlusion, which could not be judged. The family is on since.**
 
 ## What the offline checks settled
 
@@ -61,8 +62,26 @@ What the run adds (Play in game from the editor, on the project; or the hidden g
    the car park, no second copy of any).
 5. Anything odd: an error box, a line about lens flares in the log.
 
-Not played yet. When it passes, the `flare` family is switched on in `compiler.FAMILIES` and `flare` joins
-`FOREIGN_FAMILIES` (items 4 to 6 are the foreign ones); what fails stays off and is written up here.
+## Result
+
+**Run 1** (17 November 2026, unattended: the game-test skill's hidden game in the lab copy, `URB_Bar_X71` installed
+as Play in game installs it, started for saving, no aliens; the unedited URB_Bar played first for the lamp).
+
+| Check | Result |
+| --- | --- |
+| 1, the lamp | **Passed.** In the unedited map the lamp's two flares are a wide, faint whitish wash round the lamp heads, no rays or rings. In this map the wash is gone: the same crop round the lamp is darker (mean colour 82, 77, 110 against 69, 64, 94 at the close view) while the whole picture is the same. |
+| 2, the row | **Passed.** The game holds five flares of the map: the moved one at (-300, -1200, 150), its copy at (-600, -1200, 150), the beacon's glare at (0, -1200, 150) and (200, 600, 100), the ambient glow at (300, -1200, 150), each with its template and colour; the deleted one is not among them. The beacon's glare is a clear orange glow over the car park; the ambient glow a faint red-purple wash; the moved flare and its copy faint whitish washes, alike and like the lamp's. No grey or chequered square. Pulled far back, none shows. |
+| 3, occlusion | **Not judged.** Looking at the one inside the bar, the game cuts the roof and upper floor away round it, so its glow shows from every side; from outside, with the walls drawn, no orange glow showed, but whether its place was in the picture is not known. Nothing stood between the camera and the one in the open in any direction tried. |
+| 4, save and reload | **Passed.** After a quicksave's load the same five, each once, at the same places with the same templates and colours; the deleted one still gone. The ambient glow drew brighter and redder after the load than before (the fog was back on); the beacon's the same. |
+| 5, anything odd | **Nothing.** No error box, no line of the log complains of a lens flare, a material or a texture. |
+
+- A flare of a template the map lacked (the two from AlienBase01) draws: its materials and textures came with it.
+- A flare is a faint thing unless its template and colour are strong: Bar's own are at strength 0.03. The editor's
+  marker is its picture; nothing draws a flare's likeness.
+- Occlusion is the engine's, the same for a copy as for the map's own, and nothing the editor sets; it stays not
+  judged. A soldier's view through the bar's door, or a place the camera can't cut away, would show it.
+- With this the `flare` family builds for every project and `flare` is in `FOREIGN_FAMILIES`.
+- The run's pictures and logs stay in the lab's hidden-runs folder; nothing from them is checked in.
 
 ## How to build it
 

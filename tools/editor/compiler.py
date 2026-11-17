@@ -160,9 +160,10 @@ FAMILIES = {
     'sound-values': dict(builds=True, milestone=None, grid=False, what='a sound\'s values',
                          note='A sound\'s reach, volume, pitch and starting state.'),
     # lens flares (LensFlareSource actors) moved, turned, copied or deleted (the effects and sounds plan, stage FX6b):
-    # off until their game check (EXP-F: EXP-71); --family flare lifts it for an experiment's build, and the page
-    # offers their edits only where the family builds (families.json; viewer.py serve --family flare)
-    'flare': dict(builds=False, milestone=None, grid=False, what='a lens flare',
+    # they build for every project since EXP-71 passed (17 November 2026: a flare moved, deleted, copied and brought
+    # from another map draws where it is put and comes back after a load); the page offers their edits where the
+    # family builds (families.json)
+    'flare': dict(builds=True, milestone=None, grid=False, what='a lens flare',
                   note='Lens flares are moved, copied and deleted where the flare family builds.'),
 }
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
@@ -185,7 +186,7 @@ CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
 # and ambient sounds since EXP-69 (17 November 2026; the effects and sounds plan's FX4).
 FOREIGN_FAMILIES = ('scenery', 'destructible', 'collectible', 'fracturing', 'door', 'frameless-door', 'physics', 'ladder',
-                    'effect', 'sound')
+                    'effect', 'sound', 'flare')
 # The assemblies that can come whole from another map (the library lists each as one entry: a car's body, glass and
 # parts; a door's leaf and frame), since EXP-40 run 1 (11 November 2026), and a van (its parts, with its own building
 # and floor volumes, which the transplanter stages with them) since EXP-42 the same day.
