@@ -57,6 +57,10 @@ commands file of your own instead of `--map`.
 
 A check that needs no back and forth can be one call without `--serve`: the steps, then the game closes.
 
+**A test that saves or loads needs `--saving`** on that command. The game then starts at its main menu, logs in, and
+the tool presses the key that opens the battle (the editor's Enable saving, done for you); everything else is the
+same. Without it a save never finishes and a load hangs the game.
+
 ## Talking to the session
 
 | Want | Command |
@@ -102,6 +106,11 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
   about a friendly unit. Put the camera back: `console SetOverheadCameraParameters 70 1256 -45`.
 - **Next soldier**: `key TAB`. **End the turn**: `console EndTurn`, then wait about 25 seconds.
 - Menus go by the arrow keys and Enter, `key ESCAPE` backs out.
+- **Save** (a `--saving` session): `key F10` is the quicksave; wait 8. **Load**: `key ESCAPE` (the pause menu),
+  `key DOWN 2`, `key RETURN` (Load Game: the newest save is first and selected; take a shot to be sure),
+  `key RETURN`, `key RETURN` again for the box that asks, then wait 60 for the map. Read the units again after a
+  load. The run's saves and the profile are put back when the session ends, so no save outlives it.
+- A move ordered onto a tile with a prop ends on a tile beside it: `goto` then says where he is.
 
 ### Sounds
 
@@ -122,7 +131,7 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
 ## What it cannot do
 
 - No real mouse: no clicking on the interface, no dragging. Controller mode stops the game at a reconnect box.
-- A battle started this way cannot be saved or loaded.
+- Without `--saving` the battle cannot be saved or loaded.
 - Not tried: stairs inside a building, a climb down, plain Enemy Within, the LWR install.
 
 ## Afterwards

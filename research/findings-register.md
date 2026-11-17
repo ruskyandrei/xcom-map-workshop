@@ -2719,7 +2719,17 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
       ambience loops 0.18 and 0.60, the music 0.60), "sound unmuted (1 session)". Not heard by anyone: that the
       speakers were silent rests on Windows taking the mute. A run ended from outside keeps the mute until the next
       run ends by itself or the mixer is used.
-  - Not tried: a save, stairs inside a building, a climb down, more than one game at once, the LWR install.
+  - **Saving and loading** (17 November, night; `hidden_game.py --saving`, URB_Bar without aliens): the start F-89
+    found for the editor's Enable saving works there too. The game stood at its main menu, logged in ("Obtained
+    steam user stats" 3.7 seconds in), F5 as a posted key ran the battle's commands and the map loaded. Alpha
+    walked to -2257,1009; F10 quicksaved (the log's checkpoint lines, the save in the load list as "QUICKSAVE");
+    he walked on to -2065,1009; Escape, Down twice, Enter opened Load Game with the quicksave first, Enter and
+    Enter again at "Confirm load game" loaded it (`LoadMap: URB_Bar?...LoadingFromShell=1`), and 60 seconds later
+    he stood at -2257,1009 again, the others where they were. An order after the load moved him ("Alpha moved 3
+    tiles"). The run put back the config it changed (`XComLZMutator.ini` and `XComMaps.ini` too, which the load
+    wrote), `profile.bin`, and `save8`, the slot the quicksave had taken from an older save.
+    - An order onto a tile with a prop (the cursor's height 128 there) ended on a tile beside it, twice.
+  - Not tried: stairs inside a building, a climb down, more than one game at once, the LWR install.
 - **Without DXVK it doesn't**, the first two starts:
 - What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
   `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get

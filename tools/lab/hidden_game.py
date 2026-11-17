@@ -48,6 +48,10 @@ the game there and does the steps (its header lists them: wait, waitlog, console
 - No sound comes out: GameRemote mutes the game's audio session in Windows for the run and unmutes it before the
   game ends (Windows keeps an application's mute for its next start). The game still plays its sounds, so `listen`
   works. XCOM_HIDDEN_SOUND=1 in the environment leaves the sound on.
+- Saving: a battle opened by -EXEC can't be saved (the game never logged in, F-89). --saving starts the game at its
+  main menu with a file that binds F5 to the battle's commands, waits for the login and presses F5, as the editor's
+  Enable saving does; the steps given come after. `key F10` then quicksaves, and a save is loaded from the pause
+  menu by keys. The saves and profile.bin are put back after the run with the config, so a run's saves do not stay.
 - Out folder (default <lab>\\hidden-runs\\<time>): the shots as <name>.png, steps.txt, Launch.log, DXVK's log,
   run.log (what GameRemote printed).
 - Exit code: GameRemote's (0, 1 the game ended, 3 a waitlog or shot ran out of time), 124 when --timeout ended the
@@ -72,6 +76,7 @@ import settings  # noqa: E402
 
 DESKTOP = 'XComLab-Game'
 PLAY_FILE = 'XComMapWorkshop-hidden.txt'
+START_FILE = 'XComMapWorkshop-hidden-start.txt'
 HELPERS = {'HiddenRun.exe': ('HiddenRun.cs', ()), 'GameRemote.exe': ('GameRemote.cs', ('/r:System.Drawing.dll',))}
 VERBS = ('wait', 'waitlog', 'console', 'type', 'shot', 'key', 'serve', 'quit')
 
@@ -112,12 +117,24 @@ def config_folder(game):
     return Path(game) / 'XEW' / 'XComGame' / 'Config'
 
 
+def kept_files(game, saving):
+    """The files of the game a run may write and restore() puts back: its config, and with saving on its saves and
+    profile too (the logged-in game writes profile.bin, a save takes a slot)."""
+    game = Path(game)
+    files = list(config_folder(game).glob('*.ini')) if config_folder(game).is_dir() else []
+    saves = game / 'XEW' / 'XComGame' / 'SaveData'
+    if saving and saves.is_dir(): files += [p for p in saves.iterdir() if p.is_file()]
+    return sorted(files)
+
+
 class Prepared:
     """The lab copy made ready for a hidden run, and put back by restore(): DXVK's DLL beside the game, the commands
-    file, and the config files as they were."""
+    files, and the config files as they were; with `saving` the saves and the profile too, and the game is started
+    with a file that binds SAVE_KEY to the commands instead of running them (gamelaunch.start_text, F-89)."""
 
-    def __init__(self, game, dll, play_text=None):
-        self.game, self.placed, self.play = Path(game), None, None
+    def __init__(self, game, dll, play_text=None, saving=False):
+        self.game, self.placed, self.play, self.saving, self.start = Path(game), None, None, saving, None
+        if saving and play_text is None: raise RunError('Saving needs a battle: give --map or --play-file')
         if not (self.game / settings.LAB_MARKER).is_file():
             raise RunError(f'{self.game} is not the lab copy (no {settings.LAB_MARKER}): hidden runs are for the lab copy')
         if not (win32(self.game) / 'XComEW.exe').is_file():
@@ -129,17 +146,23 @@ class Prepared:
         else:
             shutil.copyfile(dll, target)
             self.placed = target
-        folder = config_folder(self.game)
-        self.config = {p: p.read_bytes() for p in folder.glob('*.ini')} if folder.is_dir() else {}
+        self.config = {p: p.read_bytes() for p in kept_files(self.game, saving)}
         if play_text is not None:
             self.play = self.game / 'XEW' / 'Binaries' / PLAY_FILE
             self.play.write_bytes(play_text.replace('\n', '\r\n').encode('ascii'))
+        if saving:
+            self.start = self.game / 'XEW' / 'Binaries' / START_FILE
+            self.start.write_bytes(gamelaunch.start_text(PLAY_FILE).replace('\n', '\r\n').encode('ascii'))
+
+    @property
+    def exec_file(self):
+        """The commands file the game starts with, or None for the main menu."""
+        return START_FILE if self.start else PLAY_FILE if self.play else None
 
     def restore(self):
-        """Puts everything back; returns the names of the config files the run changed or made."""
+        """Puts everything back; returns the names of the files the run changed or made."""
         changed = []
-        folder = config_folder(self.game)
-        for path in (sorted(folder.glob('*.ini')) if folder.is_dir() else []):
+        for path in kept_files(self.game, self.saving):
             if path not in self.config:
                 path.unlink(); changed.append(path.name)
             elif path.read_bytes() != self.config[path]:
@@ -183,9 +206,13 @@ def helper(lab, name):
     return exe
 
 
-def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, echo=print):
+# With saving on the game stands at its main menu, logs in there (the log's line), and the key opens the battle.
+SAVING_STEPS = ('waitlog 120 Obtained steam user stats', 'wait 3', f'key {gamelaunch.SAVE_KEY}')
+
+
+def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, echo=print, saving=False):
     """One hidden run; returns (exit code, the config files put back). Raises RunError when it can't start."""
-    steps = check_steps(steps)
+    steps = check_steps((list(SAVING_STEPS) if saving else []) + list(steps))
     if not running('steam.exe'): raise RunError('Steam is not running: the game ends at once without it')
     if running('XComEW.exe'): raise RunError('The game is running: close it first')
     hidden_run, remote = helper(lab, 'HiddenRun.exe'), helper(lab, 'GameRemote.exe')
@@ -194,11 +221,11 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
     steps_file = out / 'steps.txt'
     steps_file.write_text('\n'.join(steps) + '\n', encoding='utf-8', newline='\n')
     log = Path(game) / 'XEW' / 'XComGame' / 'Logs' / 'Launch.log'
-    prepared = Prepared(game, dxvk_dll(lab), play_text)
+    prepared = Prepared(game, dxvk_dll(lab), play_text, saving)
     try:
         cmd = [str(hidden_run), '--desktop', DESKTOP, '--timeout', str(timeout), '--', str(remote),
                str(win32(game) / 'XComEW.exe'), str(steps_file), str(out), str(log),
-               *game_arguments(res, PLAY_FILE if play_text is not None else None)]
+               *game_arguments(res, prepared.exec_file)]
         env = dict(os.environ, SteamAppId=gamelaunch.APP_ID, SteamGameId=gamelaunch.APP_ID, DXVK_LOG_PATH=str(out))
         lines = []
         with subprocess.Popen(cmd, cwd=win32(game), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -440,6 +467,8 @@ def main(argv=None):
     ap.add_argument('--squad', type=Path, help='with --map: a file holding the squad to land, the value of m_aSoldiers '
                     '(squadrecords.squad_text; tools/viewer/tests/squad_default_lwr.txt is the default test squad '
                     "for LWR). The game's own squad for this path can't walk (T-43)")
+    ap.add_argument('--saving', action='store_true', help='a battle that can be saved and loaded: the game starts at '
+                    'its main menu, logs in, and the first steps open the battle there by a key (F-89)')
     ap.add_argument('--no-aliens', action='store_true', help='with --map: a battle without aliens')
     ap.add_argument('--play-file', type=Path, help='a commands file to start with, as it is, instead of --map')
     ap.add_argument('--step', action='append', default=[], help='a step (GameRemote.cs lists them); may be repeated')
@@ -464,7 +493,7 @@ def main(argv=None):
         lab = labpaths.lab_root()
         game = args.game or labpaths.active_game()
         out = args.out or Path(lab) / 'hidden-runs' / datetime.now().strftime('%Y%m%d-%H%M%S')
-        code, changed = run(game, lab, lines, out, play, (int(size[1]), int(size[2])), args.timeout)
+        code, changed = run(game, lab, lines, out, play, (int(size[1]), int(size[2])), args.timeout, saving=args.saving)
     except (RunError, gamelaunch.LaunchError, ValueError, OSError) as error:
         print(f'FAIL: {error}')
         return 2

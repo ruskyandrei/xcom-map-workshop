@@ -48,6 +48,17 @@ and the built package read back (Emitter_38 at 1.6 times its size, starting off,
 volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
 until EXP-70; the user guide has no section for the Effects view yet.
 
+### Unattended game tests can save and load
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--saving` starts the game at its main menu with a file that
+  binds F5 to the battle's commands, waits for the login and presses F5 (the editor's Enable saving, F-89), so the
+  battle can be saved and loaded; the saves and `profile.bin` are kept and put back with the config. The
+  [game-test skill](.claude/skills/game-test/SKILL.md) says how to save (F10) and load (the pause menu by keys).
+- Checked: the `lab` suite (18 tests: the start file, the saves put back, no saving without a battle) and a session
+  on URB_Bar: a soldier moved, quicksaved, moved on, the quicksave loaded from the pause menu, the soldier back on
+  the saved tile, an order after the load obeyed; the lab copy's saves as before. Findings in
+  [T-43](research/findings-register.md).
+
 ### Unattended game tests run silent
 
 - [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs) mutes the game's audio session in Windows while a hidden run

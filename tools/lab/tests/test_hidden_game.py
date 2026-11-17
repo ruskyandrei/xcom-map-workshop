@@ -71,6 +71,43 @@ class PreparedCopy(unittest.TestCase):
             self.assertFalse(target.exists())
             self.assertEqual(list(play.parent.glob('*.txt')), [])
 
+    def test_saving_starts_by_the_key_and_puts_saves_back(self):
+        with tempfile.TemporaryDirectory() as root:
+            game, dll = make_game(root), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
+            saves = game / 'XEW' / 'XComGame' / 'SaveData'
+            saves.mkdir()
+            (saves / 'profile.bin').write_bytes(b'profile')
+            (saves / 'save8').write_bytes(b'the user\'s quicksave')
+            prepared = Prepared(game, dll, 'open URB_Bar\n', saving=True)
+            self.assertEqual(prepared.exec_file, hidden_game.START_FILE)
+            start = game / 'XEW' / 'Binaries' / hidden_game.START_FILE
+            self.assertEqual(start.read_bytes(), b'setbind F5 exec ' + hidden_game.PLAY_FILE.encode() + b'\r\n')
+            # the logged-in game writes its profile, a quicksave takes the user's slot, another save is new
+            (saves / 'profile.bin').write_bytes(b'the run\'s profile')
+            (saves / 'save8').write_bytes(b'the run\'s quicksave')
+            (saves / 'save9').write_bytes(b'new')
+            self.assertEqual(sorted(prepared.restore()), ['profile.bin', 'save8', 'save9'])
+            self.assertEqual((saves / 'profile.bin').read_bytes(), b'profile')
+            self.assertEqual((saves / 'save8').read_bytes(), b'the user\'s quicksave')
+            self.assertFalse((saves / 'save9').exists())
+            self.assertFalse(start.exists())
+
+    def test_without_saving_the_saves_are_not_touched(self):
+        with tempfile.TemporaryDirectory() as root:
+            game, dll = make_game(root), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
+            saves = game / 'XEW' / 'XComGame' / 'SaveData'
+            saves.mkdir()
+            prepared = Prepared(game, dll, 'open URB_Bar\n')
+            self.assertEqual(prepared.exec_file, hidden_game.PLAY_FILE)
+            (saves / 'save9').write_bytes(b'someone else\'s')
+            self.assertEqual(prepared.restore(), [])
+            self.assertTrue((saves / 'save9').exists())
+
+    def test_saving_needs_a_battle(self):
+        with tempfile.TemporaryDirectory() as root:
+            game, dll = make_game(root), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
+            with self.assertRaisesRegex(RunError, 'needs a battle'): Prepared(game, dll, None, saving=True)
+
     def test_same_dll_already_there_is_left(self):
         with tempfile.TemporaryDirectory() as root:
             game, dll = make_game(root), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
