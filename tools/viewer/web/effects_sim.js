@@ -46,18 +46,18 @@ function mapped(v, mode, i0, i1, o0, o1) {
  *  read (absent, or `unread`). A table is read at its entry for the time, blended to the next; a random one takes
  *  `rand()` between its least and most (one number for the axes its `lock` ties). A particle parameter takes the
  *  effect's value of that name from `params`, else its constant, through its mode's ranges. A value of the other kind
- *  (a number where the system reads a vector, as many of the game's maps save, or a vector where it reads a number)
- *  is not found by the game, which then plays the constant: URB_Bar's steam saves Brightness 0.05 as a number and
- *  is drawn dull grey, not near black (the hidden game's pictures, 17 November 2026). */
+ *  is read too: a number where the system reads a vector (as many of the game's maps save) is that number on each
+ *  axis, a vector where it reads a number its first. The game does so: a copy of URB_Bar's steam with Brightness 5
+ *  saved as a number is a bright white cloud beside its twin's faint grey at 0.05 (EXP-70 run 2). */
 export function sample(dist, time, rand, params) {
   if (!dist || dist.unread) return null;
   if (dist.parameter) {
     const given = params?.[dist.parameter];
     if (dist.kind === 'scalar') {
-      const v = typeof given === 'number' ? given : Number(dist.constant ?? 0);
+      const v = typeof given === 'number' ? given : Array.isArray(given) ? Number(given[0] ?? 0) : Number(dist.constant ?? 0);
       return mapped(v, dist.modes?.[0], dist.input[0], dist.input[1], dist.output[0], dist.output[1]);
     }
-    const v = Array.isArray(given) ? given : dist.constant ?? [0, 0, 0];
+    const v = Array.isArray(given) ? given : typeof given === 'number' ? [given, given, given] : dist.constant ?? [0, 0, 0];
     return [0, 1, 2].map(k => mapped(Number(v[k] ?? 0), dist.modes?.[k], dist.input[0][k], dist.input[1][k], dist.output[0][k], dist.output[1][k]));
   }
   const entries = dist.entries, n = entries.length;

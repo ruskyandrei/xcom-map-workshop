@@ -8,6 +8,35 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### EXP-70 passed: effects' and sounds' values build for every project (effects and sounds plan, EXP-E)
+
+- [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md) run 2, played unattended by the game-test
+  skill's hidden game (the lab copy, started for saving): three more copies of URB_Bar's steam, one as it is, one
+  with Brightness 5 saved as a number where the system reads a vector, one with a Spawn entry the steam doesn't
+  save ([exp70_project.py](tools/editor/examples/exp70_project.py) `--run2`). The number is read (a bright white
+  cloud beside a faint grey wisp), the new entry is read (a far denser cloud), and a quicksave's load keeps every
+  value: the steam set to start off still off, the silenced sound still silent, sizes, colours, reach and pitch as
+  set.
+- [compiler.py](tools/editor/compiler.py): `effect-values` and `sound-values` build (`FAMILIES`). The page offers
+  an effect's size, starting state and parameters and a sound's reach, volume, pitch and starting state in every
+  project; a placed prefab's effects and sounds bring their values.
+- The likeness reads a parameter of the other kind as the game does
+  ([effects_sim.js](tools/viewer/web/effects_sim.js) `sample`: a number on each axis of a vector, a vector's first
+  as a number), and a lit material is never drawn darker than a share of its picture
+  ([effects_preview.js](tools/viewer/web/effects_preview.js) `uLit`): its colour is what it glows with, the scene
+  lights it too. **This corrects stage FXV2's entry below**, which read the unedited map's pictures as the game
+  ignoring such a number.
+- [effects_rules.js](tools/viewer/web/effects_rules.js): the panel's note on such a parameter says the number is
+  taken for each part of the vector.
+- [Findings register](research/findings-register.md): F-122 (the number is read; verified), F-123 (a copied sound
+  and its original report one NetIndex in the log; accepted, nothing follows from it in a battle).
+- [tools/viewer/README.md](tools/viewer/README.md).
+
+Checked: the run's own pictures and readbacks (a wide shot of the three copies looked at: white, thick dark grey,
+faint); the gate tests ([test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py),
+[test_families.py](tools/viewer/tests/test_families.py)); node, viewer, editor and repo suites. Not played: plain
+Enemy Within (the run was under Long War).
+
 ### Lens flares become editable (effects and sounds plan, stage FX6b, the flare part)
 
 - [compiler.py](tools/editor/compiler.py): a `flare` family (not gridded; off until its game check, EXP-71:
@@ -157,7 +186,8 @@ pixels.
 - **From the game's own pictures** (a hidden game on URB_Bar, game-test skill): a number saved where the system reads
   a vector (and the other way) is not found by the game, which plays the distribution's constant. Bar's steam saves
   Brightness 0.05 as a number and is a dull grey wisp, not near black. `sample` does the same. This is what EXP-70
-  could not judge.
+  could not judge. (**Wrong, and put right the same day**: EXP-70 run 2 showed the game reads such a number; see
+  the entry on EXP-70 passing.)
 - [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md) section 8.
 
 Checked: [effects_sim_test.mjs](tools/viewer/tests/effects_sim_test.mjs) (tables, random ranges, locked axes,

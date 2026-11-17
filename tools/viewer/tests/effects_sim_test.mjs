@@ -54,9 +54,9 @@ const curve = (values, scale = values.length - 1) => ({ op: 1, lock: 0, per: 1, 
                    input: [[0, 0, 0], [1, 1, 1]], output: [[0, 0, 0], [1, 1, 1]] };
   assert.deepEqual(sample(colour, 0, null, {}), [1, 1, 1]);
   assert.deepEqual(sample(colour, 0, null, { Color: [0.4, 0.3, 1.5] }), [0.4, 0.3, 1.5]);   // direct: not held to a range
-  // a value of the other kind is not found: the constant plays (a number where a vector is read, and the other way)
-  assert.deepEqual(sample(colour, 0, null, { Color: 0.05 }), [1, 1, 1]);
-  assert.equal(sample({ ...wind, modes: ['DPM_Direct'] }, 0, null, { Wind_Strength: [3, 9, 9] }), 0);
+  // a value of the other kind is read (EXP-70 run 2): a number on each axis of a vector, a vector's first as a number
+  assert.deepEqual(sample(colour, 0, null, { Color: 0.05 }), [0.05, 0.05, 0.05]);
+  assert.equal(sample({ ...wind, modes: ['DPM_Direct'] }, 0, null, { Wind_Strength: [3, 9, 9] }), 3);
   assert.equal(sample({ ...wind, modes: ['DPM_Abs'] }, 0, null, { Wind_Strength: -0.5 }), 2.5);
   // an effect's saved parameters: the first of a name, a colour as three numbers
   assert.deepEqual(parametersOf({ parameters: [{ name: 'Brightness', type: 'PSPT_Scalar', scalar: 0.5 }, { name: 'Brightness', type: 'PSPT_Scalar', scalar: 9 },

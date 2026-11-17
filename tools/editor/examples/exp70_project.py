@@ -20,7 +20,13 @@ Ambient sounds:
    nothing in the map's script switches).
 10. A copy of the pickup's idle in the car park's far corner: pitch 0.6, volume 0.5, its reach as the map has it.
 
-Usage: exp70_project.py <out> [--full | --compile] [--store]
+Run 2 (--run2) adds three more copies of the steam in a second row, each at three times its size so that it shows at
+night, each differing from the first in one value:
+11. as the map has it (the one to compare with);
+12. Brightness 5 (the steam saves 0.05 as a number where its system reads a vector: is it read at all?);
+13. Spawn 8 (a parameter the steam doesn't save: does the new entry change what plays?).
+
+Usage: exp70_project.py <out> [--full | --compile] [--store] [--run2]
 
 The project and the build go under <out> (a scratch folder); the game and the cache are the settings'. Bar must have
 been exported at 28. The effect-values and sound-values families are enabled for this build (they wait for this
@@ -84,11 +90,17 @@ added = [
     copy(7, 'Emitter_16', (0.0, -1650.0, 26.0)),                                                                  # 7: as it is
     copy(10, 'AmbientSoundSimple_0', (1500.0, -1500.0, 60.0), pitch=[0.6, 0.6], volume=[0.5, 0.5]),               # 10
 ]
+if '--run2' in sys.argv:
+    added += [
+        copy(11, 'Emitter_16', (-600.0, -1450.0, 26.0), scale=3.0),                                               # 11
+        copy(12, 'Emitter_16', (-300.0, -1450.0, 26.0), scale=3.0, parameters=[dict(name='Brightness', value=5.0)]),  # 12
+        copy(13, 'Emitter_16', (0.0, -1450.0, 26.0), scale=3.0, parameters=[dict(name='Spawn', value=8.0)]),      # 13
+    ]
 doc = dict(schema='xcom-map-workshop/project', schemaVersion=3, id='00000000-0000-4000-8000-000000000e70',
            name='EXP-70 effect and sound values', mode='edit', revision=1, savedAt='2026-11-17T00:00:00Z',
            source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
            output=dict(shipAs='URB_Bar_X70', patch='patch_urb_bar_x70'), overrides=overrides, added=added, groups=[],
-           nextSerial=11,
+           nextSerial=14,
            # the viewer's basis (x, up, y): south of the car park, looking north over it to the bar
            view=dict(camera=[0, 2600, -3200], target=[0, 0, -900]))
 OUT.mkdir(parents=True, exist_ok=True)

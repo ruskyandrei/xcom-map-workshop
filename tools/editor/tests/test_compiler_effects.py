@@ -170,7 +170,8 @@ class Records(unittest.TestCase):
         self.assertEqual(codes(report), ['effect-view-only'])
 
     def test_malformed_and_later_values(self):
-        # (values while their families don't build: the gate's refusal, stage FX5's)
+        # (values with their families switched off: the gate's refusal, stage FX5's)
+        off = {k: dict(v, builds=False) if k.endswith('-values') else v for k, v in compiler.FAMILIES.items()}
         cases = [(moved('Emitter_43', (710, 0, 0), effect=dict(scale=2.0)), 'family'),
                  (moved('Emitter_43', (710, 0, 0), effect=dict(colour=1)), 'malformed'),
                  (moved('Emitter_43', (710, 0, 0), effect=dict(follow='sometimes')), 'malformed'),
@@ -179,7 +180,8 @@ class Records(unittest.TestCase):
                  (dict(target=target('Emitter_43')), 'malformed'),
                  (moved('XComLevelActor_1', (0, 96, 0), effect=dict(follow='none')), 'malformed')]
         for record, code in cases:
-            _, report = self.compile([record])
+            with mock.patch.object(compiler, 'FAMILIES', off):
+                _, report = self.compile([record])
             self.assertEqual(codes(report), [code], record)
         added = [(copied('Emitter_43', 1, (0, 0, 0), kind='sound'), 'malformed'),
                  (copied('Emitter_43', 1, (0, 0, 0), components=['x']), 'malformed'),
@@ -460,18 +462,24 @@ class Values(unittest.TestCase):
         return compile_project(doc(overrides, added), values_scene(), enable=enable)
 
     def test_their_gates_are_their_own(self):
-        self.assertFalse(compiler.FAMILIES['effect-values']['builds'] or compiler.FAMILIES['sound-values']['builds'])
+        # on for every project since EXP-70 passed (17 November 2026)
+        self.assertTrue(compiler.FAMILIES['effect-values']['builds'] and compiler.FAMILIES['sound-values']['builds'])
         records = [dict(target=target('Emitter_43'), effect=dict(scale=2.0)),
                    dict(target=target('AmbientSoundSimple_50'), sound=dict(radiusMax=900.0))]
-        _, report = self.compile(records, enable=('effect', 'sound'))
-        self.assertEqual(sorted((e['code'], e.get('family')) for e in report['errors'] + report['leftOut']),
-                         [('family', 'effect-values'), ('family', 'sound-values')])
-        _, report = self.compile(records, enable=('effect', 'sound', 'effect-values'))
-        self.assertEqual([(e['code'], e.get('family')) for e in report['errors'] + report['leftOut']],
-                         [('family', 'sound-values')])
-        # a move alone builds whatever the value gates say
-        _, report = self.compile([moved('Emitter_43', (710, 0, 0))], enable=('effect',))
+        _, report = self.compile(records, enable=())
         self.assertEqual(codes(report), [])
+        # a gate switched off holds its own values back and nothing else
+        off = {k: dict(v, builds=False) if k.endswith('-values') else v for k, v in compiler.FAMILIES.items()}
+        with mock.patch.object(compiler, 'FAMILIES', off):
+            _, report = self.compile(records, enable=('effect', 'sound'))
+            self.assertEqual(sorted((e['code'], e.get('family')) for e in report['errors'] + report['leftOut']),
+                             [('family', 'effect-values'), ('family', 'sound-values')])
+            _, report = self.compile(records, enable=('effect', 'sound', 'effect-values'))
+            self.assertEqual([(e['code'], e.get('family')) for e in report['errors'] + report['leftOut']],
+                             [('family', 'sound-values')])
+            # a move alone builds whatever the value gates say
+            _, report = self.compile([moved('Emitter_43', (710, 0, 0))], enable=('effect',))
+            self.assertEqual(codes(report), [])
 
     def test_values_alone_reach_the_values_lane(self):
         spec, report = self.compile([

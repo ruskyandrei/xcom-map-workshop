@@ -152,12 +152,13 @@ FAMILIES = {
                   note='Ambient sounds are moved, copied and deleted where the sound family builds.'),
     # an effect's or a sound's values (the effects and sounds plan, stage FX5: an effect's size, starting state and
     # particle parameters; a sound's radii, volume, pitch and starting state): a gate of their own, so the moves,
-    # copies and deletes build while these wait for their game check (EXP-E); --family lifts it for an experiment's
-    # build, and the page offers the values only where it builds
-    'effect-values': dict(builds=False, milestone=None, grid=False, what='an effect\'s values',
-                          note='An effect\'s size, starting state and parameters build once their game test passes.'),
-    'sound-values': dict(builds=False, milestone=None, grid=False, what='a sound\'s values',
-                         note='A sound\'s reach, volume, pitch and starting state build once their game test passes.'),
+    # they build for every project since EXP-70 passed (runs 1 and 2, 17 November 2026: every value loads and plays as
+    # set, a number where the system reads a vector and an added parameter are read, a save and its load keep them);
+    # the page offers the values where they build
+    'effect-values': dict(builds=True, milestone=None, grid=False, what='an effect\'s values',
+                          note='An effect\'s size, starting state and parameters.'),
+    'sound-values': dict(builds=True, milestone=None, grid=False, what='a sound\'s values',
+                         note='A sound\'s reach, volume, pitch and starting state.'),
     # lens flares (LensFlareSource actors) moved, turned, copied or deleted (the effects and sounds plan, stage FX6b):
     # off until their game check (EXP-F: EXP-71); --family flare lifts it for an experiment's build, and the page
     # offers their edits only where the family builds (families.json; viewer.py serve --family flare)

@@ -68,7 +68,8 @@ export function parameterRows(r, data) {
   const offers = data?.effectSystems?.[r.system]?.offers ?? [];
   return (r.parameters ?? []).map(p => {
     const colourOffer = offers.some(o => o.name === p.name && o.kind === 'vector' && o.colour);
-    const note = p.offered === 'otherKind' ? `its system reads ${p.name} as a ${p.type.includes('Scalar') ? 'vector' : 'scalar'}`
+    // (the game reads it all the same: a number on each axis of the vector, EXP-70 run 2)
+    const note = p.offered === 'otherKind' ? `its system reads ${p.name} as a ${p.type.includes('Scalar') ? 'vector, and takes this number for each part of it' : 'scalar'}`
       : p.offered === 'no' ? 'its system has no parameter of that name' : null;
     if (p.colour) return { name: p.name ?? '(no name)', kind: 'colour', text: p.colour.slice(0, 3).map(v => round(v)).join(', '), colour: p.colour.slice(0, 3), note };
     if (p.vector) {

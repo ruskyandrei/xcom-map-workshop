@@ -2528,6 +2528,28 @@ word; not looked at in the game).
   with 32, as copies of placed lights do; a baked recipe spot's shadow edges come out a little sharper than
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
+### F-123: A copied ambient sound and its original report one NetIndex in the log
+**Accepted** (EXP-70 run 2, 17 November 2026).
+- **Seen.** The game's log says `Error: (AddNetObject) Objects AmbientSoundSimple_5 and AmbientSoundSimple_0 have
+  duplicate NetIndex 0` when the map loads and again after a save's load. `_5` is the project's copy of `_0`.
+- **Cause.** A copy is cloned from its original's export, NetIndex and all. The index names an object to the network
+  code, which a single-player battle doesn't use for a map's ambient sounds.
+- **Effect.** None seen: both play as set (volume, reach and pitch each its own), before the save and after the load.
+- **If it ever matters** (multiplayer maps): give a clone the next free NetIndex of its package.
+
+### F-122: A particle parameter saved as a number where the system reads a vector is read
+**Verified** (EXP-70 run 2, 17 November 2026).
+- **The question.** 18% of the values the game's maps save on their effects are a number (`PSPT_Scalar`) under a name
+  the particle system reads through a vector distribution. Is such a value live, or left over?
+- **Seen.** A copy of URB_Bar's steam with Brightness 5 saved as a number is a bright white cloud; its twin with the
+  map's 0.05 is a faint grey wisp. The same holds for a parameter the effect didn't save: a copy given Spawn 8 as a
+  new entry is far denser.
+- **So.** The editor's slider for such a value changes what plays, and the drawn likeness reads it as the number on
+  each axis (`effects_sim.js sample`).
+- **An earlier reading was wrong.** From the unedited map's pictures the steam at 0.05 looked too light for that
+  value to count, and the likeness was first made to ignore it. The steam is lit by the scene as well: its colour
+  parameter is what it glows with.
+
 ### F-121: A piece or effect from a third map could be staged with an earlier map's imports
 **Fixed** (17 November 2026, offline, found while preparing EXP-69; not seen in the game).
 - **Seen.** One build of EXP-69's project (effects and sounds of six maps into URB_Bar) staged URB_Boulevard's

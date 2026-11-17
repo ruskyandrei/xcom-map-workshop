@@ -82,3 +82,34 @@ three things could not be judged by eye.
   maps do) changes the brightness, and whether a parameter added that the effect didn't save (item 6's Spawn) changes
   what it plays (the entry loads). Both need an effect bright enough to judge, each value set alone.
 - The run's pictures and logs stay in the lab's hidden-runs folder; nothing from them is checked in.
+
+## Run 2
+
+What run 1 left: whether a number set where the system reads a vector is read, whether a parameter the effect
+doesn't save changes what plays, and a save and reload. The project gained three copies of the steam (Emitter_16)
+in a second row (`exp70_project.py --run2`), each at three times the source's size so that it shows at night:
+
+| No. | What | Set | The question |
+| --- | --- | --- | --- |
+| 11 | a copy at (-600, -1450, 26) | its size only | the one to compare with |
+| 12 | a copy at (-300, -1450, 26) | Brightness 5 (the steam saves 0.05, as a number where its system reads a vector) | brighter than 11, or the same? |
+| 13 | a copy at (0, -1450, 26) | Spawn 8 (a parameter the steam doesn't save) | denser than 11, or the same? |
+
+**Result** (17 November 2026, unattended: the game-test skill's hidden game in the lab copy, started for saving, no
+aliens). All of it passed on the first take.
+
+| No. | Result |
+| --- | --- |
+| 11 | A faint, see-through grey wisp. The game holds Brightness 0.05, Color (0.5, 0.5, 0.5), Opacity 2, as the source's. |
+| 12 | **Brighter: the number is read.** A bright, near-white cloud about a car wide. The game holds Brightness 5.0 as a number. |
+| 13 | **Denser: the new entry is read.** A large, dark grey cloud the ground doesn't show through. The game holds a fourth entry, Spawn 8.0. |
+| Save and reload | **Passed.** A quicksave and its load from the pause menu: the big steam still off (`bIsActive` and `bAutoActivate` false), the car's idle still silent (`bAutoPlay` false, not in the game's list from 200 units), the steam's DrawScale 1.5, the beam's Brightness 2.0 and Color (1.5, 0.1, 0.1), the pickup's idle at 0.60 from 400 units with radii 600 and 2,000 and pitch 1.6, and the three copies as before, each once. |
+
+- A number saved where the particle system reads a vector is read by the game, so the 18% of the maps' values saved
+  that way are live values and the editor's slider for one changes what plays. (The earlier reading from the unedited
+  map's pictures, that such a value is ignored, was wrong: the steam at 0.05 is dim, not unlit.)
+- Nothing odd in the effects or sounds: no grey or chequered square, nothing missing, no error box. The log says
+  `AddNetObject ... AmbientSoundSimple_5 and AmbientSoundSimple_0 have duplicate NetIndex 0` at the start and after
+  the load (a copy of a sound and its original); both play as set.
+- With this the value families (`effect-values`, `sound-values`) have what they waited for.
+

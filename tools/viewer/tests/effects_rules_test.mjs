@@ -58,7 +58,7 @@ assert.ok(recordLines({ ...beam, scale: [0.35, 0.35, 0.5] }, data).lines.include
 const rows = parameterRows(beam, data);
 assert.deepEqual(rows.map(r => [r.name, r.kind, r.text]), [['Brightness', 'scalar', '0.5'], ['Color', 'colour', '1.2, 1, 0.5']]);
 assert.deepEqual(rows[1].colour, [1, 1, 0.5]);           // clamped for the swatch; the text keeps the map's value
-assert.equal(rows[0].note, 'its system reads Brightness as a vector');
+assert.equal(rows[0].note, 'its system reads Brightness as a vector, and takes this number for each part of it');
 const odd = parameterRows({ ...beam, parameters: [{ name: 'Wind', type: 'PSPT_ScalarRand', scalar: 2, scalarLow: 1, offered: 'no' },
                                                   { name: 'Tint', type: 'PSPT_Color', colour: [0.2, 0.4, 0.6, 1], offered: 'yes' },
                                                   { name: 'Size', type: 'PSPT_Vector', vector: [2, 2, 2], offered: 'yes' }] }, data);

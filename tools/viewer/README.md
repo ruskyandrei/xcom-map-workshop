@@ -511,8 +511,8 @@ lists); the Build stages the actor in the map with what it needs ([transplant.py
 staged one. EXP-69 played them in the game (17 November 2026), and the compiler's foreign gate lists them since, so
 the list shows them placeable.
 
-**Values** (stage FX5). Where the `effect-values` and `sound-values` families build (off until their game check;
-`serve --family effect-values --family sound-values` lifts them), a picked effect's or simple sound's panel has
+**Values** (stage FX5; the `effect-values` and `sound-values` families, which build for every project since EXP-70
+passed on 17 November 2026). A picked effect's or simple sound's panel has
 **Values**: **Starts with the mission** (a sound's **Plays from the start**); an effect's particle parameters, each
 the first of its name the effect saves in the kind it is saved in (a number with a slider guided by its system's
 range, a vector's x, y and z, a colour; a vector that feeds a particle's colour as a colour and a strength, the maps'
@@ -1384,7 +1384,7 @@ button's Effects and sounds switch, or the Effects view) and save. Each is kept 
 values set on it and its place in the prefab's groups; a sound's reach is no part of the footprint. An effect its
 piece carries is not listed: the piece's copy brings it. Placing the prefab places them as the Add panel places an
 effect of another map (read from their home map, built by the same path), with the effect's likeness under the
-cursor; their values are placed where the value families build and kept in the file either way. The builder shows
+cursor, with their values. The builder shows
 them (its Effects view, Shift+X, and the likeness), and Test in game plays them. A **lens flare** is held the same
 way where the flare family builds (stage FX6b; prefab schema 3 still): a piece of `kind: flare`, a copy of its
 original with no values, counted as a lens flare in the prefab's line; where the family doesn't build it can't be

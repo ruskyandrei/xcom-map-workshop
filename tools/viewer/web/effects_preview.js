@@ -41,7 +41,7 @@ void main() {
 }`;
 const FRAGMENT = /* glsl */`
 uniform sampler2D uPicture; uniform sampler2D uMask;
-uniform float uHasPicture; uniform float uHasMask; uniform float uAlpha; uniform float uMode; uniform float uSoft;
+uniform float uHasPicture; uniform float uHasMask; uniform float uAlpha; uniform float uMode; uniform float uSoft; uniform float uLit;
 varying vec2 vUv; varying vec2 vCorner; varying vec4 vColour;
 void main() {
   vec4 t = uHasPicture > 0.5 ? texture2D(uPicture, vUv) : vec4(1.0);
@@ -54,7 +54,8 @@ void main() {
   if (uHasMask > 0.5) { vec4 m = texture2D(uMask, vUv); a *= max(max(m.r, m.g), m.b); }
   // nothing to shape it: a soft round dot
   if (uSoft > 0.5 && uHasPicture < 0.5 && uHasMask < 0.5) a *= smoothstep(0.5, 0.15, length(vCorner));
-  vec3 rgb = max(t.rgb * vColour.rgb, 0.0);
+  // (a lit material shows by the scene's light too: its colour, which is what it glows with, never draws it black)
+  vec3 rgb = max(t.rgb * max(vColour.rgb, vec3(uLit)), 0.0);
   a = clamp(a * vColour.a, 0.0, 1.0);
   if (uMode > 2.5) { if (a < 0.33) discard; gl_FragColor = vec4(rgb, 1.0); }
   else if (uMode > 1.5) { gl_FragColor = vec4(mix(vec3(1.0), min(rgb, 1.0), a), 1.0); return; }
@@ -75,7 +76,7 @@ function particleMaterial(draw, vertexShader, soft) {
   const mode = MODES[draw.blend] ?? 0;
   const material = new THREE.ShaderMaterial({
     vertexShader, fragmentShader: FRAGMENT, depthWrite: mode === 3, transparent: mode !== 3, side: THREE.DoubleSide,
-    uniforms: { uPicture: { value: blank }, uMask: { value: blank }, uHasPicture: { value: 0 }, uHasMask: { value: 0 }, uSoft: { value: soft ? 1 : 0 },
+    uniforms: { uPicture: { value: blank }, uMask: { value: blank }, uHasPicture: { value: 0 }, uHasMask: { value: 0 }, uSoft: { value: soft ? 1 : 0 }, uLit: { value: draw.lit ? 0.3 : 0 },
                 uAlpha: { value: draw.opacity === 'alpha' ? 1 : draw.opacity === 'channel' ? 2 : 0 }, uMode: { value: mode }, uScale: { value: new THREE.Vector2(1, 1) },
                 uGrid: { value: new THREE.Vector2(draw.subImages?.[0] ?? 1, draw.subImages?.[1] ?? 1) }, uFacing: { value: FACING[draw.facing] ?? 0 } },
   });
