@@ -21,6 +21,7 @@ from play import Player
 from gamesetup import GameSetup
 from families import FamilyCache
 from collision import CollisionCache
+from generated import GeneratedError, Meshes as GeneratedMeshes
 from library import LibraryRunner, pieces_root
 from precache import PrecacheRunner
 import guide
@@ -102,6 +103,8 @@ class Handler(SimpleHTTPRequestHandler):
     family_cache = FamilyCache()
     # each map's line-check collision by mesh (collision.py), its package read once per server
     collision_cache = CollisionCache()
+    # the meshes of pieces the Build makes from numbers (generated.py), kept by their numbers
+    generated_meshes = GeneratedMeshes()
 
     def __init__(self, *args, catalogue=None, projects=None, builds=None, exports=None, player=None, live=None,
                  setup=None, library=None, prefabs=None, prefab_tests=None, precache=None, queue=None, **kwargs):
@@ -414,6 +417,27 @@ class Handler(SimpleHTTPRequestHandler):
             except (OSError, ValueError, KeyError) as error: self.send_json(500, dict(error=f'Could not read the map\'s collision: {error}'))
         return True
 
+    # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
+    # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order.
+    def handle_generated(self, method):
+        split = urlsplit(self.path)
+        if split.path != '/generated/fracwall.glb': return False
+        if method != 'GET':
+            self.send_json(405, dict(error='Not allowed.'))
+            return True
+        try:
+            payload = self.generated_meshes.fracwall((parse_qs(split.query).get('wall') or [''])[0])
+        except (GeneratedError, ValueError) as error:
+            self.send_json(400, dict(error=f"The wall can't be drawn: {error}"))
+            return True
+        self.send_response(200)
+        self.send_header('Content-Type', 'model/gltf-binary')
+        self.send_header('Cache-Control', 'no-cache')
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+        return True
+
     # Play in game (play.py): GET /play.json says which installs the editor works with and what it has installed
     # there; POST /play/start ({project} or {map}) starts the game on a map and POST /play/remove takes the editor's
     # installs back out.
@@ -657,7 +681,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_generated, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):

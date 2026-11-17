@@ -2554,7 +2554,8 @@ doorway's cover is the game's own rule, **open**.
   included; test_frac_wall, test_frac_walls and test_compiler_generated.
 - **Open.** The doorway tile's cover follows from the game's own rule for a tile between two pieces of wall. The
   game's doorways hold doors; whether a door in this one (a copy of one of the bar's) takes the cover away is not
-  tried.
+  tried. Since the same day the editor draws a made wall as it is built, so the doorway shows there and a door can be
+  placed in it.
 
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code

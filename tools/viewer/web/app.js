@@ -1085,9 +1085,33 @@ function actorPose(source, matrix) {
 // The render matrix that puts a source piece's actor at a game pose (the inverse of actorPose).
 const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
+// A fracturing wall the Build makes from numbers (custom geometry plan, section 0): drawn from its own mesh, which the
+// server builds from the numbers as the Build does (generated.py), on its template's materials by slot (the made mesh's
+// sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
+// (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
+const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: 3072 };
+function madeShape(template, generated) {
+  const w = generated?.kind === 'fracWall' ? generated.wall : null;
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
+    || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)) return {};
+  const wall = { x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })), seed: w.seed ?? 1 };
+  const key = `made:fracwall:${JSON.stringify(wall)}`;
+  if (!data.meshes[key]) {
+    const a = wall.x0 + FRAC_WALL.endInset, b = wall.x1 - FRAC_WALL.endInset, hx = (b - a) / 2, hz = (FRAC_WALL.top - FRAC_WALL.bottom) / 2;
+    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a wall'}, made from numbers`, kind: 'static', made: true,
+      url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall) })}`,
+      sections: Array.from({ length: FRAC_WALL.slots }, (_, slot) => ({ slot, count: 1 })),
+      bounds: [(a + b) / 2, 0, FRAC_WALL.bottom + hz, hx, FRAC_WALL.halfY, hz, Math.hypot(hx, FRAC_WALL.halfY, hz)] };
+  }
+  const slots = (data.meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
+  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
+  return { mesh: key, materials: Array.from({ length: FRAC_WALL.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+}
 // An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
 function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null }) {
-  return { ...template, id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
+  return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
     // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
     // template's settings (pieceFlags) stay its baseline
     initialFlags: flags ? { ...flags } : null,

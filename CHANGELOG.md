@@ -8,6 +8,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### The editor draws a fracturing wall made from numbers as the Build makes it
+
+The user could not see the custom wall's doorway in the editor: a made wall was drawn as the wall it copies, so the
+custom wall showed as a whole bar wall overlapping the twin, with no gap to put a door in. Now it is drawn from its
+own mesh.
+- [generated.py](tools/viewer/generated.py) (new): `GET /generated/fracwall.glb?wall=<its numbers as JSON>`
+  ([viewer.py](tools/viewer/viewer.py)) answers the mesh [frac_wall.py](tools/bake/frac_wall.py) builds from the
+  numbers, written as the export's mesh files are (`mesh.write_glb`), its six sections in slot order. The geometry
+  is the numbers' and the recipe's alone, so no map is read; the last 32 are kept by their numbers. Numbers it can't
+  draw (under 40 or over 3,072 long, more than 16 openings, an opening outside the wall) are refused.
+- [web/app.js](tools/viewer/web/app.js) `madeShape`: an added copy whose `generated` is a fracturing wall takes a mesh
+  entry of its own that points there, with its box and its template's materials by slot; numbers the server
+  wouldn't draw leave the template's mesh, so a project still opens. Its selection box, its physical box and a
+  pasted copy follow the drawn wall.
+- Checked: [test_generated.py](tools/viewer/tests/test_generated.py) (5 tests: six sections in slot order, the box
+  the solid's, one file for the same numbers however spelt, the cache's size, malformed numbers refused); the EXP-67
+  project on a test server: the custom wall drawn with its doorway, −184 to 184, clear of the twin, the donor's six
+  materials, the project still saved, a pasted copy drawn the same; the viewer, node, release and repo suites.
+- Known gaps: the made wall's ground for the editor's floor heights comes from the drawn mesh (it has no line
+  collision of its own); "Select all" of a kind no longer counts made walls with their template's pieces.
+
 ### Fracturing walls made from numbers end 8 short of their tile edges, as the game's do; EXP-67 run 1 passed
 
 EXP-67 run 1 passed (the user played it): the twin looks like the bar's wall beside it, all three walls break like
