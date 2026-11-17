@@ -1,8 +1,9 @@
 # EXP-67: a fracturing wall made from numbers (proof of concept)
 
-Date: 17 November 2026. Status: **run 1 passed** (played by the user), bar one tile at the custom wall's doorway
-that acted as invisible cover ([F-116](../findings-register.md): its cause found, the part ours fixed). The custom
-geometry plan's section 0, stage F4, at the
+Date: 17 November 2026. Status: **passed; the proof of concept succeeded** (the user: "ok this went very well, I
+think the POC was successfull"). Run 1 passed bar one tile at the custom wall's doorway that acted as invisible cover
+([F-116](../findings-register.md): its cause found, the part ours fixed); run 2, a door in the doorway, works. The
+work is on the branch `fracturing-wall-poc`. The custom geometry plan's section 0, stage F4, at the
 user's ask ("can we first focus on getting a PoC of a fracturing custom wall and see if (a) we can get them to look
 good and similar to the ones the game has, (b) we can get them to fracture similarly"). Stages F0 to F3 were built
 and checked offline the same day; this run is the one thing they cannot answer: what the game does with the walls.

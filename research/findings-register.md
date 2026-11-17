@@ -15,7 +15,8 @@ Statuses:
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November). 17 November: a fracturing wall made from
-  numbers is built, and EXP-67 run 1 passed its look and its break in the game (one tile at its doorway: F-116).
+  numbers is built (branch `fracturing-wall-poc`), and EXP-67 passed its look and its break in the game: the user
+  called the proof of concept successful (one tile at its doorway: F-116).
 - F-116 (the doorway part): a one-tile doorway with no door gives cover toward its sides, by the game's own rule; a
   door in it is not tried.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
@@ -2643,7 +2644,10 @@ inspection, no new visible mesh played).
   - **EXP-67 run 1 passed** (17 November 2026, played by the user: "all checks out in game"): the twin looks like
     the reference beside it, all three break under rifle fire and grenades, cover, sight and walking through the
     doorway and the holes, and a save and reload with them broken. One tile at the custom wall's doorway acted as
-    invisible cover (F-116, its end part fixed). By the plan's section 0.2, both questions pass.
+    invisible cover (F-116, its end part fixed). By the plan's section 0.2, both questions pass. Run 2: a door in
+    the custom wall's doorway works. The user: "I think the POC was successfull". Still to learn, for walls beyond
+    the proof of concept: recipes for other walls (outside walls, other heights), joints and corners (the columns'
+    neighbour lists), walls inside buildings (cutaway), and whether a door takes the doorway tile's cover away.
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
 **Fixed** (16 November 2026, seen by the user on a temple map).

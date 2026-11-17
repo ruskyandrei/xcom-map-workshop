@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Custom walls: the proof of concept succeeded
+
+The user played EXP-67 again with a door in the custom wall's doorway ("doors seem to work well in the custom walls
+too") and called the proof of concept successful.
+- [EXP-67](research/experiments/EXP-67-fracturing-wall-poc.md) has run 2 and the verdict;
+  [T-42](research/findings-register.md) has them with what is still to learn for walls beyond the proof of concept
+  (recipes for other walls, joints and corners, walls inside buildings, a door and the doorway tile's cover); F-116
+  notes the door.
+- The private plan's section 0 has the result: the branch `fracturing-wall-poc` and its commits, what was built, what
+  was learned about the data and the game, the limits it has now, and what follows (the plan's rewrite round
+  fracturing walls, a wall tool, more recipes), each waiting for the user.
+- Checked: the `repo` suite. No tool changed.
+
 ### The editor draws a fracturing wall made from numbers as the Build makes it
 
 The user could not see the custom wall's doorway in the editor: a made wall was drawn as the wall it copies, so the
