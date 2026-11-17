@@ -1,0 +1,38 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e68", "shots": [
+ {"out": "EXP-68-front.png", "title": "EXP-68: steam on the pavement in front of the bar",
+  "target": [-912, -144, 26], "camera": [0, -760, 820], "effects": true,
+  "marks": [
+   {"n": "1", "at": [-1104, -144, 60], "color": "#ff6b6b", "r": 36, "text": "the taxi's exhaust steam, moved here and turned a quarter: it plays here only"},
+   {"n": "2", "at": [-912, -144, 60], "color": "#5ad17a", "r": 36, "text": "a copy of it: plays on its own"},
+   {"n": "3", "at": [-720, -144, 60], "color": "#4aa8ff", "r": 36, "text": "another copy: plays on its own"}]},
+ {"out": "EXP-68-taxi.png", "title": "EXP-68: the taxi, where its exhaust steam and its engine sound were",
+  "target": [1350, -360, 26], "camera": [0, -800, 900], "effects": true,
+  "marks": [
+   {"n": "A", "at": [1354, -188, 40], "color": "#ff6b6b", "r": 40, "text": "the exhaust steam was here: none now"},
+   {"n": "10", "at": [1344, -522, 94], "color": "#e0a040", "r": 40, "text": "the taxi's engine idle sound, deleted: silent here"}]},
+ {"out": "EXP-68-back-wall.png", "title": "EXP-68: the bar's back wall and roof, from behind (the cutaway)",
+  "target": [-500, 1250, 300], "camera": [0, 1900, 1000], "effects": true,
+  "marks": [
+   {"n": "4", "at": [-627, 1400, 333], "color": "#ff6b6b", "r": 36, "text": "a floodlight beam moved off the wall: stays drawn with the roof cut away"},
+   {"n": "b", "at": [-132, 1286, 333], "color": "#5ad17a", "r": 30, "text": "the other beams (untouched): hide with the roof cut away"},
+   {"n": "b", "at": [595, 1286, 333], "color": "#5ad17a", "r": 30},
+   {"n": "b", "at": [-1594, 1286, 333], "color": "#5ad17a", "r": 30},
+   {"n": "5", "at": [150, 620, 420], "color": "#4aa8ff", "r": 36, "text": "a copy of the exhaust steam on the roof: hides with the roof cut away"}]},
+ {"out": "EXP-68-claw.png", "title": "EXP-68: inside the bar, the claw machine (roof cut away)",
+  "target": [260, 1150, 40], "camera": [0, -650, 700], "effects": true, "floor": "1",
+  "marks": [
+   {"n": "11", "at": [139.6, 1189.8, 70], "color": "#ff6b6b", "r": 34, "text": "the claw machine, moved two tiles along the wall"},
+   {"n": "12", "at": [330.6, 1189.8, 70], "color": "#e0a040", "r": 34, "side": "left", "text": "its lights, kept where the machine stood"}]},
+ {"out": "EXP-68-rats.png", "title": "EXP-68: the west alleys: the rats the script sets off",
+  "target": [-2420, 220, 0], "camera": [1500, -300, 2300], "effects": true,
+  "marks": [
+   {"n": "6", "at": [-2296, 1633, 20], "color": "#ff6b6b", "r": 40, "text": "rats (north-west), moved two tiles: set off at the new place"},
+   {"n": "T0", "at": [-2363, 1460, 84], "color": "#ffe27a", "r": 34, "side": "left", "text": "their trigger: a soldier walking in here"},
+   {"n": "7", "at": [-2540, -1182, 20], "color": "#e0a040", "r": 40, "text": "rats (south-west), deleted: nothing when the trigger is walked"},
+   {"n": "T1", "at": [-2328, -1322, 84], "color": "#ffe27a", "r": 34, "side": "left", "text": "their trigger"}]},
+ {"out": "EXP-68-sounds.png", "title": "EXP-68: the bar's music, moved and copied",
+  "target": [500, -1000, 0], "camera": [0, -2300, 3400], "effects": true,
+  "marks": [
+   {"n": "8", "at": [1200, -1700, 73], "color": "#ff6b6b", "r": 44, "text": "the bar's music, moved here near the squad (reach about 1000)"},
+   {"n": "9", "at": [1900, 300, 73], "color": "#4aa8ff", "r": 44, "text": "a copy of it, out of the squad's earshot"},
+   {"n": "M", "at": [-85, 637, 73], "color": "#e0a040", "r": 44, "text": "where the music was: silent inside the bar now"}]}]}

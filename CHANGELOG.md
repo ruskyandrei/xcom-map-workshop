@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### EXP-68 prepared: the game check of effects and sounds edited (FX3's EXP-C)
+
+- [exp68_project.py](tools/editor/examples/exp68_project.py), new: EXP-68's project on URB_Bar (an exhaust steam
+  moved, turned and copied three times, one copy on the bar's roof; a floodlight beam moved off the roof floor's list;
+  the script's rats moved and deleted; the bar's music moved and copied, the taxi's engine deleted; the claw machine
+  moved with its lights kept), compiled and built with the effect and sound families enabled, `--store` into the
+  editor's project store and builds.
+- [mark_shots.py](tools/viewer/mark_shots.py): a shot's `"effects": true` draws the effects and sounds with the
+  pieces (the Normal button's switch).
+- [EXP-68](research/experiments/EXP-68-effects-and-sounds.md) and its shots file: what the offline readback settled
+  (poses, deletes, copies with their own subtree and cue, the bar's floor lists, the claw machine's lights; Clear map's
+  retained effects and sounds equal to the view's with and without the outside kept, 9 and 17 of 76; an effects-only
+  full build without a relight) and the run's list.
+- [F-119](research/findings-register.md), open: a moved landing leaves the grounded Skyranger's dust effect behind,
+  in the Build and the view alike; found in the clear and landing readback.
+
+Checked: the project compiles with its two expected script warnings; the build read back with a fresh reader as
+listed in the note; the shots taken on a test server with the families on. Not played yet.
+
 ### Effects and sounds, stage FX3: effects and sounds moved, copied and deleted
 
 The third stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's own effects (Emitter actors)

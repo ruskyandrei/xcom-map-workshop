@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
+  editor shows it there too (found offline, 17 November, while preparing EXP-68).
 - F-117, F-118: a variant replacing Commercial Alley Redux now keeps the first mission's record name, and Replace
   comments out only the base map's records the variant has records for, so the first mission always has a map
   (fixed offline, 17 November); not played in a new campaign.
@@ -2524,6 +2526,21 @@ word; not looked at in the game).
 - Fix: `recipe_source_radius` reads the value the recipe's component saves. Recipe spot and point lights now bake
   with 32, as copies of placed lights do; a baked recipe spot's shadow edges come out a little sharper than
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
+
+### F-119: A moved landing leaves the grounded Skyranger's dust where the landing was
+**Open** (17 November 2026, found offline in FX3's clear and landing check; not seen in the game).
+- **Seen.** A cleared Bar with its landing moved four tiles east and turned (`clear_bar_project.py`'s first zone), built
+  quick and read back: the grounded Skyranger (`XComLevelActor_138`), its idle lights (`Emitter_78`) and its idle sound
+  (`AmbientSoundSimpleToggleable_0`) moved by one transform, from (560, -2971) to (-188, -1521), but `Emitter_0`
+  (`P_Skyranger_Ground_Periphery`, the dust the map's script hides for the intro and shows after it) stayed at
+  (512, -2112). The editor's Effects view draws it there too, so the view and the Build agree.
+- **Cause.** The landing's move (`native_spawns.py`) carries the actors the landing names by role (export 22's
+  `landingRole`: the Skyranger, its emitter, its sound, the spawn points); the dust is a landing actor only by its
+  archetype (`native_copy.LANDING_EXTRA`, `effects_metadata.LANDING_EXTRA`), which keeps it through a clear but gives
+  it no role, so nothing moves it.
+- **Fix to try.** Carry `LANDING_EXTRA` actors with the moved landing by the Skyranger's transform, give them a role in
+  the export (say `dust`) so the page shifts their markers with the zone, and look in the game at a moved landing after
+  the intro.
 
 ## Toolchain
 
