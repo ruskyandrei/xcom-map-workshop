@@ -130,3 +130,10 @@ as `EXP67FracturingWalls-20261117-011410`; the game's occupancy test, run on its
 columns and the doorway's. The doorway's cover itself is left as the game's rule makes it; a door in it is not tried.
 
 By the plan's section 0.2 both questions pass: a wall made from numbers looks like the game's and breaks like it.
+
+## Run 2 (the user's own): a door in the doorway
+
+17 November 2026, after the editor began drawing made walls as they are built: the user put a copy of one of the
+bar's doors in the custom wall's doorway, rebuilt and played: "doors seem to work well in the custom walls too". Their
+pictures show the door shut in the doorway with a soldier in cover beside it, and the door open with a soldier at the
+doorway. Whether the doorway tile itself still gives cover with the door in it was not told apart (F-116).

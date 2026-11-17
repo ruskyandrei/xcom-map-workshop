@@ -2555,7 +2555,9 @@ doorway's cover is the game's own rule, **open**.
 - **Open.** The doorway tile's cover follows from the game's own rule for a tile between two pieces of wall. The
   game's doorways hold doors; whether a door in this one (a copy of one of the bar's) takes the cover away is not
   tried. Since the same day the editor draws a made wall as it is built, so the doorway shows there and a door can be
-  placed in it.
+  placed in it. The user then put a door in it (EXP-67, run 2): "doors seem to work well in the custom walls too";
+  their pictures show it shut beside a soldier in cover and open with a soldier at the doorway. Whether the doorway
+  tile still gives cover with the door in it was not told apart.
 
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
 **Open** (16 November 2026; [EXP-66](experiments/EXP-66-custom-geometry-feasibility.md), read-only audit and code
