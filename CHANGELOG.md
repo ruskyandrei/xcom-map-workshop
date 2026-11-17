@@ -8,6 +8,55 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 17 November 2026
 
+### Effects census, version 2: copies left out, the plan's evidence gaps closed
+
+The effects and sounds plan was checked again, at the user's ask, against the code as it stands and the packages.
+
+- **The first census counted a copy.** A variant of one map installed in the game, and its landing intro, were
+  counted as Firaxis's: a map the editor builds keeps the package GUID of the map it grew from.
+  [audit_effects.py](tools/upk/audit_effects.py) now counts only the oldest file of a GUID (`copies`,
+  `copiesLeftOut`).
+- **What it reads besides** (its docstring has the list):
+  - which actors the level's actor list holds;
+  - everything under each particle system, over all LOD levels, with its native bytes by class;
+  - the parameters a system offers against the ones its effects save;
+  - whether a system's emitters loop;
+  - each wave's bulk records by their headers;
+  - why a sound reaches no wave, and what its node saves or inherits;
+  - each building floor's emitter list against where the emitters stand;
+  - what a `Base` resolves to;
+  - what the two carrying rules would pick;
+  - whether LWR's patches name an effect as text;
+  - `Engine.upk`'s class defaults for starting on;
+  - the map list's and each package's SHA-256.
+- **Its result:** [effects-audit-2026-11-17.json](research/evidence/effects-audit-2026-11-17.json), for 96 base
+  maps, 54 Firaxis streams and 87 LWR patches.
+  - 7,138 effects in 95 base maps and 421 in streams, every one in its level's list; 849 sounds in 90 base maps;
+    92 flares.
+  - Nothing under any of the 441 particle systems keeps native data. Two system paths have two sizes across
+    packages; the 64 waves have one each.
+  - All 64 waves keep their Ogg stream as one plain bulk record, and `RawPCMDataSize` is frames times channels
+    times two on each.
+  - Eight sounds play nothing: an empty sound slot, or none.
+  - No ground floor lists an effect; of the 679 listings on upper floors, 471 stand inside their floor's volumes.
+  - Of 17,622 saved instance parameters, 80% name one their system offers in its kind and 18% in the other kind.
+  - The transplant's dry run: 7,558 of 7,559 effects, all 864 sounds and all 92 flares could come.
+  - The first census's file, [effects-audit-2026-11-15.json](research/evidence/effects-audit-2026-11-15.json), is
+    kept as it was made.
+- **Tried offline, in a scratch folder:** `transplant.stage_edit` staged a lit effect and a simple sound of one
+  map into a copy of another, and `native_copy.clone_actor` cloned both and two of the map's own. Read back, each
+  clone has its own component, light environment, cue and node, with the system and the wave shared. Nothing was
+  played, and the trial is not kept as a test: the plan makes it stage FX4's first.
+- **The private plan** (`private/plans/todo/effects-and-sounds-plan.md`, outside the public repository) has the
+  second census's numbers, the floor lists' rule as the maps have it, export 28 and document schema 3 for its
+  records, the stage of evidence gathering marked done, and its warnings brought in line with "warn, don't block"
+  and "nothing says untried". Its status: ready to build from stage FX1, waiting for the go-ahead.
+- **Noticed, not changed:** `library.donors` lists a variant put into the install by hand as a donor map, as the
+  first census did.
+- Checked: [test_audit_effects.py](tools/upk/tests/test_audit_effects.py), 15 tests (four new: the loop sorting,
+  a point in boxes, copies by GUID), with `tools/run_tests.py upk -k audit_effects`; the `repo` suite. No editor
+  code changed.
+
 ### Replace comments out only the base map's records the variant has records for (F-118)
 
 A build has records for its project's missions only, but Replace commented out every record of its base map, so a
