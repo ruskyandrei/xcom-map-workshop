@@ -10,7 +10,8 @@ In the parking lot (floor 0), as the editor's tools make them:
   one tile square at x -1536 to -1440, y -960 to -864;
 - a roof over the room on the walls' tops: a copy of the bar's roof Roof_BarrierSmallFloor_FRACTURED
   (XComFracLevelActor_3) made from numbers, the piece at (-1728, -1056, 384), its plate 382 to 386;
-- a building round the room as the Room with a roof tool makes it: floor 1 from -16 to 208, floor 2 from 208 to 400;
+- a building round the room as the Room with a roof tool makes it: floor 1 from -16 to 192, floor 2 from 192 to 384,
+  floor 3 (the roof's) from 384 to 576;
 - a second roof on its own over open ground east of the room (x -1152 to -960, y -1056 to -864, at 384), with no walls
   under it: a roof standing in the air, to see what the game makes of one.
 Game tiles count from the map's corner (-2785, -1921, -1): tile centres at x -2737 + 96 i, y -1873 + 96 j.
@@ -54,8 +55,9 @@ SLABS = (
     ('Roof', ROOF_DONOR, [-1728.0, -1056.0, LOT + TOP], dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, holes=[], seed=766)),
     ('LoneRoof', ROOF_DONOR, [-1152.0, -1056.0, LOT + TOP], dict(x0=0.0, x1=192.0, y0=0.0, y1=192.0, holes=[], seed=767)),
 )
-ROOM_FLOORS = [[-1728.0, -1056.0, LOT - 16.0, -1344.0, -768.0, LOT + 208.0],
-               [-1728.0, -1056.0, LOT + 208.0, -1344.0, -768.0, LOT + 400.0]]
+ROOM_FLOORS = [[-1728.0, -1056.0, LOT - 16.0, -1344.0, -768.0, LOT + 192.0],
+               [-1728.0, -1056.0, LOT + 192.0, -1344.0, -768.0, LOT + 384.0],
+               [-1728.0, -1056.0, LOT + 384.0, -1344.0, -768.0, LOT + 576.0]]
 
 
 def added(scene):

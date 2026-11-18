@@ -170,6 +170,27 @@ class GeneratedTests(unittest.TestCase):
             self.assertIn('malformed', codes(report), bad)
             self.assertFalse([o for o in (spec or {}).get('objects', []) if o['type'] == 'copy'], bad)
 
+    def test_a_slab_in_a_building_but_in_none_of_its_floors_is_warned(self):
+        # (EXP-76 run E) a made floor (its box 192 to 194) in a building whose floors break at 208 and 400 counts for
+        # none (its bottom within 20 of floor 0's top, under floor 1): the game never cuts it away. With floors that
+        # break at its height, as the Room with a roof tool now makes them, it counts for floor 1
+        floor = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[], look='floor'))
+
+        def run(breaks):
+            house = dict(id='00000000-0000-4000-8000-0000000000b1', name='Hut', kind='building',
+                         floors=[dict(boxes=[[0.0, 1212.0, lo, 384.0, 1500.0, hi]]) for lo, hi in breaks])
+            doc = document((), [made(floor, at=(0, 1212, 0))], schemaVersion=4, buildings=[house])
+            s = scene()
+            s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
+            _, report = compile_project(doc, s)
+            self.assertTrue(report['ok'], refused(report))
+            return [w for w in report['warnings'] if w['code'] == 'slab-in-no-floor']
+
+        (w,) = run([(-16.0, 208.0), (208.0, 400.0)])
+        self.assertIn('Hut', w['message'])
+        self.assertEqual(w.get('record'), 'added[0]')
+        self.assertEqual(run([(-16.0, 192.0), (192.0, 384.0), (384.0, 576.0)]), [])
+
     def test_a_ground_shape_copies_a_plain_piece_in_its_own_box(self):
         # (M6) a block, a ramp and a patch on XComLevelActor_1's copies: their boxes their own (a patch under the ground
         # it lies on), their height free; noted; a ramp over 10 degrees noted sloped, one over 45 warned; on a fracturing

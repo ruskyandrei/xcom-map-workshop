@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A room with a roof gets floors that break at its storeys, with one for its roof; a slab in no floor of its building
+  is warned** (custom geometry plan, M5; found in EXP-76 run E; branch `fracturing-wall-poc`).
+  - **What run E showed.** With a soldier inside the room, the made upper floor and roof were never cut away, and the
+    cursor landed on them.
+    - The Room with a roof tool made its building's floors break at 208 and 400 over the room's ground. Its slabs'
+      boxes are 192 to 194 and 382 to 386.
+    - The game lists a piece in a floor only when its bottom is more than 20 under that floor's top (F-87,
+      tools/bake/buildings.py), so both slabs counted for no floor and were never hidden.
+    - URB_Bar's building breaks at 192 and 384 over its ground, with a roof floor above. It lists its walls on floor 0
+      cut down at floor 2, its upstairs floor slab on floor 1 and its roof on floor 2.
+  - [app.js](tools/viewer/web/app.js): the Room with a roof tool's building has a floor for each storey, from the
+    walls' bottom to 192 and from 192 to 384, and a roof floor from 384 to 576. EXP-76's project has the same, and its
+    rebuilt Build lists the floor slab on floor 1 and the roof on floor 2, as the bar does.
+  - [compiler.py](tools/editor/compiler.py) `made_slabs_in_floors`: a warning (`slab-in-no-floor`) for a floor or
+    roof made from numbers that stands in a building (one made in the project, one edited, or the map's own) but
+    counts for none of its floors by the game's rule.
+  - Checked by:
+    - the editor suite (`test_a_slab_in_a_building_but_in_none_of_its_floors_is_warned`);
+    - the walls browser check (the room's building has three floors, topped at 192, 384 and 576);
+    - EXP-76's Build report (floor 1: 1 piece, floor 2: 1 piece).
+  - Not played yet: run E's checks 3 and 5 again on the new build.
+
 - **Rocks made from numbers, a Rock look, and ground pieces standing level** (custom geometry plan, M6 item 6; branch
   `fracturing-wall-poc`).
   - **The rock.** [ground.py](tools/bake/ground.py) has a fourth shape, `rock`: an irregular convex piece within its

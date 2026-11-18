@@ -287,7 +287,11 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     roof = [m for m in made if state(page, m)['generated']['kind'] == 'fracSlab']
     assert len(roof) == 1 and abs(state(page, roof[0])['location'][2] - (corner[2] + 384)) < 1e-3, [state(page, m) for m in made]
     (house,) = [b for b in page.evaluate('viewer.buildingsNow()') if b['name'] not in named]
-    assert len(house['floors']) == 2 and house['name'].startswith('Building'), house
+    assert len(house['floors']) == 3 and house['name'].startswith('Building'), house
+    # (a floor a storey, breaking at the storeys' heights, and one for the roof: the game lists a slab in the floor it
+    # is the bottom of; EXP-76 run E)
+    tops = sorted(round(max(bx[5] for bx in f) - corner[2], 3) for f in house['floors'])
+    assert tops == [192, 384, 576], (tops, house)
     page.evaluate('viewer.gizmo.undo()')          # (one undo step: the pieces and the building)
     page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     page.wait_for_function('n => viewer.buildingsNow().length === n', arg=houses, timeout=30000)

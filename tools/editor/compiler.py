@@ -1009,6 +1009,7 @@ class Compiler:
         self.copies, self.hides = [], []
         self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
         self.made_parts = {}        # a made wall's label: its template's parts (join_made_walls makes its box again)
+        self.made_slabs = []        # (copy, where) of each floor or roof made from numbers (made_slabs_in_floors)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
@@ -1409,6 +1410,43 @@ class Compiler:
                               'piece to another only as high as the blast reached)'
                               % (upper['label'], lower['label'], lower['label']), **where)
                     break
+
+    def made_slabs_in_floors(self):
+        """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
+        floors by the game editor's rule (tools/bake/buildings.py, F-87): a piece is listed in a floor only when it
+        touches one of the floor's boxes (within 2) with its bottom more than 20 under that box's top. Such a slab is
+        never cut away with its building, and the cursor lands on it (EXP-76 run E). The game's buildings have a floor
+        start at each slab: URB_Bar's upstairs floor is the bottom of its floor 1, its roof of its floor 2."""
+        slabs = [(c, where) for c, where in self.made_slabs if c.get('box')]
+        if not slabs:
+            return
+        houses = [(b['name'] or 'a new building', [[x for x in f['boxes']] for f in b['floors']]) for b in self.new_buildings]
+        houses += [(e['name'], [[x for x in f['boxes']] for f in e['floors']]) for e in self.building_edits
+                   if not e.get('deleted') and e.get('floors')]
+        edited = {e['actor'] for e in self.building_edits}
+        for b in self.scene.get('buildings') or []:
+            if b.get('actor') in edited:
+                continue
+            floors = [[[*v['min'], *v['max']] for v in f.get('boxes') or [] if isinstance(v, dict)] for f in b.get('floors') or []]
+            if any(floors):
+                houses.append((b.get('actor') or 'a building of the map\'s', floors))
+        for c, where in slabs:
+            box = c['box']
+            for name, floors in houses:
+                vols = [v for f in floors for v in f if len(v) == 6]
+                inside = any(min(box[1], v[3]) - max(box[0], v[0]) > TILE / 2 and min(box[3], v[4]) - max(box[2], v[1]) > TILE / 2
+                             and v[2] - 64 <= box[4] <= v[5] + 64 for v in vols)
+                if not inside:
+                    continue
+                counts = any(box[4] < v[5] - 20 and all(box[2 * j] <= v[j + 3] + 2 and box[2 * j + 1] >= v[j] - 2 for j in range(3))
+                             for f in floors for v in f if len(v) == 6)
+                if not counts:
+                    self.warn('slab-in-no-floor', "%s stands in %s but in none of its floors: the game won't cut it away "
+                              'when the cursor is inside, and the cursor lands on it. Start a floor at its height (the '
+                              "game lists a piece in a floor only when its bottom is more than 20 under the floor's top), "
+                              'as the Room with a roof tool and the game\'s buildings do' % (c['label'], name),
+                              **where)
+                break
 
     def made_wall_openings(self):
         """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
@@ -2677,6 +2715,7 @@ class Compiler:
                               'it gets no cover, as on every slope of the game\'s steeper than about 10 degrees'
                               % (short(out), round(slope)), **where)
             elif rec['generated']['kind'] == 'fracSlab':
+                self.made_slabs.append((self.copies[-1], dict(where)))
                 self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
                           'to it' % (short(out), name), **where)
@@ -4802,6 +4841,7 @@ class Compiler:
             self.ladder_climbs()
             self.floor_headroom()
             self.buildings()
+            self.made_slabs_in_floors()
             self.landing_zones()
             self.missions_check()
             self.stage_outside()

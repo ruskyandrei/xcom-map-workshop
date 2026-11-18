@@ -9601,10 +9601,15 @@ async function endWallDraw(keep) {
                    matrix: movedMatrix(roofTemplate, made.roof.location, made.roof.rotation) });
   await pasteSnapshot({ entries, pivotIndex: 0, name: room ? `room of ${look.name.toLowerCase()}s` : look.name }, new THREE.Matrix4());
   if (made.roof) {
-    // its building: the room's rectangle, a floor a storey high and the one over it to the roof's top, as the game's are
+    // its building: the room's rectangle, a floor for each storey, breaking at the storeys' heights, and one over them
+    // for the roof, as the game's are: URB_Bar's lists its walls on floor 0 cut down at floor 2, its upstairs floor
+    // slab on floor 1 and its roof on floor 2. The game lists a piece in a floor only when its bottom is more than 20
+    // under that floor's top, so a slab belongs to the floor it is the bottom of (EXP-76 run E: with the floors 16
+    // higher, the floor and roof were in none and never cut away)
     const [x0, y0] = made.roof.location, x1 = x0 + made.roof.slab.x1, y1 = y0 + made.roof.slab.y1, z = floor;
-    addVolumes([{ box: [x0, y0, z + WALL.bottom, x1, y1, z + WALL.storey + 16], floor: 0 },
-                { box: [x0, y0, z + WALL.storey + 16, x1, y1, z + WALL.top + 16], floor: 1 }], newBuilding());
+    addVolumes([{ box: [x0, y0, z + WALL.bottom, x1, y1, z + WALL.storey], floor: 0 },
+                { box: [x0, y0, z + WALL.storey, x1, y1, z + WALL.top], floor: 1 },
+                { box: [x0, y0, z + WALL.top, x1, y1, z + WALL.top + WALL.storey], floor: 2 }], newBuilding());
     gizmo.joinLast(2);
     gizmo.setSelection([]);
     flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z takes it out`);
