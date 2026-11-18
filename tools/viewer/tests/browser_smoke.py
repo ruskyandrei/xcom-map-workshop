@@ -1800,9 +1800,12 @@ def check_library(page, is_bar):
     visible = page.evaluate('[...viewer.roots.values()].filter(r => !r.userData.source.hidden && !r.userData.source.environment).length')
     zones = page.evaluate('viewer.pieces.entries().filter(e => e.zone).length')   # the Landing zones kind's one entry
     assert zones == 1, zones
-    assert 0 < entries - lights - zones <= visible, (entries, lights, zones, visible)
-    assert page.locator('.libitem').count() == entries and f'{entries - lights - zones} pieces' in page.locator('#libFoot').inner_text(), (
-        page.locator('.libitem').count(), entries, lights, zones, page.locator('#libFoot').inner_text())
+    # the Spawn points kind's Pod and Meld point, where the spawn family builds: recipes, not pieces
+    spawns = page.evaluate('viewer.pieces.entries().filter(e => e.spawnAdd).length')
+    pieces = entries - lights - zones - spawns
+    assert 0 < pieces <= visible, (entries, lights, zones, spawns, visible)
+    assert page.locator('.libitem').count() == entries and f'{pieces} pieces' in page.locator('#libFoot').inner_text(), (
+        page.locator('.libitem').count(), entries, lights, zones, spawns, page.locator('#libFoot').inner_text())
     if lights: assert f'and {lights} light' in page.locator('#libFoot').inner_text()
     # Entries are distinct: no two alike in every part.
     assert page.evaluate('new Set(viewer.pieces.entries().map(e => e.key)).size') == entries

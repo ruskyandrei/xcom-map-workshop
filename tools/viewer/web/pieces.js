@@ -104,6 +104,19 @@ function drawZoneIcon(canvas) {
   g.beginPath(); g.moveTo(24, 6); g.lineTo(20, 2); g.moveTo(24, 6); g.lineTo(28, 2); g.stroke();
   g.restore();
 }
+// A new spawn point's icon (app.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod and a green
+// dot for a Meld point, in its halo
+function drawSpawnIcon(canvas, kind) {
+  const g = canvas.getContext('2d'), s = canvas.width, colour = kind === 'pod' ? '#ff9f43' : '#20bf6b';
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  g.strokeStyle = colour; g.globalAlpha = 0.45; g.lineWidth = 3;
+  g.beginPath(); g.arc(24, 24, 18, 0, Math.PI * 2); g.stroke();
+  g.globalAlpha = 1;
+  if (kind === 'pod') { g.lineWidth = 4; g.beginPath(); g.arc(24, 24, 9, 0, Math.PI * 2); g.stroke(); }
+  else { g.fillStyle = colour; g.beginPath(); g.arc(24, 24, 8, 0, Math.PI * 2); g.fill(); }
+  g.restore();
+}
 const tiles = units => Math.max(1, Math.round(units / 96));   // a floor piece's size across in whole tiles (a curb drops out)
 const short = path => path.split('.').at(-1);
 // The package path an archetype sits in: a prefab's parts share their prefab's (VEH_MovingVan.Prefab.PRE_MovingVanA).
@@ -145,6 +158,26 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
 
 // Rows for pieces of This map and recipes in either scope.
 export function pieceRow(entry, pixelRatio, choose) {
+  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
+    const thumb = document.createElement('canvas');
+    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+    drawSpawnIcon(thumb, entry.spawnAdd);
+    thumb.dataset.drawn = '1';
+    const label = document.createElement('span');
+    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
+      Object.assign(document.createElement('small'), { textContent: `Spawn points · ${entry.pkg}` }),
+      Object.assign(document.createElement('small'), { textContent: entry.detail }));
+    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
+    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
+      title: `${entry.count} on this map` }));
+    button.title = entry.title;
+    button.append(thumb, label, tags);
+    button.onclick = choose;
+    button.thumb = thumb;
+    return button;
+  }
   if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
@@ -233,7 +266,7 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
   function load(list) {
     entries = list;
     setKindOptions(els.kind, entries);
-    const roles = [...new Set(entries.filter(e => !e.light && !e.zone).map(e => e.role))];
+    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd).map(e => e.role))];
     els.where.replaceChildren(new Option('Anywhere', 'all'), ...roles.map(r => new Option(ROLES[r] ?? r, r)));
     els.where.hidden = roles.length < 2;
   }
@@ -248,12 +281,12 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const kind = els.kind.value;
     const shown = entries.filter(e => inKind(e, kind)
-      && (els.where.value === 'all' || e.light || e.zone || e.role === els.where.value) && words.every(w => e.text.includes(w)));
+      && (els.where.value === 'all' || e.light || e.zone || e.spawnAdd || e.role === els.where.value) && words.every(w => e.text.includes(w)));
     shown.sort(SORTS[els.sort.value]);
     els.list.replaceChildren(...shown.map(row));
     for (const [k, b] of rows) b.classList.toggle('on', k === chosen?.key);
     // pieces and lights counted apart
-    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone)).length;
+    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone && !e.spawnAdd)).length;
     const say = (n, of, what) => (n === of ? `${of} ${what}${of === 1 ? '' : 's'}` : `${n} of ${of} ${what}s`);
     const total = [count(shown, 'piece') && say(count(shown, 'piece'), count(entries, 'piece'), 'piece'),
                    count(shown, 'light') && say(count(shown, 'light'), count(entries, 'light'), 'light')].filter(Boolean).join(' and ');

@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Add panel: the Spawn points entries no longer break All maps, and have a picture
+
+- [library.js](tools/viewer/web/library.js): the All maps list took the Add panel's new Pod and Meld point for pieces
+  of another map and stopped drawing (`Cannot read properties of undefined (reading 'maps')`); they are recipes there
+  now, as the lights, cover blocks and landing zone are. Found by the guide's shots.
+- [pieces.js](tools/viewer/web/pieces.js): their rows draw the Spawns view's marker as a picture (an orange ring, a
+  green dot) where the thumbnail stayed empty, and the list counts them apart from the pieces and shows them under
+  any Where.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_library`: the pieces counted without them.
+- Checked: the smoke's `library`, `library-all` and `spawns` checks on URB_Bar on a test server (the thumbnails wait
+  and All maps had failed on the entries before).
+
 ### Browser smoke: the spawn edits
 
 - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_spawn_edits`, run with `check_spawns_view` (and by
