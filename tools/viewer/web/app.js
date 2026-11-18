@@ -49,7 +49,7 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS } from './walls.js';
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom } from './walls.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -2075,7 +2075,7 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  if (entry.wallLook) { startWallDrawing(entry.wallLook); return; }     // a look of the Walls kind: drawn by dragging
+  if (entry.wallLook) { startWallDrawing(entry.wallLook, { room: Boolean(entry.room) }); return; }     // the Walls kind: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
   if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
@@ -9310,24 +9310,37 @@ async function wallTemplate(look) {
 const WALLS_KIND = 'Walls';
 function wallEntries() {
   if (!data || data.preview || builderMode) return [];
-  return WALL_LOOKS.map(look => ({ key: `wall:${look.id}`, id: `wall-${look.id}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
+  const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
+  return WALL_LOOKS.flatMap(look => [{ key: `wall:${look.id}`, id: `wall-${look.id}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
     pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
     wallLook: look, size: [96, 24, WALL.top - WALL.bottom], detail: 'Drawn by dragging; any length, doorways and windows',
     text: `wall walls ${look.name} ${look.package} ${look.words} fracturing breaks doorway window`.toLowerCase(),
     title: `${look.name}: ${look.words}. Press on the ground at one end, drag along a tile line and let go: the wall runs from tile `
       + `edge to tile edge, up to ${WALL.maxTiles} tiles. It breaks as the game's walls do (it is made like ${look.package}'s own). `
-      + 'Add doorways and windows in the piece panel; its handles lengthen it and move them. The Build makes it on any install'
-      + `${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }));
+      + `Add doorways and windows in the piece panel; its handles lengthen it and move them. ${install(look)}` },
+    // a room (M3 item 6, D6): four walls of the look round a rectangle
+    { key: `room:${look.id}`, id: `room-${look.id}`, name: `Room of ${look.name.toLowerCase()}s`, mesh: look.name, kind: WALLS_KIND,
+      pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
+      wallLook: look, room: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'A rectangle dragged out: four joined walls, a doorway',
+      text: `room rooms walls ${look.name} ${look.package} ${look.words} rectangle box doorway`.toLowerCase(),
+      title: `A room of ${look.name.toLowerCase()}s: press on the ground at one corner, drag to the other and let go. Four walls run `
+        + `round the rectangle on its tile lines (up to ${WALL.maxTiles} tiles a side), joined at the corners, each with the same face in, `
+        + `with a doorway in the side nearest you. Afterwards they are four walls, each edited as any. ${install(look)}` }]);
 }
-let wallDrawing = null;    // { look, template (once read), start, floor, pointerId, last }
+let wallDrawing = null;    // { look, room (a room's four walls), template (once read), start, floor, pointerId, last }
 const wallGhostMaterial = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.4, depthWrite: false });
-const wallGhost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), wallGhostMaterial);
-wallGhost.visible = false; wallGhost.matrixAutoUpdate = false; wallGhost.raycast = () => {}; wallGhost.renderOrder = 7; world.add(wallGhost);
-async function startWallDrawing(look) {
+// (a wall's ghost, and three more for a room's other sides)
+const wallGhosts = [0, 1, 2, 3].map(() => {
+  const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), wallGhostMaterial);
+  ghost.visible = false; ghost.matrixAutoUpdate = false; ghost.raycast = () => {}; ghost.renderOrder = 7; world.add(ghost);
+  return ghost;
+});
+const wallGhost = { set visible(on) { for (const g of wallGhosts) g.visible = on; } };
+async function startWallDrawing(look, { room = false } = {}) {
   stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing();
-  const drawing = wallDrawing = { look, template: null, start: null };
+  const drawing = wallDrawing = { look, room, template: null, start: null };
   renderer.domElement.style.cursor = 'crosshair';
-  pieces.setChosen(wallEntries().find(e => e.wallLook === look) ?? null);
+  pieces.setChosen(wallEntries().find(e => e.wallLook === look && Boolean(e.room) === room) ?? null);
   const done = busyStart(`Reading ${look.name}…`);
   try {
     const template = await wallTemplate(look);
@@ -9343,7 +9356,9 @@ function wallHint(words = null) {
   clearTimeout(hintTimer);
   const hint = $('dragHint');
   hint.hidden = false;
-  hint.replaceChildren(words ?? `Drawing a ${wallDrawing.look.name}: press on the ground at one end, drag along a tile line, let go · Shift keeps drawing · `);
+  hint.replaceChildren(words ?? (wallDrawing.room
+    ? `Drawing a room of ${wallDrawing.look.name.toLowerCase()}s: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
+    : `Drawing a ${wallDrawing.look.name}: press on the ground at one end, drag along a tile line, let go · Shift keeps drawing · `));
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
 function stopWallDrawing() {
@@ -9359,16 +9374,26 @@ function wallGround(clientX, clientY) {
   return hit ? [hit.x, hit.z, hit.y] : null;
 }
 function drawnNow(d, at) {
-  return drawnWall(d.start.slice(0, 2), at.slice(0, 2), { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed });
+  const options = { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed };
+  if (!d.room) return drawnWall(d.start.slice(0, 2), at.slice(0, 2), options);
+  return drawnRoom(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
 }
-// The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place).
-function showWallGhost(template, w) {
-  const a = WALL.endInset, b = w.wall.x1 - WALL.endInset;
-  wallGhost.matrix.copy(movedMatrix(template, w.location, w.rotation))
-    .multiply(new THREE.Matrix4().makeTranslation((a + b) / 2, (WALL.top + WALL.bottom) / 2, 0))
-    .multiply(new THREE.Matrix4().makeScale(b - a, WALL.top - WALL.bottom, 2 * WALL.half));
-  wallGhost.matrixWorldNeedsUpdate = true; wallGhost.visible = true;
+// The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place); a room's four.
+function showWallGhost(template, drawn) {
+  const walls = drawn.walls ?? [drawn];
+  wallGhosts.forEach((ghost, k) => {
+    const w = walls[k];
+    ghost.visible = Boolean(w);
+    if (!w) return;
+    const a = WALL.endInset, b = w.wall.x1 - WALL.endInset;
+    ghost.matrix.copy(movedMatrix(template, w.location, w.rotation))
+      .multiply(new THREE.Matrix4().makeTranslation((a + b) / 2, (WALL.top + WALL.bottom) / 2, 0))
+      .multiply(new THREE.Matrix4().makeScale(b - a, WALL.top - WALL.bottom, 2 * WALL.half));
+    ghost.matrixWorldNeedsUpdate = true;
+  });
 }
+const drawnWords = d => (d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(WALL.maxTiles) ? ' (the longest)' : ''}`
+  : `${plural(d.last.tiles, 'tile')}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''}`);
 function startWallDraw(e) {
   const d = wallDrawing;
   if (!d?.template || e.button !== 0 || d.start) return false;
@@ -9379,7 +9404,7 @@ function startWallDraw(e) {
   d.last = drawnNow(d, at);
   renderer.domElement.setPointerCapture(e.pointerId);
   showWallGhost(d.template, d.last);
-  wallHint(`${plural(d.last.tiles, 'tile')} · let go to make it · `);
+  wallHint(`${drawnWords(d)} · let go to make it · `);
   return true;
 }
 function moveWallDraw(e) {
@@ -9391,20 +9416,21 @@ function moveWallDraw(e) {
   const flat = ray.intersectPlane(plane, new THREE.Vector3());
   d.last = drawnNow(d, flat ? [flat.x, flat.z, flat.y] : at);
   showWallGhost(d.template, d.last);
-  wallHint(`${plural(d.last.tiles, 'tile')}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''} · let go to make it · `);
+  wallHint(`${drawnWords(d)} · let go to make it · `);
 }
 async function endWallDraw(keep) {
   const d = wallDrawing;
   if (!d?.start) return;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* released */ }
-  const made = d.last, template = d.template, look = d.look;
+  const made = d.last, template = d.template, look = d.look, room = d.room;
   d.start = null; d.pointerId = null; wallGhost.visible = false;
   if (!keep) stopWallDrawing(); else wallHint();
-  const generated = { kind: 'fracWall', version: 1, wall: made.wall };
-  const source = { ...template, added: { from: fromOf(template), generated } };
-  await pasteSnapshot({ entries: [{ source, matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name },
-                      new THREE.Matrix4());
-  flashHint(`Made a ${look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add doorway and Add window are in the piece panel`);
+  const entries = (made.walls ?? [made]).map(w => ({
+    source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracWall', version: 1, wall: w.wall } } },
+    matrix: movedMatrix(template, w.location, w.rotation) }));
+  await pasteSnapshot({ entries, pivotIndex: 0, name: room ? `room of ${look.name.toLowerCase()}s` : look.name }, new THREE.Matrix4());
+  flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four ${look.name.toLowerCase()}s joined at the corners, a doorway in the near side · click one wall to edit it`
+    : `Made a ${look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add doorway and Add window are in the piece panel`);
 }
 // ---- the wall as it is now, and changing it
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
@@ -10726,7 +10752,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // made walls (custom geometry plan, M1): the Walls entries, drawing, a game point on the screen, the picked wall's
     // handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
     wallEntries, startWallDrawing, stopWallDrawing,
-    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, ready: Boolean(wallDrawing.template), drawing: Boolean(wallDrawing.start),
+    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, ready: Boolean(wallDrawing.template), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();

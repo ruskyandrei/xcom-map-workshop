@@ -107,6 +107,35 @@ export function drawnWall(start, end, { origin, template, floor, seed = 1 }) {
   return { location: location.map(tidy), rotation: wallRotation(template.rotation, axis, direction),
            wall: { x0: 0, x1: tiles * TILE, openings: [], seed }, axis, direction, tiles };
 }
+/** The room a drag from `start` to `end` draws (custom geometry plan, M3 item 6, D6): the rectangle between the tile
+ *  edges nearest them (a click with no drag: one tile; each side at most WALL.maxTiles), its four sides walls running
+ *  round it anticlockwise from the corner nearest the start's lower x and y, so each has its first face (the look's
+ *  side A) inside; their corners meet, so they join (wallJoins). One doorway, in the middle tile of the side nearest
+ *  `camera` ([x, y] on the ground). Gives { walls: [{ location, rotation, wall }] (south, east, north, west),
+ *  tiles: [along x, along y], door (the side with the doorway) }. */
+export function drawnRoom(start, end, { origin, template, floor, seed = 1, camera = null }) {
+  const edge = (v, k) => origin[k] + round(v - origin[k], TILE);
+  const span = k => {
+    const a = edge(start[k], k);
+    let b = edge(end[k], k);
+    if (b === a) b = a + TILE * sign(end[k] - start[k]);
+    const tiles = Math.min(WALL.maxTiles, Math.round(Math.abs(b - a) / TILE));
+    const lo = Math.min(a, a + sign(b - a) * tiles * TILE);
+    return [lo, lo + tiles * TILE, tiles];
+  };
+  const [x0, x1, nx] = span(0), [y0, y1, ny] = span(1);
+  const z = tidy(floor);
+  // [axis, direction, from corner]: south along +x, east along +y, north along -x, west along -y
+  const sides = [[0, 1, [x0, y0]], [1, 1, [x1, y0]], [0, -1, [x1, y1]], [1, -1, [x0, y1]]];
+  const walls = sides.map(([axis, direction, at], k) => ({
+    location: [tidy(at[0]), tidy(at[1]), z], rotation: wallRotation(template.rotation, axis, direction),
+    wall: { x0: 0, x1: (axis === 0 ? nx : ny) * TILE, openings: [], seed: seed + k } }));
+  const middles = [[(x0 + x1) / 2, y0], [x1, (y0 + y1) / 2], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2]];
+  const c = camera ?? [x0, y0 - 1];
+  const door = middles.map((m, k) => [Math.hypot(m[0] - c[0], m[1] - c[1]), k]).sort((a, b) => a[0] - b[0])[0][1];
+  walls[door].wall = withOpening(walls[door].wall, 'doorway').wall;
+  return { walls, tiles: [nx, ny], door };
+}
 /** The rotation that runs the wall's +x along `axis` in `direction`, a whole number of quarter turns from the donor's. */
 export function wallRotation(templateRotation, axis, direction) {
   const turns = YAWS.find(([x, s]) => x === axis && s === direction)[2];

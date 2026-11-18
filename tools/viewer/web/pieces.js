@@ -122,6 +122,23 @@ function drawSpawnIcon(canvas, kind) {
   g.restore();
 }
 // A wall look's icon (app.js wallEntries): a stretch of wall with a doorway, its skirting and cornice, a tile line under it
+// A room's (M3 item 6): four walls round a floor seen from above at a slant, a gap for the doorway in the near one.
+function drawRoomIcon(canvas) {
+  const g = canvas.getContext('2d'), s = canvas.width;
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  g.fillStyle = '#2c3a44'; g.beginPath(); g.moveTo(8, 30); g.lineTo(24, 38); g.lineTo(40, 30); g.lineTo(24, 22); g.closePath(); g.fill();
+  g.fillStyle = '#9c8a74';
+  g.beginPath(); g.moveTo(8, 30); g.lineTo(24, 22); g.lineTo(24, 10); g.lineTo(8, 18); g.closePath(); g.fill();     // far left
+  g.fillStyle = '#c9b49a';
+  g.beginPath(); g.moveTo(24, 22); g.lineTo(40, 30); g.lineTo(40, 18); g.lineTo(24, 10); g.closePath(); g.fill();   // far right
+  g.fillStyle = '#b8a288';
+  g.beginPath(); g.moveTo(8, 30); g.lineTo(13, 32.5); g.lineTo(13, 20.5); g.lineTo(8, 18); g.closePath(); g.fill();  // near left, to the doorway
+  g.beginPath(); g.moveTo(19, 35.5); g.lineTo(24, 38); g.lineTo(40, 30); g.lineTo(40, 18); g.lineTo(24, 26); g.lineTo(19, 23.5); g.closePath(); g.fill();
+  g.strokeStyle = '#82d5ce'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(8, 30, 2.5, 0, Math.PI * 2); g.moveTo(42.5, 30); g.arc(40, 30, 2.5, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
 function drawWallIcon(canvas) {
   const g = canvas.getContext('2d'), s = canvas.width;
   g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
@@ -182,7 +199,7 @@ export function pieceRow(entry, pixelRatio, choose) {
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
     const thumb = document.createElement('canvas');
     thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawWallIcon(thumb);
+    (entry.room ? drawRoomIcon : drawWallIcon)(thumb);
     thumb.dataset.drawn = '1';
     const label = document.createElement('span');
     label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),

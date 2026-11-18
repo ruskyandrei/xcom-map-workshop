@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 6): the Room tool
+
+- The Add panel's Walls kind has a room of each look ("Room of bar inside walls", with its own icon). A rectangle
+  dragged out on the ground gives four walls:
+  - they run round it on its tile lines, anticlockwise, so the same face of each is inside;
+  - each side is 1 to 16 tiles;
+  - their corners join (the longer sides run through);
+  - one doorway is put in the middle of the side nearest the camera;
+  - all four are made in one step (one undo).
+  - Afterwards they are four walls, each edited as any.
+- Code: [walls.js](tools/viewer/web/walls.js) `drawnRoom`; [app.js](tools/viewer/web/app.js) `wallEntries`,
+  `startWallDrawing`'s `room`, four ghosts and the paste; [pieces.js](tools/viewer/web/pieces.js) `drawRoomIcon`.
+
+Checked:
+- walls_test.mjs: the rectangle either way round, the anticlockwise poses, the doorway by the camera, the seeds, the
+  corners joined, one tile for a click, the longest side.
+- `browser_smoke.py --only walls --projects`: the room's Add row; a 3 by 2 room drawn from straight above, four walls
+  in one step, one doorway, the two long sides drawn running through; an undo takes it out.
+
 ### EXP-74 run B passed (custom walls M2): made walls lit at any length, one-storey walls
 
 - [EXP-74](research/experiments/EXP-74-wall-light.md) run B, played unattended in the lab copy on URB_Bar:

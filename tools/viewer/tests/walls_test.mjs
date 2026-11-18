@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
-         wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS,
+         wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          withOpening, withoutOpening, WALL } from '../web/walls.js';
 
 const origin = [-2784, -1920, -1];
@@ -169,5 +169,26 @@ assert.equal(PRESETS.doorway.z1 - 0, 160);
   assert.equal(joinWords([]), '');
   assert.equal(joinWords([{ end: 1, how: 'corner', other: 'b' }]),
                "Joined: its far end runs through at a corner. A break passes between joined walls, as between the game's.");
+}
+// ---- rooms (M3 item 6): four walls round the rectangle, anticlockwise, their corners joined, a doorway nearest the camera
+{
+  const room = drawnRoom([-180, -200], [210, 100], { origin, template, floor: 16, seed: 5, camera: [0, -2000] });
+  assert.deepEqual(room.tiles, [4, 3]);
+  assert.deepEqual(room.walls.map(w => [w.location, w.rotation[1], w.wall.x1]),
+                   [[[-192, -192, 16], 0, 384], [[192, -192, 16], 16384, 288], [[192, 96, 16], 32768, 384], [[-192, 96, 16], 49152, 288]]);
+  assert.equal(room.door, 0);                       // the south side faces the camera
+  assert.deepEqual(room.walls[0].wall.openings, [{ x0: 96, x1: 192, z0: -16, z1: 160 }]);
+  assert.ok(room.walls.slice(1).every(w => !w.wall.openings.length));
+  assert.deepEqual(room.walls.map(w => w.wall.seed), [5, 6, 7, 8]);
+  // drawn from the far corner the other way round: the same rectangle
+  const back = drawnRoom([210, 100], [-180, -200], { origin, template, floor: 16, seed: 5, camera: [2000, 0] });
+  assert.deepEqual(back.walls.map(w => w.location), room.walls.map(w => w.location));
+  assert.equal(back.door, 1);                       // the east side faces this camera
+  // the four corners join: the longer sides run through
+  const found = wallJoins(room.walls.map((w, k) => ({ key: String(k), ...w })));
+  assert.deepEqual(Object.values(found).map(v => v.ends), [['through', 'through'], ['free', 'free'], ['through', 'through'], ['free', 'free']]);
+  // a click: one tile each way; a long drag: the longest
+  assert.deepEqual(drawnRoom([5, 5], [6, 6], { origin, template, floor: 0 }).tiles, [1, 1]);
+  assert.deepEqual(drawnRoom([0, 0], [5000, 300], { origin, template, floor: 0 }).tiles, [WALL.maxTiles, 3]);
 }
 console.log('walls: ok');

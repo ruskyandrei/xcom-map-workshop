@@ -51,13 +51,15 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page = open_viewer(browser, url, errors)
     out = dict(map=page.evaluate('viewer.data.name'))
     entries = page.evaluate('viewer.wallEntries().map(e => ({ name: e.name, kind: e.kind, look: e.wallLook.id }))')
-    assert entries == [dict(name='Bar inside wall', kind='Walls', look='bar-inside')], entries
+    assert entries == [dict(name='Bar inside wall', kind='Walls', look='bar-inside'),
+                       dict(name='Room of bar inside walls', kind='Walls', look='bar-inside')], entries
     # the Add panel lists it under its kind (pieces.js pieceRow): a row with the wall's icon
     page.keyboard.press('p')
     page.wait_for_selector('#libMap .libitem')
     page.locator('#libFilter').fill('bar inside wall')
-    row = page.locator('#libMap .libitem', has_text='Bar inside wall')
+    row = page.locator('#libMap .libitem[data-id="wall-bar-inside"]')
     assert row.count() == 1 and 'Walls' in row.inner_text(), row.count()
+    assert page.locator('#libMap .libitem[data-id="room-bar-inside"]').count() == 1      # and its room (M3 item 6)
     row.click()
     page.wait_for_function('viewer.wallDrawing()?.ready', timeout=90000)
     page.keyboard.press('p') if page.locator('#libMap').is_visible() else None
@@ -215,6 +217,35 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.wait_for_function('id => !(' + mesh_of + ')(id).includes(\'"ends"\')', arg=wall, timeout=30000)
     page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
+    # (M3 item 6) a room: a rectangle dragged south of the wall gives four walls in one step, their corners joined (the
+    # longer sides running through), one doorway, in the side nearest the camera
+    before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
+    page.evaluate("viewer.startWallDrawing(viewer.wallEntries()[0].wallLook, { room: true })")
+    page.wait_for_function('viewer.wallDrawing()?.ready && viewer.wallDrawing().room', timeout=90000)
+    # (south of the wall's own span, on the open ground the wall was drawn on)
+    west = min(corner[0], kept['location'][0])
+    a, b = [west + 96, corner[1] - 96, corner[2]], [west + 384, corner[1] - 288, corner[2]]
+    # (seen from straight above, so no wall or building beside it hides any of it)
+    page.evaluate("""c => { viewer.controls.target.set(c[0], c[2], c[1]); viewer.camera.position.set(c[0] + 1, c[2] + 1400, c[1] + 1);
+      viewer.camera.lookAt(c[0], c[2], c[1]); viewer.controls.update(); }""", [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, corner[2]])
+    page.wait_for_timeout(300)
+    drag(page, ground_point(page, a), ground_point(page, b))
+    page.wait_for_function('n => viewer.roots.size === n + 4', arg=len(before_ids), timeout=60000)
+    room = page.evaluate("""before => [...viewer.roots.values()].filter(r => !before.includes(r.userData.source.id))
+      .map(r => r.userData.source.id)""", list(before_ids))
+    for r in room:
+        mesh_ready(page, r)
+    states = [state(page, r) for r in room]
+    assert sorted(s['generated']['wall']['x1'] for s in states) == [192, 192, 288, 288], states
+    assert sum(len(s['generated']['wall']['openings']) for s in states) == 1, states
+    page.wait_for_function("ids => ids.filter(id => (" + mesh_of + ")(id).includes('\"ends\":[\"through\",\"through\"]')).length === 2",
+                           arg=room, timeout=30000)
+    out['room'] = dict(walls=len(room), door=[s['location'] for s in states if s['generated']['wall']['openings']][0])
+    page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    if page.evaluate('viewer.wallDrawing()'):
+        page.keyboard.press('Escape')
+    page.evaluate('id => viewer.select(id)', wall)
     # saved and reopened
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
