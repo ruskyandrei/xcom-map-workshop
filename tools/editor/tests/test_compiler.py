@@ -267,6 +267,52 @@ class CompilerTests(unittest.TestCase):
         got = native_split(stream_only(spec))[1]['streamMoves']['URB_Bar_CNH']
         self.assertIn('PointInSpace_0', [m['actor'] for m in got])
 
+    def donor_scene(self):
+        """mission_scene with the bomb donor's objects (export 33's `donors`): the bomb at Slaughterhouse's place, off
+        this map's grid, and a power node over a floor tile of the map."""
+        s, at = self.mission_scene()
+        node = at(5, 5)
+        obj = lambda actor, cls, kind, role, group, where: dict(actor=PL + actor, actorClass=cls, kind=kind, location=where,  # noqa: E731
+                                                                rotation=[0, 0, 0], archetype=None, tag=None, unitType=None, box=None,
+                                                                referencedBy=[], group=group, role=role)
+        s['donors'] = {'Special/Bomb': dict(stream='URB_Slaughterhouse_Stream', package='URB_Slaughterhouse_Stream.upk', missionObjects=[
+            obj('XComLevelActor_11', 'XComLevelActor', 'bomb', 'bomb', 'bomb', [-90000.0, 1872.0, 68.0]),
+            obj('PointInSpace_0', 'PointInSpace', 'part', 'point', 'bomb', [-89997.5, 1872.0, 272.5]),
+            obj('XComLevelActor_6', 'XComLevelActor', 'powerNode', 'node', 'node:XComLevelActor_6', node)])}
+        return s, at
+
+    def test_an_added_bombs_objects_are_moved_in_the_donor_stream_and_checked(self):
+        # spawns plan SP4: the added bomb's objects come from Slaughterhouse's stream (scene.donors); a move of them
+        # needs the kind in the project's missions; left at the donor's own place they are warned of where that place
+        # is off this map's grid, over no floor or inside a piece
+        s, at = self.donor_scene()
+        donor = lambda actor: dict(package='URB_Slaughterhouse_Stream', level='stream', actor=PL + actor)  # noqa: E731
+        bomb_mission = [dict(record=0), dict(kind='Special/Bomb')]
+        _, report = compile_project(document(missions=bomb_mission), s)
+        self.assertTrue(report['ok'], refused(report))
+        placed = [w for w in report['warnings'] if w['code'] == 'mission-donor-place']
+        self.assertEqual([w['actor'].rsplit('.', 1)[-1] for w in placed], ['XComLevelActor_11'])
+        self.assertIn('off the map\'s grid', placed[0]['message'])
+        self.assertEqual((placed[0]['mission'], placed[0]['missionKind'], placed[0]['stream']),
+                         ('Council bomb (added)', 'Special/Bomb', 'URB_Slaughterhouse_Stream'))
+        # the bomb moved onto the map with its helper: accepted, in the stream's moves, no warning of its place
+        there = at(12, 12, 0.0)
+        moves = [dict(target=donor('XComLevelActor_11'), location=there, rotation=[0, 0, 0]),
+                 dict(target=donor('PointInSpace_0'), location=[there[0] + 2.5, there[1], 204.5], rotation=[0, 0, 0])]
+        spec, report = compile_project(document(moves, missions=bomb_mission), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-donor-place'), [])
+        self.assertEqual(warned(report, 'mission-group-split'), [])
+        got = native_split(stream_only(spec))[1]['streamMoves']['URB_Slaughterhouse_Stream']
+        self.assertEqual(sorted(m['actor'] for m in got), ['PointInSpace_0', 'XComLevelActor_11'])
+        # a node's floor taken by the edit: the node's place is checked on this map too (a warning)
+        s['tactical']['floorTiles'] = [f for f in s['tactical']['floorTiles'] if f['tile'][:2] != [5, 5]]
+        _, report = compile_project(document(moves, missions=bomb_mission), s)
+        self.assertIn('over no floor', ' '.join(w['message'] for w in report['warnings'] if w['code'] == 'mission-donor-place'))
+        # the donor's objects moved by a project that adds no bomb: an error that says so
+        _, report = compile_project(document(moves), s)
+        self.assertEqual(sorted(set(codes(report))), ['stream-donor'])
+
     def test_a_missions_objects_warn_when_the_edit_takes_their_floor_or_covers_them(self):
         # mission types plan, C3: warnings only, each naming its mission; the drop-in only a note
         s, at = self.mission_scene()

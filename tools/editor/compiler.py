@@ -1495,7 +1495,12 @@ class Compiler:
         handlers' lists). A delete takes it out of the copy's level as a ladder's helper is taken out (stream_copy.py
         --hide), with a warning: the mission's script counts on it."""
         stream, actor = target.get('package'), target.get('actor')
-        info = (self.scene.get('streams') or {}).get(stream) if isinstance(stream, str) else None
+        info, donor = self.stream_info(stream)
+        if donor is not None and donor not in self.added_kinds():
+            self.error('stream-donor', '%s names %s, the stream an added %s takes its objects from: only a project that '
+                       'adds that mission moves them (the Missions item of the Project menu)' % (
+                           short(str(actor)), stream, missions.label(donor).lower()), **where)
+            return
         if not isinstance(info, dict) or info.get('kind') != 'mission':
             self.error('stream', '%s names %s, which is no mission stream of %s in the export' % (
                 short(str(actor)), stream, self.map), **where)
@@ -1526,12 +1531,29 @@ class Compiler:
             kind=found.get('kind'), group=found.get('group')))
         self.entities.append(dict(kind='move', target=actor, op='stream', stream=stream))
 
+    def added_kinds(self):
+        """The kinds of mission the project adds (its `missions` entries that name a kind)."""
+        listed = self.doc.get('missions')
+        return {e['kind'] for e in listed if isinstance(e, dict) and isinstance(e.get('kind'), str)} if isinstance(listed, list) else set()
+
+    def stream_info(self, stream):
+        """(a stream's export entry, None) for one of the export's mission streams; for the stream an added kind takes
+        its objects from (export 33: scene.json's `donors`, the bomb's Slaughterhouse stream) where the export streams
+        no such package itself, (an entry of its objects, the kind); else (what the export has, None)."""
+        info = (self.scene.get('streams') or {}).get(stream) if isinstance(stream, str) else None
+        if isinstance(info, dict) and info.get('kind') == 'mission':
+            return info, None
+        for kind, donor in sorted((self.scene.get('donors') or {}).items()):
+            if isinstance(donor, dict) and donor.get('stream') == stream:
+                return dict(kind='mission', missionObjects=donor.get('missionObjects') or []), kind
+        return info, None
+
     def stream_groups(self):
         """A warning (mission-group-split) for a mission object's group (a capture point with its volume, a bomb or a
         power node with its button, emitters and rebuild volume) whose members were not all moved by one offset: LWR's
         handlers and the mission's script expect them together."""
         for stream, moves in sorted(self.stream_moves.items()):
-            objects = (self.scene.get('streams') or {}).get(stream, {}).get('missionObjects') or []
+            objects = (self.stream_info(stream)[0] or {}).get('missionObjects') or []
             by = {m['actor']: m for m in moves}
             for group in sorted({m['group'] for m in moves if m.get('group')}):
                 members = [o for o in objects if o.get('group') == group]
@@ -3541,6 +3563,25 @@ class Compiler:
         return [(e['record'], found[e['record']]) for e in listed
                 if isinstance(e, dict) and isinstance(e.get('record'), int) and 0 <= e['record'] < len(found)]
 
+    def kept_streams(self):
+        """Each stream of the missions the variant keeps with its objects (export 24): [(label, index or kind, stream,
+        objects)], the kept records' streams, then an added kind's donor stream (export 33: the added bomb's
+        Slaughterhouse stream) where no kept record streams it already."""
+        streams = self.scene.get('streams') or {}
+        out, named = [], set()
+        for index, mission in self.kept_missions():
+            label = mission.get('label') or 'mission %d' % (index + 1)
+            for name in mission.get('streams') or []:
+                named.add(name)
+                objects = (streams.get(name) or {}).get('missionObjects') or []
+                if objects:
+                    out.append((label, index, name, objects))
+        for kind in sorted(self.added_kinds()):
+            donor = (self.scene.get('donors') or {}).get(kind)
+            if isinstance(donor, dict) and donor.get('stream') and donor['stream'] not in named and donor.get('missionObjects'):
+                out.append(('%s (added)' % missions.label(kind), kind, donor['stream'], donor['missionObjects']))
+        return out
+
     def missions_check(self):
         """What an edit means for the map's missions (private/plans/done/mission-types-plan.md): a note for a map the
         game knows by its whole name (missions.NAMED_MAPS: the Build's records can't keep it, plan Part B), and, for
@@ -3601,10 +3642,10 @@ class Compiler:
         their floor; on a cleared map, a note (mission-cleared) that the stream's objects stand where the original map
         had them. Warnings only: the Build goes on. Each names its mission (mission, missionIndex) and the object's
         stream and actor, for the build window's list by mission."""
-        streams = self.scene.get('streams') or {}
         grid = self.scene.get('tileGrid') or {}
         origin = grid.get('origin')
-        if not origin or not any(s.get('missionObjects') for s in streams.values() if isinstance(s, dict)):
+        kept = self.kept_streams()
+        if not origin or not kept:
             return
         size = grid.get('size') or [TILE, TILE, STOREY]
         before = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])}
@@ -3616,65 +3657,76 @@ class Compiler:
         under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
         solid = [c for c in self.copies if c.get('box') and c.get('actorClass') != 'XComLadder' and c['box'][5] - c['box'][4] > FLOOR_THICK]
         seen = set()
-        for index, mission in self.kept_missions():
-            label = mission.get('label') or 'mission %d' % (index + 1)
-            where = dict(mission=label, missionIndex=index)
-            for name in mission.get('streams') or []:
-                objects = (streams.get(name) or {}).get('missionObjects') or []
-                if not objects:
+        g = self.grid_box()
+        for label, index, name, objects in kept:
+            where = dict(mission=label, missionIndex=index) if isinstance(index, int) else dict(mission=label, missionKind=index)
+            donor = not isinstance(index, int)
+            unmoved = [o for o in objects if self.moved_object(name, o)[1] is None]
+            if self.cleared and unmoved and not donor:
+                self.note('mission-cleared', '%s: %s of %s stand where the original map had them, on a cleared map: '
+                          'place them, or drop the mission' % (label, '%d objects' % len(unmoved) if len(unmoved) != len(objects)
+                                                              else 'the %d objects' % len(objects), name), stream=name, **where)
+            lost = []
+            for o in objects:
+                p, offset = self.moved_object(name, o)
+                key = (index, name, o.get('actor'))
+                if key in seen:
                     continue
-                unmoved = [o for o in objects if self.moved_object(name, o)[1] is None]
-                if self.cleared and unmoved:
-                    self.note('mission-cleared', '%s: %s of %s stand where the original map had them, on a cleared map: '
-                              'place them, or drop the mission' % (label, '%d objects' % len(unmoved) if len(unmoved) != len(objects)
-                                                                  else 'the %d objects' % len(objects), name), stream=name, **where)
-                lost = []
-                for o in objects:
-                    p, offset = self.moved_object(name, o)
-                    key = (index, name, o.get('actor'))
-                    if key in seen:
+                seen.add(key)
+                short = str(o.get('actor') or '').rsplit('.', 1)[-1]
+                what = missions.object_words(o)
+                if o.get('actorClass') == 'XComCapturePointVolume' and o.get('box'):
+                    d = offset or [0, 0, 0]
+                    b = dict(min=[o['box']['min'][k] + d[k] for k in range(3)], max=[o['box']['max'][k] + d[k] for k in range(3)])
+                    inside = lambda t: (b['min'][0] <= origin[0] + (t[0] + 0.5) * size[0] <= b['max'][0]  # noqa: E731
+                                        and b['min'][1] <= origin[1] + (t[1] + 0.5) * size[1] <= b['max'][1]
+                                        and b['min'][2] - size[2] <= origin[2] + t[2] * size[2] <= b['max'][2])
+                    had = [t for t in before if inside(t)] if offset is None else [None]
+                    if had and not any(inside(t) for t in now):
+                        self.warn('mission-capture', '%s: %s (%s) has none of its %d floor tiles left: no soldier can '
+                                  'stand in it to capture it' % (label, what, short, len(had)),
+                                  stream=name, actor=o.get('actor'), **where)
+                    continue
+                kind = o.get('kind')
+                if kind not in self.MISSION_REACHED and kind not in self.MISSION_SPAWNS:
+                    continue
+                if o.get('role') in ('effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'):
+                    continue
+                if donor:
+                    # an added kind's object stands where its own map has it until placed: its fallback place
+                    # (Long War plays it there when it finds no place of its own), checked on this map as it is
+                    if kind in ('bomb', 'powerNode') and offset is None:
+                        out_grid = g is not None and not (g[0] <= p[0] <= g[3] and g[1] <= p[1] <= g[4])
+                        inside = next((c for c in solid if c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]
+                                       and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24), None)
+                        why = ('off the map\'s grid' if out_grid else 'over no floor' if not under(p, now)
+                               else 'inside %s' % inside['label'].split(':', 1)[-1] if inside else None)
+                        if why:
+                            self.warn('mission-donor-place', '%s: %s (%s) still stands where %s has it, which here is %s: Long '
+                                      'War plays it there when it finds no place of its own; place it on the map'
+                                      % (label, what, short, name, why), stream=name, actor=o.get('actor'), **where)
                         continue
-                    seen.add(key)
-                    short = str(o.get('actor') or '').rsplit('.', 1)[-1]
-                    what = missions.object_words(o)
-                    if o.get('actorClass') == 'XComCapturePointVolume' and o.get('box'):
-                        d = offset or [0, 0, 0]
-                        b = dict(min=[o['box']['min'][k] + d[k] for k in range(3)], max=[o['box']['max'][k] + d[k] for k in range(3)])
-                        inside = lambda t: (b['min'][0] <= origin[0] + (t[0] + 0.5) * size[0] <= b['max'][0]  # noqa: E731
-                                            and b['min'][1] <= origin[1] + (t[1] + 0.5) * size[1] <= b['max'][1]
-                                            and b['min'][2] - size[2] <= origin[2] + t[2] * size[2] <= b['max'][2])
-                        had = [t for t in before if inside(t)] if offset is None else [None]
-                        if had and not any(inside(t) for t in now):
-                            self.warn('mission-capture', '%s: %s (%s) has none of its %d floor tiles left: no soldier can '
-                                      'stand in it to capture it' % (label, what, short, len(had)),
-                                      stream=name, actor=o.get('actor'), **where)
-                        continue
-                    kind = o.get('kind')
-                    if kind not in self.MISSION_REACHED and kind not in self.MISSION_SPAWNS:
-                        continue
-                    if o.get('role') in ('effect', 'rebuild', 'visible', 'waypoint', 'volume'):
-                        continue
-                    # (moved, it needs floor where it stands now, whatever the map had there)
-                    bare = (under(p, before) or offset is not None) and not under(p, now)
-                    on = next((c for c in solid if c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]
-                               and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24), None)
-                    if kind in self.MISSION_SPAWNS:
-                        if bare or on: lost.append(o)
-                        continue
-                    if bare:
-                        self.warn('mission-object', '%s: %s (%s) has no floor under it now: %s' % (
-                            label, what, short, missions.object_risk(o)), stream=name, actor=o.get('actor'), **where)
-                    if on:
-                        self.warn('mission-object', '%s: %s (%s) is inside %s now: %s' % (
-                            label, what, short, on['label'].split(':', 1)[-1], missions.object_risk(o)),
-                            stream=name, actor=o.get('actor'), **where)
-                if lost:
-                    count = {}
-                    for o in lost: count[o['kind']] = count.get(o['kind'], 0) + 1
-                    words = ', '.join('%d %s' % (n, missions.object_words(dict(kind=k), plural=n != 1)) for k, n in sorted(count.items()))
-                    self.note('mission-spawns', '%s: %s of %s stand over no floor or inside a piece now (Long War places '
-                              'most drop-ins and pods itself; plain Enemy Within uses them where they stand)'
-                              % (label, words, name), stream=name, **where)
+                # (moved, it needs floor where it stands now, whatever the map had there)
+                bare = (under(p, before) or offset is not None) and not under(p, now)
+                on = next((c for c in solid if c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]
+                           and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24), None)
+                if kind in self.MISSION_SPAWNS:
+                    if bare or on: lost.append(o)
+                    continue
+                if bare:
+                    self.warn('mission-object', '%s: %s (%s) has no floor under it now: %s' % (
+                        label, what, short, missions.object_risk(o)), stream=name, actor=o.get('actor'), **where)
+                if on:
+                    self.warn('mission-object', '%s: %s (%s) is inside %s now: %s' % (
+                        label, what, short, on['label'].split(':', 1)[-1], missions.object_risk(o)),
+                        stream=name, actor=o.get('actor'), **where)
+            if lost:
+                count = {}
+                for o in lost: count[o['kind']] = count.get(o['kind'], 0) + 1
+                words = ', '.join('%d %s' % (n, missions.object_words(dict(kind=k), plural=n != 1)) for k, n in sorted(count.items()))
+                self.note('mission-spawns', '%s: %s of %s stand over no floor or inside a piece now (Long War places '
+                          'most drop-ins and pods itself; plain Enemy Within uses them where they stand)'
+                          % (label, words, name), stream=name, **where)
 
     def check_zones(self, zones, own=False):
         """Warnings for zones' places: outside the grid, over no floor, a piece of the project on a soldier point, and

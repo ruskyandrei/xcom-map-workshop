@@ -12,9 +12,6 @@ Statuses:
 
 ## Open now
 
-- F-124: a bomb moved two tiles or more leaves its `PointInSpace` helper behind, so Long War's bomb mutator no
-  longer finds the bomb and places nothing; the arrow and camera keep the old place (read from the script and the
-  installed stream, 18 November; not played). The fix is planned with the Spawns view.
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -291,8 +288,8 @@ pod/Meld runtime experiment remain in the private spawns plan. Deployment counts
 behaviour for these proposed edits still need direct observation.
 
 ### F-124: A moved bomb leaves its helper point behind, and Long War then places nothing
-**Open** (read offline on 18 November 2026, from the decompiled bomb mutator and the installed Slaughterhouse
-stream; not played).
+**Verified** (read offline on 18 November 2026, from the decompiled bomb mutator and the installed Slaughterhouse
+stream; fixed in export 33 the same day and played in EXP-72 run 1).
 - **What the mutator needs.** `XComBombMutator.FindBomb` counts the bomb, its button, its floor marker, five
   emitters, the nearest rebuild volume and the squad's visible point, and every `PointInSpace` within 128 units
   of the bomb across. With fewer than eleven it logs "can't find the bomb, skipping to defaults" and moves
@@ -307,8 +304,11 @@ stream; not played).
   offset (the mutator itself puts it 206 units above the bomb). Long War then finds the bomb again and places it
   and the nodes itself wherever it finds a place for each, so the project's place becomes the fallback. A project
   saved with the bomb moved gets the helper's move when it opens.
-- **To check in the game:** the log's count and placement lines on a variant with the bomb moved three tiles, and
-  the arrow at the bomb.
+- **Fixed** in export 33 (`scene_metadata.mission_objects`): every `PointInSpace` within 128 units across of the
+  bomb joins its group with role `point`; a project saved with the bomb moved gets the helper's move when it opens.
+- **Verified in EXP-72 run 1:** the bomb moved three tiles on URB_SlaughterhouseA; the mutator's log lists twelve
+  actors found near it, `PointInSpace_0` among them, finds 8 nodes, moves the bomb to a place of its own with the
+  helper 206 above it, and places each node; no "can't find" line. The arrow was not seen in the run's shot.
 
 ### F-103: A piece whose component is turned apart from its actor was refused for every copy
 **Fixed in the tools, checked offline** (14 November 2026; not played in the game).

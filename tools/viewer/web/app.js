@@ -6702,7 +6702,7 @@ function spawnPanel() {
   const n = movable ? missionMembers(e.stream, o).length : 1;
   const { usedBy, uses } = useLines(o);
   line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
-    : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. Another layer, a pod index or the game's code may still use it.`);
+    : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
   if (uses.length) line('Uses', `${uses.join('; ')}.`);
   const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: false, mapExcluded: Boolean(spawnRulesData?.excluded) });
   if (words.length) line('In the game', words.join(' '));
@@ -6712,9 +6712,21 @@ function spawnPanel() {
   else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
   else {
     const d = moved.location.map((v, i) => v - o.location[i]);
-    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${Math.round(d[2] / 64) ? ` and ${Math.round(d[2] / 64)} levels ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
+    const levels = Math.abs(Math.round(d[2] / 64));
+    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
+  }
+  if (movable) {
+    // a stream's copy replaces it in every record that streams it (keyed by the source package): name them all
+    const using = streamMissions(e.stream);
+    if (using.length > 1) line('', `The Build moves it for every mission of the variant that streams ${e.stream}: ${using.join(', ')}.`);
   }
   if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
+}
+// the missions the header lists (the project's, or the map's) that stream a package: a record that streams it, or an
+// added kind whose donor it is
+function streamMissions(stream) {
+  return headerMissions().filter(m => (m.mission?.streams ?? []).includes(stream)
+    || (m.value.startsWith('kind:') && data?.donors?.[m.value.slice(5)]?.stream === stream)).map(m => m.label);
 }
 const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'].includes(o.kind)
   && !['effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'].includes(o.role);

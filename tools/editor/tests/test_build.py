@@ -144,6 +144,21 @@ class ConfigLines(unittest.TestCase):
         self.assertEqual(c['missions'], ['Abduction', 'Abduction 2'])
         self.assertIn('DisplayName="%s (Test, Abduction 2) |0"' % VARIANT, c['maps'][1])
 
+    def test_an_added_bomb_streams_the_variants_copy_of_its_donor(self):
+        # spawns plan SP4: the added bomb's objects moved make a copy of Slaughterhouse's stream; the added record
+        # streams that copy (a copy replaces its source in every record that streams it), a control record of another
+        # kind streams neither
+        bar = record('bar')
+        copy = 'URB_Slaughterhouse_Stream_%s' % VARIANT
+        c = build.config_lines(['[XComGame.XComMapManager]', bar], [], [], 'URB_Bar', VARIANT, PATCH,
+                               lambda mission: '%s (Test, %s) |0' % (VARIANT, mission),
+                               intros={'URB_Slaughterhouse_Stream': copy},
+                               missions_list=[dict(record=0), dict(kind='Special/Bomb')])
+        abduction, bomb = c['maps']
+        self.assertIn('MapName="%s"' % copy, bomb)
+        self.assertNotIn('MapName="URB_Slaughterhouse_Stream"', bomb)
+        self.assertNotIn('URB_Slaughterhouse_Stream', abduction)
+
     def test_a_bomb_records_display_name_keeps_what_long_war_matches(self):
         # Long War throttles a bomb mission's reinforcements by "_Bomb" in the record's display name (plan 2.5)
         bar = record('bar')

@@ -8,6 +8,33 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP4: an added bomb's objects placed
+
+- [compiler.py](tools/editor/compiler.py):
+  - a stream override on the stream an added kind takes its objects from (export 33's `donors`: the added council
+    bomb's `URB_Slaughterhouse_Stream`) is read against the donor's objects (`stream_info`); with no such mission
+    in the project it is an error (`stream-donor`) that says so;
+  - `kept_streams()` lists the kept records' streams and an added kind's donor stream (where no kept record
+    streams it), and the mission object checks walk it: floor, inside a piece and group splits cover the added
+    bomb and its nodes;
+  - new warning `mission-donor-place`: an added bomb's bomb or node still where Slaughterhouse has it, which on
+    this map is off the grid, over no floor or inside a piece (Long War plays it there when it finds no place of
+    its own); the cleared-map note leaves donor objects out, and the bomb's helper point is checked with its bomb.
+- [app.js](tools/viewer/web/app.js): a moved stream object's panel names every mission of the variant that
+  streams the same package, since the Build moves it for all of them; the move line says "1 level down", not
+  "-1 levels down"; Used by for an objective with no scripted user says the mission's code finds it.
+- New [exp72_project.py](tools/editor/examples/exp72_project.py): EXP-72 run 2's project, EXP-54's cleared Bar as
+  an added bomb with its bomb and nodes placed on floor that stays.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (donor moves accepted with the mission, refused
+  without it, the new warning, a moved donor object checked for floor) and
+  [test_build.py](tools/editor/tests/test_build.py) (the added record streams the variant's copy of the donor,
+  `replaceStreams` names it); editor, node and repo suites pass. In the page on a test server, the EXP-72 project's
+  32 donor markers show with the added bomb picked; the bomb's panel names its stream and its helper; the bomb
+  moved one tile took its helper along and Ctrl+Z put both back. The project built quick (7 s) and was staged in
+  the lab copy by a dry Play in game; the game check is EXP-72 run 2.
+- The two old ledger entries that linked `mission_view.js`, which SP3 removed, name it without a link (the repo
+  suite's link check).
+
 ### Spawns, stage SP3: the Spawns view, the Normal switch, objectives, the bomb's helper
 
 - New [spawns_view.js](tools/viewer/web/spawns_view.js) takes over `mission_view.js`: one list of records both
@@ -2992,7 +3019,7 @@ On branch `mission-types`:
   capture point with its volume and actor, a bomb or power node with its button, emitters and rebuild volume) by whole
   tiles and levels, one undo step a drag, Escape putting a drag back; the streamed meshes move with them; the panel
   says how far it moved and that the Build moves it in the stream's copy; the header counts "mission objects moved".
-  The moves go through save, open, recovery and Reset all. [mission_view.js](tools/viewer/web/mission_view.js) no
+  The moves go through save, open, recovery and Reset all. `mission_view.js` no
   longer says the stream is never edited.
 - [compiler.py](tools/editor/compiler.py) `stream_override`: such a target becomes the native edit's `streamMoves`
   ({stream: [actor, location, rotation, old, kind, group]}); a target that is no mission object, or in no mission
@@ -3106,7 +3133,7 @@ On branch `mission-types`:
 ### A mission's objects in the view (mission types plan, C2)
 
 On branch `mission-types`:
-- [mission_view.js](tools/viewer/web/mission_view.js), new: a marker for each object of the mission the header's
+- `mission_view.js`, new: a marker for each object of the mission the header's
   Mission picker shows (export 24), one size on screen and faint through walls as light markers are, coloured and
   shaped by kind (drop-in points, pods, soldiers' and the operative's and VIPs' points, capture points, radar arrays,
   the bomb, power nodes, things to use); a group's helper parts (emitters, rebuild volumes) are named with it, not
