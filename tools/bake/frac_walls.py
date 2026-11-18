@@ -39,6 +39,10 @@ columns moved by move_columns), then add_walls changes it:
                    bCanStepUpOn, and its component's), the donor's painted-out fragments (EditorPaintedVisibleFragments)
                    dropped; its FragmentColumns by the slabs' rule (slab_columns: the piece's own 96 x 96 x 192 grid
                    from its lowest corner less one unit, a column for every cell, research/evidence/slab-audit.py);
+  kind 'ground'    dict(kind, version 1, ground: ground.py's numbers): a patch, block or ramp (custom geometry plan,
+                   M6) on a copy of one of the game's plain pieces (GROUND_CLASSES: a StaticMeshComponent, its
+                   material the ground's): its mesh a plain static mesh by ground.build, its body setup (a box or a
+                   ramp's wedge, hulls.py), its lightmap and shadow map as a wall's; no columns (it doesn't break);
   kind 'relit'     the copy's mesh is the donor's, unchanged: it only goes to the relight lit from nothing, as a
                    generated wall is (a reference beside one, in the same light).
 
@@ -73,13 +77,16 @@ sys.path.insert(0, str(HERE))
 import cover_blocks  # noqa: E402
 import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
+import ground  # noqa: E402
 import gen_mesh  # noqa: E402
 import light_factory  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
-KINDS = ('fracWall', 'fracSlab', 'relit')
-MADE = ('fracWall', 'fracSlab')     # the kinds made from numbers (their own mesh and columns)
+KINDS = ('fracWall', 'fracSlab', 'ground', 'relit')
+MADE = ('fracWall', 'fracSlab')     # the fracturing kinds made from numbers (their own mesh and columns)
+# the classes a ground shape copies (plain pieces with a StaticMeshComponent, which the editor copies natively)
+GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 # the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2 and M4 item 1), with its end styles
 # (`ends`), which the compiler works out from where the project's made walls meet, and its look (`look`, one of
 # frac_wall.LOOKS); version 1 reads as two free ends in the Bar's inside wall
@@ -99,10 +106,13 @@ def check(generated):
                          % (generated.get('version'), ' and '.join(map(str, VERSIONS))))
     if generated['kind'] == 'relit':
         return generated
-    if generated['kind'] == 'fracSlab':
+    if generated['kind'] in ('fracSlab', 'ground'):
         if generated.get('version', 1) != 1:
-            raise ValueError('generated slab request version %r (this Build knows 1)' % (generated.get('version'),))
-        frac_slab.check(generated.get('slab'))
+            raise ValueError('generated %s request version %r (this Build knows 1)' % (generated['kind'], generated.get('version')))
+        if generated['kind'] == 'fracSlab':
+            frac_slab.check(generated.get('slab'))
+        else:
+            ground.check(generated.get('ground'))
         return generated
     wall = generated.get('wall')
     if not isinstance(wall, dict) or not all(isinstance(wall.get(k), (int, float)) for k in ('x0', 'x1')):
@@ -141,11 +151,18 @@ def wall_box(p, actor, location, rotation, generated):
     """The world box a generated copy stands in (its tiles are seeded and rebuilt over it): the generated wall's,
     or for 'relit' the donor's own box at the copy's pose (None: let the caller work it out as for any copy)."""
     import lightmap_texels
-    if generated.get('kind') not in MADE:
+    kind = generated.get('kind')
+    if kind not in MADE and kind != 'ground':
         return None
-    comp = p.own(actor, 'FracturedStaticMeshComponent')
-    box = local_box(generated['wall']) if generated['kind'] == 'fracWall' else frac_slab.local_box(generated['slab'])
+    comp = mesh_component(p, actor)
+    box = (local_box(generated['wall']) if kind == 'fracWall' else frac_slab.local_box(generated['slab']) if kind == 'fracSlab'
+           else ground.local_box(generated['ground']))
     return world_box(box, lightmap_texels.world_matrix(p, comp, location, rotation))
+
+
+def mesh_component(p, actor):
+    """The actor's mesh component: its FracturedStaticMeshComponent, or a plain piece's StaticMeshComponent."""
+    return p.own(actor, 'FracturedStaticMeshComponent') or p.own(actor, 'StaticMeshComponent')
 
 
 # ---------------------------------------------------------------------------------------------------- columns
@@ -520,7 +537,7 @@ def add_shadow_ref(data, at, index):
         data[at + 8 + 4 * n:]
 
 
-def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None):
+def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None, plain=False):
     """The clone component's bytes with the generated mesh: StaticMesh, FragmentBoundsMinZ and MaxZ,
     NumResourceIndices, LOD 0's painted colours one for each new vertex (or none, when the donor paints none), and
     its texture lightmap as `light` says (set_light); `shadow` dict(guid, export (a ShadowMap2D made for it, or None))
@@ -532,10 +549,15 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
     lod = built['mesh']['lods'][0]
     pos = np.array(lod['positions'], float)
     wz = (np.c_[pos, np.ones(len(pos))] @ np.asarray(matrix).T)[:, 2]
-    for name, fmt, value in (('StaticMesh[0]', '<i', mesh_index), ('FragmentBoundsMinZ[0]', '<f', float(wz.min())),
-                             ('FragmentBoundsMaxZ[0]', '<f', float(wz.max())),
-                             ('NumResourceIndices[0]', '<i', len(lod['indices'][1]))):
+    fields = (('StaticMesh[0]', '<i', mesh_index),) if plain else (
+        ('StaticMesh[0]', '<i', mesh_index), ('FragmentBoundsMinZ[0]', '<f', float(wz.min())),
+        ('FragmentBoundsMaxZ[0]', '<f', float(wz.max())), ('NumResourceIndices[0]', '<i', len(lod['indices'][1])))
+    for name, fmt, value in fields:
         at = walker.value(bytes(data), start, len(data), name)
+        if at is None and plain and name == 'StaticMesh[0]':
+            # a plain piece that has its archetype's mesh saves none: the copy's is written at the properties' start
+            data = bytearray(data[:start] + _tag(g, 'StaticMesh', 'ObjectProperty', 4) + struct.pack('<i', value) + data[start:])
+            continue
         if at is None:
             raise ValueError('%s saves no %s' % (p.name(old), name))
         struct.pack_into(fmt, data, at, value)
@@ -834,14 +856,24 @@ def add_walls(g, p, items, grid, bake=True):
     for item in items:
         gen = check(item['generated'])
         original = item['original']
-        comp_old = p.own(original, 'FracturedStaticMeshComponent')
-        if not comp_old or p.cls(original) not in native_copy.FRACTURING:
-            raise ValueError('%s is no fracturing piece: a generated wall copies one' % p.name(original))
-        donor_mesh = p.own(comp_old, 'StaticMesh')
+        if gen['kind'] == 'ground':
+            comp_old = p.own(original, 'StaticMeshComponent')
+            if not comp_old or p.cls(original) not in GROUND_CLASSES:
+                raise ValueError('%s is no plain piece: a ground shape copies one (%s)' % (p.name(original), ', '.join(GROUND_CLASSES)))
+        else:
+            comp_old = p.own(original, 'FracturedStaticMeshComponent')
+            if not comp_old or p.cls(original) not in native_copy.FRACTURING:
+                raise ValueError('%s is no fracturing piece: a generated wall copies one' % p.name(original))
+        # (a plain piece placed from an archetype may save no mesh of its own: it has its archetype's)
+        donor_mesh = p.own(comp_old, 'StaticMesh') or p.effective(comp_old, 'StaticMesh', None)
         if gen['kind'] == 'relit':
             records.append(dict(kind='relit', copy=item['info']['actor'], label=item.get('label')))
             continue
         template = gen_mesh.read(p, donor_mesh)
+        if gen['kind'] == 'ground':
+            out = ground.build(gen['ground'], template)
+            built.append((item, comp_old, donor_mesh, template, out, ground.mesh_name(gen['ground'])))
+            continue
         if gen['kind'] == 'fracSlab':
             out = frac_slab.build(gen['slab'], template)
             built.append((item, comp_old, donor_mesh, template, out, frac_slab.mesh_name(gen['slab'])))
@@ -874,7 +906,8 @@ def add_walls(g, p, items, grid, bake=True):
         info = item['info']
         comp_new = info['mapping'][comp_old]
         matrix = lightmap_texels.world_matrix(p, comp_old, item['location'], item['rotation'])
-        paint = donor_paint(p, comp_old, template)
+        plain = item['generated']['kind'] == 'ground'
+        paint = None if plain else donor_paint(p, comp_old, template)
         # the fragments' world boxes, and the columns by F0's rule
         boxes = [world_box(f['box'], matrix) for f in out['fragments']]
         lo = [min(x[2 * k] for x in boxes) for k in range(3)]
@@ -897,7 +930,20 @@ def add_walls(g, p, items, grid, bake=True):
         if dominant:
             shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
-                                            shadow))
+                                            shadow, plain=plain))
+        if plain:
+            records.append(dict(kind='ground', copy=info['actor'], original=item['original'], openings=[], group=0,
+                                label=item.get('label'), mesh=made[name], meshName=name, bodySetup=made[name] + 1,
+                                fragments=0, vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
+                                solids=len(out['solids']), columns=0, painted=False, box=wall_box,
+                                lightmapRect=out['lightmapRect'],
+                                light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
+                                       else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
+                                shadowMap=(None if shadow is None else
+                                           dict(export=shadow['export'], own=bool(sm and sm.get('clone')),
+                                                source=sm['source']['path'] if sm else None,
+                                                irrelevant=shadow['export'] is None))))
+            continue
         slab = item['generated']['kind'] == 'fracSlab'
         cols = slab_columns(boxes) if slab else columns(boxes, grid)
         actor = info['actor']

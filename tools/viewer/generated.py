@@ -10,7 +10,8 @@ alone, so no map is read. Meshes are kept by their numbers while the server runs
 
 A floor or roof slab made from numbers (kind 'fracSlab': tools/bake/frac_slab.py, custom geometry plan M5) is drawn
 the same way: GET /generated/fracslab.glb?slab=<its numbers as JSON>, its two sections (the top with the edges, the
-underside) in slot order."""
+underside) in slot order. A ground shape (kind 'ground': tools/bake/ground.py, M6): GET /generated/ground.glb?ground=
+<numbers>, its one section."""
 from collections import OrderedDict
 import json
 import math
@@ -24,6 +25,7 @@ if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
 import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
+import ground as ground_shapes  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
 CACHE_SIZE = 32
@@ -33,6 +35,7 @@ MAX_OPENINGS = 16
 MIN_LENGTH = 24 + 2 * frac_wall.RECIPE['endInset']
 SLOTS = 6
 SLAB_SLOTS = 2
+GROUND_SLOTS = 1
 MAX_HOLES = 32
 
 
@@ -112,6 +115,27 @@ def slab_numbers(text):
     return out
 
 
+def ground_numbers(text):
+    """A ground shape's numbers from the JSON `text`, checked (ground.check), in one spelling: shape, x0, x1, y0, y1,
+    height (a block's or ramp's), and its look when it is not the first."""
+    try:
+        g = json.loads(text)
+    except (TypeError, ValueError):
+        raise GeneratedError('a ground shape is its numbers as JSON')
+    if not isinstance(g, dict):
+        raise GeneratedError('a ground shape is its numbers as JSON')
+    try:
+        ground_shapes.check(g)
+    except (ValueError, TypeError) as error:
+        raise GeneratedError(str(error))
+    out = dict(shape=g['shape'], **{k: float(g[k]) for k in ('x0', 'x1', 'y0', 'y1')})
+    if g['shape'] != 'patch':
+        out['height'] = float(g['height'])
+    if g.get('look', ground_shapes.DEFAULT_LOOK) != ground_shapes.DEFAULT_LOOK:
+        out['look'] = g['look']
+    return out
+
+
 def viewer_mesh(built):
     """frac_wall.build's mesh in the form mesh.write_glb writes (mesh.read_mesh's: the page's axes, x z y), every slot
     with triangles: an empty one gets a triangle of no area at the middle of the wall's box (inside it)."""
@@ -182,6 +206,16 @@ class Meshes:
                 self.kept.move_to_end(key)
                 return self.kept[key]
         return self.made(key, lambda: frac_slab.build(slab), SLAB_SLOTS, 'slab')
+
+    def ground(self, text):
+        """The GLB of the ground shape whose numbers are the JSON `text`."""
+        shape = ground_numbers(text)
+        key = 'ground:' + json.dumps(shape, sort_keys=True)
+        with self.lock:
+            if key in self.kept:
+                self.kept.move_to_end(key)
+                return self.kept[key]
+        return self.made(key, lambda: ground_shapes.build(shape), GROUND_SLOTS, 'ground shape')
 
     def made(self, key, build, slots, what):
         mesh = viewer_mesh(build())

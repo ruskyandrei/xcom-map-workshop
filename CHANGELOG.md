@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6: ground shapes in the Build, the compiler and the viewer
+
+- [frac_walls.py](tools/bake/frac_walls.py) builds `{kind: ground, version: 1, ground}` copies:
+  - the donor is a plain piece (`GROUND_CLASSES`: XComLevelActor, StaticMeshActor, XComOpacityFadeLevelActor);
+  - the mesh is a plain static mesh by [ground.py](tools/bake/ground.py);
+  - its body setup is a box or a ramp's wedge;
+  - its lightmap and shadow map are its own (baked), or the even light (quick);
+  - it has no columns.
+- A donor placed from an archetype saves no mesh of its own. Its archetype's mesh is read, and the copy's mesh is
+  written onto its component.
+- [native_copy.py](tools/bake/native_copy.py) logs each ground shape made.
+- [ground_looks.json](tools/bake/ground_looks.json) (new) has a first look:
+  - Asphalt: URB_Bar's `grassPlanes.AsphaltPlaneFlat` (XComLevelActor_131), its texture repeating every 320 units.
+  - The materials audit adds the rest.
+- [compiler.py](tools/editor/compiler.py) accepts ground shapes on plain pieces (and refuses them on others):
+  - their own box;
+  - their height free;
+  - a note for each;
+  - a note for a ramp steeper than about 10 degrees (no cover on it, F-81);
+  - a warning past 45 (no floor).
+- [generated.py](tools/viewer/generated.py) and [viewer.py](tools/viewer/viewer.py): `/generated/ground.glb?ground=`.
+
+Checked by new tests:
+- a baked Build of a block and a ramp on URB_Bar's asphalt plane: plain meshes of their own, one convex element (a
+  box's six planes, the wedge's five), the donor's material bound, their boxes, own lightmap rectangles and shadow
+  maps, no columns;
+- the compiler's boxes, notes, warning and refusals;
+- the GLB route.
+
+Not in the editor's page or the game yet.
+
 ### Custom geometry, stage M6: ground shapes from numbers (geometry)
 
 - [ground.py](tools/bake/ground.py) (new) makes a flat patch, a raised block or a ramp from numbers, each as a

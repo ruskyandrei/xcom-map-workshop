@@ -170,6 +170,35 @@ class GeneratedTests(unittest.TestCase):
             self.assertIn('malformed', codes(report), bad)
             self.assertFalse([o for o in (spec or {}).get('objects', []) if o['type'] == 'copy'], bad)
 
+    def test_a_ground_shape_copies_a_plain_piece_in_its_own_box(self):
+        # (M6) a block, a ramp and a patch on XComLevelActor_1's copies: their boxes their own (a patch under the ground
+        # it lies on), their height free; noted; a ramp over 10 degrees noted sloped, one over 45 warned; on a fracturing
+        # piece, or with bad numbers, left out
+        block = dict(kind='ground', version=1, ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))
+        ramp = dict(kind='ground', version=1, ground=dict(shape='ramp', x0=0.0, x1=288.0, y0=0.0, y1=96.0, height=96.0))
+        steep = dict(ramp, ground=dict(ramp['ground'], x1=96.0, height=192.0))
+        patch = dict(kind='ground', version=1, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))
+        spec, report = compiled([made(block, name='XComLevelActor_1', at=(0, 0, 14.5)),
+                                 made(ramp, name='XComLevelActor_1', serial=2, at=(0, 192, 0)),
+                                 made(steep, name='XComLevelActor_1', serial=3, at=(0, 384, 0)),
+                                 made(patch, name='XComLevelActor_1', serial=4, at=(0, 576, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'generated'), ['generated-ground'] * 4)
+        self.assertEqual(noted(report, 'ground'), ['ground-sloped'])
+        self.assertIn('ground-steep', warned(report))
+        _, native = compiler.native_split(spec)
+        boxes = [c['box'] for c in native['copies']]
+        self.assertEqual(boxes[0], [0.0, 192.0, 0.0, 96.0, 14.5, 78.5])
+        self.assertEqual(boxes[1], [0.0, 288.0, 192.0, 288.0, 0.0, 96.0])
+        self.assertEqual(boxes[3][4:], [-compiler.GROUND_LOOKS[compiler.GROUND_DEFAULT_LOOK], 0.0])
+        for bad in (dict(block, ground=dict(block['ground'], shape='dome')), dict(block, ground=dict(block['ground'], height=0)),
+                    dict(block, ground=dict(block['ground'], x1=100.0)), dict(block, ground=dict(block['ground'], look='marble')),
+                    dict(block, version=2)):
+            spec, report = compiled([made(bad, name='XComLevelActor_1')])
+            self.assertIn('malformed', codes(report), bad)
+        spec, report = compiled([made(block)])          # on a fracturing piece
+        self.assertIn('malformed', codes(report))
+
     def test_a_one_storey_wall_is_a_wall(self):
         # (M2) storeys 1 or 2 (left out, 2) go to the Build as they are
         for storeys in (1, 2):

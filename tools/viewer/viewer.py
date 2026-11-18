@@ -513,10 +513,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
     # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order;
-    # GET /generated/fracslab.glb?slab=<numbers> a floor or roof slab's (kind fracSlab).
+    # GET /generated/fracslab.glb?slab=<numbers> a floor or roof slab's (kind fracSlab); /generated/ground.glb?ground=
+    # <numbers> a ground shape's (kind ground).
     def handle_generated(self, method):
         split = urlsplit(self.path)
-        kinds = {'/generated/fracwall.glb': ('wall', 'fracwall'), '/generated/fracslab.glb': ('slab', 'fracslab')}
+        kinds = {'/generated/fracwall.glb': ('wall', 'fracwall'), '/generated/fracslab.glb': ('slab', 'fracslab'),
+                 '/generated/ground.glb': ('ground', 'ground')}
         if split.path not in kinds: return False
         if method != 'GET':
             self.send_json(405, dict(error='Not allowed.'))

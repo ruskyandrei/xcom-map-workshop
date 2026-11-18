@@ -125,5 +125,24 @@ class FracSlab(unittest.TestCase):
                 generated.Meshes().fracslab(text)
 
 
+class Ground(unittest.TestCase):
+    """(M6) a ground shape's mesh file from its numbers: one section, its box the shape's."""
+    def test_a_ramp_is_one_section_its_box_its_wedge(self):
+        doc = gltf(generated.Meshes().ground(json.dumps(dict(shape='ramp', x0=0, x1=288, y0=0, y1=96, height=96))))
+        prims = doc['meshes'][0]['primitives']
+        self.assertEqual([p['extras']['materialSlot'] for p in prims], [0])
+        pos = doc['accessors'][prims[0]['attributes']['POSITION']]
+        self.assertEqual((pos['min'], pos['max']), ([0.0, 0.0, 0.0], [288.0, 96.0, 96.0]))
+
+    def test_the_numbers_are_kept_in_one_spelling_and_bad_ones_refused(self):
+        self.assertEqual(generated.ground_numbers(json.dumps(dict(shape='patch', x0=0, x1=96, y0=0, y1=96, height=5))),
+                         dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))
+        for text in ('', '[]', json.dumps(dict(shape='dome', x0=0, x1=96, y0=0, y1=96)),
+                     json.dumps(dict(shape='block', x0=0, x1=96, y0=0, y1=96)),
+                     json.dumps(dict(shape='block', x0=0, x1=90, y0=0, y1=96, height=10))):
+            with self.assertRaises(generated.GeneratedError, msg=text):
+                generated.Meshes().ground(text)
+
+
 if __name__ == '__main__':
     unittest.main()

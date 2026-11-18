@@ -1,0 +1,16 @@
+{
+ "about": "Ground looks (custom geometry plan, stage M6): each one of the game's plain pieces whose material a ground shape is drawn in (tools/bake/ground.py builds the shape; the Build copies the piece and puts the shape's mesh in it). A shape's numbers name their look (`look`; left out, the first). `repeat` is the material's texture repeat in world units on the donor's top (its UVs against its positions); `thickness` a patch's, under the ground it lies on.",
+ "looks": [
+  {
+   "id": "asphalt",
+   "name": "Asphalt",
+   "package": "URB_Bar",
+   "actor": "XComLevelActor_131",
+   "donor": "grassPlanes.AsphaltPlaneFlat",
+   "lwrOnly": false,
+   "words": "dark street asphalt, as the bar's parking lot",
+   "recipe": {"repeat": 320.0, "slot": 0, "sections": 1, "thickness": 8.0,
+              "lightmap": {"density": 0.12, "margin": 2, "interiorDensity": 1.0, "block": 4}}
+  }
+ ]
+}

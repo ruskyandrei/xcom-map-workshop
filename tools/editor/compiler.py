@@ -122,6 +122,41 @@ FRAC_SLAB_LOOKS = {look['id']: (look['recipe']['bottom'], look['recipe']['top'])
 FRAC_SLAB_DEFAULT_LOOK = 'roof'
 FRAC_SLAB_MAX_TILES = 16
 MADE_KINDS = ('fracWall', 'fracSlab')    # made from numbers: their own mesh, columns and box
+
+
+def _ground_looks():
+    """A ground shape's looks (custom geometry plan, M6: tools/bake/ground_looks.json, ground.LOOKS), each its patch's
+    thickness; the one plain recipe until the file is written."""
+    path = Path(__file__).resolve().parents[1] / 'bake' / 'ground_looks.json'
+    if not path.exists():
+        return {'plain': 8.0}
+    return {look['id']: float(look.get('recipe', {}).get('thickness', 8.0))
+            for look in json.loads(path.read_text(encoding='utf-8'))['looks']}
+
+
+# ground shapes made from numbers (M6: tools/bake/ground.py): a patch, block or ramp of whole tiles (1 to 16 each way), a
+# block's or ramp's height 1 to 384, copying a plain piece (GROUND_CLASSES); a slope steeper than about 10 degrees is
+# sloped (F-81: no cover on it) and past 45 no floor
+GROUND_LOOKS = _ground_looks()
+GROUND_DEFAULT_LOOK = next(iter(GROUND_LOOKS))
+GROUND_SHAPES = ('patch', 'block', 'ramp')
+GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
+GROUND_MAX_HEIGHT = 384.0
+GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
+
+
+def ground_box(g):
+    """A ground shape's box in its mesh's frame (ground.local_box)."""
+    if g['shape'] == 'patch':
+        z = (-GROUND_LOOKS[g.get('look', GROUND_DEFAULT_LOOK)], 0.0)
+    else:
+        z = (0.0, float(g['height']))
+    return (float(g['x0']), float(g['x1']), float(g['y0']), float(g['y1'])) + z
+
+
+def ground_slope(g):
+    """A ramp's slope in degrees (ground.slope)."""
+    return math.degrees(math.atan2(float(g['height']), float(g['x1']) - float(g['x0']))) if g.get('shape') == 'ramp' else 0.0
 # What the game does at a made wall's opening (custom geometry plan, M1 item 4; tools/viewer/web/walls.js is the twin):
 # its sweeps over a tile's floor along the line between two tiles' centres (research/native/cover-build.md,
 # line-of-sight.md): cover 44 to 60, high or low 88 to 104, walking 64 (half a unit thick), sight from the eye tile 96
@@ -1274,10 +1309,12 @@ class Compiler:
         g = rec['generated']
         num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
         # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet)
-        ok = isinstance(g, dict) and g.get('kind') in ('fracWall', 'fracSlab', 'relit') \
+        ok = isinstance(g, dict) and g.get('kind') in ('fracWall', 'fracSlab', 'ground', 'relit') \
             and g.get('version') in ((1, 2) if g.get('kind') == 'fracWall' else (1,))
         if ok and g['kind'] == 'fracSlab':
             ok = self.slab_valid(g.get('slab'), num)
+        elif ok and g['kind'] == 'ground':
+            ok = self.ground_valid(g.get('ground'), num)
         elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
@@ -1292,9 +1329,22 @@ class Compiler:
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
                    '{x0, x1, openings, seed, storeys}}, or version 2 with its look: one of %s), a slab\'s ({kind: '
                    'fracSlab, version: 1, slab: {x0, x1, y0, y1, holes, seed, look}}: whole tiles, 1 to %d each way, '
-                   'its holes whole tiles inside it, its look one of %s) or {kind: relit, version: 1} (it has %r)'
-                   % (', '.join(FRAC_WALL_LOOKS), FRAC_SLAB_MAX_TILES, ', '.join(FRAC_SLAB_LOOKS), g), **where)
+                   'its holes whole tiles inside it, its look one of %s), a ground shape\'s ({kind: ground, version: 1, '
+                   'ground: {shape (patch, block or ramp), x0, x1, y0, y1, height, look}}: whole tiles, a height of 1 to %g, '
+                   'its look one of %s) or {kind: relit, version: 1} (it has %r)'
+                   % (', '.join(FRAC_WALL_LOOKS), FRAC_SLAB_MAX_TILES, ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_HEIGHT,
+                      ', '.join(GROUND_LOOKS), g), **where)
         return False
+
+    @staticmethod
+    def ground_valid(s, num):
+        """Whether a ground shape's numbers are well formed (tools/bake/ground.py check is the Build's)."""
+        if not (isinstance(s, dict) and s.get('shape') in GROUND_SHAPES and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
+            return False
+        whole = all(abs((s[b] - s[a]) / 96.0 - round((s[b] - s[a]) / 96.0)) < 1e-4
+                    and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
+        height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)
+        return whole and height and s.get('look', GROUND_DEFAULT_LOOK) in GROUND_LOOKS
 
     @staticmethod
     def slab_valid(s, num):
@@ -2514,14 +2564,18 @@ class Compiler:
         loc, rot, rounding = pose
         src = parts[0]
         made = rec.get('generated')
-        if made and src['actorClass'] not in ('XComFracLevelActor', 'XComDecoFracLevelActor'):
+        if made and made['kind'] == 'ground' and src['actorClass'] not in GROUND_CLASSES:
+            self.error('malformed', "%s copies a %s: a ground shape is made on a plain piece's copy (%s)"
+                       % (short(out), src['actorClass'], ', '.join(GROUND_CLASSES)), **where)
+            return
+        if made and made['kind'] != 'ground' and src['actorClass'] not in ('XComFracLevelActor', 'XComDecoFracLevelActor'):
             self.error('malformed', "%s copies a %s: only a fracturing piece's copy is made from numbers"
                        % (short(out), src['actorClass']), **where)
             return
         self.loot(src, short(out), 'add', where)
         # (a made wall's height is free: its columns are made for where it stands, so only its tiles and quarter turns
         # follow its template's)
-        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS else loc
+        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS + ('ground',) else loc
         if not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
@@ -2531,6 +2585,8 @@ class Compiler:
             # (a slab made from numbers stands in its footprint, between its look's heights)
             s = made['slab']
             along = (s['x0'], s['x1'], s['y0'], s['y1']) + FRAC_SLAB_LOOKS[s.get('look', FRAC_SLAB_DEFAULT_LOOK)]
+        if made and made['kind'] == 'ground':
+            along = ground_box(made['ground'])
         new = self.boxes(parts, loc, rot, along)
         name = short(rec['from']['actor'])
         donor = self.donors.get((rec['from']['package'].casefold(), rec['from']['actor']))
@@ -2573,6 +2629,17 @@ class Compiler:
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
                           'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
                           "the game's walls pass theirs on" % (short(out), name), **where)
+            elif rec['generated']['kind'] == 'ground':
+                gd, slope = rec['generated']['ground'], ground_slope(rec['generated']['ground'])
+                self.note('generated-ground', "%s is a ground %s made from numbers on %s's material: units walk on it; it "
+                          "doesn't break" % (short(out), gd['shape'], name), **where)
+                if slope > GROUND_STEEP:
+                    self.warn('ground-steep', '%s: its slope (%d degrees) is no floor: units can\'t stand on it'
+                              % (short(out), round(slope)), **where)
+                elif slope > GROUND_SLOPED:
+                    self.note('ground-sloped', '%s: its slope (%d degrees) is walked, but its tiles are sloped: a unit on '
+                              'it gets no cover, as on every slope of the game\'s steeper than about 10 degrees'
+                              % (short(out), round(slope)), **where)
             elif rec['generated']['kind'] == 'fracSlab':
                 self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '

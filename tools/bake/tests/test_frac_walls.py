@@ -648,6 +648,59 @@ class MadeSlabs(unittest.TestCase):
                         or (name(self.sec['Under']), name(self.sec['Roof'])) in listings, listings)
 
 
+@unittest.skipUnless(BAR.exists(), NO_BAR)
+class GroundShapes(unittest.TestCase):
+    """(M6) Ground shapes made from numbers in URB_Bar, baked: a block and a ramp on copies of the bar's asphalt plane
+    (XComLevelActor_131, an XComLevelActor whose component has its archetype's mesh and saves none)."""
+    DONOR = 'XComLevelActor_131'
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        copies = [dict(actor=cls.DONOR, label='Block', location=[-1728.0, -1440.0, 0.0], rotation=[0, 0, 0],
+                       generated=dict(kind='ground', version=1,
+                                      ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))),
+                  dict(actor=cls.DONOR, label='Ramp', location=[-1440.0, -1440.0, 0.0], rotation=[0, 0, 0],
+                       generated=dict(kind='ground', version=1,
+                                      ground=dict(shape='ramp', x0=0.0, x1=288.0, y0=0.0, y1=96.0, height=64.0)))]
+        cls.m = native_copy.build(BAR, out, 'Ground', copies, bake=True, cache='Ground_Lighting')
+        cls.p = Package(BAR)
+        cls.q = Package(out / 'Ground.upk')
+        cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_is_a_plain_mesh_of_its_own_with_one_collision_element(self):
+        q = self.q
+        for label, prefix in (('Block', 'Ground_block_2x1_'), ('Ramp', 'Ground_ramp_3x1_')):
+            comp = q.own(self.sec[label], 'StaticMeshComponent')
+            mesh = q.own(comp, 'StaticMesh')
+            self.assertEqual(q.cls(mesh), 'StaticMesh')
+            self.assertTrue(q.name(mesh).split('.')[-1].startswith(prefix), q.name(mesh))
+            # one convex element (test_cover_blocks.hull reads it): a box's six planes, a ramp's wedge's five
+            import test_cover_blocks
+            *_, fields = test_cover_blocks.hull(q, q.own(mesh, 'BodySetup'))
+            self.assertEqual(len(fields['FacePlaneData']), 6 if label == 'Block' else 5)
+            # the donor's material stays bound by the component
+            self.assertEqual(q.effective(comp, 'Materials', None), self.p.effective(self.p.own(self.p.by_name[PL + self.DONOR],
+                                                                                              'StaticMeshComponent'), 'Materials', None))
+
+    def test_its_box_light_and_shadow(self):
+        rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
+        self.assertEqual(rec['Block']['kind'], 'ground')
+        self.assertEqual([round(v, 2) for v in rec['Block']['box']], [-1728.0, -1536.0, -1440.0, -1344.0, 0.0, 64.0])
+        self.assertEqual([round(v, 2) for v in rec['Ramp']['box']], [-1440.0, -1152.0, -1440.0, -1344.0, 0.0, 64.0])
+        for r in rec.values():
+            self.assertEqual(r['light']['kind'], 'rect')
+            self.assertTrue(r['shadowMap']['own'])
+            self.assertEqual(r['columns'], 0)
+
+
 class StagedDoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
     URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by
