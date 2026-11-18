@@ -48,6 +48,9 @@ TAXI_SOUND, SHOP_SOUND = ACTOR % 'AmbientSoundSimple_3', ACTOR % 'AmbientSoundSi
 WEBBING, POD_SMOKE, FLARE = ACTOR % 'Emitter_75', ACTOR % 'Emitter_15', ACTOR % 'LensFlareSource_8'
 SOUND_VIEW, SMOKE_VIEW = [700, -1500, 1100], [420, -800, 560]
 LIGHT_VIEW = ([375, 300, 60], [500, -900, 700])
+# the Spawns view's shot: a pod of the Bar's west room picked, with another pod, Meld points and other points round it
+SPAWN_POD = ACTOR % 'XComAlienPod_Abduction_2'
+SPAWN_VIEW = ([-1150, 650, 17], [480, -1180, 1000])
 SPOT_NEAR = [375, 245, 297]
 PROJECTS_FOLDER = r'C:\Users\you\AppData\Local\Programs\XCOM Map Workshop\projects'
 GAME_FOLDER = r'C:\Program Files (x86)\Steam\steamapps\common\XCom-Enemy-Unknown'
@@ -243,13 +246,14 @@ class Shots:
 
     def rail(self):
         controls = ('#editOff', '#editMove', '#editRotate', '#editBox', '#editAdd', '#editNormal', '#editBuildings', '#editLights',
-                    '#editZones', '#editEffects', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLevels', '#editLinked',
-                    '#selected')
+                    '#editZones', '#editEffects', '#editSpawns', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLevels',
+                    '#editLinked', '#selected')
         marks = [dict(n=k + 1, sel=s, side='right', gap=20) for k, s in enumerate(controls)]
         self.shot('rail', marks, clip=self.around('#rail', pad=(8, 8, 40, 8)))
 
     def normal_flyout(self):
-        """The Normal view button hovered: its flyout with the Lights, Floor boxes and Effects and sounds switches."""
+        """The Normal view button hovered: its flyout with the Lights, Floor boxes, Effects and sounds, and Spawn points
+        and objectives switches."""
         page = self.page
         page.evaluate('viewer.select(null)')
         page.locator('#editNormal').hover()
@@ -568,6 +572,56 @@ class Shots:
         x, y, w, h = self.rect('#editEffects')
         fx, fy, fw, fh = self.rect('#effectsFlyout')
         self.shot('effects-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+
+    # --- the Spawns view
+    def spawns(self):
+        """The Spawns view on the Bar's ground floor: a pod picked, with its arrows and its panel (its values, what uses
+        it, what the game does with it, its turns, Copy and Delete, its flags); another pod, a Meld point and another
+        point marked round it."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        zones = page.evaluate('viewer.landingLayer.visible')
+        page.evaluate('viewer.setSpawnsShown(true)')
+        page.evaluate('viewer.landingLayer.visible = false')     # (the view shows the zones) a zone's number would be taken for a mark
+        pod = page.evaluate('a => viewer.spawns().find(s => s.actor === a)', SPAWN_POD)
+        if not pod: raise SystemExit('%s is not among the spawn points of %s' % (SPAWN_POD, MAP))
+        page.evaluate('k => viewer.pickSpawn(k)', pod['key'])
+        self.camera(*SPAWN_VIEW)
+        self.settle(3000)
+        top, bottom = self.rect('header')[3] + 40, self.rect('.dock')[1] - 30
+        panel, rail = self.rect('#spawnPanel'), self.rect('#rail')
+        spawns = page.evaluate('viewer.spawns()')
+        at = next(s['screen'] for s in spawns if s['key'] == pod['key'])
+
+        def nearest(kind):
+            """The marker of a kind nearest the picked pod that shows in the picture, clear of the panel and the rail."""
+            shown = [s['screen'] for s in spawns if s['kind'] == kind and s['marked'] and s['key'] != pod['key'] and s['screen']
+                     and rail[0] + rail[2] + 60 < s['screen'][0] < panel[0] - 60 and top < s['screen'][1] < bottom]
+            if not shown: raise SystemExit('no %s marker shows near %s' % (kind, SPAWN_POD))
+            return min(shown, key=lambda p: (p[0] - at[0]) ** 2 + (p[1] - at[1]) ** 2)
+
+        marks = [dict(n=1, sel='#editSpawns', side='right', gap=20),
+                 dict(n=2, rect=[at[0] - 24, at[1] - 24, 48, 48], side='bottom', gap=70, inset=3)]
+        for n, kind in ((3, 'pod'), (4, 'meld'), (5, 'point')):
+            s = nearest(kind)
+            marks.append(dict(n=n, rect=[s[0] - 10, s[1] - 10, 20, 20], side='top', gap=34, inset=3))
+        marks += self.panel_rows('#spawnPanel', [(6, '#spawnInfo'), (7, '#spawnEdit .row:nth-of-type(1)'),
+                                                 (8, '#spawnEdit .row:nth-of-type(2)'), (9, '#spawnEdit label.check')])
+        self.shot('spawns', marks, resize=0.75)
+        page.evaluate('viewer.pickSpawn(null); viewer.setSpawnsShown(false)')
+        page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
+
+    def spawns_flyout(self):
+        """The Spawns view button hovered: its flyout with a switch for each family and Scripted drop-ins land where
+        placed."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#editSpawns').hover()
+        page.wait_for_timeout(400)
+        x, y, w, h = self.rect('#editSpawns')
+        fx, fy, fw, fh = self.rect('#spawnsFlyout')
+        self.shot('spawns-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
         page.mouse.move(WIDTH / 2, HEIGHT / 2)
 
     def effect_values(self):
@@ -986,7 +1040,7 @@ def prefab_test_shot(browser, server, out):
 
 # the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
 ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
+         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
          'manager', 'save-as', 'mission-objects')
 
 

@@ -138,6 +138,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#buildings">Buildings</a></li>
           <li><a href="#mapgrid">Map grid</a></li>
           <li><a href="#clearmap">Clear map and landing zones</a></li>
+          <li><a href="#spawns">Spawn points</a></li>
           <li><a href="#viewoptions">View options</a></li>
           <li><a href="#project">Project menu</a></li>
           <li><a href="#squad">Settings: Test squad setup</a></li>
@@ -167,7 +168,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h2 id="what">What it does</h2>
 <ul class="cards">
   <li><b>Opens any map your game plays</b><span>Every map in your install's rotation (96 with Long War Rebalance, the tutorial's map included), in a 3D view you can orbit, cut open floor by floor and search.</span></li>
-  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Edit its lights, and its effects and sounds: fires, smoke, steam, a car's idle engine. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
+  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Edit its lights, and its effects and sounds: fires, smoke, steam, a car's idle engine. Move where the aliens' pods and the Meld start. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
   <li><b>Makes room for a map of your own</b><span>Clear a map down to its light and its landing, set the size of its tile grid, give your buildings their cutaway, and say where the squad lands.</span></li>
   <li><b>Builds a new map</b><span>Your edits are saved as a project and built into a <i>variant</i>: a copy of the map with the changes made in it, cover and pathing included, its lighting baked on request.</span></li>
   <li><b>Starts the game on it</b><span>One menu item starts XCOM straight in a battle on your variant, with a test squad: no campaign to start, and nothing of the game's own changed. Another takes the variant back out.</span></li>
@@ -280,16 +281,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <section>
     <h3>Missions and gameplay</h3>
     <ul>
-      <li><b>No mission scripting.</b> Objectives, where the aliens start, timers and reinforcements stay as the base
-        map has them. Where your squad lands can be changed: <a href="#clearmap">landing zones</a>.</li>
+      <li><b>No mission scripting.</b> What the mission's script does, its timers and triggers, and when
+        reinforcements come stay as the base map has them. Where things are can be changed: the squad's
+        <a href="#landingzones">landing zones</a>, and the aliens' pods, the Meld and the drop-in points in the
+        <a href="#spawns">Spawns view</a>. A drop-in point can be moved, not added.</li>
       <li><b>Pieces the mission script uses are best left where they are.</b> A piece marked
         <b class="ui">Mission script</b>, moved or deleted, builds, but the script goes on acting on the original; one
         of the landing's own pieces, moved or deleted as a piece, breaks Long War's landing. The Build warns of both.
         Move the landing zone instead.</li>
       <li><b>Long War Rebalance's invisible cover and blockers can't be edited.</b> They show for reference. A
         mission's own objects (a bomb, the data recovery's capture points) can be moved, but not copied or deleted:
-        <a href="#mission-objects">what a mission adds</a>. Under Long War the bomb and its power nodes go where its
-        bomb rules put them, whatever you do.</li>
+        <a href="#mission-objects">what a mission adds</a>.</li>
+      <li><b>Under Long War, the aliens' pods and the Meld go where its rules put them</b> whenever it finds room for
+        them, and so do the bomb and its power nodes. Your places for them play where it doesn't, and on plain Enemy
+        Within: <a href="#spawns-game">what the game does with them</a>.</li>
       <li><b>Cover, pathing and line of sight aren't shown or set by hand.</b> The game works them out from the pieces
         when the map loads. The editor's tile grid is a guide, not the game's answer.</li>
       <li><b>No play-testing in the editor.</b> No units, no fog of war, no destruction. You test in the game.</li>
@@ -382,7 +387,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </figure>
 <ol class="legend">
   <li data-n="A"><b>Header:</b> the project, the map, the search, and on the right what has changed, undo, Settings and the menus. <a href="#header">More</a></li>
-  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, buildings, lights, effects, and how pieces snap. <a href="#tools">More</a></li>
+  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, the views (buildings, lights, landing zones, effects, spawn points), and how pieces snap. <a href="#tools">More</a></li>
   <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
   <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
   <li data-n="E"><b>Bottom bar:</b> frame the view, play area or everything, and which floor to cut down to. <a href="#bottom">More</a></li>
@@ -426,7 +431,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
-  <figure><img src="shots/rail.webp" width="94" height="706" alt="The tool strip, its seventeen buttons numbered"></figure>
+  <figure><img src="shots/rail.webp" width="94" height="744" alt="The tool strip, its eighteen buttons numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Select</b> (<kbd>V</kbd>): click pieces without any handles in the way.</li>
     <li data-n="2"><b>Move</b> (<kbd>G</kbd>): arrows on the selection. Drag an arrow to move along it, or a small
@@ -435,45 +440,49 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="4"><b>Box select</b> (<kbd>T</kbd>): draw a box around many pieces to select them all at once.
       <a href="#boxselect">More</a></li>
     <li data-n="5"><b>Add</b> (<kbd>P</kbd>) opens <a href="#add">the piece list</a>, to place more of any piece the map has, a <a href="#add-all">piece of another map</a>, or a new light.</li>
-    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of five
-      views, with the next four; one is on at a time. Hover it for its three switches,
-      <a href="#normal-view">Lights, Floor boxes and Effects and sounds</a>.</li>
+    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of six
+      views, with the next five; one is on at a time. Hover it for its four switches,
+      <a href="#normal-view">Lights, Floor boxes, Effects and sounds, and Spawn points and objectives</a>.</li>
     <li data-n="7"><b>Buildings view</b> (<kbd>Shift</kbd>+<kbd>B</kbd>), where a building's floor boxes are drawn and fitted. While it is on, only boxes can be selected. <a href="#buildings">More</a></li>
     <li data-n="8"><b>Lights view</b> (<kbd>Shift</kbd>+<kbd>L</kbd>) shows the map's lights as markers you can select and edit. While it is on, only lights can be selected. <a href="#lights">More</a></li>
     <li data-n="9"><b>Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>): only landing zones are selected,
       drawn over everything. <a href="#landingzones">More</a></li>
     <li data-n="10"><b>Effects view</b> (<kbd>Shift</kbd>+<kbd>X</kbd>): the map's effects, sounds and lens flares
       as markers drawn over everything. While it is on, only they are selected. <a href="#effects">More</a></li>
-    <li data-n="11"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
+    <li data-n="11"><b>Spawns view</b> (<kbd>Shift</kbd>+<kbd>U</kbd>): the map's spawn points and the mission's
+      objectives as markers drawn over everything: where the aliens' pods start, the Meld, the drop-in points. While it
+      is on, only they are selected. <a href="#spawns">More</a></li>
+    <li data-n="12"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
       <a href="#mapgrid">More</a></li>
-    <li data-n="12"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
+    <li data-n="13"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
       piece that stands at an angle).</li>
-    <li data-n="13"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
+    <li data-n="14"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
       the piece's own origin, usually one of its corners, so a turned piece swings round that corner. Lit, the middle of
       the selection, so a piece turns in place. With snap at <b>96</b>, the middle keeps to the nearest tile centre or
       corner, so pieces on the tiles stay on them (a piece one tile by two still moves half a tile when turned). A typed
       turn in the piece panel turns about the same point.</li>
-    <li data-n="14"><b>Snap</b> cycles through three settings; the button's corner shows which.
+    <li data-n="15"><b>Snap</b> cycles through three settings; the button's corner shows which.
       <b>Off</b>; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter turns,
       counted from where the piece stood. The corner shows <b>R</b> when the selection is a piece that
       <a href="#rules">only moves on the grid</a>.</li>
-    <li data-n="15"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
+    <li data-n="16"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
       when moved up or down. <a href="#rules">More</a></li>
-    <li data-n="16"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
+    <li data-n="17"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
       off to move one piece of a set. A car's parts, a van's, and a door with its frame always move together.</li>
-    <li data-n="17"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
+    <li data-n="18"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
   </ol>
 </div>
 <p>A lit button with an outline is on. Hover any button for a reminder of what it does.</p>
 <h4 id="normal-view">The views, and the Normal view's switches</h4>
 <div class="split">
-  <figure><img src="shots/normal-flyout.webp" width="311" height="147" alt="The Normal view button with its flyout: Lights, Floor boxes, and Effects and sounds"></figure>
+  <figure><img src="shots/normal-flyout.webp" width="311" height="170" alt="The Normal view button with its flyout: Lights, Floor boxes, Effects and sounds, and Spawn points and objectives"></figure>
   <div>
-    <p>Buttons 6 to 10 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
+    <p>Buttons 6 to 11 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
       <b>Buildings view</b>, only lights in the <b>Lights view</b>, only <a href="#landingzones">landing zones</a> in
-      the <b>Landing zones view</b>, only effects, sounds and lens flares in the <a href="#effects">Effects view</a>.
+      the <b>Landing zones view</b>, only effects, sounds and lens flares in the <a href="#effects">Effects view</a>,
+      only spawn points and objectives in the <a href="#spawns">Spawns view</a>.
       Pressing the view that is on, or <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the normal view.</p>
-    <p>Hover the Normal view button for three switches. They let the normal view show and select more than pieces,
+    <p>Hover the Normal view button for four switches. They let the normal view show and select more than pieces,
       so a house can be handled with its lamps, its building and its smoke in one go:</p>
     <ul>
       <li><b>Lights:</b> the lights are drawn and can be clicked, moved, copied and deleted with pieces. A light's
@@ -482,8 +491,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         <a href="#building-whole">whole</a>, by a click on a box's edge.</li>
       <li><b>Effects and sounds:</b> their markers are drawn, and they are clicked, moved, copied, deleted and
         grouped with pieces. Their values are still set in the Effects view.</li>
+      <li><b>Spawn points and objectives:</b> the <a href="#spawns">Spawns view</a>'s markers are drawn too. A click
+        on one picks it ahead of the piece behind it, to move and edit as in that view.</li>
     </ul>
-    <p>All three are off whenever a map opens.</p>
+    <p>All four are off whenever a map opens.</p>
   </div>
 </div>
 
@@ -737,7 +748,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="1"><b>Filter</b> by name, kind or material.</li>
     <li data-n="2"><b>Kind</b> uses the same categories in This map, All maps and the prefab builder.
       <b>Floors</b> finds flat pieces that carry saved floor tiles. <b>Lights</b> has point and spot lights.
-      <b>Invisible</b> has <a href="#cover">cover blocks and invisible floors</a>.</li>
+      <b>Invisible</b> has <a href="#cover">cover blocks and invisible floors</a>. <b>Spawn points</b>, on a map with
+      pods or Meld points, has a new pod and a new Meld point.</li>
     <li data-n="3"><b>Where:</b> the play area or the backdrop, on maps that have a backdrop.</li>
     <li data-n="4"><b>Sort:</b> A to Z, largest first, or most used.</li>
     <li data-n="5"><b>An entry:</b> its picture, name, kind, and size in game units (width × depth × height); on the
@@ -750,6 +762,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b>To place one:</b> click an entry. A see-through preview follows the cursor. <kbd>R</kbd> turns it a quarter turn
   (<kbd>Shift</kbd>+<kbd>R</kbd> the other way). Click in the view to place it; <kbd>Shift</kbd>+click places it and
   keeps going. <kbd>Esc</kbd> stops. The new piece is selected, ready to move or turn.</p>
+<p><b>A new pod or Meld point:</b> choose it under Kind: <b class="ui">Spawn points</b>, then click the tile it is to
+  stand on. The <a href="#spawns">Spawns view</a> comes on, and the new point is a copy of the map's first plain pod or
+  first Meld point, with its values, on that tile, as high above its floor as the original stands above its own.
+  <kbd>Esc</kbd> stops.</p>
 <h3 id="add-all">Pieces from other maps</h3>
 <p><b class="ui">All maps</b> lists the pieces of every map in the game install, so a lamp post from the Police Station
   or a wall from an alien ship can stand in the map you are editing. The first time, the editor reads the game's maps
@@ -1450,8 +1466,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>
   <li><b>The Build takes out what the editor never showed</b> on a cleared map: the missions' streamed pieces, the
     patch's helpers, the map's own floor storeys. It gives the new grid storeys of its own.</li>
-  <li><b>A cleared map is for Long War Rebalance.</b> On plain Enemy Within the aliens' pods and Meld still start
-    where the map's buildings were, some over nothing. The window says so on a plain install.</li>
+  <li><b>The aliens' pods and Meld points stay where the map has them.</b> Long War Rebalance puts its own on your
+    floors when the battle starts. On plain Enemy Within they start at the map's places, where its buildings were,
+    some over nothing: move them onto your floors in the <a href="#spawns">Spawns view</a>. The window says so on a
+    plain install, and the Build warns when an edit leaves fewer places for pods than the map had.</li>
   <li><b>Then it asks "What is this map for?"</b>: the <a href="#missions">Missions</a> window, with the header's
     mission ticked if it is an abduction, a terror site or a bomb, else an abduction. A base mission with objects of
     its own (a bomb, a data recovery) keeps them where the original map has them until you move them.</li>
@@ -1515,6 +1533,74 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>Until you change one, the zones are the map's original ones. The first change makes them the
   project's.</p>
 
+<h3 id="spawns">Spawn points: where the aliens start</h3>
+<p>The <b>Spawns view</b> (<kbd>Shift</kbd>+<kbd>U</kbd>, or its button on the tool strip) shows where the game puts
+  things when a battle starts and while it goes on: the places the alien pods deploy at, where the Meld canisters can
+  stand, the drop-in points where reinforcements come in, the soldiers' and other points, and the objectives of the
+  mission the header shows (the bomb and its power nodes, capture points, radar arrays). They are markers drawn over
+  everything, each in a halo of its colour. While the view is on, only they are selected.</p>
+<figure class="zoom">
+  <img src="shots/spawns.webp" width="1080" height="675" alt="The Spawns view on the Bar's ground floor: a pod picked with its arrows and its panel, another pod, Meld points and other points around it">
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Spawns view</b> on the tool strip (<kbd>Shift</kbd>+<kbd>U</kbd>).</li>
+  <li data-n="2"><b>The picked pod</b> with its arrows: drag them to move it by whole tiles and levels.</li>
+  <li data-n="3"><b>A pod</b> (an orange ring): a place the game can deploy a group of aliens at.</li>
+  <li data-n="4"><b>A Meld point</b> (a green dot): a place a Meld canister can stand.</li>
+  <li data-n="5"><b>Another point</b> (grey), shown for reference.</li>
+  <li data-n="6"><b>What it is:</b> its values, what uses it (the map's script, a wave, or nothing found), what the
+    game does with it, and whether it stands where the map has it.</li>
+  <li data-n="7"><b class="ui">Turn left</b> and <b class="ui">Turn right</b> (<kbd>[</kbd> and <kbd>]</kbd>): a
+    quarter turn, the way its aliens face when they deploy.</li>
+  <li data-n="8"><b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
+    (<kbd>Delete</kbd>).</li>
+  <li data-n="9"><b>Its values:</b> a pod's <b class="ui">Commander's place</b>, <b class="ui">Secondary</b> and
+    <b class="ui">Use</b>; a Meld point has its difficulty, the turn it is destroyed on and its spawn group.</li>
+</ol>
+<div class="split">
+  <figure><img src="shots/spawns-flyout.webp" width="621" height="282" alt="The Spawns view button with its flyout: a switch for each kind of point, and Scripted drop-ins land where placed"></figure>
+  <div>
+    <p>Hover the Spawns view button for a switch for each kind: pods, Meld, drop-in points, soldier and start points,
+      objectives, other points and volumes (the covert operative's and the VIP's places, no-spawn volumes), and patrol
+      nodes, off at first. Under them is <b class="ui">Scripted drop-ins land where placed</b>
+      (<a href="#spawns-game">below</a>).</p>
+    <p>The Normal view's <b class="ui">Spawn points and objectives</b> draws the same markers beside the pieces.</p>
+  </div>
+</div>
+<ul>
+  <li><b>Click a marker</b> to pick it, and read its panel. A landing zone the view shows is described there and
+    edited in the <a href="#landingzones">Landing zones view</a>.</li>
+  <li><b>The map's own pods, Meld points and drop-in points</b> move by the picked one's arrows, one at a time, by
+    whole tiles and levels; <kbd>Esc</kbd> during a drag puts it back, and each change is one undo step. A pod and a
+    drop-in point turn by quarter turns; a pod and a Meld point take their values in the panel.</li>
+  <li><b class="ui">Copy</b> makes a new pod or Meld point a tile east of the picked one, with its values and its
+    turn: drag it from there. A pod is copied only when it is plain (no commander or secondary flag, no forced alien
+    type, no link to another actor), and the button says why where it can't be. A new pod gets a pod index of its
+    own. Drop-in points are moved, not copied. New points also come from the <a href="#add">Add panel</a>.</li>
+  <li><b class="ui">Delete</b> takes a point out of the map. One that something names (the map's script, a wave, a
+    pod event) stays in, and the Build warns.</li>
+  <li><b>A mission's objectives, and the points of its own streamed levels,</b> move with their group:
+    <a href="#mission-objects">what a mission adds</a>.</li>
+  <li><b>The Build warns</b>, mission by mission, when an edit leaves fewer places for pods than the map had (a floor
+    taken from under one, a piece over it, a smaller grid), or a Meld spawn group with none of its points.</li>
+</ul>
+<h4 id="spawns-game">What the game does with them</h4>
+<ul>
+  <li><b>Pods:</b> the game deploys the battle's pods at some of the map's pod places; a place may stay empty. Long
+    War Rebalance replaces the map's pods with places of its own whenever it finds enough room for them, so under Long
+    War your pod edits play where it doesn't, on the missions it leaves alone (base defence, the final mission), and
+    on plain Enemy Within.</li>
+  <li><b>Meld:</b> the same. Long War puts the canisters at places of its own when it finds enough.</li>
+  <li><b>Drop-in points:</b> a wave of reinforcements, such as a data recovery's, comes in at its points where you put
+    them. A drop-in the map's script sends comes in near the squad under Long War, at a cover spot of Long War's
+    choosing. Tick <b class="ui">Scripted drop-ins land where placed</b> in the flyout to have every scripted drop-in of
+    the variant land on its own points: the Build adds the variant to the maps Long War leaves alone
+    (<code>ExcludeMaps</code> in <code>DefaultRandomSpawns.ini</code>), and Play in game and the project manager write
+    that line into the game. The box is greyed on plain Enemy Within, which lands them where placed anyway.</li>
+  <li><b>The bomb and its power nodes:</b> under Long War they go where its bomb rules put them when it finds room,
+    and your place is used when it doesn't.</li>
+</ul>
+
 <h3 id="viewoptions">View options</h3>
 <div class="split">
   <figure><img src="shots/view-options.webp" width="332" height="633" alt="The View options menu, its sixteen items numbered"></figure>
@@ -1549,8 +1635,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   </ol>
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
-  (<a href="#clearmap">more</a>), and on a map whose missions have objects of their own, <b class="ui">Mission
-  objects</b> (<a href="#mission-objects">more</a>).</p>
+  (<a href="#clearmap">more</a>).</p>
 
 <h3 id="project">Project menu</h3>
 <p>A project is your set of edits on one base map. Until you save one, edits are a trial that a reload loses (the
@@ -1798,7 +1883,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   Windows Explorer, or <b class="ui">Copy the folder path</b>. Once built, <b class="ui">Play in game</b> installs the
   build and starts XCOM in a battle on it, as the Project menu's does.</p>
 <p><b>Warnings don't stop a build.</b> They say what may behave oddly in the game: a piece off its grid, a ladder
-  that isn't expected to climb, a floor box that starts away from the cursor's floors, a landing zone over no floor.
+  that isn't expected to climb, a floor box that starts away from the cursor's floors, a landing zone over no floor,
+  fewer places for the aliens' pods than the map had.
   The map is built all the same, and the build window lists them.</p>
 <p>If the project holds an edit that can't be built at all, the build stops at once and says which piece and why.
   Undo that edit, or fix it as the message says, and build again.</p>
@@ -2012,6 +2098,21 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>More: <a href="#landingzones">Landing zones</a>.</p>
 </div>
 
+<div class="task" id="task-spawns">
+<h3>Move where the aliens start</h3>
+<ol class="steps">
+  <li>Press <kbd>Shift</kbd>+<kbd>U</kbd> for the Spawns view, and click a pod (an orange ring) or a Meld point (a
+    green dot).</li>
+  <li>Drag its arrows to move it by whole tiles and levels. <kbd>[</kbd> and <kbd>]</kbd> turn a pod.</li>
+  <li>Read the panel: what uses the point, and what the game does with it on your install.</li>
+  <li>For one more, press <kbd>Ctrl</kbd>+<kbd>D</kbd> and drag the copy, or choose <b class="ui">Spawn points</b>
+    in the Add panel (<kbd>P</kbd>) and click a tile.</li>
+  <li>Save and play. Under Long War Rebalance the pods and the Meld go where its rules put them when it finds room;
+    your places play on plain Enemy Within and where it doesn't.</li>
+</ol>
+<p>More: <a href="#spawns">Spawn points</a>.</p>
+</div>
+
 <div class="task" id="task-grow">
 <h3>Make the map larger</h3>
 <ol class="steps">
@@ -2035,6 +2136,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li>Lay floors first (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>), at least under the landing zones' soldier tiles,
     then walls, cover and prefabs.</li>
   <li>The clear leaves one landing zone. Click it to move or turn it with its gizmo, and copy it for more. Lay floor under its six tiles.</li>
+  <li>On plain Enemy Within, move the aliens' pods and Meld points onto your floors in the
+    <a href="#spawns">Spawns view</a> (<kbd>Shift</kbd>+<kbd>U</kbd>). Long War Rebalance places its own.</li>
   <li>Save, then pick a zone and click <b class="ui">Land here</b> to try it in the game.</li>
 </ol>
 </div>
@@ -2057,7 +2160,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   destruction and lighting. It is not a campaign mission: your soldiers, the mission's story and its rewards are not
   in it. It plays the mission the header's Mission picker shows, which the play window can change; under that choice
   a line says what that kind goes without played this way, if anything (a terror site's civilians, a UFO's type). The aliens are four pods of Sectoids (five on a terror site), and EXALT's missions get
-  four pods of EXALT operatives, each with a heavy or a sniper. Under Long War Rebalance the squad can hold soldiers,
+  four pods of EXALT operatives, each with a heavy or a sniper. On a data recovery or a covert extraction the squad's
+  first soldier or MEC trooper lands first: the game's stand-in covert operative takes the first unit's looks, which a
+  SHIV doesn't have. Under Long War Rebalance the squad can hold soldiers,
   MEC troopers and SHIVs; on plain Enemy Within and Long War without Rebalance, soldiers.</p>
 <p><b>What Play in game changes.</b> It copies the build's files into the game and adds one line to
   <code>DefaultMaps.ini</code>: a record for your variant under its own name, kept out of the rotation, so no
@@ -2121,7 +2226,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Effects, sounds, lens flares</td><td><a href="#effects">Fires, smoke, an idle engine, a lamp's glint</a></td><td>Freely; a carried effect with its piece</td><td>Yes, in a quick build too</td></tr>
   <tr><td>Floor boxes</td><td><a href="#buildings">Buildings</a>, yours and the map's</td><td>Whole tiles and levels, never turned alone</td><td>Yes</td></tr>
   <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Whole tiles and levels, quarter turns</td><td>Yes</td></tr>
-  <tr><td>What a mission adds</td><td>Patch helpers, mission objects</td><td>Not at all</td><td>Left as they are</td></tr>
+  <tr><td>Spawn points</td><td><a href="#spawns">Pods, Meld points, drop-in points</a></td><td>One at a time, whole tiles and levels, quarter turns (pods and drop-in points)</td><td>Yes</td></tr>
+  <tr><td>A mission's objects</td><td><a href="#mission-objects">The bomb and its power nodes, capture points</a></td><td>With their group, whole tiles and levels</td><td>Yes</td></tr>
+  <tr><td>Patch helpers</td><td>Long War Rebalance's invisible cover and blockers</td><td>Not at all</td><td>Left as they are</td></tr>
 </table>
 <h3>The grid rule ("recipe snap")</h3>
 <p>The game saves some things per tile: where a ladder can be climbed, which part of a wall stands on which tile. For
@@ -2160,7 +2267,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   cover over, the cover stays where it was. Untick <b class="ui">Hide patch helpers</b> in View options to see it.</p>
 <p><b>A mission's own objects</b> (the bomb and its power nodes, the data recovery's capture points, radar arrays,
   the operative's and the VIP's places, the waves' drop-in points) show as markers with the mission the header picks,
-  on View options' <b class="ui">Mission objects</b>. Click one: its panel says what it is, the group it belongs to and
+  in the <a href="#spawns">Spawns view</a> and with the Normal view's <b class="ui">Spawn points and objectives</b>.
+  Click one: its panel says what it is, the group it belongs to and
   what lists it. With it picked, drag its arrows to move it <b>with its group</b> (a capture point with its volume, a
   power node with its button, effects and rebuild volume) by whole tiles and levels; <kbd>Esc</kbd> during a drag puts
   it back, and <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes. The Build moves them in its own copy of the mission's stream, which
@@ -2174,7 +2282,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ol class="legend">
   <li data-n="1"><b>Mission</b> in the header: the mission whose objects are shown, here the council bomb.</li>
   <li data-n="2"><b>The picked object's arrows:</b> the bomb moves with its group, by whole tiles and levels.</li>
-  <li data-n="3"><b>A power node</b> (an orange gem).</li>
+  <li data-n="3"><b>A power node</b>, with its button's marker (a blue gem, a thing to use) on it: they move together.</li>
   <li data-n="4"><b>A drop-in point</b> (a red arrow), where a wave of aliens comes in.</li>
   <li data-n="5"><b>A pod</b> (an orange ring): where a group of aliens starts.</li>
   <li data-n="6"><b>Its panel:</b> what it is, what moves with it, and what lists it.</li>
@@ -2204,6 +2312,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>[</kbd> <kbd>]</kbd></td><td>In the Landing zones view: the picked zone's arrows · its ring · a quarter turn either way</td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>In the Landing zones view: copy the picked zone · delete it</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>X</kbd></td><td>The <a href="#effects">Effects view</a> on or off (only effects, sounds and lens flares are selected)</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>U</kbd></td><td>The <a href="#spawns">Spawns view</a> on or off (only spawn points and objectives are selected)</td></tr>
+  <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>A picked spawn point: a quarter turn either way (a pod or a drop-in point) · copy it (a pod or a Meld point) · delete it</td></tr>
   <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of the selection; the original stays</td></tr>
   <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
   <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units</td></tr>
@@ -2230,7 +2340,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ul>
   <li><b>Start a fresh mission after installing.</b> A tactical save from before the install ignores the new pieces' cover.</li>
   <li><b>Long War Rebalance's invisible cover stays put.</b> It doesn't follow the piece it covers.</li>
-  <li><b>A mission's own pieces stay where they are</b>, such as the data recovery's encoder.</li>
+  <li><b>Under Long War, the aliens' pods and the Meld go where its rules put them</b> when it finds room, and its
+    drop-in rules bring scripted reinforcements in near the squad: <a href="#spawns-game">what the game does with
+    spawn points</a>.</li>
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,

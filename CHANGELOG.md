@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The user guide covers the spawn points
+
+- [guide.html](tools/release/guide/guide.html): a section **Spawn points: where the aliens start** (`#spawns`) for
+  the Spawns view: its markers and panel, its flyout, moving, turning and giving values to the map's own pods, Meld
+  points and drop-in points, Copy and Delete, the Add panel's new pod and Meld point, the Build's warnings, and **What
+  the game does with them** (`#spawns-game`: Long War's own pods and Meld, waves at their points, scripted drop-ins
+  near the squad unless **Scripted drop-ins land where placed** is ticked, the bomb). A task, **Move where the aliens
+  start**. Brought up to date: the tool strip (18 buttons, the Spawns view 11th), the six views and the Normal view's
+  fourth switch, View options without Mission objects, What a mission adds shown by the Spawns view, the Add panel's
+  Spawn points, Clear map's pods and Meld on plain Enemy Within, the Build's warnings, What it can't do yet and In the
+  game (pods, Meld and drop-ins under Long War in place of "where the aliens start stays the base map's" and the
+  encoder line), the kinds of pieces (spawn points, a mission's objects and patch helpers apart), the keys
+  (Shift+U, the spawn points' [ ] Ctrl+D Del), and the test battle's covert operative.
+- Pictures: new `spawns` (the Spawns view on the Bar, a pod picked) and `spawns-flyout`; retaken the tool strip (`rail`), the Normal flyout, the window (its tool strip) and `mission-objects` (the larger, haloed markers, the Spawns panel); the rest kept.
+  [take_shots.py](tools/release/guide/take_shots.py) makes the two new shots and marks the Spawns view on the tool
+  strip.
+- [app.js](tools/viewer/web/app.js): Clear map's note on plain Enemy Within said the pods and Meld points "cannot be
+  moved yet"; it now points at the Spawns view.
+- Checked: the viewer suite's guide tests, the release and repo suites; every new and retaken picture looked at;
+  the page as published photographed at the changed sections (`guide_tools.py look`). The last release's zip still
+  has the earlier guide; the published page changes when main is pushed.
+
 ### Add panel: the Spawn points entries no longer break All maps, and have a picture
 
 - [library.js](tools/viewer/web/library.js): the All maps list took the Add panel's new Pod and Meld point for pieces

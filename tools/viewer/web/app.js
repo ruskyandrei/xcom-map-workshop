@@ -6351,7 +6351,7 @@ clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
 // The window's counts and notes, at the grid's size now (a clear keeps it; the rail's Map grid changes it)
 function clearSize() {
   const v = [...data.tileGrid.dimensions], notes = [];
-  if (landingLines.kind === 'ew') notes.push('The map\'s alien pods and Meld points stay where the map has them; they cannot be moved yet.');
+  if (landingLines.kind === 'ew') notes.push('The map\'s alien pods and Meld points stay where the map has them, some over nothing once it is cleared: move them onto your floors in the Spawns view (Shift+U).');
   $('clearMapWarn').hidden = !notes.length; $('clearMapWarn').textContent = notes.join(' ');
   clearWords(v);
   return v;
