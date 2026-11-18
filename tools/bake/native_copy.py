@@ -2397,7 +2397,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         native_effects.verify(r, lane_effects, floor_emitters)
         native_sounds.verify(r, lane_sounds)
         native_flares.verify(r, lane_flares)
-        native_spawns.verify(r, lane_spawns)
+        native_spawns.verify(r, lane_spawns, p)
     # the flags read back with a fresh reader: an edit not in the map is an error, never a success
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
@@ -2434,7 +2434,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   hidden=hidden, assemblies=list(assemblies), ladders=ladders, columns=columns,
                   carriedEffects=[dict(r, copy=q.name(r['copy']).split('.')[-1]) if 'copy' in r else r
                                   for r in effect_record],
-                  **{key: [dict({k: v for k, v in r.items() if k not in ('export', 'mapping')},
+                  **{key: [dict({k: v for k, v in r.items() if k not in ('export', 'mapping', 'template')},
                                 **({'copy': q.name(r['export']).split('.')[-1],
                                     'exports': {p.name(o): q.name(n) for o, n in r['mapping'].items()}}
                                    if r['how'] == 'copied' else {}))

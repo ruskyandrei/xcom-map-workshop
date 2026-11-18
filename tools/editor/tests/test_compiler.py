@@ -416,7 +416,7 @@ class CompilerTests(unittest.TestCase):
         # the pod's link to its path node stays where the map has it: a note says so
         self.assertIn('its PathNode XComAlienPathNode_4', next(n for n in report['notes'] if n['code'] == 'spawn-links')['message'])
         # refused: another kind's value, a value out of range, a kind the editor shows only, an actor the level
-        # doesn't list, one whose values weren't read, a delete (SP7)
+        # doesn't list, one whose values weren't read
         s['spawns'][2]['listed'] = False
         s['spawns'][3]['unread'] = 'bad bytes'
         for rec, code in [(dict(target=target('XComAlienPod_1'), spawn=dict(difficulty='Hard')), 'spawn-values'),
@@ -425,8 +425,7 @@ class CompilerTests(unittest.TestCase):
                           (dict(target=target('XComAlienPod_0'), spawn=dict(use=1)), 'spawn-values'),
                           (dict(target=target('XComSpawnPoint_18'), location=at(9, 9), rotation=[0, 0, 0]), 'spawn-view-only'),
                           (dict(target=target('XComAlienPod_2'), spawn=dict(commander=True)), 'spawn-unlisted'),
-                          (dict(target=target('XComMeldContainerSpawnPoint_0'), spawn=dict(spawnGroup=1)), 'spawn-unread'),
-                          (dict(target=target('XComAlienPod_0'), deleted=True), 'spawn-delete')]:
+                          (dict(target=target('XComMeldContainerSpawnPoint_0'), spawn=dict(spawnGroup=1)), 'spawn-unread')]:
             _, report = compile_project(document([rec]), s, enable=['spawn'])
             self.assertEqual(codes(report), [code], rec)
         # a value of no kind is noted and carried; a spawn point as the map has it builds nothing
@@ -434,6 +433,57 @@ class CompilerTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(noted(report, 'un'), ['unchanged', 'unknown-field'])
         self.assertEqual(report['counts']['spawns'], dict(moved=0, valued=0, added=0, deleted=0))
+
+    def test_base_spawn_points_copied_and_deleted(self):
+        # spawns plan SP7: a pod or Meld point copied from a plain template of the map (a pod's copy takes the next pod
+        # index no pod of the map or its streams has and no pod event names), a point deleted only when nothing names it
+        s, at = self.spawn_scene()
+        s['spawns'][1]['uses'] = [dict(how='event', by='Main_Sequence.SeqEvent_OnRevealPod_0', podId=7, staticOnly=False)]
+        s['spawns'][1]['values']['commander'] = {'value': True, 'from': 'saved'}
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={},
+                                uses=[dict(how='direct', by='Main_Sequence.SeqAct_SpawnAlien_1', byClass='SeqAct_SpawnAlien')]))
+        s['streams']['URB_Bar_CNH']['missionObjects'].append(dict(actor=PL + 'XComAlienPod_9', actorClass='XComAlienPod', kind='pod',
+                                                                  location=at(1, 1), values={'podIndex': {'value': 9, 'from': 'saved'}}))
+        copy = lambda n, src, kind, where, **extra: dict(id='c%d' % n, kind=kind, actor=PL + '%s_copy%d' % (src, n),  # noqa: E731
+                                                         **{'from': target(src)}, location=where, rotation=[0, 0, 0], **extra)
+        added = [copy(1, 'XComAlienPod_0', 'pod', at(12, 12, 17.0)), copy(2, 'XComAlienPod_2', 'pod', at(31, 31, 17.0), spawn=dict(use=False)),
+                 copy(3, 'XComMeldContainerSpawnPoint_1', 'meld', at(26, 6, 17.0), spawn=dict(difficulty='Hard', spawnGroup=0))]
+        gone = [dict(target=target('XComAlienPod_2'), deleted=True), dict(target=target('XComAlienPod_1'), deleted=True),
+                dict(target=target('XComSpawnPoint_Alien_3'), deleted=True)]
+        _, report = compile_project(document(gone, added=added), s)
+        self.assertEqual(sorted(set(codes(report))), ['family'])
+        spec, report = compile_project(document(gone, added=added), s, enable=['spawn'])
+        self.assertTrue(report['ok'], refused(report))
+        lane = native_split(spec)[1]['spawns']
+        # above the stream's pod 9 (the map's are 0 to 2, an event names 7): 10 and 11, in the document's order
+        self.assertEqual([(c['name'], c['source'], c.get('podIndex'), c.get('spawn')) for c in lane['copies']],
+                         [('XComAlienPod_0_copy1', 'XComAlienPod_0', 10, None), ('XComAlienPod_2_copy2', 'XComAlienPod_2', 11, dict(use=False)),
+                          ('XComMeldContainerSpawnPoint_1_copy3', 'XComMeldContainerSpawnPoint_1', None, dict(difficulty='Hard'))])
+        # the delete of the pod nothing names is built; the pod an event names and the drop-in the Kismet uses stay
+        self.assertEqual([d['name'] for d in lane['deletes']], ['XComAlienPod_2'])
+        named = sorted(w['actor'] for w in report['warnings'] if w['code'] == 'spawn-delete-named')
+        self.assertEqual(named, [PL + 'XComAlienPod_1', PL + 'XComSpawnPoint_Alien_3'])
+        msg = next(w['message'] for w in report['warnings'] if w['actor'] == PL + 'XComAlienPod_1')
+        self.assertIn('SeqEvent_OnRevealPod_0 (a pod event for its index)', msg)
+        self.assertEqual(report['counts']['spawns'], dict(moved=0, valued=0, added=3, deleted=1))
+        # SP5's count: two pods copied onto floor make up for the one deleted (no pod place lost)
+        self.assertEqual(warned(report, 'spawn-pod'), [])
+        # refused: a template that isn't plain, one of another kind, a drop-in copied, a template the export lacks
+        for rec, code in [(copy(4, 'XComAlienPod_1', 'pod', at(12, 12, 17.0)), 'spawn-copy-template'),
+                          (copy(5, 'XComAlienPod_0', 'meld', at(12, 12, 17.0)), 'malformed'),
+                          (copy(6, 'XComMeldContainerSpawnPoint_0', 'meld', at(12, 12, 17.0), spawn=dict(commander=True)), 'spawn-values'),
+                          (copy(7, 'XComAlienPod_77', 'pod', at(12, 12, 17.0)), 'missing'),
+                          (dict(copy(8, 'XComAlienPod_0', 'pod', at(12, 12, 17.0)), id=''), 'malformed')]:
+            _, report = compile_project(document(added=[rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+        # a drop-in point is no kind a project copies: its record goes to the effects' copier, which refuses it
+        _, report = compile_project(document(added=[copy(9, 'XComSpawnPoint_Alien_3', 'dropIn', at(12, 12, 17.0))]), s, enable=['spawn'])
+        self.assertEqual(codes(report), ['malformed'])
+        # a pod deleted where the export could not read its uses stays too
+        s['spawns'][0]['unread'] = 'bad bytes'
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)]), s, enable=['spawn'])
+        self.assertEqual(warned(report, 'spawn-delete'), ['spawn-delete-named'])
 
     def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
         # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in

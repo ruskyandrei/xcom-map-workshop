@@ -125,5 +125,5 @@ export function useLines(record) {
 /** A value's provenance in words: "(the map's)", "(its archetype's)", "(the class's)". */
 export function fromWords(from) {
   return { saved: '(the map\'s)', archetype: '(its archetype\'s)', class: '(the class\'s)', unknown: '(not read)',
-           project: '(the project\'s)' }[from] ?? '';
+           project: '(the project\'s)', template: '(its template\'s)' }[from] ?? '';
 }

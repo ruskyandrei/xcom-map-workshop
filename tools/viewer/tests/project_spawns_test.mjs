@@ -3,7 +3,7 @@
 // and a malformed one is carried as it is for the compiler to refuse.
 // Run: node tools/viewer/tests/project_spawns_test.mjs
 import assert from 'node:assert/strict';
-import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validOverride, validSpawnRules } from '../web/project.js';
+import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride, validSpawnRules } from '../web/project.js';
 
 assert.equal(SCHEMA_VERSION, 4);
 assert.deepEqual(READ_VERSIONS, [1, 2, 3, 4]);
@@ -31,4 +31,12 @@ assert.ok(validOverride({ target: T, location: [0, 0, 0], rotation: [0, 16384, 0
 for (const bad of [{ target: T, spawn: [] }, { target: T, spawn: null }, { target: T, spawn: { destroyedOnTurn: 1.5 } }, { target: T, spawn: { use: {} } },
                    { target: T, spawn: { use: true }, location: [0, 0, 0] }, { target: T, spawn: { use: true }, flags: {} },
                    { target: T, spawn: { use: true }, effect: {} }]) assert.ok(!validOverride(bad), JSON.stringify(bad));
+
+// a copy of a pod or Meld point (SP7): an added record of its own kind, its template, its values, nothing of a piece's
+const copy = { id: 'c1', kind: 'pod', actor: 'TheWorld.PersistentLevel.XComAlienPod_0_copy1', from: T, location: [0, 0, 0], rotation: [0, 0, 0] };
+assert.ok(validAdded(copy));
+assert.ok(validAdded({ ...copy, kind: 'meld', spawn: { difficulty: 'Hard' } }));
+assert.ok(validOverride({ target: T, deleted: true }));
+for (const bad of [{ ...copy, from: undefined }, { ...copy, components: ['x'] }, { ...copy, spawn: [] }, { ...copy, location: [0, 0] }, { ...copy, kind: 'dropIn' }])
+  assert.ok(!validAdded(bad), JSON.stringify(bad));
 console.log('project_spawns_test: ok');

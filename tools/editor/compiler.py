@@ -176,6 +176,8 @@ SPAWN_EDIT_KINDS = ('pod', 'meld', 'dropIn')
 SPAWN_VALUE_KEYS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
                     'dropIn': ()}
 SPAWN_WORDS = {'pod': 'a pod', 'meld': 'a Meld point', 'dropIn': 'a drop-in point'}
+# the kinds a project copies (SP7: an added record of `kind` pod or meld)
+SPAWN_COPY_KINDS = ('pod', 'meld')
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
                 'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
                 'XComCollectible': 'collectible', 'XComLadder': 'ladder', 'XComInteractiveLevelActor': 'door',
@@ -814,6 +816,7 @@ class Compiler:
         self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
         # the base map's spawn points moved or given values (the editor spawns plan, SP6): the spec's `spawns` object
         self.spawn_ops = dict(moves=[], deletes=[], copies=[], values=[])
+        self.pod_index = None      # the next free pod index for a copy (free_pod_index)
         self.effect_members = set()
         self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
@@ -1487,14 +1490,14 @@ class Compiler:
             return
         if record.get('listed') is False:
             self.error('spawn-unlisted', '%s is not in the level\'s actor list, so the game never has it: there is '
-                       'nothing to move' % name, **where)
+                       'nothing to %s' % (name, 'delete' if rec.get('deleted') is True else 'move'), **where)
+            return
+        if rec.get('deleted') is True:
+            self.spawn_delete(target, rec, where, record)
             return
         if record.get('unread'):
             self.error('spawn-unread', '%s: the export could not read its values (%s), so the Build leaves it as it is'
                        % (name, record['unread']), **where)
-            return
-        if rec.get('deleted') is True:
-            self.error('spawn-delete', '%s: deleting a spawn point is not built yet' % name, **where)
             return
         values, ok = self.spawn_values(rec, record, name, where)
         if not ok:
@@ -1524,6 +1527,126 @@ class Compiler:
                                       spawn=values))
         if not moved and not values:
             self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
+
+    @staticmethod
+    def spawn_names(record):
+        """What names a base spawn point, in words, as export 33 reads its map: the Kismet that uses it (directly or
+        through an object list), a wave system's place, a pod event for its index, another actor's typed reference, and
+        what lists it by name."""
+        out = []
+        for u in record.get('uses') or []:
+            by = short(str(u.get('by') or ''))
+            how = u.get('how')
+            out.append('%s (%s)' % (by, {'direct': 'Kismet', 'indirect': 'Kismet, through an object list',
+                                         'wave': 'a wave system\'s place', 'event': 'a pod event for its index',
+                                         'typed': 'its %s' % u.get('property', 'reference')}.get(how, how or 'a use')))
+        out += ['%s (lists it by name)' % short(str(r)) for r in record.get('referencedBy') or []]
+        return sorted(set(out))
+
+    def spawn_delete(self, target, rec, where, record):
+        """A base pod, Meld point or drop-in point deleted (the editor spawns plan, SP7): built only when nothing names
+        it (spawn_names) and its uses were read; otherwise warning spawn-delete-named, and the point stays."""
+        name = short(target['actor'])
+        for f in sorted(set(rec) & {'location', 'rotation', 'spawn'}):
+            self.note('unknown-field', '%s is deleted, so its %s is ignored' % (name, f), **where)
+        names = self.spawn_names(record)
+        if record.get('unread') or names:
+            why = ('the export could not read what uses it (%s)' % record['unread'] if record.get('unread') else
+                   '%s %s' % ('; '.join(names[:4]) + ('; and %d more' % (len(names) - 4) if len(names) > 4 else ''),
+                              'names it' if len(names) == 1 else 'name it'))
+            self.warn('spawn-delete-named', '%s stays: %s, and a deleted point would leave %s pointing at nothing'
+                      % (name, why, 'that' if len(names) <= 1 else 'them'), actor=target['actor'], **where)
+            return
+        self.spawn_ops['deletes'].append(dict(name=name, actorClass=record['actorClass'], kind=record['kind']))
+        self.entities.append(dict(kind='spawn', op='delete', target=target['actor'], actorClass=record['actorClass']))
+
+    def free_pod_index(self):
+        """The next pod index no pod of the variant has and no pod event names (a copy's, SP7): above every index the
+        base map's pods and its streams' save, every event the export's uses name, and the copies made so far."""
+        if self.pod_index is None:
+            used = [-1]
+            records = list(self.scene.get('spawns') or [])
+            for s in (self.scene.get('streams') or {}).values():
+                if isinstance(s, dict):
+                    records += list(s.get('missionObjects') or []) + list(s.get('spawns') or [])
+            for r in records:
+                if not isinstance(r, dict):
+                    continue
+                if r.get('kind') == 'pod':
+                    v = ((r.get('values') or {}).get('podIndex') or {}).get('value')
+                    if isinstance(v, int) and not isinstance(v, bool):
+                        used.append(v)
+                for u in r.get('uses') or []:
+                    if u.get('how') == 'event' and isinstance(u.get('podId'), int):
+                        used.append(u['podId'])
+            self.pod_index = max(used) + 1
+        index, self.pod_index = self.pod_index, self.pod_index + 1
+        return index
+
+    def spawn_add(self, rec, where):
+        """A copy of one of the map's pods or Meld points (the editor spawns plan, SP7): the Build clones the template
+        (with its components) under the level and sets the copy's own values; a pod's copy gets a free pod index
+        (free_pod_index). A copy is made only from a plain template: a pod with no commander or secondary flag, no
+        forced type and no link to another actor (so the copy takes no patrol, volume or contingent link); any Meld
+        point."""
+        out = rec['actor']
+        name = short(out)
+        kind = rec.get('kind')
+        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'spawn'}):
+            if f in ('components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted', 'effect', 'sound'):
+                self.error('malformed', '%s is a copy of %s, so it has no %s' % (name, SPAWN_WORDS[kind], f), **where)
+                return
+            self.note('unknown-field', 'field %r is not part of an added spawn point and is ignored' % f, **where)
+        if not isinstance(rec.get('id'), str) or not rec['id']:
+            self.error('malformed', '%s has no id' % name, **where)
+            return
+        src = rec.get('from')
+        template = self.spawn_of(src)
+        if template is None:
+            self.error('missing', '%s copies %s, which is no spawn point of this map\'s export'
+                       % (name, short(str((src or {}).get('actor')))), **where)
+            return
+        tname = short(src['actor'])
+        if template.get('kind') != kind:
+            self.error('malformed', '%s says it is %s but copies %s, which is %s' % (
+                name, SPAWN_WORDS[kind], tname, SPAWN_WORDS.get(template.get('kind'), template.get('kind'))), **where)
+            return
+        if not self.builds('spawn'):
+            self.error('family', '%s is a copy of %s. %s' % (name, SPAWN_WORDS[kind], FAMILIES['spawn']['note']),
+                       family='spawn', **where)
+            return
+        if template.get('listed') is False or template.get('unread'):
+            self.error('spawn-copy-template', '%s copies %s, %s' % (name, tname, 'which is not in the level\'s actor list'
+                       if template.get('listed') is False else 'whose values the export could not read (%s)'
+                       % template['unread']), **where)
+            return
+        v = lambda key: ((template.get('values') or {}).get(key) or {}).get('value')  # noqa: E731
+        if kind == 'pod':
+            why = [w for w, bad in (('the commander\'s place', v('commander')), ('a secondary pod', v('secondary')),
+                                    ('of a forced alien type', v('forceType')),
+                                    ('linked to %s' % ', '.join(sorted(short(str(lk.get('actor'))) for lk in template.get('links') or [])),
+                                     template.get('links'))) if bad]
+            if why:
+                self.error('spawn-copy-template', '%s copies %s, which is %s: a copy is made only from a plain pod'
+                           % (name, tname, ' and '.join(why)), **where)
+                return
+        values, ok = self.spawn_values(rec, template, name, where)
+        if not ok:
+            return
+        p = self.pose(rec, where)
+        if not p:
+            return
+        loc, rot, rounding = p
+        copy = dict(id=rec['id'], name=name, source=tname, kind=kind, actorClass=template['actorClass'], location=loc,
+                    rotation=rot)
+        if kind == 'pod':
+            copy['podIndex'] = self.free_pod_index()
+        if values:
+            copy['spawn'] = values
+        self.spawn_ops['copies'].append(copy)
+        self.entities.append(dict(kind='spawn', op='add', entity=out, id=rec['id'], actorClass=template['actorClass'],
+                                  template=src['actor'], location=loc, rotation=rot, rotationRounding=tidy(rounding, 6),
+                                  **({'podIndex': copy['podIndex']} if kind == 'pod' else {}), **({'spawn': values} if values else {})))
 
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""
@@ -1932,6 +2055,10 @@ class Compiler:
                 self.error('malformed', 'the added piece has no output name', **where)
                 continue
             where['entity'] = out
+            if rec.get('kind') in SPAWN_COPY_KINDS:
+                # a pod or a Meld point copied (the editor spawns plan, SP7)
+                self.spawn_add(rec, where)
+                continue
             if 'kind' in rec:
                 # an effect, a sound or a flare copied (the effects and sounds plan, Part C)
                 self.effect_add(rec, where)
@@ -3927,10 +4054,20 @@ class Compiler:
         """The base map's spawn points as the variant will have them (export 33: scene.json's `spawns`): [(record,
         location)], a point a delete record takes out left out. Spawns plan, SP5; the base point edits (SP6, SP7) move,
         copy and delete them here."""
-        gone = {e['target'] for e in self.entities if e['kind'] == 'delete'}
+        gone = {e['target'] for e in self.entities if e['kind'] == 'delete' or (e['kind'] == 'spawn' and e['op'] == 'delete')}
         moved = {e['target']: e['location'] for e in self.entities if e['kind'] == 'spawn' and e['op'] == 'move'}
-        return [(r, moved.get(r['actor'], r['location'])) for r in self.scene.get('spawns') or []
-                if isinstance(r, dict) and isinstance(r.get('location'), list) and r.get('actor') not in gone]
+        valued = {e['target']: e['spawn'] for e in self.entities if e['kind'] == 'spawn' and e['op'] == 'values'}
+        with_values = lambda r, values: dict(r, values=dict(r.get('values') or {}, **{  # noqa: E731
+            k: {'value': v, 'from': 'project'} for k, v in (values or {}).items()})) if values else r
+        out = [(with_values(r, valued.get(r['actor'])), moved.get(r['actor'], r['location'])) for r in self.scene.get('spawns') or []
+               if isinstance(r, dict) and isinstance(r.get('location'), list) and r.get('actor') not in gone]
+        # (a copy: its template's record under its own name, with its values; never one the map had)
+        for e in self.entities:
+            if e['kind'] == 'spawn' and e['op'] == 'add':
+                t = self.spawn_actors.get(e['template'])
+                if t:
+                    out.append((with_values(dict(t, actor=e['entity'], copied=True), e.get('spawn')), e['location']))
+        return out
 
     def spawn_places(self):
         """The base map's pods and Meld points against the edit (spawns plan, SP5): a pod or Meld point's place is usable
@@ -3960,7 +4097,7 @@ class Compiler:
         in_piece = lambda p: any(c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]  # noqa: E731
                                  and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24 for c in solid)
         under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
-        was = lambda r: inside_box(r['location'], box_before) and under(r['location'], before)  # noqa: E731
+        was = lambda r: not r.get('copied') and inside_box(r['location'], box_before) and under(r['location'], before)  # noqa: E731
         usable = lambda p: inside_box(p, box_now) and under(p, now) and not in_piece(p)  # noqa: E731
         labels = [m.get('label') or 'mission %d' % (i + 1) for i, m in self.kept_missions()]
         labels += ['%s (added)' % missions.label(k) for k in sorted(self.added_kinds())]
@@ -4001,7 +4138,7 @@ class Compiler:
                           actor=had_hard[0].get('actor'), group=group, **where)
 
         if self.stage_grid:
-            out = [r for r, p in records if r.get('kind') in ('pod', 'meld') and inside_box(r['location'], box_before)
+            out = [r for r, p in records if r.get('kind') in ('pod', 'meld') and not r.get('copied') and inside_box(r['location'], box_before)
                    and not inside_box(p, box_now)]
             if out:
                 count = {}

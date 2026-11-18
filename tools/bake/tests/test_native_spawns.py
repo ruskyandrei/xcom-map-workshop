@@ -179,9 +179,7 @@ class SpawnValueBytes(unittest.TestCase):
                          ('m_eDifficulty', 'ByteProperty', 'EMeldContainerDifficulty', b'\x07\x00\x00\x00\x00\x00\x00\x00'))
         self.assertEqual(native_spawns.spawn_kind('XComAlienPod_Abduction'), 'pod')
         self.assertIsNone(native_spawns.spawn_kind('XComSpawnPoint'))
-        self.assertEqual(native_spawns.apply_lane(None, None, dict(moves=[], values=[])), ([], set(), []))
-        with self.assertRaises(ValueError):
-            native_spawns.apply_lane(None, None, dict(deletes=[dict(name='XComAlienPod_0')]))
+        self.assertEqual(native_spawns.apply_lane(None, None, dict(moves=[], values=[], copies=[], deletes=[])), ([], set(), []))
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
@@ -245,6 +243,59 @@ class BarSpawnEdits(unittest.TestCase):
                     dict(moves=[dict(name='XComAlienPod_Abduction_99', location=[0, 0, 0], rotation=[0, 0, 0])]),
                     dict(values=[dict(name='XComAlienPod_Abduction_0', spawn=dict(difficulty='Hard'))]),
                     dict(moves=[dict(name='XComAlienPod_Abduction_0', location=[0, 0, 0], rotation=[0, 0, 0])] * 2)):
+            with self.assertRaises(ValueError, msg=ops):
+                native_spawns.apply_lane(g, self.p, ops)
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class BarSpawnCopies(unittest.TestCase):
+    """URB_Bar's pods and Meld points copied and deleted (SP7): pod 2 copied with pod index 5, Meld point 2 copied and
+    made hard, pod 4 deleted; written, read back, the templates as they were."""
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(BAR)
+        g = package_grow.Grower(str(BAR))
+        cls.ops = dict(copies=[dict(id='a', name='XComAlienPod_Abduction_2_copy1', source='XComAlienPod_Abduction_2', kind='pod',
+                                    location=[-1145.6, 251.2, 17.0], rotation=[0, 0, 0], podIndex=5, spawn=dict(use=False)),
+                               dict(id='b', name='XComMeldContainerSpawnPoint_2_copy2', source='XComMeldContainerSpawnPoint_2',
+                                    kind='meld', location=[912.0, 720.0, 17.0], rotation=[0, 0, 0], spawn=dict(difficulty='Hard'))],
+                       deletes=[dict(name='XComAlienPod_Abduction_4')])
+        cls.clones, cls.gone, cls.record = native_spawns.apply_lane(g, cls.p, cls.ops)
+        native_copy.add_to_level(g, cls.p, cls.clones)
+        native_copy.empty_slots(g, cls.p, cls.gone)
+        out = Path(cls.tmp.name) / Path(BAR).name
+        g.write(str(out))
+        cls.q = Package(out)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_copies_are_listed_with_their_index_and_values_and_the_delete_is_off_the_list(self):
+        native_spawns.verify(self.q, self.record, self.p)
+        by = {r['actor']: r for r in self.record}
+        pod, meld = by['XComAlienPod_Abduction_2_copy1'], by['XComMeldContainerSpawnPoint_2_copy2']
+        self.assertEqual(self.q.cls(pod['export']), 'XComAlienPod_Abduction')
+        self.assertEqual(native_spawns.read_value(self.q, pod['export'], 'podIndex'), 5)
+        self.assertEqual(native_spawns.read_value(self.q, pod['export'], 'use'), False)
+        self.assertEqual(native_spawns.read_value(self.q, meld['export'], 'difficulty'), 'Hard')
+        # the copy owns clones of its template's components, and shares its archetype
+        t = self.p.by_name[native_spawns.PL + 'XComAlienPod_Abduction_2']
+        self.assertEqual(len(self.q.children.get(pod['export'], [])), len(self.p.children.get(t, [])))
+        self.assertEqual(self.q.exports[pod['export'] - 1]['arch'], self.p.exports[t - 1]['arch'])
+        listed = native_copy.level_actors(self.q)
+        self.assertNotIn(self.p.by_name[native_spawns.PL + 'XComAlienPod_Abduction_4'], listed)
+        self.assertEqual(sum(1 for i in listed if i > 0), sum(1 for i in native_copy.level_actors(self.p) if i > 0) + 1)
+
+    def test_refusals(self):
+        g = package_grow.Grower(str(BAR))
+        pod = dict(name='c', source='XComAlienPod_Abduction_2', kind='pod', location=[0, 0, 0], rotation=[0, 0, 0], podIndex=5)
+        for ops in (dict(copies=[dict(pod, podIndex=None)]),                         # a pod's copy with no index
+                    dict(copies=[dict(pod, source='XComSpawnPoint_18')]),           # no pod or Meld point
+                    dict(copies=[dict(pod, kind='meld')]),                          # the kind is not the template's
+                    dict(copies=[pod], deletes=[dict(name='XComAlienPod_Abduction_2')]),
+                    dict(deletes=[dict(name='XComAlienPod_Abduction_4')] * 2)):
             with self.assertRaises(ValueError, msg=ops):
                 native_spawns.apply_lane(g, self.p, ops)
 

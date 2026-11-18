@@ -215,8 +215,12 @@ export const EFFECT_KINDS = ['effect', 'sound', 'flare'];
 const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) && ['components', 'template', 'light', 'cover', 'flags',
   'prefab', 'partner', 'tinted'].every(k => e[k] === undefined) && validEffectValues(e.effect, 'effect') && validEffectValues(e.sound, 'sound')
   && (e.kind === 'effect' || e.effect === undefined) && (e.kind === 'sound' || e.sound === undefined) && e.flare === undefined;
+// A copy of one of the map's pods or Meld points (the editor spawns plan, SP7): `kind` pod or meld, `from` its template,
+// its own `spawn` values, nothing of a piece's.
+const validAddedSpawn = e => ['pod', 'meld'].includes(e.kind) && isTarget(e.from) && validSpawnValues(e.spawn)
+  && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'location', 'rotation', 'spawn'].includes(k));
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
-  && (e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
+  && (['pod', 'meld'].includes(e.kind) ? validAddedSpawn(e) : e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')

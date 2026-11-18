@@ -2,8 +2,9 @@
 // for a base map, a mission's streams, an added bomb's donor and an LWR patch; one marker an objective; the families;
 // the panel's lines. Run: node tools/viewer/tests/spawns_view_test.mjs
 import assert from 'node:assert/strict';
-import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, describe, editSpawn, familyOf, groupOf, identityLines, marked, shownEntries, spawnEditable,
-         spawnEntryOf, spawnKey, spawnMoveWords, spawnOverride, spawnPosed, spawnRecords, titleOf } from '../web/spawns_view.js';
+import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, describe, editCopy,
+         editSpawn, familyOf, groupOf, identityLines, marked, shownEntries, spawnEditable, spawnEntryOf, spawnKey, spawnMoveWords,
+         spawnNamed, spawnOverride, spawnPosed, spawnRecords, titleOf } from '../web/spawns_view.js';
 import { fromWords } from '../web/spawn_rules.js';
 
 const L = 'TheWorld.PersistentLevel.';
@@ -125,10 +126,42 @@ const T = { package: 'URB_Test', level: 'base', actor: P.actor };
 assert.deepEqual(spawnEntryOf(P, { target: T, spawn: { use: false } }),
                  { stream: null, actor: P.actor, location: [192, 0, 0], rotation: [0, -16384, 0], spawn: { use: false } });
 assert.deepEqual(spawnEntryOf(P, { target: T, location: [0, 0, 0], rotation: [0, 0, 0] }).spawn, {});
-for (const r of [{ target: T }, { target: T, deleted: true }, { target: T, location: [0, 0, 0] }, { target: T, spawn: { difficulty: 'Hard' } },
+for (const r of [{ target: T }, { target: T, deleted: true, spawn: {} }, { target: T, location: [0, 0, 0] }, { target: T, spawn: { difficulty: 'Hard' } },
                  { target: T, spawn: [] }, { target: T, spawn: { use: false }, flags: {} }]) assert.equal(spawnEntryOf(P, r), null, JSON.stringify(r));
 assert.equal(spawnEntryOf({ ...P, kind: 'soldier' }, { target: T, spawn: {} }), null);
 // the panel's values show the project's own as such
 lines = identityLines({ layer: 'base', record: { ...M, values: { ...M.values, destroyedOnTurn: { value: 6, from: 'project' } } } }, [], fromWords);
 assert.ok(lines[1].text.includes('destroyed on turn 6 (the project\'s)'), lines[1].text);
+
+// ---- copies and deletes (SP7): a delete is an override of its own; a copy is an added record of a plain template
+assert.deepEqual(spawnEntryOf(P, { target: T, deleted: true }), { stream: null, actor: P.actor, location: [192, 0, 0], rotation: [0, -16384, 0], spawn: {}, deleted: true });
+assert.deepEqual(spawnOverride('URB_Test', P, spawnEntryOf(P, { target: T, deleted: true })), { target: T, deleted: true });
+assert.equal(copyTemplateWhy(P), '');
+assert.equal(copyTemplateWhy(M), '');
+assert.ok(copyTemplateWhy({ ...P, values: { ...P.values, commander: { value: true } } }).includes('the commander\'s place'));
+assert.ok(copyTemplateWhy({ ...P, links: [{ property: 'PathNode', actor: `${L}XComAlienPathNode_4` }] }).includes('linked to XComAlienPathNode_4'));
+assert.ok(copyTemplateWhy({ kind: 'dropIn' }).includes('not copied'));
+assert.ok(copyTemplateWhy({ ...P, listed: false }));
+const C = copyEntry(P, { id: 'c1', actor: `${P.actor}_copy1`, location: [288, 0, 0], rotation: [0, -16384, 0] });
+assert.deepEqual(C, { stream: 'copy', copy: { id: 'c1', kind: 'pod', from: P.actor }, actor: `${P.actor}_copy1`, location: [288, 0, 0], rotation: [0, -16384, 0], spawn: {} });
+// a copy's values: one equal to its template's goes; turns stay within half a turn of its template's
+let C2 = editCopy(P, C, { delta: [0, 96, 0], turn: 16384, spawn: { commander: true, use: true } });
+assert.deepEqual([C2.location, C2.rotation, C2.spawn], [[288, 96, 0], [0, 0, 0], { commander: true }]);
+C2 = editCopy(P, C2, { spawn: { commander: undefined } });
+assert.deepEqual(C2.spawn, {});
+const R = copyRecord('URB_Test', editCopy(P, C, { spawn: { use: false } }));
+assert.deepEqual(R, { id: 'c1', kind: 'pod', actor: `${P.actor}_copy1`, from: T, location: [288, 0, 0], rotation: [0, -16384, 0], spawn: { use: false } });
+assert.deepEqual(copyEntryOf(P, R), editCopy(P, C, { spawn: { use: false } }));
+for (const bad of [{ ...R, kind: 'meld' }, { ...R, id: '' }, { ...R, location: [0, 0] }, { ...R, spawn: { difficulty: 'Hard' } }, { ...R, flags: {} }])
+  assert.equal(copyEntryOf(P, bad), null, JSON.stringify(bad));
+assert.equal(copyEntryOf({ ...P, values: { ...P.values, secondary: { value: true } } }, R), null);
+// its marker's record: the template's under its own name, its values (the template's saved ones as its template's), named by nothing
+const shown = copyMarkerRecord(P, editCopy(P, C, { spawn: { use: false } }));
+assert.deepEqual([shown.actor, shown.location, shown.copyOf, shown.uses, shown.links], [`${P.actor}_copy1`, [288, 0, 0], P.actor, [], []]);
+assert.deepEqual([shown.values.use, shown.values.podIndex.from, shown.values.commander.from], [{ value: false, from: 'project' }, 'project', 'class']);
+assert.equal(copyMarkerRecord(M, copyEntry(M, { id: 'm', actor: 'x', location: [0, 0, 0], rotation: [0, 0, 0] })).values.difficulty.from, 'template');
+assert.equal(fromWords('template'), '(its template\'s)');
+// what names a point keeps its delete back
+assert.ok(!spawnNamed(P));
+assert.ok(spawnNamed({ ...P, uses: [{ how: 'event' }] }) && spawnNamed({ ...P, referencedBy: ['x'] }) && spawnNamed({ ...P, unread: 'bad' }));
 console.log('spawns view: ok');

@@ -181,6 +181,8 @@ SPAWN_VALUES = {
     'difficulty': ('m_eDifficulty', 'ByteProperty', 'EMeldContainerDifficulty'),
     'destroyedOnTurn': ('m_iDestroyedOnTurn', 'IntProperty', None),
     'spawnGroup': ('m_iSpawnGroup', 'IntProperty', None),
+    # a pod's copy's own index (SP7), never a value a project sets
+    'podIndex': ('PodIndex', 'IntProperty', None),
 }
 VALUE_KINDS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
                'dropIn': ()}
@@ -220,15 +222,22 @@ def value_bytes(g, key, value):
     return prop, kind, sub, struct.pack('<ii', g.name(DIFFICULTY_PREFIX + str(value)), 0)
 
 
-def set_values(g, p, index, values, walker):
+def set_values(g, p, index, values, walker, like=None, pod_index=None):
     """A spawn point's values ({commander, secondary, use} for a pod, {difficulty, destroyedOnTurn, spawnGroup} for a
-    Meld point) written on actor `index` of `g`, the grower of `p`. Returns what was written."""
+    Meld point) written on actor `index` of `g`, the grower of `p`. A copy (SP7) is `index` in `g` laid out as its
+    template `like` of `p`, and a pod's copy gets `pod_index` (its PodIndex). Returns what was written."""
     import native_lights
-    kind = spawn_kind(p.cls(index))
+    like = like or index
+    kind = spawn_kind(p.cls(like))
     wrong = sorted(set(values) - set(VALUE_KINDS.get(kind) or ()))
     if wrong:
-        raise ValueError('%s (%s) has no value %s' % (p.name(index), p.cls(index), ', '.join(wrong)))
-    e = p.exports[index - 1]
+        raise ValueError('%s (%s) has no value %s' % (p.name(like), p.cls(like), ', '.join(wrong)))
+    values = dict(values)
+    if pod_index is not None:
+        if kind != 'pod':
+            raise ValueError('%s (%s) is no pod, so it has no pod index' % (p.name(like), p.cls(like)))
+        values['podIndex'] = int(pod_index)
+    e = p.exports[like - 1]
     data = bytearray(g.export_data(index))
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     written = {}
@@ -242,17 +251,17 @@ def set_values(g, p, index, values, walker):
 
 def apply_lane(g, p, ops):
     """The `spawns` lane made in `g`, the grower of `p`: returns (the clones to add to the level's list, the actors to
-    take out of it, the record: [dict(actor, how: moved | valued, export, cls, location?, rotation?, before?,
-    relative?, values?)]), as native_effects.apply returns its own."""
+    take out of it, the record: [dict(actor, how: moved | valued | deleted | copied, export, cls, location?, rotation?,
+    before?, relative?, values?, id?, source?, template?, podIndex?)]), as native_effects.apply returns its own. A copy
+    (SP7) is its template cloned with its components (native_copy.clone_actor), placed, given its pod index (a pod's)
+    and its values; a delete leaves its slot in the level's list empty (native_copy.empty_slots, by the caller)."""
     if not ops or not any(ops.get(k) for k in ('moves', 'values', 'deletes', 'copies')):
         return [], set(), []
-    if ops.get('copies') or ops.get('deletes'):
-        raise ValueError('spawn points copied or deleted: this writer moves them and sets their values only')
     import buildings
     import native_copy
     walker = buildings.grown_walker(p, g)
     listed = set(native_copy.level_actors(p))
-    record, moved = [], {}
+    record, moved, gone, clones = [], {}, set(), []
     for m in ops.get('moves') or []:
         i = lane_actor(p, m['name'], listed)
         if i in moved:
@@ -265,19 +274,70 @@ def apply_lane(g, p, ops):
     for r in record:
         i, (loc, rot) = r['export'], moved[r['export']]
         rotation = rot if (p.own(i, 'Rotation') is not None or rot != r['before']['rotation']) else None
-        relative = None
-        base = p.own(i, 'Base', 0)
-        if isinstance(base, int) and base > 0 and p.own(i, 'RelativeLocation') is not None:
-            # worked from where its base stands after the edit (a base this lane moves too: its new place)
-            b_loc, b_rot = moved.get(base) or (p.own(base, 'Location', [0.0, 0.0, 0.0]), p.own(base, 'Rotation') or [0, 0, 0])
-            relative = spawns.turn([loc[j] - b_loc[j] for j in range(3)], -b_rot[1])
+        relative = _relative(p, i, loc, moved)
+        if relative is not None:
             r['relative'] = [round(v, 4) for v in relative]
         _set(walker, g, p, i, loc, rotation, relative)
+    valued = set()
     for v in ops.get('values') or []:
         i = lane_actor(p, v['name'], listed)
+        valued.add(i)
         written = set_values(g, p, i, v.get('spawn') or {}, walker)
         record.append(dict(actor=v['name'], how='valued', export=i, cls=p.cls(i), values=written))
-    return [], set(), record
+    for d in ops.get('deletes') or []:
+        i = lane_actor(p, d['name'], listed)
+        if i in moved or i in valued or i in gone:
+            raise ValueError('%s is deleted and also moved, given values or deleted again' % d['name'])
+        gone.add(i)
+        record.append(dict(actor=d['name'], how='deleted', export=i, cls=p.cls(i)))
+    events = scene_metadata.pod_events(p) if any(c.get('podIndex') is not None for c in ops.get('copies') or []) else {}
+    for c in ops.get('copies') or []:
+        i = lane_actor(p, c['source'], listed)
+        if i in gone:
+            raise ValueError('%s copies %s, which the edit deletes' % (c['name'], c['source']))
+        kind = spawn_kind(p.cls(i))
+        if kind not in ('pod', 'meld') or (c.get('kind') and c['kind'] != kind):
+            raise ValueError('%s copies %s (%s): only pods and Meld points are copied' % (c['name'], c['source'], p.cls(i)))
+        index = c.get('podIndex')
+        if kind == 'pod' and (not isinstance(index, int) or isinstance(index, bool)):
+            raise ValueError('%s is a copy of a pod and has no pod index' % c['name'])
+        if kind == 'pod' and index in events:
+            raise ValueError('%s would take pod index %d, which a pod event of the map names' % (c['name'], index))
+        loc, rot = [float(v) for v in c['location']], [int(v) for v in c['rotation']]
+        made = native_copy.clone_actor(g, p, i, loc, rot)
+        n = made['actor']
+        relative = _relative(p, i, loc, moved)
+        if relative is not None:
+            _set_like(walker, g, p, n, i, relative)
+        written = set_values(g, p, n, c.get('spawn') or {}, walker, like=i, pod_index=index if kind == 'pod' else None)
+        clones.append(n)
+        record.append(dict(actor=c['name'], id=c.get('id'), source=c['source'], how='copied', export=n, template=i,
+                           mapping=made['mapping'],
+                           cls=p.cls(i), location=loc, rotation=rot, values=written,
+                           **({'podIndex': index} if kind == 'pod' else {}),
+                           **({'relative': [round(v, 4) for v in relative]} if relative is not None else {})))
+    return clones, gone, record
+
+
+def _relative(p, i, loc, moved):
+    """A based actor's relative place for world place `loc`, worked from where its base stands after the edit (a base
+    this lane moves too: its new place); None for an actor that saves no base or relative place."""
+    base = p.own(i, 'Base', 0)
+    if not (isinstance(base, int) and base > 0 and p.own(i, 'RelativeLocation') is not None):
+        return None
+    b_loc, b_rot = moved.get(base) or (p.own(base, 'Location', [0.0, 0.0, 0.0]), p.own(base, 'Rotation') or [0, 0, 0])
+    return spawns.turn([loc[j] - b_loc[j] for j in range(3)], -b_rot[1])
+
+
+def _set_like(walker, g, p, index, like, relative):
+    """A copy's relative place written on export `index` of `g`, laid out as its template `like` of `p`."""
+    import native_lights
+    e = p.exports[like - 1]
+    data = bytearray(g.export_data(index))
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    data = native_lights.set_property(walker, g, data, start, 'RelativeLocation', 'StructProperty', 'Vector',
+                                      struct.pack('<3f', *relative))
+    g.relocate(index, bytes(data))
 
 
 def read_value(q, i, key):
@@ -292,25 +352,36 @@ def read_value(q, i, key):
     return value
 
 
-def verify(q, record):
+def verify(q, record, p=None):
     """The lane read back from the written map `q`: a moved point at its pose and still listed, a valued one with each
-    value it was given. Raises ValueError at the first thing that isn't so."""
+    value it was given, a deleted one off the level's list, a copy listed at its pose with its pod index and values
+    and, given the map before the edit `p`, its template byte for byte as it was. Raises ValueError at the first thing
+    that isn't so."""
     import native_copy
     listed = set(native_copy.level_actors(q))
     for r in record:
         i = r['export']
+        if r['how'] == 'deleted':
+            if i in listed:
+                raise ValueError("%s is still on the level's list after its delete" % r['actor'])
+            continue
         if i not in listed:
-            raise ValueError('%s is off the level\'s list after the edit' % r['actor'])
-        if r['how'] == 'moved':
+            raise ValueError("%s is off the level's list after the edit" % r['actor'])
+        if r['how'] in ('moved', 'copied'):
             loc = [float(v) for v in q.own(i, 'Location', [0.0, 0.0, 0.0])]
             rot = [int(v) for v in q.own(i, 'Rotation', [0, 0, 0])]
             if any(abs(a - b) > 1e-3 for a, b in zip(loc, r['location'])) or rot != list(r['rotation']):
                 raise ValueError('%s reads back at %s %s, not %s %s' % (r['actor'], loc, rot, r['location'], r['rotation']))
-        elif r['how'] == 'valued':
-            for key, want in r['values'].items():
+        if r['how'] in ('valued', 'copied'):
+            for key, want in (r.get('values') or {}).items():
                 got = read_value(q, i, key)
                 if got != want:
                     raise ValueError('%s reads back %s = %r, not %r' % (r['actor'], key, got, want))
+        if r['how'] == 'copied' and p is not None:
+            t = r['template']
+            a, b = p.exports[t - 1], q.exports[t - 1]
+            if q.data[b['off']:b['off'] + b['size']] != p.data[a['off']:a['off'] + a['size']]:
+                raise ValueError('%s, the template of %s, changed' % (r['source'], r['actor']))
 
 
 def main(argv=None):

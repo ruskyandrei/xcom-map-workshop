@@ -165,14 +165,17 @@ export function editSpawn(o, entry, { delta = [0, 0, 0], turn = 0, spawn = null 
  * moved or turned, its values where it has any. pkg: the map's package (the export's name). */
 export function spawnOverride(pkg, o, entry) {
   const out = { target: { package: pkg, level: 'base', actor: entry.actor } };
+  if (entry.deleted) return { ...out, deleted: true };
   if (!o || spawnPosed(entry, o)) Object.assign(out, { location: [...entry.location], rotation: [...entry.rotation] });
   if (Object.keys(entry.spawn ?? {}).length) out.spawn = { ...entry.spawn };
   return out;
 }
 /** A saved override's edit of base record `o`, or null when the page doesn't take it (it is then carried and saved
- * back unchanged): a record of a kind it edits, not deleted, with a whole pose or values or both, and only the values
- * of its kind. */
+ * back unchanged): a record of a kind it edits with a whole pose or values or both, and only the values of its kind;
+ * or its delete (SP7: `deleted: true` alone). */
 export function spawnEntryOf(o, record) {
+  if (spawnEditable(o) && record.deleted === true && Object.keys(record).every(k => ['target', 'deleted'].includes(k)))
+    return { stream: null, actor: o.actor, location: [...o.location], rotation: rotationOf(o), spawn: {}, deleted: true };
   if (!spawnEditable(o) || Object.keys(record).some(k => !['target', 'location', 'rotation', 'spawn'].includes(k))) return null;
   const posed = Array.isArray(record.location) && record.location.length === 3 && record.location.every(Number.isFinite)
     && Array.isArray(record.rotation) && record.rotation.length === 3 && record.rotation.every(Number.isFinite);
@@ -184,6 +187,68 @@ export function spawnEntryOf(o, record) {
   return { stream: null, actor: o.actor, location: posed ? [...record.location] : [...o.location],
            rotation: posed ? record.rotation.map(v => Math.round(v)) : rotationOf(o), spawn: { ...(values ?? {}) } };
 }
+// ---------------------------------------------------------------- base spawn point copies (SP7)
+
+/** The kinds a project copies (compiler.SPAWN_COPY_KINDS). */
+export const SPAWN_COPY_KINDS = ['pod', 'meld'];
+const shortName = a => String(a ?? '').split('.').pop();
+/** Why a base record can't be copied ('' when it can): a copy is made only from a plain pod (no commander or secondary
+ * flag, no forced type, no link to another actor) or any Meld point, in the level's list with its values read. */
+export function copyTemplateWhy(o) {
+  if (!SPAWN_COPY_KINDS.includes(o?.kind)) return o?.kind === 'dropIn' ? 'drop-in points are moved, not copied' : 'only pods and Meld points are copied';
+  if (o.listed === false) return 'it is not in the level\'s list';
+  if (o.unread) return 'its values could not be read';
+  if (o.kind !== 'pod') return '';
+  const v = k => o.values?.[k]?.value;
+  const why = [v('commander') && 'the commander\'s place', v('secondary') && 'a secondary pod', v('forceType') && 'of a forced alien type',
+               o.links?.length && `linked to ${o.links.map(l => shortName(l.actor)).join(', ')}`].filter(Boolean);
+  return why.length ? `it is ${why.join(' and ')}: a copy is made only from a plain pod` : '';
+}
+/** A copy's entry ({stream: 'copy', copy: {id, kind, from}, actor, location, rotation, spawn}: kept as
+ * `copy|${actor}`) of template `o`. */
+export const copyEntry = (o, { id, actor, location, rotation, spawn = {} }) =>
+  ({ stream: 'copy', copy: { id, kind: o.kind, from: o.actor }, actor, location: [...location], rotation: [...rotation], spawn: { ...spawn } });
+/** A copy's added record (compiler.spawn_add's): pkg the map's package. */
+export function copyRecord(pkg, entry) {
+  return { id: entry.copy.id, kind: entry.copy.kind, actor: entry.actor, from: { package: pkg, level: 'base', actor: entry.copy.from },
+           location: [...entry.location], rotation: [...entry.rotation], ...(Object.keys(entry.spawn).length ? { spawn: { ...entry.spawn } } : {}) };
+}
+/** A saved copy's entry, or null when the page doesn't take it (carried back unchanged): its template `o` of the same
+ * kind and copyable, an id, a name, a whole pose and only its kind's values. */
+export function copyEntryOf(o, record) {
+  const finite = v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+  if (!o || o.kind !== record.kind || copyTemplateWhy(o) || typeof record.id !== 'string' || !record.id || typeof record.actor !== 'string'
+    || !finite(record.location) || !finite(record.rotation)
+    || Object.keys(record).some(k => !['id', 'kind', 'actor', 'from', 'location', 'rotation', 'spawn'].includes(k))) return null;
+  const values = record.spawn;
+  if (values !== undefined && (!values || typeof values !== 'object' || Array.isArray(values)
+    || Object.keys(values).some(k => !SPAWN_VALUE_KEYS[o.kind].includes(k)))) return null;
+  return copyEntry(o, { id: record.id, actor: record.actor, location: record.location, rotation: record.rotation.map(v => Math.round(v)), spawn: values ?? {} });
+}
+/** A copy's entry after a change: moved by `delta`, turned by `turn` (its yaw within half a turn of its template's),
+ * `spawn` values merged (one set to its template's value, or undefined, goes back to the template's). */
+export function editCopy(o, entry, { delta = [0, 0, 0], turn = 0, spawn = null } = {}) {
+  const values = { ...entry.spawn };
+  for (const [key, v] of Object.entries(spawn ?? {})) {
+    if (v === undefined || v === o.values?.[key]?.value) delete values[key]; else values[key] = v;
+  }
+  return { ...entry, location: entry.location.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000),
+           rotation: [entry.rotation[0], yawNear(entry.rotation[1] + turn, rotationOf(o)[1]), entry.rotation[2]], spawn: values };
+}
+/** The record a copy's marker and panel show: its template's under the copy's name, at its place, with its values
+ * (the project's marked so), named and used by nothing, linked to nothing. */
+export function copyMarkerRecord(o, entry) {
+  // (what the template saves is the copy's as its template's)
+  const own = Object.fromEntries(Object.entries(o.values ?? {}).map(([k, v]) => [k, v.from === 'saved' ? { ...v, from: 'template' } : v]));
+  return { ...o, actor: entry.actor, location: [...entry.location], rotation: [...entry.rotation], savesRotation: true,
+           values: { ...own, ...Object.fromEntries(Object.entries(entry.spawn).map(([k, v]) => [k, { value: v, from: 'project' }])),
+                     ...(o.kind === 'pod' ? { podIndex: { value: 'its own', from: 'project' } } : {}) },
+           uses: [], links: [], referencedBy: [], other: [], copyOf: o.actor };
+}
+/** Whether something names a base record (export 33's uses and the names listing it), as compiler.spawn_names reads
+ * it: a delete of it is kept back. */
+export const spawnNamed = o => Boolean(o?.uses?.length || o?.referencedBy?.length || o?.unread);
+
 /** The panel's words for an edit's move and turn ("" when it stands as the map has it). */
 export function spawnMoveWords(o, entry) {
   if (!entry || !spawnPosed(entry, o)) return '';

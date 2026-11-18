@@ -8,6 +8,45 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP7: the base map's pods and Meld points copied, its spawn points deleted
+
+- **The page** ([app.js](tools/viewer/web/app.js), [spawns_view.js](tools/viewer/web/spawns_view.js)): where the
+  spawn family builds, a picked base pod, Meld point or drop-in point has Copy (Ctrl+D) and Delete (Delete) in its
+  panel, and [ and ] turn a pod or a drop-in point. A copy is made only from a plain pod (no commander or secondary
+  flag, no forced type, no link to another actor) or any Meld point; the button says why where it can't. It lands a
+  tile east with its template's values and turn, picked, and is moved, turned and given values as the map's points
+  are, its marker and panel its own ("Pod: a copy of …"; its template's saved values marked "(its template's)",
+  [spawn_rules.js](tools/viewer/web/spawn_rules.js)). A deleted point is drawn pale, its panel says whether the Build
+  takes it out or keeps it (something names it), and Restore brings it back. Undo, Reset all, recovery and the
+  header's count take them.
+- **The document**: a copy is an `added[]` record of `kind` pod or meld with `from` its template, a pose and
+  `spawn`; a delete is a deleted override ([project.js](tools/viewer/web/project.js) `validAdded`). One the page
+  doesn't take is carried and saved back unchanged.
+- **The compiler** ([compiler.py](tools/editor/compiler.py)): `spawn_add` refuses a template that isn't plain
+  (`spawn-copy-template`), one of another kind, one the export lacks, and the family off; gives each pod copy the next
+  pod index above every one the map's pods and its streams' save and every pod event the export's uses name
+  (`free_pod_index`; across the install's maps an event names index 1 at most, a pod 53). `spawn_delete` builds a
+  delete only when nothing names the point (`spawn_names`: the Kismet, a wave place, a pod event for its index, a typed
+  reference, a name list) and its uses were read; else warning `spawn-delete-named`, and the point stays. SP5's place
+  counts read the copies, the deletes and the SP6 values.
+- **The writer** ([native_spawns.py](tools/bake/native_spawns.py)): a copy is its template cloned with its components
+  (`native_copy.clone_actor`), placed, given its PodIndex (refused where a pod event of the map names it) and its
+  values; a delete leaves its slot in the level's list empty. `verify` reads back each copy listed at its pose with its
+  index and values, its template byte for byte as it was, and each delete off the list
+  ([native_copy.py](tools/bake/native_copy.py) hands it the map before the edit).
+- **Example** [exp72_sp7_project.py](tools/editor/examples/exp72_sp7_project.py): URB_Bar's pods 2 and 3 copied onto
+  free floor tiles near them, Meld point 2 copied and made hard, pod 4 deleted (six pods where there were five).
+- **Checked** offline on URB_Bar: built twice byte for byte the same; read back with the exporter's own spawn reader:
+  the copies listed as XComAlienPod_Abduction_5 and _6 with pod indices 5 and 6 and the Meld copy hard, each with
+  its template's archetype and its own clones of the template's three components; pod 4 off the list; every other
+  point at its place. Tests: compiler (copies, the index above a stream's pod, deletes kept back by an event or the
+  Kismet, the refusals), bake (`test_native_spawns.py`: copies and a delete written and read back, the refusals),
+  build (copies and deletes in a spawn-only build), node (the copy and delete rules, `validAdded`); the page tried on
+  a test server with the family on (the project's copies and delete opened as saved; copy, move, value, delete,
+  restore and the keys, undone back to saved; saved from the page and compiled as the page showed it).
+- **Gaps**: no paste of a copied point elsewhere (a copy lands a tile east and is dragged from there); copies of
+  drop-in points and of pods with links aren't made. The game check is still to come.
+
 ### Spawns, stage SP6: the base map's pods, Meld points and drop-in points moved, turned and given values
 
 - **The family** `spawn` ([compiler.py](tools/editor/compiler.py) `FAMILIES`): off until its game check passes (a

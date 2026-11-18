@@ -20,8 +20,9 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { FAMILIES, SPAWN_VALUE_KEYS, addFacingPointer, baseEditWords, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker,
-         shownEntries, spawnEditable, spawnEntryOf, spawnKey, spawnMoveWords, spawnOverride, spawnRecords, titleOf } from './spawns_view.js';
+import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, addFacingPointer, baseEditWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
+         copyTemplateWhy, editCopy, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnEditable,
+         spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf } from './spawns_view.js';
 import { consumerWords, fromWords, useLines } from './spawn_rules.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { SWAP, drawable, leftOut, makeLikeness, viewHeight } from './effects_preview.js';
@@ -882,7 +883,7 @@ function changes() {
   // the buildings the project saves: its own, and the map's it changed or deleted
   const built = data ? savedBuildings().length : 0;
   // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
-  const spawns = [...missionMoves.values()].filter(m => m.stream === null).length, missions = missionMoves.size - spawns;
+  const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
   return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size,
            total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size };
 }
@@ -4292,7 +4293,7 @@ function editStateNow() {
     && !(builderMode && builder.kept.some(p => memberKey({ added: p.actor }) === k))) g.members.delete(k);
   const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
                                                              ...(g.prefab ? { prefab: g.prefab } : {}) }));
-  return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values()], groups: kept, areaLightBindings, stage,
+  return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
                     buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
                     spawnRules: projectSpawnRules });
 }
@@ -4375,6 +4376,17 @@ async function applyState(state, progress = null) {
   }
   const objs = [], lights = [], effects = [];
   for (const entity of state.added) {
+    if (['pod', 'meld'].includes(entity.kind)) {
+      // a copy of one of the map's pods or Meld points (SP7); one the page doesn't take is carried unchanged
+      const from = entity.from, o = from?.level === 'base' && String(from.package).toLowerCase() === String(data.name).toLowerCase() ? baseSpawnOf(from.actor) : null;
+      const entry = o ? copyEntryOf(o, entity) : null;
+      if (entry) {
+        streamMoves.set(spawnKey('copy', entry.actor), entry);
+        const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+        if (serial > copySerial) copySerial = serial;
+      } else carried.added.push(entity);
+      continue;
+    }
     if (entity.kind) {      // an effect, a sound or a flare copied (effects and sounds plan, Part C)
       const root = addedEffectOf(entity);
       if (root) effects.push(root); else carried.added.push(entity);
@@ -6610,9 +6622,11 @@ function missionMembers(stream, o) {
   return o.group ? objects.filter(x => x.group === o.group) : [o];
 }
 function missionOverrides() {
-  return [...missionMoves.values()].map(m => (m.stream === null ? spawnOverride(data.name, baseSpawnOf(m.actor), m)
+  return [...missionMoves.values()].filter(m => m.stream !== 'copy').map(m => (m.stream === null ? spawnOverride(data.name, baseSpawnOf(m.actor), m)
     : { target: { package: m.stream, level: 'stream', actor: m.actor }, location: [...m.location], rotation: [...m.rotation] }));
 }
+// the project's copies of the map's pods and Meld points (SP7), as its added records
+const spawnCopyRecords = () => [...missionMoves.values()].filter(m => m.stream === 'copy').map(m => copyRecord(data.name, m));
 // a base spawn point's record (export 33), but a landing's
 const baseSpawnOf = actor => (data?.spawns ?? []).find(r => r.actor === actor && !r.landing) ?? null;
 const spawnFamilyBuilds = () => Boolean(families?.families?.spawn?.builds);
@@ -6620,6 +6634,7 @@ const spawnFamilyBuilds = () => Boolean(families?.families?.spawn?.builds);
 // spawn point (stream null) moves alone.
 function movedMissions(stream, actor, delta, from = missionMoves) {
   if (stream === null) return editedSpawns(actor, { delta }, from);
+  if (stream === 'copy') return editedCopies(actor, { delta }, from);
   const o = streamObjects(stream).find(x => x.actor === actor);
   const next = new Map(from);
   if (!o) return next;
@@ -6685,10 +6700,53 @@ function editBaseSpawn(actor, change, hint) {
   return true;
 }
 const stateKeyOf = moves => JSON.stringify([...moves.entries()]);
+// The edits with a copy's changed (spawns_view.js editCopy), and one undo step of it (SP7).
+function editedCopies(actor, change, from = missionMoves) {
+  const k = spawnKey('copy', actor), entry = from.get(k), o = entry ? baseSpawnOf(entry.copy.from) : null, next = new Map(from);
+  if (o) next.set(k, editCopy(o, entry, change));
+  return next;
+}
+function editSpawnCopy(actor, change, hint) {
+  const before = new Map(missionMoves), after = editedCopies(actor, change);
+  if (stateKeyOf(after) === stateKeyOf(before)) return false;
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  if (hint) flashHint(hint);
+  return true;
+}
+// One undo step: a copy of a base pod or Meld point (or of a copy: its template's, with its values and turn), a tile
+// east of it, picked (SP7). Returns the copy's key, or null where it can't be copied.
+function copySpawn(key) {
+  const e = spawnEntry(key);
+  const o = e?.layer === 'copy' ? baseSpawnOf(e.record.copyOf) : e?.layer === 'base' ? e.record : null;
+  if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
+  const at = spawnAt(e), now = missionMoves.get(key);
+  const actor = `${o.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
+  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]],
+                               rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
+  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  setPickedSpawn(k);
+  flashHint(`Copied ${short(o.actor)} a tile east · drag its arrows to place it`);
+  return k;
+}
+// One undo step: a base pod, Meld point or drop-in point deleted (its moves and values go with it), or a copy taken
+// away (SP7).
+function deleteSpawn(key) {
+  const e = spawnEntry(key);
+  if (!e || !['base', 'copy'].includes(e.layer) || (e.layer === 'base' && (!spawnEditable(e.record) || missionMoves.get(key)?.deleted))) return false;
+  const before = new Map(missionMoves), after = new Map(missionMoves);
+  if (e.layer === 'copy') after.delete(key);
+  else after.set(key, { stream: null, actor: e.record.actor, location: [...e.record.location],
+                        rotation: (e.record.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {}, deleted: true });
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  flashHint(e.layer === 'copy' ? 'Copy taken away' : spawnNamed(e.record) ? 'Deleted · something names it, so the Build keeps it and warns' : 'Deleted · the Build takes it out of the level\'s list');
+  return true;
+}
 // One undo step: the picked object's group moved by `delta` (also the test's way in).
 function moveMissionGroup(stream, actor, delta) {
   if (!delta.some(v => Math.abs(v) > 1e-6)) return false;
   if (stream === null) return editBaseSpawn(actor, { delta }, 'Moved the spawn point · the Build moves it in place');
+  if (stream === 'copy') return editSpawnCopy(actor, { delta }, 'Moved the copy');
   const before = new Map(missionMoves), after = movedMissions(stream, actor, delta);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
   const o = streamObjects(stream).find(x => x.actor === actor), n = missionMembers(stream, o).length;
@@ -6707,18 +6765,30 @@ const spawnEntry = key => (key ? spawnEntriesNow.find(e => e.key === key) ?? nul
 const spawnAt = e => missionAt(e.stream, e.record);
 // which way a base spawn point faces now (its yaw), or null for one that isn't edited here or saves no rotation
 function spawnFacing(e) {
-  if (e.layer !== 'base' || !['pod', 'dropIn'].includes(e.record.kind)) return null;
-  const m = missionMoveOf(null, e.record.actor);
+  if (!['base', 'copy'].includes(e.layer) || !['pod', 'dropIn'].includes(e.record.kind)) return null;
+  const m = missionMoveOf(e.stream, e.record.actor);
+  if (m?.deleted) return null;
   return m ? m.rotation[1] : e.record.savesRotation || spawnMovable(e) ? Math.round(e.record.rotation?.[1] ?? 0) : null;
 }
+// the project's copies as the view's entries (SP7): `copy|${actor}`, layer 'copy', their template's record under their
+// own name (spawns_view.js copyMarkerRecord)
+function copyEntries() {
+  const out = [];
+  for (const m of missionMoves.values()) {
+    const o = m.stream === 'copy' ? baseSpawnOf(m.copy.from) : null;
+    if (o) out.push({ key: spawnKey('copy', m.actor), layer: 'copy', stream: 'copy', record: copyMarkerRecord(o, m), readOnly: false });
+  }
+  return out;
+}
+const spawnDeleted = e => e?.layer === 'base' && Boolean(missionMoves.get(e.key)?.deleted);
 function refreshSpawnMarkers() {
   for (const child of [...spawnLayer.children]) { child.traverse(o => o.geometry?.dispose()); spawnLayer.remove(child); }
-  spawnEntriesNow = spawnsAvailable() ? spawnRecords(data, streamSet, spawnDonor()) : [];
+  spawnEntriesNow = spawnsAvailable() ? [...spawnRecords(data, streamSet, spawnDonor()), ...copyEntries()] : [];
   const shown = shownEntries(spawnEntriesNow, spawnFilters);
   if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) pickedSpawn = null;      // another mission's, or a family hidden
   spawnLayer.visible = spawnsShown();
   for (const e of shown) {
-    const marker = makeSpawnMarker(THREE, e.record.kind, e.readOnly);
+    const marker = makeSpawnMarker(THREE, e.record.kind, e.readOnly || spawnDeleted(e));
     marker.position.copy(gameToView(spawnAt(e)));
     marker.userData.spawn = e.key;
     // (the picked pod or drop-in point shows the way it faces)
@@ -6749,17 +6819,18 @@ function spawnPanel() {
   }
   if (!e) return;
   const label = headerMissions().find(m => m.value === missionPickValue)?.label;
-  // a base spawn point the project edits shows the project's values, marked as its own (SP6)
-  const baseEdit = e.layer === 'base' ? missionMoves.get(missionKey(null, e.record.actor)) ?? null : null;
-  const o = baseEdit && Object.keys(baseEdit.spawn).length ? { ...e.record, values: { ...e.record.values,
+  // a base spawn point the project edits shows the project's values, marked as its own (SP6); a copy (SP7) its own
+  const baseEdit = e.layer === 'base' || e.layer === 'copy' ? missionMoves.get(e.key) ?? null : null;
+  const o = e.layer === 'base' && baseEdit && Object.keys(baseEdit.spawn).length ? { ...e.record, values: { ...e.record.values,
     ...Object.fromEntries(Object.entries(baseEdit.spawn).map(([k, v]) => [k, { value: v, from: 'project' }])) } } : e.record;
-  $('spawnTitle').textContent = titleOf(e, spawnEntriesNow, label);
+  $('spawnTitle').textContent = e.layer === 'copy' ? `${KINDS[o.kind]?.label ?? o.kind}: a copy of ${short(o.copyOf)}` : titleOf(e, spawnEntriesNow, label);
   for (const l of identityLines({ ...e, record: o }, spawnEntriesNow, fromWords)) line(l.head, l.text);
   const movable = e.layer === 'stream' || e.layer === 'donor';
   const moved = movable ? missionMoves.get(missionKey(e.stream, o.actor)) : null;
   const n = movable ? missionMembers(e.stream, o).length : 1;
   const { usedBy, uses } = useLines(o);
-  line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
+  if (e.layer === 'copy') line('Used by', `nothing: the copy is the project's own${o.kind === 'pod' ? ', with a pod index no pod of the map or its streams has and no pod event names' : ''}.`);
+  else line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
     : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
   if (uses.length) line('Uses', `${uses.join('; ')}.`);
   const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: validSpawnRules(projectSpawnRules), mapExcluded: Boolean(spawnRulesData?.excluded) });
@@ -6771,7 +6842,13 @@ function spawnPanel() {
     line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
   }
   if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
-  else if (e.layer === 'base' && baseEdit) {
+  else if (e.layer === 'copy') {
+    line('', `A copy of ${short(o.copyOf)}: the Build clones it with its components${o.kind === 'pod' ? ' and gives it a pod index of its own' : ''}, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'its template\'s values'}.`);
+    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
+  } else if (e.layer === 'base' && baseEdit?.deleted) {
+    line('', spawnNamed(e.record) ? 'Deleted, but something names it (Used by above): the Build keeps it, and warns, so what names it isn\'t left pointing at nothing.'
+      : 'Deleted: the Build takes it out of the level\'s list, so the game never has it.');
+  } else if (e.layer === 'base' && baseEdit) {
     const words = spawnMoveWords(e.record, baseEdit);
     line('', `${words ? `${words} ` : ''}The Build ${words ? 'moves it and sets its values' : 'sets its values'} in place: it keeps its name, so what uses it still does${o.links?.length && words ? `; what it links to (${o.links.map(k => k.property).join(', ')}) stays where the map has it` : ''}.`);
     if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
@@ -6788,35 +6865,48 @@ function spawnPanel() {
     if (using.length > 1) line('', `The Build moves it for every mission of the variant that streams ${e.stream}: ${using.join(', ')}.`);
   }
   if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
-  if (e.layer === 'base' && projectsAvailable() && spawnMovable(e)) {
+  if (['base', 'copy'].includes(e.layer) && projectsAvailable() && spawnMovable(e)) {
     const below = [['pod', 'dropIn'].includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && 'set its values'].filter(Boolean);
     line('', `Drag the arrows to move it by whole tiles and levels${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`);
-    spawnEditControls(e.record, baseEdit);
-  }
+    spawnEditControls(e, baseEdit);
+  } else if (spawnDeleted(e) && projectsAvailable()) spawnEditControls(e, baseEdit);
 }
-// A base pod's, Meld point's or drop-in point's controls (SP6): quarter turns for a pod or a drop-in point, a pod's
-// commander, secondary and use ticks, a Meld point's difficulty, turn it is destroyed on and spawn group; and back to
-// the map's. Each change is one undo step.
-function spawnEditControls(o, entry) {
-  const box = $('spawnEdit');
+// A base pod's, Meld point's or drop-in point's controls (SP6), or a copy's (SP7): quarter turns for a pod or a
+// drop-in point, a pod's commander, secondary and use ticks, a Meld point's difficulty, turn it is destroyed on and
+// spawn group; back to the map's; Copy (a plain pod or any Meld point: spawns_view.js copyTemplateWhy) and Delete. A
+// deleted point has Restore alone. Each change is one undo step.
+function spawnEditControls(e, entry) {
+  const box = $('spawnEdit'), copy = e.layer === 'copy';
+  const base = copy ? baseSpawnOf(e.record.copyOf) : e.record, actor = e.record.actor;
   box.replaceChildren();
   box.hidden = false;
-  const now = key => (entry && key in entry.spawn ? entry.spawn[key] : o.values?.[key]?.value);
-  const set = (key, value, hint) => editBaseSpawn(o.actor, { spawn: { [key]: value } }, hint);
   const row = text(box, 'div', '', 'row');
-  if (['pod', 'dropIn'].includes(o.kind)) {
-    for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left'], ['Turn right', 16384, 'A quarter turn to the right']]) {
-      const b = text(row, 'button', label);
-      b.type = 'button'; b.title = `${title}: ${o.kind === 'pod' ? 'the way its aliens face when they deploy' : 'the way its units face when they arrive'}`;
-      b.onclick = () => editBaseSpawn(o.actor, { turn }, `Turned the ${o.kind === 'pod' ? 'pod' : 'drop-in point'} a quarter ${turn > 0 ? 'right' : 'left'}`);
+  const button = (label, title, act) => { const b = text(row, 'button', label); b.type = 'button'; b.title = title; b.onclick = act; return b; };
+  if (entry?.deleted) {
+    button('Restore', 'Back as the map has it', () => resetBaseSpawn(actor));
+    return;
+  }
+  const edit = (change, hint) => (copy ? editSpawnCopy(actor, change, hint) : editBaseSpawn(actor, change, hint));
+  const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
+  const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
+  if (['pod', 'dropIn'].includes(base.kind)) {
+    for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left ([)'], ['Turn right', 16384, 'A quarter turn to the right (])']]) {
+      button(label, `${title}: ${base.kind === 'pod' ? 'the way its aliens face when they deploy' : 'the way its units face when they arrive'}`,
+             () => edit({ turn }, `Turned the ${base.kind === 'pod' ? 'pod' : 'drop-in point'} a quarter ${turn > 0 ? 'right' : 'left'}`));
     }
   }
-  if (entry) {
-    const b = text(row, 'button', 'As the map has it');
-    b.type = 'button'; b.title = 'Back where the map has it, facing its way, with its own values';
-    b.onclick = () => resetBaseSpawn(o.actor);
-  }
-  if (o.kind === 'pod') {
+  if (entry && !copy) button('As the map has it', 'Back where the map has it, facing its way, with its own values', () => resetBaseSpawn(actor));
+  const row2 = text(box, 'div', '', 'row');
+  const why = copyTemplateWhy(base);
+  const c = text(row2, 'button', 'Copy');
+  c.type = 'button'; c.disabled = Boolean(why);
+  c.title = why ? `Not copied: ${why}` : 'A copy a tile east, with its values and turn: the Build clones it with its components (Ctrl+D)';
+  c.onclick = () => copySpawn(e.key);
+  const d = text(row2, 'button', copy ? 'Delete copy' : 'Delete');
+  d.type = 'button';
+  d.title = `${copy ? 'The copy taken away' : spawnNamed(base) ? 'Something names it (Used by): a delete keeps it in the map, with a warning' : 'Out of the level\'s list: the game never has it'} (Delete)`;
+  d.onclick = () => deleteSpawn(e.key);
+  if (base.kind === 'pod') {
     for (const [key, label, title] of [
       ['commander', ' Commander\'s place', 'The mission\'s commander pod takes a commander\'s place first'],
       ['secondary', ' Secondary', 'The pod\'s Secondary flag (bSecondaryPod)'],
@@ -6828,7 +6918,7 @@ function spawnEditControls(o, entry) {
       wrap.append(tick, label);
       wrap.title = title;
     }
-  } else if (o.kind === 'meld') {
+  } else if (base.kind === 'meld') {
     const pick = text(box, 'label', 'Difficulty ', `valueline${entry && 'difficulty' in entry.spawn ? ' edited' : ''}`);
     pick.title = 'The game draws a hard point of a spawn group first';
     const select = document.createElement('select');
@@ -6882,7 +6972,8 @@ function setPickedSpawn(key) {
 // A stream object's group moves by its arrows (a donor's too, an added bomb's: stage SP4), and so does a base pod, Meld
 // point or drop-in point where the spawn family builds (SP6)
 const spawnMovable = e => Boolean(e) && (e.layer === 'stream' || e.layer === 'donor'
-  || (e.layer === 'base' && spawnEditable(e.record) && spawnFamilyBuilds()));
+  || (e.layer === 'base' && spawnEditable(e.record) && spawnFamilyBuilds() && !spawnDeleted(e))
+  || (e.layer === 'copy' && spawnFamilyBuilds()));
 // The picked stream object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
 // (64 units) up, as a landing zone's do. Escape during a drag puts it back.
 const missionProxy = new THREE.Object3D(); world.add(missionProxy);
@@ -9832,7 +9923,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
     missionMoves: () => [...missionMoves.values()], moveMissionGroup,
     // (a base spawn point: turned, given values, back as the map has it; SP6)
-    editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden,
+    editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden, copySpawn, deleteSpawn, editSpawnCopy,
     // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
     setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
     pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
@@ -10467,6 +10558,20 @@ document.addEventListener('keydown', e => {
   if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { pickEffect(null); e.preventDefault(); return; }
   // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go
   if ((pickedSpawn || spawnZonePick) && !selected && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { setPickedSpawn(null); e.preventDefault(); return; }
+  // a picked base pod, Meld point or drop-in point, or a copy (SP6, SP7), as a landing zone: Delete, Ctrl+D copies,
+  // [ and ] turn a pod or a drop-in point a quarter
+  {
+    const se = pickedSpawn && !selected && !e.altKey && !placing && !gizmo.busy() ? spawnEntry(pickedSpawn) : null;
+    if (se && ['base', 'copy'].includes(se.layer) && projectsAvailable() && (spawnMovable(se) || spawnDeleted(se))) {
+      if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteSpawn(pickedSpawn); e.preventDefault(); return; }
+      if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
+      if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && ['pod', 'dropIn'].includes(se.record.kind) && spawnMovable(se)) {
+        const turn = key === '[' ? -16384 : 16384, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
+        if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
+        e.preventDefault(); return;
+      }
+    }
+  }
   // the select box: Enter takes what is inside (Shift+Enter adds it to the selection), Escape puts the box away
   if ((pickTool || pickBox) && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
     if (key === 'escape' && !gizmo.controls.dragging) { stopPickBox(); e.preventDefault(); return; }
