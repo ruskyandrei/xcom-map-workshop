@@ -68,8 +68,8 @@ Statuses:
 - T-26: a copy of a piece lit per vertex (CLrgScout_Stonewall's vine, Temple Ship's four door volumes) builds
   since 9 November but keeps its original's light: the relight writes textures only. Not played.
 - F-06: LWR's landing zone can land the squad on our objects.
-- F-85: LWR replaces a map's own landing zone, pods, Meld points and scripted drop-in points at load (read from its
-  scripts, 11 November; not yet run). The plan for editing them is editor-spawns-plan.md.
+- F-85: LWR can replace the landing, pod and Meld points at battle start, and choose a scripted drop-in point
+  when its action fires. EXP-43, EXP-51 and EXP-53 cover some of these paths.
 - T-31, T-32: pieces from other maps look feasible by copying a piece and what it depends on into the map (the
   game's art is the same in every map, its shaders and textures shared); measured offline on 11 November. The
   transplanter is built, passes its offline test on every base map (T-31), and two plain props of other maps played
@@ -255,28 +255,37 @@ points). A reference fact, not a defect.
 
   For the test patch, the row can simply move.
 
-  Planned (11 November 2026): options 1 and 2 in the editor, by editing LWR's landing-zone lines for the variant
-  (editor-spawns-plan.md, part 2).
+  The editor now warns when an added piece covers a soldier point (`landing-blocked`) and lets the author move
+  the zone. A moved and an added zone played on the cleared Bar under LWR. The original car-row obstruction
+  remains a separate case. [EXP-51](experiments/EXP-51-cleared-bar.md)
 
-### F-85: LWR replaces a map's own landing zone, pods, Meld points and scripted drop-in points when the battle loads
-**Open** (11 November 2026: read from LWR's decompiled mutators and its config, not yet seen in a run;
-editor-spawns-plan.md 2.4, EXP-34 is to show it). A reference fact, not a defect.
-- What happens, in `XGBattle_SP.PostLevelLoaded`, before the game reads the pods (`InitPlayers` follows in the same
-  frame, so nothing placed in a map can step in between):
-  - **Landing zone** (`XComLZMutator`): on a map with `LZArray` lines, the landing prefab's pieces are destroyed
-    and spawned again at one line's place, with the map's own pieces as templates (F-45). Off for covert extraction,
-    capture and hold, and council extraction and rescue missions.
-  - **Pods** (`XComPodSpawnMutator`): every `XComAlienPod` is destroyed and one plain `XComAlienPod` per squad pod
-    is spawned at a random floor tile. Off on the HQ assault and the final mission; the commander's pod is kept on
-    the alien base and on battleship and overseer maps.
-  - **Meld** (`XComMeldSpawnMutator`): every Meld point is destroyed and three are spawned at random.
-  - **Scripted drop-ins** (`XComSpawnAlienMutator`): each `SeqAct_SpawnAlien` drops at a new random point near the
-    squad, unless the map is in `ExcludeMaps` (`DefaultRandomSpawns.ini`). Wave systems (EXALT, data recovery,
-    covert extraction) are not touched.
-- So under LWR a pod, Meld point or scripted drop-in point moved in a map plays where LWR puts it, not where it was
-  moved to. A plain Enemy Within install plays them as placed.
-- Fix planned: the variant's own `LZArray` lines for the landing zone, an `ExcludeMaps` line for drop-ins, and a
-  mutator of our own listed after LWR's for pods and Meld (the plan's 4.5 and 4.7).
+### F-85: When LWR uses the map's authored spawn points
+
+**Partly observed in game.** The installed scripts and config were read on 11 November and checked again on
+18 November 2026. A fresh SP battle dispatches the `PostLevelLoaded` mutators before the battle selects Meld
+points and initialises pods. Scripted reinforcements use a later hook.
+
+- **Landing.** On a matching map/mission/council line, the LZ mutator hides the recognised grounded dropship
+  before it checks the zone kind and templates. Normal placement needs a frame, evac volume and six soldier
+  templates. Covert extraction, capture and hold, and council extraction/rescue skip randomisation. A council
+  bomb requires the bomb mutator. The cleared Bar with a moved landing and an extra LWR line played. The report
+  does not distinguish individual landing observations. [EXP-51](experiments/EXP-51-cleared-bar.md)
+- **Pods.** HQ assault, the final mission and an empty squad skip the normal rewrite. Insufficient generated
+  locations leave ordinary map pods available. The alien base, battleship and overseer reserve the commander.
+  Other crashed/landed UFOs try to place a commander before the remaining location count is checked. Both the
+  small-map fallback and the UFO commander-location search have been observed. [EXP-43](experiments/EXP-43-blank-map-stage.md)
+  [EXP-53](experiments/EXP-53-mission-kinds.md)
+- **Meld.** An eligible mission and sufficient generated places allow the mutator to replace the map's points.
+  The checked config requests three candidates. The battle then selects by spawn group, difficulty and roll.
+  Meld appeared in the enlarged area in EXP-43 run 3. [EXP-43](experiments/EXP-43-blank-map-stage.md)
+- **Scripted drop-ins.** When a `SeqAct_SpawnAlien` fires, the mutator can supply a temporary point near a
+  soldier. The final mission, a running map named in `ExcludeMaps`, a missing or ambiguous action, or failure
+  to find a soldier or location can leave the action using its own points. Wave groups have their own ordered
+  destination/origin lists. A controlled comparison of an edited scripted point and a moved wave is pending.
+
+The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
+pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
+behaviour for these proposed edits still need direct observation.
 
 ### F-103: A piece whose component is turned apart from its actor was refused for every copy
 **Fixed in the tools, checked offline** (14 November 2026; not played in the game).

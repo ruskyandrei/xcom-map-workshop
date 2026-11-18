@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Reviewed the editor spawns plan against the current editor and game data
+
+- Updated the private plan to build on the existing landing editor and mission-stream moves. The next stage
+  covers base-map spawn markers and their users. Revised F-06 and F-85 to distinguish observed landings and
+  randomisation from the proposed pod, Meld and reinforcement edits. [Findings register](research/findings-register.md)
+- Reran the [spawn audit](tools/upk/audit_spawns.py). All 237 entries in the [original census](research/evidence/spawn-actors-audit-2026-11-11.json)
+  matched. Checked wave and Kismet references in mission packages and reopened a scratch Bar package with a
+  cloned pod, its new index and its three remapped children. Checked the mutator conditions against the installed
+  config, scripts and recorded runs.
+- Checked the viewer and bake spawn tests, editor mission and landing tests, stream-copy tests, the clear-map
+  Node tests and the repo suite. Gameplay checks for authored alien positions, plain EW landings and the proposed
+  LWR runtime remain open.
+
 ### The Effects view opens with a copied piece that carries an effect
 
 - [app.js](tools/viewer/web/app.js) `deriveEffects`: the marker of an effect carried by a copied piece (the claw
