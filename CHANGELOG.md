@@ -8,6 +8,36 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The slab measurer: a recipe from any of the game's floors and roofs** (custom geometry plan, M4 work order B
+  step 1; branch off `fracturing-wall-poc`).
+  - [slab_measure.py](tools/bake/slab_measure.py) (`VERSION` 1), grown from research/evidence/slab-audit.py:
+    `measure(package, what)` takes a slab placed in a map (its actor, or its mesh path: the first placing at scale
+    1) and gives `{recipe, warnings, facts}`. The recipe is what frac_slab builds a look from:
+    - the plate's heights (a flat or thick slab's from its main level faces up and down; a pitched roof made flat at
+      its eaves, D13), the collision's heights within the plate;
+    - the slots of the top, underside and edges, the donor's section count and interior index, and whether it draws
+      faces inside;
+    - planar texture maps measured robustly (each triangle's gradient, medians, offsets modulo 1);
+    - fragment shares set so a made slab has about the donor's fragments a tile; the colours; the lightmap's
+      density from the placing's own lightmap.
+  - Warnings in plain words: a pitched or thick roof made flat, slots it leaves empty (beams, trims, a second top
+    material), a texture laid out piece by piece, fragments bigger or smaller than a made slab's, a footprint that
+    isn't whole tiles, a scaled placing.
+  - `twin(recipe, template)` builds the slab at the donor's size and measures it again: heights, collision,
+    sections, slots, faces inside, texture maps, colours, lightmap density, fragments a tile and footprint must
+    agree; triangles a tile (within a tenth) is told but doesn't fail it, a made slab's fragments being cut another
+    way.
+  - [measure_common.py](tools/bake/measure_common.py): what the slab and ground measurers share (finding a placing,
+    its scale and lightmap, a mesh's triangles by slot, planar texture maps).
+  - Over the 55 slab meshes of the slab audit: every one measures and builds; the twin check passes for 32. The
+    rest are pitched (8) and thick (4) roofs made flat, donors whose footprint isn't whole tiles, and trims, beams
+    and a fish shack's roof whose fragments are smaller or bigger than a made slab's.
+  - Checked by: [test_slab_measure.py](tools/bake/tests/test_slab_measure.py) (a made slab measured again gives its
+    recipe; the Bar's roof and upper floor measure as today's looks were written, the same by actor or by mesh;
+    twin checks; donors with one slot, faces inside, the top in its second slot, a pitched roof and a thick one).
+  - Known gaps: a pitched roof made from numbers is for later (D13); a made slab's fragments are half a tile to two
+    tiles.
+
 - **Slabs in any look: frac_slab builds from a recipe given whole** (custom geometry plan, M4 work order B step 2;
   branch off `fracturing-wall-poc`).
   - [frac_slab.py](tools/bake/frac_slab.py) `look_of` takes a look's name (slab_looks.json, as before) or a dict
