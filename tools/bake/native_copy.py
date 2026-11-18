@@ -305,8 +305,8 @@ def guid_field(p, lights):
 
 
 def extra_lights(p, ci, location, rotation, threshold=EXTRA_LIGHT_MIN, lights=None, fresh=False):
-    """The baked point and spot lights that component `ci`'s lightmap doesn't list but that light it at a new pose:
-    each light within reach of the component there, with its unshadowed light on the component's texels. `lights` are
+    """The baked point, spot and directional lights that component `ci`'s lightmap doesn't list but that light it at
+    a new pose: each light within reach of the component there, with its unshadowed light on the component's texels. `lights` are
     the lights after the edit (native_lights registry entries: an edit's changed lights with their new values and
     places, its added lights, not its deleted ones); by default the source's own (native_lights.source_registry).
     Returns dicts of light (component path, or a new light's output name), guid (the 16 bytes its lightmap would
@@ -355,6 +355,19 @@ def extra_lights(p, ci, location, rotation, threshold=EXTRA_LIGHT_MIN, lights=No
         peak = float(codec.encode(coef)['dmcLinear'].sum(1).max(initial=0.0))
         out.append(dict(light=e.get('component') or e['id'], guid=bytes(e['guids'][field]), peak=peak,
                         kept=peak > threshold))
+    # the map's baked directional lights (a DirectionalLight, not the dominant one: the blank map's only light, whose
+    # light its own pieces' lightmaps hold), which reach everywhere; the registry holds point and spot lights only
+    # (EXP-79 run D: a piece of another map, or a ground shape made from one, on the blank map had no light listed
+    # and came out black)
+    for light in relight.map_lights(p, roles=('static',)):
+        if light['kind'] != 'directional' or not light['enabled'] or set(light['guids']) & listed:
+            continue
+        guid = p.effective(p.by_name[light['component']], field)
+        if not isinstance(guid, (bytes, bytearray)) or len(guid) != 16:
+            continue
+        coef = codec.coefficients([light], world, geo['frames'])
+        peak = float(codec.encode(coef)['dmcLinear'].sum(1).max(initial=0.0))
+        out.append(dict(light=light['component'], guid=bytes(guid), peak=peak, kept=peak > threshold))
     return sorted(out, key=lambda x: -x['peak'])
 
 
@@ -1058,14 +1071,18 @@ def ground_collision(g, p, actor, mapping):
     planes are backdrop saved with their collision off and some ignore cover (research/evidence/ground-audit.py). The
     clone (clone_actor's `mapping`) gets bCollideActors on the actor (bPathColliding too on an XComLevelActor, as
     make_walkable gives) and CollideActors and BlockRigidBody on its mesh components; bIgnoreForCover off and
-    bCanClimbOnto and bIsValidDestination on where the donor saves them otherwise (written only where saved: a class
-    without them must not get them). Returns the names changed."""
+    bCanClimbOnto, bIsValidDestination, bWorldGeometry and bCanStepUpOn on where the donor saves them otherwise
+    (written only where saved: a class without them must not get them; EXP-79 run D: URB_Demolition_EWI's grass plane
+    saves bWorldGeometry off, and a block made from it was walked into, its top never the cursor's; the asphalt
+    StaticMeshActor of URB_CommercialAlley saves bCanStepUpOn off, and no soldier climbed onto a block made from it).
+    Returns the names changed."""
     import native_lights
     walker = Walker(p)
     walker.names = g.names
     changed = []
     on = ('bCollideActors', 'bPathColliding') if p.cls(actor) in SCENERY_CLASSES else ('bCollideActors',)
-    parts = [(actor, on, (('bIgnoreForCover', b'\x00'), ('bCanClimbOnto', b'\x01'), ('bIsValidDestination', b'\x01')))]
+    parts = [(actor, on, (('bIgnoreForCover', b'\x00'), ('bCanClimbOnto', b'\x01'), ('bIsValidDestination', b'\x01'),
+                          ('bWorldGeometry', b'\x01'), ('bCanStepUpOn', b'\x01')))]
     parts += [(ci, ('CollideActors', 'BlockRigidBody'), ()) for ci in subtree(p, actor) if static_mesh(p, ci) > 0]
     for source, names, saved_only in parts:
         index = mapping.get(source, source)

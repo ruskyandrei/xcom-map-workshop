@@ -8,6 +8,39 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-79 run D played, and three fixes from it: the blank map's light for pieces from other maps, ground shapes'
+  world geometry and stepping up, and made slabs' textures read centre to centre** (custom geometry plan, M4;
+  F-132, F-133, F-134; branch `fracturing-wall-poc`).
+  - [EXP-79-looks.md](research/experiments/EXP-79-looks.md):
+    - the walls passed on load, light, height, breaks and doorways; on five rows their faces stand the other way round
+      from the donor's, because the donors keep their turn and the made walls stand unturned;
+    - on the floors map the ground was drawn black and neither block could be stood on;
+    - one slab look read its texture wrongly;
+    - the eyedropper passed;
+    - the EXP-78 re-check verified F-130 and F-131 ([EXP-78-farm-ground.md](research/experiments/EXP-78-farm-ground.md)
+      points to it).
+  - [native_copy.py](tools/bake/native_copy.py):
+    - `extra_lights` also offers the map's baked directional lights (F-132). The blank map's only light is one, so a
+      piece of another map, or a ground shape made on one, listed none of its lights and was relit with bounce
+      light alone.
+    - `ground_collision` also turns on `bWorldGeometry` and `bCanStepUpOn` where the donor saves them off (F-133).
+  - [slab_measure.py](tools/bake/slab_measure.py) records the donor box's centre (`measured.centre`), and the twin is
+    built round it. [frac_slab.py](tools/bake/frac_slab.py) reads the maps with the made slab's centre on it (F-134).
+    [slabs.json](tools/bake/looks/slabs.json) was built again: only the centres changed, and the twin verdicts are the
+    same (32 of 55 ok).
+  - [findings-register.md](research/findings-register.md): F-132 to F-134 new; F-130 and F-131 verified; a line on
+    F-129.
+  - Checked:
+    - [test_native_copy.py](tools/bake/tests/test_native_copy.py) BakedDirectionalLight: the blank map's light is
+      offered to a piece of another map; URB_Bar's dominant moon is not.
+    - [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) GroundOnBackdrop and GroundOnStaticMeshActor: blocks
+      on URB_Demolition_EWI's grass plane and URB_CommercialAlley's asphalt.
+    - EXP-79's floors map built again: every piece from another map lists the light, and their tops are relit at
+      about 8.7. Relit with direct light only, our light on a stage plane is the game's bake texel for texel.
+    - The subway roof's made top spans its donor's texture window.
+    - The bake, viewer and node suites.
+  - Known gap: the three fixes are not played yet.
+
 - **Made floors and roofs bring cursor floors of their own** (custom geometry plan, M5b; F-128; branch
   `fracturing-wall-poc`). The user chose this fix: a room's walls can be any height, so its floors can stand at any
   height.

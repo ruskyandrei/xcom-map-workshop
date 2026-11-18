@@ -1,6 +1,6 @@
 # EXP-79: looks from any piece (custom geometry plan, M4, run D)
 
-Date: 18 November 2026. Status: **prepared**. The custom geometry plan's stage M4 (branch `fracturing-wall-poc`):
+Date: 18 November 2026. Status: **played** (run D: the walls passed, their faces on five rows the other way round by the script's placing; on the floors map the ground was drawn black and the blocks could not be stood on, fixed offline as F-132 and F-133, and one slab look read its texture wrongly, F-134; the eyedropper passed). The custom geometry plan's stage M4 (branch `fracturing-wall-poc`):
 walls, floors, roofs and ground shapes made from numbers in the look of any of the game's pieces of that kind, named
 by their donor (`look: {mesh, measure}`), with recipes from the checked-in catalogues (tools/bake/looks/: 344 walls,
 55 floors and roofs, 193 ground looks). Run D takes a sample spread over the catalogues' verdicts and settings, each
@@ -109,4 +109,78 @@ are at x -2737 + 96 i, y -1873 + 96 j.
 
 ## Result
 
-Not played yet.
+### `EXP-79 walls` (18 November 2026)
+
+Played unattended in the lab copy with saving on (the blank map has no dropship intro: the session waited on the
+mission's start). Pictures are in `<lab>\hidden-runs\exp79-runD-walls`.
+
+1. **Load: passed.** The map loaded and the mission started in 11 seconds, with no crash; the made pieces appear only
+   in the routine "Cooking Convex" lines.
+2. **The look: lit and heights passed; each face's look passed, but on five rows the faces stand the other way round
+   from the donor's, by the script's placing.**
+   - Every made wall is lit (none black), stands level with its donor and as tall as it (the lowered donors W04 at 64
+     and W08 at 192 too), and every longer wall's doorway is open.
+   - W00, W02, W04, W05, W07, W09 and W10 look like their donors from both sides (W07's twin a little greener).
+   - On W01, W06, W08 and W11 (and most likely W03) the twin's south face shows what the donor shows to the north,
+     and the other way round. On W01, for one, the donor shows blue-white plaster to the south and a brick lattice to
+     the north, and both made walls the brick lattice to the south (the two pictures from either side show it).
+   - Why: each of those donors stands turned in its own map, W03, W06, W08 and W11 a half turn and W01 (a mesh
+     measured turned) a quarter turn, and its copy keeps that turn. The made walls stand unturned. The catalogue's
+     twin check passes for all twelve: each side of the made wall shows the slot and texture the donor's same side
+     shows in the donor's own frame. So the faces are the donor's, turned. In the editor "Flip sides" swaps them.
+3. **Breaks: passed at the four points between paired rows.** Each high-explosive grenade broke both walls near the
+   blast (a gap of two or three tiles, or an arched hole through the lower part), with the rest of both standing and
+   nothing far off broken. The needle grenade broke nothing (it does no damage to the world). W00, W01, W04 and W11
+   were not tried: the squad had four high-explosive grenades and no rocket.
+4. **Doorways: passed.** A soldier walked through W07's longer wall's doorway (3 tiles, where going round is 10 or
+   more) and through W05's.
+
+### `EXP-79 floors and ground` (18 November 2026)
+
+Pictures are in `<lab>\hidden-runs\exp79-runD-floors`.
+
+5. **Load: passed.**
+6. **The look: the slabs passed but for two looks; the ground failed, drawn black.**
+   - Every made slab is lit. The flat floor, the flat roof and the one-slot roof look like their donors.
+   - The pitched roof is made flat at its eaves in its donor's green planks, which run across the donor's: the donor
+     stands a quarter turn round in its own map and its copy keeps the turn, as on the walls map.
+   - The thick roof (the subway car's) showed the car's white side panel over half its top, where the donor shows
+     its tread: the made slab read its donor's texture from its own corner. [F-134](../findings-register.md), fixed
+     offline.
+   - The three-slot floor has the donor's blue-grey tile without its rust-coloured third: that is the donor's second
+     top material, which a made slab doesn't make (the catalogue warns of it).
+   - Every made block and patch was black, and so was every copy of another map's ground plane but the two
+     StaticMeshActors: on the blank map they listed none of its lights. [F-132](../findings-register.md), fixed
+     offline.
+   - The concrete block on its 0.6-scale donor is a full three tiles.
+7. **Standing: failed on both blocks, by their donors' flags.**
+   - The asphalt block's top is picked by the cursor (132, its top 68), and soldiers beside it take cover from it, but
+     soldiers ordered onto it from beside it did not move, twice.
+   - The grass block's top is not picked (the cursor reads the ground), and a soldier walked into it and stood sunk
+     inside.
+   - Why: the grass plane saves `bWorldGeometry` off and the asphalt `bCanStepUpOn` off, and the copies kept them.
+     [F-133](../findings-register.md), fixed offline.
+
+### `EXP-79 eyedropper` (18 November 2026)
+
+Pictures are in `<lab>\hidden-runs\exp79-runD-eye`.
+
+8. **Load: passed. The deck-look slab passed; the facade-look wall passed on a second reading.**
+   - The deck-look slab is the deck copy's blue-grey tile, lit alike, without its rust third (as on the floors map).
+   - The facade-look wall shows the dark wood panelling and cap of the piece it was picked from, the bar's
+     `XComDecoFracLevelActor_11`: a `Core_384FacadeB`, the pub's ground storey with its window openings, 198 high. The
+     run compared it with a shot of the bar where a brick upper storey stands on that piece; the brick is the other
+     piece's. Its far face was in shade.
+
+### The EXP-78 re-check (18 November 2026)
+
+Played on the rebuilt `EXP78FarmGround` (the copy of a StaticMeshActor made an XComLevelActor, F-130; the deleted
+plane's rebuild volume, F-131). Pictures are in `<lab>\hidden-runs\exp78-runF2`.
+
+- **The block's top: passed.** The cursor read 64 (its top at 0) on all four of the block's tiles (run F part 2 read
+  the crater, -64), and a soldier sent from the crater onto (815, -2737) moved 4 tiles and stood on the top at z 67.
+- **The old mound's tile (1871, -3025): passed, read from a save.** The baked map had floor there only on level 3 (the
+  mound's top); a quicksave from the run has no floor on level 3 and a floor on level 2, at about 0: the tile was
+  rebuilt. The block's four tiles lost the crater's and the mound's baked floors and have floor on level 2, the
+  block's top.
+- [F-130](../findings-register.md) and [F-131](../findings-register.md) are verified.

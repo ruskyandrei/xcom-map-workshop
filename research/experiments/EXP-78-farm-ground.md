@@ -67,6 +67,11 @@ Tiles:
 
 ## Result
 
+### The re-check (18 November 2026, with run D)
+
+The block's top read by the cursor and stood on, and the old mound's tile rebuilt: F-130 and F-131 verified. The
+record is in [EXP-79](EXP-79-looks.md), "The EXP-78 re-check".
+
 Run F part 2, 18 November 2026, unattended (the hidden game; the shots stay in `<lab>\hidden-runs\exp78-runF`).
 Staging first stopped on the farm's two spellings in Play in game (fixed the same evening: installs.same_map); after
 that, the play was staged under the variant's record with the farm's crash-site mission.

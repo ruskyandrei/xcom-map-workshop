@@ -294,8 +294,49 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-132: Pieces of other maps and made ground on the blank map were drawn black
+**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+- **Seen.** On the floors map (the blank map `CB2_MP_Blank`, built with the lighting baked) every made ground block
+  and patch was black, and so was every copy of another map's ground plane but the two StaticMeshActors. The made
+  walls and slabs were lit.
+- **Why.** The blank map's only light is a baked `DirectionalLight`, which its own pieces' lightmaps list. A piece
+  brought from another map is given this map's lights by native_copy.extra_lights, which offered only the point and
+  spot lights of the light registry. So those copies, and the ground shapes made on them, listed no light, and the
+  relight gave them bounce light alone (medians about 0.001 against the stage's own lit tops). The game's own maps
+  light by a dominant directional light (shadow maps, not a lightmap's list), so this showed only on the blank map.
+- **Fix.** extra_lights also offers the map's baked directional lights. Rebuilt, every such copy lists the light and
+  its top is relit at about 8.7. Relit with direct light only, our light on one of the stage's own planes is the
+  game's bake texel for texel (correlation 1.00, 4.37 against 4.39 at the median of its texels, half of which face
+  sideways), so the copies' tops match the stage's.
+
+### F-133: Ground shapes on donors saved without world geometry or stepping up
+**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+- **Seen.** A made block on URB_Demolition_EWI's grass plane (`XComLevelActor_13`) could be walked into, a soldier
+  standing sunk inside it, and the cursor read the ground on its top. A made block on URB_CommercialAlley's asphalt
+  (`StaticMeshActor_50`, made an XComLevelActor by F-130's fix) had its top picked by the cursor, and gave cover beside
+  it, but soldiers ordered onto it from beside it did not move, twice.
+- **Why.** native_copy.ground_collision turned the donor's collision and cover back on, but the grass plane also
+  saves `bWorldGeometry` off and the asphalt `bCanStepUpOn` off, and the copies kept them.
+- **Fix.** ground_collision turns both on where the donor saves them off (test_frac_walls GroundOnBackdrop and
+  GroundOnStaticMeshActor).
+
+### F-134: A made slab read its donor's texture from its own corner
+**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+- **Seen.** The made twin of the subway car roof (`SubwayCarRoof_FRACTURED`) showed the car's white side panel over
+  half its top, where the donor shows its tread.
+- **Why.** A slab look's texture maps are measured in the donor mesh's frame, whose origin is the donor's pivot (the
+  middle of the subway roof). A made slab is built from its own corner, and the maps were read at its own points. A
+  texture that repeats hides it; the subway roof's top is a window of an atlas that holds the car's sides beside it.
+- **Fix.** slab_measure records the donor box's centre (`measured.centre`), and frac_slab reads the maps with the
+  made slab's centre on it. The twin is built round the donor's centre, so the twin check compares the maps at the
+  same points. The made subway roof's top now spans the donor's window (v 0.015 to 0.509, the donor's 0.017 to
+  0.507). The slab catalogue was built again with the centres.
+
 ### F-130: The 3D cursor goes through a ground shape copied from a StaticMeshActor
-**Fixed offline, not played** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2).
+**Verified** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2; played again with
+[EXP-79](experiments/EXP-79-looks.md) run D: the cursor read the farm block's top on all four of its tiles, and a
+soldier walked onto it from the crater and stood on its top; on the blank map the asphalt block's top was the
+cursor's too).
 - **Seen.** On the farm, a made block and ramp in Dirt (copies of URB_MilitaryAmmo's `StaticMeshActor_67`): the
   cursor read the crater's height on most of the block's tiles, and a soldier sent onto its top stood at z 20.7, his
   legs inside it. Soldiers walking onto it from the field stood on its top, level with the field: its top is floor.
@@ -308,7 +349,9 @@ behaviour for these proposed edits still need direct observation.
   (frac_walls.retype_ground_copy). To be played.
 
 ### F-131: A deleted piece in the ground level alone got no rebuild volume
-**Fixed offline** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2).
+**Verified** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2; the re-check with
+[EXP-79](experiments/EXP-79-looks.md) run D read the save: at the old mound's tile (1871, -3025) the baked floor on
+level 3, the mound's top, is gone and a floor at about 0 stands on level 2, so the tile was rebuilt).
 - **Seen.** The farm's deleted ground plane (`XComLevelActor_145`, at -128 on a grid whose bottom is -129) was
   "outside the map's tiles" in the build's record and got no rebuild volume. Its tiles' baked floor stayed in the map;
   in the game the cursor landed at about -121 in the hole, with no path into it.
@@ -320,7 +363,9 @@ behaviour for these proposed edits still need direct observation.
   right now.
 
 ### F-129: A made ground block a storey high is climbed onto from its side
-**Open: the cause is not read** (18 November 2026, [EXP-77](experiments/EXP-77-ground.md) run F).
+**Open: the cause is not read** (18 November 2026, [EXP-77](experiments/EXP-77-ground.md) run F). In run D
+([EXP-79](experiments/EXP-79-looks.md)) a 64-high block whose copy kept its donor's `bCanStepUpOn` off was not
+climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComLevelActor by default.
 - **Seen.** A soldier east of a 96-high made block (in Asphalt, on URB_Bar's lot) ordered onto its top moved one
   tile and stood on it, 96 over the lot, with no detour by the ramp beside it. Beside the block he had high cover.
   The tiles beside a 64-high cover block read low cover with the climb-onto bit toward it.

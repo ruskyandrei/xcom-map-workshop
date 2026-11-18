@@ -28,6 +28,8 @@ import lightmap_texels  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 POLICE, NO_POLICE = labpaths.install_map('URB_PoliceStation')
+DEMOLITION, NO_DEMOLITION = labpaths.install_map('URB_Demolition_EWI')
+ALLEY, NO_ALLEY = labpaths.install_map('URB_CommercialAlley')
 PL = 'TheWorld.PersistentLevel.'
 DONOR = 'XComDecoFracLevelActor_17'
 DOOR = dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)
@@ -666,6 +668,59 @@ class MadeSlabs(unittest.TestCase):
         name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731
         self.assertTrue((name(self.sec['Roof']), name(self.sec['Under'])) in listings
                         or (name(self.sec['Under']), name(self.sec['Roof'])) in listings, listings)
+
+
+@unittest.skipUnless(DEMOLITION.exists(), NO_DEMOLITION)
+class GroundOnBackdrop(unittest.TestCase):
+    """(EXP-79 run D) A block made on URB_Demolition_EWI's grass plane (XComLevelActor_13), which saves its collision,
+    its cover and bWorldGeometry off: the game walked a soldier into a block made from it and never put the cursor on
+    its top. The copy collides, takes cover and is world geometry."""
+    DONOR = 'XComLevelActor_13'
+
+    def test_the_block_is_world_geometry_and_collides(self):
+        import native_copy
+        from package import Package
+        p = Package(DEMOLITION)
+        donor = p.by_name[PL + self.DONOR]
+        self.assertIs(p.effective(donor, 'bWorldGeometry', None), False)
+        with tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(DEMOLITION, Path(d), 'GroundOnBackdrop', [dict(
+                actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
+                rotation=[0, 0, 0], generated=dict(kind='ground', version=1, ground=dict(
+                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
+            q = Package(Path(d) / 'GroundOnBackdrop.upk')
+            (actor,) = [c['export'] for c in m['nativeCopies']['copies'] if c['label'] == 'Block']
+            for name, want in (('bWorldGeometry', True), ('bCollideActors', True), ('bPathColliding', True),
+                               ('bIgnoreForCover', False), ('bCanClimbOnto', True)):
+                self.assertIs(q.effective(actor, name, None), want, name)
+            comp = q.own(actor, 'StaticMeshComponent')
+            self.assertIs(q.effective(comp, 'CollideActors', None), True)
+            self.assertIs(q.effective(comp, 'BlockRigidBody', None), True)
+
+
+@unittest.skipUnless(ALLEY.exists(), NO_ALLEY)
+class GroundOnStaticMeshActor(unittest.TestCase):
+    """(EXP-79 run D) A block made on URB_CommercialAlley's asphalt (StaticMeshActor_50), which saves bCanStepUpOn and
+    its collision off: no soldier climbed onto a block made from it. The copy is an XComLevelActor (F-130) that can be
+    stepped up on."""
+    DONOR = 'StaticMeshActor_50'
+
+    def test_the_block_can_be_stepped_up_on(self):
+        import native_copy
+        from package import Package
+        p = Package(ALLEY)
+        donor = p.by_name[PL + self.DONOR]
+        self.assertIs(p.effective(donor, 'bCanStepUpOn', None), False)
+        with tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(ALLEY, Path(d), 'GroundOnStaticMeshActor', [dict(
+                actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
+                rotation=[0, 0, 0], generated=dict(kind='ground', version=1, ground=dict(
+                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
+            q = Package(Path(d) / 'GroundOnStaticMeshActor.upk')
+            (actor,) = [c['export'] for c in m['nativeCopies']['copies'] if c['label'] == 'Block']
+            self.assertEqual(q.cls(actor), 'XComLevelActor')
+            self.assertIs(q.effective(actor, 'bCanStepUpOn', None), True)
+            self.assertIs(q.effective(actor, 'bCollideActors', None), True)
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)

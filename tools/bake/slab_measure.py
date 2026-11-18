@@ -315,7 +315,9 @@ def measure_mesh(m, name, light=None, collision=None, lm_channel=1, scale=(1.0, 
         colours=dict(outside=outside, interior=inner or outside),
         lightmap=dict(density=_round(dens, 4) if dens else DEFAULT_DENSITY, **LIGHTMAP),
         measured=dict(size=[_round(v, 1) for v in size], triangles=int(len(T.tris)), fragments=len(frags),
-                      perTile=_round(per, 3), kind=kind))
+                      perTile=_round(per, 3), kind=kind,
+                      # the box's centre in the mesh's frame: a made slab's centre reads the maps here (frac_slab)
+                      centre=[_round(float(lo[0] + hi[0]) / 2, 2), _round(float(lo[1] + hi[1]) / 2, 2)]))
     facts = dict(role=role, kind=kind, thickness=_round(size[2]), layout=layout, size=[_round(v, 1) for v in size],
                  triangles=int(len(T.tris)), fragments=len(frags), repeats=words,
                  lightmap=dict(rect=rect, density=_round(dens, 4) if dens else None))
@@ -355,13 +357,18 @@ def measure(package, what):
 
 def twin_slab(recipe):
     """The slab numbers of the donor's size (whole tiles, at most frac_slab.MAX_TILES each way) in the recipe's frame:
-    from the corner of the donor's box (its centre's, for the size's rounding)."""
+    round the donor box's centre (`measured.centre`), so the twin stands where the donor does and its maps are the
+    donor's at the same points; from the frame's corner for a recipe without one."""
     import frac_slab
     sx, sy = recipe['measured']['size'][:2]
     t = recipe['tile']
     nx = min(frac_slab.MAX_TILES, max(1, int(round(sx / t))))
     ny = min(frac_slab.MAX_TILES, max(1, int(round(sy / t))))
-    return dict(x0=0.0, x1=nx * t, y0=0.0, y1=ny * t, seed=1)
+    centre = recipe['measured'].get('centre')
+    if not centre:
+        return dict(x0=0.0, x1=nx * t, y0=0.0, y1=ny * t, seed=1)
+    cx, cy = centre
+    return dict(x0=cx - nx * t / 2, x1=cx + nx * t / 2, y0=cy - ny * t / 2, y1=cy + ny * t / 2, seed=1)
 
 
 def twin(recipe, template=None):

@@ -31,6 +31,8 @@ DEMOLITION, NO_DEMOLITION = labpaths.test_file('XCOM_DEMOLITION_UPK', labpaths.l
                                                'URB_Demolition_EWI.upk')
 # a map whose only plain volume with a brush of the fallback classes is its lightmass importance volume (F-77)
 INTRO, NO_INTRO = labpaths.test_file('XCOM_INTRO_UPK', labpaths.lwr_cooked('Act1_IntroLevel.upk'), 'Act1_IntroLevel.upk')
+# the blank map, lit by one baked (not dominant) directional light (EXP-79 run D)
+BLANK, NO_BLANK = labpaths.test_file('XCOM_BLANK_UPK', labpaths.lwr_cooked('CB2_MP_Blank.upk'), 'CB2_MP_Blank.upk')
 PL = native_copy.PL
 
 
@@ -1146,6 +1148,42 @@ class VertexLit(unittest.TestCase):
             g.write(str(out))
             with self.assertRaisesRegex(ValueError, 'bulk record'):
                 native_copy.check_vertex_lightmaps(lighting.Package(out), info['mapping'])
+
+
+@unittest.skipUnless(BLANK.exists(), NO_BLANK)
+class BakedDirectionalLight(unittest.TestCase):
+    """(EXP-79 run D) The blank map's only light is a baked DirectionalLight, which its own pieces' lightmaps list. A
+    piece of another map, or a ground shape made from one, brought onto it is given that light, as the point and spot
+    lights of a game map are: without it the relight gave it bounce light alone and it was drawn black."""
+
+    def test_a_piece_of_another_map_is_given_the_maps_directional_light(self):
+        import native_lights
+        p = lighting.Package(BLANK)
+        light = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'DirectionalLightComponent'
+                 and p.name(i).startswith(PL)]
+        self.assertEqual(len(light), 1)
+        # a ground plane of the map's own, treated as a piece of another map (its list taken as none of this map's)
+        plane = next(i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'StaticMeshComponent'
+                     and p.name(i).startswith(PL + 'XComLevelActor_')
+                     and lighting.component_record(p, i)['lods'][0]['lightmap'].get('type') == 2)
+        extra = native_copy.extra_lights(p, plane, [0.0, 0.0, 4.0], [0, 0, 0], fresh=True,
+                                         lights=list(native_lights.source_registry(p).values()))
+        (found,) = [x for x in extra if x['light'] == p.name(light[0])]
+        self.assertTrue(found['kept'])
+        field = native_copy.guid_field(p, list(native_lights.source_registry(p).values()))
+        self.assertEqual(found['guid'], bytes(p.effective(light[0], field)))
+        # its own list holds the light already: nothing is added
+        self.assertEqual([x for x in native_copy.extra_lights(p, plane, [0.0, 0.0, 4.0], [0, 0, 0])
+                          if x['light'] == p.name(light[0])], [])
+
+    @unittest.skipUnless(BAR.exists(), NO_BAR)
+    def test_a_dominant_light_is_not_listed(self):
+        # URB_Bar's moon is a dominant light: it lights by shadow maps, never a lightmap's list
+        p = lighting.Package(BAR)
+        old = p.by_name[PL + 'XComLevelActor_37']
+        comp = p.own(old, 'StaticMeshComponent')
+        extra = native_copy.extra_lights(p, comp, (-1155.0, -1874.4, 0.0), p.own(old, 'Rotation', [0, 0, 0]), fresh=True)
+        self.assertFalse([x for x in extra if 'Directional' in x['light']])
 
 
 if __name__ == '__main__':
