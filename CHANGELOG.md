@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The walls' catalogue: every wall of the install as a look (custom geometry M4, work order A, step 3)
+
+- [wall_catalogue.py](tools/bake/wall_catalogue.py) `build` writes [looks/walls.json](tools/bake/looks/walls.json):
+  the 344 walls of the wall-look audit, each measured by wall_measure.py and given its twin check. Each entry holds
+  the placing to copy, the maps it is placed in, a name from the mesh's name, the audit's setting, `lwrOnly`, its
+  facts, warnings, twin ('ok' or what differs) and recipe. `check` says whether a fresh build gives the file's bytes.
+  - The placing to copy is at scale 1: seven of the audit's placings were scaled and have another at scale 1 in their
+    maps; every wall has one.
+  - lwrOnly: true when the donor's map isn't Firaxis-cooked (its package's licensee isn't 64; Long War Rebalance's own
+    packages are licensee 0 and none holds a fracturing piece). Every donor map is Firaxis's, so no look needs Long
+    War Rebalance; the rule is in the file's `about`.
+- The twins: 326 of 344 ok. By verdict: swept 92 of 92, swept with openings 133 of 138, swept with framed openings
+  53 of 62, mostly swept 8 of 8, modelled 40 of 44. The 18 others have a top (14) or a bottom (4) that isn't level
+  in the donor (gables, slopes); the made wall's is flat, as their warning says. The 44 modelled walls carry "its
+  window frames and ledges aren't made".
+- [wall_measure.py](tools/bake/wall_measure.py): a donor that is no fracturing piece is a ValueError (it ended the
+  program before); the sweep no longer prints numpy's warning for heights with no face.
+- Checked: two builds with different hash seeds give the same bytes, and `check` passes on the file. Every look's
+  wall builds closed in four shapes (step 2's check). The file holds no folder of this computer.
+- Known gaps: inside or outside is the audit's guess by name and materials (16 unsure, 14 the UFOs'); the names are
+  the mesh's words; the file is 1.2 MB (one look a line).
+
 ### Walls in the look of any of the game's walls (custom geometry M4, work order A, step 2)
 
 - [frac_wall.py](tools/bake/frac_wall.py) builds from any recipe the measurer gives. A wall's `look` is an id of

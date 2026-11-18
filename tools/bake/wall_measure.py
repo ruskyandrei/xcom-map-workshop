@@ -73,6 +73,7 @@ import math
 from pathlib import Path
 import re
 import sys
+import warnings
 
 import numpy as np
 
@@ -294,7 +295,8 @@ def sweep(g, centre, half):
     near_edge = np.array([min(abs(x - e) for e in edges) < zone for x in xs])
     body = ~near_edge if (~near_edge).sum() >= 3 else np.ones(len(xs), bool)
     basis = full & body if (full & body).sum() >= 3 else (full if full.sum() >= 3 else np.ones(len(xs), bool))
-    with np.errstate(all='ignore'):
+    with np.errstate(all='ignore'), warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning)     # (heights no cut has a face at: NaN, as meant)
         ref_p = np.nanmedian(np.where(basis[:, None], plus, np.nan), 0)
         ref_m = np.nanmedian(np.where(basis[:, None], minus, np.nan), 0)
     dev = []
