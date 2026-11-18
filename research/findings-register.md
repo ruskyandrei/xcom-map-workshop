@@ -12,9 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
-  editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
-  destroys that dust on every load anyway (F-120), so this matters for plain EW.
+- F-119: a moved landing left the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; fixed
+  offline in export 35 (18 November: the dust is the Skyranger's `dust` and moves with it); not looked at in the
+  game. Under Long War the mutator destroys that dust on every load anyway (F-120), so this matters for plain EW.
 - F-117, F-118: a variant replacing Commercial Alley Redux now keeps the first mission's record name, and Replace
   comments out only the base map's records the variant has records for, so the first mission always has a map
   (fixed offline, 17 November); not played in a new campaign.
@@ -289,6 +289,26 @@ points and initialises pods. Scripted reinforcements use a later hook.
 The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
+
+### F-125: Edited no-spawn volumes keep a pod's other aliens out; with their aliens switch off they let them in
+**Verified** (18 November 2026, EXP-72 run 17: the volume edits of export 34).
+- **What the game does.** `XComAlienPod.GetSpawnPoint` puts a pod's first alien on the pod's own place and each other
+  one on a ring round it (radius 96 x N / 3 for N aliens), moved by `GetClosestValidLocation(..., bAvoidNoSpawnZones =
+  true)` to the nearest valid place outside every `XComNoSpawnVolume` whose `AlienNoSpawnZone` is on. The first alien
+  is never moved. The tiles carry no no-spawn flag (the Bar's tiles inside its volumes share no bit the rest lack), so
+  the volumes are read as they stand.
+- **Played.** `X72Volumes`, a build of URB_Bar: its five pods deleted, four copies of a deleted pod on its old pod
+  places, Long War's pod and Meld mutators out of the lab loader. Pod 5, in `XComNoSpawnVolume_0` stretched to 7 by 7
+  tiles, and pod 7, in a 7 by 7 copy of another volume, each had their second alien put on the first tile past the
+  box's edge, 4 tiles out (run 6 had aliens within 1.3 tiles of those places with no volume there). Pod 6, in a 5 by 5
+  copy with `AlienNoSpawnZone` off, had its other two on the ring a tile out, as had the control pod 8 with no volume.
+  So a stretched volume (its `DrawScale3D` over the shared brush), a cloned one and the switch are all read as the
+  Build writes them.
+- **How to read it.** Before XCOM's first turn the game revealed all four pods and their aliens moved to cover, so
+  where they stand at turn 1 says nothing. The places the game first worked out stay in the level as
+  `XComSpawnPoint_Alien` actors (`getall XComSpawnPoint_Alien Location`), in pod order.
+- **Not played:** civilians (`CivilianNoSpawnZone`), volumes under Long War's own pod and Meld placement, and plain
+  Enemy Within.
 
 ### F-124: A moved bomb leaves its helper point behind, and Long War then places nothing
 **Verified** (read offline on 18 November 2026, from the decompiled bomb mutator and the installed Slaughterhouse
@@ -2627,7 +2647,8 @@ word; not looked at in the game).
   another, and beside the intro's parked dropship at the start.
 
 ### F-119: A moved landing leaves the grounded Skyranger's dust where the landing was
-**Open** (17 November 2026, found offline in FX3's clear and landing check; not seen in the game).
+**Fixed** (17 November 2026, found offline in FX3's clear and landing check; fixed offline in export 35 on
+18 November; not seen in the game).
 - **Seen.** A cleared Bar with its landing moved four tiles east and turned (`clear_bar_project.py`'s first zone), built
   quick and read back: the grounded Skyranger (`XComLevelActor_138`), its idle lights (`Emitter_78`) and its idle sound
   (`AmbientSoundSimpleToggleable_0`) moved by one transform, from (560, -2971) to (-188, -1521), but `Emitter_0`
@@ -2640,6 +2661,11 @@ word; not looked at in the game).
 - **Fix to try.** Carry `LANDING_EXTRA` actors with the moved landing by the Skyranger's transform, give them a role in
   the export (say `dust`) so the page shifts their markers with the zone, and look in the game at a moved landing after
   the intro.
+- **Fixed** in export 35 (18 November 2026): `scene_metadata.landing_metadata` lists the dust with the nearest
+  grounded Skyranger (within 2,500 units) as role `dust`, so `native_spawns.plan` moves it with the ship, its lights
+  and its sound, and the page shifts its marker with the zone. `test_native_spawns` BarMoved reads it back at its new
+  place (15 actors moved). Not looked at in the game: under Long War the mutator destroys it on every load anyway
+  (F-120), and the hidden game has not played plain Enemy Within.
 
 ## Toolchain
 

@@ -290,3 +290,44 @@ pointed at the mouse; runs 15 and 16 showed otherwise.
 outside (`reload-notexmem`), the load went through and the shot showed the squad on the Bar with a Meld canister
 beside them; then through hidden_game.py's own `<out>\dxvk.conf` (`reload-fixed`), the same, with 18 units read back
 after the load. Run 5 can now be played.
+
+## Run 17: edited no-spawn volumes, and pods copied from a deleted pod (the clear-spawns work, export 34)
+
+**Played 18 November 2026: passed** (out folder `<lab>\hidden-runs\x72-volumes`; F-125).
+
+`X72Volumes`, a build of URB_Bar staged by a dry Play in game (an Abduction, the test squad), with Long War's pod and
+Meld mutators commented out of the lab loader as in runs 6 to 8 (no line of either in the log; the loader put back
+byte for byte afterwards). The project, made in the editor:
+
+- the map's five pods deleted, as Clear map deletes them;
+- four copies of pod 1, made before it was deleted (the copies-of-a-deleted-pod case the writer used to refuse),
+  each moved onto one of the map's pod places: pod 5 on pod 1's (-912, -144), pod 6 on pod 2's (-912, 432), pod 7 on
+  pod 3's (-1392, 912), pod 8 on pod 4's (-2064, 432);
+- `XComNoSpawnVolume_0` stretched from the van to 7 by 7 tiles round pod 5 (x -1248 to -576, y -480 to 192);
+- a copy of `XComNoSpawnVolume_2`, 7 by 7 tiles round pod 7 (x -1728 to -1056, y 576 to 1248);
+- a copy of `XComNoSpawnVolume_3`, 5 by 5 tiles round pod 6 (x -1152 to -672, y 192 to 672), Keeps aliens out off;
+- pod 8 in no volume (the control).
+
+The build read back offline as made. In the game:
+
+- **The pods.** Only pods 5 to 8 exist, with indices 5 to 8 and 2, 3, 2 and 2 aliens. `AlienNoSpawnZone` reads
+  False on the copy round pod 6 and True on every other volume.
+- **Where the aliens were put** (`getall XComSpawnPoint_Alien Location`, the places `GetSpawnPoint` worked out, in
+  pod order):
+
+  | Pod | Volume | Alien 0 | Alien 1 | Alien 2 |
+  | --- | --- | --- | --- | --- |
+  | 5 | stretched, keeps aliens out | on the pod | (-529, -145): 4 tiles, the first tile past the east edge | |
+  | 6 | copy, aliens off | on the pod | 1 tile, inside | 1 tile, inside |
+  | 7 | copy, keeps aliens out | on the pod | (-1297, 527): 4.1 tiles, the first tile past the south edge | |
+  | 8 | none | on the pod | 1 tile | |
+
+  Without the volumes the second aliens of pods 5 and 7 would have stood a tile off, as run 6's did on those places.
+- **Turn 1 is not the evidence.** Before XCOM's first turn the game revealed all four pods one after another and
+  their aliens moved to cover (four "Pod Revealed" lines, then "Enemy Contact: Off Guard (x1) (9 active aliens)"), so
+  at turn 1 even the control pod's aliens stood 5 and 7.6 tiles away. The three shots with the fog lifted show those
+  places after the moves, not the rule.
+- **The battle goes on.** Alien turn 1 played out and XCOM turn 2 came with no crash.
+
+So the game honours a stretched volume, a copied one and the aliens switch as the Build writes them, and deploys
+aliens at pods copied from a deleted pod. Civilians (`CivilianNoSpawnZone`) were not played.
