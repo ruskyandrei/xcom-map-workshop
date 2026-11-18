@@ -8,6 +8,128 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Branch fracturing-wall-poc: main merged in again
+
+Main merged into the custom walls branch before the custom geometry plan's stage M1 (main at `e1a48d2`: clear map's
+spawn points and no-spawn volumes, the Skyranger kept drawn on a clear, EXP-72 run 17). One conflict, this ledger:
+both sides kept, main's newer entries first.
+
+Checked: the viewer, editor, repo, node, bake and upk suites pass on the merged branch.
+
+### Clear map: the Skyranger stays drawn with its effects; the map's ambient sounds go; the Skyranger's dust moves with it
+
+The user, on a cleared Bar: effect and sound markers were left in the play area, and the Skyranger's effects stayed
+though the Skyranger itself was gone ("either leave the skyranger and its effects on a clear or remove both").
+
+- **The Skyranger was never taken out; the view hid it.** The clear keeps the landing's pieces, and the Build left
+  the Skyranger where it was. But the page took the kept zone for moved and hid the Skyranger and the drop zone's
+  frame, drawing an outline in their place, while it still drew their lights and dust. The zone is the install's line
+  joined with the map's own landing, and on the Bar that line stands a unit off the frame (719 against 719.9998). The
+  page's test allowed half a unit; the Build's (native_spawns.py `unmoved`) allows 4 units for the frame and the
+  soldier points. Before a clear the page has no zone list of its own, so the test never ran. The clear writes one,
+  and the Skyranger vanished. [spawns.js](tools/viewer/web/spawns.js) `landingUnmoved` now follows the Build's rule,
+  and [app.js](tools/viewer/web/app.js) `movedLandingActors` and `landingShifts` use it.
+- **The map's ambient sounds go with a clear** ([native_copy.py](tools/bake/native_copy.py): the AmbientSound
+  classes moved from `CLEAR_KEEP` to `CLEAR_OUT` and `KEEP_OUTSIDE`). They follow the emitters' rule: the
+  landing's stay (the Skyranger's sound), so do those outside the play area when the tick keeps the scenery outside,
+  one the project moved (the sounds lane's moves join `effect_moved`), and the project's copies (made after the
+  clear). [effects_rules.js](tools/viewer/web/effects_rules.js) `survivesClear` no longer keeps every sound. Sounds
+  stayed before because the clear came before sounds could be edited.
+- **The Skyranger's dust moves with it** (export 35): the ARC_Skyranger_Ground_Periphery emitter stands beside the
+  Skyranger's prefab, not in it. [scene_metadata.py](tools/viewer/scene_metadata.py) `landing_metadata` lists it with
+  the nearest Skyranger (within 2,500 units) as role `dust`. A moved zone now carries it with the Skyranger's mesh,
+  lights and sound, in the Build (native_spawns `plan`) and in the view; before, it stayed where the Skyranger had
+  been. The Farm's Skyrangers have none.
+- **The Clear window** (`clearedEffects`) counts the effects and ambient sounds it removes and the landing's it
+  keeps: on the Bar "Removes 964 pieces, 254 lights, 9 spawn points (...), 70 effects and 5 ambient sounds. Keeps the
+  landing's 2 pieces and its 3 effects and sounds, ...".
+- The guide ([guide.html](tools/release/guide/guide.html)): the Clear map window's counts and what stays (the
+  Skyranger's lights, dust and sound), the tick keeping sounds outside, and "Effects and ambient sounds go with the
+  clear". The `clear-map` picture is retaken (its new counts; 484 by 379).
+- Checked:
+  - node tests: clear_map (`landingUnmoved`: the Bar's line a unit off its frame is unmoved; a tile off, or turned,
+    is moved; a frameless landing by its fitted zone) and effects_rules (a sound goes, one outside stays with the
+    tick, the landing's stays);
+  - the viewer suite (test_spawns: the Bar's Skyranger lists its dust Emitter_0);
+  - bake tests:
+    - ClearLevel: the Bar's five ambient sounds go; the Skyranger's lights, dust and sound stay as the landing's;
+    - BarMoved: a moved zone moves 15 actors, the dust among them;
+    - Lanes: a cleared build keeps the moved sound, its copy and the Skyranger's, and takes the map's other four;
+  - editor and repo suites;
+  - the browser smoke `--only spawns,clear-map,effects` on a test server. After a clear no landing piece is taken for
+    moved, and only the landing's effects and sounds are left. The window names the ambient sounds.
+  - On the test server, a cleared Bar shows its Skyranger with its lights and dust. Not built in the game.
+
+### Clear map deletes the map's spawn points; no-spawn volumes are edited and added; multiplayer starts hidden
+
+The user, on a cleared Bar: the map's pods, Meld points and grey points stayed. Asked what the grey points and the
+no-spawn volumes are: "If no spawn points matter then leave them in, but make them editable and allow them to be
+added via the add panel".
+
+- **Clear map** ([app.js](tools/viewer/web/app.js) `clearedSpawns`, `clearMap`): deletes the map's pods, Meld points
+  and drop-in points in the clear's one undo step, but one something names (the Build would keep it and warn: it
+  stays, with its edit, and the window names it), and takes away the project's copies of them. No-spawn volumes and
+  the mission streams' objects stay. The window counts the spawn points it removes and the volumes it keeps; its
+  plain Enemy Within note now says to place pods with the Add panel. A pod or Meld point copied from a deleted one
+  builds: [native_spawns.py](tools/bake/native_spawns.py) no longer refuses a copy whose template the same edit
+  deletes (the template stays in the package, off the level's list).
+- **Deleted points hidden** ([spawns_view.js](tools/viewer/web/spawns_view.js) `shownEntries`): a base point the
+  project deletes is drawn only with the Spawns flyout's new **Deleted points** switch (off at first), pale, to be
+  restored ([index.html](tools/viewer/web/index.html)).
+- **Multiplayer teams' starts** (XComSpawnPoint unit types 8 and 9, the Bar's twelve grey points) get no marker:
+  single player never uses them, and Long War's landing mutator logs them as bad spawn points.
+- **No-spawn volumes edited** (export 34, [scene_metadata.py](tools/viewer/scene_metadata.py) `SPAWN_VALUES`: their
+  `aliens` and `civilians` switches, AlienNoSpawnZone and CivilianNoSpawnZone, both on in the class default):
+  - the Spawns view draws each as a grey box round its marker; picked, its arrows move it by whole tiles and levels
+    and the Buildings view's six white face handles move a side to tile lines and levels (Alt: steps of 8), each one
+    undo step; Copy (Ctrl+D, a tile east, its size), Delete, Restore, and two ticks, Keeps aliens out and Keeps
+    civilians out;
+  - the Add panel's **Spawn points** has **No-spawn volume** on every map: a copy of the map's first volume, its size,
+    over whole tiles round the click, or on a map with none a new 3 by 3 tile, four-level volume
+    ([pieces.js](tools/viewer/web/pieces.js) draws its icon);
+  - the project's records ([project.js](tools/viewer/web/project.js)): an override with `box` [x0, y0, z0, x1, y1, z1]
+    and/or `spawn`, never a pose; an added `kind: "noSpawn"` record with `box`, `from` its template or none;
+  - [compiler.py](tools/editor/compiler.py): `noSpawn` among `SPAWN_EDIT_KINDS` and `SPAWN_COPY_KINDS`
+    (`spawn_box`, `volume_add`); a pose on a volume, a box on a point, an empty box or a value of another kind is
+    refused; the lane's move of a volume carries its `box`;
+  - the writer: a volume's move sets its Location and DrawScale3D (unturned) so its brush spans the box; a copy is the
+    template cloned over its box, and a new one the map's first plain no-spawn volume or, on a map with none, the
+    rebuild volume's template retyped ([native_copy.py](tools/bake/native_copy.py) `add_volume`, `volume_pose`:
+    `add_rebuild_volume` is now one of its uses); `verify` reads back each volume's scale.
+- Placing a new spawn point from the Add panel lets go of the picked one, whose arrows had taken the click.
+- **Pods lose Turn left and Turn right** (the user: "pods aren't aimed at anything", then "can we just get rid of
+  those facing buttons ?"). Their titles said they set "the way its aliens face when they deploy", but the game's
+  script (XComAlienPod.GetDistributedLocationAround) puts the first alien on the pod's place and the rest evenly
+  round it from the pod's facing, each facing the middle: the facing only picks which tiles round it they take. The
+  panel ([app.js](tools/viewer/web/app.js) `TURNED_KINDS`, `spawnEditControls`) and [ and ] turn only a drop-in point
+  (asked why it keeps its turn: its facing is the only one that changes the game, since a unit dropped from a height,
+  as a wave's are from 768 up, starts a tile behind it and lands on it facing its way:
+  XGAISpawnMethod_DropIn.OnActivate_UpdateSpawnPoint and XComWaveSystem's DropHeight; its buttons' titles and the
+  guide now say so); a picked pod draws no facing arrow, and its turn and copy buttons sit in
+  rows of their own (`turnrow`, `copyrow`, the first left out when empty). A pod turn already saved in a project
+  still builds.
+- [spawn_rules.js](tools/viewer/web/spawn_rules.js): a volume's In the game line says who it keeps out and that Long
+  War's own pod and Meld places don't look at it.
+- The guide ([guide.html](tools/release/guide/guide.html)): No-spawn volumes (`#nospawn`) with a new picture
+  `spawns-volume`; the flyout's switches (Deleted points, multiplayer starts never shown); Copy and Delete for volumes;
+  Clear map's bullet and task step (the points go, the volumes stay, plain Enemy Within places pods with the Add panel);
+  the Add panel's Spawn points; the kinds table. Retaken `spawns` (no grey points: its mark 5 dropped, the legend
+  renumbered, and again for the pod's turn buttons taken out: mark 6 dropped) and `spawns-flyout`; the pod's turn
+  taken out of the legend, the task, the keys and the kinds table; [take_shots.py](tools/release/guide/take_shots.py)
+  has the `spawns-volume` shot, and its panel marks find the copy row by its class.
+  The Clear map picture is retaken with the next change (its counts change again there).
+- Checked: node tests (spawns_view: hidden multiplayer points and deleted points, the volume's edits, overrides,
+  copies, placing; project_spawns: the new records), the compiler test
+  `test_no_spawn_volumes_are_sized_given_values_copied_made_and_deleted`, the bake tests `BarNoSpawnVolumes` on the
+  Bar (a volume stretched in place, a copy, a new one, a retyped one, a pod copied from a deleted pod: each volume's
+  brush read back over its box) and native_copy, clear_level, cover_blocks, native_flags and shell for the rebuild
+  volume's refactor, the export test (the Bar's volumes' values), the browser smoke `--only spawns,clear-map` (a
+  volume's handle dragged by the mouse, moved, copied, its tick; the Add panel's volume; a pod with no turn button
+  and ] leaving it unturned; the clear's deletes), and a
+  Build on a test server of a cleared Bar with a stretched volume, two copies and a new pod, read back. Not played in
+  the game: the tile data has no no-spawn flag (the Bar's tiles inside its volumes share no bit the rest lack), so the
+  game reads the volumes as they stand, as it reads this project's stretched floor volumes (EXP-32).
+
 ### Branch fracturing-wall-poc: main merged in
 
 The custom walls branch stays out of main until the feature works in the editor; main is merged into it to keep it

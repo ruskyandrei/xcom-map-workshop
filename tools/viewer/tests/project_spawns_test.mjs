@@ -39,4 +39,18 @@ assert.ok(validAdded({ ...copy, kind: 'meld', spawn: { difficulty: 'Hard' } }));
 assert.ok(validOverride({ target: T, deleted: true }));
 for (const bad of [{ ...copy, from: undefined }, { ...copy, components: ['x'] }, { ...copy, spawn: [] }, { ...copy, location: [0, 0] }, { ...copy, kind: 'dropIn' }])
   assert.ok(!validAdded(bad), JSON.stringify(bad));
+
+// a no-spawn volume (its volume edits): an override of its box, its values or both, never a pose; an added one (a copy,
+// or a new one with no `from`) placed by its box alone
+const V = { ...T, actor: 'TheWorld.PersistentLevel.XComNoSpawnVolume_0' }, box = [0, 0, 0, 96, 96, 256];
+assert.ok(validOverride({ target: V, box }));
+assert.ok(validOverride({ target: V, box, spawn: { civilians: false } }));
+assert.ok(validOverride({ target: V, spawn: { aliens: false } }));
+for (const bad of [{ target: V, box: [0, 0, 0, 96, 96] }, { target: V, box, location: [0, 0, 0], rotation: [0, 0, 0] }, { target: V, box, flags: {} },
+                   { target: V, box: [0, 0, 0, 0, 96, 256] }]) assert.ok(!validOverride(bad), JSON.stringify(bad));
+const volume = { id: 'v1', kind: 'noSpawn', actor: 'TheWorld.PersistentLevel.XComNoSpawnVolume_copy1', box };
+assert.ok(validAdded(volume));
+assert.ok(validAdded({ ...volume, from: V, spawn: { aliens: false } }));
+for (const bad of [{ ...volume, box: undefined }, { ...volume, location: [0, 0, 0], rotation: [0, 0, 0] }, { ...volume, from: 'x' }, { ...volume, components: ['x'] }])
+  assert.ok(!validAdded(bad), JSON.stringify(bad));
 console.log('project_spawns_test: ok');

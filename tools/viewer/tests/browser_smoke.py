@@ -1302,6 +1302,10 @@ def check_clear_map(page):
     text = page.locator('#clearMap').inner_text()
     assert 'Removes %d piece' % plan['pieces'] in text and 'one landing zone' in text, text
     assert page.locator('#clearMap input[type=number]').count() == 0
+    # the map's ambient sounds go with the clear, but the landing's (the user, 18 November 2026)
+    sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
+    if sounds:
+        assert ('%d ambient sound' % sounds) in text, text
     page.keyboard.press('Escape')
     # what the cleared map is for (mission types plan, D2): the dialog says it asks; a clear from the dialog asks "What
     # is this map for?", the header's abduction or terror ticked (else an abduction); OK sets the missions, one undo
@@ -1337,11 +1341,27 @@ def check_clear_map(page):
     state = page.evaluate('viewer.editState()')
     assert state['cleared'] is True and sum(1 for o in state['overrides'] if o.get('deleted')) >= plan['pieces'], len(state['overrides'])
     assert page.evaluate('viewer.lastClearMs()') < 1000
+    # the map's pods, Meld points and drop-in points go with it, but one something names; its no-spawn volumes stay; the
+    # deleted points draw no marker (the user, 18 November 2026)
+    if page.evaluate('viewer.spawnAddEntries().length'):
+        recs = page.evaluate('(viewer.data.spawns ?? []).filter(o => !o.landing)')
+        gone = {m['actor'] for m in page.evaluate('viewer.spawnEdits()') if m.get('deleted')}
+        want = {o['actor'] for o in recs if o['kind'] in ('pod', 'meld', 'dropIn') and o.get('listed') is not False and not o.get('unread')
+                and not o.get('uses') and not o.get('referencedBy')}
+        assert gone == want, (gone ^ want)
+        assert not any(s['marked'] for s in page.evaluate('viewer.spawns()') if s['actor'] in gone)
     # one landing zone left: the map's own first landing, used by both games
     left = page.evaluate('viewer.zones()')
     first_own = next((z for z in before_zones if z.get('ew')), before_zones[0])
     assert len(left) == 1 and left[0]['id'] == first_own['id'] and left[0].get('lwr') is not False, left
     assert left[0].get('ew') is (True if page.evaluate('viewer.ownLandingCount()') else None), left
+    # the zone left is where the map has its landing (the Bar's line a unit off its frame), so its Skyranger isn't
+    # taken for moved and hidden; it stays with its lights, dust and sound, and no other effect or sound is left
+    assert page.evaluate('viewer.movedLandingActors()') == [], page.evaluate('viewer.movedLandingActors()')
+    page.evaluate('viewer.effectMarkers()')
+    left_fx = page.evaluate("""() => [...viewer.effectRoots.values()].filter(r => r.userData.there).map(r => r.userData.source)
+                                .filter(o => !o.added && !o.stream).map(o => [o.actor, o.kind, Boolean(o.landingActor)])""")
+    assert all(landing for _, _, landing in left_fx), left_fx
     # zones are picked in the Landing zones view only (Shift+Z): drawn over everything, a click on one (its number
     # badge here) picks it and never a piece; the normal view's clicks go to pieces; the Lights view takes over
     badge_at = """() => { let b = null; viewer.landingLayer.traverse(o => { if (o.userData.zoneBadge) b = o; });
@@ -3941,8 +3961,8 @@ def check_spawn_edits(page):
     map was."""
     if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && Array.isArray(viewer.data.spawns)'): return
     entries = page.evaluate('viewer.spawnAddEntries().map(e => e.name)')
-    if not entries: return      # the spawn family doesn't build on this server, or the map has no plain pod or Meld point
-    assert set(entries) <= {'Pod', 'Meld point'}, entries
+    if not entries: return      # the spawn family doesn't build on this server
+    assert set(entries) <= {'Pod', 'Meld point', 'No-spawn volume'} and 'No-spawn volume' in entries, entries
     normal = page.evaluate('viewer.normalSpawns()')
     before = page.evaluate('viewer.changes().total')
     page.evaluate('viewer.select(null); viewer.pickSpawn(null); viewer.setSpawnsShown(true)')
@@ -3951,8 +3971,13 @@ def check_spawn_edits(page):
     moves = lambda: page.evaluate('viewer.missionMoves()')
     halo = lambda key: page.evaluate('k => viewer.spawnLayer.children.find(m => m.userData.spawn === k)?.userData.halo?.scale.x ?? null', key)
     undo = lambda n=1: [page.keyboard.press('Control+z') for _ in range(n)]
-    shown = page.evaluate('viewer.spawnLayer.children.map(m => m.userData.halo ? m.userData.halo.scale.x : null)')
+    shown = page.evaluate('viewer.spawnLayer.children.filter(m => m.userData.spawn).map(m => m.userData.halo ? m.userData.halo.scale.x : null)')
     assert shown and all(s == 2.6 for s in shown), shown
+    # multiplayer teams' starts get no marker; a no-spawn volume is drawn with its box
+    mp = page.evaluate("(viewer.data.spawns ?? []).filter(o => o.kind === 'point' && [8, 9].includes(o.unitType)).map(o => o.actor)")
+    assert not any(s['marked'] for s in spawns() if s['actor'] in mp)
+    assert page.evaluate("viewer.spawnLayer.children.filter(m => m.userData.spawnBox).length") == \
+        sum(1 for s in spawns() if s['kind'] == 'noSpawn' and s['marked'])
     # a plain pod: one Ctrl+D copies (a pod with a flag, a forced type or links isn't copied)
     pods = [s for s in spawns() if s['kind'] == 'pod' and s['layer'] == 'base']
     pod = copy = None
@@ -3968,27 +3993,77 @@ def check_spawn_edits(page):
         assert halo(copy) > 2.6 and halo(pod['key']) == 2.6
         page.keyboard.press('Delete')
         assert not any(s['key'] == copy for s in spawns()) and not moves()
-        # the pod moved a tile, turned a quarter, given a value: three undo steps
+        # the pod moved a tile and given a value: two undo steps; a pod has no turn (its facing aims nothing), so
+        # neither its panel nor ] turns it
         page.evaluate('k => viewer.pickSpawn(k)', pod['key'])
         assert page.evaluate('viewer.spawnEditShown()')
+        assert page.locator('#spawnEdit button', has_text='Turn').count() == 0
         assert page.evaluate('p => viewer.moveMissionGroup(null, p.actor, [96, 0, 0])', pod)
         at = next(s for s in spawns() if s['key'] == pod['key'])['at']
         assert abs(at[0] - pod['at'][0] - 96) < 1e-3, at
         yaw = lambda: next(m for m in moves() if m['stream'] is None and m['actor'] == pod['actor'])['rotation'][1]
         was = yaw()
         page.keyboard.press(']')
-        assert yaw() - was == 16384, (was, yaw())
+        assert yaw() == was, (was, yaw())
         assert page.evaluate("a => viewer.editBaseSpawn(a, { spawn: { commander: true } }) || viewer.editBaseSpawn(a, { spawn: { commander: false } })", pod['actor'])
         assert page.evaluate('viewer.changes().total') > before
-        undo(3)
+        undo(2)
         assert not moves(), moves()
     meld = next((s for s in spawns() if s['kind'] == 'meld' and s['layer'] == 'base'), None)
     if meld:
         page.evaluate('k => viewer.pickSpawn(k)', meld['key'])
         page.keyboard.press('Delete')
         assert [m.get('deleted') for m in moves() if m['actor'] == meld['actor']] == [True], moves()
+        # (a deleted point shows only with the flyout's Deleted points switch)
+        assert not next(s for s in spawns() if s['key'] == meld['key'])['marked']
+        page.evaluate("viewer.setSpawnFilter('deleted', true)")
+        assert next(s for s in spawns() if s['key'] == meld['key'])['marked']
+        page.evaluate("viewer.setSpawnFilter('deleted', false)")
         undo()
         assert not moves()
+    # a no-spawn volume: its east side's handle dragged two tiles out (whole tiles, one undo step), its arrows moving it
+    # a tile and a level, Ctrl+D copying it a tile east with its size, its civilians tick off; four undo steps
+    vol = next((s for s in spawns() if s['kind'] == 'noSpawn' and s['layer'] == 'base'), None)
+    if vol:
+        page.evaluate('a => viewer.showSpawn(a, null)', vol['actor'])
+        page.evaluate("document.activeElement && document.activeElement.blur(); viewer.setNormalSpawns(false); viewer.setSpawnsShown(true)")
+        page.evaluate('k => viewer.pickSpawn(k)', vol['key'])
+        page.wait_for_timeout(100)
+        handles = page.evaluate('viewer.spawnVolumeHandles()')
+        assert handles and sorted(handles) == ['x0', 'x1', 'y0', 'y1', 'z0', 'z1'], handles
+        b0 = vol['box']
+        mid = [(b0[1] + b0[4]) / 2, (b0[2] + b0[5]) / 2]
+        a = page.evaluate('p => viewer.screenOf(p)', [b0[3], *mid])
+        b = page.evaluate('p => viewer.screenOf(p)', [b0[3] + 192, *mid])
+        h = handles['x1']
+        page.mouse.move(*h); page.wait_for_timeout(30)
+        page.mouse.down(); page.mouse.move(h[0] + b[0] - a[0], h[1] + b[1] - a[1], steps=12); page.mouse.up()
+        page.wait_for_timeout(50)
+        now = next(s for s in spawns() if s['key'] == vol['key'])['box']
+        # (an edited box is kept to a thousandth of a unit: the map's -863.9998 is -864)
+        assert all(abs(now[k] - b0[k] - (192 if k == 3 else 0)) < 1e-2 for k in range(6)), (b0, now)
+        assert [m['box'] for m in moves() if m['actor'] == vol['actor']] == [now], moves()
+        assert page.evaluate('v => viewer.moveMissionGroup(null, v.actor, [0, 96, 64])', vol)
+        moved = next(s for s in spawns() if s['key'] == vol['key'])['box']
+        assert moved == [now[0], now[1] + 96, now[2] + 64, now[3], now[4] + 96, now[5] + 64], moved
+        page.keyboard.press('Control+d')
+        c = next(s for s in spawns() if s['key'] == page.evaluate('viewer.pickedSpawn()'))
+        assert c['layer'] == 'copy' and c['box'] == [moved[0] + 96, moved[1], moved[2], moved[3] + 96, moved[4], moved[5]], c
+        assert page.evaluate("a => viewer.editBaseSpawn(a, { spawn: { civilians: false } })", vol['actor'])
+        assert [m['spawn'] for m in moves() if m['actor'] == vol['actor']] == [{'civilians': False}]
+        undo(4)
+        assert not moves(), moves()
+    # the Add panel's No-spawn volume: placed over whole tiles round the click
+    page.evaluate('viewer.pickSpawn(null)')
+    page.evaluate("viewer.startSpawnPlacing('noSpawn')")
+    cx, cy = page.evaluate("(() => { const r = viewer.renderer.domElement.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()")
+    page.mouse.click(cx, cy)
+    made = [m for m in moves() if m.get('copy')]
+    assert len(made) == 1 and made[0]['copy']['kind'] == 'noSpawn', moves()
+    origin = page.evaluate('viewer.data.tileGrid.origin')
+    assert all(abs((made[0]['box'][k] - origin[k % 3]) / 96 - round((made[0]['box'][k] - origin[k % 3]) / 96)) < 1e-3 for k in (0, 1, 3, 4)), made
+    undo()
+    assert not moves()
     # the Add panel's spawn points: Escape cancels a placing; a click places a copy of the kind's template
     kind = 'pod' if 'Pod' in entries else 'meld'
     page.evaluate('k => viewer.startSpawnPlacing(k)', kind)

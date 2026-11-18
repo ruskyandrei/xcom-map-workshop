@@ -63,6 +63,11 @@ class BarSpawns(unittest.TestCase):
     def test_a_volume_has_its_box_and_a_point_its_pose(self):
         volume = next(r for r in self.records if r['kind'] == 'noSpawn')
         self.assertLess(volume['box']['min'][0], volume['box']['max'][0])
+        # (export 34: its two switches, both on in the game's class default; the Bar's save neither)
+        for r in self.records:
+            if r['kind'] == 'noSpawn':
+                self.assertEqual(r['values'], {'aliens': {'value': True, 'from': 'class'}, 'civilians': {'value': True, 'from': 'class'}})
+                self.assertEqual(r['other'], [])
         pod = next(r for r in self.records if r['kind'] == 'pod')
         self.assertTrue(pod['savesRotation'])
         self.assertEqual(pod['rotation'], [0, -16384, 0])

@@ -68,6 +68,19 @@ export function fitZone(actors, bottom = null) {
 /** Whether a zone stands where the map's own landing `own` has it (the same direction, the place within half a unit). */
 export const atOwnPlace = (zone, own) => Boolean(own) && zone.direction === own.zone.direction
   && [0, 1, 2].every(k => Math.abs(Number(zone.location[k]) - Number(own.zone.location[k])) < 0.5);
+/** Whether a zone leaves the map's own landing `own` where the map has it, as the Build reckons it
+ *  (tools/bake/native_spawns.py unmoved): the same direction, and the frame and the six soldier points within
+ *  SAME_PLACE units of the landing's own; a landing with no frame, its fitted zone within half a unit (atOwnPlace).
+ *  (The install's line a landing is joined with can stand a unit off its frame: the Bar's, 719 against 719.9998.) */
+export function landingUnmoved(zone, own) {
+  if (!own) return false;
+  if (own.fitted) return atOwnPlace(zone, own);
+  if (zone.direction !== own.zone.direction) return false;
+  const at = place(zone), mine = place(own.zone), by = Object.fromEntries((own.landing?.actors ?? []).map(a => [a.role, a]));
+  const near = (a, b) => a.every((v, j) => Math.abs(Number(v) - b[j]) <= SAME_PLACE);
+  return near(by.frame?.location ?? mine.frame.location, at.frame.location)
+    && at.soldiers.every((p, k) => near(by[`soldier${k + 1}`]?.location ?? mine.soldiers[k].location, p.location));
+}
 /** Where the squad stands for a zone: [{ location, yaw }], place()'s six, or for a landing with no frame whose zone
  *  has not moved, the landing's own points (spawns.py soldier_spots). */
 export function soldierSpots(zone, own = null) {

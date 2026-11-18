@@ -430,6 +430,9 @@ LANDING_ROLES = {
     "SoldierSpawns_DrpshipVol_Arc5": "soldier5", "SoldierSpawns_DrpshipVol_7Arc0": "soldier6",
 }
 SKYRANGER_ROLES = {"XComLevelActor": "mesh", "Emitter": "emitter", "PointInSpace": "point"}
+# the grounded Skyranger's dust: an emitter placed beside its prefab, not in it (tools/bake/native_copy.py
+# LANDING_EXTRA), listed with the nearest Skyranger as role "dust", so a moved zone carries it with the Skyranger
+SKYRANGER_EXTRA = ("ARC_Skyranger_Ground_Periphery",)
 
 
 def prefab_pairs(p, index):
@@ -446,8 +449,8 @@ def landing_metadata(p, warn=None):
     """The map's own landings (export 22): [dict(prefab, group, actors, skyranger)], in the order the game numbers
     them (their soldier points' tags sorted as text: Group0, Group1, ...). Each actor: dict(role, path, actorClass,
     archetype, location, rotation, tag, savesRotation); `skyranger` the nearest grounded Skyranger's prefab
-    (dict(prefab, actors), roles mesh, emitter, sound, point) or None. The landing's actors have no mesh but the
-    frame, so the export's pieces don't show them."""
+    (dict(prefab, actors), roles mesh, emitter, sound, point, and dust: SKYRANGER_EXTRA's emitter nearest it) or
+    None. The landing's actors have no mesh but the frame, so the export's pieces don't show them."""
     level = "TheWorld.PersistentLevel."
     landings, skyrangers = [], []
     for index, name in enumerate(p.paths, 1):
@@ -481,6 +484,28 @@ def landing_metadata(p, warn=None):
                                tag=str(tag) if tag else None, savesRotation=rotation is not None))
         record = dict(prefab=name.rsplit(".", 1)[-1], template=template, actors=sorted(actors, key=lambda a: a["role"]))
         (landings if template.startswith(LANDING_TEMPLATE) else skyrangers).append(record)
+    # each Skyranger's dust (the user, 18 November 2026: the Skyranger and its effects stay or go together)
+    for index, name in enumerate(p.paths, 1):
+        if not skyrangers or p.cls(index) != "Emitter" or not name.startswith(level) or name.count(".") != 2:
+            continue
+        arch = p.exports[index - 1]["arch"]
+        if not arch or p.name(arch).split(".")[-1] not in SKYRANGER_EXTRA:
+            continue
+        location, rotation = p.own(index, "Location"), p.own(index, "Rotation")
+        at = [float(v) for v in location] if location else [0.0, 0.0, 0.0]
+        near = None
+        for sky in skyrangers:
+            mesh = next((a for a in sky["actors"] if a["role"] == "mesh"), None)
+            if mesh:
+                d = math.hypot(mesh["location"][0] - at[0], mesh["location"][1] - at[1])
+                if near is None or d < near[0]:
+                    near = (d, sky)
+        if near and near[0] < 2500:
+            tag = p.effective(index, "Tag")
+            near[1]["actors"] = sorted(near[1]["actors"] + [dict(
+                role="dust", path=name, actorClass="Emitter", archetype=p.name(arch), location=at,
+                rotation=[int(v) for v in rotation] if rotation else [0, 0, 0], tag=str(tag) if tag else None,
+                savesRotation=rotation is not None)], key=lambda a: a["role"])
     for landing in landings:
         tags = sorted({a["tag"] for a in landing["actors"] if a["role"].startswith("soldier") and a["tag"]})
         landing["group"] = tags[0] if len(tags) == 1 else (tags or [None])[0]
@@ -762,6 +787,8 @@ SPAWN_VALUES = {
     "dropIn": (("behaviour", "m_eBehavior", "EAIBehavior_None"), ("forcePlacement", "m_bForcePlacement", False),
                ("kismetOnly", "bKismetSpawnOnly", False), ("seekRadius", "fSeekRadius", 0.0)),
     "point": (("unitType", "UnitType", "UNIT_TYPE_Soldier"),),
+    # a no-spawn volume's two switches (export 34: XComNoSpawnVolume, both true in the class's default)
+    "noSpawn": (("aliens", "AlienNoSpawnZone", True), ("civilians", "CivilianNoSpawnZone", True)),
 }
 # enum values shown without their enum's prefix (the writer puts it back: SP6)
 ENUM_PREFIX = {"m_eDifficulty": "eMeldContainerDifficulty_", "m_eBehavior": "EAIBehavior_"}
@@ -785,6 +812,7 @@ def spawn_family(cls):
     if cls == "XComMeldContainerSpawnPoint": return "meld"
     if cls == "XComSpawnPoint_Alien": return "dropIn"
     if cls == "XComSpawnPoint": return "point"
+    if cls == "XComNoSpawnVolume": return "noSpawn"
     return None
 
 

@@ -48,9 +48,12 @@ TAXI_SOUND, SHOP_SOUND = ACTOR % 'AmbientSoundSimple_3', ACTOR % 'AmbientSoundSi
 WEBBING, POD_SMOKE, FLARE = ACTOR % 'Emitter_75', ACTOR % 'Emitter_15', ACTOR % 'LensFlareSource_8'
 SOUND_VIEW, SMOKE_VIEW = [700, -1500, 1100], [420, -800, 560]
 LIGHT_VIEW = ([375, 300, 60], [500, -900, 700])
-# the Spawns view's shot: a pod of the Bar's west room picked, with another pod, Meld points and other points round it
+# the Spawns view's shot: a pod of the Bar's west room picked, with another pod, Meld points and a no-spawn volume
+# round it; and a no-spawn volume picked (the one round the van in the street), with its handles
 SPAWN_POD = ACTOR % 'XComAlienPod_Abduction_2'
 SPAWN_VIEW = ([-1150, 650, 17], [480, -1180, 1000])
+SPAWN_VOLUME = ACTOR % 'XComNoSpawnVolume_0'
+VOLUME_VIEW = ([-560, -480, 100], [620, -780, 820])
 SPOT_NEAR = [375, 245, 297]
 PROJECTS_FOLDER = r'C:\Users\you\AppData\Local\Programs\XCOM Map Workshop\projects'
 GAME_FOLDER = r'C:\Program Files (x86)\Steam\steamapps\common\XCom-Enemy-Unknown'
@@ -577,8 +580,8 @@ class Shots:
     # --- the Spawns view
     def spawns(self):
         """The Spawns view on the Bar's ground floor: a pod picked, with its arrows and its panel (its values, what uses
-        it, what the game does with it, its turns, Copy and Delete, its flags); another pod, a Meld point and another
-        point marked round it."""
+        it, what the game does with it, Copy and Delete, its flags); another pod and a Meld point marked round
+        it (no-spawn volumes have a shot of their own: spawns_volume)."""
         page = self.page
         page.evaluate('viewer.select(null)')
         zones = page.evaluate('viewer.landingLayer.visible')
@@ -603,12 +606,39 @@ class Shots:
 
         marks = [dict(n=1, sel='#editSpawns', side='right', gap=20),
                  dict(n=2, rect=[at[0] - 24, at[1] - 24, 48, 48], side='bottom', gap=70, inset=3)]
-        for n, kind in ((3, 'pod'), (4, 'meld'), (5, 'point')):
+        for n, kind in ((3, 'pod'), (4, 'meld')):
             s = nearest(kind)
             marks.append(dict(n=n, rect=[s[0] - 10, s[1] - 10, 20, 20], side='top', gap=34, inset=3))
-        marks += self.panel_rows('#spawnPanel', [(6, '#spawnInfo'), (7, '#spawnEdit .row:nth-of-type(1)'),
-                                                 (8, '#spawnEdit .row:nth-of-type(2)'), (9, '#spawnEdit label.check')])
+        marks += self.panel_rows('#spawnPanel', [(5, '#spawnInfo'), (6, '#spawnEdit .copyrow'), (7, '#spawnEdit label.check')])
         self.shot('spawns', marks, resize=0.75)
+        page.evaluate('viewer.pickSpawn(null); viewer.setSpawnsShown(false)')
+        page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
+
+    def spawns_volume(self):
+        """A no-spawn volume picked in the Spawns view (the Bar's, round a parked van): its box, a side's white handle,
+        its arrows, and its panel (its box in words, what the game does with it, Copy and Delete, what it keeps out)."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        zones = page.evaluate('viewer.landingLayer.visible')
+        page.evaluate('viewer.setSpawnsShown(true)')
+        page.evaluate('viewer.landingLayer.visible = false')
+        vol = page.evaluate('a => viewer.spawns().find(s => s.actor === a)', SPAWN_VOLUME)
+        if not vol: raise SystemExit('%s is not among the spawn points of %s' % (SPAWN_VOLUME, MAP))
+        page.evaluate('k => viewer.pickSpawn(k)', vol['key'])
+        self.camera(*VOLUME_VIEW)
+        self.settle(3000)
+        b = vol['box']
+        corners = page.evaluate('cs => cs.map(p => viewer.screenOf(p))', [[b[i], b[j], b[k]] for i in (0, 3) for j in (1, 4) for k in (2, 5)])
+        xs, ys = [c[0] for c in corners], [c[1] for c in corners]
+        handles = page.evaluate('viewer.spawnVolumeHandles()')
+        if not handles: raise SystemExit('%s shows no handles' % SPAWN_VOLUME)
+        at = next(s['screen'] for s in page.evaluate('viewer.spawns()') if s['key'] == vol['key'])
+        hx, hy = handles['x1']
+        marks = [dict(n=1, rect=[min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)], side='top', gap=30, frame=True),
+                 dict(n=2, rect=[hx - 10, hy - 10, 20, 20], side='bottom', gap=40, inset=3),
+                 dict(n=3, rect=[at[0] - 24, at[1] - 24, 48, 48], side='left', gap=90, inset=3)]
+        marks += self.panel_rows('#spawnPanel', [(4, '#spawnInfo'), (5, '#spawnEdit .copyrow'), (6, '#spawnEdit label.check')])
+        self.shot('spawns-volume', marks, resize=0.75)
         page.evaluate('viewer.pickSpawn(null); viewer.setSpawnsShown(false)')
         page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
 
@@ -1040,7 +1070,7 @@ def prefab_test_shot(browser, server, out):
 
 # the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
 ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
+         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
          'manager', 'save-as', 'mission-objects')
 
 

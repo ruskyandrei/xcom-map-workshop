@@ -488,6 +488,58 @@ class CompilerTests(unittest.TestCase):
         _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)]), s, enable=['spawn'])
         self.assertEqual(warned(report, 'spawn-delete'), ['spawn-delete-named'])
 
+    def test_no_spawn_volumes_are_sized_given_values_copied_made_and_deleted(self):
+        # a no-spawn volume (export 34: its aliens and civilians switches) moves and is sized by its box, in place; a
+        # copy of one, or a new one made from one of the map's plain volumes (no `from`), is placed by its box alone;
+        # it is deleted as a point is; a pose, an empty box or a box on a point is refused
+        s, at = self.spawn_scene()
+        s['spawns'].append(dict(actor=PL + 'XComNoSpawnVolume_0', actorClass='XComNoSpawnVolume', kind='noSpawn',
+                                location=[-384.0, -480.0, 96.0], rotation=[0, 0, 0], listed=True,
+                                box=dict(min=[-864.0, -576.0, 0.0], max=[-384.0, -384.0, 256.0]),
+                                values={'aliens': {'value': True, 'from': 'class'}, 'civilians': {'value': True, 'from': 'class'}}))
+        s['spawns'].append(dict(actor=PL + 'XComNoSpawnVolume_2', actorClass='XComNoSpawnVolume', kind='noSpawn',
+                                location=[0.0, 0.0, 96.0], rotation=[0, 0, 0], listed=True,
+                                box=dict(min=[0.0, 0.0, 0.0], max=[192.0, 192.0, 256.0]), values={}))
+        box = [-864.0, -576.0, 0.0, -192.0, -384.0, 320.0]
+        edits = [dict(target=target('XComNoSpawnVolume_0'), box=box, spawn=dict(civilians=False, aliens=True)),
+                 dict(target=target('XComNoSpawnVolume_2'), deleted=True)]
+        added = [dict(id='v1', kind='noSpawn', actor=PL + 'XComNoSpawnVolume_0_copy1', **{'from': target('XComNoSpawnVolume_0')},
+                      box=[96.0, 96.0, 0.0, 288.0, 288.0, 256.0]),
+                 dict(id='v2', kind='noSpawn', actor=PL + 'XComNoSpawnVolume_copy2', box=[384.0, 384.0, 0.0, 672.0, 672.0, 256.0],
+                      spawn=dict(aliens=False))]
+        with mock.patch.dict(compiler.FAMILIES['spawn'], builds=False):
+            _, report = compile_project(document(edits, added=added), s)
+        self.assertEqual(sorted(set(codes(report))), ['family'])
+        spec, report = compile_project(document(edits, added=added), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(report['counts']['spawns'], dict(moved=1, valued=1, added=2, deleted=1))
+        lane = native_split(spec)[1]['spawns']
+        self.assertEqual([(m['name'], m['box'], m['before']['box']) for m in lane['moves']],
+                         [('XComNoSpawnVolume_0', box, [-864.0, -576.0, 0.0, -384.0, -384.0, 256.0])])
+        self.assertNotIn('location', lane['moves'][0])
+        # (aliens: true is the map's own value already)
+        self.assertEqual([(v['name'], v['spawn']) for v in lane['values']], [('XComNoSpawnVolume_0', dict(civilians=False))])
+        self.assertEqual([(c['name'], c['source'], c['box'], c.get('spawn')) for c in lane['copies']],
+                         [('XComNoSpawnVolume_0_copy1', 'XComNoSpawnVolume_0', [96.0, 96.0, 0.0, 288.0, 288.0, 256.0], None),
+                          ('XComNoSpawnVolume_copy2', None, [384.0, 384.0, 0.0, 672.0, 672.0, 256.0], dict(aliens=False))])
+        self.assertEqual([d['name'] for d in lane['deletes']], ['XComNoSpawnVolume_2'])
+        # a volume never counts as a pod place
+        self.assertEqual(warned(report, 'spawn-pod'), [])
+        # refused: a pose on a volume, a box on a pod, an empty box, a value of no volume, a copy with a pose, a copy of
+        # a pod that says it is a volume
+        for rec, code in [(dict(target=target('XComNoSpawnVolume_0'), location=[0, 0, 0], rotation=[0, 0, 0]), 'malformed'),
+                          (dict(target=target('XComAlienPod_0'), box=box), 'malformed'),
+                          (dict(target=target('XComNoSpawnVolume_0'), box=[0, 0, 0, 0, 96, 64]), 'malformed'),
+                          (dict(target=target('XComNoSpawnVolume_0'), spawn=dict(use=True)), 'spawn-values'),
+                          (dict(target=target('XComNoSpawnVolume_0'), spawn=dict(aliens='yes')), 'spawn-values')]:
+            _, report = compile_project(document([rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+        for rec, code in [(dict(added[1], location=[0, 0, 0], rotation=[0, 0, 0]), 'malformed'),
+                          (dict(added[0], **{'from': target('XComAlienPod_0')}), 'malformed'),
+                          (dict(added[1], box=[0, 0, 0, 96, 96]), 'malformed')]:
+            _, report = compile_project(document(added=[rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+
     def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
         # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in
         # no solid piece of the project; fewer pod places, or a Meld group without its hard points or any point, is

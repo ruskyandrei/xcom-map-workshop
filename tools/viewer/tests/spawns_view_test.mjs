@@ -2,9 +2,9 @@
 // for a base map, a mission's streams, an added bomb's donor and an LWR patch; one marker an objective; the families;
 // the panel's lines. Run: node tools/viewer/tests/spawns_view_test.mjs
 import assert from 'node:assert/strict';
-import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, addPlace, addTemplate, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, describe, editCopy,
-         editSpawn, familyOf, groupOf, identityLines, marked, shownEntries, spawnEditable, spawnEntryOf, spawnKey, spawnMoveWords,
-         spawnNamed, spawnOverride, spawnPosed, spawnRecords, titleOf } from '../web/spawns_view.js';
+import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_VALUE_KEYS, addPlace, addTemplate, boxMiddle, boxWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
+         copyTemplateWhy, deletedEntry, describe, editCopy, editSpawn, familyOf, groupOf, identityLines, marked, recordBox, shownEntries, spawnEditable,
+         spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnPosed, spawnRecords, titleOf, volumePlace } from '../web/spawns_view.js';
 import { fromWords } from '../web/spawn_rules.js';
 
 const L = 'TheWorld.PersistentLevel.';
@@ -178,4 +178,56 @@ assert.deepEqual(addPlace(T48, [2300, 10, 300], 256, 0), [2256, 48, 304]);
 assert.deepEqual(addPlace(T48, [1960, 150, 40], null, null), [1968, 144, 40]);
 assert.deepEqual(addPlace(T48, [1600, -210, 12], 0, null), [1584, -240, 0]);
 assert.deepEqual(addPlace({ location: [0, 0, 900] }, [0, 0, 0], 0, 0), [0, 0, 128]);      // (a height over its floor kept to a level or two)
+
+// ---- multiplayer teams' starts get no marker (the user, 18 November 2026); a deleted base point shows only with the
+// flyout's Deleted points switch
+const mp = n => ({ actor: `${L}XComSpawnPoint_${n}`, actorClass: 'XComSpawnPoint', kind: 'point', location: [0, 0, 0], unitType: n === 1 ? 8 : 9 });
+assert.ok(!marked(mp(1)) && !marked(mp(2)));
+assert.ok(marked({ kind: 'point', unitType: 1 }) && marked({ kind: 'loot', unitType: 4 }));
+const withDeleted = spawnRecords({ spawns: [pod(0), pod(1), mp(1)] }, []), gone = e => e.record.actor.endsWith('_1') && e.record.kind === 'pod';
+assert.deepEqual(shownEntries(withDeleted, {}, gone).map(e => e.record.actor), [`${L}XComAlienPod_0`]);
+assert.deepEqual(shownEntries(withDeleted, { deleted: true }, gone).map(e => e.record.actor), [`${L}XComAlienPod_0`, `${L}XComAlienPod_1`]);
+assert.equal(FAMILIES.find(f => f.id === 'deleted').on, false);
+
+// ---- a no-spawn volume: moved and sized by its box, its two switches its values; copied, or made new (NEW_VOLUME)
+const VOL = { actor: `${L}XComNoSpawnVolume_0`, actorClass: 'XComNoSpawnVolume', kind: 'noSpawn', location: [-384, -480, 96], rotation: [0, 0, 0],
+              listed: true, box: { min: [-864, -576, 0], max: [-384, -384, 256] }, uses: [], links: [], referencedBy: [],
+              values: { aliens: { value: true, from: 'class' }, civilians: { value: true, from: 'class' } } };
+assert.ok(spawnEditable(VOL) && !spawnEditable({ ...VOL, box: null }));
+assert.deepEqual(recordBox(VOL), [-864, -576, 0, -384, -384, 256]);
+let ve = editSpawn(VOL, null, { delta: [96, 0, 64] });
+assert.deepEqual(ve.box, [-768, -576, 64, -288, -384, 320]);
+assert.deepEqual(ve.location, boxMiddle(ve.box));
+assert.equal(editSpawn(VOL, ve, { delta: [-96, 0, -64] }), null);                  // back where the map has it
+ve = editSpawn(VOL, null, { box: [-864, -576, 0, -192, -384, 256] });
+assert.equal(spawnMoveWords(VOL, ve), 'Sized 7 by 2 tiles, 4 levels high (the map\'s is 5 by 2 tiles, 4 levels high) and moved 1 tile across from where the map has it.');
+assert.deepEqual(spawnOverride('URB_Test', VOL, ve), { target: { package: 'URB_Test', level: 'base', actor: VOL.actor }, box: [-864, -576, 0, -192, -384, 256] });
+const valued = editSpawn(VOL, null, { spawn: { civilians: false, aliens: true } });
+assert.deepEqual([valued.spawn, spawnOverride('URB_Test', VOL, valued).box], [{ civilians: false }, undefined]);
+assert.deepEqual(spawnEntryOf(VOL, spawnOverride('URB_Test', VOL, ve)), ve);
+assert.deepEqual(spawnEntryOf(VOL, { target: {}, spawn: { aliens: false } }).spawn, { aliens: false });
+assert.equal(spawnEntryOf(VOL, { target: {}, location: [0, 0, 0], rotation: [0, 0, 0] }), null);
+assert.equal(spawnEntryOf(VOL, { target: {}, box: [0, 0, 0, 0, 1, 1] }), null);
+assert.deepEqual(spawnEntryOf(VOL, { target: {}, deleted: true }), deletedEntry(VOL));
+assert.deepEqual(deletedEntry(VOL).box, recordBox(VOL));
+// copies: of the map's volume (its size), or a new one where the map has none to copy
+assert.equal(copyTemplateWhy(VOL), '');
+assert.equal(addTemplate([VOL], 'noSpawn'), VOL);
+assert.equal(addTemplate([pod(0)], 'noSpawn'), NEW_VOLUME);
+const grid = { origin: [-2784, -1920, 0], size: [96, 96, 64] };
+// (5 by 2 tiles: the clicked tile third of five across, first of two up; the bottom on the floor's level)
+assert.deepEqual(volumePlace(VOL, [-100, -100, 40], 64, grid), [-384, -192, 64, 96, 0, 320]);
+assert.deepEqual(volumePlace(NEW_VOLUME, [10, 10, 0], null, grid), [-96, -96, 0, 192, 192, 256]);
+const vc = copyEntry(NEW_VOLUME, { id: 'n', actor: `${L}XComNoSpawnVolume_copy1`, box: [-96, -96, 0, 192, 192, 256] });
+assert.deepEqual([vc.copy.from, vc.location], [null, [48, 48, 128]]);
+assert.deepEqual(copyRecord('URB_Test', vc), { id: 'n', kind: 'noSpawn', actor: `${L}XComNoSpawnVolume_copy1`, box: [-96, -96, 0, 192, 192, 256] });
+assert.deepEqual(copyEntryOf(NEW_VOLUME, copyRecord('URB_Test', vc)), vc);
+const vt = copyEntry(VOL, { id: 't', actor: `${VOL.actor}_copy2`, box: [0, 0, 0, 96, 96, 64], spawn: { aliens: false } });
+assert.deepEqual(copyRecord('URB_Test', vt).from, { package: 'URB_Test', level: 'base', actor: VOL.actor });
+assert.deepEqual(copyEntryOf(VOL, copyRecord('URB_Test', vt)), vt);
+assert.equal(copyEntryOf(NEW_VOLUME, copyRecord('URB_Test', vt)), null);          // (a copy's record names its template)
+assert.deepEqual(editCopy(VOL, vt, { delta: [96, 0, 0] }).box, [96, 0, 0, 192, 96, 64]);
+assert.deepEqual(editCopy(VOL, vt, { spawn: { aliens: true } }).spawn, {});
+assert.deepEqual(copyMarkerRecord(VOL, vt).box, { min: [0, 0, 0], max: [96, 96, 64] });
+assert.equal(boxWords([0, 0, 0, 96, 96, 64]), '1 by 1 tile, 1 level high');
 console.log('spawns view: ok');

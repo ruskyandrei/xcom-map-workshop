@@ -91,12 +91,14 @@ assert.equal(soundReach({ ...hum, values: { attenuate: false, radiusMax: 800 } }
 assert.equal(soundReach({ ...hum, values: {} }), null);
 assert.equal(soundReach(beam), null);
 
-// ---- a cleared map keeps sounds, the landing's, a moved carrier's effects and (when asked) the scenery outside
+// ---- a cleared map keeps the landing's, a moved carrier's effects and (when asked) the scenery outside; sounds go
 const outsideOf = x => x < -1000;
 assert.ok(survivesClear(beam, { cleared: false }));
 assert.ok(!survivesClear(beam, { cleared: true, outside: () => false }));
 assert.ok(survivesClear(beam, { cleared: true, outside: outsideOf }));                   // x -1669: outside the play area
-assert.ok(survivesClear(sky, { cleared: true, outside: () => false }));                  // a sound
+assert.ok(!survivesClear({ ...sky, landingActor: false }, { cleared: true, outside: () => false }));     // a sound goes
+assert.ok(survivesClear({ ...sky, landingActor: false, location: [-1669, 0, 0] }, { cleared: true, outside: outsideOf }));
+assert.ok(survivesClear({ ...sky, landingActor: true }, { cleared: true, outside: () => false }));       // the landing's
 assert.ok(survivesClear({ ...beam, landingActor: true }, { cleared: true }));
 assert.ok(survivesClear(off, { cleared: true, carrierMoved: true }));
 assert.ok(!survivesClear(off, { cleared: true, carrierMoved: false, outside: () => false }));

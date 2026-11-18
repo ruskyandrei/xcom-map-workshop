@@ -101,7 +101,9 @@ class BarMoved(unittest.TestCase):
     def test_every_landing_actor_is_at_its_new_place_under_its_own_name(self):
         self.assertEqual(len(self.report), 1)
         moved = self.report[0]['actors']
-        self.assertEqual(len(moved), 14)        # ten of the landing's, four of the Skyranger's
+        self.assertEqual(len(moved), 15)        # ten of the landing's, five of the Skyranger's (its dust: export 35)
+        dust = next(a for a in moved if a['role'] == 'dust')
+        self.assertEqual(dust['path'], 'TheWorld.PersistentLevel.Emitter_0')
         for a in moved:
             i = self.q.by_name[a['path']]       # the same name
             self.assertEqual(self.q.exports[i - 1]['arch'], self.p.exports[self.p.by_name[a['path']] - 1]['arch'])
@@ -294,8 +296,95 @@ class BarSpawnCopies(unittest.TestCase):
         for ops in (dict(copies=[dict(pod, podIndex=None)]),                         # a pod's copy with no index
                     dict(copies=[dict(pod, source='XComSpawnPoint_18')]),           # no pod or Meld point
                     dict(copies=[dict(pod, kind='meld')]),                          # the kind is not the template's
-                    dict(copies=[pod], deletes=[dict(name='XComAlienPod_Abduction_2')]),
                     dict(deletes=[dict(name='XComAlienPod_Abduction_4')] * 2)):
+            with self.assertRaises(ValueError, msg=ops):
+                native_spawns.apply_lane(g, self.p, ops)
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class BarNoSpawnVolumes(unittest.TestCase):
+    """URB_Bar's no-spawn volumes edited (the user, 18 November 2026: editable and added from the Add panel): volume 0
+    stretched over a new box in place and let civilians in, a copy of it, a new one (made from the map's first volume),
+    volume 2 deleted; and a pod copied from a pod the same edit deletes (a cleared map's new pod). Written, read back,
+    each volume's brush over its box."""
+    VOLUME0 = [-864.0, -576.0, 0.0, -192.0, -384.0, 320.0]
+    COPY = [96.0, 96.0, 0.0, 288.0, 288.0, 256.0]
+    NEW = [384.0, 384.0, 0.0, 672.0, 672.0, 256.0]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(BAR)
+        g = package_grow.Grower(str(BAR))
+        cls.ops = dict(moves=[dict(name='XComNoSpawnVolume_0', box=cls.VOLUME0)],
+                       values=[dict(name='XComNoSpawnVolume_0', spawn=dict(civilians=False))],
+                       copies=[dict(id='v', name='XComNoSpawnVolume_0_copy1', source='XComNoSpawnVolume_0', kind='noSpawn', box=cls.COPY),
+                               dict(id='w', name='XComNoSpawnVolume_copy2', source=None, kind='noSpawn', box=cls.NEW, spawn=dict(aliens=False)),
+                               dict(id='p', name='XComAlienPod_Abduction_2_copy3', source='XComAlienPod_Abduction_2', kind='pod',
+                                    location=[-1145.6, 251.2, 17.0], rotation=[0, 0, 0], podIndex=5)],
+                       deletes=[dict(name='XComNoSpawnVolume_2'), dict(name='XComAlienPod_Abduction_2')])
+        cls.clones, cls.gone, cls.record = native_spawns.apply_lane(g, cls.p, cls.ops)
+        native_copy.add_to_level(g, cls.p, cls.clones)
+        native_copy.empty_slots(g, cls.p, cls.gone)
+        out = Path(cls.tmp.name) / Path(BAR).name
+        g.write(str(out))
+        cls.q = Package(out)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def box_of(self, i):
+        b = scene_metadata.volume_bounds(self.q, i)
+        return [round(v, 2) for v in b['min'] + b['max']]
+
+    def test_each_volume_reads_back_over_its_box_with_its_values(self):
+        native_spawns.verify(self.q, self.record, self.p)
+        by = {(r['actor'], r['how']): r for r in self.record}
+        v0 = self.q.by_name[native_spawns.PL + 'XComNoSpawnVolume_0']
+        self.assertEqual(self.box_of(v0), self.VOLUME0)
+        self.assertEqual(native_spawns.read_value(self.q, v0, 'civilians'), False)
+        copy, new = by[('XComNoSpawnVolume_0_copy1', 'copied')], by[('XComNoSpawnVolume_copy2', 'copied')]
+        for r, box in ((copy, self.COPY), (new, self.NEW)):
+            self.assertEqual(self.q.cls(r['export']), 'XComNoSpawnVolume')
+            self.assertEqual(self.box_of(r['export']), box)
+            self.assertEqual(str(self.q.own(r['export'], 'Tag')), 'XComNoSpawnVolume')
+        self.assertEqual(native_spawns.read_value(self.q, new['export'], 'aliens'), False)
+        self.assertIsNone(native_spawns.read_value(self.q, copy['export'], 'aliens'))
+        # the volume edited in place keeps its name; the deleted volume and pod are off the list, the copies on it
+        listed = set(native_copy.level_actors(self.q))
+        self.assertIn(v0, listed)
+        for name in ('XComNoSpawnVolume_2', 'XComAlienPod_Abduction_2'):
+            self.assertNotIn(self.p.by_name[native_spawns.PL + name], listed)
+        for r in (copy, new, by[('XComAlienPod_Abduction_2_copy3', 'copied')]):
+            self.assertIn(r['export'], listed)
+        # the pod copied from a deleted pod is a pod, with its index
+        pod = by[('XComAlienPod_Abduction_2_copy3', 'copied')]
+        self.assertEqual(self.q.cls(pod['export']), 'XComAlienPod_Abduction')
+        self.assertEqual(native_spawns.read_value(self.q, pod['export'], 'podIndex'), 5)
+
+    def test_a_map_with_no_volume_of_its_own_makes_one_from_another_volume(self):
+        # (volume_template with no no-spawn volume listed: the rebuild volume's template, retyped)
+        g = package_grow.Grower(str(BAR))
+        listed = {i for i in native_copy.level_actors(self.p) if i > 0 and self.p.cls(i) != 'XComNoSpawnVolume'}
+        template = native_spawns.volume_template(self.p, listed)
+        self.assertNotEqual(self.p.cls(self.p.by_name[native_spawns.PL + template]), 'XComNoSpawnVolume')
+        made = native_spawns.copy_volume(g, self.p, dict(name='n', source=None, box=self.NEW), listed)
+        native_copy.add_to_level(g, self.p, [made['export']])
+        out = Path(self.tmp.name) / 'retyped.upk'
+        g.write(str(out))
+        q = Package(out)
+        self.assertEqual(q.cls(made['export']), 'XComNoSpawnVolume')
+        self.assertEqual(q.cls(q.own(made['export'], 'BrushComponent')), 'BrushComponent')
+        b = scene_metadata.volume_bounds(q, made['export'])
+        self.assertEqual([round(v, 2) for v in b['min'] + b['max']], self.NEW)
+
+    def test_refusals(self):
+        g = package_grow.Grower(str(BAR))
+        for ops in (dict(moves=[dict(name='XComAlienPod_Abduction_0', box=self.VOLUME0)]),     # a pod moved by a box
+                    dict(copies=[dict(name='c', source='XComAlienPod_Abduction_0', kind='noSpawn', box=self.COPY)]),
+                    dict(copies=[dict(name='c', source=None, kind='noSpawn', box=[0, 0, 0, 0, 96, 64])]),
+                    dict(values=[dict(name='XComNoSpawnVolume_0', spawn=dict(use=True))])):
             with self.assertRaises(ValueError, msg=ops):
                 native_spawns.apply_lane(g, self.p, ops)
 
