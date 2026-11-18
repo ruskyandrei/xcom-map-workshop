@@ -375,6 +375,49 @@ class DoorInMadeWall(unittest.TestCase):
             self.assertTrue(all(names.count(d) <= 1 for _, names in cols))
 
 
+class GroupWithMadeWall(unittest.TestCase):
+    """(M3 item 4, F-101's limit) A group that breaks together with a made wall: its prop (a copy of URB_Bar's
+    XComDestructibleActor_4, standing against the wall's face) and a map's own prop left in place are listed in the
+    wall's columns they stand by (frac_walls.group_columns), and a group of one prop with a wall links no children."""
+    PROP = 'XComDestructibleActor_4'
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        p = Package(BAR)
+        cls.prop_box = native_copy.piece_box(p, p.by_name[PL + cls.PROP], [-1490.0, -170.0, 16.0], [0, 0, 0])
+        copies = [dict(actor=DONOR, location=[-1728.0, -192.0, 16.0], rotation=[0, 0, 0], label='Made', wallGroup=1,
+                       generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=7))),
+                  dict(actor=cls.PROP, location=[-1490.0, -170.0, 16.0], rotation=[0, 0, 0], label='Prop', breakGroup=1)]
+        cls.m = native_copy.build(BAR, out, 'FracGroup', copies)
+        cls.q = Package(out / 'FracGroup.upk')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_prop_is_listed_in_the_columns_it_stands_by(self):
+        q = self.q
+        nc = self.m['nativeCopies']
+        sec = {c['label']: c for c in nc['copies']}
+        wall, prop = sec['Made']['export'], sec['Prop']['export']
+        at = []
+        for c in q.structs(q.own(wall, 'FragmentColumns')):
+            b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
+            names = [e[('DestructibleActor', 0)]['value'] for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value'))]
+            if prop in names:
+                at.append([b[0], b[3], b[2], b[5]])
+        self.assertTrue(at)
+        box = self.prop_box
+        for x0, x1, z0, z1 in at:
+            # each column it is in meets its box grown by 24
+            self.assertTrue(x0 < box[1] + 24 and x1 > box[0] - 24 and z0 < box[5] + 24 and z1 > box[4] - 24, (at, box))
+        self.assertEqual([len(d['columns']) for d in nc['groupListings']], [len(at)])
+
+
 class StagedDoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
     URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by

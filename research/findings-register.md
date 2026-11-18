@@ -2504,7 +2504,10 @@ by 19 by 12 tiles to 95 by 25 by 18; read offline from the map with `tools/upk/p
   the cover too, and it damages nothing when it goes (`bDestroysSurroundingArea` off).
 - One breakable piece is enough with a block, and it may be the map's own, left in place.
 - Not covered: an invisible floor, and a block grouped with a wall or floor that breaks in parts (a fracturing
-  piece is not a prop, so nothing can list the block).
+  piece is not a prop, so nothing can list the block). Since 18 November (custom walls M3 item 4, built offline, not
+  played yet): a block or prop grouped with a wall made from numbers is listed in the wall's columns it stands by
+  (`frac_walls.group_columns`), the game's list of what goes when a column breaks; the map's own walls and floors
+  still can't list one.
 - Every prop of the game's maps has an archetype and this one has none: it loads and plays (EXP-52 run 1).
 - Not checked: a save and a load after a block went (Play in game's battles can't be saved).
 

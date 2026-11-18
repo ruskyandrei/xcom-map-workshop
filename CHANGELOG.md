@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 4): props and cover blocks break with a made wall in their group
+
+- A group with "Break together" on that holds a made wall now breaks with it: the compiler gives the wall the group's
+  number (`wallGroups`, a copy's `wallGroup` in the Build's copies) and makes the group's props in the map; with a
+  made wall one prop or cover block is enough ([compiler.py](tools/editor/compiler.py), `groups`, `native_split`).
+- The Build lists the group's props (copies and the map's own left in place) and its cover blocks in the made wall's
+  columns they stand by: each column whose box meets the piece's box grown by 24, or the nearest column when none
+  does ([frac_walls.py](tools/bake/frac_walls.py) `group_columns`, sharing `_list_in_columns` with `door_columns`;
+  [native_copy.py](tools/bake/native_copy.py): `link_children` takes a group of one prop when it has a made wall;
+  the manifest's `groupListings`). F-101's limit (a block grouped with a wall that breaks in parts) is lifted for made
+  walls ([findings register](research/findings-register.md)).
+- The piece panel's group section offers Break together for a made wall with a prop or cover block, and says that
+  they go when the part of the wall they stand by breaks ([app.js](tools/viewer/web/app.js), `breakWallCount`).
+
+Checked: the bake suite (`-k frac`: `GroupWithMadeWall`, a prop copy against a made wall's face listed in the columns
+by it); the editor suite (`-k generated -k group`: the spec's wallGroups and breakGroups, both made in the map; a
+made wall with only scenery breaks with nothing); `browser_smoke.py --only walls --projects` on a test server (the
+wall grouped with one of the station's props: Break together enabled, its note). Not seen in the game yet (run C).
+
 ### Custom walls, stage M3 (item 4): a door in a made wall's doorway breaks with it
 
 - A door copied from one of the map's own walls into a made wall's doorway was already listed in the made wall's

@@ -598,7 +598,7 @@ def assembly_children(p, m, mapping, level):
     return out, notes
 
 
-def link_children(g, p, made, originals, blocks=()):
+def link_children(g, p, made, originals, blocks=(), walled=()):
     """Every copy's AffectedChildren, the game's link between pieces that break together: the state one enters
     (damaged, destroyed) is passed on to the pieces it lists (XComDestructibleActor.SyncChildStates, which skips a
     child already in that state, so links may go both ways). A copy keeps its assembly's links to the parts copied
@@ -608,7 +608,8 @@ def link_children(g, p, made, originals, blocks=()):
     the map's own pieces left in place ({name, group}), which keep their own children too. `blocks` are the cover
     blocks that break with a group ((group, actor export): cover_blocks.py's hidden props): each member of the group
     lists them too, and a block lists nothing, so it follows its group and nothing follows it; with a block, one
-    member is enough for a group. Returns ({group: [members, then blocks]}, {copy: notes})."""
+    member is enough for a group, and so it is in a group with a made wall (`walled`: those groups' numbers), whose
+    columns list its pieces (frac_walls.group_columns). Returns ({group: [members, then blocks]}, {copy: notes})."""
     walker = Walker(p)
     level = p.by_name['TheWorld.PersistentLevel']
     groups, kept, notes = {}, {}, {}
@@ -633,12 +634,12 @@ def link_children(g, p, made, originals, blocks=()):
         groups.setdefault(int(o['group']), []).append(i)
     followers = {}
     for number, actor in blocks:
-        if int(number) not in groups:
+        if int(number) not in groups and int(number) not in walled:
             raise ValueError(f'break group {number} has a cover block and no breakable piece')
         followers.setdefault(int(number), []).append(actor)
     partners = {}
     for number, members in groups.items():
-        if len(members) + len(followers.get(number, [])) < 2:
+        if len(members) + len(followers.get(number, [])) < (1 if number in walled else 2):
             raise ValueError(f'break group {number} has {len(members)} piece(s)')
         for a in members:
             partners[a] = [b for b in members if b != a] + followers.get(number, [])
@@ -2266,7 +2267,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         for k, ((c, ai, location, rotation, extra), info) in enumerate(zip(members, infos)):
             made.append(dict(actor=c['actor'], label=c.get('label'), location=location, rotation=rotation, info=info, extra=extra,
                              staged=bool(c.get('staged')), donor=c.get('donor'), generated=c.get('generated'),
-                             breakGroup=c.get('breakGroup') or 0, tiles=tile_info if k == 0 else None,
+                             breakGroup=c.get('breakGroup') or 0, wallGroup=c.get('wallGroup') or 0,
+                             tiles=tile_info if k == 0 else None,
                              walkable=ai in walked,
                              **({'assembly': assembly, 'family': c.get('family')} if assembly else {})))
     # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
@@ -2295,7 +2297,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         fracturing.append((original, copy))
     # generated walls (frac_walls.py, plan section 0): a fracturing copy's mesh and columns made from numbers
     generated = [dict(original=original, info=m['info'], generated=m['generated'], location=after[0], rotation=after[1],
-                      label=m.get('label') or m['actor'])
+                      label=m.get('label') or m['actor'], wallGroup=m.get('wallGroup') or 0)
                  for m, (original, copy, before, after, _) in zip(made, poses) if m.get('generated')]
     generated_records = []
     if generated:
@@ -2310,8 +2312,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                           '%d x %d texels of its own' % tuple(light['rect']) if light.get('kind') == 'rect'
                           else 'one even light, from %s' % light['piece'].split('.')[-2] if light.get('kind') == 'even'
                           else 'as its donor\'s'))
+    walled = {m['wallGroup'] for m in made if m.get('wallGroup')}
     groups, children = link_children(g, p, made, break_originals,
-                                     [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')])
+                                     [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')],
+                                     walled=walled)
     hidden, hide_volumes = hide_pieces(g, p, hides, volumes=not cleared) if hides else ([], [])
     # the effects the moved, copied and deleted pieces carry (native_effects.py: a Skyranger's lights go with it)
     import native_effects
@@ -2350,6 +2354,31 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         for d in door_listings:
             print("    %s's copy: in a made wall's doorway, listed in %d of its columns"
                   % (p.name(d['original']).split('.')[-1], len(d['columns'])))
+    # a group that breaks together with a made wall: its props and cover blocks in the wall's columns by them
+    group_listings = []
+    if walled:
+        members, labels = {}, {}
+        for m, (original, copy, before, after, _) in zip(made, poses):
+            if m.get('breakGroup') in walled:
+                members.setdefault(m['breakGroup'], []).append((copy, piece_box(p, original, *after), original))
+                labels[copy] = m.get('label') or m['actor']
+        for o in break_originals:
+            if int(o['group']) in walled:
+                i = p.by_name[PL + o['name']]
+                members.setdefault(int(o['group']), []).append(
+                    (i, piece_box(p, i, p.own(i, 'Location', [0.0, 0.0, 0.0]), p.own(i, 'Rotation', [0, 0, 0])), i))
+                labels[i] = o['name']
+        # (a cover block that breaks is a hidden prop: its entry copies a prop's)
+        prop_class = next((i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComDestructibleActor'), None)
+        for c in cover_records:
+            if c.get('breakGroup') in walled and prop_class:
+                members.setdefault(c['breakGroup'], []).append((c['actor'], c['box'], prop_class))
+                labels[c['actor']] = c['name']
+        import frac_walls
+        group_listings = frac_walls.group_columns(g, p, generated_records, members)
+        for d in group_listings:
+            print("    %s: breaks with its group's made wall, listed in %d of its columns"
+                  % (labels.get(d['piece'], d['piece']), len(d['columns'])))
     # the map's own buildings edited in place (their new boxes), for the copies' floors
     replaced = {}
     for e in building_edits:
@@ -2528,6 +2557,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   **({'doorListings': [dict(door=p.name(d['original']).split('.')[-1], copy=q.name(d['door']).split('.')[-1],
                                             wall=q.name(d['wall']).split('.')[-1], columns=d['columns'])
                                        for d in door_listings]} if door_listings else {}),
+                  **({'groupListings': [dict(piece=q.name(d['piece']).split('.')[-1], wall=q.name(d['wall']).split('.')[-1],
+                                             columns=d['columns']) for d in group_listings]} if group_listings else {}),
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),

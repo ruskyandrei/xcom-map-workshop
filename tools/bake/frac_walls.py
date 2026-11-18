@@ -42,7 +42,9 @@ A door standing in a made wall's opening goes when the wall round it breaks (cus
 copied from one of the map's own walls is listed in the made wall's columns where its original's listing lands
 (native_copy.edit_columns); one that nothing lists yet (a door of another map, or one that stood in no wall) is listed
 by door_columns in the wall's columns within a tile of it along the wall, on every storey, as the game's walls list
-their doors (URB_Bar's door 7 in four tiles' columns, both storeys)."""
+their doors (URB_Bar's door 7 in four tiles' columns, both storeys). The props and cover blocks of a group that breaks
+together with a made wall are listed by group_columns in the columns they stand by (M3 item 4, F-101's limit), so they
+go when that part of the wall breaks."""
 import hashlib
 import struct
 import sys
@@ -560,9 +562,56 @@ def door_columns(g, p, walls, doors, pad=TILE):
     wall and up, and at all across it (the compiler's overlaps_by). Each entry is a copy of one of the map's own
     entries for a piece of the same class (its MinZ the door's lowest point less one, as URB_Bar's frames save it).
     Returns [dict(wall, door, columns)] for each door listed."""
-    import native_copy
     if not doors:
         return []
+
+    def pick(w, columns, along):
+        out = []
+        for door, dbox, original in doors:
+            if any(x['actor'] == door for c in columns for x in c['entries']):
+                continue                # listed already (edit_columns)
+            if not any(overlaps_by(dbox, hole, 8.0) for hole in w['openings']):
+                continue
+            lo, hi = dbox[2 * along] - pad, dbox[2 * along + 1] + pad
+            hit = [k for k, c in enumerate(columns) if min(hi, c['box'][2 * along + 1]) - max(lo, c['box'][2 * along]) > 1.0]
+            if hit:
+                out.append((door, dbox, original, hit))
+        return out
+    return [dict(wall=r['wall'], door=r['piece'], original=r['original'], columns=r['columns'])
+            for r in _list_in_columns(g, p, walls, pick)]
+
+
+def group_columns(g, p, walls, groups, pad=24.0):
+    """The props and cover blocks of each group that breaks together with a made wall, listed in that wall's columns
+    they stand by: each column whose box meets the piece's box grown by `pad` (a picture hangs a unit off the wall's
+    face), or the nearest one when none does, so a piece always goes with some part of its wall. `walls`: add_walls'
+    records, each with `group` (the break group it is in, or none); `groups`: {group: [(export, world box, the export
+    whose class its entry copies)]}, the group's breakable pieces. Returns [dict(wall, piece, original, columns)]."""
+    def pick(w, columns, along):
+        out = []
+        for piece, box, original in groups.get(w.get('group'), ()):
+            if any(x['actor'] == piece for c in columns for x in c['entries']):
+                continue
+            grown = [v + (-pad if k % 2 == 0 else pad) for k, v in enumerate(box)]
+            hit = [k for k, c in enumerate(columns)
+                   if all(min(grown[2 * a + 1], c['box'][2 * a + 1]) - max(grown[2 * a], c['box'][2 * a]) > 0 for a in range(3))]
+            if not hit and columns:
+                def apart(c):
+                    return sum(max(0.0, c['box'][2 * a] - box[2 * a + 1], box[2 * a] - c['box'][2 * a + 1]) ** 2 for a in range(3))
+                hit = [min(range(len(columns)), key=lambda k: apart(columns[k]))]
+            if hit:
+                out.append((piece, box, original, hit))
+        return out
+    return _list_in_columns(g, p, [w for w in walls if w.get('group')], pick)
+
+
+def _list_in_columns(g, p, walls, pick):
+    """Pieces listed in made walls' columns: for each made wall of `walls` (add_walls' records), pick(wall, its
+    columns (native_copy.fragment_columns'), the axis along it) gives [(piece export, its world box, the export whose
+    class its entry copies, column indices)]; each gets a copy of one of the map's own DestructibleCache entries for a
+    piece of that class (its MinZ the piece's lowest point less one, as the game's frames save it; its CutdownFloor 0,
+    as a door's) in those columns. Returns [dict(wall, piece, original, columns)]."""
+    import native_copy
     walker = native_copy.Walker(p)
     level = p.by_name['TheWorld.PersistentLevel']
     templates = {}
@@ -591,27 +640,18 @@ def door_columns(g, p, walls, doors, pad=TILE):
         box = w['box']
         along = 0 if box[1] - box[0] >= box[3] - box[2] else 1
         lists = [[x['raw'] for x in c['entries']] for c in columns]
-        changed = False
-        for door, dbox, original in doors:
-            if any(x['actor'] == door for c in columns for x in c['entries']):
-                continue                # listed already (edit_columns)
-            if not any(overlaps_by(dbox, hole, 8.0) for hole in w['openings']):
-                continue
+        picked = pick(w, columns, along)
+        for piece, pbox, original, hit in picked:
             template = templates.get(p.cls(original)) or next(iter(templates.values()))
-            lo, hi = dbox[2 * along] - pad, dbox[2 * along + 1] + pad
-            hit = [k for k, c in enumerate(columns) if min(hi, c['box'][2 * along + 1]) - max(lo, c['box'][2 * along]) > 1.0]
-            if not hit:
-                continue
-            raw = bytearray(native_copy.entry_for(template, door))
+            raw = bytearray(native_copy.entry_for(template, piece))
             if template['minZAt'] is not None:
-                struct.pack_into('<f', raw, template['minZAt'], float(dbox[4]) - 1.0)
+                struct.pack_into('<f', raw, template['minZAt'], float(pbox[4]) - 1.0)
             if template['cutdownAt'] is not None:
                 raw[template['cutdownAt']] = 0
             for k in hit:
                 lists[k].append(bytes(raw))
-            changed = True
-            out.append(dict(wall=w['copy'], door=door, original=original, columns=hit))
-        if changed:
+            out.append(dict(wall=w['copy'], piece=piece, original=original, columns=hit))
+        if picked:
             parts = [native_copy.column_with(g, walker, b, c, new) for c, new in zip(columns, lists)]
             g.relocate(w['copy'], native_copy.rebuilt(b, field, parts))
     return out
@@ -714,6 +754,7 @@ def add_walls(g, p, items, grid, bake=True):
         h = max(y for y, _, _ in frac_wall.RECIPE['section'])
         holes = [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix) for o in item['generated']['wall'].get('openings') or []]
         records.append(dict(kind='fracWall', copy=actor, original=item['original'], openings=holes,
+                            group=item.get('wallGroup') or 0,
                             label=item.get('label'), mesh=made[name], meshName=name,
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],

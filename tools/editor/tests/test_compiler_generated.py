@@ -84,6 +84,31 @@ class GeneratedTests(unittest.TestCase):
             (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
             self.assertEqual(op['generated'][0]['wall']['storeys'], storeys)
 
+    def test_a_made_wall_breaks_with_its_groups_props(self):
+        # (M3 item 4) a group that breaks together with a made wall and one prop: the wall gets the group's number
+        # (wallGroups: its columns list the prop), the prop its breakGroup, and both are made in the map
+        PL = 'TheWorld.PersistentLevel.'
+        group = dict(id='g', breakTogether=True, members=[{'added': PL + 'XComFracLevelActor_11_copy1'},
+                                                          {'added': PL + 'XComDestructibleActor_4_copy2'}])
+        doc = document((), [made(WALL, at=(0, 636, 14.5)), add('XComDestructibleActor_4', 2, (144, 660, 14.5))],
+                       schemaVersion=2, groups=[group])
+        spec, report = compiler.compile_project(doc, scene())
+        self.assertTrue(report['ok'], refused(report))
+        self.assertNotIn('group-unbreakable', noted(report))
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        by = dict(zip(op['labels'], zip(op['wallGroups'], op['breakGroups'])))
+        self.assertEqual(by, {'XComFracLevelActor_11_copy1': (1, 0), 'XComDestructibleActor_4_copy2': (0, 1)})
+        self.assertEqual(report['groups'][0]['walls'], ['XComFracLevelActor_11_copy1'])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(sorted((c['label'], c.get('wallGroup', 0), c.get('breakGroup', 0)) for c in native['copies']),
+                         [('XComDestructibleActor_4_copy2', 0, 1), ('XComFracLevelActor_11_copy1', 1, 0)])
+        # a made wall with scenery only breaks with nothing
+        lone = dict(group, members=[group['members'][0], {'added': PL + 'XComLevelActor_1_copy2'}])
+        spec, report = compiler.compile_project(document((), [made(WALL, at=(0, 636, 14.5)), add('XComLevelActor_1', 2, (0, 900, 0))],
+                                                         schemaVersion=2, groups=[lone]), scene())
+        self.assertIn('group-unbreakable', noted(report))
+        self.assertNotIn('wallGroups', [o for o in spec['objects'] if o['type'] == 'copy'][0])
+
     def test_only_a_fracturing_piece_is_made_from_numbers(self):
         spec, report = compiled([dict(add('XComLevelActor_1', 1, (0, 600, 0)), generated=WALL)])
         self.assertIn('malformed', codes(report))

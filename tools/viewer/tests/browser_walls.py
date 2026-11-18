@@ -8,7 +8,7 @@ and pose; Add doorway and Add window put each in a free tile and their words in 
 wall a tile longer at its start with the openings left where they are in the world; an opening's middle slides it;
 Flip sides swaps the faces with the openings in place; undo and redo step through each change; Delete with an
 opening's handle last touched takes only the opening out; the top's handle makes it one storey and the panel's button
-two again (M2); saved and reopened, the wall is as it was; a quick Build
+two again (M2); grouped with a prop, the group can break together (M3); saved and reopened, the wall is as it was; a quick Build
 makes it from numbers, with the donor brought from URB_Bar and the doorway's warning."""
 import json
 
@@ -138,6 +138,21 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.locator('#wallStoreys').click()
     assert 'storeys' not in state(page, wall)['generated']['wall'], state(page, wall)
     page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    assert state(page, wall) == kept, (state(page, wall), kept)
+    # (M3) grouped with a prop of the map, the group can break together: its props go with the part of the wall they
+    # stand by; ungrouped again
+    prop = page.evaluate("""() => [...viewer.roots.values()].find(r => r.visible && !r.userData.deleted
+      && r.userData.source.actorClass === 'XComDestructibleActor' && !r.userData.source.added)?.userData.source.id""")
+    assert prop, 'no prop on the map'
+    page.evaluate('ids => viewer.gizmo.setSelection(ids)', [wall, prop])
+    page.keyboard.press('Control+g')
+    page.wait_for_selector('#groupBreakRow:not([hidden])')
+    assert page.locator('#groupBreak').is_enabled()
+    page.locator('#groupBreak').check()
+    note = page.locator('#groupNote').inner_text()
+    assert 'go when the part of its made wall they stand by breaks' in note, note
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
     # saved and reopened
     page.keyboard.press('Control+s')

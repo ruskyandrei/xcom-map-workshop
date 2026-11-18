@@ -858,6 +858,7 @@ class Compiler:
         self.copies, self.hides = [], []
         self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
+        self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
         # light edits (plan 9.5): the spec's `lights` object, and what each piece edit does to the area lights
         self.light_ops = dict(deletes=[], changes=[], adds=[], area=[])
@@ -3339,7 +3340,10 @@ class Compiler:
         map's own pieces left in place (breakOriginals), which the copier links at load. A cover block (high or low,
         not an invisible floor) of such a group breaks with it: it takes the group's number (its `breakGroup`), is
         built as a hidden prop (tools/bake/cover_blocks.py) and goes when a breakable piece of the group is
-        destroyed; with a block one breakable piece is enough, and it may be the map's own. A locked group's moving as one
+        destroyed; with a block one breakable piece is enough, and it may be the map's own. A wall made from numbers
+        in such a group (custom geometry plan, M3 item 4) lists the group's props and cover blocks in its columns by
+        them (wallGroups; tools/bake/frac_walls.group_columns), so they go when that part of the wall breaks: with a
+        made wall one prop or cover block is enough, and the group's props are made in the map. A locked group's moving as one
         is the editor's alone, and so is nesting: a member that is another group ({group}) must name a group of the
         project that is in no other group and does not hold this one (group-nesting), and takes no part in breaking
         together, which is over a group's own pieces. Nor do a light or one of the project's buildings ({building};
@@ -3400,7 +3404,7 @@ class Compiler:
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of a group and is ignored' % f, **where)
             entry = dict(id=rec['id'], locked=rec.get('locked', True), breakTogether=rec.get('breakTogether', False),
-                         number=0, copies=[], originals=[], blocks=[], notBreakable=[])
+                         number=0, copies=[], originals=[], blocks=[], walls=[], notBreakable=[])
             self.group_report.append(entry)
             for m in members:
                 if 'building' in m and m['building'] not in made:
@@ -3410,6 +3414,7 @@ class Compiler:
                 continue
             links = []   # (kind, member key, label): a copy, or an original left in place (by its short name)
             blocks = []  # member keys of its cover blocks, which break with it
+            walls = []   # (member key, label) of its made walls, whose columns list the rest
             for m, key in zip(members, keys):
                 if 'group' in m:
                     continue   # a group inside it breaks by its own option
@@ -3434,6 +3439,8 @@ class Compiler:
                     c = copies[key]
                     if c['actorClass'] in BREAKABLE:
                         links.append(('copy', key, c['label']))
+                    elif (c.get('generated') or {}).get('kind') == 'fracWall':
+                        walls.append((key, c['label']))
                     else:
                         entry['notBreakable'].append(c['label'])
                     continue
@@ -3451,15 +3458,20 @@ class Compiler:
                 else:
                     entry['notBreakable'].append(short(m['actor']))
             for name in entry['notBreakable']:
-                self.note('group-unbreakable', '%s moves with its group but can\'t break with it (only props and cover '
-                          'blocks break)' % name, **where)
-            if len(links) < (1 if blocks else 2):
+                self.note('group-unbreakable', '%s moves with its group but can\'t break with it (only props, cover '
+                          'blocks and made walls break)' % name, **where)
+            if walls and (links or blocks):
+                if len(walls) > 1:
+                    self.note('group-walls', 'the group has %d made walls: each lists the group\'s props and cover blocks '
+                              'it stands by' % len(walls), **where)
+            elif len(links) < (1 if blocks else 2):
                 self.note('group-unbreakable', 'the group breaks together but has %d breakable piece(s), so nothing is linked'
                           '%s' % (len(links), ' (a cover block goes when a prop of its group is destroyed)' if blocks else ''),
                           **where)
                 continue
             # a cover block is made in the map, so its group is linked there even when its props are all the map's own
-            if not blocks and not any(kind == 'copy' for kind, _, _ in links):
+            # (and so is a made wall)
+            if not blocks and not walls and not any(kind == 'copy' for kind, _, _ in links):
                 self.warn('group-not-linked', 'the group\'s breakable pieces are all the map\'s own, left in place; the patch '
                           'links pieces only through its copies yet, so move or copy one of them', **where)
                 continue
@@ -3473,6 +3485,10 @@ class Compiler:
                 else:
                     self.break_originals.append(dict(name=label, group=number))
                     entry['originals'].append(label)
+            for key, label in walls:
+                linked[key] = rec['id']
+                self.break_walls[key] = number
+                entry['walls'].append(label)
             for key in blocks:
                 linked[key] = rec['id']
                 self.cover_by_member[key]['breakGroup'] = number
@@ -3520,6 +3536,9 @@ class Compiler:
             # Break groups (the user's groups with "break together"): a number per copy, 0 for none.
             if self.break_copies:
                 copy['breakGroups'] = [self.break_copies.get(c['member'], 0) for c in copies]
+            # a made wall's break group: the group's pieces its columns list (frac_walls.group_columns)
+            if self.break_walls:
+                copy['wallGroups'] = [self.break_walls.get(c['member'], 0) for c in copies]
             if self.break_originals:
                 copy['breakOriginals'] = sorted(self.break_originals, key=lambda o: (o['group'], o['name']))
             copy['extra'] = ['bLogTiles=False']
@@ -4838,6 +4857,8 @@ def native_split(spec):
         n = len(obj['from'])
         classes = obj.get('classes') or [None] * n
         groups = obj.get('breakGroups') or [0] * n
+        walls = obj.get('wallGroups') or [0] * n
+        walled = {w for w in walls if w}
         members = obj.get('assemblies') or [''] * n
         families = obj.get('families') or [''] * n
         donors = obj.get('donors') or [None] * n
@@ -4847,14 +4868,16 @@ def native_split(spec):
         # a piece of another map is always made in the map: nothing else can bring what it needs; so is a copy of a
         # class the Build has not been tried on (the patch's copier has no recipe for it either)
         # (and a copy with flags: only the writer sets them)
+        # (and the pieces of a group that breaks with a made wall: the wall's columns list them in the map)
         in_map = [classes[k] in NATIVE_CLASSES or bool(members[k]) or bool(donors[k]) or untried[k] or bool(flags[k])
-                  or bool(generated[k]) for k in range(n)]
+                  or bool(generated[k]) or groups[k] in walled for k in range(n)]
         copier_groups = {groups[k] for k in range(n) if groups[k] and not in_map[k]}
         native = [k for k in range(n) if in_map[k] and groups[k] not in copier_groups]
         for k in native:
             natives.append(dict(actor=obj['from'][k], location=obj['poses'][k]['location'],
                                 rotation=obj['poses'][k]['rotation'], label=obj['labels'][k], box=obj['boxes'][k],
                                 **({'breakGroup': groups[k]} if groups[k] else {}),
+                                **({'wallGroup': walls[k]} if walls[k] else {}),
                                 **({'donor': donors[k]} if donors[k] else {}),
                                 **({'untried': True} if untried[k] else {}),
                                 **({'flags': flags[k]} if flags[k] else {}),
@@ -4868,8 +4891,8 @@ def native_split(spec):
         keep = [k for k in range(n) if k not in native]
         if keep:
             rest = dict(obj)
-            for f in ('from', 'poses', 'labels', 'boxes', 'classes', 'breakGroups', 'families', 'assemblies', 'ladders',
-                      'donors', 'untried', 'flags', 'generated'):
+            for f in ('from', 'poses', 'labels', 'boxes', 'classes', 'breakGroups', 'wallGroups', 'families', 'assemblies',
+                      'ladders', 'donors', 'untried', 'flags', 'generated'):
                 if f in obj:
                     rest[f] = [obj[f][k] for k in keep]
             rest.pop('assemblyMoves', None)

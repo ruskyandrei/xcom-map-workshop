@@ -2762,6 +2762,10 @@ const breakableCount = g => ownKeys(g).filter(k => BREAKABLE.has(liveMembers().g
 // Its cover blocks (high or low, not invisible floors): in a group that breaks together the Build makes each as a
 // hidden prop, which goes when a breakable piece of the group is destroyed. One breakable piece is enough with a block.
 const breakBlockCount = g => ownKeys(g).filter(k => { const c = liveMembers().get(k)[0].userData.source.cover; return c && !isFloor(c); }).length;
+// Its made walls (custom geometry plan, M3 item 4): in a group that breaks together each lists the group's props and
+// cover blocks in the parts of it they stand by (the Build's frac_walls.group_columns), so they go when that part breaks.
+// With a made wall one prop or cover block is enough.
+const breakWallCount = g => ownKeys(g).filter(k => liveMembers().get(k)[0].userData.source.added?.generated?.kind === 'fracWall').length;
 // The selected pieces as units: each piece stands for the outermost group all of whose pieces are selected
 // (groupKey(id)), or for itself (its member key).
 function selectionUnits(keys) {
@@ -2823,16 +2827,17 @@ function groupPanel() {
     ? 'Everything in it selects and moves as one, whether linked pieces are on or off. Ungroup it to get the groups inside it back on their own.'
     : 'Its pieces select and move as one, whether linked pieces are on or off. Ungroup it to move one on its own.');
   $('groupBreak').checked = g.breakTogether;
-  const breakable = breakableCount(g), blocks = breakBlockCount(g);
-  const can = breakable >= 2 || (breakable >= 1 && blocks >= 1);
+  const breakable = breakableCount(g), blocks = breakBlockCount(g), walls = breakWallCount(g);
+  const can = breakable >= 2 || (breakable >= 1 && blocks >= 1) || (walls >= 1 && breakable + blocks >= 1);
   $('groupBreakRow').classList.toggle('off', !can && !g.breakTogether);
   $('groupBreak').disabled = !can && !g.breakTogether;
   const note = $('groupNote');
-  const own = ownKeys(g).length, stay = own - breakable - blocks;
-  note.hidden = !(!can || (g.breakTogether && (stay > 0 || blocks || inner)));
+  const own = ownKeys(g).length, stay = own - breakable - blocks - (can ? walls : 0);
+  note.hidden = !(!can || (g.breakTogether && (stay > 0 || blocks || walls || inner)));
   note.textContent = !can
-    ? `Breaking together needs two breakable pieces (props) of the group's own, or one and a cover block: this group has ${breakable}${blocks ? ` and ${plural(blocks, 'cover block')}` : ''}. Walls and scenery move with a group but don't break with it${inner ? ', and the groups inside it have the option for themselves' : ''}.`
-    : [blocks ? `${blocks === 1 ? 'Its cover block goes' : `Its ${blocks} cover blocks go`} when a breakable piece of the group is destroyed; nothing else destroys ${blocks === 1 ? 'it' : 'them'}.` : '',
+    ? `Breaking together needs two breakable pieces (props) of the group's own, or one and a cover block or a made wall: this group has ${breakable}${blocks ? ` and ${plural(blocks, 'cover block')}` : ''}${walls ? ` and ${plural(walls, 'made wall')}` : ''}. The map's walls and scenery move with a group but don't break with it${inner ? ', and the groups inside it have the option for themselves' : ''}.`
+    : [walls ? `Its props and cover blocks go when the part of ${walls === 1 ? 'its made wall' : 'a made wall of it'} they stand by breaks.` : '',
+       blocks ? `${blocks === 1 ? 'Its cover block goes' : `Its ${blocks} cover blocks go`} when a breakable piece of the group is destroyed${walls ? ' or the wall behind it breaks' : ''}; nothing else destroys ${blocks === 1 ? 'it' : 'them'}.` : '',
        stay > 0 ? `${plural(stay, 'piece')} of the group ${stay === 1 ? 'is' : 'are'} not breakable and stay${stay === 1 ? 's' : ''} standing.` : '',
        inner ? 'The groups inside it break by their own option.' : ''].filter(Boolean).join(' ');
 }
