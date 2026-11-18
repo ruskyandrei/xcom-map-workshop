@@ -157,6 +157,13 @@ def exclusion_entry(variant):
     return 'ExcludeMaps = "%s"' % variant
 
 
+def exclusion_block(variant, note):
+    """The lines a variant's exclusion adds (bytes): a comment naming the editor and the project (`note`), then
+    exclusion_entry(variant)."""
+    return [(';%s: scripted drop-ins land where placed (%s)' % (variant, note)).encode('latin-1', 'replace'),
+            exclusion_entry(variant).encode('latin-1')]
+
+
 def plan_exclusion(lines, variant, note):
     """(at, new lines, why) for DefaultRandomSpawns.ini (lines of bytes): insert the new lines before index `at` (after
     the last ExcludeMaps line of the drop-in section, live or commented, else at the section's end): a comment naming
@@ -191,8 +198,7 @@ def plan_exclusion(lines, variant, note):
         at = end
         while at - 1 > start and not texts[at - 1].strip():
             at -= 1         # before the blank lines that end the section
-    return at, [(';%s: scripted drop-ins land where placed (%s)' % (variant, note)).encode('latin-1'),
-                exclusion_entry(variant).encode('latin-1')], None
+    return at, exclusion_block(variant, note), None
 
 
 def exclusion_lines(lines, variant):

@@ -28,9 +28,10 @@ import threading
 
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
-# the effects and sounds plan, Part C). 1 and 2 are read too, and saved as 3.
-SCHEMA_VERSION = 3
-READ_VERSIONS = (1, 2, 3)
+# the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
+# overrides and added records, SP6 and SP7). 1 to 3 are read too, and saved as 4.
+SCHEMA_VERSION = 4
+READ_VERSIONS = (1, 2, 3, 4)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')

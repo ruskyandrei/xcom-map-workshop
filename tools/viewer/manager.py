@@ -43,6 +43,7 @@ import re
 import zipfile
 
 import installs
+import spawnrules
 import pack_scripts
 import publication
 from projects import ProjectError
@@ -288,6 +289,14 @@ def pack_readme(pack, parts):
                   '   map\'s lines beside its base map\'s.']
         for p in zones:
             lines += ['', '   %s (beside %s\'s):' % (p['variant'], p['base'])] + p['landingZones']
+    excluded = [p for p in parts if p.get('dropInExclusion')]
+    if excluded:
+        lines += ['', '%d. XEW\\XComGame\\Config\\DefaultRandomSpawns.ini (Long War\'s drop-in settings; skip this without Long War):'
+                  % (4 if zones else 3),
+                  '   in its [%s] section, after its ExcludeMaps lines, add each map\'s lines (its project leaves' % spawnrules.DROP_IN_SECTION,
+                  '   scripted drop-ins where placed: Long War\'s drop-in mutator leaves the map alone).']
+        for p in excluded:
+            lines += ['', '   %s:' % p['variant']] + p['dropInExclusion']
     shared = pack.get('projects') or []
     if shared:
         lines += ['', 'Editor projects. The projects folder has the XCOM Map Workshop project of %s, to open and change in the'
@@ -368,11 +377,16 @@ def _pack(projects, builds, player, request, chosen, mode, now):
             switch = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') in stands]
             keep = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') not in stands]
             _, zones = installs.plan_variant_lz(lz, m, note) if lz is not None else (None, [])
+            # the project's spawn rule (spawns plan, SP8): its ExcludeMaps lines, which the scripts add where the
+            # target install has Long War's drop-in section
+            exclusion = ([l.decode('latin-1') for l in spawnrules.exclusion_block(variant, installs.exclusion_note(note, m))]
+                         if (m.get('config') or {}).get('dropInExclusion') else None)
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
                               landingZones=[l.decode('latin-1') for l in zones] or None,
+                              **({'dropInExclusion': exclusion} if exclusion else {}),
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
                               donors=[{k: d.get(k) for k in ('map', 'sha256', 'pieces')} for d in m.get('donors') or []],
@@ -403,7 +417,8 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                      madeAt=now.isoformat(timespec='seconds'), game=kind_label(game) if game is not None else None,
                      maps=[{**{k: p[k] for k in ('id', 'name', 'variant', 'base', 'mode', 'quick', 'revision', 'buildId', 'files',
                                               'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings')},
-                           **({'ownZones': True} if p.get('ownZones') else {})} for p in parts],
+                           **({'ownZones': True} if p.get('ownZones') else {}),
+                           **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
                      **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS

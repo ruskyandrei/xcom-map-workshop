@@ -433,6 +433,34 @@ class Builds(unittest.TestCase):
         self.assertEqual(edit['landingZones']['own'], [0])
         self.assertFalse(m['lightingUnchanged'])
 
+    def test_a_spawn_rule_alone_builds_with_its_exclusion_line(self):
+        """Editor spawns plan, SP8: a project whose one change is its spawn rule (scripted drop-ins where placed) is
+        work: it builds the map with the lighting unchanged, and the manifest and README carry the variant's ExcludeMaps
+        line for DefaultRandomSpawns.ini. On an install without that file (plain EW) the line is said with why it has no
+        place there."""
+        self.spec['objects'] = []
+        self.spec['spawnRules'] = dict(dropIns='placed')
+        m = self.make().run()
+        ex = m['config']['dropInExclusion']
+        self.assertEqual((ex['file'], ex['section'], ex['line']),
+                         ('DefaultRandomSpawns.ini', 'XComLZMutator.XComSpawnAlienMutator', 'ExcludeMaps = "%s"' % VARIANT))
+        self.assertIn('plain Enemy Within', ex['why'])
+        self.assertIn('plain Enemy Within lands scripted drop-ins where placed already', (self.output / VARIANT / 'README.txt').read_text('latin-1'))
+        cfg = self.lwr / 'XEW/XComGame/Config'
+        (cfg / 'DefaultMutatorLoader.ini').write_bytes(b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n')
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "EWI_ChryssalidHive"\r\n')
+        m = self.make('111500').run()
+        self.assertNotIn('why', m['config']['dropInExclusion'])
+        readme = (self.output / VARIANT / 'README.txt').read_text('latin-1')
+        self.assertIn('DefaultRandomSpawns.ini, in its [XComLZMutator.XComSpawnAlienMutator] section', readme)
+        self.assertIn('\nExcludeMaps = "%s"\n' % VARIANT, readme)
+        self.assertTrue(m['lightingUnchanged'])
+        self.assertIn('reads URB_Bar\'s own lightmaps', readme)
+        # without the rule the same project changes nothing
+        del self.spec['spawnRules']
+        with self.assertRaisesRegex(build.BuildError, 'no spawn rule is set'):
+            self.make('112000').run()
+
     def test_cover_blocks_alone_are_made_in_the_map_with_the_lighting_unchanged(self):
         """A project with nothing but cover blocks: hidden pieces change no baked light, so a full build makes the map
         as a quick build does (native_copy.py without --bake, no relight) and keeps the map's lighting; with another

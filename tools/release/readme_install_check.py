@@ -4,12 +4,13 @@ acceptance's last step). It reads the README, never the manifest, so a step the 
 
   python tools/release/readme_install_check.py <package folder> <game install> <scratch folder>
 
-The scratch folder gets XEW\\XComGame\\Config (copies of the install's DefaultMaps.ini, DefaultLZMutator.ini and
-DefaultMiniMods.ini where it has them) and XEW\\XComGame\\CookedPCConsole (the package's files only); the install is
+The scratch folder gets XEW\\XComGame\\Config (copies of the install's DefaultMaps.ini, DefaultLZMutator.ini,
+DefaultMiniMods.ini and DefaultRandomSpawns.ini where it has them) and XEW\\XComGame\\CookedPCConsole (the package's files only); the install is
 only read. Steps, each as the README words it:
 1. copy the files it lists into CookedPCConsole;
 2. add its DefaultMaps.ini records at the end of the [XComGame.XComMapManager] list, its landing-zone lines beside the
-   base map's, its mini-mod rules beside the base map's;
+   base map's, its mini-mod rules beside the base map's, its drop-in exclusion line (a project that leaves scripted
+   drop-ins where placed) after the drop-in section's ExcludeMaps lines;
 3. its "By hand" step: set bInRotation=True on the variant's records, and False on the base map's own.
 Then it checks: every file the README lists is there; each added record is the variant's, well formed, and streams
 only packages that are in the scratch CookedPCConsole or the install's; the editor's own map list (maplist) reads the
@@ -24,6 +25,7 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS / 'viewer'))
 import maplist  # noqa: E402
+import spawnrules  # noqa: E402
 
 FIELD = lambda name: re.compile(r'(?<![A-Za-z])%s="([^"]*)"' % name)  # noqa: E731
 
@@ -68,7 +70,7 @@ def main(argv=None):
     if scratch.exists(): shutil.rmtree(scratch)
     config.mkdir(parents=True); cooked.mkdir(parents=True)
     source = Path(game) / 'XEW' / 'XComGame'
-    for name in ('DefaultMaps.ini', 'DefaultLZMutator.ini', 'DefaultMiniMods.ini'):
+    for name in ('DefaultMaps.ini', 'DefaultLZMutator.ini', 'DefaultMiniMods.ini', 'DefaultRandomSpawns.ini'):
         if (source / 'Config' / name).is_file(): shutil.copyfile(source / 'Config' / name, config / name)
     # 1. the files
     for name in s['files']:
@@ -90,6 +92,15 @@ def main(argv=None):
         if name not in s: continue
         if not (config / name).is_file(): fail('the README adds to %s, which the install has not' % name)
         write(name, insert_after_last(read(name), lambda l, k=key: k in l and not l.lstrip().startswith(';'), s[name]))
+    if 'DefaultRandomSpawns.ini' in s:
+        if not (config / 'DefaultRandomSpawns.ini').is_file(): fail('the README adds to DefaultRandomSpawns.ini, which the install has not')
+        rs = read('DefaultRandomSpawns.ini')
+        head = '[%s]' % spawnrules.DROP_IN_SECTION
+        if head not in rs: fail('DefaultRandomSpawns.ini has no %s section' % head)
+        start = rs.index(head)
+        end = next((i for i in range(start + 1, len(rs)) if rs[i].startswith('[')), len(rs))
+        part = insert_after_last(rs[start:end], lambda l: re.match(r'\s*;*\s*ExcludeMaps\s*=', l), s['DefaultRandomSpawns.ini'])
+        write('DefaultRandomSpawns.ini', rs[:start] + part + rs[end:])
     print('2. added %d records%s' % (len(records), ''.join(', %d lines to %s' % (len(s[n]), n) for n in s if n not in ('files', 'DefaultMaps.ini'))))
     # checks on what the README put in
     for record in records:
@@ -110,6 +121,10 @@ def main(argv=None):
         mine = [l for l in lz if 'MapName="%s"' % variant in l and not l.lstrip().startswith(';')]
         base_zones = [l for l in lz if 'MapName="%s"' % base in l and not l.lstrip().startswith(';')]
         if len(mine) != len(base_zones): fail('%d landing zones for the variant, %d for the base map' % (len(mine), len(base_zones)))
+    if 'DefaultRandomSpawns.ini' in s:
+        found = spawnrules.random_spawns((config / 'DefaultRandomSpawns.ini').read_bytes())
+        if not spawnrules.excluded(found['excludeMaps'], variant): fail('Long War\'s drop-in mutator does not read the variant as excluded')
+        print('   checked: the drop-in mutator reads %s as excluded' % variant)
     print('   checked: the records are the variant\'s and read back (%s), their streams are there, the landing zones match'
           % ', '.join(sorted(set(ours))))
     # 3. the README's "By hand" rotation step

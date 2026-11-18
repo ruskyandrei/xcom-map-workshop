@@ -32,6 +32,10 @@ from test_projects import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 VARIANT = 'URB_Bar_Remix_0f8b'
+# Long War's loader with the drop-in mutator, and its drop-in settings (editor spawns plan, SP8)
+MUTATOR_LOADER = b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n'
+RANDOM_SPAWNS = dep.EOL.join([b'[XComLZMutator.XComSpawnAlienMutator]', b'MAX_DROP_DIST = 32', b'ExcludeMaps = "EWI_ChryssalidHive"',
+                              b';ExcludeMaps = "DLC2_2_Deluge"', b'', b'[XComLZMutator.XComSpawnMutator]', b'PLAYER_PROXIMITY = 29', b''])
 SLOT = installs.INTRO_SLOT
 
 
@@ -113,7 +117,7 @@ class Play(unittest.TestCase):
                       start=lambda argv, cwd=None: self.started.append((argv, cwd)), steam=lambda: Path('steam.exe'),
                       user_documents=self.documents, **dict(dict(appear=0, every=0.01, cleanup=False), **more))
 
-    def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None):
+    def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False):
         """A built package: the relit map, its cache and its own copy of the landing intro, streamed in its place; a
         quick build's has no cache. `zones`: the project's own landing-zone lines (config.landingZonesFromProject).
         `maps`: the Build's records (config.maps, text), with `record_missions` (config.recordMissions) when given."""
@@ -132,6 +136,9 @@ class Play(unittest.TestCase):
                  **({'quick': True} if quick else {}),
                  **({'config': dict(landingZones=zones, landingZonesFromProject=True, landingZoneIds=ids or [],
                                     **({'ownLandingGroups': groups} if groups else {}))} if zones is not None else {}))
+        if exclusion:       # the project leaves scripted drop-ins where placed (build.drop_in_exclusion)
+            m.setdefault('config', {})['dropInExclusion'] = dict(file='DefaultRandomSpawns.ini', section='XComLZMutator.XComSpawnAlienMutator',
+                                                               line=f'ExcludeMaps = "{VARIANT}"')
         if maps is not None:
             m.setdefault('config', {}).update(maps=maps, missions=[missions.label(missions.kind_key(r)) for r in maps],
                                               **({'recordMissions': record_missions} if record_missions is not None else {}))
@@ -597,6 +604,58 @@ class Play(unittest.TestCase):
         self.settle(player)
         player.remove()
         self.assertEqual(self.files(self.lwr), before)
+
+    def test_a_projects_drop_in_rule_goes_in_with_the_play_and_comes_out_byte_for_byte(self):
+        """Editor spawns plan, SP8: a package whose project leaves scripted drop-ins where placed adds the variant to Long
+        War's ExcludeMaps list for a play, after the drop-in section's ExcludeMaps lines and under a note naming the
+        editor and the project; removing takes it out byte for byte; a campaign install takes a play's line over; a
+        rebuild installed again adds no second line. Without the drop-in mutator nothing is written, and the play says
+        why."""
+        import manager
+        import spawnrules
+        config = self.lwr / 'XEW/XComGame/Config'
+        (config / 'DefaultMutatorLoader.ini').write_bytes(MUTATOR_LOADER)
+        rs = config / 'DefaultRandomSpawns.ini'
+        rs.write_bytes(RANDOM_SPAWNS)
+        before, maps = rs.read_bytes(), self.files(self.lwr)
+        self.package(exclusion=True)
+        player = self.player()
+        r = player.play(dict(project=ID))
+        self.assertEqual(r['played']['dropInExclusion'], dict(written=True))
+        lines = dep.lines_of(rs.read_bytes())
+        at = lines.index(f'ExcludeMaps = "{VARIANT}"'.encode())
+        self.assertEqual(lines[at - 2], b';ExcludeMaps = "DLC2_2_Deluge"')
+        self.assertTrue(lines[at - 1].startswith(f';{VARIANT}: scripted drop-ins land where placed (XCOM Map Workshop'.encode()), lines[at - 1])
+        self.assertIn(b'project Bar remix', lines[at - 1])
+        self.assertTrue(spawnrules.excluded(spawnrules.random_spawns(rs.read_bytes())['excludeMaps'], VARIANT))
+        self.assertEqual([b['variant'] for b in installs.read_ledger(self.lwr)['playExclusions']], [VARIANT])
+        self.settle(player)
+        self.assertEqual(player.remove()['removed']['dropInExclusions'], 1)
+        self.assertEqual(rs.read_bytes(), before)
+        self.assertEqual(self.files(self.lwr), maps)
+        # played, then installed for campaigns: the play's line is the campaign's; a rebuild played adds none
+        quiet = self.player()
+        quiet.play(dict(project=ID))
+        self.settle(quiet)
+        manager.install(self.store, self.builds, quiet, dict(projects=[ID], mode='additional'))
+        ledger = installs.read_ledger(self.lwr)
+        self.assertEqual(([b['variant'] for b in ledger.get('dropInExclusions') or []], ledger.get('playExclusions')), ([VARIANT], []))
+        self.assertEqual(installs.clear_play(self.lwr)['dropInExclusions'], 0)
+        self.package(revision=2, exclusion=True)
+        r = quiet.play(dict(project=ID))
+        self.assertEqual(r['played']['dropInExclusion'], dict(written=False))
+        self.assertEqual(rs.read_bytes().count(f'ExcludeMaps = "{VARIANT}"'.encode()), 1)
+        self.settle(quiet)
+        installs.reset(self.lwr)
+        self.assertEqual(rs.read_bytes(), before)
+        # the loader without the drop-in mutator: nothing written, and why
+        (config / 'DefaultMutatorLoader.ini').write_bytes(b'[XComMutator.XComMutatorLoader]\r\n')
+        r = player.play(dict(project=ID))
+        self.assertFalse(r['played']['dropInExclusion']['written'])
+        self.assertIn('no drop-in mutator', r['played']['dropInExclusion']['why'])
+        self.assertEqual(rs.read_bytes(), before)
+        self.settle(player)
+        player.remove()
 
     def test_land_here_installs_one_zone_and_names_its_spawn_group(self):
         """Clear map plan, step C7: Play in game with one landing zone: under LWR its line alone; a zone that is one

@@ -5,9 +5,10 @@
 import { validFlags } from './piece_flags.js';
 
 // 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
-// plan, Part C: an override of an effect or a sound, and an added record with a `kind`). A project of schema 1 or 2
-// opens, and saves as 3.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 3, READ_VERSIONS = [1, 2, 3];
+// plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
+// (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7). A project of schema 1
+// to 3 opens, and saves as 4.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 4, READ_VERSIONS = [1, 2, 3, 4];
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -52,7 +53,11 @@ export const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakToge
 // Two edit states are the same project content when these match (records come sorted).
 export const stateKey = state => JSON.stringify([state.overrides, state.added, state.groups ?? [], state.areaLightBindings ?? [], state.stage ?? null,
                                                  state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
-                                                 state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null]);
+                                                 state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
+                                                 state.spawnRules ?? null]);
+// The project's spawn rules (spawns plan, SP8): null (the install's behaviour) or { dropIns: 'placed' } (Long War's
+// scripted drop-ins land where placed: the Build excludes the variant from its drop-in mutator). Nothing else is read.
+export const validSpawnRules = r => r && typeof r === 'object' && !Array.isArray(r) && Object.keys(r).length === 1 && r.dropIns === 'placed';
 // A building the Build makes from nothing (prefab plan 5.1; compiler.py Compiler.buildings): { id, name, kind:
 // 'building' | 'ufo', floors: [{ boxes: [[x0, y0, z0, x1, y1, z1]] }] }, floor 0 first, game units, unturned. Which
 // pieces each floor lists is not saved: the Build works it out from where the pieces stand.
@@ -156,7 +161,9 @@ export function sortState(state) {
            // the landing zones keep their order (it says which are the map's own); a malformed one is carried in place
            landingZones: Array.isArray(state.landingZones) ? state.landingZones.map(z => (validLandingZone(z) ? tidyLandingZone(z) : z)) : null,
            // the missions the variant serves (mission types plan, D1): null, every mission of the base map
-           missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null };
+           missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null,
+           // the spawn rules (SP8): a malformed one is carried as it is, for the compiler to refuse
+           spawnRules: validSpawnRules(state.spawnRules) ? { dropIns: 'placed' } : (state.spawnRules ?? null) };
 }
 
 // A record the browser can apply: a known shape with finite numbers (the server checks only the document's frame).

@@ -107,9 +107,10 @@ import spawns  # noqa: E402
 COMPILER_VERSION = 3
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
-# sounds plan, Part C). A project of schema 1 or 2 builds as it did.
-SCHEMA_VERSION = 3
-READ_VERSIONS = (1, 2, 3)
+# sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7).
+# A project of schema 1 to 3 builds as it did.
+SCHEMA_VERSION = 4
+READ_VERSIONS = (1, 2, 3, 4)
 # Every piece is in one family (private/plans/done/cars-doors-ladders-plan.md, section 3.4), which says whether the Build makes
 # it, how it may be posed, and, while it isn't built, the milestone its refusal names. A piece of an assembly (a car's
 # parts, a door's leaf and frame, a ladder: assemblies()) takes the assembly's family, any other piece its class's.
@@ -3096,6 +3097,9 @@ class Compiler:
         if carried:
             extra['carriedEffects'] = {k: sorted(v) for k, v in sorted(carried.items())}
         # the project's landing zones (section 4): the variant's LZArray lines, and the map's own landings moved
+        # the project's spawn rules (spawns plan, SP8): the Build writes the variant's ExcludeMaps line
+        if getattr(self, 'spawn_rules', None):
+            extra['spawnRules'] = dict(self.spawn_rules)
         if self.zones is not None:
             extra['landingZones'] = dict(zones=self.zones, own=spawns.own_slots(self.zones, self.own_count),
                                          ownLandings=self.own_count)
@@ -3111,7 +3115,7 @@ class Compiler:
 
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
-                                             'landingZones', 'stage'))
+                                             'landingZones', 'stage', 'spawnRules'))
 
     def map_buildings(self):
         """The export's own buildings (export 21 has their actors): {actor path: (record, why it stays fixed or None)}.
@@ -3417,6 +3421,64 @@ class Compiler:
                 self.note('stage-grown-map', '%s made larger as it is: %s' % (self.map, '; '.join(words)),
                           grid=grid, own=own[:3])
 
+    def spawn_rules_mark(self):
+        """The project's `spawnRules` (schema 4; spawns plan, SP8): left out or null, scripted drop-ins play as the
+        install plays them; {"dropIns": "placed"}, Long War's scripted drop-ins land where placed: the Build adds the
+        variant to its drop-in mutator's ExcludeMaps list (DefaultRandomSpawns.ini). Anything else is refused
+        (spawn-rules): a newer editor's rule this one can't build."""
+        self.spawn_rules = None
+        rules = self.doc.get('spawnRules')
+        if rules is None:
+            return
+        if rules != {'dropIns': 'placed'}:
+            self.error('spawn-rules', 'the project\'s spawn rules must be {"dropIns": "placed"} or left out; it has %s, '
+                       'which this editor can\'t build' % json.dumps(rules)[:160])
+            return
+        self.spawn_rules = dict(dropIns='placed')
+
+    def spawn_rules_notes(self):
+        """Notes on the spawn rule (spawns plan, SP8): dropins-placed says what it covers, the scripted actions that
+        drop aliens in at points of the map and of the streams of the missions the variant keeps (export 33's `uses`),
+        and that wave systems are never moved by Long War; dropins-base-excluded, with no rule, that the install's
+        ExcludeMaps names the base map (the Chryssalid Hive) but not the variant, which has a name of its own."""
+        variant = self.out['shipAs']
+        if self.spawn_rules:
+            actions = set()
+            for r in self.scene.get('spawns') or []:
+                if isinstance(r, dict) and r.get('kind') == 'dropIn':
+                    actions.update(('the map', a) for a in scripted_users(r))
+            for _, _, stream, objects in self.kept_streams():
+                for o in objects:
+                    if o.get('kind') == 'dropIn':
+                        actions.update((stream, a) for a in scripted_users(o))
+            labels = [m.get('label') or 'mission %d' % (i + 1) for i, m in self.kept_missions()]
+            labels += ['%s (added)' % missions.label(k) for k in sorted(self.added_kinds())]
+            places = sorted({where for where, _ in actions})
+            covers = ('%d scripted %s in %s' % (len(actions), 'action' if len(actions) == 1 else 'actions', ', '.join(places))
+                      if actions else 'every scripted drop-in (the export finds no scripted action dropping aliens in)')
+            self.note('dropins-placed', 'Scripted drop-ins land where placed: the Build adds %s to Long War\'s ExcludeMaps list '
+                      '(DefaultRandomSpawns.ini), for %s of %s (%s), and Long War\'s drop-in mutator gives them neither its '
+                      'overwatch nor its reveal; wave systems\' drop-ins are never moved by Long War. Plain Enemy Within '
+                      'plays them where placed already, and the Build writes nothing there'
+                      % (variant, covers, 'the one mission' if len(labels) == 1 else 'every mission', ', '.join(labels)),
+                      actions=len(actions), missions=labels)
+            return
+        game = getattr(self.library, 'game', None)
+        if not isinstance(game, (str, Path)) or not game:
+            return
+        viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
+        if viewer not in sys.path:
+            sys.path.append(viewer)
+        import spawnrules
+        try:
+            found = spawnrules.rules(game)
+        except (OSError, ValueError):
+            return
+        if found.get('dropIns') == 'active' and spawnrules.excluded(found, self.map) and not spawnrules.excluded(found, variant):
+            self.note('dropins-base-excluded', 'Long War\'s ExcludeMaps names %s, so its drop-in mutator leaves the map\'s '
+                      'scripted drop-ins where placed; %s has a name of its own, and Long War moves them near the squad '
+                      'there unless the project leaves them where placed (the Spawns view\'s flyout)' % (self.map, variant))
+
     def cleared_mark(self):
         """The project's `cleared` (Clear map plan, section 6): true says the Build takes out what the editor never
         showed and puts one rebuild volume over the whole grid. The pieces themselves go by their delete records."""
@@ -3593,6 +3655,7 @@ class Compiler:
         self.mission_list()
         self.mission_objects()
         self.spawn_places()
+        self.spawn_rules_notes()
 
     def mission_list(self):
         """The project's `missions` (D1, optional): an error when it is no list, is empty or has an entry the Build can't
@@ -3927,6 +3990,7 @@ class Compiler:
         if not self.errors and self.map is not None:
             self.index_export()
             self.cleared_mark()
+            self.spawn_rules_mark()
             self.overrides()
             self.added()
             self.derive_area_lights()
@@ -3963,6 +4027,7 @@ class Compiler:
                       cleared=getattr(self, 'cleared', False), clearKeepsOutside=getattr(self, 'keep_outside', False),
                       landingZones=getattr(self, 'zones', None),
                       ownLandings=getattr(self, 'own_count', None),
+                      spawnRules=getattr(self, 'spawn_rules', None),
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.new_buildings],
                       mapBuildings=[dict(id=e['id'], actor=e['actor'], **({'deleted': True} if e['deleted'] else
@@ -4166,6 +4231,20 @@ def moved_whole(old, floors):
     return False
 
 
+def scripted_users(record):
+    """The scripted actions that drop units at a spawn point (export 33's `uses`: a SeqAct_SpawnAlien naming it, or
+    an object list holding it that feeds such actions), as web/spawn_rules.js scriptedUsers reads them."""
+    out = []
+    for u in record.get('uses') or []:
+        if not isinstance(u, dict):
+            continue
+        if u.get('how') == 'direct' and u.get('byClass') == 'SeqAct_SpawnAlien':
+            out.append(u.get('by'))
+        elif u.get('how') == 'indirect':
+            out += list(u.get('then') or [u.get('by')])
+    return list(dict.fromkeys(a for a in out if a))
+
+
 def compile_project(doc, scene, enable=(), library=None, foreign=()):
     """(spec or None, report) for a project document and the export of its source map. `enable`: families to build
     although FAMILIES doesn't yet (an experiment's build). `library` (a Library): where pieces of other maps come
@@ -4208,6 +4287,7 @@ def native_split(spec):
     stream_hides = out.pop('streamHides', None)
     stream_moves = out.pop('streamMoves', None)
     cleared, zones = out.pop('cleared', None), out.pop('landingZones', None)
+    spawn_rules = out.pop('spawnRules', None)
     carried = out.pop('carriedEffects', None)
     for obj in spec['objects']:
         if obj.get('type') == 'buildings':
@@ -4305,6 +4385,8 @@ def native_split(spec):
         native['cleared'] = cleared
     if zones is not None:
         native['landingZones'] = zones
+    if spawn_rules:
+        native['spawnRules'] = spawn_rules
     if carried:
         native['carriedEffects'] = carried
     native.update(effect_lanes)

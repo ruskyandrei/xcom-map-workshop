@@ -141,6 +141,18 @@ class PlanExclusion(unittest.TestCase):
         text = lines('[XComLZMutator.XComSpawnAlienMutator]\r\nMAX_DROP_DIST = 32')
         self.assertEqual(spawnrules.plan_exclusion(text, 'V', 'n')[0], 2)
 
+    def test_another_sections_line_and_the_plus_form(self):
+        # a line naming the variant in another section is not its entry; the drop-in section's +ExcludeMaps= is
+        text = lines(SPAWNS.replace('"NotThisSection"', '"V"'))
+        at, new, why = spawnrules.plan_exclusion(text, 'V', 'n')
+        self.assertEqual((at, why), (7, None))
+        plus = lines(SPAWNS.replace('ExcludeMaps=URB_Plain', '+ExcludeMaps="V"'))
+        self.assertEqual(spawnrules.plan_exclusion(plus, 'V', 'n'), (None, [], None))
+
+    def test_the_block_is_a_note_and_the_entry(self):
+        self.assertEqual(spawnrules.exclusion_block('V', 'XCOM Map Workshop, project P'),
+                         [b';V: scripted drop-ins land where placed (XCOM Map Workshop, project P)', b'ExcludeMaps = "V"'])
+
     def test_a_file_with_no_drop_in_section_says_why(self):
         at, new, why = spawnrules.plan_exclusion(lines('[Other]\r\nA=1'), 'V', 'n')
         self.assertEqual((at, new), (None, []))

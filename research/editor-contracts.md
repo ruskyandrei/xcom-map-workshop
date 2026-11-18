@@ -143,7 +143,7 @@ together in the editor and saved in the project (`groups`, section 4).
   - The rules for boxes keep `origin`, as they were played: the floor a flat piece gives, the cover block panel's
     tiles, the Build's seeds and rebuild volumes.
 
-## 4. The project document (schema 3)
+## 4. The project document (schema 4)
 
 A JSON file, named after the project (`Bar remix.json`, section 5). The server ([projects.py](../tools/viewer/projects.py)) refuses any other `schema` or
 `schemaVersion`, with a message naming the version. Schema 2 (16 November 2026; piece flags plan) adds pieces' `flags`;
@@ -154,6 +154,9 @@ is stored as 2.
 Schema 3 (17 November 2026; the effects and sounds plan, stage FX3) adds effects' and sounds' records (the rows
 `overrides[]` and `added[]` of effects and sounds below): the page, the server and the compiler read 1, 2 and 3, and
 the page writes 3; the server refuses a save of 1 or 2 as it did of 1.
+Schema 4 (18 November 2026; the editor spawns plan, stage SP8) adds `spawnRules` (below), and the base map's spawn
+points' records (stages SP6 and SP7) under the same number: the page, the server and the compiler read 1 to 4, the
+page writes 4, and the server refuses a save of 1 to 3.
 Prefab files are schema 3 since stage FX6a (17 November 2026): a piece with a `kind` is a copy of a map's effect or
 ambient sound, `{actor, kind: effect | sound, from: {package, level: base, actor}, location, rotation}` with the
 values object of its kind at most (`effect` or `sound`, as an added record of a project has it), a member of the
@@ -167,7 +170,7 @@ summary counts `effects`, `sounds` and `flares`.
 ```json
 {
   "schema": "xcom-map-workshop/project",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "5005037f-f7ac-4287-97f6-d1cab95360f9",
   "name": "Bar remix",
   "mode": "edit",
@@ -223,6 +226,7 @@ summary counts `effects`, `sounds` and `flares`.
 | `clearKeepsOutside` | Optional (13 November 2026, the Clear map window's "Keep the scenery outside the play area"): `true` with `cleared` says the clear kept the scenery outside the play area. The page did not delete the pieces whose every part's box lies outside it, nor the lights placed outside it. The Build's clear_level then also leaves the lights, emitters, decals and lens flares whose Location is outside it. The play area here is the map's level volume and the grid as the project has it together, across (the compiler's `outside_box`, the page's `outsideBox`). Volumes and cover seeds go wherever they stand. Absent or false: everything goes. Without `cleared` it says nothing. |
 | `landingZones` | Optional (13 November 2026; Clear map plan, section 4): the whole list of landing zones, in order: `{ "id": string, "location": [x, y, z], "direction": "north" \| "east" \| "south" \| "west", "kind": "normal" \| "inside" \| "alternate" \| "noEvac" \| "default", "missionType"?, "councilType"?, "alternate"?: { "location": [x, y, z], "direction" }, "lwr"?: false, "ew"?: true, "other"?: string }`. `location` is an LZArray line's `StartLoc` (the zone's ground is 64 under it), `direction` its `StartDir`, `kind` its `ESpawnLoc` (no line of the install uses the last three), `missionType` and `councilType` the mission it is kept for, as written, `alternate` its `AltSpawnLoc` and `AltSpawnDir`; `lwr` false writes no line for it; `ew` true (13 November 2026, the panel's Plain EW) makes it one of the map's own landings for plain EW; `other` keeps a line's fields the editor does not know, as written. The Build writes every zone with no `lwr: false` as one of the variant's LZArray lines, and the zones marked `ew: true`, in order, as the map's own landings moved in place, one for each landing the map has (the first marked zone is the first landing; marked zones beyond the map's count play under LWR only, a warning). A list with no zone marked goes by order: the first zones that name no mission. An empty list is no zone at all (a warning). Absent: the base map's lines are copied and its own landings left as they are, as before. A malformed zone is carried in its place. |
 | `missions` | Optional (15 November 2026; mission types plan, Part D): the missions the variant serves, a list of at least one: `{ "record": i }` for the base map's record `i` (the export's `missions` order, its `DefaultMaps.ini` records in file order), or `{ "kind": "Abduction" \| "TerrorSite" \| "Special/Bomb" \| "Crash" \| "LandedUFO", "ship"?: "eShip_UFO..." }` for a kind a record alone gives the map (`missions.ADDED_KINDS`: made from the base map's abduction record; `ship` the UFO type, for the two UFO kinds only). The Build writes a record for each (base records in file order, then the added kinds), and nothing else; Play in game plays one of them. Absent: every record of the base map, as before. A list the Build can't write is an error. |
+| `spawnRules` | Optional (18 November 2026; schema 4; the editor spawns plan, SP8): `{ "dropIns": "placed" }`, the Spawns flyout's "Scripted drop-ins land where placed". The Build then adds the variant to Long War's drop-in mutator's `ExcludeMaps` list (`DefaultRandomSpawns.ini`, section `[XComLZMutator.XComSpawnAlienMutator]`, after its ExcludeMaps lines, under a comment naming the editor and the project), so every scripted drop-in of every mission of the variant lands at its own point, with none of the mutator's overwatch and reveal; wave systems' drop-ins are never moved by Long War. The manifest's `config.dropInExclusion` says `{ file, section, line }` (and `why` where the build's install can't take it); Play in game and the campaign install plan the line again against the install (ledger keys `playExclusions` and `dropInExclusions`) and take it out only where it stands as written; nothing is written on plain Enemy Within, which plays them where placed already. The rule alone is work: a project with nothing else builds the map unchanged with it. Absent or null: the install's behaviour. Any other value is refused (`spawn-rules`); the page carries it as saved. |
 | `groups` | Optional (6 November 2026; a project without it has none). The user's groups, sorted by `id`: `{ "id": uuid, "locked": true, "breakTogether": false, "members": [...] }`, two or more members, each an original's target `{ "package", "level", "actor" }` (an effect's or a sound's too, since schema 3), an added piece's output name `{ "added": "TheWorld.PersistentLevel.XComDestructibleActor_60_copy9" }` or another group `{ "group": id }`, sorted. See section 2. A group placed from a prefab also has `prefab: { "id", "name", "revision" }` (12 November 2026): a label only, which the Build passes over. Prefab files themselves are described in [tools/viewer/prefabs.py](../tools/viewer/prefabs.py) and the prefab plan, 5.6. |
 
 - A deleted original is only `deleted`. Its pose before deletion is not kept, and restoring it brings it back as

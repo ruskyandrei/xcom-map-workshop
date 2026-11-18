@@ -6,7 +6,7 @@ import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
-         BUILDING_SAME, validLandingZone, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
+         BUILDING_SAME, validLandingZone, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -216,6 +216,8 @@ let clearKeepsOutside = false;
 // The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
 // {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
 let projectMissions = null;
+// the project's spawn rules (spawns plan, SP8): null, or { dropIns: 'placed' } (a malformed one is carried as saved)
+let projectSpawnRules = null;
 // The buildings drawn as boxes and edited (project.js validBuilding; setBuildings, further down, draws them): the
 // project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map
 // buildings plan, section 1). allBuildings is what the floors code reads: the map's as exported where unchanged (their
@@ -2633,15 +2635,17 @@ function resetAll() {
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
   if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
       && !addedEffects.length && !stays.length && !valued.length
-      && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size) return;
+      && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
   // the map's own grid, landing zones and no clear mark
   const map = { stage, zones: landingZones ? landingZones.map(z => ({ ...z })) : null, cleared, keeps: clearKeepsOutside,
-                missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves) };
+                missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
+                rules: projectSpawnRules };
   const mapState = m => {
     cleared = m.cleared; clearKeepsOutside = m.keeps; landingZones = m.zones ? m.zones.map(z => ({ ...z })) : null;
     projectMissions = m.missions ? m.missions.map(e => ({ ...e })) : null;
     setMissionMoves(new Map(m.moves ?? []));
+    projectSpawnRules = m.rules ?? null; syncSpawnRule();
     mergedBuildings = null; pickedZone = null; setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
   };
   const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
@@ -2654,7 +2658,7 @@ function resetAll() {
       for (const r of changed) setLightValues(r, r.userData.baseValues);
       restore.redo();
       for (const r of ownBoxes) r.userData.deleted = true;
-      mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null });
+      mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
       areaBindings = new Map(); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
     },
     undo: () => {
@@ -4288,11 +4292,12 @@ function editStateNow() {
   const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
                                                              ...(g.prefab ? { prefab: g.prefab } : {}) }));
   return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values()], groups: kept, areaLightBindings, stage,
-                    buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions });
+                    buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
+                    spawnRules: projectSpawnRules });
 }
 const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
 const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-  || cleared || landingZones || projectMissions);
+  || cleared || landingZones || projectMissions || projectSpawnRules);
 function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
 // Back to the map as exported, with no history: before a project's state is applied.
 function clearEdits() {
@@ -4305,6 +4310,7 @@ function clearEdits() {
   clearLightEdits();
   clearEffectEdits();
   cleared = false; clearKeepsOutside = false; landingZones = null; mergedBuildings = null; projectMissions = null;
+  projectSpawnRules = null; syncSpawnRule();
   setMissionMoves(new Map());
   setStage(null);
   setBuildings([]);
@@ -4328,6 +4334,7 @@ async function applyState(state, progress = null) {
   cleared = state.cleared === true; clearKeepsOutside = cleared && state.clearKeepsOutside === true; mergedBuildings = null;
   landingZones = Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null;
   projectMissions = Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null;
+  projectSpawnRules = state.spawnRules ?? null; syncSpawnRule();
   setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
   clearedChanged();
   // (a record for a map building this export can't edit is kept and saved back unchanged)
@@ -4506,6 +4513,7 @@ async function openProject(id) {
                                      cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
                                      landingZones: Array.isArray(doc.landingZones) ? doc.landingZones : null,
                                      missions: Array.isArray(doc.missions) ? doc.missions : null,
+                                     spawnRules: doc.spawnRules ?? null,
                                      nextSerial: doc.nextSerial }, openingProgress(doc.name));
   // a building this page can't read is kept and saved back unchanged, and so is one of the map's it can't edit
   carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
@@ -4544,6 +4552,7 @@ async function openProject(id) {
                     cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
                     landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
                     missions: Array.isArray(recovery.missions) ? recovery.missions : null,
+                    spawnRules: recovery.spawnRules ?? null,
                     nextSerial: recovery.nextSerial };
     if (stateKey(sortState(state)) !== project.savedKey) {
       const when = new Date(recovery.savedAt).toLocaleString();
@@ -4634,7 +4643,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
                                                areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
                                                stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
                                                cleared: state.cleared, clearKeepsOutside: state.clearKeepsOutside,
-                                               landingZones: state.landingZones, missions: state.missions }),
+                                               landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules }),
                        nextSerial: copySerial, view: { camera: camera.position.toArray(), target: controls.target.toArray() } };
     if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
     if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
@@ -6704,7 +6713,7 @@ function spawnPanel() {
   line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
     : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
   if (uses.length) line('Uses', `${uses.join('; ')}.`);
-  const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: false, mapExcluded: Boolean(spawnRulesData?.excluded) });
+  const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: validSpawnRules(projectSpawnRules), mapExcluded: Boolean(spawnRulesData?.excluded) });
   if (words.length) line('In the game', words.join(' '));
   if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
   // (a base pod or Meld point: the Build counts the places left, compiler.spawn_places, spawns plan SP5)
@@ -6901,12 +6910,40 @@ for (const f of FAMILIES) {
 }
 syncSpawnFilters();
 // What the install does with spawn points, read as a map opens (spawn-rules.json); the panel says it once it is here
+// The Spawns flyout's "Scripted drop-ins land where placed" (spawns plan, SP8): ticked when the project has the rule;
+// off and greyed, with the reason, where the install plays them where placed already (plain Enemy Within, or a Long War
+// whose loader lacks the drop-in mutator); on a map the install's ExcludeMaps names (the Chryssalid Hive) and no rule,
+// a line says the variant, under a name of its own, loses that. A ticked box stays clickable, to take the rule off.
+function syncSpawnRule() {
+  const box = $('dropInsPlaced'), note = $('dropInsNote');
+  if (!box || !note) return;
+  const on = validSpawnRules(projectSpawnRules), r = spawnRulesData;
+  const why = !r ? '' : r.kind === 'ew' ? 'Plain Enemy Within lands scripted drop-ins where they are placed already.'
+    : r.dropIns === 'absent' ? 'This install\'s Long War has no drop-in mutator in its loader: scripted drop-ins land where placed already.' : '';
+  box.checked = on;
+  box.disabled = Boolean(why) && !on;
+  box.indeterminate = projectSpawnRules != null && !on;     // a rule this page can't read: saved back as it is
+  const lines = [];
+  if (why) lines.push(why);
+  if (projectSpawnRules != null && !on) lines.push('The project has a spawn rule this editor doesn\'t know; the Build refuses it. Click to take it off.');
+  if (!on && !why && r?.excluded) lines.push(`Long War's ExcludeMaps names ${activeMapId}, so it lands its scripted drop-ins where placed; the variant has a name of its own and loses that unless this is ticked.`);
+  note.textContent = lines.join(' ');
+  note.hidden = !lines.length;
+}
+function setSpawnRule(next) {
+  const before = projectSpawnRules;
+  if (JSON.stringify(before) === JSON.stringify(next)) return;
+  const put = v => { projectSpawnRules = v; syncSpawnRule(); spawnPanel(); };
+  gizmo.record({ redo: () => put(next), undo: () => put(before) });
+  flashHint(next ? 'Scripted drop-ins land where placed: the Build excludes the variant from Long War\'s drop-in mutator' : 'Scripted drop-ins as the install plays them');
+}
+$('dropInsPlaced').onchange = e => setSpawnRule(e.target.checked ? { dropIns: 'placed' } : null);
 function loadSpawnRules() {
   spawnRulesData = null;
   if (!spawnsAvailable()) return;
   const id = activeMapId;
   fetch(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(r => (r.ok ? r.json() : null)).then(rules => {
-    if (id === activeMapId) { spawnRulesData = rules; spawnPanel(); }
+    if (id === activeMapId) { spawnRulesData = rules; spawnPanel(); syncSpawnRule(); }
   }).catch(() => {});
 }
 
@@ -9720,6 +9757,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point
     spawnLayer, spawnsOn: () => spawnsOn, setSpawnsShown, normalSpawns: () => normalSpawns, setNormalSpawns, showSpawn,
     pickedSpawn: () => pickedSpawn, pickSpawn: key => setPickedSpawn(key), spawnRules: () => spawnRulesData, bombHelperFix,
+    projectSpawnRules: () => projectSpawnRules, setSpawnRule,
     spawns: () => { const project = projector(), shown = new Set(spawnLayer.children.map(m => m.userData.spawn));
       return spawnEntriesNow.map(e => ({ key: e.key, layer: e.layer, stream: e.stream, kind: e.record.kind, role: e.record.role ?? null,
         group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))) })); },

@@ -8,6 +8,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP8: scripted drop-ins land where placed (project schema 4)
+
+- **Project schema 4** ([projects.py](tools/viewer/projects.py), [project.js](tools/viewer/web/project.js),
+  [compiler.py](tools/editor/compiler.py)): read 1 to 4, written as 4; a save of 1 to 3 is refused as a stale page's.
+  It adds `spawnRules`, and will hold the base spawn points' records of SP6 and SP7.
+- **The rule** `spawnRules: {"dropIns": "placed"}`:
+  - the page ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)): a checkbox in the
+    Spawns flyout, "Scripted drop-ins land where placed (Long War)", with a tooltip on what it covers; greyed with the
+    reason on plain Enemy Within and on a Long War without the drop-in mutator; a line where the install's
+    ExcludeMaps names the base map (the Chryssalid Hive) and the project has no rule; saved, opened, recovered, taken
+    by Reset all and undone as one step; a drop-in's "In the game" follows it;
+  - the compiler: refuses any other value (`spawn-rules`), counts the rule as an edit, passes it to the Build and the
+    report; note `dropins-placed` counts the scripted actions it covers over the map and the kept missions' streams
+    (export 33's `uses`); note `dropins-base-excluded` for the Hive's case; `scripted_users()` reads the uses as the
+    page does;
+  - the Build ([build.py](tools/editor/build.py)): the rule alone is work; the manifest's `config.dropInExclusion`
+    gives the file, section and line, planned against the build's install (`why` where it can't take it), and the
+    README a step for `DefaultRandomSpawns.ini`. A build whose map nothing changes (landing zones or the rule alone)
+    now says lighting unchanged, where its README spoke of a texture cache it doesn't have;
+  - the install ([installs.py](tools/viewer/installs.py)): Play in game and the campaign install plan the line again
+    against the install (`plan_variant_exclusion`, after the drop-in section's ExcludeMaps lines, under a comment
+    naming the editor and the project), back the file up with the other two, note it as `playExclusions` or
+    `dropInExclusions`, and take it out only where it stands as written (clearing a play, Remove from game, reset);
+    a campaign install takes a play's line over; nothing is written on plain Enemy Within or without the mutator,
+    and the play says why;
+  - map packs ([manager.py](tools/viewer/manager.py), [pack_scripts.py](tools/viewer/pack_scripts.py)): a map's
+    `pack.json` entry carries its lines, the README a step for the file, and the PowerShell scripts add them where
+    the game's file has the drop-in section and take them out again;
+  - [spawnrules.py](tools/viewer/spawnrules.py) gains `exclusion_block`;
+    [readme_install_check.py](tools/release/readme_install_check.py) follows a README's step for the third file.
+- [research/editor-contracts.md](research/editor-contracts.md), section 4: schema 4 and `spawnRules`.
+- New [exp72_sp8_sp9_projects.py](tools/editor/examples/exp72_sp8_sp9_projects.py): EXP-72 runs 3 to 5's projects.
+- Checked: new [project_spawns_test.mjs](tools/viewer/tests/project_spawns_test.mjs); the project node tests at 4;
+  [test_projects.py](tools/viewer/tests/test_projects.py) (schema 4 saved with the rule, a schema 3 page's save
+  refused); [test_spawnrules.py](tools/viewer/tests/test_spawnrules.py) (another section's line, the `+` form, the
+  block); [test_play.py](tools/viewer/tests/test_play.py) (the line in with a play and out byte for byte, a campaign
+  install taking it over, a rebuild adding none, none without the mutator); [test_manager.py](tools/viewer/tests/test_manager.py)
+  (the pack's scripts and the editor write the same lines, out byte for byte, none without the section);
+  [test_build.py](tools/editor/tests/test_build.py) (a rule-only build, its manifest and README, on a plain and a
+  Long War install); [test_compiler.py](tools/editor/tests/test_compiler.py) (the rule checked, passed on and
+  counted; the Hive's note). In the page on a test server (Pier A's Council rescue): the box ticks the rule, a
+  scripted drop-in's "In the game" changes to "plays here", Ctrl+Z takes it back. The game check is EXP-72 runs 3
+  and 4.
+
 ### Spawns, stage SP5: pod places and Meld groups counted against the edit
 
 - [compiler.py](tools/editor/compiler.py): `spawn_places()` counts the base map's pods and Meld points (export 33's

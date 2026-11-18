@@ -5,7 +5,9 @@ import math
 import os
 from pathlib import Path
 import random
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -328,6 +330,58 @@ class CompilerTests(unittest.TestCase):
                        rec('XComMeldContainerSpawnPoint_1', 'XComMeldContainerSpawnPoint', 'meld', at(25, 5, 17.0),
                            difficulty='Easy', spawnGroup=0)]
         return s, at
+
+    def test_the_drop_in_rule_is_checked_passed_on_and_says_what_it_covers(self):
+        # spawns plan SP8: spawnRules {"dropIns": "placed"} or nothing; it is work of its own, goes to the Build's
+        # native edit and the report, and a note counts the scripted actions it covers (export 33's uses) over the map
+        # and the kept missions' streams; anything else is refused
+        s, at = self.spawn_scene()
+        use = lambda by: dict(how='direct', by=by, byClass='SeqAct_SpawnAlien')  # noqa: E731
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={},
+                                uses=[use('Main_Sequence.SeqAct_SpawnAlien_1'),
+                                      dict(how='indirect', by='Main_Sequence.SeqAct_AccessObjectList_0',
+                                           then=['Main_Sequence.SeqAct_SpawnAlien_2', 'Main_Sequence.SeqAct_SpawnAlien_1'])]))
+        s['streams']['URB_Bar_CNH']['missionObjects'][2]['uses'] = [use('Stream_Sequence.SeqAct_SpawnAlien_0')]
+        spec, report = compile_project(document(spawnRules=dict(dropIns='placed')), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(report['spawnRules'], dict(dropIns='placed'))
+        self.assertEqual(native_split(spec)[1]['spawnRules'], dict(dropIns='placed'))
+        note = next(n for n in report['notes'] if n['code'] == 'dropins-placed')
+        self.assertEqual((note['actions'], note['missions']), (3, ['Abduction', 'Data recovery']))
+        self.assertIn('3 scripted actions in URB_Bar_CNH, the map', note['message'])
+        self.assertIn('URB_Bar_BarRemix_5005', note['message'])
+        # one mission kept: its stream alone is counted with the map
+        _, report = compile_project(document(spawnRules=dict(dropIns='placed'), missions=[dict(record=0)]), s)
+        note = next(n for n in report['notes'] if n['code'] == 'dropins-placed')
+        self.assertEqual((note['actions'], note['missions']), (2, ['Abduction']))
+        # not a rule this editor knows: refused
+        for bad in (dict(dropIns='install'), dict(dropIns='placed', waves='placed'), 'placed', []):
+            _, report = compile_project(document(spawnRules=bad), s)
+            self.assertEqual(codes(report), ['spawn-rules'], bad)
+        # none: no note, nothing passed on
+        spec, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)]), s)
+        self.assertEqual((noted(report, 'dropins'), report['spawnRules'], native_split(spec)[1].get('spawnRules')), ([], None, None))
+
+    def test_a_map_long_war_excludes_says_its_variant_is_not(self):
+        # spawns plan SP8: the install's ExcludeMaps names the base map (the Chryssalid Hive's case): with no rule, a note
+        # that the variant, under its own name, gets the drop-in mutator
+        s, _ = self.spawn_scene()
+        game = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, game, True)
+        cfg = game / 'XEW/XComGame/Config'
+        cfg.mkdir(parents=True)
+        (cfg / 'DefaultMutatorLoader.ini').write_bytes(b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n')
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "URB_Bar"\r\n')
+        library = compiler.Library(str(game), str(game))
+        edit = [dict(target=target('XComLevelActor_2'), deleted=True)]
+        _, report = compile_project(document(edit), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), ['dropins-base-excluded'])
+        _, report = compile_project(document(edit, spawnRules=dict(dropIns='placed')), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), ['dropins-placed'])
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "EWI_ChryssalidHive"\r\n')
+        _, report = compile_project(document(edit), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), [])
 
     def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
         # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in
@@ -815,7 +869,7 @@ class CompilerTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=4), 'schema'),
+        for doc, code in [(document(schemaVersion=5), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),

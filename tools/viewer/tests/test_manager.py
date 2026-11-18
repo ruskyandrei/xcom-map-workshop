@@ -421,6 +421,46 @@ class Manager(unittest.TestCase):
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
         self.assertEqual(self.files(self.copy), before)
 
+    @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_packs_scripts_and_the_editor_write_a_projects_drop_in_exclusion_alike(self):
+        """Editor spawns plan, SP8: a project that leaves scripted drop-ins where placed: pack.json carries the variant's
+        ExcludeMaps lines, the README a step for DefaultRandomSpawns.ini, and the pack's scripts and the editor's
+        campaign install write the same lines after the drop-in section's ExcludeMaps lines; the scripts take them out
+        byte for byte. A game whose file has no drop-in section gets nothing from the scripts."""
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        for game in (self.lwr, self.copy):
+            (game / 'XEW/XComGame/Config/DefaultMutatorLoader.ini').write_bytes(test_play.MUTATOR_LOADER)
+            (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(test_play.RANDOM_SPAWNS)
+        spawns = lambda game: (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').read_bytes()  # noqa: E731
+        before = spawns(self.copy)
+        player = self.player()
+        self.package(exclusion=True)
+        request = dict(projects=[ID], mode='additional', modes={})
+        r = manager.pack(self.store, self.builds, player, dict(request, name='Drop-ins placed'))
+        folder = Path(self.temp.name) / 'unzipped drop-ins'
+        with zipfile.ZipFile(r['zip']) as z:
+            z.extractall(folder)
+            readme = z.read('README.txt').decode('latin-1')
+        packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
+        self.assertEqual(packed['dropInExclusion'][1], f'ExcludeMaps = "{VARIANT}"')
+        self.assertTrue(packed['dropInExclusion'][0].startswith(f';{VARIANT}: scripted drop-ins land where placed (XCOM Map Workshop'))
+        self.assertIn('DefaultRandomSpawns.ini', readme)
+        self.assertIn(f'ExcludeMaps = "{VARIANT}"', readme)
+        self.run_script(folder, 'Install.cmd', self.copy)
+        manager.install(self.store, self.builds, player, request)
+        self.assertEqual(spawns(self.copy), spawns(self.lwr))
+        lines = dep.lines_of(spawns(self.copy))
+        self.assertEqual(lines.index(f'ExcludeMaps = "{VARIANT}"'.encode()), lines.index(b';ExcludeMaps = "DLC2_2_Deluge"') + 2)
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual(spawns(self.copy), before)
+        # no drop-in section in the game's file: the scripts add nothing there
+        other = dep.EOL.join([b'[XComLZMutator.XComSpawnMutator]', b'PLAYER_PROXIMITY = 29', b''])
+        (self.copy / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(other)
+        self.run_script(folder, 'Install.cmd', self.copy)
+        self.assertEqual(spawns(self.copy), other)
+        self.run_script(folder, 'Uninstall.cmd', self.copy)
+
     def first_mission_bar(self, game):
         """Bar made what LWR's URB_CommercialAlley_EWI is: its abduction record, in rotation, is the one a new campaign's
         first mission asks for by name (installs.FIRST_MISSION), and no other record has that name."""
