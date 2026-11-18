@@ -1,6 +1,7 @@
 # EXP-74: made walls lit as the game's are, and one-storey walls (custom geometry plan, M2, run B)
 
-Date: 18 November 2026. Status: **prepared**. The custom geometry plan's stage M2 (branch `fracturing-wall-poc`): a
+Date: 18 November 2026. Status: **run B passed**: the moon's shadow seen offline only, and pieces left floating
+after a break (F-127, for run C). The custom geometry plan's stage M2 (branch `fracturing-wall-poc`): a
 made wall's lightmap is a rectangle of its own size at the donor's density, it has a shadow map of the dominant light
 of its own, a Build without baking gives it one even light, and a wall can be one storey. Played unattended in the lab
 copy (the hidden game, the game-test skill): only what is new since EXP-73; the look is for the user's eye too.
@@ -50,4 +51,35 @@ Checks, each passed, failed or unclear:
 
 ## Result
 
-Not played yet.
+**Run B** (18 November 2026, the hidden game, an Opus agent by the game-test skill; out folders
+`<lab>/hidden-runs/exp74-runB` and `exp74-runB-quick`: reports, shots, Launch.log). Read against the shots.
+
+1. **Load: passed.** `LoadMap: EXP74WallLight`, the intro done; the five made walls appear in `Launch.log` only in the
+   routine convex-cooking lines every fracturing piece has; no error names a made wall, its lightmap or shadow map.
+2. **Sharpness and seams: passed.** Close shots of W16's lot face along its length and of R: the same blue moonlight,
+   smooth gradients, the tile texture crisp; no seam line, blotch or black part. The lot side has no hard light pool
+   to compare sharpness by (its one lamp is a street lamp at W16's west end).
+3. **The moon's shadow: not seen in the game; offline the shadow maps are right.** In the game every face of W2 and
+   W1 is about as dim as the lot's ground, in the textured view and with lighting only (`viewmode lightingonly`),
+   and nothing casts a shadow across them; the ground shows the walls' shadows on their north side. The map's moon on
+   the lot is too weak to tell the sides apart by eye. Offline, each made wall's shadow map in the baked map has a lit
+   part and a shadowed one (of each rectangle 22 to 34% at full light, 45 to 57% in full shadow, the rest edges: the
+   moonlit face, the far face and the faces inside the wall), so the relight wrote them and the game has them.
+4. **Lamps: passed** for the one lamp there is: at the street lamp on W16's west end the wall and the pavement
+   brighten together; the bar face warm and even, as R's. The plan's "awning lamps" are not on that stretch.
+5. **One storey (W1): passed.** Drawn whole, its cornice at the top, nothing above it; a soldier at (-1201, -721)
+   reads cover 50 (high) toward the wall, flags 1.
+6. **A wall on a wall (W1a, W1b): passed.** One two-storey wall with W1a's cornice between the storeys, the ends in
+   line, no gap or flicker from either side.
+7. **Break: holes and fire, no crash; pieces left floating (F-127).** A grenade by W16 took its lower storey out over
+   about four tiles with fire on the wall; its upper storey spans the hole with nothing under it. A grenade by W1a
+   took W1a out along its whole length, and W1b stayed 192 over the ground, a van's wheel seen under it. No rubble
+   chunks were seen; no error after the blasts.
+8. **Quick Build: passed for the made walls.** `EXP74WallLightQuick` loaded; W16, W2, W1, W1a and W1b each one even
+   light on both faces, none black or patterned (W2 paler than its neighbours, its light from another piece). R, the
+   donor's own mesh (the `relit` reference, which only a baked Build relights), shows the donor's bake of the bar's
+   windows in the quick build, as any copy of a game piece keeps its home bake.
+
+M2 is done: made walls are lit as the game's pieces are at any length, and walls can be one storey. What was left
+floating goes to M3 (F-127): since 033a5d7 (M3 item 3) W1a's and W1b's columns list each other, so a blast on one
+passes on to the other; run C looks at that, and at one of the game's own two-storey walls broken the same way.

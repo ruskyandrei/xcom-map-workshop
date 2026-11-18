@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### EXP-74 run B passed (custom walls M2): made walls lit at any length, one-storey walls
+
+- [EXP-74](research/experiments/EXP-74-wall-light.md) run B, played unattended in the lab copy on URB_Bar:
+  - Made walls load. A 16-tile wall is as sharp as the donor relit beside it, with no seams.
+  - One-storey walls stand and give high cover, and one stands on another as a single two-storey wall.
+  - Grenades hole the walls, with fire.
+  - In a Build without baking each made wall has one even light.
+- The moon's shadow on the walls was too faint to see in the game. Offline, the baked map's shadow maps hold a lit
+  side and a shadowed side.
+- New: F-127 in the [findings register](research/findings-register.md). An upper storey stays over a hole broken
+  through the storey under it. A wall standing on another stays when that one goes. The neighbour lists added in M3
+  item 3 pass a break between walls that touch; run C plays that.
+
+Checked against the run's shots and logs, and the shadow-map share read from the baked map's textures.
+
 ### Custom walls, stage M3 (items 2 and 3): joined ends, and neighbour lists by the game's rule
 
 - **End styles.** A made wall's end is free, joined at an L, or end to end, as the game's walls meet (the joint audit):

@@ -294,6 +294,21 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
+**Open** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B).
+- **Seen.** A grenade by a 16-tile made wall took its lower storey out over about four tiles; its upper storey still
+  spans the hole. A grenade by a one-storey made wall (W1a) with another standing on it (W1b) took W1a out along its
+  length, and W1b stayed in the air.
+- **Why, as far as known.** A wall's columns are a tile by a storey (the game's rule, F0), and the game destroys a
+  column when a fragment within 30 units of its bottom breaks ([frac-neighbours.md](native/frac-neighbours.md)): the
+  upper storey's columns have their own bottoms, which the blast did not reach. No fragment of the donor is a root
+  (nor of URB_Bar's other inside wall), so no island-support check holds them up or drops them, and the made walls
+  are the same. W1a and W1b listed nothing of each other in that build: each broke only where the blast reached it.
+- **Since.** Joined made walls and a made wall on another list each other's columns (M3 item 3, 033a5d7): a blast on
+  one passes the same damage, up to its height, to the other's listed columns. Not played yet.
+- **Open.** Whether one of the game's own two-storey walls (URB_Bar's) does the same when its lower storey is broken
+  through: run C breaks one beside a made wall.
+
 ### F-126: A window in a made wall is climbed through, as the game's windows are
 **Verified** (18 November 2026, EXP-73 run A: a soldier walked one tile through W1's window, sill 72, top 168).
 - **What the game does.** A wall under a window is low cover (its tiles read 30 in LWR: cover 44-60 hits the wall,
