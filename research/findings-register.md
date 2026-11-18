@@ -1668,6 +1668,15 @@ of their own (walls, storey floors, roof slabs, a bar's counter) were switched o
 - No rule of the boxes reproduces the neighbour lists: every listed pair of columns touches or overlaps, but 663
   pairs of columns of different pieces less than half a unit apart aren't listed (44 of them overlap on all three
   axes), and 135 listings aren't mutual. So the lists are carried, not made anew.
+  - **Rule found** (18 November 2026, the custom geometry plan's M3 audit,
+    [frac-neighbours.md](native/frac-neighbours.md), [wall-joints.py](evidence/wall-joints.py)): column X of piece A
+    lists column n of piece B when X's box touches or overlaps B_n's box cut to B's own vertex box grown by one unit
+    (closed boxes). It gives the saved list exactly for 61,805 of 62,460 columns over 151 maps (601 listings missed,
+    550 added of 131,507, between a few pieces per map that look moved after the lists were made); exact on URB_Bar
+    (1,037 of 1,037). Only B's box is cut, so a top-storey column reaching above its piece is listed one way: the
+    135. Columns lie on the piece's own grid (96 x 96 x 192 from its vertices' lowest corner less one unit).
+  - What a listing does (the natives): a damaged column hands the same damage, up to the same height, to each
+    listed column (`TakeCollateralDamage` -> `DamageColumn(..., false)`), one step, no further cascade.
 - Fix (`native_copy.move_columns`, for every fracturing copy now, not only a car's glass; `edit_columns`):
   - a copy's `DestructibleCache` and `FracActorCache` keep the entries of its own assembly and of pieces copied in
     the same build by the same rigid move (`same_move`: a wall's door, the wall beside it), now naming those copies;

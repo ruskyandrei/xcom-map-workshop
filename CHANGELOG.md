@@ -8,6 +8,24 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 1): how the game's walls meet, and the neighbour lists' rule
+
+- [wall-joints.py](research/evidence/wall-joints.py) (read only; output
+  [wall-joints-2026-11-18.json](research/evidence/wall-joints-2026-11-18.json)) chains every listed map's fracturing
+  pieces' columns into straight runs and classifies each wall run's end against the others: over 151 maps, 609 L
+  corners of two pieces (half 45-degree mitres, the rest mostly rebated or one wall through, one butting; none
+  leaves the corner square empty), 89 inside one L-shaped mesh, 162 T joints (interior kits' stems stop square 8
+  short of the through wall's centre line, which is a made wall's free end today), 98 end to end, 288 on a pillar,
+  550 free. It also tests a rule for the neighbour lists (`FracActorCache`).
+- [frac-neighbours.md](research/native/frac-neighbours.md): the rule (a column lists another piece's column when its
+  box touches the other's box cut to that piece's own bounds grown by one unit; exact for 61,805 of 62,460 columns,
+  and for every L and T joint), the columns' own grid (96 x 96 x 192 from the piece's vertices' lowest corner less
+  one), and what a listing does in the game (the natives: a damaged column passes the same damage, up to the same
+  height, one step on). F-69 in the [findings register](research/findings-register.md) says so.
+
+Checked: the audit over all 151 maps (the rule's counts above; URB_Bar 1,037 of 1,037 columns); the `repo` suite.
+Not followed: what the game's damage resolution does with damaged columns afterwards.
+
 ### Custom walls, stage M3 (item 5): Put a door in it
 
 - A made wall's doorway with no door in it has a "Put a door in it" button in the piece panel's Wall section: it lists
