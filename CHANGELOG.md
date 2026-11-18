@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Looks named by their donor: looks.py and the request versions** (custom geometry plan, M4a; branch
+  `fracturing-wall-poc`).
+  - [looks.py](tools/bake/looks.py) is new. It reads the catalogues (tools/bake/looks/walls.json, slabs.json,
+    ground.json, written by each kind's catalogue script) and resolves a look named `{mesh, measure}` (a ground
+    look's also `material`) to its recipe. The recipe comes from the catalogue when the catalogue holds that donor at
+    that measurer version. Otherwise the donor is measured where the Build has it, once per process, by the measurer
+    of that version. `listing` gives the page a kind's looks with only the numbers it draws by; `build` runs the
+    catalogue scripts.
+  - [frac_walls.py](tools/bake/frac_walls.py): walls' request version 3 and slabs' and ground shapes' version 2
+    always name a look by its donor. The Build resolves it in the map the donor was copied into, in add_walls and
+    wall_box. Older versions keep their look ids. The opening boxes take the wall's own section, not the Bar's.
+  - Checked: [test_looks.py](tools/bake/tests/test_looks.py) (a catalogued look, a ground look by its material, an
+    uncatalogued look measured once, a measurer of another version refused, look ids left alone, the page's
+    listing, the request versions refused without a resolved donor look); the frac_walls tests pass unchanged.
+  - Not yet: the measurers and catalogues (two agents are writing them), and the generators building from a
+    resolved recipe. Until those are merged, a version 3 wall stops at frac_wall.look_of.
+
 ### The Add panel opens on maps with no no-spawn volume of their own
 
 - On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the

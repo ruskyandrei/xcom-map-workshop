@@ -80,6 +80,7 @@ import frac_wall  # noqa: E402
 import ground  # noqa: E402
 import gen_mesh  # noqa: E402
 import light_factory  # noqa: E402
+import looks  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
@@ -89,8 +90,12 @@ MADE = ('fracWall', 'fracSlab')     # the fracturing kinds made from numbers (th
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 # the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2 and M4 item 1), with its end styles
 # (`ends`), which the compiler works out from where the project's made walls meet, and its look (`look`, one of
-# frac_wall.LOOKS); version 1 reads as two free ends in the Bar's inside wall
-VERSIONS = (1, 2)
+# frac_wall.LOOKS); version 1 reads as two free ends in the Bar's inside wall; 3 (M4), its look named by its donor
+# (`look: {mesh, measure}`, looks.py), any of the game's fracturing walls
+VERSIONS = (1, 2, 3)
+# a slab's and a ground shape's: 1, a look id (slab_looks.json, ground_looks.json) or none; 2 (M4), the look named by
+# its donor (a ground shape's also by its material)
+OTHER_VERSIONS = (1, 2)
 TILE, STOREY = 96.0, 192.0
 # the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
 MIN_LENGTH = 24 + 2 * int(frac_wall.RECIPE['endInset'])
@@ -107,8 +112,12 @@ def check(generated):
     if generated['kind'] == 'relit':
         return generated
     if generated['kind'] in ('fracSlab', 'ground'):
-        if generated.get('version', 1) != 1:
-            raise ValueError('generated %s request version %r (this Build knows 1)' % (generated['kind'], generated.get('version')))
+        version = generated.get('version', 1)
+        if version not in OTHER_VERSIONS:
+            raise ValueError('generated %s request version %r (this Build knows %s)'
+                             % (generated['kind'], version, ' and '.join(map(str, OTHER_VERSIONS))))
+        numbers = generated.get('slab' if generated['kind'] == 'fracSlab' else 'ground')
+        donor_look(generated['kind'], numbers, version, 2)
         if generated['kind'] == 'fracSlab':
             frac_slab.check(generated.get('slab'))
         else:
@@ -125,6 +134,7 @@ def check(generated):
     for key, what in (('ends', 'end styles'), ('look', 'look')):
         if key in wall and generated.get('version', 1) < 2:
             raise ValueError("a generated wall's %s come%s with request version 2" % (what, '' if key == 'ends' else 's'))
+    donor_look('fracWall', wall, generated.get('version', 1), 3)
     frac_wall.ends_of(wall)
     frac_wall.look_of(wall)
     for o in wall.get('openings') or []:
@@ -132,6 +142,27 @@ def check(generated):
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
             raise ValueError('an opening outside its wall or of no size: %r' % (o,))
     return generated
+
+
+def donor_look(kind, numbers, version, since):
+    """A request's look named by its donor (a dict: looks.py) comes with request version `since`, which always names
+    one, and has been resolved (its recipe put in by looks.resolved); a look id with an older one. ValueError
+    otherwise."""
+    look = numbers.get('look') if isinstance(numbers, dict) else None
+    if isinstance(look, dict):
+        if version < since:
+            raise ValueError('a generated %s whose look is named by its donor comes with request version %d' % (kind, since))
+        looks.check_look(looks.REQUESTS[kind][0], look)
+        if not isinstance(look.get('recipe'), dict):
+            raise ValueError('the look of %s has not been resolved (looks.resolved)' % look['mesh'])
+    elif version >= since:
+        raise ValueError('a generated %s of request version %d names its look by its donor ({mesh, measure})' % (kind, version))
+
+
+def section_points(R):
+    """A wall recipe's section corners on both sides ([y, z, v]: its +y side's and, where the -y side differs, its
+    `sectionB`)."""
+    return list(R['section']) + list(R.get('sectionB') or ())
 
 
 def local_box(wall):
@@ -155,6 +186,7 @@ def wall_box(p, actor, location, rotation, generated):
     if kind not in MADE and kind != 'ground':
         return None
     comp = mesh_component(p, actor)
+    generated = looks.resolved(generated, p, p.name(actor))
     box = (local_box(generated['wall']) if kind == 'fracWall' else frac_slab.local_box(generated['slab']) if kind == 'fracSlab'
            else ground.local_box(generated['ground']))
     return world_box(box, lightmap_texels.world_matrix(p, comp, location, rotation))
@@ -868,8 +900,9 @@ def add_walls(g, p, items, grid, bake=True):
     built, records = [], []
     dominant = None
     for item in items:
-        gen = check(item['generated'])
         original = item['original']
+        # (a look named by its donor takes its recipe from the catalogue, or from measuring the donor here)
+        gen = item['resolved'] = check(looks.resolved(item['generated'], p, p.name(original)))
         if gen['kind'] == 'ground':
             comp_old = p.own(original, 'StaticMeshComponent')
             if not comp_old or p.cls(original) not in GROUND_CLASSES:
@@ -975,7 +1008,7 @@ def add_walls(g, p, items, grid, bake=True):
         template_col = bytes(b[s0:e0])
         pieces = [column_element(g, walker, template_col, c) for c in cols]
         g.relocate(actor, native_copy.rebuilt(b, field, pieces))
-        h = max(y for y, _, _ in frac_wall.RECIPE['section'])
+        h = 0.0 if slab else max(y for y, _, _ in section_points(frac_wall.look_of(item['resolved']['wall'])))
         holes = [] if slab else [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix)
                                  for o in item['generated']['wall'].get('openings') or []]
         records.append(dict(kind=item['generated']['kind'], copy=actor, original=item['original'], openings=holes,
