@@ -93,18 +93,18 @@ assert.equal(reshuffled(wall, 0.5).seed, 500000);
 assert.notEqual(reshuffled({ ...wall, seed: 1 }, 0).seed, 1);
 
 // ---- what the game does at an opening
-assert.deepEqual(openingPlay(wall, wall.openings[0]), { tiles: 1, walk: true, sight: true, cover: 'none' });
-assert.deepEqual(openingPlay(wall, wall.openings[1]), { tiles: 1, walk: false, sight: true, cover: 'low' });
+assert.deepEqual(openingPlay(wall, wall.openings[0]), { tiles: 1, walk: true, climb: false, sight: true, cover: 'none' });
+assert.deepEqual(openingPlay(wall, wall.openings[1]), { tiles: 1, walk: false, climb: true, sight: true, cover: 'low' });
 // a high window: high cover under it, no sight; a low one: walked through
-assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 112, z1: 200 }), { tiles: 1, walk: false, sight: false, cover: 'high' });
-assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 40, z1: 200 }), { tiles: 1, walk: true, sight: true, cover: 'none' });
+assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 112, z1: 200 }), { tiles: 1, walk: false, climb: false, sight: false, cover: 'high' });
+assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 40, z1: 200 }), { tiles: 1, walk: true, climb: false, sight: true, cover: 'none' });
 // an opening between two tiles' centre lines: nothing passes
-assert.deepEqual(openingPlay(wall, { x0: 56, x1: 136, z0: -16, z1: 160 }), { tiles: 0, walk: false, sight: false, cover: 'whole' });
+assert.deepEqual(openingPlay(wall, { x0: 56, x1: 136, z0: -16, z1: 160 }), { tiles: 0, walk: false, climb: false, sight: false, cover: 'whole' });
 assert.equal(openingWords(wall.openings[0]), 'Doorway, 1 tile wide, 160 tall');
 assert.equal(openingWords(wall.openings[1]), 'Window, 1 tile wide, 96 tall, its sill 72 over the floor');
 assert.match(playWords(wall, wall.openings[0]), /^Units walk through it, see and shoot through it; it gives no cover\. A unit in a doorway/);
 assert.doesNotMatch(playWords(wall, wall.openings[0], { door: true }), /put a door/);
-assert.equal(playWords(wall, wall.openings[1]), 'Units can\'t walk through it, see and shoot through it; the wall under it gives low cover.');
+assert.equal(playWords(wall, wall.openings[1]), 'Units climb through it, see and shoot through it; the wall under it gives low cover.');
 assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
 
 // ---- heights (M2): one storey stands to 192; the top handle steps between the two past half a storey

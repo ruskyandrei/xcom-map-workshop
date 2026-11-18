@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### EXP-73 run A passed (custom walls M1): windows are climbed through
+
+- [EXP-73](research/experiments/EXP-73-wall-tool.md) run A, played unattended in the lab copy: made walls on
+  URB_PoliceStation with the donor brought from URB_Bar load and draw; a doorway is walked through; a window gives low
+  cover and is seen and shot through; a quarter-turned wall and a wall on a roof give high cover; a hole under an
+  upper storey is walked under (an empty section loads); grenades hole them with fire and rubble; a quicksave after
+  the breaks works. Left open: a straight walk through the roof wall's doorway, whether an upper storey falls when the
+  storey under it is holed right through, and why the roof wall wasn't seen from the default camera.
+- A window is climbed through, as the game's windows are (F-126 in the
+  [findings register](research/findings-register.md)): the wall under it is low cover and the game gives that tile
+  its ClimbOver. The piece panel's words said units can't walk through a window: [walls.js](tools/viewer/web/walls.js)
+  `openingPlay` now gives `climb`, and a window says "Units climb through it"; the compiler's twin `opening_play`
+  ([compiler.py](tools/editor/compiler.py)) gives it too.
+
+Checked: the node suite's walls_test and the editor suite's generated-wall tests; the run's shots, log and the
+quicksave's tiles (save_tiles.py) read for the result.
+
 ### Custom walls, stage M3 (item 4): props and cover blocks break with a made wall in their group
 
 - A group with "Break together" on that holds a made wall now breaks with it: the compiler gives the wall the group's

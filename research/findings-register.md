@@ -294,6 +294,20 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-126: A window in a made wall is climbed through, as the game's windows are
+**Verified** (18 November 2026, EXP-73 run A: a soldier walked one tile through W1's window, sill 72, top 168).
+- **What the game does.** A wall under a window is low cover (its tiles read 30 in LWR: cover 44-60 hits the wall,
+  the high-cover sweep 88-104 passes through the opening), and the game's tile rebuild gives a low-cover tile its
+  ClimbOver bit toward it (flags 0x200111 on W1's window tile, 0x1000888 on W2's): units vault through, as through
+  the game's own windows. The walking sweep at 64 does meet the wall under the sill, so they don't walk through
+  plainly; they climb.
+- **What was wrong.** Stage M1's words (the piece panel's and the compiler's) said units can't walk through a window
+  and took that from the game's glass; the run found the climb. Fixed the same day: a window with low cover under it
+  says units climb through it (walls.js `openingPlay` gives `climb`; the compiler's window note says so).
+- Also from the run: sight and shots pass through the window (a Sectoid 192 north targeted at 100% and killed); a
+  doorway is walked through; a one-storey-high hole under an upper storey is walked under; a quarter-turned wall and
+  a wall on a roof give high cover beside their solid tiles.
+
 ### F-125: Edited no-spawn volumes keep a pod's other aliens out; with their aliens switch off they let them in
 **Verified** (18 November 2026, EXP-72 run 17: the volume edits of export 34).
 - **What the game does.** `XComAlienPod.GetSpawnPoint` puts a pod's first alien on the pod's own place and each other

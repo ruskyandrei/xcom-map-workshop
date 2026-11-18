@@ -448,21 +448,23 @@ def world_box(obj, meshes, location, rotation, along=None):
 
 def opening_play(wall, o):
     """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
-    centre lines pass through it), walk, sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
+    centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
+    rebuild gives its ClimbOver, F-126), sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
     tiles))."""
     length = float(wall['x1']) - float(wall['x0'])
     centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
     tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
     if not tiles:
-        return dict(tiles=0, walk=False, sight=False, cover='whole')
+        return dict(tiles=0, walk=False, climb=False, sight=False, cover='whole')
     s = WALL_SWEEPS
 
     def spans(a, b):
         return o['z0'] < a and o['z1'] > b
     cover_hit, high_hit = not spans(*s['cover']), not spans(*s['high'])
-    return dict(tiles=tiles, walk=spans(s['walk'] - s['half'], s['walk'] + s['half']),
-                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']),
-                cover='none' if not cover_hit else 'high' if high_hit else 'low')
+    walk = spans(s['walk'] - s['half'], s['walk'] + s['half'])
+    cover = 'none' if not cover_hit else 'high' if high_hit else 'low'
+    return dict(tiles=tiles, walk=walk, climb=not walk and cover == 'low',
+                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']), cover=cover)
 
 
 def opening_box(location, rotation, o, half=12.0):

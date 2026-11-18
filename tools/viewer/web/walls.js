@@ -209,16 +209,17 @@ export function movedOpening(wall, index, part, delta, { fine = false } = {}) {
 /** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening. */
 export const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
   .filter(c => c > o.x0 + 1 && c < o.x1 - 1);
-/** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, sight, cover
- *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. */
+/** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, climb, sight, cover
+ *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. `climb`: units vault through it, as
+ *  through the game's windows: the wall under it is low cover, and the game gives a low-cover tile its ClimbOver
+ *  (EXP-73, F-126). */
 export function openingPlay(wall, o) {
   const tiles = centresThrough(wall, o).length;
   const spans = (a, b) => o.z0 < a && o.z1 > b;
-  if (!tiles) return { tiles, walk: false, sight: false, cover: 'whole' };
+  if (!tiles) return { tiles, walk: false, climb: false, sight: false, cover: 'whole' };
   const coverHit = !spans(SWEEP.cover[0], SWEEP.cover[1]), highHit = !spans(SWEEP.high[0], SWEEP.high[1]);
-  return { tiles, walk: spans(SWEEP.walk - SWEEP.half, SWEEP.walk + SWEEP.half),
-           sight: spans(SWEEP.sight - SWEEP.half, SWEEP.sight + SWEEP.half),
-           cover: !coverHit ? 'none' : highHit ? 'high' : 'low' };
+  const walk = spans(SWEEP.walk - SWEEP.half, SWEEP.walk + SWEEP.half), cover = !coverHit ? 'none' : highHit ? 'high' : 'low';
+  return { tiles, walk, climb: !walk && cover === 'low', sight: spans(SWEEP.sight - SWEEP.half, SWEEP.sight + SWEEP.half), cover };
 }
 const size = v => (v % TILE === 0 ? `${plural(v / TILE, 'tile')} wide` : `${Math.round(v)} wide`);
 /** An opening in words, for the piece panel's list: "Doorway, 1 tile wide, 176 tall" or "Window, 1 tile wide, 96 tall,
@@ -233,7 +234,7 @@ export function playWords(wall, o, { door = false } = {}) {
   const p = openingPlay(wall, o);
   if (!p.tiles) return 'No tile\'s centre line passes through it: units can\'t walk or see through it, and the wall gives cover there as if whole.';
   const out = [];
-  out.push(p.walk ? 'units walk through it' : 'units can\'t walk through it');
+  out.push(p.walk ? 'units walk through it' : p.climb ? 'units climb through it' : 'units can\'t walk through it');
   out.push(p.sight ? 'see and shoot through it' : 'don\'t see through it');
   const cover = { none: 'it gives no cover', low: 'the wall under it gives low cover', high: 'the wall under it gives high cover' }[p.cover];
   let words = `${out.join(', ')}; ${cover}.`;

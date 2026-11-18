@@ -131,10 +131,10 @@ class OpeningTests(unittest.TestCase):
 
     def test_what_the_game_does_at_an_opening(self):
         w = wall()['wall']
-        self.assertEqual(compiler.opening_play(w, DOORWAY), dict(tiles=1, walk=True, sight=True, cover='none'))
-        self.assertEqual(compiler.opening_play(w, WINDOW), dict(tiles=1, walk=False, sight=True, cover='low'))
+        self.assertEqual(compiler.opening_play(w, DOORWAY), dict(tiles=1, walk=True, climb=False, sight=True, cover='none'))
+        self.assertEqual(compiler.opening_play(w, WINDOW), dict(tiles=1, walk=False, climb=True, sight=True, cover='low'))
         self.assertEqual(compiler.opening_play(w, dict(WINDOW, z0=112.0, z1=200.0)),
-                         dict(tiles=1, walk=False, sight=False, cover='high'))
+                         dict(tiles=1, walk=False, climb=False, sight=False, cover='high'))
         self.assertEqual(compiler.opening_play(w, dict(DOORWAY, x0=56.0, x1=136.0))['tiles'], 0)
 
     def test_the_page_knows_the_same_sweeps(self):
