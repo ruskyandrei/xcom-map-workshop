@@ -8,6 +8,40 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Rocks made from numbers, a Rock look, and ground pieces standing level** (custom geometry plan, M6 item 6; branch
+  `fracturing-wall-poc`).
+  - **The rock.** [ground.py](tools/bake/ground.py) has a fourth shape, `rock`: an irregular convex piece within its
+    footprint and height, from a `seed`.
+    - It is the cooker's hull (hulls.physx_hull) of rings of points round its footprint's middle: one on the ground
+      for its flat bottom, a wider one low down, a narrower one higher, and a top that reaches its height.
+    - Its flat faces are turned to face out, with world-planar texture coordinates. Its collision is the same hull
+      (hull_element), a plane for each face.
+    - The Build makes it as it makes a ramp.
+  - **The Rock look.** [ground_looks.json](tools/bake/ground_looks.json) and
+    [ground.js](tools/viewer/web/ground.js): CLrgScout_ForestTrench's `XComLevelActor_34` (Rock_E, an opaque prop
+    material with no painted colours, at scale 1).
+  - **The page.**
+    - Rock is in the Add panel's Ground kind. Each drawn rock takes the drawing's seed, and its top handle raises it.
+    - "Another rock" in the piece panel gives the next seed in one undo step, and the panel says it stands in the way
+      and gives cover.
+    - The page now asks the server for a rock's mesh with its seed (`madeGroundNumbers`).
+  - **Standing level.** [ground.js](tools/viewer/web/ground.js) `drawnGround`: a ground piece stands level and square
+    to the world whatever its donor's pitch, roll and yaw. Before, it kept them, and the rock's donor (yaw -18467,
+    tipped 2 to 3 degrees) would have put its pieces about 11 degrees off the grid.
+  - **The compiler.** [compiler.py](tools/editor/compiler.py) checks a rock's seed. Its note says a rock stands in the
+    way and gives cover by its height, as the game's rocks do. [generated.py](tools/viewer/generated.py) keeps the
+    seed.
+  - [EXP-77](research/experiments/EXP-77-ground.md) gains a rock and a Rock-look block (check 9), rebuilt baked.
+    [exp78_project.py](tools/editor/examples/exp78_project.py) places its shapes level.
+  - Checked by:
+    - the bake suite's test_ground (`test_a_rock_is_its_seeds_hull_within_its_footprint`, bad seeds) and
+      GroundShapes (`test_a_rock_collides_as_its_hull`);
+    - the editor suite's generated-piece tests and the viewer suite's generated tests (the rock's mesh file);
+    - ground_test.mjs (seed, Another rock, level placement);
+    - the walls browser check (a rock drawn, Another rock, undone);
+    - 1,200 rocks of three sizes, each making its hull.
+  - Not played yet: run F's check 9.
+
 - **EXP-78 prepared: the farm's earth mounds replaced by made ground, and a hole half covered** (custom geometry plan,
   M6, run F's second part; branch `fracturing-wall-poc`).
   - [EXP-78](research/experiments/EXP-78-farm-ground.md) and its project

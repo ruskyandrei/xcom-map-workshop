@@ -6,6 +6,8 @@ As the editor's Ground tool makes them (the piece at the shape's corner, on tile
   - Block: x -1440 to -1248, y -960 to -768, 96 high, the ramp's high edge on its west side;
   - Patch: x -1152 to -864, y -960 to -672, its top 1 over the lot;
   - Cover block: x -1056 to -960, y -864 to -768, 64 high, standing on the patch (z 1);
+- in the lot, in Rock (CLrgScout_ForestTrench's Rock_E piece, XComLevelActor_34): Rock, x -768 to -576, y -960 to -864,
+  128 high, seed 7 (M6 item 6);
 - one block of each ground look (tools/bake/ground_looks.json), 64 high, a tile square: outdoors in a row in the lot
   (y -1248 to -1152, from x -1440 every two tiles) and indoors in the bar's kitchen (floor 16, from x -1536, y 768).
 A look whose donor is in another map is copied from that map (it must have been opened in the editor).
@@ -40,6 +42,8 @@ SHAPES = [
     ('Block', ASPHALT, [-1440.0, -960.0, 0.0], dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=96.0)),
     ('Patch', ASPHALT, [-1152.0, -960.0, 0.0], dict(shape='patch', x0=0.0, x1=288.0, y0=0.0, y1=288.0)),
     ('CoverBlock', ASPHALT, [-1056.0, -864.0, 1.0], dict(shape='block', x0=0.0, x1=96.0, y0=0.0, y1=96.0, height=64.0)),
+    ('Rock', next(l for l in LOOKS if l['id'] == 'rock'), [-768.0, -960.0, 0.0],
+     dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=128.0, seed=7, look='rock')),
 ]
 INDOORS = [(-1536.0, 768.0), (-1344.0, 768.0), (-1536.0, 960.0), (-1344.0, 960.0)]
 for k, look in enumerate(LOOKS):

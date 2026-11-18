@@ -13,6 +13,8 @@ skill), checking only what is new.
   taking shadows.
 - A convex hull of our own that is not a box (the ramp's wedge): the tile rebuild's floors on it, units walking it.
 - A block units stand on, reached by the ramp; a block's cover; a patch's floor a unit over the lot.
+- A rock (M6 item 6): an irregular convex piece from a seed, its collision its own hull. It is drawn in Rock (a copy
+  of CLrgScout_ForestTrench's `XComLevelActor_34`, Rock_E), standing in the way and giving cover by its height.
 
 ## The project
 
@@ -29,6 +31,8 @@ x -2737 + 96 i, y -1873 + 96 j.
 | Cover block | on the patch: x -1056 to -960, y -864 to -768 | 64 high (low cover, by the game's sweeps) |
 | Out_asphalt | lot: x -1440 to -1344, y -1248 to -1152 | a block 64 high outdoors |
 | In_asphalt | the bar's kitchen (floor 16): x -1536 to -1440, y 768 to 864 | a block 64 high indoors, listed in the bar's building by its own box |
+| Rock | lot: x -768 to -576, y -960 to -864 | a rock in Rock, 128 high, seed 7 |
+| Out_rock | lot: x -288 to -192, y -1248 to -1152 | a block in Rock, 64 high |
 
 Tiles: the ramp's are (-1681, -913), (-1585, -913) and (-1489, -913); the block's top (-1393, -913), (-1297, -913),
 (-1393, -817) and (-1297, -817). The tiles east and west of the cover block are (-913, -817) and (-1105, -817).
@@ -55,9 +59,16 @@ Tiles: the ramp's are (-1681, -913), (-1585, -913) and (-1489, -913); the block'
    `CurrentCoverPointFlags`. Low cover toward the block is expected.
 8. **Unbroken**: a grenade on the block's top or beside the ramp. The shapes stay, as does their collision: a soldier
    still walks the ramp after.
+9. **The rock**:
+   - close shots from the default camera and from low: drawn in the rock material, lit, with its own shadow;
+   - a soldier sent onto its tiles, (-721, -913) and (-625, -913): he can't stand there, or he stands on its top
+     (say which, and at what height);
+   - cover on (-817, -913) west of it and (-529, -913) east of it: `m_iCurrentCoverValue` and
+     `CurrentCoverPointFlags`;
+   - a walk from (-817, -913) to (-529, -913): his path goes round it.
 
-Left for a later run: the farm's ramp replaced by one of ours, and a hole in the ground half covered by a patch (F-46).
-Both need the farm's ground looks, which the materials audit gives.
+The farm's ramp replaced by one of ours, and a hole in the ground half covered by a patch (F-46), are
+[EXP-78](EXP-78-farm-ground.md), run F's second part.
 
 ## Result
 

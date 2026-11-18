@@ -297,7 +297,8 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # raises it in steps of 8 and the panel says its slope; Turn makes it rise the next way round on the same tiles;
     # each one undo step
     names = page.evaluate('viewer.groundEntries().map(e => [e.name, e.kind, e.ground])')
-    assert names == [['Patch', 'Ground', 'patch'], ['Block', 'Ground', 'block'], ['Ramp', 'Ground', 'ramp']], names
+    assert names == [['Patch', 'Ground', 'patch'], ['Block', 'Ground', 'block'], ['Ramp', 'Ground', 'ramp'],
+                     ['Rock', 'Ground', 'rock']], names
     page.evaluate("viewer.startWallDrawing(viewer.groundEntries()[2].wallLook, { ground: 'ramp' })")
     page.wait_for_function("viewer.wallDrawing()?.ready && viewer.wallDrawing().ground === 'ramp'", timeout=90000)
     ga, gb = [a[0], a[1], a[2]], [b[0], a[1] - 96, a[2]]
@@ -321,6 +322,29 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
         page.evaluate('viewer.gizmo.undo()')
     page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     out['ground'] = dict(raised=raised, turned=t['location'])
+    if page.evaluate('viewer.wallDrawing()'):
+        page.keyboard.press('Escape')
+    # (M6 item 6) a rock: drawn with a seed, its mesh the server's, standing level whatever its look's donor; Another
+    # rock gives the next seed in one undo step
+    page.evaluate("viewer.startWallDrawing(viewer.groundEntries()[3].wallLook, { ground: 'rock' })")
+    page.wait_for_function("viewer.wallDrawing()?.ready && viewer.wallDrawing().ground === 'rock'", timeout=90000)
+    drag(page, ground_point(page, ga), ground_point(page, [a[0] + 192, a[1] - 96, a[2]]))
+    page.wait_for_function('n => viewer.roots.size === n + 1', arg=len(before_ids), timeout=60000)
+    rock = page.evaluate('viewer.gizmo.active')
+    mesh_ready(page, rock)
+    k = state(page, rock)
+    g = k['generated']['ground']
+    assert g['shape'] == 'rock' and isinstance(g['seed'], int) and k['rotation'] == [0, 0, 0], k
+    assert 'stands in the way' in page.evaluate('viewer.groundPanelText()'), page.evaluate('viewer.groundPanelText()')
+    assert page.locator('#groundAnother').is_visible() and not page.locator('#groundTurn').is_visible()
+    page.locator('#groundAnother').click()
+    k2 = state(page, rock)
+    assert k2['generated']['ground']['seed'] == (g['seed'] + 1) % 2 ** 31, k2
+    mesh_ready(page, rock)
+    for _ in range(2):
+        page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    out['rock'] = dict(seed=g['seed'])
     if page.evaluate('viewer.wallDrawing()'):
         page.keyboard.press('Escape')
     page.evaluate('id => viewer.select(id)', wall)

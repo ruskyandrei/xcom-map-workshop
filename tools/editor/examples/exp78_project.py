@@ -69,10 +69,9 @@ def added(s, game, scene):
     for k, (label, look_id, location, yaw, numbers) in enumerate(SHAPES):
         look = LOOKS[look_id]
         obj = donor(s, game, look['package'], look['actor'], scene)
-        pitch, _, roll = obj.get('rotation') or [0, 0, 0]
         out.append(dict(id='00000000-0000-4000-8000-0000000e78%02d' % (k + 1), actor=PL + '%s_copy%d' % (look['actor'], k + 1),
                         **{'from': dict(package=look['package'], level='base', actor=PL + look['actor'])},
-                        components=[obj['component']], location=location, rotation=[pitch, yaw, roll], prefab=None,
+                        components=[obj['component']], location=location, rotation=[0, yaw, 0], prefab=None,
                         partner=None, generated=dict(kind='ground', version=1, ground=numbers)))
     return out
 

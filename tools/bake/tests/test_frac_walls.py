@@ -672,7 +672,11 @@ class GroundShapes(unittest.TestCase):
                   dict(actor=cls.SMALL_ATLAS, label='Plain', location=[-1152.0, -1440.0, 0.0], rotation=[0, 0, 0],
                        generated=dict(kind='ground', version=1,
                                       ground=dict(shape='block', x0=0.0, x1=96.0, y0=0.0, y1=96.0, height=96.0,
-                                                  look='plain-asphalt')))]
+                                                  look='plain-asphalt'))),
+                  # (M6 item 6) a rock, its collision its own hull
+                  dict(actor=cls.DONOR, label='Rock', location=[-960.0, -1440.0, 0.0], rotation=[0, 0, 0],
+                       generated=dict(kind='ground', version=1,
+                                      ground=dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=7)))]
         cls.m = native_copy.build(BAR, out, 'Ground', copies, bake=True, cache='Ground_Lighting')
         cls.p = Package(BAR)
         cls.q = Package(out / 'Ground.upk')
@@ -706,6 +710,20 @@ class GroundShapes(unittest.TestCase):
             self.assertEqual(r['light']['kind'], 'rect')
             self.assertTrue(r['shadowMap']['own'])
             self.assertEqual(r['columns'], 0)
+
+    def test_a_rock_collides_as_its_hull(self):
+        import ground
+        import test_cover_blocks
+        q = self.q
+        mesh = q.own(q.own(self.sec['Rock'], 'StaticMeshComponent'), 'StaticMesh')
+        self.assertTrue(q.name(mesh).split('.')[-1].startswith('Ground_rock_2x1_'), q.name(mesh))
+        *_, fields = test_cover_blocks.hull(q, q.own(mesh, 'BodySetup'))
+        rock = dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=7)
+        self.assertEqual(len(fields['FacePlaneData']), len(ground.corners_and_faces(rock)[1]))
+        rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
+        lo, hi = rec['Rock']['box'][0::2], rec['Rock']['box'][1::2]
+        self.assertTrue(lo[0] >= -960.0 and hi[0] <= -768.0 and lo[1] >= -1440.0 and hi[1] <= -1344.0, rec['Rock']['box'])
+        self.assertAlmostEqual(hi[2], 96.0, 2)
 
     def test_its_lightmap_rectangle_fits_its_atlas(self):
         # a rectangle bigger than the donor's atlas is scaled down to fit (the relight skipped it before)

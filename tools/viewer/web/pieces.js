@@ -138,6 +138,10 @@ function drawGroundIcon(canvas, shape) {
     g.fillStyle = front; g.fillRect(8, 22, 26, 18);
     g.fillStyle = side; g.beginPath(); g.moveTo(34, 22); g.lineTo(42, 16); g.lineTo(42, 34); g.lineTo(34, 40); g.closePath(); g.fill();
     g.fillStyle = top; g.beginPath(); g.moveTo(8, 22); g.lineTo(16, 16); g.lineTo(42, 16); g.lineTo(34, 22); g.closePath(); g.fill();
+  } else if (shape === 'rock') {
+    g.fillStyle = side; g.beginPath(); g.moveTo(26, 14); g.lineTo(38, 20); g.lineTo(42, 32); g.lineTo(36, 40); g.lineTo(28, 40); g.closePath(); g.fill();
+    g.fillStyle = front; g.beginPath(); g.moveTo(8, 40); g.lineTo(6, 30); g.lineTo(14, 20); g.lineTo(26, 14); g.lineTo(28, 40); g.closePath(); g.fill();
+    g.fillStyle = top; g.beginPath(); g.moveTo(14, 20); g.lineTo(26, 14); g.lineTo(38, 20); g.lineTo(27, 23); g.closePath(); g.fill();
   } else {
     g.fillStyle = side; g.beginPath(); g.moveTo(40, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(44, 36); g.closePath(); g.fill();
     g.fillStyle = top; g.beginPath(); g.moveTo(4, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(8, 36); g.closePath(); g.fill();

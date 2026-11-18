@@ -134,6 +134,19 @@ class Ground(unittest.TestCase):
         pos = doc['accessors'][prims[0]['attributes']['POSITION']]
         self.assertEqual((pos['min'], pos['max']), ([0.0, 0.0, 0.0], [288.0, 96.0, 96.0]))
 
+    def test_a_rock_keeps_its_seed_and_stands_in_its_footprint(self):
+        numbers = dict(shape='rock', x0=0, x1=192, y0=0, y1=96, height=96, seed=5)
+        self.assertEqual(generated.ground_numbers(json.dumps(numbers)),
+                         dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=5))
+        doc = gltf(generated.Meshes().ground(json.dumps(numbers)))
+        pos = doc['accessors'][doc['meshes'][0]['primitives'][0]['attributes']['POSITION']]
+        # (the file's axes are the page's: x, up, y)
+        (x0, z0, y0), (x1, z1, y1) = pos['min'], pos['max']
+        self.assertTrue(x0 >= 0 and y0 >= 0 and z0 == 0, pos['min'])
+        self.assertTrue(x1 <= 192 and y1 <= 96 and abs(z1 - 96) < 1e-3, pos['max'])
+        with self.assertRaises(generated.GeneratedError):
+            generated.Meshes().ground(json.dumps(dict(numbers, seed='x')))
+
     def test_the_numbers_are_kept_in_one_spelling_and_bad_ones_refused(self):
         self.assertEqual(generated.ground_numbers(json.dumps(dict(shape='patch', x0=0, x1=96, y0=0, y1=96, height=5))),
                          dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))

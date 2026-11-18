@@ -117,7 +117,7 @@ def slab_numbers(text):
 
 def ground_numbers(text):
     """A ground shape's numbers from the JSON `text`, checked (ground.check), in one spelling: shape, x0, x1, y0, y1,
-    height (a block's or ramp's), and its look when it is not the first."""
+    height (a block's, ramp's or rock's), seed (a rock's), and its look when it is not the first."""
     try:
         g = json.loads(text)
     except (TypeError, ValueError):
@@ -131,6 +131,8 @@ def ground_numbers(text):
     out = dict(shape=g['shape'], **{k: float(g[k]) for k in ('x0', 'x1', 'y0', 'y1')})
     if g['shape'] != 'patch':
         out['height'] = float(g['height'])
+    if g['shape'] == 'rock':
+        out['seed'] = int(g['seed'])
     if g.get('look', ground_shapes.DEFAULT_LOOK) != ground_shapes.DEFAULT_LOOK:
         out['look'] = g['look']
     return out

@@ -132,6 +132,28 @@
      "block": 4
     }
    }
+  },
+  {
+   "id": "rock",
+   "name": "Rock",
+   "package": "CLrgScout_ForestTrench",
+   "actor": "XComLevelActor_34",
+   "donor": "Rock_E.Meshes.RockE_Destro",
+   "material": "Rock_E.Materials.Rock_E",
+   "lwrOnly": false,
+   "words": "grey weathered rock",
+   "recipe": {
+    "repeat": 244.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
   }
  ]
 }

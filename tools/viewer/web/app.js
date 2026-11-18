@@ -52,8 +52,8 @@ import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, op
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
-import { GROUND, GROUND_LOOKS, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround, resizedGround, slopeOf,
-         slopeWords, toolGround, turnedGround } from './ground.js';
+import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
+         resizedGround, slopeOf, slopeWords, toolGround, turnedGround } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -1233,6 +1233,7 @@ function madeSlabShape(template, s) {
 }
 // A ground shape (custom geometry plan, M6): drawn from /generated/ground.glb, its one section on its template's material.
 const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
+                                  ...(g.shape === 'rock' ? { seed: g.seed } : {}),
                                   ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: g.look } : {}) });
 function groundBounds(g) {
   const b = groundShapeBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
@@ -9409,8 +9410,8 @@ function slabEntries() {
         + `the rectangle, a doorway in the side nearest you, a roof on their tops, and a building round it, so the roof is cut away `
         + `when the cursor is inside, as the game's buildings are. Afterwards each is edited as any. ${install(look)}` }))];
 }
-// The Add panel's Ground kind (M6): a patch, a block and a ramp, drawn in the material last picked (the piece panel's
-// swatches pick it; remembered in this browser).
+// The Add panel's Ground kind (M6): a patch, a block, a ramp and a rock, drawn in the material last picked (the piece
+// panel's swatches pick it; remembered in this browser).
 const GROUND_KIND = 'Ground', GROUND_LOOK = 'workshop.groundLook';
 const groundLookNow = () => GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
 function groundEntries() {
@@ -9418,15 +9419,17 @@ function groundEntries() {
   const look = groundLookNow();
   const words = { patch: 'a flat patch over the ground, its top level with it: covers holes and paints the ground',
                   block: `a raised block, ${GROUND.block} high when drawn: its top handle raises or lowers it`,
-                  ramp: `a ramp rising toward where the drag ends, ${GROUND.ramp} at its high edge: its top handle sets the rise` };
-  return ['patch', 'block', 'ramp'].map(shape => ({ key: `ground:${shape}`, id: `ground-${shape}`, name: shape[0].toUpperCase() + shape.slice(1),
+                  ramp: `a ramp rising toward where the drag ends, ${GROUND.ramp} at its high edge: its top handle sets the rise`,
+                  rock: `a rock in the rectangle, ${GROUND.rock} high when drawn: its top handle raises or lowers it, Another rock gives it another shape` };
+  const does = { rock: 'It stands in the way and gives cover by its height, as the game\'s rocks do; it doesn\'t break' };
+  return ['patch', 'block', 'ramp', 'rock'].map(shape => ({ key: `ground:${shape}`, id: `ground-${shape}`, name: shape[0].toUpperCase() + shape.slice(1),
     mesh: look.name, kind: GROUND_KIND, pkg: `in ${look.name.toLowerCase()}, from ${look.package}`, role: 'exterior', sources: [], pivotIndex: 0,
-    count: 0, materials: [], milestone: 1, wallLook: look, ground: shape, size: [96, 96, shape === 'patch' ? 8 : GROUND.block],
+    count: 0, materials: [], milestone: 1, wallLook: look, ground: shape, size: [96, 96, shape === 'patch' ? 8 : GROUND[shape]],
     detail: shape === 'ramp' ? 'Dragged out; rises toward the drag\'s end' : 'A rectangle dragged out on the ground',
-    text: `ground ${shape} ${look.name} ${look.package} ${look.words} terrain floor platform slope`.toLowerCase(),
+    text: `ground ${shape} ${look.name} ${look.package} ${look.words} terrain floor platform slope${shape === 'rock' ? ' boulder stone' : ''}`.toLowerCase(),
     title: `${shape[0].toUpperCase() + shape.slice(1)}: ${words[shape]}. Press on the ground at one corner, drag to the other and let go `
       + `(up to ${GROUND.maxTiles} tiles each way). Drawn in ${look.name.toLowerCase()} (${look.words}); the piece panel's swatches change it. `
-      + `Units walk on it; it doesn't break. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }));
+      + `${does[shape] ?? 'Units walk on it; it doesn\'t break'}. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }));
 }
 // The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
 function wallTopsRound(rect, floor) {
@@ -10047,9 +10050,14 @@ function groundPanel(root) {
   }));
   $('groundTurn').hidden = g.shape !== 'ramp';
   $('groundTurn').disabled = !tool;
-  $('groundNote').textContent = `Made from numbers on ${look ? `${look.package}'s ${look.name.toLowerCase()}` : 'its donor\'s material'}: units walk on it and it doesn't break.`
+  $('groundAnother').hidden = g.shape !== 'rock';
+  $('groundAnother').disabled = !tool;
+  $('groundNote').textContent = `Made from numbers on ${look ? `${look.package}'s ${look.name.toLowerCase()}` : 'its donor\'s material'}: `
+    + (g.shape === 'rock' ? 'it stands in the way and gives cover by its height, as the game\'s rocks do, and it doesn\'t break.'
+      : 'units walk on it and it doesn\'t break.')
     + (g.shape === 'patch' ? ' Its top lies level with the ground it covers, its plate under it.' : '');
 }
+$('groundAnother').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, ground: anotherRock(st.generated.ground) } }));
 $('groundTurn').onclick = () => changeWall(st => {
   const t = turnedGround(st.generated.ground, st.location, st.rotation);
   return { generated: { ...st.generated, ground: t.ground }, location: t.location, rotation: t.rotation };

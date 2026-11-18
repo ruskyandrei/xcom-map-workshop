@@ -139,7 +139,8 @@ def _ground_looks():
 # sloped (F-81: no cover on it) and past 45 no floor
 GROUND_LOOKS = _ground_looks()
 GROUND_DEFAULT_LOOK = next(iter(GROUND_LOOKS))
-GROUND_SHAPES = ('patch', 'block', 'ramp')
+GROUND_SHAPES = ('patch', 'block', 'ramp', 'rock')
+GROUND_ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to this less one (ground.py ROCK_SEEDS)
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 GROUND_MAX_HEIGHT = 384.0
 GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
@@ -1347,7 +1348,9 @@ class Compiler:
         whole = all(abs((s[b] - s[a]) / 96.0 - round((s[b] - s[a]) / 96.0)) < 1e-4
                     and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
         height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)
-        return whole and height and s.get('look', GROUND_DEFAULT_LOOK) in GROUND_LOOKS
+        seed = s['shape'] != 'rock' or (isinstance(s.get('seed'), int) and not isinstance(s.get('seed'), bool)
+                                        and 0 <= s['seed'] < GROUND_ROCK_SEEDS)
+        return whole and height and seed and s.get('look', GROUND_DEFAULT_LOOK) in GROUND_LOOKS
 
     @staticmethod
     def slab_valid(s, num):
@@ -2663,8 +2666,9 @@ class Compiler:
                           "the game's walls pass theirs on" % (short(out), name), **where)
             elif rec['generated']['kind'] == 'ground':
                 gd, slope = rec['generated']['ground'], ground_slope(rec['generated']['ground'])
-                self.note('generated-ground', "%s is a ground %s made from numbers on %s's material: units walk on it; it "
-                          "doesn't break" % (short(out), gd['shape'], name), **where)
+                self.note('generated-ground', "%s is a ground %s made from numbers on %s's material: %s; it doesn't break"
+                          % (short(out), gd['shape'], name, 'it stands in the way and gives cover by its height, as the '
+                             "game's rocks do" if gd['shape'] == 'rock' else 'units walk on it'), **where)
                 if slope > GROUND_STEEP:
                     self.warn('ground-steep', '%s: its slope (%d degrees) is no floor: units can\'t stand on it'
                               % (short(out), round(slope)), **where)

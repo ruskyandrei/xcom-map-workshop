@@ -3,11 +3,14 @@ plain static mesh on its look's material, its collision one convex element.
 
 A shape's numbers are in its piece's frame (the tool puts the piece at the shape's corner, its axes the world's):
 
-  shape     'patch' (a flat slab whose top is the ground's level), 'block' (a box standing on the ground) or
-            'ramp' (a wedge rising along +x: its low edge at x0 on the ground, its high edge at x1)
+  shape     'patch' (a flat slab whose top is the ground's level), 'block' (a box standing on the ground),
+            'ramp' (a wedge rising along +x: its low edge at x0 on the ground, its high edge at x1) or 'rock' (an
+            irregular convex piece within its footprint and height, from its seed: M6 item 6)
   x0, x1    its footprint along x, whole tiles (1 to MAX_TILES)
   y0, y1    its footprint along y, whole tiles
-  height    a block's top or a ramp's high edge over its bottom (1 to MAX_HEIGHT); a patch's is its look's thickness
+  height    a block's top, a ramp's high edge or a rock's top over its bottom (1 to MAX_HEIGHT); a patch's is its
+            look's thickness
+  seed      a rock's: 0 to ROCK_SEEDS - 1 (each seed another rock)
   look      the material it is drawn in (ground_looks.json; left out, the first)
 
 A shape stands on z 0 (its bottom), a patch with its top PATCH_LIFT over z 0 (it lies over the ground it covers, its
@@ -15,7 +18,11 @@ plate under it, a unit over it so the two don't fight to be drawn). Its faces: t
 coordinates are world-planar, so the material repeats every `repeat` units on every face as on the donor's: on the
 top u = x / repeat, v = y / repeat; on a side u along it, v down it. The lightmap has a chart for each face, at the
 look's density. The collision is the shape's convex hull as the game's cooker saves it (hulls.py): a box for a patch
-and a block, a wedge for a ramp.
+and a block, a wedge for a ramp, a rock's own hull for a rock.
+
+A rock is the hull (hulls.physx_hull, the cooker's) of rings of points round its footprint's middle, drawn from its
+seed: a ring on the ground (its flat bottom), a wider one low down, a narrower one higher, and its top, which
+reaches its height. Its faces are flat, each with its own normal.
 
 A ramp's slope matters to the game (F-81): a floor tile steeper than about 10 degrees (its normal's z under 0.9848)
 is sloped, and sloped tiles get no cover; past about 45 degrees it is no floor to stand on. slope() and
@@ -24,12 +31,13 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import random
 
 import frac_wall
 import hulls
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'ground_looks.json'
-SHAPES = ('patch', 'block', 'ramp')
+SHAPES = ('patch', 'block', 'ramp', 'rock')
 TILE = 96.0
 MAX_TILES = 16
 MAX_HEIGHT = 384.0
@@ -37,6 +45,7 @@ SLOPED = math.degrees(math.acos(0.9848))     # about 10: a steeper floor tile is
 STEEP = 45.0                                 # past this it is no floor
 EPS = 1e-4
 PATCH_LIFT = 1.0     # a patch's top over the ground it lies on
+ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to ROCK_SEEDS - 1
 # the recipe a look without its own takes (ground_looks.json's looks name their own)
 DEFAULT_RECIPE = dict(repeat=256.0, slot=0, sections=1, thickness=8.0, colours=dict(outside='ffffffff', interior='ffffffff'),
                       lightmap=dict(density=0.12, margin=2, interiorDensity=1.0, block=4))
@@ -75,8 +84,53 @@ def check(shape):
     if shape['shape'] != 'patch':
         h = shape.get('height')
         if not (isinstance(h, (int, float)) and not isinstance(h, bool) and math.isfinite(h) and 1 <= h <= MAX_HEIGHT):
-            raise ValueError("a block's or ramp's height is 1 to %g (it has %r)" % (MAX_HEIGHT, h))
+            raise ValueError("a block's, ramp's or rock's height is 1 to %g (it has %r)" % (MAX_HEIGHT, h))
+    if shape['shape'] == 'rock':
+        seed = shape.get('seed')
+        if not (isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < ROCK_SEEDS):
+            raise ValueError("a rock's seed is a whole number, 0 to %d (it has %r)" % (ROCK_SEEDS - 1, seed))
     return int(round(nx)), int(round(ny))
+
+
+def rock_points(shape):
+    """The points a rock is the hull of, from its seed: rings round its footprint's middle, every point within the
+    footprint and between 0 and its height, the highest at its height."""
+    rng = random.Random(int(shape['seed']))
+    x0, x1, y0, y1 = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1'))
+    cx, cy, ax, ay, h = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, float(shape['height'])
+    pts = []
+    # (points, heights as shares of the height (None: on the ground), reach as shares of the half footprint)
+    for n, z, reach in ((7, None, (0.72, 0.92)), (8, (0.25, 0.55), (0.86, 1.0)), (6, (0.62, 0.85), (0.48, 0.74)),
+                        (3, (0.9, 1.0), (0.0, 0.34))):
+        start = rng.uniform(0.0, 2 * math.pi)
+        for k in range(n):
+            t = start + 2 * math.pi * (k + rng.uniform(-0.3, 0.3)) / n
+            r = rng.uniform(*reach)
+            pts.append((cx + ax * r * math.cos(t), cy + ay * r * math.sin(t), 0.0 if z is None else h * rng.uniform(*z)))
+    top = max(range(len(pts)), key=lambda i: pts[i][2])
+    pts[top] = (pts[top][0], pts[top][1], h)
+    return pts
+
+
+def _rock(shape):
+    """A rock's corners and faces (corners_and_faces' form): the cooker's hull of rock_points, each face turned to
+    face out, the bottom last."""
+    points = [tuple(float(v) for v in hulls.cooker_vertex(p)) for p in rock_points(shape)]
+    order, loops = hulls.physx_hull(points)
+    if order is None or loops is None:
+        raise ValueError('the rock\'s points make no convex solid (seed %r)' % shape['seed'])
+    c = [points[i] for i in order]
+    mid = tuple(sum(p[k] for p in c) / len(c) for k in range(3))
+    faces = []
+    for loop in loops:
+        pts = [c[i] for i in loop]
+        n = _normal(pts)
+        centre = tuple(sum(p[k] for p in pts) / len(pts) for k in range(3))
+        out = sum(n[k] * (centre[k] - mid[k]) for k in range(3))
+        faces.append(list(loop) if out > 0 else list(reversed(loop)))
+    bottom = min(range(len(faces)), key=lambda i: _normal([c[j] for j in faces[i]])[2])
+    faces.append(faces.pop(bottom))
+    return c, faces
 
 
 def corners_and_faces(shape):
@@ -84,6 +138,8 @@ def corners_and_faces(shape):
     bottom last (the mesh leaves it out; the hull keeps it)."""
     check(shape)
     x0, x1, y0, y1 = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1'))
+    if shape['shape'] == 'rock':
+        return _rock(shape)
     if shape['shape'] == 'ramp':
         h = float(shape['height'])
         c = [(x0, y0, 0.0), (x1, y0, 0.0), (x1, y1, 0.0), (x0, y1, 0.0), (x1, y0, h), (x1, y1, h)]
@@ -140,7 +196,7 @@ def faces_of(shape):
 def hull(shape):
     """The shape's collision element (hulls.hull_element's fields)."""
     corners, loops = corners_and_faces(shape)
-    if shape['shape'] == 'ramp':
+    if shape['shape'] in ('ramp', 'rock'):
         return hulls.hull_element(corners)
     return None
 
@@ -148,7 +204,7 @@ def hull(shape):
 def solids(shape):
     """The collision as frac_walls.body_setup_boxes takes it: [(lo, hi)] boxes or hull elements."""
     corners, _ = corners_and_faces(shape)
-    if shape['shape'] == 'ramp':
+    if shape['shape'] in ('ramp', 'rock'):
         return [hull(shape)]
     lo = tuple(min(c[k] for c in corners) for k in range(3))
     hi = tuple(max(c[k] for c in corners) for k in range(3))

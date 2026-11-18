@@ -3,8 +3,8 @@
 // against tools/bake/ground_looks.json. Run: node tools/viewer/tests/ground_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { GROUND, GROUND_LOOKS, drawnGround, groundBox, groundWords, raisedGround, resizedGround, slopeOf, slopeWords,
-         toolGround, turnedGround } from '../web/ground.js';
+import { GROUND, GROUND_LOOKS, ROCK_SEEDS, anotherRock, drawnGround, groundBox, groundWords, raisedGround, resizedGround, slopeOf,
+         slopeWords, toolGround, turnedGround } from '../web/ground.js';
 import { wallDirection } from '../web/walls.js';
 
 const origin = [-2784, -1920];
@@ -37,6 +37,27 @@ function footprint(pose) {
     const plain = drawnGround(start, end, { origin, template, z: 0, shape: 'block' });
     assert.deepEqual(footprint(r), footprint(plain));          // the same tiles, whichever way it rises
   }
+}
+// ---- a piece stands level and square to the world whatever its donor's pitch, roll and yaw (the mesh is ours)
+{
+  const tipped = { rotation: [-357, -18467, -545] };
+  const b = drawnGround([-180, -200], [210, 130], { origin, template: tipped, z: 16, shape: 'block' });
+  assert.deepEqual(b.rotation, [0, 0, 0]);
+  const r = drawnGround([210, -150], [-180, -200], { origin, template: tipped, z: 0, shape: 'ramp' });
+  assert.deepEqual(r.rotation, [0, 32768, 0]);
+}
+// ---- a rock: the drawing's seed, its height, another rock
+{
+  const k = drawnGround([-180, -200], [210, 130], { origin, template, z: 16, shape: 'rock', seed: 41 });
+  assert.deepEqual(k.ground, { shape: 'rock', x0: 0, x1: 384, y0: 0, y1: 288, height: GROUND.rock, seed: 41 });
+  assert.ok(toolGround(k.ground));
+  assert.deepEqual(groundBox(k.ground), [0, 384, 0, 288, 0, GROUND.rock]);
+  assert.equal(anotherRock(k.ground).seed, 42);
+  assert.equal(anotherRock({ ...k.ground, seed: ROCK_SEEDS - 1 }).seed, 0);
+  assert.ok(!toolGround({ ...k.ground, seed: 1.5 }));
+  assert.ok(!toolGround({ ...k.ground, seed: undefined }));
+  assert.equal(groundWords(k.ground), 'Rock, 4 by 3 tiles, 96 high');
+  assert.equal(slopeWords(k.ground), '');
 }
 // ---- sides, height, turn
 {

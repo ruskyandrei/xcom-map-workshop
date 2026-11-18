@@ -1,6 +1,6 @@
-"""Ground shapes made from numbers (ground.py; custom geometry plan, M6): a patch, a block and a ramp, their faces
-(no bottom), world-planar texture coordinates, a plain mesh's sections, their collision (a box, a ramp's wedge) and
-the slope's words; bad numbers refused."""
+"""Ground shapes made from numbers (ground.py; custom geometry plan, M6): a patch, a block, a ramp and a rock, their
+faces (no bottom), world-planar texture coordinates, a plain mesh's sections, their collision (a box, a ramp's wedge,
+a rock's hull) and the slope's words; bad numbers refused."""
 from pathlib import Path
 import sys
 import unittest
@@ -13,6 +13,7 @@ import ground  # noqa: E402
 PATCH = dict(shape='patch', x0=0.0, x1=192.0, y0=0.0, y1=96.0)
 BLOCK = dict(shape='block', x0=0.0, x1=96.0, y0=0.0, y1=192.0, height=64.0)
 RAMP = dict(shape='ramp', x0=0.0, x1=288.0, y0=0.0, y1=96.0, height=96.0)
+ROCK = dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=7)
 
 
 class Ground(unittest.TestCase):
@@ -54,9 +55,39 @@ class Ground(unittest.TestCase):
         self.assertIn('no cover', ground.slope_words(RAMP))                                       # 18 degrees
         self.assertIn('no floor', ground.slope_words(dict(RAMP, x1=96.0, height=192.0)))         # 63 degrees
 
+    def test_a_rock_is_its_seeds_hull_within_its_footprint(self):
+        import math
+        corners, faces = ground.corners_and_faces(ROCK)
+        lo = [min(c[k] for c in corners) for k in range(3)]
+        hi = [max(c[k] for c in corners) for k in range(3)]
+        self.assertTrue(lo[0] >= 0 and lo[1] >= 0 and hi[0] <= 192 and hi[1] <= 96, (lo, hi))
+        self.assertEqual((lo[2], round(hi[2], 3)), (0.0, 96.0))       # standing on the ground, reaching its height
+        # every face faces out (the solid's middle behind it), the bottom (flat, facing down) last and left out
+        mid = [sum(c[k] for c in corners) / len(corners) for k in range(3)]
+        for loop in faces:
+            pts = [corners[i] for i in loop]
+            n = ground._normal(pts)
+            centre = [sum(p[k] for p in pts) / len(pts) for k in range(3)]
+            self.assertGreater(sum(n[k] * (centre[k] - mid[k]) for k in range(3)), 0)
+        self.assertAlmostEqual(ground._normal([corners[i] for i in faces[-1]])[2], -1.0, 6)
+        # its collision is the same hull: a face for each of the mesh's, the bottom too
+        (hull,) = ground.solids(ROCK)
+        self.assertEqual(len(hull['FacePlaneData']), len(faces))
+        out = ground.build(ROCK)
+        self.assertEqual(out['counts']['charts'], len([f for f in ground.faces_of(ROCK).polys]))
+        self.assertTrue(gen_mesh.write(out['mesh'], 0))
+        # the same seed the same rock, another seed another; its faces tilt every way
+        self.assertEqual(ground.corners_and_faces(dict(ROCK)), (corners, faces))
+        self.assertNotEqual(ground.corners_and_faces(dict(ROCK, seed=8))[0], corners)
+        tilts = [math.degrees(math.acos(max(-1.0, min(1.0, ground._normal([corners[i] for i in f])[2])))) for f in faces[:-1]]
+        self.assertTrue(min(tilts) < 45 < max(tilts))
+        self.assertNotEqual(ground.mesh_name(ROCK), ground.mesh_name(dict(ROCK, seed=8)))
+
     def test_bad_numbers_are_refused(self):
         for bad in (dict(PATCH, shape='dome'), dict(PATCH, x1=100.0), dict(PATCH, x1=96.0 * 17), dict(BLOCK, height=0),
-                    dict(BLOCK, height=500.0), dict(RAMP, height=True), dict(PATCH, look='marble'), None):
+                    dict(BLOCK, height=500.0), dict(RAMP, height=True), dict(PATCH, look='marble'), None,
+                    dict(ROCK, seed=None), dict(ROCK, seed=-1), dict(ROCK, seed=2 ** 31), dict(ROCK, seed=1.5),
+                    dict(ROCK, seed=True)):
             with self.assertRaises(ValueError):
                 ground.check(bad)
 
