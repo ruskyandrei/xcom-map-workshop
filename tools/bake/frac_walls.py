@@ -574,14 +574,15 @@ def native_props_end(walker, data, start):
 # ---------------------------------------------------------------------------------------------------- the exports
 def body_setup_boxes(g, boxes, spec):
     """An RB_BodySetup's tagged properties with one convex element for each box (lo, hi) (cover_blocks'
-    convex_hull and layout, an element for each)."""
+    convex_hull and layout, an element for each), or for each hull element given whole (hulls.hull_element's fields:
+    a ramp's wedge, ground.py)."""
     def array(name, fmt, items):
         payload = struct.pack('<i', len(items)) + b''.join(struct.pack('<' + fmt, *(x if isinstance(x, list) else [x]))
                                                            for x in items)
         return _tag(g, name, 'ArrayProperty', len(payload)) + payload
     elems = b''
-    for lo, hi in boxes:
-        h = cover_blocks.convex_hull(lo, hi, spec)
+    for item in boxes:
+        h = item if isinstance(item, dict) else cover_blocks.convex_hull(item[0], item[1], spec)
         box = struct.pack('<6fB', *h['ElemBox'][0], *h['ElemBox'][1], h['ElemBox'][2])
         elems += (array('VertexData', '3f', h['VertexData']) + array('PermutedVertexData', '4f', h['PermutedVertexData'])
                   + array('FaceTriData', 'i', h['FaceTriData']) + array('EdgeDirections', '3f', h['EdgeDirections'])

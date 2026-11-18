@@ -8,6 +8,32 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6: ground shapes from numbers (geometry)
+
+- [ground.py](tools/bake/ground.py) (new) makes a flat patch, a raised block or a ramp from numbers, each as a
+  plain static mesh:
+  - a footprint of whole tiles, with a height for a block or ramp;
+  - every face but the bottom;
+  - world-planar texture coordinates at its look's repeat;
+  - a lightmap chart for each face;
+  - its collision a box, or a ramp's wedge by [hulls.py](tools/bake/hulls.py).
+- `slope_words` says what the game does on a ramp's slope (F-81):
+  - over about 10 degrees its tiles are sloped, and give no cover;
+  - past about 45 degrees it is no floor.
+- Its looks will come from `ground_looks.json` (the materials audit); until then it has one plain recipe.
+- [frac_wall.py](tools/bake/frac_wall.py) `assemble` makes a plain mesh from a template with no fracturing part (no
+  fragment runs; collision values are their slots).
+- [frac_walls.py](tools/bake/frac_walls.py) `body_setup_boxes` takes whole hull elements beside boxes.
+
+Checked: [test_ground.py](tools/bake/tests/test_ground.py) (new) checks:
+- the three shapes: plain sections, no face looking down, the top's coordinates by the world;
+- heights, the box and the wedge, the slope's words;
+- refusals.
+
+The wall tests pass unchanged.
+
+Not in the Build, the editor or the game yet.
+
 ### Custom geometry, stage M6 (item 3): the hull writer moved into the tools; EXP-76 prepared
 
 - [hulls.py](tools/bake/hulls.py) (new) is the general convex hull writer (`hull_element`, `wedge`) and the cooker's

@@ -683,8 +683,11 @@ def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):
     chart coordinates, and optionally a colour for each corner, else the recipe's outside or interior colour) and the
     fragment records `records` ([dict(centre (x, y, z), neighbours, dims)]), on the donor's decoded mesh `template`,
     with the recipe `R`'s lightmap packing and colours, `slots` sections and the tail's `guid`: dict(mesh, fragments
-    (their boxes), lightmapRect, counts). frac_wall.build and frac_slab.build make theirs with it."""
+    (their boxes), lightmapRect, counts). frac_wall.build and frac_slab.build make theirs with it. A template with no
+    `fractured` (a plain static mesh's: ground.py's shapes) gives a plain mesh: one record, its sections without
+    fragment runs, its collision triangles' values their slots."""
     L = R['lightmap']
+    plain = template.get('fractured') is None
     origins, rect = pack_rect(faces.charts, L['density'], L['margin'], L['block'])
     # the vertices and triangles, slot by slot and fragment by fragment
     nfrag = len(records)
@@ -741,14 +744,14 @@ def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):
                     if _dot(_cross(_sub(pts[b], pts[a]), _sub(pts[c], pts[a])), n) > 0:
                         tri = [tri[0], tri[2], tri[1]]
                     indices += tri
-                    kdop.append(tuple(tri) + (gen_mesh.kdop_value(slot, f, nfrag),))
+                    kdop.append(tuple(tri) + (gen_mesh.kdop_value(slot, f, 0 if plain else nfrag),))
                 lo_v = base if lo_v is None else min(lo_v, base)
                 hi_v = len(positions) - 1
             count = (len(indices) - start) // 3
             ranges.append((start, count) if count else (0, 0))
         sections.append(dict(material=0, collision=1, oldCollision=1, shadow=1, first=first,
                              triangles=(len(indices) - first) // 3, minVertex=lo_v or 0, maxVertex=hi_v or 0,
-                             slot=slot, fragments=ranges, platform=0))
+                             slot=slot, fragments=[] if plain else ranges, platform=0))
     if len(positions) > 65535:
         raise ValueError('%s of %d vertices: more than 16-bit indices hold' % (what, len(positions)))
     lod = dict(template['lods'][0])
@@ -782,9 +785,12 @@ def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):
     tail = dict(template['tail'])
     tail['guid'] = guid
     mesh['tail'] = tail
-    fr = dict(template['fractured'])
-    fr.update(fragments=frags, core=-1, interior=R['slots'].get('interior', R.get('interior')), sourceMesh=0)
-    mesh['fractured'] = fr
+    if plain:
+        mesh['fractured'] = None
+    else:
+        fr = dict(template['fractured'])
+        fr.update(fragments=frags, core=-1, interior=R['slots'].get('interior', R.get('interior')), sourceMesh=0)
+        mesh['fractured'] = fr
     boxes = []
     for f, pts in enumerate(frag_points):
         boxes.append(dict(box=[v for k in range(3) for v in (min(p[k] for p in pts), max(p[k] for p in pts))]))
