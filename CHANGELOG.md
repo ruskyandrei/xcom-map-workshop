@@ -8,6 +8,24 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Tests for the walls' looks (custom geometry M4, work order A, step 4)
+
+- [test_wall_measure.py](tools/bake/tests/test_wall_measure.py), in the bake suite:
+  - the general path on a recipe written in the test, no install needed: a chair rail with two ledges, sides that
+    differ, seven slots two of them empty. Built as the twin, with a doorway and a window at the ledges' and the
+    split's heights, 16 tiles with joined ends, and one storey: closed fragments, triangles facing out, the slots in
+    order, faces in their slot by height with their slot's texture, the box, collision and checks, painting's frame;
+  - the measurer on the install: the Bar's donor against RECIPE (the old `--check`, 22 keys); a wall with one face
+    slot a side; the pier warehouse (no trim slot, its top sloping over from one side); the supply ship's (its trim
+    carrying the faces; a one-storey donor, made only at its own height); the Bar's facade (its sides' trims in other
+    textures); a modelled wall and its warning. Each passes its twin check, and the same donor gives the same entry;
+  - the catalogue: its form (LF, sorted, one look a line, every wall of the audit with its keys, its verdict, the
+    modelled walls' warning), every look building; and a fresh build of three of its walls gives their lines byte
+    for byte, twice over.
+- Checked: `python tools/run_tests.py bake -k test_wall_measure` (22 tests, 9 s), the whole bake suite and the repo
+  suite.
+- Known gaps: the whole catalogue's freshness is `wall_catalogue.py check` (a minute and a half), not a test.
+
 ### The walls' catalogue: every wall of the install as a look (custom geometry M4, work order A, step 3)
 
 - [wall_catalogue.py](tools/bake/wall_catalogue.py) `build` writes [looks/walls.json](tools/bake/looks/walls.json):
