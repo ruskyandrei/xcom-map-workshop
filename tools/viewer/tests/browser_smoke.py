@@ -3963,6 +3963,12 @@ def check_spawn_edits(page):
     entries = page.evaluate('viewer.spawnAddEntries().map(e => e.name)')
     if not entries: return      # the spawn family doesn't build on this server
     assert set(entries) <= {'Pod', 'Meld point', 'No-spawn volume'} and 'No-spawn volume' in entries, entries
+    # a map with no no-spawn volume of its own (Act1_IntroLevel) offers a fresh one, which has no actor: the Add panel
+    # opened on it threw before (18 November 2026)
+    fresh = page.evaluate('''() => { const kept = viewer.data.spawns;
+        viewer.data.spawns = kept.filter(o => o.kind !== 'noSpawn');
+        try { return viewer.spawnAddEntries().find(e => e.spawnAdd === 'noSpawn')?.pkg ?? null; } finally { viewer.data.spawns = kept; } }''')
+    assert fresh == "made from one of the map's volumes", fresh
     normal = page.evaluate('viewer.normalSpawns()')
     before = page.evaluate('viewer.changes().total')
     page.evaluate('viewer.select(null); viewer.pickSpawn(null); viewer.setSpawnsShown(true)')
@@ -4064,7 +4070,9 @@ def check_spawn_edits(page):
     assert all(abs((made[0]['box'][k] - origin[k % 3]) / 96 - round((made[0]['box'][k] - origin[k % 3]) / 96)) < 1e-3 for k in (0, 1, 3, 4)), made
     undo()
     assert not moves()
-    # the Add panel's spawn points: Escape cancels a placing; a click places a copy of the kind's template
+    # the Add panel's spawn points: Escape cancels a placing; a click places a copy of the kind's template (a map with
+    # no plain pod and no Meld point, as Act1_IntroLevel, has nothing more to place)
+    if 'Pod' not in entries and 'Meld point' not in entries: return
     kind = 'pod' if 'Pod' in entries else 'meld'
     page.evaluate('k => viewer.startSpawnPlacing(k)', kind)
     assert page.evaluate('viewer.spawnPlacing()') == kind

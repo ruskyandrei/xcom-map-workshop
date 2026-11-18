@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The Add panel opens on maps with no no-spawn volume of their own
+
+- On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the
+  template of a fresh no-spawn volume by its actor, and a fresh volume has none. The entry now names no actor for
+  a fresh volume ([app.js](tools/viewer/web/app.js) spawnAddEntries).
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) check_spawn_edits now checks the entry with the map's
+  no-spawn volumes taken out. It stops after the volume checks on a map with no plain pod and no Meld point (as the
+  tutorial map), which it couldn't run on before.
+- Checked: the spawns browser check on URB_Bar and on Act1_IntroLevel; on the tutorial map the Add panel opened with
+  its 182 rows and no error on the page; the repo suite.
+
 ### Research on destructible floors, falling units and structural support
 
 The [floor collapse audit](research/experiments/EXP-28-floor-collapse-audit.md) and
