@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-75 run C passed; F-127 explained; made pieces' lightmaps fit small atlases** (custom geometry plan, M3 and M6;
+  branch `fracturing-wall-poc`).
+  - [EXP-75](research/experiments/EXP-75-joined-walls.md) run C, played unattended. The L's and T's corners are
+    closed and evenly lit, and their tiles give the expected cover. A door in a made wall opens for a walk and goes
+    with the wall round it. A room in a building is cut down floor by floor as the bar is. The wall on the roof is
+    drawn and walked through.
+  - [F-127](research/findings-register.md) is the game's own behaviour. One of URB_Bar's own walls, holed by a
+    grenade, kept a band of its upper storey over the hole. A wall on another stays when the one under it goes,
+    because a listing passes a break only as high as the blast reached.
+  - [compiler.py](tools/editor/compiler.py) `made_walls_stacked` notes a made wall standing on another
+    (`wall-on-wall`): it stays standing when the one under it breaks.
+  - [frac_walls.py](tools/bake/frac_walls.py) `fit_rect`: a made piece's lightmap rectangle is scaled down to fit a
+    donor atlas smaller than itself, for the lightmap and the shadow map alike. Before, the relight skipped the
+    plain-asphalt ground look's copies (IndexError): that look's donor is a street block beyond the play area, with
+    a 32-texel atlas. EXP-77 was rebuilt, and all its copies are now relit.
+  - Checked by: the bake suite's GroundShapes (a plain-asphalt block whose rectangle fits its atlas), the editor
+    suite's generated-piece tests (`test_a_wall_on_a_wall_is_noted`), the repo suite, and run C's shots.
+  - Gap: whether the bar's inside wall `XComDecoFracLevelActor_17` went in both storeys was not seen (the camera's
+    building cut).
+
 ### Custom geometry, stage M6 (item 2): the ground materials audit and six ground looks
 
 - [ground-audit.py](research/evidence/ground-audit.py) (read only; output

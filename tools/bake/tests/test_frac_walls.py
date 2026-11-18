@@ -653,6 +653,7 @@ class GroundShapes(unittest.TestCase):
     """(M6) Ground shapes made from numbers in URB_Bar, baked: a block and a ramp on copies of the bar's asphalt plane
     (XComLevelActor_131, an XComLevelActor whose component has its archetype's mesh and saves none)."""
     DONOR = 'XComLevelActor_131'
+    SMALL_ATLAS = 'StaticMeshActor_117'
 
     @classmethod
     def setUpClass(cls):
@@ -665,7 +666,13 @@ class GroundShapes(unittest.TestCase):
                                       ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))),
                   dict(actor=cls.DONOR, label='Ramp', location=[-1440.0, -1440.0, 0.0], rotation=[0, 0, 0],
                        generated=dict(kind='ground', version=1,
-                                      ground=dict(shape='ramp', x0=0.0, x1=288.0, y0=0.0, y1=96.0, height=64.0)))]
+                                      ground=dict(shape='ramp', x0=0.0, x1=288.0, y0=0.0, y1=96.0, height=64.0))),
+                  # the plain asphalt look's donor: a street block beyond the play area, whose atlas (32 texels) is
+                  # smaller than a block's rectangle at the recipe's density
+                  dict(actor=cls.SMALL_ATLAS, label='Plain', location=[-1152.0, -1440.0, 0.0], rotation=[0, 0, 0],
+                       generated=dict(kind='ground', version=1,
+                                      ground=dict(shape='block', x0=0.0, x1=96.0, y0=0.0, y1=96.0, height=96.0,
+                                                  look='plain-asphalt')))]
         cls.m = native_copy.build(BAR, out, 'Ground', copies, bake=True, cache='Ground_Lighting')
         cls.p = Package(BAR)
         cls.q = Package(out / 'Ground.upk')
@@ -699,6 +706,18 @@ class GroundShapes(unittest.TestCase):
             self.assertEqual(r['light']['kind'], 'rect')
             self.assertTrue(r['shadowMap']['own'])
             self.assertEqual(r['columns'], 0)
+
+    def test_its_lightmap_rectangle_fits_its_atlas(self):
+        # a rectangle bigger than the donor's atlas is scaled down to fit (the relight skipped it before)
+        rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
+        comp = self.q.own(self.sec['Plain'], 'StaticMeshComponent')
+        aw, ah = frac_walls.atlas_size(self.q, comp)
+        w, h = rec['Plain']['light']['rect']
+        self.assertLessEqual(w, aw)
+        self.assertLessEqual(h, ah)
+        self.assertEqual(tuple(rec['Plain']['lightmapRect']), (w, h))
+        self.assertEqual(frac_walls.fit_rect((16, 56), (32, 32)), (9, 32))
+        self.assertEqual(frac_walls.fit_rect((16, 24), (32, 32)), (16, 24))
 
     def test_it_collides_whatever_its_donor_saves(self):
         # (many ground donors are backdrop planes saved with their collision off: native_copy.ground_collision)

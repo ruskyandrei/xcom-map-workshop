@@ -199,6 +199,17 @@ class GeneratedTests(unittest.TestCase):
         spec, report = compiled([made(block)])          # on a fracturing piece
         self.assertIn('malformed', codes(report))
 
+    def test_a_wall_on_a_wall_is_noted(self):
+        # (F-127) a made wall whose bottom is at another's top, over it, is noted: it stays when the one under it
+        # breaks. The test template is 100 tall about its pivot; the third wall stands 100 over the second's top
+        plain = dict(WALL, wall=dict(WALL['wall'], openings=[]))
+        spec, report = compiled([made(plain, serial=1, at=(0, 600, 0)), made(plain, serial=2, at=(0, 600, 100)),
+                                 made(plain, serial=3, at=(0, 600, 300)), made(plain, serial=4, at=(0, 1800, 100))])
+        self.assertTrue(report['ok'], refused(report))
+        notes = [d for d in report['notes'] if d['code'] == 'wall-on-wall']
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn('stays standing', notes[0]['message'])
+
     def test_a_one_storey_wall_is_a_wall(self):
         # (M2) storeys 1 or 2 (left out, 2) go to the Build as they are
         for storeys in (1, 2):

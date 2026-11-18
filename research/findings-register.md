@@ -295,7 +295,7 @@ pod/Meld runtime experiment remain in the private spawns plan. Deployment counts
 behaviour for these proposed edits still need direct observation.
 
 ### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
-**Open** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B).
+**Explained: the game's own walls do the same** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B; [EXP-75](experiments/EXP-75-joined-walls.md) run C).
 - **Seen.** A grenade by a 16-tile made wall took its lower storey out over about four tiles; its upper storey still
   spans the hole. A grenade by a one-storey made wall (W1a) with another standing on it (W1b) took W1a out along its
   length, and W1b stayed in the air.
@@ -305,9 +305,16 @@ behaviour for these proposed edits still need direct observation.
   (nor of URB_Bar's other inside wall), so no island-support check holds them up or drops them, and the made walls
   are the same. W1a and W1b listed nothing of each other in that build: each broke only where the blast reached it.
 - **Since.** Joined made walls and a made wall on another list each other's columns (M3 item 3, 033a5d7): a blast on
-  one passes the same damage, up to its height, to the other's listed columns. Not played yet.
-- **Open.** Whether one of the game's own two-storey walls (URB_Bar's) does the same when its lower storey is broken
-  through: run C breaks one beside a made wall.
+  one passes the same damage, up to its height, to the other's listed columns.
+- **Run C.**
+  - A grenade inside the bar holed the back room's outside brick wall, one of URB_Bar's own, through its lower part.
+    A band of its upper storey was left spanning the hole: the game's walls keep a storey over a hole broken under
+    it, as the made walls do.
+  - With the listings, W1a went along its whole length and W1b still stayed in the air. The listing passes damage
+    only up to the height the blast reached ([frac-neighbours.md](native/frac-neighbours.md)), and W1b's fragments
+    start above it.
+- **Fix.** None to make: the made walls break as the game's own do. The compiler notes a made wall standing on
+  another (`wall-on-wall`): it stays standing when the one under it breaks.
 
 ### F-126: A window in a made wall is climbed through, as the game's windows are
 **Verified** (18 November 2026, EXP-73 run A: a soldier walked one tile through W1's window, sill 72, top 168).

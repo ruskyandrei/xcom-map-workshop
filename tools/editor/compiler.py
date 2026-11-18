@@ -622,6 +622,9 @@ def opening_box(location, rotation, o, half=12.0):
             min(p[2] for p in pts), max(p[2] for p in pts)]
 
 
+WALL_STACK_GAP = 24.0      # a made wall's bottom this near another's top stands on it (made_walls_stacked)
+
+
 def overlaps_by(a, b, least):
     """Whether boxes a and b ([x0, x1, y0, y1, z0, z1]) overlap at all across and by more than `least` along x or y
     (whichever is longer in a) and up."""
@@ -1380,6 +1383,29 @@ class Compiler:
             insets = {'free': FRAC_WALL_END_INSET, 'line': 0.0, 'through': -FRAC_WALL_END_INSET}
             along = (gen['wall']['x0'] + insets[ends[0]], gen['wall']['x1'] - insets[ends[1]])
             copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
+
+    def made_walls_stacked(self):
+        """A note for each made wall standing on another (custom geometry plan, M2 item 6; F-127): its bottom within
+        WALL_STACK_GAP of the other's top, the two overlapping across and by more than a tile's quarter along. When
+        the one under it breaks, it stays standing: the game passes a break from one fracturing piece to another only
+        up to the height the blast reached (research/native/frac-neighbours.md), and the game's own walls keep their
+        upper part over a hole broken under it (EXP-75 run C)."""
+        for upper, where in self.made_walls:
+            a = upper.get('box')
+            if not a:
+                continue
+            for lower, _ in self.made_walls:
+                b = lower.get('box')
+                if lower is upper or not b or abs(a[4] - b[5]) > WALL_STACK_GAP:
+                    continue
+                along = 0 if a[1] - a[0] >= a[3] - a[2] else 1
+                over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(2)]
+                if over[along] > TILE / 4 and over[1 - along] > 0:
+                    self.note('wall-on-wall', "%s stands on %s: when %s breaks under it, it stays standing, as the "
+                              "game's walls keep their upper part over a hole broken under it (a break passes from one "
+                              'piece to another only as high as the blast reached)'
+                              % (upper['label'], lower['label'], lower['label']), **where)
+                    break
 
     def made_wall_openings(self):
         """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
@@ -4764,6 +4790,7 @@ class Compiler:
             self.overrides()
             self.added()
             self.join_made_walls()
+            self.made_walls_stacked()
             self.made_wall_openings()
             self.derive_area_lights()
             self.groups()

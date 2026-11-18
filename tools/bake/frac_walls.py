@@ -382,6 +382,20 @@ def set_light(data, at, light):
     return bytes(data)
 
 
+def fit_rect(rect, atlas):
+    """A made piece's lightmap rectangle (w, h) as it goes in an atlas (w, h): as it is where it fits, else scaled down
+    to fit, both sides by the same factor (a lower density: the plain asphalt look's donor, a street block beyond the
+    play area, has a 32-texel atlas, smaller than a block's rectangle at the recipe's density)."""
+    w, h = rect
+    if not atlas:
+        return (w, h)
+    aw, ah = atlas
+    if w <= aw and h <= ah:
+        return (w, h)
+    f = min(aw / w, ah / h)
+    return (max(1, min(aw, int(w * f))), max(1, min(ah, int(h * f))))
+
+
 def atlas_size(p, comp):
     """(width, height) of the atlas a component's LOD-0 texture lightmap is in, or None."""
     import lightmap_fields
@@ -918,6 +932,7 @@ def add_walls(g, p, items, grid, bake=True):
         shadow, sm = None, None
         if bake:
             atlas = atlas_size(p, comp_old)
+            out['lightmapRect'] = fit_rect(out['lightmapRect'], atlas)
             light = dict(kind='rect', rect=out['lightmapRect'], atlas=atlas) if atlas else None
             if dominant and dominant['source']:
                 t = dominant['source']['texture']

@@ -1,6 +1,6 @@
 # EXP-75: made walls that meet, a door in a made wall, a room in a building (custom geometry plan, M3, run C)
 
-Date: 18 November 2026. Status: **prepared**. The custom geometry plan's stage M3 (branch `fracturing-wall-poc`):
+Date: 18 November 2026. Status: **passed** (run C). The custom geometry plan's stage M3 (branch `fracturing-wall-poc`):
 made walls that meet join (an L's longer wall runs through to the other's far face, the other butts on its face; a T's
 stem stops on the through wall's face), a made wall and the fracturing pieces it touches list each other's columns
 by the game's rule (so a break passes between them), a door standing in a made wall's doorway is listed in its
@@ -67,4 +67,57 @@ tile centres at x -2737 + 96 i, y -1873 + 96 j.
 
 ## Result
 
-Not played yet.
+Run C, 18 November 2026, played unattended in the lab copy (the game-test skill; two sessions, the first having
+run into its time limit before checks 10 and 11). Pictures are in `<lab>\hidden-runs\exp75-runC`. **Passed**:
+everything the plan's run C asks is as it should be, and F-127 is the game's own behaviour (below).
+
+1. **Load: passed.** The battle started on `EXP75JoinedWalls` with no crash. The made walls show only in the routine
+   "Cooking Convex" lines every fracturing piece gets. No error names a made wall, the door copy or the building.
+2. **The L's corner: passed** (still pictures, so flicker can't be judged).
+   - From outside, the corner is one straight edge: the band between the wood and the brick, and the top caps, run
+     round it unbroken, and the light is even on both faces.
+   - From inside, the tiled faces meet in a clean line and their diamond bands are at the same height.
+   - From above, A's cap runs through to the outer face and B butts on it.
+3. **The T: passed.** From either side of the stem, E stands flush on D's face with no slit. The one slit seen is
+   D's doorway, edge on.
+4. **Tiles at the L: passed.** A soldier walked into the inside corner (-1105, -721): cover 50, high toward north and
+   east (flags 9). On the outside corner (-1009, -625) he had no cover (flags 0).
+5. **Tiles at the T: passed.**
+   - (-721, -721): 50, high toward north and east, with a step-out (flags 4105).
+   - (-625, -721): 50, high toward north and west (flags 5).
+6. **A break at the corner: passed, as far as could be seen.**
+   - The grenade took the corner's lower storey out, and A's brick upper storey was left over the hole with a
+     stepped lower edge.
+   - B burned along its top, by the corner.
+   - Fire hid whether both walls' corner columns broke. Nothing other than the upper storey was left in the air.
+7. **The door in F: passed.**
+   - A soldier walked through the doorway and the door opened for him.
+   - A grenade beside the doorway took the door, its frame and F's lower storey from its west end through the
+     doorway. F's upper storey still spans the hole, as in EXP-74.
+8. **The room in its building: passed.** With a soldier inside on the camera's floor 0, the room's near walls are cut
+   down to their lower storey. One floor up and two, all four walls stand whole. Back down, they are cut again. The bar
+   does the same with a soldier in it.
+9. **The wall on the roof (G): passed.**
+   - With a soldier on the roof, G is drawn from the default camera and from the north-west.
+   - He walked straight through its doorway (-1297, 431) to (-1297, 335).
+   - When the bar is cut away at floor 0, G is hidden with the roof.
+10. **The wall on a wall (W1a, W1b): W1b stays in the air.** A grenade by W1a took it out along its whole length, and
+   W1b stands over the gap with the ground and a car seen under it. The two list each other's columns, but the
+   game passes a break through a listing only as high as the blast reached
+   ([frac-neighbours.md](../native/frac-neighbours.md)), and W1b's fragments start above it.
+11. **One of the game's own walls: its upper part stays over a hole.**
+   - The grenade at (-1105, 1007), inside the bar, holed the back room's outside brick wall (one of URB_Bar's own
+     walls) through its lower part. A band of its upper storey was left spanning the hole, seen from inside and from
+     the west.
+   - Between the back room and the bar's hall, where the inside wall `XComDecoFracLevelActor_17` stands, no wall was
+     seen after the blast in either take. Either it went in both storeys or the camera's building cut hid it, and
+     the pictures can't tell which.
+
+So the made walls break as the game's own do: a storey left over a hole broken under it is the game's way (F-127).
+The compiler now notes a made wall standing on another (`wall-on-wall`): it stays standing when the one under it
+breaks.
+
+Side notes from the run:
+- One grenade logged "used" but never went off, and one throw didn't start. Each was thrown again.
+- From far off, `aim` overshoots, so a teleport needed two hops.
+- After a teleport, Tab round sometimes landed on another soldier.
