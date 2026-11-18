@@ -1152,7 +1152,7 @@ class Compiler:
     # ---------------------------------------------------------------- pieces' flags (piece flags plan)
     def generated_valid(self, rec, where):
         """Whether a record's `generated` (if any) is well formed (custom geometry plan, section 0): {kind 'fracWall',
-        version 1, wall {x0, x1, openings [{x0, x1, z0, z1}], seed}}, a fracturing wall made from numbers in its
+        version 1, wall {x0, x1, openings [{x0, x1, z0, z1}], seed, storeys (1 or 2; left out, 2)}}, a fracturing wall made from numbers in its
         template's frame (tools/bake/frac_wall.py; x0 and x1 its tile edges, FRAC_WALL_MIN_LENGTH apart or more), or {kind 'relit', version 1}, the template's own mesh lit as a made
         wall is. A malformed one leaves the record out, as any malformed field does."""
         if 'generated' not in rec:
@@ -1163,14 +1163,15 @@ class Compiler:
         if ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
-                  and isinstance(w.get('seed', 1), int)
+                  and isinstance(w.get('seed', 1), int) and w.get('storeys', 2) in (1, 2)
+                  and not isinstance(w.get('storeys'), bool)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
                           for o in w.get('openings') or []))
         if ok:
             return True
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
-                   '{x0, x1, openings, seed}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
+                   '{x0, x1, openings, seed, storeys}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
         return False
 
     def made_wall_openings(self):

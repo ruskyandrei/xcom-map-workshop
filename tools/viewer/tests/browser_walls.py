@@ -7,7 +7,8 @@ the Walls kind's entry, a wall drawn by dragging along a tile line (tile edge to
 and pose; Add doorway and Add window put each in a free tile and their words in the panel; the end's handle drags the
 wall a tile longer at its start with the openings left where they are in the world; an opening's middle slides it;
 Flip sides swaps the faces with the openings in place; undo and redo step through each change; Delete with an
-opening's handle last touched takes only the opening out; saved and reopened, the wall is as it was; a quick Build
+opening's handle last touched takes only the opening out; the top's handle makes it one storey and the panel's button
+two again (M2); saved and reopened, the wall is as it was; a quick Build
 makes it from numbers, with the donor brought from URB_Bar and the doorway's warning."""
 import json
 
@@ -120,6 +121,24 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.evaluate('viewer.gizmo.undo()')
     page.wait_for_function("id => viewer.wallState(id)?.generated.wall.openings.length === 2", arg=wall)
     kept = state(page, wall)
+    # (M2) the top's handle down past half a storey: one storey, its openings under its top; the panel's button back to
+    # two; undo steps back through both
+    mesh_ready(page, wall)
+    h = page.evaluate('viewer.wallHandles(-150)')
+    assert 'end:top' in h, sorted(h)
+    drag(page, h['end:top'][:2], h['end:top'][2:])
+    low = state(page, wall)['generated']['wall']
+    assert low.get('storeys') == 1 and max(o['z1'] for o in low['openings']) <= 168, low
+    assert 'one storey (208 tall)' in page.evaluate('viewer.wallPanelText()'), page.evaluate('viewer.wallPanelText()')
+    mesh_ready(page, wall)
+    # the mesh drawn is the one-storey one (its key and request carry the storeys)
+    mesh = page.evaluate("id => [...viewer.roots.values()].find(r => r.userData.source.id === id).userData.source.mesh", wall)
+    assert '"storeys":1' in mesh, mesh
+    out['oneStorey'] = low
+    page.locator('#wallStoreys').click()
+    assert 'storeys' not in state(page, wall)['generated']['wall'], state(page, wall)
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    assert state(page, wall) == kept, (state(page, wall), kept)
     # saved and reopened
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')

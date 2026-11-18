@@ -66,6 +66,7 @@ class FracWall(unittest.TestCase):
                      json.dumps(dict(x0=0, x1=generated.MAX_LENGTH + 1)), json.dumps(dict(x0=0, x1=96, seed=1.5)),
                      json.dumps(dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
                      json.dumps(dict(x0=0, x1=96, openings=[dict(x0=0, x1=10, z0=0, z1=10)] * 17)),
+                     json.dumps(dict(x0=0, x1=96, storeys=3)), json.dumps(dict(x0=0, x1=96, storeys=True)),
                      '{"x0": 0, "x1": NaN}'):
             with self.assertRaises(generated.GeneratedError, msg=text):
                 generated.Meshes().fracwall(text)
@@ -73,6 +74,16 @@ class FracWall(unittest.TestCase):
     def test_the_numbers_are_kept_in_one_spelling(self):
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x1=96, x0=0))),
                          dict(x0=0.0, x1=96.0, openings=[], seed=1))
+        # (M2) a wall's storeys: 2 is the donor's and left out, 1 kept
+        self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=2))),
+                         dict(x0=0.0, x1=96.0, openings=[], seed=1))
+        self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=1)))['storeys'], 1)
+
+    def test_a_one_storey_wall_is_drawn_a_storey_high(self):
+        built = generated.frac_wall.build(generated.wall_numbers(json.dumps(dict(x0=0, x1=192, storeys=1))))
+        self.assertEqual(max(p[2] for p in built['mesh']['lods'][0]['positions']), 192.0)
+        mesh = generated.viewer_mesh(built)
+        self.assertEqual(len(mesh['sections']), generated.SLOTS)
 
 
 if __name__ == '__main__':

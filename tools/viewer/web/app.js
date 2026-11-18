@@ -48,7 +48,8 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
 import { gridMove, nearestGridPose } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
-         resizedWall, reshuffled, shiftedLocation, sortedOpenings, toolWall, wallWords, withOpening, withoutOpening } from './walls.js';
+         raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
+         withoutOpening, withStoreys } from './walls.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -1185,18 +1186,23 @@ const movedMatrix = (source, location, rotation) => actorMatrix(location, rotati
 // sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
 // (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
 const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: 3072 };
-// A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height and thickness.
+// A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
+// top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
-  const a = wall.x0 + FRAC_WALL.endInset, b = wall.x1 - FRAC_WALL.endInset, hx = (b - a) / 2, hz = (FRAC_WALL.top - FRAC_WALL.bottom) / 2;
+  const top = wall.storeys === 1 ? 192 : FRAC_WALL.top;
+  const a = wall.x0 + FRAC_WALL.endInset, b = wall.x1 - FRAC_WALL.endInset, hx = (b - a) / 2, hz = (top - FRAC_WALL.bottom) / 2;
   return [(a + b) / 2, 0, FRAC_WALL.bottom + hz, hx, FRAC_WALL.halfY, hz, Math.hypot(hx, FRAC_WALL.halfY, hz)];
 }
+// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out).
+const madeWallNumbers = w => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
+                                seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}) });
 function madeShape(template, generated) {
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
     || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
-      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)) return {};
-  const wall = { x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })), seed: w.seed ?? 1 };
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1) || ![undefined, 1, 2].includes(w.storeys)) return {};
+  const wall = madeWallNumbers(w);
   const key = `made:fracwall:${JSON.stringify(wall)}`;
   if (!data.meshes[key]) {
     // (`look`: the template's mesh, which Select all of a kind counts it as)
@@ -9397,7 +9403,7 @@ async function endWallDraw(keep) {
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
 // The mesh record for a made wall's numbers (as madeShape makes it), its key.
 function madeWallMesh(o, wall) {
-  const key = `made:fracwall:${JSON.stringify({ x0: wall.x0, x1: wall.x1, openings: (wall.openings ?? []).map(p => ({ x0: p.x0, x1: p.x1, z0: p.z0, z1: p.z1 })), seed: wall.seed ?? 1 })}`;
+  const key = `made:fracwall:${JSON.stringify(madeWallNumbers(wall))}`;
   if (!data.meshes[key]) {
     const was = data.meshes[o.mesh];
     data.meshes[key] = { ...was, url: `/generated/fracwall.glb?${new URLSearchParams({ wall: key.slice('made:fracwall:'.length) })}`,
@@ -9451,7 +9457,7 @@ function changeWall(change) {
 // ---- the handles
 const wallHandleLayer = new THREE.Group(); world.add(wallHandleLayer);
 const wallHandleMeshes = [];
-const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3)),
+const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3)),
                                          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
 wallStems.renderOrder = 8; wallStems.raycast = () => {}; wallStems.frustumCulled = false; wallHandleLayer.add(wallStems);
 let wallDrag = null, wallHover = null, wallFocus = null;   // wallFocus: { id, index }: the opening whose handle was last touched
@@ -9473,9 +9479,11 @@ function wallHandlesNow(root) {
   // the openings' handles on the face toward the camera
   const toCamera = camera.position.clone().sub(toView(w.x1 / 2, 0, 184));
   const side = toCamera.dot(axis(0, 1, 0)) >= 0 ? WALL.half + 1 : -WALL.half - 1;
-  const mid = (WALL.top + WALL.bottom) / 2, out = [];
+  const mid = (wallTop(w) + WALL.bottom) / 2, out = [];
   out.push({ key: 'end:x0', kind: 'end', part: 'x0', at: toView(0, 0, mid), dir: axis(-1, 0, 0) });
   out.push({ key: 'end:x1', kind: 'end', part: 'x1', at: toView(w.x1, 0, mid), dir: axis(1, 0, 0) });
+  // the top: up or down a storey (M2)
+  out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(w.x1 / 2, 0, wallTop(w)), dir: axis(0, 0, 1) });
   sortedOpenings(w.openings ?? []).forEach((o, index) => {
     const cx = (o.x0 + o.x1) / 2, bottom = Math.max(0, o.z0), cz = (bottom + o.z1) / 2;
     const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, o.z0] };
@@ -9508,9 +9516,9 @@ function updateWallHandles() {
     mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : h.kind === 'end' ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
     scaleMarker(mesh, camera, mesh.position);
     if (h.kind === 'opening') mesh.scale.multiplyScalar(0.8);
-    if (h.kind === 'end' && n < 4) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
+    if (h.kind === 'end' && n < 6) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
   });
-  for (; n < 4; n++) stems.setXYZ(n, 0, 0, 0);
+  for (; n < 6; n++) stems.setXYZ(n, 0, 0, 0);
   stems.needsUpdate = true;
 }
 function wallHandleNear(x, y) {
@@ -9525,7 +9533,8 @@ function hoverWallHandle(h) {
   if (key === wallHover) return;
   wallHover = key;
   renderer.domElement.style.cursor = key ? 'grab' : wallDrawing ? 'crosshair' : '';
-  renderer.domElement.title = !h ? '' : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
+  renderer.domElement.title = !h ? '' : h.part === 'top' ? `The wall's top: drag ${storeysOf(handleWall()?.userData.source.added.generated.wall) === 1 ? 'up to make it two storeys' : 'down to make it one storey'}`
+    : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
     : `${WALL_PART_WORDS[h.part]}${h.part === 'x0' || h.part === 'x1' || h.part === 'middle' ? ' (whole tiles; Alt: steps of 8)' : ' (steps of 8)'}`;
 }
 function startWallDrag(e) {
@@ -9547,7 +9556,11 @@ function moveWallDrag(e) {
   if (t == null) return;
   const delta = t - d.from, b = d.before, w = b.generated.wall, h = d.handle;
   let wall = w, location = b.location, words;
-  if (h.kind === 'end') {
+  if (h.part === 'top') {
+    const r = raisedWall(w, delta);
+    wall = r.wall;
+    words = `${wallWords(wall)}${r.cut ? ` · ${plural(r.cut, 'opening')} brought under the top` : ''}${r.removed ? ` · ${plural(r.removed, 'opening')} in the upper storey will go` : ''}`;
+  } else if (h.kind === 'end') {
     // (out of the start end is back along the wall)
     const r = resizedWall(w, h.part, h.part === 'x0' ? -delta : delta);
     wall = r.wall; location = shiftedLocation(b.location, b.rotation, r.shift);
@@ -9578,7 +9591,7 @@ function endWallDrag(keep) {
 function wallPanel(root) {
   const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
   $('wallHead').textContent = `Wall · ${look?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
-  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles.`
+  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top makes it ${storeysOf(w) === 1 ? 'two storeys' : 'one storey'}.`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
   const list = $('wallOpenings'), openings = sortedOpenings(w.openings ?? []);
   const doors = doorBoxes(root);
@@ -9600,7 +9613,9 @@ function wallPanel(root) {
   }));
   const free = tool && withOpening(w, 'window');
   $('wallDoor').disabled = $('wallWindow').disabled = !free;
-  $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
+  $('wallFlip').disabled = $('wallShuffle').disabled = $('wallStoreys').disabled = !tool;
+  $('wallStoreys').textContent = storeysOf(w) === 1 ? 'Two storeys' : 'One storey';
+  $('wallStoreys').title = storeysOf(w) === 1 ? 'Make the wall two storeys tall (400)' : 'Make the wall one storey tall (208): openings in its upper storey go';
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
     + 'A blast doesn\'t spread from it to the walls beside it, nor from them to it.';
@@ -9645,6 +9660,8 @@ $('wallFlip').onclick = () => changeWall(s => {
   return { generated: { ...s.generated, wall: f.wall }, location: f.location, rotation: f.rotation };
 });
 $('wallShuffle').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: reshuffled(s.generated.wall) } }));
+$('wallStoreys').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated,
+  wall: withStoreys(s.generated.wall, storeysOf(s.generated.wall) === 1 ? 2 : 1).wall } }));
 // Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
 function deleteWallOpening() {
   const root = madeWallRoot(selected);

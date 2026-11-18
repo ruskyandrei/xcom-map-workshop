@@ -68,11 +68,21 @@ class GeneratedTests(unittest.TestCase):
                dict(WALL, wall=dict(x0=0, x1=12)), dict(WALL, wall=dict(x0=0, x1=39)),
                dict(WALL, wall=dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
                dict(WALL, wall=dict(x0=0, x1=96, seed='one')),
+               dict(WALL, wall=dict(x0=0, x1=96, storeys=3)), dict(WALL, wall=dict(x0=0, x1=96, storeys=True)),
                dict(WALL, wall=dict(x0=0, x1=float('nan')))]
         for g in bad:
             spec, report = compiled([made(g)])
             self.assertIn('malformed', codes(report), g)
             self.assertFalse([o for o in (spec or {}).get('objects', []) if o['type'] == 'copy'], g)
+
+    def test_a_one_storey_wall_is_a_wall(self):
+        # (M2) storeys 1 or 2 (left out, 2) go to the Build as they are
+        for storeys in (1, 2):
+            g = dict(WALL, wall=dict(WALL['wall'], storeys=storeys))
+            spec, report = compiled([made(g, at=(0, 636, 14.5))])
+            self.assertNotIn('malformed', codes(report))
+            (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+            self.assertEqual(op['generated'][0]['wall']['storeys'], storeys)
 
     def test_only_a_fracturing_piece_is_made_from_numbers(self):
         spec, report = compiled([dict(add('XComLevelActor_1', 1, (0, 600, 0)), generated=WALL)])

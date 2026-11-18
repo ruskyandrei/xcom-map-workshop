@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M2 (editor side): one-storey walls
+
+- A made wall has a white handle on its top: dragged down past half a storey it makes the wall one storey (208 tall,
+  to 192 over the floor), up past half a storey two again; the piece panel's Wall section says its height and has a
+  One storey / Two storeys button. An opening the lower wall can't hold has its top brought down to 168 (24 under
+  the top, as on a tall wall), and one in the upper storey goes; the drag's hint says so
+  ([walls.js](tools/viewer/web/walls.js): `storeysOf`, `wallTop`, `topMostOf`, `withStoreys`, `raisedWall`;
+  [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)). Two storeys leaves the number out,
+  so M1's walls keep their meshes.
+- The page asks the server for a one-storey wall's own mesh (both of the page's mesh keys go through one spelling,
+  `madeWallNumbers`; [generated.py](tools/viewer/generated.py) takes `storeys` 1 or 2), and the compiler passes
+  `storeys` to the Build ([compiler.py](tools/editor/compiler.py): 1 or 2, else malformed).
+
+Checked: the node suite (walls_test: heights, words, openings brought down or dropped, the top handle's half-storey
+step, an opening's highest top), the viewer and editor suites' generated-wall tests (the mesh request's storeys, a
+one-storey wall drawn 192 high, the compiler's storeys), `browser_smoke.py --only walls --projects` on a test server
+(the top handle makes the wall one storey with its openings under its top, the mesh drawn is the one-storey one, the
+button makes it two again, undo steps back through both); a close shot of the police station test wall at one storey
+showed the donor's tiles to the cornice at its top.
+
 ### Custom walls, stage M2 (Build side): light that fits, one-storey walls
 
 - A made wall's lightmap is a rectangle of its own size: [frac_wall.py](tools/bake/frac_wall.py) packs its charts at

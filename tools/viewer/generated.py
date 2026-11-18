@@ -35,7 +35,7 @@ class GeneratedError(ValueError):
 
 def wall_numbers(text):
     """The wall's numbers from the request's JSON, checked, in one spelling (the cache's key): dict(x0, x1, openings,
-    seed). GeneratedError when malformed."""
+    seed), and storeys when it is 1 (frac_wall.shaped: 2, the donor's, is left out). GeneratedError when malformed."""
     try:
         wall = json.loads(text)
     except (TypeError, ValueError):
@@ -58,7 +58,10 @@ def wall_numbers(text):
                 and x0 <= o['x0'] < o['x1'] <= x1 and o['z0'] < o['z1']):
             raise GeneratedError('an opening outside its wall or of no size')
         out.append({k: float(o[k]) for k in ('x0', 'x1', 'z0', 'z1')})
-    return dict(x0=x0, x1=x1, openings=out, seed=seed)
+    storeys = wall.get('storeys', 2)
+    if storeys not in frac_wall.STOREYS or isinstance(storeys, bool):
+        raise GeneratedError('a wall has 1 or 2 storeys')
+    return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}))
 
 
 def viewer_mesh(built):

@@ -3,7 +3,8 @@
 // `generated: { kind: 'fracWall', version: 1, wall }`, the wall's numbers in the donor mesh's frame
 // (tools/bake/frac_wall.py): `x0` and `x1` its tile edges along the wall (the tool always writes x0 0 and puts the
 // piece at the wall's start), `openings` [{ x0, x1, z0, z1 }] (rectangles through it; z 0 is the floor the wall
-// stands on, its bottom WALL.bottom), `seed` (the break pattern). Its solid stops WALL.endInset short of each end.
+// stands on, its bottom WALL.bottom), `seed` (the break pattern), `storeys` (1, or left out for 2: stage M2). Its solid
+// stops WALL.endInset short of each end.
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './poserule.js';
 
@@ -11,9 +12,13 @@ import { QUARTER, TILE } from './poserule.js';
 // mesh its actor holds, and what it looks like in words. M1 has one, the Bar's inside wall (frac_wall.RECIPE).
 export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package: 'URB_Bar', actor: 'XComDecoFracLevelActor_17',
   mesh: 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED', lwrOnly: false,
-  words: 'two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice' }];
-// The one look of M1, the Bar's inside wall (frac_wall.RECIPE): its heights over the floor, and the tool's limits.
+  words: 'one or two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice' }];
+// The one look of M1, the Bar's inside wall (frac_wall.RECIPE): its heights over the floor (a two-storey wall's top and
+// face), and the tool's limits.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 16 };
+// A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
+// its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
+export const STOREY_TOPS = { 1: 192, 2: 384 };
 // An opening's limits: its top under the cornice, a window's sill over the floor, the smallest sizes, the fine step
 // (D3: sides on tile edges, with Alt in steps of 8)
 export const OPENING = { topMost: 360, sillLeast: 8, width: 16, height: 24, fine: 8 };
@@ -32,16 +37,48 @@ const sign = v => (v < 0 ? -1 : 1);
 const tidy = v => { const r = Math.round(v * 1e4) / 1e4; return r === 0 ? 0 : r; };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), openings
- *  inside it and apart, a whole-number seed. */
+// ---- heights
+/** A wall's storeys: 1 or 2 (left out, the donor's two). */
+export const storeysOf = wall => (wall?.storeys === 1 ? 1 : 2);
+/** The wall's top over the floor (its bottom WALL.bottom), its face's top, and the highest an opening's top goes. */
+export const wallTop = wall => STOREY_TOPS[storeysOf(wall)];
+export const faceTopOf = wall => wallTop(wall) - (WALL.top - WALL.faceTop);
+export const topMostOf = wall => wallTop(wall) - (WALL.top - OPENING.topMost);
+/** The wall at `storeys` (1 or 2; 2 leaves the number out). An opening the lower wall can't hold has its top brought
+ *  down to the highest an opening goes; one left smaller than OPENING.height (a window in the upper storey) goes.
+ *  Gives { wall, cut (openings brought down), removed (openings gone) }. */
+export function withStoreys(wall, storeys) {
+  const { storeys: _, ...rest } = wall;
+  const out = storeys === 1 ? { ...rest, storeys: 1 } : rest;
+  const top = topMostOf(out);
+  let cut = 0, removed = 0;
+  const openings = [];
+  for (const o of wall.openings ?? []) {
+    if (o.z1 <= top + 1e-6) { openings.push(o); continue; }
+    if (top - Math.max(0, o.z0) < OPENING.height - 1e-6) { removed++; continue; }
+    cut++;
+    openings.push({ ...o, z1: top });
+  }
+  return { wall: { ...out, openings }, cut, removed };
+}
+/** The wall after its top handle moved `delta` units up: past half a storey down a two-storey wall becomes one storey,
+ *  past half a storey up a one-storey wall two. Gives withStoreys' { wall, cut, removed }. */
+export function raisedWall(wall, delta) {
+  const now = storeysOf(wall), half = WALL.storey / 2;
+  const next = now === 2 && delta < -half ? 1 : now === 1 && delta > half ? 2 : now;
+  return next === now ? { wall, cut: 0, removed: 0 } : withStoreys(wall, next);
+}
+
+/** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), one or two
+ *  storeys, openings inside it and under its face's top and apart, a whole-number seed. */
 export function toolWall(wall) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
-  if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1)) return false;
+  if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1) || ![undefined, 1, 2].includes(wall.storeys)) return false;
   const tiles = wall.x1 / TILE;
   if (!Number.isInteger(tiles) || tiles < WALL.minTiles || tiles > WALL.maxTiles) return false;
   const list = sortedOpenings(wall.openings ?? []);
   return list.every((o, i) => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o[k])) && o.x0 >= 0 && o.x1 <= wall.x1 && o.x1 > o.x0
-    && o.z1 > o.z0 && o.z0 >= WALL.bottom && o.z1 <= WALL.faceTop && (i === 0 || list[i - 1].x1 <= o.x0));
+    && o.z1 > o.z0 && o.z0 >= WALL.bottom && o.z1 <= faceTopOf(wall) && (i === 0 || list[i - 1].x1 <= o.x0));
 }
 export const sortedOpenings = list => [...list].sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
 /** A doorway reaches the wall's bottom; anything else is a window. */
@@ -141,7 +178,7 @@ export function withoutOpening(wall, index) {
 export const openingParts = o => (openingKind(o) === 'doorway' ? ['middle', 'x0', 'x1', 'z1'] : ['middle', 'x0', 'x1', 'z1', 'z0']);
 /** The wall with one part of opening `index` moved `delta` units (along the wall for the middle and sides, up for the
  *  top and sill): sides and the middle in whole tiles, or with `fine` in steps of OPENING.fine; the top and sill in
- *  steps of OPENING.fine. The opening stays inside the wall, off its neighbours, under OPENING.topMost, a window's sill
+ *  steps of OPENING.fine. The opening stays inside the wall, off its neighbours, under topMostOf(wall), a window's sill
  *  at OPENING.sillLeast or more, and at least OPENING.width wide and OPENING.height tall. Gives the wall. */
 export function movedOpening(wall, index, part, delta, { fine = false } = {}) {
   const list = sortedOpenings(wall.openings ?? []), o = { ...list[index] };
@@ -160,7 +197,7 @@ export function movedOpening(wall, index, part, delta, { fine = false } = {}) {
     o.x1 = tidy(Math.min(after, Math.max(o.x0 + least, at(o.x1 + delta))));
   } else if (part === 'z1') {
     const floor = openingKind(o) === 'doorway' ? 0 : o.z0;
-    o.z1 = tidy(Math.min(OPENING.topMost, Math.max(floor + OPENING.height, round(o.z1 + delta, OPENING.fine))));
+    o.z1 = tidy(Math.min(topMostOf(wall), Math.max(floor + OPENING.height, round(o.z1 + delta, OPENING.fine))));
   } else if (part === 'z0' && openingKind(o) === 'window') {
     o.z0 = tidy(Math.max(OPENING.sillLeast, Math.min(o.z1 - OPENING.height, round(o.z0 + delta, OPENING.fine))));
   }
@@ -203,5 +240,5 @@ export function playWords(wall, o, { door = false } = {}) {
   if (openingKind(o) === 'doorway' && p.walk && !door) words += ' A unit in a doorway with no door has cover toward its sides: put a door in it, as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
-/** The wall's size in words: "4 tiles long, two storeys (400 tall)". */
-export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, two storeys (${WALL.top - WALL.bottom} tall)`;
+/** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
+export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - WALL.bottom} tall)`;

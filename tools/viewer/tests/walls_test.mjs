@@ -3,7 +3,8 @@
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
 import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
-         PRESETS, resizedWall, reshuffled, shiftedLocation, toolWall, wallDirection, wallRotation, wallWords,
+         PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
+         wallTop, wallWords, withStoreys,
          withOpening, withoutOpening, WALL } from '../web/walls.js';
 
 const origin = [-2784, -1920, -1];
@@ -105,5 +106,39 @@ assert.match(playWords(wall, wall.openings[0]), /^Units walk through it, see and
 assert.doesNotMatch(playWords(wall, wall.openings[0], { door: true }), /put a door/);
 assert.equal(playWords(wall, wall.openings[1]), 'Units can\'t walk through it, see and shoot through it; the wall under it gives low cover.');
 assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
+
+// ---- heights (M2): one storey stands to 192; the top handle steps between the two past half a storey
+{
+  const tall = { x0: 0, x1: 384, seed: 3, openings: [
+    { x0: 0, x1: 96, z0: -16, z1: 160 },        // a doorway: stays
+    { x0: 96, x1: 192, z0: 72, z1: 300 },       // a tall window: brought down to 168
+    { x0: 192, x1: 288, z0: 200, z1: 300 },     // in the upper storey: goes
+  ] };
+  assert.equal(storeysOf(tall), 2);
+  assert.equal(wallTop(tall), 384);
+  const low = withStoreys(tall, 1);
+  assert.deepEqual([low.cut, low.removed], [1, 1]);
+  assert.equal(low.wall.storeys, 1);
+  assert.deepEqual(low.wall.openings.map(o => o.z1), [160, 168]);
+  assert.equal(wallTop(low.wall), 192);
+  assert.equal(topMostOf(low.wall), 168);
+  assert.equal(wallWords(low.wall), '4 tiles long, one storey (208 tall)');
+  assert.ok(toolWall(low.wall));
+  assert.ok(!toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 182 }] }));      // over its face
+  assert.ok(!toolWall({ ...low.wall, storeys: 3 }));
+  // two leaves the number out (the meshes of M1's walls keep their names)
+  const back = withStoreys(low.wall, 2);
+  assert.ok(!('storeys' in back.wall));
+  assert.equal(storeysOf(back.wall), 2);
+  // the top handle: less than half a storey changes nothing; past it, the other height
+  assert.equal(raisedWall(tall, -90).wall, tall);
+  assert.equal(raisedWall(tall, -100).wall.storeys, 1);
+  assert.equal(raisedWall(low.wall, 50).wall, low.wall);
+  assert.ok(!('storeys' in raisedWall(low.wall, 100).wall));
+  assert.equal(raisedWall(low.wall, -300).wall, low.wall);
+  // an opening's top stops 24 under the wall's top
+  assert.equal(movedOpening(low.wall, 1, 'z1', 200).openings[1].z1, 168);
+  assert.equal(movedOpening(tall, 1, 'z1', 200).openings[1].z1, 360);
+}
 assert.equal(PRESETS.doorway.z1 - 0, 160);
 console.log('walls: ok');
