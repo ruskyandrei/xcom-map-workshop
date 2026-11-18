@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 7): made walls in buildings' cutaway
+
+- A made wall standing in one of the map's own buildings is listed in that building's floors by the game editor's
+  rule for its own box: the floors whose volumes it touches, with their CutdownFloor. So it hides and cuts down floor
+  by floor as a piece placed there in the game's editor would, and a two-storey wall lands in both floors.
+  - Code: [native_copy.py](tools/bake/native_copy.py) `list_made_walls`. The manifest gains `madeWallFloors` and the
+    Build's log names the floors.
+  - Before this, a made wall took its donor's listing, moved (`edit_floor_caches`): another shape, and nothing at all
+    when the donor comes from another map. Made walls now skip that path.
+- Buildings made in the editor and buildings edited in place list a made wall by its own box too
+  ([buildings.py](tools/bake/buildings.py) `piece_box` takes a candidate's `box`), not by its donor's mesh.
+
+Checked: test_frac_walls `MadeWallInBuilding`, a Build on URB_Bar:
+- the twin of the Bar's inside wall at the donor's place is listed exactly where the Bar lists the donor (floor 0,
+  CutdownFloor 2);
+- a one-storey wall there is in the ground floor only;
+- an editor building takes a candidate's own box.
+The bake suite passes. In the game: run C.
+
 ### Custom walls, stage M4 (items 2 and 3): wall looks measured, and which of the game's walls a generator can make
 
 - [wall-look-measure.py](research/evidence/wall-look-measure.py) measures one of the game's fracturing walls into a

@@ -1721,6 +1721,46 @@ def edit_floor_caches(g, p, copies, replaced=None):
     return out
 
 
+def list_made_walls(g, p, walls, replaced=None):
+    """Walls made from numbers (frac_walls.add_walls' records) in the cutaway of the map's own buildings they stand in
+    (custom geometry plan, M3 item 7): each is listed in every floor the game editor's rule gives for its own box
+    (buildings.rule: the floors whose volumes it touches, with their CutdownFloor), as a piece placed there in the
+    game's editor would be; a two-storey wall lands in both floors' lists. A copy's original's listing (edit_floor_caches)
+    is no guide here: the donor is another shape, often of another map. Buildings the Build edits in place (`replaced`)
+    and buildings made from nothing list them by the same rule themselves. Returns the manifest's section: [dict(wall,
+    building, floors: [[floor, CutdownFloor]])]."""
+    import buildings as building_tools
+    walls = [w for w in walls if w.get('kind') == 'fracWall']
+    if not walls:
+        return []
+    walker = Walker(p)
+    found = building_floors(walker, g, p)
+    replaced = replaced or {}
+    shape = building_tools.building_template(p, walker)
+    out, changed = [], {}
+    for i, (b, field, floors) in found.items():
+        if i in replaced:
+            continue
+        boxes = [[list(x['min']) + list(x['max']) for x in f['volumes']] for f in floors]
+        lists = None
+        for w in walls:
+            listed = building_tools.rule(p, w['original'], w['box'], boxes)
+            if not listed:
+                continue
+            if lists is None:
+                lists = [[x['raw'] for x in f['entries']] for f in floors]
+            for k, cut in listed:
+                lists[k].append(building_tools.rule_entry(shape, floors, w['copy'], cut))
+            out.append(dict(wall=w['copy'], building=i, floors=[[k, cut] for k, cut in listed]))
+        if lists is not None:
+            changed[i] = lists
+    for i, lists in changed.items():
+        b, field, floors = found[i]
+        parts = [with_array(g, b, f['element'], f['field'], 'm_aCachedActors', new) for f, new in zip(floors, lists)]
+        g.relocate(i, rebuilt(b, field, parts))
+    return out
+
+
 def building_lists(p, i):
     """A building volume's (export index) residents (every Floors(k).m_aCachedActors(j).ResidentActor) and floor
     volumes (Floors(k).FloorVolumes), as (set, list) of export indices."""
@@ -2411,7 +2451,14 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         if bi is not None:
             replaced[bi] = None if e.get('deleted') else [x for f in e['floors'] for x in [f['boxes']]]
     # a van's parts are in its own building's cutaway, which comes with them
-    floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van'], replaced)
+    made_walls = {r['copy'] for r in generated_records if r['kind'] == 'fracWall'}
+    floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van' and x[1] not in made_walls], replaced)
+    # walls made from numbers in the map's own buildings they stand in, by their own boxes (M3 item 7)
+    made_floors = list_made_walls(g, p, generated_records, replaced) if made_walls else []
+    for d in made_floors:
+        print('    %s: in %s\'s cutaway, %s' % (
+            next(r['label'] for r in generated_records if r.get('copy') == d['wall']), p.name(d['building']).split('.')[-1],
+            ', '.join('floor %d%s' % (k, ', CutdownFloor %d' % cut if cut else '') for k, cut in d['floors'])))
     # the buildings made from nothing: their volumes, and in each floor the pieces that stand in it after the edit
     building_actors, building_records, edit_records, edit_slots = [], [], [], set()
     if buildings or building_edits:
@@ -2421,8 +2468,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         candidates = [dict(actor=i, source=i, name=p.name(i).split('.')[-1]) for i in level_actors(p)
                       if i > 0 and i not in gone and p.exports[i - 1]['outer'] == level_index
                       and not p.effective(i, 'bHidden', False)]
+        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] == 'fracWall'}
         candidates += [dict(actor=copy, source=original, location=after[0], rotation=after[1], label=m['label'],
-                            name='copy of ' + p.name(original).split('.')[-1])
+                            name='copy of ' + p.name(original).split('.')[-1],
+                            **({'box': made_boxes[copy]} if copy in made_boxes else {}))
                        for m, (original, copy, _, after, _) in zip(made, poses)]
         if buildings:
             building_actors, building_records = new_buildings.make(g, p, buildings, candidates)
@@ -2584,6 +2633,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                        for d in door_listings]} if door_listings else {}),
                   **({'groupListings': [dict(piece=q.name(d['piece']).split('.')[-1], wall=q.name(d['wall']).split('.')[-1],
                                              columns=d['columns']) for d in group_listings]} if group_listings else {}),
+                  **({'madeWallFloors': [dict(wall=q.name(d['wall']).split('.')[-1], building=p.name(d['building']).split('.')[-1],
+                                              floors=d['floors']) for d in made_floors]} if made_floors else {}),
                   **({'neighbourListings': [dict(wall=q.name(d['wall']).split('.')[-1], other=q.name(d['other']).split('.')[-1],
                                                  lists=d['lists'], listed=d['listed']) for d in neighbour_listings]}
                      if neighbour_listings else {}),

@@ -157,7 +157,9 @@ def main_mesh(p, actor):
 def piece_box(p, piece, meshes):
     """A candidate's world box [x0, x1, y0, y1, z0, z1] from its main mesh at its pose, or None when it has no mesh
     that reads. `piece`: dict(source: the export whose mesh it has, location, rotation: its pose, None for the
-    source's own)."""
+    source's own; box: its own box where its mesh isn't its source's, as a wall made from numbers has)."""
+    if piece.get('box') is not None:
+        return list(piece['box'])
     source = piece['source']
     if source not in meshes:
         # the box at the piece's own pose, once for each source: a copy's is that box carried by its move

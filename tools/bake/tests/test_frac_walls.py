@@ -521,6 +521,66 @@ class JoinedMadeWalls(unittest.TestCase):
                     self.assertTrue(frac_walls.lists_column(c['box'], cols[b][index]['box'], bounds[b]), (a, b, index))
 
 
+@unittest.skipUnless(BAR.exists(), NO_BAR)
+class MadeWallInBuilding(unittest.TestCase):
+    """(M3 item 7) A made wall standing in one of the map's buildings is in that building's cutaway by the game
+    editor's rule for its own box: the twin of URB_Bar's inside wall at the donor's own place lands in the floors the
+    Bar lists the donor in, with the same CutdownFloor; a one-storey wall there in the ground floor only."""
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        pose = dict(location=[-1056.0, 864.0, 16.0], rotation=[0, 49152, 0])
+        copies = [dict(actor=DONOR, label='Twin', generated=dict(kind='fracWall', version=1,
+                                                                 wall=dict(x0=-384.0, x1=192.0, openings=[], seed=1)), **pose),
+                  dict(actor=DONOR, label='Low', location=[-1152.0, 864.0, 16.0], rotation=[0, 49152, 0],
+                       generated=dict(kind='fracWall', version=1, wall=dict(x0=-384.0, x1=192.0, openings=[], seed=2,
+                                                                            storeys=1)))]
+        cls.m = native_copy.build(BAR, out, 'FracInBuilding', copies)
+        cls.p = Package(BAR)
+        cls.q = Package(out / 'FracInBuilding.upk')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    @staticmethod
+    def listings(p, actor):
+        out = {}
+        level = p.by_name[PL[:-1]]
+        for i in range(1, len(p.exports) + 1):
+            if p.cls(i) != 'XComBuildingVolume' or p.exports[i - 1]['outer'] != level:
+                continue
+            for k, floor in enumerate(p.structs(p.own(i, 'Floors'))):
+                for e in p.structs(floor.get(('m_aCachedActors', 0), {}).get('value')):
+                    if e[('ResidentActor', 0)]['value'] == actor:
+                        out.setdefault(p.name(i).split('.')[-1], []).append(
+                            [k, e.get(('CutdownFloor', 0), {'value': 0})['value']])
+        return out
+
+    def test_the_twin_is_listed_where_the_donor_is(self):
+        donor = self.listings(self.p, self.p.by_name[PL + DONOR])
+        self.assertTrue(donor)
+        sec = {c['label']: c['export'] for c in self.m['nativeCopies']['copies']}
+        self.assertEqual(self.listings(self.q, sec['Twin']), donor)
+        found = {d['wall']: d for d in self.m['nativeCopies']['madeWallFloors']}
+        twin = found[self.q.name(sec['Twin']).split('.')[-1]]
+        self.assertEqual({twin['building']: twin['floors']}, donor)
+
+    def test_a_building_made_in_the_editor_takes_a_made_walls_own_box(self):
+        import buildings
+        box = [0.0, 96.0, -12.0, 12.0, 0.0, 208.0]
+        self.assertEqual(buildings.piece_box(self.p, dict(source=self.p.by_name[PL + DONOR], box=box), {}), box)
+
+    def test_a_one_storey_wall_is_in_the_ground_floor_only(self):
+        sec = {c['label']: c['export'] for c in self.m['nativeCopies']['copies']}
+        low = self.listings(self.q, sec['Low'])
+        self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
+
+
 class StagedDoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
     URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by
