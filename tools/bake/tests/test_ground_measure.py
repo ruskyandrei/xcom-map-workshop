@@ -145,7 +145,7 @@ class PierDonors(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             m = native_copy.build(PIER, Path(tmp), 'Scaled', [dict(
                 actor=self.SCALED, label='Block', location=[0.0, 0.0, 0.0], rotation=[0, 0, 0],
-                generated=dict(kind='ground', version=1, ground=shape))], bake=False)
+                generated=dict(kind='ground', version=2, ground=shape))], bake=False)
             q = Package(Path(tmp) / 'Scaled.upk')
             actor = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Block']
             comp = q.own(actor, 'StaticMeshComponent')

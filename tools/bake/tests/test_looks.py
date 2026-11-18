@@ -69,6 +69,14 @@ class Looks(unittest.TestCase):
         self.assertEqual(out['recipe']['top'], 384.0)
         self.assertEqual(out['warnings'], ["its window frames and ledges aren't made"])
 
+    def test_an_uncatalogued_ground_look_is_measured_for_its_material(self):
+        seen = []
+        fake = types.SimpleNamespace(VERSION=1, measure=lambda p, a, material=None: seen.append(material) or {'recipe': {'thickness': 8.0}})
+        look = {'mesh': 'Farm.Meshes.Plane', 'material': 'Farm.Materials.Mud', 'measure': 1}
+        with mock.patch.object(looks, 'measurer', return_value=fake):
+            looks.resolve('ground', look, types.SimpleNamespace(path='Farm.upk'), 'XComLevelActor_3', folder=self.folder)
+        self.assertEqual(seen, ['Farm.Materials.Mud'])
+
     def test_a_look_of_another_measurer_version_is_refused(self):
         fake = types.SimpleNamespace(VERSION=2, measure=lambda p, a: {'recipe': {}})
         package = types.SimpleNamespace(path='MapC.upk')

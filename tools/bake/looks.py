@@ -116,7 +116,8 @@ def resolve(kind, look, package=None, actor=None, folder=None):
     if getattr(module, 'VERSION', None) != look['measure']:
         raise LookError('the look of %s was read by measurer version %d; this Build has version %s'
                         % (look['mesh'], look['measure'], getattr(module, 'VERSION', None)))
-    measured = module.measure(package, actor)
+    # (a ground look is its material on the donor: the measurer reads that one, not the donor's top)
+    measured = module.measure(package, actor, material=material) if kind == 'ground' else module.measure(package, actor)
     out = dict(base, recipe=measured['recipe'], warnings=list(measured.get('warnings', ())))
     with _lock:
         _measured[key] = copy.deepcopy(out)

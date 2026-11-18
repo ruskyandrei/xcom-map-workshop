@@ -191,7 +191,7 @@ class BuiltInAMap(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             m = native_copy.build(path, Path(tmp), 'Deck', [dict(
                 actor=p.name(actor).split('.')[-1], label='Deck', location=location, rotation=[0, 0, 0],
-                generated=dict(kind='fracSlab', version=1, slab=slab))], bake=False)
+                generated=dict(kind='fracSlab', version=2, slab=slab))], bake=False)
             q = Package(Path(tmp) / 'Deck.upk')
             copy = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Deck']
             made = q.own(q.own(copy, 'FracturedStaticMeshComponent'), 'StaticMesh')

@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **An uncatalogued ground look is measured for its own material**, and the floors and ground work's Build tests
+  send donor looks at their request version (custom geometry plan, M4; branch `fracturing-wall-poc`).
+  - [looks.py](tools/bake/looks.py) resolve: a ground look is one material on its donor, and a look the catalogue
+    hasn't was measured for the donor's top material whatever the look named. It now passes the look's material to
+    ground_measure.measure.
+  - [test_ground_measure.py](tools/bake/tests/test_ground_measure.py) and
+    [test_slab_measure.py](tools/bake/tests/test_slab_measure.py): their Build tests asked for a donor look at
+    request version 1, which the Build refuses since donor looks came in (version 2).
+  - Checked: [test_looks.py](tools/bake/tests/test_looks.py)
+    test_an_uncatalogued_ground_look_is_measured_for_its_material; the bake suite (579 tests; the two Build tests
+    rerun after the change).
+
 - **A warning for a made floor or roof under a cursor floor's break** (custom geometry plan, M5; F-128; branch
   `fracturing-wall-poc`).
   - [compiler.py](tools/editor/compiler.py) made_slabs_on_cursor_floors: a made slab whose top is under one of the
