@@ -1,5 +1,5 @@
 {
- "about": "Ground looks (custom geometry plan, stage M6): each one of the game's plain pieces whose material a ground shape is drawn in (tools/bake/ground.py builds the shape; the Build copies the piece and puts the shape's mesh in it). A shape's numbers name their look (`look`; left out, the first). `repeat` is the material's texture repeat in world units on the donor's top (its UVs against its positions); `thickness` a patch's, under the ground it lies on.",
+ "about": "Ground looks (custom geometry plan, stage M6): each one of the game's plain pieces whose material a ground shape is drawn in (tools/bake/ground.py builds the shape; the Build copies the piece and puts the shape's mesh in it). Chosen from research/evidence/ground-audit.py's shortlist: donors placed at scale 1 with one material, in maps the editor reads. A shape's numbers name their look (`look`; left out, the first). `repeat` is the material's texture repeat in world units on its placings' tops; `thickness` a patch's.",
  "looks": [
   {
    "id": "asphalt",
@@ -7,10 +7,131 @@
    "package": "URB_Bar",
    "actor": "XComLevelActor_131",
    "donor": "grassPlanes.AsphaltPlaneFlat",
+   "material": "GEN_MaterialParents.Master_Materials.Asphalt_VP",
    "lwrOnly": false,
    "words": "dark street asphalt, as the bar's parking lot",
-   "recipe": {"repeat": 320.0, "slot": 0, "sections": 1, "thickness": 8.0,
-              "lightmap": {"density": 0.12, "margin": 2, "interiorDensity": 1.0, "block": 4}}
+   "recipe": {
+    "repeat": 320.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
+  },
+  {
+   "id": "plain-asphalt",
+   "name": "Plain asphalt",
+   "package": "URB_Bar",
+   "actor": "StaticMeshActor_117",
+   "donor": "StreetSet.Meshes.streetBlock_4xAlt",
+   "material": "StreetSet.Materials.MINST_AsphaltBckgrnd",
+   "lwrOnly": false,
+   "words": "even grey asphalt, as the streets beyond the play area",
+   "recipe": {
+    "repeat": 320.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
+  },
+  {
+   "id": "sidewalk",
+   "name": "Sidewalk",
+   "package": "URB_StreetHurricane_Terror",
+   "actor": "XComLevelActor_325",
+   "donor": "Sidewalk.Meshes.Sidewalk32_2x1_NoEdge",
+   "material": "Sidewalk.Materials.MINST_SideWalk",
+   "lwrOnly": false,
+   "words": "clean pale pavement slabs",
+   "recipe": {
+    "repeat": 192.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
+  },
+  {
+   "id": "concrete",
+   "name": "Concrete",
+   "package": "URB_StreetHurricane",
+   "actor": "XComLevelActor_224",
+   "donor": "GroundGasStation.Meshes.TileSet_D",
+   "material": "URB_ParkingGarage.Materials.MINST_PG_GarageFloor",
+   "lwrOnly": false,
+   "words": "poured concrete in large tiles, as a gas station's forecourt",
+   "recipe": {
+    "repeat": 384.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
+  },
+  {
+   "id": "grass",
+   "name": "Grass",
+   "package": "URB_CommercialStreet",
+   "actor": "XComLevelActor_129",
+   "donor": "StreetSet.Meshes.streetBlock_4x",
+   "material": "GroundCemetery.Materials.Grass_Dark",
+   "lwrOnly": false,
+   "words": "dark trimmed grass",
+   "recipe": {
+    "repeat": 320.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
+  },
+  {
+   "id": "dirt",
+   "name": "Dirt",
+   "package": "URB_MilitaryAmmo",
+   "actor": "StaticMeshActor_67",
+   "donor": "StreetSet.Meshes.streetBlock_4x",
+   "material": "GroundForest.Materials.GroundForestDirt_A",
+   "lwrOnly": false,
+   "words": "bare brown earth",
+   "recipe": {
+    "repeat": 320.0,
+    "slot": 0,
+    "sections": 1,
+    "thickness": 8.0,
+    "lightmap": {
+     "density": 0.12,
+     "margin": 2,
+     "interiorDensity": 1.0,
+     "block": 4
+    }
+   }
   }
  ]
 }

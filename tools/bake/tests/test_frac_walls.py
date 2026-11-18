@@ -700,6 +700,17 @@ class GroundShapes(unittest.TestCase):
             self.assertTrue(r['shadowMap']['own'])
             self.assertEqual(r['columns'], 0)
 
+    def test_it_collides_whatever_its_donor_saves(self):
+        # (many ground donors are backdrop planes saved with their collision off: native_copy.ground_collision)
+        q = self.q
+        for label in ('Block', 'Ramp'):
+            actor = self.sec[label]
+            self.assertIs(q.effective(actor, 'bCollideActors', None), True)
+            self.assertIs(q.effective(actor, 'bPathColliding', None), True)
+            comp = q.own(actor, 'StaticMeshComponent')
+            self.assertIs(q.effective(comp, 'CollideActors', None), True)
+            self.assertIs(q.effective(comp, 'BlockRigidBody', None), True)
+
     def test_its_vertices_take_the_donors_commonest_painted_colour(self):
         import gen_mesh
         q = self.q

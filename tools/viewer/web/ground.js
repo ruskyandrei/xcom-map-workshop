@@ -10,8 +10,18 @@ import { wallRotation, wallDirection } from './walls.js';
 
 // The looks, as tools/bake/ground_looks.json lists them (walls_test.mjs compares the two)
 export const GROUND_LOOKS = [
-  { id: 'asphalt', name: 'Asphalt', package: 'URB_Bar', actor: 'XComLevelActor_131', mesh: 'grassPlanes.AsphaltPlaneFlat',
-    lwrOnly: false, words: "dark street asphalt, as the bar's parking lot", repeat: 320, thickness: 8 }];
+  { id: "asphalt", name: "Asphalt", package: "URB_Bar", actor: "XComLevelActor_131", mesh: "grassPlanes.AsphaltPlaneFlat",
+    lwrOnly: false, words: "dark street asphalt, as the bar's parking lot", repeat: 320, thickness: 8 },
+  { id: "plain-asphalt", name: "Plain asphalt", package: "URB_Bar", actor: "StaticMeshActor_117", mesh: "StreetSet.Meshes.streetBlock_4xAlt",
+    lwrOnly: false, words: "even grey asphalt, as the streets beyond the play area", repeat: 320, thickness: 8 },
+  { id: "sidewalk", name: "Sidewalk", package: "URB_StreetHurricane_Terror", actor: "XComLevelActor_325", mesh: "Sidewalk.Meshes.Sidewalk32_2x1_NoEdge",
+    lwrOnly: false, words: "clean pale pavement slabs", repeat: 192, thickness: 8 },
+  { id: "concrete", name: "Concrete", package: "URB_StreetHurricane", actor: "XComLevelActor_224", mesh: "GroundGasStation.Meshes.TileSet_D",
+    lwrOnly: false, words: "poured concrete in large tiles, as a gas station's forecourt", repeat: 384, thickness: 8 },
+  { id: "grass", name: "Grass", package: "URB_CommercialStreet", actor: "XComLevelActor_129", mesh: "StreetSet.Meshes.streetBlock_4x",
+    lwrOnly: false, words: "dark trimmed grass", repeat: 320, thickness: 8 },
+  { id: "dirt", name: "Dirt", package: "URB_MilitaryAmmo", actor: "StaticMeshActor_67", mesh: "StreetSet.Meshes.streetBlock_4x",
+    lwrOnly: false, words: "bare brown earth", repeat: 320, thickness: 8 }];
 export const GROUND_SHAPES = ['patch', 'block', 'ramp'];
 // the tool's limits; a block's and a ramp's height when drawn; a floor tile steeper than about 10 degrees is sloped (no
 // cover on it, F-81) and past 45 no floor (ground.py SLOPED, STEEP)

@@ -1053,6 +1053,37 @@ def make_walkable(g, p, actor, mapping=None):
         g.relocate(index, bytes(data))
 
 
+def ground_collision(g, p, actor, mapping):
+    """A ground shape's copy (custom geometry plan, M6) collides, whatever its donor saves: many of the game's ground
+    planes are backdrop saved with their collision off and some ignore cover (research/evidence/ground-audit.py). The
+    clone (clone_actor's `mapping`) gets bCollideActors on the actor (bPathColliding too on an XComLevelActor, as
+    make_walkable gives) and CollideActors and BlockRigidBody on its mesh components; bIgnoreForCover off and
+    bCanClimbOnto and bIsValidDestination on where the donor saves them otherwise (written only where saved: a class
+    without them must not get them). Returns the names changed."""
+    import native_lights
+    walker = Walker(p)
+    walker.names = g.names
+    changed = []
+    on = ('bCollideActors', 'bPathColliding') if p.cls(actor) in SCENERY_CLASSES else ('bCollideActors',)
+    parts = [(actor, on, (('bIgnoreForCover', b'\x00'), ('bCanClimbOnto', b'\x01'), ('bIsValidDestination', b'\x01')))]
+    parts += [(ci, ('CollideActors', 'BlockRigidBody'), ()) for ci in subtree(p, actor) if static_mesh(p, ci) > 0]
+    for source, names, saved_only in parts:
+        index = mapping.get(source, source)
+        data = bytearray(g.export_data(index))
+        start = native_lights.props_start(p, source)
+        for name in names:
+            if p.effective(source, name, True) is False:
+                changed.append(name)
+            data = native_lights.set_property(walker, g, data, start, name, 'BoolProperty', None, b'\x01')
+        for name, raw in saved_only:
+            at = walker.value(bytes(data), start, len(data), name + '[0]')
+            if at is not None and data[at:at + 1] != raw:
+                data[at:at + 1] = raw
+                changed.append(name)
+        g.relocate(index, bytes(data))
+    return changed
+
+
 def in_grid(box, grid):
     """Whether a world box crosses the tile grid's footprint (level_grid's)."""
     return (box[1] > grid['ox'] and box[0] < grid['ox'] + 96.0 * grid['nx']
@@ -2279,6 +2310,14 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             if walkable_scenery(p, ai, box) and in_grid(box, scenery_grid):
                 make_walkable(g, p, ai, infos[[m[1] for m in members].index(ai)]['mapping'])
                 walked.add(ai)
+        # ground shapes made from numbers collide and take cover, whatever their donor (a backdrop plane) saves
+        for c, ai, location, rotation, _ in members:
+            if (c.get('generated') or {}).get('kind') == 'ground':
+                changed = ground_collision(g, p, ai, infos[[m[1] for m in members].index(ai)]['mapping'])
+                walked.add(ai)
+                if changed:
+                    print('    %s: a ground shape on %s, which saves its collision or cover off: on for the shape (%s)'
+                          % (c.get('label') or c['actor'], p.name(ai).split('.')[-1], ', '.join(changed)))
         # the copies' flags, on their clones (the bPathColliding make_walkable wrote counts as theirs)
         for (c, ai, *_), info in zip(members, infos):
             if c.get('flags'):

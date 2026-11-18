@@ -8,6 +8,48 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6 (item 2): the ground materials audit and six ground looks
+
+- [ground-audit.py](research/evidence/ground-audit.py) (read only; output
+  [ground-audit-2026-11-18.json](research/evidence/ground-audit-2026-11-18.json)) reads every plain piece at least a
+  tile across in the install's 97 base maps: 49,871 placings, 2,278 meshes, 1,297 materials. For each ground or rock
+  material it records:
+  - its root and blend mode;
+  - its texture channels;
+  - its repeat on the placings' tops;
+  - its lightmaps;
+  - its painted colours;
+  - a donor.
+- What it found:
+  - Most of the game's main ground blends layers by painted vertex colours.
+  - Lightmaps are textures, at 0.13 to 0.2 texels a unit in play areas.
+  - Repeats are 320 for the 960 planes, 384 for concrete tiles and pavers, 192 for sidewalks.
+  - No material needs a third channel. There is no sand.
+  - Many donors are backdrop planes saved with their collision off.
+- [ground_looks.json](tools/bake/ground_looks.json) and [ground.js](tools/viewer/web/ground.js) list six looks. Each
+  donor is placed at scale 1 with one material, in a map the editor reads:
+  - Asphalt (URB_Bar);
+  - Plain asphalt (URB_Bar);
+  - Sidewalk (URB_StreetHurricane_Terror);
+  - Concrete (URB_StreetHurricane);
+  - Grass (URB_CommercialStreet);
+  - Dirt (URB_MilitaryAmmo).
+- [native_copy.py](tools/bake/native_copy.py) `ground_collision`: a ground shape's copy always collides, and takes
+  cover and climbing, whatever its donor saves.
+  - Actor: bCollideActors, plus bPathColliding on an XComLevelActor.
+  - Mesh: CollideActors and BlockRigidBody.
+  - Where the donor saves them otherwise: bIgnoreForCover off, bCanClimbOnto and bIsValidDestination on.
+
+Checked:
+- The Build test's copies save their collision on.
+- EXP-77's project compiles with a block of each look, copied from four other maps.
+- The ground tests in every suite pass with the six looks.
+- The repo suite passes.
+
+Gaps:
+- Mud and rock are left out: their donors in the maps the editor has read are placed scaled, and a copy keeps its
+  donor's scale.
+
 ### EXP-77 prepared (custom geometry M6, run F); ground shapes in buildings
 
 - [EXP-77](research/experiments/EXP-77-ground.md) and its project,
