@@ -8,6 +8,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M5 (item 1): the game's fracturing floors and roofs
+
+- [slab-audit.py](research/evidence/slab-audit.py) (read only; output
+  [slab-audit-2026-11-18.json](research/evidence/slab-audit-2026-11-18.json)) audits every listed map's fracturing
+  floors and roofs: 55 meshes, 175 placed.
+- **Shape.** Most are 4 or 2 thick, with no faces inside (slot 0 the top and edges, slot 1 the underside).
+- **Texture.** 192 units a repeat. The roofs' fragments are groups of half tiles (each tile cut on a diagonal),
+  through the whole thickness, none a root.
+- **Collision.** One box per solid rectangle.
+- **Columns.** On the piece's own grid (cells from its vertices' lowest corner less one, one 192 layer), listing the
+  fragments whose box meets the cell, touching counted: 97% of roof columns follow this.
+- **Flags.**
+  - The game's floors and roofs save `bPathColliding` and `bCanStepUpOn` on the actor.
+  - They save `bPreventChunkRemoval` and vertex-colour destruction on the component.
+- **Roofs.**
+  - A roof is the slab in its building's top floor list.
+  - The mouse passes it by the cursor floors, not by a flag.
+- **Holes** are whole tiles left out.
+- Recommended donors: ComKit's `Roof_BarrierSmallFloor` (a clean placing on URB_PoliceStation or
+  URB_CommercialAlley) and the Core floor strips (URB_Bar's upstairs strip in the test map).
+
+Checked: the run over all 151 maps; the `repo` suite. The prop lists (`DestructibleCache`) follow no box rule found.
+
 ### Custom walls, stage M3 (item 6): the Room tool
 
 - The Add panel's Walls kind has a room of each look ("Room of bar inside walls", with its own icon). A rectangle
