@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Ground shapes take their donor's commonest painted colour
+
+- [ground.py](tools/bake/ground.py) `build(..., colour=)` and [frac_walls.py](tools/bake/frac_walls.py): every vertex
+  of a ground shape takes its donor's commonest painted colour, or the donor mesh's commonest where the donor paints
+  none. The game's ground materials blend their layers by painted vertex colours (URB_Bar's asphalt plane is
+  `Asphalt_VP`, its placing painted). So the shape shows the donor's main layer, not whichever layer plain white
+  picks.
+
+Checked: the Build test's block on the asphalt plane carries `ffffffff`, the plane's commonest painted colour (34 of
+its 121 vertices).
+
 ### Custom geometry, stage M6: the Ground tool
 
 - [ground.js](tools/viewer/web/ground.js) (new) is the tool's pure part:

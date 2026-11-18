@@ -160,10 +160,25 @@ def default_template():
     return t
 
 
-def build(shape, template=None):
+def dominant_colour(colours):
+    """The commonest of `colours` (4 bytes each), or None for none."""
+    if not colours:
+        return None
+    counts = {}
+    for c in colours:
+        counts[bytes(c)] = counts.get(bytes(c), 0) + 1
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
+def build(shape, template=None, colour=None):
     """The mesh of `shape` (gen_mesh's form, a plain static mesh) on the donor's decoded mesh `template`
-    (default_template() when None), with dict(solids, lightmapRect, counts)."""
+    (default_template() when None), with dict(solids, lightmapRect, counts). `colour` (4 bytes): every vertex's colour,
+    which the game's blend materials read (the ground's are painted: the Build gives the donor's commonest painted
+    colour, so the shape shows the donor's main layer); None: the donor mesh's commonest, else the look's."""
     R = look_of(shape)
+    colour = colour or dominant_colour((template or {}).get('lods', [{}])[0].get('colours'))
+    if colour:
+        R = dict(R, colours=dict(outside=bytes(colour).hex(), interior=bytes(colour).hex()))
     check(shape)
     template = template or default_template()
     faces = faces_of(shape)

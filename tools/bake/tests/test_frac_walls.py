@@ -700,6 +700,13 @@ class GroundShapes(unittest.TestCase):
             self.assertTrue(r['shadowMap']['own'])
             self.assertEqual(r['columns'], 0)
 
+    def test_its_vertices_take_the_donors_commonest_painted_colour(self):
+        import gen_mesh
+        q = self.q
+        mesh = q.own(q.own(self.sec['Block'], 'StaticMeshComponent'), 'StaticMesh')
+        colours = {bytes(c) for c in gen_mesh.read(q, mesh)['lods'][0]['colours']}
+        self.assertEqual(colours, {bytes.fromhex('ffffffff')})      # the asphalt's commonest painted colour (34 of 121)
+
 
 class StagedDoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
