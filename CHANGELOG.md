@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Slabs in any look: frac_slab builds from a recipe given whole** (custom geometry plan, M4 work order B step 2;
+  branch off `fracturing-wall-poc`).
+  - [frac_slab.py](tools/bake/frac_slab.py) `look_of` takes a look's name (slab_looks.json, as before) or a dict
+    `{mesh, measure, recipe}` with its recipe resolved (from the catalogue or measured on the donor).
+  - A measured recipe (one with `uv`) builds any of the game's slab layouts:
+    - top, underside and edges each in the donor's slot for them;
+    - the donor's section count in slot order, a slot it makes nothing in left empty;
+    - planar texture maps for the top and underside (turned, mirrored, any repeat), and edge maps along x and y;
+    - faces inside the slab on the fragments' shared edges where the donor has them (`insideFaces`).
+  - A given look's mesh name and tail GUID follow the look (its donor, measurer and recipe in one spelling), so a
+    recipe from the catalogue and the same one measured again make the same mesh.
+  - Checked by: [test_frac_slab_looks.py](tools/bake/tests/test_frac_slab_looks.py) (the two named looks' meshes and
+    names pinned to their bytes from before the change; another layout's sections, empty slot, faces inside, maps,
+    heights and name); a scratch comparison of today's builds (both slab looks, five slabs each, with the default
+    template and the donor's own mesh; mesh, collision, fragments, lightmap rectangle and name), all the same bytes
+    as before; the bake tests matching "lab" (23).
+
 ### The Add panel opens on maps with no no-spawn volume of their own
 
 - On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the

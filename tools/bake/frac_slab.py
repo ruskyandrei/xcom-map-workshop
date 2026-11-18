@@ -22,6 +22,21 @@ mesh), look). What the game's slabs are, and so these:
   lightmap    a chart for the top, one for the underside and one for each edge line, at the look's density, packed as
               a wall's are (frac_wall.pack_rect)
 
+A look is named (a str: slab_looks.json's, built as they always were) or given whole, as a dict {'mesh' (the donor's
+mesh path), 'measure' (slab_measure's VERSION), 'recipe' (what slab_measure.measure gives, from the catalogue
+tools/bake/looks/slabs.json or measured on the donor: tools/bake/looks.py resolves it)}. A measured recipe (it has
+`uv`) builds any of the game's slab layouts (custom geometry plan, M4; research/evidence/slab-audit.py's twelve and more):
+
+  slots       top, underside and edge each in the donor's slot for them (one slot for all three, or three), the
+              donor's `sections` in slot order, a slot it makes nothing in left empty (a section of no triangles, as a
+              one-storey wall's upper slots: EXP-73)
+  texture     planar maps per world unit, offsets modulo 1: the top and the underside u = a x + b y + c, v = d x + e y
+              + f (`uv` top, underside); an edge along x over x and z, one along y over y and z (`uv` edge x, y)
+  inside      with `insideFaces` (the donor draws faces inside it, as its trims and shacks' roofs do), a face inside the
+              slab on every edge two fragments share, in the interior slot, 0 to 1 over each face, its chart at the
+              interior density, as a wall's (frac_wall.interior_face)
+  heights     bottom and top as measured (a pitched or thick roof's plate made flat: D13)
+
 build(slab, template) gives frac_wall.build's form: dict(mesh, fragments (their boxes), solids, lightmapRect, counts)."""
 import hashlib
 import json
@@ -49,8 +64,16 @@ LOOKS = _looks()
 
 
 def look_of(slab):
+    """The recipe of the slab's look: a named one's (slab_looks.json; left out, DEFAULT_LOOK), or a given one's (a dict
+    with its resolved recipe: the module's words). ValueError for a name not listed or a look without its recipe."""
     name = (slab or {}).get('look', DEFAULT_LOOK)
-    if name not in LOOKS:
+    if isinstance(name, dict):
+        recipe = name.get('recipe')
+        if not isinstance(recipe, dict) or not isinstance(name.get('mesh'), str):
+            raise ValueError("a slab's look is a name or {mesh, measure, recipe} with its recipe resolved (it has %r)"
+                             % (sorted(name),))
+        return recipe
+    if not isinstance(name, str) or name not in LOOKS:
         raise ValueError('a slab in a look not listed in slab_looks.json: %r (they are %s)' % (name, ', '.join(LOOKS)))
     return LOOKS[name]['recipe']
 
@@ -200,6 +223,11 @@ def default_template():
     return t
 
 
+def _map(m, a, b):
+    """A recipe's planar map [[a, b, c], [d, e, f]] at (a, b): (u, v)."""
+    return (m[0][0] * a + m[0][1] * b + m[0][2], m[1][0] * a + m[1][1] * b + m[1][2])
+
+
 def build(slab, template=None):
     """The mesh of `slab` (gen_mesh's form) on the donor's decoded mesh `template` (default_template() when None), with
     dict(fragments, solids, lightmapRect, counts)."""
@@ -207,12 +235,20 @@ def build(slab, template=None):
     check(slab)
     template = template or default_template()
     paint = Paint(template)
-    rep, t = R['repeat'], R['tile']
     zb, zt = R['bottom'], R['top']
     top_slot, under_slot = R['slots']['top'], R['slots']['underside']
+    measured = 'uv' in R
+    if measured:
+        edge_slot = R['slots'].get('edge', top_slot)
+        top_map, under_map, edge_map = R['uv']['top'], R['uv']['underside'], R['uv']['edge']
+        inside, inner_slot = bool(R.get('insideFaces')), R['interior']
+    else:
+        rep = R['repeat']
+        edge_slot, inside = top_slot, False
     default = bytes.fromhex(R['colours']['outside'])
     outlines = fragments(slab)
-    # every edge's owners: an edge two fragments share is inside (no face: the game's slabs have none), else outside
+    # every edge's owners: an edge two fragments share is inside (no face: the game's slabs have none, but for a look
+    # whose donor draws them), else outside
     owners = {}
     for f, poly in enumerate(outlines):
         for k in range(len(poly)):
@@ -222,17 +258,21 @@ def build(slab, template=None):
     w, h = slab['x1'] - slab['x0'], slab['y1'] - slab['y0']
     faces.chart('top', w, h)
     faces.chart('underside', w, h)
-    su, sv, du, dv = R['topUV']
-    bu, bv, eu, ev = R['undersideUV']
+    if not measured:
+        su, sv, du, dv = R['topUV']
+        bu, bv, eu, ev = R['undersideUV']
     records = []
     for f, poly in enumerate(outlines):
         top = [(x, y, zt) for x, y in poly]
-        faces.add(top, (0, 0, 1), top_slot, f, [(su * x / rep + du, sv * y / rep + dv) for x, y, _ in top], 'top',
-                  [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
+        uv = ([_map(top_map, x, y) for x, y, _ in top] if measured
+              else [(su * x / rep + du, sv * y / rep + dv) for x, y, _ in top])
+        faces.add(top, (0, 0, 1), top_slot, f, uv, 'top', [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
         faces.polys[-1]['colours'] = [paint.colour('top', x, y, default) for x, y, _ in top]
         under = [(x, y, zb) for x, y in reversed(poly)]
-        faces.add(under, (0, 0, -1), under_slot, f, [(bu * x / rep + eu, bv * y / rep + ev) for x, y, _ in under],
-                  'underside', [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])
+        uv = ([_map(under_map, x, y) for x, y, _ in under] if measured
+              else [(bu * x / rep + eu, bv * y / rep + ev) for x, y, _ in under])
+        faces.add(under, (0, 0, -1), under_slot, f, uv, 'underside',
+                  [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])
         faces.polys[-1]['colours'] = [paint.colour('underside', x, y, default) for x, y, _ in under]
         outside, across = 0, []
         for k in range(len(poly)):
@@ -240,6 +280,14 @@ def build(slab, template=None):
             shared = [g for g in owners[frozenset((_key(p), _key(q)))] if g != f]
             if shared:
                 across += shared
+                if inside:
+                    dx, dy = q[0] - p[0], q[1] - p[1]
+                    ln = math.hypot(dx, dy)
+                    quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
+                    chart = faces.chart(('in', f, k), ln, zt - zb, R['lightmap']['interiorDensity'])
+                    faces.add(quad, (dy / ln, -dx / ln, 0.0), inner_slot, f,
+                              [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)], chart,
+                              [(0.0, 0.0), (ln, 0.0), (ln, zt - zb), (0.0, zt - zb)], interior=True)
                 continue
             outside += 1
             dx, dy = q[0] - p[0], q[1] - p[1]
@@ -250,16 +298,27 @@ def build(slab, template=None):
             chart = faces.chart(('edge', along, line, n[1 - along] > 0), (w, h)[along], zt - zb)
             start = (slab['x0'], slab['y0'])[along]
             quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
-            faces.add(quad, n, top_slot, f, [(pt[along] / rep, pt[2] / rep) for pt in quad], chart,
-                      [(pt[along] - start, pt[2] - zb) for pt in quad])
+            uv = ([_map(edge_map['xy'[along]], pt[along], pt[2]) for pt in quad] if measured
+                  else [(pt[along] / rep, pt[2] / rep) for pt in quad])
+            faces.add(quad, n, edge_slot, f, uv, chart, [(pt[along] - start, pt[2] - zb) for pt in quad])
             faces.polys[-1]['colours'] = [paint.colour('edge', pt[0], pt[1], default) for pt in quad]
         cx = sum(x for x, _ in poly) / len(poly)
         cy = sum(y for _, y in poly) / len(poly)
         nb = [-1] * (2 + outside) + sorted(set(across))
         records.append(dict(centre=(cx, cy, (zb + zt) / 2), neighbours=nb, dims=[1.0] * len(nb)))
-    guid = hashlib.md5(('frac_slab|%r' % (sorted(slab.items(), key=str),)).encode()).digest()
+    guid = hashlib.md5(('frac_slab|%r' % (sorted(_named(slab).items(), key=str),)).encode()).digest()
     out = frac_wall.assemble(faces, records, template, R, guid, slots=R['sections'], what='a slab')
     return dict(out, solids=solids(slab))
+
+
+def _named(slab):
+    """The slab's numbers with a given look (a dict) as its identity, its donor's mesh and measurer and its recipe in
+    one spelling (a recipe from the catalogue and one measured again are the same look); a named look as it is."""
+    look = slab.get('look')
+    if not isinstance(look, dict):
+        return slab
+    return dict(slab, look='%s|%s|%s' % (look.get('mesh'), look.get('measure'),
+                                         json.dumps(look.get('recipe'), sort_keys=True)))
 
 
 def local_box(slab):
@@ -270,6 +329,8 @@ def local_box(slab):
 
 def mesh_name(slab):
     """A name for the slab's mesh from its numbers and its look's recipe (as frac_wall.mesh_name)."""
-    digest = hashlib.sha256(repr((sorted((k, repr(v)) for k, v in look_of(slab).items()),
-                                  sorted((k, repr(v)) for k, v in slab.items()))).encode()).hexdigest()
+    R = look_of(slab)
+    recipe = (sorted((k, repr(v)) for k, v in R.items()) if not isinstance(slab.get('look'), dict)
+              else json.dumps(R, sort_keys=True))
+    digest = hashlib.sha256(repr((recipe, sorted((k, repr(v)) for k, v in _named(slab).items()))).encode()).hexdigest()
     return 'FracSlab_%dx%d_%s' % (round((slab['x1'] - slab['x0']) / 96), round((slab['y1'] - slab['y0']) / 96), digest[:10])
