@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The compiler takes looks named by their donor** (custom geometry plan, M4a; branch `fracturing-wall-poc`).
+  - [compiler.py](tools/editor/compiler.py): a wall's request version 3 and a slab's or ground shape's version 2 are
+    well formed with a look `{mesh, measure}` (a ground look's also `material`). Older versions keep their look ids.
+  - A made piece's box, its wall joins, its doorways and its end insets take its look's heights from the catalogue
+    (looks.resolve; a wall's shaped for its storeys by frac_wall.shaped), not the Bar's.
+  - A donor look no catalogue holds goes to the Build with the note `look-measured` (the Build measures the donor).
+  - Joined walls keep their request version when they gain their end styles.
+  - Checked: [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) DonorLookTests: a slab and a
+    patch in catalogued looks, an uncatalogued slab look noted, looks that don't fit their version left out. The
+    editor suite and the frac_walls tests pass.
+  - Not yet: walls in a donor look (frac_wall.shaped takes the resolved look once the walls agent's generator is in).
+
 - **EXP-76 run E, second pass written; F-128** (custom geometry plan, M5; branch `fracturing-wall-poc`).
   - [EXP-76](research/experiments/EXP-76-floors-and-roofs.md): with the room's floors at 192 and 384, floor 0 cuts
     the room away from inside. A grenade broke the long made floor only near the blast, its east end standing, so the

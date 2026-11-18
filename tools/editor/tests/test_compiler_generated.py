@@ -324,5 +324,70 @@ class OpeningTests(unittest.TestCase):
         self.assertEqual(self.warned(wall(dict(WINDOW, z0=112.0, z1=200.0))), ['wall-window-blind'])
 
 
+class DonorLookTests(unittest.TestCase):
+    """Looks named by their donor (custom geometry plan, M4: {mesh, measure}, tools/bake/looks.py): a slab's version 2
+    and a ground shape's stand in their look's heights from the catalogue; one no catalogue holds goes to the Build,
+    noted (it measures the donor); a donor look with an older version, or an old look id with the newer, is left out."""
+
+    def setUp(self):
+        import json
+        import tempfile
+        from unittest import mock
+        self.dir = tempfile.TemporaryDirectory()
+        folder = Path(self.dir.name)
+        slab = {'mesh': 'Pkg.Meshes.Floor_FRACTURED', 'map': 'MapA', 'actor': 'XComFracLevelActor_4', 'maps': {},
+                'name': 'Floor', 'setting': '', 'lwrOnly': False, 'facts': {}, 'warnings': [], 'twin': 'ok',
+                'recipe': {'bottom': 0.0, 'top': 6.0, 'sections': 2, 'tile': 96.0}}
+        grass = {'mesh': 'Pkg.Meshes.Plane', 'material': 'Pkg.Materials.Grass', 'map': 'MapB', 'actor': 'XComLevelActor_2',
+                 'maps': {}, 'name': 'Grass', 'setting': '', 'lwrOnly': False, 'facts': {}, 'warnings': [], 'twin': 'ok',
+                 'recipe': {'thickness': 4.0, 'repeat': 256.0, 'sections': 1}}
+        for name, e in (('slabs.json', slab), ('ground.json', grass)):
+            (folder / name).write_text(json.dumps({'measure': 1, 'looks': [e]}), encoding='utf-8', newline='\n')
+        compiler.looks.forget()
+        self.patch = mock.patch.object(compiler.looks, 'FOLDER', folder)
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+        compiler.looks.forget()
+        self.dir.cleanup()
+
+    def test_a_donor_look_takes_its_heights_from_the_catalogue(self):
+        look = {'mesh': 'Pkg.Meshes.Floor_FRACTURED', 'measure': 1}
+        slab = dict(kind='fracSlab', version=2, slab=dict(x0=0.0, x1=192.0, y0=0.0, y1=96.0, seed=1, holes=[], look=look))
+        patch = dict(kind='ground', version=2, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0,
+                                                            look={'mesh': 'Pkg.Meshes.Plane', 'material': 'Pkg.Materials.Grass',
+                                                                  'measure': 1}))
+        spec, report = compiled([made(slab, at=(0, 636, 0)), made(patch, name='XComLevelActor_5', serial=2, at=(0, 1212, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'look-measured'), [])
+        _, native = compiler.native_split(spec)
+        floor, ground = (c['box'] for c in native['copies'])
+        self.assertEqual(floor[4:], [0.0, 6.0])
+        self.assertEqual(ground[5] - ground[4], 4.0)        # (the catalogued grass's thickness, not asphalt's 8)
+
+    def test_a_donor_look_no_catalogue_holds_goes_to_the_build_noted(self):
+        look = {'mesh': 'Other.Meshes.Roof_FRACTURED', 'measure': 1}
+        slab = dict(kind='fracSlab', version=2, slab=dict(x0=0.0, x1=192.0, y0=0.0, y1=96.0, seed=1, holes=[], look=look))
+        spec, report = compiled([made(slab, at=(0, 636, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(len(noted(report, 'look-measured')), 1)
+        _, native = compiler.native_split(spec)
+        self.assertEqual(native['copies'][0]['generated'], slab)
+
+    def test_a_look_must_fit_its_request_version(self):
+        donor = {'mesh': 'Pkg.Meshes.Floor_FRACTURED', 'measure': 1}
+        base = dict(x0=0.0, x1=192.0, y0=0.0, y1=96.0, seed=1, holes=[])
+        for bad in (dict(kind='fracSlab', version=1, slab=dict(base, look=donor)),
+                    dict(kind='fracSlab', version=2, slab=dict(base, look='floor')),
+                    dict(kind='fracSlab', version=2, slab=dict(base, look={'mesh': 'NoDot', 'measure': 1})),
+                    dict(kind='fracWall', version=3, wall=dict(x0=0.0, x1=192.0, openings=[], look='bar-inside')),
+                    dict(kind='fracWall', version=3, wall=dict(x0=0.0, x1=192.0, openings=[])),
+                    dict(kind='fracWall', version=2, wall=dict(x0=0.0, x1=192.0, openings=[], look=donor)),
+                    dict(kind='ground', version=2, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0, look=donor))):
+            spec, report = compiled([made(bad)])
+            self.assertIn('malformed', codes(report), bad)
+
+
 if __name__ == '__main__':
     unittest.main()

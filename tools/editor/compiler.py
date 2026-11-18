@@ -102,6 +102,10 @@ from export_math import multiply, transform  # noqa: E402
 import ladders  # noqa: E402
 import missions  # noqa: E402
 import piece_flags  # noqa: E402
+# (the Build's looks, after the viewer's and editor's own modules, so no module of the Build's stands in for one of them)
+if str(HERE.parent / 'bake') not in sys.path:
+    sys.path.append(str(HERE.parent / 'bake'))
+import looks  # noqa: E402
 import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
@@ -146,10 +150,73 @@ GROUND_MAX_HEIGHT = 384.0
 GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 
 
+# the generated request versions each kind takes (tools/bake/frac_walls.py VERSIONS, OTHER_VERSIONS); a look named by
+# its donor (custom geometry plan, M4: {mesh, measure}, looks.py) comes with a wall's version 3 and a slab's or ground
+# shape's version 2, which always name one
+GENERATED_VERSIONS = {'fracWall': (1, 2, 3), 'fracSlab': (1, 2), 'ground': (1, 2), 'relit': (1,)}
+DONOR_LOOK_SINCE = {'fracWall': 3, 'fracSlab': 2, 'ground': 2}
+
+
+def donor_shape(kind, numbers):
+    """The recipe of a made piece whose look is named by its donor (looks.resolve, from the catalogues; a wall's
+    shaped for its storeys, frac_wall.shaped), None for a look id or none, and False for a donor look no catalogue
+    holds (the Build measures it from its donor then)."""
+    look = numbers.get('look') if isinstance(numbers, dict) else None
+    if not isinstance(look, dict):
+        return None
+    try:
+        resolved = looks.resolve(kind, look)
+    except looks.LookError:
+        return False
+    if kind != 'wall':
+        return resolved['recipe']
+    import frac_wall
+    return frac_wall.shaped(dict(numbers, look=resolved))
+
+
+def wall_heights(wall):
+    """A made wall's bottom, top and free ends' inset in its frame: its look's (donor_shape), or the Bar's inside
+    wall's for a look id or a donor look no catalogue holds."""
+    R = donor_shape('wall', wall)
+    if R:
+        return float(R['bottom']), float(R['top']), float(R['endInset'])
+    return FRAC_WALL_BOTTOM, FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2], FRAC_WALL_END_INSET
+
+
+def slab_heights(slab):
+    """A made slab's bottom and top in its donor's frame: its look's."""
+    R = donor_shape('slab', slab)
+    if R:
+        return float(R['bottom']), float(R['top'])
+    look = slab.get('look', FRAC_SLAB_DEFAULT_LOOK)
+    return FRAC_SLAB_LOOKS[look if isinstance(look, str) else FRAC_SLAB_DEFAULT_LOOK]
+
+
+def ground_thickness(g):
+    """A ground patch's thickness: its look's."""
+    R = donor_shape('ground', g)
+    if R:
+        return float(R.get('thickness', 8.0))
+    look = g.get('look', GROUND_DEFAULT_LOOK)
+    return GROUND_LOOKS.get(look if isinstance(look, str) else GROUND_DEFAULT_LOOK, 8.0)
+
+
+def look_valid(kind, look, version, since, ids):
+    """Whether a made piece's look fits its request version: named by its donor from version `since` on (always), a
+    look id of `ids` (or none) before it."""
+    if version >= since:
+        try:
+            looks.check_look(looks.REQUESTS[kind][0], look)
+            return True
+        except looks.LookError:
+            return False
+    return look is None or (isinstance(look, str) and look in ids)
+
+
 def ground_box(g):
     """A ground shape's box in its mesh's frame (ground.local_box)."""
     if g['shape'] == 'patch':
-        z = (1.0 - GROUND_LOOKS[g.get('look', GROUND_DEFAULT_LOOK)], 1.0)     # (a unit over the ground it lies on)
+        z = (1.0 - ground_thickness(g), 1.0)     # (a unit over the ground it lies on)
     else:
         z = (0.0, float(g['height']))
     return (float(g['x0']), float(g['x1']), float(g['y0']), float(g['y1'])) + z
@@ -546,10 +613,10 @@ def wall_joins(walls):
         yaw = rot[1] * tau / 65536
         d = (math.cos(yaw), math.sin(yaw))
         x0, x1 = float(wall['x0']), float(wall['x1'])
-        top = FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2]
+        bottom, top, _ = wall_heights(wall)
         info.append(dict(key=w['key'], d=d, x0=x0, x1=x1,
                          p=[(loc[0] + d[0] * x, loc[1] + d[1] * x) for x in (x0, x1)],
-                         z=(loc[2] + FRAC_WALL_BOTTOM, loc[2] + top), height=top, length=x1 - x0,
+                         z=(loc[2] + bottom, loc[2] + top), height=top, length=x1 - x0,
                          loc=(loc[0], loc[1])))
     out = {w['key']: dict(ends=['free', 'free'], joins=[]) for w in walls}
 
@@ -1313,36 +1380,46 @@ class Compiler:
             return True
         g = rec['generated']
         num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
-        # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet)
-        ok = isinstance(g, dict) and g.get('kind') in ('fracWall', 'fracSlab', 'ground', 'relit') \
-            and g.get('version') in ((1, 2) if g.get('kind') == 'fracWall' else (1,))
+        # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet; a wall's
+        # version 3 and a slab's or ground shape's version 2 name the look by its donor)
+        ok = isinstance(g, dict) and g.get('kind') in GENERATED_VERSIONS and g.get('version') in GENERATED_VERSIONS[g['kind']]
         if ok and g['kind'] == 'fracSlab':
-            ok = self.slab_valid(g.get('slab'), num)
+            ok = self.slab_valid(g.get('slab'), num, g['version'])
         elif ok and g['kind'] == 'ground':
-            ok = self.ground_valid(g.get('ground'), num)
+            ok = self.ground_valid(g.get('ground'), num, g['version'])
         elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
-                  and 'ends' not in w and (('look' not in w) or (g['version'] == 2 and w['look'] in FRAC_WALL_LOOKS))
+                  and 'ends' not in w
+                  and (('look' not in w and g['version'] < 3) or (g['version'] >= 2 and look_valid(
+                      'fracWall', w.get('look'), g['version'], DONOR_LOOK_SINCE['fracWall'], FRAC_WALL_LOOKS)))
                   and isinstance(w.get('seed', 1), int) and w.get('storeys', 2) in (1, 2)
                   and not isinstance(w.get('storeys'), bool)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
                           for o in w.get('openings') or []))
         if ok:
+            kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}.get(g['kind'])
+            numbers = g.get(kind) if kind else None
+            if kind and donor_shape(kind, numbers) is False:
+                self.note('look-measured', "%s's look, %s, is in none of this editor's catalogues: the Build measures it "
+                          'from its donor' % (rec.get('label') or short(rec.get('from', {}).get('actor', '?')),
+                                              numbers['look']['mesh']), **where)
             return True
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
-                   '{x0, x1, openings, seed, storeys}}, or version 2 with its look: one of %s), a slab\'s ({kind: '
+                   '{x0, x1, openings, seed, storeys}}, version 2 with its look: one of %s, or version 3 with its look '
+                   'named by its donor: {mesh, measure}), a slab\'s ({kind: '
                    'fracSlab, version: 1, slab: {x0, x1, y0, y1, holes, seed, look}}: whole tiles, 1 to %d each way, '
                    'its holes whole tiles inside it, its look one of %s), a ground shape\'s ({kind: ground, version: 1, '
                    'ground: {shape (patch, block or ramp), x0, x1, y0, y1, height, look}}: whole tiles, a height of 1 to %g, '
-                   'its look one of %s) or {kind: relit, version: 1} (it has %r)'
+                   'its look one of %s; version 2 for a slab or ground shape names its look by its donor: {mesh, '
+                   'measure}, a ground look\'s also its material) or {kind: relit, version: 1} (it has %r)'
                    % (', '.join(FRAC_WALL_LOOKS), FRAC_SLAB_MAX_TILES, ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_HEIGHT,
                       ', '.join(GROUND_LOOKS), g), **where)
         return False
 
     @staticmethod
-    def ground_valid(s, num):
+    def ground_valid(s, num, version=1):
         """Whether a ground shape's numbers are well formed (tools/bake/ground.py check is the Build's)."""
         if not (isinstance(s, dict) and s.get('shape') in GROUND_SHAPES and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
             return False
@@ -1351,10 +1428,11 @@ class Compiler:
         height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)
         seed = s['shape'] != 'rock' or (isinstance(s.get('seed'), int) and not isinstance(s.get('seed'), bool)
                                         and 0 <= s['seed'] < GROUND_ROCK_SEEDS)
-        return whole and height and seed and s.get('look', GROUND_DEFAULT_LOOK) in GROUND_LOOKS
+        return whole and height and seed and look_valid('ground', s.get('look'), version, DONOR_LOOK_SINCE['ground'],
+                                                        GROUND_LOOKS)
 
     @staticmethod
-    def slab_valid(s, num):
+    def slab_valid(s, num, version=1):
         """Whether a slab's numbers are well formed (tools/bake/frac_slab.py check is the Build's)."""
         def whole(v, base):
             return abs((v - base) / 96.0 - round((v - base) / 96.0)) < 1e-4
@@ -1363,7 +1441,8 @@ class Compiler:
         if not all(whole(s[b], s[a]) and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES
                    for a, b in (('x0', 'x1'), ('y0', 'y1'))):
             return False
-        if s.get('look', FRAC_SLAB_DEFAULT_LOOK) not in FRAC_SLAB_LOOKS or not isinstance(s.get('seed', 1), int) \
+        if not look_valid('fracSlab', s.get('look'), version, DONOR_LOOK_SINCE['fracSlab'], FRAC_SLAB_LOOKS) \
+                or not isinstance(s.get('seed', 1), int) \
                 or isinstance(s.get('seed'), bool) or not isinstance(s.get('holes') or [], list):
             return False
         return all(isinstance(h, dict) and all(num(h.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))
@@ -1383,8 +1462,9 @@ class Compiler:
             if ends == ['free', 'free']:
                 continue
             gen = copy['generated']
-            copy['generated'] = dict(gen, version=2, wall=dict(gen['wall'], ends=list(ends)))
-            insets = {'free': FRAC_WALL_END_INSET, 'line': 0.0, 'through': -FRAC_WALL_END_INSET}
+            copy['generated'] = dict(gen, version=max(2, gen.get('version', 1)), wall=dict(gen['wall'], ends=list(ends)))
+            inset = wall_heights(gen['wall'])[2]
+            insets = {'free': inset, 'line': 0.0, 'through': -inset}
             along = (gen['wall']['x0'] + insets[ends[0]], gen['wall']['x1'] - insets[ends[1]])
             copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
 
@@ -1468,7 +1548,7 @@ class Compiler:
             name = copy['label']
             for o in wall.get('openings') or []:
                 play = opening_play(wall, o)
-                doorway = o['z0'] <= FRAC_WALL_BOTTOM + 1e-6
+                doorway = o['z0'] <= wall_heights(wall)[0] + 1e-6
                 what = "%s's %s at %g to %g along it" % (name, 'doorway' if doorway else 'window', o['x0'], o['x1'])
                 if not play['tiles']:
                     self.warn('wall-opening-between-tiles', "%s: units can't walk or see through it, and the wall gives "
@@ -2650,12 +2730,13 @@ class Compiler:
         elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
-        along = ((made['wall']['x0'] + FRAC_WALL_END_INSET, made['wall']['x1'] - FRAC_WALL_END_INSET)
+        inset = wall_heights(made['wall'])[2] if made and made['kind'] == 'fracWall' else 0.0
+        along = ((made['wall']['x0'] + inset, made['wall']['x1'] - inset)
                  if made and made['kind'] == 'fracWall' else None)
         if made and made['kind'] == 'fracSlab':
             # (a slab made from numbers stands in its footprint, between its look's heights)
             s = made['slab']
-            along = (s['x0'], s['x1'], s['y0'], s['y1']) + FRAC_SLAB_LOOKS[s.get('look', FRAC_SLAB_DEFAULT_LOOK)]
+            along = (s['x0'], s['x1'], s['y0'], s['y1']) + slab_heights(s)
         if made and made['kind'] == 'ground':
             along = ground_box(made['ground'])
         new = self.boxes(parts, loc, rot, along)
