@@ -3368,6 +3368,19 @@ def check_effects_editing(page):
         assert not state(effect)['stays'] and abs(state(effect)['at'][0] - start[0] - 96) < 0.5
         page.keyboard.press('Control+z')
         assert state(effect)['at'] == start
+        # a copy of the carrier carries a copy of the effect, drawn as its own marker (the view threw on it before)
+        pieces = page.evaluate('viewer.roots.size')
+        page.evaluate('id => viewer.select(id)', carrier); blur()
+        page.keyboard.press('Control+c')
+        page.mouse.move(cx, cy); page.keyboard.press('Control+v')
+        page.wait_for_function('viewer.placing()?.ghost.visible')
+        page.mouse.click(cx, cy)
+        page.wait_for_function('n => viewer.roots.size > n', arg=pieces)
+        page.evaluate('viewer.setEffectsShown(true)')
+        assert any(m['derived'] and m['id'] == effect for m in page.evaluate('viewer.effectMarkers()'))
+        page.evaluate('viewer.setEffectsShown(false)')
+        blur(); page.keyboard.press('Control+z')
+        assert page.evaluate('viewer.roots.size') == pieces
     page.evaluate('s => { viewer.select(null); viewer.setNormalEffects(false); viewer.gizmo.setSnap(s); }', snap)
     assert page.evaluate(edits) == depth and not page.evaluate('viewer.effectMarkers().length')
     page.evaluate('id => viewer.select(id)', held)

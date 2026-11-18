@@ -6848,7 +6848,7 @@ function deriveEffects() {
     for (const copy of copies.get(`${carrier.userData.source.actor}|${carrier.userData.source.component}`) ?? []) {
       const m = makeEffectMarker(o);
       m.position.setFromMatrixPosition(copy.matrix.clone().multiply(back).multiply(base));
-      m.userData = { record: o, derived: true, matrix: copy.matrix.clone().multiply(back).multiply(base) };
+      Object.assign(m.userData, { derived: true, matrix: copy.matrix.clone().multiply(back).multiply(base) });   // (its colour kept)
       derivedEffects.add(m);
     }
   }

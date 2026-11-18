@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The Effects view opens with a copied piece that carries an effect
+
+- [app.js](tools/viewer/web/app.js) `deriveEffects`: the marker of an effect carried by a copied piece (the claw
+  machine copied with its lights) kept its record but lost its colour, so opening the Effects view, or turning on
+  the Normal view's Effects and sounds switch, threw and drew no markers. The marker now keeps its colour. Wrong
+  since stage FX3; found while taking the user guide's pictures, whose demo project copies the claw machine.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_effects_editing`: the carrier is also copied and
+  pasted, and the Effects view then shows the carried copy's own marker.
+- Checked: the smoke's `effects` checks on URB_Bar on a test server, passing with the fix and failing without it.
+
 ### The edit count names effect and sound edits; the Add panel's preview closes with the panel
 
 - [app.js](tools/viewer/web/app.js):
