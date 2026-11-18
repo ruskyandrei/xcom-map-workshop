@@ -3810,7 +3810,7 @@ function spawnAddEntries() {
   for (const kind of SPAWN_COPY_KINDS) {
     const template = addTemplate(data.spawns, kind);
     if (!template) continue;
-    const name = KINDS[kind].label, of = short(template.actor), volume = kind === 'noSpawn';
+    const name = KINDS[kind].label, of = template.fresh ? '' : short(template.actor), volume = kind === 'noSpawn';     // (a fresh volume has no actor: a map with no no-spawn volume of its own)
     out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points',
                pkg: template.fresh ? 'made from one of the map\'s volumes' : `a copy of ${of}`,
                detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : volume ? 'Placed over the tiles round the click; keeps aliens and civilians out'
