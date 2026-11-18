@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Walls whose donor stands over its pivot are made on the floor (custom geometry M4, work order A)
+
+- [wall_measure.py](tools/bake/wall_measure.py) (still VERSION 1): a donor whose bottom is above its pivot is moved
+  down by whole levels (64) until its bottom is in (-64, 0]: 64 and 192 become 0, 48 becomes -16 (`lift_of`).
+  `lowered_by` writes the recipe's heights again in the made wall's frame: bottom, top, both sides' outlines, the
+  splits between faces, the faces' texture planes (each texture stays where it was on the wall), and
+  `frame.lowered` (the levels taken off); storeys are counted again from the new heights. The facts follow: bottom,
+  top, the openings' heights, and `lowered`. Donors at or under their pivot are left as they were.
+- [frac_walls.py](tools/bake/frac_walls.py): painting from the donor takes `frame.lowered` off the donor's heights,
+  so a painted wall gets the colours of the same place on the donor.
+- [looks/walls.json](tools/bake/looks/walls.json) built again: 68 of the 344 looks moved, by 64 (26), 384 (15),
+  320 (7), 512 (5), 576 (4), 256 (4), 448 (4) and 192 (3). Their bottoms are now 0 (46), -16 (8), -2 (5), -32 (3),
+  -10 (3), -22, -35.675 and -62.207. The other 276 lines are unchanged byte for byte, the Bar's look among them.
+- Checked: the twin check over all 344 (326 ok, the same walls as before, the rest a donor top or bottom that isn't
+  level); every look builds closed and facing out as a doorway wall, a long wall, one storey and its twin; the
+  Bar's twelve builds byte for byte as before; `python tools/run_tests.py bake -k test_wall_measure` (23 tests,
+  one new: the lift's rule and a lowered recipe, and the catalogue's lowered looks), `-k test_frac_wall`
+  (test_frac_wall and test_frac_walls, 70 tests) and the repo suite.
+- Known gaps: the rule is taken as written, so the supply ship's crate walls (bottom 1.793) are moved by 64 to
+  -62.207, nearly a level under the floor. Two of the Grand Cemetery's walls have their storeys counted again from
+  the new heights: the front wall's [3] is now [1, 2], the top wall's [2] is now [1].
+
 ### Tests for the walls' looks (custom geometry M4, work order A, step 4)
 
 - [test_wall_measure.py](tools/bake/tests/test_wall_measure.py), in the bake suite:

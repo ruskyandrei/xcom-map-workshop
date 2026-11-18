@@ -180,6 +180,20 @@ class GeneralPath(unittest.TestCase):
         self.assertNotEqual(frac_wall.mesh_name(wall), frac_wall.mesh_name(self.WALLS['twin']))
         self.assertEqual(frac_wall.mesh_name(wall), frac_wall.mesh_name(dict(wall)))
 
+    def test_a_donor_over_its_pivot_is_moved_down_by_whole_levels(self):
+        # its bottom ends in (-64, 0]: 64 -> 0, 192 -> 0, 48 -> -16, 320 -> 0; at or under its pivot, not moved
+        self.assertEqual([wall_measure.lift_of(b) for b in (64.0, 192.0, 48.0, 320.0, 0.0, -16.0)],
+                         [64.0, 192.0, 64.0, 320.0, 0.0, 0.0])
+        high, made = wall_measure.lowered_by(dict(RECIPE, frame=dict(RECIPE['frame'])), {'A': [[100.0, 120.0]]}, 64.0)
+        self.assertEqual((high['bottom'], high['top'], high['frame']['lowered'], made), (-80.0, 320.0, 64.0, {'A': [[36.0, 56.0]]}))
+        self.assertEqual(high['profile']['A'][0], [11.0, -80.0])
+        self.assertEqual(high['splits'], dict(A=[128.0], B=[]))
+        # each face keeps its texture where it was on the wall
+        (a, b, c), (d, e, f) = RECIPE['faceUV']['0A']
+        (a2, b2, c2), (d2, e2, f2) = high['faceUV']['0A']
+        self.assertAlmostEqual(d * 10 + e * 100 + f, d2 * 10 + e2 * 36 + f2, 6)
+        self.assertNotIn('lowered', RECIPE['frame'])
+
     def test_painting_puts_the_donor_in_the_walls_frame(self):
         import numpy as np
         import frac_walls
@@ -343,6 +357,15 @@ class CatalogueFile(unittest.TestCase):
             self.assertEqual(e['facts']['verdict'], audit[mesh]['sweep']['verdict'])
             if e['facts']['verdict'] == 'modelled':
                 self.assertIn(wall_measure.MODELLED, e['warnings'], mesh)
+            # its heights are over the piece's location: a donor over its pivot moved down to stand on the floor
+            lift = e['recipe']['frame'].get('lowered', 0.0)
+            self.assertEqual(e['facts'].get('lowered', 0.0), lift, mesh)
+            self.assertEqual((e['facts']['bottom'], e['facts']['top']), (e['recipe']['bottom'], e['recipe']['top']))
+            if lift:
+                self.assertTrue(-64.0 < e['recipe']['bottom'] <= 0.0 and lift % 64 == 0, mesh)
+        x9 = looks['AbductorExtWall.Meshes.AbductorExtWallx9_FRACTURED']['recipe']
+        self.assertEqual((x9['bottom'], x9['top'], x9['frame']['lowered']), (0.0, 189.945, 192.0))
+        self.assertNotIn('lowered', looks['URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED']['recipe']['frame'])
         self.assertIn('licensee', self.catalogue['about'])
 
     def test_every_look_builds(self):

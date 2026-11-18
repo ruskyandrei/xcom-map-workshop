@@ -996,7 +996,9 @@ def check(result, recipe):
 # outside, materials...)). Beyond measure_raw's entry it measures, over the same agreeing cuts, the slot and the texture
 # of every segment of each side's outline (the cuts' segments lying on it: their slot by length, then u and v fitted
 # over their triangles along the wall and up the segment, as the faces' fits are), the top's and the bottom's, and it
-# puts the outline into the form the generator takes (normal_profile). twin(recipe) builds the wall at its donor's
+# puts the outline into the form the generator takes (normal_profile). Its heights are the made wall's over its
+# piece's location: a donor whose bottom is above its pivot is moved down by whole levels until its bottom is in
+# (-64, 0] (lift_of, lowered_by; facts and frame say how far). twin(recipe) builds the wall at its donor's
 # length (frac_wall.build) and measures it again: each key that makes the look is compared with the donor's.
 FACE_NEAR = 0.3         # units: an upright segment of the outline this close to the main plane is on it
 ON_SEGMENT = 0.3        # units: a cut's segment whose two ends are this close to a segment of the outline lies on it
@@ -1295,7 +1297,32 @@ def recipe_of(raw, state, g):
         sections=len(g['m']['lods'][0]['sections']), storeys=whole_storeys(bottom, top), storey=STOREY,
         donorLength=float(m['size'][0]), frame=dict(turned=bool(m['turned']), centre=round(float(centre), 3) + 0.0,
                                                      x=[float(v) for v in m['x']]))
-    return recipe, {X: v for X, v in made.items() if v}
+    made = {X: v for X, v in made.items() if v}
+    lift = lift_of(bottom)
+    return lowered_by(recipe, made, lift) if lift else (recipe, made)
+
+
+def lift_of(bottom):
+    """How far a made wall is moved down from its donor's frame: for a donor whose bottom is above its pivot (an upper
+    storey's wall placed from the ground, a wall on a raised floor), whole levels (64) until its bottom is in (-64, 0],
+    so it stands on the floor it is drawn on (64 -> 0, 192 -> 0, 48 -> -16); 0 for a donor at or under its pivot."""
+    return LEVEL * math.ceil(bottom / LEVEL) if bottom > 0 else 0.0
+
+
+def lowered_by(recipe, made, lift):
+    """(recipe, made-up heights) moved `lift` down: its bottom and top, both sides' outlines, the splits, the faces'
+    textures (their offsets, so each stays where it was on the wall), its storeys counted again, and the frame saying
+    how far (`lowered`: painting moves the donor down as far)."""
+    def z(v):
+        return round(v - lift, 3) + 0.0
+    out = dict(recipe, bottom=z(recipe['bottom']), top=z(recipe['top']),
+               profile={X: [[y, z(h)] for y, h in c] for X, c in recipe['profile'].items()},
+               splits={X: [z(s) for s in v] for X, v in recipe['splits'].items()},
+               faceUV={k: [[a, b, round(c + b * lift, 6) + 0.0], [d, e, round(f + e * lift, 6) + 0.0]]
+                       for k, ((a, b, c), (d, e, f)) in recipe['faceUV'].items()},
+               frame=dict(recipe['frame'], lowered=lift))
+    out['storeys'] = whole_storeys(out['bottom'], out['top'])
+    return out, {X: [[z(a), z(b)] for a, b in v] for X, v in made.items()}
 
 
 def warnings_of(raw, recipe, made):
@@ -1334,11 +1361,18 @@ def facts_of(raw, recipe, made, name):
     side_b = [rows[s]['material'] for s in recipe['slots']['sideB'] if s in rows] or carrier
     kind, why = kind_of(name, side_a, side_b)
     size = m['size']
+    lift = recipe['frame'].get('lowered', 0.0)
+    openings = m['sweep']['openings']
+    if lift:
+        # (the donor's openings at the heights the made wall stands at)
+        openings = [dict(o, **{k: [round(v - lift, 1) + 0.0 for v in o[k]] for k in ('z', 'through') if o.get(k)})
+                    for o in openings]
     return dict(
-        size=dict(length=size[0], height=size[2], thickness=size[1]), bottom=e['bottom'], top=e['top'],
+        size=dict(length=size[0], height=size[2], thickness=size[1]), bottom=recipe['bottom'], top=recipe['top'],
+        **({'lowered': lift} if lift else {}),
         storeys=list(frac_wall.storeys_of(recipe)), verdict=m['sweep']['verdict'], inside=kind == 'inside', kind=kind,
         kindWhy=why, turned=m['turned'], fragments=m['fragments'], triangles=m['triangles'],
-        openings=m['sweep']['openings'], agreeShare=m['sweep']['agreeShare'],
+        openings=openings, agreeShare=m['sweep']['agreeShare'],
         slots=[dict(slot=r['slot'], role=r['role'], material=r['material']) for r in m['slots']],
         coloursVary=(m['colours'] or {}).get('rule') == 'varying',
         lightmapMeasured=bool(e['lightmap'] and e['lightmap'].get('density')),

@@ -368,7 +368,8 @@ def painted(donor, built):
 
 def in_frame(dpos, pos, frame):
     """(donor positions, made positions) for painting a measured look's wall (custom geometry plan, M4): the donor's
-    turned along x and centred across as its measurer had them (wall_measure's `frame`: turned, centre, its x range),
+    turned along x, centred across and moved down as its measurer had them (wall_measure's `frame`: turned, centre,
+    lowered (a donor over its pivot), its x range),
     and each made vertex's x put on the donor's length: by its distance from the made wall's nearer end, from the
     donor's same end, up to half the donor's length; past that to and fro over its middle half, so a longer wall
     repeats its donor's paint and keeps the ends' paint at its ends."""
@@ -376,6 +377,8 @@ def in_frame(dpos, pos, frame):
     if frame.get('turned'):
         d = np.c_[d[:, 1], -d[:, 0], d[:, 2]]
     d[:, 1] -= float(frame.get('centre', 0.0))
+    if frame.get('lowered'):
+        d[:, 2] -= float(frame['lowered'])         # (a donor over its pivot: the made wall stands that much lower)
     p = np.array(pos, float)
     dlo, dhi = (float(v) for v in frame.get('x', (d[:, 0].min(), d[:, 0].max())))
     half = max((dhi - dlo) / 2, 1e-6)
