@@ -184,6 +184,26 @@ def wall_heights(wall):
     return FRAC_WALL_BOTTOM, FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2], FRAC_WALL_END_INSET, FRAC_WALL_END_INSET
 
 
+def made_wall_along(wall, start=None, end=None):
+    """A made wall's box in its frame for world_box: its x range in from its ends (`start` and `end`, the free ends'
+    inset when left out). A wall in a donor's look adds its y and z, its look's half thickness and heights (the made
+    wall is its look's, not its template mesh's, height: a donor whose bottom is over its pivot is made lower); a look
+    id's y and z are its template's (x0, x1 only)."""
+    bottom, top, inset, half = wall_heights(wall)
+    x0 = float(wall['x0']) + (inset if start is None else start)
+    x1 = float(wall['x1']) - (inset if end is None else end)
+    R = donor_shape('wall', wall)
+    if not R:
+        return (x0, x1)
+    low, high = (-half, half)
+    try:
+        import frac_wall
+        low, high = frac_wall.extent(R)
+    except (ImportError, AttributeError, KeyError, TypeError, ValueError):
+        pass
+    return (x0, x1, float(low), float(high), bottom, top)
+
+
 def slab_heights(slab):
     """A made slab's bottom and top in its donor's frame: its look's."""
     R = donor_shape('slab', slab)
@@ -1467,7 +1487,7 @@ class Compiler:
             copy['generated'] = dict(gen, version=max(2, gen.get('version', 1)), wall=dict(gen['wall'], ends=list(ends)))
             _, _, inset, half = wall_heights(gen['wall'])
             insets = {'free': inset, 'line': 0.0, 'through': -half}
-            along = (gen['wall']['x0'] + insets[ends[0]], gen['wall']['x1'] - insets[ends[1]])
+            along = made_wall_along(gen['wall'], insets[ends[0]], insets[ends[1]])
             copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
 
     def made_walls_stacked(self):
@@ -2758,16 +2778,17 @@ class Compiler:
         elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
-        inset = wall_heights(made['wall'])[2] if made and made['kind'] == 'fracWall' else 0.0
-        along = ((made['wall']['x0'] + inset, made['wall']['x1'] - inset)
-                 if made and made['kind'] == 'fracWall' else None)
+        along = made_wall_along(made['wall']) if made and made['kind'] == 'fracWall' else None
         if made and made['kind'] == 'fracSlab':
             # (a slab made from numbers stands in its footprint, between its look's heights)
             s = made['slab']
             along = (s['x0'], s['x1'], s['y0'], s['y1']) + slab_heights(s)
         if made and made['kind'] == 'ground':
             along = ground_box(made['ground'])
-        new = self.boxes(parts, loc, rot, along)
+        # (a piece made from numbers is made at scale 1, whatever its donor's: the Build sets its copy's scale to 1,
+        # frac_walls.unscale)
+        drawn = [dict(p, scale=[1.0, 1.0, 1.0]) for p in parts] if made else parts
+        new = self.boxes(drawn, loc, rot, along)
         name = short(rec['from']['actor'])
         donor = self.donors.get((rec['from']['package'].casefold(), rec['from']['actor']))
         if (rec['from']['package'].casefold(), rec['from']['actor']) in self.untried_foreign:
@@ -2807,7 +2828,7 @@ class Compiler:
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
                 self.made_walls.append((self.copies[-1], dict(where)))
-                self.made_parts[short(out)] = parts
+                self.made_parts[short(out)] = drawn
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
                           'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
                           "the game's walls pass theirs on" % (short(out), name), **where)

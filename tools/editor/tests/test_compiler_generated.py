@@ -211,6 +211,20 @@ class GeneratedTests(unittest.TestCase):
         self.assertIn('16 under', w['message'])
         self.assertEqual(run(16.0), [])
 
+    def test_a_made_piece_on_a_scaled_donor_stands_in_its_box_at_scale_1(self):
+        # (M4b item 5) the Build makes a piece from numbers at scale 1 whatever its donor's (frac_walls.unscale): its box
+        # is its own numbers', not scaled by the donor's 0.6 (EXP-79's concrete donor at 0.6 had a box 0.6 the size)
+        block = dict(kind='ground', version=1, ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))
+        s = scene()
+        for o in s['objects']:
+            if o['actor'].endswith('.XComLevelActor_1'):
+                o['scale'] = [0.6, 0.6, 0.6]
+        spec, report = compile_project(document((), [made(block, name='XComLevelActor_1', at=(0, 0, 0))], schemaVersion=2), s)
+        self.assertTrue(report['ok'], refused(report))
+        _, native = compiler.native_split(spec)
+        (box,) = [c['box'] for c in native['copies']]
+        self.assertEqual(box, [0.0, 192.0, 0.0, 96.0, 0.0, 64.0])
+
     def test_a_ground_shape_copies_a_plain_piece_in_its_own_box(self):
         # (M6) a block, a ramp and a patch on XComLevelActor_1's copies: their boxes their own (a patch under the ground
         # it lies on), their height free; noted; a ramp over 10 degrees noted sloped, one over 45 warned; on a fracturing

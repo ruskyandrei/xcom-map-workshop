@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A made piece's box is at scale 1, and a donor-look wall's box has its look's heights** (custom geometry plan,
+  M4b; branch `fracturing-wall-poc`).
+  - [compiler.py](tools/editor/compiler.py): the box of a copy made from numbers ignores its donor's scale, as the
+    Build makes the piece at scale 1. A ground block on a donor placed at 0.6 had a box 0.6 its size (EXP-79's
+    concrete). made_wall_along: a wall in a donor's look stands in its look's thickness and heights, not its template
+    mesh's. A look id's wall keeps its template's y and z, as before.
+  - Checked: [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py)
+    test_a_made_piece_on_a_scaled_donor_stands_in_its_box_at_scale_1; the editor suite.
+
 - **EXP-77 played (run F): ground shapes made from numbers pass in the game** (custom geometry plan, M6; branch
   `fracturing-wall-poc`).
   - [EXP-77-ground.md](research/experiments/EXP-77-ground.md): the ramp, the block, the patch, the cover block and
