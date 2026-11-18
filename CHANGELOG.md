@@ -8,6 +8,33 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6 (item 3): general convex hulls, as the game's cooker writes them
+
+- [hull-audit.py](research/evidence/hull-audit.py) (read only; output
+  [hull-audit-2026-11-18.json](research/evidence/hull-audit-2026-11-18.json)) rebuilds the install's convex collision
+  hulls from their corners. There are 18,195 elements, 3,337 unique by value.
+- **The cooker's rules**, read from the game (`FKConvexElem::GenerateHullData`):
+  - PhysX gives the hull's vertices and triangles.
+  - UE3 derives the rest:
+    - the face normals and planes, with its dedupe thresholds;
+    - the edge directions, in first-met order;
+    - the element box;
+    - the permuted vertex rows.
+  - At load the game cooks physics from the vertices alone.
+- **Results.**
+  - From the saved vertices and triangles, every element's box and permuted rows come out byte for byte. So do all
+    but 4 face-direction sets, all but 3 edge-direction sets, and 82% of plane sets (the rest differ in the
+    distance's last bits).
+  - From corners alone (an emulation of PhysX 2's incremental hull), 56% are byte-exact in every field.
+  - Wedges: 51 of 54 are exact from vertices and triangles, and 43 from corners. All 10 of the farm ramp's hulls are
+    exact from their vertices and faces.
+- The writer `hull_element` (in the script for now, with `wedge()` and a self-check) gives `cover_blocks`' hull form
+  for any convex shape. For M6's ramps it is recommended over thin steps: thin steps would give flat tiles that give
+  cover.
+
+Checked: `--self-check` (a box equals `cover_blocks.convex_hull`; the farm ramp; a wedge closed and bounded; the
+inverse square root table against the saved unit lengths); the run over the install; the `repo` suite.
+
 ### Custom walls, stage M3 (item 7): made walls in buildings' cutaway
 
 - A made wall standing in one of the map's own buildings is listed in that building's floors by the game editor's

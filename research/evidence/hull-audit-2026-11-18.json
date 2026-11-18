@@ -1,0 +1,4785 @@
+{
+ "scope": "Read-only: the convex elements (RB_BodySetup AggGeom.ConvexElems) of 2979 packages of the install's cooked folder; nothing written to the game",
+ "rules": "research/evidence/hull-audit.py docstring: the cooker is XComEW.exe FKConvexElem::GenerateHullData (0x8871C0) over PhysX 2.8's hull",
+ "summary": {
+  "packages": 2979,
+  "packagesUnreadable": 0,
+  "packagesWithConvexElements": 412,
+  "bodySetups": 32980,
+  "bodySetupsUnreadable": 0,
+  "instances": 18195,
+  "uniqueElements": 3337,
+  "meshes": 2519,
+  "uniqueElementsInListedMaps": 3077,
+  "instancesInListedMaps": 16235,
+  "checksUnique": {
+   "ElemBox": {
+    "exact": 3337,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 3337,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 3333,
+    "differ": 4
+   },
+   "FacePlaneData": {
+    "exact": 2723,
+    "differ": 614
+   },
+   "EdgeDirections": {
+    "exact": 3334,
+    "differ": 3
+   },
+   "trianglesAll": {
+    "exact": 2723,
+    "differ": 614
+   },
+   "vertexRoundTrip": {
+    "exact": 1911,
+    "differ": 1426
+   },
+   "cornersOrder": {
+    "exact": 2788,
+    "differ": 549
+   },
+   "cornersFaceTriData": {
+    "exact": 2287,
+    "differ": 1050
+   },
+   "cornersAll": {
+    "exact": 1860,
+    "differ": 1477
+   }
+  },
+  "checksByInstance": {
+   "ElemBox": {
+    "exact": 18195,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 18195,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 18191,
+    "differ": 4
+   },
+   "FacePlaneData": {
+    "exact": 13210,
+    "differ": 4985
+   },
+   "EdgeDirections": {
+    "exact": 18192,
+    "differ": 3
+   },
+   "trianglesAll": {
+    "exact": 13210,
+    "differ": 4985
+   },
+   "vertexRoundTrip": {
+    "exact": 9773,
+    "differ": 8422
+   },
+   "cornersOrder": {
+    "exact": 15124,
+    "differ": 3071
+   },
+   "cornersFaceTriData": {
+    "exact": 11274,
+    "differ": 6921
+   },
+   "cornersAll": {
+    "exact": 8308,
+    "differ": 9887
+   }
+  },
+  "causes": {
+   "plane distance off by 1 ulp": 1272,
+   "plane distance off by 2 ulp": 74,
+   "plane distance off by 3 ulp": 3,
+   "plane distance off by >3 ulp": 51,
+   "FaceNormalDirections: a direction off by 2 ulp": 2,
+   "EdgeDirections: a direction off by 2 ulp": 3,
+   "plane normal differs": 6,
+   "FaceNormalDirections: a direction off by 1 ulp": 2,
+   "edge in more than two triangles": 2
+  },
+  "planeDistanceUlps": {
+   ">3": 51,
+   "1": 1272,
+   "2": 74,
+   "3": 3
+  },
+  "planesWithDoublePrecisionDistance": {
+   "plane: double / normal": 85,
+   "plane: double / vertex / normal": 327,
+   "plane: double / vertex": 99,
+   "plane: double": 59,
+   "plane: no variant": 573,
+   "plane: normal": 97,
+   "plane: vertex / normal": 67,
+   "plane: vertex": 99,
+   "any of the three False": 536,
+   "any of the three True": 78,
+   "distances in double precision from the unrounded PhysX vertices give the saved planes False": 581,
+   "distances in double precision from the unrounded PhysX vertices give the saved planes True": 33,
+   "distances in double precision from the unrounded normals give the saved planes False": 590,
+   "distances in double precision from the unrounded normals give the saved planes True": 24,
+   "distances in double precision give the saved planes False": 564,
+   "distances in double precision give the saved planes True": 50
+  },
+  "seconds": {
+   "read": 110,
+   "audit": 17
+  }
+ },
+ "checks": {
+  "ElemBox": "from VertexData: its box",
+  "PermutedVertexData": "from VertexData: the fours, padded with their first vertex, saved W first",
+  "FaceNormalDirections": "from VertexData and the saved FaceTriData, by the cooker's rules",
+  "FacePlaneData": "from VertexData and the saved FaceTriData, by the cooker's rules",
+  "EdgeDirections": "from VertexData and the saved FaceTriData, by the cooker's rules",
+  "trianglesAll": "all five fields above",
+  "vertexRoundTrip": "VertexData unchanged by the cooker's scaling (times 0.02, times 50, single precision)",
+  "cornersOrder": "the emulated PhysX hull, handed the corners in their saved order, gives back that order",
+  "cornersFaceTriData": "... and the saved FaceTriData",
+  "cornersAll": "... and every field: the element from its corners alone"
+ },
+ "byShape": {
+  "10 corners": {
+   "elements": 346,
+   "ElemBox": {
+    "exact": 346,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 346,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 346,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 306,
+    "differ": 40
+   },
+   "EdgeDirections": {
+    "exact": 346,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 306,
+    "differ": 40
+   },
+   "vertexRoundTrip": {
+    "exact": 191,
+    "differ": 155
+   },
+   "cornersOrder": {
+    "exact": 291,
+    "differ": 55
+   },
+   "cornersFaceTriData": {
+    "exact": 172,
+    "differ": 174
+   },
+   "cornersAll": {
+    "exact": 141,
+    "differ": 205
+   }
+  },
+  "11 corners": {
+   "elements": 37,
+   "ElemBox": {
+    "exact": 37,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 37,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 37,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 23,
+    "differ": 14
+   },
+   "EdgeDirections": {
+    "exact": 37,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 23,
+    "differ": 14
+   },
+   "vertexRoundTrip": {
+    "exact": 12,
+    "differ": 25
+   },
+   "cornersOrder": {
+    "exact": 34,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 21,
+    "differ": 16
+   },
+   "cornersAll": {
+    "exact": 13,
+    "differ": 24
+   }
+  },
+  "12 corners": {
+   "elements": 296,
+   "ElemBox": {
+    "exact": 296,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 296,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 296,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 205,
+    "differ": 91
+   },
+   "EdgeDirections": {
+    "exact": 296,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 205,
+    "differ": 91
+   },
+   "vertexRoundTrip": {
+    "exact": 109,
+    "differ": 187
+   },
+   "cornersOrder": {
+    "exact": 253,
+    "differ": 43
+   },
+   "cornersFaceTriData": {
+    "exact": 166,
+    "differ": 130
+   },
+   "cornersAll": {
+    "exact": 108,
+    "differ": 188
+   }
+  },
+  "13 corners": {
+   "elements": 47,
+   "ElemBox": {
+    "exact": 47,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 47,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 47,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 46,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 47,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 46,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 16,
+    "differ": 31
+   },
+   "cornersOrder": {
+    "exact": 44,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 24,
+    "differ": 23
+   },
+   "cornersAll": {
+    "exact": 23,
+    "differ": 24
+   }
+  },
+  "14 corners": {
+   "elements": 53,
+   "ElemBox": {
+    "exact": 53,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 53,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 53,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 31,
+    "differ": 22
+   },
+   "EdgeDirections": {
+    "exact": 53,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 31,
+    "differ": 22
+   },
+   "vertexRoundTrip": {
+    "exact": 21,
+    "differ": 32
+   },
+   "cornersOrder": {
+    "exact": 45,
+    "differ": 8
+   },
+   "cornersFaceTriData": {
+    "exact": 24,
+    "differ": 29
+   },
+   "cornersAll": {
+    "exact": 11,
+    "differ": 42
+   }
+  },
+  "15 corners": {
+   "elements": 5,
+   "ElemBox": {
+    "exact": 5,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 5,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 5
+   }
+  },
+  "16 corners": {
+   "elements": 135,
+   "ElemBox": {
+    "exact": 135,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 135,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 135,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 103,
+    "differ": 32
+   },
+   "EdgeDirections": {
+    "exact": 135,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 103,
+    "differ": 32
+   },
+   "vertexRoundTrip": {
+    "exact": 60,
+    "differ": 75
+   },
+   "cornersOrder": {
+    "exact": 89,
+    "differ": 46
+   },
+   "cornersFaceTriData": {
+    "exact": 47,
+    "differ": 88
+   },
+   "cornersAll": {
+    "exact": 37,
+    "differ": 98
+   }
+  },
+  "17 corners": {
+   "elements": 5,
+   "ElemBox": {
+    "exact": 5,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 4
+   },
+   "EdgeDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 4
+   },
+   "vertexRoundTrip": {
+    "exact": 2,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 5,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 4,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 1,
+    "differ": 4
+   }
+  },
+  "18 corners": {
+   "elements": 15,
+   "ElemBox": {
+    "exact": 15,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 10,
+    "differ": 5
+   },
+   "EdgeDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 10,
+    "differ": 5
+   },
+   "vertexRoundTrip": {
+    "exact": 5,
+    "differ": 10
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 4
+   },
+   "cornersFaceTriData": {
+    "exact": 5,
+    "differ": 10
+   },
+   "cornersAll": {
+    "exact": 4,
+    "differ": 11
+   }
+  },
+  "19 corners": {
+   "elements": 17,
+   "ElemBox": {
+    "exact": 17,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 17,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 17,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 14
+   },
+   "EdgeDirections": {
+    "exact": 17,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 14
+   },
+   "vertexRoundTrip": {
+    "exact": 2,
+    "differ": 15
+   },
+   "cornersOrder": {
+    "exact": 16,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 10,
+    "differ": 7
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 15
+   }
+  },
+  "20 corners": {
+   "elements": 9,
+   "ElemBox": {
+    "exact": 9,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 9,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 9,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 7,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 9,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 7,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 6
+   },
+   "cornersOrder": {
+    "exact": 8,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 8
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 9
+   }
+  },
+  "21 corners": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "22 corners": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "23 corners": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "24 corners": {
+   "elements": 14,
+   "ElemBox": {
+    "exact": 14,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 14,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 14,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 11,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 14,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 11,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 11
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 4,
+    "differ": 10
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 12
+   }
+  },
+  "25 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "26 corners": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 2,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 2
+   }
+  },
+  "27 corners": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "28 corners": {
+   "elements": 7,
+   "ElemBox": {
+    "exact": 7,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 7,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 7,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 6,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 7,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 6,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 7
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 7
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 7
+   }
+  },
+  "29 corners": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "30 corners": {
+   "elements": 3,
+   "ElemBox": {
+    "exact": 3,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 0,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 3
+   }
+  },
+  "31 corners": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "32 corners": {
+   "elements": 13,
+   "ElemBox": {
+    "exact": 13,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 11
+   },
+   "EdgeDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 11
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 12
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 2
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 13
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 13
+   }
+  },
+  "34 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "38 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "39 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "4 corners": {
+   "elements": 21,
+   "ElemBox": {
+    "exact": 21,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 21,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 21,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 11,
+    "differ": 10
+   },
+   "EdgeDirections": {
+    "exact": 21,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 11,
+    "differ": 10
+   },
+   "vertexRoundTrip": {
+    "exact": 16,
+    "differ": 5
+   },
+   "cornersOrder": {
+    "exact": 21,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 21,
+    "differ": 0
+   },
+   "cornersAll": {
+    "exact": 11,
+    "differ": 10
+   }
+  },
+  "41 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "42 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 0,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "47 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "48 corners": {
+   "elements": 3,
+   "ElemBox": {
+    "exact": 3,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 3
+   }
+  },
+  "5 corners": {
+   "elements": 15,
+   "ElemBox": {
+    "exact": 15,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 13,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 13,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 10,
+    "differ": 5
+   },
+   "cornersOrder": {
+    "exact": 15,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 9,
+    "differ": 6
+   },
+   "cornersAll": {
+    "exact": 7,
+    "differ": 8
+   }
+  },
+  "52 corners": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "6 corners": {
+   "elements": 13,
+   "ElemBox": {
+    "exact": 13,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 12,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 12,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 7,
+    "differ": 6
+   },
+   "cornersOrder": {
+    "exact": 13,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 12,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 12,
+    "differ": 1
+   }
+  },
+  "7 corners": {
+   "elements": 10,
+   "ElemBox": {
+    "exact": 10,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 10,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 10,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 7,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 10,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 7,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 6,
+    "differ": 4
+   },
+   "cornersOrder": {
+    "exact": 9,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 6,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 4,
+    "differ": 6
+   }
+  },
+  "8 corners": {
+   "elements": 211,
+   "ElemBox": {
+    "exact": 211,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 211,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 211,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 152,
+    "differ": 59
+   },
+   "EdgeDirections": {
+    "exact": 211,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 152,
+    "differ": 59
+   },
+   "vertexRoundTrip": {
+    "exact": 106,
+    "differ": 105
+   },
+   "cornersOrder": {
+    "exact": 196,
+    "differ": 15
+   },
+   "cornersFaceTriData": {
+    "exact": 125,
+    "differ": 86
+   },
+   "cornersAll": {
+    "exact": 90,
+    "differ": 121
+   }
+  },
+  "9 corners": {
+   "elements": 64,
+   "ElemBox": {
+    "exact": 64,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 64,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 64,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 38,
+    "differ": 26
+   },
+   "EdgeDirections": {
+    "exact": 64,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 38,
+    "differ": 26
+   },
+   "vertexRoundTrip": {
+    "exact": 25,
+    "differ": 39
+   },
+   "cornersOrder": {
+    "exact": 62,
+    "differ": 2
+   },
+   "cornersFaceTriData": {
+    "exact": 19,
+    "differ": 45
+   },
+   "cornersAll": {
+    "exact": 12,
+    "differ": 52
+   }
+  },
+  "hexahedron": {
+   "elements": 1914,
+   "ElemBox": {
+    "exact": 1914,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1914,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1910,
+    "differ": 4
+   },
+   "FacePlaneData": {
+    "exact": 1656,
+    "differ": 258
+   },
+   "EdgeDirections": {
+    "exact": 1911,
+    "differ": 3
+   },
+   "trianglesAll": {
+    "exact": 1656,
+    "differ": 258
+   },
+   "vertexRoundTrip": {
+    "exact": 1267,
+    "differ": 647
+   },
+   "cornersOrder": {
+    "exact": 1568,
+    "differ": 346
+   },
+   "cornersFaceTriData": {
+    "exact": 1567,
+    "differ": 347
+   },
+   "cornersAll": {
+    "exact": 1337,
+    "differ": 577
+   }
+  },
+  "wedge": {
+   "elements": 54,
+   "ElemBox": {
+    "exact": 54,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 54,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 54,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 51,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 54,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 51,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 37,
+    "differ": 17
+   },
+   "cornersOrder": {
+    "exact": 46,
+    "differ": 8
+   },
+   "cornersFaceTriData": {
+    "exact": 46,
+    "differ": 8
+   },
+   "cornersAll": {
+    "exact": 43,
+    "differ": 11
+   }
+  }
+ },
+ "byVertexCount": {
+  "4": {
+   "elements": 21,
+   "ElemBox": {
+    "exact": 21,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 21,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 21,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 11,
+    "differ": 10
+   },
+   "EdgeDirections": {
+    "exact": 21,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 11,
+    "differ": 10
+   },
+   "vertexRoundTrip": {
+    "exact": 16,
+    "differ": 5
+   },
+   "cornersOrder": {
+    "exact": 21,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 21,
+    "differ": 0
+   },
+   "cornersAll": {
+    "exact": 11,
+    "differ": 10
+   }
+  },
+  "5": {
+   "elements": 15,
+   "ElemBox": {
+    "exact": 15,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 13,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 13,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 10,
+    "differ": 5
+   },
+   "cornersOrder": {
+    "exact": 15,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 9,
+    "differ": 6
+   },
+   "cornersAll": {
+    "exact": 7,
+    "differ": 8
+   }
+  },
+  "6": {
+   "elements": 67,
+   "ElemBox": {
+    "exact": 67,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 67,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 67,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 63,
+    "differ": 4
+   },
+   "EdgeDirections": {
+    "exact": 67,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 63,
+    "differ": 4
+   },
+   "vertexRoundTrip": {
+    "exact": 44,
+    "differ": 23
+   },
+   "cornersOrder": {
+    "exact": 59,
+    "differ": 8
+   },
+   "cornersFaceTriData": {
+    "exact": 58,
+    "differ": 9
+   },
+   "cornersAll": {
+    "exact": 55,
+    "differ": 12
+   }
+  },
+  "7": {
+   "elements": 10,
+   "ElemBox": {
+    "exact": 10,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 10,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 10,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 7,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 10,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 7,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 6,
+    "differ": 4
+   },
+   "cornersOrder": {
+    "exact": 9,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 6,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 4,
+    "differ": 6
+   }
+  },
+  "8": {
+   "elements": 2125,
+   "ElemBox": {
+    "exact": 2125,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2125,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2121,
+    "differ": 4
+   },
+   "FacePlaneData": {
+    "exact": 1808,
+    "differ": 317
+   },
+   "EdgeDirections": {
+    "exact": 2122,
+    "differ": 3
+   },
+   "trianglesAll": {
+    "exact": 1808,
+    "differ": 317
+   },
+   "vertexRoundTrip": {
+    "exact": 1373,
+    "differ": 752
+   },
+   "cornersOrder": {
+    "exact": 1764,
+    "differ": 361
+   },
+   "cornersFaceTriData": {
+    "exact": 1692,
+    "differ": 433
+   },
+   "cornersAll": {
+    "exact": 1427,
+    "differ": 698
+   }
+  },
+  "9": {
+   "elements": 64,
+   "ElemBox": {
+    "exact": 64,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 64,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 64,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 38,
+    "differ": 26
+   },
+   "EdgeDirections": {
+    "exact": 64,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 38,
+    "differ": 26
+   },
+   "vertexRoundTrip": {
+    "exact": 25,
+    "differ": 39
+   },
+   "cornersOrder": {
+    "exact": 62,
+    "differ": 2
+   },
+   "cornersFaceTriData": {
+    "exact": 19,
+    "differ": 45
+   },
+   "cornersAll": {
+    "exact": 12,
+    "differ": 52
+   }
+  },
+  "10": {
+   "elements": 346,
+   "ElemBox": {
+    "exact": 346,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 346,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 346,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 306,
+    "differ": 40
+   },
+   "EdgeDirections": {
+    "exact": 346,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 306,
+    "differ": 40
+   },
+   "vertexRoundTrip": {
+    "exact": 191,
+    "differ": 155
+   },
+   "cornersOrder": {
+    "exact": 291,
+    "differ": 55
+   },
+   "cornersFaceTriData": {
+    "exact": 172,
+    "differ": 174
+   },
+   "cornersAll": {
+    "exact": 141,
+    "differ": 205
+   }
+  },
+  "11": {
+   "elements": 37,
+   "ElemBox": {
+    "exact": 37,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 37,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 37,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 23,
+    "differ": 14
+   },
+   "EdgeDirections": {
+    "exact": 37,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 23,
+    "differ": 14
+   },
+   "vertexRoundTrip": {
+    "exact": 12,
+    "differ": 25
+   },
+   "cornersOrder": {
+    "exact": 34,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 21,
+    "differ": 16
+   },
+   "cornersAll": {
+    "exact": 13,
+    "differ": 24
+   }
+  },
+  "12": {
+   "elements": 296,
+   "ElemBox": {
+    "exact": 296,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 296,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 296,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 205,
+    "differ": 91
+   },
+   "EdgeDirections": {
+    "exact": 296,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 205,
+    "differ": 91
+   },
+   "vertexRoundTrip": {
+    "exact": 109,
+    "differ": 187
+   },
+   "cornersOrder": {
+    "exact": 253,
+    "differ": 43
+   },
+   "cornersFaceTriData": {
+    "exact": 166,
+    "differ": 130
+   },
+   "cornersAll": {
+    "exact": 108,
+    "differ": 188
+   }
+  },
+  "13": {
+   "elements": 47,
+   "ElemBox": {
+    "exact": 47,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 47,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 47,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 46,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 47,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 46,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 16,
+    "differ": 31
+   },
+   "cornersOrder": {
+    "exact": 44,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 24,
+    "differ": 23
+   },
+   "cornersAll": {
+    "exact": 23,
+    "differ": 24
+   }
+  },
+  "14": {
+   "elements": 53,
+   "ElemBox": {
+    "exact": 53,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 53,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 53,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 31,
+    "differ": 22
+   },
+   "EdgeDirections": {
+    "exact": 53,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 31,
+    "differ": 22
+   },
+   "vertexRoundTrip": {
+    "exact": 21,
+    "differ": 32
+   },
+   "cornersOrder": {
+    "exact": 45,
+    "differ": 8
+   },
+   "cornersFaceTriData": {
+    "exact": 24,
+    "differ": 29
+   },
+   "cornersAll": {
+    "exact": 11,
+    "differ": 42
+   }
+  },
+  "15": {
+   "elements": 5,
+   "ElemBox": {
+    "exact": 5,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 5,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 5
+   }
+  },
+  "16": {
+   "elements": 135,
+   "ElemBox": {
+    "exact": 135,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 135,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 135,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 103,
+    "differ": 32
+   },
+   "EdgeDirections": {
+    "exact": 135,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 103,
+    "differ": 32
+   },
+   "vertexRoundTrip": {
+    "exact": 60,
+    "differ": 75
+   },
+   "cornersOrder": {
+    "exact": 89,
+    "differ": 46
+   },
+   "cornersFaceTriData": {
+    "exact": 47,
+    "differ": 88
+   },
+   "cornersAll": {
+    "exact": 37,
+    "differ": 98
+   }
+  },
+  "17": {
+   "elements": 5,
+   "ElemBox": {
+    "exact": 5,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 4
+   },
+   "EdgeDirections": {
+    "exact": 5,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 4
+   },
+   "vertexRoundTrip": {
+    "exact": 2,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 5,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 4,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 1,
+    "differ": 4
+   }
+  },
+  "18": {
+   "elements": 15,
+   "ElemBox": {
+    "exact": 15,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 10,
+    "differ": 5
+   },
+   "EdgeDirections": {
+    "exact": 15,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 10,
+    "differ": 5
+   },
+   "vertexRoundTrip": {
+    "exact": 5,
+    "differ": 10
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 4
+   },
+   "cornersFaceTriData": {
+    "exact": 5,
+    "differ": 10
+   },
+   "cornersAll": {
+    "exact": 4,
+    "differ": 11
+   }
+  },
+  "19": {
+   "elements": 17,
+   "ElemBox": {
+    "exact": 17,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 17,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 17,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 14
+   },
+   "EdgeDirections": {
+    "exact": 17,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 14
+   },
+   "vertexRoundTrip": {
+    "exact": 2,
+    "differ": 15
+   },
+   "cornersOrder": {
+    "exact": 16,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 10,
+    "differ": 7
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 15
+   }
+  },
+  "20": {
+   "elements": 9,
+   "ElemBox": {
+    "exact": 9,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 9,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 9,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 7,
+    "differ": 2
+   },
+   "EdgeDirections": {
+    "exact": 9,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 7,
+    "differ": 2
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 6
+   },
+   "cornersOrder": {
+    "exact": 8,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 8
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 9
+   }
+  },
+  "21": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "22": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "23": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "24": {
+   "elements": 14,
+   "ElemBox": {
+    "exact": 14,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 14,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 14,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 11,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 14,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 11,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 3,
+    "differ": 11
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 4,
+    "differ": 10
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 12
+   }
+  },
+  "25": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "26": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 4
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 2,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 2,
+    "differ": 2
+   }
+  },
+  "27": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "28": {
+   "elements": 7,
+   "ElemBox": {
+    "exact": 7,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 7,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 7,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 6,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 7,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 6,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 7
+   },
+   "cornersOrder": {
+    "exact": 4,
+    "differ": 3
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 7
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 7
+   }
+  },
+  "29": {
+   "elements": 4,
+   "ElemBox": {
+    "exact": 4,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 3,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 4,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 3,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 1,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 4
+   }
+  },
+  "30": {
+   "elements": 3,
+   "ElemBox": {
+    "exact": 3,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "EdgeDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 0,
+    "differ": 3
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersOrder": {
+    "exact": 3,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 3
+   }
+  },
+  "31": {
+   "elements": 2,
+   "ElemBox": {
+    "exact": 2,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 2,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 2
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 2
+   }
+  },
+  "32": {
+   "elements": 13,
+   "ElemBox": {
+    "exact": 13,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 11
+   },
+   "EdgeDirections": {
+    "exact": 13,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 11
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 12
+   },
+   "cornersOrder": {
+    "exact": 11,
+    "differ": 2
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 13
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 13
+   }
+  },
+  "34": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "38": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "39": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "41": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "42": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 0,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "47": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersOrder": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  },
+  "48": {
+   "elements": 3,
+   "ElemBox": {
+    "exact": 3,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 2,
+    "differ": 1
+   },
+   "EdgeDirections": {
+    "exact": 3,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 2,
+    "differ": 1
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 2
+   },
+   "cornersOrder": {
+    "exact": 2,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 3
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 3
+   }
+  },
+  "52": {
+   "elements": 1,
+   "ElemBox": {
+    "exact": 1,
+    "differ": 0
+   },
+   "PermutedVertexData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FaceNormalDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "FacePlaneData": {
+    "exact": 1,
+    "differ": 0
+   },
+   "EdgeDirections": {
+    "exact": 1,
+    "differ": 0
+   },
+   "trianglesAll": {
+    "exact": 1,
+    "differ": 0
+   },
+   "vertexRoundTrip": {
+    "exact": 1,
+    "differ": 0
+   },
+   "cornersOrder": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersFaceTriData": {
+    "exact": 0,
+    "differ": 1
+   },
+   "cornersAll": {
+    "exact": 0,
+    "differ": 1
+   }
+  }
+ },
+ "farmRamp": [
+  {
+   "element": 0,
+   "vertices": 26,
+   "triangles": 48,
+   "planes": 37,
+   "edges": 47,
+   "faceNormals": 31,
+   "shape": "26 corners",
+   "faces": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    4,
+    4,
+    4,
+    4,
+    5,
+    8
+   ],
+   "box": [
+    [
+     859.75,
+     -1263.714,
+     -128.0
+    ],
+    [
+     2027.679,
+     -862.589,
+     89.91
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": false,
+   "cornersOrder": true,
+   "cornersFaceTriData": false,
+   "cornersAll": false,
+   "trianglesAll": true
+  },
+  {
+   "element": 1,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     2198.679,
+     -982.11,
+     -128.0
+    ],
+    [
+     2400.238,
+     -698.09,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 2,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     1997.708,
+     -986.002,
+     -128.0
+    ],
+    [
+     2208.893,
+     -778.122,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 3,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     2394.074,
+     -872.521,
+     -128.0
+    ],
+    [
+     2696.191,
+     -588.501,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 4,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     2674.472,
+     -828.409,
+     -128.0
+    ],
+    [
+     2875.559,
+     -16.456,
+     3.434
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 5,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     2778.088,
+     -194.183,
+     -72.928
+    ],
+    [
+     2996.288,
+     197.432,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": false,
+   "cornersOrder": false,
+   "cornersFaceTriData": false,
+   "cornersAll": false,
+   "trianglesAll": true
+  },
+  {
+   "element": 6,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     675.969,
+     -986.002,
+     -128.0
+    ],
+    [
+     887.154,
+     -778.122,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": false,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 7,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     483.477,
+     -988.123,
+     -128.0
+    ],
+    [
+     685.036,
+     -704.103,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": false,
+   "cornersFaceTriData": false,
+   "cornersAll": false,
+   "trianglesAll": true
+  },
+  {
+   "element": 8,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     190.963,
+     -872.521,
+     -128.0
+    ],
+    [
+     493.08,
+     -588.501,
+     6.231
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  },
+  {
+   "element": 9,
+   "vertices": 8,
+   "triangles": 12,
+   "planes": 6,
+   "edges": 4,
+   "faceNormals": 4,
+   "shape": "hexahedron",
+   "faces": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "box": [
+    [
+     -4.907,
+     -828.409,
+     -128.0
+    ],
+    [
+     196.181,
+     -16.456,
+     3.434
+    ]
+   ],
+   "ElemBox": true,
+   "PermutedVertexData": true,
+   "FaceNormalDirections": true,
+   "FacePlaneData": true,
+   "EdgeDirections": true,
+   "vertexRoundTrip": true,
+   "cornersOrder": true,
+   "cornersFaceTriData": true,
+   "cornersAll": true,
+   "trianglesAll": true
+  }
+ ],
+ "samples": {
+  "vertexRoundTrip": [
+   {
+    "mesh": "barrelMetal.Meshes.BarrelMetalonPallet_Destro",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "barrelMetal.Meshes.BarrelMetalonPalletC",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "BlastDecals.Meshes.BlastDecal_H",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "BrickDestroPile.Meshes.BrickDestroPile_B",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Bush_A.Meshes.Bush_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 12,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 1,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 2,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 5,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 6,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 7,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_24x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "ConcreteStairs_A.Meshes.ConcreteStairs_A_34_ShortNone",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 10,
+    "causes": {}
+   }
+  ],
+  "FacePlaneData": [
+   {
+    "mesh": "BlastDecals.Meshes.BlastDecal_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "Bush_A.Meshes.Bush_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 12,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "EXT_PROP_DairyTanks.Meshes.EXT_PROP_DairyTank_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FogPod.Meshes.fogPodimpactMud",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 15,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_D",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 30,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_F",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 30,
+    "causes": {
+     "plane distance off by 1 ulp": 2
+    }
+   },
+   {
+    "mesh": "FX_Debris.panel",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 28,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Fire_B.Fire_Rubble_Big",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Shared.ASE_Chopped_Cone_Wide",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 2,
+     "plane distance off by 2 ulp": 1
+    }
+   }
+  ],
+  "cornersAll": [
+   {
+    "mesh": "BlastDecals.Meshes.BlastDecal_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "BrickDestroPile.Meshes.BrickDestroPile_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Bush_A.Meshes.Bush_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 12,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 2,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 4,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 5,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "ComKitWindows.Meshes.ComKitWindow_StandardSingleB",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_16x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_24x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DirtRoad.Meshes.CountryRoadRubble_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DoorSwingSingle_MOD.Meshes.DoorSwingSingleC",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EuroFacade.Meshes.EuroFacade_B",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   }
+  ],
+  "trianglesAll": [
+   {
+    "mesh": "BlastDecals.Meshes.BlastDecal_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "Bush_A.Meshes.Bush_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 12,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "EXT_PROP_DairyTanks.Meshes.EXT_PROP_DairyTank_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FogPod.Meshes.fogPodimpactMud",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 15,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_D",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 30,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Debris.Machine_Innards_F",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 30,
+    "causes": {
+     "plane distance off by 1 ulp": 2
+    }
+   },
+   {
+    "mesh": "FX_Debris.panel",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 28,
+    "causes": {
+     "plane distance off by 1 ulp": 3
+    }
+   },
+   {
+    "mesh": "FX_Fire_B.Fire_Rubble_Big",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "FX_Shared.ASE_Chopped_Cone_Wide",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 32,
+    "causes": {
+     "plane distance off by 1 ulp": 2,
+     "plane distance off by 2 ulp": 1
+    }
+   }
+  ],
+  "cornersOrder": [
+   {
+    "mesh": "BrickDestroPile.Meshes.BrickDestroPile_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "ComKitWindows.Meshes.ComKitWindow_StandardSingleB",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_16x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_24x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DirtRoad.Meshes.CountryRoadRubble_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DoorSwingSingle_MOD.Meshes.DoorSwingSingleC",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EuroFacade.Meshes.EuroFacade_B",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EuroFacade.Meshes.EuroFacade_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "FX_Shared.ASE_ShockRing",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {}
+   },
+   {
+    "mesh": "IntroLevelStructure.Meshes.IntroFacade_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "IntroLevelStructure.Meshes.IntroWarehouse_B",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "IntroLevelStructure.Meshes.IntroWarehouse_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   }
+  ],
+  "cornersFaceTriData": [
+   {
+    "mesh": "BrickDestroPile.Meshes.BrickDestroPile_E",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 2,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 4,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "CHH_GermanSoldiers_MOD.Meshes.GermChryssalidVictim",
+    "element": 5,
+    "package": "Act1_IntroLevel",
+    "vertices": 11,
+    "causes": {}
+   },
+   {
+    "mesh": "ComKitWindows.Meshes.ComKitWindow_StandardSingleB",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_16x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "Commercial_SnapOn.Meshes.Berlin_A_24x",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DirtRoad.Meshes.CountryRoadRubble_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "DoorSwingSingle_MOD.Meshes.DoorSwingSingleC",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EuroFacade.Meshes.EuroFacade_B",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EuroFacade.Meshes.EuroFacade_C",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 8,
+    "causes": {}
+   },
+   {
+    "mesh": "EXT_PROP_DairyTanks.Meshes.EXT_PROP_DairyTank_A",
+    "element": 0,
+    "package": "Act1_IntroLevel",
+    "vertices": 16,
+    "causes": {
+     "plane distance off by 1 ulp": 1
+    }
+   }
+  ],
+  "FaceNormalDirections": [
+   {
+    "mesh": "GEOSCAPE.Interceptor",
+    "element": 0,
+    "package": "StrategyResources_SF",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 2 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 2
+    }
+   },
+   {
+    "mesh": "GEOSCAPE.Skyranger",
+    "element": 0,
+    "package": "StrategyResources_SF",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 2 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 1,
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "GEOSCAPE.UFO",
+    "element": 0,
+    "package": "StrategyResources_SF",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 1 ulp": 1,
+     "plane normal differs": 2
+    }
+   },
+   {
+    "mesh": "Exterior_Static_Meshes.Windmill.SM_Windmill",
+    "element": 0,
+    "package": "URB_Trainyard",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 1 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 1
+    }
+   }
+  ],
+  "EdgeDirections": [
+   {
+    "mesh": "GEOSCAPE.Interceptor",
+    "element": 0,
+    "package": "StrategyResources_SF",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 2 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 2
+    }
+   },
+   {
+    "mesh": "GEOSCAPE.Skyranger",
+    "element": 0,
+    "package": "StrategyResources_SF",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 2 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 1,
+     "plane distance off by 1 ulp": 1
+    }
+   },
+   {
+    "mesh": "Exterior_Static_Meshes.Windmill.SM_Windmill",
+    "element": 0,
+    "package": "URB_Trainyard",
+    "vertices": 8,
+    "causes": {
+     "FaceNormalDirections: a direction off by 1 ulp": 1,
+     "EdgeDirections: a direction off by 2 ulp": 1,
+     "plane normal differs": 1
+    }
+   }
+  ]
+ },
+ "selfCheck": [
+  {
+   "check": "the recipe box (96 units) with its own face loops is cover_blocks.convex_hull, field for field",
+   "passed": true,
+   "detail": []
+  },
+  {
+   "check": "the recipe box from its corners alone, in its saved order, is cover_blocks.convex_hull, field for field",
+   "passed": true,
+   "detail": []
+  },
+  {
+   "check": "the recipe box from shuffled corners: 0 of 6 orders give its saved layout (information: the input order decides it)",
+   "passed": true,
+   "detail": [
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "EdgeDirections",
+     "FaceNormalDirections",
+     "FacePlaneData"
+    ],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "EdgeDirections",
+     "FaceNormalDirections",
+     "FacePlaneData"
+    ],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ]
+   ]
+  },
+  {
+   "check": "cover_blocks boxes of other sizes against the cooker rules (information, not a failure)",
+   "passed": true,
+   "detail": [
+    {
+     "box": [
+      [
+       0.0,
+       0.0,
+       -12.0
+      ],
+      [
+       96.0,
+       96.0,
+       96.0
+      ]
+     ],
+     "differ": [
+      "EdgeDirections",
+      "FaceNormalDirections",
+      "FacePlaneData"
+     ]
+    },
+    {
+     "box": [
+      [
+       0.0,
+       0.0,
+       0.0
+      ],
+      [
+       192.0,
+       96.0,
+       96.0
+      ]
+     ],
+     "differ": [
+      "FacePlaneData"
+     ]
+    },
+    {
+     "box": [
+      [
+       -48.0,
+       -48.0,
+       -2.0
+      ],
+      [
+       48.0,
+       48.0,
+       0.0
+      ]
+     ],
+     "differ": []
+    },
+    {
+     "box": [
+      [
+       0.0,
+       0.0,
+       0.0
+      ],
+      [
+       96.0,
+       96.0,
+       108.0
+      ]
+     ],
+     "differ": [
+      "VertexData",
+      "PermutedVertexData",
+      "FaceNormalDirections",
+      "FacePlaneData",
+      "ElemBox"
+     ]
+    },
+    {
+     "box": [
+      [
+       0.0,
+       0.0,
+       0.0
+      ],
+      [
+       288.0,
+       96.0,
+       48.0
+      ]
+     ],
+     "differ": [
+      "FaceNormalDirections",
+      "FacePlaneData"
+     ]
+    }
+   ]
+  },
+  {
+   "check": "the farm ramp's 10 hulls from their vertices and face loops, field for field",
+   "passed": true,
+   "detail": [
+    {
+     "element": 0,
+     "vertices": 26,
+     "fromTriangles": [],
+     "fromCorners": [
+      "FaceTriData",
+      "EdgeDirections",
+      "FaceNormalDirections",
+      "FacePlaneData"
+     ]
+    },
+    {
+     "element": 1,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 2,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 3,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 4,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 5,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": [
+      "VertexData",
+      "PermutedVertexData",
+      "FaceTriData",
+      "FacePlaneData"
+     ]
+    },
+    {
+     "element": 6,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 7,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": [
+      "VertexData",
+      "PermutedVertexData",
+      "FaceTriData",
+      "FacePlaneData"
+     ]
+    },
+    {
+     "element": 8,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    },
+    {
+     "element": 9,
+     "vertices": 8,
+     "fromTriangles": [],
+     "fromCorners": []
+    }
+   ]
+  },
+  {
+   "check": "the farm ramp's hulls from their corners alone, in their saved order: 7 of 10 exact (information)",
+   "passed": true,
+   "detail": [
+    [
+     "FaceTriData",
+     "EdgeDirections",
+     "FaceNormalDirections",
+     "FacePlaneData"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ],
+    [],
+    [
+     "VertexData",
+     "PermutedVertexData",
+     "FaceTriData",
+     "FacePlaneData"
+    ],
+    [],
+    []
+   ]
+  },
+  {
+   "check": "a wedge 192 x 96 rising 96, with given faces and from its corners: closed, bounded, 5 planes, 4 face and 4 edge directions",
+   "passed": true,
+   "detail": []
+  },
+  {
+   "check": "the rsqrtss table gives the saved unit lengths (0.99999994 for 96 and 512, 1 for 248.88 and 15)",
+   "passed": true,
+   "detail": [
+    "True",
+    "True",
+    "True",
+    "True"
+   ]
+  }
+ ]
+}
