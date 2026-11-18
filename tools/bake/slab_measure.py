@@ -6,7 +6,8 @@ M4a item 2; grown from research/evidence/slab-audit.py, which found the 55 slab 
   twin(recipe) -> dict(ok, rows)      the slab built at the donor's size and measured again
 
 An entry is dict(recipe, warnings, facts). The recipe is what frac_slab builds a slab from (a look given as a dict,
-`{'mesh', 'measure', 'recipe'}`), in the donor mesh's frame:
+`{'mesh', 'measure', 'recipe'}`), in the donor mesh's frame in world units (its placing's scale applied: a made slab
+stands at scale 1, as the editor draws it and the Build copies it, frac_walls.unscale):
 
   role, kind    'floor' or 'roof' (by the mesh's name, as the audit); 'flat', 'thick' (a flat top over a deeper body)
                 or 'pitched' (a roof whose top slopes): the audit's classify
@@ -99,6 +100,20 @@ def _cover(T, up):
     return float(grid.mean())
 
 
+def classify_mesh(m, name):
+    """(kind, why) of the decoded mesh `m` named `name` (classify, on its size, the level share of its up faces and,
+    for one thicker than a flat slab, its top's cover)."""
+    T = mc.Tris(m)
+    if not len(T.tris):
+        return None, 'no triangles'
+    nz = T.normal[:, 2]
+    up = nz >= UP
+    size = [float(v) for v in T.pos.max(0) - T.pos.min(0)]
+    level = float(T.area[nz >= LEVEL_UP].sum() / max(T.area[up].sum(), 1e-9))
+    cover = _cover(T, up) if up.any() and size[2] > FLAT else 0.0
+    return classify(name, size, level, cover)
+
+
 def _main_level(T, sel):
     """The height of the triangles `sel` holding the most area (binned by half units; the area-weighted mean height of
     that bin's), or None."""
@@ -159,11 +174,15 @@ def _round(v, digits=2):
     return round(float(v), digits) + 0.0
 
 
-def measure_mesh(m, name, light=None, collision=None):
+def measure_mesh(m, name, light=None, collision=None, lm_channel=1, scale=(1.0, 1.0, 1.0)):
     """The entry (see the module's words) of the decoded slab mesh `m` (gen_mesh's form) named `name`, with its
     placing's lightmap (`light`: dict(rect) from measure_common.component_light) and simple collision (`collision`:
-    boxes [x0, x1, y0, y1, z0, z1] in the mesh's frame, None for none)."""
-    T = mc.Tris(m)
+    boxes [x0, x1, y0, y1, z0, z1] in the mesh's frame, None for none), its lightmap in channel `lm_channel`, placed
+    at `scale` (the recipe is in world units: a made slab stands at scale 1)."""
+    T = mc.Tris(m, scale, lm_channel)
+    if collision:
+        collision = [[v for k in range(3) for v in sorted((b[2 * k] * scale[k], b[2 * k + 1] * scale[k]))]
+                     for b in collision]
     if not len(T.tris):
         raise ValueError('%s has no triangles' % name)
     nz = T.normal[:, 2]
@@ -308,8 +327,7 @@ def collision_boxes(p, mesh):
     import collision
     try:
         c = collision.line_collision(p, mesh)
-    except (ValueError, KeyError) as err:
-        del err
+    except (ValueError, KeyError):
         return None
     if not c.get('simple') or not c.get('elements'):
         return None
@@ -328,12 +346,10 @@ def measure(package, what):
     if p.cls(mesh) != 'FracturedStaticMesh':
         raise ValueError('%s is no fracturing mesh' % p.name(mesh))
     m = gen_mesh.read(p, mesh)
-    entry = measure_mesh(m, p.name(mesh), mc.light_of(p, comp), collision_boxes(p, mesh))
     scale = mc.scale_of(p, actor, comp)
+    entry = measure_mesh(m, p.name(mesh), mc.light_of(p, comp), collision_boxes(p, mesh),
+                         int(p.effective(mesh, 'LightMapCoordinateIndex', 1) or 1), scale)
     entry['facts'].update(mesh=p.name(mesh), actor=p.name(actor).split('.')[-1], scale=[_round(v, 4) for v in scale])
-    if not mc.unit_scale(scale):
-        entry['warnings'].append('its placing is scaled (%s): the made slab is the mesh\'s own size' %
-                                 ' x '.join('%g' % _round(v, 3) for v in scale))
     return entry
 
 

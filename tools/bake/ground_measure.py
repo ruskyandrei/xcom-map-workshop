@@ -72,6 +72,7 @@ PAINT_ROOT = re.compile(r'Vertex_?Paint|Vertex_?Colou?r|VPaint|(?<![A-Za-z])VP_|
 LAYER_SWITCH = re.compile(r'Dual|Blend|Terrain|Layer|Vertex|Paint', re.I)
 DIFFUSE_NAME = re.compile(r'dif|diffuse|albedo|colou?r', re.I)
 NOT_DIFFUSE = re.compile(r'norm|nrm|_n$|spec|spc|mask|emis|ems|opac|opc|refl|cube|height|bump|noise', re.I)
+DIFFUSE_PARAMS = ('Diffuse', 'Diffuse_Base', 'DiffuseMap', 'Diffuse Map', 'Diffuse_BaseA', 'Dif', 'DiffuseTexture')
 OVERLAY_ROOT = re.compile(r'Opc|Opacity|Foliage|Patch|Decal|OpqMask|Cutout|Alpha|Grass|Leaf|Leaves', re.I)
 BAD_BLEND = ('BLEND_Translucent', 'BLEND_Additive', 'BLEND_Modulate', 'BLEND_SoftMasked', 'BLEND_AlphaComposite',
              'BLEND_DitheredTranslucent')
@@ -123,18 +124,34 @@ def material_record(p, mat):
             if res:
                 break
     rec['uvs'] = res['uvs'] if res else None
-    switches = {}
+    switches, textures = {}, {}
     if root > 0:
         for e in p.refs(p.own(root, 'Expressions')):
-            if e > 0 and p.cls(e) == 'MaterialExpressionStaticSwitchParameter' and p.own(e, 'ParameterName'):
+            if e <= 0 or p.own(e, 'ParameterName') is None:
+                continue
+            if p.cls(e) == 'MaterialExpressionStaticSwitchParameter':
                 switches[p.own(e, 'ParameterName')] = bool(p.own(e, 'DefaultValue', False))
+            elif p.cls(e).startswith('MaterialExpressionTextureSampleParameter'):
+                tex = p.own(e, 'Texture', 0)
+                textures[p.own(e, 'ParameterName')] = p.name(tex) if tex else None
     for c in reversed(chain[:-1]):
         if c > 0:
+            for st in p.structs(p.own(c, 'TextureParameterValues')):
+                key = st.get(('ParameterName', 0), {}).get('value')
+                val = st.get(('ParameterValue', 0), {}).get('value')
+                if key is not None:
+                    textures[key] = p.name(val) if val else None
             try:
                 switches.update(viewer_materials.static_switches(p, c))
             except (ValueError, struct.error):
                 pass
     rec['switches'] = dict(sorted(switches.items()))
+    diffuse = next((textures[k] for k in DIFFUSE_PARAMS if textures.get(k)), None)
+    if diffuse is None:
+        diffuse = next((v for k, v in sorted(textures.items())
+                        if v and (DIFFUSE_NAME.search(k) or DIFFUSE_NAME.search(v.rsplit('.', 1)[-1]))
+                        and not NOT_DIFFUSE.search(k) and not NOT_DIFFUSE.search(v.rsplit('.', 1)[-1])), None)
+    rec['diffuse'] = diffuse.rsplit('.', 1)[-1] if diffuse else None
     layers = {v for v in (res['textures'] if res else []) if v
               and DIFFUSE_NAME.search(v.rsplit('.', 1)[-1]) and not NOT_DIFFUSE.search(v.rsplit('.', 1)[-1])}
     rec['diffuseLayers'] = len(layers)
@@ -144,18 +161,19 @@ def material_record(p, mat):
     return rec
 
 
-def setting_of(name):
-    """The material's setting by its name (ground-audit.py's settings), or None."""
+def setting_of(name, diffuse=None):
+    """The material's setting by its name, then its diffuse texture's (ground-audit.py's settings), or None."""
     short = name.rsplit('.', 1)[-1]
-    for text in (short, name):
+    for text in (short, name, diffuse or ''):
         for setting, rx in SETTINGS:
             if rx.search(text):
                 return setting
     return None
 
 
-def left_out(rec, name, textured=True):
-    """Why the material makes no ground look (ground-audit.py's reasons, D14), as words, or []."""
+def left_out(rec, name, textured=True, meshes=()):
+    """Why the material makes no ground look (ground-audit.py's reasons, D14), as words, or []: `textured` whether a
+    placing of it has a texture lightmap, `meshes` the meshes it is placed on (distant scenery by their names too)."""
     why = []
     if rec.get('rootClass') == 'DecalMaterial' or rec.get('cls') == 'DecalMaterial':
         why.append('a decal material')
@@ -167,7 +185,7 @@ def left_out(rec, name, textured=True):
         why.append('masked: a cut-out overlay, which draws holes')
     if (rec.get('uvs') or 0) >= 3:
         why.append('it samples %d texture channels (a made piece has two)' % rec['uvs'])
-    if SCENERY.search(name):
+    if SCENERY.search(name) or any(SCENERY.search(m) for m in meshes):
         why.append('distant scenery')
     if not textured:
         why.append('no texture lightmap seen on it')
@@ -220,12 +238,12 @@ def _round(v, digits=2):
     return round(float(v), digits) + 0.0
 
 
-def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name='', record=None):
+def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name='', record=None, lm_channel=1):
     """The entry (the module's words) of the decoded mesh `m` (gen_mesh's form) placed at `scale`, its slot `slot`
     drawing material `name` (its material_record `record`, or None), the placing's lightmap `light` (dict(type, rect,
     painted) from measure_common.component_light) and painted colours `colours` (a list of 4 bytes a vertex, or
-    None)."""
-    T = mc.Tris(m, scale)
+    None; `lm_channel` the mesh's lightmap channel)."""
+    T = mc.Tris(m, scale, lm_channel)
     if not (T.slot == slot).any():
         raise ValueError('the mesh draws nothing in slot %d' % slot)
     size = [float(v) for v in T.pos.max(0) - T.pos.min(0)]
@@ -263,7 +281,7 @@ def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name=
     thickness = size[2] if MIN_PATCH <= size[2] <= MAX_PATCH else DEFAULT_PATCH
     rect = (light or {}).get('rect')
     dens = mc.density(rect, T.lightmap_area(), float(T.area.sum()))
-    repeat = found['repeat'][0] or 256.0
+    repeat = found['repeat'][0] or found['repeat'][1] or 256.0
     recipe = dict(material=name, slot=int(slot), sections=int(T.sections), uv=dict(top=uv), repeat=_round(repeat, 1),
                   thickness=_round(thickness, 1), colours=dict(outside=colour, interior=colour),
                   lightmap=dict(density=max(MIN_DENSITY, _round(dens, 4)) if dens else DEFAULT_DENSITY, **LIGHTMAP),
@@ -316,14 +334,15 @@ def measure(package, what, material=None):
         record = dict(cls=p.cls(ref), error=str(err)[:120])
     light = mc.light_of(p, comp)
     scale = mc.scale_of(p, actor, comp)
-    entry = measure_mesh(m, slot, scale, light, light.get('colours'), name, record)
-    why = left_out(record, name, light.get('type') == 2)
+    entry = measure_mesh(m, slot, scale, light, light.get('colours'), name, record,
+                         int(p.effective(mesh, 'LightMapCoordinateIndex', 1) or 1))
+    why = left_out(record, name, light.get('type') == 2, (p.name(mesh),))
     if p.cls(actor) not in COPYABLE:
         why.append('its placing is an %s, which the Build doesn\'t copy' % p.cls(actor))
     if why:
         entry['warnings'].insert(0, 'left out of the ground looks: %s' % '; '.join(why))
     entry['facts'].update(mesh=p.name(mesh), actor=p.name(actor).split('.')[-1], cls=p.cls(actor), slot=slot,
-                          material=name, setting=setting_of(name), leftOut=why or None,
+                          material=name, setting=setting_of(name, record.get('diffuse')), leftOut=why or None,
                           blendMode=record.get('blendMode'), root=record.get('root'),
                           lighting=record.get('lightingModel'), uvs=record.get('uvs'),
                           twoSided=record.get('twoSided'))

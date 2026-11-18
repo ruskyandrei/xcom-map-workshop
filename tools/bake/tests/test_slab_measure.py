@@ -170,5 +170,40 @@ class Layouts(unittest.TestCase):
         self.assertEqual(slab_measure.verdict(result), 'kind thick, made flat')
 
 
+class BuiltInAMap(unittest.TestCase):
+    """A slab in a look given whole, made by the Build on a copy of its donor: URB_TruckStop's deck (three sections,
+    the top in slot 1, slot 0 left empty)."""
+    MESH = 'URB_TruckStop_FRAC.Meshes.TS_FloorDeck_FRACTURED'
+
+    def test_the_copy_has_the_made_mesh_with_the_donors_sections(self):
+        import tempfile
+        import native_copy
+        from package import Package
+        path, why = labpaths.install_map('URB_TruckStop')
+        if not (path and path.exists()):
+            self.skipTest(why)
+        p = Package(path)
+        entry = slab_measure.measure(p, self.MESH)
+        actor, _, _ = mc.find_placing(p, self.MESH, slab_measure.FRACTURING, 'FracturedStaticMeshComponent')
+        slab = dict(x0=0.0, x1=288.0, y0=0.0, y1=192.0, seed=3,
+                    look=dict(mesh=self.MESH, measure=slab_measure.VERSION, recipe=entry['recipe']))
+        location = list(p.effective(actor, 'Location', [0.0, 0.0, 0.0]))
+        with tempfile.TemporaryDirectory() as tmp:
+            m = native_copy.build(path, Path(tmp), 'Deck', [dict(
+                actor=p.name(actor).split('.')[-1], label='Deck', location=location, rotation=[0, 0, 0],
+                generated=dict(kind='fracSlab', version=1, slab=slab))], bake=False)
+            q = Package(Path(tmp) / 'Deck.upk')
+            copy = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Deck']
+            made = q.own(q.own(copy, 'FracturedStaticMeshComponent'), 'StaticMesh')
+            self.assertEqual(q.name(made).split('.')[-1], frac_slab.mesh_name(slab))
+            lod = gen_mesh.read(q, made)['lods'][0]
+            self.assertEqual([s['slot'] for s in lod['sections']], [0, 1, 2])
+            self.assertEqual(lod['sections'][0]['triangles'], 0)
+            rec = {r['label']: r for r in m['nativeCopies']['generatedWalls']}['Deck']
+            self.assertEqual(rec['kind'], 'fracSlab')
+            self.assertEqual(rec['columns'], 4 * 3)        # 3 by 2 tiles: a column a cell, the last row and column 1 wide
+            self.assertAlmostEqual(rec['box'][5] - rec['box'][4], entry['recipe']['top'] - entry['recipe']['bottom'], 2)
+
+
 if __name__ == '__main__':
     unittest.main()

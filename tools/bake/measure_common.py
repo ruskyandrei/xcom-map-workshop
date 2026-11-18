@@ -14,6 +14,7 @@ import struct
 import numpy as np
 
 PL = 'TheWorld.PersistentLevel.'
+CONSTANT = 1e6      # a texture coordinate that repeats over more world units than this doesn't change: no gradient
 
 
 def persistent(p):
@@ -205,7 +206,9 @@ def planar_map(T, sel, axes=(0, 1)):
     """The texture's planar map on the triangles `sel` of Tris `T` over the world axes `axes` (x, y for a top):
     dict(u [a, b, c], v [d, e, f] (per world unit; c and f modulo 1), spread [u, v] (how far the vertices lie from it,
     modulo 1: see the module's words), repeat [u, v] (world units a repeat: 1 / the gradient's length), axis [u, v]
-    ('+x', '-y'... the axis each mostly runs along, or 'oblique')), or None for no faces."""
+    ('+x', '-y'... the axis each mostly runs along, or 'oblique')), or None for no faces. A coordinate that doesn't
+    change across the faces (a repeat longer than CONSTANT units: a trim's top drawn from one strip of its texture) has
+    no gradient, its offset its value, its repeat and axis None."""
     if not sel.any():
         return None
     tris = T.tris[sel]
@@ -230,11 +233,12 @@ def planar_map(T, sel, axes=(0, 1)):
         # laid flat: the gradient's direction across the two axes, its length its own (a slope's repeat kept)
         flat = np.where(fl[:, None] > 1e-12, flat * (gl / np.maximum(fl, 1e-12))[:, None], 0.0)
         live = ok & (gl > 1e-12)
-        if not live.any():
-            continue
-        ww = w[live]
-        a = _weighted_median(flat[live, 0], ww)
-        b = _weighted_median(flat[live, 1], ww)
+        if live.any():
+            ww = w[live]
+            a = _weighted_median(flat[live, 0], ww)
+            b = _weighted_median(flat[live, 1], ww)
+        if not live.any() or math.hypot(a, b) < 1.0 / CONSTANT:
+            live, ww, a, b = ok, w[ok], 0.0, 0.0
         # the offset: each vertex's value less the map, modulo 1
         verts = np.unique(tris[live])
         vw = np.zeros(len(T.pos))
@@ -250,8 +254,8 @@ def planar_map(T, sel, axes=(0, 1)):
         length = math.hypot(a, b)
         out[name] = [a, b, off]
         out['spread'][c] = spread
-        out['repeat'][c] = 1.0 / length if length > 1e-12 else None
-        if length > 1e-12:
+        out['repeat'][c] = 1.0 / length if length > 0 else None
+        if length > 0:
             k = 0 if abs(a) >= abs(b) else 1
             out['axis'][c] = (('+' if (a, b)[k] > 0 else '-') + 'xyz'[axes[k]]
                               if abs((a, b)[k]) >= 0.99 * length else 'oblique')

@@ -42,6 +42,7 @@ import math
 from pathlib import Path
 import random
 
+import frac_slab
 import frac_wall
 import hulls
 
@@ -275,7 +276,7 @@ def build(shape, template=None, colour=None):
     if colour:
         R = dict(R, colours=dict(outside=bytes(colour).hex(), interior=bytes(colour).hex()))
     check(shape)
-    template = template or default_template()
+    template = frac_slab.two_channels(template or default_template())
     faces = faces_of(shape)
     corners, _ = corners_and_faces(shape)
     centre = tuple((min(c[k] for c in corners) + max(c[k] for c in corners)) / 2 for k in range(3))

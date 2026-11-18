@@ -216,6 +216,16 @@ class Paint:
         return min(found, key=lambda q: (q[0] - x) ** 2 + (q[1] - y) ** 2)[2]
 
 
+def two_channels(template):
+    """`template` with the vertex layout a made mesh is written in, two half-float texture channels (the second the
+    lightmap's), where the donor's is another (three channels, full floats: some of the game's ground pieces); the
+    donor's as it is otherwise."""
+    lod = template['lods'][0]
+    if lod['texcoords'] == 2 and not lod['fullUVs']:
+        return template
+    return dict(template, lods=[dict(lod, texcoords=2, fullUVs=0, vertexStride=16)] + list(template['lods'][1:]))
+
+
 def default_template():
     """A slab donor's fields other than its geometry (frac_wall.default_template's, its interior index the slabs')."""
     t = frac_wall.default_template()
@@ -233,7 +243,7 @@ def build(slab, template=None):
     dict(fragments, solids, lightmapRect, counts)."""
     R = look_of(slab)
     check(slab)
-    template = template or default_template()
+    template = two_channels(template or default_template())
     paint = Paint(template)
     zb, zt = R['bottom'], R['top']
     top_slot, under_slot = R['slots']['top'], R['slots']['underside']

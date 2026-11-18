@@ -8,6 +8,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The slab and ground catalogues: every floor, roof and ground look of the install** (custom geometry plan, M4a item
+  3; M4 work order B steps 4 and 5; branch off `fracturing-wall-poc`).
+  - [slab_catalogue.py](tools/bake/slab_catalogue.py) `build` writes [looks/slabs.json](tools/bake/looks/slabs.json):
+    every fracturing floor and roof placed in the install's 151 maps (base maps and streams), one entry a mesh, with
+    its placings by map, its donor (at scale 1 where it has one, a base map before a stream, outside the DLC maps),
+    its measured recipe, warnings, facts (role `floor` or `roof`, kind, thickness, layout, materials by slot) and the
+    twin check's verdict, a readable name and a setting from its top material.
+    - 55 looks (14 flat floors, 26 flat roofs, 8 pitched and 7 thick roofs), 175 placings, as the slab audit found;
+      the twin check passes for 32 (all 25 of the Bar's layout among them). The rest: the 15 pitched and thick roofs
+      made flat (D13), footprints that aren't whole tiles, and trims, beams and a shack's roof whose fragments a made
+      slab can't match.
+  - [ground_catalogue.py](tools/bake/ground_catalogue.py) `build` writes [looks/ground.json](tools/bake/looks/ground.json):
+    one entry a material over the install's 97 base maps (each actor's own mesh component, as the Build copies it):
+    the ground and rock materials nothing leaves out, painted ones kept in their donor's commonest colour (D14).
+    - 193 looks: the ground audit's 148 candidates and the 45 it left out only for painted colours; 16 of them from
+      donors placed scaled (a road plane at 2, mud plateaus at 5, water planes at 29 and 108), made at scale 1 with
+      their placings' repeats. The twin check passes for all 193; what a made piece lacks is in their warnings (a
+      texture laid out piece by piece, a top that isn't flat, painted layers shown as one).
+  - Both are sorted and written one way (each look a line a field), with a `--check` that builds again and compares;
+    `lwrOnly` is false for every look, by the rule their `about` states (every map read is one Firaxis cooked; the
+    install has no list of the files Long War Rebalance added).
+  - Fixes found by building them:
+    - [frac_slab.py](tools/bake/frac_slab.py) `two_channels`, used by frac_slab and [ground.py](tools/bake/ground.py):
+      a made mesh is written with two half-float texture channels whatever its donor's layout (some ground pieces
+      have three, or full floats, which the writer refused);
+    - [frac_walls.py](tools/bake/frac_walls.py): a made mesh's LightMapCoordinateIndex is 1 (its lightmap's channel)
+      whatever its donor saves; a made slab's copy of a scaled donor stands at scale 1, as a ground shape's (`UNSCALED`),
+      the editor drawing both at scale 1;
+    - [slab_measure.py](tools/bake/slab_measure.py) measures in world units (the placing's scale applied) and reads
+      the lightmap from the mesh's own lightmap channel, as [ground_measure.py](tools/bake/ground_measure.py) does;
+      `classify_mesh` for the catalogue's pass;
+    - [measure_common.py](tools/bake/measure_common.py) `planar_map`: a texture coordinate that doesn't change across
+      a top (a trim drawn from one strip of its texture) has no gradient rather than none at all;
+    - [ground_measure.py](tools/bake/ground_measure.py): a material's setting also by its diffuse texture, distant
+      scenery also by its meshes' names (as the audit).
+  - Checked by: [test_catalogues.py](tools/bake/tests/test_catalogues.py) (both files LF, sorted, written one way,
+    with the contract's fields, today's looks' donors in them, every look's recipe building; a build over URB_Bar
+    gives the same bytes twice); [test_slab_measure.py](tools/bake/tests/test_slab_measure.py)'s Build of a look
+    given whole on URB_TruckStop's deck (three sections, slot 0 empty, its columns by the slabs' rule); a second full
+    build of each file (`--check`: the same bytes); the scratch comparison of today's builds (the same bytes); the
+    bake and repo suites.
+  - Known gaps: a pitched roof made from numbers and a made slab's fragments bigger than two tiles are for later; the
+    picker, the page's drawing of the looks and looks.py are the main session's.
+
 - **The ground measurer, ground shapes in any look, and scaled donors at scale 1** (custom geometry plan, M4 work
   order B step 3 and M4b item 5; branch off `fracturing-wall-poc`).
   - [ground_measure.py](tools/bake/ground_measure.py) (`VERSION` 1), grown from research/evidence/ground-audit.py:

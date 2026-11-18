@@ -131,7 +131,7 @@ class PierDonors(unittest.TestCase):
     def test_a_scaled_donor_gives_the_repeat_its_placing_draws(self):
         R = self.scaled['recipe']
         self.assertEqual(R['measured']['scale'], [2.0, 2.0, 2.0])
-        _, comp, mesh = mc.find_placing(self.p, self.SCALED, ground_measure.PLAIN, 'StaticMeshComponent')
+        _, _, mesh = mc.find_placing(self.p, self.SCALED, ground_measure.PLAIN, 'StaticMeshComponent')
         unscaled = ground_measure.measure_mesh(gen_mesh.read(self.p, mesh), R['slot'], name=R['material'])['recipe']
         self.assertAlmostEqual(R['repeat'], 2 * unscaled['repeat'], 0)
         self.assertIsNone(self.scaled['facts']['leftOut'])
