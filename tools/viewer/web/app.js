@@ -10612,6 +10612,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         return [h.key, [...project(p), ...project(p.clone().addScaledVector(h.dir, units))]]; })) : {}; },
     wallState: id => { const r = madeWallRoot(id); return r ? wallState(r) : null; },
+    // the map's surface below a point (game x, y, from z down), as the wall tool and the Add panel find the floor
+    groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
     wallMeshReady: id => { const r = madeWallRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
     addWallOpening, wallPanelText: () => $('wallBox').hidden ? null : $('wallBox').innerText,
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,

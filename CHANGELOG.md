@@ -8,6 +8,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### EXP-74 prepared (custom walls M2, run B)
+
+- [exp74_project.py](tools/editor/examples/exp74_project.py) writes EXP-74's two projects on URB_Bar (baked and
+  quick, the same walls): a 16-tile wall under the awning's lamps beside the donor's own mesh relit, a 2-tile wall, a
+  one-storey wall and a one-storey wall standing on another in the parking lot.
+- [EXP-74](research/experiments/EXP-74-wall-light.md): what the run checks (sharpness and seams against the
+  reference, the moon's shadow, the lamps, one storey, a wall on a wall, the break, the quick Build's even light).
+- The page's test hooks get `viewer.groundAt(x, y, fromZ)`, the floor the wall tool and the Add panel find
+  ([app.js](tools/viewer/web/app.js)), for scripts that place pieces on the map's floors.
+
+Checked: both projects compile with no warnings; both build in a test server's scratch folders (the baked Build's
+log gives each wall its own lightmap rectangle and the relight a shadow map of the moon for each; the quick Build's
+names the piece each wall's even light comes from); the node suite.
+
 ### Custom walls, stage M2 (editor side): one-storey walls
 
 - A made wall has a white handle on its top: dragged down past half a storey it makes the wall one storey (208 tall,
