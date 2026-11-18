@@ -344,9 +344,10 @@ def add_stream(line, patch):
 def base_records(maps, base):
     """The base map's DefaultMaps.ini records, one per mission it serves (most maps have several: an abduction,
     a terror site, a council mission...), in file order: its live records, or the commented-out ones the editor takes
-    for a switched-off map (maplist.records: Act1_IntroLevel's abduction)."""
+    for a switched-off map (maplist.records: Act1_IntroLevel's abduction). The name matches whatever its case, as the game's
+    does: the farm's file is CsmallScout_Farm.upk, its records name CSmallScout_Farm."""
     records = [l for l in maplist.records('\n'.join(maps))
-               if re.search(r'(?<![A-Za-z])Name="%s"' % re.escape(base), l)]
+               if re.search(r'(?<![A-Za-z])Name="(?i:%s)"' % re.escape(base), l)]
     if not records:
         raise BuildError('the game install has no DefaultMaps.ini record for %s' % base)
     return records
@@ -444,18 +445,19 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
         slots.append(slot)
         stands.append([index])
         matched += [dict(record=len(records) - 1, marker=marker, why=why) for marker, why in mission_kinds.matched(text)]
-    tag = 'MapName="%s"' % base
+    # (the base map's name in the landing-zone and mini-mod lines matches whatever its case, as in base_records)
+    tag = re.compile(re.escape('MapName="%s"' % base), re.IGNORECASE)
     # a map that lands no Skyranger (TempleShip) has no landing zones, and its variant needs none
     own = zones
-    zones = None if lz is None else [l.replace(tag, 'MapName="%s"' % variant) for l in lz
-                                     if tag in l and not l.lstrip().startswith(';')]
+    zones = None if lz is None else [tag.sub(lambda _: 'MapName="%s"' % variant, l, count=1) for l in lz
+                                     if tag.search(l) and not l.lstrip().startswith(';')]
     ids = None
     if own is not None and lz is not None:
         zones = [spawns.write_line(variant, z) for z in own if z.get('lwr', True) is not False]
         ids = [z['id'] for z in own if z.get('lwr', True) is not False]
-    rule = 'Map="%s")' % base
-    rules = None if minimods is None else [l.replace(rule, 'Map="%s")' % variant) for l in minimods
-                                           if rule in l and not l.lstrip().startswith(';')]
+    rule = re.compile(r'(?<![A-Za-z])' + re.escape('Map="%s")' % base), re.IGNORECASE)
+    rules = None if minimods is None else [rule.sub(lambda _: 'Map="%s")' % variant, l) for l in minimods
+                                           if rule.search(l) and not l.lstrip().startswith(';')]
     return dict(maps=records, missions=missions, recordMissions=stands, matchedNames=matched, streamSlots=slots,
                 landingZones=zones, miniMods=rules, **({'missionsFromProject': True} if isinstance(missions_list, list) else {}),
                 **({'landingZonesFromProject': True, 'landingZoneIds': ids} if own is not None and lz is not None else {}))

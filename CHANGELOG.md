@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A Build on the farm map finds its DefaultMaps.ini records** (found preparing EXP-78; a fix for main as well).
+  - [build.py](tools/editor/build.py) `base_records` and `config_lines` match the base map's name whatever its case,
+    as the game does, in its DefaultMaps.ini records, landing-zone lines and mini-mod rules. The farm's file is
+    `CsmallScout_Farm.upk` while its records, landing zones and rules name `CSmallScout_Farm`.
+  - Before, a Build of any project on that map stopped with "the game install has no DefaultMaps.ini record for
+    CsmallScout_Farm". A map whose records matched but whose landing zones were spelled otherwise would have lost
+    its landing zones without a word.
+  - Checked by: the editor suite's ConfigLines (`test_the_base_map_is_found_whatever_the_case_of_its_name`) and a
+    baked Build of EXP-78 on the farm.
+
 - **EXP-75 run C passed; F-127 explained; made pieces' lightmaps fit small atlases** (custom geometry plan, M3 and M6;
   branch `fracturing-wall-poc`).
   - [EXP-75](research/experiments/EXP-75-joined-walls.md) run C, played unattended. The L's and T's corners are

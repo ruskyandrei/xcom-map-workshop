@@ -77,6 +77,19 @@ class ConfigLines(unittest.TestCase):
         self.assertEqual(c['landingZones'], ['LZArray=(MapName="%s",StartLoc=(X=1,Y=2,Z=3))' % VARIANT])
         self.assertEqual(c['miniMods'], ['AbductionMapRules=(iMaxDifficulty=eMissionDiff_Moderate, Map="%s")' % VARIANT])
 
+    def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
+        # the farm's file is CsmallScout_Farm.upk and its records, landing zones and rules name CSmallScout_Farm: the
+        # game matches names whatever their case, and so does the Build
+        bar = record('bar')
+        c = build.config_lines(['[XComGame.XComMapManager]', bar],
+                               ['LZArray=(MapName="urb_bar",StartLoc=(X=1,Y=2,Z=3))'],
+                               ['AbductionMapRules=(iMaxDifficulty=eMissionDiff_Moderate, Map="URB_BAR")'],
+                               'Urb_Bar', VARIANT, PATCH, '%s (Test) |0' % VARIANT)
+        line, = c['maps']
+        self.assertIn('Name="%s"' % VARIANT, line)
+        self.assertEqual(c['landingZones'], ['LZArray=(MapName="%s",StartLoc=(X=1,Y=2,Z=3))' % VARIANT])
+        self.assertEqual(c['miniMods'], ['AbductionMapRules=(iMaxDifficulty=eMissionDiff_Moderate, Map="%s")' % VARIANT])
+
     def test_the_variant_streams_its_own_intro_copy_in_place_of_the_original(self):
         bar = record('bar')
         self.assertEqual(build.intro_stream(bar), 'CIN_DropshipIntros')
