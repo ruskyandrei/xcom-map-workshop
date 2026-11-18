@@ -7,6 +7,7 @@ the collision triangles naming their slot and fragment, the faces covering the o
 written and read back, the same numbers the same mesh. With the configured install (tools/viewer/settings.py) the
 recipe and the default template are checked against the donor, URB_Bar's URB_BarIntWallB_FRACTURED."""
 from collections import Counter
+import math
 from pathlib import Path
 import sys
 import unittest
@@ -211,6 +212,75 @@ class Walls(unittest.TestCase):
     def test_fragment_counts(self):
         self.assertEqual(built(TWIN)['counts']['fragments'], 30)
         self.assertEqual(built(CUSTOM)['counts']['fragments'], 27)
+
+
+class JoinedEnds(unittest.TestCase):
+    """(M3 item 2) A wall's ends joined to another made wall: 'through' to the far face of the wall it meets at an L,
+    'line' on the tile edge against the next wall end to end, 'free' 8 short as before; the corner of an L closed."""
+    W = dict(x0=0.0, x1=384.0, openings=[dict(x0=288.0, x1=384.0, z0=-16.0, z1=160.0)], seed=5)
+
+    def test_each_style_stops_the_solid_where_it_says(self):
+        for ends, (a, b) in ((('free', 'free'), (8.0, 376.0)), (('through', 'line'), (-8.0, 384.0)),
+                             (('line', 'through'), (0.0, 392.0))):
+            wall = dict(self.W, ends=list(ends))
+            out = built(wall)
+            xs = [p[0] for p in out['mesh']['lods'][0]['positions']]
+            self.assertEqual((min(xs), max(xs)), (a, b), ends)
+            self.assertEqual((min(lo[0] for lo, _ in out['solids']), max(hi[0] for _, hi in out['solids'])), (a, b))
+        # the doorway at the far tile keeps its sides; past it, at a through end, 8 of solid at the corner
+        self.assertEqual(frac_wall.solid_wall(dict(self.W, ends=['free', 'through']))['openings'],
+                         [dict(x0=288.0, x1=384.0, z0=-16.0, z1=160.0)])
+        self.assertEqual(frac_wall.ends_of(self.W), ('free', 'free'))
+
+    def test_a_joined_wall_is_closed_and_named_apart(self):
+        wall = dict(self.W, ends=['through', 'line'])
+        m = built(wall)['mesh']
+        edges = {}
+        for _, f, tri, _ in triangles(m):
+            tri = [tuple(round(c, 3) for c in p) for p in tri]
+            e = edges.setdefault(f, Counter())
+            for a, b in ((0, 1), (1, 2), (2, 0)):
+                e[tri[a], tri[b]] += 1
+        for f, e in edges.items():
+            self.assertEqual([k for k, c in e.items() if e.get((k[1], k[0]), 0) != c], [], 'fragment %d' % f)
+        self.assertNotEqual(frac_wall.mesh_name(wall), frac_wall.mesh_name(self.W))
+
+    def test_bad_ends_are_refused(self):
+        import frac_walls
+        for ends in (['free'], ['free', 'mitre'], 'free'):
+            with self.assertRaises(ValueError):
+                frac_wall.ends_of(dict(self.W, ends=ends))
+        frac_walls.check(dict(kind='fracWall', version=2, wall=dict(self.W, ends=['through', 'free'])))
+        frac_walls.check(dict(kind='fracWall', version=1, wall=self.W))
+        with self.assertRaises(ValueError):
+            frac_walls.check(dict(kind='fracWall', version=1, wall=dict(self.W, ends=['through', 'free'])))
+        with self.assertRaises(ValueError):
+            frac_walls.check(dict(kind='fracWall', version=3, wall=self.W))
+
+    def test_an_l_closes_its_corner_and_touches_the_game_tiles_the_games_corners_do(self):
+        # wall A along x from 0 to 384 (its x1 end through), wall B along y from the corner (0 at A's line, its x0 end
+        # free: it butts on A's face). The game counts its tiles from a unit under the piece grid and marks a tile
+        # partly occupied where a solid reaches into it (F-116): the corner square, filled, reaches the tile outside the
+        # corner by 7 units each way, as every L of the game's (none leaves its corner square empty: wall-joints.py).
+        a = built(dict(x0=0.0, x1=384.0, openings=[], seed=1, ends=['free', 'through']))['solids']
+        b = built(dict(x0=0.0, x1=384.0, openings=[], seed=2, ends=['free', 'free']))['solids']
+        # B turned a quarter (its x along +y) and standing at A's x1
+        boxes = [(lo[0], hi[0], lo[1], hi[1]) for lo, hi in a]
+        boxes += [(384.0 - hi[1], 384.0 - lo[1], lo[0], hi[0]) for lo, hi in b]
+        # the corner square [376, 392] x [-8, 8] is filled
+        for x, y in ((380.0, -6.0), (390.0, -6.0), (390.0, 6.0), (378.0, 6.0)):
+            self.assertTrue(any(x0 <= x <= x1 and y0 <= y <= y1 for x0, x1, y0, y1 in boxes), (x, y))
+
+        def tiles(box):
+            x0, x1, y0, y1 = box
+            first = lambda v: int(math.floor((v + 1) / 96.0 + 1e-9))  # noqa: E731
+            last = lambda v: int(math.ceil((v + 1) / 96.0 - 1e-9))  # noqa: E731
+            return {(i, j) for i in range(first(x0), last(x1)) for j in range(first(y0), last(y1))}
+        hit = set().union(*(tiles(b) for b in boxes))
+        free = set().union(*(tiles(b) for b in [(lo[0], hi[0], lo[1], hi[1]) for lo, hi in
+                                                 built(dict(x0=0.0, x1=384.0, openings=[], seed=1))['solids']]
+                             + boxes[len(a):]))
+        self.assertEqual(hit - free, {(4, -1)})
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)

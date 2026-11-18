@@ -72,7 +72,7 @@ class Columns(unittest.TestCase):
         ok = dict(kind='fracWall', version=1, wall=dict(x0=0, x1=96, openings=[]))
         self.assertIs(frac_walls.check(ok), ok)
         self.assertEqual(frac_walls.check(dict(kind='relit', version=1))['kind'], 'relit')
-        for bad in (None, dict(kind='wall'), dict(kind='fracWall', version=2, wall=ok['wall']),
+        for bad in (None, dict(kind='wall'), dict(kind='fracWall', version=3, wall=ok['wall']),
                     dict(kind='fracWall', version=1, wall=dict(x0=0, x1=12)),
                     dict(kind='fracWall', version=1, wall=dict(x0=0, x1=39)),
                     dict(kind='fracWall', version=1, wall=dict(x0=0, x1=96, openings=[dict(x0=90, x1=120, z0=0, z1=10)]))):
@@ -416,6 +416,109 @@ class GroupWithMadeWall(unittest.TestCase):
             # each column it is in meets its box grown by 24
             self.assertTrue(x0 < box[1] + 24 and x1 > box[0] - 24 and z0 < box[5] + 24 and z1 > box[4] - 24, (at, box))
         self.assertEqual([len(d['columns']) for d in nc['groupListings']], [len(at)])
+
+
+class NeighbourRule(unittest.TestCase):
+    """(M3 item 3) The game's rule for the neighbour lists (research/native/frac-neighbours.md): a column lists another
+    piece's column when its box touches or overlaps that column's box cut to that piece's bounds grown by one."""
+
+    def test_touching_counts_and_the_cut_is_the_other_pieces(self):
+        import frac_walls
+        a = [0, 96, -8, 8, 0, 192]
+        self.assertTrue(frac_walls.lists_column(a, [96, 192, -8, 8, 0, 192], [None] * 6))          # touching
+        self.assertFalse(frac_walls.lists_column(a, [97, 192, -8, 8, 0, 192], [None] * 6))
+        # a top-storey column reaching over its piece: cut to the piece's top (100) grown by one, a column over it
+        # isn't listed by it, but it lists that column (the one-way listings of F-69)
+        tall = [0, 96, 8, 30, 192, 384]
+        self.assertFalse(frac_walls.lists_column(tall, [0, 96, -8, 8, 0, 192], [None, None, None, None, 0, 100]))
+        self.assertTrue(frac_walls.lists_column([0, 96, -8, 8, 0, 192], tall, [None] * 6))
+
+
+@unittest.skipUnless(BAR.exists(), NO_BAR)
+class JoinedMadeWalls(unittest.TestCase):
+    """(M3 items 2 and 3) Made walls that meet, built in URB_Bar: an L (M1 along x, running through; M2 a quarter turn
+    from its far end, butting) and a T's stem (M3) on the Bar's own inside wall XComDecoFracLevelActor_16 (along x at
+    y 672). Their columns and the walls they touch list each other's by the game's rule, at the joint only."""
+    MAP_WALL = 'XComDecoFracLevelActor_16'
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+
+        def wall(label, at, yaw, ends=None):
+            w = dict(x0=0.0, x1=384.0, openings=[], seed=3)
+            gen = dict(kind='fracWall', version=1, wall=w)
+            if ends:
+                gen = dict(kind='fracWall', version=2, wall=dict(w, ends=ends))
+            return dict(actor=DONOR, location=at, rotation=[0, yaw, 0], label=label, generated=gen)
+        copies = [wall('M1', [-1536.0, 1440.0, 16.0], 0, ['free', 'through']),
+                  wall('M2', [-1152.0, 1440.0, 16.0], 16384),
+                  wall('M3', [-1440.0, 672.0, 16.0], 16384)]
+        cls.m = native_copy.build(BAR, out, 'FracJoined', copies)
+        cls.q = Package(out / 'FracJoined.upk')
+        nc = cls.m['nativeCopies']
+        cls.export = {c['label']: c['export'] for c in nc['copies']}
+        cls.export[cls.MAP_WALL] = cls.q.by_name[PL + cls.MAP_WALL]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def columns(self, name):
+        import native_copy
+        q = self.q
+        i = self.export[name]
+        out = []
+        for c in q.structs(q.own(i, 'FragmentColumns')):
+            b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
+            lists = [(e[('FracActor', 0)]['value'], e.get(('ColumnIndex', 0), {'value': 0})['value'])
+                     for e in q.structs(c.get(('FracActorCache', 0), {}).get('value'))]
+            out.append(dict(box=[b[0], b[3], b[1], b[4], b[2], b[5]], lists=lists))
+        return out
+
+    def test_the_through_wall_reaches_the_far_face(self):
+        sec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
+        self.assertAlmostEqual(sec['M1']['box'][1], -1152.0 + 8.0, 3)
+        self.assertAlmostEqual(sec['M2']['box'][2], 1440.0 + 8.0, 3)        # butting on M1's face
+
+    def test_the_l_and_the_t_list_each_other_at_the_joint_only(self):
+        e = self.export
+        listings = {(d['wall'], d['other']) for d in self.m['nativeCopies']['neighbourListings']}
+        name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731
+        self.assertIn((name(e['M1']), name(e['M2'])), listings)
+        self.assertIn((name(e['M3']), self.MAP_WALL), listings)
+        for a, b in (('M1', 'M2'), ('M2', 'M1'), ('M3', self.MAP_WALL), (self.MAP_WALL, 'M3')):
+            cols = self.columns(a)
+            hits = [k for k, c in enumerate(cols) if any(x == e[b] for x, _ in c['lists'])]
+            self.assertTrue(hits, (a, b))
+            # only the columns at the joint: reaching it or within the corner square's half of it
+            joint = {'M1': -1152.0, 'M2': 1440.0, 'M3': 672.0, self.MAP_WALL: -1440.0}[a]
+            axis = 1 if a in ('M2', 'M3') else 0
+            for k in hits:
+                box = cols[k]['box']
+                self.assertLessEqual(max(box[2 * axis] - joint, joint - box[2 * axis + 1]), 8.0, (a, b, box))
+        # M2 and M3 are far apart: nothing between them
+        self.assertFalse(any(x == e['M3'] for c in self.columns('M2') for x, _ in c['lists']))
+
+    def test_every_listing_follows_the_rule(self):
+        import frac_walls
+        e = self.export
+        cols = {n: self.columns(n) for n in ('M1', 'M2', 'M3', self.MAP_WALL)}
+        boxes = {r['label']: r['box'] for r in self.m['nativeCopies']['generatedWalls']}
+        comp = self.q.own(e[self.MAP_WALL], 'FracturedStaticMeshComponent')
+        bounds = {n: boxes[n] for n in ('M1', 'M2', 'M3')}
+        bounds[self.MAP_WALL] = [None] * 4 + [self.q.own(comp, 'FragmentBoundsMinZ'), self.q.own(comp, 'FragmentBoundsMaxZ')]
+        by_export = {e[n]: n for n in cols}
+        for a, rows in cols.items():
+            for c in rows:
+                for actor, index in c['lists']:
+                    b = by_export.get(actor)
+                    if b is None or (a == self.MAP_WALL and b == self.MAP_WALL):
+                        continue
+                    self.assertTrue(frac_walls.lists_column(c['box'], cols[b][index]['box'], bounds[b]), (a, b, index))
 
 
 class StagedDoorInMadeWall(unittest.TestCase):

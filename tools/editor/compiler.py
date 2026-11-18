@@ -467,6 +467,101 @@ def opening_play(wall, o):
                 sight=spans(s['sight'] - s['half'], s['sight'] + s['half']), cover=cover)
 
 
+# How made walls meet (custom geometry plan, M3 item 2; walls.js wallJoins is the twin): an end's style for its solid
+# (tools/bake/frac_wall.py END_INSETS) and how it meets. The game's walls (research/evidence/wall-joints.py): an
+# inside wall's end on another wall's line stops square 8 short of it (a T's stem: 'free', as a free end); at an L one
+# runs through to the other's far face ('through') and the other butts on its face ('free'); end to end both reach the
+# line ('line').
+WALL_JOIN_REACH = 1.0           # an end within this of a point or a line meets it
+WALL_JOIN_FLOOR = 32.0          # walls meet when their heights overlap by more than this (a storey apart they don't)
+FRAC_WALL_TOPS = {1: 192.0, 2: 384.0}
+
+
+def wall_joins(walls):
+    """Where made walls meet: `walls` [dict(key, location, rotation, wall)] (their poses and numbers) gives {key:
+    dict(ends: [the x0 end's style, the x1 end's] ('free', 'through' or 'line'), joins: [dict(end (0 or 1), how
+    ('corner' (runs through), 'butt', 'line', 'stem'), other (the other wall's key))])}. An end meets the walls whose
+    ends lie within WALL_JOIN_REACH of it, or whose centre line passes through it between their ends, on the same floor
+    (heights overlapping by more than WALL_JOIN_FLOOR). At a point: two ends leaving it in opposite directions are end
+    to end ('line'; with a second such pair across them, that pair butts); a wall passing through makes every end there
+    a stem; two ends at right angles make an L, where the taller wall runs through, then the longer, then the one along
+    game x, and the other butts. Anything else (walls overlapping) stays free. Only level walls turned by yaw meet."""
+    tau = 2 * math.pi
+    info = []
+    for w in walls:
+        loc, rot, wall = w['location'], w['rotation'], w['wall']
+        if round(rot[0]) % 65536 or round(rot[2]) % 65536:
+            continue
+        yaw = rot[1] * tau / 65536
+        d = (math.cos(yaw), math.sin(yaw))
+        x0, x1 = float(wall['x0']), float(wall['x1'])
+        top = FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2]
+        info.append(dict(key=w['key'], d=d, x0=x0, x1=x1,
+                         p=[(loc[0] + d[0] * x, loc[1] + d[1] * x) for x in (x0, x1)],
+                         z=(loc[2] + FRAC_WALL_BOTTOM, loc[2] + top), height=top, length=x1 - x0,
+                         loc=(loc[0], loc[1])))
+    out = {w['key']: dict(ends=['free', 'free'], joins=[]) for w in walls}
+
+    def floor(a, b):
+        return min(a['z'][1], b['z'][1]) - max(a['z'][0], b['z'][0]) > WALL_JOIN_FLOOR
+
+    def through(pt, b):
+        vx, vy = pt[0] - b['loc'][0], pt[1] - b['loc'][1]
+        t = vx * b['d'][0] + vy * b['d'][1]
+        return abs(b['d'][0] * vy - b['d'][1] * vx) <= WALL_JOIN_REACH and b['x0'] + WALL_JOIN_REACH < t < b['x1'] - WALL_JOIN_REACH
+
+    def leaving(w, m):
+        # the way the wall leaves the point at its end m, as a quarter: 0 +x, 1 +y, 2 -x, 3 -y
+        dx, dy = w['d'] if m == 0 else (-w['d'][0], -w['d'][1])
+        return (0 if dx > 0.5 else 2) if abs(dx) > abs(dy) else (1 if dy > 0.5 else 3)
+
+    done = set()
+    for i, a in enumerate(info):
+        for k in (0, 1):
+            if (i, k) in done:
+                continue
+            pt = a['p'][k]
+            ends = [(j, m) for j, b in enumerate(info) for m in (0, 1)
+                    if (j == i or floor(a, b)) and math.dist(b['p'][m], pt) <= WALL_JOIN_REACH]
+            done.update(ends)
+            passes = [j for j, b in enumerate(info) if j != i and floor(a, b) and through(pt, b)]
+            if len(ends) < 2 and not passes:
+                continue
+            style = {}
+            if passes:
+                for j, m in ends:
+                    style[j, m] = ('free', 'stem', info[passes[0]]['key'])
+            else:
+                by = {}
+                for j, m in ends:
+                    by.setdefault(leaving(info[j], m), []).append((j, m))
+                if any(len(v) > 1 for v in by.values()):
+                    continue                    # walls overlapping: left free
+                pairs = [q for q in (0, 1) if q in by and q + 2 in by]
+                if pairs:
+                    line = pairs[0]             # (two pairs: the one along x is end to end, the other butts on it)
+                    (ja, ma), (jb, mb) = by[line][0], by[line + 2][0]
+                    style[ja, ma] = ('line', 'line', info[jb]['key'])
+                    style[jb, mb] = ('line', 'line', info[ja]['key'])
+                    for q in ((1, 3) if line == 0 else (0, 2)):
+                        if q in by:
+                            j, m = by[q][0]
+                            style[j, m] = ('free', 'stem', info[ja]['key'])
+                elif len(ends) == 2:
+                    (ja, ma), (jb, mb) = ends
+                    A, B = info[ja], info[jb]
+                    rank = lambda w: (w['height'], w['length'], abs(w['d'][0]) > abs(w['d'][1]))  # noqa: E731
+                    if rank(A) < rank(B):
+                        (ja, ma), (jb, mb), A, B = (jb, mb), (ja, ma), B, A
+                    style[ja, ma] = ('through', 'corner', B['key'])
+                    style[jb, mb] = ('free', 'butt', A['key'])
+            for (j, m), (shape, how, other) in style.items():
+                rec = out[info[j]['key']]
+                rec['ends'][m] = shape
+                rec['joins'].append(dict(end=m, how=how, other=other))
+    return out
+
+
 def opening_box(location, rotation, o, half=12.0):
     """The world box [x0, x1, y0, y1, z0, z1] of a made wall's opening, the wall standing at `location` turned by
     `rotation` (its numbers in its own frame: x along it, z over its floor)."""
@@ -859,6 +954,7 @@ class Compiler:
         self.left_out = []
         self.copies, self.hides = [], []
         self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
+        self.made_parts = {}        # a made wall's label: its template's parts (join_made_walls makes its box again)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
@@ -1176,6 +1272,23 @@ class Compiler:
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
                    '{x0, x1, openings, seed, storeys}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
         return False
+
+    def join_made_walls(self):
+        """Made walls that meet (custom geometry plan, M3 item 2): each copy's request gains its end styles
+        (wall_joins; version 2, `ends`) when an end is joined, and its box follows its solid."""
+        if len(self.made_walls) < 2:
+            return
+        found = wall_joins([dict(key=copy['label'], location=copy['location'], rotation=copy['rotation'],
+                                 wall=copy['generated']['wall']) for copy, _ in self.made_walls])
+        for copy, where in self.made_walls:
+            ends = found[copy['label']]['ends']
+            if ends == ['free', 'free']:
+                continue
+            gen = copy['generated']
+            copy['generated'] = dict(gen, version=2, wall=dict(gen['wall'], ends=list(ends)))
+            insets = {'free': FRAC_WALL_END_INSET, 'line': 0.0, 'through': -FRAC_WALL_END_INSET}
+            along = (gen['wall']['x0'] + insets[ends[0]], gen['wall']['x1'] - insets[ends[1]])
+            copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
 
     def made_wall_openings(self):
         """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
@@ -2411,9 +2524,10 @@ class Compiler:
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
                 self.made_walls.append((self.copies[-1], dict(where)))
-                self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: a blast "
-                          'does not spread from it to the walls beside it, nor from them to it' % (short(out), name),
-                          **where)
+                self.made_parts[short(out)] = parts
+                self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
+                          'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
+                          "the game's walls pass theirs on" % (short(out), name), **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
@@ -4526,6 +4640,7 @@ class Compiler:
             self.spawn_rules_mark()
             self.overrides()
             self.added()
+            self.join_made_walls()
             self.made_wall_openings()
             self.derive_area_lights()
             self.groups()

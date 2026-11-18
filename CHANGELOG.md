@@ -8,6 +8,48 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (items 2 and 3): joined ends, and neighbour lists by the game's rule
+
+- **End styles.** A made wall's end is free, joined at an L, or end to end, as the game's walls meet (the joint audit):
+  - [frac_wall.py](tools/bake/frac_wall.py): `ends` in a wall's numbers, `END_INSETS`. A free end stops 8 short of
+    its tile edge as before; so do a T's stem and the wall that butts at an L. `through` reaches the far face of the
+    wall it meets, so the corner square is filled. `line` ends on the tile edge.
+  - [compiler.py](tools/editor/compiler.py) `wall_joins` and `join_made_walls` work out the ends from where the
+    project's made walls stand:
+    - an end within a unit of another wall's end or line, on the same floor, is joined;
+    - at an L, the taller wall runs through, then the longer, then the one along x;
+    - ends leaving one point in opposite directions are end to end;
+    - an end on a wall that passes through the point is a stem.
+  - The copy's Build request becomes version 2 with `ends`, and its box follows its solid. The project file is
+    unchanged: ends are never saved.
+  - [frac_walls.py](tools/bake/frac_walls.py) `check` takes versions 1 and 2.
+  - The page works ends out the same way ([walls.js](tools/viewer/web/walls.js) `wallJoins`, the twin, and
+    `joinWords`; [app.js](tools/viewer/web/app.js) `refreshJoins`, run after every change). A wall whose ends
+    changed is drawn anew, and the Wall panel says how it is joined.
+  - [generated.py](tools/viewer/generated.py) draws the ends.
+- **Neighbour lists** ([frac_walls.py](tools/bake/frac_walls.py) `neighbour_columns`, `lists_column`;
+  [native_copy.py](tools/bake/native_copy.py)). A made wall and every fracturing piece it touches list each other's
+  columns by the game's rule: other made walls, the map's own pieces and copies, the roof slab over its top. So a
+  break passes between them where they meet, as between the game's walls. The manifest gains `neighbourListings`, and
+  the Build's log names each pair. An index of 0 is left out of an entry, as the game saves it. The compiler's note
+  on a made wall says a break passes on.
+- The manifest's copies carry their labels. The made-wall group test committed earlier read them and failed without
+  them.
+
+Checked:
+- test_frac_wall: each style's extent; a joined wall closed; bad ends refused. The game's occupancy rule on an L's
+  tiles: the filled corner square reaches only the tile outside the corner, as the game's corners do.
+- test_frac_walls: the rule (touching counts; the one-way cut). A Build on URB_Bar of an L and a T's stem on the
+  Bar's own inside wall: listed at the joint only, each listing by the rule.
+- test_compiler_generated: the join rule's cases (L both ways, taller first, T, end to end, a stem between two, a
+  cross, a storey apart, overlapping, a unit off), and an L compiled.
+- walls_test.mjs: the same cases; test_generated.
+- `browser_smoke.py --only walls --projects`: a second wall drawn from the first one's end. The running-through wall
+  is drawn with its joined end and the panel says so; an undo frees it.
+- The bake, editor and viewer suites.
+
+Not played yet: run C.
+
 ### Custom walls, stage M3 (item 1): how the game's walls meet, and the neighbour lists' rule
 
 - [wall-joints.py](research/evidence/wall-joints.py) (read only; output

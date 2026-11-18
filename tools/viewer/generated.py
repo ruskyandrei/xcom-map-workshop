@@ -35,7 +35,8 @@ class GeneratedError(ValueError):
 
 def wall_numbers(text):
     """The wall's numbers from the request's JSON, checked, in one spelling (the cache's key): dict(x0, x1, openings,
-    seed), and storeys when it is 1 (frac_wall.shaped: 2, the donor's, is left out). GeneratedError when malformed."""
+    seed), storeys when it is 1 (frac_wall.shaped: 2, the donor's, is left out) and ends when one is joined (two free
+    ends are left out). GeneratedError when malformed."""
     try:
         wall = json.loads(text)
     except (TypeError, ValueError):
@@ -61,7 +62,12 @@ def wall_numbers(text):
     storeys = wall.get('storeys', 2)
     if storeys not in frac_wall.STOREYS or isinstance(storeys, bool):
         raise GeneratedError('a wall has 1 or 2 storeys')
-    return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}))
+    # its end styles where it is joined to another made wall (custom geometry plan, M3 item 2): two free ends left out
+    ends = wall.get('ends', ['free', 'free'])
+    if not isinstance(ends, list) or len(ends) != 2 or any(e not in frac_wall.END_INSETS for e in ends):
+        raise GeneratedError("a wall's ends are each %s" % ', '.join(frac_wall.END_INSETS))
+    return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}),
+                **({'ends': list(ends)} if ends != ['free', 'free'] else {}))
 
 
 def viewer_mesh(built):

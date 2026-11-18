@@ -179,6 +179,42 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
+    # (M3 item 2) a second wall drawn from the first one's far end, a quarter turn round (south, clear of the station):
+    # an L. The longer runs through
+    # (the first, along x, when as long), drawn with that end; the other butts; the panel says so. An undo takes the
+    # second out and the first is free again.
+    turn = round(kept['rotation'][1] / 16384) % 4
+    step = [(1, 0), (0, 1), (-1, 0), (0, -1)][turn]
+    corner = [kept['location'][0] + step[0] * kept['generated']['wall']['x1'],
+              kept['location'][1] + step[1] * kept['generated']['wall']['x1'], kept['location'][2]]
+    before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
+    page.evaluate('viewer.startWallDrawing(viewer.wallEntries()[0].wallLook)')
+    page.wait_for_function('viewer.wallDrawing()?.ready', timeout=90000)
+    look_at(page, corner)
+    drag(page, ground_point(page, corner), ground_point(page, [corner[0], corner[1] - 384, corner[2]]))
+    page.wait_for_function('n => viewer.roots.size > n && viewer.gizmo.active', arg=len(before_ids), timeout=60000)
+    second = page.evaluate('viewer.gizmo.active')
+    mesh_ready(page, second)
+    s2 = state(page, second)
+    assert s2['location'][:2] == corner[:2] and s2['rotation'][1] % 65536 == 49152, (s2, kept)
+    first_through = kept['generated']['wall']['x1'] >= s2['generated']['wall']['x1']
+    mesh_of = "id => [...viewer.roots.values()].find(r => r.userData.source.id === id).userData.source.mesh"
+    want = (wall, '"ends":["free","through"]') if first_through else (second, '"ends":["through","free"]')
+    page.wait_for_function('([id, key]) => (' + mesh_of + ')(id).includes(key)', arg=list(want), timeout=30000)
+    other = second if first_through else wall
+    assert '"ends"' not in page.evaluate(mesh_of, other), page.evaluate(mesh_of, other)
+    mesh_ready(page, want[0])
+    page.evaluate('id => viewer.select(id)', want[0])
+    text = page.evaluate('viewer.wallPanelText()')
+    assert 'Joined: ' in text and 'runs through at a corner' in text, text
+    page.evaluate('id => viewer.select(id)', other)
+    assert 'butts on another wall at a corner' in page.evaluate('viewer.wallPanelText()')
+    out['joined'] = dict(through='first' if first_through else 'second')
+    page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    page.wait_for_function('id => !(' + mesh_of + ')(id).includes(\'"ends"\')', arg=wall, timeout=30000)
+    page.evaluate('id => viewer.select(id)', wall)
+    assert state(page, wall) == kept, (state(page, wall), kept)
     # saved and reopened
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')

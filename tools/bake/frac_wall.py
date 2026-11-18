@@ -26,7 +26,12 @@ donor's is and not as the lower half of a tall one; its upper storey's slots are
 walls do (the donor's ends are -376 and 184): an end on a tile edge would reach a unit into the next tile column (the
 game counts its tiles from a unit under the grid the pieces stand on), where the game's occupancy test finds it and
 marks that empty tile partly occupied (EXP-67). An opening's sides stay where they are given, as the game's own
-doorways have them (solid_wall). build(wall) gives dict(mesh: gen_mesh's form, ready to write, but for its bodySetup and the
+doorways have them (solid_wall). An end joined to another made wall (custom geometry plan, M3 item 2: `ends`, a style
+for the x0 end and one for the x1 end, END_INSETS; left out, both 'free') stops elsewhere, as the game's walls meet
+(research/native/frac-neighbours.md, research/evidence/wall-joints.py): 'free', 8 short as above (a free end, a T's
+stem, which the game's inside walls stop 8 short of the wall they meet, and the wall that butts at an L); 'through', 8
+past the tile edge, to the far face of the wall it meets at an L (the corner square filled, the other wall butting on
+its face); 'line', on the tile edge, against the next wall end to end. build(wall) gives dict(mesh: gen_mesh's form, ready to write, but for its bodySetup and the
 kdop's place, fragments: [dict(box: [x0, x1, y0, y1, z0, z1] in the mesh's frame, minZ)], solids: the collision boxes
 [(lo, hi)], counts).
 
@@ -80,6 +85,18 @@ RECIPE = {
 }
 EPS = 1e-4
 STOREYS = (1, 2)
+# a wall end's styles: how far in from its tile edge its solid stops there (M3 item 2; the docstring)
+END_INSETS = {'free': RECIPE['endInset'], 'line': 0.0, 'through': -RECIPE['half']}
+
+
+def ends_of(wall):
+    """The wall's end styles (its x0 end's and its x1 end's, END_INSETS' keys): ('free', 'free') when left out."""
+    ends = (wall or {}).get('ends')
+    if ends is None:
+        return ('free', 'free')
+    if not isinstance(ends, (list, tuple)) or len(ends) != 2 or any(e not in END_INSETS for e in ends):
+        raise ValueError('a wall\'s ends are two of %s (it has %r)' % (', '.join(END_INSETS), ends))
+    return tuple(ends)
 
 
 def shaped(wall):
@@ -191,10 +208,11 @@ def bands(R=RECIPE):
 
 # ---------------------------------------------------------------------------------------------------- cells
 def solid_wall(wall):
-    """The wall as it is built: its ends RECIPE['endInset'] in from its tile edges, its openings cut to what is left
-    (an opening's own sides are kept: the game's doorways have them on the tile edges too)."""
-    inset = RECIPE['endInset']
-    x0, x1 = float(wall['x0']) + inset, float(wall['x1']) - inset
+    """The wall as it is built: its ends in from its tile edges by their styles (END_INSETS: a free end
+    RECIPE['endInset']), its openings cut to what is left (an opening's own sides are kept: the game's doorways have
+    them on the tile edges too)."""
+    e0, e1 = ends_of(wall)
+    x0, x1 = float(wall['x0']) + END_INSETS[e0], float(wall['x1']) - END_INSETS[e1]
     openings = []
     for o in wall.get('openings') or ():
         a, b = max(float(o['x0']), x0), min(float(o['x1']), x1)

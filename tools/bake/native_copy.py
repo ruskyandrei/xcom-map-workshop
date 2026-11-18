@@ -2379,6 +2379,31 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         for d in group_listings:
             print("    %s: breaks with its group's made wall, listed in %d of its columns"
                   % (labels.get(d['piece'], d['piece']), len(d['columns'])))
+    # made walls and the fracturing pieces they touch list each other's columns, by the game's rule (M3 item 3)
+    neighbour_listings = []
+    if any(r['kind'] == 'fracWall' for r in generated_records):
+        import frac_walls
+        gone = {h['export'] for h in hidden}
+        level_index = p.by_name['TheWorld.PersistentLevel']
+
+        def heights(i, dz=0.0):
+            comp = p.own(i, 'FracturedStaticMeshComponent')
+            lo, hi = (p.own(comp, 'FragmentBoundsMinZ'), p.own(comp, 'FragmentBoundsMaxZ')) if comp else (None, None)
+            return [None, None, None, None, None if lo is None else lo + dz, None if hi is None else hi + dz]
+        others = [dict(export=i, original=i, bounds=heights(i)) for i in range(1, len(p.exports) + 1)
+                  if p.cls(i) in FRACTURING and p.exports[i - 1]['outer'] == level_index and i not in gone
+                  and not p.effective(i, 'bHidden', False)]
+        made_copies = {r['copy'] for r in generated_records}
+        others += [dict(export=copy, original=original, bounds=heights(original, after[0][2] - before[0][2]))
+                   for original, copy, before, after, family in poses
+                   if p.cls(original) in FRACTURING and copy not in made_copies]
+        neighbour_listings = frac_walls.neighbour_columns(g, p, generated_records, others)
+        named = {x['export']: p.name(x['original']).split('.')[-1] + ('' if x['export'] == x['original'] else "'s copy")
+                 for x in others}
+        named.update({r['copy']: r['label'] for r in generated_records if r['kind'] == 'fracWall'})
+        for d in neighbour_listings:
+            print('    %s and %s list each other\'s columns where they meet (%d and %d listings)'
+                  % (named[d['wall']], named.get(d['other'], d['other']), d['lists'], d['listed']))
     # the map's own buildings edited in place (their new boxes), for the copies' floors
     replaced = {}
     for e in building_edits:
@@ -2503,7 +2528,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     sections = []
     for m in made:
         info, new = m['info'], m['info']['actor']
-        sections.append(dict(actor=m['actor'], copy=q.name(new), export=new, location=m['location'],
+        sections.append(dict(actor=m['actor'], label=m.get('label'), copy=q.name(new), export=new, location=m['location'],
                              rotation=m['rotation'], exports={p.name(o): n for o, n in info['mapping'].items()},
                              textures={p.name(o): q.name(n) for o, n in info['textures'].items()},
                              extraLights={p.name(ci): [dict(light=x['light'], peak=x['peak'], kept=x['kept'],
@@ -2559,6 +2584,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                        for d in door_listings]} if door_listings else {}),
                   **({'groupListings': [dict(piece=q.name(d['piece']).split('.')[-1], wall=q.name(d['wall']).split('.')[-1],
                                              columns=d['columns']) for d in group_listings]} if group_listings else {}),
+                  **({'neighbourListings': [dict(wall=q.name(d['wall']).split('.')[-1], other=q.name(d['other']).split('.')[-1],
+                                                 lists=d['lists'], listed=d['listed']) for d in neighbour_listings]}
+                     if neighbour_listings else {}),
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),

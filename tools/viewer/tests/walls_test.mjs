@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
-         wallTop, wallWords, withStoreys,
+         wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS,
          withOpening, withoutOpening, WALL } from '../web/walls.js';
 
 const origin = [-2784, -1920, -1];
@@ -141,4 +141,33 @@ assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
   assert.equal(movedOpening(tall, 1, 'z1', 200).openings[1].z1, 360);
 }
 assert.equal(PRESETS.doorway.z1 - 0, 160);
+
+// ---- joints (M3 item 2): the same cases as test_compiler_generated.test_the_join_rule (compiler.wall_joins is the twin)
+{
+  const Q = 16384;
+  const wall = (key, at, yaw = 0, length = 384, storeys = 2) => ({ key, location: at, rotation: [0, yaw, 0],
+    wall: { x0: 0, x1: length, openings: [], seed: 1, ...(storeys === 1 ? { storeys: 1 } : {}) } });
+  const ends = walls => Object.fromEntries(Object.entries(wallJoins(walls)).map(([k, v]) => [k, v.ends]));
+  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 480), wall('b', [480, 0, 0], Q)]), { a: ['free', 'through'], b: ['free', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0], Q, 480)]), { a: ['free', 'free'], b: ['through', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 480, 1), wall('b', [480, 0, 0], Q)]), { a: ['free', 'free'], b: ['through', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [0, 384, 0], -Q)]), { a: ['through', 'free'], b: ['free', 'free'] });
+  let found = wallJoins([wall('a', [0, 0, 0], 0, 768), wall('b', [384, 0, 0], Q)]);
+  assert.deepEqual([found.a.ends, found.b.ends], [['free', 'free'], ['free', 'free']]);
+  assert.deepEqual(found.b.joins, [{ end: 0, how: 'stem', other: 'a' }]);
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0])]), { a: ['free', 'line'], b: ['line', 'free'] });
+  found = wallJoins([wall('a', [0, 0, 0]), wall('b', [384, 0, 0]), wall('c', [384, 0, 0], Q)]);
+  assert.deepEqual([found.a.ends, found.b.ends, found.c.ends], [['free', 'line'], ['line', 'free'], ['free', 'free']]);
+  assert.deepEqual(found.c.joins, [{ end: 0, how: 'stem', other: 'b' }]);
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0]), wall('c', [384, 0, 0], Q), wall('d', [384, -384, 0], Q)]),
+                   { a: ['free', 'line'], b: ['line', 'free'], c: ['free', 'free'], d: ['free', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 384, 1), wall('b', [384, 0, 192], Q)]), { a: ['free', 'free'], b: ['free', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [0, 0, 0])]), { a: ['free', 'free'], b: ['free', 'free'] });
+  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [386, 0, 0], Q)]), { a: ['free', 'free'], b: ['free', 'free'] });
+  // the words, and the insets the Build uses (frac_wall.END_INSETS)
+  assert.deepEqual(END_INSETS, { free: 8, line: 0, through: -8 });
+  assert.equal(joinWords([]), '');
+  assert.equal(joinWords([{ end: 1, how: 'corner', other: 'b' }]),
+               "Joined: its far end runs through at a corner. A break passes between joined walls, as between the game's.");
+}
 console.log('walls: ok');

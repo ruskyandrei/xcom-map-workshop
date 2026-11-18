@@ -242,4 +242,80 @@ export function playWords(wall, o, { door = false } = {}) {
   return words[0].toUpperCase() + words.slice(1);
 }
 /** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
+// ---- joints (custom geometry plan, M3 item 2; compiler.py wall_joins is the twin)
+// An end's style for its solid (frac_wall.END_INSETS: how far in from its tile edge it stops) and how it meets: the
+// game's inside walls stop square 8 short of a wall they meet (a T's stem, as a free end); at an L one runs through to
+// the other's far face and the other butts on its face; end to end both reach the line (research/evidence/wall-joints.py).
+export const END_INSETS = { free: WALL.endInset, line: 0, through: -8 };
+const JOIN_REACH = 1, JOIN_FLOOR = 32;
+/** Where made walls meet: `walls` [{ key, location, rotation, wall }] gives { key: { ends: [the x0 end's style, the x1
+ *  end's] ('free' | 'through' | 'line'), joins: [{ end (0 | 1), how ('corner' (runs through) | 'butt' | 'line' |
+ *  'stem'), other (key) }] } }. The rule is compiler.wall_joins's, word for word. */
+export function wallJoins(walls) {
+  const info = [], out = {};
+  for (const w of walls) {
+    out[w.key] = { ends: ['free', 'free'], joins: [] };
+    const [p, yawRaw, r] = w.rotation;
+    if (Math.round(p) % 65536 || Math.round(r) % 65536) continue;
+    const yaw = yawRaw * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)];
+    const x0 = w.wall.x0, x1 = w.wall.x1, top = wallTop(w.wall);
+    info.push({ key: w.key, d, x0, x1, p: [x0, x1].map(x => [w.location[0] + d[0] * x, w.location[1] + d[1] * x]),
+                z: [w.location[2] + WALL.bottom, w.location[2] + top], height: top, length: x1 - x0, loc: [w.location[0], w.location[1]] });
+  }
+  const floor = (a, b) => Math.min(a.z[1], b.z[1]) - Math.max(a.z[0], b.z[0]) > JOIN_FLOOR;
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const through = (pt, b) => {
+    const vx = pt[0] - b.loc[0], vy = pt[1] - b.loc[1], t = vx * b.d[0] + vy * b.d[1];
+    return Math.abs(b.d[0] * vy - b.d[1] * vx) <= JOIN_REACH && b.x0 + JOIN_REACH < t && t < b.x1 - JOIN_REACH;
+  };
+  const leaving = (w, m) => {
+    const [dx, dy] = m === 0 ? w.d : [-w.d[0], -w.d[1]];
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0.5 ? 0 : 2) : (dy > 0.5 ? 1 : 3);
+  };
+  const done = new Set();
+  info.forEach((a, i) => {
+    for (const k of [0, 1]) {
+      if (done.has(`${i}:${k}`)) continue;
+      const pt = a.p[k], ends = [];
+      info.forEach((b, j) => { for (const m of [0, 1]) if ((j === i || floor(a, b)) && dist(b.p[m], pt) <= JOIN_REACH) ends.push([j, m]); });
+      ends.forEach(([j, m]) => done.add(`${j}:${m}`));
+      const passes = info.map((b, j) => j).filter(j => j !== i && floor(a, info[j]) && through(pt, info[j]));
+      if (ends.length < 2 && !passes.length) continue;
+      const style = [];
+      if (passes.length) {
+        for (const [j, m] of ends) style.push([j, m, 'free', 'stem', info[passes[0]].key]);
+      } else {
+        const by = new Map();
+        for (const [j, m] of ends) { const q = leaving(info[j], m); by.set(q, [...(by.get(q) ?? []), [j, m]]); }
+        if ([...by.values()].some(v => v.length > 1)) continue;
+        const pairs = [0, 1].filter(q => by.has(q) && by.has(q + 2));
+        if (pairs.length) {
+          const line = pairs[0], [ja, ma] = by.get(line)[0], [jb, mb] = by.get(line + 2)[0];
+          style.push([ja, ma, 'line', 'line', info[jb].key], [jb, mb, 'line', 'line', info[ja].key]);
+          for (const q of line === 0 ? [1, 3] : [0, 2]) if (by.has(q)) { const [j, m] = by.get(q)[0]; style.push([j, m, 'free', 'stem', info[ja].key]); }
+        } else if (ends.length === 2) {
+          let [[ja, ma], [jb, mb]] = ends;
+          const rank = w => [w.height, w.length, Math.abs(w.d[0]) > Math.abs(w.d[1]) ? 1 : 0];
+          const less = (x, y) => { for (let n = 0; n < 3; n++) if (x[n] !== y[n]) return x[n] < y[n]; return false; };
+          if (less(rank(info[ja]), rank(info[jb]))) [[ja, ma], [jb, mb]] = [[jb, mb], [ja, ma]];
+          style.push([ja, ma, 'through', 'corner', info[jb].key], [jb, mb, 'free', 'butt', info[ja].key]);
+        }
+      }
+      for (const [j, m, shape, how, other] of style) {
+        const rec = out[info[j].key];
+        rec.ends[m] = shape;
+        rec.joins.push({ end: m, how, other });
+      }
+    }
+  });
+  return out;
+}
+/** A wall's joins in words, for its panel: '' when it meets nothing. */
+export function joinWords(joins) {
+  const say = { corner: 'runs through at a corner', butt: 'butts on another wall at a corner', line: 'meets another wall end to end', stem: 'stops against another wall' };
+  if (!joins?.length) return '';
+  const byEnd = [0, 1].map(e => joins.filter(j => j.end === e).map(j => say[j.how]));
+  const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);
+  return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
+}
 export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - WALL.bottom} tall)`;

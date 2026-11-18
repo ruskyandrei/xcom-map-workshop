@@ -49,7 +49,7 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys } from './walls.js';
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS } from './walls.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -1169,7 +1169,7 @@ const boxMatrix = b => new THREE.Matrix4().makeScale(b[3] - b[0], b[5] - b[2], b
 const UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
 // (and back: the box a clip's volume covers, in game units)
 const matrixBox = matrix => { const b = UNIT_BOX.clone().applyMatrix4(matrix); return [b.min.x, b.min.z, b.min.y, b.max.x, b.max.z, b.max.y]; };
-function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); catalogue(); refreshGroundGrid(false); }
+function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); catalogue(); refreshGroundGrid(false); refreshJoins(); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
 function actorPose(source, matrix) {
@@ -1189,13 +1189,15 @@ const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, min
 // A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
 // top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
-  const top = wall.storeys === 1 ? 192 : FRAC_WALL.top;
-  const a = wall.x0 + FRAC_WALL.endInset, b = wall.x1 - FRAC_WALL.endInset, hx = (b - a) / 2, hz = (top - FRAC_WALL.bottom) / 2;
+  const top = wall.storeys === 1 ? 192 : FRAC_WALL.top, [e0, e1] = wall.ends ?? ['free', 'free'];
+  const a = wall.x0 + END_INSETS[e0], b = wall.x1 - END_INSETS[e1], hx = (b - a) / 2, hz = (top - FRAC_WALL.bottom) / 2;
   return [(a + b) / 2, 0, FRAC_WALL.bottom + hz, hx, FRAC_WALL.halfY, hz, Math.hypot(hx, FRAC_WALL.halfY, hz)];
 }
-// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out).
-const madeWallNumbers = w => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
-                                seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}) });
+// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out),
+// with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
+const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
+                                seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}),
+                                ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
 function madeShape(template, generated) {
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
   const finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -9406,21 +9408,43 @@ async function endWallDraw(keep) {
 }
 // ---- the wall as it is now, and changing it
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
-// The mesh record for a made wall's numbers (as madeShape makes it), its key.
-function madeWallMesh(o, wall) {
-  const key = `made:fracwall:${JSON.stringify(madeWallNumbers(wall))}`;
+// The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key.
+function madeWallMesh(o, wall, ends = null) {
+  const numbers = madeWallNumbers(wall, ends);
+  const key = `made:fracwall:${JSON.stringify(numbers)}`;
   if (!data.meshes[key]) {
     const was = data.meshes[o.mesh];
     data.meshes[key] = { ...was, url: `/generated/fracwall.glb?${new URLSearchParams({ wall: key.slice('made:fracwall:'.length) })}`,
-      bounds: madeBounds(wall) };
+      bounds: madeBounds(numbers) };
   }
   return key;
+}
+// ---- joined walls (custom geometry plan, M3 item 2): where made walls meet, each end's style follows (wallJoins, the
+// compiler's wall_joins), worked out again after every change and never saved (the Build works it out the same way);
+// a wall whose ends changed is drawn anew. root.userData.joins: its { ends, joins } now.
+let joinsQueued = false;
+function refreshJoins() {
+  if (joinsQueued) return;
+  joinsQueued = true;
+  queueMicrotask(() => {
+    joinsQueued = false;
+    const walls = [...roots.values()].filter(r => isMadeWall(r.userData.source) && !r.userData.deleted
+      && r.userData.source.added.generated.kind === 'fracWall');
+    const found = wallJoins(walls.map(r => ({ key: r.userData.source.id, wall: r.userData.source.added.generated.wall,
+                                              ...actorPose(r.userData.source, r.matrix) })));
+    for (const r of walls) {
+      const now = found[r.userData.source.id], was = r.userData.joins?.ends ?? ['free', 'free'];
+      r.userData.joins = now;
+      if (now.ends[0] !== was[0] || now.ends[1] !== was[1]) applyWall(r, wallState(r));
+      else if (selected === r.userData.source.id && JSON.stringify(now.joins) !== JSON.stringify(r.userData.joinsShown ?? [])) wallPanel(r);
+    }
+  });
 }
 // A state put on the wall's piece: its numbers, its pose, its mesh drawn anew once loaded (no undo step).
 async function applyWall(root, state) {
   const o = root.userData.source;
   o.added = { ...o.added, generated: structuredClone(state.generated) };
-  const key = madeWallMesh(o, state.generated.wall);
+  const key = madeWallMesh(o, state.generated.wall, root.userData.joins?.ends);
   o.mesh = key;
   gizmo.applyMatrices([root], [movedMatrix(o, state.location, state.rotation)]);
   root.updateMatrixWorld(true);
@@ -9598,6 +9622,9 @@ function wallPanel(root) {
   $('wallHead').textContent = `Wall · ${look?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
   $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top makes it ${storeysOf(w) === 1 ? 'two storeys' : 'one storey'}.`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
+  root.userData.joinsShown = root.userData.joins?.joins ?? [];
+  const joined = joinWords(root.userData.joinsShown);
+  if (joined) $('wallSize').textContent += ` ${joined}`;
   const list = $('wallOpenings'), openings = sortedOpenings(w.openings ?? []);
   const doors = doorBoxes(root);
   list.replaceChildren(...openings.map((p, index) => {

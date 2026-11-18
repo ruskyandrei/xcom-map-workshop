@@ -67,6 +67,7 @@ class FracWall(unittest.TestCase):
                      json.dumps(dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
                      json.dumps(dict(x0=0, x1=96, openings=[dict(x0=0, x1=10, z0=0, z1=10)] * 17)),
                      json.dumps(dict(x0=0, x1=96, storeys=3)), json.dumps(dict(x0=0, x1=96, storeys=True)),
+                     json.dumps(dict(x0=0, x1=96, ends=['free'])), json.dumps(dict(x0=0, x1=96, ends=['free', 'mitre'])),
                      '{"x0": 0, "x1": NaN}'):
             with self.assertRaises(generated.GeneratedError, msg=text):
                 generated.Meshes().fracwall(text)
@@ -78,6 +79,10 @@ class FracWall(unittest.TestCase):
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=2))),
                          dict(x0=0.0, x1=96.0, openings=[], seed=1))
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=1)))['storeys'], 1)
+        # (M3) its end styles: two free ends left out, a joined one kept
+        self.assertNotIn('ends', generated.wall_numbers(json.dumps(dict(x0=0, x1=96, ends=['free', 'free']))))
+        self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, ends=['through', 'free'])))['ends'],
+                         ['through', 'free'])
 
     def test_a_one_storey_wall_is_drawn_a_storey_high(self):
         built = generated.frac_wall.build(generated.wall_numbers(json.dumps(dict(x0=0, x1=192, storeys=1))))

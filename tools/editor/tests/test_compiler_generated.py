@@ -38,7 +38,7 @@ class GeneratedTests(unittest.TestCase):
         _, native = compiler.native_split(compiler.stream_only(spec))
         self.assertEqual([c.get('generated') for c in native['copies']], [WALL, RELIT, None])
         self.assertNotIn('generated', [k for o in compiler.native_split(spec)[0]['objects'] for k in o])
-        # a made wall is noted (a blast doesn't spread to or from it); the relit reference is the template's own
+        # a made wall is noted (it breaks in parts, passing breaks on); the relit reference is the template's own
         self.assertEqual(noted(report, 'generated'), ['generated-wall'])
 
     def test_a_made_wall_stands_in_its_own_box(self):
@@ -50,6 +50,66 @@ class GeneratedTests(unittest.TestCase):
         # solid, 8 in from its tile edges at each end
         self.assertEqual(wall, [8.0, 376.0, 552.0, 648.0, 0.0, 100.0])
         self.assertEqual(relit, [-48.0, 48.0, 1152.0, 1248.0, 0.0, 100.0])
+
+    def test_made_walls_that_meet_carry_their_end_styles(self):
+        # (M3 item 2) an L: A along x from (0, 600) to (384, 600), B a quarter turn from A's far end; A (along x, as
+        # long and tall) runs through, B butts. Their requests become version 2 with `ends`; A's box reaches 8 past
+        # its tile edge
+        plain = dict(WALL, wall=dict(WALL['wall'], openings=[]))
+        spec, report = compiled([made(plain, serial=1, at=(0, 600, 0)),
+                                 dict(made(plain, serial=2, at=(384, 600, 0)), rotation=[0, 16384, 0]),
+                                 made(plain, serial=3, at=(0, 2400, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        a, b, c = op['generated']
+        self.assertEqual((a['version'], a['wall']['ends']), (2, ['free', 'through']))
+        self.assertEqual(b, plain)          # butting: a free end's shape, its request unchanged
+        self.assertEqual(c, plain)          # alone
+        _, native = compiler.native_split(spec)
+        self.assertEqual(native['copies'][0]['box'][:2], [8.0, 392.0])
+
+    def test_the_join_rule(self):
+        def wall(key, at, yaw=0, length=384.0, storeys=2):
+            return dict(key=key, location=list(at), rotation=[0, yaw, 0],
+                        wall=dict(x0=0.0, x1=length, **({'storeys': 1} if storeys == 1 else {})))
+        Q = 16384
+
+        def ends(walls):
+            return {k: v['ends'] for k, v in compiler.wall_joins(walls).items()}
+        # an L: the longer runs through, whichever way round
+        self.assertEqual(ends([wall('a', (0, 0, 0), length=480.0), wall('b', (480, 0, 0), Q)]),
+                         {'a': ['free', 'through'], 'b': ['free', 'free']})
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (384, 0, 0), Q, length=480.0)]),
+                         {'a': ['free', 'free'], 'b': ['through', 'free']})
+        # the taller first: a one-storey wall butts on a two-storey one
+        self.assertEqual(ends([wall('a', (0, 0, 0), length=480.0, storeys=1), wall('b', (480, 0, 0), Q)]),
+                         {'a': ['free', 'free'], 'b': ['through', 'free']})
+        # the same: the one along x; an L at its start (b turned back on itself)
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (0, 384, 0), -Q)]),
+                         {'a': ['through', 'free'], 'b': ['free', 'free']})
+        # a T: the stem's end on the other's line between its ends stays free
+        found = compiler.wall_joins([wall('a', (0, 0, 0), length=768.0), wall('b', (384, 0, 0), Q)])
+        self.assertEqual({k: v['ends'] for k, v in found.items()}, {'a': ['free', 'free'], 'b': ['free', 'free']})
+        self.assertEqual(found['b']['joins'], [dict(end=0, how='stem', other='a')])
+        # end to end
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (384, 0, 0))]),
+                         {'a': ['free', 'line'], 'b': ['line', 'free']})
+        # end to end with a stem between them: the pair along x reaches the line, the stem stays free
+        found = compiler.wall_joins([wall('a', (0, 0, 0)), wall('b', (384, 0, 0)), wall('c', (384, 0, 0), Q)])
+        self.assertEqual({k: v['ends'] for k, v in found.items()},
+                         {'a': ['free', 'line'], 'b': ['line', 'free'], 'c': ['free', 'free']})
+        self.assertEqual(found['c']['joins'], [dict(end=0, how='stem', other='b')])
+        # a cross of four ends: the pair along x end to end, the pair along y butting
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (384, 0, 0)), wall('c', (384, 0, 0), Q),
+                               wall('d', (384, -384, 0), Q)]),
+                         {'a': ['free', 'line'], 'b': ['line', 'free'], 'c': ['free', 'free'], 'd': ['free', 'free']})
+        # a storey apart, or overlapping, or off by more than a unit: nothing meets
+        self.assertEqual(ends([wall('a', (0, 0, 0), storeys=1), wall('b', (384, 0, 192), Q)]),
+                         {'a': ['free', 'free'], 'b': ['free', 'free']})
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (0, 0, 0))]),
+                         {'a': ['free', 'free'], 'b': ['free', 'free']})
+        self.assertEqual(ends([wall('a', (0, 0, 0)), wall('b', (386, 0, 0), Q)]),
+                         {'a': ['free', 'free'], 'b': ['free', 'free']})
 
     def test_a_made_walls_height_is_free(self):
         # 14.5 over the template's floor (16 tiles from it): off its storeys, which a made wall keeps to no more (its columns are its

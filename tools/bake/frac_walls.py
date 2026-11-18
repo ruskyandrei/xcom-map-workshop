@@ -30,8 +30,9 @@ columns moved by move_columns), then add_walls changes it:
                      along the wall and each storey it reaches; a column lists the fragments whose box overlaps its
                      box (the tile along the wall, the storey, the wall's thickness), each with its lowest corner's
                      height (MinZ), lowest first; its box is the tile (cut to the wall's ends), the storey, and across
-                     the wall the listed fragments' boxes together. Its lists of the pieces that go with it and of the
-                     neighbouring walls' columns are empty (the plan's known limits);
+                     the wall the listed fragments' boxes together. Its list of the pieces that go with it starts empty
+                     (door_columns and group_columns fill it); its neighbours' columns, by the game's rule
+                     (neighbour_columns);
   kind 'relit'     the copy's mesh is the donor's, unchanged: it only goes to the relight lit from nothing, as a
                    generated wall is (a reference beside one, in the same light).
 
@@ -44,7 +45,14 @@ copied from one of the map's own walls is listed in the made wall's columns wher
 by door_columns in the wall's columns within a tile of it along the wall, on every storey, as the game's walls list
 their doors (URB_Bar's door 7 in four tiles' columns, both storeys). The props and cover blocks of a group that breaks
 together with a made wall are listed by group_columns in the columns they stand by (M3 item 4, F-101's limit), so they
-go when that part of the wall breaks."""
+go when that part of the wall breaks.
+
+A made wall's columns and the fracturing pieces it touches list each other's columns (M3 item 3: neighbour_columns),
+by the rule the game's own lists follow (research/native/frac-neighbours.md, F-69): a column lists another piece's
+column when its box touches or overlaps that column's box cut to that piece's own bounds grown by one unit. A listing
+passes a break on one step in the game (the damaged column's damage, up to its height, to each listed column), so
+joined made walls, a made wall against one of the map's walls, and a wall on a storey floor break together where they
+meet, as the game's do."""
 import hashlib
 import struct
 import sys
@@ -64,6 +72,9 @@ import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
 KINDS = ('fracWall', 'relit')
+# the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2), with its end styles (`ends`), which
+# the compiler works out from where the project's made walls meet (version 1 reads as two free ends)
+VERSIONS = (1, 2)
 TILE, STOREY = 96.0, 192.0
 # the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
 MIN_LENGTH = 24 + 2 * int(frac_wall.RECIPE['endInset'])
@@ -74,9 +85,9 @@ def check(generated):
     """The copy's `generated` request, checked: dict(kind, version, wall) or ValueError."""
     if not isinstance(generated, dict) or generated.get('kind') not in KINDS:
         raise ValueError('a generated piece of an unknown kind: %r' % (generated,))
-    if generated.get('version', 1) != frac_wall.RECIPE['version']:
-        raise ValueError('generated wall recipe version %r (this Build knows %d)'
-                         % (generated.get('version'), frac_wall.RECIPE['version']))
+    if generated.get('version', 1) not in VERSIONS:
+        raise ValueError('generated wall request version %r (this Build knows %s)'
+                         % (generated.get('version'), ' and '.join(map(str, VERSIONS))))
     if generated['kind'] == 'relit':
         return generated
     wall = generated.get('wall')
@@ -87,6 +98,9 @@ def check(generated):
                          % (MIN_LENGTH, MIN_LENGTH - 2 * frac_wall.RECIPE['endInset'], frac_wall.RECIPE['endInset']))
     if wall.get('storeys', 2) not in frac_wall.STOREYS:
         raise ValueError('a generated wall of %r storeys (it has 1 or 2)' % (wall.get('storeys'),))
+    if 'ends' in wall and generated.get('version', 1) < 2:
+        raise ValueError("a generated wall's end styles come with request version 2")
+    frac_wall.ends_of(wall)
     for o in wall.get('openings') or []:
         if not all(isinstance(o.get(k), (int, float)) for k in ('x0', 'x1', 'z0', 'z1')) \
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
@@ -654,6 +668,94 @@ def _list_in_columns(g, p, walls, pick):
         if picked:
             parts = [native_copy.column_with(g, walker, b, c, new) for c, new in zip(columns, lists)]
             g.relocate(w['copy'], native_copy.rebuilt(b, field, parts))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------- neighbours
+NEIGHBOUR_GROW = 1.0            # the other piece's bounds, grown by this, cut its column's box (the game's rule)
+NEIGHBOUR_SLACK = 0.01          # boxes this close count as touching (the game compares closed boxes)
+
+
+def lists_column(box, other, bounds):
+    """Whether a column whose box is `box` lists another piece's column `other` (boxes [x0, x1, y0, y1, z0, z1]): it
+    touches or overlaps `other` cut to that piece's `bounds` (a box, or None for no cut on an axis: [lo or None, hi or
+    None] x 3) grown by NEIGHBOUR_GROW."""
+    cut = list(other)
+    for k in range(3):
+        lo, hi = bounds[2 * k], bounds[2 * k + 1]
+        if lo is not None:
+            cut[2 * k] = max(cut[2 * k], lo - NEIGHBOUR_GROW)
+        if hi is not None:
+            cut[2 * k + 1] = min(cut[2 * k + 1], hi + NEIGHBOUR_GROW)
+        if cut[2 * k] > cut[2 * k + 1]:
+            return False
+    return all(box[2 * k] <= cut[2 * k + 1] + NEIGHBOUR_SLACK and cut[2 * k] <= box[2 * k + 1] + NEIGHBOUR_SLACK
+               for k in range(3))
+
+
+def neighbour_columns(g, p, walls, pieces):
+    """The made walls of `walls` (add_walls' records) and every fracturing piece they touch list each other's columns
+    by the game's rule (lists_column), in their FracActorCache. `pieces`: the level's other fracturing pieces as they
+    stand in the grown map, [dict(export, original (the export whose layout its bytes keep: itself, or a copy's
+    original), bounds (its vertices' box, None on an axis not known: the game's columns are already cut to it across
+    and along, so the heights are what matter: FragmentBoundsMinZ and MaxZ))]. A made wall's bounds are its box.
+    Listings between two of the map's own pieces are the map's, left as they are. Returns [dict(wall, other, lists (the
+    wall's listings of the other's columns), listed (the other's of the wall's))]."""
+    import native_copy
+    walker = native_copy.Walker(p)
+    made = [dict(export=w['copy'], original=w['original'], bounds=list(w['box']), made=True)
+            for w in walls if w.get('kind') == 'fracWall']
+    if not made:
+        return []
+    every = made + [dict(x, made=False) for x in pieces if x['export'] not in {m['export'] for m in made}]
+    for x in every:
+        e = p.exports[x['original'] - 1]
+        x['start'] = legacy_props.props_start(p.data, e, p.names) - e['off']
+        x['bytes'] = bytearray(g.export_data(x['export']))
+        parsed = native_copy.fragment_columns(walker, x['bytes'], x['start'])
+        x['field'], x['columns'] = parsed if parsed else (None, [])
+        lo = [min(c['box'][2 * k] for c in x['columns']) for k in range(3)] if x['columns'] else None
+        hi = [max(c['box'][2 * k + 1] for c in x['columns']) for k in range(3)] if x['columns'] else None
+        x['span'] = [v for k in range(3) for v in (lo[k], hi[k])] if lo else None
+        x['new'] = [[] for _ in x['columns']]
+    out = []
+    for a in made:
+        for b in every:
+            if b is a or not b['columns'] or not a['columns'] or (b['made'] and b['export'] < a['export']):
+                continue
+            # (pieces far apart: nothing to test)
+            if any(a['span'][2 * k] > b['span'][2 * k + 1] + 2 or b['span'][2 * k] > a['span'][2 * k + 1] + 2 for k in range(3)):
+                continue
+            lists = listed = 0
+            for i, ca in enumerate(a['columns']):
+                for n, cb in enumerate(b['columns']):
+                    if lists_column(ca['box'], cb['box'], b['bounds']):
+                        a['new'][i].append((b['export'], n))
+                        lists += 1
+                    if lists_column(cb['box'], ca['box'], a['bounds']):
+                        b['new'][n].append((a['export'], i))
+                        listed += 1
+            if lists or listed:
+                out.append(dict(wall=a['export'], other=b['export'], lists=lists, listed=listed))
+    for x in every:
+        if not any(x['new']):
+            continue
+        parts = []
+        for c, new in zip(x['columns'], x['new']):
+            have = set()
+            for n in c['neighbours']:
+                at = native_copy.find_prop(walker, n['raw'], 0, len(n['raw']), 'ColumnIndex[0]')
+                have.add((n['actor'], struct.unpack_from('<i', n['raw'], at[2])[0] if at else 0))
+            raws = [n['raw'] for n in c['neighbours']]
+            for actor, index in new:
+                if (actor, index) not in have:
+                    have.add((actor, index))
+                    # (an index of 0 is left out, as the game saves a struct's default values)
+                    raws.append(_tag(g, 'FracActor', 'ObjectProperty', 4) + struct.pack('<i', actor)
+                                + (_tag(g, 'ColumnIndex', 'IntProperty', 4) + struct.pack('<i', index) if index else b'')
+                                + _none(g))
+            parts.append(native_copy.column_with(g, walker, x['bytes'], c, [e['raw'] for e in c['entries']], raws))
+        g.relocate(x['export'], native_copy.rebuilt(x['bytes'], x['field'], parts))
     return out
 
 
