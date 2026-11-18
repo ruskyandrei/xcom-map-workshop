@@ -8,6 +8,34 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6: the Ground tool
+
+- [ground.js](tools/viewer/web/ground.js) (new) is the tool's pure part:
+  - the looks, twinned with ground_looks.json;
+  - a drag to a shape's pose (a ramp rises toward the drag's end, its footprint the tiles dragged);
+  - its sides by whole tiles, its height in steps of 8;
+  - a turn on the same footprint;
+  - the slope's words (the twin of ground.py's).
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html) and
+  [pieces.js](tools/viewer/web/pieces.js):
+  - A **Ground** kind in the Add panel (Patch, Block, Ramp), drawn by dragging on the ground in the material last
+    picked.
+  - A picked shape has white handles on its edges and on its top (a block's top, a ramp's high edge).
+  - The piece panel's Ground section:
+    - its size;
+    - its slope's effect (a warning colour past 10 degrees);
+    - swatches that remake it on another look's donor in one undo step;
+    - Turn, for a ramp.
+- [gizmo.js](tools/viewer/web/gizmo.js) gains `joinLast(n)`, which makes several commands one undo step. The Room
+  with a roof tool now makes its pieces and building in one step.
+
+Checked:
+- [ground_test.mjs](tools/viewer/tests/ground_test.mjs) (new): looks against the file, drawing each way, sides,
+  height, turn, slope words.
+- The browser check on the police station draws a ramp east (rising east, 288 long, 96 high, its slope noted as giving
+  no cover), raises it by its top handle, turns it, and undoes each step. The room with a roof undoes in one step.
+- A ramp drawn in the browser pane shows in the lot's asphalt, with its shadow.
+
 ### Custom geometry, stage M6: ground shapes in the Build, the compiler and the viewer
 
 - [frac_walls.py](tools/bake/frac_walls.py) builds `{kind: ground, version: 1, ground}` copies:

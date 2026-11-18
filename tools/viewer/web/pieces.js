@@ -123,6 +123,28 @@ function drawSpawnIcon(canvas, kind) {
 }
 // A wall look's icon (app.js wallEntries): a stretch of wall with a doorway, its skirting and cornice, a tile line under it
 // A room's (M3 item 6): four walls round a floor seen from above at a slant, a gap for the doorway in the near one.
+// A ground shape's (M6): a patch, a block or a ramp on a tile line, seen at a slant.
+function drawGroundIcon(canvas, shape) {
+  const g = canvas.getContext('2d'), s = canvas.width;
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  g.strokeStyle = '#4a5a66'; g.lineWidth = 1; g.setLineDash([2, 2]);
+  g.beginPath(); g.moveTo(2, 40.5); g.lineTo(46, 40.5); g.stroke(); g.setLineDash([]);
+  const top = '#5b6168', side = '#3d4247', front = '#474d53';
+  if (shape === 'patch') {
+    g.fillStyle = side; g.fillRect(6, 34, 36, 4);
+    g.fillStyle = top; g.beginPath(); g.moveTo(6, 34); g.lineTo(14, 28); g.lineTo(42, 28); g.lineTo(42, 34); g.closePath(); g.fill();
+  } else if (shape === 'block') {
+    g.fillStyle = front; g.fillRect(8, 22, 26, 18);
+    g.fillStyle = side; g.beginPath(); g.moveTo(34, 22); g.lineTo(42, 16); g.lineTo(42, 34); g.lineTo(34, 40); g.closePath(); g.fill();
+    g.fillStyle = top; g.beginPath(); g.moveTo(8, 22); g.lineTo(16, 16); g.lineTo(42, 16); g.lineTo(34, 22); g.closePath(); g.fill();
+  } else {
+    g.fillStyle = side; g.beginPath(); g.moveTo(40, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(44, 36); g.closePath(); g.fill();
+    g.fillStyle = top; g.beginPath(); g.moveTo(4, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(8, 36); g.closePath(); g.fill();
+    g.fillStyle = front; g.beginPath(); g.moveTo(4, 40); g.lineTo(40, 40); g.lineTo(40, 14); g.closePath(); g.fill();
+  }
+  g.restore();
+}
 // A floor or roof's (M5): a slab seen at a slant, its break lines, a hole in a floor; a roof's grey gravel.
 function drawSlabIcon(canvas, role) {
   const g = canvas.getContext('2d'), s = canvas.width;
@@ -215,7 +237,8 @@ export function pieceRow(entry, pixelRatio, choose) {
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
     const thumb = document.createElement('canvas');
     thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    (entry.slab ? c => drawSlabIcon(c, entry.wallLook.role) : entry.room ? c => drawRoomIcon(c, entry.roof) : drawWallIcon)(thumb);
+    (entry.ground ? c => drawGroundIcon(c, entry.ground) : entry.slab ? c => drawSlabIcon(c, entry.wallLook.role)
+      : entry.room ? c => drawRoomIcon(c, entry.roof) : drawWallIcon)(thumb);
     thumb.dataset.drawn = '1';
     const label = document.createElement('span');
     label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
@@ -223,7 +246,9 @@ export function pieceRow(entry, pixelRatio, choose) {
       Object.assign(document.createElement('small'), { textContent: entry.detail }));
     const tags = Object.assign(document.createElement('span'), { className: 'tags' });
     tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: entry.wallLook.lwrOnly ? 'LWR only' : 'Made',
-      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within' : `Made by the Build from numbers, like the game's own ${entry.slab ? 'floors and roofs' : 'walls'}` }));
+      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within'
+        : entry.ground ? 'Made by the Build from numbers on one of the game\'s ground materials'
+        : `Made by the Build from numbers, like the game's own ${entry.slab ? 'floors and roofs' : 'walls'}` }));
     button.title = entry.title;
     button.append(thumb, label, tags);
     button.onclick = choose;

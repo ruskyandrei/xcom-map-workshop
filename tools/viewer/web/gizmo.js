@@ -320,6 +320,15 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     },
     /** Run a viewer command now and make it one undo step. */
     record(command) { command.redo(); undo.push(command); redo.length = 0; refresh(); onEdit(); },
+    /** The last `n` undo steps made one (redone in order, undone in reverse): a change made of several commands, such
+     *  as a made piece put in another's place. */
+    joinLast(n) {
+      if (n < 2 || undo.length < n) return;
+      const parts = undo.splice(undo.length - n, n);
+      undo.push({ size: parts.reduce((s, c) => s + (c.size ?? 1), 0), redo: () => { for (const c of parts) c.redo(); },
+                  undo: () => { for (const c of [...parts].reverse()) c.undo(); } });
+      refresh();
+    },
     /** Set render matrices as the gizmo does (keeping each root's edit in step); for commands. */
     applyMatrices(targets, matrices) { apply(targets, matrices); },
     /** Every root that moves with the current selection. */

@@ -52,6 +52,8 @@ import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, op
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
+import { GROUND, GROUND_LOOKS, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround, resizedGround, slopeOf,
+         slopeWords, toolGround, turnedGround } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -380,6 +382,7 @@ function select(id, add = false, keep = false) {
   $('coverBox').hidden = !root?.userData.source?.cover;
   $('wallBox').hidden = !isMadeWall(root?.userData.source);
   $('slabBox').hidden = !isMadeSlab(root?.userData.source);
+  $('groundBox').hidden = !isMadeGround(root?.userData.source);
   if (wallFocus && wallFocus.id !== id) wallFocus = null;
   if (!root || root.userData.volume || root.userData.effect) {
     highlight.visible = false; ladderMarks.visible = false;
@@ -394,6 +397,7 @@ function select(id, add = false, keep = false) {
   if (obj.cover) { showCover(root); return; }
   if (isMadeWall(obj)) wallPanel(root);
   if (isMadeSlab(obj)) slabPanel(root);
+  if (isMadeGround(obj)) groundPanel(root);
   text(details, 'h2', short(mesh.name));
   text(details, 'div', `${obj.actorClass} · ${obj.sourcePackage || data.source.file.split(/[\\/]/).at(-1)}`, 'sub');
   const chips = text(details, 'div', '', 'chips');
@@ -1227,8 +1231,26 @@ function madeSlabShape(template, s) {
   const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
   return { mesh: key, materials: Array.from({ length: FRAC_SLAB.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
 }
+// A ground shape (custom geometry plan, M6): drawn from /generated/ground.glb, its one section on its template's material.
+const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
+                                  ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: g.look } : {}) });
+function groundBounds(g) {
+  const b = groundShapeBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
+  return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
+}
+function madeGroundShape(template, g) {
+  if (!g || !toolGround({ ...g, x0: 0, y0: 0, x1: g.x1 - g.x0, y1: g.y1 - g.y0 })) return {};
+  const numbers = madeGroundNumbers(g), key = `made:ground:${JSON.stringify(numbers)}`;
+  if (!data.meshes[key]) {
+    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'ground'}, made from numbers`, kind: 'static', made: true,
+      look: data.meshes[template.mesh]?.name ?? null, url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`,
+      sections: [{ slot: 0, count: 1 }], bounds: groundBounds(numbers) };
+  }
+  return { mesh: key, materials: [template.materials[0]] };
+}
 function madeShape(template, generated) {
   if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab);
+  if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground);
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
@@ -2106,7 +2128,7 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  if (entry.wallLook) { startWallDrawing(entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof) }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
+  if (entry.wallLook) { startWallDrawing(entry.ground ? groundLookNow() : entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof), ground: entry.ground ?? null }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
   if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
@@ -3802,7 +3824,7 @@ function spawnAddEntries() {
   }
   return out;
 }
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...wallEntries(), ...slabEntries(), ...zoneEntries(), ...spawnAddEntries()];
+const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...wallEntries(), ...slabEntries(), ...groundEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
 // source to copy: { source, values }, or null for a kind or version this page doesn't know.
 // A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
@@ -9330,7 +9352,8 @@ const madeWallRoot = id => { const r = roots.get(id); return r && isMadeWall(r.u
 // edges grow or shrink it by whole tiles, blue ones move and size its holes; the piece panel's Floor section adds and
 // removes holes and reshuffles its break pattern. Shared with the walls: the drawing, the handles, the undo steps.
 const isMadeSlab = o => o?.added?.generated?.kind === 'fracSlab';
-const isMade = o => isMadeWall(o) || isMadeSlab(o);
+const isMadeGround = o => o?.added?.generated?.kind === 'ground';
+const isMade = o => isMadeWall(o) || isMadeSlab(o) || isMadeGround(o);
 const madeRoot = id => { const r = roots.get(id); return r && isMade(r.userData.source) ? r : null; };
 const wallLookOf = o => WALL_LOOKS.find(l => short(o.added?.from?.actor ?? '') === l.actor && (o.added?.from?.package ?? '').toLowerCase() === l.package.toLowerCase()) ?? null;
 // The look's donor as a template: this map's own piece, or the piece read from its home map (libraryTemplate).
@@ -9386,6 +9409,25 @@ function slabEntries() {
         + `the rectangle, a doorway in the side nearest you, a roof on their tops, and a building round it, so the roof is cut away `
         + `when the cursor is inside, as the game's buildings are. Afterwards each is edited as any. ${install(look)}` }))];
 }
+// The Add panel's Ground kind (M6): a patch, a block and a ramp, drawn in the material last picked (the piece panel's
+// swatches pick it; remembered in this browser).
+const GROUND_KIND = 'Ground', GROUND_LOOK = 'workshop.groundLook';
+const groundLookNow = () => GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
+function groundEntries() {
+  if (!data || data.preview || builderMode) return [];
+  const look = groundLookNow();
+  const words = { patch: 'a flat patch over the ground, its top level with it: covers holes and paints the ground',
+                  block: `a raised block, ${GROUND.block} high when drawn: its top handle raises or lowers it`,
+                  ramp: `a ramp rising toward where the drag ends, ${GROUND.ramp} at its high edge: its top handle sets the rise` };
+  return ['patch', 'block', 'ramp'].map(shape => ({ key: `ground:${shape}`, id: `ground-${shape}`, name: shape[0].toUpperCase() + shape.slice(1),
+    mesh: look.name, kind: GROUND_KIND, pkg: `in ${look.name.toLowerCase()}, from ${look.package}`, role: 'exterior', sources: [], pivotIndex: 0,
+    count: 0, materials: [], milestone: 1, wallLook: look, ground: shape, size: [96, 96, shape === 'patch' ? 8 : GROUND.block],
+    detail: shape === 'ramp' ? 'Dragged out; rises toward the drag\'s end' : 'A rectangle dragged out on the ground',
+    text: `ground ${shape} ${look.name} ${look.package} ${look.words} terrain floor platform slope`.toLowerCase(),
+    title: `${shape[0].toUpperCase() + shape.slice(1)}: ${words[shape]}. Press on the ground at one corner, drag to the other and let go `
+      + `(up to ${GROUND.maxTiles} tiles each way). Drawn in ${look.name.toLowerCase()} (${look.words}); the piece panel's swatches change it. `
+      + `Units walk on it; it doesn't break. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }));
+}
 // The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
 function wallTopsRound(rect, floor) {
   let top = null;
@@ -9408,12 +9450,13 @@ const wallGhosts = [0, 1, 2, 3, 4].map(() => {
   return ghost;
 });
 const wallGhost = { set visible(on) { for (const g of wallGhosts) g.visible = on; } };
-async function startWallDrawing(look, { room = false, slab = false, roof = false } = {}) {
+async function startWallDrawing(look, { room = false, slab = false, roof = false, ground = null } = {}) {
   stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing();
-  const drawing = wallDrawing = { look, room, slab, roof, template: null, start: null };
+  const drawing = wallDrawing = { look, room, slab, roof, ground, template: null, start: null };
   renderer.domElement.style.cursor = 'crosshair';
-  pieces.setChosen([...wallEntries(), ...slabEntries()].find(e => e.wallLook === look && Boolean(e.room) === room
-                                                              && Boolean(e.slab) === slab && Boolean(e.roof) === roof) ?? null);
+  pieces.setChosen(ground ? groundEntries().find(e => e.ground === ground) ?? null
+    : [...wallEntries(), ...slabEntries()].find(e => e.wallLook === look && Boolean(e.room) === room
+                                                 && Boolean(e.slab) === slab && Boolean(e.roof) === roof) ?? null);
   const done = busyStart(`Reading ${look.name}…`);
   try {
     const template = await wallTemplate(look);
@@ -9430,7 +9473,9 @@ function wallHint(words = null) {
   clearTimeout(hintTimer);
   const hint = $('dragHint');
   hint.hidden = false;
-  hint.replaceChildren(words ?? (wallDrawing.slab
+  hint.replaceChildren(words ?? (wallDrawing.ground
+    ? `Drawing a ${wallDrawing.ground} of ${wallDrawing.look.name.toLowerCase()}: press on the ground at one corner, drag to the other${wallDrawing.ground === 'ramp' ? ' (it rises toward the end)' : ''}, let go · Shift keeps drawing · `
+    : wallDrawing.slab
     ? `Drawing a ${wallDrawing.look.name.toLowerCase()}: press at one corner, drag to the other, let go · Shift keeps drawing · `
     : wallDrawing.room
     ? `Drawing a room of ${wallDrawing.look.name.toLowerCase()}s${wallDrawing.roof ? ' with a roof' : ''}: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
@@ -9451,6 +9496,7 @@ function wallGround(clientX, clientY) {
 }
 function drawnNow(d, at) {
   const options = { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed };
+  if (d.ground) return drawnGround(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, shape: d.ground, look: d.look });
   if (d.slab) {
     const flat = drawnSlab(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, look: d.look });
     if (d.look.role !== 'roof') return flat;
@@ -9465,6 +9511,16 @@ function drawnNow(d, at) {
 // The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place); a room's four.
 function showWallGhost(template, drawn) {
   if (drawn.slab) { showSlabGhost(template, drawn, 0); for (const g of wallGhosts.slice(1)) g.visible = false; return; }
+  if (drawn.ground) {
+    const ghost = wallGhosts[0], b = groundShapeBox(drawn.ground);
+    ghost.visible = true;
+    ghost.matrix.copy(movedMatrix(template, drawn.location, drawn.rotation))
+      .multiply(new THREE.Matrix4().makeTranslation((b[0] + b[1]) / 2, (b[4] + b[5]) / 2, (b[2] + b[3]) / 2))
+      .multiply(new THREE.Matrix4().makeScale(b[1] - b[0], Math.max(4, b[5] - b[4]), b[3] - b[2]));
+    ghost.matrixWorldNeedsUpdate = true;
+    for (const g of wallGhosts.slice(1)) g.visible = false;
+    return;
+  }
   if (drawn.roof) { showSlabGhost(wallDrawing.roofTemplate, drawn.roof, 4); }
   else wallGhosts[4].visible = false;
   const walls = drawn.walls ?? [drawn];
@@ -9488,7 +9544,8 @@ function showSlabGhost(template, drawn, k) {
     .multiply(new THREE.Matrix4().makeScale(drawn.slab.x1, Math.max(4, look.top - look.bottom), drawn.slab.y1));
   ghost.matrixWorldNeedsUpdate = true;
 }
-const drawnWords = d => (d.slab || d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(d.slab ? SLAB.maxTiles : WALL.maxTiles) ? ' (the largest)' : ''}`
+const drawnWords = d => (d.ground ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.ground === 'ramp' ? ` · ${slopeWords(d.last.ground)}` : ''}`
+  : d.slab || d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(d.slab ? SLAB.maxTiles : WALL.maxTiles) ? ' (the largest)' : ''}`
   : `${plural(d.last.tiles, 'tile')}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''}`);
 function startWallDraw(e) {
   const d = wallDrawing;
@@ -9521,6 +9578,12 @@ async function endWallDraw(keep) {
   const made = d.last, template = d.template, look = d.look, room = d.room, roofTemplate = d.roofTemplate, floor = d.floor;
   d.start = null; d.pointerId = null; wallGhost.visible = false;
   if (!keep) stopWallDrawing(); else wallHint();
+  if (made.ground) {
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'ground', version: 1, ground: made.ground } } },
+                                      matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
+    flashHint(`Made a ${groundShapeWords(made.ground).toLowerCase()} of ${look.name.toLowerCase()} · its white handles size it${made.ground.shape === 'patch' ? '' : ', the top one raises it'}`);
+    return;
+  }
   if (made.slab) {
     await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracSlab', version: 1, slab: made.slab } } },
                                       matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
@@ -9539,8 +9602,9 @@ async function endWallDraw(keep) {
     const [x0, y0] = made.roof.location, x1 = x0 + made.roof.slab.x1, y1 = y0 + made.roof.slab.y1, z = floor;
     addVolumes([{ box: [x0, y0, z + WALL.bottom, x1, y1, z + WALL.storey + 16], floor: 0 },
                 { box: [x0, y0, z + WALL.storey + 16, x1, y1, z + WALL.top + 16], floor: 1 }], newBuilding());
+    gizmo.joinLast(2);
     gizmo.setSelection([]);
-    flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z twice takes it out`);
+    flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z takes it out`);
     return;
   }
   flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four ${look.name.toLowerCase()}s joined at the corners, a doorway in the near side · click one wall to edit it`
@@ -9550,6 +9614,12 @@ async function endWallDraw(keep) {
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
 // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key.
 function madeMesh(o, generated, ends = null) {
+  if (generated.kind === 'ground') {
+    const numbers = madeGroundNumbers(generated.ground), key = `made:ground:${JSON.stringify(numbers)}`;
+    if (!data.meshes[key])
+      data.meshes[key] = { ...data.meshes[o.mesh], url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`, bounds: groundBounds(numbers) };
+    return key;
+  }
   if (generated.kind !== 'fracSlab') return madeWallMesh(o, generated.wall, ends);
   const numbers = madeSlabNumbers(generated.slab), key = `made:fracslab:${JSON.stringify(numbers)}`;
   if (!data.meshes[key])
@@ -9615,7 +9685,7 @@ async function applyWall(root, state) {
   pickables.splice(0, pickables.length, ...pickables.filter(p => !gone.has(p)), ...(roots.get(o.id) === root ? parts : []));
   root.updateMatrixWorld(true);
   sceneChanged();
-  if (selected === o.id) { refreshHighlight(root); (isMadeSlab(o) ? slabPanel : wallPanel)(root); }
+  if (selected === o.id) { refreshHighlight(root); (isMadeGround(o) ? groundPanel : isMadeSlab(o) ? slabPanel : wallPanel)(root); }
 }
 // One undo step from `before` to `after` (states), the piece picked again each way.
 function setWall(root, after, before) {
@@ -9644,7 +9714,24 @@ function handleWall() {
   if (!root || root.userData.deleted || !root.visible || placing || wallDrawing || volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn
       || gizmo.picks().ids.length !== 1) return null;
   const g = root.userData.source.added.generated;
-  return (g.kind === 'fracSlab' ? toolSlab(g.slab) : toolWall(g.wall)) ? root : null;
+  return (g.kind === 'ground' ? toolGround(g.ground) : g.kind === 'fracSlab' ? toolSlab(g.slab) : toolWall(g.wall)) ? root : null;
+}
+// A ground shape's handles: a white one out of each edge ('side') at its top's middle height, and one on top ('top': a
+// block's top, a ramp's high edge) that raises it.
+function groundHandlesNow(root) {
+  const g = root.userData.source.added.generated.ground, b = groundShapeBox(g);
+  root.updateMatrixWorld(true);
+  const toView = (x, y, h) => new THREE.Vector3(x, h, y).applyMatrix4(root.matrixWorld);
+  const axis = (x, y, z = 0) => toView(x, y, z).sub(toView(0, 0, 0)).normalize();
+  const mid = g.shape === 'ramp' ? b[5] / 2 : b[5], cx = (b[0] + b[1]) / 2, cy = (b[2] + b[3]) / 2;
+  const out = [
+    { key: 'side:x0', kind: 'side', part: 'x0', at: toView(b[0], cy, g.shape === 'ramp' ? 0 : mid), dir: axis(-1, 0) },
+    { key: 'side:x1', kind: 'side', part: 'x1', at: toView(b[1], cy, mid), dir: axis(1, 0) },
+    { key: 'side:y0', kind: 'side', part: 'y0', at: toView(cx, b[2], mid), dir: axis(0, -1) },
+    { key: 'side:y1', kind: 'side', part: 'y1', at: toView(cx, b[3], mid), dir: axis(0, 1) }];
+  if (g.shape !== 'patch')
+    out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(g.shape === 'ramp' ? b[1] : cx, cy, b[5]), dir: axis(0, 0, 1) });
+  return out;
 }
 // A slab's handles: a white one out of the middle of each edge ('side', its part the side), at its top; on each hole a
 // blue one at each side and one in its middle ('hole'; the middle slides it on the slab, `dir` null).
@@ -9669,6 +9756,7 @@ function slabHandlesNow(root) {
 // The handles of the wall now: each { key, kind ('end' | 'opening'), part, index, at (on the wall), dir (the drag's
 // axis, out of an end), out (whether it stands off the wall, out from `at`) } in the view.
 function wallHandlesNow(root) {
+  if (isMadeGround(root.userData.source)) return groundHandlesNow(root);
   if (isMadeSlab(root.userData.source)) return slabHandlesNow(root);
   const w = root.userData.source.added.generated.wall;
   root.updateMatrixWorld(true);
@@ -9732,7 +9820,8 @@ function hoverWallHandle(h) {
   if (key === wallHover) return;
   wallHover = key;
   renderer.domElement.style.cursor = key ? 'grab' : wallDrawing ? 'crosshair' : '';
-  renderer.domElement.title = !h ? '' : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
+  renderer.domElement.title = !h ? '' : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? 'The top: drag to raise or lower it (steps of 8)'
+    : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
     : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
     : h.part === 'top' ? `The wall's top: drag ${storeysOf(handleWall()?.userData.source.added.generated.wall) === 1 ? 'up to make it two storeys' : 'down to make it one storey'}`
     : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
@@ -9790,7 +9879,28 @@ function moveSlabDrag(e) {
   applyWall(d.root, d.after);
   volumeHint(words);
 }
+function moveGroundDrag(e) {
+  const d = wallDrag, h = d.handle, b = d.before, g0 = b.generated.ground;
+  const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
+  if (t == null) return;
+  let g = g0, location = b.location;
+  if (h.part === 'top') g = raisedGround(g0, t - d.from);
+  else {
+    const r = resizedGround(g0, h.part, t - d.from);
+    g = r.ground;
+    const turned = new THREE.Vector3(r.shift[0], 0, r.shift[1]).transformDirection(new THREE.Matrix4().extractRotation(d.root.matrixWorld))
+      .multiplyScalar(Math.hypot(r.shift[0], r.shift[1]));
+    location = [b.location[0] + turned.x, b.location[1] + turned.z, b.location[2]].map(v => Math.round(v * 1000) / 1000);
+  }
+  const key = JSON.stringify([g, location]);
+  if (key === d.shown) return;
+  d.shown = key;
+  d.after = { generated: { ...b.generated, ground: g }, location, rotation: b.rotation };
+  applyWall(d.root, d.after);
+  volumeHint(`${groundShapeWords(g)}${g.shape === 'ramp' ? ` · ${slopeWords(g)}` : ''}`);
+}
 function moveWallDrag(e) {
+  if (isMadeGround(wallDrag.root.userData.source)) { moveGroundDrag(e); return; }
   if (isMadeSlab(wallDrag.root.userData.source)) { moveSlabDrag(e); return; }
   const d = wallDrag, t = alongLine(e.clientX, e.clientY, d.handle.at, d.handle.dir);
   if (t == null) return;
@@ -9918,6 +10028,48 @@ $('slabHole').onclick = () => {
   flashHint('Added a hole, one tile · its blue handles move and size it');
 };
 $('slabShuffle').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, slab: reshuffledSlab(st.generated.slab) } }));
+// ---- the piece panel's Ground section (M6)
+function groundPanel(root) {
+  const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), tool = toolGround(g);
+  $('groundHead').textContent = `Ground · ${look?.name ?? 'made from numbers'}`;
+  $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
+    : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
+  const words = slopeWords(g);
+  $('groundSlope').hidden = !words;
+  $('groundSlope').textContent = words ? words[0].toUpperCase() + words.slice(1) + '.' : '';
+  $('groundSlope').classList.toggle('warn', slopeOf(g) > GROUND.sloped);
+  $('groundSwatches').replaceChildren(...GROUND_LOOKS.map(l => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name, title: `${l.name}: ${l.words} (from ${l.package})` });
+    b.classList.toggle('on', l.id === look?.id);
+    b.disabled = !tool;
+    b.onclick = () => setGroundLook(root, l);
+    return b;
+  }));
+  $('groundTurn').hidden = g.shape !== 'ramp';
+  $('groundTurn').disabled = !tool;
+  $('groundNote').textContent = `Made from numbers on ${look ? `${look.package}'s ${look.name.toLowerCase()}` : 'its donor\'s material'}: units walk on it and it doesn't break.`
+    + (g.shape === 'patch' ? ' Its top lies level with the ground it covers, its plate under it.' : '');
+}
+$('groundTurn').onclick = () => changeWall(st => {
+  const t = turnedGround(st.generated.ground, st.location, st.rotation);
+  return { generated: { ...st.generated, ground: t.ground }, location: t.location, rotation: t.rotation };
+});
+// Another material: the piece is made again on that look's donor where it stands, one undo step; the next drawn take it.
+async function setGroundLook(root, look) {
+  remember(GROUND_LOOK, look.id);
+  const o = root.userData.source, g = o.added.generated.ground;
+  if (groundLookOf(g)?.id === look.id) return;
+  let template;
+  try { template = await wallTemplate(look); } catch (error) { flashHint(`${look.name} can't be used: ${error.message}`); return; }
+  const state = wallState(root), ground = { ...g };
+  if (look.id === GROUND_LOOKS[0].id) delete ground.look; else ground.look = look.id;
+  gizmo.setSelection([o.id]);
+  deleteNow(true);
+  await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'ground', version: 1, ground } } },
+                                    matrix: movedMatrix(template, state.location, state.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
+  gizmo.joinLast(2);
+  flashHint(`Now ${look.name.toLowerCase()} · the next ground you draw is too · Ctrl+Z puts the old one back`);
+}
 // The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
 function doorBoxes(except) {
   const out = [];
@@ -10982,8 +11134,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     // made walls (custom geometry plan, M1): the Walls entries, drawing, a game point on the screen, the picked wall's
     // handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
-    wallEntries, slabEntries, startWallDrawing, stopWallDrawing,
-    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof,
+    wallEntries, slabEntries, groundEntries, startWallDrawing, stopWallDrawing,
+    groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
+    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),

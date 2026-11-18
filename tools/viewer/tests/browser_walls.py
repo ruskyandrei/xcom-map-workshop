@@ -288,9 +288,39 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert len(roof) == 1 and abs(state(page, roof[0])['location'][2] - (corner[2] + 384)) < 1e-3, [state(page, m) for m in made]
     (house,) = [b for b in page.evaluate('viewer.buildingsNow()') if b['name'] not in named]
     assert len(house['floors']) == 2 and house['name'].startswith('Building'), house
-    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.evaluate('viewer.gizmo.undo()')          # (one undo step: the pieces and the building)
     page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     page.wait_for_function('n => viewer.buildingsNow().length === n', arg=houses, timeout=30000)
+    if page.evaluate('viewer.wallDrawing()'):
+        page.keyboard.press('Escape')
+    # (M6) ground: the Ground kind's entries; a ramp dragged east rises east (its frame's x the world's), its top handle
+    # raises it in steps of 8 and the panel says its slope; Turn makes it rise the next way round on the same tiles;
+    # each one undo step
+    names = page.evaluate('viewer.groundEntries().map(e => [e.name, e.kind, e.ground])')
+    assert names == [['Patch', 'Ground', 'patch'], ['Block', 'Ground', 'block'], ['Ramp', 'Ground', 'ramp']], names
+    page.evaluate("viewer.startWallDrawing(viewer.groundEntries()[2].wallLook, { ground: 'ramp' })")
+    page.wait_for_function("viewer.wallDrawing()?.ready && viewer.wallDrawing().ground === 'ramp'", timeout=90000)
+    ga, gb = [a[0], a[1], a[2]], [b[0], a[1] - 96, a[2]]
+    drag(page, ground_point(page, ga), ground_point(page, gb))
+    page.wait_for_function('n => viewer.roots.size === n + 1', arg=len(before_ids), timeout=60000)
+    ramp = page.evaluate('viewer.gizmo.active')
+    mesh_ready(page, ramp)
+    s = state(page, ramp)
+    assert s['generated']['kind'] == 'ground' and s['generated']['ground']['shape'] == 'ramp', s
+    assert s['rotation'] == [0, 0, 0] and s['generated']['ground']['x1'] == 288 and s['generated']['ground']['height'] == 96, s
+    assert 'no cover' in page.evaluate('viewer.groundPanelText()'), page.evaluate('viewer.groundPanelText()')
+    h = page.evaluate('viewer.wallHandles(40)')
+    assert {'side:x0', 'side:x1', 'side:y0', 'side:y1', 'end:top'} <= set(h), sorted(h)
+    drag(page, h['end:top'][:2], h['end:top'][2:])
+    raised = state(page, ramp)['generated']['ground']['height']
+    assert raised > 96 and raised % 8 == 0, raised
+    page.locator('#groundTurn').click()
+    t = state(page, ramp)
+    assert t['rotation'][1] == 16384 and t['generated']['ground']['x1'] == 96, t
+    for _ in range(3):
+        page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    out['ground'] = dict(raised=raised, turned=t['location'])
     if page.evaluate('viewer.wallDrawing()'):
         page.keyboard.press('Escape')
     page.evaluate('id => viewer.select(id)', wall)
