@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-124: a bomb moved two tiles or more leaves its `PointInSpace` helper behind, so Long War's bomb mutator no
+  longer finds the bomb and places nothing; the arrow and camera keep the old place (read from the script and the
+  installed stream, 18 November; not played). The fix is planned with the Spawns view.
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -286,6 +289,26 @@ points and initialises pods. Scripted reinforcements use a later hook.
 The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
+
+### F-124: A moved bomb leaves its helper point behind, and Long War then places nothing
+**Open** (read offline on 18 November 2026, from the decompiled bomb mutator and the installed Slaughterhouse
+stream; not played).
+- **What the mutator needs.** `XComBombMutator.FindBomb` counts the bomb, its button, its floor marker, five
+  emitters, the nearest rebuild volume and the squad's visible point, and every `PointInSpace` within 128 units
+  of the bomb across. With fewer than eleven it logs "can't find the bomb, skipping to defaults" and moves
+  neither the bomb nor the power nodes.
+- **What the editor moves.** Its bomb group is the first ten (`scene_metadata.mission_objects`). The stream's
+  `PointInSpace_0` stands 2.5 units from the bomb across and 204.5 above it, and is not in the group. Five Kismet
+  actions name it: the arrows pointing at the bomb, a camera look-at and a visibility viewer.
+- **So.** A bomb moved by one tile (96 units) is still found. Moved two tiles or more, the count is ten: under
+  Long War the bomb and its nodes play where the project put them, and the arrow and the camera point at where
+  the bomb was. On plain Enemy Within the bomb plays where it is put either way, with the same stray arrow.
+- **Fix, planned:** the helper joins the bomb's group in the next export, so it moves with the bomb and keeps its
+  offset (the mutator itself puts it 206 units above the bomb). Long War then finds the bomb again and places it
+  and the nodes itself wherever it finds a place for each, so the project's place becomes the fallback. A project
+  saved with the bomb moved gets the helper's move when it opens.
+- **To check in the game:** the log's count and placement lines on a variant with the bomb moved three tiles, and
+  the arrow at the bomb.
 
 ### F-103: A piece whose component is turned apart from its actor was refused for every copy
 **Fixed in the tools, checked offline** (14 November 2026; not played in the game).

@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns plan reviewed again; an implementation plan written; F-124
+
+- Reviewed the private spawns plan against main (export 32, project schema 3), the installed Bar and
+  Slaughterhouse packages, the install's mutator loader and random-spawns config, and the decompiled Long War
+  mutators. Its claims hold. A private implementation plan now sets out the stages (export 33 with the base
+  map's spawn points and their users, the install's rules read live, the Spawns view and Normal checkbox, an
+  added bomb mission's objects, pod and Meld diagnostics, then the edits), the files, the tests and the decisions
+  left to the user. Nothing of it is built.
+- New finding F-124 in the [findings register](research/findings-register.md): a bomb moved two tiles or more
+  leaves its `PointInSpace` helper behind, and Long War's bomb mutator then places nothing. Read from the script
+  and the installed stream ([mission objects reader](tools/viewer/scene_metadata.py)); not played.
+- Checked: the repo suite. No tool changed.
+
 ### The user guide covers effects and sounds
 
 - [guide.html](tools/release/guide/guide.html):
