@@ -24,10 +24,10 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export const groundLookOf = g => GROUND_LOOKS.find(l => l.id === (g?.look ?? GROUND_LOOKS[0].id)) ?? null;
 export const groundTiles = g => [Math.round((g.x1 - g.x0) / TILE), Math.round((g.y1 - g.y0) / TILE)];
-/** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch under the ground it lies
- *  on, a block or ramp on it. */
+/** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch's top a unit over the
+ *  ground it lies on, its plate under it; a block or ramp on it. */
 export function groundBox(g) {
-  const z = g.shape === 'patch' ? [-(groundLookOf(g)?.thickness ?? 8), 0] : [0, g.height];
+  const z = g.shape === 'patch' ? [1 - (groundLookOf(g)?.thickness ?? 8), 1] : [0, g.height];     // (a patch a unit over the ground)
   return [g.x0, g.x1, g.y0, g.y1, ...z];
 }
 /** Whether the numbers are ones the tool edits (x0 and y0 0, whole tiles, a height in range, a listed look). */

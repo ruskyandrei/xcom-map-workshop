@@ -8,6 +8,14 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### A ground patch stands a unit over the ground
+
+- [ground.py](tools/bake/ground.py) (`PATCH_LIFT`), [compiler.py](tools/editor/compiler.py) `ground_box` and
+  [ground.js](tools/viewer/web/ground.js) `groundBox`: a patch's top is 1 unit over the ground it lies on, its plate
+  under it. A top level with the map's ground would fight with it to be drawn.
+
+Checked: the ground tests in the bake, editor and viewer suites, with the patch's box at 1 - thickness to 1.
+
 ### Ground shapes take their donor's commonest painted colour
 
 - [ground.py](tools/bake/ground.py) `build(..., colour=)` and [frac_walls.py](tools/bake/frac_walls.py): every vertex

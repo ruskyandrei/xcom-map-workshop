@@ -10,8 +10,8 @@ A shape's numbers are in its piece's frame (the tool puts the piece at the shape
   height    a block's top or a ramp's high edge over its bottom (1 to MAX_HEIGHT); a patch's is its look's thickness
   look      the material it is drawn in (ground_looks.json; left out, the first)
 
-A shape stands on z 0 (its bottom), a patch with its top at z 0 (it lies over the ground it covers, its plate under
-it). Its faces: the top (a ramp's slope), the sides (a ramp's two triangles and its high end); no bottom. Texture
+A shape stands on z 0 (its bottom), a patch with its top PATCH_LIFT over z 0 (it lies over the ground it covers, its
+plate under it, a unit over it so the two don't fight to be drawn). Its faces: the top (a ramp's slope), the sides (a ramp's two triangles and its high end); no bottom. Texture
 coordinates are world-planar, so the material repeats every `repeat` units on every face as on the donor's: on the
 top u = x / repeat, v = y / repeat; on a side u along it, v down it. The lightmap has a chart for each face, at the
 look's density. The collision is the shape's convex hull as the game's cooker saves it (hulls.py): a box for a patch
@@ -36,6 +36,7 @@ MAX_HEIGHT = 384.0
 SLOPED = math.degrees(math.acos(0.9848))     # about 10: a steeper floor tile is sloped (F-81: no cover on it)
 STEEP = 45.0                                 # past this it is no floor
 EPS = 1e-4
+PATCH_LIFT = 1.0     # a patch's top over the ground it lies on
 # the recipe a look without its own takes (ground_looks.json's looks name their own)
 DEFAULT_RECIPE = dict(repeat=256.0, slot=0, sections=1, thickness=8.0, colours=dict(outside='ffffffff', interior='ffffffff'),
                       lightmap=dict(density=0.12, margin=2, interiorDensity=1.0, block=4))
@@ -88,7 +89,8 @@ def corners_and_faces(shape):
         c = [(x0, y0, 0.0), (x1, y0, 0.0), (x1, y1, 0.0), (x0, y1, 0.0), (x1, y0, h), (x1, y1, h)]
         faces = [[0, 4, 5, 3], [1, 2, 5, 4], [0, 1, 4], [3, 5, 2], [0, 3, 2, 1]]
         return c, faces
-    z0, z1 = (-look_of(shape)['thickness'], 0.0) if shape['shape'] == 'patch' else (0.0, float(shape['height']))
+    z0, z1 = ((PATCH_LIFT - look_of(shape)['thickness'], PATCH_LIFT) if shape['shape'] == 'patch'
+              else (0.0, float(shape['height'])))
     c = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
     faces = [[4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [0, 3, 2, 1]]
     return c, faces

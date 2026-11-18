@@ -29,7 +29,7 @@ function footprint(pose) {
   assert.ok(toolGround(b.ground));
   const p = drawnGround([0, 0], [100, 100], { origin, template, z: 0, shape: 'patch' });
   assert.equal(p.ground.height, undefined);
-  assert.deepEqual(groundBox(p.ground).slice(4), [-8, 0]);
+  assert.deepEqual(groundBox(p.ground).slice(4), [-7, 1]);
   for (const [start, end, yaw] of [[[-180, -200], [210, -150], 0], [[210, -150], [-180, -200], 32768], [[0, 0], [10, 300], 16384], [[10, 300], [0, 0], 49152]]) {
     const r = drawnGround(start, end, { origin, template, z: 0, shape: 'ramp' });
     assert.equal(r.rotation[1], yaw);

@@ -148,7 +148,7 @@ GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 def ground_box(g):
     """A ground shape's box in its mesh's frame (ground.local_box)."""
     if g['shape'] == 'patch':
-        z = (-GROUND_LOOKS[g.get('look', GROUND_DEFAULT_LOOK)], 0.0)
+        z = (1.0 - GROUND_LOOKS[g.get('look', GROUND_DEFAULT_LOOK)], 1.0)     # (a unit over the ground it lies on)
     else:
         z = (0.0, float(g['height']))
     return (float(g['x0']), float(g['x1']), float(g['y0']), float(g['y1'])) + z
