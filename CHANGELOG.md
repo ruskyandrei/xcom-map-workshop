@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Play in game matches the base map's name whatever its case**, as the Build has done since this afternoon.
+  - [installs.py](tools/viewer/installs.py) same_map: base_records, _after_base and a map's own play compare the
+    records' map names without case. The farm's file is CsmallScout_Farm.upk while its records name
+    CSmallScout_Farm, and Play in game on a farm project stopped with "DefaultMaps.ini has no record for
+    CsmallScout_Farm" (EXP-78 run F).
+  - Checked: [test_play.py](tools/viewer/tests/test_play.py)
+    test_the_base_map_is_found_whatever_the_case_of_its_name (records found, the place after them, a variant's record
+    planned, another name not matched); the viewer and editor suites.
+
 ### The Add panel opens on maps with no no-spawn volume of their own
 
 - On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the
