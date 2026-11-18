@@ -59,11 +59,19 @@ lightmap's packing margin and block: the Build's own choices) is listed under `n
 
 measure_raw(package, what) gives that entry (the research script's output). check(result, recipe) compares an entry
 with a recipe key by key (the research script's --check: URB_Bar's donor against frac_wall.RECIPE, within
-CHECK_TOLERANCE). No game file is written.
+CHECK_TOLERANCE).
+
+measure(package, what) gives a look's entry for the Build and the catalogue (the block "the recipe" says how):
+dict(recipe (what frac_wall.py's general path builds from), warnings (plain words for what a made wall lacks), facts
+(size, the storeys it can be made at, the sweep's verdict, inside or outside...)); ValueError for a `what` that is no
+fracturing piece or mesh of the map. twin(recipe) gives dict(ok, rows, made): the wall made at its donor's length and
+measured again, each key that makes the look against the recipe. The same donor always gives the same entry. No game
+file is written.
 """
 from collections import Counter
 import math
 from pathlib import Path
+import re
 import sys
 
 import numpy as np
@@ -132,14 +140,19 @@ def find(p, what):
     if i and p.cls(i) == 'FracturedStaticMesh':
         pieces = placed(p, i)
         return (pieces[0][0], pieces[0][1], i) if pieces else (None, None, i)
-    raise SystemExit('%s is neither a fracturing piece nor a fracturing mesh of %s' % (what, p.path.name))
+    raise ValueError('%s is neither a fracturing piece nor a fracturing mesh of %s' % (what, p.path.name))
 
 
 # ---------------------------------------------------------------------------------------------------- geometry
 def geometry(p, mesh):
-    """The mesh's LOD 0 in the wall's frame: positions, triangles (indices, slot, fragment), outward normals,
-    areas, the texture coordinates of channel 0 and of the lightmap channel, colours, the interior slot."""
-    m = gen_mesh.read(p, mesh)
+    """The mesh's LOD 0 in the wall's frame (geometry_of), read from package `p`."""
+    return geometry_of(gen_mesh.read(p, mesh), p.name(mesh), p.effective(mesh, 'LightMapCoordinateIndex', 1), mesh)
+
+
+def geometry_of(m, name, lm_channel=1, mesh=None):
+    """A decoded fracturing mesh's LOD 0 (gen_mesh's form: a donor's, or one frac_wall.build made) in the wall's
+    frame: positions, triangles (indices, slot, fragment), outward normals, areas, the texture coordinates of channel 0
+    and of the lightmap channel, colours, the interior slot."""
     lod = m['lods'][0]
     pos = np.array(lod['positions'], float)
     ext = pos.max(0) - pos.min(0)
@@ -159,11 +172,10 @@ def geometry(p, mesh):
     # UE3's front faces wind clockwise seen from outside (frac_wall.build): the outward normal is -cross
     normal = -cross / np.maximum(2 * area, 1e-12)[:, None]
     channels = lod['texcoords']
-    lm_channel = p.effective(mesh, 'LightMapCoordinateIndex', 1)
     uv0 = np.array([v[2][0] for v in lod['vertices']], float)
     uv1 = np.array([v[2][lm_channel] for v in lod['vertices']], float) if 0 <= lm_channel < channels else None
     interior = m['fractured']['interior']
-    return dict(m=m, mesh=mesh, name=p.name(mesh), turned=turned, pos=pos, idx=idx, tri=tri, slot=slot, frag=frag,
+    return dict(m=m, mesh=mesh, name=name, turned=turned, pos=pos, idx=idx, tri=tri, slot=slot, frag=frag,
                 normal=normal, area=area, uv0=uv0, uv1=uv1, lmChannel=lm_channel, colours=lod['colours'],
                 interior=interior, outside=slot != interior, fragments=len(m['fractured']['fragments']),
                 slots=sorted({int(s['slot']) for s in lod['sections']}))
@@ -196,7 +208,8 @@ def main_planes(g):
 
 # ---------------------------------------------------------------------------------------------------- cuts
 def cut(g, x):
-    """The outside triangles cut by the plane at x: dict(slot, a, b ([y, z] ends), uva, uvb, normal) arrays."""
+    """The outside triangles cut by the plane at x: dict(slot, a, b ([y, z] ends), uva, uvb, normal, tri (their
+    indices)) arrays."""
     tri = g['tri']
     d = tri[:, :, 0] - x
     pos_side = d >= 0
@@ -217,7 +230,7 @@ def cut(g, x):
     second = 2 - np.argmax(cr[:, ::-1], 1)
     rows = np.arange(len(P))
     return dict(slot=g['slot'][sel], normal=g['normal'][sel], a=P[rows, first][:, 1:], b=P[rows, second][:, 1:],
-                uva=U[rows, first], uvb=U[rows, second])
+                uva=U[rows, first], uvb=U[rows, second], tri=np.nonzero(sel)[0])
 
 
 def outline(c, zs, centre):
@@ -447,14 +460,21 @@ def corner_v(c, corner, trims):
     return float(np.median(vs)) if vs else None
 
 
-def section(g, sw, centre, trims):
-    """The section's corners [y, z, v] on the +y side (the median over the agreeing full cuts that have the reference
-    cut's corners), the -y side's corners mirrored, and how the sides compare: 'mirror', 'mirror, other v' (the same
-    outline, the trims' v differ) or 'differs'."""
+def picks_of(sw):
+    """The cuts the section is taken over: the agreeing full cuts, up to PICKS of them spread along the wall (the
+    reference cut among them where it agrees)."""
     picks = [k for k in range(len(sw['xs'])) if sw['basis'][k] and sw['agree'][k]] or [sw['reference']]
     if len(picks) > PICKS:
         picks = sorted({picks[round(i * (len(picks) - 1) / (PICKS - 1))] for i in range(PICKS)} | {sw['reference']}
                        & set(picks))
+    return picks
+
+
+def section(g, sw, centre, trims):
+    """The section's corners [y, z, v] on the +y side (the median over the agreeing full cuts that have the reference
+    cut's corners), the -y side's corners mirrored, and how the sides compare: 'mirror', 'mirror, other v' (the same
+    outline, the trims' v differ) or 'differs'."""
+    picks = picks_of(sw)
     bottom, top = float(g['pos'][:, 2].min()), float(g['pos'][:, 2].max())
     out = {}
     for side in (1, -1):
@@ -561,11 +581,16 @@ def unwrapped_fit(g, mask, axes, channel):
     (so islands shifted by whole numbers, which draw the same, don't bend them), the offset the commonest (0.01
     bins), then least squares with each vertex's whole-number shift taken off. dict(k [k0, k1, c], rms, shifted (the
     share of vertices off by a whole number)) or None."""
-    tris = g['idx'][mask]
+    return unwrap(g['idx'][mask], g['pos'][:, axes], g['uv0'][:, channel])
+
+
+def unwrap(tris, coords, values):
+    """unwrapped_fit's fit over the triangles `tris` (n x 3 vertex indices), by each vertex's two coordinates
+    `coords` (V x 2) and its texture coordinate `values` (V)."""
     if not len(tris):
         return None
-    p = g['pos'][tris][:, :, axes]                       # n x 3 x 2
-    val = g['uv0'][tris][:, :, channel]                  # n x 3
+    p = coords[tris]                                     # n x 3 x 2
+    val = values[tris]                                   # n x 3
     e1, e2 = p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]
     det = e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]
     ok = np.abs(det) > 1e-3
@@ -579,8 +604,8 @@ def unwrapped_fit(g, mask, axes, channel):
     a = float(k0[order0][np.searchsorted(np.cumsum(w[order0]), w.sum() / 2)])
     b = float(k1[order1][np.searchsorted(np.cumsum(w[order1]), w.sum() / 2)])
     verts = np.unique(tris)
-    pv = g['pos'][verts][:, axes]
-    vv = g['uv0'][verts, channel]
+    pv = coords[verts]
+    vv = values[verts]
     c = vv - a * pv[:, 0] - b * pv[:, 1]
     bins = Counter(np.round(c / 0.01).astype(int))
     c0 = max(bins, key=bins.get) * 0.01
@@ -733,6 +758,12 @@ def lightmap(p, mesh, comp, g, ya, yb):
             rect = None
     if res is None:
         res = p.effective(mesh, 'LightMapResolution', None)
+    return densities(g, ya, yb, rect, res)
+
+
+def densities(g, ya, yb, rect, res):
+    """lightmap's texels a unit on the main faces and the inside faces, by the rectangle `rect` (texels) and by the
+    resolution `res`."""
     n = g['normal']
     ty = g['tri'][:, :, 1].mean(1)
     faces = g['outside'] & (((n[:, 1] > FLAT) & (np.abs(ty - ya) < PLANE)) | ((n[:, 1] < -FLAT) & (np.abs(ty - yb) < PLANE)))
@@ -787,12 +818,29 @@ def end_insets(p, comp, g):
 def measure_raw(p, what, keep_cuts=False):
     """The look entry of the donor `what` (an actor or a mesh of package `p`): dict(entry (RECIPE's keys), measured
     (diagnostics), notMeasured)."""
+    return _measure(*donor(p, what), keep_cuts=keep_cuts)[0]
+
+
+def donor(p, what):
+    """(geometry, context) of the donor `what` of package `p` for _measure: the context's map and actor, its
+    component's materials, and how its lightmap, end insets and collision are read."""
     actor, comp, mesh = find(p, what)
     g = geometry(p, mesh)
-    ya, yb, centre, half = main_planes(g)
+    ctx = dict(map=p.path.stem, actor=p.name(actor).split('.')[-1] if actor else None, materials=materials_of(p, comp),
+               lightmap=lambda g, ya, yb: lightmap(p, mesh, comp, g, ya, yb),
+               insets=lambda g: end_insets(p, comp, g),
+               collision=lambda g, centre: collision_half(p, mesh, g, centre))
+    return g, ctx
+
+
+def _measure(g, ctx, keep_cuts=False):
+    """measure_raw's entry of the geometry `g` (geometry_of's) in its context `ctx` (donor's), and what the recipe is
+    made from besides (recipe_of): (dict(entry, measured, notMeasured), state). A context with `planes` gives the main
+    planes (the twin's: its recipe's, so a made wall is measured in its donor's frame)."""
+    ya, yb, centre, half = ctx['planes'] if ctx.get('planes') else main_planes(g)
     pos = g['pos']
     bottom, top = float(pos[:, 2].min()), float(pos[:, 2].max())
-    mats = materials_of(p, comp)
+    mats = ctx['materials']
     rows = slot_roles(g, ya if ya is not None else 1e9, yb if yb is not None else -1e9, mats)
     trims = {s for s, r in rows.items() if r['role'] == 'trim'}
     sw = sweep(g, centre, half)
@@ -807,9 +855,9 @@ def measure_raw(p, what, keep_cuts=False):
     fits = face_fits(g, rows, ya, yb, centre) if half else {}
     tfits = trim_fits(g, rows, centre, trims)
     cells = fragment_cells(g, ya) if ya is not None else None
-    lm = lightmap(p, mesh, comp, g, ya, yb) if half else None
-    inset = end_insets(p, comp, g)
-    col = collision_half(p, mesh, g, centre)
+    lm = ctx['lightmap'](g, ya, yb) if half else None
+    inset = ctx['insets'](g)
+    col = ctx['collision'](g, centre)
     cols = colours(g)
 
     def side_fit(slots, side):
@@ -862,7 +910,7 @@ def measure_raw(p, what, keep_cuts=False):
     if both:
         entry['slots']['bothSides'] = both
     measured = dict(
-        map=p.path.stem, actor=p.name(actor).split('.')[-1] if actor else None, turned=g['turned'],
+        map=ctx['map'], actor=ctx['actor'], turned=g['turned'],
         size=[round(float(v), 2) for v in np.ptp(pos, 0)], x=[round(float(pos[:, 0].min()), 2), round(float(pos[:, 0].max()), 2)],
         planes=dict(a=ya and round(ya, 3), b=yb and round(yb, 3), centre=round(centre, 3)),
         sweep=dict(verdict=sw['verdict'], cuts=sw['cuts'], bodyCuts=sw['bodyCuts'], holedCuts=sw['holedCuts'],
@@ -883,7 +931,8 @@ def measure_raw(p, what, keep_cuts=False):
         'lightmap margin': 'texels between charts: how the Build packs a made wall\'s lightmap, not the donor\'s',
         'lightmap block': 'the DXT block the Build rounds a rectangle to (4): a format constant',
     }
-    return dict(entry=entry, measured=measured, notMeasured=not_measured)
+    state = dict(sw=sw, rows=rows, trims=trims, centre=centre, half=half, bottom=bottom, top=top, fits=fits)
+    return dict(entry=entry, measured=measured, notMeasured=not_measured), state
 
 
 # ---------------------------------------------------------------------------------------------------- the check
@@ -937,3 +986,592 @@ def check(result, recipe):
                          'the donor\'s %g x %g solid' % (cells['grid'][0], cells['grid'][1], cells['grid'][0] * cells['grid'][1],
                                                          cells['fragments'], want[0], want[1], L, H))
     return rows
+
+
+# ---------------------------------------------------------------------------------------------------- the recipe
+# measure(package, what) gives a look's entry: dict(recipe (what frac_wall.py's general path builds from: its block
+# comment says the keys), warnings (plain words for what the made wall lacks), facts (size, storeys, verdict, inside or
+# outside, materials...)). Beyond measure_raw's entry it measures, over the same agreeing cuts, the slot and the texture
+# of every segment of each side's outline (the cuts' segments lying on it: their slot by length, then u and v fitted
+# over their triangles along the wall and up the segment, as the faces' fits are), the top's and the bottom's, and it
+# puts the outline into the form the generator takes (normal_profile). twin(recipe) builds the wall at its donor's
+# length (frac_wall.build) and measures it again: each key that makes the look is compared with the donor's.
+FACE_NEAR = 0.3         # units: an upright segment of the outline this close to the main plane is on it
+ON_SEGMENT = 0.3        # units: a cut's segment whose two ends are this close to a segment of the outline lies on it
+DEFAULT_LIGHTMAP = dict(density=0.196, interiorDensity=0.5)     # a donor whose lightmap isn't read: the Bar look's
+JITTER, MARGIN, BLOCK = 0.3, 2, 4       # the generator's own choices (notMeasured): the Bar look's
+DEFAULT_CELL = [96.0, 80.0]
+WHITE = 'ffffffff'
+MODELLED = "its window frames and ledges aren't made"            # the plan's words (D12)
+# inside or outside wall, a guess from its name and its faces' materials (research/evidence/wall-look-audit.py's)
+INSIDE_NAME = re.compile(r'Int[A-Z_]|INT|Interior|Divider|DualSplit|Inet|Kitchen|Order(Left|Right)|Vault')
+OUTSIDE_NAME = re.compile(r'Ext|EXT|Facade|Core_|HighRise|North|South|East|West|Front|Rear|Entry|Main|Drive|Dine|'
+                          r'Back|Gable|Strip|Crown|Addon|Garage|Store[A-Z]|Shed')
+EXTERIOR_MATERIAL = re.compile(r'Brick|Concrete|Stucco|Siding|Metal|Cinder|Corrugat|Stone|Marble|EXT|Exterior|Shingle|'
+                               r'Clapboard|Granite|Block', re.I)
+INTERIOR_MATERIAL = re.compile(r'Interiors|Interior|INT|Plaster|Wallpaper|Paint|Wainsc|Drywall|Tile|Panel|Wood', re.I)
+
+
+def side_kind(materials):
+    names = ' '.join(m for m in materials if m)
+    ext, inn = bool(EXTERIOR_MATERIAL.search(names)), bool(INTERIOR_MATERIAL.search(names))
+    if 'UFO' in names or 'Alien' in names:
+        return 'alien'
+    return 'exterior' if ext and not inn else 'interior' if inn and not ext else 'mixed' if ext and inn else 'unknown'
+
+
+def kind_of(name, side_a, side_b):
+    """A guess at an inside or outside wall from its mesh's name and its sides' materials: (kind, why), kind 'inside',
+    'outside', 'alien' (the UFOs') or 'unsure' (the wall-look audit's rule)."""
+    short = name.split('.')[-1]
+    ka, kb = side_kind(side_a), side_kind(side_b)
+    if INSIDE_NAME.search(short):
+        return 'inside', 'its name (%s)' % INSIDE_NAME.search(short).group(0)
+    if 'alien' in (ka, kb):
+        return 'alien', 'UFO materials'
+    if {ka, kb} == {'exterior', 'interior'} or {ka, kb} == {'exterior', 'mixed'}:
+        return 'outside', 'an exterior face (%s) and an interior one (%s)' % (ka, kb)
+    if ka == kb == 'interior':
+        return 'inside', 'both faces interior materials'
+    if OUTSIDE_NAME.search(short):
+        return 'outside', 'its name (%s); faces %s / %s' % (OUTSIDE_NAME.search(short).group(0), ka, kb)
+    if ka == kb == 'exterior':
+        return 'outside', 'both faces exterior materials (a free-standing wall)'
+    return 'unsure', 'faces %s / %s' % (ka, kb)
+
+
+def normal_profile(corners, bottom, top):
+    """A side's corners ([y, z, ...]) as the generator takes them, and the heights it made up ([[from, to]]): from the
+    bottom to the top (a first corner over the bottom carried down to it upright, a last one under the top carried up
+    to it), its heights never going down (a step back down made a ledge), a run of corners at the first or the last
+    height cut to the one nearest the face, repeated corners and corners inside a straight upright run dropped."""
+    pts = [[round(float(c[0]), 3) + 0.0, round(min(max(float(c[1]), bottom), top), 3) + 0.0] for c in corners]
+    for k in range(1, len(pts)):
+        pts[k][1] = max(pts[k][1], pts[k - 1][1])
+    while len(pts) > 1 and abs(pts[1][1] - pts[0][1]) < 1e-6:
+        pts.pop(0)
+    while len(pts) > 1 and abs(pts[-2][1] - pts[-1][1]) < 1e-6:
+        pts.pop()
+    made = []
+    if not pts:
+        return [], [[bottom, top]]
+    if pts[0][1] > bottom + 0.05:
+        made.append([bottom, pts[0][1]])
+        pts.insert(0, [pts[0][0], bottom])
+    else:
+        pts[0][1] = bottom
+    if pts[-1][1] < top - 0.05:
+        made.append([pts[-1][1], top])
+        pts.append([pts[-1][0], top])
+    else:
+        pts[-1][1] = top
+    out = []
+    for p in pts:
+        if out and abs(out[-1][0] - p[0]) < 1e-3 and abs(out[-1][1] - p[1]) < 1e-3:
+            continue
+        if (len(out) >= 2 and abs(out[-2][0] - out[-1][0]) < 1e-6 and abs(out[-1][0] - p[0]) < 1e-6
+                and out[-2][1] < out[-1][1] < p[1]):
+            out[-1] = p
+            continue
+        out.append(p)
+    return out, [[round(a, 3) + 0.0, round(b, 3) + 0.0] for a, b in made]
+
+
+def outline_of(g, sw, picks, centre, side):
+    """One side's outline [[y, z]] over the cuts `picks` (section's chains, cut down to their corners): of the cuts'
+    outlines, those with the commonest number of corners (more corners on a tie) whose heights agree within a unit,
+    each corner their median. section() takes the reference cut's number of corners instead: one cut whose outline
+    stops short (a sliver of a fragment at its top) then stands for all, which this doesn't let it."""
+    bottom, top = float(g['pos'][:, 2].min()), float(g['pos'][:, 2].max())
+    sets = []
+    for k in picks:
+        corners = simplify(side_chain(cut(g, sw['xs'][k]), centre, side, bottom, top))
+        if corners:
+            sets.append([(float(y), float(z)) for y, z, _ in corners])
+    if not sets:
+        return []
+    counts = Counter(len(s) for s in sets)
+    n = max(counts, key=lambda c: (counts[c], c))
+    group = [s for s in sets if len(s) == n]
+    zs = np.median(np.array([[z for _, z in s] for s in group]), 0)
+    same = [s for s in group if all(abs(z - m) < 1.0 for (_, z), m in zip(s, zs))] or group
+    arr = np.array(same)
+    return [[round(float(y), 3) + 0.0, round(float(z), 3) + 0.0] for y, z in np.median(arr, 0)]
+
+
+def strip_uv(g, ids, centre, side, p0, p1):
+    """u and v = a x + b t + c over the triangles `ids`, x along the wall and t up the outline's segment p0..p1 (0 at
+    p0, 1 at p1) on the given side, as the faces' fits are made (unwrap): [[a, b, c] of u, [a, b, c] of v], or None."""
+    if not len(ids):
+        return None
+    (y0, z0), (y1, z1) = p0, p1
+    dy, dz = y1 - y0, z1 - z0
+    length2 = dy * dy + dz * dz
+    if length2 < 1e-9:
+        return None
+    ys = (g['pos'][:, 1] - centre) * side
+    t = ((ys - y0) * dy + (g['pos'][:, 2] - z0) * dz) / length2
+    coords = np.c_[g['pos'][:, 0], t]
+    tris = g['idx'][ids]
+    fu, fv = unwrap(tris, coords, g['uv0'][:, 0]), unwrap(tris, coords, g['uv0'][:, 1])
+    if not fu or not fv:
+        return None
+    return [[round(v, 6) + 0.0 for v in fu['k']], [round(v, 6) + 0.0 for v in fv['k']]]
+
+
+def strips_of(g, sw, picks, centre, half, prof, side, face_slots):
+    """Each segment of one side's outline `prof` (normal_profile's): dict(slot, face, uv). Its slot is the one most of
+    the cuts' segments lying on it are in (by length); a face is upright on the main plane in one of the side's face
+    slots (`face_slots`: it takes them by height); any other segment its texture fitted over its triangles (strip_uv).
+    A segment no cut met (one made up, or too short) takes its nearest neighbour's slot and texture."""
+    n = len(prof) - 1
+    P = np.array(prof, float)
+    d = P[1:] - P[:-1]
+    length2 = np.maximum((d ** 2).sum(1), 1e-12)
+    bottom, top = prof[0][1], prof[-1][1]
+    weight = [Counter() for _ in range(n)]
+    tris = [set() for _ in range(n)]
+    for k in picks:
+        c = cut(g, sw['xs'][k])
+        if not len(c['a']):
+            continue
+        ya, yb = (c['a'][:, 0] - centre) * side, (c['b'][:, 0] - centre) * side
+        za, zb = c['a'][:, 1], c['b'][:, 1]
+        nrm = c['normal']
+        zm = (za + zb) / 2
+        facing = nrm[:, 1] * side > 0.02
+        ledge = ((np.abs(nrm[:, 2]) > 0.98) & (np.minimum(ya, yb) > 0.5)
+                 & (np.abs(zm - bottom) > PLANE) & (np.abs(zm - top) > PLANE))
+        sel = np.nonzero(facing | ledge)[0]
+        if not len(sel):
+            continue
+        E = np.stack([np.c_[ya[sel], za[sel]], np.c_[yb[sel], zb[sel]]], 1)            # m x 2 ends x (y, z)
+        size = np.linalg.norm(E[:, 1] - E[:, 0], axis=1)
+        rel = E[:, :, None, :] - P[None, None, :-1, :]                                   # m x 2 x n x 2
+        t = np.clip((rel * d[None, None]).sum(3) / length2[None, None], 0.0, 1.0)
+        dist = np.linalg.norm(rel - t[..., None] * d[None, None], axis=3).max(1)        # m x n
+        j = dist.argmin(1)
+        ok = (dist[np.arange(len(sel)), j] <= ON_SEGMENT) & (size > 1e-3)
+        for s, jj, ln in zip(sel[ok], j[ok], size[ok]):
+            weight[jj][int(c['slot'][s])] += float(ln)
+            tris[jj].add(int(c['tri'][s]))
+    out = []
+    for j in range(n):
+        (y0, z0), (y1, z1) = prof[j], prof[j + 1]
+        slot = min(weight[j], key=lambda s: (-weight[j][s], s)) if weight[j] else None
+        on_plane = abs(y0 - y1) < 1e-3 and z1 > z0 and abs(y0 - half) < FACE_NEAR
+        face = bool(on_plane and face_slots and (slot is None or slot in face_slots))
+        uv = None
+        if not face and slot is not None:
+            ids = np.array(sorted(t for t in tris[j] if g['slot'][t] == slot), np.int64)
+            uv = strip_uv(g, ids, centre, side, (y0, z0), (y1, z1))
+        out.append(dict(slot=None if face else slot, face=face, uv=uv))
+    for j in range(n):
+        if out[j]['face'] or out[j]['slot'] is not None:
+            continue
+        near = [k for k in sorted(range(n), key=lambda k: (abs(k - j), k)) if out[k]['slot'] is not None]
+        if near:
+            out[j] = dict(slot=out[near[0]]['slot'], face=False, uv=out[near[0]]['uv'])
+        else:
+            out[j] = dict(slot=face_slots[0] if face_slots else (g['slots'][0] if g['slots'] else 0), face=False, uv=None)
+    return out
+
+
+def face_uv(fits, sides, entry):
+    """Each face slot's texture on each side it is a face of: {'<slot><side>': [[a, b, c] of u, [d, e, f] of v]} (u and
+    v = a x + b z + c on the face), from the faces' fits; a slot with no fit of its own on a side takes the side's
+    nearest slot's, else the other side's, else the entry's repeat (faceRepeat, faceU, faceV)."""
+    out = {}
+    for X, slots in sides.items():
+        for s in slots:
+            f = fits.get('%d%s' % (s, X))
+            if f:
+                out['%d%s' % (s, X)] = [[float(v) for v in f['u']], [float(v) for v in f['v']]]
+    for X, slots in sides.items():
+        other = 'B' if X == 'A' else 'A'
+        for s in slots:
+            key = '%d%s' % (s, X)
+            if key in out:
+                continue
+            mine = [out['%d%s' % (k, X)] for k in sorted(slots, key=lambda k: (abs(k - s), k)) if '%d%s' % (k, X) in out]
+            theirs = out.get('%d%s' % (s, other))
+            if mine or theirs:
+                out[key] = mine[0] if mine else theirs
+            else:
+                rep = entry.get('faceRepeat') or STOREY
+                v0 = (entry.get('faceV') or [None, None])[0 if X == 'A' else 1]
+                out[key] = [[1.0 / rep, 0.0, float(entry.get('faceU') or 0.0)], [0.0, -1.0 / rep, float(v0 or 0.0)]]
+    return dict(sorted(out.items()))
+
+
+def cap_of(g, centre, z, sign):
+    """The top's (sign 1) or the bottom's (-1) slot (the one most of its area is in) and texture (u and v = a x + b y
+    + c, y from the centre line): dict(slot, uv), or None where the wall has no face there."""
+    n = g['normal']
+    tz = g['tri'][:, :, 2].mean(1)
+    mask = g['outside'] & (n[:, 2] * sign > FLAT) & (np.abs(tz - z) < PLANE)
+    if not mask.any():
+        return None
+    by = np.bincount(g['slot'][mask], weights=g['area'][mask])
+    slot = int(np.argmax(by))
+    m2 = mask & (g['slot'] == slot)
+    coords = np.c_[g['pos'][:, 0], g['pos'][:, 1] - centre]
+    fu, fv = unwrap(g['idx'][m2], coords, g['uv0'][:, 0]), unwrap(g['idx'][m2], coords, g['uv0'][:, 1])
+    uv = [[round(v, 6) + 0.0 for v in fu['k']], [round(v, 6) + 0.0 for v in fv['k']]] if fu and fv else None
+    return dict(slot=slot, uv=uv)
+
+
+def commonest(colours):
+    """A colour entry's (one value, or dict(values, commonest)) commonest value; white where the mesh has none."""
+    if isinstance(colours, str):
+        return colours
+    if isinstance(colours, dict) and colours.get('commonest'):
+        return colours['commonest'][0][0]
+    return WHITE
+
+
+def outside_density(g, rect):
+    """dict(density, interiorDensity): texels a unit over all the outside faces by the lightmap rectangle `rect`
+    (texels), and the inside faces' share of it; {} where there is no rectangle or no lightmap channel."""
+    if not rect or g['uv1'] is None:
+        return {}
+    uv = g['uv1'][g['idx']]
+    uva = 0.5 * np.abs((uv[:, 1, 0] - uv[:, 0, 0]) * (uv[:, 2, 1] - uv[:, 0, 1])
+                       - (uv[:, 2, 0] - uv[:, 0, 0]) * (uv[:, 1, 1] - uv[:, 0, 1]))
+    out = {}
+    for name, mask in (('density', g['outside']), ('inner', ~g['outside'])):
+        a = g['area'][mask].sum()
+        out[name] = float(math.sqrt(uva[mask].sum() * rect[0] * rect[1] / a)) if a > 0 else None
+    if not out['density']:
+        return {}
+    return dict(density=round(out['density'], 4),
+                interiorDensity=round(out['inner'] / out['density'], 3) if out['inner'] else None)
+
+
+def whole_storeys(bottom, top):
+    """The storeys a wall from `bottom` to `top` stands (its top over the floor when it reaches under its pivot, else
+    its height, over 192), as the wall-look audit counts them."""
+    over = top if bottom < -1 else top - bottom
+    return max(1, int(round(over / STOREY)))
+
+
+def recipe_of(raw, state, g):
+    """(recipe, made-up heights by side) from measure_raw's entry `raw`, _measure's `state` and the geometry `g`."""
+    e, m = raw['entry'], raw['measured']
+    half = e['half'] if e['half'] else 8.0
+    bottom, top = e['bottom'], e['top']
+    sw, centre = state['sw'], state['centre']
+    picks = picks_of(sw)
+    slots = e['slots']
+    face_slots = dict(A=list(slots['sideA'] or []), B=list(slots['sideB'] or []))
+    profile, made, strips = {}, {}, {}
+    for X, side in (('A', 1), ('B', -1)):
+        prof, mk = normal_profile(outline_of(g, sw, picks, centre, side), bottom, top)
+        if len(prof) < 2:
+            prof, mk = [[half, bottom], [half, top]], [[bottom, top]]
+        profile[X], made[X] = prof, mk
+        strips[X] = strips_of(g, sw, picks, centre, half, prof, side, face_slots[X])
+    col = m['collision'] or {}
+    lm = dict(e['lightmap'] or {})
+    if not lm.get('density'):
+        # no faces on the main planes to read it on: over all its outside faces
+        lm.update(outside_density(g, (m['lightmap'] or {}).get('rect')))
+    recipe = dict(
+        measure=VERSION, donor=e['donor'], bottom=bottom, top=top, half=half, endInset=e['endInset'],
+        profile=profile, strips=strips,
+        slots=dict(sideA=face_slots['A'], sideB=face_slots['B'], interior=int(g['interior'])),
+        splits=dict(A=[float(v) for v in m['storeySplits']['A']], B=[float(v) for v in m['storeySplits']['B']]),
+        faceUV=face_uv(state['fits'], face_slots, e),
+        caps=dict(top=cap_of(g, centre, top, 1), bottom=cap_of(g, centre, bottom, -1)),
+        colours=dict(outside=commonest(e['colours']['outside']), interior=commonest(e['colours']['interior'])),
+        cell=[float(v) for v in (e['cell'] or DEFAULT_CELL)], jitter=JITTER,
+        collisionHalf=col.get('half') or half,
+        collisionY=[float(v) for v in col['y']] if col.get('y') else [-half, half],
+        lightmap=dict(density=lm.get('density') or DEFAULT_LIGHTMAP['density'],
+                      interiorDensity=lm.get('interiorDensity') or DEFAULT_LIGHTMAP['interiorDensity'],
+                      margin=MARGIN, block=BLOCK),
+        sections=len(g['m']['lods'][0]['sections']), storeys=whole_storeys(bottom, top), storey=STOREY,
+        donorLength=float(m['size'][0]), frame=dict(turned=bool(m['turned']), centre=round(float(centre), 3) + 0.0,
+                                                     x=[float(v) for v in m['x']]))
+    return recipe, {X: v for X, v in made.items() if v}
+
+
+def warnings_of(raw, recipe, made):
+    """What a wall made in this look lacks of its donor, in plain words."""
+    sw = raw['measured']['sweep']
+    out = []
+    if sw['verdict'] == 'modelled':
+        if sw['cornerPiece']:
+            out.append('it is a corner piece: it is made as one straight wall')
+        out.append(MODELLED)
+    elif sw['verdict'] == 'swept, framed openings':
+        out.append("the frames round its doorways and windows aren't made")
+    elif sw['verdict'] == 'mostly swept':
+        out.append("a detail along part of its length isn't made")
+    end = sw.get('endDetail') or {}
+    if end.get('cuts') and (end.get('worst') or 0) >= 1:
+        out.append("the detail at its ends (a corner or a jamb) isn't made: its ends are plain")
+    for X in sorted(made):
+        for a, b in made[X]:
+            out.append("one side's outline from %g to %g up wasn't measured: it is made straight up there" % (a, b))
+    for key, k in (('top', -1), ('bottom', 0)):
+        width = recipe['profile']['A'][k][0] + recipe['profile']['B'][k][0]
+        if recipe['caps'][key] is None and width > 1e-3:
+            out.append("its %s isn't level all along (a gable or a slope): the made wall's %s is flat" % (key, key))
+    return out
+
+
+def facts_of(raw, recipe, made, name):
+    """The look's facts: size, heights, the storeys it can be made at, the sweep's verdict, inside or outside, its
+    slots' roles and materials, how it was measured."""
+    import frac_wall
+    e, m = raw['entry'], raw['measured']
+    rows = {r['slot']: r for r in m['slots']}
+    carrier = [r['material'] for r in rows.values() if r.get('carriesFaces')]
+    side_a = [rows[s]['material'] for s in recipe['slots']['sideA'] if s in rows] or carrier
+    side_b = [rows[s]['material'] for s in recipe['slots']['sideB'] if s in rows] or carrier
+    kind, why = kind_of(name, side_a, side_b)
+    size = m['size']
+    return dict(
+        size=dict(length=size[0], height=size[2], thickness=size[1]), bottom=e['bottom'], top=e['top'],
+        storeys=list(frac_wall.storeys_of(recipe)), verdict=m['sweep']['verdict'], inside=kind == 'inside', kind=kind,
+        kindWhy=why, turned=m['turned'], fragments=m['fragments'], triangles=m['triangles'],
+        openings=m['sweep']['openings'], agreeShare=m['sweep']['agreeShare'],
+        slots=[dict(slot=r['slot'], role=r['role'], material=r['material']) for r in m['slots']],
+        coloursVary=(m['colours'] or {}).get('rule') == 'varying',
+        lightmapMeasured=bool(e['lightmap'] and e['lightmap'].get('density')),
+        **({'madeUp': made} if made else {}))
+
+
+def measure(package, what):
+    """A look's entry from the donor `what` (a placed actor's or a fracturing mesh's name) of the map `package` (a
+    tools/upk Package): dict(recipe, warnings, facts). The same donor always gives the same entry."""
+    g, ctx = donor(package, what)
+    raw, state = _measure(g, ctx)
+    recipe, made = recipe_of(raw, state, g)
+    return dict(recipe=recipe, warnings=warnings_of(raw, recipe, made), facts=facts_of(raw, recipe, made, g['name']))
+
+
+# ---------------------------------------------------------------------------------------------------- the twin check
+TWIN_TOLERANCE = dict(height=0.05, length=0.05, half=0.05, endInset=0.05, profile=0.25, split=0.5, slope=2e-4,
+                      tslope=0.02, value=0.02, collision=0.05, density=0.03, interiorDensity=0.05)
+
+
+def made_collision(solids, centre):
+    """measure_raw's collision entry for a made wall's collision boxes `solids` ([(lo, hi)])."""
+    if not solids:
+        return dict(simple=True, elements=0)
+    y = np.array([v for lo, hi in solids for v in (lo[1], hi[1])]) - centre
+    return dict(simple=True, elements=len(solids), half=round(float(max(y.max(), -y.min())), 3),
+                y=[round(float(y.min()), 3), round(float(y.max()), 3)])
+
+
+def width_at(prof, z):
+    """A side's y at height z on its outline [[y, z]] (the first segment over it that is not a ledge)."""
+    for (ya, za), (yb, zb) in zip(prof, prof[1:]):
+        if za <= z <= zb and zb > za:
+            return ya + (z - za) * (yb - ya) / (zb - za)
+    return prof[0][0] if z < prof[0][1] else prof[-1][0]
+
+
+def surface_at(recipe, X, z, x):
+    """(slot, (u, v)) of side X's face at height z and x along the wall, as frac_wall's general path makes it: a face's
+    slot by height and its slot's texture, or a segment's slot and its own (its side's first face texture where it has
+    none measured); (None, None) where the side has no segment over z."""
+    prof = recipe['profile'][X]
+    for k, ((_, za), (_, zb)) in enumerate(zip(prof, prof[1:])):
+        if za <= z <= zb and zb > za:
+            return segment_surface(recipe, X, k, x, z, (z - za) / (zb - za))
+    return None, None
+
+
+def segment_surface(recipe, X, k, x, z, t):
+    """(slot, (u, v)) of side X's segment k at x along the wall, height z and t up the segment (frac_wall's Profile
+    .surface)."""
+    st = recipe['strips'][X][k]
+    slots = recipe['slots']['side' + X]
+    if st['face'] and slots:
+        band = sum(1 for s in recipe['splits'][X] if s < z)
+        slot = slots[min(band, len(slots) - 1)]
+        fit = recipe['faceUV'].get('%d%s' % (slot, X)) or next(iter(recipe['faceUV'].values()), None)
+        return slot, planar(fit, x, z)
+    if st['uv']:
+        return st['slot'], tuple(f[0] * x + f[1] * t + f[2] for f in st['uv'])
+    fits = [v for key, v in sorted(recipe['faceUV'].items()) if key.endswith(X)] or list(recipe['faceUV'].values())
+    return st['slot'], planar(fits[0] if fits else None, x, z)
+
+
+def planar(fit, x, z):
+    """A face texture [[a, b, c], [d, e, f]] at (x, z): (u, v) = (a x + b z + c, d x + e z + f) (frac_wall's default
+    where there is none)."""
+    if not fit:
+        return (x / STOREY, -z / STOREY)
+    return tuple(f[0] * x + f[1] * z + f[2] for f in fit)
+
+
+def made_surface(c, X, z):
+    """(slot, (u, v)) of the made wall's face on side X at height z in the cut `c` (cut's, at some x): the outermost of
+    the cut's segments facing that side over z, its texture where it crosses z; (None, None) where none is."""
+    side = 1 if X == 'A' else -1
+    a, b = c['a'], c['b']
+    za, zb = a[:, 1], b[:, 1]
+    lo, hi = np.minimum(za, zb), np.maximum(za, zb)
+    ok = np.nonzero((c['normal'][:, 1] * side > 0.02) & (lo <= z) & (z <= hi) & (hi - lo > 1e-6))[0]
+    if not len(ok):
+        return None, None
+    s = (z - za[ok]) / (zb[ok] - za[ok])
+    y = (a[ok, 0] + s * (b[ok, 0] - a[ok, 0])) * side
+    k = int(np.argmax(y))
+    uv = c['uva'][ok[k]] + s[k] * (c['uvb'][ok[k]] - c['uva'][ok[k]])
+    return int(c['slot'][ok[k]]), (float(uv[0]), float(uv[1]))
+
+
+def made_level(c, z, y, up):
+    """(slot, (u, v)) of the made wall's level face at height z (a ledge, the top or the bottom: facing up, or down)
+    where it crosses y (from the centre line, +y side positive) in the cut `c`; (None, None) where none is."""
+    a, b = c['a'], c['b']
+    lo, hi = np.minimum(a[:, 0], b[:, 0]), np.maximum(a[:, 0], b[:, 0])
+    ok = np.nonzero((c['normal'][:, 2] * (1 if up else -1) > 0.98) & (np.abs(a[:, 1] - z) < 0.01)
+                    & (np.abs(b[:, 1] - z) < 0.01) & (lo <= y) & (y <= hi) & (hi - lo > 1e-6))[0]
+    if not len(ok):
+        return None, None
+    k = ok[0]
+    s = (y - a[k, 0]) / (b[k, 0] - a[k, 0])
+    uv = c['uva'][k] + s * (c['uvb'][k] - c['uva'][k])
+    return int(c['slot'][k]), (float(uv[0]), float(uv[1]))
+
+
+def _turn(value):
+    """A texture coordinate's distance from the nearest whole number (islands shifted by whole numbers draw the same)."""
+    return abs(value - round(value))
+
+
+def same_uv(a, b):
+    """Whether two texture coordinates (u, v) draw the same: equal but for whole numbers."""
+    return a is not None and b is not None and all(_turn(p - q) <= TWIN_TOLERANCE['value'] for p, q in zip(a, b))
+
+
+def compare_recipes(want, got, built, wall, g):
+    """The twin's rows: [dict(key, ok, note)] for each key that makes the look, the donor's recipe `want` against the
+    twin's measured `got`, its length and ends from the made mesh `built` of `wall`, and what its faces show read off
+    the made mesh (`g`, geometry_of's) in cuts across it."""
+    T = TWIN_TOLERANCE
+    rows = []
+
+    def row(key, ok, note=''):
+        rows.append(dict(key=key, ok=bool(ok), note=note))
+    pos = np.array(built['mesh']['lods'][0]['positions'], float)
+    length = float(pos[:, 0].max() - pos[:, 0].min())
+    row('length', abs(length - want['donorLength']) <= T['length'], '%g against %g' % (length, want['donorLength']))
+    inset = float(pos[:, 0].min()) - float(wall['x0'])
+    row('endInset', abs(inset - want['endInset']) <= T['endInset'], '%g against %g' % (inset, want['endInset']))
+    for key in ('bottom', 'top'):
+        row(key, abs(got[key] - want[key]) <= T['height'], '%g against %g' % (got[key], want[key]))
+    row('half', abs(got['half'] - want['half']) <= T['half'], '%g against %g' % (got['half'], want['half']))
+    zs = np.arange(want['bottom'] + 0.5, want['top'], 1.0)
+    lo = float(pos[:, 0].min())
+    xs = [round(lo + f * length, 3) + 0.37 for f in (0.1, 0.5, 0.9)]
+    cuts = {x: cut(g, x) for x in xs}
+
+    def words(bad):
+        return '; '.join(bad[:3]) + (' (and %d more)' % (len(bad) - 3) if len(bad) > 3 else '')
+    for X in 'AB':
+        dev = max([abs(width_at(got['profile'][X], z) - width_at(want['profile'][X], z)) for z in zs] or [0.0])
+        row('profile' + X, dev <= T['profile'], 'off by up to %.3g (%d corners against %d)'
+            % (dev, len(got['profile'][X]), len(want['profile'][X])))
+        # what each side of the made wall shows (its slot and texture, read off its mesh) at heights through every
+        # segment and on every ledge, against what the recipe says
+        bad = []
+        prof = want['profile'][X]
+        heights = sorted({round(za + f * (zb - za), 3) for (_, za), (_, zb) in zip(prof, prof[1:])
+                          if zb - za >= 0.5 for f in (0.25, 0.5, 0.75)})
+        # (off the heights the face slots split at, where either slot is right)
+        heights = [z + 0.05 if any(abs(z - s) < 0.01 for s in want['splits'][X]) else z for z in heights]
+        for z in heights:
+            for x in xs:
+                ws, wuv = surface_at(want, X, z, x)
+                gs, guv = made_surface(cuts[x], X, z)
+                if gs is None:
+                    bad.append('no face at %g up' % z)
+                elif ws != gs:
+                    bad.append('slot %s against %s at %g up' % (gs, ws, z))
+                elif not same_uv(wuv, guv):
+                    bad.append('texture (%.3f, %.3f) against (%.3f, %.3f) at %g up' % (*guv, *wuv, z))
+                else:
+                    continue
+                break
+        side = 1 if X == 'A' else -1
+        for k, ((ya, za), (yb, zb)) in enumerate(zip(prof, prof[1:])):
+            if zb - za > 1e-6 or abs(yb - ya) < 1e-6:
+                continue
+            for x in xs:
+                ws, wuv = segment_surface(want, X, k, x, za, 0.5)
+                gs, guv = made_level(cuts[x], za, side * (ya + yb) / 2, yb < ya)
+                if gs is None:
+                    bad.append('no ledge at %g up' % za)
+                elif ws != gs or not same_uv(wuv, guv):
+                    bad.append('the ledge at %g up: slot %s against %s' % (za, gs, ws))
+                else:
+                    continue
+                break
+        row('surface' + X, not bad, words(bad))
+    row('interior', got['slots']['interior'] == want['slots']['interior'],
+        '%s against %s' % (got['slots']['interior'], want['slots']['interior']))
+    bad = []
+    for key, up in (('top', True), ('bottom', False)):
+        k = -1 if up else 0
+        wa, wb = want['profile']['A'][k][0], want['profile']['B'][k][0]
+        if wa + wb < 1e-3:
+            continue                # (an outline that closes to an edge there: no level face either way)
+        w = want['caps'][key]
+        for x in xs:
+            gs, guv = made_level(cuts[x], want[key], (wa - wb) / 2, up)
+            if w is None:
+                if gs is not None:
+                    bad.append('the made wall has a level %s, its donor none' % key)
+                    break
+            elif gs is None:
+                bad.append('the made wall has no level %s' % key)
+                break
+            elif gs != w['slot'] or not same_uv(planar(w['uv'], x, (wa - wb) / 2), guv):
+                bad.append('its %s: slot %s against %s' % (key, gs, w['slot']))
+                break
+    row('caps', not bad, '; '.join(bad))
+    row('colours', got['colours'] == want['colours'], '%s against %s' % (got['colours'], want['colours']))
+    # the fragments: about as many on the donor's solid by the twin's measured cell as by the recipe's
+    L, H = want['donorLength'], want['top'] - want['bottom']
+    grid = [max(1, round(L / want['cell'][0])), max(1, round(H / want['cell'][1]))]
+    measured = [max(1, round(L / got['cell'][0])), max(1, round(H / got['cell'][1]))]
+    row('cell', abs(measured[0] * measured[1] - grid[0] * grid[1]) <= 0.1 * grid[0] * grid[1] + 1,
+        'a grid of %d x %d against %d x %d' % (*measured, *grid))
+    row('collisionY', all(abs(a - b) <= T['collision'] for a, b in zip(got['collisionY'], want['collisionY'])),
+        '%s against %s' % (got['collisionY'], want['collisionY']))
+    lw, lg = want['lightmap'], got['lightmap']
+    row('lightmap', abs(lg['density'] - lw['density']) <= T['density'] * lw['density']
+        and abs(lg['interiorDensity'] - lw['interiorDensity']) <= T['interiorDensity'],
+        '%g, %g against %g, %g' % (lg['density'], lg['interiorDensity'], lw['density'], lw['interiorDensity']))
+    row('sections', got['sections'] == want['sections'], '%d against %d' % (got['sections'], want['sections']))
+    row('storeys', got['storeys'] == want['storeys'], '%d against %d' % (got['storeys'], want['storeys']))
+    return rows
+
+
+def twin(recipe):
+    """The twin check of a look: the wall made at its donor's length (no openings, seed 1: frac_wall.build), measured
+    again with this measurer, each key that makes the look compared with the recipe's (compare_recipes). dict(ok, rows,
+    made (the made wall's counts))."""
+    import frac_wall
+    inset = float(recipe['endInset'])
+    wall = dict(x0=0.0, x1=float(recipe['donorLength']) + 2 * inset, openings=[], seed=1,
+                look=dict(mesh=recipe['donor'], measure=recipe['measure'], recipe=recipe))
+    built = frac_wall.build(wall)
+    g = geometry_of(built['mesh'], recipe['donor'], 1)
+    rect = built['lightmapRect']
+    half = float(recipe['half'])
+    ctx = dict(map=None, actor=None, materials={}, planes=(half, -half, 0.0, half),
+               lightmap=lambda g, ya, yb: densities(g, ya, yb, rect, None),
+               insets=lambda g: end_insets(None, None, g),
+               collision=lambda g, centre: made_collision(built['solids'], centre))
+    raw, state = _measure(g, ctx)
+    again, _ = recipe_of(raw, state, g)
+    rows = compare_recipes(recipe, again, built, wall, g)
+    return dict(ok=all(r['ok'] for r in rows), rows=rows, made=built['counts'])

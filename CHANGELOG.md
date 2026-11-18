@@ -8,6 +8,42 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Walls in the look of any of the game's walls (custom geometry M4, work order A, step 2)
+
+- [frac_wall.py](tools/bake/frac_wall.py) builds from any recipe the measurer gives. A wall's `look` is an id of
+  wall_looks.json, built as before, or a look by its donor, `{mesh, measure, recipe}`, built by a general path:
+  - each side's own outline (the two sides may differ), ledges included;
+  - every segment's slot and texture: faces take their side's face slots by height, the other segments (trims,
+    steps, ledges, a donor with no trim slot, the UFOs' one unwrap for the whole outline) their own;
+  - the top's and bottom's slot and texture, the donor's collision across the wall, its slot count (`sections`: the
+    mesh has as many, in slot order, an empty one with no triangles; the Bar's look keeps 6);
+  - one storey for a taller donor: 192 taken out of the longest stretch that is straight up on both sides
+    (`storeys_of`, `storey_cut`, `lowered`).
+- [wall_measure.py](tools/bake/wall_measure.py): `measure(package, what)` gives a look's entry: its recipe, its
+  warnings in plain words ("its window frames and ledges aren't made" for a modelled wall, as D12 says) and its facts
+  (size, the storeys it can be made at ([1], [2] or [1, 2]; [3] or [1, 3] for the taller donors), the sweep's verdict,
+  inside or outside). It measures each segment's slot and texture over the cuts and fits them over its triangles.
+  `twin(recipe)` builds the wall at its donor's length and measures it again: its outline, what each side shows (read
+  off the made mesh), its caps, colours, cells, collision, lightmap, slots and storeys against the recipe.
+- [frac_walls.py](tools/bake/frac_walls.py), only for the looks' generality:
+  - a wall's shortest length, its storeys, its box and its doorways' boxes follow its look;
+  - a made wall's copy stands at scale 1 where its donor is scaled (made_matrix, unscale; a donor at scale 1 keeps its
+    bytes);
+  - a measured look's paint is taken in the wall's own frame (in_frame: the donor turned and centred as measured, a
+    longer wall repeating the donor's paint with the ends' paint at its ends).
+- Checked: the Bar look's builds byte for byte. Twelve builds (the twin, a doorway, one storey, joined ends, a 16-tile
+  wall, a short one; the default template and the donor's) give the same mesh, solids, lightmap, fragments and names.
+  - test_frac_wall and test_frac_walls pass unchanged; the bake, viewer and editor suites pass.
+  - The research script's `--check` and four donors still give the same bytes.
+  - All 344 donors measured and built four ways: the twin, a 4-tile wall with a doorway and a window, a 16-tile wall
+    with three openings and joined ends, and one storey where the look has it. All 1,188 meshes have every fragment
+    closed, every triangle facing out, the lightmap in its square and the neighbours mutual.
+  - The twin check passes on 326 of the 344. The 18 others have a top or bottom that isn't level (gables, slopes):
+    the made wall's is flat, and their warning says so.
+- Known gaps: what the warnings name isn't made (modelled walls' frames and ledges, framed openings' frames, end
+  details); triangle counts aren't compared with the donor's (a made wall has its own cells); none of it is played
+  yet: a scaled donor's copy at scale 1 and measured looks' paint are offline only.
+
 ### The wall measurer moved into the tools (custom geometry M4, work order A, step 1)
 
 - The measuring of a wall's look is now [wall_measure.py](tools/bake/wall_measure.py) (VERSION 1; `measure_raw`, the

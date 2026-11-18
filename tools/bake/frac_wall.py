@@ -2,8 +2,12 @@
 (private/plans/todo/custom-geometry-implementation-plan.md, section 0, stage F2).
 
 A wall is made in a look (custom geometry plan, M4): one of the game's fracturing walls and the recipe measured on
-it, listed in wall_looks.json (LOOKS; research/evidence/wall-look-measure.py measures one); a wall's numbers name
-their look (`look`, left out: DEFAULT_LOOK). The first, DEFAULT_LOOK, is URB_Bar's
+it. A wall's numbers name their look (`look`): an id of wall_looks.json (LOOKS; left out, DEFAULT_LOOK), built by the
+first path below, byte for byte as it always was; or a look by its donor, `{mesh, measure, recipe}`, the recipe
+tools/bake/wall_measure.py measured on the donor (from the catalogue, tools/bake/looks/walls.json, or measured at the
+Build), built by the general path (the block "any look" says how): any of the game's 344 wall-shaped fracturing walls,
+its two sides' outlines, every segment's slot and texture, its donor's slot count (`sections`), one or more storeys.
+The first, DEFAULT_LOOK, is URB_Bar's
 URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED, an inside wall 560 long and 400 tall (two storeys), and RECIPE is its
 recipe, what was measured on it (research/evidence/frac-wall-audit.py; findings register T-42):
 
@@ -89,6 +93,8 @@ LOOKS = _looks()
 RECIPE = LOOKS[DEFAULT_LOOK]['recipe']
 EPS = 1e-4
 STOREYS = (1, 2)
+STOREY_HEIGHT = 192.0           # the game's storey: what a storey less takes out of a measured look
+RUN_LEFT = 8.0                  # what a storey's cut leaves of the straight run it is taken out of, at least
 # a wall end's styles: how far in from its tile edge its solid stops there (M3 item 2; the docstring), the default look's
 def end_insets(R):
     """A look's (its recipe `R`) end styles' insets: a free end its endInset, 'line' on the tile edge, 'through' its half
@@ -100,11 +106,49 @@ END_INSETS = end_insets(RECIPE)
 
 
 def look_of(wall):
-    """The recipe of the wall's look (its numbers' `look`; left out, DEFAULT_LOOK). ValueError for one not listed."""
+    """The recipe of the wall's look: its numbers' `look`, an id of wall_looks.json (left out, DEFAULT_LOOK), or a look
+    by its donor (custom geometry plan, M4: `{mesh, measure, recipe}`, the recipe resolved for it, from the catalogue or
+    measured by wall_measure.py: tools/bake/looks.py). ValueError for an id not listed or a look with no recipe."""
     name = (wall or {}).get('look', DEFAULT_LOOK)
+    if isinstance(name, dict):
+        recipe = name.get('recipe')
+        if not isinstance(recipe, dict) or not general(recipe):
+            raise ValueError('a wall in the look of %r with no measured recipe given (the Build resolves it: looks.py)'
+                             % (name.get('mesh'),))
+        return recipe
     if name not in LOOKS:
         raise ValueError('a wall in a look not listed in wall_looks.json: %r (they are %s)' % (name, ', '.join(LOOKS)))
     return LOOKS[name]['recipe']
+
+
+def general(R):
+    """Whether the recipe `R` is a measured look's (wall_measure.py's, naming its measurer: `measure`), which the general
+    path builds (any_look); the looks of wall_looks.json keep the first path, byte for byte."""
+    return R.get('measure') is not None
+
+
+def sections_of(R):
+    """How many sections (material slots) a made wall's mesh has: its donor's (`sections`), the Bar look's 6."""
+    return int(R.get('sections', 6))
+
+
+def extent(R):
+    """(lowest, highest) y of the wall's outline across its thickness (its local box's): the Bar look's -12 and 12."""
+    if general(R):
+        return -max(y for y, _ in R['profile']['B']), max(y for y, _ in R['profile']['A'])
+    h = max(y for y, _, _ in R['section'])
+    return -h, h
+
+
+def storeys_of(R):
+    """The storeys a wall in the look of recipe `R` can be made: the first path's (1, 2); a measured look's its donor's
+    own (`storeys`), and one where its donor stands taller and the height down to one storey can be taken out of it
+    (storey_cut: R['storey'] for each storey less)."""
+    if not general(R):
+        return STOREYS
+    own = int(R['storeys'])
+    lower = own > 1 and storey_cut(R, float(R.get('storey') or STOREY_HEIGHT) * (own - 1)) is not None
+    return (1, own) if lower else (own,)
 
 
 def ends_of(wall):
@@ -119,8 +163,19 @@ def ends_of(wall):
 
 def shaped(wall):
     """The wall's look's recipe (look_of) for its height: as it is for two storeys (the donor's); for one, its top, the
-    face's top and the section's corners above the face a storey lower."""
+    face's top and the section's corners above the face a storey lower. A measured look's: as it is at its donor's
+    storeys (`storeys`, when left out); one storey, its `storey` (192) taken out of it for each storey less (storey_cut,
+    lowered), its top that much lower."""
     base = look_of(wall)
+    if general(base):
+        own = int(base['storeys'])
+        storeys = (wall or {}).get('storeys', own)
+        if storeys == own:
+            return base
+        if storeys not in storeys_of(base) or isinstance(storeys, bool):
+            raise ValueError('a wall of %r storeys in a look made at %s' % (storeys, ' or '.join(map(str, storeys_of(base)))))
+        drop = float(base.get('storey') or STOREY_HEIGHT) * (own - int(storeys))
+        return lowered(base, storey_cut(base, drop), drop)
     storeys = int((wall or {}).get('storeys', 2))
     if storeys not in STOREYS:
         raise ValueError('a wall of %r storeys (it has 1 or 2)' % (storeys,))
@@ -483,6 +538,340 @@ def interior_face(faces, f, p, q, normal, key, R=RECIPE):
     return total
 
 
+# ---------------------------------------------------------------------------------------------------- any look (M4)
+# A measured look (wall_measure.py's recipe; custom geometry plan, M4 item 2) is built by the same cells, records,
+# lightmap and collision, its faces by its own outline:
+#   profile   each side's corners [y, z] from the bottom to the top (y outward from the wall's centre line on that side:
+#             side A faces +y, side B -y), a ledge two corners at one height; the two sides may differ (sectionB)
+#   strips    each side's segments between its corners: dict(slot, face, uv). A face (upright on the main plane, in a
+#             face slot of that side) takes the side's face slots by height (slots sideA / sideB, split at `splits`)
+#             and each slot's own texture (faceUV['<slot><side>'], u and v = a x + b z + c); any other segment its own
+#             slot and texture, u and v = a x + b t + c along the wall (x) and up the segment (t, 0 to 1): a trim, a
+#             step, a ledge, or the whole outline in one unwrap (the UFOs' walls); a segment in a face slot off the
+#             main plane (a donor with no trim slot) with its face's projected texture, as the donor has it
+#   caps      the top's and the bottom's slot and texture (u and v = a x + b y + c), where the outline has a top
+#   colours, cell, jitter, collisionY, lightmap, sections (the donor's slots: the mesh has as many, an empty one with
+#             no triangles), storeys (the donor's; storey_cut takes a storey out for a lower wall)
+def storey_cut(R, drop):
+    """Where a measured look loses `drop` of height (a storey less): the top `drop` of the longest stretch upright on
+    both sides at once, each in one segment, when it leaves RUN_LEFT of that stretch: dict(lo, hi, segments {side: k}),
+    or None."""
+    runs = {X: [(za, zb, k) for k, ((ya, za), (yb, zb)) in enumerate(zip(R['profile'][X], R['profile'][X][1:]))
+                if abs(ya - yb) < 1e-6 and zb > za] for X in 'AB'}
+    best = None
+    for a0, a1, ka in runs['A']:
+        for b0, b1, kb in runs['B']:
+            lo, hi = max(a0, b0), min(a1, b1)
+            if hi - lo >= drop + RUN_LEFT and (best is None or (hi - lo, hi) > best[0]):
+                best = ((hi - lo, hi), dict(lo=hi - drop, hi=hi, segments=dict(A=ka, B=kb)))
+    return best[1] if best else None
+
+
+def lowered(R, cut, drop):
+    """The measured look `R` with `drop` taken out at `cut` (storey_cut's): every corner from the cut's top up `drop`
+    lower, the segments that held the cut shorter (their texture up them kept to the unit, as before), the splits above
+    lower; the caps' and the faces' textures as they were."""
+    profile, strips = {}, {}
+    for X in 'AB':
+        corners = [[y, z - drop if z >= cut['hi'] - 1e-9 else z] for y, z in R['profile'][X]]
+        rows = [dict(s) for s in R['strips'][X]]
+        k = cut['segments'][X]
+        (_, za), (_, zb) = R['profile'][X][k], R['profile'][X][k + 1]
+        if rows[k].get('uv'):
+            f = (zb - za - drop) / (zb - za)
+            rows[k]['uv'] = [[u[0], u[1] * f, u[2]] for u in rows[k]['uv']]
+        profile[X], strips[X] = corners, rows
+    splits = {X: [s - drop if s >= cut['hi'] - 1e-9 else s for s in R['splits'][X]] for X in 'AB'}
+    return dict(R, top=R['top'] - drop, profile=profile, strips=strips, splits=splits)
+
+
+class Profile:
+    """A measured look's outline as the general path cuts it (the block's comment): each side's corners, every height
+    its faces are cut at (`cuts`: every corner, both sides', the splits, the bottom and the top), and its surfaces."""
+
+    def __init__(self, R):
+        self.R = R
+        self.sides = {X: [(float(y), float(z)) for y, z in R['profile'][X]] for X in 'AB'}
+        zs = {z for X in 'AB' for _, z in self.sides[X]} | {float(R['bottom']), float(R['top'])}
+        zs |= {float(s) for X in 'AB' for s in R['splits'][X]}
+        self.cuts = sorted(z for z in zs if R['bottom'] - EPS <= z <= R['top'] + EPS)
+        self.ledges = {}            # fragment -> its ledges (ledges_of)
+
+    def width(self, X, z, above):
+        """Side X's y at height z: at a ledge's height, the y above it (`above`) or below it."""
+        c = self.sides[X]
+        at = [k for k, (_, cz) in enumerate(c) if abs(cz - z) < 1e-6]
+        if at:
+            return c[at[-1]][0] if above else c[at[0]][0]
+        for (ya, za), (yb, zb) in zip(c, c[1:]):
+            if za < z < zb:
+                return ya + (z - za) * (yb - ya) / (zb - za)
+        return c[0][0] if z <= c[0][1] else c[-1][0]
+
+    def thickest(self, X, z0, z1):
+        """Side X's largest y over the heights z0..z1 (a chart's width)."""
+        return max([self.width(X, z0, True), self.width(X, z1, False)]
+                   + [y for y, z in self.sides[X] if z0 < z < z1])
+
+    def segment(self, X, z):
+        """The index of side X's segment over height z (not a ledge), the nearest at the ends."""
+        c = self.sides[X]
+        best = None
+        for k, ((_, za), (_, zb)) in enumerate(zip(c, c[1:])):
+            if zb > za:
+                d = max(za - z, z - zb, 0.0)
+                if best is None or d < best[0]:
+                    best = (d, k)
+        return best[1] if best else 0
+
+    def surface(self, X, k, z):
+        """(slot, texture (x, z, t) -> (u, v)) of side X's segment k at height z (t up the segment)."""
+        R = self.R
+        st = R['strips'][X][k]
+        if st.get('face'):
+            slots = R['slots']['side' + X] or []
+            if slots:
+                band = sum(1 for s in R['splits'][X] if s < z)
+                slot = slots[min(band, len(slots) - 1)]
+                fit = R['faceUV'].get('%d%s' % (slot, X)) or next(iter(R['faceUV'].values()), None)
+                return slot, self._planar(fit)
+        slot = st['slot']
+        uv = st.get('uv')
+        if uv:
+            return slot, lambda x, z, t: (uv[0][0] * x + uv[0][1] * t + uv[0][2], uv[1][0] * x + uv[1][1] * t + uv[1][2])
+        # no texture measured on it: its side's first face texture, projected
+        fits = [v for key, v in sorted(R['faceUV'].items()) if key.endswith(X)] or list(R['faceUV'].values())
+        return slot, self._planar(fits[0] if fits else None)
+
+    @staticmethod
+    def _planar(fit):
+        if not fit:
+            return lambda x, z, t: (x / STOREY_HEIGHT, -z / STOREY_HEIGHT)
+        (a, b, c), (d, e, f) = fit
+        return lambda x, z, t: (a * x + b * z + c, d * x + e * z + f)
+
+    def at(self, X, z):
+        """(slot, texture (x, z) -> (u, v), the u it gains a unit along the wall) of side X at height z, for the faces
+        across the wall there (its ends, an opening's sides, lintel and sill)."""
+        k = self.segment(X, z)
+        (_, za), (_, zb) = self.sides[X][k], self.sides[X][k + 1]
+        slot, tex = self.surface(X, k, z)
+
+        def along(x, zz):
+            return tex(x, zz, (zz - za) / (zb - za) if zb > za else 0.0)
+        return slot, along, abs(along(1.0, z)[0] - along(0.0, z)[0])
+
+    def cap(self, top):
+        """(slot, texture (x, y) -> (u, v)) of the top or the bottom (`caps`; where none was measured, side A's
+        segment there and its texture)."""
+        cap = (self.R.get('caps') or {}).get('top' if top else 'bottom')
+        if cap and cap.get('slot') is not None:
+            uv = cap.get('uv')
+            if uv:
+                return cap['slot'], lambda x, y: (uv[0][0] * x + uv[0][1] * y + uv[0][2], uv[1][0] * x + uv[1][1] * y + uv[1][2])
+            return cap['slot'], lambda x, y: (x / STOREY_HEIGHT, y / STOREY_HEIGHT)
+        z = self.R['top'] if top else self.R['bottom']
+        slot, tex, _ = self.at('A', z)
+        return slot, lambda x, y: tex(x, z)
+
+    def ledges_of(self, f, poly):
+        """Fragment f's ledges (its polygon `poly`): [(side, k, z, a, b)] for each ledge of the outline (two corners
+        at one height) the fragment reaches across (a, b: the x range it meets that height over), kept for the faces
+        that meet them (corner_points). A fragment with an edge along that height (an opening's sill or lintel) has
+        the wall on one side of it only: the face across the wall there covers the ledge, so it has none."""
+        out = []
+        for X in 'AB':
+            c = self.sides[X]
+            for k, ((ya, za), (yb, zb)) in enumerate(zip(c, c[1:])):
+                if zb - za > EPS or abs(yb - ya) <= EPS:
+                    continue
+                if any(abs(p[1] - za) < 1e-6 and abs(q[1] - za) < 1e-6 for (p, _), (q, _) in zip(poly, poly[1:] + poly[:1])):
+                    continue
+                span = chord(poly, za)
+                if span:
+                    out.append((X, k, za) + span)
+        self.ledges[f] = out
+        return out
+
+    def corner_points(self, f, x, z):
+        """The y (+y side positive) of the corners of fragment f's ledges that end at (x, z): where a face across the
+        wall there takes a corner so the ledge meets it corner to corner."""
+        out = set()
+        for X, k, lz, a, b in self.ledges.get(f, ()):
+            if abs(lz - z) < 1e-6 and min(abs(x - a), abs(x - b)) < 1e-6:
+                side = 1 if X == 'A' else -1
+                out |= {side * self.sides[X][k][0], side * self.sides[X][k + 1][0]}
+        return out
+
+    def edge_points(self, ring, z0, z1, f=None):
+        """`ring` (a face across the wall at x = c from z0 up to z1: its corners (c, -B, z0), (c, A, z0), (c, A, z1),
+        (c, -B, z1)) with the corners of fragment f's ledges that meet its bottom and top edges where they lie inside
+        them (corner_points): no T-junction there."""
+        c = ring[0][0]
+        lo = sorted(self.corner_points(f, c, z0))
+        hi = sorted(self.corner_points(f, c, z1), reverse=True)
+        out = [ring[0]] + [(c, y, z0) for y in lo if ring[0][1] + 1e-6 < y < ring[1][1] - 1e-6] + [ring[1], ring[2]]
+        out += [(c, y, z1) for y in hi if ring[3][1] + 1e-6 < y < ring[2][1] - 1e-6] + [ring[3]]
+        clean = []
+        for p in out:
+            if not clean or math.dist(clean[-1], p) > 1e-6:
+                clean.append(p)
+        if len(clean) > 1 and math.dist(clean[0], clean[-1]) < 1e-6:
+            clean.pop()
+        return clean
+
+
+def chord(poly, z):
+    """The x range [a, b] where the convex polygon `poly` meets the height z, or None."""
+    xs = [p[0] for part in (clip(poly, (0, 1), z, 'band'), clip(poly, (0, -1), -z, 'band')) for p, _ in part
+          if abs(p[1] - z) < 1e-6]
+    return (min(xs), max(xs)) if xs and max(xs) - min(xs) > 1e-6 else None
+
+
+def fragment_faces_any(wall, faces, f, poly, R, P):
+    """fragment_faces for a measured look (the block's comment): fragment `f`'s faces on both sides by its outline,
+    strip by strip (each cut at every height of P.cuts, so the faces across the wall meet them corner to corner), its
+    ledges, caps, ends, openings' sides, lintels and sills; returns its edges inside the wall and how many of its edges
+    are on the outline or an opening."""
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    length = x1 - x0
+    ledges = {(X, k): (a, b) for X, k, _, a, b in P.ledges_of(f, poly)}
+    for X, side in (('A', 1), ('B', -1)):
+        corners = P.sides[X]
+        for k, ((ya, za), (yb, zb)) in enumerate(zip(corners, corners[1:])):
+            if zb - za > EPS:
+                seg = math.hypot(yb - ya, zb - za)
+                normal = (0.0, side * (zb - za) / seg, -(yb - ya) / seg)
+                chart = faces.chart((X, k), length, seg)
+                zs = [za] + [z for z in P.cuts if za + EPS < z < zb - EPS] + [zb]
+                for z0, z1 in zip(zs, zs[1:]):
+                    part = band(poly, z0, z1)
+                    if not part:
+                        continue
+                    slot, tex = P.surface(X, k, (z0 + z1) / 2)
+                    pts = []
+                    for x, z in [p for p, _ in part]:
+                        t = (z - za) / (zb - za)
+                        pts.append((x, side * (ya + t * (yb - ya)), z, t))
+                    faces.add([q[:3] for q in pts], normal, slot, f, [tex(q[0], q[2], q[3]) for q in pts], chart,
+                              [(q[0] - x0, q[3] * seg) for q in pts])
+            elif (X, k) in ledges:
+                # a ledge: the outline steps out (its underside faces down) or in (its top faces up) at one height
+                a, b = ledges[X, k]
+                quad = [(a, side * ya, za), (b, side * ya, za), (b, side * yb, za), (a, side * yb, za)]
+                ts = (0.0, 0.0, 1.0, 1.0)
+                slot, tex = P.surface(X, k, za)
+                chart = faces.chart((X, k, 'ledge'), length, abs(yb - ya))
+                faces.add(quad, (0.0, 0.0, 1.0 if yb < ya else -1.0), slot, f,
+                          [tex(q[0], q[2], t) for q, t in zip(quad, ts)], chart,
+                          [(q[0] - x0, t * abs(yb - ya)) for q, t in zip(quad, ts)])
+    inside, outside = [], 0
+    pts = [p for p, _ in poly]
+    count = len(pts)
+    for k in range(count):
+        p, q = pts[k], pts[(k + 1) % count]
+        kind = classify(wall, p, q)
+        if math.dist(p, q) < 1e-6:
+            continue
+        dx, dz = q[0] - p[0], q[1] - p[1]
+        ln = math.hypot(dx, dz)
+        nx, nz = dz / ln, -dx / ln
+        if kind != 'in':
+            outside += 1
+        if kind in ('zt', 'zb'):
+            top = kind == 'zt'
+            z = R['top'] if top else R['bottom']
+            wa, wb = P.sides['A'][-1 if top else 0][0], P.sides['B'][-1 if top else 0][0]
+            if wa + wb < 1e-3:
+                continue            # (an outline that closes to an edge there: no cap)
+            a, b = sorted((p[0], q[0]))
+            quad = [(a, -wb, z), (b, -wb, z), (b, wa, z), (a, wa, z)]
+            slot, tex = P.cap(top)
+            chart = faces.chart(('cap', kind), length, wa + wb)
+            faces.add(quad, (0, 0, 1 if top else -1), slot, f, [tex(x, y) for x, y, _ in quad], chart,
+                      [(x - x0, y + wb) for x, y, _ in quad])
+            continue
+        if kind == 'in':
+            inside.append((p, q, (nx, nz)))
+            continue
+        if abs(dx) < 1e-6:
+            # a wall's end or an opening's side: the outline across the edge, cut at every height
+            c = p[0]
+            a, b = sorted((p[1], q[1]))
+            zs = [a] + [z for z in P.cuts if a + EPS < z < b - EPS] + [b]
+            wa, wb = P.thickest('A', a, b), P.thickest('B', a, b)
+            key = ('end', kind if isinstance(kind, str) else kind[1], round(c, 3), round(a, 3))
+            chart = faces.chart(key, wa + wb, b - a)
+            for z0, z1 in zip(zs, zs[1:]):
+                ring = [(c, -P.width('B', z0, True), z0), (c, P.width('A', z0, True), z0),
+                        (c, P.width('A', z1, False), z1), (c, -P.width('B', z1, False), z1)]
+                ring = P.edge_points(ring, z0, z1, f)
+                if len(ring) < 3 or poly_area3(ring) < 1e-6:
+                    continue
+                slot, tex, ua = P.at('A', (z0 + z1) / 2)
+                faces.add(ring, (nx, 0, nz), slot, f,
+                          [(tex(c, z)[0] + ua * nx * y, tex(c, z)[1]) for _, y, z in ring], chart,
+                          [(y + wb, z - a) for _, y, z in ring])
+        else:
+            # an opening's lintel (facing down, the wall over it) or sill (facing up, the wall under it)
+            z = p[1]
+            a, b = sorted((p[0], q[0]))
+            above = nz < 0
+            wa, wb = P.width('A', z, above), P.width('B', z, above)
+            if wa + wb < 1e-3:
+                continue
+            quad = [(a, -wb, z), (b, -wb, z), (b, wa, z), (a, wa, z)]
+            slot, tex, ua = P.at('A', z + (1e-3 if above else -1e-3))
+            chart = faces.chart(('flat', kind[1], round(z, 3), round(a, 3)), b - a, wa + wb)
+            faces.add(quad, (0, 0, nz), slot, f, [(tex(x, z)[0], tex(x, z)[1] + ua * y) for x, y, _ in quad], chart,
+                      [(x - a, y + wb) for x, y, _ in quad])
+    return inside, outside
+
+
+def interior_face_any(faces, f, p, q, normal, key, R, P):
+    """interior_face for a measured look: the face inside the wall on the edge p..q of fragment f across its outline
+    (both sides' y), cut at every height of P.cuts, with the corners of the ledges it passes. Returns its area."""
+    length = math.dist(p, q)
+    za, zb = p[1], q[1]
+    ts = {0.0, 1.0}
+    if abs(zb - za) > 1e-9:
+        for z in P.cuts:
+            t = (z - za) / (zb - za)
+            if 0 < t < 1:
+                ts.add(t)
+    ts = sorted(ts)
+    zs = [za + t * (zb - za) for t in ts]
+    wa = max(P.thickest('A', min(za, zb), max(za, zb)), 1e-6)
+    wb = max(P.thickest('B', min(za, zb), max(za, zb)), -wa + 1e-6)
+    chart = faces.chart(key, length, wa + wb, R['lightmap']['interiorDensity'])
+    total = 0.0
+    up = zb >= za
+    level = abs(zb - za) <= 1e-9            # (a level edge: the same y at both its ends)
+    for i, (t0, t1) in enumerate(zip(ts, ts[1:])):
+        P0 = (p[0] + t0 * (q[0] - p[0]), zs[i])
+        P1 = (p[0] + t1 * (q[0] - p[0]), zs[i + 1])
+        A0, A1 = P.width('A', P0[1], up), P.width('A', P1[1], up if level else not up)
+        B0, B1 = P.width('B', P0[1], up), P.width('B', P1[1], up if level else not up)
+        ring = [(P0[0], -B0, P0[1], t0), (P1[0], -B1, P1[1], t1), (P1[0], A1, P1[1], t1), (P0[0], A0, P0[1], t0)]
+        # the corners of the fragment's ledges that end where the piece's two ends cross the wall
+        extra = {3: sorted(P.corner_points(f, P0[0], P0[1]), reverse=True), 1: sorted(P.corner_points(f, P1[0], P1[1]))}
+        out = []
+        for j, r in enumerate(ring):
+            out.append(r)
+            nxt = ring[(j + 1) % 4]
+            for y in extra.get(j, ()):
+                if min(r[1], nxt[1]) + 1e-6 < y < max(r[1], nxt[1]) - 1e-6 and r[3] == nxt[3]:
+                    out.append((r[0], y, r[2], r[3]))
+        pts3 = [r[:3] for r in out]
+        if poly_area3(pts3) < 1e-9:
+            continue
+        faces.add(pts3, (normal[0], 0.0, normal[1]), R['slots']['interior'], f,
+                  [(r[3], (wa - r[1]) / (wa + wb)) for r in out], chart,
+                  [(r[3] * length, r[1] + wb) for r in out], interior=True)
+        total += poly_area3(pts3)
+    return total
+
+
 def shared(edges):
     """For each fragment's inside edges, the other fragments along them: {(fragment, edge index): [(fragment,
     overlap length)]}: edges on one line running the other way, overlapping."""
@@ -548,11 +937,13 @@ def pack_rect(charts, density, margin, block=4):
 # ---------------------------------------------------------------------------------------------------- collision
 def solids(wall):
     """The collision boxes [(lo, hi)]: the slab (the donor's 16 thick) cut into upright strips at every opening's
-    sides, each strip's stretches clear of openings one box, neighbouring strips with the same stretches joined."""
+    sides, each strip's stretches clear of openings one box, neighbouring strips with the same stretches joined. A
+    measured look's boxes span its donor's collision across the wall (`collisionY`, from its centre line)."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
     R = shaped(wall)
     zb, zt = R['bottom'], R['top']
     hy = R['collisionHalf']
+    ylo, yhi = (float(R['collisionY'][0]), float(R['collisionY'][1])) if 'collisionY' in R else (-hy, hy)
     openings = wall.get('openings', ())
     xs = sorted({x0, x1} | {o[k] for o in openings for k in ('x0', 'x1') if x0 < o[k] < x1})
     strips = []
@@ -570,7 +961,7 @@ def solids(wall):
             strips[-1][1] = b
         else:
             strips.append([a, b, runs])
-    return [((a, -hy, z0), (b, hy, z1)) for a, b, runs in strips for z0, z1 in runs]
+    return [((a, ylo, z0), (b, yhi, z1)) for a, b, runs in strips for z0, z1 in runs]
 
 
 # ---------------------------------------------------------------------------------------------------- packing it all
@@ -647,6 +1038,8 @@ def build(wall, template=None):
     R = shaped(wall)
     template = template or default_template()
     wall = solid_wall(wall)
+    any_look = general(R)
+    P = Profile(R) if any_look else None
     faces = Faces()
     found = cells(wall)
     edges = {}
@@ -654,7 +1047,7 @@ def build(wall, template=None):
     for f, (_, poly) in enumerate(found):
         if area(poly) < 0:
             poly = poly[::-1]
-        edges[f], outer[f] = fragment_faces(wall, faces, f, poly)
+        edges[f], outer[f] = fragment_faces_any(wall, faces, f, poly, R, P) if any_look else fragment_faces(wall, faces, f, poly)
     neighbours = shared(edges)
     records = []
     for f, (seed, _) in enumerate(found):
@@ -662,7 +1055,8 @@ def build(wall, template=None):
         # start with their outside faces), then each edge inside the wall
         nb, dims = [-1] * (2 + outer[f]), [0.0] * (2 + outer[f])
         for k, (p, q, n) in enumerate(edges[f]):
-            a = interior_face(faces, f, p, q, n, ('in', f, k), R)
+            a = (interior_face_any(faces, f, p, q, n, ('in', f, k), R, P) if any_look
+                 else interior_face(faces, f, p, q, n, ('in', f, k), R))
             across = neighbours.get((f, k)) or []
             if not across:
                 nb.append(-1)
@@ -674,7 +1068,7 @@ def build(wall, template=None):
     for rec in records:
         rec['centre'] = (rec['seed'][0], 0.0, rec['seed'][1])
     guid = hashlib.md5(('frac_wall|%r' % (sorted(wall.items(), key=str),)).encode()).digest()
-    out = assemble(faces, records, template, R, guid, slots=6, what='a wall')
+    out = assemble(faces, records, template, R, guid, slots=sections_of(R), what='a wall')
     return dict(out, solids=solids(wall))
 
 
