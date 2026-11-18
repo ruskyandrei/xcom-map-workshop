@@ -8,6 +8,38 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M1 (Build side): a made wall on any map, empty slots drawn, what an opening does in play
+
+The custom geometry plan's stage M1, first part (branch `fracturing-wall-poc`; the plan is private, its stages are
+named here by number).
+
+- **A donor from another map** works as it is: a made wall copied from URB_Bar's inside wall onto a map without it
+  is staged by the transplant like any piece of another map and made from numbers through the staged actor
+  ([test_frac_walls.py](tools/bake/tests/test_frac_walls.py) `StagedDonor`: two walls on URB_PoliceStation, one turned a
+  quarter so its columns run along y).
+- **A slot with nothing in it** (a doorway over a whole storey's face) no longer stops the editor drawing the wall:
+  [generated.py](tools/viewer/generated.py) gives such a slot one triangle of no area inside the wall, so every slot
+  keeps its place for the page's materials. The Build already writes the empty section as the mesh's.
+- **What an opening does in the game**, by the game's own sweeps along the lines between tiles' centres (cover 44 to
+  60, high or low 88 to 104, walking 64, sight 96 over the floor; `research/native/cover-build.md`,
+  `line-of-sight.md`): [compiler.py](tools/editor/compiler.py) `opening_play` and `made_wall_openings` warn of a doorway
+  with no door in it (a unit in it has cover toward its sides), an opening no tile's centre line passes through, a
+  doorway under the walking line, and a window walked through, giving no cover, or not seen through. A door counts
+  when a door's box (a copy's, or one of the map's own left in place) overlaps the doorway.
+- **The wall tool's pure part**, [walls.js](tools/viewer/web/walls.js): a drag to a wall's pose and numbers (tile edge to
+  tile edge along x or y, on the tile line nearest the start, 1 to 16 tiles, the donor's z by whole storeys with no gap
+  under it, quarter turns from the donor's yaw), the ends moved by whole tiles with the openings kept where they are,
+  openings added in the free tile nearest the middle and moved and sized within the wall and off their neighbours,
+  flip and reshuffle, and the same play rule in words for the piece panel.
+- **The Window preset's size**, measured: [wall-openings.py](research/evidence/wall-openings.py) pairs the install's
+  glass pieces with the walls they stand in: the game's windows run 64 to 170 over the floor, one or two tiles wide.
+  Ours runs 72 to 168, so the walking line at 64 meets the wall under it as it meets the game's glass.
+
+Checked: [walls_test.mjs](tools/viewer/tests/walls_test.mjs); `OpeningTests` in
+[test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) (and the page's sweeps against the
+compiler's); [test_generated.py](tools/viewer/tests/test_generated.py) (an empty slot); the staged-donor build; the
+editor and node suites. The page's tool itself comes next; the game has not seen an empty section yet (run A).
+
 ### Branch fracturing-wall-poc: main merged in again
 
 Main merged into the custom walls branch before the custom geometry plan's stage M1 (main at `e1a48d2`: clear map's

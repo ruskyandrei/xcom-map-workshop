@@ -1,6 +1,8 @@
 """The compiler and fracturing walls made from numbers (custom geometry plan, section 0): an added copy of a
 fracturing piece carries its `generated` request to the Build's writer (tools/bake/frac_walls.py), stands in the
-made wall's box, and a malformed request, or one on any other piece, leaves the record out."""
+made wall's box, and a malformed request, or one on any other piece, leaves the record out. What its openings do in
+the game that may surprise is warned of (M1 item 4): a doorway with no door, one no tile's walking line passes
+through, a window walked through, giving no cover, or not seen through."""
 from pathlib import Path
 import sys
 import unittest
@@ -68,6 +70,52 @@ class GeneratedTests(unittest.TestCase):
         spec, report = compiled([dict(add('XComLevelActor_1', 1, (0, 600, 0)), generated=WALL)])
         self.assertIn('malformed', codes(report))
         self.assertIn('only a fracturing piece', ' '.join(d['message'] for d in refused(report)))
+
+
+def wall(*openings, x1=384.0):
+    return dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=x1, openings=list(openings), seed=2))
+
+
+DOORWAY = dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)
+WINDOW = dict(x0=192.0, x1=288.0, z0=72.0, z1=168.0)
+
+
+class OpeningTests(unittest.TestCase):
+    def warned(self, generated, *more):
+        _, report = compiled([made(generated)] + list(more))
+        self.assertTrue(report['ok'], refused(report))
+        return sorted(w['code'] for w in report['warnings'] if w['code'].startswith('wall-'))
+
+    def test_what_the_game_does_at_an_opening(self):
+        w = wall()['wall']
+        self.assertEqual(compiler.opening_play(w, DOORWAY), dict(tiles=1, walk=True, sight=True, cover='none'))
+        self.assertEqual(compiler.opening_play(w, WINDOW), dict(tiles=1, walk=False, sight=True, cover='low'))
+        self.assertEqual(compiler.opening_play(w, dict(WINDOW, z0=112.0, z1=200.0)),
+                         dict(tiles=1, walk=False, sight=False, cover='high'))
+        self.assertEqual(compiler.opening_play(w, dict(DOORWAY, x0=56.0, x1=136.0))['tiles'], 0)
+
+    def test_the_page_knows_the_same_sweeps(self):
+        import re
+        text = (HERE.parents[1] / 'viewer' / 'web' / 'walls.js').read_text(encoding='utf-8')
+        m = re.search(r'export const SWEEP = \{ cover: \[(\d+), (\d+)\], high: \[(\d+), (\d+)\], walk: (\d+), '
+                      r'sight: (\d+), half: ([\d.]+) \}', text)
+        s = compiler.WALL_SWEEPS
+        self.assertEqual([float(v) for v in m.groups()], [*s['cover'], *s['high'], s['walk'], s['sight'], s['half']])
+
+    def test_a_doorway_with_no_door_and_a_window_as_the_games(self):
+        self.assertEqual(self.warned(wall(DOORWAY, WINDOW)), ['wall-doorway-no-door'])
+
+    def test_a_door_in_the_doorway_takes_the_warning_away(self):
+        # the scene's door (a 96 wide, 100 tall leaf about its pivot) copied into the doorway: the wall stands at y 600
+        door = add('XComInteractiveLevelActor_8', 2, (144, 600, 0))
+        self.assertEqual(self.warned(wall(DOORWAY), door), [])
+
+    def test_openings_that_change_play(self):
+        self.assertEqual(self.warned(wall(dict(DOORWAY, x0=56.0, x1=136.0))), ['wall-opening-between-tiles'])
+        self.assertEqual(self.warned(wall(dict(DOORWAY, z1=40.0))), ['wall-doorway-low'])
+        self.assertEqual(self.warned(wall(dict(WINDOW, z0=40.0))), ['wall-window-walked'])
+        self.assertEqual(self.warned(wall(dict(WINDOW, z0=48.0, z1=60.5))), ['wall-window-blind'])
+        self.assertEqual(self.warned(wall(dict(WINDOW, z0=112.0, z1=200.0))), ['wall-window-blind'])
 
 
 if __name__ == '__main__':

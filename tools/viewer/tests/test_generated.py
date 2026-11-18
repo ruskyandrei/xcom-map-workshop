@@ -35,6 +35,19 @@ class FracWall(unittest.TestCase):
         self.assertIn('TEXCOORD_1', prims[0]['attributes'])
         self.assertIn('COLOR_0', prims[0]['attributes'])
 
+    def test_a_slot_with_nothing_in_it_is_drawn_as_a_triangle_of_no_area(self):
+        # a doorway over the whole lower storey of a one-tile wall: the lower storey's face slots hold no faces
+        wall = dict(x0=0, x1=96, openings=[dict(x0=0, x1=96, z0=-16, z1=200)], seed=1)
+        import frac_wall
+        lod = frac_wall.build(wall)['mesh']['lods'][0]
+        empty = [s['slot'] for s in lod['sections'] if not s['triangles']]
+        self.assertTrue(empty)
+        doc = gltf(generated.Meshes().fracwall(json.dumps(wall)))
+        prims = doc['meshes'][0]['primitives']
+        self.assertEqual([p['extras']['materialSlot'] for p in prims], list(range(generated.SLOTS)))
+        for slot in empty:
+            self.assertEqual(doc['accessors'][prims[slot]['indices']]['count'], 3)
+
     def test_the_same_numbers_are_one_file_however_they_are_spelt(self):
         meshes = generated.Meshes()
         a = meshes.fracwall(json.dumps(CUSTOM))

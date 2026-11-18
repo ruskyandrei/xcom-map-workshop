@@ -4,8 +4,9 @@ A fracturing wall made from numbers (an added copy's `generated` of kind 'fracWa
 drawn from its own mesh, not its template's: GET /generated/fracwall.glb?wall=<its numbers as JSON> answers the
 mesh tools/bake/frac_wall.py builds from them, as the export's mesh files are (mesh.write_glb), its six sections in
 slot order (each side's face by storey, the trims, the inside faces), which the page binds to its template's
-materials. The geometry is the numbers' and the recipe's alone, so no map is read. Meshes are kept by their numbers
-while the server runs (the last CACHE_SIZE)."""
+materials. A slot the wall has no triangles in (openings over a whole storey's face) is drawn as one triangle of no
+area inside the wall, so every slot keeps its place in that order. The geometry is the numbers' and the recipe's
+alone, so no map is read. Meshes are kept by their numbers while the server runs (the last CACHE_SIZE)."""
 from collections import OrderedDict
 import json
 import math
@@ -61,10 +62,12 @@ def wall_numbers(text):
 
 
 def viewer_mesh(built):
-    """frac_wall.build's mesh in the form mesh.write_glb writes (mesh.read_mesh's: the page's axes, x z y)."""
+    """frac_wall.build's mesh in the form mesh.write_glb writes (mesh.read_mesh's: the page's axes, x z y), every slot
+    with triangles: an empty one gets a triangle of no area at the middle of the wall's box (inside it)."""
     lod = built['mesh']['lods'][0]
     out = dict(positions=[], normals=[], tangents=[], uvs=[[], []], colors=[], indices=list(lod['indices'][1]),
                sections=[dict(slot=s['slot'], first=s['first'], count=3 * s['triangles']) for s in lod['sections']])
+    empty = [s for s in out['sections'] if not s['count']]
     for (x, y, z), (tangent, normal, uvs), colour in zip(lod['positions'], lod['vertices'], lod['colours']):
         t = [(v - 127.5) / 127.5 for v in tangent]
         n = [(v - 127.5) / 127.5 for v in normal]
@@ -75,6 +78,21 @@ def viewer_mesh(built):
             out['uvs'][channel].extend(uvs[channel])
         b, g, r, a = colour
         out['colors'].extend((r / 255, g / 255, b / 255, a / 255))
+    if empty:
+        n = len(out['positions']) // 3
+        middle = [(lo + hi) / 2 for lo, hi in zip(*(map(min, zip(*lod['positions'])), map(max, zip(*lod['positions']))))]
+        out['positions'].extend((middle[0], middle[2], middle[1]))
+        out['normals'].extend((0.0, 1.0, 0.0))
+        out['tangents'].extend((1.0, 0.0, 0.0, 1.0))
+        for channel in range(2):
+            out['uvs'][channel].extend((0.0, 0.0))
+        out['colors'].extend((1.0, 1.0, 1.0, 1.0))
+        # the sections stay in slot order, each empty one a triangle at the new vertex, after the real ones
+        for s in empty:
+            s['first'] = len(out['indices'])
+            s['count'] = 3
+            out['indices'].extend((n, n, n))
+        out['sections'].sort(key=lambda s: s['slot'])
     return out
 
 
@@ -104,9 +122,9 @@ class Meshes:
                 return self.kept[key]
         built = frac_wall.build(wall)
         mesh = viewer_mesh(built)
-        if any(not s['count'] for s in mesh['sections']) or len(mesh['sections']) != SLOTS:
-            # the page binds the parts to the materials in slot order: every slot needs triangles
-            raise GeneratedError('the wall has nothing left in one of its slots (openings over a whole storey)')
+        if len(mesh['sections']) != SLOTS:
+            # the page binds the parts to the materials in slot order
+            raise GeneratedError('the wall has %d slots, not %d' % (len(mesh['sections']), SLOTS))
         sink = _Bytes()
         write_glb(mesh, sink)
         with self.lock:

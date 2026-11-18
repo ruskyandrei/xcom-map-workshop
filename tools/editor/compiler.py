@@ -110,6 +110,13 @@ COMPILER_VERSION = 3
 # test_frac_walls checks they agree)
 FRAC_WALL_END_INSET = 8.0
 FRAC_WALL_MIN_LENGTH = 40.0
+# What the game does at a made wall's opening (custom geometry plan, M1 item 4; tools/viewer/web/walls.js is the twin):
+# its sweeps over a tile's floor along the line between two tiles' centres (research/native/cover-build.md,
+# line-of-sight.md): cover 44 to 60, high or low 88 to 104, walking 64 (half a unit thick), sight from the eye tile 96
+# over the floor's level. An opening counts at a tile only where it holds the tile's centre along the wall. Heights
+# are over the floor the wall stands on (its numbers' z 0); a doorway reaches the wall's bottom, -16.
+FRAC_WALL_BOTTOM = -16.0
+WALL_SWEEPS = dict(cover=(44.0, 60.0), high=(88.0, 104.0), walk=64.0, sight=96.0, half=0.5)
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
 # sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7).
@@ -437,6 +444,43 @@ def world_box(obj, meshes, location, rotation, along=None):
         pts.append([sum(m[i][k] * v[k] for k in range(3)) + m[i][3] for i in range(3)])
     return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts),
             min(p[2] for p in pts), max(p[2] for p in pts)]
+
+
+def opening_play(wall, o):
+    """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
+    centre lines pass through it), walk, sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
+    tiles))."""
+    length = float(wall['x1']) - float(wall['x0'])
+    centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
+    tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
+    if not tiles:
+        return dict(tiles=0, walk=False, sight=False, cover='whole')
+    s = WALL_SWEEPS
+
+    def spans(a, b):
+        return o['z0'] < a and o['z1'] > b
+    cover_hit, high_hit = not spans(*s['cover']), not spans(*s['high'])
+    return dict(tiles=tiles, walk=spans(s['walk'] - s['half'], s['walk'] + s['half']),
+                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']),
+                cover='none' if not cover_hit else 'high' if high_hit else 'low')
+
+
+def opening_box(location, rotation, o, half=12.0):
+    """The world box [x0, x1, y0, y1, z0, z1] of a made wall's opening, the wall standing at `location` turned by
+    `rotation` (its numbers in its own frame: x along it, z over its floor)."""
+    m = transform(location, rotation, [1, 1, 1])
+    pts = [[sum(m[i][k] * v[k] for k in range(3)) + m[i][3] for i in range(3)]
+           for v in product((o['x0'], o['x1']), (-half, half), (o['z0'], o['z1']))]
+    return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts),
+            min(p[2] for p in pts), max(p[2] for p in pts)]
+
+
+def overlaps_by(a, b, least):
+    """Whether boxes a and b ([x0, x1, y0, y1, z0, z1]) overlap at all across and by more than `least` along x or y
+    (whichever is longer in a) and up."""
+    along = 0 if a[1] - a[0] >= a[3] - a[2] else 1
+    over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(3)]
+    return over[along] > least and over[2] > least and over[1 - along] > 0
 
 
 def is_landing(obj):
@@ -812,6 +856,7 @@ class Compiler:
         # (an override or an added piece) leaves that piece out and the build goes on; `errors` are the document's
         self.left_out = []
         self.copies, self.hides = [], []
+        self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
         # light edits (plan 9.5): the spec's `lights` object, and what each piece edit does to the area lights
@@ -1127,6 +1172,53 @@ class Compiler:
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
                    '{x0, x1, openings, seed}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
         return False
+
+    def made_wall_openings(self):
+        """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
+        4), by opening_play: a doorway units walk through with no door in it (a unit in it has cover toward its sides,
+        as the game gives a tile between two pieces of wall; the game's doorways hold doors); a doorway no tile's
+        walking line passes through; a window low enough to be walked through or to give no cover, or too high to
+        be seen through. A door stands in an opening when a door's box (a copy's, or one of the map's own the project
+        leaves where it is) overlaps the opening's box by more than 8 along the wall and up."""
+        if not self.made_walls:
+            return
+        hidden = {short(h['name']) for h in self.hides}
+        doors = [c['box'] for c in self.copies if c.get('actorClass') == 'XComInteractiveLevelActor' and c.get('box')]
+        for obj in self.scene.get('objects') or []:
+            if (obj.get('layer') == 'base' and obj.get('actorClass') == 'XComInteractiveLevelActor'
+                    and short(obj['actor']) not in hidden and obj.get('mesh') in self.meshes):
+                doors.append(world_box(obj, self.meshes, obj['location'], obj['rotation']))
+        for copy, where in self.made_walls:
+            wall = copy['generated']['wall']
+            name = copy['label']
+            for o in wall.get('openings') or []:
+                play = opening_play(wall, o)
+                doorway = o['z0'] <= FRAC_WALL_BOTTOM + 1e-6
+                what = "%s's %s at %g to %g along it" % (name, 'doorway' if doorway else 'window', o['x0'], o['x1'])
+                if not play['tiles']:
+                    self.warn('wall-opening-between-tiles', "%s: units can't walk or see through it, and the wall gives "
+                              "cover there as if whole: no tile's centre line passes through it (the game walks, sees "
+                              "and takes cover along the lines between tiles' centres)" % what, **where)
+                    continue
+                if doorway and not play['walk']:
+                    self.warn('wall-doorway-low', "%s: units can't walk through it: it is lower than the game's "
+                              'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
+                elif doorway:
+                    box = opening_box(copy['location'], copy['rotation'], o)
+                    if not any(overlaps_by(box, d, 8.0) for d in doors):
+                        self.warn('wall-doorway-no-door', '%s: a unit in this doorway has cover toward its sides: put a '
+                                  "door in it, as the game's doorways have" % what, **where)
+                elif play['walk']:
+                    self.warn('wall-window-walked', "%s: its sill is under the game's walking line, %g over the floor: "
+                              'units walk through it as through a doorway%s' % (
+                                  what, WALL_SWEEPS['walk'], ', and the wall gives no cover there'
+                                  if play['cover'] == 'none' else ''), **where)
+                elif play['cover'] == 'none':
+                    self.warn('wall-window-no-cover', "%s: its sill is under the game's cover line, %g over the floor: "
+                              'the wall gives no cover there' % (what, WALL_SWEEPS['cover'][0]), **where)
+                if not doorway and not play['sight']:
+                    self.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
+                              "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
 
     def flags_valid(self, rec, where):
         """Whether a record's `flags` (if any) is well formed: an object of known roles, each strictly true or false,
@@ -2311,6 +2403,7 @@ class Compiler:
             # a fracturing wall made from numbers on the template's materials (custom geometry plan, section 0)
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
+                self.made_walls.append((self.copies[-1], dict(where)))
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: a blast "
                           'does not spread from it to the walls beside it, nor from them to it' % (short(out), name),
                           **where)
@@ -4408,6 +4501,7 @@ class Compiler:
             self.spawn_rules_mark()
             self.overrides()
             self.added()
+            self.made_wall_openings()
             self.derive_area_lights()
             self.groups()
             self.stage()

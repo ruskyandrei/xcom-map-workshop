@@ -27,6 +27,7 @@ import labpaths  # noqa: E402
 import lightmap_texels  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
+POLICE, NO_POLICE = labpaths.install_map('URB_PoliceStation')
 PL = 'TheWorld.PersistentLevel.'
 DONOR = 'XComDecoFracLevelActor_17'
 DOOR = dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)
@@ -191,6 +192,69 @@ class Built(unittest.TestCase):
         self.assertEqual(twin[0] - ref[0], 8)               # the twin is the reference's box, eight tiles east
         self.assertEqual(twin[1] - twin[0], ref[1] - ref[0])
         self.assertLess(custom[1] - custom[0], twin[1] - twin[0])   # the custom wall is shorter than the donor
+
+
+@unittest.skipUnless(BAR.exists() and POLICE.exists(), NO_POLICE)
+class StagedDonor(unittest.TestCase):
+    """A made wall on a map without the Bar's wall (custom geometry plan, M1 item 1): the donor brought from URB_Bar
+    as any piece of another map is (transplant.stage_edit), then the copy made from numbers through the staged actor:
+    the custom wall, and a second one along y (a quarter turn from the donor's yaw, its columns along y), on
+    URB_PoliceStation."""
+    WALLS = [dict(location=[0.0, 0.0, 16.0], rotation=[0, 0, 0], label='Along x',
+                  generated=COPIES[2]['generated']),
+             dict(location=[384.0, 0.0, 16.0], rotation=[0, 16384, 0], label='Along y',
+                  generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=288.0, openings=[
+                      dict(x0=96.0, x1=192.0, z0=72.0, z1=168.0)], seed=3)))]
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        import transplant
+        sys.path.insert(0, str(TOOLS / 'editor'))
+        import schema as schema_module
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        schema = schema_module.Schema(schema_module.build(BAR.parent))
+        edit = dict(copies=[dict(w, actor=DONOR, donor=dict(package='URB_Bar', sha256=transplant.sha256(BAR)))
+                            for w in cls.WALLS])
+        cls.staged, cls.edit, cls.report = transplant.stage_edit(POLICE, out, edit, schema=schema)
+        cls.m = native_copy.build(cls.staged, out / 'build', 'FracStaged', cls.edit['copies'])
+        cls.q = Package(out / 'build' / 'FracStaged.upk')
+        cls.grid = native_copy.level_grid(cls.q)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_donor_is_staged_and_both_walls_are_made_from_numbers(self):
+        self.assertEqual(self.report['donors'][0]['map'], 'URB_Bar')
+        self.assertTrue(all(c['staged'] for c in self.edit['copies']))
+        walls = self.m['nativeCopies']['generatedWalls']
+        self.assertEqual([(w['kind'], w['label']) for w in walls], [('fracWall', 'Along x'), ('fracWall', 'Along y')])
+        for w in walls:
+            mesh = self.q.by_name[w['mesh']]
+            self.assertEqual(self.q.cls(mesh), 'FracturedStaticMesh')
+            self.assertTrue(w['painted'])
+
+    def test_each_wall_stands_where_it_was_put_with_its_columns_along_it(self):
+        q = self.q
+        for w, spec in zip(self.m['nativeCopies']['generatedWalls'], self.WALLS):
+            actor = q.by_name[PL + w['copy']]
+            self.assertEqual([round(v, 1) for v in q.own(actor, 'Location')], spec['location'])
+            box = w['box']
+            along = 0 if spec['rotation'][1] == 0 else 1
+            length = spec['generated']['wall']['x1']
+            # the solid, 8 in from each tile edge, along the wall's axis from its start
+            self.assertAlmostEqual(box[2 * along], spec['location'][along] + 8, 3)
+            self.assertAlmostEqual(box[2 * along + 1], spec['location'][along] + length - 8, 3)
+            cols = q.structs(q.own(actor, 'FragmentColumns'))
+            self.assertEqual(len(cols), w['columns'])
+            for c in cols:
+                b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
+                lo, hi = (b[0], b[1]), (b[3], b[4])
+                self.assertLessEqual(hi[along] - lo[along], frac_walls.TILE + 1e-3)     # a tile along the wall
+                self.assertLess(hi[1 - along] - lo[1 - along], 30)                   # the wall's thickness across
 
 
 if __name__ == '__main__':
