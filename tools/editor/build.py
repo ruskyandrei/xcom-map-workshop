@@ -721,7 +721,7 @@ class Build:
         # what the edit does to the missions the variant keeps (mission types plan, C3): the build window lists them by
         # mission; the build goes on
         mission_rows = [dict(mission=w.get('mission'), message=w['message'], **({'actor': w['actor']} if w.get('actor') else {}))
-                        for w in report.get('warnings') or [] if str(w.get('code', '')).startswith('mission-')]
+                        for w in report.get('warnings') or [] if str(w.get('code', '')).startswith(('mission-', 'spawn-'))]
         for row in mission_rows[:LEFT_OUT_SHOWN]:
             self.echo('mission: %s' % row['message'])
         self.stage('compile', spec=str(self.spec), nativeCopies=len(self.natives), families=list(self.enable),

@@ -6707,6 +6707,10 @@ function spawnPanel() {
   const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: false, mapExcluded: Boolean(spawnRulesData?.excluded) });
   if (words.length) line('In the game', words.join(' '));
   if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
+  // (a base pod or Meld point: the Build counts the places left, compiler.spawn_places, spawns plan SP5)
+  else if (!moved && e.layer === 'base' && ['pod', 'meld'].includes(o.kind) && missionFloorLost(o)) {
+    line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
+  }
   if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
   else if (e.layer === 'base') line('', baseEditWords);
   else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');

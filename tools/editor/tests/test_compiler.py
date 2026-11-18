@@ -313,6 +313,69 @@ class CompilerTests(unittest.TestCase):
         _, report = compile_project(document(moves), s)
         self.assertEqual(sorted(set(codes(report))), ['stream-donor'])
 
+    def spawn_scene(self):
+        """mission_scene with the base map's pods and Meld points (export 33's `spawns`): three pods and a Meld group of
+        a hard and an easy point; the first pod and the hard point stand on XComLevelActor_1's floor tile."""
+        s, at = self.mission_scene()
+        rec = lambda actor, cls, kind, where, **values: dict(  # noqa: E731
+            actor=PL + actor, actorClass=cls, kind=kind, location=where, rotation=[0, 0, 0],
+            values={k: {'value': v, 'from': 'saved'} for k, v in values.items()})
+        s['spawns'] = [rec('XComAlienPod_0', 'XComAlienPod', 'pod', at(10, 10, 17.0), podIndex=0),
+                       rec('XComAlienPod_1', 'XComAlienPod', 'pod', at(15, 15, 17.0), podIndex=1),
+                       rec('XComAlienPod_2', 'XComAlienPod', 'pod', at(30, 30, 17.0), podIndex=2),
+                       rec('XComMeldContainerSpawnPoint_0', 'XComMeldContainerSpawnPoint', 'meld', at(10, 10, 17.0),
+                           difficulty='Hard', spawnGroup=0),
+                       rec('XComMeldContainerSpawnPoint_1', 'XComMeldContainerSpawnPoint', 'meld', at(25, 5, 17.0),
+                           difficulty='Easy', spawnGroup=0)]
+        return s, at
+
+    def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
+        # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in
+        # no solid piece of the project; fewer pod places, or a Meld group without its hard points or any point, is
+        # a warning that names the first point lost; points a resized grid leaves outside, a note
+        s, at = self.spawn_scene()
+        spawn_codes = lambda report: warned(report, 'spawn-') + noted(report, 'spawn-')  # noqa: E731
+        _, report = compile_project(document(), s)
+        self.assertEqual(spawn_codes(report), [])
+        # XComLevelActor_1's floor tile goes, with the first pod's place and the hard point's
+        gone = [dict(target=target('XComLevelActor_1'), deleted=True)]
+        _, report = compile_project(document(gone), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(spawn_codes(report), ['spawn-meld-group', 'spawn-pod-places'])
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_0'))
+        self.assertEqual(pods['mission'], 'Every mission of the variant')
+        self.assertTrue(pods['message'].startswith('Every mission of the variant: 2 of the map'), pods['message'])
+        meld = next(w for w in report['warnings'] if w['code'] == 'spawn-meld-group')
+        self.assertIn('hard points', meld['message'])
+        self.assertEqual(meld['actor'], PL + 'XComMeldContainerSpawnPoint_0')
+        # one mission kept: the warnings name it
+        _, report = compile_project(document(gone, missions=[dict(record=1)]), s)
+        self.assertEqual({w['mission'] for w in report['warnings'] if w['code'].startswith('spawn-')}, {'Data recovery'})
+        # a piece of the project over the second pod: its place is lost too
+        _, report = compile_project(document(added=[add('XComLevelActor_2', 0, at(15, 15, 0.0))]), s)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_1'))
+        # every floor tile the deleted piece's (a cleared map's): no pod place left, the Meld group has no point
+        s2, _ = self.spawn_scene()
+        for f in s2['tactical']['floorTiles']:
+            f['actor'] = PL + 'XComLevelActor_1'
+        _, report = compile_project(document(gone), s2)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now']), (3, 0))
+        self.assertIn('none of its 2 usable points', next(w['message'] for w in report['warnings'] if w['code'] == 'spawn-meld-group'))
+        # a cleared map's grid shrunk past the third pod and the easy point: they are outside (a note) and the pod's
+        # place is lost
+        _, report = compile_project(document(cleared=True, stage={'grid': [20, 20]}), s)
+        self.assertTrue(report['ok'], refused(report))
+        out = next(n for n in report['notes'] if n['code'] == 'spawn-outside')
+        self.assertTrue(out['message'].startswith('1 pod and 1 Meld point of the map stand outside'), out['message'])
+        self.assertEqual(out['count'], 2)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_2'))
+        # the Meld group keeps its hard point: no Meld warning
+        self.assertEqual(warned(report, 'spawn-meld'), [])
+
     def test_a_missions_objects_warn_when_the_edit_takes_their_floor_or_covers_them(self):
         # mission types plan, C3: warnings only, each naming its mission; the drop-in only a note
         s, at = self.mission_scene()

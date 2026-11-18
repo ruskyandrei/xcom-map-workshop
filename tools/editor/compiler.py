@@ -3592,6 +3592,7 @@ class Compiler:
                       % (self.map, why))
         self.mission_list()
         self.mission_objects()
+        self.spawn_places()
 
     def mission_list(self):
         """The project's `missions` (D1, optional): an error when it is no list, is empty or has an entry the Build can't
@@ -3727,6 +3728,93 @@ class Compiler:
                 self.note('mission-spawns', '%s: %s of %s stand over no floor or inside a piece now (Long War places '
                           'most drop-ins and pods itself; plain Enemy Within uses them where they stand)'
                           % (label, words, name), stream=name, **where)
+
+    def projected_spawns(self):
+        """The base map's spawn points as the variant will have them (export 33: scene.json's `spawns`): [(record,
+        location)], a point a delete record takes out left out. Spawns plan, SP5; the base point edits (SP6, SP7) move,
+        copy and delete them here."""
+        gone = {e['target'] for e in self.entities if e['kind'] == 'delete'}
+        return [(r, r['location']) for r in self.scene.get('spawns') or []
+                if isinstance(r, dict) and isinstance(r.get('location'), list) and r.get('actor') not in gone]
+
+    def spawn_places(self):
+        """The base map's pods and Meld points against the edit (spawns plan, SP5): a pod or Meld point's place is usable
+        when it is in the grid, over floor (the map's that stays, or the project's own) and in no solid piece of the
+        project. Warnings: spawn-pod-places when fewer pod places are usable than the map had (plain Enemy Within, and
+        the missions Long War's pod mutator leaves alone, put a pod at each: fewer places than pods can lose one);
+        spawn-meld-group when a Meld spawn group loses every usable hard point, or every point, it had. A note,
+        spawn-outside, counts the points a resized grid leaves outside. Each names the variant's mission (its one, or
+        every one) and the first point it is about, for the build window's "show"."""
+        grid = self.scene.get('tileGrid') or {}
+        records = self.projected_spawns()
+        if not grid.get('origin') or not grid.get('dimensions') or not records:
+            return
+        size = grid.get('size') or [TILE, TILE, STOREY]
+        corner = tile_corner(grid)
+        tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
+                                int(math.floor((p[2] - corner[2]) / size[2])) + dz)
+        before = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])}
+        added, _ = self.added_floors()
+        now = self.floor_now() | set(added)
+        o, dims = grid['origin'], grid['dimensions']
+        box_before = [o[0], o[1], o[0] + dims[0] * size[0], o[1] + dims[1] * size[1]]
+        g = self.grid_box()
+        box_now = [g[0], g[1], g[3], g[4]]
+        solid = [c for c in self.copies if c.get('box') and c.get('actorClass') != 'XComLadder' and c['box'][5] - c['box'][4] > FLOOR_THICK]
+        inside_box = lambda p, b: b[0] <= p[0] <= b[2] and b[1] <= p[1] <= b[3]  # noqa: E731
+        in_piece = lambda p: any(c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]  # noqa: E731
+                                 and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24 for c in solid)
+        under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
+        was = lambda r: inside_box(r['location'], box_before) and under(r['location'], before)  # noqa: E731
+        usable = lambda p: inside_box(p, box_now) and under(p, now) and not in_piece(p)  # noqa: E731
+        labels = [m.get('label') or 'mission %d' % (i + 1) for i, m in self.kept_missions()]
+        labels += ['%s (added)' % missions.label(k) for k in sorted(self.added_kinds())]
+        where = dict(mission=labels[0] if len(labels) == 1 else 'Every mission of the variant')
+        name = lambda r: str(r.get('actor') or '').rsplit('.', 1)[-1]  # noqa: E731
+
+        pods = [(r, p) for r, p in records if r.get('kind') == 'pod']
+        had = [r for r, _ in pods if was(r)]
+        has = [r for r, p in pods if usable(p)]
+        if len(has) < len(had):
+            lost = next((r for r, p in pods if was(r) and not usable(p)), None) or had[0]
+            self.warn('spawn-pod-places', '%s: %d of the map\'s pod places are usable now, where %d were (in the grid, over '
+                      'floor, in no piece of the project), %s among those lost: plain Enemy Within, and the missions Long '
+                      'War\'s pod mutator leaves alone, put a pod at each place, and with fewer places than pods it can '
+                      'lose one' % (where['mission'], len(has), len(had), name(lost)), actor=lost.get('actor'),
+                      before=len(had), now=len(has), **where)
+
+        groups = {}
+        for r, p in records:
+            if r.get('kind') == 'meld':
+                group = ((r.get('values') or {}).get('spawnGroup') or {}).get('value', 0)
+                groups.setdefault(group if isinstance(group, int) else 0, []).append((r, p))
+        for group, points in sorted(groups.items()):
+            hard = lambda r: str(((r.get('values') or {}).get('difficulty') or {}).get('value', '')).endswith('Hard')  # noqa: E731
+            had_any = [r for r, _ in points if was(r)]
+            has_any = [r for r, p in points if usable(p)]
+            had_hard = [r for r in had_any if hard(r)]
+            has_hard = [r for r in has_any if hard(r)]
+            if had_any and not has_any:
+                self.warn('spawn-meld-group', '%s: Meld spawn group %d has none of its %d usable points left (in the grid, '
+                          'over floor, in no piece of the project): when the mission picks this group it places no '
+                          'canister' % (where['mission'], group, len(had_any)), actor=had_any[0].get('actor'),
+                          group=group, **where)
+            elif had_hard and not has_hard:
+                self.warn('spawn-meld-group', '%s: Meld spawn group %d has none of its %d usable hard points left (in the '
+                          'grid, over floor, in no piece of the project): the mission places a hard canister of the group '
+                          'first, and without one it places fewer' % (where['mission'], group, len(had_hard)),
+                          actor=had_hard[0].get('actor'), group=group, **where)
+
+        if self.stage_grid:
+            out = [r for r, p in records if r.get('kind') in ('pod', 'meld') and inside_box(r['location'], box_before)
+                   and not inside_box(p, box_now)]
+            if out:
+                count = {}
+                for r in out: count[r['kind']] = count.get(r['kind'], 0) + 1
+                words = ' and '.join('%d %s' % (n, ('pod' if k == 'pod' else 'Meld point') + ('s' if n != 1 else ''))
+                                     for k, n in sorted(count.items(), key=lambda kv: kv[0] != 'pod'))
+                self.note('spawn-outside', '%s of the map stand outside the grid as the project sizes it, %s among them'
+                          % (words, name(out[0])), actor=out[0].get('actor'), count=len(out), **where)
 
     def check_zones(self, zones, own=False):
         """Warnings for zones' places: outside the grid, over no floor, a piece of the project on a soldier point, and

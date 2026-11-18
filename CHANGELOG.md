@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP5: pod places and Meld groups counted against the edit
+
+- [compiler.py](tools/editor/compiler.py): `spawn_places()` counts the base map's pods and Meld points (export 33's
+  `spawns`, as `projected_spawns()` gives them: a deleted one left out; the base point edits will move, copy and
+  delete them there) against the edit. A place is usable in the grid as the project sizes it, over floor that stays
+  or that the project's pieces give, and in no solid piece of the project. New warnings:
+  - `spawn-pod-places`: fewer usable pod places than the map had (counts before and now, the first place lost);
+    plain Enemy Within, and the missions Long War's pod mutator leaves alone, put a pod at each place;
+  - `spawn-meld-group`: a Meld spawn group left with none of the usable points, or none of the hard points, it had;
+  - and a note, `spawn-outside`: pods and Meld points a resized grid leaves outside, by count.
+  Each names the variant's one mission, or "Every mission of the variant", and the point, so the build window's
+  mission list (which now takes `spawn-` warnings too: [build.py](tools/editor/build.py)) shows its marker.
+- [app.js](tools/viewer/web/app.js): a base pod's or Meld point's panel says when the edit leaves no floor of the
+  map under it and what the Build does about it.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (untouched: nothing; a floor piece deleted
+  under a pod and the hard point; one mission kept; a piece of the project over a pod; every floor gone; a cleared
+  map's grid shrunk past a pod and a Meld point). EXP-51's and EXP-54's cleared Bar projects compile with "0 of the
+  map's pod places are usable now, where 5 were" and the Meld group's hard points lost; in the page on a test
+  server a base pod and a Meld point of the cleared Bar show the new line.
+
 ### Spawns, stage SP4: an added bomb's objects placed
 
 - [compiler.py](tools/editor/compiler.py):
