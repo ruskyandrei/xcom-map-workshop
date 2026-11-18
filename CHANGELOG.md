@@ -6,6 +6,22 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 18 November 2026
+
+### Effects and sounds done: merged into main
+
+- At the user's word, the effects and sounds work is marked done (its plan's status in `private/plans/done`) and
+  the branch effects-and-sounds is merged into main by fast-forward. The plan's stages from FX1 to FX6b are in, with
+  the likeness's two later passes (exports 31 and 32). Sounds from one's own files and retuned particle systems were
+  left out at the user's word; game shots as Add panel pictures are not built.
+- Checked before the merge, on the branch: every suite (viewer, editor, upk, bake, lab, release, repo, node, with the
+  install checks), and the browser smoke's likeness, library-effects, effects, effect-values and prefabs checks.
+- Known gaps, none played:
+  - the drawing of the intro map's night smoke and police lights, the alien base's and the UFO's effects;
+  - plain Enemy Within for values and lens flares;
+  - the fog pod's light and decals (F-50);
+  - the user guide has no section for effects and sounds.
+
 ## 17 November 2026
 
 ### Police lights round again; the fires' event emitters say what they are (export 32)
