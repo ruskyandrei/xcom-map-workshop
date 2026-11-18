@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns plan now includes a toolbar view, Normal overlay and mission objectives
+
+- Updated the private plan with both Spawns controls, mission switching and grouped objective editing using the
+  existing [toolbar](tools/viewer/web/index.html) and [mission metadata](tools/viewer/scene_metadata.py).
+- Checked the installed Slaughterhouse stream against the bomb mutator. The editor's bomb group omits a nearby
+  `PointInSpace` the mutator moves. The plan tests moving that helper with the bomb and moving each power node
+  independently. Viewer stream, bake stream-copy and repo tests passed. The new controls and gameplay at the
+  edited objective locations still need verification during implementation.
+
 ### Reviewed the editor spawns plan against the current editor and game data
 
 - Updated the private plan to build on the existing landing editor and mission-stream moves. The next stage
