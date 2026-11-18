@@ -925,6 +925,7 @@ function editChangedNow() {
   $('editCount').hidden = builderMode ? !count.total && !builder.doc?.revision : !count.total;
   $('editCount').textContent = builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
     count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
+    count.effects && plural(count.effects, 'effect or sound edit'),
     count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
     count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
     count.missions && `${plural(count.missions, 'mission object')} moved`, count.flags && `${plural(count.flags, 'piece')} with flags changed`,
@@ -1942,6 +1943,7 @@ function setLibraryScope(scope) {
   $('libMap').hidden = libraryScope !== 'map';
   library.show(pieces.open && libraryScope === 'all');
   prefabTab.show(pieces.open && libraryScope === 'prefabs');
+  if (libraryScope !== 'all') hoverLikeness(null);
   if (placing?.entry) stopPlacing();
   if (pieces.open) $(LIBRARY_SCOPES[libraryScope]).focus({ preventScroll: true });
 }
@@ -2001,6 +2003,8 @@ function showPieces(on) {
     .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
     .concat(pieceRecipes()));
   if (!on && placing?.entry) stopPlacing();
+  // the hover pane goes with the panel or its All maps tab (closed with the pointer still on a row, it stayed)
+  if (!on || libraryScope !== 'all') hoverLikeness(null);
   $('editAdd').classList.toggle('on', on); $('editAdd').setAttribute('aria-pressed', on);
 }
 // The parts of a piece-list entry where the map has them.
@@ -7053,10 +7057,13 @@ function hoverLikeness(entry, item) {
   const pane = $('likenessPane'), token = ++likenessPane.token;
   const close = () => { if (likenessPane.shown) { likenessPane.scene.remove(likenessPane.shown.likeness.group); likenessPane.shown.likeness.dispose(); likenessPane.shown = null; } pane.hidden = true; };
   // the row's tip is said in the pane while the pointer is on the row: the browser's own tooltip would cover it
-  const giveBack = () => { if (item && item.dataset.tip !== undefined) { item.title = item.dataset.tip; delete item.dataset.tip; } };
+  // (a call with no row, as the panel closes, gives the last row hovered its tip back)
+  const row = item ?? likenessPane.item;
+  const giveBack = () => { if (row && row.dataset.tip !== undefined) { row.title = row.dataset.tip; delete row.dataset.tip; } if (likenessPane.item === row) likenessPane.item = null; };
   if (!entry || !likenessOn) { giveBack(); close(); return; }
   const tip = item.dataset.tip ?? item.title ?? '';
   item.dataset.tip = tip; item.title = '';
+  likenessPane.item = item;
   likenessHover = setTimeout(async () => {
     const made = await likenessOfEntry(entry, 3).catch(() => null);
     if (token !== likenessPane.token) { made?.likeness.dispose(); return; }

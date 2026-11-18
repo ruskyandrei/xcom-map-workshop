@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The edit count names effect and sound edits; the Add panel's preview closes with the panel
+
+- [app.js](tools/viewer/web/app.js):
+  - The header's count of what has changed says how many effects, sounds and lens flares are edited
+    (*1 effect or sound edit*). It counted them in its total but never named them, so an effect's edit showed only
+    "unsaved".
+  - The Add panel's hover preview goes when the panel closes or leaves All maps, and gives the row its tooltip
+    back. Closed with the pointer still on a row, it stayed over the view.
+- Checked on a test server: an effect deleted and undone, with the count before and after; the preview shown, then
+  the panel closed with the pointer on its row. Node and repo suites.
+
 ### Effects and sounds done: merged into main
 
 - At the user's word, the effects and sounds work is marked done (its plan's status in `private/plans/done`) and
