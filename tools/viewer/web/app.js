@@ -49,7 +49,7 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf,
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook,
          SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
@@ -9758,9 +9758,9 @@ async function endWallDraw(keep) {
     // under that floor's top, so a slab belongs to the floor it is the bottom of (EXP-76 run E: with the floors 16
     // higher, the floor and roof were in none and never cut away)
     const [x0, y0] = made.roof.location, x1 = x0 + made.roof.slab.x1, y1 = y0 + made.roof.slab.y1, z = floor;
-    // (the look's: a two-storey wall's floors break at its storey and its top, a one-storey wall's at its top)
+    // (the look's: a wall's floors break at each of its storeys and at its top, a one-storey wall's at its top)
     const lw = lookWall(look), spec = wallSpec(lw), top = wallTop(lw);
-    const breaks = storeysOf(lw) === 2 ? [spec.bottom, spec.storey, top] : [spec.bottom, top];
+    const breaks = [spec.bottom, ...Array.from({ length: storeysOf(lw) - 1 }, (_, k) => spec.storey * (k + 1)), top];
     addVolumes([...breaks.slice(0, -1).map((b, k) => ({ box: [x0, y0, z + b, x1, y1, z + breaks[k + 1]], floor: k })),
                 { box: [x0, y0, z + top, x1, y1, z + top + WALL.storey], floor: breaks.length - 1 }], newBuilding());
     gizmo.joinLast(2);
@@ -9984,9 +9984,16 @@ function hoverWallHandle(h) {
   renderer.domElement.title = !h ? '' : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? 'The top: drag to raise or lower it (steps of 8)'
     : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
     : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
-    : h.part === 'top' ? `The wall's top: drag ${storeysOf(handleWall()?.userData.source.added.generated.wall) === 1 ? 'up to make it two storeys' : 'down to make it one storey'}`
+    : h.part === 'top' ? topHandleWords(handleWall()?.userData.source.added.generated.wall)
     : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
     : `${WALL_PART_WORDS[h.part]}${h.part === 'x0' || h.part === 'x1' || h.part === 'middle' ? ' (whole tiles; Alt: steps of 8)' : ' (steps of 8)'}`;
+}
+// What the wall's top handle does: makes it one storey, or its donor's storeys again; nothing in a look that can't be
+// made one storey.
+function topHandleWords(w) {
+  const spec = wallSpec(w);
+  if (!spec.lower) return `The wall's top: its look is made ${storeyWords(spec.storeys)} tall only`;
+  return `The wall's top: drag ${storeysOf(w) === 1 ? `up to make it ${storeyWords(spec.storeys)}` : 'down to make it one storey'}`;
 }
 function startWallDrag(e) {
   if (wallDrawing) return startWallDraw(e);
@@ -10103,7 +10110,9 @@ function wallPanel(root) {
   const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
   $('wallHead').textContent = `Wall · ${look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
   $('wallLookChange').disabled = !tool;
-  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top makes it ${storeysOf(w) === 1 ? 'two storeys' : 'one storey'}.`
+  const spec = wallSpec(w);
+  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles${spec.lower
+    ? `; the one on top makes it ${storeysOf(w) === 1 ? storeyWords(spec.storeys) : 'one storey'}` : ''}.`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
   root.userData.joinsShown = root.userData.joins?.joins ?? [];
   const joined = joinWords(root.userData.joinsShown);
@@ -10146,9 +10155,14 @@ function wallPanel(root) {
   }));
   const free = tool && withOpening(w, 'window');
   $('wallDoor').disabled = $('wallWindow').disabled = !free;
-  $('wallFlip').disabled = $('wallShuffle').disabled = $('wallStoreys').disabled = !tool;
-  $('wallStoreys').textContent = storeysOf(w) === 1 ? 'Two storeys' : 'One storey';
-  $('wallStoreys').title = storeysOf(w) === 1 ? 'Make the wall two storeys tall (400)' : 'Make the wall one storey tall (208): openings in its upper storey go';
+  $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
+  // (a look made at one height only has no storeys button)
+  $('wallStoreys').hidden = !spec.lower;
+  $('wallStoreys').disabled = !tool || !spec.lower;
+  const taller = storeysOf(w) === 1, words = storeyWords(spec.storeys);
+  $('wallStoreys').textContent = taller ? words[0].toUpperCase() + words.slice(1) : 'One storey';
+  $('wallStoreys').title = taller ? `Make the wall ${words} tall (${Math.round(spec.top - spec.bottom)})`
+    : `Make the wall one storey tall (${Math.round(spec.top - spec.storey * (spec.storeys - 1) - spec.bottom)}): openings over its first storey go`;
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
     + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
@@ -10248,9 +10262,10 @@ async function setMadeLook(root, kind, look) {
   let numbers = { ...gen[key] };
   if (look.donor) numbers.look = { ...look.donor }; else if (look.id === defaults[kind]) delete numbers.look; else numbers.look = look.id;
   if (kind === 'wall') {
-    // (a look of another height: its storeys as it is where the donor has them, and the openings under its face's top)
+    // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
+    // under its face's top)
     const { storeys: _, ...rest } = numbers;
-    numbers = withStoreys(rest, Math.min(storeysOf(numbers), wallSpec(rest).storeys)).wall;
+    numbers = withStoreys(rest, storeysInLook(gen[key], rest)).wall;
   }
   gizmo.setSelection([o.id]);
   deleteNow(true);
@@ -10373,7 +10388,7 @@ $('wallFlip').onclick = () => changeWall(s => {
 });
 $('wallShuffle').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: reshuffled(s.generated.wall) } }));
 $('wallStoreys').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated,
-  wall: withStoreys(s.generated.wall, storeysOf(s.generated.wall) === 1 ? 2 : 1).wall } }));
+  wall: withStoreys(s.generated.wall, storeysOf(s.generated.wall) === 1 ? wallSpec(s.generated.wall).storeys : 1).wall } }));
 // Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
 function deleteWallOpening() {
   const slabRoot = madeRoot(selected);

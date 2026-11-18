@@ -8,6 +8,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Walls in looks of three or four storeys, and looks made at one height only, on the page** (custom geometry plan,
+  M4c; branch `fracturing-wall-poc`).
+  - [walls.js](tools/viewer/web/walls.js): the walls catalogue has donors of up to four storeys, and some that can't be
+    made one storey tall. wallSpec gives `lower` (the look's facts.storeys holds 1).
+    - A one-storey wall in a taller donor's look loses every storey over its first.
+    - The top handle switches between one storey and the donor's own, and does nothing in a look that can't be
+      lowered.
+    - storeysInLook: a wall changed to another look stays one storey only if it was and the new look can be.
+    - storeyWords: the storeys in words.
+  - [app.js](tools/viewer/web/app.js): the storeys button is hidden for a look made at one height, and names the
+    donor's storeys and heights otherwise. A room's building floors break at every storey of its look.
+  - Checked: [looks_test.mjs](tools/viewer/tests/looks_test.mjs) (a three-storey donor lowered and raised, a look
+    made at two storeys only, a change of look keeping one storey or not); the node suite.
+
 - **A made piece's box is at scale 1, and a donor-look wall's box has its look's heights** (custom geometry plan,
   M4b; branch `fracturing-wall-poc`).
   - [compiler.py](tools/editor/compiler.py): the box of a copy made from numbers ignores its donor's scale, as the

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
 import { endInsetsOf, faceTopOf, raisedWall, storeysOf, topMostOf, wallSpec, wallTop, wallWords, withOpening, toolWall,
-         openingKind } from '../web/walls.js';
+         openingKind, storeysInLook, storeyWords } from '../web/walls.js';
 
 const ONE = { mesh: 'Shop.Meshes.ShopWall_FRACTURED', map: 'URB_Shop', actor: 'XComFracLevelActor_12', maps: { URB_Shop: 3 },
               name: 'Shop wall', setting: 'shop interior', lwrOnly: false, warnings: [], twin: 'ok',
@@ -14,10 +14,15 @@ const TALL = { mesh: 'Ware.Meshes.WareWall_FRACTURED', map: 'URB_Ware', actor: '
                name: 'Warehouse wall', setting: 'brick', lwrOnly: true, warnings: ["its window frames and ledges aren't made"],
                twin: 'ok', facts: { size: { length: 960, height: 400, thickness: 20 }, inside: false, storeys: [1, 2], verdict: 'modelled' },
                recipe: { bottom: -16, top: 400, storey: 200, face: [8, 380], half: 9, endInset: 8, sections: 5 } };
+const THREE = { mesh: 'Out.Meshes.OutpostWall_FRACTURED', map: 'URB_Outpost', actor: 'XComDecoFracLevelActor_4', maps: {},
+                name: 'Outpost wall', setting: 'stucco', lwrOnly: false, warnings: [], twin: 'ok',
+                facts: { size: { length: 768, height: 592, thickness: 24 }, inside: false, storeys: [1, 3], verdict: 'swept' },
+                recipe: { bottom: -16, top: 576, storey: 192, face: [12, 576], half: 12, endInset: 8, sections: 4 } };
+const ONLY_TWO = { ...TALL, mesh: 'Ware.Meshes.Gable_FRACTURED', facts: { ...TALL.facts, storeys: [2] } };
 const GRASS = { mesh: 'Farm.Meshes.Plane', material: 'Farm.Materials.Grass', map: 'CSmallScout_Farm', actor: 'XComLevelActor_7',
                 maps: {}, name: 'Grass', setting: 'farm', lwrOnly: false, warnings: [], twin: 'ok',
                 facts: { thickness: 8, painted: true }, recipe: { thickness: 8, repeat: 256, sections: 1 } };
-const answers = { '/looks/walls.json': { kind: 'wall', measure: 1, looks: [ONE, TALL] },
+const answers = { '/looks/walls.json': { kind: 'wall', measure: 1, looks: [ONE, TALL, THREE, ONLY_TWO] },
                   '/looks/ground.json': { kind: 'ground', measure: 1, looks: [GRASS] } };
 let asked = 0;
 const fetcher = async url => { asked++; return { ok: url in answers, json: async () => answers[url] }; };
@@ -52,6 +57,22 @@ assert.deepEqual([storeysOf(tall), wallTop(tall), faceTopOf(tall)], [2, 400, 380
 const low = raisedWall(tall, -150).wall;
 assert.deepEqual([storeysOf(low), wallTop(low), faceTopOf(low)], [1, 200, 180]);
 assert.equal(wallWords(low), '4 tiles long, one storey (216 tall)');
+// a three-storey donor: one storey loses both storeys over its first; its top handle and button go between 1 and 3
+const three = { ...one, look: { mesh: THREE.mesh, measure: 1 } };
+assert.deepEqual([storeysOf(three), wallTop(three), wallSpec(three).lower], [3, 576, true]);
+const low3 = raisedWall(three, -200).wall;
+assert.deepEqual([storeysOf(low3), wallTop(low3)], [1, 192]);
+assert.equal(raisedWall(three, -100).wall, three);          // (under half the 384 it would lose)
+assert.ok(!('storeys' in raisedWall(low3, 200).wall));
+assert.equal(wallWords(three), '4 tiles long, three storeys (592 tall)');
+assert.equal(storeyWords(1), 'one storey');
+// a look made at its donor's height only: no lower wall, and a one-storey wall changed to it takes its storeys
+const gable = { ...one, look: { mesh: ONLY_TWO.mesh, measure: 1 } };
+assert.deepEqual([storeysOf(gable), wallSpec(gable).lower], [2, false]);
+assert.equal(raisedWall(gable, -300).wall, gable);
+assert.equal(storeysInLook(low, gable), 2);
+assert.equal(storeysInLook(low, three), 1);
+assert.equal(storeysInLook(tall, three), 3);
 // a doorway reaches the look's bottom
 const door = withOpening(tall, 'doorway').wall.openings[0];
 assert.deepEqual([door.z0, openingKind(door)], [-16, 'doorway']);

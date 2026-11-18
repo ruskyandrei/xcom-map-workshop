@@ -41,30 +41,36 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 // ---- heights
 // The Bar's inside wall's numbers as wallSpec gives them (its two storeys, the donor's height).
 const BAR_SPEC = { bottom: WALL.bottom, top: WALL.top, faceTop: WALL.faceTop, storey: WALL.storey, endInset: WALL.endInset,
-                   half: WALL.half, through: 8, sections: 6, storeys: 2 };
+                   half: WALL.half, through: 8, sections: 6, storeys: 2, lower: true };
 /** A wall's look's numbers (custom geometry plan, M4): its bottom, its top and its face's top at the donor's height,
  *  the storey a lower wall loses, its free ends' inset, its half thickness (`half`, the section's widest; `through`, its
- *  faces'), its sections and the donor's storeys (1 or 2). The Bar's inside wall's for a look id; a donor look's from
- *  the catalogue (looks.js); the Bar's for a donor look whose catalogue isn't read (drawn with the template's mesh). */
+ *  faces'), its sections, the donor's storeys (1 to 4) and whether a wall one storey tall can be made in it (`lower`:
+ *  the catalogue's facts.storeys holds 1 as well, frac_wall.storeys_of). The Bar's inside wall's for a look id; a donor
+ *  look's from the catalogue (looks.js); the Bar's for a donor look whose catalogue isn't read (drawn with the
+ *  template's mesh). */
 export function wallSpec(wall) {
   const cat = catalogued('wall', wall?.look);
   if (!cat) return BAR_SPEC;
-  const r = cat.recipe, storeys = Math.max(...(cat.facts?.storeys ?? [2]));
+  const r = cat.recipe, own = cat.facts?.storeys ?? [2], storeys = Math.max(...own);
   const thickness = cat.facts?.size?.thickness;
   return { bottom: r.bottom, top: r.top, faceTop: r.face?.[1] ?? r.top, storey: r.storey ?? WALL.storey, endInset: r.endInset,
-           half: thickness ? thickness / 2 : r.half + 4, through: r.half, sections: r.sections ?? 6, storeys };
+           half: thickness ? thickness / 2 : r.half + 4, through: r.half, sections: r.sections ?? 6, storeys,
+           lower: storeys > 1 && own.includes(1) };
 }
-/** A wall's storeys: 1 or 2 (left out, its donor's: two for the Bar's). */
+/** A wall's storeys: 1, or its donor's (left out: two for the Bar's, up to four for a donor's look). */
 export const storeysOf = wall => (wall?.storeys === 1 ? 1 : wallSpec(wall).storeys);
+/** How many storeys, in words. */
+export const storeyWords = n => `${['no', 'one', 'two', 'three', 'four', 'five'][n] ?? n} ${n === 1 ? 'storey' : 'storeys'}`;
 /** The wall's top over the floor (its bottom wallSpec's), its face's top, and the highest an opening's top goes. A wall
- *  lower than its donor loses a storey off its top (frac_wall.shaped). */
+ *  one storey tall in a taller donor's look loses the storeys over its first off its top (frac_wall.shaped). */
 export const wallTop = wall => {
   const spec = wallSpec(wall);
-  return spec === BAR_SPEC ? STOREY_TOPS[storeysOf(wall)] : storeysOf(wall) < spec.storeys ? spec.top - spec.storey : spec.top;
+  return spec === BAR_SPEC ? STOREY_TOPS[storeysOf(wall)]
+    : storeysOf(wall) < spec.storeys ? spec.top - spec.storey * (spec.storeys - 1) : spec.top;
 };
 export const faceTopOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - (spec.top - spec.faceTop); };
 export const topMostOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - Math.max(WALL.top - OPENING.topMost, spec.top - spec.faceTop); };
-/** The wall at `storeys` (1 or 2; 2 leaves the number out). An opening the lower wall can't hold has its top brought
+/** The wall at `storeys` (1, or its donor's, which leaves the number out). An opening the lower wall can't hold has its top brought
  *  down to the highest an opening goes; one left smaller than OPENING.height (a window in the upper storey) goes.
  *  Gives { wall, cut (openings brought down), removed (openings gone) }. */
 export function withStoreys(wall, storeys) {
@@ -81,14 +87,18 @@ export function withStoreys(wall, storeys) {
   }
   return { wall: { ...out, openings }, cut, removed };
 }
-/** The wall after its top handle moved `delta` units up: past half a storey down a two-storey wall becomes one storey,
- *  past half a storey up a one-storey wall two. Gives withStoreys' { wall, cut, removed }. */
+/** The wall after its top handle moved `delta` units up: past half the height it would lose down, a wall of its
+ *  donor's storeys becomes one storey; past half that up, a one-storey wall its donor's storeys again. Gives
+ *  withStoreys' { wall, cut, removed }. */
 export function raisedWall(wall, delta) {
-  const spec = wallSpec(wall), now = storeysOf(wall), half = spec.storey / 2;
-  // (a one-storey donor's wall keeps its height)
-  const next = spec.storeys < 2 ? now : now === 2 && delta < -half ? 1 : now === 1 && delta > half ? 2 : now;
+  const spec = wallSpec(wall), now = storeysOf(wall), half = spec.storey * (spec.storeys - 1) / 2;
+  // (a wall in a look that can't be made one storey keeps its height)
+  const next = !spec.lower ? now : now === spec.storeys && delta < -half ? 1 : now === 1 && delta > half ? spec.storeys : now;
   return next === now ? { wall, cut: 0, removed: 0 } : withStoreys(wall, next);
 }
+/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so, else
+ *  the new look's own. */
+export const storeysInLook = (old, numbers) => (storeysOf(old) === 1 && wallSpec(numbers).lower ? 1 : wallSpec(numbers).storeys);
 
 /** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), one or two
  *  storeys, openings inside it and under its face's top and apart, a whole-number seed. */
@@ -372,7 +382,7 @@ export function joinWords(joins) {
   const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);
   return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
 }
-export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - wallSpec(wall).bottom} tall)`;
+export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeyWords(storeysOf(wall))} (${wallTop(wall) - wallSpec(wall).bottom} tall)`;
 
 // ---- floors and roofs (custom geometry plan, M5): a slab is an added copy of its look's donor (one of the game's
 // fracturing floors or roofs) carrying `generated: { kind: 'fracSlab', version: 1, slab }`, its numbers in the donor
