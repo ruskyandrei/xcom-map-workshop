@@ -18,7 +18,11 @@ storeys), and RECIPE holds what was measured on it (research/evidence/frac-wall-
 
 A wall is its numbers: dict(x0, x1 (the edges of its tiles along x, in the mesh's frame: the donor's are -384 and
 192), openings [dict(x0, x1, z0, z1)] (rectangles through it; a doorway's z0 is the floor, -16), seed (the cells' seed:
-the same wall is always the same mesh)). Its solid stops RECIPE['endInset'] short of each end, as the game's inside
+the same wall is always the same mesh), storeys (2, the donor's height, when left out; or 1)). A one-storey wall
+(custom geometry plan, M2) stands from the floor at -16 to 192, as the game's one-storey inside walls do (URB_
+PoliceStation's four, 208 tall from -16 to 192; URB_IndustrialOffice's, their cornice to 194): the donor's section with
+its face and cornice ended a storey lower (the face to 180, the cornice from 180 to the top), so its top is cut as the
+donor's is and not as the lower half of a tall one; its upper storey's slots are empty (shaped). Its solid stops RECIPE['endInset'] short of each end, as the game's inside
 walls do (the donor's ends are -376 and 184): an end on a tile edge would reach a unit into the next tile column (the
 game counts its tiles from a unit under the grid the pieces stand on), where the game's occupancy test finds it and
 marks that empty tile partly occupied (EXP-67). An opening's sides stay where they are given, as the game's own
@@ -37,8 +41,11 @@ How it is made:
 - the fragment records: the seed as the centre, the bounds of its corners, the fragment across each face (or -1) with
   the shared face's area, all destroyable, none a root, the average of its outside faces' normals, EW's index -1;
 - the lightmap coordinates (UV channel 1): each flat stretch (a face, a trim strip, an end, an inside face) a chart of
-  its own, packed into the unit square with RECIPE['margin'] texels between, the inside faces at half density as the
-  donor packs them;
+  its own, at the donor's density (RECIPE['lightmap']['density'] texels a unit; the inside faces at half that, as the
+  donor packs them), shelf-packed with RECIPE['lightmap']['margin'] texels between into the smallest rectangle the
+  tries find, its sides whole DXT1 blocks (custom geometry plan, M2: the rectangle follows the wall, so a long wall is
+  lit as sharply as the donor). build gives the rectangle's size, `lightmapRect` [width, height] in texels, which the
+  Build gives the copy's lightmap (frac_walls.py);
 - the collision: the wall's slab (16 thick, as the donor's box) cut into boxes round the openings, one convex element
   each (cover_blocks' hull writer), so no box spans an opening.
 """
@@ -67,9 +74,26 @@ RECIPE = {
     'slots': {'sideA': [0, 1], 'sideB': [2, 3], 'trim': 4, 'interior': 5},
     'cell': [96.0, 80.0], 'jitter': 0.3,
     'collisionHalf': 8.0,
-    'lightmap': {'texels': 158, 'margin': 2, 'interiorDensity': 0.5},
+    # the lightmap: the donor's density, texels a unit on its two faces as a baked Build lays them out (0.196 on
+    # URB_Bar's XComDecoFracLevelActor_17: custom geometry plan, M2's check); texels between charts; inside faces'
+    'lightmap': {'density': 0.196, 'margin': 2, 'interiorDensity': 0.5, 'block': 4},
 }
 EPS = 1e-4
+STOREYS = (1, 2)
+
+
+def shaped(wall):
+    """RECIPE for the wall's height: as it is for two storeys (the donor's); for one, its top, the face's top and the
+    section's corners above the face a storey lower."""
+    storeys = int((wall or {}).get('storeys', 2))
+    if storeys not in STOREYS:
+        raise ValueError('a wall of %r storeys (it has 1 or 2)' % (storeys,))
+    if storeys == 2:
+        return RECIPE
+    drop = RECIPE['storey'] * (2 - storeys)
+    face = RECIPE['face']
+    return dict(RECIPE, top=RECIPE['top'] - drop, face=[face[0], face[1] - drop],
+                section=[[y, z - drop if z > face[0] + 1e-6 else z, v] for y, z, v in RECIPE['section']])
 
 
 # ---------------------------------------------------------------------------------------------------- 2D polygons
@@ -138,9 +162,9 @@ def insert_points(poly, points):
 
 
 # ---------------------------------------------------------------------------------------------------- the section
-def half_width(z):
+def half_width(z, R=RECIPE):
     """The wall's half thickness at height z (the section's +y side)."""
-    sec = RECIPE['section']
+    sec = R['section']
     if z <= sec[0][1]:
         return sec[0][0]
     for (ya, za, _), (yb, zb, _) in zip(sec, sec[1:]):
@@ -149,19 +173,19 @@ def half_width(z):
     return sec[-1][0]
 
 
-def section_v(z):
+def section_v(z, R=RECIPE):
     """The trim set's v at height z on the section (its value at a corner shared by the face and a trim is the
     trim's)."""
-    sec = RECIPE['section']
+    sec = R['section']
     for (ya, za, va), (yb, zb, vb) in zip(sec, sec[1:]):
-        if za <= z <= zb and zb > za and not (ya == yb == RECIPE['half']):
+        if za <= z <= zb and zb > za and not (ya == yb == R['half']):
             return va + (z - za) * (vb - va) / (zb - za)
     return sec[-1][2]
 
 
-def bands():
+def bands(R=RECIPE):
     """The heights the section's slope changes at: every face is cut there, so each piece is flat and convex."""
-    zs = sorted({z for _, z, _ in RECIPE['section']} | {RECIPE['bottom'], RECIPE['top']})
+    zs = sorted({z for _, z, _ in R['section']} | {R['bottom'], R['top']})
     return zs
 
 
@@ -182,7 +206,7 @@ def solid_wall(wall):
 def seeds(wall):
     rng = random.Random(wall.get('seed', 1))
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], RECIPE['top']
+    zb, zt = RECIPE['bottom'], shaped(wall)['top']
     nx = max(1, round((x1 - x0) / RECIPE['cell'][0]))
     nz = max(1, round((zt - zb) / RECIPE['cell'][1]))
     dx, dz = (x1 - x0) / nx, (zt - zb) / nz
@@ -210,7 +234,7 @@ def cut_opening(poly, o):
 def cells(wall):
     """[(seed, convex polygon)] of the wall's fragments, before their faces are made."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], RECIPE['top']
+    zb, zt = RECIPE['bottom'], shaped(wall)['top']
     outline = [((x0, zb), 'out'), ((x1, zb), 'out'), ((x1, zt), 'out'), ((x0, zt), 'out')]
     pts = seeds(wall)
     out = []
@@ -236,7 +260,7 @@ def classify(wall, p, q):
     """What the edge p..q of a fragment is: 'x0' or 'x1' (a wall's end), 'zb' or 'zt' (its bottom or top), ('open',
     k) (an opening's side), or 'in' (an edge it shares with another fragment)."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], RECIPE['top']
+    zb, zt = RECIPE['bottom'], shaped(wall)['top']
     m = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
     vertical, flat = abs(p[0] - q[0]) < 1e-5, abs(p[1] - q[1]) < 1e-5
     if vertical and abs(m[0] - x0) < 1e-4:
@@ -288,7 +312,7 @@ def poly_area3(points):
 def fragment_faces(wall, faces, f, poly):
     """All the faces of fragment `f` (its polygon `poly` in x, z) into `faces`; returns its edges that are inside the
     wall ([(p, q, outward normal (nx, nz))]) and how many of its edges are on the outline or an opening."""
-    R = RECIPE
+    R = shaped(wall)
     x0, x1 = float(wall['x0']), float(wall['x1'])
     length = x1 - x0
     lo_face, hi_face = R['face']
@@ -346,7 +370,7 @@ def fragment_faces(wall, faces, f, poly):
         if kind in ('zt', 'zb'):
             top = kind == 'zt'
             z = R['top'] if top else R['bottom']
-            w = half_width(z)
+            w = half_width(z, R)
             a, b = sorted((p[0], q[0]))
             quad = [(a, -w, z), (b, -w, z), (b, w, z), (a, w, z)]
             coef = R['topV'] if top else R['bottomV']
@@ -362,12 +386,12 @@ def fragment_faces(wall, faces, f, poly):
         if abs(dx) < 1e-6:          # upright: x = const, z from a to b
             c = p[0]
             a, b = sorted((p[1], q[1]))
-            cuts = sorted({a, b} | {z for z in bands() + [R['storey']] if a < z < b})
+            cuts = sorted({a, b} | {z for z in bands(R) + [R['storey']] if a < z < b})
             key = ('end', kind if isinstance(kind, str) else kind[1], round(c, 3), round(a, 3))
-            wmax = max(half_width(z) for z in cuts)
+            wmax = max(half_width(z, R) for z in cuts)
             chart = faces.chart(key, 2 * wmax, b - a)
             for z0, z1 in zip(cuts, cuts[1:]):
-                w0, w1 = half_width(z0), half_width(z1)
+                w0, w1 = half_width(z0, R), half_width(z1, R)
                 quad = [(c, -w0, z0), (c, w0, z0), (c, w1, z1), (c, -w1, z1)]
                 face_zone = z0 >= lo_face - 1e-6 and z1 <= hi_face + 1e-6
                 if face_zone:
@@ -375,12 +399,12 @@ def fragment_faces(wall, faces, f, poly):
                     uv = [(nx * y / rep + R['faceU'], R['faceV'][0] - z / rep) for _, y, z in quad]
                 else:
                     slot = trim
-                    uv = [(nx * y / trep, section_v(z)) for _, y, z in quad]
+                    uv = [(nx * y / trep, section_v(z, R)) for _, y, z in quad]
                 faces.add(quad, (nx, 0, nz), slot, f, uv, chart, [(y + wmax, z - a) for _, y, z in quad])
         else:                       # flat: an opening's lintel or sill, z = const
             z = p[1]
             a, b = sorted((p[0], q[0]))
-            w = half_width(z)
+            w = half_width(z, R)
             quad = [(a, -w, z), (b, -w, z), (b, w, z), (a, w, z)]
             face_zone = lo_face - 1e-6 <= z <= hi_face + 1e-6
             slot = (sa[0] if z < R['storey'] else sa[1]) if face_zone else trim
@@ -390,26 +414,25 @@ def fragment_faces(wall, faces, f, poly):
     return inside, outside
 
 
-def interior_face(faces, f, p, q, normal, key):
+def interior_face(faces, f, p, q, normal, key, R=RECIPE):
     """The face inside the wall on the edge p..q of fragment f: the section across it, flat pieces between the
-    section's bends. Returns its area."""
-    R = RECIPE
+    section's bends (R: the wall's shaped recipe). Returns its area."""
     length = math.dist(p, q)
     za, zb = p[1], q[1]
     ts = {0.0, 1.0}
     if abs(zb - za) > 1e-9:
-        for z in bands() + [R['storey']]:       # (the faces split at the storey too: no T-junction there)
+        for z in bands(R) + [R['storey']]:       # (the faces split at the storey too: no T-junction there)
             t = (z - za) / (zb - za)
             if 0 < t < 1:
                 ts.add(t)
     ts = sorted(ts)
-    wmax = max(half_width(za + t * (zb - za)) for t in ts)
+    wmax = max(half_width(za + t * (zb - za), R) for t in ts)
     chart = faces.chart(key, length, 2 * wmax, R['lightmap']['interiorDensity'])
     total = 0.0
     for t0, t1 in zip(ts, ts[1:]):
         P0 = (p[0] + t0 * (q[0] - p[0]), p[1] + t0 * (q[1] - p[1]))
         P1 = (p[0] + t1 * (q[0] - p[0]), p[1] + t1 * (q[1] - p[1]))
-        w0, w1 = half_width(P0[1]), half_width(P1[1])
+        w0, w1 = half_width(P0[1], R), half_width(P1[1], R)
         quad = [(P0[0], -w0, P0[1]), (P1[0], -w1, P1[1]), (P1[0], w1, P1[1]), (P0[0], w0, P0[1])]
         tt = [t0, t1, t1, t0]
         faces.add(quad, (normal[0], 0.0, normal[1]), R['slots']['interior'], f,
@@ -446,37 +469,39 @@ def shared(edges):
 
 
 # ---------------------------------------------------------------------------------------------------- the lightmap
-def pack(charts, margin_uv):
-    """{chart: (u0, v0)} and the scale (UV per unit) for `charts` ({id: [w, h, density]}), shelf-packed into the unit
-    square, each `margin_uv` from the next; the largest scale that fits (a bisection)."""
+def pack_rect(charts, density, margin, block=4):
+    """{chart: (u0, v0)} and (width, height) for `charts` ({id: [w, h, chart density]}, in units) at `density`
+    texels a unit: shelf-packed in texels, tallest first, `margin` texels round each, into the smallest rectangle of
+    the widths tried (from the widest chart to the whole row), its sides rounded up to whole `block`s. The origins
+    are in the rectangle's own 0..1."""
     order = sorted(charts, key=lambda k: (-charts[k][1] * charts[k][2], -charts[k][0] * charts[k][2], str(k)))
+    sizes = {k: (charts[k][0] * density * charts[k][2] + margin, charts[k][1] * density * charts[k][2] + margin)
+             for k in order}
 
-    def place(scale):
+    def place(width):
         x = y = row = 0.0
         out = {}
         for k in order:
-            w, h, density = charts[k]
-            w, h = w * scale * density + margin_uv, h * scale * density + margin_uv
-            if w > 1:
-                return None
-            if x + w > 1:
+            w, h = sizes[k]
+            if x + w > width + 1e-9:
                 x, y, row = 0.0, y + row, 0.0
-            if y + h > 1:
-                return None
-            out[k] = (x + margin_uv / 2, y + margin_uv / 2)
+            out[k] = (x + margin / 2, y + margin / 2)
             x += w
             row = max(row, h)
-        return out
-    lo, hi = 0.0, 1.0
-    while place(hi) is not None:
-        hi *= 2
-    for _ in range(40):
-        mid = (lo + hi) / 2
-        if place(mid) is not None:
-            lo = mid
-        else:
-            hi = mid
-    return place(lo), lo
+        return out, y + row
+    widest = max(w for w, _ in sizes.values())
+    total = sum(w for w, _ in sizes.values())
+    best = None
+    steps = 48
+    for i in range(steps + 1):
+        width = widest + (total - widest) * (i / steps) ** 2
+        out, height = place(width)
+        w = block * math.ceil(width / block)
+        h = block * math.ceil(height / block)
+        if best is None or w * h < best[1] * best[2] or (w * h == best[1] * best[2] and abs(w - h) < abs(best[1] - best[2])):
+            best = (out, w, h)
+    out, w, h = best
+    return {k: (u / w, v / h) for k, (u, v) in out.items()}, (w, h)
 
 
 # ---------------------------------------------------------------------------------------------------- collision
@@ -484,7 +509,7 @@ def solids(wall):
     """The collision boxes [(lo, hi)]: the slab (the donor's 16 thick) cut into upright strips at every opening's
     sides, each strip's stretches clear of openings one box, neighbouring strips with the same stretches joined."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], RECIPE['top']
+    zb, zt = RECIPE['bottom'], shaped(wall)['top']
     hy = RECIPE['collisionHalf']
     openings = wall.get('openings', ())
     xs = sorted({x0, x1} | {o[k] for o in openings for k in ('x0', 'x1') if x0 < o[k] < x1})
@@ -577,7 +602,7 @@ def build(wall, template=None):
     """The mesh of `wall` (gen_mesh's form) on the donor's decoded mesh `template` (its fields other than the
     geometry: the stream layouts, versions, the fracturing tail; default_template() when None), with dict(fragments,
     solids, counts)."""
-    R = RECIPE
+    R = shaped(wall)
     template = template or default_template()
     wall = solid_wall(wall)
     faces = Faces()
@@ -595,7 +620,7 @@ def build(wall, template=None):
         # start with their outside faces), then each edge inside the wall
         nb, dims = [-1] * (2 + outer[f]), [0.0] * (2 + outer[f])
         for k, (p, q, n) in enumerate(edges[f]):
-            a = interior_face(faces, f, p, q, n, ('in', f, k))
+            a = interior_face(faces, f, p, q, n, ('in', f, k), R)
             across = neighbours.get((f, k)) or []
             if not across:
                 nb.append(-1)
@@ -604,8 +629,8 @@ def build(wall, template=None):
                 nb.append(g)
                 dims.append(a * over / math.dist(p, q))
         records.append(dict(seed=seed, neighbours=nb, dims=dims))
-    margin = R['lightmap']['margin'] / R['lightmap']['texels']
-    origins, scale = pack(faces.charts, margin)
+    L = R['lightmap']
+    origins, rect = pack_rect(faces.charts, L['density'], L['margin'], L['block'])
     # the vertices and triangles, slot by slot and fragment by fragment
     nfrag = len(found)
     by_slot = {s: [[] for _ in range(nfrag)] for s in range(6)}
@@ -639,7 +664,7 @@ def build(wall, template=None):
                     uv0s, cuvs = [mean(uv0s)] + list(uv0s), [mean(cuvs)] + list(cuvs)
                 for p, uv, c in zip(pts, uv0s, cuvs):
                     positions.append(struct.unpack('<3f', struct.pack('<3f', *p)))
-                    lm = (u0 + c[0] * scale * density, v0 + c[1] * scale * density)
+                    lm = (u0 + c[0] * L['density'] * density / rect[0], v0 + c[1] * L['density'] * density / rect[1])
                     vertices.append((_packed(t, 0x80), _packed(n, 0xFF if sign > 0 else 0x00),
                                      [tuple(uv), lm]))
                     colours.append(in_colour if poly['interior'] else out_colour)
@@ -705,7 +730,7 @@ def build(wall, template=None):
     boxes = []
     for f, pts in enumerate(frag_points):
         boxes.append(dict(box=[v for k in range(3) for v in (min(p[k] for p in pts), max(p[k] for p in pts))]))
-    return dict(mesh=mesh, fragments=boxes, solids=solids(wall), lightmapScale=scale,
+    return dict(mesh=mesh, fragments=boxes, solids=solids(wall), lightmapRect=list(rect),
                 counts=dict(fragments=nfrag, vertices=nv, triangles=len(indices) // 3, charts=len(faces.charts)))
 
 

@@ -13,6 +13,19 @@ columns moved by move_columns), then add_walls changes it:
                      game saves them (research/evidence/frac-wall-audit.py, F0); its painted vertex colours (the
                      donor's LOD 0 overrides the mesh's, which the blend materials read) one for each new vertex, each
                      the colour of the donor's nearest vertex of the same slot;
+                   - its lightmap (custom geometry plan, M2): in a baked Build, the rectangle of its own cloned atlas is
+                     the mesh's lightmap rectangle (frac_wall's `lightmapRect`, at the donor's density) at the donor
+                     rectangle's corner (or the atlas's, where it doesn't fit), which the relight then fills; in a
+                     Build without baking (D9), one texel of the lightmap of the map's nearest lit piece, the one
+                     nearest its median light, for the whole wall (a coordinate scale of 0): one even light, the
+                     map's near it, in place of the donor's bake laid out for another shape (even_light);
+                   - the map's dominant light (M2 item 2): in a baked Build, a shadow map of its own (a clone of one of
+                     the map's ShadowMap2D of that light and of its distance-field texture, its rectangle the
+                     lightmap's size at the clone's corner), which the relight fills as a piece of another map's, and
+                     the light taken off the component's IrrelevantLights (the donor, an inside wall, lists the Bar's
+                     moon there); without baking, the shadow map of the piece the even light comes from, at the same
+                     texel (a scale of 0), or, where that piece has none, the light listed irrelevant, as that piece
+                     and the game's inside pieces have it (dominant_shadow);
                    - the actor: its FragmentColumns written by F0's rule: one column for each tile of the game's grid
                      along the wall and each storey it reaches; a column lists the fragments whose box overlaps its
                      box (the tile along the wall, the storey, the wall's thickness), each with its lowest corner's
@@ -64,6 +77,8 @@ def check(generated):
     if wall['x1'] - wall['x0'] < MIN_LENGTH:
         raise ValueError('a generated wall shorter than %d units (its solid %d, its ends stopping %d short)'
                          % (MIN_LENGTH, MIN_LENGTH - 2 * frac_wall.RECIPE['endInset'], frac_wall.RECIPE['endInset']))
+    if wall.get('storeys', 2) not in frac_wall.STOREYS:
+        raise ValueError('a generated wall of %r storeys (it has 1 or 2)' % (wall.get('storeys'),))
     for o in wall.get('openings') or []:
         if not all(isinstance(o.get(k), (int, float)) for k in ('x0', 'x1', 'z0', 'z1')) \
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
@@ -75,7 +90,7 @@ def local_box(wall):
     """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall)."""
     h = max(y for y, _, _ in frac_wall.RECIPE['section'])
     solid = frac_wall.solid_wall(wall)
-    return [solid['x0'], solid['x1'], -h, h, frac_wall.RECIPE['bottom'], frac_wall.RECIPE['top']]
+    return [solid['x0'], solid['x1'], -h, h, frac_wall.RECIPE['bottom'], frac_wall.shaped(wall)['top']]
 
 
 def world_box(box, matrix):
@@ -232,9 +247,216 @@ def donor_paint(p, comp, mesh_dict):
     return dict(positions=np.array(lod['positions'], float), colours=colours, slots=slots)
 
 
-def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix):
+def lightmap_offsets(data, at):
+    """Where LOD 0's texture lightmap lies in a mesh component's native data data[at:] (audit_lighting.lightmap's
+    layout): dict(slots [(texture offset, scale offset)] for its three slots, scale, bias (the offsets of its
+    coordinate scale and bias)), or None for a component with no texture lightmap."""
+    pos = at
+    if struct.unpack_from('<i', data, pos)[0] < 1:
+        return None
+    pos += 4
+    for _ in range(2):                                  # shadow maps, shadow vertex buffers
+        n = struct.unpack_from('<i', data, pos)[0]
+        pos += 4 + 4 * n
+    kind = struct.unpack_from('<i', data, pos)[0]
+    if kind != 2:
+        return None
+    n = struct.unpack_from('<i', data, pos + 4)[0]
+    pos += 8 + 16 * n
+    return dict(slots=[(pos + 16 * k, pos + 16 * k + 4) for k in range(3)], scale=pos + 48, bias=pos + 56)
+
+
+def set_light(data, at, light):
+    """`data` with LOD 0's texture lightmap set as `light` says: dict(kind 'rect', rect (w, h), atlas (w, h)) puts
+    the rectangle (w by h texels) at the corner the record has (down to a whole block), or at the atlas's corner where
+    it doesn't fit; dict(kind
+    'even', textures [3], scales [3 x 3], bias (u, v)) points every vertex at one texel of those textures."""
+    if not light:
+        return data
+    o = lightmap_offsets(data, at)
+    if o is None:
+        return data
+    data = bytearray(data)
+    if light['kind'] == 'rect':
+        (w, h), (aw, ah) = light['rect'], light['atlas']
+        bu, bv = struct.unpack_from('<2f', data, o['bias'])
+        x0, y0 = 4 * (int(round(bu * aw)) // 4), 4 * (int(round(bv * ah)) // 4)      # on whole DXT1 blocks
+        if x0 + w > aw:
+            x0 = 0
+        if y0 + h > ah:
+            y0 = 0
+        struct.pack_into('<2f', data, o['scale'], w / aw, h / ah)
+        struct.pack_into('<2f', data, o['bias'], x0 / aw, y0 / ah)
+    else:
+        for (tex, scale), index, value in zip(o['slots'], light['textures'], light['scales']):
+            struct.pack_into('<i', data, tex, index)
+            struct.pack_into('<3f', data, scale, *value)
+        struct.pack_into('<2f', data, o['scale'], 0.0, 0.0)
+        struct.pack_into('<2f', data, o['bias'], *light['bias'])
+    return bytes(data)
+
+
+def atlas_size(p, comp):
+    """(width, height) of the atlas a component's LOD-0 texture lightmap is in, or None."""
+    import lightmap_fields
+    lods = lightmap_fields.component_fields(p, comp)['lods']
+    if not lods or lods[0]['lightmap'].get('type') != 2:
+        return None
+    tex = lods[0]['lightmap']['slots'][0]['index']
+    return (int(p.own(tex, 'SizeX')), int(p.own(tex, 'SizeY'))) if tex > 0 else None
+
+
+def even_light(p, box, skip=(), near=1500.0):
+    """An even light for a made wall standing in the world box `box` in a Build without baking (D9): dict(kind
+    'even', textures, scales, bias, piece) from the lightmap of the map's lit piece nearest the box (a level actor's
+    mesh component with a texture lightmap, within `near` of it; not one of `skip`'s actors): its texel whose light
+    (what a flat surface gets: colour times its summed directional values) is nearest the median of its lit texels.
+    None when no piece is near."""
+    import lightmap_encode as codec
+    import lightmap_fields
+    import native_copy
+    from lightmap_stats import top_mip_rect
+    centre = np.array([(box[0] + box[1]) / 2, (box[2] + box[3]) / 2, (box[4] + box[5]) / 2])
+    found = []
+    for actor in native_copy.level_actors(p):
+        if actor in skip:
+            continue
+        location = np.array(p.own(actor, 'Location', [0.0, 0.0, 0.0]), float)
+        d = float(np.linalg.norm(location - centre))
+        if d <= near:
+            found.append((d, actor))
+    for _, actor in sorted(found):
+        for ci in p.children.get(actor, []):
+            if not p.cls(ci).endswith('StaticMeshComponent'):
+                continue
+            try:
+                lods = lightmap_fields.component_fields(p, ci)['lods']
+            except Exception:       # a component the reader doesn't take: the next
+                continue
+            if not lods or lods[0]['lightmap'].get('type') != 2:
+                continue
+            lm = lods[0]['lightmap']
+            nac, dmc = lm['slots'][0]['index'], lm['slots'][1]['index']
+            if nac <= 0 or dmc <= 0:
+                continue
+            w, h = int(p.own(nac, 'SizeX')), int(p.own(nac, 'SizeY'))
+            x0, y0 = int(np.floor(lm['coordinateBias'][0] * w + 1e-6)), int(np.floor(lm['coordinateBias'][1] * h + 1e-6))
+            x1 = int(np.ceil((lm['coordinateBias'][0] + lm['coordinateScale'][0]) * w - 1e-6))
+            y1 = int(np.ceil((lm['coordinateBias'][1] + lm['coordinateScale'][1]) * h - 1e-6))
+            try:
+                a, b = top_mip_rect(p, nac, x0, y0, x1, y1), top_mip_rect(p, dmc, x0, y0, x1, y1)
+            except Exception:       # mips the reader can't reach: the next piece
+                continue
+            if not a.size or a.shape != b.shape:
+                continue
+            colour, directional = codec.decode(a, b, lm['slots'][1]['scale'])
+            flat = (colour * directional.sum(-1, keepdims=True)).mean(-1)
+            lit = flat > 1e-3
+            if lit.sum() < 4:
+                continue
+            median = float(np.median(flat[lit]))
+            ty, tx = np.unravel_index(int(np.argmin(np.where(lit, np.abs(flat - median), np.inf))), flat.shape)
+            return dict(kind='even', textures=[s['index'] for s in lm['slots']], scales=[s['scale'] for s in lm['slots']],
+                        bias=((x0 + tx + 0.5) / w, (y0 + ty + 0.5) / h), piece=p.name(ci), light=median,
+                        texel=(int(tx), int(ty), int(flat.shape[1]), int(flat.shape[0])))
+    return None
+
+
+def dominant_shadow(p):
+    """dict(guid (16 bytes), source (a ShadowMap2D of it, shadowmaps.shadow_maps' dict, on a 1,024-texel square
+    where the map has one, else its largest)) for the map's dominant light, or None for a map without one."""
+    import native_copy
+    import shadowmaps
+    guid = native_copy.dominant_guid(p)
+    if guid is None:
+        return None
+    lights = {g: l for g, l in shadowmaps.dominant_lights(p).items() if g == guid.hex()}
+    best = None
+    for _, _, sm, _ in shadowmaps.dominant_receivers(p, lights):
+        size = (p.own(sm['texture'], 'SizeX'), p.own(sm['texture'], 'SizeY'))
+        if size == (1024, 1024):
+            return dict(guid=guid, source=sm)
+        if best is None or size[0] * size[1] > best[1]:
+            best = (sm, size[0] * size[1])
+    return dict(guid=guid, source=best[0] if best else None)
+
+
+def piece_shadow(p, piece, guid, light):
+    """The shadow map of the dominant light `guid` on component `piece` (the even light's piece), at the texel the
+    even light `light` took (the same place in its rectangle: the maps' shadow maps share their lightmap's layout), as
+    a dict(source, scale (0, 0), bias), or None where it has none."""
+    import shadowmaps
+    ci = p.by_name[piece]
+    maps = [sm for sm in shadowmaps.shadow_maps(p, ci) if sm['guid'] == guid.hex() and not sm['factor']]
+    if not maps or not light.get('texel'):
+        return None
+    sm = maps[0]
+    w, h = p.own(sm['texture'], 'SizeX'), p.own(sm['texture'], 'SizeY')
+    tx, ty, rw, rh = light['texel']
+    sx, sy = sm['scale'][0] * w, sm['scale'][1] * h
+    x0, y0 = int(np.floor(sm['bias'][0] * w + 1e-6)), int(np.floor(sm['bias'][1] * h + 1e-6))
+    x = x0 + min(int(sx) - 1, int((tx + 0.5) / rw * sx)) if sx >= 1 else x0
+    y = y0 + min(int(sy) - 1, int((ty + 0.5) / rh * sy)) if sy >= 1 else y0
+    return dict(source=sm, scale=(0.0, 0.0), bias=((x + 0.5) / w, (y + 0.5) / h))
+
+
+def shadow_map_export(g, p, walker, component, shadow):
+    """A new ShadowMap2D under `component` (an export index of the grown map) for the dominant light: a clone of
+    `shadow['source']` (shadowmaps' dict) with its coordinate scale and bias `shadow`'s, and its texture a clone of
+    the source's own (`shadow['clone']` true: the relight writes it) or the source's (false). Returns its index."""
+    import grow_fixture
+    import native_copy
+    src = shadow['source']['export']
+    texture = shadow['source']['texture']
+    if shadow.get('clone'):
+        texture = grow_fixture.clone_texture(g, p, texture)
+    e = p.exports[src - 1]
+    data = bytearray(p.data[e['off']:e['off'] + e['size']])
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    at = walker.value(bytes(data), start, len(data), 'Texture[0]')
+    if at is None:
+        raise ValueError('%s saves no texture' % p.name(src))
+    struct.pack_into('<i', data, at, texture)
+    data = native_copy.set_struct(walker, g, data, start, 'CoordinateScale', 'Vector2D', '<2f', shadow['scale'])
+    data = native_copy.set_struct(walker, g, data, start, 'CoordinateBias', 'Vector2D', '<2f', shadow['bias'])
+    g.fresh_net_index(src, data, at=start - 4)
+    new = g.add_export(src, bytes(data))
+    g.entries[new - 1].put('<i', 8, component)
+    return new
+
+
+def irrelevant(walker, g, data, start, guid, listed):
+    """`data` (a component's bytes, tagged properties from `start`) with the light `guid` (16 bytes) on its
+    IrrelevantLights (`listed` true) or off it."""
+    import native_lights
+    raw = walker.value(bytes(data), start, len(data), 'IrrelevantLights[0]')
+    guids = []
+    if raw is not None:
+        n = struct.unpack_from('<i', data, raw)[0]
+        guids = [bytes(data[raw + 4 + 16 * k:raw + 20 + 16 * k]) for k in range(n)]
+    kept = [x for x in guids if x != guid] + ([guid] if listed else [])
+    if kept == guids:
+        return data
+    return native_lights.set_property(walker, g, data, start, 'IrrelevantLights', 'ArrayProperty', None,
+                                      struct.pack('<i', len(kept)) + b''.join(kept))
+
+
+def add_shadow_ref(data, at, index):
+    """`data` (a component's bytes, its native data from `at`) with shadow map export `index` added to LOD 0's
+    ShadowMaps."""
+    if struct.unpack_from('<i', data, at)[0] < 1:
+        raise ValueError('a component with no LOD record')
+    n = struct.unpack_from('<i', data, at + 4)[0]
+    return data[:at + 4] + struct.pack('<i', n + 1) + data[at + 8:at + 8 + 4 * n] + struct.pack('<i', index) + \
+        data[at + 8 + 4 * n:]
+
+
+def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None):
     """The clone component's bytes with the generated mesh: StaticMesh, FragmentBoundsMinZ and MaxZ,
-    NumResourceIndices, and LOD 0's painted colours one for each new vertex (or none, when the donor paints none)."""
+    NumResourceIndices, LOD 0's painted colours one for each new vertex (or none, when the donor paints none), and
+    its texture lightmap as `light` says (set_light); `shadow` dict(guid, export (a ShadowMap2D made for it, or None))
+    gives it that shadow map of the dominant light and takes the light off its IrrelevantLights, or with no export
+    lists it there."""
     e = p.exports[old - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     data = bytearray(g.export_data(new))
@@ -248,14 +470,20 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix):
         if at is None:
             raise ValueError('%s saves no %s' % (p.name(old), name))
         struct.pack_into(fmt, data, at, value)
+    if shadow:
+        data = bytearray(irrelevant(walker, g, data, start, shadow['guid'], shadow['export'] is None))
     end_props = native_props_end(walker, data, start)
+    data = bytearray(set_light(bytes(data), end_props, light))
     flag, end = _lod_colours(data, end_props)
     if paint is None:
         block = b'\0'
     else:
         colours = painted(paint, built)
         block = b'\x01' + struct.pack('<2I', 4, len(colours)) + struct.pack('<2i', 4, len(colours)) + b''.join(colours)
-    return bytes(data[:flag] + block + data[end:])
+    data = bytes(data[:flag] + block + data[end:])
+    if shadow and shadow['export'] is not None:
+        data = add_shadow_ref(data, end_props, shadow['export'])
+    return data
 
 
 def native_props_end(walker, data, start):
@@ -318,14 +546,16 @@ def _package(g, p, names):
     return index
 
 
-def add_walls(g, p, items, grid):
+def add_walls(g, p, items, grid, bake=True):
     """The generated copies `items` ([dict(original: the donor actor's export, info: clone_assembly's dict for the
     copy, generated, location, rotation, label)]) made in the map being grown: returns a record for each (dict(kind,
-    copy, mesh, bodySetup, fragments, columns, vertices, triangles, box))."""
+    copy, mesh, bodySetup, fragments, columns, vertices, triangles, box, light)). `bake`: the Build bakes the lighting
+    (each wall's lightmap its own rectangle, which the relight fills); without, each wall gets an even light."""
     import lightmap_texels
     import native_copy
     walker = native_copy.Walker(p)
     built, records = [], []
+    dominant = None
     for item in items:
         gen = check(item['generated'])
         original = item['original']
@@ -341,6 +571,7 @@ def add_walls(g, p, items, grid):
         built.append((item, comp_old, donor_mesh, template, out, frac_wall.mesh_name(gen['wall'])))
     if not built:
         return records
+    dominant = dominant_shadow(p)
     names = sorted({b[5] for b in built})
     package = _package(g, p, names)
     spec = cover_blocks.RECIPES[1]['bodySetup']
@@ -365,9 +596,29 @@ def add_walls(g, p, items, grid):
         comp_new = info['mapping'][comp_old]
         matrix = lightmap_texels.world_matrix(p, comp_old, item['location'], item['rotation'])
         paint = donor_paint(p, comp_old, template)
-        g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix))
         # the fragments' world boxes, and the columns by F0's rule
         boxes = [world_box(f['box'], matrix) for f in out['fragments']]
+        lo = [min(x[2 * k] for x in boxes) for k in range(3)]
+        hi = [max(x[2 * k + 1] for x in boxes) for k in range(3)]
+        wall_box = [v for k in range(3) for v in (lo[k], hi[k])]
+        shadow, sm = None, None
+        if bake:
+            atlas = atlas_size(p, comp_old)
+            light = dict(kind='rect', rect=out['lightmapRect'], atlas=atlas) if atlas else None
+            if dominant and dominant['source']:
+                t = dominant['source']['texture']
+                w, h = p.own(t, 'SizeX'), p.own(t, 'SizeY')
+                rw, rh = out['lightmapRect']
+                if rw <= w and rh <= h:
+                    sm = dict(source=dominant['source'], scale=(rw / w, rh / h), bias=(0.0, 0.0), clone=True)
+        else:
+            light = even_light(p, wall_box)
+            if dominant and light:
+                sm = piece_shadow(p, light['piece'], dominant['guid'], light)
+        if dominant:
+            shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
+        g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
+                                            shadow))
         cols = columns(boxes, grid)
         actor = info['actor']
         e = p.exports[item['original'] - 1]
@@ -381,11 +632,15 @@ def add_walls(g, p, items, grid):
         template_col = bytes(b[s0:e0])
         pieces = [column_element(g, walker, template_col, c) for c in cols]
         g.relocate(actor, native_copy.rebuilt(b, field, pieces))
-        lo = [min(x[2 * k] for x in boxes) for k in range(3)]
-        hi = [max(x[2 * k + 1] for x in boxes) for k in range(3)]
         records.append(dict(kind='fracWall', copy=actor, label=item.get('label'), mesh=made[name], meshName=name,
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                             solids=len(out['solids']), columns=len(cols), painted=paint is not None,
-                            box=[v for k in range(3) for v in (lo[k], hi[k])]))
+                            box=wall_box, lightmapRect=out['lightmapRect'],
+                            light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
+                                   else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
+                            shadowMap=(None if shadow is None else
+                                       dict(export=shadow['export'], own=bool(sm and sm.get('clone')),
+                                            source=sm['source']['path'] if sm else None,
+                                            irrelevant=shadow['export'] is None))))
     return records

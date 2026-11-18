@@ -8,6 +8,35 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M2 (Build side): light that fits, one-storey walls
+
+- A made wall's lightmap is a rectangle of its own size: [frac_wall.py](tools/bake/frac_wall.py) packs its charts at
+  the donor's density on its faces (0.196 texels a unit, measured on URB_Bar's donor in a baked Build) into the
+  smallest rectangle of whole DXT1 blocks it finds (`pack_rect`, `lightmapRect`; the old square left about 30% empty),
+  and [frac_walls.py](tools/bake/frac_walls.py) gives the copy's lightmap that rectangle in its own cloned atlas, which
+  the relight fills (`set_light`). A 16-tile wall gets 300 x 260 texels.
+- The dominant light: in a baked Build each made wall gets a shadow map of its own (a clone of one of the map's
+  ShadowMap2D of that light and of its texture, the lightmap's rectangle), which the relight fills as a piece of
+  another map's, and the light is taken off its IrrelevantLights (the donor, an inside wall, lists the Bar's moon
+  there) (`dominant_shadow`, `shadow_map_export`, `irrelevant`, `add_shadow_ref`).
+- A Build without baking gives each made wall one even light (D9): every vertex at one texel of the lightmap of the
+  map's nearest lit piece, the texel nearest its median light (`even_light`), and that piece's shadow map of the
+  dominant light at the same texel, or the light listed irrelevant where the piece has none (`piece_shadow`). The
+  Build's log says which.
+- One-storey walls: a wall's numbers take `storeys` (2, as before, when left out; or 1). A one-storey wall stands
+  from -16 to 192, as the game's one-storey inside walls do (URB_PoliceStation's four, URB_IndustrialOffice's): the
+  donor's section with its face to 180 and its cornice from there to the top; its upper storey's slots are empty
+  (`shaped`). The Build checks the number.
+- [native_copy.py](tools/bake/native_copy.py) passes the bake flag to the walls and logs each wall's lightmap.
+
+Checked: the bake suite (`-k frac`: 42 tests; new: the even light and its shadow map on the Bar, a baked Build's
+layout with the relight left out (`BakedLayout`: each wall's rectangle in its own atlas, its own shadow map of the
+moon, the moon off its IrrelevantLights, the relight's receivers list it), the one-storey shape, collision and box,
+the face density along a wall within 1%), the viewer and editor suites' generated-wall tests; a real baked Build of a
+2-, 6- and 16-tile wall beside the donor on URB_Bar: the relight wrote each lightmap rectangle and shadow map, and on
+the faces the walls have 0.193, 0.196 and 0.196 texels a unit against the donor's 0.196 (the plan's check: within a
+tenth). Not seen in the game yet (run B).
+
 ### Custom walls, stage M1 (editor side): the wall tool
 
 Walls are drawn in the editor on any map (branch `fracturing-wall-poc`).

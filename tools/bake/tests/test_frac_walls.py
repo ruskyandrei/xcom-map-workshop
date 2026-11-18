@@ -157,6 +157,63 @@ class Built(unittest.TestCase):
             self.assertEqual(q.data[flag], 1)
             self.assertEqual(struct.unpack_from('<2I', q.data, flag + 1), (4, len(pos)))
 
+    def test_a_build_without_baking_gives_each_wall_one_even_light_from_a_piece_near_it(self):
+        # (M2, D9) every vertex at one texel (a coordinate scale of 0) of a lit piece of the map near the wall
+        q = self.q
+        for w in self.made():
+            self.assertEqual(w['light']['kind'], 'even')
+            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+            lm = frac_walls.lightmap_offsets(q.data, q.properties(comp)[1])
+            self.assertEqual(struct.unpack_from('<2f', q.data, lm['scale']), (0.0, 0.0))
+            bias = struct.unpack_from('<2f', q.data, lm['bias'])
+            self.assertTrue(all(0.0 < b < 1.0 for b in bias))
+            for tex, _ in lm['slots'][:2]:
+                index = struct.unpack_from('<i', q.data, tex)[0]
+                self.assertEqual(q.cls(index), 'LightMapTexture2D')
+            self.assertGreater(w['light']['light'], 0.0)
+            self.assertIn(w['light']['piece'], q.by_name)
+
+    def test_without_baking_the_dominant_light_is_the_even_light_pieces(self):
+        # (M2 item 2) the shadow map of the piece the even light comes from, at a texel of its rectangle; or, where it
+        # has none, the light listed irrelevant
+        import shadowmaps
+        q = self.q
+        moon = frac_walls.dominant_shadow(q)['guid']
+        for w in self.made():
+            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+            maps = shadowmaps.shadow_maps(q, comp)
+            listed = q.own(comp, 'IrrelevantLights', b'')
+            piece = q.by_name[w['light']['piece']]
+            theirs = [sm for sm in shadowmaps.shadow_maps(q, piece) if sm['guid'] == moon.hex()]
+            if theirs:
+                self.assertEqual(len(maps), 1)
+                self.assertEqual((maps[0]['guid'], maps[0]['texture'], maps[0]['scale']),
+                                 (moon.hex(), theirs[0]['texture'], [0.0, 0.0]))
+                self.assertEqual(q.exports[maps[0]['export'] - 1]['outer'], comp)
+                self.assertNotIn(moon, listed)
+                self.assertFalse(w['shadowMap']['irrelevant'])
+            else:
+                self.assertEqual(maps, [])
+                self.assertIn(moon, listed)
+                self.assertTrue(w['shadowMap']['irrelevant'])
+
+    def test_a_baked_build_gives_each_wall_its_own_rectangle_of_its_size(self):
+        # (M2) set_light on the donor's own record: the rectangle the wall's mesh asks for, at the donor's corner
+        # (texel 193, down to the block at 192) or the atlas's where it doesn't fit
+        p, q = self.p, self.q
+        comp = p.own(p.by_name[PL + DONOR], 'FracturedStaticMeshComponent')
+        e = p.exports[comp - 1]
+        data = bytes(p.data[e['off']:e['off'] + e['size']])
+        at = p.properties(comp)[1] - e['off']
+        self.assertEqual(frac_walls.atlas_size(p, comp), (1024, 1024))
+        for rect, corner in (((80, 208), (192, 192)), ((900, 200), (0, 192))):
+            out = frac_walls.set_light(data, at, dict(kind='rect', rect=rect, atlas=(1024, 1024)))
+            self.assertEqual(len(out), len(data))
+            lm = frac_walls.lightmap_offsets(out, at)
+            self.assertEqual(struct.unpack_from('<2f', out, lm['scale']), (rect[0] / 1024, rect[1] / 1024))
+            self.assertEqual(struct.unpack_from('<2f', out, lm['bias']), (corner[0] / 1024, corner[1] / 1024))
+            self.assertEqual(out[:lm['scale']], data[:lm['scale']])
+
     def test_the_columns_list_the_fragments_over_them(self):
         q = self.q
         for w in self.made():
@@ -195,6 +252,81 @@ class Built(unittest.TestCase):
 
 
 @unittest.skipUnless(BAR.exists() and POLICE.exists(), NO_POLICE)
+class BakedLayout(unittest.TestCase):
+    """(M2) A baked Build's made walls before the relight fills them (it is left out here): each wall's lightmap its
+    own rectangle of its cloned atlas, the wall's size at the donor's density, and a shadow map of the moon of its own
+    (a cloned ShadowMap2D and texture, the same rectangle), the moon off its IrrelevantLights; a 2-tile and a 16-tile
+    wall on the Bar."""
+    WALLS = [dict(actor=DONOR, location=[-576.0, -192.0, 16.0], rotation=[0, 0, 0], label='Two',
+                  generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=192.0, openings=[], seed=1))),
+             dict(actor=DONOR, location=[-1536.0, 384.0, 16.0], rotation=[0, 0, 0], label='Sixteen',
+                  generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=1536.0, openings=[], seed=2)))]
+
+    @classmethod
+    def setUpClass(cls):
+        from unittest import mock
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+
+        def no_relight(cmd, check):
+            (out / 'Baked.fixture.json').write_text('{}', encoding='utf-8')
+        with mock.patch.object(native_copy.subprocess, 'run', no_relight):
+            cls.m = native_copy.build(BAR, out, 'Baked', [dict(c) for c in cls.WALLS], bake=True, cache='Baked_Lighting')
+        cls.q = Package(out / 'grown' / BAR.name)
+        cls.walls = cls.m['nativeCopies']['generatedWalls']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_wall_has_a_lightmap_rectangle_of_its_size_in_its_own_atlas(self):
+        import lightmap_fields
+        p = __import__('package').Package(BAR)
+        donor = lightmap_fields.component_fields(p, p.own(p.by_name[PL + DONOR], 'FracturedStaticMeshComponent'))
+        donor_slots = {s['index'] for s in donor['lods'][0]['lightmap']['slots']}
+        q = self.q
+        rects = []
+        for w in self.walls:
+            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+            lm = lightmap_fields.component_fields(q, comp)['lods'][0]['lightmap']
+            rw, rh = w['lightmapRect']
+            self.assertEqual(w['light'], dict(kind='rect', rect=w['lightmapRect']))
+            self.assertEqual(lm['coordinateScale'], [rw / 1024, rh / 1024])
+            self.assertEqual(lm['coordinateBias'], [192 / 1024, 192 / 1024])
+            self.assertFalse({s['index'] for s in lm['slots'] if s['index'] > 0} & donor_slots)
+            rects.append(rw * rh)
+        # sixteen tiles of wall take about eight times the texels of two (the ends and trims are the same)
+        self.assertGreater(rects[1], 5 * rects[0])
+
+    def test_each_wall_has_a_shadow_map_of_the_moon_of_its_own(self):
+        import shadowmaps
+        q = self.q
+        moon = frac_walls.dominant_shadow(q)['guid']
+        textures = set()
+        for w in self.walls:
+            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+            maps = shadowmaps.shadow_maps(q, comp)
+            self.assertEqual(len(maps), 1)
+            sm = maps[0]
+            self.assertEqual(sm['guid'], moon.hex())
+            self.assertFalse(sm['factor'])
+            self.assertEqual(q.exports[sm['export'] - 1]['outer'], comp)
+            self.assertEqual(q.cls(sm['texture']), 'ShadowMapTexture2D')
+            size = (q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY'))
+            rw, rh = w['lightmapRect']
+            self.assertEqual(sm['scale'], [rw / size[0], rh / size[1]])
+            self.assertEqual(sm['bias'], [0.0, 0.0])
+            textures.add(sm['texture'])
+            self.assertTrue(w['shadowMap']['own'])
+            # the donor lists the moon irrelevant (an inside wall): the made wall doesn't
+            self.assertNotIn(moon, q.own(comp, 'IrrelevantLights', b''))
+            # the relight finds it: a receiver of the moon
+            self.assertIn(comp, [ci for _, ci, _, _ in shadowmaps.dominant_receivers(q, shadowmaps.dominant_lights(q))])
+        self.assertEqual(len(textures), 2)
+
+
 class StagedDonor(unittest.TestCase):
     """A made wall on a map without the Bar's wall (custom geometry plan, M1 item 1): the donor brought from URB_Bar
     as any piece of another map is (transplant.stage_edit), then the copy made from numbers through the staged actor:

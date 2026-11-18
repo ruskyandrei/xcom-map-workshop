@@ -2300,12 +2300,16 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     generated_records = []
     if generated:
         import frac_walls
-        generated_records = frac_walls.add_walls(g, p, generated, level_grid(p))
+        generated_records = frac_walls.add_walls(g, p, generated, level_grid(p), bake=bake)
         for r in generated_records:
             if r['kind'] == 'fracWall':
+                light = r.get('light') or {}
                 print('    %s: made from numbers as %s, %d fragments, %d triangles, %d collision boxes; its columns '
-                      'are its own (%d)' % (r['label'], r['meshName'], r['fragments'], r['triangles'], r['solids'],
-                                            r['columns']))
+                      'are its own (%d); its lightmap %s' % (
+                          r['label'], r['meshName'], r['fragments'], r['triangles'], r['solids'], r['columns'],
+                          '%d x %d texels of its own' % tuple(light['rect']) if light.get('kind') == 'rect'
+                          else 'one even light, from %s' % light['piece'].split('.')[-2] if light.get('kind') == 'even'
+                          else 'as its donor\'s'))
     groups, children = link_children(g, p, made, break_originals,
                                      [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')])
     hidden, hide_volumes = hide_pieces(g, p, hides, volumes=not cleared) if hides else ([], [])

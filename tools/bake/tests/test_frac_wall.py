@@ -124,7 +124,30 @@ class Walls(unittest.TestCase):
             out = built(wall)
             uv = [v[2][1] for v in out['mesh']['lods'][0]['vertices']]
             self.assertTrue(all(0.0 <= u <= 1.0 and 0.0 <= v <= 1.0 for u, v in uv))
-            self.assertGreater(out['lightmapScale'], 0.0)
+            w, h = out['lightmapRect']
+            self.assertTrue(w > 0 and h > 0 and w % 4 == 0 and h % 4 == 0)
+
+    def test_the_lightmap_rectangle_follows_the_wall_at_the_donors_density(self):
+        # (M2) the twin's charts at the donor's density on its faces: its rectangle at least the donor's 158-texel square
+        # (the donor gives its trims and ends fewer texels than its faces) and no more than half as large again; a
+        # wall's rectangle grows with its length
+        w, h = built(TWIN)['lightmapRect']
+        self.assertGreaterEqual(w * h, 158 * 158)
+        self.assertLess(w * h, 1.5 * 158 * 158)
+        areas = [(lambda r: r[0] * r[1])(frac_wall.build(dict(x0=0.0, x1=96.0 * t, openings=[], seed=1))['lightmapRect'])
+                 for t in (1, 4, 16)]
+        self.assertEqual(areas, sorted(areas))
+        # the texels a unit along a face are the recipe's density whatever the length
+        for t in (2, 16):
+            out = frac_wall.build(dict(x0=0.0, x1=96.0 * t, openings=[], seed=1))
+            lod = out['mesh']['lods'][0]
+            pos, uv = lod['positions'], [v[2][1] for v in lod['vertices']]
+            face = [k for k, v in enumerate(lod['vertices']) if v[1][1] > 250]        # side A's faces (normal +y)
+            xs = sorted(face, key=lambda k: pos[k][0])
+            a, b = xs[0], xs[-1]
+            if abs(pos[b][0] - pos[a][0]) > 1:
+                texels = abs(uv[b][0] - uv[a][0]) * out['lightmapRect'][0] / abs(pos[b][0] - pos[a][0])
+                self.assertLess(abs(texels - frac_wall.RECIPE['lightmap']['density']) / frac_wall.RECIPE['lightmap']['density'], 0.01)
 
     def test_collision_triangles_name_their_slot_and_fragment(self):
         for wall in (TWIN, CUSTOM):
@@ -191,6 +214,45 @@ class Walls(unittest.TestCase):
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
+class OneStorey(unittest.TestCase):
+    """(M2 item 5) A wall of one storey: from the floor at -16 to 192, as the game's one-storey inside walls stand, its
+    face to 180 and the donor's cornice from there to the top; its upper storey's slots empty."""
+    WALL = dict(x0=0.0, x1=384.0, openings=[dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)], seed=4, storeys=1)
+
+    def test_it_stands_a_storey_high_with_the_donors_cornice_at_its_top(self):
+        out = built(self.WALL)
+        zs = [p[2] for p in out['mesh']['lods'][0]['positions']]
+        self.assertEqual((min(zs), max(zs)), (-16.0, 192.0))
+        R = frac_wall.shaped(self.WALL)
+        self.assertEqual((R['top'], R['face']), (192.0, [12.0, 180.0]))
+        self.assertEqual([z for _, z, _ in R['section']], [-16.0, 0.0, 9.0, 12.0, 180.0, 182.0, 192.0])
+        # the skirting is the donor's, the cornice the donor's a storey lower
+        self.assertEqual([(y, v) for y, _, v in R['section']], [(y, v) for y, _, v in frac_wall.RECIPE['section']])
+        self.assertIs(frac_wall.shaped(dict(self.WALL, storeys=2)), frac_wall.RECIPE)
+        self.assertIs(frac_wall.shaped({k: v for k, v in self.WALL.items() if k != 'storeys'}), frac_wall.RECIPE)
+
+    def test_its_upper_storeys_slots_are_empty(self):
+        sections = {s['slot']: s['triangles'] for s in built(self.WALL)['mesh']['lods'][0]['sections']}
+        self.assertEqual((sections[1], sections[3]), (0, 0))
+        self.assertTrue(all(sections[k] > 0 for k in (0, 2, 4, 5)))
+
+    def test_its_collision_and_box_stop_at_its_top(self):
+        import frac_walls
+        out = built(self.WALL)
+        self.assertEqual(max(hi[2] for _, hi in out['solids']), 192.0)
+        self.assertEqual(frac_walls.local_box(self.WALL)[5], 192.0)
+        self.assertEqual(max(f['box'][5] for f in out['fragments']), 192.0)
+
+    def test_its_numbers_are_checked_and_named_apart_from_a_tall_ones(self):
+        import frac_walls
+        frac_walls.check(dict(kind='fracWall', version=1, wall=self.WALL))
+        with self.assertRaises(ValueError):
+            frac_walls.check(dict(kind='fracWall', version=1, wall=dict(self.WALL, storeys=3)))
+        with self.assertRaises(ValueError):
+            frac_wall.shaped(dict(self.WALL, storeys=0))
+        self.assertNotEqual(frac_wall.mesh_name(self.WALL), frac_wall.mesh_name(dict(self.WALL, storeys=2)))
+
+
 class Donor(unittest.TestCase):
     """The recipe and the default template against the donor itself."""
 
