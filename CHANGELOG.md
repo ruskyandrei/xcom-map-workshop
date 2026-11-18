@@ -8,6 +8,38 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The editor's look picker and eyedropper** (custom geometry plan, M4c; branch `fracturing-wall-poc`).
+  - The server lists each kind's looks (`/looks/walls.json`, `slabs.json`, `ground.json`, from looks.listing:
+    [viewer.py](tools/viewer/viewer.py)). The page reads them once ([looks.js](tools/viewer/web/looks.js)), and a
+    project opens once they are read.
+  - The Walls, Floors and roofs, and Ground kinds have a **Choose a … look** entry. It opens All maps in look mode
+    ([library.js](tools/viewer/web/library.js) setLookMode): only the pieces that are catalogued looks of that kind,
+    with their pictures (drawn once and kept, as All maps keeps them), the search, the favourites, and the looks the
+    project uses first.
+    - A click draws a wall or slab in that look at once; a ground look goes back to the Ground kind's shapes.
+    - **Pick from the view**, or **I**, takes the look of a piece clicked in the 3D view: the map's own, a copy, or
+      a made piece. A piece of another kind is drawn in its own tool. One that is no look gets the reason in words.
+    - The look chosen is the kind's from then on (remembered in this browser).
+  - The wall and slab panels' **Look…** and the ground swatches' **Other…** make the piece again in another look
+    where it stands, in one undo step ([app.js](tools/viewer/web/app.js) setMadeLook; setGroundLook is now that).
+  - A piece drawn in a donor look carries request version 3 (a wall) or 2 (a slab, a ground shape) with
+    `look: {mesh, measure}`, on a copy of the placing chosen.
+  - A wall's heights, insets, storeys and thickness come from its look ([walls.js](tools/viewer/web/walls.js)
+    wallSpec, endInsetsOf; the Bar's as before for a look id). So do the ghost, the handles, the opening boxes, a
+    room's building floors and its roof's height, and the made mesh's sections. Slabs and ground take their donor
+    look's heights and thickness (slabLookOf, groundLookOf).
+  - A made piece is drawn at scale 1, whatever its donor's. One the server can't draw shows its donor, with a hint.
+    The server answers 400, not an empty reply, when the generator can't make a recipe.
+  - The compiler's 'through' end inset is the wall's half thickness, not its free-end inset; the two are equal for
+    the Bar.
+  - Checked: [looks_test.mjs](tools/viewer/tests/looks_test.mjs) (the catalogue read once, donor looks found, a
+    wall's heights by its look: one- and two-storey donors, doorways at the look's bottom, insets); the node suite;
+    the walls browser check updated for the new entries, passing.
+    [browser_looks.py](tools/viewer/tests/browser_looks.py) (`--only looks`, new) passed on a five-wall trial
+    catalogue up to the meshes the server can't make yet (picker listed, searched, a row drew a version 3 wall, Look…
+    changed it and Ctrl+Z put it back, the eyedropper took a made wall's look).
+  - Not yet: the catalogues themselves and the generators building donor looks (the two agents' work).
+
 - **The editor draws made pieces in looks named by their donor** (custom geometry plan, M4a; branch
   `fracturing-wall-poc`).
   - [generated.py](tools/viewer/generated.py): the made-piece meshes take a look `{mesh, measure}` (a ground look's

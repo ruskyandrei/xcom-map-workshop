@@ -257,7 +257,13 @@ class Meshes:
         return self.made(key, lambda: ground_shapes.build(built), sections or GROUND_SLOTS, 'ground shape')
 
     def made(self, key, build, slots, what):
-        mesh = viewer_mesh(build())
+        try:
+            built = build()
+        except GeneratedError:
+            raise
+        except Exception as error:      # (a recipe the generator can't make: said, not a dropped answer)
+            raise GeneratedError('the %s could not be made: %s' % (what, error))
+        mesh = viewer_mesh(built)
         if len(mesh['sections']) != slots:
             # the page binds the parts to the materials in slot order
             raise GeneratedError('the %s has %d slots, not %d' % (what, len(mesh['sections']), slots))

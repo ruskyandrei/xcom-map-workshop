@@ -9,6 +9,7 @@
 // rotator units (pitch, yaw, roll).
 import { TILE } from './poserule.js';
 import { wallRotation, wallDirection } from './walls.js';
+import { catalogued } from './looks.js';
 
 // The looks, as tools/bake/ground_looks.json lists them (walls_test.mjs compares the two)
 export const GROUND_LOOKS = [
@@ -37,7 +38,16 @@ const sign = v => (v < 0 ? -1 : 1);
 const tidy = v => { const r = Math.round(v * 1e4) / 1e4; return r === 0 ? 0 : r; };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-export const groundLookOf = g => GROUND_LOOKS.find(l => l.id === (g?.look ?? GROUND_LOOKS[0].id)) ?? null;
+/** A ground shape's look: one of GROUND_LOOKS by its id, or a donor look (M4: { mesh, material, measure }) as the
+ *  catalogue has it, with its repeat and thickness (null when no catalogue read holds it). */
+export function groundLookOf(g) {
+  const look = g?.look ?? GROUND_LOOKS[0].id;
+  if (typeof look !== 'object') return GROUND_LOOKS.find(l => l.id === look) ?? null;
+  const cat = catalogued('ground', look);
+  return cat ? { id: null, name: cat.name, package: cat.map, actor: cat.actor, mesh: cat.mesh, material: cat.material,
+                 lwrOnly: Boolean(cat.lwrOnly), words: cat.setting ?? '', repeat: cat.recipe.repeat, thickness: cat.recipe.thickness ?? 8,
+                 donor: { mesh: look.mesh, material: look.material, measure: look.measure } } : null;
+}
 export const groundTiles = g => [Math.round((g.x1 - g.x0) / TILE), Math.round((g.y1 - g.y0) / TILE)];
 /** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch's top a unit over the
  *  ground it lies on, its plate under it; a block or ramp on it. */
@@ -81,7 +91,7 @@ export function drawnGround(start, end, { origin, z, shape, look = GROUND_LOOKS[
   const g = { shape, x0: 0, x1: run * TILE, y0: 0, y1: across * TILE,
               ...(shape === 'patch' ? {} : { height: height ?? GROUND[shape] }),
               ...(shape === 'rock' ? { seed } : {}),
-              ...(look.id !== GROUND_LOOKS[0].id ? { look: look.id } : {}) };
+              ...(look.donor ? { look: { ...look.donor } } : look.id !== GROUND_LOOKS[0].id ? { look: look.id } : {}) };
   return { location: [tidy(at[0]), tidy(at[1]), tidy(z)], rotation, ground: g, tiles: [nx, ny] };
 }
 /** The shape with one side ('x0', 'x1', 'y0', 'y1', in its frame) moved `delta` units outwards, in whole tiles, kept

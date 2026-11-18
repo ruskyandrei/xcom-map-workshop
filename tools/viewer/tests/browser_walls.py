@@ -50,9 +50,12 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     errors = []
     page = open_viewer(browser, url, errors)
     out = dict(map=page.evaluate('viewer.data.name'))
-    entries = page.evaluate('viewer.wallEntries().map(e => ({ name: e.name, kind: e.kind, look: e.wallLook.id }))')
+    # (the Bar's inside wall, the Bar's floors and the first ground look, whatever was chosen before)
+    page.evaluate("for (const k of ['workshop.wallLook', 'workshop.slabLook', 'workshop.groundLook']) localStorage.removeItem(k)")
+    entries = page.evaluate('viewer.wallEntries().map(e => ({ name: e.name, kind: e.kind, look: e.wallLook?.id ?? e.lookPicker }))')
     assert entries == [dict(name='Bar inside wall', kind='Walls', look='bar-inside'),
-                       dict(name='Room of bar inside walls', kind='Walls', look='bar-inside')], entries
+                       dict(name='Room of bar inside walls', kind='Walls', look='bar-inside'),
+                       dict(name='Choose a wall look', kind='Walls', look='wall')], entries
     # the Add panel lists it under its kind (pieces.js pieceRow): a row with the wall's icon
     page.keyboard.press('p')
     page.wait_for_selector('#libMap .libitem')
@@ -250,7 +253,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # same ground (no made walls round it: two storeys up), its edge's handle a tile out, a hole from the panel, each
     # one undo step; a room with a roof: four walls, the roof on their tops and a building round them, two undo steps
     names = page.evaluate('viewer.slabEntries().map(e => [e.name, e.kind])')
-    assert names == [['Roof', 'Floors and roofs'], ['Upper floor', 'Floors and roofs'],
+    assert names == [['Roof', 'Floors and roofs'], ['Upper floor', 'Floors and roofs'], ['Choose a floor or roof look', 'Floors and roofs'],
                      ['Room of bar inside walls with a roof', 'Walls']], names
     before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
     page.evaluate("viewer.startWallDrawing(viewer.slabEntries()[0].wallLook, { slab: true })")
@@ -302,7 +305,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # each one undo step
     names = page.evaluate('viewer.groundEntries().map(e => [e.name, e.kind, e.ground])')
     assert names == [['Patch', 'Ground', 'patch'], ['Block', 'Ground', 'block'], ['Ramp', 'Ground', 'ramp'],
-                     ['Rock', 'Ground', 'rock']], names
+                     ['Rock', 'Ground', 'rock'], ['Choose a ground look', 'Ground', None]], names
     page.evaluate("viewer.startWallDrawing(viewer.groundEntries()[2].wallLook, { ground: 'ramp' })")
     page.wait_for_function("viewer.wallDrawing()?.ready && viewer.wallDrawing().ground === 'ramp'", timeout=90000)
     ga, gb = [a[0], a[1], a[2]], [b[0], a[1] - 96, a[2]]

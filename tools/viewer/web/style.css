@@ -113,6 +113,9 @@ canvas { display: block; width: 100%; height: 100%; }
 /* The piece list (Add): beside the rail and clear of the dock. */
 #library { left: 66px; top: 12px; width: 330px; max-height: calc(100% - 80px); display: flex; flex-direction: column; padding-top: 8px; box-shadow: 0 8px 24px #0006; }
 .libhead { display: flex; align-items: center; padding: 0 6px 0 14px; }
+/* the look picker's head (library.js setLookMode): what it chooses, the eyedropper and the way back */
+.lookbanner { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid #2a3640; border-bottom: 1px solid #2a3640; }
+.lookbanner strong { flex: 1; color: #d6e2ea; font-size: 12px; }
 .libhead h3 { flex: 1; margin: 0; color: #9fb0bb; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .libhead .icon { width: 26px; height: 26px; }
 .libhead .icon .i { width: 15px; height: 15px; }

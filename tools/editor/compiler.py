@@ -175,12 +175,13 @@ def donor_shape(kind, numbers):
 
 
 def wall_heights(wall):
-    """A made wall's bottom, top and free ends' inset in its frame: its look's (donor_shape), or the Bar's inside
-    wall's for a look id or a donor look no catalogue holds."""
+    """A made wall's bottom, top, free ends' inset and its faces' half thickness in its frame (an end running through
+    reaches that far past its tile edge: frac_wall.end_insets): its look's (donor_shape), or the Bar's inside wall's
+    for a look id or a donor look no catalogue holds."""
     R = donor_shape('wall', wall)
     if R:
-        return float(R['bottom']), float(R['top']), float(R['endInset'])
-    return FRAC_WALL_BOTTOM, FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2], FRAC_WALL_END_INSET
+        return float(R['bottom']), float(R['top']), float(R['endInset']), float(R['half'])
+    return FRAC_WALL_BOTTOM, FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2], FRAC_WALL_END_INSET, FRAC_WALL_END_INSET
 
 
 def slab_heights(slab):
@@ -613,7 +614,7 @@ def wall_joins(walls):
         yaw = rot[1] * tau / 65536
         d = (math.cos(yaw), math.sin(yaw))
         x0, x1 = float(wall['x0']), float(wall['x1'])
-        bottom, top, _ = wall_heights(wall)
+        bottom, top, _, _ = wall_heights(wall)
         info.append(dict(key=w['key'], d=d, x0=x0, x1=x1,
                          p=[(loc[0] + d[0] * x, loc[1] + d[1] * x) for x in (x0, x1)],
                          z=(loc[2] + bottom, loc[2] + top), height=top, length=x1 - x0,
@@ -1463,8 +1464,8 @@ class Compiler:
                 continue
             gen = copy['generated']
             copy['generated'] = dict(gen, version=max(2, gen.get('version', 1)), wall=dict(gen['wall'], ends=list(ends)))
-            inset = wall_heights(gen['wall'])[2]
-            insets = {'free': inset, 'line': 0.0, 'through': -inset}
+            _, _, inset, half = wall_heights(gen['wall'])
+            insets = {'free': inset, 'line': 0.0, 'through': -half}
             along = (gen['wall']['x0'] + insets[ends[0]], gen['wall']['x1'] - insets[ends[1]])
             copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
 

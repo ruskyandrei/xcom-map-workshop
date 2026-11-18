@@ -9,6 +9,9 @@
 // with the Effects view's spark or speaker for its picture, sorted into the panel's effect and sound kinds; placing
 // one is app.js's (an effect's template, /library/effect.json). Their lens flares too (stage FX6b): a row with the
 // view's star.
+// Its look mode (custom geometry plan, M4c) is the picker of a made wall's, slab's or ground shape's look: only the
+// pieces that are looks of that kind (each a catalogue entry, tools/bake/looks.py) are listed, and a click chooses the
+// look instead of placing the piece (setLookMode).
 
 import { pieceKind, inKind, setKindOptions, effectKind } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
@@ -61,6 +64,11 @@ function pictureKey(entry) {
 export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint, recipesForScene, paintRecipe,
                                        onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null }) {
   let index = null, entries = [], byKey = new Map(), shown = [], chosen = null, status = null, loading = null, scanTimer = null;
+  // the look picker (setLookMode): { kind, title, match(entry) -> its catalogue entry or null, choose(entry, look),
+  // tags(look) -> [[text, title]], pick() (the eyedropper) or null, cancel() }, or null
+  let lookMode = null;
+  const banner = el('div', { className: 'lookbanner', hidden: true });
+  els.list.before(banner);
   let state = null, stateLoad = null, here = -1;
   let recipes = null;
   const kept = new Set(), failed = new Set(), pictures = new Map();   // thumbnails: on the server; not drawable; loaded images
@@ -192,7 +200,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   // -- rows ------------------------------------------------------------------------------------------------------------
   function row(entry) {
     if (rows.has(entry.key)) return rows.get(entry.key);
-    if (entry.light || entry.cover || entry.zone || entry.spawnAdd || entry.wallLook) {     // the recipes: lights, cover, walls, zones, spawn points
+    if (entry.light || entry.cover || entry.zone || entry.spawnAdd || entry.wallLook || entry.lookPicker) {     // the recipes: lights, cover, walls, zones, spawn points, the look pickers
       const item = pieceRow(entry, pixelRatio(), () => onChooseRecipe(chosen?.key === entry.key ? null : entry));
       item.classList.add('lib');
       item.dataset.key = entry.key;
@@ -216,11 +224,13 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       const [w, d, h] = entry.size.map(Math.round), maps = entry.placed.maps;
       const where = maps === 1 ? entry.source.package : `${maps} maps`;
       const tags = el('span', { className: 'tags' }, star);
+      const look = lookMode?.match(entry) ?? null;
       if (entry.here) tags.append(el('span', { className: 'tag', textContent: 'Here', title: 'This map has the piece too' }));
-      if (tag) tags.append(el('span', { className: 'tag', textContent: tag[0], title: tag[1] }));
+      if (look) for (const [text, title] of lookMode.tags(look)) tags.append(el('span', { className: 'tag', textContent: text, title }));
+      else if (tag) tags.append(el('span', { className: 'tag', textContent: tag[0], title: tag[1] }));
       else if (!entry.placeable && !soft) tags.append(el('span', { className: 'tag later', textContent: 'Later', title: entry.reason }));
-      item.append(thumb, el('span', {}, el('strong', { textContent: entry.name }),
-        el('small', { textContent: `${entry.kind} · ${entry.pkg}` }),
+      item.append(thumb, el('span', {}, el('strong', { textContent: look?.name ?? entry.name }),
+        el('small', { textContent: look ? `${look.setting || entry.kind} · ${entry.pkg}` : `${entry.kind} · ${entry.pkg}` }),
         el('small', { textContent: `${w} × ${d} × ${h} · ${where}` })), tags);
       item.title = [entry.mesh, ...new Set(entry.recipe.parts.flatMap(p => p.materials)).values()].map((t, i) => (i ? `Material: ${t}` : t))
         .concat(`Placed ${plural(entry.placed.count, 'time')} in ${plural(maps, 'map')} (${entry.placed.in.slice(0, 8).map(n => index.donors[n].package).join(', ')}${maps > 8 ? ', …' : ''}); brought from ${entry.source.package}`,
@@ -228,11 +238,15 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
                 entry.placeable || soft ? `Adds up to ${kb(entry.closure.bytes)} to the map (less where the map has its meshes and textures already)`
                   : `Can't be placed yet: ${entry.reason}`, ...(tag ? [tag[1]] : [])).join('\n');
       const choose = () => {
+        // (in look mode a row chooses its look: its donor is copied whether or not the piece itself can be placed)
+        if (look) { lookMode.choose(entry, look); return; }
         if (!entry.placeable && !soft) { hint(`${entry.name} can't be placed yet. ${entry.reason}`); return; }
         onChoose(chosen?.key === entry.key ? null : entry);
       };
       item.onclick = choose;
       item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
+      if (look) item.title = `${look.name}${look.setting ? ` (${look.setting})` : ''}: click to draw in this look\n${item.title}`
+        + (look.warnings?.length ? `\nMade simpler than its donor: ${look.warnings.join('; ')}` : '');
     }
     item.thumb = thumb; item.star = star;
     rows.set(entry.key, item);
@@ -273,6 +287,20 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   function filtered() {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const kind = els.kind.value, home = els.home.value === 'all' ? null : Number(els.home.value);
+    if (lookMode) {
+      // the looks of the kind: their pieces (the kind menu and the placeable ticks don't apply), the search also over
+      // the look's name and setting
+      const list = entries.filter(e => e.library && !e.effect && (home == null || e.placed.in.includes(home))
+        && (!els.favourites.checked || favourite(e.key)) && lookMode.match(e)
+        && words.every(w => e.text.includes(w) || `${lookMode.match(e).name} ${lookMode.match(e).setting ?? ''}`.toLowerCase().includes(w)));
+      // (the looks the project uses first: lookMode.first)
+      const first = (a, b) => Number(Boolean(lookMode.first?.(b))) - Number(Boolean(lookMode.first?.(a)));
+      if (els.sort.value === 'recent') {
+        const order = new Map((state?.recent ?? []).map((r, i) => [r.key, i]));
+        return list.sort((a, b) => first(a, b) || (order.get(a.key) ?? 1e9) - (order.get(b.key) ?? 1e9) || SORTS.name(a, b));
+      }
+      return list.sort((a, b) => first(a, b) || SORTS[els.sort.value](a, b));
+    }
     const list = entries.filter(e => inKind(e, kind) && (home == null || (kind === 'floors' ? e.floorMaps : e.placed.in).includes(home))
       && (!els.placeable.checked || e.placeable) && (!els.elsewhere.checked || !e.here)
       && (!els.favourites.checked || favourite(e.key)) && words.every(w => e.text.includes(w)));
@@ -304,6 +332,11 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       if (index) counts[0] += ` from ${plural(index.donors.length, 'map')}`;
     }
     if (recipeCount) counts.push(plural(recipeCount, 'recipe'));
+    if (lookMode) {
+      els.foot.replaceChildren(index ? (shown.length ? `${plural(shown.length, 'look')} · click one to draw in it` : 'No look matches')
+        : 'The looks show once the maps have been read');
+      return;
+    }
     els.foot.replaceChildren(shown.length
       ? `${counts.join(' and ')} · click one, then click in the view to place it${stale}`
       : `No piece matches${stale}`);
@@ -424,6 +457,29 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       if (!state) loadState();
     },
     get open() { return !els.box.hidden; },
+    /** The look picker (M4c): `mode` { kind, title, match, choose, tags, pick, cancel } lists only the pieces that are
+     *  looks of the kind, a click choosing one; null goes back to placing pieces. */
+    setLookMode(mode) {
+      lookMode = mode ?? null;
+      rows.clear(); windowed.replaceChildren();
+      banner.hidden = !lookMode;
+      if (lookMode) {
+        const kids = [el('strong', { textContent: lookMode.title })];
+        if (lookMode.pick) {
+          const pick = el('button', { type: 'button', className: 'textbutton', textContent: 'Pick from the view',
+            title: 'Click a piece in the 3D view (this map\'s, a copy, or one from another map) to draw in its look (I)' });
+          pick.onclick = () => lookMode?.pick();
+          kids.push(pick);
+        }
+        const back = el('button', { type: 'button', className: 'textbutton', textContent: 'Back', title: 'Back to placing pieces (Esc)' });
+        back.onclick = () => lookMode?.cancel();
+        kids.push(back);
+        banner.replaceChildren(...kids);
+      }
+      els.list.scrollTop = 0;
+      render();
+    },
+    get lookMode() { return lookMode; },
     setChosen(entry) {
       chosen = entry?.library || entry?.light || entry?.cover ? entry : null;
       for (const [k, item] of rows) item.classList.toggle('on', k === chosen?.key);

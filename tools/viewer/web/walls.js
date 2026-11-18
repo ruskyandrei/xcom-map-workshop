@@ -7,6 +7,7 @@
 // stops WALL.endInset short of each end.
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './poserule.js';
+import { catalogued } from './looks.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
 // mesh its actor holds, and what it looks like in words. M1 has one, the Bar's inside wall (frac_wall.RECIPE).
@@ -38,12 +39,31 @@ const tidy = v => { const r = Math.round(v * 1e4) / 1e4; return r === 0 ? 0 : r;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- heights
-/** A wall's storeys: 1 or 2 (left out, the donor's two). */
-export const storeysOf = wall => (wall?.storeys === 1 ? 1 : 2);
-/** The wall's top over the floor (its bottom WALL.bottom), its face's top, and the highest an opening's top goes. */
-export const wallTop = wall => STOREY_TOPS[storeysOf(wall)];
-export const faceTopOf = wall => wallTop(wall) - (WALL.top - WALL.faceTop);
-export const topMostOf = wall => wallTop(wall) - (WALL.top - OPENING.topMost);
+// The Bar's inside wall's numbers as wallSpec gives them (its two storeys, the donor's height).
+const BAR_SPEC = { bottom: WALL.bottom, top: WALL.top, faceTop: WALL.faceTop, storey: WALL.storey, endInset: WALL.endInset,
+                   half: WALL.half, through: 8, sections: 6, storeys: 2 };
+/** A wall's look's numbers (custom geometry plan, M4): its bottom, its top and its face's top at the donor's height,
+ *  the storey a lower wall loses, its free ends' inset, its half thickness (`half`, the section's widest; `through`, its
+ *  faces'), its sections and the donor's storeys (1 or 2). The Bar's inside wall's for a look id; a donor look's from
+ *  the catalogue (looks.js); the Bar's for a donor look whose catalogue isn't read (drawn with the template's mesh). */
+export function wallSpec(wall) {
+  const cat = catalogued('wall', wall?.look);
+  if (!cat) return BAR_SPEC;
+  const r = cat.recipe, storeys = Math.max(...(cat.facts?.storeys ?? [2]));
+  const thickness = cat.facts?.size?.thickness;
+  return { bottom: r.bottom, top: r.top, faceTop: r.face?.[1] ?? r.top, storey: r.storey ?? WALL.storey, endInset: r.endInset,
+           half: thickness ? thickness / 2 : r.half + 4, through: r.half, sections: r.sections ?? 6, storeys };
+}
+/** A wall's storeys: 1 or 2 (left out, its donor's: two for the Bar's). */
+export const storeysOf = wall => (wall?.storeys === 1 ? 1 : wallSpec(wall).storeys);
+/** The wall's top over the floor (its bottom wallSpec's), its face's top, and the highest an opening's top goes. A wall
+ *  lower than its donor loses a storey off its top (frac_wall.shaped). */
+export const wallTop = wall => {
+  const spec = wallSpec(wall);
+  return spec === BAR_SPEC ? STOREY_TOPS[storeysOf(wall)] : storeysOf(wall) < spec.storeys ? spec.top - spec.storey : spec.top;
+};
+export const faceTopOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - (spec.top - spec.faceTop); };
+export const topMostOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - Math.max(WALL.top - OPENING.topMost, spec.top - spec.faceTop); };
 /** The wall at `storeys` (1 or 2; 2 leaves the number out). An opening the lower wall can't hold has its top brought
  *  down to the highest an opening goes; one left smaller than OPENING.height (a window in the upper storey) goes.
  *  Gives { wall, cut (openings brought down), removed (openings gone) }. */
@@ -64,8 +84,9 @@ export function withStoreys(wall, storeys) {
 /** The wall after its top handle moved `delta` units up: past half a storey down a two-storey wall becomes one storey,
  *  past half a storey up a one-storey wall two. Gives withStoreys' { wall, cut, removed }. */
 export function raisedWall(wall, delta) {
-  const now = storeysOf(wall), half = WALL.storey / 2;
-  const next = now === 2 && delta < -half ? 1 : now === 1 && delta > half ? 2 : now;
+  const spec = wallSpec(wall), now = storeysOf(wall), half = spec.storey / 2;
+  // (a one-storey donor's wall keeps its height)
+  const next = spec.storeys < 2 ? now : now === 2 && delta < -half ? 1 : now === 1 && delta > half ? 2 : now;
   return next === now ? { wall, cut: 0, removed: 0 } : withStoreys(wall, next);
 }
 
@@ -78,11 +99,12 @@ export function toolWall(wall) {
   if (!Number.isInteger(tiles) || tiles < WALL.minTiles || tiles > WALL.maxTiles) return false;
   const list = sortedOpenings(wall.openings ?? []);
   return list.every((o, i) => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o[k])) && o.x0 >= 0 && o.x1 <= wall.x1 && o.x1 > o.x0
-    && o.z1 > o.z0 && o.z0 >= WALL.bottom && o.z1 <= faceTopOf(wall) && (i === 0 || list[i - 1].x1 <= o.x0));
+    && o.z1 > o.z0 && o.z0 >= wallSpec(wall).bottom && o.z1 <= faceTopOf(wall) && (i === 0 || list[i - 1].x1 <= o.x0));
 }
 export const sortedOpenings = list => [...list].sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
-/** A doorway reaches the wall's bottom; anything else is a window. */
-export const openingKind = o => (o.z0 <= WALL.bottom + 1e-6 ? 'doorway' : 'window');
+/** A doorway reaches the wall's bottom, which is at or under the floor (z 0) in every look; anything else is a window
+ *  (a window's sill is OPENING.sillLeast or more over the floor). */
+export const openingKind = o => (o.z0 <= 1e-6 ? 'doorway' : 'window');
 export const tilesOf = wall => Math.round(wall.x1 / TILE);
 
 // ---- drawing: the pose and numbers of a wall dragged out on the ground
@@ -195,7 +217,7 @@ export function withOpening(wall, kind) {
   const middle = wall.x1 / 2;
   const order = [...Array(tiles).keys()].filter(free).sort((a, b) => Math.abs((a + 0.5) * TILE - middle) - Math.abs((b + 0.5) * TILE - middle) || a - b);
   if (!order.length) return null;
-  const k = order[0], o = { x0: k * TILE, x1: k * TILE + preset.width, z0: preset.z0, z1: preset.z1 };
+  const k = order[0], o = { x0: k * TILE, x1: k * TILE + preset.width, z0: kind === 'doorway' ? wallSpec(wall).bottom : preset.z0, z1: preset.z1 };
   const openings = sortedOpenings([...list, o]);
   return { wall: { ...wall, openings }, index: openings.indexOf(o) };
 }
@@ -276,6 +298,9 @@ export function playWords(wall, o, { door = false } = {}) {
 // game's inside walls stop square 8 short of a wall they meet (a T's stem, as a free end); at an L one runs through to
 // the other's far face and the other butts on its face; end to end both reach the line (research/evidence/wall-joints.py).
 export const END_INSETS = { free: WALL.endInset, line: 0, through: -8 };
+/** A wall's end styles' insets by its look (frac_wall.end_insets): a free end its endInset, 'line' on the tile edge,
+ *  'through' its faces' half thickness past it. */
+export const endInsetsOf = wall => { const spec = wallSpec(wall); return { free: spec.endInset, line: 0, through: -spec.through }; };
 const JOIN_REACH = 1, JOIN_FLOOR = 32;
 /** Where made walls meet: `walls` [{ key, location, rotation, wall }] gives { key: { ends: [the x0 end's style, the x1
  *  end's] ('free' | 'through' | 'line'), joins: [{ end (0 | 1), how ('corner' (runs through) | 'butt' | 'line' |
@@ -289,7 +314,7 @@ export function wallJoins(walls) {
     const yaw = yawRaw * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)];
     const x0 = w.wall.x0, x1 = w.wall.x1, top = wallTop(w.wall);
     info.push({ key: w.key, d, x0, x1, p: [x0, x1].map(x => [w.location[0] + d[0] * x, w.location[1] + d[1] * x]),
-                z: [w.location[2] + WALL.bottom, w.location[2] + top], height: top, length: x1 - x0, loc: [w.location[0], w.location[1]] });
+                z: [w.location[2] + wallSpec(w.wall).bottom, w.location[2] + top], height: top, length: x1 - x0, loc: [w.location[0], w.location[1]] });
   }
   const floor = (a, b) => Math.min(a.z[1], b.z[1]) - Math.max(a.z[0], b.z[0]) > JOIN_FLOOR;
   const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -347,7 +372,7 @@ export function joinWords(joins) {
   const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);
   return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
 }
-export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - WALL.bottom} tall)`;
+export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - wallSpec(wall).bottom} tall)`;
 
 // ---- floors and roofs (custom geometry plan, M5): a slab is an added copy of its look's donor (one of the game's
 // fracturing floors or roofs) carrying `generated: { kind: 'fracSlab', version: 1, slab }`, its numbers in the donor
@@ -362,7 +387,16 @@ export const SLAB_LOOKS = [
     mesh: 'ComKit_Meshes.Cores.Core_384FloorB_FRACTURED', lwrOnly: false, bottom: 192, top: 194,
     words: "a storey floor: dark brown floor tiles on top, butcher's tiles under it" }];
 export const SLAB = { maxTiles: 16, maxHoles: 32 };
-export const slabLookOf = slab => SLAB_LOOKS.find(l => l.id === (slab?.look ?? SLAB_LOOKS[0].id)) ?? null;
+/** A slab's look: one of SLAB_LOOKS by its id, or a donor look (M4: { mesh, measure }) as the catalogue has it, with
+ *  its heights and role (null when no catalogue read holds it). */
+export function slabLookOf(slab) {
+  const look = slab?.look ?? SLAB_LOOKS[0].id;
+  if (typeof look !== 'object') return SLAB_LOOKS.find(l => l.id === look) ?? null;
+  const cat = catalogued('slab', look);
+  return cat ? { id: null, name: cat.name, role: cat.facts?.role === 'floor' ? 'floor' : 'roof', package: cat.map, actor: cat.actor,
+                 mesh: cat.mesh, lwrOnly: Boolean(cat.lwrOnly), bottom: cat.recipe.bottom, top: cat.recipe.top,
+                 words: cat.setting ?? '', donor: { mesh: look.mesh, measure: look.measure }, sections: cat.recipe.sections ?? 2 } : null;
+}
 export const slabTiles = slab => [Math.round((slab.x1 - slab.x0) / TILE), Math.round((slab.y1 - slab.y0) / TILE)];
 /** Whether the slab's numbers are ones the tool edits (its own: x0 and y0 0, whole tiles, holes of whole tiles). */
 export function toolSlab(slab) {
@@ -389,7 +423,8 @@ export function drawnSlab(start, end, { origin, template, z, seed = 1, look = SL
   };
   const [x0, nx] = span(0), [y0, ny] = span(1);
   return { location: [tidy(x0), tidy(y0), tidy(z)], rotation: wallRotation(template.rotation, 0, 1),
-           slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed, ...(look.id !== SLAB_LOOKS[0].id ? { look: look.id } : {}) },
+           slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed,
+                   ...(look.donor ? { look: { ...look.donor } } : look.id !== SLAB_LOOKS[0].id ? { look: look.id } : {}) },
            tiles: [nx, ny] };
 }
 const holeInside = (h, slab) => h.x0 >= 0 && h.x1 <= slab.x1 && h.y0 >= 0 && h.y1 <= slab.y1;
@@ -445,8 +480,9 @@ export const slabWords = slab => {
   return `${tileWords(nx, ny)}${n ? `, ${plural(n, 'hole')}` : ''}`;
 };
 /** The roof a room drawn as `room` (drawnRoom) takes: its footprint the room's rectangle, on its walls' tops. */
-export function roomRoof(room, { template, floor, storeys = 2, seed = 1 }) {
+export function roomRoof(room, { template, floor, storeys = 2, seed = 1, top = null }) {
   const [south] = room.walls, [nx, ny] = room.tiles;
-  return { location: [south.location[0], south.location[1], tidy(floor + STOREY_TOPS[storeys])], rotation: wallRotation(template.rotation, 0, 1),
+  // (on the walls' top: `top` over the floor, the Bar's by its storeys when not given)
+  return { location: [south.location[0], south.location[1], tidy(floor + (top ?? STOREY_TOPS[storeys]))], rotation: wallRotation(template.rotation, 0, 1),
            slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed }, tiles: [nx, ny] };
 }

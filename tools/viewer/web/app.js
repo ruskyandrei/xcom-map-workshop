@@ -49,9 +49,10 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf,
          SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
+import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
          resizedGround, slopeOf, slopeWords, toolGround, turnedGround } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
@@ -185,6 +186,9 @@ const isStream = o => o?.layer === 'stream';
 // The families of pieces and the map's assemblies (families.json, tools/viewer/families.py: the compiler's own), or
 // null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
 let families = null, assemblyIndex = new Map(), originalIndex = null;
+// The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
+// opens once they are, so its pieces in a donor look are drawn in it
+const looksReady = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
 // The original a piece is, or was copied from: package, level and actor (a project's key for it).
 const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 // foreignAssemblies: the same for the assemblies of other maps' pieces, as their records are read (libraryTemplate).
@@ -1197,22 +1201,33 @@ const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, min
 // A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
 // top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
-  const top = wall.storeys === 1 ? 192 : FRAC_WALL.top, [e0, e1] = wall.ends ?? ['free', 'free'];
-  const a = wall.x0 + END_INSETS[e0], b = wall.x1 - END_INSETS[e1], hx = (b - a) / 2, hz = (top - FRAC_WALL.bottom) / 2;
-  return [(a + b) / 2, 0, FRAC_WALL.bottom + hz, hx, FRAC_WALL.halfY, hz, Math.hypot(hx, FRAC_WALL.halfY, hz)];
+  // (its look's heights, insets and thickness: the Bar's for a look id, wallSpec's for a donor look)
+  const spec = wallSpec(wall), insets = endInsetsOf(wall), top = wallTop(wall), [e0, e1] = wall.ends ?? ['free', 'free'];
+  const a = wall.x0 + insets[e0], b = wall.x1 - insets[e1], hx = (b - a) / 2, hz = (top - spec.bottom) / 2;
+  return [(a + b) / 2, 0, spec.bottom + hz, hx, spec.half, hz, Math.hypot(hx, spec.half, hz)];
 }
+// A look in one spelling (generated.py donor_look): a look id as it is; a donor look (M4) its mesh, a ground look's
+// material, and the measurer's version.
+const spelledLook = look => (typeof look === 'object' && look
+  ? { mesh: look.mesh, ...(look.material ? { material: look.material } : {}), measure: look.measure } : look);
+// A made piece's request (custom geometry plan, M4): a donor look's at its kind's DONOR_VERSION with the look in its
+// numbers, a look id's (or none) at version 1 as before.
+const madeRequest = (kind, look, numbers) => {
+  const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
+  return look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers };
+};
 // A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out),
 // with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
 const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
                                 seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}),
-                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: w.look } : {}),
+                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
                                 ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
 // A made slab (custom geometry plan, M5): drawn from /generated/fracslab.glb (generated.py), its two sections (the top
 // with the edges, the underside) bound to its template's materials by slot; its bounds its footprint between its look's
 // heights.
 const FRAC_SLAB = { slots: 2 };
 const madeSlabNumbers = s => ({ x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, holes: (s.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 })),
-                                seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: s.look } : {}) });
+                                seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: spelledLook(s.look) } : {}) });
 function slabBounds(s) {
   const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
   return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
@@ -1224,17 +1239,18 @@ function madeSlabShape(template, s) {
   const numbers = madeSlabNumbers(s), key = `made:fracslab:${JSON.stringify(numbers)}`;
   if (!data.meshes[key]) {
     data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a slab'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null, url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`,
-      sections: Array.from({ length: FRAC_SLAB.slots }, (_, slot) => ({ slot, count: 1 })), bounds: slabBounds(numbers) };
+      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
+      url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`,
+      sections: Array.from({ length: slabLookOf(numbers).sections ?? FRAC_SLAB.slots }, (_, slot) => ({ slot, count: 1 })), bounds: slabBounds(numbers) };
   }
   const slots = (data.meshes[template.mesh]?.sections ?? []).filter(x => x.count).map(x => x.slot);
   const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
-  return { mesh: key, materials: Array.from({ length: FRAC_SLAB.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+  return { mesh: key, materials: Array.from({ length: slabLookOf(numbers).sections ?? FRAC_SLAB.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
 }
 // A ground shape (custom geometry plan, M6): drawn from /generated/ground.glb, its one section on its template's material.
 const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
                                   ...(g.shape === 'rock' ? { seed: g.seed } : {}),
-                                  ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: g.look } : {}) });
+                                  ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: spelledLook(g.look) } : {}) });
 function groundBounds(g) {
   const b = groundShapeBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
   return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
@@ -1244,7 +1260,8 @@ function madeGroundShape(template, g) {
   const numbers = madeGroundNumbers(g), key = `made:ground:${JSON.stringify(numbers)}`;
   if (!data.meshes[key]) {
     data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'ground'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null, url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`,
+      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
+      url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`,
       sections: [{ slot: 0, count: 1 }], bounds: groundBounds(numbers) };
   }
   return { mesh: key, materials: [template.materials[0]] };
@@ -1257,22 +1274,30 @@ function madeShape(template, generated) {
   if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
     || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
       && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1) || ![undefined, 1, 2].includes(w.storeys)
-    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look))) return {};
+    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
   const wall = madeWallNumbers(w);
   const key = `made:fracwall:${JSON.stringify(wall)}`;
   if (!data.meshes[key]) {
     // (`look`: the template's mesh, which Select all of a kind counts it as)
     data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a wall'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null,
+      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
       url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall) })}`,
-      sections: Array.from({ length: FRAC_WALL.slots }, (_, slot) => ({ slot, count: 1 })), bounds: madeBounds(wall) };
+      sections: Array.from({ length: wallSpec(wall).sections }, (_, slot) => ({ slot, count: 1 })), bounds: madeBounds(wall) };
   }
   const slots = (data.meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
   const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
-  return { mesh: key, materials: Array.from({ length: FRAC_WALL.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+  return { mesh: key, materials: Array.from({ length: wallSpec(wall).sections }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
 }
 // An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
+// A made piece stands at scale 1 whatever its donor's (custom geometry plan, M4b: the Build sets its DrawScale and
+// DrawScale3D to 1; a ground donor placed at 4 gives a look like any other): its matrix without the donor's scale.
+function unscaled(matrix) {
+  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  matrix.decompose(p, q, s);
+  return new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1));
+}
 function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null }) {
+  if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
   return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
     // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
     // template's settings (pieceFlags) stay its baseline
@@ -2129,6 +2154,7 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
+  if (entry.lookPicker) { openLookPicker(entry.lookPicker); return; }      // a kind's Choose a look (M4c)
   if (entry.wallLook) { startWallDrawing(entry.ground ? groundLookNow() : entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof), ground: entry.ground ?? null }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
@@ -4663,6 +4689,7 @@ async function openProject(id) {
   let doc;
   try { doc = await projectApi.load(id); }
   catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
+  await looksReady;
   if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
   $('loading').hidden = false; loadingState(`Opening ${doc.name}…`, 0);
   const docGroups = Array.isArray(doc.groups) ? doc.groups : [];
@@ -5831,7 +5858,18 @@ function boundsOf(sources, frame) {
 // would also deep-copy its userData through JSON, materials and textures included.
 async function buildRoot(obj) {
   track(geometryCache, obj.mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[obj.mesh].url)));
-  const base = await geometryCache.get(obj.mesh);
+  let base;
+  try { base = await geometryCache.get(obj.mesh); }
+  catch (error) {
+    // a made piece the server can't draw (a look it can't make here): its donor's own mesh, as numbers this page
+    // doesn't draw are; the Build makes it all the same
+    const made = data.meshes[obj.mesh];
+    if (!made?.made || !made.fallback) throw error;
+    if (!made.warned) { made.warned = true; flashHint(`${made.name}: the editor can't draw it in its look here, so it shows its donor; the Build makes it`); }
+    obj.mesh = made.fallback.mesh; obj.materials = [...made.fallback.materials];
+    track(geometryCache, obj.mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[obj.mesh].url)));
+    base = await geometryCache.get(obj.mesh);
+  }
   const root = data.meshes[obj.mesh].kind === 'skeletal' ? cloneSkeleton(base.scene) : base.scene.clone(true);
   root.userData.source = obj; root.visible = !obj.hidden && !obj.environment;
   root.userData.flags = obj.initialFlags ? { ...obj.initialFlags } : null;     // its piece flags as the project sets them
@@ -9357,6 +9395,8 @@ const isMadeGround = o => o?.added?.generated?.kind === 'ground';
 const isMade = o => isMadeWall(o) || isMadeSlab(o) || isMadeGround(o);
 const madeRoot = id => { const r = roots.get(id); return r && isMade(r.userData.source) ? r : null; };
 const wallLookOf = o => WALL_LOOKS.find(l => short(o.added?.from?.actor ?? '') === l.actor && (o.added?.from?.package ?? '').toLowerCase() === l.package.toLowerCase()) ?? null;
+// A wall standing for a look's heights (wallSpec): a donor look's numbers carry it; a look id's are the Bar's.
+const lookWall = look => (look?.donor ? { look: look.donor } : {});
 // The look's donor as a template: this map's own piece, or the piece read from its home map (libraryTemplate).
 async function wallTemplate(look) {
   const actor = `TheWorld.PersistentLevel.${look.actor}`;
@@ -9368,12 +9408,119 @@ async function wallTemplate(look) {
   const t = await libraryTemplate({ package: look.package, actor });
   return t.sources.find(s => short(s.actor) === look.actor) ?? t.sources[t.pivotIndex];
 }
-// The Add panel's Walls kind: one entry for each look, a recipe in both scopes.
+// ---- looks from any piece (custom geometry plan, M4c)
+// The look each tool draws in: a look id, or a donor look chosen in the picker (lookFromEntry's), remembered in this
+// browser. A donor look no catalogue read holds is forgotten.
+const CURRENT_LOOK = { wall: 'workshop.wallLook', slab: 'workshop.slabLook', ground: 'workshop.groundLook' };
+function storedLook(kind) {
+  try {
+    const look = JSON.parse(recall(CURRENT_LOOK[kind]) ?? 'null');
+    if (look?.donor && catalogued(kind, look.donor)) return look;
+  } catch { /* a look id, or nothing */ }
+  return null;
+}
+const rememberLook = (kind, look) => remember(CURRENT_LOOK[kind], look.donor ? JSON.stringify(look) : look.id);
+const LOOK_TITLES = { wall: 'Choose a wall look', slab: 'Choose a floor or roof look', ground: 'Choose a ground look' };
+const LOOK_NOUNS = { wall: 'wall', slab: 'floor or roof', ground: 'ground' };
+// The meshes of the looks the project's made pieces of a kind are in (the picker lists them first).
+function usedLookMeshes(kind) {
+  const key = { wall: 'fracWall', slab: 'fracSlab', ground: 'ground' }[kind], out = new Set();
+  for (const r of roots.values()) {
+    const g = r.userData.source?.added?.generated;
+    if (g?.kind === key && !r.userData.deleted) out.add(g[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[key]]?.look?.mesh);
+  }
+  return out;
+}
+// The library row's piece as a look of `kind`: its catalogue entry by its mesh (a ground piece's by its mesh and first
+// material), or null.
+const rowLook = (kind, e) => entryForPiece(kind, e.mesh, kind === 'ground' ? e.recipe?.parts?.[0]?.materials?.[0] : null);
+// What choosing a look does when nothing else was asked: it becomes the tool's look and a wall or slab is drawn in it at
+// once; a ground look goes back to the Ground kind, whose shapes are then drawn in it.
+function lookChosen(kind, look) {
+  rememberLook(kind, look);
+  if (kind === 'wall') { startWallDrawing(look, {}); return; }
+  if (kind === 'slab') { startWallDrawing(look, { slab: true }); return; }
+  if (pieces.open) showPieces(true);
+  flashHint(`Ground in ${look.name.toLowerCase()}: pick a shape in the Ground kind, then drag it out`);
+}
+/** Open the look picker of `kind` ('wall', 'slab', 'ground'): All maps listing only the pieces that are looks of that
+ *  kind, a click choosing one (onChoose(look), else lookChosen), "Pick from the view" for the eyedropper. */
+async function openLookPicker(kind, { onChoose = null, title = null } = {}) {
+  await loadLooks(kind);
+  stopWallDrawing(); stopPlacing();
+  if (!pieces.open) showPieces(true);
+  if (libraryScope !== 'all') setLibraryScope('all');
+  const used = usedLookMeshes(kind);
+  library.setLookMode({
+    kind, title: title ?? LOOK_TITLES[kind], tags: lookTags, first: e => used.has(e.mesh),
+    match: e => rowLook(kind, e),
+    choose: (e, cat) => { const look = lookFromEntry(kind, cat, { package: e.source.package, actor: e.source.actor }); closeLookPicker(); (onChoose ?? (l => lookChosen(kind, l)))(look); },
+    pick: () => startLookPick(kind, onChoose),
+    cancel: () => closeLookPicker(),
+  });
+  flashHint(`${LOOK_TITLES[kind]}: click one (★ keeps a favourite; the ones this project uses come first), or Pick from the view (I) · Esc goes back`);
+}
+function closeLookPicker() { if (library?.lookMode) library.setLookMode(null); }
+// The eyedropper: the next click in the view takes the look of the piece under it.
+let lookPicking = null;     // { kind, onChoose }
+function startLookPick(kind, onChoose = null) {
+  closeLookPicker(); stopWallDrawing(); stopPlacing();
+  lookPicking = { kind, onChoose };
+  renderer.domElement.style.cursor = 'crosshair';
+  flashHint(`Click a piece in the view to draw ${LOOK_NOUNS[kind] === 'ground' ? 'ground' : `${LOOK_NOUNS[kind]}s`} in its look (this map's, a copy, or one from another map) · Esc cancels`);
+}
+function stopLookPick() { lookPicking = null; renderer.domElement.style.cursor = ''; }
+/** The look of a piece in the view: { kind, cat, source } (its catalogue entry and donor placing), or { why }. A made
+ *  piece gives the look it is in. */
+function pieceLook(src) {
+  const g = src?.added?.generated, made = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[g?.kind];
+  const placing = src?.added?.from ? { package: src.added.from.package, actor: src.added.from.actor } : { package: data.name, actor: src?.actor };
+  if (made) {
+    const look = g[made]?.look, cat = typeof look === 'object' ? catalogued(made, look) : null;
+    if (cat) return { kind: made, cat, source: placing };
+    const fixed = made === 'wall' ? WALL_LOOKS[0] : made === 'slab' ? slabLookOf(g.slab) : groundLookOf(g.ground);
+    return fixed ? { kind: made, fixed } : { why: 'its look is in none of the editor\'s catalogues' };
+  }
+  const mesh = data.meshes[src?.mesh]?.name, material = data.materials[src?.materials?.[0]]?.name;
+  for (const kind of ['wall', 'slab', 'ground']) {
+    const cat = entryForPiece(kind, mesh, kind === 'ground' ? material : null);
+    if (cat) return { kind, cat, source: placing };
+  }
+  return { why: `${data.meshes[src?.mesh]?.name?.split('.').at(-1) ?? 'it'} is none of the game's fracturing walls, floors and roofs, or of its ground pieces, `
+    + 'so nothing can be made in its look' };
+}
+async function lookPickAt(x, y) {
+  const want = lookPicking;
+  const hit = pick(x, y), src = hit ? roots.get(hit.object.userData.objectId)?.userData.source : null;
+  if (!src) { flashHint('Nothing there: click a wall, a floor or roof, or a ground piece · Esc cancels'); return; }
+  await Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+  const found = pieceLook(src);
+  if (found.why) { flashHint(`Not a look: ${found.why} · Esc cancels`); return; }
+  stopLookPick();
+  const look = found.fixed ?? lookFromEntry(found.kind, found.cat, found.source);
+  // (a piece of another kind is drawn in its own kind's tool)
+  if (found.kind !== want.kind) {
+    flashHint(`That is ${found.kind === 'wall' ? 'a wall' : found.kind === 'slab' ? 'a floor or roof' : 'ground'}: drawing ${LOOK_NOUNS[found.kind]}s in its look`);
+    lookChosen(found.kind, look);
+    return;
+  }
+  (want.onChoose ?? (l => lookChosen(want.kind, l)))(look);
+}
+// The Add panel's "Choose a look" entry of a kind: opens the picker.
+const lookPickerEntry = (kind, kindName, words) => ({ key: `looks:${kind}`, id: `looks-${kind}`, name: LOOK_TITLES[kind], mesh: LOOK_TITLES[kind],
+  kind: kindName, pkg: 'every map\'s', role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1, lookPicker: kind,
+  size: [96, 96, 96], detail: 'Any of the game\'s, or picked in the view',
+  text: `${LOOK_TITLES[kind]} look looks style material texture eyedropper pick ${words}`.toLowerCase(),
+  title: `${LOOK_TITLES[kind]}: lists every ${LOOK_NOUNS[kind]} piece of every map of the game install, with its picture; click one to draw `
+    + `in its look. Pick from the view (I) takes the look of a piece you click in the 3D view. The made piece is a copy of the one chosen, `
+    + 'its shape made from numbers.' });
+
+// The Add panel's Walls kind: the current look's entries (a wall and a room), a recipe in both scopes, and the picker.
 const WALLS_KIND = 'Walls';
 function wallEntries() {
   if (!data || data.preview || builderMode) return [];
   const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
-  return WALL_LOOKS.flatMap(look => [{ key: `wall:${look.id}`, id: `wall-${look.id}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
+  return [storedLook('wall') ?? WALL_LOOKS[0]].flatMap(look => [{ key: `wall:${look.id ?? look.mesh}`, id: `wall-${look.id ?? look.mesh}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
     pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
     wallLook: look, size: [96, 24, WALL.top - WALL.bottom], detail: 'Drawn by dragging; any length, doorways and windows',
     text: `wall walls ${look.name} ${look.package} ${look.words} fracturing breaks doorway window`.toLowerCase(),
@@ -9381,20 +9528,21 @@ function wallEntries() {
       + `edge to tile edge, up to ${WALL.maxTiles} tiles. It breaks as the game's walls do (it is made like ${look.package}'s own). `
       + `Add doorways and windows in the piece panel; its handles lengthen it and move them. ${install(look)}` },
     // a room (M3 item 6, D6): four walls of the look round a rectangle
-    { key: `room:${look.id}`, id: `room-${look.id}`, name: `Room of ${look.name.toLowerCase()}s`, mesh: look.name, kind: WALLS_KIND,
+    { key: `room:${look.id ?? look.mesh}`, id: `room-${look.id ?? look.mesh}`, name: `Room of ${look.name.toLowerCase()}s`, mesh: look.name, kind: WALLS_KIND,
       pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
       wallLook: look, room: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'A rectangle dragged out: four joined walls, a doorway',
       text: `room rooms walls ${look.name} ${look.package} ${look.words} rectangle box doorway`.toLowerCase(),
       title: `A room of ${look.name.toLowerCase()}s: press on the ground at one corner, drag to the other and let go. Four walls run `
         + `round the rectangle on its tile lines (up to ${WALL.maxTiles} tiles a side), joined at the corners, each with the same face in, `
-        + `with a doorway in the side nearest you. Afterwards they are four walls, each edited as any. ${install(look)}` }]);
+        + `with a doorway in the side nearest you. Afterwards they are four walls, each edited as any. ${install(look)}` }])
+    .concat(lookPickerEntry('wall', WALLS_KIND, 'wall walls'));
 }
 // The Add panel's Floors and roofs kind: one entry for each slab look; the Walls kind's rooms with a roof.
 const SLABS_KIND = 'Floors and roofs';
 function slabEntries() {
   if (!data || data.preview || builderMode) return [];
   const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
-  return [...SLAB_LOOKS.map(look => ({ key: `slab:${look.id}`, id: `slab-${look.id}`, name: look.name, mesh: look.name, kind: SLABS_KIND,
+  return [...[...SLAB_LOOKS, ...(storedLook('slab') ? [storedLook('slab')] : [])].map(look => ({ key: `slab:${look.id ?? look.mesh}`, id: `slab-${look.id ?? look.mesh}`, name: look.name, mesh: look.name, kind: SLABS_KIND,
     pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
     wallLook: look, slab: true, size: [96, 96, 4], detail: 'A rectangle dragged out; up to 16 tiles each way, holes',
     text: `floor floors roof roofs slab ${look.name} ${look.package} ${look.words} fracturing breaks hole storey`.toLowerCase(),
@@ -9402,7 +9550,8 @@ function slabEntries() {
       + `${SLAB.maxTiles} each way, ${look.role === 'roof' ? 'on the tops of the made walls round it (two storeys over the ground where there are none)'
         : 'a storey over the floor you press on'}. It breaks a piece at a time as the game's do; units walk on it. `
       + `Add holes in the piece panel; its handles grow it and move them. ${install(look)}` })),
-    ...WALL_LOOKS.map(look => ({ key: `roomroof:${look.id}`, id: `roomroof-${look.id}`, name: `Room of ${look.name.toLowerCase()}s with a roof`, mesh: look.name,
+    lookPickerEntry('slab', SLABS_KIND, 'floor floors roof roofs slab'),
+    ...[storedLook('wall') ?? WALL_LOOKS[0]].map(look => ({ key: `roomroof:${look.id ?? look.mesh}`, id: `roomroof-${look.id ?? look.mesh}`, name: `Room of ${look.name.toLowerCase()}s with a roof`, mesh: look.name,
       kind: WALLS_KIND, pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
       wallLook: look, room: true, roof: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'Four joined walls, a doorway, a roof and its building',
       text: `room rooms walls roof building ${look.name} ${look.package} rectangle doorway cutaway`.toLowerCase(),
@@ -9413,7 +9562,7 @@ function slabEntries() {
 // The Add panel's Ground kind (M6): a patch, a block, a ramp and a rock, drawn in the material last picked (the piece
 // panel's swatches pick it; remembered in this browser).
 const GROUND_KIND = 'Ground', GROUND_LOOK = 'workshop.groundLook';
-const groundLookNow = () => GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
+const groundLookNow = () => storedLook('ground') ?? GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
 function groundEntries() {
   if (!data || data.preview || builderMode) return [];
   const look = groundLookNow();
@@ -9429,7 +9578,8 @@ function groundEntries() {
     text: `ground ${shape} ${look.name} ${look.package} ${look.words} terrain floor platform slope${shape === 'rock' ? ' boulder stone' : ''}`.toLowerCase(),
     title: `${shape[0].toUpperCase() + shape.slice(1)}: ${words[shape]}. Press on the ground at one corner, drag to the other and let go `
       + `(up to ${GROUND.maxTiles} tiles each way). Drawn in ${look.name.toLowerCase()} (${look.words}); the piece panel's swatches change it. `
-      + `${does[shape] ?? 'Units walk on it; it doesn\'t break'}. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }));
+      + `${does[shape] ?? 'Units walk on it; it doesn\'t break'}. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }))
+    .concat(lookPickerEntry('ground', GROUND_KIND, 'ground terrain grass dirt'));
 }
 // The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
 function wallTopsRound(rect, floor) {
@@ -9505,11 +9655,11 @@ function drawnNow(d, at) {
     if (d.look.role !== 'roof') return flat;
     // a roof: on the tops of the made walls round it, else two storeys over the floor
     const [x, y] = flat.location, top = wallTopsRound([x, x + flat.slab.x1, y, y + flat.slab.y1], d.floor);
-    return { ...flat, location: [x, y, Math.round((top ?? d.floor + WALL.top) * 1000) / 1000] };
+    return { ...flat, location: [x, y, Math.round((top ?? d.floor + WALL.top) * 1000) / 1000] };     // (no walls: the Bar's two storeys)
   }
   if (!d.room) return drawnWall(d.start.slice(0, 2), at.slice(0, 2), options);
   const room = drawnRoom(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
-  return d.roof ? { ...room, roof: roomRoof(room, { template: d.roofTemplate, floor: d.floor, seed: d.seed + 4 }) } : room;
+  return d.roof ? { ...room, roof: roomRoof(room, { template: d.roofTemplate, floor: d.floor, seed: d.seed + 4, top: wallTop(lookWall(d.look)) }) } : room;
 }
 // The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place); a room's four.
 function showWallGhost(template, drawn) {
@@ -9531,10 +9681,11 @@ function showWallGhost(template, drawn) {
     const w = walls[k];
     ghost.visible = Boolean(w);
     if (!w) return;
-    const a = WALL.endInset, b = w.wall.x1 - WALL.endInset;
+    const lw = { ...w.wall, ...lookWall(wallDrawing?.look) }, spec = wallSpec(lw), top = wallTop(lw);
+    const a = spec.endInset, b = w.wall.x1 - spec.endInset;
     ghost.matrix.copy(movedMatrix(template, w.location, w.rotation))
-      .multiply(new THREE.Matrix4().makeTranslation((a + b) / 2, (WALL.top + WALL.bottom) / 2, 0))
-      .multiply(new THREE.Matrix4().makeScale(b - a, WALL.top - WALL.bottom, 2 * WALL.half));
+      .multiply(new THREE.Matrix4().makeTranslation((a + b) / 2, (top + spec.bottom) / 2, 0))
+      .multiply(new THREE.Matrix4().makeScale(b - a, top - spec.bottom, 2 * spec.half));
     ghost.matrixWorldNeedsUpdate = true;
   });
 }
@@ -9582,19 +9733,19 @@ async function endWallDraw(keep) {
   d.start = null; d.pointerId = null; wallGhost.visible = false;
   if (!keep) stopWallDrawing(); else wallHint();
   if (made.ground) {
-    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'ground', version: 1, ground: made.ground } } },
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('ground', look, made.ground) } },
                                       matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
     flashHint(`Made a ${groundShapeWords(made.ground).toLowerCase()} of ${look.name.toLowerCase()} · its white handles size it${made.ground.shape === 'patch' ? '' : ', the top one raises it'}`);
     return;
   }
   if (made.slab) {
-    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracSlab', version: 1, slab: made.slab } } },
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracSlab', look, made.slab) } },
                                       matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
     flashHint(`Made a ${look.name.toLowerCase()}, ${made.tiles[0]} by ${made.tiles[1]} tiles · its white handles grow it; Add hole is in the piece panel`);
     return;
   }
   const entries = (made.walls ?? [made]).map(w => ({
-    source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracWall', version: 1, wall: w.wall } } },
+    source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracWall', look, w.wall) } },
     matrix: movedMatrix(template, w.location, w.rotation) }));
   if (made.roof)
     entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: { kind: 'fracSlab', version: 1, slab: made.roof.slab } } },
@@ -9607,9 +9758,11 @@ async function endWallDraw(keep) {
     // under that floor's top, so a slab belongs to the floor it is the bottom of (EXP-76 run E: with the floors 16
     // higher, the floor and roof were in none and never cut away)
     const [x0, y0] = made.roof.location, x1 = x0 + made.roof.slab.x1, y1 = y0 + made.roof.slab.y1, z = floor;
-    addVolumes([{ box: [x0, y0, z + WALL.bottom, x1, y1, z + WALL.storey], floor: 0 },
-                { box: [x0, y0, z + WALL.storey, x1, y1, z + WALL.top], floor: 1 },
-                { box: [x0, y0, z + WALL.top, x1, y1, z + WALL.top + WALL.storey], floor: 2 }], newBuilding());
+    // (the look's: a two-storey wall's floors break at its storey and its top, a one-storey wall's at its top)
+    const lw = lookWall(look), spec = wallSpec(lw), top = wallTop(lw);
+    const breaks = storeysOf(lw) === 2 ? [spec.bottom, spec.storey, top] : [spec.bottom, top];
+    addVolumes([...breaks.slice(0, -1).map((b, k) => ({ box: [x0, y0, z + b, x1, y1, z + breaks[k + 1]], floor: k })),
+                { box: [x0, y0, z + top, x1, y1, z + top + WALL.storey], floor: breaks.length - 1 }], newBuilding());
     gizmo.joinLast(2);
     gizmo.setSelection([]);
     flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z takes it out`);
@@ -9772,8 +9925,8 @@ function wallHandlesNow(root) {
   const axis = (x, y, z) => toView(x, y, z).sub(toView(0, 0, 0)).normalize();
   // the openings' handles on the face toward the camera
   const toCamera = camera.position.clone().sub(toView(w.x1 / 2, 0, 184));
-  const side = toCamera.dot(axis(0, 1, 0)) >= 0 ? WALL.half + 1 : -WALL.half - 1;
-  const mid = (wallTop(w) + WALL.bottom) / 2, out = [];
+  const spec = wallSpec(w), side = toCamera.dot(axis(0, 1, 0)) >= 0 ? spec.half + 1 : -spec.half - 1;
+  const mid = (wallTop(w) + spec.bottom) / 2, out = [];
   out.push({ key: 'end:x0', kind: 'end', part: 'x0', at: toView(0, 0, mid), dir: axis(-1, 0, 0) });
   out.push({ key: 'end:x1', kind: 'end', part: 'x1', at: toView(w.x1, 0, mid), dir: axis(1, 0, 0) });
   // the top: up or down a storey (M2)
@@ -9948,7 +10101,8 @@ function endWallDrag(keep) {
 // ---- the piece panel's Wall section
 function wallPanel(root) {
   const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
-  $('wallHead').textContent = `Wall · ${look?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
+  $('wallHead').textContent = `Wall · ${look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
+  $('wallLookChange').disabled = !tool;
   $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top makes it ${storeysOf(w) === 1 ? 'two storeys' : 'one storey'}.`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
   root.userData.joinsShown = root.userData.joins?.joins ?? [];
@@ -10003,6 +10157,7 @@ function wallPanel(root) {
 function slabPanel(root) {
   const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
   $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${look?.name ?? 'made from numbers'}`;
+  $('slabLookChange').disabled = !tool;
   $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
@@ -10052,7 +10207,16 @@ function groundPanel(root) {
     b.disabled = !tool;
     b.onclick = () => setGroundLook(root, l);
     return b;
-  }));
+  }), (() => {
+    // (a donor look's name, chosen, then any of the game's from the picker)
+    const other = typeof g.look === 'object' && look ? look.name : null;
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: other ? `${other}…` : 'Other…',
+      title: 'Any of the game\'s ground materials, from the list of every map\'s or picked in the view (I)' });
+    b.classList.toggle('on', Boolean(other));
+    b.disabled = !tool;
+    b.onclick = () => openLookPicker('ground', { onChoose: l => setMadeLook(root, 'ground', l) });
+    return b;
+  })());
   $('groundTurn').hidden = g.shape !== 'ramp';
   $('groundTurn').disabled = !tool;
   $('groundAnother').hidden = g.shape !== 'rock';
@@ -10068,21 +10232,35 @@ $('groundTurn').onclick = () => changeWall(st => {
   return { generated: { ...st.generated, ground: t.ground }, location: t.location, rotation: t.rotation };
 });
 // Another material: the piece is made again on that look's donor where it stands, one undo step; the next drawn take it.
-async function setGroundLook(root, look) {
-  remember(GROUND_LOOK, look.id);
-  const o = root.userData.source, g = o.added.generated.ground;
-  if (groundLookOf(g)?.id === look.id) return;
+const setGroundLook = (root, look) => setMadeLook(root, 'ground', look);
+/** A made piece in another look (M4c: a look id, or a donor look from the picker or the eyedropper): made again on that
+ *  look's donor where it stands, its numbers kept (a wall's openings brought under its new face's top), in one undo
+ *  step; the tool's next pieces take the look too. */
+async function setMadeLook(root, kind, look) {
+  rememberLook(kind, look);
+  const o = root.userData.source, gen = o.added.generated, key = kind;
+  const now = gen[key]?.look, defaults = { wall: WALL_LOOKS[0].id, slab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
+  if (look.donor ? typeof now === 'object' && now?.mesh === look.donor.mesh && now?.material === look.donor.material
+        && short(o.added.from?.actor ?? '') === look.actor : (now ?? defaults[kind]) === look.id) return;
   let template;
   try { template = await wallTemplate(look); } catch (error) { flashHint(`${look.name} can't be used: ${error.message}`); return; }
-  const state = wallState(root), ground = { ...g };
-  if (look.id === GROUND_LOOKS[0].id) delete ground.look; else ground.look = look.id;
+  const state = wallState(root);
+  let numbers = { ...gen[key] };
+  if (look.donor) numbers.look = { ...look.donor }; else if (look.id === defaults[kind]) delete numbers.look; else numbers.look = look.id;
+  if (kind === 'wall') {
+    // (a look of another height: its storeys as it is where the donor has them, and the openings under its face's top)
+    const { storeys: _, ...rest } = numbers;
+    numbers = withStoreys(rest, Math.min(storeysOf(numbers), wallSpec(rest).storeys)).wall;
+  }
   gizmo.setSelection([o.id]);
   deleteNow(true);
-  await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'ground', version: 1, ground } } },
+  await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, look, numbers) } },
                                     matrix: movedMatrix(template, state.location, state.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
   gizmo.joinLast(2);
-  flashHint(`Now ${look.name.toLowerCase()} · the next ground you draw is too · Ctrl+Z puts the old one back`);
+  flashHint(`Now ${look.name.toLowerCase()} · the next ${LOOK_NOUNS[kind] === 'ground' ? 'ground' : LOOK_NOUNS[kind]} you draw is too · Ctrl+Z puts the old one back`);
 }
+$('wallLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('wall', { onChoose: look => setMadeLook(root, 'wall', look) }); };
+$('slabLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('slab', { onChoose: look => setMadeLook(root, 'slab', look) }); };
 // The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
 function doorBoxes(except) {
   const out = [];
@@ -10095,8 +10273,8 @@ function doorBoxes(except) {
 }
 function openingWorldBox(root, p) {
   root.updateMatrixWorld(true);
-  const pts = [];
-  for (const x of [p.x0, p.x1]) for (const y of [-WALL.half, WALL.half]) for (const z of [p.z0, p.z1]) {
+  const pts = [], half = wallSpec(root.userData.source.added?.generated?.wall).half;
+  for (const x of [p.x0, p.x1]) for (const y of [-half, half]) for (const z of [p.z0, p.z1]) {
     const v = new THREE.Vector3(x, z, y).applyMatrix4(root.matrixWorld);
     pts.push([v.x, v.z, v.y]);
   }
@@ -11149,7 +11327,11 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
     wallEntries, slabEntries, groundEntries, startWallDrawing, stopWallDrawing,
     groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
-    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
+    // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
+    openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
+    lookMode: () => library?.lookMode?.kind ?? null, setMadeLook: (id, kind, look) => setMadeLook(roots.get(id), kind, look),
+    catalogued, lookFromEntry, storedLook,
+    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
@@ -11421,6 +11603,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (assigning) { const target = pick(e.clientX, e.clientY); if (target) assignOwner(target); else flashHint('Click the glowing piece'); return; }
   if (zonePlacing) { if (e.button === 0) placeZone(e.clientX, e.clientY); return; }
   if (spawnPlacing) { if (e.button === 0) placeSpawn(e.clientX, e.clientY); return; }
+  if (lookPicking) { if (e.button === 0) lookPickAt(e.clientX, e.clientY); return; }
   // the Landing zones view: only zones are picked; a click beside them lets the picked one go
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
   // the Effects view: only its markers are picked; a click beside them lets the picked one go
@@ -11811,6 +11994,13 @@ document.addEventListener('keydown', e => {
   if (gridTool && key === 'escape' && !pickedZone && !selected && !placing) { setGridTool(false); e.preventDefault(); return; }
   if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
   if (spawnPlacing && key === 'escape') { stopSpawnPlacing(); e.preventDefault(); return; }
+  if (lookPicking && key === 'escape') { stopLookPick(); e.preventDefault(); return; }
+  if (library?.lookMode && key === 'escape') { closeLookPicker(); e.preventDefault(); return; }
+  // I: the eyedropper, while the look picker is open or a wall, slab or ground tool draws (M4c)
+  if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && (library?.lookMode || wallDrawing)) {
+    startLookPick(library?.lookMode?.kind ?? (wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall'));
+    e.preventDefault(); return;
+  }
   // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
   // go (Ctrl+Z undoes as for anything)
   if (pickedZone && !selected && !e.altKey) {

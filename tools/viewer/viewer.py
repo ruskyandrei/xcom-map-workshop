@@ -23,6 +23,7 @@ from families import FamilyCache
 from collision import CollisionCache
 from audio import OggError, WaveCache, byte_range
 from generated import GeneratedError, Meshes as GeneratedMeshes
+import looks as made_looks
 from library import LibraryRunner, pieces_root
 from precache import PrecacheRunner
 import guide
@@ -511,6 +512,18 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         if body: self.wfile.write(data[start:end + 1])
 
+    # The looks a made wall, slab or ground shape can take (custom geometry plan, M4: tools/bake/looks.py): GET
+    # /looks/walls.json, /looks/slabs.json and /looks/ground.json list each kind's, with the numbers the page draws by.
+    def handle_looks(self, method):
+        kinds = {'/looks/walls.json': 'wall', '/looks/slabs.json': 'slab', '/looks/ground.json': 'ground'}
+        path = urlsplit(self.path).path
+        if path not in kinds: return False
+        if method != 'GET':
+            self.send_json(405, dict(error='Not allowed.'))
+            return True
+        self.send_json(200, made_looks.listing(kinds[path]))
+        return True
+
     # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
     # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order;
     # GET /generated/fracslab.glb?slab=<numbers> a floor or roof slab's (kind fracSlab); /generated/ground.glb?ground=
@@ -792,7 +805,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):

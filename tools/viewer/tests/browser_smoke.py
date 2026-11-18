@@ -5164,6 +5164,10 @@ def main():
                 found = []
                 print(json.dumps(dict(walls=check_walls(browser, page.url, open_viewer, type_project_name, project_url))))
                 errors.update(found)
+            if 'looks' in only:
+                # (draws walls and saves nothing: needs the walls catalogue and the library's index)
+                from browser_looks import check_looks
+                print(json.dumps(dict(looks=check_looks(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

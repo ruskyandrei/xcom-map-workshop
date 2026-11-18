@@ -236,6 +236,25 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
 
 // Rows for pieces of This map and recipes in either scope.
 export function pieceRow(entry, pixelRatio, choose) {
+  if (entry.lookPicker) {   // a kind's Choose a look (app.js lookPickerEntry, M4c): opens the look picker
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
+    const thumb = document.createElement('canvas');
+    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+    (entry.lookPicker === 'ground' ? c => drawGroundIcon(c, 'patch') : entry.lookPicker === 'slab' ? c => drawSlabIcon(c, 'floor') : drawWallIcon)(thumb);
+    thumb.dataset.drawn = '1';
+    const label = document.createElement('span');
+    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
+      Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}` }),
+      Object.assign(document.createElement('small'), { textContent: entry.detail }));
+    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
+    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Looks', title: 'Every map\'s pieces of this kind, to draw in their look' }));
+    button.title = entry.title;
+    button.append(thumb, label, tags);
+    button.onclick = choose;
+    button.thumb = thumb;
+    return button;
+  }
   if (entry.wallLook) {     // the Walls kind (app.js wallEntries): drawn by dragging along the tile lines
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
