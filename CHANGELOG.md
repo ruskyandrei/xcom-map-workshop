@@ -8,6 +8,42 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The user guide covers effects and sounds
+
+- [guide.html](tools/release/guide/guide.html):
+  - New section **Effects and sounds**, after Lights, in the contents:
+    - the Effects view (Shift+X), its markers and its flyout, and editing effects, sounds and lens flares as pieces;
+    - an effect's values (size handle, starting state, particle parameters, colour and strength), a sound's reach,
+      volume and pitch, and the Wave preview;
+    - effects a piece carries (Keep where it is, Follow), lens flares, effects from other maps, and the drawing
+      (Effects as they look).
+  - A typical task, *Set a fire, or quiet a sound*.
+  - Brought up to date:
+    - What it does and the limits: effects and sounds can be edited, and the view draws effects as a rough
+      likeness.
+    - Header: the edit count names effect edits, and Reset all puts them back.
+    - Tool strip: 17 buttons, with the Effects view as 10. The views are 6 to 10, and the Normal view's flyout has a
+      third switch, Effects and sounds.
+    - The "Carries an effect" chip no longer says effects aren't shown, and covers effects placed by a prefab.
+    - Box select, Select all, groups, pieces from other maps, prefabs (what goes in, the builder, Test in game),
+      buildings, Clear map (what goes and stays) and the kinds of pieces now include effects and sounds.
+    - View options: Effects as they look is item 13, with the items after it renumbered.
+    - Keyboard: Shift+X. In the game: a moved landing leaves the Skyranger's dust on plain EW (F-119).
+- Pictures (`shots/`):
+  - New: `effects`, `effects-flyout`, `effect-values`, `add-effects`.
+  - Retaken: `rail`, `normal-flyout`, `view-options`, and `add-all` (its counts now include effects).
+  - Kept: the rest, whose part of the editor didn't change. The tool strip at the edge of the full-window and
+    piece-list pictures still has 16 buttons.
+- [take_shots.py](tools/release/guide/take_shots.py): the four new shots, using the effect helpers `effect_id`,
+  `marker`, `open_effects` and `close_effects`, with the landing zones' badges hidden while they are taken. Also
+  `#editEffects` in the rail and `#likenessToggle` in View options.
+- Checked:
+  - Every shot taken in one run on a test server with scratch projects, and each new and retaken picture looked at.
+  - `guide_tools.py compare` and side-by-side sheets for the ones in doubt.
+  - The viewer suite's guide tests, and the release and repo suites.
+  - The page as published, photographed at the changed sections.
+- The page isn't republished until main is pushed. Release 0.5.3's zip has the earlier guide.
+
 ### Spawns plan now includes a toolbar view, Normal overlay and mission objectives
 
 - Updated the private plan with both Spawns controls, mission switching and grouped objective editing using the

@@ -134,6 +134,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#cover">Cover blocks and invisible floors</a></li>
           <li><a href="#prefabs">Prefabs</a></li>
           <li><a href="#lights">Lights</a></li>
+          <li><a href="#effects">Effects and sounds</a></li>
           <li><a href="#buildings">Buildings</a></li>
           <li><a href="#mapgrid">Map grid</a></li>
           <li><a href="#clearmap">Clear map and landing zones</a></li>
@@ -166,7 +167,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h2 id="what">What it does</h2>
 <ul class="cards">
   <li><b>Opens any map your game plays</b><span>Every map in your install's rotation (96 with Long War Rebalance, the tutorial's map included), in a 3D view you can orbit, cut open floor by floor and search.</span></li>
-  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Edit its lights. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
+  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Edit its lights, and its effects and sounds: fires, smoke, steam, a car's idle engine. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
   <li><b>Makes room for a map of your own</b><span>Clear a map down to its light and its landing, set the size of its tile grid, give your buildings their cutaway, and say where the squad lands.</span></li>
   <li><b>Builds a new map</b><span>Your edits are saved as a project and built into a <i>variant</i>: a copy of the map with the changes made in it, cover and pathing included, its lighting baked on request.</span></li>
   <li><b>Starts the game on it</b><span>One menu item starts XCOM straight in a battle on your variant, with a test squad: no campaign to start, and nothing of the game's own changed. Another takes the variant back out.</span></li>
@@ -268,8 +269,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         build on its light, sky and landing. The sun, the time of day and the mission stay the base map's.</li>
       <li><b>Only the game's own pieces.</b> Any piece of any map in your install can be placed, but you can't import
         your own models, textures or sounds.</li>
-      <li><b>Move and turn only.</b> No resizing or reshaping, and no changing a piece's material or colour (a light's
-        colour can be changed).</li>
+      <li><b>Move and turn only.</b> No resizing or reshaping, and no changing a piece's material or colour. A light's
+        colour can be changed, and an effect's size and particle settings and a sound's reach, volume and pitch:
+        <a href="#effects">Effects and sounds</a>.</li>
       <li><b>No ground sculpting.</b> The ground is made of pieces like everything else: you can move, copy and delete
         them, not reshape them.</li>
       <li><b>Only the maps your install plays.</b> Maps the game's files hold but its map list leaves out aren't offered.</li>
@@ -327,7 +329,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <h3>The view</h3>
     <ul>
       <li><b>It is not the game's picture.</b> Colours and lighting are approximate, most lights cast no shadows, and
-        there is no fog, sky, particles, decals or animation. Doors stand closed.</li>
+        there is no fog, sky, decals or animation. Doors stand closed. Effects are drawn as a rough likeness, from
+        their own textures and colours but without the game's shaders: <a href="#effects-look">Effects as they
+        look</a>.</li>
       <li><b>No preview of the baked lighting.</b> Only the game shows what a build's lighting looks like.</li>
     </ul>
     <h3>The program</h3>
@@ -378,7 +382,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </figure>
 <ol class="legend">
   <li data-n="A"><b>Header:</b> the project, the map, the search, and on the right what has changed, undo, Settings and the menus. <a href="#header">More</a></li>
-  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, buildings, lights, and how pieces snap. <a href="#tools">More</a></li>
+  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add, buildings, lights, effects, and how pieces snap. <a href="#tools">More</a></li>
   <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
   <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
   <li data-n="E"><b>Bottom bar:</b> frame the view, play area or everything, and which floor to cut down to. <a href="#bottom">More</a></li>
@@ -401,14 +405,14 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   the kinds the project adds marked <i>(added)</i>.</p>
 <figure><img src="shots/header-right.webp" width="552" height="78" alt="The right of the header: the edit count, Undo, Redo, Reset all, Settings, Import notes, View options and help"></figure>
 <ol class="legend">
-  <li data-n="4"><b>What has changed:</b> how many pieces are moved, added and deleted, how many lights and
-    buildings are edited, a resized grid and changed landing zones, and whether that is saved: "not saved" with no
-    project, then "unsaved" or "saved".</li>
+  <li data-n="4"><b>What has changed:</b> how many pieces are moved, added and deleted, how many lights, buildings,
+    and effects or sounds are edited, a resized grid and changed landing zones, and whether that is saved: "not saved"
+    with no project, then "unsaved" or "saved".</li>
   <li data-n="5"><b>Undo</b> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>).</li>
   <li data-n="6"><b>Redo</b> (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</li>
   <li data-n="7"><b>Reset all</b> puts the whole map back to the original: added pieces go, deleted ones return,
-    moved ones go home, groups end, your buildings go and the map's own are restored, and the grid, the landing
-    zones and a clear are undone. It is one undo step, so Undo brings your edits back.</li>
+    moved ones go home, groups end, your buildings go and the map's own are restored, effects and sounds go back as
+    the map has them, and the grid, the landing zones and a clear are undone. It is one undo step, so Undo brings your edits back.</li>
   <li data-n="8"><b>Settings</b> opens <a href="#squad">Test squad setup</a>: the squad every Play in game lands
     with. The menu shows it in a line (<i>Squad: Test squad · 6 units</i>).</li>
   <li data-n="9"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
@@ -422,7 +426,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
-  <figure><img src="shots/rail.webp" width="94" height="668" alt="The tool strip, its sixteen buttons numbered"></figure>
+  <figure><img src="shots/rail.webp" width="94" height="706" alt="The tool strip, its seventeen buttons numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Select</b> (<kbd>V</kbd>): click pieces without any handles in the way.</li>
     <li data-n="2"><b>Move</b> (<kbd>G</kbd>): arrows on the selection. Drag an arrow to move along it, or a small
@@ -431,51 +435,55 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="4"><b>Box select</b> (<kbd>T</kbd>): draw a box around many pieces to select them all at once.
       <a href="#boxselect">More</a></li>
     <li data-n="5"><b>Add</b> (<kbd>P</kbd>) opens <a href="#add">the piece list</a>, to place more of any piece the map has, a <a href="#add-all">piece of another map</a>, or a new light.</li>
-    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of four
-      views, with the next three; one is on at a time. Hover it for its two switches,
-      <a href="#normal-view">Lights and Floor boxes</a>.</li>
+    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of five
+      views, with the next four; one is on at a time. Hover it for its three switches,
+      <a href="#normal-view">Lights, Floor boxes and Effects and sounds</a>.</li>
     <li data-n="7"><b>Buildings view</b> (<kbd>Shift</kbd>+<kbd>B</kbd>), where a building's floor boxes are drawn and fitted. While it is on, only boxes can be selected. <a href="#buildings">More</a></li>
     <li data-n="8"><b>Lights view</b> (<kbd>Shift</kbd>+<kbd>L</kbd>) shows the map's lights as markers you can select and edit. While it is on, only lights can be selected. <a href="#lights">More</a></li>
     <li data-n="9"><b>Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>): only landing zones are selected,
       drawn over everything. <a href="#landingzones">More</a></li>
-    <li data-n="10"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
+    <li data-n="10"><b>Effects view</b> (<kbd>Shift</kbd>+<kbd>X</kbd>): the map's effects, sounds and lens flares
+      as markers drawn over everything. While it is on, only they are selected. <a href="#effects">More</a></li>
+    <li data-n="11"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
       <a href="#mapgrid">More</a></li>
-    <li data-n="11"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
+    <li data-n="12"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
       piece that stands at an angle).</li>
-    <li data-n="12"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
+    <li data-n="13"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
       the piece's own origin, usually one of its corners, so a turned piece swings round that corner. Lit, the middle of
       the selection, so a piece turns in place. With snap at <b>96</b>, the middle keeps to the nearest tile centre or
       corner, so pieces on the tiles stay on them (a piece one tile by two still moves half a tile when turned). A typed
       turn in the piece panel turns about the same point.</li>
-    <li data-n="13"><b>Snap</b> cycles through three settings; the button's corner shows which.
+    <li data-n="14"><b>Snap</b> cycles through three settings; the button's corner shows which.
       <b>Off</b>; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter turns,
       counted from where the piece stood. The corner shows <b>R</b> when the selection is a piece that
       <a href="#rules">only moves on the grid</a>.</li>
-    <li data-n="14"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
+    <li data-n="15"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
       when moved up or down. <a href="#rules">More</a></li>
-    <li data-n="15"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
+    <li data-n="16"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
       off to move one piece of a set. A car's parts, a van's, and a door with its frame always move together.</li>
-    <li data-n="16"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
+    <li data-n="17"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
   </ol>
 </div>
 <p>A lit button with an outline is on. Hover any button for a reminder of what it does.</p>
 <h4 id="normal-view">The views, and the Normal view's switches</h4>
 <div class="split">
-  <figure><img src="shots/normal-flyout.webp" width="311" height="124" alt="The Normal view button with its flyout: Lights and Floor boxes"></figure>
+  <figure><img src="shots/normal-flyout.webp" width="311" height="147" alt="The Normal view button with its flyout: Lights, Floor boxes, and Effects and sounds"></figure>
   <div>
-    <p>Buttons 6 to 9 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
+    <p>Buttons 6 to 10 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
       <b>Buildings view</b>, only lights in the <b>Lights view</b>, only <a href="#landingzones">landing zones</a> in
-      the <b>Landing zones view</b>. Pressing the view that is on, or <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the
-      normal view.</p>
-    <p>Hover the Normal view button for two switches. They let the normal view show and select more than pieces,
-      so a house can be handled with its lamps and its building in one go:</p>
+      the <b>Landing zones view</b>, only effects, sounds and lens flares in the <a href="#effects">Effects view</a>.
+      Pressing the view that is on, or <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the normal view.</p>
+    <p>Hover the Normal view button for three switches. They let the normal view show and select more than pieces,
+      so a house can be handled with its lamps, its building and its smoke in one go:</p>
     <ul>
       <li><b>Lights:</b> the lights are drawn and can be clicked, moved, copied and deleted with pieces. A light's
         colour, radius and cones are still set in the Lights view.</li>
       <li><b>Floor boxes:</b> your buildings' boxes are drawn, and a building is selected
         <a href="#building-whole">whole</a>, by a click on a box's edge.</li>
+      <li><b>Effects and sounds:</b> their markers are drawn, and they are clicked, moved, copied, deleted and
+        grouped with pieces. Their values are still set in the Effects view.</li>
     </ul>
-    <p>Both are off whenever a map opens.</p>
+    <p>All three are off whenever a map opens.</p>
   </div>
 </div>
 
@@ -553,7 +561,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Recipe snap</td><td>It moves only by whole tiles and quarter turns. <a href="#rules">Why</a></td></tr>
   <tr><td>Group of 2</td><td>It is in a <a href="#groups">group</a>.</td></tr>
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
-  <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's. The Build moves, copies and deletes it with the piece. The editor doesn't show effects yet.</td></tr>
+  <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's, or the effects a prefab of the map placed round it (an alien vapour pod's smoke). The editor and the Build move, copy and delete them with the piece. A click on the chip opens the <a href="#effects">Effects view</a> on them.</td></tr>
   <tr><td>Mission loot · Not loot</td><td>A collectible such as a UFO power core. A copy breaks like the original, but the game doesn't count it as loot.</td></tr>
   <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
   <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
@@ -614,7 +622,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   the picked one, so you can change all of a kind at once, their flags for one. <kbd>Shift</kbd>+click adds them to
   the selection. With a <a href="#boxselect">box</a> drawn, it takes only those whose middle is inside the box.
   Hidden and deleted pieces, a mission's or Long War Rebalance's pieces, cover blocks, lights and floor boxes are left
-  out. Selecting changes nothing in the project and is not an undo step.</p>
+  out. Selecting changes nothing in the project and is not an undo step. A picked effect or sound has a Select all of
+  its own: <a href="#effects">Effects and sounds</a>.</p>
 
 <h3 id="boxselect">Box select</h3>
 <p>To select many pieces at once, a whole house for one, draw a box around them.</p>
@@ -644,7 +653,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <a href="#normal-view">Lights switch</a> on, the lights inside are taken with the pieces; in the Lights view,
     only lights are. With its <b class="ui">Floor boxes</b> switch on, a building, yours or
     <a href="#building-copy-map">the map's</a>, is taken <a href="#building-whole">whole</a> when the middle of one of
-    its boxes is inside. The bar counts them.</li>
+    its boxes is inside. With its <b class="ui">Effects and sounds</b> switch on, the effects, sounds and lens flares
+    inside are taken too; in the <a href="#effects">Effects view</a>, only they are. The bar counts them.</li>
   <li><b>Only what is drawn is taken.</b> With a floor chosen in the <a href="#bottom">Floors buttons</a>, the hidden
     floors above are left out. Pieces of a mission or of Long War Rebalance's patch are never taken.</li>
   <li><b>For an outline a box doesn't fit</b>, an L-shaped house for one: select one part, draw again over the
@@ -698,6 +708,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     floor boxes stay on the tile grid.</li>
   <li><b>A copy of the group</b> has its own lights and a new building with the same floors.</li>
   <li>Lights and buildings take no part in <b>Break together</b>.</li>
+  <li><b>Effects, sounds and lens flares</b> join a group the same way: select them with the pieces, with the Normal
+    view's <b class="ui">Effects and sounds</b> switch on, and press <b class="ui">Group</b>. They then move, copy and
+    go with the group like its lights.</li>
   <li><b>A cover block over a piece that can be destroyed:</b> group the block with the piece and tick
     <b class="ui">Break together in the game</b>. When the piece is destroyed the block goes too, so no invisible
     wall is left. One breakable piece is enough, and nothing else destroys the block. An invisible floor stays.</li>
@@ -771,6 +784,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b>Lighting.</b> Built with <b class="ui">Bake the lighting</b>, a piece from another map is lit for where it
   stands, and the pieces around it take its shadow. Built without, it keeps the light it had in its home map, so it
   can look too dark or too bright where you put it.</p>
+<p><b>Effects, sounds and lens flares</b> of the other maps are listed here too, under their own kinds in the Kind
+  menu: <a href="#effects-other">Effects from other maps</a>.</p>
 
 <h3 id="cover">Cover blocks and invisible floors</h3>
 <p>Two pieces the game never draws, both under Kind: <b class="ui">Invisible</b> in the piece list. A <b>cover
@@ -872,8 +887,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   building's floor boxes too. The window says what goes in, and lists anything that can't.</p>
 <ul>
   <li><b>What goes in:</b> the map's own pieces and the ones you added (pieces from other maps too), cover blocks and
-    invisible floors, lights, the groups among them, and buildings: your own, or
-    <a href="#building-copy-map">the map's own</a>, each saved as a building of the prefab.</li>
+    invisible floors, lights, effects, sounds and lens flares (with their values), the groups among them, and
+    buildings: your own, or <a href="#building-copy-map">the map's own</a>, each saved as a building of the
+    prefab.</li>
   <li><b>Lights</b> are saved with all their values, so the prefab needs no light to copy from in the map it is
     placed in. A light's finer settings that the light panel doesn't show go back to the usual ones.</li>
   <li><b>Left out:</b> pieces of the levels a mission streams in (they aren't the map's own).</li>
@@ -913,7 +929,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   selection. The map browser (<kbd>M</kbd>) also has a <b class="ui">Prefabs</b> group.</p>
 <p>Add pieces from <b class="ui">All maps</b>, or place another prefab and use <b class="ui">Ungroup</b> to edit
   its pieces. Choose <b class="ui">Lights</b> for point and spot lights, or <b class="ui">Invisible</b> for cover
-  blocks and invisible floors. The Buildings and Lights views, box select, nested groups, copy, paste and undo work as in a map. The
+  blocks and invisible floors. The Buildings, Lights and Effects views, box select, nested groups, copy, paste and
+  undo work as in a map, and a prefab's effects are drawn as they look. The
   ground grid grows with your work; it is a drawing guide and is never saved. Negative X and Y are fine.</p>
 <p><b class="ui">Prefab → Save</b> (<kbd>Ctrl+S</kbd>) saves everything, including lights and floor boxes hidden
   by the current view. Floor boxes alone can be saved. The first save asks for a name; later saves write the next
@@ -956,7 +973,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   and the game install that will open. <b class="ui">Build and test</b> uses the current contents, including
   unsaved edits or a prefab you haven't named. <b class="ui">Bake the lighting</b> is off by default, for a quicker
   check of appearance, movement, cover or cutaway; the stage has a neutral fill light either way. Tick it to see the
-  prefab's shadows and the glow of its lights on nearby surfaces.</p>
+  prefab's shadows and the glow of its lights on nearby surfaces. Its effects and sounds play in the test, each
+  read from the map it was saved from.</p>
 <figure class="zoom"><img src="shots/prefab-test.webp" width="460" height="314" alt="Test in game dialog with Bake the lighting and Enable saving unchecked and a Build and test button"></figure>
 <p>The battle starts on the blank stage with the prefab placed beside the squad. If the entire footprint leaves
   no room for the squad, or the editor can't resolve all the pieces, the progress window shows the problem.
@@ -998,6 +1016,146 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     piece a glow belongs to; its panel then says "May glow". Before moving such a piece, select the glow's light and
     choose <b class="ui">Assign glowing piece</b> (then click the piece) or <b class="ui">Keep fixed</b>.</li>
   <li>A view-only light's panel says why it can't be edited.</li>
+</ul>
+
+<h3 id="effects">Effects and sounds</h3>
+<p>A map's <b>effects</b> are its particle systems: fires, smoke, steam, dripping water, blowing trash, moths round a
+  lamp, a Skyranger's lights. Its <b>sounds</b> are the ambient sounds placed in it: a car's idle engine, a humming
+  machine, wind. Its <b>lens flares</b> are the glints round some lamps. The <b class="ui">Effects view</b> in the tool
+  strip (<kbd>Shift</kbd>+<kbd>X</kbd>) shows all three as markers drawn over everything, and they are edited there
+  as pieces are. While the view is on only they can be selected, so a piece is never moved by accident; to handle
+  them together with pieces, use the Normal view's <a href="#normal-view">Effects and sounds switch</a>.</p>
+<figure class="zoom">
+  <img src="shots/effects.webp" width="1080" height="675" alt="The Effects view on the Bar's car park: a taxi's idle sound picked with its two spheres, the markers of effects, sounds and a lens flare around it, and the sound's panel">
+  <figcaption>A car's idle sound picked: the spheres show where it is heard. Every spark is an effect.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Effects view</b> turns the view on and off. Click a marker to select what it stands for.</li>
+  <li data-n="2"><b>An effect</b> is a spark (here a body's webbing).</li>
+  <li data-n="3"><b>A sound</b> is a speaker.</li>
+  <li data-n="4"><b>A lens flare</b> is a star (here on a street lamp).</li>
+  <li data-n="5"><b>The outer sphere's handle:</b> drag it to set how far away the sound fades out to nothing.</li>
+  <li data-n="6"><b>The inner sphere's handle:</b> within this sphere it is heard at full volume.</li>
+  <li data-n="7"><b>Wave preview:</b> <b class="ui">Play</b> plays each of the sound's waves, one at a time.</li>
+  <li data-n="8"><b>Plays from the start:</b> unticked, the sound stays in the map but is silent until the map's
+    script starts it.</li>
+  <li data-n="9"><b>Its reach</b> in words, as the two handles set it.</li>
+  <li data-n="10"><b>Volume</b> and <b>Pitch</b>: the game picks each between its least and its most.</li>
+</ol>
+<ul>
+  <li><b>The markers:</b> a hollow one starts switched off (the map's script turns it on). A greyed one belongs to a
+    level a mission streams in, and is view only, or is the effect a copied piece carries, which goes with that
+    copy.</li>
+  <li><b>Click a marker</b> to select it. The panel says what it plays, whether it starts with the mission, and chips
+    with what you should know: named by the mission's script, carried by a piece, part of the landing, hidden with a
+    building's floor, placed by a prefab, riding on another actor. A picked effect shows its box; a picked sound, its
+    two spheres. <kbd>F</kbd> or a double-click brings the camera to it.</li>
+  <li><b>Edit it as a piece:</b> the gizmo moves and turns it, <kbd>Ctrl</kbd>+<kbd>C</kbd> and
+    <kbd>Ctrl</kbd>+<kbd>V</kbd> copy it, <kbd>Del</kbd> deletes it, <b class="ui">Reset piece</b> puts it back, and
+    it groups with pieces (<kbd>Ctrl</kbd>+<kbd>G</kbd>). Each is one undo step. One the editor can't change (a
+    streamed level's, one riding on a dropship) says why when you try.</li>
+  <li><b>Select all</b> in its panel selects every effect of the same particle system, or every sound of the same
+    waves, or every lens flare of the same kind; with a <a href="#boxselect">box</a> drawn, those inside it.
+    <a href="#boxselect">Box select</a> in this view takes markers only.</li>
+  <li><b>The mission's script:</b> an effect or sound the script names can be moved, copied and deleted, but the
+    script goes on acting on the original. The Build warns of it.</li>
+  <li><b>The landing's effects</b> (a Skyranger's lights and engine) follow their <a href="#landingzones">landing
+    zone</a> when it moves.</li>
+  <li><b>Building floors:</b> an effect inside a building hides with its floor, as a piece does. The Build lists a
+    moved or copied effect on the floors whose boxes hold it.</li>
+  <li><b>A build of effects alone</b> needs no baked lighting: a quick build makes them.</li>
+</ul>
+<div class="split">
+  <figure><img src="shots/effects-flyout.webp" width="434" height="163" alt="The Effects view button with its flyout: Effects, Sounds and Lens flares"></figure>
+  <div>
+    <p>Hover the Effects view button for a switch for each kind: untick <b>Effects</b>, <b>Sounds</b> or
+      <b>Lens flares</b> to hide its markers while you work on the others.</p>
+  </div>
+</div>
+
+<h4 id="effects-values">An effect's values</h4>
+<figure class="zoom">
+  <img src="shots/effect-values.webp" width="1080" height="675" alt="An alien vapour pod's smoke picked on the Bar, drawn as it looks, with its size handle and its panel's values">
+  <figcaption>One of an alien vapour pod's smoke emitters picked: its green smoke drawn as it looks, its box, and its
+    values in the panel.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The picked effect:</b> its marker and its box, drawn round the smoke.</li>
+  <li data-n="2"><b>The size handle:</b> drag it to make the effect larger or smaller, from 1/64 to 64 times its size
+    in the map. The box and the drawing follow.</li>
+  <li data-n="3"><b>Its chips</b>, here <b>Placed by a prefab</b>.</li>
+  <li data-n="4"><b>What it plays:</b> its particle system and emitters, how it starts, its size and its box.</li>
+  <li data-n="5"><b>Select all</b> of its particle system: 21 of these on the Bar.</li>
+  <li data-n="6"><b>Starts with the mission:</b> unticked, the effect is in the map but switched off until the map's
+    script turns it on.</li>
+  <li data-n="7"><b>Its size</b> against the map's, as the handle sets it.</li>
+  <li data-n="8"><b>A particle parameter:</b> a number, with a slider guided by the particle system's own range.</li>
+  <li data-n="9"><b>A colour parameter:</b> the colour, and its strength beside it. The maps' own often go past 1.</li>
+</ol>
+<ul>
+  <li><b>The particle parameters</b> are the settings a particle system takes from the map: an opacity, a
+    brightness, a colour, a size. The panel lists the ones the effect saves, then the ones its system offers that it
+    doesn't save. A vector shows its three parts, labelled r, g and b where they colour the particles. One saved as a
+    random value, or read two ways, stays as the map has it, and its row says why.</li>
+  <li><b>Each change is one undo step.</b> <b>↺</b> beside a value puts that one back; Reset piece and Reset all put
+    them all back. A copy takes the values of what it copies.</li>
+  <li><b>A sound's values</b> are its two spheres (dragged in the view as an effect's size is), Plays from the start,
+    and Volume and Pitch. A sound whose cue other sounds share shows its values read only.</li>
+  <li><b>The Wave preview</b> plays each wave by itself at a preview volume, without the game's reach, volume, pitch,
+    random choice or looping. <b class="ui">Stop</b>, picking something else, <kbd>Esc</kbd> or leaving the
+    view stops it.</li>
+</ul>
+
+<h4 id="effects-carried">Effects a piece carries</h4>
+<p>An effect that stands on a piece, such as a claw machine's lights or an alien vapour pod's smoke, is carried by
+  it: the piece's panel has a <b class="ui">Carries an effect</b> chip. Moved, copied or deleted, the piece takes its
+  effects along, each keeping its place and turn on the piece; a copy's are drawn greyed. Move the effect by itself
+  and it is its own from then on. A carried effect's panel has <b class="ui">Keep where it is</b>, which leaves it
+  where the map has it while the piece moves, and <b class="ui">Follow</b>, which lets it follow again.</p>
+
+<h4 id="effects-flares">Lens flares</h4>
+<p>A lens flare moves, turns, copies, deletes and groups as an effect does, and box select and Select all take it.
+  It has no values: its look and colour stay as the map has them. One that rides on a dropship stays view only.</p>
+
+<h4 id="effects-other">Effects from other maps</h4>
+<p>The piece list's <b class="ui">All maps</b> lists the other maps' effects, sounds and lens flares beside their
+  pieces. The Kind menu has <b>Effects</b> (with its kinds: Fire, Smoke and steam, Water, Light beams and glows,
+  Nature, Alien, Wreckage and trash), <b>Sounds</b> (Machines, Engines, Nature and weather, Alien, Music and voices)
+  and <b>Lens flares</b>. An effect placed the same way in several maps is one entry.</p>
+<figure class="zoom">
+  <img src="shots/add-effects.webp" width="679" height="812" alt="The piece list's All maps showing the fires, each row with a picture of the fire, and the first fire playing in a pane beside the list">
+  <figcaption>All maps with its Kind on the fires, the pointer on the first one.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Kind:</b> here Effects: Fire.</li>
+  <li data-n="2"><b>Its picture:</b> the effect as it looks. A sound shows its speaker.</li>
+  <li data-n="3"><b>An entry:</b> its name, kind and particle system, what its emitters draw, and in how many maps it
+    stands. <b>Starts off</b> marks one that waits for its map's script.</li>
+  <li data-n="4"><b>The pointer on an entry</b> plays it in a pane beside the list, turning slowly over a square one
+    tile across, for size.</li>
+  <li data-n="5"><b>What it is:</b> where it is placed, the map it is brought from, and how much it adds to the
+    map.</li>
+</ol>
+<ul>
+  <li><b>To place one:</b> click it, then click in the view, as a piece; while you place it, the effect plays at the
+    cursor. Its panel says which map it comes from, and a sound's Wave preview plays its waves from there.</li>
+  <li><b>The Build brings it</b> into your map with what it needs, its particle system or its waves, and its values
+    are edited as the map's own.</li>
+  <li><b>Not brought:</b> a landing's effects, one riding on another actor, and one that plays nothing are listed
+    but can't be placed; untick <b class="ui">Can be placed</b> to see them, each with why.</li>
+</ul>
+
+<h4 id="effects-look">Effects as they look</h4>
+<p>Every effect is drawn where it stands, moving, from its particle system's own textures, colours, sizes and
+  timing, in every view: a fire flickers, steam rises, moths circle. It is a likeness, not the game's picture:
+  scrolling and rippling textures, lit particles, swirls and bounces, and one emitter setting off another are left
+  out, and the panel says what a picked effect's drawing leaves out. The game is the judge of how an effect
+  looks.</p>
+<ul>
+  <li>An effect that starts switched off is drawn only while it is picked.</li>
+  <li>The drawing is never clicked: its marker is what you pick.</li>
+  <li>Untick <b class="ui">Effects as they look</b> in <a href="#viewoptions">View options</a> for a busy map on a
+    slow computer: the markers and the editing stay.</li>
 </ul>
 
 <h3 id="buildings">Buildings</h3>
@@ -1201,8 +1359,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A copy</b> of one of the map's buildings is a new building of yours with the same boxes, named after the
     original; saved into a prefab, likewise. A copied alien ship is a plain building until you set its Kind to UFO
     in the panel.</li>
-  <li><b>Lights</b> move with a building only when they are selected with it, as with any move. Emitters, decals
-    and the like stay where they are.</li>
+  <li><b>Lights, effects and sounds</b> move with a building only when they are selected with it, as with any move
+    (an effect a piece carries goes with its piece). Decals stay where they are.</li>
 </ul>
 
 <h4 id="building-big-box">Several boxes, or one big box</h4>
@@ -1284,6 +1442,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     buildings, trees and fences the map is seen against. The lights, smoke and stains placed out there stay too. Here
     the play area is the map's own, and the new grid where it reaches further, so pieces the new grid brings into play
     still go. So does a piece across the edge. The window counts what stays. The tick is remembered.</li>
+  <li><b>Effects go with the clear</b>, except the landing's and the ones outside that the tick keeps; the map's
+    ambient sounds all stay. Delete a sound in the <a href="#effects">Effects view</a> if it doesn't belong in your
+    map.</li>
   <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings everything back, the size too. What
     your project had added goes as well, with its groups and buildings.</li>
   <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>
@@ -1356,7 +1517,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="viewoptions">View options</h3>
 <div class="split">
-  <figure><img src="shots/view-options.webp" width="332" height="610" alt="The View options menu, its fifteen items numbered"></figure>
+  <figure><img src="shots/view-options.webp" width="332" height="633" alt="The View options menu, its sixteen items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Lighting:</b> <b class="ui">Neutral</b> is plain, even light, best for editing. <b class="ui">Map</b>
       uses the map's own lights, as edited; <b class="ui">No area</b> is the same without the glow of lit surfaces. Both
@@ -1379,10 +1540,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="11"><b>Tile grid</b> around the selection.</li>
     <li data-n="12"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
       tile to name its piece; click to select it.</li>
-    <li data-n="13"><b>Wireframe.</b></li>
-    <li data-n="14"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
+    <li data-n="13"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
+      slow computer; the markers and the editing stay. <a href="#effects-look">More</a></li>
+    <li data-n="14"><b>Wireframe.</b></li>
+    <li data-n="15"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
       wireframe. Shown only on maps that have them.</li>
-    <li data-n="15"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
+    <li data-n="16"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
   </ol>
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
@@ -1775,6 +1938,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ol>
 </div>
 
+<div class="task" id="task-effects">
+<h3>Set a fire, or quiet a sound</h3>
+<ol class="steps">
+  <li>Press <kbd>P</kbd>, choose <b class="ui">All maps</b>, and Kind: <b class="ui">Effects: Fire</b>. Point at an
+    entry to see it burn.</li>
+  <li>Click one, then click where it should burn: a wrecked car, a doorway.</li>
+  <li>Drag the handle beside its marker to make it larger or smaller.</li>
+  <li>For a sound that doesn't belong, press <kbd>Shift</kbd>+<kbd>X</kbd>, click its speaker, and press
+    <b class="ui">Play</b> in its panel to be sure. Then delete it, or drag its spheres in to make it reach less
+    far.</li>
+</ol>
+<p>A quick build makes them. More: <a href="#effects">Effects and sounds</a>.</p>
+</div>
+
 <div class="task" id="task-cover-block">
 <h3>Add cover where there is nothing to copy</h3>
 <ol class="steps">
@@ -1941,6 +2118,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Fracturing pieces</td><td>Walls, storey floors, roof slabs, a bar's counter</td><td>On the grid</td><td>Yes</td></tr>
   <tr><td>Cover blocks, invisible floors</td><td><a href="#cover">Invisible pieces</a></td><td>Freely; on the tiles with tile snap</td><td>Yes</td></tr>
   <tr><td>Lights</td><td>Placed point and spot lights</td><td>Freely</td><td>Yes; baked builds only show them right</td></tr>
+  <tr><td>Effects, sounds, lens flares</td><td><a href="#effects">Fires, smoke, an idle engine, a lamp's glint</a></td><td>Freely; a carried effect with its piece</td><td>Yes, in a quick build too</td></tr>
   <tr><td>Floor boxes</td><td><a href="#buildings">Buildings</a>, yours and the map's</td><td>Whole tiles and levels, never turned alone</td><td>Yes</td></tr>
   <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Whole tiles and levels, quarter turns</td><td>Yes</td></tr>
   <tr><td>What a mission adds</td><td>Patch helpers, mission objects</td><td>Not at all</td><td>Left as they are</td></tr>
@@ -2025,6 +2203,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>Shift</kbd>+<kbd>Z</kbd></td><td>The <a href="#landingzones">Landing zones view</a> on or off (only landing zones are selected)</td></tr>
   <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>[</kbd> <kbd>]</kbd></td><td>In the Landing zones view: the picked zone's arrows · its ring · a quarter turn either way</td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>In the Landing zones view: copy the picked zone · delete it</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>X</kbd></td><td>The <a href="#effects">Effects view</a> on or off (only effects, sounds and lens flares are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of the selection; the original stays</td></tr>
   <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
   <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units</td></tr>
@@ -2056,7 +2235,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
     and a deleted or changed light's old pool stays on the floor. Bake the lighting for the finished map.</li>
-  <li><b>The editor's colours are approximate.</b> Judge the lighting in the game.</li>
+  <li><b>The editor's colours are approximate.</b> Judge the lighting, and how an effect looks, in the game.</li>
+  <li><b>On plain Enemy Within, a moved landing leaves the grounded Skyranger's dust</b> where the landing was, in
+    the editor as in the game. Under Long War the dust goes with the Skyranger when the battle starts.</li>
   <li><b>If something looks wrong in the game,</b> please report it.</li>
 </ul>
 

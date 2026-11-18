@@ -42,6 +42,11 @@ BOMB_MAP, BOMB_STREAM = 'URB_SlaughterhouseA', 'URB_Slaughterhouse_Stream'
 MORE_PROJECTS = (('Car park cover', SUV), ('Back alley', KEG_C), ('Bar after hours', KEG_B))
 # cameras, in game units: what the camera looks at, and its offset from there
 BAR_VIEW = ([150, 640, 20], [600, -1450, 1250])
+# the Effects view's shots: the taxi's idle sound picked in the car park, with a webbing effect, the shop's sound and a
+# lens flare marked round it; an alien vapour pod's smoke and its values; the fires of the other maps in the Add panel
+TAXI_SOUND, SHOP_SOUND = ACTOR % 'AmbientSoundSimple_3', ACTOR % 'AmbientSoundSimple_2'
+WEBBING, POD_SMOKE, FLARE = ACTOR % 'Emitter_75', ACTOR % 'Emitter_15', ACTOR % 'LensFlareSource_8'
+SOUND_VIEW, SMOKE_VIEW = [700, -1500, 1100], [420, -800, 560]
 LIGHT_VIEW = ([375, 300, 60], [500, -900, 700])
 SPOT_NEAR = [375, 245, 297]
 PROJECTS_FOLDER = r'C:\Users\you\AppData\Local\Programs\XCOM Map Workshop\projects'
@@ -238,12 +243,13 @@ class Shots:
 
     def rail(self):
         controls = ('#editOff', '#editMove', '#editRotate', '#editBox', '#editAdd', '#editNormal', '#editBuildings', '#editLights',
-                    '#editZones', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLevels', '#editLinked', '#selected')
+                    '#editZones', '#editEffects', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLevels', '#editLinked',
+                    '#selected')
         marks = [dict(n=k + 1, sel=s, side='right', gap=20) for k, s in enumerate(controls)]
         self.shot('rail', marks, clip=self.around('#rail', pad=(8, 8, 40, 8)))
 
     def normal_flyout(self):
-        """The Normal view button hovered: its flyout with the Lights and Floor boxes switches."""
+        """The Normal view button hovered: its flyout with the Lights, Floor boxes and Effects and sounds switches."""
         page = self.page
         page.evaluate('viewer.select(null)')
         page.locator('#editNormal').hover()
@@ -502,6 +508,113 @@ class Shots:
         self.shot('landing-zones', marks, resize=0.75)
         page.evaluate('viewer.setZonesShown(false)')
 
+    # --- the Effects view
+    def effect_id(self, actor):
+        found = self.page.evaluate("a => [...viewer.effectRoots.values()].find(r => r.userData.source.actor === a)?.userData.source.id", actor)
+        if not found: raise SystemExit('%s is not among the effects of %s' % (actor, MAP))
+        return found
+
+    def marker(self, actor):
+        """An effect's, sound's or flare's marker: a small rect round its screen point."""
+        record = self.effect_id(actor)
+        s = next((m['screen'] for m in self.page.evaluate('viewer.effectMarkers()') if m['id'] == record), None)
+        if not s: raise SystemExit('%s has no marker on screen' % actor)
+        return [s[0] - 7, s[1] - 7, 14, 14]
+
+    def open_effects(self, actor, offset):
+        """The Effects view with every floor shown, one effect picked and the camera on it."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#scenery button[data-value="full"]').click()
+        page.locator('#floor button[data-value="all"]').click()
+        page.evaluate('viewer.setEffectsShown(true)')
+        self.zones = page.evaluate('viewer.landingLayer.visible')
+        page.evaluate('viewer.landingLayer.visible = false')     # the zones' numbers would be taken for the marks
+        record = self.effect_id(actor)
+        page.evaluate('id => viewer.pickEffect(id)', record)
+        self.camera(page.evaluate('id => viewer.effectState(id).at', record), offset)
+        self.settle(3000)
+        return {h['key']: h['screen'] for h in page.evaluate('viewer.lightHandles()')}
+
+    def close_effects(self):
+        page = self.page
+        page.evaluate('viewer.pickEffect(null)')
+        page.evaluate('viewer.setEffectsShown(false)')
+        page.evaluate('on => { viewer.landingLayer.visible = on; }', self.zones)
+        page.locator('#scenery button[data-value="interior"]').click()
+        page.locator('#floor button[data-value="1"]').click()
+
+    def effects(self):
+        """The Effects view on the car park: the taxi's idle sound picked, with its two spheres, their handles, its
+        Wave preview and its values; an effect's, a sound's and a lens flare's markers round it."""
+        handles = self.open_effects(TAXI_SOUND, SOUND_VIEW)
+        marks = [dict(n=1, sel='#editEffects', side='right', gap=20)]
+        for n, actor, side in ((2, WEBBING, 'bottom'), (3, SHOP_SOUND, 'top'), (4, FLARE, 'bottom')):
+            marks.append(dict(n=n, rect=self.marker(actor), side=side, gap=34, inset=3))
+        for n, key in ((5, 'radiusMax'), (6, 'radiusMin')):
+            s = handles[key]
+            marks.append(dict(n=n, rect=[s[0] - 6, s[1] - 6, 12, 12], side='bottom', gap=40, inset=3))
+        marks += self.panel_rows('#effectPanel', [(7, '#effectWaves .waverow'), (8, '#effectValues .check'),
+                                                  (9, '#effectValues .valueline'), (10, '#effectValues .valuepair')])
+        self.shot('effects', marks, resize=0.75)
+        self.close_effects()
+
+    def effects_flyout(self):
+        """The Effects view button hovered: its flyout with a switch for each kind."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#editEffects').hover()
+        page.wait_for_timeout(400)
+        x, y, w, h = self.rect('#editEffects')
+        fx, fy, fw, fh = self.rect('#effectsFlyout')
+        self.shot('effects-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+
+    def effect_values(self):
+        """An alien vapour pod's smoke picked: its likeness, its size handle and its panel with its values."""
+        page = self.page
+        handles = self.open_effects(POD_SMOKE, SMOKE_VIEW)
+        s = handles['size']
+        marks = [dict(n=1, rect=self.marker(POD_SMOKE), side='top', gap=150, dx=70, inset=3),
+                 dict(n=2, rect=[s[0] - 6, s[1] - 6, 12, 12], side='bottom', gap=60, inset=3)]
+        marks += self.panel_rows('#effectPanel', [(3, '#effectChips'), (4, '#effectInfo'), (5, '#effectKind'),
+                                                  (6, '#effectValues .check'), (7, '#effectValues .valueline'),
+                                                  (8, '#effectValues .effectvalue'),
+                                                  (9, '#effectValues .effectvalue:has(input[type=color])')])
+        self.shot('effect-values', marks, resize=0.75)
+        self.close_effects()
+
+    def add_effects(self):
+        """All maps with its Kind set to the fires: each row's picture is the effect's likeness, and the pointer on
+        the first row plays it in the pane beside the panel. Put back after."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#editAdd').click()
+        page.evaluate("viewer.setLibraryScope('all')")
+        page.wait_for_function('viewer.library.ready()', timeout=120000)
+        kind, sort = page.locator('#libAllKind').input_value(), page.locator('#libAllSort').input_value()
+        page.locator('#libAllKind').select_option('fx:Fire')
+        page.locator('#libAllSort').select_option('maps')
+        page.locator('#libAllFilter').fill('P_Fire')
+        page.wait_for_selector('#libAllList .libitem')
+        page.wait_for_function("[...document.querySelectorAll('#libAllList .libitem canvas')].slice(0, 6).every(c => c.dataset.drawn)", timeout=180000)
+        first = page.locator('#libAllList .libitem').first
+        first.hover()
+        page.wait_for_function('viewer.likenessPane().shown && viewer.likenessPane().particles > 0', timeout=60000)
+        page.wait_for_timeout(2500)
+        marks = [dict(n=1, sel='#libAllKind', side='on', aty=0, dy=-2),
+                 dict(n=2, sel='#libAllList .libitem canvas', side='left', gap=14),
+                 dict(n=3, sel='#libAllList .libitem', side='right', gap=18),
+                 dict(n=4, sel='#likenessCanvas', side='right', gap=18, at=0.3),
+                 dict(n=5, sel='#likenessText', side='right', gap=18)]
+        self.shot('add-effects', marks, clip=self.around('#rail', '#library', '#likenessPane', pad=(8, 30, 44, 8)))
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+        page.locator('#libAllFilter').fill('')
+        page.locator('#libAllKind').select_option(kind)
+        page.locator('#libAllSort').select_option(sort)
+        page.evaluate("viewer.setLibraryScope('map')")
+        page.locator('#libraryClose').click()
+
     def map_grid(self):
         """Map grid: the play area's handles on the Bar as it is, and the panel."""
         page = self.page
@@ -528,7 +641,7 @@ class Shots:
         page.wait_for_timeout(400)
         rows = [(1, '#lighting'), (2, '#exposure'), (3, '#flyKeys'), (4, '#moveSpeed'), (5, '#turnSpeed'), (6, '#dragSpeed'),
                 (7, '#areaToggle'), (8, '#reachToggle'), (9, '#skyToggle'), (10, '#playAreaToggle'), (11, '#grid'),
-                (12, '#floorTiles'), (13, '#wire'), (14, '#hideHelpers'), (15, '#statsToggle')]
+                (12, '#floorTiles'), (13, '#likenessToggle'), (14, '#wire'), (15, '#hideHelpers'), (16, '#statsToggle')]
         hidden = [s for _, s in rows if not page.locator(s).is_visible()]
         if hidden: raise SystemExit('View options lacks %s on %s: the guide numbers them all' % (', '.join(hidden), MAP))
         self.shot('view-options', self.panel_rows('#viewOptions', rows), clip=self.around('#viewButton', '#viewOptions', pad=(44, 6, 8, 12)))
@@ -873,7 +986,7 @@ def prefab_test_shot(browser, server, out):
 
 # the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
 ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
+         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
          'manager', 'save-as', 'mission-objects')
 
 
