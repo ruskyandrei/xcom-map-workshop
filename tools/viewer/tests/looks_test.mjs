@@ -44,6 +44,10 @@ look = lookFromEntry('wall', TALL, { package: 'URB_Ware_Night', actor: 'TheWorld
 assert.deepEqual([look.package, look.actor, look.lwrOnly], ['URB_Ware_Night', 'XComDecoFracLevelActor_9', true]);
 assert.match(lookWords('wall', TALL), /brick, 960 long and 400 tall in its map, an outside wall/);
 assert.deepEqual(lookTags(TALL).map(t => t[0]), ['Simpler', 'LWR']);
+// plain ends alone don't mark a look Simpler (most walls have them); with another warning they are listed too
+const ends = "the detail at its ends (a corner or a jamb) isn't made: its ends are plain";
+assert.deepEqual(lookTags({ ...ONE, warnings: [ends] }), []);
+assert.match(lookTags({ ...TALL, warnings: [ends, ...TALL.warnings] })[0][1], /plain; its window frames/);
 
 // a wall's heights by its look: a one-storey donor stands at its own height, which its top handle doesn't change
 const one = { x0: 0, x1: 384, openings: [], seed: 1, look: { mesh: ONE.mesh, measure: 1 } };

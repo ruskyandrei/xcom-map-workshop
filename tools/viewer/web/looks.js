@@ -78,10 +78,14 @@ export function lookWords(kind, entry) {
   return parts.filter(Boolean).join(', ');
 }
 
-/** The tags a look's row shows ([text, title]): what the made piece lacks, and whether only Long War Rebalance has it. */
+// Warnings too common and too small to mark a look Simpler by themselves (the walls catalogue: plain ends on 307 of
+// its 344 walls); they are still listed in the tag's title when another warning marks it.
+const MINOR_WARNINGS = [/^the detail at its ends\b/];
+/** The tags a look's row shows ([text, title]): what the made piece lacks (Simpler, for a warning that isn't a minor
+ *  one), and whether only Long War Rebalance has it. */
 export function lookTags(entry) {
-  const tags = [];
-  if (entry.warnings?.length) tags.push(['Simpler', `Made simpler than its donor: ${entry.warnings.join('; ')}`]);
+  const tags = [], warnings = entry.warnings ?? [];
+  if (warnings.some(w => !MINOR_WARNINGS.some(r => r.test(w)))) tags.push(['Simpler', `Made simpler than its donor: ${warnings.join('; ')}`]);
   if (entry.lwrOnly) tags.push(['LWR', 'Only Long War Rebalance has this piece: the Build makes it on an install of Long War Rebalance']);
   return tags;
 }

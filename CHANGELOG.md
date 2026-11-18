@@ -8,6 +8,13 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A look's plain ends alone don't mark it Simpler in the picker** (custom geometry plan, M4c; branch
+  `fracturing-wall-poc`).
+  - [looks.js](tools/viewer/web/looks.js) lookTags: the walls catalogue warns of plain ends ("the detail at its ends
+    isn't made") on 307 of its 344 walls. That warning alone no longer gives a row the Simpler tag; with another
+    warning it is listed in the tag's title too.
+  - Checked: [looks_test.mjs](tools/viewer/tests/looks_test.mjs); the node suite.
+
 - **Walls in looks of three or four storeys, and looks made at one height only, on the page** (custom geometry plan,
   M4c; branch `fracturing-wall-poc`).
   - [walls.js](tools/viewer/web/walls.js): the walls catalogue has donors of up to four storeys, and some that can't be
