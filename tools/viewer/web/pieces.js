@@ -104,17 +104,21 @@ function drawZoneIcon(canvas) {
   g.beginPath(); g.moveTo(24, 6); g.lineTo(20, 2); g.moveTo(24, 6); g.lineTo(28, 2); g.stroke();
   g.restore();
 }
-// A new spawn point's icon (app.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod and a green
-// dot for a Meld point, in its halo
+// A new spawn point's icon (app.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod, a green dot
+// for a Meld point and a grey box for a no-spawn volume, in its halo
 function drawSpawnIcon(canvas, kind) {
-  const g = canvas.getContext('2d'), s = canvas.width, colour = kind === 'pod' ? '#ff9f43' : '#20bf6b';
+  const g = canvas.getContext('2d'), s = canvas.width, colour = { pod: '#ff9f43', noSpawn: '#8a94a6' }[kind] ?? '#20bf6b';
   g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
   g.save(); g.scale(s / 48, s / 48);
   g.strokeStyle = colour; g.globalAlpha = 0.45; g.lineWidth = 3;
   g.beginPath(); g.arc(24, 24, 18, 0, Math.PI * 2); g.stroke();
   g.globalAlpha = 1;
   if (kind === 'pod') { g.lineWidth = 4; g.beginPath(); g.arc(24, 24, 9, 0, Math.PI * 2); g.stroke(); }
-  else { g.fillStyle = colour; g.beginPath(); g.arc(24, 24, 8, 0, Math.PI * 2); g.fill(); }
+  else if (kind === 'noSpawn') {
+    g.lineWidth = 2.5; g.globalAlpha = 0.25; g.fillStyle = colour; g.fillRect(14, 16, 20, 16); g.globalAlpha = 1;
+    g.strokeRect(14, 16, 20, 16); g.beginPath(); g.moveTo(14, 16); g.lineTo(19, 11); g.lineTo(39, 11); g.lineTo(34, 16);
+    g.moveTo(39, 11); g.lineTo(39, 27); g.lineTo(34, 32); g.stroke();
+  } else { g.fillStyle = colour; g.beginPath(); g.arc(24, 24, 8, 0, Math.PI * 2); g.fill(); }
   g.restore();
 }
 const tiles = units => Math.max(1, Math.round(units / 96));   // a floor piece's size across in whole tiles (a curb drops out)

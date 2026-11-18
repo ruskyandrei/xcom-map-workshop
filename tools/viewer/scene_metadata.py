@@ -762,6 +762,8 @@ SPAWN_VALUES = {
     "dropIn": (("behaviour", "m_eBehavior", "EAIBehavior_None"), ("forcePlacement", "m_bForcePlacement", False),
                ("kismetOnly", "bKismetSpawnOnly", False), ("seekRadius", "fSeekRadius", 0.0)),
     "point": (("unitType", "UnitType", "UNIT_TYPE_Soldier"),),
+    # a no-spawn volume's two switches (export 34: XComNoSpawnVolume, both true in the class's default)
+    "noSpawn": (("aliens", "AlienNoSpawnZone", True), ("civilians", "CivilianNoSpawnZone", True)),
 }
 # enum values shown without their enum's prefix (the writer puts it back: SP6)
 ENUM_PREFIX = {"m_eDifficulty": "eMeldContainerDifficulty_", "m_eBehavior": "EAIBehavior_"}
@@ -785,6 +787,7 @@ def spawn_family(cls):
     if cls == "XComMeldContainerSpawnPoint": return "meld"
     if cls == "XComSpawnPoint_Alien": return "dropIn"
     if cls == "XComSpawnPoint": return "point"
+    if cls == "XComNoSpawnVolume": return "noSpawn"
     return None
 
 

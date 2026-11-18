@@ -99,7 +99,13 @@ export function consumerWords(record, context = {}) {
     case 'capturePoint': lines.push('A capture point: the squad holds it to take the data.'); break;
     case 'radar': lines.push('A radar array the mission\'s script uses.'); break;
     case 'pathNode': lines.push('A patrol node: the pods that list it walk their route through it.'); break;
-    case 'noSpawn': lines.push('A no-spawn volume: the game places no unit inside it.'); break;
+    case 'noSpawn': {
+      const v = k => record.values?.[k]?.value !== false, who = [v('aliens') && 'aliens', v('civilians') && 'civilians'].filter(Boolean);
+      lines.push(who.length ? `A no-spawn volume: when the game looks for a free spot for ${who.join(' or ')} (a pod's aliens deploying round its place, a unit dropped in${v('civilians') ? ', a civilian' : ''}), it passes over the tiles inside it.`
+        : 'A no-spawn volume that keeps neither aliens nor civilians out: the game places units inside it as anywhere else.');
+      if (active(rules, 'pods')) lines.push('Long War\'s own pod and Meld places don\'t look at it.');
+      break;
+    }
     default: break;
   }
   if (unknown) lines.push('Whether the install\'s Long War mutator for it is on could not be read.');

@@ -69,7 +69,9 @@ import piece_flags
 #     `spawns` (pods, Meld points, drop-in and other points, starts, path nodes, no-spawn volumes, each with its values
 #     and where each comes from, its links and uses); an LWR patch's `spawns`; a mission object's values, links, uses
 #     and listed, and the bomb's PointInSpace helper in its group (F-124); `donors` (the bomb donor's objects)
-EXPORT_VERSION = 33   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 34: a no-spawn volume's values (`aliens`, `civilians`: AlienNoSpawnZone, CivilianNoSpawnZone), for the Spawns view's
+#     volume edits
+EXPORT_VERSION = 34   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION

@@ -105,8 +105,9 @@
           <label class="check" title="Where scripted actions and wave systems drop aliens in (red arrows)"><input id="spawnShow-dropIns" type="checkbox" checked> Drop-in points</label>
           <label class="check" title="The soldiers' points and starts of the mission's streams (the map's own landing is its zone)"><input id="spawnShow-soldiers" type="checkbox" checked> Soldier and start points</label>
           <label class="check" title="The bomb and its power nodes, capture points, radar arrays and things to use (gems)"><input id="spawnShow-objectives" type="checkbox" checked> Objectives</label>
-          <label class="check" title="Covert operatives', VIPs', loot and multiplayer points, and no-spawn volumes"><input id="spawnShow-other" type="checkbox" checked> Other points and volumes</label>
+          <label class="check" title="Covert operatives', VIPs' and loot points, and no-spawn volumes (grey boxes: the game places no alien or civilian inside one). Multiplayer teams' starts are not shown: a single-player battle never uses them"><input id="spawnShow-other" type="checkbox" checked> Other points and no-spawn volumes</label>
           <label class="check" title="The nodes pods walk their patrols through (small diamonds)"><input id="spawnShow-paths" type="checkbox"> Patrol nodes</label>
+          <label class="check" title="The map's points the project deletes (Clear map deletes the map's pods, Meld points and drop-in points), drawn pale: pick one to restore it"><input id="spawnShow-deleted" type="checkbox"> Deleted points</label>
           <hr>
           <label class="check" title="Every scripted drop-in of every mission of the variant lands at its own point: the Build adds the variant to Long War's ExcludeMaps list (DefaultRandomSpawns.ini), so its drop-in mutator moves none of them near the squad, nor gives them its overwatch and reveal. Wave systems' drop-ins are never moved by Long War. Saved with the project; undo takes it back."><input id="dropInsPlaced" type="checkbox"> Scripted drop-ins land where placed (Long War)</label>
           <div id="dropInsNote" class="flytext" hidden></div>

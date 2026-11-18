@@ -20,9 +20,10 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { FAMILIES, KINDS, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
-         copyTemplateWhy, editCopy, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnEditable, SPAWN_MARKER_SIZE,
-         spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf } from './spawns_view.js';
+import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
+         copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
+         recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
+         volumePlace } from './spawns_view.js';
 import { consumerWords, fromWords, useLines } from './spawn_rules.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { SWAP, drawable, leftOut, makeLikeness, viewHeight } from './effects_preview.js';
@@ -3695,14 +3696,18 @@ function spawnAddEntries() {
   for (const kind of SPAWN_COPY_KINDS) {
     const template = addTemplate(data.spawns, kind);
     if (!template) continue;
-    const name = KINDS[kind].label, of = short(template.actor);
-    out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points', pkg: `a copy of ${of}`,
-               detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : 'Placed on a tile, with its values',
+    const name = KINDS[kind].label, of = short(template.actor), volume = kind === 'noSpawn';
+    out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points',
+               pkg: template.fresh ? 'made from one of the map\'s volumes' : `a copy of ${of}`,
+               detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : volume ? 'Placed over the tiles round the click; keeps aliens and civilians out'
+                 : 'Placed on a tile, with its values',
                count: (data.spawns ?? []).filter(o => o.kind === kind && !o.landing).length, builds: true,
-               title: `A new ${name.toLowerCase()}: click the tile it is to stand on. It is a copy of ${of}, with its values and the way it faces; `
+               title: volume ? `A new no-spawn volume: click the tile it is to stand over. ${template.fresh ? 'It is 3 by 3 tiles and four levels high, made from one of the map\'s plain volumes'
+                 : `It is a copy of ${of}, its size and values`}; the game places no alien or civilian inside it. Move, size, copy, delete and set what it keeps out in the Spawns view`
+                 : `A new ${name.toLowerCase()}: click the tile it is to stand on. It is a copy of ${of}, with its values and the way it faces; `
                  + 'move, turn, copy, delete and give it values in the Spawns view',
                sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
-               text: `${name} spawn point ${kind === 'pod' ? 'pod aliens enemies' : 'meld canister'}`.toLowerCase() });
+               text: `${name} spawn point ${kind === 'pod' ? 'pod aliens enemies' : volume ? 'no spawn volume block keep out aliens civilians' : 'meld canister'}`.toLowerCase() });
   }
   return out;
 }
@@ -4397,9 +4402,11 @@ async function applyState(state, progress = null) {
   }
   const objs = [], lights = [], effects = [];
   for (const entity of state.added) {
-    if (['pod', 'meld'].includes(entity.kind)) {
-      // a copy of one of the map's pods or Meld points (SP7); one the page doesn't take is carried unchanged
-      const from = entity.from, o = from?.level === 'base' && String(from.package).toLowerCase() === String(data.name).toLowerCase() ? baseSpawnOf(from.actor) : null;
+    if (SPAWN_COPY_KINDS.includes(entity.kind)) {
+      // a copy of one of the map's pods, Meld points or no-spawn volumes (SP7), or a new volume (no `from`); one the page
+      // doesn't take is carried unchanged
+      const from = entity.from, o = from?.level === 'base' && String(from.package).toLowerCase() === String(data.name).toLowerCase() ? baseSpawnOf(from.actor)
+        : from === undefined && entity.kind === 'noSpawn' ? NEW_VOLUME : null;
       const entry = o ? copyEntryOf(o, entity) : null;
       if (entry) {
         streamMoves.set(spawnKey('copy', entry.actor), entry);
@@ -6345,13 +6352,35 @@ function clearPlan(keepOutside = null) {
   return { originals, added, originalLights, addedLights, pieces: actors.size + addedActors.size, lights: lightCount,
            landing: landing.size, script: [...script], kept, boxes: liveVolumes(), outside: outside.size, lightsOutside };
 }
+// What a clear does to the spawn points (the user, 18 November 2026: "clear should also clear all of these"): the map's
+// pods, Meld points and drop-in points are deleted (their moves and values go), but for one something names (the Build
+// would keep it and warn: it stays, with its edit); the project's copies of them go. No-spawn volumes (the map's and
+// the project's) and the mission streams' objects stay as they are. { after (the edits after the clear), deleted,
+// named (the records), copies (how many go), volumes (how many stay) }.
+function clearedSpawns() {
+  const after = new Map(missionMoves), deleted = [], named = [];
+  if (!spawnsAvailable() || !spawnFamilyBuilds()) return { after, deleted, named, copies: 0, volumes: 0 };
+  let copies = 0, volumes = 0;
+  for (const [k, m] of missionMoves) {
+    if (m.stream !== 'copy') continue;
+    if (m.copy.kind === 'noSpawn') volumes++; else { after.delete(k); copies++; }
+  }
+  for (const o of data?.spawns ?? []) {
+    const k = spawnKey(null, o.actor);
+    if (o.landing || missionMoves.get(k)?.deleted || !spawnEditable(o)) continue;
+    if (o.kind === 'noSpawn') { volumes++; continue; }
+    if (spawnNamed(o)) { named.push(o); continue; }
+    after.set(k, deletedEntry(o)); deleted.push(o);
+  }
+  return { after, deleted, named, copies, volumes };
+}
 const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside') };
 const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside';
 clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
 // The window's counts and notes, at the grid's size now (a clear keeps it; the rail's Map grid changes it)
 function clearSize() {
   const v = [...data.tileGrid.dimensions], notes = [];
-  if (landingLines.kind === 'ew') notes.push('The map\'s alien pods and Meld points stay where the map has them, some over nothing once it is cleared: move them onto your floors in the Spawns view (Shift+U).');
+  if (landingLines.kind === 'ew') notes.push('Plain Enemy Within puts the aliens at the map\'s pods and Meld points, and the clear deletes them: place new ones on your floors with the Add panel\'s Spawn points.');
   $('clearMapWarn').hidden = !notes.length; $('clearMapWarn').textContent = notes.join(' ');
   clearWords(v);
   return v;
@@ -6370,9 +6399,12 @@ function clearWords(v) {
   const placeless = (data.lights ?? []).filter(l => l.layer === 'base');
   const sky = placeless.some(l => l.role === 'sky' || l.kind === 'sky'), sun = placeless.some(l => l.kind === 'directional');
   const scenery = clearDialog.keep.checked ? `, ${plural(plan.outside, 'piece')} and ${plural(plan.lightsOutside, 'light')} outside the play area` : '';
-  $('clearMapPlan').textContent = `Removes ${plural(plan.pieces, 'piece')} and ${plural(plan.lights, 'light')}. Keeps the landing's ${plural(plan.landing, 'piece')}, `
+  const sp = clearedSpawns(), points = sp.deleted.length + sp.copies;
+  $('clearMapPlan').textContent = `Removes ${plural(plan.pieces, 'piece')}, ${plural(plan.lights, 'light')}${points ? ` and ${plural(points, 'spawn point')} (pods, Meld points and drop-in points)` : ''}. `
+    + `Keeps the landing's ${plural(plan.landing, 'piece')}, `
     + `${kept ? `one landing zone (${zones.findIndex(z => z.id === kept.id) === 0 ? 'the first' : `zone ${zones.findIndex(z => z.id === kept.id) + 1}`}, the map's own landing${zones.length > 1 ? `; the other ${zones.length - 1} go` : ''})` : 'no landing zone'}`
-    + `${scenery}${sun ? ', the sun' : ''}${sky ? ' and the sky light' : ''}.`;
+    + `${scenery}${sp.volumes ? `, the ${plural(sp.volumes, 'no-spawn volume')}` : ''}${sun ? ', the sun' : ''}${sky ? ' and the sky light' : ''}.`
+    + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '');
   // the kinds a record alone gives the map, and the base map's missions that bring objects in their streams
   const brought = (data.missions ?? []).filter(m => (m.streams ?? []).some(s => data.streams?.[s]?.missionObjects?.length));
   const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': 'a bomb mission', Crash: 'a UFO mission (with a UFO placed)' };
@@ -6414,10 +6446,13 @@ function clearMap(size, keepOutside = false) {
   // a bomb (a record of the map's, or a kind the project adds), else an abduction; the Missions panel asks once the
   // clear is made
   const missionsBefore = projectMissions ? projectMissions.map(e => ({ ...e })) : null, missionsCleared = clearedMissions();
+  // (the map's pods, Meld points and drop-in points deleted, the project's copies of them gone: clearedSpawns)
+  const spawnsBefore = new Map(missionMoves), spawnsAfter = clearedSpawns().after;
   const started = performance.now();
   gizmo.record({
     redo: () => {
       removeRoots(plan.added); removeLightRoots(plan.addedLights);
+      setMissionMoves(new Map(spawnsAfter));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = true;
       areaBindings = new Map(); setGroups(new Map());
       cleared = true; clearKeepsOutside = keepOutside; mergedBuildings = null; setStage(next); clearedChanged();
@@ -6427,6 +6462,7 @@ function clearMap(size, keepOutside = false) {
     },
     undo: () => {
       addRoots(plan.added); addLightRoots(plan.addedLights);
+      setMissionMoves(new Map(spawnsBefore));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = false;
       areaBindings = new Map(bindingsBefore); setGroups(cloneGroups(groupsBefore));
       cleared = clearedBefore; clearKeepsOutside = keepsBefore; mergedBuildings = null; setStage(stageBefore); clearedChanged();
@@ -6630,7 +6666,7 @@ const spawnsShown = () => spawnsAvailable() && (spawnsOn || (normalSpawns && !vo
 // The base map's pods, Meld points and drop-in points the project edits (the editor spawns plan, SP6) are kept here
 // too, as `base|${actor}` -> {stream: null, actor, location, rotation, spawn}: where each stands and faces now and the
 // values it changes (spawns_view.js editSpawn), saved as overrides of `level: "base"`. Each moves alone, by whole tiles
-// and levels, turns by quarters in its panel, and takes its values there; the Build edits it in place.
+// and levels, a drop-in point turns by quarters in its panel, and each takes its values there; the Build edits it in place.
 let missionMoves = new Map(), missionDragView = null;
 const missionKey = (stream, actor) => spawnKey(stream, actor);
 const missionMoveOf = (stream, actor) => (missionDragView ?? missionMoves).get(missionKey(stream, actor));
@@ -6723,7 +6759,7 @@ function editBaseSpawn(actor, change, hint) {
 const stateKeyOf = moves => JSON.stringify([...moves.entries()]);
 // The edits with a copy's changed (spawns_view.js editCopy), and one undo step of it (SP7).
 function editedCopies(actor, change, from = missionMoves) {
-  const k = spawnKey('copy', actor), entry = from.get(k), o = entry ? baseSpawnOf(entry.copy.from) : null, next = new Map(from);
+  const k = spawnKey('copy', actor), entry = from.get(k), o = copyTemplateOf(entry), next = new Map(from);
   if (o) next.set(k, editCopy(o, entry, change));
   return next;
 }
@@ -6738,18 +6774,24 @@ function editSpawnCopy(actor, change, hint) {
 // east of it, picked (SP7). Returns the copy's key, or null where it can't be copied.
 function copySpawn(key) {
   const e = spawnEntry(key);
-  const o = e?.layer === 'copy' ? baseSpawnOf(e.record.copyOf) : e?.layer === 'base' ? e.record : null;
+  const o = e?.layer === 'copy' ? copyTemplateOf(missionMoves.get(key)) : e?.layer === 'base' ? e.record : null;
   if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
   const at = spawnAt(e), now = missionMoves.get(key);
-  const actor = `${o.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
-  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]],
+  const actor = copyName(o), k = spawnKey('copy', actor), box = o.kind === 'noSpawn' ? spawnBoxNow(e) : null;
+  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]], box: box && [box[0] + 96, box[1], box[2], box[3] + 96, box[4], box[5]],
                                rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
   const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
   setPickedSpawn(k);
-  flashHint(`Copied ${short(o.actor)} a tile east · drag its arrows to place it`);
+  flashHint(`Copied ${short(e.record.actor)} a tile east · drag its arrows to place it`);
   return k;
 }
+// a copy's template: the base record it copies, or NEW_VOLUME for a no-spawn volume made fresh (no `from`)
+const copyTemplateOf = m => (m?.stream !== 'copy' ? null : m.copy.from ? baseSpawnOf(m.copy.from) : m.copy.kind === 'noSpawn' ? NEW_VOLUME : null);
+// a new copy's name: its template's with a serial (a fresh volume's after the class)
+const copyName = o => `${o.actor ?? `TheWorld.PersistentLevel.${o.actorClass}`}_copy${++copySerial}`;
+// a no-spawn volume's box now (the drag's, the project's, else the map's): [x0, y0, z0, x1, y1, z1]
+const spawnBoxNow = e => missionMoveOf(e.stream, e.record.actor)?.box ?? recordBox(e.record);
 // A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
 // and the next click places a copy of the kind's template (spawns_view.js addTemplate) on the tile under it
 let spawnPlacing = null;
@@ -6761,12 +6803,16 @@ function startSpawnPlacing(kind) {
   if (spawnFilters[family] === false) {
     spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters(); refreshSpawnMarkers();
   }
+  // (the picked point goes, so its arrows are never under the click)
+  if (pickedSpawn) setPickedSpawn(null);
   spawnPlacing = kind; renderer.domElement.style.cursor = 'crosshair';
-  flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand on · Esc cancels`);
+  placeMissionGizmo();
+  flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand ${kind === 'noSpawn' ? 'over' : 'on'} · Esc cancels`);
 }
 function stopSpawnPlacing() {
   if (!spawnPlacing) return;
   spawnPlacing = null; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
+  placeMissionGizmo();
 }
 // One undo step: the copy placed where the click falls (on a piece, else on the ground grid's plane), on the tile under
 // it by whole tiles from its template, at the template's height above its own floor; then picked
@@ -6777,26 +6823,34 @@ function placeSpawn(clientX, clientY) {
   const hit = pick(clientX, clientY)?.point
     ?? rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundHeight()), new THREE.Vector3());
   if (!hit) return null;
-  const [tx, ty, tz] = template.location;
-  const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
-  const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
-  const actor = `${template.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
-  const entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
+  const actor = copyName(template), k = spawnKey('copy', actor);
+  let entry;
+  if (kind === 'noSpawn') {
+    // a volume: its box over whole tiles round the click, its bottom on the level of the surface under it
+    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [96, 96, 64] };
+    const box = volumePlace(template, [hit.x, hit.z, hit.y], groundAt(hit.x, hit.z, hit.y + 64), grid);
+    entry = copyEntry(template, { id: uuid(), actor, box, spawn: {} });
+  } else {
+    const [tx, ty, tz] = template.location;
+    const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
+    const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
+    entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
+  }
   const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
   setPickedSpawn(k);
-  flashHint(`Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it, [ and ] turn it`);
+  flashHint(kind === 'noSpawn' ? `Added a no-spawn volume${template.fresh ? '' : `, a copy of ${short(template.actor)}`} · its arrows move it, its white handles stretch a side`
+    : `Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it`);
   return k;
 }
-// One undo step: a base pod, Meld point or drop-in point deleted (its moves and values go with it), or a copy taken
-// away (SP7).
+// One undo step: a base pod, Meld point, drop-in point or no-spawn volume deleted (its moves and values go with it), or
+// a copy taken away (SP7).
 function deleteSpawn(key) {
   const e = spawnEntry(key);
   if (!e || !['base', 'copy'].includes(e.layer) || (e.layer === 'base' && (!spawnEditable(e.record) || missionMoves.get(key)?.deleted))) return false;
   const before = new Map(missionMoves), after = new Map(missionMoves);
   if (e.layer === 'copy') after.delete(key);
-  else after.set(key, { stream: null, actor: e.record.actor, location: [...e.record.location],
-                        rotation: (e.record.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {}, deleted: true });
+  else after.set(key, deletedEntry(e.record));
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
   flashHint(e.layer === 'copy' ? 'Copy taken away' : spawnNamed(e.record) ? 'Deleted · something names it, so the Build keeps it and warns' : 'Deleted · the Build takes it out of the level\'s list');
   return true;
@@ -6821,10 +6875,18 @@ function spawnDonor() {
 const spawnEntry = key => (key ? spawnEntriesNow.find(e => e.key === key) ?? null : null);
 // where a marker stands now: where the project's move puts it (a stream's or donor's object, a base spawn point), else
 // where its map has it
-const spawnAt = e => missionAt(e.stream, e.record);
-// which way a base spawn point faces now (its yaw), or null for one that isn't edited here or saves no rotation
+// (a no-spawn volume's: its box's middle)
+const spawnAt = e => (e.record.kind === 'noSpawn' && (e.record.box || missionMoveOf(e.stream, e.record.actor)?.box)
+  ? boxMiddle(spawnBoxNow(e)) : missionAt(e.stream, e.record));
+// the spawn points the panel turns: a drop-in point's facing picks the side its units drop from (a unit dropped from a
+// height, as a wave's are from 768 up, starts a tile behind it and lands on it facing its way:
+// XGAISpawnMethod_DropIn.OnActivate_UpdateSpawnPoint, XComWaveSystem's DropHeight); a pod's only says where on a ring
+// round it its other aliens start (XComAlienPod.GetDistributedLocationAround), which aims nothing, so the panel has no
+// turn for it, nor for any other point (the user, 18 November 2026: only where it changes the game)
+const TURNED_KINDS = ['dropIn'];
+// which way a base drop-in point faces now (its yaw), or null for one that isn't edited here or saves no rotation
 function spawnFacing(e) {
-  if (!['base', 'copy'].includes(e.layer) || !['pod', 'dropIn'].includes(e.record.kind)) return null;
+  if (!['base', 'copy'].includes(e.layer) || !TURNED_KINDS.includes(e.record.kind)) return null;
   const m = missionMoveOf(e.stream, e.record.actor);
   if (m?.deleted) return null;
   return m ? m.rotation[1] : e.record.savesRotation || spawnMovable(e) ? Math.round(e.record.rotation?.[1] ?? 0) : null;
@@ -6834,7 +6896,7 @@ function spawnFacing(e) {
 function copyEntries() {
   const out = [];
   for (const m of missionMoves.values()) {
-    const o = m.stream === 'copy' ? baseSpawnOf(m.copy.from) : null;
+    const o = copyTemplateOf(m);
     if (o) out.push({ key: spawnKey('copy', m.actor), layer: 'copy', stream: 'copy', record: copyMarkerRecord(o, m), readOnly: false });
   }
   return out;
@@ -6844,7 +6906,8 @@ function refreshSpawnMarkers() {
   // (a halo's geometry is three.js's one for every sprite: only its material is the marker's own)
   for (const child of [...spawnLayer.children]) { child.traverse(o => (o.isSprite ? o.material.dispose() : o.geometry?.dispose())); spawnLayer.remove(child); }
   spawnEntriesNow = spawnsAvailable() ? [...spawnRecords(data, streamSet, spawnDonor()), ...copyEntries()] : [];
-  const shown = shownEntries(spawnEntriesNow, spawnFilters);
+  // (a deleted base point shows only with the flyout's Deleted points switch on)
+  const shown = shownEntries(spawnEntriesNow, spawnFilters, spawnDeleted);
   if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) pickedSpawn = null;      // another mission's, or a family hidden
   spawnLayer.visible = spawnsShown();
   for (const e of shown) {
@@ -6856,6 +6919,14 @@ function refreshSpawnMarkers() {
     if (yaw !== null) addFacingPointer(THREE, marker, yaw);
     paintSpawnMarker(THREE, marker, e.key === pickedSpawn);
     spawnLayer.add(marker);
+    // a no-spawn volume's box round its marker (not picked: the marker is)
+    const b = e.record.kind === 'noSpawn' ? spawnBoxNow(e) : null;
+    if (b) {
+      const box = makeSpawnBox(THREE, 'noSpawn', gameToView(boxMiddle(b)), [b[3] - b[0], b[5] - b[2], b[4] - b[1]],
+                               { pale: e.readOnly || spawnDeleted(e), picked: e.key === pickedSpawn });
+      box.userData.spawnBox = e.key;
+      spawnLayer.add(box);
+    }
   }
   spawnPanel();
 }
@@ -6883,13 +6954,16 @@ function spawnPanel() {
   const baseEdit = e.layer === 'base' || e.layer === 'copy' ? missionMoves.get(e.key) ?? null : null;
   const o = e.layer === 'base' && baseEdit && Object.keys(baseEdit.spawn).length ? { ...e.record, values: { ...e.record.values,
     ...Object.fromEntries(Object.entries(baseEdit.spawn).map(([k, v]) => [k, { value: v, from: 'project' }])) } } : e.record;
-  $('spawnTitle').textContent = e.layer === 'copy' ? `${KINDS[o.kind]?.label ?? o.kind}: a copy of ${short(o.copyOf)}` : titleOf(e, spawnEntriesNow, label);
+  const volume = o.kind === 'noSpawn', fresh = e.layer === 'copy' && !o.copyOf;
+  $('spawnTitle').textContent = e.layer === 'copy' ? `${KINDS[o.kind]?.label ?? o.kind}: ${fresh ? 'a new one' : `a copy of ${short(o.copyOf)}`}` : titleOf(e, spawnEntriesNow, label);
   for (const l of identityLines({ ...e, record: o }, spawnEntriesNow, fromWords)) line(l.head, l.text);
+  if (volume && spawnBoxNow(e)) { const b = spawnBoxNow(e); line('Box', `${boxWords(b)}, from ${Math.round(b[2])} to ${Math.round(b[5])} up.`); }
   const movable = e.layer === 'stream' || e.layer === 'donor';
   const moved = movable ? missionMoves.get(missionKey(e.stream, o.actor)) : null;
   const n = movable ? missionMembers(e.stream, o).length : 1;
   const { usedBy, uses } = useLines(o);
   if (e.layer === 'copy') line('Used by', `nothing: the copy is the project's own${o.kind === 'pod' ? ', with a pod index no pod of the map or its streams has and no pod event names' : ''}.`);
+  else if (volume && !usedBy.length) line('Used by', 'nothing names it: the game finds its no-spawn volumes itself.');
   else line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
     : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
   if (uses.length) line('Uses', `${uses.join('; ')}.`);
@@ -6902,15 +6976,18 @@ function spawnPanel() {
     line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
   }
   if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
-  else if (e.layer === 'copy') {
-    line('', `A copy of ${short(o.copyOf)}: the Build clones it with its components${o.kind === 'pod' ? ' and gives it a pod index of its own' : ''}, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'its template\'s values'}.`);
+  else if (e.layer === 'copy' && fresh) {
+    line('', `A new no-spawn volume: the Build makes it from one of the map's plain volumes, made a no-spawn volume and stretched over this box, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'the class\'s values (it keeps aliens and civilians out)'}.`);
+    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
+  } else if (e.layer === 'copy') {
+    line('', `A copy of ${short(o.copyOf)}: the Build clones it with its components${o.kind === 'pod' ? ' and gives it a pod index of its own' : volume ? ', stretched over this box' : ''}, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'its template\'s values'}.`);
     if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
   } else if (e.layer === 'base' && baseEdit?.deleted) {
     line('', spawnNamed(e.record) ? 'Deleted, but something names it (Used by above): the Build keeps it, and warns, so what names it isn\'t left pointing at nothing.'
       : 'Deleted: the Build takes it out of the level\'s list, so the game never has it.');
   } else if (e.layer === 'base' && baseEdit) {
     const words = spawnMoveWords(e.record, baseEdit);
-    line('', `${words ? `${words} ` : ''}The Build ${words ? 'moves it and sets its values' : 'sets its values'} in place: it keeps its name, so what uses it still does${o.links?.length && words ? `; what it links to (${o.links.map(k => k.property).join(', ')}) stays where the map has it` : ''}.`);
+    line('', `${words ? `${words} ` : ''}The Build ${words ? (volume ? 'moves and stretches it and sets its values' : 'moves it and sets its values') : 'sets its values'} in place: it keeps its name, so what uses it still does${o.links?.length && words ? `; what it links to (${o.links.map(k => k.property).join(', ')}) stays where the map has it` : ''}.`);
     if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
   } else if (e.layer === 'base') line('', spawnMovable(e) ? 'It stands where the map has it.' : baseEditWords);
   else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
@@ -6926,21 +7003,24 @@ function spawnPanel() {
   }
   if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
   if (['base', 'copy'].includes(e.layer) && projectsAvailable() && spawnMovable(e)) {
-    const below = [['pod', 'dropIn'].includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && 'set its values'].filter(Boolean);
-    line('', `Drag the arrows to move it by whole tiles and levels${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`);
+    const below = [TURNED_KINDS.includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && (volume ? 'set what it keeps out' : 'set its values')].filter(Boolean);
+    line('', `Drag the arrows to move it by whole tiles and levels${volume ? ', its white handles to stretch a side to the tile lines and levels (Alt: steps of 8)' : ''}${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`);
     spawnEditControls(e, baseEdit);
   } else if (spawnDeleted(e) && projectsAvailable()) spawnEditControls(e, baseEdit);
 }
-// A base pod's, Meld point's or drop-in point's controls (SP6), or a copy's (SP7): quarter turns for a pod or a
-// drop-in point, a pod's commander, secondary and use ticks, a Meld point's difficulty, turn it is destroyed on and
-// spawn group; back to the map's; Copy (a plain pod or any Meld point: spawns_view.js copyTemplateWhy) and Delete. A
-// deleted point has Restore alone. Each change is one undo step.
+// A base pod's, Meld point's, drop-in point's or no-spawn volume's controls (SP6), or a copy's (SP7): quarter turns
+// for a drop-in point, a pod's commander, secondary and use ticks, a Meld point's difficulty, turn it is
+// destroyed on and spawn group, a volume's aliens and civilians ticks; back to the map's; Copy (a plain pod, any Meld
+// point or volume: spawns_view.js copyTemplateWhy) and Delete. A deleted point has Restore alone. Each change is one
+// undo step.
 function spawnEditControls(e, entry) {
   const box = $('spawnEdit'), copy = e.layer === 'copy';
-  const base = copy ? baseSpawnOf(e.record.copyOf) : e.record, actor = e.record.actor;
+  const base = copy ? copyTemplateOf(entry) : e.record, actor = e.record.actor;
+  if (!base) return;
   box.replaceChildren();
   box.hidden = false;
-  const row = text(box, 'div', '', 'row');
+  // (a row with the turns and As the map has it, or Restore, where it has any; a row with Copy and Delete)
+  const row = text(box, 'div', '', 'row turnrow');
   const button = (label, title, act) => { const b = text(row, 'button', label); b.type = 'button'; b.title = title; b.onclick = act; return b; };
   if (entry?.deleted) {
     button('Restore', 'Back as the map has it', () => resetBaseSpawn(actor));
@@ -6949,18 +7029,20 @@ function spawnEditControls(e, entry) {
   const edit = (change, hint) => (copy ? editSpawnCopy(actor, change, hint) : editBaseSpawn(actor, change, hint));
   const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
   const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
-  if (['pod', 'dropIn'].includes(base.kind)) {
+  if (TURNED_KINDS.includes(base.kind)) {
     for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left ([)'], ['Turn right', 16384, 'A quarter turn to the right (])']]) {
-      button(label, `${title}: ${base.kind === 'pod' ? 'the way its aliens face when they deploy' : 'the way its units face when they arrive'}`,
-             () => edit({ turn }, `Turned the ${base.kind === 'pod' ? 'pod' : 'drop-in point'} a quarter ${turn > 0 ? 'right' : 'left'}`));
+      button(label, `${title}: its units drop in from a tile behind it (high up, for a wave's) and land facing its way`, () => edit({ turn }, `Turned the drop-in point a quarter ${turn > 0 ? 'right' : 'left'}`));
     }
   }
-  if (entry && !copy) button('As the map has it', 'Back where the map has it, facing its way, with its own values', () => resetBaseSpawn(actor));
-  const row2 = text(box, 'div', '', 'row');
+  if (entry && !copy) button('As the map has it', base.kind === 'noSpawn' ? 'Back where the map has it, its size and its own values'
+    : 'Back where the map has it, facing its way, with its own values', () => resetBaseSpawn(actor));
+  if (!row.childElementCount) row.remove();
+  const row2 = text(box, 'div', '', 'row copyrow');
   const why = copyTemplateWhy(base);
   const c = text(row2, 'button', 'Copy');
   c.type = 'button'; c.disabled = Boolean(why);
-  c.title = why ? `Not copied: ${why}` : 'A copy a tile east, with its values and turn: the Build clones it with its components (Ctrl+D)';
+  c.title = why ? `Not copied: ${why}` : base.kind === 'noSpawn' ? 'A copy a tile east, its size and values (Ctrl+D)'
+    : 'A copy a tile east, with its values and turn: the Build clones it with its components (Ctrl+D)';
   c.onclick = () => copySpawn(e.key);
   const d = text(row2, 'button', copy ? 'Delete copy' : 'Delete');
   d.type = 'button';
@@ -6975,6 +7057,18 @@ function spawnEditControls(e, entry) {
       const tick = document.createElement('input');
       tick.type = 'checkbox'; tick.checked = now(key) === true;
       tick.onchange = () => set(key, tick.checked, `${label.trim()} ${tick.checked ? 'on' : 'off'}`);
+      wrap.append(tick, label);
+      wrap.title = title;
+    }
+  } else if (base.kind === 'noSpawn') {
+    // (the game's class keeps both out: an older export without its values reads as that)
+    for (const [key, label, title] of [
+      ['aliens', ' Keeps aliens out', 'The game places no alien inside it when it looks for a free spot: a pod deploying its aliens, a unit dropped in (AlienNoSpawnZone)'],
+      ['civilians', ' Keeps civilians out', 'The game places no civilian inside it (CivilianNoSpawnZone)']]) {
+      const wrap = text(box, 'label', '', `check${entry && key in entry.spawn ? ' edited' : ''}`);
+      const tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.checked = now(key) !== false;
+      tick.onchange = () => set(key, tick.checked, `${label.trim()}: ${tick.checked ? 'on' : 'off'}`);
       wrap.append(tick, label);
       wrap.title = title;
     }
@@ -7042,7 +7136,7 @@ missionGizmo.attach(missionProxy); missionGizmo.enabled = false; missionGizmo.se
 const missionGizmoHelper = missionGizmo.getHelper(); missionGizmoHelper.visible = false; world.add(missionGizmoHelper);
 let missionDrag = null;
 const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
-  && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
+  && !spawnPlacing && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
 function placeMissionGizmo() {
   const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null;
   missionGizmo.enabled = missionGizmoHelper.visible = Boolean(e);
@@ -7086,6 +7180,7 @@ function pickSpawnMarker(clientX, clientY) {
   const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
   let best = null, bestD = 18;          // (about the halo's size on screen)
   for (const marker of spawnLayer.children) {
+    if (!marker.userData.spawn) continue;       // (a volume's box: its marker is picked)
     marker.updateWorldMatrix(true, false);
     p.setFromMatrixPosition(marker.matrixWorld).project(camera);
     if (p.z > 1 || p.z < -1) continue;
@@ -7137,7 +7232,10 @@ function showSpawn(actor, stream = null) {
 }
 function scaleSpawnMarkers() {
   if (!spawnLayer.visible) return;
-  for (const marker of spawnLayer.children) { scaleMarker(marker, camera, marker.position); marker.scale.multiplyScalar(SPAWN_MARKER_SIZE); }
+  for (const marker of spawnLayer.children) {
+    if (!marker.userData.spawn) continue;       // (a volume's box keeps its size in the world)
+    scaleMarker(marker, camera, marker.position); marker.scale.multiplyScalar(SPAWN_MARKER_SIZE);
+  }
 }
 // The Spawns view on or off (Shift+U, the rail's button): the other views step aside, the selection goes, and the
 // landing zones show (a click on one describes it)
@@ -8727,8 +8825,21 @@ const volumeStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribu
                                            new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
 volumeStems.renderOrder = 8; volumeStems.raycast = () => {}; volumeStems.frustumCulled = false; volumeHandleLayer.add(volumeStems);
 const handleVolume = () => { const r = volumeRoots.get(selected); return volumesOn && r && !r.userData.deleted && !placing && pickedVolumes().length === 1 ? r : null; };
-// the box the six handles are on: the selected building's box, or in the normal view the select box
-const handleBox = () => { const r = handleVolume(); return r ? volumeBox(r) : pickBox && !volumesOn && !placing && pickDrag?.kind !== 'new' ? pickBox : null; };
+// the picked no-spawn volume whose handles show: one the project moves (spawnMovable), its markers shown, nothing placed
+const spawnVolumeHandle = () => {
+  const e = spawnEntry(pickedSpawn);
+  return e?.record.kind === 'noSpawn' && spawnMovable(e) && spawnsShown() && projectsAvailable() && !placing && !spawnPlacing && !volumesOn
+    && !lightsOn && !zonesOn && !effectsOn && !missionGizmo.dragging && spawnBoxNow(e) ? e : null;
+};
+// the box the six handles are on: the selected building's box, a picked no-spawn volume's, or in the normal view the
+// select box
+const handleBox = () => {
+  const r = handleVolume();
+  if (r) return volumeBox(r);
+  const e = spawnVolumeHandle();
+  if (e) return spawnBoxNow(e);
+  return pickBox && !volumesOn && !placing && pickDrag?.kind !== 'new' ? pickBox : null;
+};
 // game point -> the view's
 const viewPoint = ([x, y, z]) => new THREE.Vector3(x, z, y);
 function facePoint(box, key) {
@@ -8745,8 +8856,8 @@ function handlePoint(box, key) {
   return p;
 }
 function updateVolumeHandles() {
-  const box = volumeDrag?.kind === 'face' ? volumeBox(volumeDrag.root) : handleBox();
-  volumeHandleLayer.visible = Boolean(box) && !gizmo.controls.dragging;
+  const box = volumeDrag?.kind === 'face' ? volumeBox(volumeDrag.root) : volumeDrag?.kind === 'spawn' ? volumeDrag.box : handleBox();
+  volumeHandleLayer.visible = Boolean(box) && !gizmo.controls.dragging && !missionGizmo.dragging;
   pickBoxParts.move.visible = volumeHandleLayer.visible && Boolean(pickBox) && !volumesOn;
   if (!volumeHandleLayer.visible) { if (volumeHover) hoverVolumeHandle(null); return; }
   const lit = volumeDrag?.key ?? pickDrag?.key ?? (pickDrag?.kind === 'move' ? 'move' : volumeHover), stems = volumeStems.geometry.attributes.position;
@@ -8777,7 +8888,8 @@ function hoverVolumeHandle(key) {
   volumeHover = key;
   renderer.domElement.style.cursor = key ? 'grab' : volumeTool || pickTool ? 'crosshair' : '';
   renderer.domElement.title = !key ? '' : key === 'move' ? 'Drag to move the box over the ground'
-    : volumesOn ? `${FACE_WORDS[key]}: drag to stretch the box (to tile lines and levels; Alt for steps of 8)` : `${FACE_WORDS[key]}: drag to stretch the box`;
+    : volumesOn ? `${FACE_WORDS[key]}: drag to stretch the box (to tile lines and levels; Alt for steps of 8)`
+      : spawnVolumeHandle() ? `${FACE_WORDS[key]}: drag to stretch the no-spawn volume (to tile lines and levels; Alt for steps of 8)` : `${FACE_WORDS[key]}: drag to stretch the box`;
 }
 // Where the pointer's ray comes nearest a line through `origin` along game axis `axis`: the coordinate on that axis.
 function alongAxis(clientX, clientY, origin, axis) {
@@ -8861,6 +8973,17 @@ function volumeHint(message) {
 const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [96, 96, 64]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
 // ---- the pointer in the view while it is on: a face handle stretches, the New box tool draws a footprint
 function startVolumeDrag(e) {
+  // a picked no-spawn volume's face handle (the Spawns view, or the Normal button's spawn switch): stretches its box
+  const sv = !volumesOn && e.button === 0 && !volumeDrag && !gizmo.controls.dragging ? spawnVolumeHandle() : null, sk = sv && volumeHandleNear(e.clientX, e.clientY);
+  if (sk) {
+    const before = spawnBoxNow(sv), [, axis] = FACES.find(f => f[0] === sk);
+    volumeDrag = { kind: 'spawn', key: sk, entry: sv.key, stream: sv.stream, actor: sv.record.actor, before, box: before, pointerId: e.pointerId,
+                   from: alongAxis(e.clientX, e.clientY, facePoint(before, sk), axis) };
+    showPop(null);
+    renderer.domElement.setPointerCapture(e.pointerId);
+    renderer.domElement.style.cursor = 'grabbing';
+    return true;
+  }
   if (!volumesOn || placing || e.button !== 0 || volumeDrag || gizmo.controls.dragging) return false;
   const key = volumeHandleNear(e.clientX, e.clientY);
   if (key) {
@@ -8894,6 +9017,23 @@ const tileBox = (grid, a, b, z0) => [grid.origin[0] + Math.min(a[0], b[0]) * gri
                                     grid.unbounded ? z0 + STOREY_HEIGHT : Math.min(z0 + STOREY_HEIGHT, Math.max(z0 + grid.size[2], grid.origin[2] + grid.dimensions[2] * grid.size[2]))];
 function moveVolumeDrag(e) {
   const d = volumeDrag;
+  if (d.kind === 'spawn') {
+    // a no-spawn volume's side to the tile lines and levels (Alt: steps of 8), at least a quarter tile from the other;
+    // drawn live (missionDragView), one undo step at the release
+    const [, axis, side] = FACES.find(f => f[0] === d.key);
+    const at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
+    if (at == null || d.from == null) return;
+    const least = axis === 2 ? 16 : 24, box = [...d.before];
+    let value = snapTo((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from, axis, e.altKey);
+    if (side < 0) { value = Math.min(value, d.before[axis + 3] - least); box[axis] = value; }
+    else { value = Math.max(value, d.before[axis] + least); box[axis + 3] = value; }
+    if (box.every((v, k) => v === d.box[k])) return;
+    d.box = box;
+    missionDragView = d.stream === 'copy' ? editedCopies(d.actor, { box }) : editedSpawns(d.actor, { box });
+    refreshSpawnMarkers();
+    volumeHint(`${FACE_WORDS[d.key]} at ${Math.round(value)}: ${boxWords(box)}`);
+    return;
+  }
   if (d.kind === 'face') {
     const [, axis, side] = FACES.find(f => f[0] === d.key);
     const at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
@@ -8922,6 +9062,14 @@ function endVolumeDrag(keep) {
   volumeDrag = null;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
   renderer.domElement.style.cursor = volumeTool ? 'crosshair' : '';
+  if (d.kind === 'spawn') {
+    missionDragView = null;
+    const changed = d.box.some((v, k) => Math.abs(v - d.before[k]) > 1e-6), hint = `No-spawn volume ${boxWords(d.box)}`;
+    if (!(keep && changed && (d.stream === 'copy' ? editSpawnCopy(d.actor, { box: d.box }, hint) : editBaseSpawn(d.actor, { box: d.box }, hint)))) {
+      refreshSpawnMarkers(); restingHint();
+    }
+    return true;
+  }
   if (d.kind === 'face') {
     const after = volumeBox(d.root);
     setVolumeBox(d.root, d.before);
@@ -10040,7 +10188,12 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     projectSpawnRules: () => projectSpawnRules, setSpawnRule,
     spawns: () => { const project = projector(), shown = new Set(spawnLayer.children.map(m => m.userData.spawn));
       return spawnEntriesNow.map(e => ({ key: e.key, layer: e.layer, stream: e.stream, kind: e.record.kind, role: e.record.role ?? null,
-        group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))) })); },
+        group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))),
+        deleted: spawnDeleted(e), box: e.record.kind === 'noSpawn' ? spawnBoxNow(e) : null })); },
+    // a no-spawn volume's face handles (the Buildings view's six): where each is on screen, null when none show
+    spawnVolumeHandles: () => { const e = spawnVolumeHandle(), b = e && spawnBoxNow(e), project = projector();
+      return b ? Object.fromEntries(FACES.map(([key]) => [key, project(viewPoint(handlePoint(b, key)))])) : null; },
+    spawnEdits: () => [...missionMoves.values()].map(m => structuredClone(m)),
     spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
     setSpawnFilter: (family, on) => { spawnFilters = { ...spawnFilters, [family]: on }; syncSpawnFilters(); refreshSpawnMarkers(); },
     // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
@@ -10187,8 +10340,8 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (volumeDrag) { if (e.pointerId === volumeDrag.pointerId) moveVolumeDrag(e); e.stopImmediatePropagation(); return; }
   if (coverDrag) { if (e.pointerId === coverDrag.pointerId) moveCoverDrag(e); e.stopImmediatePropagation(); return; }
   if (pickDrag) { if (e.pointerId === pickDrag.pointerId) movePickDrag(e); e.stopImmediatePropagation(); return; }
-  if ((volumesOn || pickBox) && !gizmo.controls.dragging && e.buttons === 0)
-    hoverVolumeHandle(volumeHandleNear(e.clientX, e.clientY) ?? (pickMoveNear(e.clientX, e.clientY) ? 'move' : null));
+  if ((volumesOn || pickBox || spawnVolumeHandle()) && !gizmo.controls.dragging && e.buttons === 0)
+    hoverVolumeHandle(volumeHandleNear(e.clientX, e.clientY) ?? (pickBox && pickMoveNear(e.clientX, e.clientY) ? 'move' : null));
   else if (!gizmo.controls.dragging && e.buttons === 0) hoverCoverHandle(coverHandleNear(e.clientX, e.clientY));
 }, { capture: true });
 renderer.domElement.addEventListener('pointerup', e => {
@@ -10626,13 +10779,14 @@ document.addEventListener('keydown', e => {
   // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go
   if ((pickedSpawn || spawnZonePick) && !selected && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { setPickedSpawn(null); e.preventDefault(); return; }
   // a picked base pod, Meld point or drop-in point, or a copy (SP6, SP7), as a landing zone: Delete, Ctrl+D copies,
-  // [ and ] turn a pod or a drop-in point a quarter
+  // [ and ] turn a drop-in point a quarter
   {
     const se = pickedSpawn && !selected && !e.altKey && !placing && !gizmo.busy() ? spawnEntry(pickedSpawn) : null;
     if (se && ['base', 'copy'].includes(se.layer) && projectsAvailable() && (spawnMovable(se) || spawnDeleted(se))) {
       if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteSpawn(pickedSpawn); e.preventDefault(); return; }
       if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
-      if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && ['pod', 'dropIn'].includes(se.record.kind) && spawnMovable(se)) {
+      // (a drop-in point only: a pod's facing aims nothing, the user, 18 November 2026)
+      if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && TURNED_KINDS.includes(se.record.kind) && spawnMovable(se)) {
         const turn = key === '[' ? -16384 : 16384, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
         if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
         e.preventDefault(); return;

@@ -8,6 +8,76 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Clear map deletes the map's spawn points; no-spawn volumes are edited and added; multiplayer starts hidden
+
+The user, on a cleared Bar: the map's pods, Meld points and grey points stayed. Asked what the grey points and the
+no-spawn volumes are: "If no spawn points matter then leave them in, but make them editable and allow them to be
+added via the add panel".
+
+- **Clear map** ([app.js](tools/viewer/web/app.js) `clearedSpawns`, `clearMap`): deletes the map's pods, Meld points
+  and drop-in points in the clear's one undo step, but one something names (the Build would keep it and warn: it
+  stays, with its edit, and the window names it), and takes away the project's copies of them. No-spawn volumes and
+  the mission streams' objects stay. The window counts the spawn points it removes and the volumes it keeps; its
+  plain Enemy Within note now says to place pods with the Add panel. A pod or Meld point copied from a deleted one
+  builds: [native_spawns.py](tools/bake/native_spawns.py) no longer refuses a copy whose template the same edit
+  deletes (the template stays in the package, off the level's list).
+- **Deleted points hidden** ([spawns_view.js](tools/viewer/web/spawns_view.js) `shownEntries`): a base point the
+  project deletes is drawn only with the Spawns flyout's new **Deleted points** switch (off at first), pale, to be
+  restored ([index.html](tools/viewer/web/index.html)).
+- **Multiplayer teams' starts** (XComSpawnPoint unit types 8 and 9, the Bar's twelve grey points) get no marker:
+  single player never uses them, and Long War's landing mutator logs them as bad spawn points.
+- **No-spawn volumes edited** (export 34, [scene_metadata.py](tools/viewer/scene_metadata.py) `SPAWN_VALUES`: their
+  `aliens` and `civilians` switches, AlienNoSpawnZone and CivilianNoSpawnZone, both on in the class default):
+  - the Spawns view draws each as a grey box round its marker; picked, its arrows move it by whole tiles and levels
+    and the Buildings view's six white face handles move a side to tile lines and levels (Alt: steps of 8), each one
+    undo step; Copy (Ctrl+D, a tile east, its size), Delete, Restore, and two ticks, Keeps aliens out and Keeps
+    civilians out;
+  - the Add panel's **Spawn points** has **No-spawn volume** on every map: a copy of the map's first volume, its size,
+    over whole tiles round the click, or on a map with none a new 3 by 3 tile, four-level volume
+    ([pieces.js](tools/viewer/web/pieces.js) draws its icon);
+  - the project's records ([project.js](tools/viewer/web/project.js)): an override with `box` [x0, y0, z0, x1, y1, z1]
+    and/or `spawn`, never a pose; an added `kind: "noSpawn"` record with `box`, `from` its template or none;
+  - [compiler.py](tools/editor/compiler.py): `noSpawn` among `SPAWN_EDIT_KINDS` and `SPAWN_COPY_KINDS`
+    (`spawn_box`, `volume_add`); a pose on a volume, a box on a point, an empty box or a value of another kind is
+    refused; the lane's move of a volume carries its `box`;
+  - the writer: a volume's move sets its Location and DrawScale3D (unturned) so its brush spans the box; a copy is the
+    template cloned over its box, and a new one the map's first plain no-spawn volume or, on a map with none, the
+    rebuild volume's template retyped ([native_copy.py](tools/bake/native_copy.py) `add_volume`, `volume_pose`:
+    `add_rebuild_volume` is now one of its uses); `verify` reads back each volume's scale.
+- Placing a new spawn point from the Add panel lets go of the picked one, whose arrows had taken the click.
+- **Pods lose Turn left and Turn right** (the user: "pods aren't aimed at anything", then "can we just get rid of
+  those facing buttons ?"). Their titles said they set "the way its aliens face when they deploy", but the game's
+  script (XComAlienPod.GetDistributedLocationAround) puts the first alien on the pod's place and the rest evenly
+  round it from the pod's facing, each facing the middle: the facing only picks which tiles round it they take. The
+  panel ([app.js](tools/viewer/web/app.js) `TURNED_KINDS`, `spawnEditControls`) and [ and ] turn only a drop-in point
+  (asked why it keeps its turn: its facing is the only one that changes the game, since a unit dropped from a height,
+  as a wave's are from 768 up, starts a tile behind it and lands on it facing its way:
+  XGAISpawnMethod_DropIn.OnActivate_UpdateSpawnPoint and XComWaveSystem's DropHeight; its buttons' titles and the
+  guide now say so); a picked pod draws no facing arrow, and its turn and copy buttons sit in
+  rows of their own (`turnrow`, `copyrow`, the first left out when empty). A pod turn already saved in a project
+  still builds.
+- [spawn_rules.js](tools/viewer/web/spawn_rules.js): a volume's In the game line says who it keeps out and that Long
+  War's own pod and Meld places don't look at it.
+- The guide ([guide.html](tools/release/guide/guide.html)): No-spawn volumes (`#nospawn`) with a new picture
+  `spawns-volume`; the flyout's switches (Deleted points, multiplayer starts never shown); Copy and Delete for volumes;
+  Clear map's bullet and task step (the points go, the volumes stay, plain Enemy Within places pods with the Add panel);
+  the Add panel's Spawn points; the kinds table. Retaken `spawns` (no grey points: its mark 5 dropped, the legend
+  renumbered, and again for the pod's turn buttons taken out: mark 6 dropped) and `spawns-flyout`; the pod's turn
+  taken out of the legend, the task, the keys and the kinds table; [take_shots.py](tools/release/guide/take_shots.py)
+  has the `spawns-volume` shot, and its panel marks find the copy row by its class.
+  The Clear map picture is retaken with the next change (its counts change again there).
+- Checked: node tests (spawns_view: hidden multiplayer points and deleted points, the volume's edits, overrides,
+  copies, placing; project_spawns: the new records), the compiler test
+  `test_no_spawn_volumes_are_sized_given_values_copied_made_and_deleted`, the bake tests `BarNoSpawnVolumes` on the
+  Bar (a volume stretched in place, a copy, a new one, a retyped one, a pod copied from a deleted pod: each volume's
+  brush read back over its box) and native_copy, clear_level, cover_blocks, native_flags and shell for the rebuild
+  volume's refactor, the export test (the Bar's volumes' values), the browser smoke `--only spawns,clear-map` (a
+  volume's handle dragged by the mouse, moved, copied, its tick; the Add panel's volume; a pod with no turn button
+  and ] leaving it unturned; the clear's deletes), and a
+  Build on a test server of a cleared Bar with a stretched volume, two copies and a new pod, read back. Not played in
+  the game: the tile data has no no-spawn flag (the Bar's tiles inside its volumes share no bit the rest lack), so the
+  game reads the volumes as they stand, as it reads this project's stretched floor volumes (EXP-32).
+
 ### The user guide covers the spawn points
 
 - [guide.html](tools/release/guide/guide.html): a section **Spawn points: where the aliens start** (`#spawns`) for

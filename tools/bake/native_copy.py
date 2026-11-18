@@ -821,37 +821,47 @@ def rebuild_template(p):
     raise ValueError('the map has no plain, unrotated volume with a brush to clone a rebuild volume from')
 
 
-def add_rebuild_volume(g, p, box, template=None):
-    """An XComRebuildWorldDataVolume whose bounds are `box` (world [x0, x1, y0, y1, z0, z1]): the map's volume
-    `template` (its actor and brush component) cloned, retyped, placed and scaled. The battle rebuilds the tiles within
-    the bounds' sphere radius of their centre, in x and y and in z (XGBattle.DoWorldDataRebuild). Returns
-    dict(export, location, scale, bounds, rebuildExtent)."""
-    import math
+def volume_pose(p, volume, box):
+    """(location, scale): the Location and DrawScale3D that stretch volume `volume`'s brush over `box` (world [x0, x1,
+    y0, y1, z0, z1]), unturned, its own DrawScale kept."""
+    origin, extent = brush_bounds(p, volume)
+    uniform = float(p.own(volume, 'DrawScale', 1.0) or 1.0)
+    centre = [(box[2 * k] + box[2 * k + 1]) / 2 for k in range(3)]
+    half = [(box[2 * k + 1] - box[2 * k]) / 2 for k in range(3)]
+    scale = [half[k] / (extent[k] * uniform) for k in range(3)]
+    location = [centre[k] - scale[k] * uniform * origin[k] for k in range(3)]
+    return location, scale
+
+
+def add_volume(g, p, box, cls_name, template, tag=None):
+    """A volume of class `cls_name` (an XComGame class) whose bounds are `box` (world [x0, x1, y0, y1, z0, z1]): the
+    map's plain volume `template` (its name in the persistent level; its actor and brush component, the brush model
+    staying shared) cloned, placed and scaled, and retyped where it is of another class. Its Tag is `tag` (the class's
+    name by default: the template's own tag would match what scripts look for by it). Returns dict(export, mapping
+    (template export -> clone), template (its export), location, scale)."""
     walker = Walker(p)
-    template = template or rebuild_template(p)
     ti = p.by_name[PL + template]
     tc = p.own(ti, 'BrushComponent', 0)
     if not plain_volume(p, ti):
         raise ValueError(f'{template} is not a plain volume (an actor, a brush component and a model)')
-    origin, extent = brush_bounds(p, ti)
-    centre = [(box[2 * k] + box[2 * k + 1]) / 2 for k in range(3)]
-    half = [(box[2 * k + 1] - box[2 * k]) / 2 for k in range(3)]
-    scale = [half[k] / extent[k] for k in range(3)]
-    location = [centre[k] - scale[k] * origin[k] for k in range(3)]
-    # the cooked maps hold XComGame as a package export (their XComGame class imports hang under it)
-    package = g.find_import('Package', 'XComGame', 0)
-    if package is None:
-        found = [i for i in range(1, len(p.exports) + 1)
-                 if p.cls(i) == 'Package' and p.name(i) == 'XComGame' and p.exports[i - 1]['outer'] == 0]
-        if len(found) != 1:
-            raise ValueError('the map has no XComGame package to import the volume class from')
-        package = found[0]
-    cls = g.add_import('Core', 'Class', package, 'XComRebuildWorldDataVolume')
-    default = g.add_import('XComGame', 'XComRebuildWorldDataVolume', package, 'Default__XComRebuildWorldDataVolume')
-    comp_arch = g.add_import('Engine', 'BrushComponent', default, 'BrushComponent0')
+    location, scale = volume_pose(p, ti, box)
+    retype = p.cls(ti) != cls_name
+    if retype:
+        # the cooked maps hold XComGame as a package export (their XComGame class imports hang under it)
+        package = g.find_import('Package', 'XComGame', 0)
+        if package is None:
+            found = [i for i in range(1, len(p.exports) + 1)
+                     if p.cls(i) == 'Package' and p.name(i) == 'XComGame' and p.exports[i - 1]['outer'] == 0]
+            if len(found) != 1:
+                raise ValueError('the map has no XComGame package to import the volume class from')
+            package = found[0]
+        cls = g.add_import('Core', 'Class', package, cls_name)
+        default = g.add_import('XComGame', cls_name, package, f'Default__{cls_name}')
+        comp_arch = g.add_import('Engine', 'BrushComponent', default, 'BrushComponent0')
     first = len(g.entries) + 1
     mapping = {ti: first, tc: first + 1}
-    name_index = g.name('XComRebuildWorldDataVolume')
+    name_index = g.name(cls_name) if retype else g.entries[ti - 1].name_index
+    tag_index = g.name(tag or cls_name)
     for old in (ti, tc):
         e = p.exports[old - 1]
         off, size = e['off'], e['size']
@@ -863,21 +873,38 @@ def add_rebuild_volume(g, p, box, template=None):
                 struct.pack_into('<i', data, at, mapping[value])
         g.fresh_net_index(old, data, at=start - 4)
         if old == ti:
-            tag = walker.value(bytes(data), start, size, 'Tag[0]')
-            if tag is not None:     # the template's own tag would match what scripts look for by it
-                struct.pack_into('<ii', data, tag, name_index, 0)
+            at = walker.value(bytes(data), start, size, 'Tag[0]')
+            if at is not None:
+                struct.pack_into('<ii', data, at, tag_index, 0)
             data = set_vector(walker, g, data, start, 'Location', location)
             data = set_vector(walker, g, data, start, 'DrawScale3D', scale)
+            if any(p.own(ti, 'Rotation', [0, 0, 0])):       # (the box is unturned)
+                data = set_struct(walker, g, data, start, 'Rotation', 'Rotator', '<3i', [0, 0, 0])
             new = g.add_export(old, bytes(data), number=g.unused_number(name_index), name_index=name_index)
-            g.entries[new - 1].put('<i', 0, cls)
-            # its archetype stays the template's, none: the game's own rebuild volumes have none either (their class
+            if retype:
+                g.entries[new - 1].put('<i', 0, cls)
+            # its archetype stays the template's, none: the game's own placed volumes have none either (their class
             # default object stands in); the default object is imported for its brush component template
         else:
             new = g.add_export(old, bytes(data), number=g.entries[old - 1].name_number)
             g.entries[new - 1].put('<i', 8, mapping[ti])
-            g.entries[new - 1].put('<i', 20, comp_arch)
+            if retype:
+                g.entries[new - 1].put('<i', 20, comp_arch)
         if new != mapping[old]:
             raise ValueError('the volume clones did not get the planned indices')
+    return dict(export=mapping[ti], mapping=mapping, template=ti, location=location, scale=scale)
+
+
+def add_rebuild_volume(g, p, box, template=None):
+    """An XComRebuildWorldDataVolume whose bounds are `box` (world [x0, x1, y0, y1, z0, z1]): the map's volume
+    `template` (its actor and brush component) cloned, retyped, placed and scaled (add_volume). The battle rebuilds the
+    tiles within the bounds' sphere radius of their centre, in x and y and in z (XGBattle.DoWorldDataRebuild). Returns
+    dict(export, location, scale, bounds, rebuildExtent)."""
+    import math
+    template = template or rebuild_template(p)
+    made = add_volume(g, p, box, 'XComRebuildWorldDataVolume', template)
+    location, scale, mapping, ti = made['location'], made['scale'], made['mapping'], made['template']
+    half = [(box[2 * k + 1] - box[2 * k]) / 2 for k in range(3)]
     radius = math.sqrt(sum(h * h for h in half))
     return dict(export=mapping[ti], template=template, location=location, scale=scale, bounds=box,
                 rebuildExtent=radius)

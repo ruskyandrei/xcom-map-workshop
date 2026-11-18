@@ -168,10 +168,13 @@ def apply(g, p, zones, gone=()):
 
 
 # ---------------------------------------------------------------- the base map's spawn points (editor spawns plan, SP6)
-# The native edit's `spawns` lane: {moves: [{name, location, rotation}], values: [{name, spawn}], deletes, copies}
-# (copies and deletes are stage SP7's). A point keeps its export, name, archetype and everything that names it: a move
-# sets its Location (and its Rotation where it saves one or turns), a based point's RelativeLocation from its base's
-# final place; a value sets one property on the actor itself, adding the tag where the actor saves none.
+# The native edit's `spawns` lane: {moves: [{name, location, rotation} or a volume's {name, box}], values: [{name,
+# spawn}], deletes, copies} (copies and deletes are stage SP7's). A point keeps its export, name, archetype and
+# everything that names it: a move sets its Location (and its Rotation where it saves one or turns), a based point's
+# RelativeLocation from its base's final place; a value sets one property on the actor itself, adding the tag where the
+# actor saves none. A no-spawn volume's move stretches its brush over its box (box [x0, y0, z0, x1, y1, z1]): its
+# Location and DrawScale3D, unturned; a copy of one (or a new one, `source` None) is the map's volume cloned (the
+# source, else one of the map's plain volumes retyped: native_copy.add_volume) over its box.
 # A value's property, its type and, for a byte, its enum (Bar's hard Meld points save m_eDifficulty as an
 # EMeldContainerDifficulty name; pods save none of their flags, which then take a bool tag as other writers' do)
 SPAWN_VALUES = {
@@ -183,29 +186,35 @@ SPAWN_VALUES = {
     'spawnGroup': ('m_iSpawnGroup', 'IntProperty', None),
     # a pod's copy's own index (SP7), never a value a project sets
     'podIndex': ('PodIndex', 'IntProperty', None),
+    # a no-spawn volume's switches (both true in the class's default)
+    'aliens': ('AlienNoSpawnZone', 'BoolProperty', None),
+    'civilians': ('CivilianNoSpawnZone', 'BoolProperty', None),
 }
 VALUE_KINDS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
-               'dropIn': ()}
+               'dropIn': (), 'noSpawn': ('aliens', 'civilians')}
 DIFFICULTY_PREFIX = 'eMeldContainerDifficulty_'
 PL = 'TheWorld.PersistentLevel.'
+VOLUME_CLASS = 'XComNoSpawnVolume'
 
 
 def spawn_kind(cls):
-    """'pod', 'meld' or 'dropIn' for the classes the lane edits (scene_metadata.spawn_family's), else None."""
+    """'pod', 'meld', 'dropIn' or 'noSpawn' for the classes the lane edits (scene_metadata.spawn_family's), else
+    None."""
     if cls.startswith('XComAlienPod'): return 'pod'
     if cls == 'XComMeldContainerSpawnPoint': return 'meld'
     if cls == 'XComSpawnPoint_Alien': return 'dropIn'
+    if cls == VOLUME_CLASS: return 'noSpawn'
     return None
 
 
 def lane_actor(p, name, listed):
-    """The export of spawn point `name` (a short name): a pod, Meld point or drop-in point in the level's actor list;
-    ValueError for anything else (the compiler checks the same against the export)."""
+    """The export of spawn point `name` (a short name): a pod, Meld point, drop-in point or no-spawn volume in the
+    level's actor list; ValueError for anything else (the compiler checks the same against the export)."""
     i = p.by_name.get(PL + str(name))
     if i is None:
         raise ValueError('the map has no actor %s (a spawn point)' % name)
     if spawn_kind(p.cls(i)) is None:
-        raise ValueError('%s is %s, not a pod, Meld point or drop-in point' % (name, p.cls(i)))
+        raise ValueError('%s is %s, not a pod, Meld point, drop-in point or no-spawn volume' % (name, p.cls(i)))
     if i not in listed:
         raise ValueError('%s is not in the level\'s actor list' % name)
     return i
@@ -222,13 +231,14 @@ def value_bytes(g, key, value):
     return prop, kind, sub, struct.pack('<ii', g.name(DIFFICULTY_PREFIX + str(value)), 0)
 
 
-def set_values(g, p, index, values, walker, like=None, pod_index=None):
+def set_values(g, p, index, values, walker, like=None, pod_index=None, kind=None):
     """A spawn point's values ({commander, secondary, use} for a pod, {difficulty, destroyedOnTurn, spawnGroup} for a
-    Meld point) written on actor `index` of `g`, the grower of `p`. A copy (SP7) is `index` in `g` laid out as its
-    template `like` of `p`, and a pod's copy gets `pod_index` (its PodIndex). Returns what was written."""
+    Meld point, {aliens, civilians} for a no-spawn volume) written on actor `index` of `g`, the grower of `p`. A copy
+    (SP7) is `index` in `g` laid out as its template `like` of `p` (`kind`: a retyped volume's, whose template is of
+    another class), and a pod's copy gets `pod_index` (its PodIndex). Returns what was written."""
     import native_lights
     like = like or index
-    kind = spawn_kind(p.cls(like))
+    kind = kind or spawn_kind(p.cls(like))
     wrong = sorted(set(values) - set(VALUE_KINDS.get(kind) or ()))
     if wrong:
         raise ValueError('%s (%s) has no value %s' % (p.name(like), p.cls(like), ', '.join(wrong)))
@@ -266,14 +276,29 @@ def apply_lane(g, p, ops):
         i = lane_actor(p, m['name'], listed)
         if i in moved:
             raise ValueError('%s is moved twice' % m['name'])
-        loc, rot = [float(v) for v in m['location']], [int(v) for v in m['rotation']]
         before = ([float(v) for v in p.own(i, 'Location', [0.0, 0.0, 0.0])], [int(v) for v in p.own(i, 'Rotation', [0, 0, 0])])
+        if 'box' in m:
+            # a no-spawn volume stretched over its box in place, unturned
+            if spawn_kind(p.cls(i)) != 'noSpawn':
+                raise ValueError('%s is %s: only a no-spawn volume is moved by a box' % (m['name'], p.cls(i)))
+            box = [float(v) for v in m['box']]
+            loc, scale = native_copy.volume_pose(p, i, pairs(box))
+            moved[i] = (loc, [0, 0, 0])
+            record.append(dict(actor=m['name'], how='moved', export=i, cls=p.cls(i), location=loc, rotation=[0, 0, 0],
+                               box=box, scale=scale, before=dict(location=before[0], rotation=before[1],
+                                                                 scale=list(p.own(i, 'DrawScale3D', [1.0, 1.0, 1.0])))))
+            continue
+        loc, rot = [float(v) for v in m['location']], [int(v) for v in m['rotation']]
         moved[i] = (loc, rot)
         record.append(dict(actor=m['name'], how='moved', export=i, cls=p.cls(i), location=loc, rotation=rot,
                            before=dict(location=before[0], rotation=before[1])))
     for r in record:
         i, (loc, rot) = r['export'], moved[r['export']]
         rotation = rot if (p.own(i, 'Rotation') is not None or rot != r['before']['rotation']) else None
+        if 'box' in r:
+            _set(walker, g, p, i, loc, rotation)
+            _set_scale(walker, g, p, i, r['scale'])
+            continue
         relative = _relative(p, i, loc, moved)
         if relative is not None:
             r['relative'] = [round(v, 4) for v in relative]
@@ -292,12 +317,20 @@ def apply_lane(g, p, ops):
         record.append(dict(actor=d['name'], how='deleted', export=i, cls=p.cls(i)))
     events = scene_metadata.pod_events(p) if any(c.get('podIndex') is not None for c in ops.get('copies') or []) else {}
     for c in ops.get('copies') or []:
+        # (a template the edit deletes is still in the package, off the level's list: a cleared map's new pods copy it)
+        if c.get('kind') == 'noSpawn':
+            made = copy_volume(g, p, c, listed)
+            written = set_values(g, p, made['export'], c.get('spawn') or {}, walker, like=made['template'], kind='noSpawn')
+            clones.append(made['export'])
+            record.append(dict(actor=c['name'], id=c.get('id'), source=c.get('source'), how='copied', export=made['export'],
+                               template=made['template'], mapping=made['mapping'], cls=VOLUME_CLASS, location=made['location'],
+                               rotation=[0, 0, 0], box=[float(v) for v in c['box']], scale=made['scale'], values=written,
+                               templateClass=p.cls(made['template'])))
+            continue
         i = lane_actor(p, c['source'], listed)
-        if i in gone:
-            raise ValueError('%s copies %s, which the edit deletes' % (c['name'], c['source']))
         kind = spawn_kind(p.cls(i))
         if kind not in ('pod', 'meld') or (c.get('kind') and c['kind'] != kind):
-            raise ValueError('%s copies %s (%s): only pods and Meld points are copied' % (c['name'], c['source'], p.cls(i)))
+            raise ValueError('%s copies %s (%s): only pods, Meld points and no-spawn volumes are copied' % (c['name'], c['source'], p.cls(i)))
         index = c.get('podIndex')
         if kind == 'pod' and (not isinstance(index, int) or isinstance(index, bool)):
             raise ValueError('%s is a copy of a pod and has no pod index' % c['name'])
@@ -317,6 +350,48 @@ def apply_lane(g, p, ops):
                            **({'podIndex': index} if kind == 'pod' else {}),
                            **({'relative': [round(v, 4) for v in relative]} if relative is not None else {})))
     return clones, gone, record
+
+
+def pairs(box):
+    """A box [x0, y0, z0, x1, y1, z1] (the editor's) as native_copy's volumes take it: [x0, x1, y0, y1, z0, z1]."""
+    return [box[0], box[3], box[1], box[4], box[2], box[5]]
+
+
+def volume_template(p, listed):
+    """The volume a new no-spawn volume is made from: the map's first listed, plain, unturned XComNoSpawnVolume with a
+    brush (no retyping), else native_copy.rebuild_template's (retyped)."""
+    import native_copy
+    for path, i in sorted(p.by_name.items()):
+        if (p.cls(i) == VOLUME_CLASS and path.startswith(PL) and '.' not in path[len(PL):] and i in listed
+                and native_copy.plain_volume(p, i) and p.own(i, 'Brush', 0) > 0 and not any(p.own(i, 'Rotation', [0, 0, 0]))):
+            return path[len(PL):]
+    return native_copy.rebuild_template(p)
+
+
+def copy_volume(g, p, c, listed):
+    """A no-spawn volume's copy (`source` its template's name) or a new one (`source` None) over box c['box']:
+    native_copy.add_volume's record."""
+    import native_copy
+    source = c.get('source')
+    if source is not None:
+        i = lane_actor(p, source, listed)
+        if spawn_kind(p.cls(i)) != 'noSpawn':
+            raise ValueError('%s copies %s (%s), which is no no-spawn volume' % (c['name'], source, p.cls(i)))
+        if not native_copy.plain_volume(p, i) or p.own(i, 'Brush', 0) <= 0:
+            source = None       # (no brush of its own to stretch: one of the map's plain volumes instead)
+    box = [float(v) for v in c['box']]
+    if not (box[3] > box[0] and box[4] > box[1] and box[5] > box[2]):
+        raise ValueError('%s has an empty box %s' % (c['name'], box))
+    return native_copy.add_volume(g, p, pairs(box), VOLUME_CLASS, source or volume_template(p, listed))
+
+
+def _set_scale(walker, g, p, index, scale):
+    import native_lights
+    e = p.exports[index - 1]
+    data = bytearray(g.export_data(index))
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    data = native_lights.set_property(walker, g, data, start, 'DrawScale3D', 'StructProperty', 'Vector', struct.pack('<3f', *scale))
+    g.relocate(index, bytes(data))
 
 
 def _relative(p, i, loc, moved):
@@ -372,6 +447,10 @@ def verify(q, record, p=None):
             rot = [int(v) for v in q.own(i, 'Rotation', [0, 0, 0])]
             if any(abs(a - b) > 1e-3 for a, b in zip(loc, r['location'])) or rot != list(r['rotation']):
                 raise ValueError('%s reads back at %s %s, not %s %s' % (r['actor'], loc, rot, r['location'], r['rotation']))
+            if 'scale' in r:        # (a no-spawn volume: stretched over its box)
+                scale = [float(v) for v in q.own(i, 'DrawScale3D', [1.0, 1.0, 1.0])]
+                if any(abs(a - b) > 1e-4 for a, b in zip(scale, r['scale'])):
+                    raise ValueError('%s reads back scaled %s, not %s' % (r['actor'], scale, r['scale']))
         if r['how'] in ('valued', 'copied'):
             for key, want in (r.get('values') or {}).items():
                 got = read_value(q, i, key)
@@ -379,6 +458,8 @@ def verify(q, record, p=None):
                     raise ValueError('%s reads back %s = %r, not %r' % (r['actor'], key, got, want))
         if r['how'] == 'copied' and p is not None:
             t = r['template']
+            if any(e['export'] == t and e['how'] in ('moved', 'valued') for e in record):
+                continue        # (a template the same edit changes in place: copied from the map's own bytes)
             a, b = p.exports[t - 1], q.exports[t - 1]
             if q.data[b['off']:b['off'] + b['size']] != p.data[a['off']:a['off'] + a['size']]:
                 raise ValueError('%s, the template of %s, changed' % (r['source'], r['actor']))

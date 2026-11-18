@@ -185,16 +185,21 @@ const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'ob
 // keys a point takes is the compiler's to check.
 const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
+// (a no-spawn volume's box, [x0, y0, z0, x1, y1, z1], is a building box's: validBox)
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
-// map has it; an effect's may be its values alone, and a spawn point's too)
+// map has it; an effect's may be its values alone, and a spawn point's too; a no-spawn volume's is its box, its values
+// or both, never a pose)
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
   && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
   && validSpawnValues(r.spawn) && !(r.spawn !== undefined && (r.effect !== undefined || r.sound !== undefined || r.light !== undefined || r.flags !== undefined))
+  && (r.box === undefined || (validBox(r.box) && r.location === undefined && r.rotation === undefined && r.light === undefined
+      && r.flags === undefined && r.effect === undefined && r.sound === undefined))
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
       || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
       || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
           && r.light === undefined && r.flags === undefined)
-      || (r.spawn !== undefined && r.location === undefined && r.rotation === undefined));
+      || (r.spawn !== undefined && r.location === undefined && r.rotation === undefined)
+      || r.box !== undefined);
 // An added actor: a copy of a source actor's components (`from`, `components`), a light made from a built-in recipe
 // (`template`: { kind, version }, editor lights plan 3.5), or a cover block or invisible floor (`template` { kind: 'cover',
 // version } and `cover` { type, size, heights } in units, an invisible floor's { type, size }, an older record's
@@ -219,7 +224,11 @@ const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) 
 // its own `spawn` values, nothing of a piece's.
 const validAddedSpawn = e => ['pod', 'meld'].includes(e.kind) && isTarget(e.from) && validSpawnValues(e.spawn)
   && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'location', 'rotation', 'spawn'].includes(k));
-export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
+// A no-spawn volume the project adds: a copy of the map's (`from`) or a new one (no `from`), placed by its box alone.
+const validAddedVolume = e => e.kind === 'noSpawn' && (e.from === undefined || isTarget(e.from)) && validBox(e.box) && validSpawnValues(e.spawn)
+  && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'box', 'spawn'].includes(k));
+export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string'
+  && (e.kind === 'noSpawn' ? validAddedVolume(e) : finite3(e.location) && finite3(e.rotation)
   && (['pod', 'meld'].includes(e.kind) ? validAddedSpawn(e) : e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.template === undefined
@@ -227,7 +236,7 @@ export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === '
       && e.cover === undefined
     : e.template?.kind === 'cover'
       ? validRecipe(e.template) && validCover(e.cover) && e.from === undefined && e.components === undefined && e.light === undefined
-      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined));
+      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined)));
 // An area light's glowing piece as the project sets it: { target, owner: { target, component } } or owner null (kept
 // fixed).
 export const validBinding = b => isTarget(b?.target) && (b.owner === null
