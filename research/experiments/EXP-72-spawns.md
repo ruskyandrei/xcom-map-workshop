@@ -201,19 +201,19 @@ URB_PoliceStation as the install has it, Data recovery, started as run 5 (`--sav
 ... why=PostLevelLoaded` with no "Mission Started" in 240 seconds. So run 5's hang is the start of this mission, not
 the variant's moved wave places (T-44).
 
-Read again the same day: saving was on in both runs. What they lacked was the mission's options: the editor's commands
-opened `URB_PoliceStation` with none, where every data recovery start that began (EXP-57 runs 2 and 4) had
-`?CapturePoints=1?RadarArrays=1` (T-44). The editor now always gives EXALT's data recovery and covert extraction
-their options.
+Read again the same day: saving was on in both runs. They lacked the mission's open-line options, which the two data
+recovery starts that began (EXP-57 runs 2 and 4) had, but run 11 ruled that out (T-44).
 
 ## Run 11: plain Police Station's Data recovery with the mission's options (T-44)
 
-**Not played yet: both starts crashed before the main menu (T-45).**
+**Played 18 November 2026: failed; the battle never began with the options either.**
 
-Staged on 18 November with Play in game on a `--dry-play` test server started with `--try-mission-lines` (before the
-editor put the options in by itself): the commands file sets EXALT's pods and the test squad and ends `open
-URB_PoliceStation?CapturePoints=1?RadarArrays=1`; saving on (the start file binds F5). Started as run 10, out folders
-`<lab>\hidden-runs\sp9-police-options` and `...-2`. Both crashed about 3.3 seconds in, before the main menu, and so
-did a plain URB_Bar start: Windows had no mouse at the time, and the game's start asks DirectInput for the system mouse
-(T-45). Wanted: Long War's save (`--- SAVING CHECKPOINT ---`), its reload (`LoadingFromShell=1`) and "Mission
-Started", with EXALT's units. Then run 5 again with the editor's own commands.
+Staged with Play in game on a `--dry-play` test server: the commands set EXALT's pods and the test squad and end `open
+URB_PoliceStation?CapturePoints=1?RadarArrays=1`; saving on (the start file binds F5). Started as run 10. Two first
+starts (out folders `<lab>\hidden-runs\sp9-police-options` and `...-2`) crashed before the main menu because Windows
+had no mouse (T-45). The third (`...-3`), with the mouse back: `LoadMap: URB_PoliceStation?...?CapturePoints=1?
+RadarArrays=1` at 7.1 seconds, EXALT's operative and heavy loaded, then the same 613 `why=PostLevelLoaded` lines to
+247 seconds, no `--- SAVING CHECKPOINT ---`, no reload, no "Mission Started"; the loading movie never stopped. So the
+options aren't what this mission lacks on this path. Read from the logs instead: the covert operative's pawn is missing
+when the battle makes it (`Accessed None 'm_kPawn'` in `CreateDebugCovertOperative`, then a female operative loaded),
+where the starts that began made a male one without a warning (T-44).

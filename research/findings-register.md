@@ -12,8 +12,9 @@ Statuses:
 
 ## Open now
 
-- T-44: Police Station's Data recovery opened without the mission's options never begins (EXP-72 runs 5 and 10):
-  fixed in the editor (EXALT's options always in), to be played as EXP-72 run 11, then run 5 again (18 November).
+- T-44: Police Station's Data recovery never begins on the Play in game path (EXP-72 runs 5, 10 and 11): the loading
+  movie stays and the covert operative's pawn is missing; not the mission's options (run 11). Run 5's moved wave
+  places not checked (18 November).
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -2695,34 +2696,32 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   `game-test` skill says so under "Before a run".
 - A player's own game has a mouse, so this only stops unattended runs.
 
-### T-44: Police Station's Data recovery opened without the mission's options never begins
-**Open: cause read from the logs, fixed in the editor, not played yet** (18 November 2026, EXP-72 runs 5 and 10; the
-run that checks it, run 11, waits for a mouse in Windows, T-45).
+### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative isn't made
+**Open** (18 November 2026, EXP-72 runs 5, 10 and 11; the mission's options ruled out by run 11).
 - **What**: `tools/lab/hidden_game.py --saving` (main menu, log in, the editor's Enable saving key) on URB_PoliceStation's
   Data recovery (EXALT, `eMission_CaptureAndHold`) loads the map, its streams and EXALT's content, logs `LWRVERSION
   label added` at about 9 seconds, then repeats Long War Rebalance's `LWR Ach: loaded 531 definitions ...
-  why=PostLevelLoaded` and `LWR GetActor native lookup works` every 0.39 seconds; "Mission Started" never comes and
+  why=PostLevelLoaded` and `LWR GetActor native lookup works` every 0.39 seconds. "Mission Started" never comes and
   the console takes no command (no shot, no exec, keys change nothing). The same on the editor's variant (three starts)
-  and on the map as the install has it (one start), so it isn't the variant.
-- **Not the same elsewhere**: Pier A's Council rescue with `--saving` (runs 3 and 4) starts at 10 seconds and never
-  logs `why=PostLevelLoaded`; the Bar's Abduction without `--saving` starts at 24 seconds.
-- **Saving was on**: both runs started at the main menu, logged in and opened the battle by F5, as the editor's Enable
-  saving does, and as an EXALT mission needs under Long War (F-109).
-- **Cause (read from the logs, to confirm in game)**: the battle was opened without the mission's options. Both runs
-  played the editor's own commands file, and the editor leaves the open line's options out of every kind's play
-  (`missions.LINES['options']` untried), so the map opened as `URB_PoliceStation?Name=Player?Team=255`. The lab
-  copy's logs of the two data recovery starts that began (EXP-57 runs 2 and 4, 15 November, kept as
-  `Launch-backup-2026.11.15-14.32.12.log` and `...-17.49.55.log`) opened it with `?CapturePoints=1?RadarArrays=1`.
-  In those the same `why=PostLevelLoaded` line came 0 and 7 times, then `--- SAVING CHECKPOINT ---`, Long War's reload
-  (`LoadingFromShell=1`) and "Mission Started". With the options the map's loader loads the capture point and radar
-  array content (EXP-53, O-2).
-- **Fix (editor)**: EXALT's data recovery and covert extraction always get their options (`missions.KINDS`'
-  `needs_options`), whatever the untried lines' switch says. The released editors (0.5.3 and before) leave them out,
-  so their Play in game of a data recovery should hang the same way.
-- **Effect**: EXP-72 run 5 (a wave's moved places, SP9) is unclear; the moved places were never reached.
-- **What would settle it**: EXP-72 run 11, plain Police Station's data recovery staged with the options and started
-  as runs 5 and 10 (staged 18 November; both starts crashed before the main menu for want of a mouse, T-45), then
-  run 5 again.
+  and on the map as the install has it (two starts), so it isn't the variant.
+- **Saving was on**: every start opened at the main menu, logged in and opened the battle by F5, as the editor's
+  Enable saving does, and as an EXALT mission needs under Long War (F-109).
+- **Not the mission's options**: run 11 opened the map with `?CapturePoints=1?RadarArrays=1`, as the two data
+  recovery starts that began on 15 November did (EXP-57 runs 2 and 4, on URB_OfficePaper_EWI and a Demolition
+  variant), and hung the same way (613 repeats in 240 seconds, no save). An editor change that put the options in
+  (d8213cc) was taken out again.
+- **Where it stops (read from the logs)**: the loading movie (`1080_XEW_ShieldLogo.bk2`) never stops. The starts that
+  began stop it about a second after it starts, just before Long War's bomb mutator rebuilds the world data
+  (`XComBombMutator: DoWorldDataRebuild`); here neither comes, nor the intro's `m_bTacticalIntroDone`, nor Long War's
+  save. Every Police Station start has `Accessed None 'm_kPawn'` in `XGBattle_SPCovertOpsExtraction:
+  CreateDebugCovertOperative`, then loads a female covert operative (`JIT Loading Soldier_FemaleCovertOps`); the two
+  starts that began made a male one with no such warning. So the covert operative's pawn is missing when the battle
+  makes it, likely because its content is loaded only on first use on this path (`bAllowJITLoad`). Not confirmed.
+- **Effect**: EXP-72 run 5 (a wave's moved places, SP9) is unclear; the moved places were never reached. The editor's
+  Play in game of this data recovery likely hangs the same way on the user's screen; other data recovery maps began.
+- **What would settle it**: the same start on the user's screen, to see the loading screen stay; a data recovery on
+  another map (URB_OfficePaper_EWI began on 15 November) to check SP9's moved wave places there; reading
+  `CreateDebugCovertOperative` to see what makes the pawn and when.
 
 ### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
 **Verified** (17 November 2026, the lab copy, five starts; no EXP file).

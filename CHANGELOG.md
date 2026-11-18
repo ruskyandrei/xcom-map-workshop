@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Play in game: EXALT's open-line options taken out again (T-44)
+
+- [missions.py](tools/viewer/missions.py) and [test_play.py](tools/viewer/tests/test_play.py) as before the entry
+  below: EXP-72 run 11 opened Police Station's data recovery with `?CapturePoints=1?RadarArrays=1` and it hung as
+  runs 5 and 10 did, so the options weren't what it lacked. The [findings register](research/findings-register.md)'s
+  T-44 now says where the start stops (the loading movie never ends; the covert operative's pawn is missing when the
+  battle makes it) and [EXP-72](research/experiments/EXP-72-spawns.md) records run 11.
+- Checked: test_play.py (the two files are as they were at 04481cc).
+
 ### Play in game: EXALT's data recovery and covert extraction always get their options (T-44)
 
 - [missions.py](tools/viewer/missions.py): the two EXALT kinds with open-line options (`?CapturePoints=1?RadarArrays=1`

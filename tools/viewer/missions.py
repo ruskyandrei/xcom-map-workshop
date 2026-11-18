@@ -70,13 +70,10 @@ KINDS = {
                       lines=('ufoType',), note=COMMANDER_NOTE),
     # (played and working with the civilians' looks: EXP-53 run 6, 15 November, URB_StreetHurricane_Terror's variant)
     'TerrorSite': dict(label='Terror', state='works', run='EXP-53 run 6', lines=('civilians',)),
-    # (EXALT's two with options always get them, needs_options: the data recovery starts that began, EXP-57 runs 2 and
-    # 4 on 15 November, opened the map with ?CapturePoints=1?RadarArrays=1; EXP-72 runs 5 and 10 opened Police
-    # Station's without them, and Long War's start never came, no save and no "Mission Started": T-44)
     'CaptureAndHold': dict(label='Data recovery', state='works', run='EXP-57 run 2, with saving on',
-                           options=('CapturePoints', 'RadarArrays'), needs_options=True, note=OPERATIVE_NOTE),
+                           options=('CapturePoints', 'RadarArrays'), note=OPERATIVE_NOTE),
     'CovertOpsExtraction': dict(label='Covert extraction', state='untried', run='EXP-57, with saving on',
-                                options=('RadarArrays',), needs_options=True, note=OPERATIVE_NOTE),
+                                options=('RadarArrays',), note=OPERATIVE_NOTE),
     'Special/Bomb': dict(label='Council bomb', state='works', run='EXP-53 run 1', lines=('councilType',)),
     'Special/Assault': dict(label='Council assault', state='untried', run='EXP-53 run 4', lines=('councilType',)),
     'Special/Rescue': dict(label='Council rescue', state='works', run='EXP-53 run 4', lines=('councilType',)),
@@ -93,7 +90,6 @@ KINDS = {
 }
 for _key, _kind in KINDS.items():
     _kind.setdefault('options', ())
-    _kind.setdefault('needs_options', False)
     _kind.setdefault('lines', ())
     _kind.setdefault('note', None)
     _kind['group'] = maplist.MISSION_GROUP.get(_key.split('/')[0], 'council' if _key.startswith('Special/') else
@@ -104,9 +100,8 @@ for _key, _kind in KINDS.items():
 LINES = {
     # (O-2 answered, EXP-53 runs 2, 3 and 5, 15 November: with them the map's loader loaded CapturePointResources,
     # RadarArrayResources and MeldResources, and the battles started; runs 2 and 3 then hung for a reason of their own,
-    # F-109. Still left out of the other kinds' plays: those played work without them, their content loading when
-    # first needed, and as standard they would change every abduction's start, which no run has tried. EXALT's data
-    # recovery and covert extraction always have them: KINDS' needs_options, T-44.)
+    # F-109. Still left out of plays: every kind played works without them, its content loading when first needed,
+    # and as standard they would change every abduction's start, which no run has tried.)
     'options': dict(state='untried', run='EXP-53 runs 2, 3 and 5 (O-2)',
                     missing='The campaign\'s extra content for it ({options}) loads when first needed.'),
     # (F-107: a terror battle started without them hung at the loading screen, 12 and 15 November; with them it played,
@@ -236,7 +231,7 @@ def play_setup(record, content_text=None, try_untried=False, lwr=False):
     use = lambda line: LINES[line]['state'] == 'works' or try_untried  # noqa: E731
     lines, options, missing, notes = [], [], [], []
     if k['options']:
-        if k['needs_options'] or use('options'): options = [(name, '1') for name in k['options']]
+        if use('options'): options = [(name, '1') for name in k['options']]
         elif k['state'] != 'works':     # a kind played and working without them misses nothing
             missing.append(LINES['options']['missing'].format(options=', '.join(f'?{o}=1' for o in k['options'])))
     if 'ufoType' in k['lines']:
