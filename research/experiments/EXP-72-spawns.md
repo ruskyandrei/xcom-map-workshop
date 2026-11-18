@@ -198,5 +198,22 @@ enough places; the aliens stood by its four pods.
 URB_PoliceStation as the install has it, Data recovery, started as run 5 (`--saving`), out folder
 `<lab>\hidden-runs\sp9-police-plain`: `LoadMap: URB_PoliceStation`, the landing mutator standing aside for
 `eMission_CaptureAndHold`, `LWRVERSION label added` at 9 seconds, then 613 lines of `LWR Ach: loaded 531 definitions
-... why=PostLevelLoaded` with no "Mission Started" in 240 seconds. So run 5's hang is the hidden game's start of this
-mission, not the variant's moved wave places (T-44).
+... why=PostLevelLoaded` with no "Mission Started" in 240 seconds. So run 5's hang is the start of this mission, not
+the variant's moved wave places (T-44).
+
+Read again the same day: saving was on in both runs. What they lacked was the mission's options: the editor's commands
+opened `URB_PoliceStation` with none, where every data recovery start that began (EXP-57 runs 2 and 4) had
+`?CapturePoints=1?RadarArrays=1` (T-44). The editor now always gives EXALT's data recovery and covert extraction
+their options.
+
+## Run 11: plain Police Station's Data recovery with the mission's options (T-44)
+
+**Not played yet: both starts crashed before the main menu (T-45).**
+
+Staged on 18 November with Play in game on a `--dry-play` test server started with `--try-mission-lines` (before the
+editor put the options in by itself): the commands file sets EXALT's pods and the test squad and ends `open
+URB_PoliceStation?CapturePoints=1?RadarArrays=1`; saving on (the start file binds F5). Started as run 10, out folders
+`<lab>\hidden-runs\sp9-police-options` and `...-2`. Both crashed about 3.3 seconds in, before the main menu, and so
+did a plain URB_Bar start: Windows had no mouse at the time, and the game's start asks DirectInput for the system mouse
+(T-45). Wanted: Long War's save (`--- SAVING CHECKPOINT ---`), its reload (`LoadingFromShell=1`) and "Mission
+Started", with EXALT's units. Then run 5 again with the editor's own commands.

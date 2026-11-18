@@ -473,6 +473,8 @@ class Play(unittest.TestCase):
         commands = play_file.read_text(encoding='ascii').split('\n')
         self.assertIn(f'set XComOnlineProfileSettingsDataBlob m_eAlienType {missions.EXALT_ALIENS}', commands)
         self.assertNotIn(f'set XComOnlineProfileSettingsDataBlob m_eAlienType {gamelaunch.ALIENS}', commands)
+        # and the open line carries the data recovery's options (T-44)
+        self.assertEqual(commands[-2], 'open URB_Bar?CapturePoints=1?RadarArrays=1')
         self.assertTrue(start_file.is_file())
         self.settle(quiet)              # (a reset while the play's watch runs races it)
         installs.reset(self.lwr)
@@ -1251,13 +1253,19 @@ class Launch(unittest.TestCase):
         extraction = 'MissionType=eMission_CovertOpsExtraction, CouncilType=eFCMType_None'     # (not played yet)
         for record_text, tried_lines, tried_options in (
                 (landed, ['set XGBattleDesc m_eUFOType eShip_UFOSmallScout'], [('Meld', '1')]),
-                (hive, ['set XGBattleDesc m_eCouncilType eFCM_ChryssalidHive'], []),
-                (extraction, [], [('RadarArrays', '1')])):
+                (hive, ['set XGBattleDesc m_eCouncilType eFCM_ChryssalidHive'], [])):
             untried = missions.play_setup(record_text)
             self.assertEqual((untried['lines'], untried['options']), ([], []))
             self.assertEqual(len(untried['missing']), len(tried_lines) + bool(tried_options))
             tried = missions.play_setup(record_text, try_untried=True)
             self.assertEqual((tried['lines'], tried['options'], tried['missing']), (tried_lines, tried_options, []))
+        # EXALT's data recovery and covert extraction always have their options (T-44: EXP-72 runs 5 and 10 opened
+        # Police Station's data recovery without them and it never began; the starts that began had them)
+        for record_text, options in (('MissionType=eMission_CaptureAndHold', [('CapturePoints', '1'), ('RadarArrays', '1')]),
+                                     (extraction, [('RadarArrays', '1')])):
+            for tried in (False, True):
+                setup = missions.play_setup(record_text, try_untried=tried)
+                self.assertEqual((setup['options'], setup['missing']), (options, []))
         # a council mission the script doesn't tell apart needs no council line
         self.assertEqual(missions.play_setup(bomb_record(), try_untried=True)['lines'], [])
         self.assertIsNone(missions.civilian_content('[XComGame.XComContentManager]'))

@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Play in game: EXALT's data recovery and covert extraction always get their options (T-44)
+
+- [missions.py](tools/viewer/missions.py): the two EXALT kinds with open-line options (`?CapturePoints=1?RadarArrays=1`
+  for data recovery, `?RadarArrays=1` for covert extraction) always have them (`needs_options`), whatever the untried
+  lines' switch says; the other kinds' options still wait for it. EXP-72 runs 5 and 10 played Police Station's data
+  recovery from the editor's commands, saving on, without them, and Long War's start never came; the two data
+  recovery starts that began (EXP-57 runs 2 and 4) had them ([findings register](research/findings-register.md) T-44).
+- Checked: [test_play.py](tools/viewer/tests/test_play.py) (the setups with and without the untried lines, the EXALT
+  play's open line), the viewer suite. **Not played yet**: EXP-72 run 11 is staged and waits for a mouse in Windows
+  (T-45); the released editors leave the options out.
+
 ### Hidden game runs: no start without a mouse (T-45)
 
 - [hidden_game.py](tools/lab/hidden_game.py) counts Windows' raw input devices before it starts the game

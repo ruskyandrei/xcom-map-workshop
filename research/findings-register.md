@@ -12,8 +12,8 @@ Statuses:
 
 ## Open now
 
-- T-44: the hidden game's saving start hangs on Police Station's Data recovery (EXALT), the map as installed too:
-  EXP-72 run 5's moved wave places weren't reached (18 November).
+- T-44: Police Station's Data recovery opened without the mission's options never begins (EXP-72 runs 5 and 10):
+  fixed in the editor (EXALT's options always in), to be played as EXP-72 run 11, then run 5 again (18 November).
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -2695,8 +2695,9 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   `game-test` skill says so under "Before a run".
 - A player's own game has a mouse, so this only stops unattended runs.
 
-### T-44: The hidden game's saving start hangs on Police Station's Data recovery
-**Open** (18 November 2026, EXP-72 runs 5 and 10).
+### T-44: Police Station's Data recovery opened without the mission's options never begins
+**Open: cause read from the logs, fixed in the editor, not played yet** (18 November 2026, EXP-72 runs 5 and 10; the
+run that checks it, run 11, waits for a mouse in Windows, T-45).
 - **What**: `tools/lab/hidden_game.py --saving` (main menu, log in, the editor's Enable saving key) on URB_PoliceStation's
   Data recovery (EXALT, `eMission_CaptureAndHold`) loads the map, its streams and EXALT's content, logs `LWRVERSION
   label added` at about 9 seconds, then repeats Long War Rebalance's `LWR Ach: loaded 531 definitions ...
@@ -2705,11 +2706,23 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   and on the map as the install has it (one start), so it isn't the variant.
 - **Not the same elsewhere**: Pier A's Council rescue with `--saving` (runs 3 and 4) starts at 10 seconds and never
   logs `why=PostLevelLoaded`; the Bar's Abduction without `--saving` starts at 24 seconds.
-- **Cause**: not known. Long War saves EXALT missions as they start, so the start may wait on a save or a box the
-  hidden desktop never shows. EXP-55 played the same mission by hand.
+- **Saving was on**: both runs started at the main menu, logged in and opened the battle by F5, as the editor's Enable
+  saving does, and as an EXALT mission needs under Long War (F-109).
+- **Cause (read from the logs, to confirm in game)**: the battle was opened without the mission's options. Both runs
+  played the editor's own commands file, and the editor leaves the open line's options out of every kind's play
+  (`missions.LINES['options']` untried), so the map opened as `URB_PoliceStation?Name=Player?Team=255`. The lab
+  copy's logs of the two data recovery starts that began (EXP-57 runs 2 and 4, 15 November, kept as
+  `Launch-backup-2026.11.15-14.32.12.log` and `...-17.49.55.log`) opened it with `?CapturePoints=1?RadarArrays=1`.
+  In those the same `why=PostLevelLoaded` line came 0 and 7 times, then `--- SAVING CHECKPOINT ---`, Long War's reload
+  (`LoadingFromShell=1`) and "Mission Started". With the options the map's loader loads the capture point and radar
+  array content (EXP-53, O-2).
+- **Fix (editor)**: EXALT's data recovery and covert extraction always get their options (`missions.KINDS`'
+  `needs_options`), whatever the untried lines' switch says. The released editors (0.5.3 and before) leave them out,
+  so their Play in game of a data recovery should hang the same way.
 - **Effect**: EXP-72 run 5 (a wave's moved places, SP9) is unclear; the moved places were never reached.
-- **What would settle it**: the same start on the user's screen (not hidden), or another EXALT mission with
-  `--saving` to see whether it is EXALT's start or this map's.
+- **What would settle it**: EXP-72 run 11, plain Police Station's data recovery staged with the options and started
+  as runs 5 and 10 (staged 18 November; both starts crashed before the main menu for want of a mouse, T-45), then
+  run 5 again.
 
 ### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
 **Verified** (17 November 2026, the lab copy, five starts; no EXP file).
