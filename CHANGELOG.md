@@ -6,7 +6,1537 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 18 November 2026
+
+### Branch fracturing-wall-poc: main merged in
+
+The custom walls branch stays out of main until the feature works in the editor; main is merged into it to keep it
+current. This merge brings in 68 commits (release 0.5.3, effects and sounds, the spawn points, the project manager's
+work).
+
+- Both sides kept in every conflict: this ledger (the branch's entries of 17 November close that day's section, as
+  they were made before main's of that day) and the [findings register](research/findings-register.md) (F-116 after
+  main's newer findings); [compiler.py](tools/editor/compiler.py) (an added record may carry `kind`, `effect`,
+  `sound` and `generated`); [viewer.py](tools/viewer/viewer.py) (the wave handler and the made walls' handler, both
+  in the GET chain).
+- Checked on the merged branch: the `viewer`, `editor`, `repo` and `node` suites; `bake` for `frac_wall` (28),
+  `gen_mesh` (9), `native_copy` (40) and `cover_blocks` (36). Not run: the rest of `bake`, `upk`, `lab`, `release`
+  (the merge touches none of their files on the branch's side), a Build of the EXP-67 project, the game.
+
+### The user guide covers the spawn points
+
+- [guide.html](tools/release/guide/guide.html): a section **Spawn points: where the aliens start** (`#spawns`) for
+  the Spawns view: its markers and panel, its flyout, moving, turning and giving values to the map's own pods, Meld
+  points and drop-in points, Copy and Delete, the Add panel's new pod and Meld point, the Build's warnings, and **What
+  the game does with them** (`#spawns-game`: Long War's own pods and Meld, waves at their points, scripted drop-ins
+  near the squad unless **Scripted drop-ins land where placed** is ticked, the bomb). A task, **Move where the aliens
+  start**. Brought up to date: the tool strip (18 buttons, the Spawns view 11th), the six views and the Normal view's
+  fourth switch, View options without Mission objects, What a mission adds shown by the Spawns view, the Add panel's
+  Spawn points, Clear map's pods and Meld on plain Enemy Within, the Build's warnings, What it can't do yet and In the
+  game (pods, Meld and drop-ins under Long War in place of "where the aliens start stays the base map's" and the
+  encoder line), the kinds of pieces (spawn points, a mission's objects and patch helpers apart), the keys
+  (Shift+U, the spawn points' [ ] Ctrl+D Del), and the test battle's covert operative.
+- Pictures: new `spawns` (the Spawns view on the Bar, a pod picked) and `spawns-flyout`; retaken the tool strip (`rail`), the Normal flyout, the window (its tool strip) and `mission-objects` (the larger, haloed markers, the Spawns panel); the rest kept.
+  [take_shots.py](tools/release/guide/take_shots.py) makes the two new shots and marks the Spawns view on the tool
+  strip.
+- [app.js](tools/viewer/web/app.js): Clear map's note on plain Enemy Within said the pods and Meld points "cannot be
+  moved yet"; it now points at the Spawns view.
+- Checked: the viewer suite's guide tests, the release and repo suites; every new and retaken picture looked at;
+  the page as published photographed at the changed sections (`guide_tools.py look`). The last release's zip still
+  has the earlier guide; the published page changes when main is pushed.
+
+### Add panel: the Spawn points entries no longer break All maps, and have a picture
+
+- [library.js](tools/viewer/web/library.js): the All maps list took the Add panel's new Pod and Meld point for pieces
+  of another map and stopped drawing (`Cannot read properties of undefined (reading 'maps')`); they are recipes there
+  now, as the lights, cover blocks and landing zone are. Found by the guide's shots.
+- [pieces.js](tools/viewer/web/pieces.js): their rows draw the Spawns view's marker as a picture (an orange ring, a
+  green dot) where the thumbnail stayed empty, and the list counts them apart from the pieces and shows them under
+  any Where.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_library`: the pieces counted without them.
+- Checked: the smoke's `library`, `library-all` and `spawns` checks on URB_Bar on a test server (the thumbnails wait
+  and All maps had failed on the entries before).
+
+### Browser smoke: the spawn edits
+
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_spawn_edits`, run with `check_spawns_view` (and by
+  `--only spawns`) where the spawn family builds: every marker in its halo and the picked one's larger; a plain pod
+  copied by Ctrl+D a tile east and the copy taken away by Delete; the pod moved a tile, turned by ] and given a value,
+  an undo step each; a base Meld point deleted by Delete; the Add panel's Pod and Meld point, Escape cancelling a
+  placing and a click placing a pod whole tiles from its template; the drop-in rule's box ticked and undone; all of it
+  back to as the map was.
+- Checked: `--only spawns` on a test server on URB_Bar and on URB_SlaughterhouseA, passing.
+
+### Hidden game runs: loads of a battle with aliens no longer crash (T-46); a crash log
+
+- [hidden_game.py](tools/lab/hidden_game.py) `dxvk_config`: every run gives DXVK its own `<out>\dxvk.conf`
+  (`DXVK_CONFIG_FILE`) with `d3d9.textureMemory = 0`. With DXVK's texture budget on, every load of a save with aliens
+  in the battle crashed on a thread of the game's own reading memory that was gone, Long War's reload of EXALT's
+  missions among them ([findings register](research/findings-register.md) T-46: not the mouse, as first thought).
+- [StandInInput.c](tools/lab/StandInInput.c), [build_stand_in_input.py](tools/lab/build_stand_in_input.py),
+  hidden_game.py `--crash-log`: the stand-in DLL stands beside the game in any case and, with
+  `XCOM_STAND_IN_CRASH_LOG=1`, logs the run's first faults to `<out>\input.log` (thread, code, module and offset,
+  what it touched, registers, the module addresses on that thread's stack); the run prints them at its end.
+- [game-test skill](.claude/skills/game-test/SKILL.md): a run that ends by itself with nothing in the log gets a rerun
+  with `--crash-log`.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the settings file, the crash log's plan, a fault
+  on a thread of its own named by the built DLL in [StandInInputCheck.cs](tools/lab/tests/StandInInputCheck.cs)), the
+  lab suite; in the game, [EXP-72](research/experiments/EXP-72-spawns.md) runs 15 and 16: a Bar quicksave with aliens
+  loaded twice with the setting, after six crashes of six without it. Known gap: with the budget off a long session
+  could run out of the game's 32-bit address space (not seen).
+
+### Play in game: a covert operative's mission lands a soldier first (T-44)
+
+- [play.py](tools/viewer/play.py), [missions.py](tools/viewer/missions.py) (`operative`, `LEAD_NOTE`,
+  `NO_LEAD_MISSING`), [squadrecords.py](tools/viewer/squadrecords.py) (`soldier_first`): a play of a data recovery or a
+  covert extraction moves the squad's first soldier or MEC trooper to the front, and its notes say who and why. The
+  game's stand-in covert operative copies the first unit's looks, and with a SHIV first it asked for content that
+  doesn't exist and the battle never left its loading screen ([findings register](research/findings-register.md)
+  T-44). With only SHIVs the play goes ahead and its missing list says what will happen.
+- Checked: [test_squad_play.py](tools/viewer/tests/test_squad_play.py) (a SHIV-first squad on a data recovery and on
+  an abduction, and a squad of only SHIVs), the viewer suite; in the game, [EXP-72](research/experiments/EXP-72-spawns.md)
+  runs 12 and 13: Police Station's data recovery began. Known gap: in hidden runs the load that Long War makes next
+  crashed (T-46, fixed below).
+
+### Hidden game runs: the put-back waits for a crashed game's DLLs; the stand-in's trace (T-46)
+
+- [hidden_game.py](tools/lab/hidden_game.py) `remove_held`: a game that has just crashed can hold `d3d9.dll` and
+  `dinput8.dll` a moment longer (EXP-72 run 13 left both behind and skipped the log copy). The put-back now tries again
+  for up to 20 seconds, copies `Launch.log` whatever happens, and names any DLL still left.
+- [StandInInput.c](tools/lab/StandInInput.c): with `XCOM_STAND_IN_INPUT_TRACE=1` every call the game makes on a
+  stand-in goes to `<out>\input.log` (the per-frame ones now and then), and so do the other devices it creates. It
+  showed nothing at the load that crashed (T-46, which turned out not to be the mouse).
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (a held file let go, one kept held), the lab
+  suite, a traced run.
+
+### Spawns: larger markers with a halo; new pods and Meld points from the Add panel
+
+- **Markers** ([spawns_view.js](tools/viewer/web/spawns_view.js), [app.js](tools/viewer/web/app.js)): the Spawns
+  view's and the Normal switch's markers are 1.7 times a light's size on screen, each in a halo of its colour with a
+  dark edge, drawn over everything, and show more strongly through walls; the picked one's halo is larger and
+  brighter. A click picks within the halo.
+- **Add panel** ([app.js](tools/viewer/web/app.js), [piece_categories.js](tools/viewer/web/piece_categories.js),
+  [spawns_view.js](tools/viewer/web/spawns_view.js) `addTemplate`, `addPlace`): a Spawn points kind with a Pod and a
+  Meld point, where the spawn family builds. Choosing one shows the Spawns view, and a click places a copy of the
+  map's first plain pod or first Meld point (SP7's copies, so the Build needs nothing new) on the tile under the
+  click: by whole tiles from its template, at the template's height above its own floor, picked, one undo step. Esc,
+  or leaving the Spawns view, cancels.
+- Checked: [spawns_view_test.mjs](tools/viewer/tests/spawns_view_test.mjs) (the template and the place),
+  [piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs) (the kind), the viewer and node suites; on
+  a test server, URB_Bar: 25 markers with haloes, the Add panel's Spawn points (2), a pod placed on the bar's roof with
+  its panel and arrows, undo and redo, no script errors.
+
+### Hidden game runs: a stand-in mouse and keyboard when Windows has none (T-45)
+
+- [StandInInput.c](tools/lab/StandInInput.c): a 32-bit `dinput8.dll` that hands every call to Windows' own and gives
+  the game a still mouse or keyboard where Windows has none (the game's start asks DirectInput for the system mouse
+  and crashed without one). No C runtime and no Windows SDK; [build_stand_in_input.py](tools/lab/build_stand_in_input.py)
+  builds it with clang-cl, lld-link and llvm-dlltool (`--llvm <LLVM bin folder>`) into `<lab>\bin`, where
+  [hidden_game.py](tools/lab/hidden_game.py) takes it from, as it takes DXVK from `<lab>\dxvk`.
+- [hidden_game.py](tools/lab/hidden_game.py) `input_plan`: with a mouse or keyboard missing in Windows the DLL goes
+  beside the game for the run and comes out after (a different `dinput8.dll` already there stops the run); the DLL
+  writes what the game asked for and got to `<out>\input.log`. Without the DLL, no mouse still stops the run.
+  `--stand-in-input` gives the stand-ins anyway, to check them. The
+  [game-test skill](.claude/skills/game-test/SKILL.md) and the [findings register](research/findings-register.md)'s
+  T-45 say so.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the plan's cases, the DLL placed and taken
+  away, the built DLL in a 32-bit process by [StandInInputCheck.cs](tools/lab/tests/StandInInputCheck.cs): both
+  stand-ins and every call the game makes on them), the lab suite; in the game with the stand-ins forced, URB_Bar
+  started to turn 1, a soldier walked two tiles by `goto` and Escape opened the pause menu, and nothing was left
+  beside the game. A start with the devices really gone hasn't been played.
+
+### Play in game: EXALT's open-line options taken out again (T-44)
+
+- [missions.py](tools/viewer/missions.py) and [test_play.py](tools/viewer/tests/test_play.py) as before the entry
+  below: EXP-72 run 11 opened Police Station's data recovery with `?CapturePoints=1?RadarArrays=1` and it hung as
+  runs 5 and 10 did, so the options weren't what it lacked. The [findings register](research/findings-register.md)'s
+  T-44 now says where the start stops (the loading movie never ends; the covert operative's pawn is missing when the
+  battle makes it) and [EXP-72](research/experiments/EXP-72-spawns.md) records run 11.
+- Checked: test_play.py (the two files are as they were at 04481cc).
+
+### Play in game: EXALT's data recovery and covert extraction always get their options (T-44)
+
+- [missions.py](tools/viewer/missions.py): the two EXALT kinds with open-line options (`?CapturePoints=1?RadarArrays=1`
+  for data recovery, `?RadarArrays=1` for covert extraction) always have them (`needs_options`), whatever the untried
+  lines' switch says; the other kinds' options still wait for it. EXP-72 runs 5 and 10 played Police Station's data
+  recovery from the editor's commands, saving on, without them, and Long War's start never came; the two data
+  recovery starts that began (EXP-57 runs 2 and 4) had them ([findings register](research/findings-register.md) T-44).
+- Checked: [test_play.py](tools/viewer/tests/test_play.py) (the setups with and without the untried lines, the EXALT
+  play's open line), the viewer suite. **Not played yet**: EXP-72 run 11 is staged and waits for a mouse in Windows
+  (T-45); the released editors leave the options out.
+
+### Hidden game runs: no start without a mouse (T-45)
+
+- [hidden_game.py](tools/lab/hidden_game.py) counts Windows' raw input devices before it starts the game
+  (`input_devices`, `check_input`). With no mouse it refuses and says why: the game asks DirectInput for the system
+  mouse as it starts, and without one it crashed about 3 seconds in, before its main menu, on every start from 09:09
+  ([findings register](research/findings-register.md) T-45: the dump's null read follows `IDirectInput8::CreateDevice
+  (GUID_SysMouse)`). With no keyboard it prints a note.
+- The [game-test skill](.claude/skills/game-test/SKILL.md) says so under "Before a run". It also says how to play a
+  mission of a kind: stage it with Play in game on a `--dry-play` server and start from the editor's commands file,
+  since `--map` opens the map bare.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the refusal, the note, the count), the lab
+  suite; with the mouse and keyboard away, a start refused with the reason instead of crashing.
+
+### Spawns: the spawn family builds (SP6 and SP7 played)
+
+- [compiler.py](tools/editor/compiler.py) `FAMILIES['spawn']` builds: the base map's pods, Meld points and drop-in
+  points are moved, turned, given values, copied and deleted in every editor, not only on a server started with
+  `--family spawn`. The tests that check the gate now turn it off themselves
+  ([test_compiler.py](tools/editor/tests/test_compiler.py), [test_families.py](tools/viewer/tests/test_families.py)).
+- Checked in game, EXP-72 runs 6 to 8 ([the note](research/experiments/EXP-72-spawns.md)): URB_Bar with Long War's pod
+  and Meld mutators out of the lab loader. The game read the moved and turned pod, the commander flag, the Meld
+  values, the copies with their own pod indices and the deleted pod as the Build wrote them, and deployed aliens at
+  the moved pod and at both copies. Run 9 played the copies' build under Long War as installed.
+
+### Spawns, stage SP7: the base map's pods and Meld points copied, its spawn points deleted
+
+- **The page** ([app.js](tools/viewer/web/app.js), [spawns_view.js](tools/viewer/web/spawns_view.js)): where the
+  spawn family builds, a picked base pod, Meld point or drop-in point has Copy (Ctrl+D) and Delete (Delete) in its
+  panel, and [ and ] turn a pod or a drop-in point. A copy is made only from a plain pod (no commander or secondary
+  flag, no forced type, no link to another actor) or any Meld point; the button says why where it can't. It lands a
+  tile east with its template's values and turn, picked, and is moved, turned and given values as the map's points
+  are, its marker and panel its own ("Pod: a copy of …"; its template's saved values marked "(its template's)",
+  [spawn_rules.js](tools/viewer/web/spawn_rules.js)). A deleted point is drawn pale, its panel says whether the Build
+  takes it out or keeps it (something names it), and Restore brings it back. Undo, Reset all, recovery and the
+  header's count take them.
+- **The document**: a copy is an `added[]` record of `kind` pod or meld with `from` its template, a pose and
+  `spawn`; a delete is a deleted override ([project.js](tools/viewer/web/project.js) `validAdded`). One the page
+  doesn't take is carried and saved back unchanged.
+- **The compiler** ([compiler.py](tools/editor/compiler.py)): `spawn_add` refuses a template that isn't plain
+  (`spawn-copy-template`), one of another kind, one the export lacks, and the family off; gives each pod copy the next
+  pod index above every one the map's pods and its streams' save and every pod event the export's uses name
+  (`free_pod_index`; across the install's maps an event names index 1 at most, a pod 53). `spawn_delete` builds a
+  delete only when nothing names the point (`spawn_names`: the Kismet, a wave place, a pod event for its index, a typed
+  reference, a name list) and its uses were read; else warning `spawn-delete-named`, and the point stays. SP5's place
+  counts read the copies, the deletes and the SP6 values.
+- **The writer** ([native_spawns.py](tools/bake/native_spawns.py)): a copy is its template cloned with its components
+  (`native_copy.clone_actor`), placed, given its PodIndex (refused where a pod event of the map names it) and its
+  values; a delete leaves its slot in the level's list empty. `verify` reads back each copy listed at its pose with its
+  index and values, its template byte for byte as it was, and each delete off the list
+  ([native_copy.py](tools/bake/native_copy.py) hands it the map before the edit).
+- **Example** [exp72_sp7_project.py](tools/editor/examples/exp72_sp7_project.py): URB_Bar's pods 2 and 3 copied onto
+  free floor tiles near them, Meld point 2 copied and made hard, pod 4 deleted (six pods where there were five).
+- **Checked** offline on URB_Bar: built twice byte for byte the same; read back with the exporter's own spawn reader:
+  the copies listed as XComAlienPod_Abduction_5 and _6 with pod indices 5 and 6 and the Meld copy hard, each with
+  its template's archetype and its own clones of the template's three components; pod 4 off the list; every other
+  point at its place. Tests: compiler (copies, the index above a stream's pod, deletes kept back by an event or the
+  Kismet, the refusals), bake (`test_native_spawns.py`: copies and a delete written and read back, the refusals),
+  build (copies and deletes in a spawn-only build), node (the copy and delete rules, `validAdded`); the page tried on
+  a test server with the family on (the project's copies and delete opened as saved; copy, move, value, delete,
+  restore and the keys, undone back to saved; saved from the page and compiled as the page showed it).
+- **Gaps**: no paste of a copied point elsewhere (a copy lands a tile east and is dragged from there); copies of
+  drop-in points and of pods with links aren't made. The game check is still to come.
+
+### Spawns, stage SP6: the base map's pods, Meld points and drop-in points moved, turned and given values
+
+- **The family** `spawn` ([compiler.py](tools/editor/compiler.py) `FAMILIES`): off until its game check passes (a
+  test server's `--family spawn` turns it on).
+- **The page** ([app.js](tools/viewer/web/app.js), [spawns_view.js](tools/viewer/web/spawns_view.js),
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)): where the family builds, a
+  picked base pod, Meld point or drop-in point gets the Spawns view's arrows (whole tiles across, whole levels up,
+  alone), Turn left and Turn right (a quarter; the picked pod or drop-in point shows the way it faces), and its
+  values: a pod's Commander's place, Secondary and Use ticks, a Meld point's Difficulty, Destroyed on turn and Spawn
+  group. A value back at the map's, or a point back where and as the map has it, is no edit; "As the map has it" puts
+  it back. Each change is one undo step; Reset all, recovery and the header's count ("4 spawn point edits") take
+  them. The panel names the project's values "(the project's)" ([spawn_rules.js](tools/viewer/web/spawn_rules.js))
+  and says what the move keeps: its name, so what uses it still does; its links stay where the map has them.
+- **The document**: `overrides[]` of `target {package, level: "base", actor}` with a whole pose (only where it moved
+  or turned) and `spawn`, the sparse values; [project.js](tools/viewer/web/project.js) `validOverride` takes them,
+  and a record the page doesn't take (a delete, another kind's key) is carried and saved back unchanged.
+- **The compiler**: `spawn_of`, `spawn_values` and `spawn_override`: refuses a kind it only shows
+  (`spawn-view-only`), an actor the level doesn't list (`spawn-unlisted`), one whose values weren't read
+  (`spawn-unread`), another kind's or an out-of-range value (`spawn-values`), and a delete (`spawn-delete`, SP7's);
+  notes a value of no kind (carried), a point as the map has it, and the links that stay (`spawn-links`); the moves and
+  values go to the native edit's `spawns` lane; SP5's place counts read the moved places; the report counts
+  `spawns {moved, valued, added, deleted}`.
+- **The writer** ([native_spawns.py](tools/bake/native_spawns.py) `apply_lane`, `set_values`, `verify`;
+  [native_copy.py](tools/bake/native_copy.py)): each point edited in place under its own name (a based one's
+  relative place from its base's final place), each value written as a tagged property (a flag the pod saves none of
+  grows its export; the Meld difficulty as its `EMeldContainerDifficulty` name), read back after the write.
+- **The Build** ([build.py](tools/editor/build.py)): spawn edits are work of their own, with no relight and the
+  lighting kept; the manifest counts them (`spawnEdits`).
+- **Example** [exp72_sp6_project.py](tools/editor/examples/exp72_sp6_project.py): URB_Bar's pod 0 moved a tile and
+  turned a quarter, pod 1 the commander's, Meld point 2 hard and destroyed on turn 6, Meld point 3 in spawn group 1;
+  `--again` builds twice, `--cleared` and `--grid` on the cleared and the resized Bar.
+- **Checked** offline on URB_Bar: built twice byte for byte the same; read back with the package reader on its own:
+  the same 32 actors, export indices, names and children, every point the edit didn't touch byte for byte, each
+  edited point as asked; the cleared and the resized Bar build and read back the same way. Tests: compiler (the
+  family off, the lane, each refusal), bake (`test_native_spawns.py`: the value bytes; Bar edited, read back, the
+  rest as it was, the refusals), build (a spawn-only project in both kinds of build), node (`spawns_view_test.mjs`:
+  the edit rules, the override, a saved record read back; `project_spawns_test.mjs`: `validOverride`), the families
+  table; the page tried on a test server with the family on (the project's four edits opened as saved, turned, valued,
+  undone back to saved).
+- **Gaps**: the plan had these points as roots of the main gizmo, with box select and free moves with snap off; they
+  are moved in the Spawns view by its own arrows, one at a time, by whole tiles and levels. The game check
+  (the lab copy with the pod and Meld mutators out) is still to come.
+
+### Spawns, stage SP8: scripted drop-ins land where placed (project schema 4)
+
+- **Project schema 4** ([projects.py](tools/viewer/projects.py), [project.js](tools/viewer/web/project.js),
+  [compiler.py](tools/editor/compiler.py)): read 1 to 4, written as 4; a save of 1 to 3 is refused as a stale page's.
+  It adds `spawnRules`, and will hold the base spawn points' records of SP6 and SP7.
+- **The rule** `spawnRules: {"dropIns": "placed"}`:
+  - the page ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)): a checkbox in the
+    Spawns flyout, "Scripted drop-ins land where placed (Long War)", with a tooltip on what it covers; greyed with the
+    reason on plain Enemy Within and on a Long War without the drop-in mutator; a line where the install's
+    ExcludeMaps names the base map (the Chryssalid Hive) and the project has no rule; saved, opened, recovered, taken
+    by Reset all and undone as one step; a drop-in's "In the game" follows it;
+  - the compiler: refuses any other value (`spawn-rules`), counts the rule as an edit, passes it to the Build and the
+    report; note `dropins-placed` counts the scripted actions it covers over the map and the kept missions' streams
+    (export 33's `uses`); note `dropins-base-excluded` for the Hive's case; `scripted_users()` reads the uses as the
+    page does;
+  - the Build ([build.py](tools/editor/build.py)): the rule alone is work; the manifest's `config.dropInExclusion`
+    gives the file, section and line, planned against the build's install (`why` where it can't take it), and the
+    README a step for `DefaultRandomSpawns.ini`. A build whose map nothing changes (landing zones or the rule alone)
+    now says lighting unchanged, where its README spoke of a texture cache it doesn't have;
+  - the install ([installs.py](tools/viewer/installs.py)): Play in game and the campaign install plan the line again
+    against the install (`plan_variant_exclusion`, after the drop-in section's ExcludeMaps lines, under a comment
+    naming the editor and the project), back the file up with the other two, note it as `playExclusions` or
+    `dropInExclusions`, and take it out only where it stands as written (clearing a play, Remove from game, reset);
+    a campaign install takes a play's line over; nothing is written on plain Enemy Within or without the mutator,
+    and the play says why;
+  - map packs ([manager.py](tools/viewer/manager.py), [pack_scripts.py](tools/viewer/pack_scripts.py)): a map's
+    `pack.json` entry carries its lines, the README a step for the file, and the PowerShell scripts add them where
+    the game's file has the drop-in section and take them out again;
+  - [spawnrules.py](tools/viewer/spawnrules.py) gains `exclusion_block`;
+    [readme_install_check.py](tools/release/readme_install_check.py) follows a README's step for the third file.
+- [research/editor-contracts.md](research/editor-contracts.md), section 4: schema 4 and `spawnRules`.
+- New [exp72_sp8_sp9_projects.py](tools/editor/examples/exp72_sp8_sp9_projects.py): EXP-72 runs 3 to 5's projects.
+- Checked: new [project_spawns_test.mjs](tools/viewer/tests/project_spawns_test.mjs); the project node tests at 4;
+  [test_projects.py](tools/viewer/tests/test_projects.py) (schema 4 saved with the rule, a schema 3 page's save
+  refused); [test_spawnrules.py](tools/viewer/tests/test_spawnrules.py) (another section's line, the `+` form, the
+  block); [test_play.py](tools/viewer/tests/test_play.py) (the line in with a play and out byte for byte, a campaign
+  install taking it over, a rebuild adding none, none without the mutator); [test_manager.py](tools/viewer/tests/test_manager.py)
+  (the pack's scripts and the editor write the same lines, out byte for byte, none without the section);
+  [test_build.py](tools/editor/tests/test_build.py) (a rule-only build, its manifest and README, on a plain and a
+  Long War install); [test_compiler.py](tools/editor/tests/test_compiler.py) (the rule checked, passed on and
+  counted; the Hive's note). In the page on a test server (Pier A's Council rescue): the box ticks the rule, a
+  scripted drop-in's "In the game" changes to "plays here", Ctrl+Z takes it back. The game check is EXP-72 runs 3
+  and 4.
+
+### Spawns, stage SP5: pod places and Meld groups counted against the edit
+
+- [compiler.py](tools/editor/compiler.py): `spawn_places()` counts the base map's pods and Meld points (export 33's
+  `spawns`, as `projected_spawns()` gives them: a deleted one left out; the base point edits will move, copy and
+  delete them there) against the edit. A place is usable in the grid as the project sizes it, over floor that stays
+  or that the project's pieces give, and in no solid piece of the project. New warnings:
+  - `spawn-pod-places`: fewer usable pod places than the map had (counts before and now, the first place lost);
+    plain Enemy Within, and the missions Long War's pod mutator leaves alone, put a pod at each place;
+  - `spawn-meld-group`: a Meld spawn group left with none of the usable points, or none of the hard points, it had;
+  - and a note, `spawn-outside`: pods and Meld points a resized grid leaves outside, by count.
+  Each names the variant's one mission, or "Every mission of the variant", and the point, so the build window's
+  mission list (which now takes `spawn-` warnings too: [build.py](tools/editor/build.py)) shows its marker.
+- [app.js](tools/viewer/web/app.js): a base pod's or Meld point's panel says when the edit leaves no floor of the
+  map under it and what the Build does about it.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (untouched: nothing; a floor piece deleted
+  under a pod and the hard point; one mission kept; a piece of the project over a pod; every floor gone; a cleared
+  map's grid shrunk past a pod and a Meld point). EXP-51's and EXP-54's cleared Bar projects compile with "0 of the
+  map's pod places are usable now, where 5 were" and the Meld group's hard points lost; in the page on a test
+  server a base pod and a Meld point of the cleared Bar show the new line.
+
+### Spawns, stage SP4: an added bomb's objects placed
+
+- [compiler.py](tools/editor/compiler.py):
+  - a stream override on the stream an added kind takes its objects from (export 33's `donors`: the added council
+    bomb's `URB_Slaughterhouse_Stream`) is read against the donor's objects (`stream_info`); with no such mission
+    in the project it is an error (`stream-donor`) that says so;
+  - `kept_streams()` lists the kept records' streams and an added kind's donor stream (where no kept record
+    streams it), and the mission object checks walk it: floor, inside a piece and group splits cover the added
+    bomb and its nodes;
+  - new warning `mission-donor-place`: an added bomb's bomb or node still where Slaughterhouse has it, which on
+    this map is off the grid, over no floor or inside a piece (Long War plays it there when it finds no place of
+    its own); the cleared-map note leaves donor objects out, and the bomb's helper point is checked with its bomb.
+- [app.js](tools/viewer/web/app.js): a moved stream object's panel names every mission of the variant that
+  streams the same package, since the Build moves it for all of them; the move line says "1 level down", not
+  "-1 levels down"; Used by for an objective with no scripted user says the mission's code finds it.
+- New [exp72_project.py](tools/editor/examples/exp72_project.py): EXP-72 run 2's project, EXP-54's cleared Bar as
+  an added bomb with its bomb and nodes placed on floor that stays.
+- Checked: [test_compiler.py](tools/editor/tests/test_compiler.py) (donor moves accepted with the mission, refused
+  without it, the new warning, a moved donor object checked for floor) and
+  [test_build.py](tools/editor/tests/test_build.py) (the added record streams the variant's copy of the donor,
+  `replaceStreams` names it); editor, node and repo suites pass. In the page on a test server, the EXP-72 project's
+  32 donor markers show with the added bomb picked; the bomb's panel names its stream and its helper; the bomb
+  moved one tile took its helper along and Ctrl+Z put both back. The project built quick (7 s) and was staged in
+  the lab copy by a dry Play in game; the game check is EXP-72 run 2.
+- The two old ledger entries that linked `mission_view.js`, which SP3 removed, name it without a link (the repo
+  suite's link check).
+
+### Spawns, stage SP3: the Spawns view, the Normal switch, objectives, the bomb's helper
+
+- New [spawns_view.js](tools/viewer/web/spawns_view.js) takes over `mission_view.js`: one list of records both
+  controls draw (the base map's spawn points but the landing's, the header mission's stream objects, an added
+  bomb's donor objects, an LWR patch's points, read only), one marker an actor (a bomb's parts and helper stay in
+  its panel), the flyout's families (patrol nodes start off), and the panel's lines.
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css):
+  - a **Spawns** view on the rail (Shift+U, a pin), its flyout choosing which kinds show; only its markers are
+    picked there, through walls; a click on a landing zone describes it, with a button that opens the Landing zones
+    view on it (zones are still edited only there);
+  - a **Spawn points and objectives** switch in the Normal button's flyout, remembered: markers are picked ahead
+    of the piece behind them; off, they leave with their gizmo;
+  - the panel (renamed `spawnPanel`): the actor, class and archetype, whether the level lists it, its values with
+    where each comes from, its group, Used by and Uses, In the game (from the install's rules), its floor;
+  - View options' Mission objects is gone; its saved choice carries over to the switch;
+  - the build window's mission warnings show their marker; changing the mission drops a marker and gizmo no longer
+    shown;
+  - a project whose bomb was moved before export 33 gets its helper point's move when it opens, with a banner, and
+    shows as changed until saved (F-124).
+- Checked: new [spawns_view_test.mjs](tools/viewer/tests/spawns_view_test.mjs);
+  [browser_smoke.py](tools/viewer/tests/browser_smoke.py) gains `check_spawns_view` (passed on Slaughterhouse on a
+  test server: a pod picked through the walls in the view, a marker then a piece in Normal, nothing picked with the
+  switch off, one bomb and eight nodes on the bomb record and none on the abduction, the bomb and a node moved and
+  undone, the helper fix); a project saved with the bomb moved without its helper opened with the banner and saved
+  with it; [test_compiler.py](tools/editor/tests/test_compiler.py) (the helper left behind splits the group) and
+  [test_stream_copy.py](tools/bake/tests/test_stream_copy.py) (the bomb moved with its eleven keeps the helper's
+  offset, the nodes stay). The game check (Long War finding the moved bomb) is run separately.
+- The guide's shot script follows the renamed panel ([take_shots.py](tools/release/guide/take_shots.py)); the
+  guide's text still names View options' Mission objects until it is brought up to date.
+
+### Spawns, stage SP2: the install's spawn rules, read live
+
+- New [spawnrules.py](tools/viewer/spawnrules.py): Long War's five tactical spawn mutators from the install's
+  `DefaultMutatorLoader.ini` (active, absent, or unknown where its section can't be found; plain Enemy Within has
+  every family absent), and from `DefaultRandomSpawns.ini` the drop-in range and flags, the proximities, the bomb's
+  and the Meld mutator's numbers, and every `ExcludeMaps` line of the drop-in section (quoted, plain and commented
+  told apart). It also plans a variant's `ExcludeMaps` line for stage SP8.
+- The server answers `GET /maps/<id>/spawn-rules.json` ([viewer.py](tools/viewer/viewer.py)), read each time as
+  the landing lines are, with whether the install excludes the map.
+- New [spawn_rules.js](tools/viewer/web/spawn_rules.js): the sentences the Spawns inspector will show under "In
+  the game" for pods, Meld points, scripted and wave drop-ins, the bomb and nodes, the landing, and the other
+  points, by install and mission, from the decompiled mutators' conditions; and the uses in words.
+- Checked: new [test_spawnrules.py](tools/viewer/tests/test_spawnrules.py) (fixtures and the configured install)
+  and [spawn_rules_test.mjs](tools/viewer/tests/spawn_rules_test.mjs) (each row of the plan's table). The page
+  does not read them yet (stage SP3).
+
+### Spawns, stage SP1: export 33 carries the map's spawn points and who uses them
+
+- [scene_metadata.py](tools/viewer/scene_metadata.py) reads the base map's pods, Meld points, drop-in and other
+  points, player starts, alien path nodes and no-spawn volumes (`spawn_metadata`). Each record has its values with
+  where each comes from (the map, its archetype or the class's default in the game's script packages), its outgoing
+  links (a pod's patrol nodes, volume, contingent pods, cover points), whether the level lists it, and its uses:
+  Kismet actions that hold it directly or through an object list, wave places (set, wave, group, place, destination
+  or origin), pod reveal events by pod index, and other actors naming it. The landing's own actors carry their
+  landing. The level's actor list is read in one place (`level_list`) for effects, spawn points and mission objects.
+- A mission stream's objects carry the same values, links, uses and list membership, and the bomb's
+  `PointInSpace` helper joins the bomb's group, as Long War's bomb mutator finds it (F-124).
+- [export.py](tools/viewer/export.py): export 33. `scene.json` has `spawns` (absent for a piece study or a
+  preview), an LWR patch's layer its own `spawns`, and `donors` (the bomb donor stream's objects, without pieces).
+- [audit_spawns.py](tools/upk/audit_spawns.py) `--values` runs the editor's reader over every base map; its first
+  run is [spawn-values-2026-11-18.json](research/evidence/spawn-values-2026-11-18.json): 97 maps, no actor unread,
+  7 maps whose pods repeat a pod index (Roadhouse, Badlands, Barrens and four others).
+- Checked: new [test_spawn_metadata.py](tools/viewer/tests/test_spawn_metadata.py) (Bar: five pods 0-4, four
+  Meld points and where each value comes from, the landing's seven actors, its other twelve points multiplayer;
+  Police Station's 24 drop-ins and 36 wave places; HQ assault's 34 origins; Pier A's 6 direct, 9 indirect and 3
+  unused drop-ins; Slaughterhouse's bomb group of eleven), [test_streams.py](tools/viewer/tests/test_streams.py)
+  and [test_audit_spawns.py](tools/upk/tests/test_audit_spawns.py); a v33 export of Bar, Slaughterhouse, Police
+  Station, Pier A and the largest map, Furies (17 s; the spawn reader takes under a second of it). The page reads
+  none of it yet.
+
+### Spawns plan reviewed again; an implementation plan written; F-124
+
+- Reviewed the private spawns plan against main (export 32, project schema 3), the installed Bar and
+  Slaughterhouse packages, the install's mutator loader and random-spawns config, and the decompiled Long War
+  mutators. Its claims hold. A private implementation plan now sets out the stages (export 33 with the base
+  map's spawn points and their users, the install's rules read live, the Spawns view and Normal checkbox, an
+  added bomb mission's objects, pod and Meld diagnostics, then the edits), the files, the tests and the decisions
+  left to the user. Nothing of it is built.
+- New finding F-124 in the [findings register](research/findings-register.md): a bomb moved two tiles or more
+  leaves its `PointInSpace` helper behind, and Long War's bomb mutator then places nothing. Read from the script
+  and the installed stream ([mission objects reader](tools/viewer/scene_metadata.py)); not played.
+- Checked: the repo suite. No tool changed.
+- Later the same day the user answered the plan's decisions: the run goes through every stage, the edits
+  included; View options' Mission objects is folded into Spawns; a project with a bomb already moved gets the
+  helper's move when it opens. The private plan now sets out the edit stages in full, with the scripted drop-in
+  rule built before the base pod and Meld edits. Still waiting for the word to build.
+
+### The user guide covers effects and sounds
+
+- [guide.html](tools/release/guide/guide.html):
+  - New section **Effects and sounds**, after Lights, in the contents:
+    - the Effects view (Shift+X), its markers and its flyout, and editing effects, sounds and lens flares as pieces;
+    - an effect's values (size handle, starting state, particle parameters, colour and strength), a sound's reach,
+      volume and pitch, and the Wave preview;
+    - effects a piece carries (Keep where it is, Follow), lens flares, effects from other maps, and the drawing
+      (Effects as they look).
+  - A typical task, *Set a fire, or quiet a sound*.
+  - Brought up to date:
+    - What it does and the limits: effects and sounds can be edited, and the view draws effects as a rough
+      likeness.
+    - Header: the edit count names effect edits, and Reset all puts them back.
+    - Tool strip: 17 buttons, with the Effects view as 10. The views are 6 to 10, and the Normal view's flyout has a
+      third switch, Effects and sounds.
+    - The "Carries an effect" chip no longer says effects aren't shown, and covers effects placed by a prefab.
+    - Box select, Select all, groups, pieces from other maps, prefabs (what goes in, the builder, Test in game),
+      buildings, Clear map (what goes and stays) and the kinds of pieces now include effects and sounds.
+    - View options: Effects as they look is item 13, with the items after it renumbered.
+    - Keyboard: Shift+X. In the game: a moved landing leaves the Skyranger's dust on plain EW (F-119).
+- Pictures (`shots/`):
+  - New: `effects`, `effects-flyout`, `effect-values`, `add-effects`.
+  - Retaken: `rail`, `normal-flyout`, `view-options`, and `add-all` (its counts now include effects).
+  - Kept: the rest, whose part of the editor didn't change. The tool strip at the edge of the full-window and
+    piece-list pictures still has 16 buttons.
+- [take_shots.py](tools/release/guide/take_shots.py): the four new shots, using the effect helpers `effect_id`,
+  `marker`, `open_effects` and `close_effects`, with the landing zones' badges hidden while they are taken. Also
+  `#editEffects` in the rail and `#likenessToggle` in View options.
+- Checked:
+  - Every shot taken in one run on a test server with scratch projects, and each new and retaken picture looked at.
+  - `guide_tools.py compare` and side-by-side sheets for the ones in doubt.
+  - The viewer suite's guide tests, and the release and repo suites.
+  - The page as published, photographed at the changed sections.
+- The page isn't republished until main is pushed. Release 0.5.3's zip has the earlier guide.
+
+### Spawns plan now includes a toolbar view, Normal overlay and mission objectives
+
+- Updated the private plan with both Spawns controls, mission switching and grouped objective editing using the
+  existing [toolbar](tools/viewer/web/index.html) and [mission metadata](tools/viewer/scene_metadata.py).
+- Checked the installed Slaughterhouse stream against the bomb mutator. The editor's bomb group omits a nearby
+  `PointInSpace` the mutator moves. The plan tests moving that helper with the bomb and moving each power node
+  independently. Viewer stream, bake stream-copy and repo tests passed. The new controls and gameplay at the
+  edited objective locations still need verification during implementation.
+
+### Reviewed the editor spawns plan against the current editor and game data
+
+- Updated the private plan to build on the existing landing editor and mission-stream moves. The next stage
+  covers base-map spawn markers and their users. Revised F-06 and F-85 to distinguish observed landings and
+  randomisation from the proposed pod, Meld and reinforcement edits. [Findings register](research/findings-register.md)
+- Reran the [spawn audit](tools/upk/audit_spawns.py). All 237 entries in the [original census](research/evidence/spawn-actors-audit-2026-11-11.json)
+  matched. Checked wave and Kismet references in mission packages and reopened a scratch Bar package with a
+  cloned pod, its new index and its three remapped children. Checked the mutator conditions against the installed
+  config, scripts and recorded runs.
+- Checked the viewer and bake spawn tests, editor mission and landing tests, stream-copy tests, the clear-map
+  Node tests and the repo suite. Gameplay checks for authored alien positions, plain EW landings and the proposed
+  LWR runtime remain open.
+
+### The Effects view opens with a copied piece that carries an effect
+
+- [app.js](tools/viewer/web/app.js) `deriveEffects`: the marker of an effect carried by a copied piece (the claw
+  machine copied with its lights) kept its record but lost its colour, so opening the Effects view, or turning on
+  the Normal view's Effects and sounds switch, threw and drew no markers. The marker now keeps its colour. Wrong
+  since stage FX3; found while taking the user guide's pictures, whose demo project copies the claw machine.
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_effects_editing`: the carrier is also copied and
+  pasted, and the Effects view then shows the carried copy's own marker.
+- Checked: the smoke's `effects` checks on URB_Bar on a test server, passing with the fix and failing without it.
+
+### The edit count names effect and sound edits; the Add panel's preview closes with the panel
+
+- [app.js](tools/viewer/web/app.js):
+  - The header's count of what has changed says how many effects, sounds and lens flares are edited
+    (*1 effect or sound edit*). It counted them in its total but never named them, so an effect's edit showed only
+    "unsaved".
+  - The Add panel's hover preview goes when the panel closes or leaves All maps, and gives the row its tooltip
+    back. Closed with the pointer still on a row, it stayed over the view.
+- Checked on a test server: an effect deleted and undone, with the count before and after; the preview shown, then
+  the panel closed with the pointer on its row. Node and repo suites.
+
+### Effects and sounds done: merged into main
+
+- At the user's word, the effects and sounds work is marked done (its plan's status in `private/plans/done`) and
+  the branch effects-and-sounds is merged into main by fast-forward. The plan's stages from FX1 to FX6b are in, with
+  the likeness's two later passes (exports 31 and 32). Sounds from one's own files and retuned particle systems were
+  left out at the user's word; game shots as Add panel pictures are not built.
+- Checked before the merge, on the branch: every suite (viewer, editor, upk, bake, lab, release, repo, node, with the
+  install checks), and the browser smoke's likeness, library-effects, effects, effect-values and prefabs checks.
+- Known gaps, none played:
+  - the drawing of the intro map's night smoke and police lights, the alien base's and the UFO's effects;
+  - plain Enemy Within for values and lens flares;
+  - the fog pod's light and decals (F-50);
+  - the user guide has no section for effects and sounds.
+
 ## 17 November 2026
+
+### Police lights round again; the fires' event emitters say what they are (export 32)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 5 ([export.py](tools/viewer/export.py) export 32).
+  Version 4's rule that a packed texture shapes first, where there is no picture, gave the police lights' core the
+  packed `T_Beam_Gradient_Vertical_3Channel`, which fills its quad: blue squares over the cars.
+  - An added (additive) particle's picture is its first grey texture: the lights' round `T_glowBit`.
+  - A picture whose alpha holds its shape takes only a texture named as a mask besides it. The moths and the
+    holograms lose the second mask version 4 gave them; draw version 3 had none either.
+  - With no picture, a texture whose alpha holds a shape shapes before a packed one.
+- The emitters said to have their "material in another package" all carry the engine's default particle material
+  and an event generator: one particle after ten seconds, the last emitter of each fire and of the embers. They draw
+  nothing in the game either (the farm-fires reference shows no smoke over the fires). They now say "it only sends
+  events: nothing is seen" (`sends_events_only`). No emitter of an effect brought from another map is affected.
+- [editor-contracts.md](research/editor-contracts.md): draw version 5.
+
+Checked:
+- Act1_IntroLevel, URB_Bar and CSmallScout_Farm re-exported. Every texture pick that changed from draw version 4
+  was listed and looked over: police lights, headlight beams, power core, LockedGlow, moths, holograms, the bar's
+  metal template.
+- The intro map's two police light effects drawn on a test server: soft blue and red glows on the light bars, no
+  squares. The Add panel's pane shows the lights, moths and a headlight beam.
+- [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py): an added glow's picture, a moth with no second
+  mask, the farm fire's event emitter.
+- Browser smoke: likeness, library-effects, effects, effect-values, prefabs.
+- Viewer, editor, node and repo suites.
+
+### Effects drawn closer to the game: fires look like fire, the night smoke is no longer pink (export 31)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 4 ([export.py](tools/viewer/export.py) export 31):
+  - Each particle texture's traits come from its pixels (`texture_traits`): grey, an alpha that holds a shape, packed
+    channels, red share, brightness. Packed means no blue with red and green unrelated, or mostly blue to pink, as the
+    night smoke's `T_Roiling_Smoke_SubUV`, whose red, green and blue are its light from below, from above and its
+    density.
+  - The colour and the shape come from different textures (`pick_textures`: `picture`, `opacity` alpha, brightness
+    or none, `mask`, `maskFrom` brightness, alpha or red). The fires' colour is their Flame picture and their shape a
+    grey mask; before, names alone gave the debris the packed smoke noise and the Flame's near-empty alpha hid them.
+  - A material's own colour parameters are read (`material_colours` into `colours`) and tint a see-through particle
+    with no picture. The night smoke plume's are all but black.
+- [effects_sim.js](tools/viewer/web/effects_sim.js):
+  - Colour channels that carry data are drawn as the mean of the others (`dataChannels`). The fires' green and blue
+    offsets reach 50, and the night smoke's green is scaled by up to 200 over its life (a colour scale that differs
+    by channel).
+  - An alpha that rises above 1.2 erodes the shape rather than making it solid (`alphaErodes`: the fire chunks).
+  - A colour saved with only a vector, as URB_Bar's webbing's, is read as that vector, not white.
+- [effects_preview.js](tools/viewer/web/effects_preview.js):
+  - See-through and added particles are blended premultiplied, as the game lays a bright colour at a low opacity.
+  - A sprite is never thinner than two pixels (`viewHeight`).
+  - A solid mesh with no colour of its own is drawn charred.
+  - A dark see-through colour is lifted to a dull grey: the bar's steam is a faint wisp, not black.
+  - `materialTint` gives the material's tint.
+  - `describe()` gives the page's `likenessOf` hook for checks.
+- [app.js](tools/viewer/web/app.js):
+  - The Add panel's pane shows the row's tip inside itself; the browser's own tooltip no longer covers the drawing.
+  - Pictures and the pane frame the size-weighted bulk of the particles.
+  - A vector read by a colour module is labelled r, g, b, not x, y, z.
+- [effects_rules.js](tools/viewer/web/effects_rules.js): a vector parameter named Color, Colour or Tint is shown and
+  edited as a colour and a strength (`colourNamed`), such as `P_Power_Core_Persistent`'s Color, which scales its
+  colour over life.
+- [library.js](tools/viewer/web/library.js): picture version 2, so the Add panel's effect pictures are drawn again.
+- [editor-contracts.md](research/editor-contracts.md): the draw record's version 4 fields.
+
+Checked:
+- Re-exports of CSmallScout_Farm, URB_Bar and Act1_IntroLevel drawn on a test server and compared with the
+  hidden-game references (farm fires, likeness-bar1):
+  - farm fires: bright, yellow-white at the core, in charred debris;
+  - bar steam: a faint grey wisp;
+  - moths: small tan cards;
+  - webbing: pale grey-green;
+  - intro night smoke: a grey plume, not pink and green.
+- [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py) (traits on made-up pictures, role picks, material
+  colours, the steam's fixture),
+  [effects_sim_test.mjs](tools/viewer/tests/effects_sim_test.mjs),
+  [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs).
+- Browser smoke: likeness, library-effects, effects, effect-values, prefabs.
+- Viewer, editor and node suites.
+
+Known gaps:
+- The night smoke's foot, lit orange by its fire in the game, is not drawn.
+- An emitter whose material is in another package is still not drawn (P_Fire_Big's last emitter; the entry above
+  found that these only send events and show nothing in the game).
+- The intro map's own steam is set so faint (opacity 0.1) that the pane shows almost nothing.
+
+### The effects and sounds plan is built: its references point at the built plans
+
+- The plan's file moved from the plans not built to the plans built (`private/plans/done`), and the eleven files that
+  name it (this ledger, the effects' modules and their tests) name it there. Its stages for sounds from one's own
+  files and for retuned particle systems were left out at the user's word, and the optional game shots as Add panel
+  pictures were not built.
+
+Checked: repo and node suites.
+
+### EXP-71 passed: lens flares are edited in every project (effects and sounds plan, EXP-F)
+
+- [EXP-71](research/experiments/EXP-71-lens-flares.md) run 1, played unattended by the game-test skill's hidden
+  game (the lab copy; the unedited URB_Bar first, for the lamp): a flare moved, one deleted, one copied and two
+  brought from AlienBase01 draw where they are put (the beacon's glare a clear orange glow over the car park), the
+  deleted one's wash is gone from its lamp, and a quicksave's load brings back the same five, each once. Whether a
+  wall hides a flare could not be judged: the game cuts the bar open round the one inside it.
+- [compiler.py](tools/editor/compiler.py): the `flare` family builds and `flare` is in `FOREIGN_FAMILIES`. The
+  Effects view moves, turns, copies and deletes a flare in every project, the Add panel's Lens flares can be placed,
+  and a prefab's flares are placed with it.
+- [editor-contracts.md](research/editor-contracts.md).
+
+Checked: the run's readbacks and pictures (the orange glow looked at); the gate tests
+([test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py),
+[test_families.py](tools/viewer/tests/test_families.py), [test_compiler.py](tools/editor/tests/test_compiler.py));
+node, viewer, editor and repo suites. Not played: plain Enemy Within; occlusion.
+
+### A piece carries the effects its prefab places around it (effects and sounds plan, stage FX6b; export 30)
+
+- [scene_metadata.py](tools/viewer/scene_metadata.py) `effect_metadata`: an effect that no piece carries by its own
+  place, placed by a prefab instance at whose own place exactly one mesh piece stands, is carried by that piece
+  (`carriedBy`, with the new `carriedHow`: `place` or `prefab`). No piece there, or several: nothing is guessed.
+  [export.py](tools/viewer/export.py): export 30 passes the kind on. The Build and the page already move, copy and
+  delete a carried effect by its piece's own move, so each keeps its offset and its turn about the piece; an effect
+  moved or deleted by itself is its own from then on, as before.
+- Across the install's maps (a count by script, not kept): 65 effects in 8 maps gain a carrier: the alien vapour
+  pods' five smoke emitters each (URB_Bar's two pods, URB_IndustrialOffice, URB_LiquorStore, URB_StreetHurricane,
+  URB_StreetOverpass), URB_Boulevard's 17 splashes and glows round its fountain's piece (and its Euro twin's), a
+  Skyranger's idle lights. 297 effects of a prefab stay free: no one piece stands at their prefab's place.
+- [Findings register](research/findings-register.md) F-50: the smoke fixed offline; the pod's light and decals stay
+  open. [tools/viewer/README.md](tools/viewer/README.md).
+
+Checked: [test_effects_metadata.py](tools/viewer/tests/test_effects_metadata.py) (Bar's five smoke emitters carried
+by one piece, by their prefab, each off its place); viewer and editor suites, the bake suite's effect tests; URB_Bar
+exported at 30, its pod moved a tile east and two north and turned a quarter in a project, built without baking
+and read back: all five emitters at their offsets turned with it (within 0.6 units). Not played in the game. Every
+map is exported again on its next opening (export 30).
+
+### EXP-70 passed: effects' and sounds' values build for every project (effects and sounds plan, EXP-E)
+
+- [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md) run 2, played unattended by the game-test
+  skill's hidden game (the lab copy, started for saving): three more copies of URB_Bar's steam, one as it is, one
+  with Brightness 5 saved as a number where the system reads a vector, one with a Spawn entry the steam doesn't
+  save ([exp70_project.py](tools/editor/examples/exp70_project.py) `--run2`). The number is read (a bright white
+  cloud beside a faint grey wisp), the new entry is read (a far denser cloud), and a quicksave's load keeps every
+  value: the steam set to start off still off, the silenced sound still silent, sizes, colours, reach and pitch as
+  set.
+- [compiler.py](tools/editor/compiler.py): `effect-values` and `sound-values` build (`FAMILIES`). The page offers
+  an effect's size, starting state and parameters and a sound's reach, volume, pitch and starting state in every
+  project; a placed prefab's effects and sounds bring their values.
+- The likeness reads a parameter of the other kind as the game does
+  ([effects_sim.js](tools/viewer/web/effects_sim.js) `sample`: a number on each axis of a vector, a vector's first
+  as a number), and a lit material is never drawn darker than a share of its picture
+  ([effects_preview.js](tools/viewer/web/effects_preview.js) `uLit`): its colour is what it glows with, the scene
+  lights it too. **This corrects stage FXV2's entry below**, which read the unedited map's pictures as the game
+  ignoring such a number.
+- [effects_rules.js](tools/viewer/web/effects_rules.js): the panel's note on such a parameter says the number is
+  taken for each part of the vector.
+- [Findings register](research/findings-register.md): F-122 (the number is read; verified), F-123 (a copied sound
+  and its original report one NetIndex in the log; accepted, nothing follows from it in a battle).
+- [tools/viewer/README.md](tools/viewer/README.md).
+
+Checked: the run's own pictures and readbacks (a wide shot of the three copies looked at: white, thick dark grey,
+faint); the gate tests ([test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py),
+[test_families.py](tools/viewer/tests/test_families.py)); node, viewer, editor and repo suites. Not played: plain
+Enemy Within (the run was under Long War).
+
+### Lens flares become editable (effects and sounds plan, stage FX6b, the flare part)
+
+- [compiler.py](tools/editor/compiler.py): a `flare` family (not gridded; off until its game check, EXP-71:
+  `--family flare` lifts it), `EFFECT_CLASSES['flare']` (`LensFlareSource`), and a flare's override (move, turn,
+  delete) and copy (`kind: flare`) compiled into a `flares` object of the spec and of the native edit, as a sound's
+  are (`EFFECT_LANES`, `EFFECT_WORDS`). A flare has no values object: `flare`, `effect` or `sound` on its record is
+  malformed. A copy of another map's flare goes through the library as an effect's does (`foreign_effect`;
+  `FOREIGN_FAMILIES` lists no flare until the game check, so the library marks one "family" and the compiler builds
+  it all the same). The refusal "a lens flare, which this editor version shows but doesn't change" is gone: with the
+  family off it is the family's refusal.
+- [native_flares.py](tools/bake/native_flares.py) (new): the `flares` lane on
+  [native_effects.py](tools/bake/native_effects.py) `apply` (`FLARE_CLASSES`). A LensFlareSource owns its
+  LensFlareComponent alone; the component names the flare template itself or through the archetype the actor was
+  made from. A copy is those two exports (`native_copy.clone_actor`), the template and the archetype shared; values
+  are refused. [native_copy.py](tools/bake/native_copy.py): `build(flares=)`, the lane read back
+  (`native_flares.verify`: the copy's component its own, a template to show), the manifest's `flares` section, and
+  on a cleared map a flare the project moves itself is kept as a moved effect is (the map's other flares go with
+  the clear, as before). [transplant.py](tools/bake/transplant.py): `LANES` has `flares`, and a donor's row counts
+  them (`flares`, among its `effects`). [build.py](tools/editor/build.py): `EFFECT_LANES`; a flares-only edit
+  builds with the lighting kept, and the transplant step's row carries `flares`.
+- The page ([app.js](tools/viewer/web/app.js)): where the flare family builds a flare is selected, moved, turned,
+  copied, pasted, deleted, box-selected and grouped as a sound is (`effectViewOnly` asks the family and the
+  record's `can`), saved as an override or an added record with no values
+  ([project.js](tools/viewer/web/project.js) refuses a `flare` object), and **Select all** takes the flares of its
+  template. Its panel says what it shows and offers no values. A prefab holds flares (`prefabRecords`,
+  `prefabClip`, the builder's counts; [prefabs.js](tools/viewer/web/prefabs.js) "2 lens flares"). The Build
+  window's transplant step names the lens flares brought.
+- Prefabs ([prefabs.py](tools/viewer/prefabs.py), [prefab_bounds.py](tools/viewer/prefab_bounds.py),
+  [prefab_stage.py](tools/editor/prefab_stage.py)): a piece of `kind: flare` (`{actor, kind, from, location,
+  rotation}`, never a values object), counted as `flares` in the summary, a point for the size, read from its map
+  for Test in game. Prefab schema stays 3.
+- The library ([library.py](tools/viewer/library.py), [effects_library.py](tools/viewer/effects_library.py)): the
+  base maps' lens flares are entries of `family` `flare` (recipe: class, template, colour, scale; kind "Lens
+  flare"; `flare` and `colour` on the entry), `library.effect` reads one as a template, and the index is version 10
+  (the constant had stayed 8 through stage FX4, whose notes call it 9), so every library is scanned again. The Add
+  panel's All maps has **Lens flares** in its Kind menu ([piece_categories.js](tools/viewer/web/piece_categories.js))
+  and a row with the star, the template and the colour ([library.js](tools/viewer/web/library.js)).
+- EXP-71 prepared, not played: [EXP-71-lens-flares.md](research/experiments/EXP-71-lens-flares.md),
+  [exp71_project.py](tools/editor/examples/exp71_project.py), [EXP-71-shots.json](research/experiments/EXP-71-shots.json).
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_native_effects.py](tools/bake/tests/test_native_effects.py) `FlareLanes` (URB_Bar's two flares moved,
+deleted and copied, read back with the package reader and export 28; refusals; a cleared map) and `ForeignFlares`
+(two of AlienBase01's staged in Bar and cloned, nothing cut); [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py)
+`Flares` (the gate, the lane, no values, what the export forbids, groups, another map's);
+[test_build.py](tools/editor/tests/test_build.py) (a flares-only build, staged or not);
+[test_prefabs.py](tools/viewer/tests/test_prefabs.py), [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py),
+[test_library.py](tools/viewer/tests/test_library.py), [test_effects_library.py](tools/viewer/tests/test_effects_library.py),
+[test_families.py](tools/viewer/tests/test_families.py), the node tests
+([piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs),
+[project_effects_test.mjs](tools/viewer/tests/project_effects_test.mjs)). The browser smoke
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)) has two new checks, run on URB_Bar against test servers
+with a library scanned at index 10: `flares` (with the family off: view only, Delete says why; with `--family
+flare`: the panel, a move, a delete, a copy, a prefab's records, Select all, box select, all undone) and
+`library-flares` (All maps' Lens flares, one of AlienBase01 placed, a prefab of it and one of Bar's saved and
+placed, the project saved, reopened and built without baking: 1 lens flare from AlienBase01); `effects`,
+`library-effects`, `prefabs` and `prefab_effects` again. EXP-71's project built offline into a scratch folder and
+read back (six flares listed, each at its place with its template). Known gaps: not played in the game (EXP-71),
+so the family is off and the Add panel marks other maps' flares as held; a flare has no likeness (its marker is
+its picture) and no values; the fog pod's wider carrying, the other half of FX6b, is not built; a library scanned
+before this is scanned again on first use (about half a minute), and
+[test_compiler.py](tools/editor/tests/test_compiler.py)'s test on the configured cache's library is skipped until
+it is.
+
+### Prefabs hold effects and sounds (effects and sounds plan, stage FX6a)
+
+- [prefabs.py](tools/viewer/prefabs.py): prefab schema 3 (1 and 2 read, stored as 3). A piece with a `kind` is an
+  effect or an ambient sound: `{actor, kind, from, location, rotation}` and the values object of its kind at most,
+  checked whole as every piece is (`check_values`: known keys, numbers in range, at most 64 parameters). The summary
+  counts `effects` and `sounds`; the recipes' recovery leaves them as saved.
+  [prefab_bounds.py](tools/viewer/prefab_bounds.py): each is the point where it stands, so a sound's reach is no
+  part of the footprint.
+- [app.js](tools/viewer/web/app.js): `prefabRecords` writes the selection's effects and sounds (their values, their
+  group, their map among the donors; a flare and a stream's are left out with a sentence); `prefabClip` reads them
+  back (this map's from its export, another map's by its template, values where their family builds) and the paste
+  makes the copies it makes of any effect. The builder keeps, shows and edits them: the Effects view and the
+  likeness are on there too (`effectsAvailable`), its size takes their places, its counts name them. The Effects
+  view's bar counts added effects and sounds. [prefabs.js](tools/viewer/web/prefabs.js) (schema 3, "1 piece, 1
+  effect and 1 sound"), [prefab_document.js](tools/viewer/web/prefab_document.js) (no partner written on them).
+- [prefab_stage.py](tools/editor/prefab_stage.py): Test in game plays them. Each is read from its map
+  (`library.effect`), left out with its reason when it is not there, of another kind, or its map is not the file
+  the prefab was saved from; its values go into the test where their family builds.
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_prefabs.py](tools/viewer/tests/test_prefabs.py) (the two kinds saved, listed, measured, 22 malformed
+ones refused, the recovery), [test_prefab_stage.py](tools/editor/tests/test_prefab_stage.py) (read, left out, into
+the test's project with and without the value families); the browser smoke's new `prefab_effects` check
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)) on URB_Bar: a prop, an effect and a sound grouped, saved,
+placed in the map, then placed in AlienBase01, saved, reopened and built without baking (the build's donor row: 2
+effects and 1 piece from URB_Bar); `prefabs`, `effects` and `likeness` checks and
+[browser_builder.py](tools/viewer/tests/browser_builder.py) again; a prefab with both opened in the builder by a
+script (the document comes back the same, a delete and its undo). No game run: a placed prefab's effects are the
+added records EXP-68 and EXP-69 played. Known gaps: a lens flare is not held (FX6b); a prefab's picture shows an
+effect as its likeness only when its textures were read by then, as its marker otherwise.
+
+### Effects in the Add panel as they look (effects and sounds plan, stage FXV3)
+
+- [library.js](tools/viewer/web/library.js): an effect's row shows its likeness as its picture. The marker is drawn
+  at once; the likeness is made warm, with its textures read, drawn in a frame like a piece's picture and kept by the
+  server (`/library/thumbs/<key>.png`, a key of the effect's source and `PICTURE_VERSION`, so a change of the drawing
+  makes them anew); where nothing can be drawn the marker stays. New options `effectPicture`, `paintObject`,
+  `onHover`.
+- [app.js](tools/viewer/web/app.js): the pointer on an effect's row plays it in a pane beside the panel
+  (`hoverLikeness`, `drawLikenessPane`: its own scene, a camera that turns slowly round the particles' bounds, one
+  tile outlined for size, the row's words under it); an effect being placed carries its likeness with the cursor
+  (`ghostLikeness`, for a prefab's or a group's effects too); an effect of this map takes its own record, one of
+  another map its template. All of it follows View options' Effects as they look.
+- [effects_preview.js](tools/viewer/web/effects_preview.js): a likeness says when its textures are read (`ready`) and
+  how far its particles reach (`bounds`); a masked sprite without an alpha channel is cut by its brightness.
+- [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the pane.
+  [tools/viewer/README.md](tools/viewer/README.md).
+- The game's own pictures of URB_Bar's fifteen systems (a hidden game, game-test skill): eleven described, among
+  them the webbing (hair-thin pale grey-green strands, still), the rats and the blowing trash (solid little meshes),
+  the blinking light (a dot a few units wide, on a third of the time); the large steam, the headlight beam and the
+  claw machine lights could not be told from what stands around them.
+
+Checked: the browser smoke's `library_effects` check ([browser_smoke.py](tools/viewer/tests/browser_smoke.py): a
+row's likeness picture, the pane on the pointer and gone with it, sounds without either, the likeness with the
+cursor) on URB_Bar against a scanned test library; the panel's list, pane and a placing looked at in pictures (the
+blinking lights, the fire glows and the flare smokes are told apart at a glance); node and viewer suites. Known
+gaps: the likeness of the webbing is whiter and denser than the game's; the pane is not drawn in a window under 220
+pixels.
+
+### Effects drawn as they look: the likeness in the view (effects and sounds plan, stage FXV2)
+
+- [effects_sim.js](tools/viewer/web/effects_sim.js), new, no three.js: one emitter stepped from its draw data. `sample`
+  reads a distribution at a time (a table's entry blended to the next, a random range with its locked axes, a particle
+  parameter through its mode's ranges); `makeEmitter` spawns by the rate and the bursts, gives each particle its life,
+  place (a point, a box, a sphere, a cylinder), speed, size, colour, turn and sub-image, and changes them over its
+  life by the followed modules; seeded, so the same effect draws the same; `LIMITS` (400 particles an emitter, 1,500
+  an effect, 30,000 in the view).
+- [effects_preview.js](tools/viewer/web/effects_preview.js), new: `makeLikeness` draws a system: each sprite emitter
+  as instanced quads that face the camera (or lie along their speed), each mesh emitter as an instanced mesh, both
+  through one shader with the picture and mask the export picked, blended as the material says (see-through, added,
+  multiplied, solid). It starts warm (run ahead by its longest life) and a system that has played out starts again
+  after two seconds.
+- [app.js](tools/viewer/web/app.js): a likeness for every effect the Build will have (`refreshLikenesses`: the
+  markers' own rule, without their filters), in every view, never picked; one that starts off only while it is
+  picked; made anew when its parameters change; put where its effect stands each frame, so a drag and a size edit
+  show at once; stepped only when in the picture and more than a few pixels of it (`stepLikenesses`), thinned evenly
+  over the view's budget. **View options: Effects as they look**, kept in the browser. The effect panel says what the
+  drawing leaves out ("Drawn here without its swirl"). An effect of another map brings its textures and meshes with
+  its template.
+- [effects_draw.py](tools/viewer/effects_draw.py), draw version 3: a mesh emitter carries its own textures and takes
+  its blend from the material it is drawn with; a texture of three packed channels gives one channel as the opacity
+  and no colour (`opacity: channel`); an emitter whose material only bends the light is not drawn.
+- **From the game's own pictures** (a hidden game on URB_Bar, game-test skill): a number saved where the system reads
+  a vector (and the other way) is not found by the game, which plays the distribution's constant. Bar's steam saves
+  Brightness 0.05 as a number and is a dull grey wisp, not near black. `sample` does the same. This is what EXP-70
+  could not judge. (**Wrong, and put right the same day**: EXP-70 run 2 showed the game reads such a number; see
+  the entry on EXP-70 passing.)
+- [tools/viewer/README.md](tools/viewer/README.md), [editor-contracts.md](research/editor-contracts.md) section 8.
+
+Checked: [effects_sim_test.mjs](tools/viewer/tests/effects_sim_test.mjs) (tables, random ranges, locked axes,
+parameters and the other kind, a steady emitter's count, lives, move, colour and growth, the same seed twice, the
+thinning, the limits, a burst played once, where particles are born, an unknown module); the browser smoke's new
+`likeness` check ([browser_smoke.py](tools/viewer/tests/browser_smoke.py): every drawable effect has one, the picture
+round a framed effect differs with the switch on and off, off steps nothing and is kept, a delete and its undo) on
+URB_Bar (70 effects), AlienBase01 (130 drawn, 4,091 particles: 11.0 ms a frame against 10.0 without, headless) and
+URB_CemeteryGrand (136); pictures of one effect of each of Bar's 17 systems looked at beside the game's (the steam and
+the alien vapour agree in colour, size and shape). Known gaps: orbit, collision, events and attractors are not
+followed; a curve the cook kept as an object is not read; a world-space emitter's pull follows its effect's turn; the
+comparison covers Bar's systems only so far.
+
+### What an effect's likeness is drawn from: export 29 (effects and sounds plan, stage FXV1)
+
+- [effects_draw.py](tools/viewer/effects_draw.py), new: for each emitter of a particle system (its first level of
+  detail) what the page needs to draw it: sprites or meshes, the textures its material samples (its parameters, then
+  its compiled shaders' list) with the picture and the mask picked by name, the blend, how its particles face the
+  camera, its sub-images, its spawn rate, bursts and every followed module's numbers, each as the game's baked lookup
+  table or as the particle parameter that feeds it; `draw: null` with `why` for what can't be drawn (a ribbon, no level
+  of detail left, a mesh or material in another package, an emitter another's event starts). `RULES` is where a
+  material the name rule gets wrong is given its textures by hand (empty).
+- A cooked distribution struct saves only its difference from the module class's default, so a table's shape is read
+  through the archetype chain: [effects_metadata.py](tools/viewer/effects_metadata.py) `Defaults.chain` (the object,
+  its archetypes in the map, the class default in the script packages and its own chain). Effects metadata version 2.
+- [export.py](tools/viewer/export.py): `EXPORT_VERSION` 29; `Exporter.effects` attaches the draw data, the particle
+  textures go through `Exporter.texture` and a mesh particle's mesh and materials through the new `particle_mesh`,
+  written beside the map's others. A map is exported again when it is next opened, as with every bump.
+- [library.py](tools/viewer/library.py): `effect_draw` gives one particle system of another map its draw data and
+  writes its textures and meshes into that map's pieces folder, kept once read; `effect()`'s template carries the
+  system so drawn and `draw` (`base`, `meshes`, `materials`, `textures`).
+- [editor-contracts.md](research/editor-contracts.md) section 8: an emitter's `draw` and the three forms of a
+  distribution.
+
+Checked: [test_effects_draw.py](tools/viewer/tests/test_effects_draw.py) (a table's shapes and the ones not read;
+the picture and the mask by name; on the install's URB_Bar: the steam's rate and life fed by `Wind_Strength`, its
+colour by `Color`, a beam's one burst, the moths' mesh, a turn whose shape is the class default's, every emitter drawn
+or saying why, nothing unread but curves kept as objects); `test_the_exporter_carries_them` now writes into a folder
+and finds each drawn emitter's textures, mesh and materials there; the viewer suite (471 tests). URB_Bar exported
+whole in 22 seconds, its 17 systems' draw data 265 KB of a 7.7 MB scene. Nothing draws it yet (stage FXV2). Known
+gaps: a curve kept as an object (three in Bar) is not read; the texture pick is by name and unproven until the
+comparison with the game's pictures.
+
+### Box select takes effects and sounds (effects and sounds plan, stage FX3b)
+
+- [app.js](tools/viewer/web/app.js): with the Normal button's **Effects and sounds** switch on, the select box
+  (`pickCandidates`) takes the effects and sounds inside it with the pieces, and its bar counts them ("12 pieces, 3
+  effects and 1 sound inside"); in the Effects view the box takes markers only, and the tool no longer closes the
+  view. Only what is drawn and the editor changes is taken (not a stream's, not a view-only one).
+- **Select all** for a picked effect or sound (`effectKind`, `kindSeeds`, `kindMatches`; the effect panel's own
+  button, [index.html](tools/viewer/web/index.html) `effectKind`): every drawn effect of the same particle system,
+  every sound of the same waves, inside the box where one is drawn.
+- [tools/viewer/README.md](tools/viewer/README.md) says so.
+
+Checked: the browser smoke's new `check_effects_box` on URB_Bar ([browser_smoke.py](tools/viewer/tests/browser_smoke.py):
+the box without and with the switch, the bar's words, Enter, the Effects view's box, an empty box, Select all of
+eight moth effects and of the one in a box) with the `effects` and `box-select` checks; the node and repo suites.
+No Build or project change, so nothing to play.
+
+### EXP-70 prepared: effect and sound values in the game (effects and sounds plan, EXP-E)
+
+- [EXP-70](research/experiments/EXP-70-effect-and-sound-values.md): ten values set on URB_Bar's own effects and
+  sounds and on copies of them (a beam's colour and a number where its system reads a vector, two sizes, one even and
+  one uneven, an effect and a simple sound set to start off, three copies of one steam: one green, one with a
+  parameter it doesn't save, one untouched; a sound's pitch and reach, a copy's pitch and volume), built with the
+  value families lifted; its project [exp70_project.py](tools/editor/examples/exp70_project.py) and marked shots
+  ([EXP-70-shots.json](research/experiments/EXP-70-shots.json)).
+
+Checked: the project compiles with the two meant warnings (two starting off with nothing to switch them on); the
+built map read back with a fresh export-28 reader, every value as set and everything else as the map has it. Not
+played yet.
+
+### Effects' and sounds' values in the editor page (effects and sounds plan, stage FX5, part 2)
+
+- Where the `effect-values` and `sound-values` families build (an experiment's server: `serve --family effect-values
+  --family sound-values`), a picked effect's or simple sound's panel has **Values**
+  ([app.js](tools/viewer/web/app.js) `effectValueControls`, `effectParameterRow`, `changeEffectValues`): its starting
+  state; an effect's parameters ([effects_rules.js](tools/viewer/web/effects_rules.js) `parameterControls`): those it
+  saves, in the kind each is saved in, then those its system offers that it doesn't save, as a number with a slider
+  guided by the system's range, a vector, a colour, or a colour and a strength for a vector that feeds a particle's
+  colour; a random, untyped or two-kind one read only with why; a sound's volume and pitch, least and most.
+- Handles in the view (the lights' handle code: `effectHandles`, `effectHandleValues`; [lights_view.js](tools/viewer/web/lights_view.js)
+  colours and sizes): an effect's size beside its marker (1/64 to 64 times the map's, log scale) and a sound's inner
+  and outer radius on its spheres; drawn live, one undo step at the release, Escape puts it back. F frames a sound
+  from as far as shows its spheres.
+- The record as edited (`withValues`) is what the panel, the chips, the box and the spheres show; a project saves the
+  values in the override's or copy's `effect` or `sound` (`savedValues`, `keptValues`), a copy takes the values of
+  what it copies, Reset piece and Reset all put them back.
+- [tools/viewer/README.md](tools/viewer/README.md): Values.
+
+Checked: [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs) (the controls, guides, tints, the record
+as edited, saving and reading back); the browser smoke's new `effect-values` check
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py): Emitter_38's starting state, a scalar on a vector
+distribution, a colour and a parameter it didn't save; its size handle dragged, undone and redone; a copy keeping its
+values; a sound's outer radius dragged, its volume and pitch; a shared cue's sound with none; saved, reopened, built)
+and the built package read back (Emitter_38 at 1.6 times its size, starting off, its parameters; the sound's reach,
+volume and pitch); the `effects` and `lights` checks; the node, viewer and repo suites. Known gaps: the gates stay off
+until EXP-70; the user guide has no section for the Effects view yet.
+
+### The game-test skill: one pass, one second take
+
+- [.claude/skills/game-test/SKILL.md](.claude/skills/game-test/SKILL.md) has a section on how far to take each
+  check: every asked check once, a single second take for what stayed unclear, then a report with each check passed,
+  failed or unclear, and the run's turn ends. No retakes for a better picture, no second proof of what was shown.
+  Checked by the `repo` suite; a document only.
+
+### Unattended game tests can save and load
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--saving` starts the game at its main menu with a file that
+  binds F5 to the battle's commands, waits for the login and presses F5 (the editor's Enable saving, F-89), so the
+  battle can be saved and loaded; the saves and `profile.bin` are kept and put back with the config. The
+  [game-test skill](.claude/skills/game-test/SKILL.md) says how to save (F10) and load (the pause menu by keys).
+- Checked: the `lab` suite (18 tests: the start file, the saves put back, no saving without a battle) and a session
+  on URB_Bar: a soldier moved, quicksaved, moved on, the quicksave loaded from the pause menu, the soldier back on
+  the saved tile, an order after the load obeyed; the lab copy's saves as before. Findings in
+  [T-43](research/findings-register.md).
+
+### Unattended game tests run silent
+
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs) mutes the game's audio session in Windows while a hidden run
+  lasts and unmutes it before the game ends (`XCOM_HIDDEN_SOUND=1` leaves the sound on);
+  [hidden_game.py](tools/lab/hidden_game.py)'s header and the [game-test skill](.claude/skills/game-test/SKILL.md)
+  say so.
+- Checked: a hidden battle on URB_Bar ("sound muted" 1.5 s in, `ListWaves` answered as before, "sound unmuted (1
+  session)" at the end); the `lab` suite. Gap: a run ended from outside leaves the game muted until the next run
+  that ends by itself; nobody listened, the silence rests on Windows taking the mute.
+
+### Unattended game tests: listening
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `listen <folder> <x> <y> <z> [--distance <d>]` puts the
+  camera that far from a place and prints what the game says it is playing (the console's `ListWaves`: volume, wave,
+  owner). The [game-test skill](.claude/skills/game-test/SKILL.md) has a section on sounds.
+- Checked: the `lab` suite (15 tests) and a session on URB_Bar: the bar's music listed at 0.60, 0.40, 0.27 and 0.07
+  from 400, 700, 800 and 950 units and gone from 1256, as its radii (550, 1000) say; the roof's machine hum from 150.
+  Findings in [T-43](research/findings-register.md). Gap: this is the engine's list, not a recording of what comes
+  out of the speakers.
+
+### Unattended game tests: the storey option and the game-test skill
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `goto` and `aim` take `--floor <n>`, the storey the game's
+  cursor picks on (the mouse wheel's count, set by the game's scroll functions and read back): 0 for the ground and
+  the inside of a building, higher for upper storeys and roofs. The aim corrects itself up to six times.
+- [.claude/skills/game-test/SKILL.md](.claude/skills/game-test/SKILL.md), new: how to run a game test nobody watches
+  with these tools, as an Opus 5.5 agent at high effort that keeps the game open, reports while it runs and takes
+  further tests from the one who asked.
+- Checked: the `lab` suite; a third session on URB_Bar (a soldier up the ladder onto the bar's roof, another walking
+  inside the bar with the roof cut away, shots of both) and a short fourth one for `--floor` (3, then 0). Findings in
+  [T-43](research/findings-register.md). Gaps: an aim at a roof from far away fails (start within ten tiles); stairs,
+  a climb down and saves not tried.
+
+### hidden_game.py plays turns: sessions, goto, aim
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py): `--serve <idle seconds>` keeps the hidden game running and
+  `send <folder> <steps>` hands it more steps and prints what the game's log answered, so a step can go by an earlier
+  one's answer; `goto <folder> <x> <y>` walks the active soldier to a tile and `aim <folder> <x> <y> [steps]` puts the
+  game's 3D cursor on one (the camera's field of view and yaw put the picture's corner, where the game's mouse stands,
+  over the tile; the cursor is read back and corrected); `--squad <file>` lands a squad of records (the game's own
+  can't walk).
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs): steps `serve` and `quit`; a console step takes several commands
+  (` | ` between them, run in one frame) and its files have short names (`xmwh<N>.txt`), which type faster.
+- Checked: the `lab` suite (14 tests: the aim's camera against the four yaws measured in the game, the log answers),
+  and two sessions in the lab copy on URB_Bar: a soldier walked to two tiles, a Sectoid dropped on a chosen tile was
+  shot dead, another killed by a grenade aimed the same way, the turn ended and turn 2 began, cover values read back.
+  Findings in [T-43](research/findings-register.md). Gaps: upper floors and roofs, saves, the LWR install not tried;
+  a grenade's aim is set with the camera commands by hand.
+
+### Game checks nobody watches: hidden_game.py
+
+- [tools/lab/hidden_game.py](tools/lab/hidden_game.py) runs the lab copy's game on a private desktop and works through
+  a list of steps: it puts DXVK's `d3d9.dll` (from `<lab>\dxvk`) beside the game for the run, starts a battle on a map
+  (`--map`, Play in game's commands) or with a commands file, or stops at the main menu, and afterwards takes the DLL
+  out and puts back every config file the run changed. Shots, the game's log and the run's own log go to
+  `<lab>\hidden-runs\<time>`. It refuses any folder but the lab copy, and a run while the game is open.
+- [tools/lab/GameRemote.cs](tools/lab/GameRemote.cs), new: starts the game on that desktop and does the steps (wait,
+  wait for a log line, a console command through a typed `exec`, a typed command, a key, the game's own `shot` saved
+  as a PNG). No mouse steps: the game takes no mouse there (T-43).
+- [tools/run_tests.py](tools/run_tests.py) has a `lab` suite; [tools/lab/tests/test_hidden_game.py](tools/lab/tests/test_hidden_game.py)
+  checks the steps, the DXVK pick and what is put in and back, on a made-up game folder.
+- Checked: the `lab` suite (9 tests), and three runs in the lab copy (the main menu by arrow keys; a battle on URB_Bar
+  with console commands, Tab and camera keys; the lab copy as it was after each). Findings in
+  [T-43](research/findings-register.md). Gaps: no mouse, so no soldier is moved by pointing; a played turn, saves and
+  the LWR install not tried.
+
+### Finding T-43 extended: with DXVK the game runs on a hidden desktop
+
+- [research/findings-register.md](research/findings-register.md), T-43: with DXVK 3.1.1's `d3d9.dll` beside the lab
+  copy's `XComEW.exe` the game reached the main menu and a battle on URB_Bar on a private desktop, took console
+  commands posted as key messages and saved its own `shot` pictures. Checked by three starts: the logs and the
+  pictures (the menu; the battle at turn 1 with squad and interface; the same with the fog off). The helper that
+  posted the keys was a throwaway; no tool changed. Mouse input, a played turn and saves not tried.
+
+### Finding T-43: the game does not start on a hidden desktop
+
+- [research/findings-register.md](research/findings-register.md), T-43: two starts of the lab copy's `XComEW.exe` on a
+  private desktop (`HiddenRun`), asked for while looking into game tests nobody watches. DirectX 9 finds no hardware
+  there and the game stands still; with `-dx11` it stops at a global shader that doesn't compile. Checked by the two
+  `Launch.log`s. No tool changed; the other ways to keep the game off the screen are listed there, none tried.
+
+### Effects' and sounds' values in the compiler and the Build (effects and sounds plan, stage FX5, part 1)
+
+- An effect's size, starting state and particle parameters, and a sound's radii, volume, pitch and starting state,
+  are checked by the compiler and written by the Build, behind two gates of their own: the families `effect-values`
+  and `sound-values` ([compiler.py](tools/editor/compiler.py) `FAMILIES`), off until their game check, so moves,
+  copies and deletes go on building as they do (`--family effect-values` lifts one for an experiment's build). The
+  page doesn't offer them yet.
+- The compiler (`effect_values`, `effect_parameters`, `effect_value_warnings`): a value-only override, a move with
+  values and a copy with values reach the lanes' `values` (originals, in place) and each copy's `values`, as the
+  writer takes them: a parameter keeps the type its effect saves it in (a scalar saved where the system's
+  distribution is a vector stays a scalar), a name it doesn't save gets the distribution's kind; refused: values
+  where the export's `can.values` says no (a shared cue's), a random or untyped parameter, a name the system reads as
+  both kinds or lacks, a malformed value or one outside what a value may be (`EFFECT_SCALE`, `SOUND_RADIUS_MAX`,
+  `SOUND_VOLUME_MAX`, `SOUND_PITCH`, `PARAMETER_MAX`), an inner radius beyond the outer one; warned of: one set to
+  start off with nothing in the script to switch it on, a starting state the script switches anyway, parameters the
+  script sets too. Deletion wins over values. The report counts `valued`.
+- The Build ([native_effects.py](tools/bake/native_effects.py) `set_values`, `set_parameters`, `read_values`,
+  `check_values`): on the actor's own exports only (never a clone's source, an archetype or a cue asset): the
+  actor's `DrawScale` multiplied (its `DrawScale3D` kept), the component's `bAutoActivate`, its `InstanceParameters`
+  patched by name (an entry's value field set in place, a new name added at the end, every other entry byte for
+  byte, an array added where the component saves none), a sound's node `RadiusMin`, `RadiusMax`, `VolumeMin`,
+  `VolumeMax`, `PitchMin`, `PitchMax` and its actor's `bAutoPlay`; read back in the lane's verify. The native edit,
+  `native_split` and the Build's dispatch carry the `values` lane ([compiler.py](tools/editor/compiler.py),
+  [build.py](tools/editor/build.py), [native_copy.py](tools/bake/native_copy.py)).
+- Contract: the effects' and sounds' override row ([editor-contracts.md](research/editor-contracts.md)).
+
+Checked: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py) `Values` (the gates, value-only and
+mixed records, copies, a foreign copy against its donor's system, every refusal and warning);
+[test_native_effects.py](tools/bake/tests/test_native_effects.py) `ValueLanes` on the install's URB_Bar (Emitter_38's
+size, starting state, a scalar on a vector distribution, a colour and a new parameter; a value it has already leaves
+the component's bytes as they were; a copy's values on the copy alone, its source and the other copy as the map has
+them; a simple sound's values in place and a copy's one radius; export 28 reads them all back); test_families; the
+editor, viewer and bake effect, transplant and copy suites. Known gaps: no game check yet (EXP-E), no page controls.
+
+### Effects and sounds from other maps placeable: EXP-69 passed
+
+- [EXP-69](research/experiments/EXP-69-effects-and-sounds-from-other-maps.md) run 1 passed in the game (the effects
+  and sounds plan's EXP-D): seven copies of six maps' effects and ambient sounds in URB_Bar played and sounded as in
+  their own maps, and a save and reload changed nothing. So the compiler's `FOREIGN_FAMILIES` lists `effect` and
+  `sound` ([compiler.py](tools/editor/compiler.py)), and the library marks them placeable (its index reads the gate
+  when loaded: no rescan).
+- Docs: [tools/viewer/README.md](tools/viewer/README.md)'s From other maps and contract section 8
+  ([editor-contracts.md](research/editor-contracts.md)) say so.
+
+Checked: the editor, viewer and repo suites (the library's tests take the gate either way); the browser smoke's
+`library-effects` check, which now finds the effects placeable with Placeable only on
+([browser_smoke.py](tools/viewer/tests/browser_smoke.py)), on a test server. Known gaps: plain EW not played with
+them; where the game's listener is (camera or soldiers) still not told apart.
+
+### Effects and sounds from other maps (effects and sounds plan, stage FX4)
+
+The Add panel's All maps lists the base maps' effects and ambient sounds, and one placed from there is brought into
+the map by the Build, as a piece of another map is.
+- **The library** ([library.py](tools/viewer/library.py), index 9; [effects_library.py](tools/viewer/effects_library.py),
+  new): each base map's effects and sounds are scanned with its pieces (`scan_effects`, through
+  [effects_metadata.py](tools/viewer/effects_metadata.py)'s `describe`) into entries of family `effect` or `sound`,
+  one per recipe (an effect's class, system, saved parameters, scale, component offset, starting state; a sound's
+  class, cue, waves, values, starting state), from the map whose copy brings least, with the panel's kind (from the
+  system's or wave's name). A stream's are not scanned; a landing's, one riding on another and one playing nothing
+  are listed `unavailable` with why; the TextureMovie system's closure is refused as before. `library.effect` gives
+  one as a template (its export 28 record, its system or waves), the donor described once into
+  `effects-v1.json` in its pieces folder; the precache skips them. The full scan of 151 maps took 29 s and has 1,826
+  effect and sound entries (1,671 effects, 155 sounds; 40 can't be placed).
+- **The server** ([viewer.py](tools/viewer/viewer.py)): `GET /library/effect.json`, `POST /library/effects.json` (a
+  project's opening) and `GET`/`HEAD /library/wave.ogg?package=&id=` (the Wave preview of another map's sound, through
+  the same WaveCache). The build summary ([builds.py](tools/viewer/builds.py)) says `foreignEffects` and each donor's
+  `effects`.
+- **The page**: All maps' rows for them ([library.js](tools/viewer/web/library.js): the Effects view's marker as the
+  picture, what each plays, where it is placed, Starts off, Not brought), the Kind menu's Effects and Sounds with their
+  kinds ([piece_categories.js](tools/viewer/web/piece_categories.js)); placing one reads its template and places a copy
+  as Ctrl+V does ([app.js](tools/viewer/web/app.js) `chooseLibraryEffect`, `effectTemplate`), its system and waves
+  joined to the map's; a project's copies of them read back on opening (`loadForeignTemplates`); the panel says where
+  one comes from; the Wave preview plays another map's wave from that map; the Build window's step counts them.
+  [effects_view.js](tools/viewer/web/effects_view.js) `drawEffectIcon` draws a row's picture.
+- **The compiler** ([compiler.py](tools/editor/compiler.py) `foreign_effect`, `Library.effect`): an added effect or
+  sound whose `from` names another base map is checked against the library (the file it was scanned from, an entry
+  of its family; `unavailable` and `closure` refused) and goes to its lane with its `donor`; the report's `donors`
+  list it.
+- **The Build** ([transplant.py](tools/bake/transplant.py) `stage_edit`, [build.py](tools/editor/build.py),
+  [native_effects.py](tools/bake/native_effects.py)): the lanes' copies with a donor are staged in the map (each donor
+  actor once, outside the level's list; a system or wave the map has by path is the map's own), the copies rewritten
+  to clone the staged actor (`lane_actor` takes a staged source only outside the list); an effects-only full build
+  reads the staged map too. The manifest says `foreignEffects`.
+- **[F-121](research/findings-register.md), fixed:** the transplanter kept each donor's imports by `id(donor)`, which a
+  later donor could take once an earlier one was freed: one build of EXP-69 staged URB_Boulevard's fountain with
+  another map's class for its node. They are kept by the donor's file now ([transplant.py](tools/bake/transplant.py)
+  `Destination.import_of`); any build bringing from three or more maps could meet it before.
+- Docs: contract section 8's From other maps and the added-records row ([editor-contracts.md](research/editor-contracts.md)),
+  [tools/viewer/README.md](tools/viewer/README.md)'s From other maps.
+- Foreign effects and sounds wait for their game check (EXP-69): the compiler's `FOREIGN_FAMILIES` doesn't list
+  them, so the library marks them as a kind not brought before (listed with Can be placed unticked) and the Build
+  makes them as any copy. The run is prepared: [EXP-69](research/experiments/EXP-69-effects-and-sounds-from-other-maps.md)
+  (URB_Bar, seven copies from six maps), its project [exp69_project.py](tools/editor/examples/exp69_project.py) and
+  its marked shots ([EXP-69-shots.json](research/experiments/EXP-69-shots.json)).
+
+Checked: [test_effects_library.py](tools/viewer/tests/test_effects_library.py) (new: recipes, kinds, what blocks);
+[test_library.py](tools/viewer/tests/test_library.py) (effect entries in the index, the gate and its lift, the two-map
+scan's effects and sounds, the templates, the routes and a donor wave played); test_compiler_effects (copies of other
+maps' effects and sounds: lanes with donors, the donor record's checks, refusals);
+[test_native_effects.py](tools/bake/tests/test_native_effects.py) ForeignLanes (the plan's 17 November offline trial
+made a test: URB_PierA's lit sea foam and air conditioner staged in URB_Bar and cloned, two copies from one staged
+actor, read back as export 28 reads the donor's); test_build (an effects-only project with a foreign effect staged,
+both kinds of build reading the staged map); test_builds; [piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs)
+(new); the browser smoke's new `library-effects` check (placed, panel, Wave preview from the donor, copy, saved,
+reopened, built) and its `library-all` and `effects` checks; EXP-69's project built offline both ways (seven copies of
+six donors' actors, read back: listed, own cues and nodes, the shared cue the game's, the fountain's radii still its
+archetype's, waves playable), and its edit staged five times as the Build stages it, every brought object (141) of
+its donor's class and archetype; test_transplant ImportsKeptByDonor (F-121). Known gaps: two cues of one wave and
+recipes that differ only by values show as rows of one name, told apart only by the row's tooltip; the full browser
+smoke stops in its cover-block check (a handle off the screen after the checks before it), on the last commit too.
+
+### Effects and sounds build for every project (EXP-68 passed)
+
+EXP-68 run 1 passed in the game (the user: "verified in game, almost all of it works as expected"), so the `effect`
+and `sound` families are switched on ([compiler.py](tools/editor/compiler.py) FAMILIES): the editor offers effect and
+sound edits and every Build makes them, with no `serve --family`.
+- Tests: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py) checks they are on and keeps the
+  gate's refusal under a patched table; test_compiler's families table and
+  [test_families.py](tools/viewer/tests/test_families.py) (the lift now tried on `other`).
+- Docs: [tools/viewer/README.md](tools/viewer/README.md), contract section 8, the compiler's notes;
+  [EXP-68](research/experiments/EXP-68-effects-and-sounds.md)'s result.
+- [F-120](research/findings-register.md), accepted: the Skyranger gone after a reload is Long War's landing-zone
+  mutator (it destroys the map's grounded ship on every load, and a reload doesn't stream the intro whose dropship
+  stood there), seen the same on an unedited map in the lab's logs.
+
+Checked: the editor, node and families tests; the browser smoke's effects checks on a default test server (now the
+editing path, with no `--family`).
+
+### EXP-68 prepared: the game check of effects and sounds edited (FX3's EXP-C)
+
+- [exp68_project.py](tools/editor/examples/exp68_project.py), new: EXP-68's project on URB_Bar (an exhaust steam
+  moved, turned and copied three times, one copy on the bar's roof; a floodlight beam moved off the roof floor's list;
+  the script's rats moved and deleted; the bar's music moved and copied, the taxi's engine deleted; the claw machine
+  moved with its lights kept), compiled and built with the effect and sound families enabled, `--store` into the
+  editor's project store and builds.
+- [mark_shots.py](tools/viewer/mark_shots.py): a shot's `"effects": true` draws the effects and sounds with the
+  pieces (the Normal button's switch).
+- [EXP-68](research/experiments/EXP-68-effects-and-sounds.md) and its shots file: what the offline readback settled
+  (poses, deletes, copies with their own subtree and cue, the bar's floor lists, the claw machine's lights; Clear map's
+  retained effects and sounds equal to the view's with and without the outside kept, 9 and 17 of 76; an effects-only
+  full build without a relight) and the run's list.
+- [F-119](research/findings-register.md), open: a moved landing leaves the grounded Skyranger's dust effect behind,
+  in the Build and the view alike; found in the clear and landing readback.
+
+Checked: the project compiles with its two expected script warnings; the build read back with a fresh reader as
+listed in the note; the shots taken on a test server with the families on. Not played yet.
+
+### Effects and sounds, stage FX3: effects and sounds moved, copied and deleted
+
+The third stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's own effects (Emitter actors)
+and ambient sounds are edited as pieces are, and the Build makes the edits. The `effect` and `sound` families stay
+off until the plan's game check (EXP-C): a server started with `serve --family effect --family sound` builds them.
+- Projects are **schema 3** ([projects.py](tools/viewer/projects.py), [project.js](tools/viewer/web/project.js),
+  [compiler.py](tools/editor/compiler.py)): an effect's or a sound's override (a pose, a delete, or `effect.follow`
+  alone) and its copy as an added record with `kind` and `from`; schema 1 and 2 still read, a save of either refused
+  as a stale page's; prefab files stay schema 2.
+- The page ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [effects_rules.js](tools/viewer/web/effects_rules.js)): in the Effects view a picked effect or sound moves and turns
+  with the gizmo, copies, deletes, resets and groups with pieces; the panel says what an edit does with it, and an
+  effect a piece carries has **Keep where it is** / **Follow**; markers of carried copies and of the landing's follow
+  as the Build will have them; the Normal button's flyout has **Effects and sounds**, drawing and selecting them with
+  the pieces; a lens flare, a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why;
+  the copy hint names what is copied by kind; Align, the flags panel, the tile footprint and a prefab's bounds leave
+  effects out.
+- The compiler's `effect_override` and `effect_add`: checked against the export's `can` and `why`, the family table
+  and the carrying (an effect's own pose, delete or follow none takes it out of its piece's carrying), notes for the
+  floors' cutaways an edit joins or leaves, a warning for an effect the mission's script names; the spec's `effects`
+  and `sounds` objects, which `native_split` hands to the Build. [build.py](tools/editor/build.py) builds an
+  effects-only project without relighting; [families.py](tools/viewer/families.py) and
+  [builds.py](tools/viewer/builds.py) take `serve --family` ([viewer.py](tools/viewer/viewer.py)) to every Build.
+- The Build's writer: [native_effects.py](tools/bake/native_effects.py) and [native_sounds.py](tools/bake/native_sounds.py),
+  new, called by [native_copy.py](tools/bake/native_copy.py) after the carried pairs: a move in place, a delete out of
+  the level's actor list (its export stays), a copy cloned with everything under it (a sound with its own cue and
+  node); then each building's floors list the effects anew (`m_aCachedEmitters`: untouched ones keep their listings,
+  a moved one or a copy joins the upper floors whose boxes hold it, a deleted one leaves), read back after writing;
+  the manifest has each lane's rows and `floorEmitters`.
+- Docs: contract sections 4 and 8 ([editor-contracts.md](research/editor-contracts.md)),
+  [tools/viewer/README.md](tools/viewer/README.md), the compiler's docstrings and the page's help.
+
+Checked: [test_compiler_effects.py](tools/editor/tests/test_compiler_effects.py), new (moves, deletes, copies,
+follow, carrying precedence, refusals, the families' gate, notes and warnings); [test_native_effects.py](tools/bake/tests/test_native_effects.py)'s
+lanes on Bar (moves in place, deletes, copies with their own cues, the sources byte for byte, floor 1's listings
+with Emitter_14 out and Emitter_1 in, a copy joining floor 2, other buildings unchanged, refusals);
+[project_effects_test.mjs](tools/viewer/tests/project_effects_test.mjs), new, and the schema tests; in the browser on
+a test server with the families on, a project with a moved and a deleted effect, a moved sound and a copy saved and
+reopened; the claw machine moved with its effect, Keep where it is and undo; a piece and an effect grouped and moved
+as one; Clear map keeping what the Build keeps; [browser_smoke.py](tools/viewer/tests/browser_smoke.py)'s new
+editing check, both view only (default server) and with the families on. Known gaps: the families are off until
+EXP-C is played; no value of an effect or sound is edited yet (stage FX5); prefabs take no effects (FX6); the user
+guide has no part on the Effects view.
+
+### Effects and sounds, stage FX2: the Wave preview
+
+The second stage of the effects and sounds plan, on branch `effects-and-sounds`: a picked sound's waves can be heard
+in the Effects view. Nothing a Build makes changes, and the export stays at 28.
+- [audio.py](tools/viewer/audio.py), new: a wave's Ogg Vorbis stream read from its PC bulk record
+  ([effects_metadata.py](tools/viewer/effects_metadata.py)'s new `pc_sound`, which `wave_record` now uses too) and
+  checked before it is served: one logical stream, each page's capture pattern, version, checksum and number, the
+  continued-packet flags against the lacing, the identification header alone on the first page, the comment and setup
+  headers before the first audio page, the end flag on the last page, granules that never go back, at most 32 MB and an
+  hour. A bounded cache (64 MB) keeps each wave read; the map's own package is used only while it is the file the map
+  was exported from (its SHA-256), a stream's by its size and time.
+- [viewer.py](tools/viewer/viewer.py): `GET`/`HEAD /maps/<id>/wave.ogg?id=<soundWaves key>`, `audio/ogg` with its
+  length, an ETag (`If-None-Match`: 304) and one byte range at a time (206; 416 outside it). An id the export doesn't
+  list (a stale or made-up one, a path) is 404, a wave it can't serve 422 with why; one bad wave never fails the map.
+- The effect panel's **Wave preview** ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css)): each wave of a picked sound with Play/Stop, one at a time, at volume 0.6,
+  the clock while it plays; picking something else, Escape, leaving the view or opening another map or project stops
+  and releases it; a refusal shows the server's reason, a decode failure says so.
+- Docs: [tools/viewer/README.md](tools/viewer/README.md) and section 8 of
+  [editor-contracts.md](research/editor-contracts.md).
+
+Checked: [test_audio.py](tools/viewer/tests/test_audio.py), new (made-up Ogg streams: a good one, one with a packet
+over a page boundary, and each of 25 refusals; Ogg's CRC check value; byte ranges; the cache's refusals; on the
+install, Bar's Skyranger idle wave against its own properties, the cache and its bound, and the route: GET, HEAD,
+ranges, 416, 304, 404 and 422); the effects metadata tests; a sweep of every SoundNodeWave in the 97 LWR map packages
+(7,192, all pass, about 0.2 s for the largest, 2.3 MB); in the browser on a test server, Play decoded Bar's
+DropshipIdle at its 12.75 s, a seek went by byte range (206), Stop, the end, Escape, picking another sound, leaving
+the view and rapid switching each left no player behind, and a made-up id showed the server's reason;
+[browser_smoke.py](tools/viewer/tests/browser_smoke.py)'s Effects check plays, seeks, stops and refuses (its expected
+404 left out of the run's errors). Known gap: the user guide has no part on the Effects view yet.
+
+### Effects and sounds, stage FX1: export 28 and the Effects view (view only)
+
+The first stage of the effects and sounds plan, on branch `effects-and-sounds`: the map's effects, sounds and lens
+flares in the export, and a view that shows them. Nothing a Build makes changes.
+- [effects_metadata.py](tools/viewer/effects_metadata.py), new: each effect, sound and flare with its identity, pose,
+  starting state, script users, attachment, landing role, carrying piece and what the editor may do with it (`can`,
+  `why`); an effect's saved particle parameters against what its system offers, its floors and component transform;
+  a sound's cue, waves and radii, volume and pitch; each value with where it came from (the actor, a cue, an
+  archetype, the class default read from the game's script packages, or unresolved). `effectSystems` describes each
+  particle system once (LOD levels, emitters, parameter distributions with the module that reads each, fixed box),
+  `soundWaves` each wave (its PC bulk record read by its header: playable or why not).
+- [export.py](tools/viewer/export.py) export 28: `effects` keeps export 23's keys and gains the new ones; `sounds`,
+  `flares`, `effectSystems`, `soundWaves` and `effectsMetadata` are new; a mission stream's own are in its layer, read
+  only. Every map is exported again on first open (about 0.3 MB more on Bar's 6.8 MB scene).
+- The page's Effects view, Shift+X (the rail's spark; Shift+E, the plan's choice, is taken by the camera's fast turn):
+  [effects_view.js](tools/viewer/web/effects_view.js) draws the markers (spark, speaker, star; hollow when it starts
+  off, greyed for a stream's), the picked effect's fixed box and a picked sound's two spheres;
+  [effects_rules.js](tools/viewer/web/effects_rules.js) names them, makes their chips and panel lines and decides what
+  a cleared map keeps; [app.js](tools/viewer/web/app.js) wires the view as the Landing zones view is wired (only its
+  markers are picked; a carried effect follows its piece's move, delete and copies, the landing's follow their zone, a
+  cleared map keeps what `clear_level` keeps), F and a double-click bring the camera to the picked one, the rail's
+  flyout hides a kind, and the piece panel's "Carries an effect" chip opens the view on it.
+  [index.html](tools/viewer/web/index.html) has the button, flyout, panel and help entry.
+- The contract is [editor-contracts.md](research/editor-contracts.md) section 8; the viewer
+  [README](tools/viewer/README.md) describes the view.
+- Checked: [test_effects_metadata.py](tools/viewer/tests/test_effects_metadata.py) (16 tests: made-up objects for
+  where values come from, waves' bulk records, parameters and capabilities; the plan's fixture list pinned to the
+  install: Bar's five effects listed by a floor they stand outside, its silent sound, the Skyranger's inherited sound,
+  four script-named effects, a finite and a looping system, lit mesh particles, an uneven scale, the fog pod's five
+  smoke emitters, flares; Pier A's lit sea foam and air conditioner; Alien Base 1's shared stasis pod cue and an effect
+  that starts off; Command1's effects riding on the globe; the tutorial's carried Skyranger lights; Furies' stream;
+  the class defaults against the script packages; the landing rule against the Build's);
+  [effects_rules_test.mjs](tools/viewer/tests/effects_rules_test.mjs); the module run over the census's 237
+  packages (every count the census has matches it package by package, no read errors, about a second a map); Bar and
+  Slaughterhouse Redux exported to a scratch cache and opened on a test server: markers, picking, panels, box,
+  spheres, kind filters, a moved, copied and deleted claw machine, a moved landing zone, a cleared map, the bomb
+  mission's stream effects, the view keys; the browser smoke test's new `effects` check on both; the viewer (435),
+  editor (236) and node suites.
+- Known gaps: the user guide has no section or picture of the view yet. Counts differ from the census where the export
+  reads more: script users by the fuller Kismet reader (1,270 base-map effects named against the census's 1,166), and
+  parameters, light environments and scales as an archetype gives them, not only as saved.
+
+### An update-guide skill, guide checks in the tests, and guide_tools.py
+
+At the user's ask, the way the guide was brought up to date today is now a project skill, with its checks in the
+repository rather than in scratch scripts.
+- [update-guide](.claude/skills/update-guide/SKILL.md): read the whole guide against the editor and the ledger,
+  explore the new panels on a test server, script the shots in take_shots.py, take them into a fresh scratch folder,
+  look at each picture, replace only the pictures whose part of the editor changed, edit the text and legends, check,
+  commit, and push only on the user's word (a push republishes the guide page), then check the workflow run and that
+  the live page equals the local one. Its rules: nothing called untried, nothing personal in a picture, test servers
+  on 8790-8799 only, a fresh scratch folder per run, LF endings, one ledger entry. The guide's and README's "New in"
+  tables stay the release skill's.
+- [test_guide.py](tools/viewer/tests/test_guide.py), two new tests: each picture's `width` and `height` in the page
+  are half its pixels and every picture in `shots/` is used; the guide has none of the untried words ("untried",
+  "not played", "not been tried", "known to work", "best guess"...). The wording test finds seven such phrases in the
+  guide as it was before today's update.
+- [guide_tools.py](tools/release/guide/guide_tools.py), new: `compare` (each new picture against the guide's: NEW,
+  SIZE or how far it differs), `sheet` (the two side by side in one image) and `look` (the guide made one page,
+  opened in headless Edge and photographed where given pictures or anchors are), the steps done by hand today.
+- [take_shots.py](tools/release/guide/take_shots.py)'s docstring points to them and to the skill.
+- Checked: `viewer -k guide` (6 tests), `release`, `repo`; `guide_tools.py compare` on today's shots, `sheet` of two,
+  `look` of two sections. The skill itself has not been run end to end; today's update is what it describes.
+
+### The user guide brought up to date, with pictures of the new features
+
+At the user's ask: the [guide](tools/release/guide/guide.html) gone over against the editor as it stands, updated
+where it had fallen behind, with new pictures, and republished as the guide page.
+- **New pictures, each with a numbered legend:** the Flags group (the Bar's six dumpsters picked with Select all of
+  a kind, Blocks sight turned off), Test squad setup, the Missions window, the project manager with a queue of two
+  full builds (the first built, the second building), the Save dialog's "builds as", and a council bomb's mission
+  objects on Slaughterhouse Redux (the bomb picked, power nodes, drop-in points, pods).
+- **Pictures taken again** where the editor changed: the window and the header's right half (Settings, now
+  numbered 8), the Project menu (Missions… and Cache everything… numbered, 16 items), the piece panel (the Flags
+  group, numbered 3), the group section, View options, the Build window, Clear map and the prefabs tab (the tool
+  strip's Pivot button). The other pictures showed no change and are kept.
+- **Text:** "not played" lines taken out (the limits' "only abductions have been played", the list of mission kinds
+  played, "has not been tried in a battle here" twice, an off-grid prefab piece "not tried", the 0.5.2 row and the
+  play window's "how far that kind is known to work", the sentence pointing to a list of what isn't played); the
+  project manager's warnings as they are now (missions asked for by name, those left to the original); a project
+  saved in a newer version doesn't open in an older one; the UFO kind with what Missions… now does with it; the
+  build queue's chip in the header; sharing several maps as a map pack with their projects; map packs' folder in
+  Where things are.
+- [take_shots.py](tools/release/guide/take_shots.py): the new shots (`flags`, `missions`, `squad`, `manager`,
+  `save-as`, `mission-objects`); the header and Project menu numbering; the piece panel taken in a taller window
+  (the panel with its flags is taller than 900 pixels); the group crop without the Flags group; the squad's and the
+  project manager's answers name a usual install, as the others did. The manager's shot saves three more projects,
+  makes two quick builds and runs a queue of full builds into the scratch builds folder, stopped and cleared after;
+  the mission objects' shot opens URB_SlaughterhouseA, read from the game on its first open.
+- Checked: every shot run on a test server (port 8790, scratch projects, builds and squad; stopped after), each new
+  or retaken picture looked at, the others compared with the ones kept; every picture's size in the page equal to
+  half its pixels (33 pictures); the guide made one page as the release and the Pages workflow make it, opened in a
+  browser with every picture loaded, the new sections looked at; `release`, `repo` and `viewer -k guide` pass. The
+  pictures name no folder of this computer.
+- Gaps: the release 0.5.3 zip and installer carry the guide as it was; the next release carries this one.
+
+### Release 0.5.3 published
+
+- With the user's go-ahead ("go ahead and publish the release"), main was pushed (`cbc7357`), then
+  [v0.5.3](https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.5.3) was created, its tag on that commit.
+- It is titled "XCOM Map Workshop 0.5.3 (preview)" and marked Latest, with the Setup.exe, the zip and the notes file
+  (`gh release create --notes-file tools/release/notes/0.5.3.md --target main --latest`).
+- Checked:
+  - GitHub's digests and sizes of both files equal the local ones (`b56bab56…ef116f39`, 63,704,732 bytes;
+    `5307b161…8781e6c35`, 101,973,605 bytes);
+  - `releases/latest` names v0.5.3, the remote tag points at `cbc7357`, and both `releases/latest/download/` links
+    answer 200;
+  - the published notes equal the file, trailing blank lines aside.
+
+### Release 0.5.3: piece flags, the test squad, Build in the project manager, maps named after their project
+
+At the user's ask ("let's push, and prepare a new patch release with the changes since last release"). Main was
+pushed first (`ca20844`), after the `repo` suite; the release is made on main.
+
+- [version.py](tools/viewer/version.py) 0.5.3: the patch step.
+- Release notes: [tools/release/notes/0.5.3.md](tools/release/notes/0.5.3.md), drawn from the entries since 0.5.2.
+  - **Upgrading:** every map is read again on its first open (export 27, 0.5.2 had 24), and pieces of other maps on
+    first use (piece records 9). A project or prefab saved in 0.5.3 can't be opened in 0.5.2, which reads schema 1
+    only. Projects saved before keep their output names.
+  - **New features:** piece flags, Select all of a kind, the test squad, Build in the project manager, the project
+    manager's new layout and project files in map packs, maps named after their project, grids up to 256 a side.
+  - **Changes:** the tile grid from the game's own record (Battleship, Deluge, Furies), the guide online. A line on
+    the editor no longer saying untried was taken out at the user's ask.
+  - **Bugs fixed:** Roadhouse's van (T-36), F-117, F-118, Map grid on maps past 128 (T-41), an invisible floor off the
+    tile snap.
+  - **Known limits, four:** a low piece's Blocks walking and a door's flags (EXP-62), a test battle isn't a campaign
+    mission, a new map from one of the game's with only its pieces, tested mainly with Long War Rebalance.
+- The guide's New in this version ([guide.html](tools/release/guide/guide.html)) gains a New in 0.5.3 table above
+  0.5.2's. The testers' README ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) gains the same list.
+- The [release skill](.claude/skills/release/SKILL.md)'s step 4 no longer asks the Known limits to say what isn't
+  played, which its rules (and the 16 November entry) had already dropped.
+- Made in `dist/release` beside the earlier ones:
+  - `XCOM-Map-Workshop-0.5.3.zip`: 101,973,605 bytes, 142 of our files, SHA-256 `5307b161…8781e6c35`;
+  - `XCOM-Map-Workshop-0.5.3-Setup.exe`: 63,704,732 bytes, Inno Setup 6, SHA-256 `b56bab56…ef116f39`.
+
+  The staged Python's import check passed.
+- **Checked.**
+  - `tools/run_tests.py`, every suite, on main at `ca20844`: viewer 417, editor 236 (4 skipped), upk 119 (the tile
+    grid of every listed map included), bake 407 (1 skipped), release 6, repo 3, node 9 files, all pass. After the
+    version and text changes, release and viewer `-k guide` pass.
+  - `smoke_release.py`: 10 of 10 steps passed. The two files and their SHA-256s (confirmed with `sha256sum`); the zip
+    read back, 141 of our files equal to the repository's; the release started with its own Python on port 8795,
+    `/setup.json` says 0.5.3, URB_Bar listed and opened in headless Edge (966 pieces) with no page errors, the help
+    says "XCOM Map Workshop 0.5.3 (preview)", `browser_smoke --only light-grid,text-select` passed. Server stopped,
+    trial folder deleted.
+- Not published (ask first). Known gaps: the installer wasn't run. Nothing was played for this release beyond the
+  experiments the ledger names; EXP-63 (a baked build's lighting under its new file name) is prepared, not played.
+
+### Effects census, version 2: copies left out, the plan's evidence gaps closed
+
+The effects and sounds plan was checked again, at the user's ask, against the code as it stands and the packages.
+
+- **The first census counted a copy.** A variant of one map installed in the game, and its landing intro, were
+  counted as Firaxis's: a map the editor builds keeps the package GUID of the map it grew from.
+  [audit_effects.py](tools/upk/audit_effects.py) now counts only the oldest file of a GUID (`copies`,
+  `copiesLeftOut`).
+- **What it reads besides** (its docstring has the list):
+  - which actors the level's actor list holds;
+  - everything under each particle system, over all LOD levels, with its native bytes by class;
+  - the parameters a system offers against the ones its effects save;
+  - whether a system's emitters loop;
+  - each wave's bulk records by their headers;
+  - why a sound reaches no wave, and what its node saves or inherits;
+  - each building floor's emitter list against where the emitters stand;
+  - what a `Base` resolves to;
+  - what the two carrying rules would pick;
+  - whether LWR's patches name an effect as text;
+  - `Engine.upk`'s class defaults for starting on;
+  - the map list's and each package's SHA-256.
+- **Its result:** [effects-audit-2026-11-17.json](research/evidence/effects-audit-2026-11-17.json), for 96 base
+  maps, 54 Firaxis streams and 87 LWR patches.
+  - 7,138 effects in 95 base maps and 421 in streams, every one in its level's list; 849 sounds in 90 base maps;
+    92 flares.
+  - Nothing under any of the 441 particle systems keeps native data. Two system paths have two sizes across
+    packages; the 64 waves have one each.
+  - All 64 waves keep their Ogg stream as one plain bulk record, and `RawPCMDataSize` is frames times channels
+    times two on each.
+  - Eight sounds play nothing: an empty sound slot, or none.
+  - No ground floor lists an effect; of the 679 listings on upper floors, 471 stand inside their floor's volumes.
+  - Of 17,622 saved instance parameters, 80% name one their system offers in its kind and 18% in the other kind.
+  - The transplant's dry run: 7,558 of 7,559 effects, all 864 sounds and all 92 flares could come.
+  - The first census's file, [effects-audit-2026-11-15.json](research/evidence/effects-audit-2026-11-15.json), is
+    kept as it was made.
+- **Tried offline, in a scratch folder:** `transplant.stage_edit` staged a lit effect and a simple sound of one
+  map into a copy of another, and `native_copy.clone_actor` cloned both and two of the map's own. Read back, each
+  clone has its own component, light environment, cue and node, with the system and the wave shared. Nothing was
+  played, and the trial is not kept as a test: the plan makes it stage FX4's first.
+- **The private plan** (`private/plans/done/effects-and-sounds-plan.md`, outside the public repository) has the
+  second census's numbers, the floor lists' rule as the maps have it, export 28 and document schema 3 for its
+  records, the stage of evidence gathering marked done, and its warnings brought in line with "warn, don't block"
+  and "nothing says untried". Its status: ready to build from stage FX1, waiting for the go-ahead.
+- **Noticed, not changed:** `library.donors` lists a variant put into the install by hand as a donor map, as the
+  first census did.
+- Checked: [test_audit_effects.py](tools/upk/tests/test_audit_effects.py), 15 tests (four new: the loop sorting,
+  a point in boxes, copies by GUID), with `tools/run_tests.py upk -k audit_effects`; the `repo` suite. No editor
+  code changed.
+
+### Replace comments out only the base map's records the variant has records for (F-118)
+
+A build has records for its project's missions only, but Replace commented out every record of its base map, so a
+mission the variant has no record for lost the map. A mission that asks for its map by name then found none: a
+variant of Commercial Alley Redux for covert extraction only left a new campaign's first mission without a map.
+- [installs.py](tools/viewer/installs.py): `rotation_plan` returns `standsFor` (the base map's records the build has
+  records for, from `recordMissions`) and `kept` (the missions of the others); a rotation install keeps `standsFor`
+  in its ledger entry, and `replaced_records` / `_sync_off` comment out only those. An entry written before still
+  replaces every record of its base map. `mission_warnings` names, under Replace, the missions left to the original
+  and says when the original plays the first mission.
+- [pack_scripts.py](tools/viewer/pack_scripts.py): `pack.ps1` comments out the base map's live records whose
+  DisplayName is in the map's `switch`, leaving the rest; a `pack.json` without `switch` (an older pack) comments out
+  every one, as before. [manager.py](tools/viewer/manager.py) writes `switch` for the covered records only and
+  `keep` for the others, and the pack's README lists both. The project manager's Replace warnings come from the last
+  build's records when there is one.
+- [gamemaps.py](tools/viewer/gamemaps.py): the Game maps window marks only the replaced records.
+- The [README](tools/viewer/README.md), the [guide](tools/release/guide/guide.html) and
+  [F-118](research/findings-register.md) say it.
+- Checked: two new tests in [test_manager.py](tools/viewer/tests/test_manager.py) (a covert-extraction-only variant
+  on the first mission's map through the editor, the Game maps window, an old ledger entry, and through a pack's
+  scripts, an old pack without `switch` too, each out byte for byte) and an assertion in the D4 test; they fail on
+  the code before the change. The `viewer`, `repo` and `release` suites pass. Not played in the game.
+
+### A variant replacing Commercial Alley Redux keeps the first mission's record name (F-117)
+
+A user's map pack, installed with its scripts, left a new campaign unable to start its first mission. The first
+mission asks for its map by the DisplayName `URB_CommercialAlley_EWI (Commercial Alley Redux) |0`, whose record is
+in rotation. A replacing variant of that map gave its record a name of its own while the original's was commented
+out.
+- [installs.py](tools/viewer/installs.py): `FIRST_MISSION` names the record; in replace mode the variant's record
+  standing for it keeps that DisplayName and stays in rotation (`rotation_plan`, `_rotation_from_build`), is marked
+  `byName` and `firstMission`, and `mission_warnings` says under Replace that the variant plays the first mission.
+  Map packs (their `pack.json` and README) and the editor's Install in the game both take their records from here.
+- [manager.py](tools/viewer/manager.py): the listing's missions mark the first mission's record the same way.
+- The [README](tools/viewer/README.md) and the [guide](tools/release/guide/guide.html) say it;
+  [F-117](research/findings-register.md) has the cause.
+- Checked: two new tests in [test_manager.py](tools/viewer/tests/test_manager.py) (the editor's install in both
+  ways, from a build with and without its own records, and a pack's scripts against the editor, out byte for byte)
+  fail on the code before the fix with the pack's wrong name; the `viewer` suite passes. Not played in the game.
+- Known gap: a replacing variant whose project leaves the abduction out still leaves the first mission without a
+  map.
+
+### Project manager: the list on the left, the selection on the right; editor projects in map packs
+
+At the user's ask (a review of the dialog, then layout B of three mockups), the project manager is laid out again
+to read more easily and with less said twice, and a map pack can carry the maps' editor projects.
+- [manager.js](tools/viewer/web/manager.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css), [app.js](tools/viewer/web/app.js): each row is the name, the base map and
+  when it was saved, an In the game badge, and the last build in one word (Ready, Not baked, Out of date, Not built)
+  with its revision or the older editor version that built it; the rest is in its tooltip. The Map, Saved, Last
+  build, In the game and Install as columns are gone, and the Show list is four chips with counts (All, Ready,
+  Needs a build, In the game) with a Sort list beside them. The selected projects are listed on the right, each
+  with its own Additional or Replace (the way it is in the game now, else Additional; Set all to for every one) and
+  its warnings under it, which replaces the "As below" choices, the dialog-wide radio buttons and the warnings list.
+  Build, Install in the game and Export map pack (was Zip as a map pack) are under them with their counts; Select
+  all shown, Clear selection's button and the second Close button are gone (the header's box, Ctrl+A, a Clear link
+  and the X stay). A queue that has built everything is one line.
+- [manager.py](tools/viewer/manager.py): `POST /manager/pack` takes `"projectFiles": true` (the panel's Include
+  editor project files, remembered by the browser): each packed map's saved project goes under `projects/` byte for
+  byte, `pack.json` lists them, and the README says where to copy them and which were saved after their build.
+- [README](tools/viewer/README.md) and the [guide](tools/release/guide/guide.html) say it.
+- Checked: `test_manager.py` has a new test of the projects in a pack (byte for byte, pack.json, the README, a
+  project saved after its build) and one that a pack has none unless asked; the `viewer` suite; the dialog in a
+  test server on a copy of the projects (filters, sort, Ctrl+A, Set all to, taking one out of the selection, Tab out
+  of the list, an export of a mixed pack with the projects, no console errors). Not checked: Install in the game
+  from the new dialog (its request is the one the pack sends, which the server tests cover).
 
 ### Custom walls: the proof of concept succeeded
 
@@ -1941,7 +3471,7 @@ On branch `mission-types`:
   capture point with its volume and actor, a bomb or power node with its button, emitters and rebuild volume) by whole
   tiles and levels, one undo step a drag, Escape putting a drag back; the streamed meshes move with them; the panel
   says how far it moved and that the Build moves it in the stream's copy; the header counts "mission objects moved".
-  The moves go through save, open, recovery and Reset all. [mission_view.js](tools/viewer/web/mission_view.js) no
+  The moves go through save, open, recovery and Reset all. `mission_view.js` no
   longer says the stream is never edited.
 - [compiler.py](tools/editor/compiler.py) `stream_override`: such a target becomes the native edit's `streamMoves`
   ({stream: [actor, location, rotation, old, kind, group]}); a target that is no mission object, or in no mission
@@ -2055,7 +3585,7 @@ On branch `mission-types`:
 ### A mission's objects in the view (mission types plan, C2)
 
 On branch `mission-types`:
-- [mission_view.js](tools/viewer/web/mission_view.js), new: a marker for each object of the mission the header's
+- `mission_view.js`, new: a marker for each object of the mission the header's
   Mission picker shows (export 24), one size on screen and faint through walls as light markers are, coloured and
   shaped by kind (drop-in points, pods, soldiers' and the operative's and VIPs' points, capture points, radar arrays,
   the bomb, power nodes, things to use); a group's helper parts (emitters, rebuild volumes) are named with it, not

@@ -144,6 +144,21 @@ class ConfigLines(unittest.TestCase):
         self.assertEqual(c['missions'], ['Abduction', 'Abduction 2'])
         self.assertIn('DisplayName="%s (Test, Abduction 2) |0"' % VARIANT, c['maps'][1])
 
+    def test_an_added_bomb_streams_the_variants_copy_of_its_donor(self):
+        # spawns plan SP4: the added bomb's objects moved make a copy of Slaughterhouse's stream; the added record
+        # streams that copy (a copy replaces its source in every record that streams it), a control record of another
+        # kind streams neither
+        bar = record('bar')
+        copy = 'URB_Slaughterhouse_Stream_%s' % VARIANT
+        c = build.config_lines(['[XComGame.XComMapManager]', bar], [], [], 'URB_Bar', VARIANT, PATCH,
+                               lambda mission: '%s (Test, %s) |0' % (VARIANT, mission),
+                               intros={'URB_Slaughterhouse_Stream': copy},
+                               missions_list=[dict(record=0), dict(kind='Special/Bomb')])
+        abduction, bomb = c['maps']
+        self.assertIn('MapName="%s"' % copy, bomb)
+        self.assertNotIn('MapName="URB_Slaughterhouse_Stream"', bomb)
+        self.assertNotIn('URB_Slaughterhouse_Stream', abduction)
+
     def test_a_bomb_records_display_name_keeps_what_long_war_matches(self):
         # Long War throttles a bomb mission's reinforcements by "_Bomb" in the record's display name (plan 2.5)
         bar = record('bar')
@@ -326,6 +341,10 @@ class Builds(unittest.TestCase):
             staged.write_bytes(b'staged ' + Path(args[k + 1]).read_bytes())
             edit['copies'] = [dict(c, actor=c['actor'] + '_900', staged=True) if c.get('donor') else c
                               for c in edit['copies']]
+            for lane in ('effects', 'sounds', 'flares'):
+                if edit.get(lane):
+                    edit[lane]['copies'] = [dict(c, source=c['source'] + '_900', staged=True) if c.get('donor') else c
+                                            for c in edit[lane]['copies']]
             (out / 'native-edit.staged.json').write_text(json.dumps(edit), encoding='utf-8')
             if not self.no_staged_report:
                 (out / 'transplant.json').write_text(json.dumps(dict(
@@ -413,6 +432,34 @@ class Builds(unittest.TestCase):
         edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
         self.assertEqual(edit['landingZones']['own'], [0])
         self.assertFalse(m['lightingUnchanged'])
+
+    def test_a_spawn_rule_alone_builds_with_its_exclusion_line(self):
+        """Editor spawns plan, SP8: a project whose one change is its spawn rule (scripted drop-ins where placed) is
+        work: it builds the map with the lighting unchanged, and the manifest and README carry the variant's ExcludeMaps
+        line for DefaultRandomSpawns.ini. On an install without that file (plain EW) the line is said with why it has no
+        place there."""
+        self.spec['objects'] = []
+        self.spec['spawnRules'] = dict(dropIns='placed')
+        m = self.make().run()
+        ex = m['config']['dropInExclusion']
+        self.assertEqual((ex['file'], ex['section'], ex['line']),
+                         ('DefaultRandomSpawns.ini', 'XComLZMutator.XComSpawnAlienMutator', 'ExcludeMaps = "%s"' % VARIANT))
+        self.assertIn('plain Enemy Within', ex['why'])
+        self.assertIn('plain Enemy Within lands scripted drop-ins where placed already', (self.output / VARIANT / 'README.txt').read_text('latin-1'))
+        cfg = self.lwr / 'XEW/XComGame/Config'
+        (cfg / 'DefaultMutatorLoader.ini').write_bytes(b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n')
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "EWI_ChryssalidHive"\r\n')
+        m = self.make('111500').run()
+        self.assertNotIn('why', m['config']['dropInExclusion'])
+        readme = (self.output / VARIANT / 'README.txt').read_text('latin-1')
+        self.assertIn('DefaultRandomSpawns.ini, in its [XComLZMutator.XComSpawnAlienMutator] section', readme)
+        self.assertIn('\nExcludeMaps = "%s"\n' % VARIANT, readme)
+        self.assertTrue(m['lightingUnchanged'])
+        self.assertIn('reads URB_Bar\'s own lightmaps', readme)
+        # without the rule the same project changes nothing
+        del self.spec['spawnRules']
+        with self.assertRaisesRegex(build.BuildError, 'no spawn rule is set'):
+            self.make('112000').run()
 
     def test_cover_blocks_alone_are_made_in_the_map_with_the_lighting_unchanged(self):
         """A project with nothing but cover blocks: hidden pieces change no baked light, so a full build makes the map
@@ -564,8 +611,8 @@ class Builds(unittest.TestCase):
         self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'transplant', 'light', 'seeds'])
         self.assertEqual(m['stages'][1]['foreignCopies'], 1)       # the page shows the stage's step from the compile on
         self.assertEqual((m['foreignPieces'], m['donors']),
-                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, objectsBrought=7,
-                                   objectsReused=3, cut=[], bytes=1234)]))
+                         (1, [dict(map='URB_PoliceStation', sha256='d' * 64, file='x', pieces=1, effects=0, flares=0, objectsBrought=7,
+                                   objectsReused=3, cut=[], sizes={}, bytes=1234)]))
         # a full build: the same staging, and the baking copier reads the staged map (it lights them from nothing)
         self.ran.clear()
         m = self.make('110500').run()
@@ -582,6 +629,83 @@ class Builds(unittest.TestCase):
         with self.assertRaises(build.BuildError) as raised:
             self.make('111000', quick=True).run()
         self.assertIn('staged no map', str(raised.exception))
+
+    def test_effects_of_other_maps_alone_are_staged_and_keep_the_lighting(self):
+        """An effect of another map (the effects and sounds plan, stage FX4), the project's only change: staged in the
+        map first, then made by native_copy.py from the staged map in both kinds of build, with the lighting kept."""
+        foam = dict(id='a', name='Emitter_10_copy1', source='Emitter_10', actorClass='Emitter', location=[0.0, 0.0, 0.0],
+                    rotation=[0, 0, 0], donor=dict(package='URB_PierA', sha256='d' * 64))
+        self.spec['objects'] = [dict(type='effects', moves=[], deletes=[], copies=[foam])]
+        work = self.output / '.work' / ('%s-20261107-110000' % VARIANT)
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            work = self.output / '.work' / ('%s-%s' % (VARIANT, m['buildId'].split('-', 1)[1]))
+            self.assertEqual(len(self.tool('transplant.py')), 1)
+            light, = self.tool('native_copy.py')
+            k = light.index(str(build.NATIVE_COPY))
+            self.assertEqual(light[k + 1], str(work / 'transplant' / 'staged' / 'URB_Bar.upk'))
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual([(c['source'], c['staged']) for c in edit['effects']['copies']], [('Emitter_10_900', True)])
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+        # a copy of the map's own effect stages nothing
+        self.ran.clear()
+        self.spec['objects'] = [dict(type='effects', moves=[], deletes=[], copies=[{k: v for k, v in foam.items() if k != 'donor'}])]
+        self.make(stamp='110200', quick=True).run()
+        self.assertEqual(self.tool('transplant.py'), [])
+
+    def test_lens_flares_alone_build_as_effects_do(self):
+        """The flares' lane (stage FX6b), the project's only change: made by native_copy.py in both kinds of build with
+        the lighting kept; one of another map is staged first, one of the map's own stages nothing."""
+        glare = dict(id='a', name='LensFlareSource_0_copy1', source='LensFlareSource_0', actorClass='LensFlareSource',
+                     location=[0.0, 640.0, 200.0], rotation=[0, 0, 0], donor=dict(package='AlienBase01', sha256='d' * 64))
+        move = dict(name='LensFlareSource_7', actorClass='LensFlareSource', location=[900.0, -220.0, 300.0], rotation=[0, 0, 0])
+        self.spec['objects'] = [dict(type='flares', moves=[move], deletes=[], copies=[glare], values=[])]
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            self.assertEqual(len(self.tool('transplant.py')), 1)
+            light, = self.tool('native_copy.py')
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual([(c['source'], c['staged']) for c in edit['flares']['copies']], [('LensFlareSource_0_900', True)])
+            self.assertEqual([x['name'] for x in edit['flares']['moves']], ['LensFlareSource_7'])
+            self.assertNotIn('effects', edit)
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+        # the map's own flare moved, the project's only change: built, nothing staged
+        self.ran.clear()
+        self.spec['objects'] = [dict(type='flares', moves=[move], deletes=[], copies=[], values=[])]
+        self.make(stamp='110200', quick=True).run()
+        self.assertEqual(self.tool('transplant.py'), [])
+        self.assertEqual(len(self.tool('native_copy.py')), 1)
+
+    def test_base_spawn_points_alone_build_in_the_map_with_the_lighting_kept(self):
+        """The spawns lane (the editor spawns plan, SP6 and SP7), the project's only change: a pod moved, a Meld point
+        given values, a pod copied and one deleted are made by native_copy.py in both kinds of build, with nothing staged,
+        no relight and the lighting kept; the manifest counts them."""
+        move = dict(name='XComAlienPod_Abduction_0', actorClass='XComAlienPod_Abduction', kind='pod',
+                    location=[1694.8, 1642.2, 1.5], rotation=[0, 0, 0], before=dict(location=[1598.8, 1642.2, 1.5], rotation=[0, -16384, 0]))
+        value = dict(name='XComMeldContainerSpawnPoint_2', actorClass='XComMeldContainerSpawnPoint', kind='meld',
+                     spawn=dict(difficulty='Hard', destroyedOnTurn=6))
+        copy = dict(id='a', name='XComAlienPod_Abduction_2_copy1', source='XComAlienPod_Abduction_2', kind='pod', podIndex=5,
+                    actorClass='XComAlienPod_Abduction', location=[-1145.6, 251.2, 17.0], rotation=[0, -16384, 0])
+        gone = dict(name='XComAlienPod_Abduction_4', actorClass='XComAlienPod_Abduction', kind='pod')
+        self.spec['objects'] = [dict(type='spawns', moves=[move], values=[value], deletes=[gone], copies=[copy])]
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            self.assertEqual(self.tool('transplant.py'), [])
+            light, = self.tool('native_copy.py')
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual((edit['spawns']['moves'], edit['spawns']['values'], edit['spawns']['copies'], edit['spawns']['deletes']),
+                             ([move], [value], [copy], [gone]))
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+            self.assertEqual(m['spawnEdits'], dict(moved=1, valued=1, added=1, deleted=1))
 
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]

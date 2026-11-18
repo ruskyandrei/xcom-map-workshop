@@ -648,6 +648,35 @@ class StagedAssembly(unittest.TestCase):
         self.assertFalse({q.by_name[PL + staged[m]] for m in self.members} & listed)      # the staged car: unlisted
 
 
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class ImportsKeptByDonor(unittest.TestCase):
+    """F-121: the destination's imports for a donor's are kept by the donor's file. Keyed by id(), a donor freed
+    while others are staged left its id to a later one, which was then given the freed donor's imports for its own (an
+    effect of URB_Boulevard staged with URB_Bar's SoundNodeWave for its SoundNodeAmbient, in one build of EXP-69 and
+    not in another). The collision is made here by giving every object the same id."""
+
+    class Fake:
+        def __init__(self, path, name):
+            from types import SimpleNamespace
+            self.path = Path(path)
+            self.p = SimpleNamespace(imports=[dict(cpkg='Core', cls='Class', outer=0, name=name)])
+
+    def test_two_donors_with_one_id_keep_their_own_imports(self):
+        from unittest import mock
+        dest = transplant.Destination(BAR)
+        with mock.patch.object(transplant, 'id', create=True, new=lambda o: 1):
+            first = self.Fake('URB_First.upk', 'FirstOnlyClass')
+            a = dest.import_of(first, -1, None)
+            b = dest.import_of(self.Fake('URB_Second.upk', 'SecondOnlyClass'), -1, None)
+            again = dest.import_of(self.Fake('urb_first.UPK', 'FirstOnlyClass'), -1, None)
+        self.assertNotEqual(a, b)
+        self.assertEqual(again, a)          # the same file (its name in any case) is the same donor
+        # a donor with no file is kept by itself
+        loose = type('Loose', (), {})()
+        loose.p = self.Fake('x', 'LooseOnlyClass').p
+        self.assertNotIn(dest.import_of(loose, -1, None), (a, b))
+
+
 @unittest.skipUnless(BAR and BAR.exists() and POLICE and POLICE.exists(),
                      NO_BAR if not (BAR and BAR.exists()) else NO_POLICE)
 class StagedCopy(unittest.TestCase):

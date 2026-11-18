@@ -143,7 +143,7 @@ together in the editor and saved in the project (`groups`, section 4).
   - The rules for boxes keep `origin`, as they were played: the floor a flat piece gives, the cover block panel's
     tiles, the Build's seeds and rebuild volumes.
 
-## 4. The project document (schema 2)
+## 4. The project document (schema 4)
 
 A JSON file, named after the project (`Bar remix.json`, section 5). The server ([projects.py](../tools/viewer/projects.py)) refuses any other `schema` or
 `schemaVersion`, with a message naming the version. Schema 2 (16 November 2026; piece flags plan) adds pieces' `flags`;
@@ -151,11 +151,26 @@ the page, the server and the compiler read schema 1 and 2, and the page writes 2
 schema 1: only a page older than the server writes one, and it would drop the flags of a newer document ("Not saved:
 This page is older than the editor's server…"). Prefab files are schema 2 the same way, and a prefab imported at 1
 is stored as 2.
+Schema 3 (17 November 2026; the effects and sounds plan, stage FX3) adds effects' and sounds' records (the rows
+`overrides[]` and `added[]` of effects and sounds below): the page, the server and the compiler read 1, 2 and 3, and
+the page writes 3; the server refuses a save of 1 or 2 as it did of 1.
+Schema 4 (18 November 2026; the editor spawns plan, stage SP8) adds `spawnRules` (below), and the base map's spawn
+points' records (stages SP6 and SP7) under the same number: the page, the server and the compiler read 1 to 4, the
+page writes 4, and the server refuses a save of 1 to 3.
+Prefab files are schema 3 since stage FX6a (17 November 2026): a piece with a `kind` is a copy of a map's effect or
+ambient sound, `{actor, kind: effect | sound, from: {package, level: base, actor}, location, rotation}` with the
+values object of its kind at most (`effect` or `sound`, as an added record of a project has it), a member of the
+prefab's groups by its `actor` as any piece is, its map among the `donors`. It has no components, partner, link or
+recipe. The server reads prefab schema 1, 2 and 3 and stores 3; an editor before this stage refuses a schema 3 file
+by its number ("A newer editor is needed to open it"). Since stage FX6b (17 November 2026) a piece may be a copy of
+a map's lens flare, `{actor, kind: flare, from, location, rotation}`, never with a values object; the schema number
+stays 3, and an editor of stage FX6a refuses such a file by the piece ("of a kind this editor doesn't know"). The
+summary counts `effects`, `sounds` and `flares`.
 
 ```json
 {
   "schema": "xcom-map-workshop/project",
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "id": "5005037f-f7ac-4287-97f6-d1cab95360f9",
   "name": "Bar remix",
   "mode": "edit",
@@ -202,6 +217,8 @@ is stored as 2.
 | `overrides[].target` in a stream | Optional (15 November 2026; mission types plan, Part E): `{ "package": "<stream>", "level": "stream", "actor": ... }` names one of a mission stream's objects (the export's `streams[<stream>].missionObjects`). Its `location` and `rotation` move it in place in the variant's copy of the stream (`<Stream>_<Variant>.upk`), which that mission's records stream instead of the original; the page moves an object with its group, one record per part. `deleted: true` takes it out of the copy, with a warning. A target in a stream that is no mission object is an error. |
 | `overrides[].light` | Optional (editor lights, 9 November 2026): a light's changed values, only the keys that differ from the export's: `color` (bytes 0 to 255), `brightness`, `radius`, `falloffExponent`, `innerConeAngle`, `outerConeAngle` (the stored values; the editor shows the effective cones) and `enabled`. A light override can also move, turn or delete the light as a piece's does. See the editor lights plan, sections 3 and 9.4. |
 | `added[]` lights | A copied light has `from` and `components` like a piece, and optional `light`. A light made from the editor's recipe has `template: { "kind": "spot", "version": 1 }` and `light` in place of `from` and `components`; its output name is `TheWorld.PersistentLevel.SpotLight_copy<serial>`. |
+| `overrides[]` of effects and sounds | Schema 3 (17 November 2026; effects and sounds plan, FX3): an effect's or a sound's actor (the export's `effects`, `sounds`) moved (`location`, `rotation`, the actor's own pose) or deleted (`deleted: true`), as a piece's is. Optional `effect` or `sound`, never both: the effect's or sound's own values, only keys that differ (`effect`: `scale`, `startsOn`, `parameters`, `follow`; `sound`: `radiusMin`, `radiusMax`, `volume`, `pitch`, `startsOn`). `effect.follow`: `"none"` keeps an effect a piece carries where the map has it (or where its own pose puts it) when the piece moves, is copied or deleted, `"auto"` lets it follow (the default, never saved). The other keys are stage FX5's (17 November 2026), built while the `effect-values` and `sound-values` families build (an experiment's build lifts them with `--family`; refused with code `family` otherwise): an effect's `scale` (a multiplier of 1/64 to 64 on the size the map gives it: the Build multiplies the actor's `DrawScale`, its `DrawScale3D` kept), `startsOn` (its component's `bAutoActivate`) and `parameters` (`[{name, value}]`: a number, `[x, y, z]` or a colour `[r, g, b, a]` each 0 to 1, in the type the effect saves that name in, or, for a name it doesn't save, the kind its system's distribution has; a random or untyped entry, a name read as both kinds and a name the system lacks are refused); a sound's `radiusMin`, `radiusMax` (0 to 65,536, inner not beyond outer as the sound then has them), `volume` and `pitch` (`[least, most]`: 0 to 16, 1/16 to 16) and `startsOn` (the actor's `bAutoPlay`), set on its own node, so only where the export's `can.values` (a simple sound's private cue and node). An override may be values alone, with no pose; a deleted one's values are not built. A lens flare and a stream's are view only: the compiler refuses an edit of one. |
+| `added[]` effects and sounds | Schema 3: a copy of an effect or a sound has `kind` (`effect`, `sound`; since stage FX6b `flare`, a lens flare's copy, which has no values object and builds where the `flare` family does), `from` (the original's target), `location`, `rotation` and optional `effect` or `sound` values (the same keys as an override's, of its own kind only); no `components`, `template`, `light`, `cover`, `flags`, `prefab`, `partner` or `tinted`. Its output name is `<original actor>_copy<serial>` like a piece's. A copy of an effect a piece carries is its own actor: it follows nothing. Since stage FX4 (17 November 2026) `from` may name another base map's effect or sound (`package` another map, `level` `base`): the library's (section 8). |
 | `areaLightBindings` | Optional: the generated area lights' glowing pieces as the project sets them, sorted: `{ "target": <the area light's target>, "owner": { "target": <a base-level piece's target>, "component": <its component> } }`, or `"owner": null` to keep the light where it is. A light not listed follows the export's verified association (`emitterAttachment`). |
 | `buildings` | Optional (11 November 2026; prefab plan 5.1, stage B1). Buildings the Build makes from nothing: `{ "id": string, "name": string, "kind": "building" or "ufo", "floors": [{ "boxes": [[x0, y0, z0, x1, y1, z1]] }] }`, floor 0 first, the boxes in game units and unturned, at least one box a floor, at most 10 floors (8 until 14 November 2026). Which pieces each floor lists is not saved: the Build works it out from where the pieces stand (tools/bake/buildings.py). The compiler warns of a box outside the tile grid, and of one that overlaps a box of another floor or building (a refusal until 13 November 2026: warn, don't block). The page makes and fits their boxes in the Buildings view (Shift+B); a building it can't read is carried unchanged. Built since EXP-44 passed (11 November 2026). **The map's own buildings** (13 November 2026; map buildings plan, section 2): one the project changed is saved here too, with `replaces`, the map's building volume as a piece's target (`{ "package": "URB_Bar", "level": "base", "actor": "TheWorld.PersistentLevel.XComBuildingVolume_2" }`), and its id made from the actor (`map:PersistentLevel.XComBuildingVolume_2`), the same each time the map is opened, so a group's `{ "building": id }` holds for it with or without a record; each of its floors has `volumes` beside `boxes`, as long and sorted with them: the floor volume (short name) each box came from, `null` for a new box. A deleted one is `{ "id", "replaces", "deleted": true }`, with no floors. A map building with no record is the map's, as exported; the page saves only the ones whose floors, name or kind differ from the export (every box within 0.01 of its volume's), and the deleted ones. Its `name` starts as the actor's short name, its `kind` as `ufo` where the map's has `IsUfo`. A prefab never carries `replaces` or `volumes`: a building saved into one, or copied, is a new one. The buildings of streamed levels, vans' buildings and buildings with a floor that has no floor volume stay fixed (export 21's `van` and floors). |
 | `stage` | Optional (11 November 2026; prefab plan 5.11), on any map (13 November 2026: before then the blank map or a cleared project alone): `{ "grid": [tiles across, tiles deep], "ground": false }` or `{ "grid": [tiles across, tiles deep, levels] }`, the tile grid made that large from its own corner and, with the third number, that many levels from its own bottom (1 to 128 tiles, 1 to 30 levels: 18 until 14 November 2026; over 18, the tallest of the game's own maps, the compiler warns `stage-levels-tall`: not played, and the Build gives the grid a cursor storey for each 192 units, ten at 30 levels). A map as it is, the blank map among them, may only grow, across and up (a map other than the blank map grown as it is is warned of: not played; with more levels, the Build adds even cursor storeys over the whole grid above the map's own cursor volumes, and stretches those reaching the old far X or Y side to the new one: shell.py grow_cursors); a cleared project's may also be smaller in any of the three (13 November 2026, Clear map plan, section 6): the corner and the bottom never move. `ground` false lays no ground over the new area (the Build lays the map's ground where it is laid as planes); `lines` and `hideGround` are the blank map's. |
@@ -209,7 +226,8 @@ is stored as 2.
 | `clearKeepsOutside` | Optional (13 November 2026, the Clear map window's "Keep the scenery outside the play area"): `true` with `cleared` says the clear kept the scenery outside the play area. The page did not delete the pieces whose every part's box lies outside it, nor the lights placed outside it. The Build's clear_level then also leaves the lights, emitters, decals and lens flares whose Location is outside it. The play area here is the map's level volume and the grid as the project has it together, across (the compiler's `outside_box`, the page's `outsideBox`). Volumes and cover seeds go wherever they stand. Absent or false: everything goes. Without `cleared` it says nothing. |
 | `landingZones` | Optional (13 November 2026; Clear map plan, section 4): the whole list of landing zones, in order: `{ "id": string, "location": [x, y, z], "direction": "north" \| "east" \| "south" \| "west", "kind": "normal" \| "inside" \| "alternate" \| "noEvac" \| "default", "missionType"?, "councilType"?, "alternate"?: { "location": [x, y, z], "direction" }, "lwr"?: false, "ew"?: true, "other"?: string }`. `location` is an LZArray line's `StartLoc` (the zone's ground is 64 under it), `direction` its `StartDir`, `kind` its `ESpawnLoc` (no line of the install uses the last three), `missionType` and `councilType` the mission it is kept for, as written, `alternate` its `AltSpawnLoc` and `AltSpawnDir`; `lwr` false writes no line for it; `ew` true (13 November 2026, the panel's Plain EW) makes it one of the map's own landings for plain EW; `other` keeps a line's fields the editor does not know, as written. The Build writes every zone with no `lwr: false` as one of the variant's LZArray lines, and the zones marked `ew: true`, in order, as the map's own landings moved in place, one for each landing the map has (the first marked zone is the first landing; marked zones beyond the map's count play under LWR only, a warning). A list with no zone marked goes by order: the first zones that name no mission. An empty list is no zone at all (a warning). Absent: the base map's lines are copied and its own landings left as they are, as before. A malformed zone is carried in its place. |
 | `missions` | Optional (15 November 2026; mission types plan, Part D): the missions the variant serves, a list of at least one: `{ "record": i }` for the base map's record `i` (the export's `missions` order, its `DefaultMaps.ini` records in file order), or `{ "kind": "Abduction" \| "TerrorSite" \| "Special/Bomb" \| "Crash" \| "LandedUFO", "ship"?: "eShip_UFO..." }` for a kind a record alone gives the map (`missions.ADDED_KINDS`: made from the base map's abduction record; `ship` the UFO type, for the two UFO kinds only). The Build writes a record for each (base records in file order, then the added kinds), and nothing else; Play in game plays one of them. Absent: every record of the base map, as before. A list the Build can't write is an error. |
-| `groups` | Optional (6 November 2026; a project without it has none). The user's groups, sorted by `id`: `{ "id": uuid, "locked": true, "breakTogether": false, "members": [...] }`, two or more members, each an original's target `{ "package", "level", "actor" }`, an added piece's output name `{ "added": "TheWorld.PersistentLevel.XComDestructibleActor_60_copy9" }` or another group `{ "group": id }`, sorted. See section 2. A group placed from a prefab also has `prefab: { "id", "name", "revision" }` (12 November 2026): a label only, which the Build passes over. Prefab files themselves are described in [tools/viewer/prefabs.py](../tools/viewer/prefabs.py) and the prefab plan, 5.6. |
+| `spawnRules` | Optional (18 November 2026; schema 4; the editor spawns plan, SP8): `{ "dropIns": "placed" }`, the Spawns flyout's "Scripted drop-ins land where placed". The Build then adds the variant to Long War's drop-in mutator's `ExcludeMaps` list (`DefaultRandomSpawns.ini`, section `[XComLZMutator.XComSpawnAlienMutator]`, after its ExcludeMaps lines, under a comment naming the editor and the project), so every scripted drop-in of every mission of the variant lands at its own point, with none of the mutator's overwatch and reveal; wave systems' drop-ins are never moved by Long War. The manifest's `config.dropInExclusion` says `{ file, section, line }` (and `why` where the build's install can't take it); Play in game and the campaign install plan the line again against the install (ledger keys `playExclusions` and `dropInExclusions`) and take it out only where it stands as written; nothing is written on plain Enemy Within, which plays them where placed already. The rule alone is work: a project with nothing else builds the map unchanged with it. Absent or null: the install's behaviour. Any other value is refused (`spawn-rules`); the page carries it as saved. |
+| `groups` | Optional (6 November 2026; a project without it has none). The user's groups, sorted by `id`: `{ "id": uuid, "locked": true, "breakTogether": false, "members": [...] }`, two or more members, each an original's target `{ "package", "level", "actor" }` (an effect's or a sound's too, since schema 3), an added piece's output name `{ "added": "TheWorld.PersistentLevel.XComDestructibleActor_60_copy9" }` or another group `{ "group": id }`, sorted. See section 2. A group placed from a prefab also has `prefab: { "id", "name", "revision" }` (12 November 2026): a label only, which the Build passes over. Prefab files themselves are described in [tools/viewer/prefabs.py](../tools/viewer/prefabs.py) and the prefab plan, 5.6. |
 
 - A deleted original is only `deleted`. Its pose before deletion is not kept, and restoring it brings it back as
   exported.
@@ -461,6 +479,166 @@ used). It now warns when the stream it replaces is not a patch (T-08).
 
 **Choosing the base record.** The editor must choose the base record by `DisplayName`, not just by `Name`: 65 map
 names have several records, and for 38 of them the free slot differs.
+
+## 8. Effects, sounds and lens flares in the export (export 28; draw data: export 29)
+
+Written 17 November 2026 for stage FX1 of the effects and sounds plan. The export carries them for the page's
+Effects view (Shift+X), which shows them and edits nothing. No project record names them yet: the records the editing
+stages add (`effect` and `sound` values objects on overrides and added records, project and prefab schema 3) are the
+plan's Part C and come with its stage FX3. [effects_metadata.py](../tools/viewer/effects_metadata.py) builds the
+records; [test_effects_metadata.py](../tools/viewer/tests/test_effects_metadata.py) pins them to actors of the install.
+
+**Where.** The map's own are the scene's `effects`, `sounds` and `flares` (sorted by actor). A mission stream's own are
+its layer's (`streams[<name>].effects`, `.sounds`, `.flares`), with `layer: "stream"` and `stream` its name; the
+cinematic streams (`CIN_`) are not read, as for pieces. `effectSystems` and `soundWaves` are keyed
+`<package>|<object path>` and hold every system and wave the map's and its streams' records name. `effectsMetadata`
+is `{ version: 1, defaults: "script" | "table" }`: whether class defaults came from the game's script packages or,
+where those can't be read, from the module's `CLASS_DEFAULTS`.
+
+**Every record:**
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `effect` (an `Emitter`), `sound` (`AmbientSound` and its kin) or `flare` (a `LensFlareSource`) |
+| `id` | `<prefix><kind>:<export index>`, as a light's `<prefix>light:<index>`; a stream's prefix is `stream-<name>-` |
+| `sourcePackage`, `layer`, `actor`, `actorClass`, `component` | Its identity: package, `base` or `stream`, actor path, class, and its particle, audio or flare component's path |
+| `location`, `rotation`, `scale`, `drawScale`, `drawScale3D` | Its pose: game units, rotator units, and its scale both as the product and as the two saved values |
+| `listed` | Whether its level's actor list holds it (the game loads only those) |
+| `prefab` | The prefab instance that placed it (short name), or null |
+| `referencedBy` | What of its package's Kismet names it (`scene_metadata.kismet_references`, the reader lights and buildings use) |
+| `attachedTo` | `{ actor, actorClass, bone }` from its saved `Base` / `BaseSkelComponent` / `BaseBoneName`, or null |
+| `landingRole`, `landingActor` | Export 22's role where a landing names it (the grounded Skyranger's `emitter` and `sound`); whether a clear keeps it as the landing's (native_copy.landing_actor's archetype rule) |
+| `carriedBy`, `carriedHow` | The mesh piece that carries it (export 23's place rule, `place`), or null; always null for sounds and flares in this stage |
+| `can`, `why` | What the editor may do with it by its own data (`move`, `copy`, `delete`, `values`; a sound also `audition`) and, for each it may not, why in words. A stream's actor, an actor its level doesn't list and one that rides on another may do none of the first four; hearing a wave changes nothing, so `audition` depends only on the wave |
+
+**Where a value comes from** (`startsOnFrom`, `valuesFrom`, `parametersFrom`): `actor` (saved by the actor or its own
+component or node), `cue` (saved by a node of the cue asset a sound plays), `archetype` (an archetype the map holds),
+`class` (the class's default in the game's script packages, or the type's zero where none saves it), `table`
+(`CLASS_DEFAULTS`, where those packages can't be read), `unresolved` (an archetype in a package the map doesn't hold).
+
+**An effect** adds `template` (its particle system's path, or null), `system` (its `effectSystems` key), `hidden`,
+`floors` (every building floor whose `m_aCachedEmitters` names it: `{ building, floor }`, the building as
+`buildings[].id`), `lit` (a light environment of its own), `componentPose` (`{ translation, rotation, scale }` of its
+particle component), `startsOn` (its component's `bAutoActivate`: the class default is true) and `parameters`: the
+`InstanceParameters` it saves (or its archetype does), each `{ name, type (its PSPT_ value), the fields it saves
+(scalar, scalarLow, vector, vectorLow, colour, actor, material), offered }`, `offered` being `yes` (the system has a
+parameter distribution of that name and kind), `otherKind` (of that name, the other kind), `no` or `unknown`.
+
+**A system** (`effectSystems`): `path`, `name`, `package`, `fingerprint` (SHA-256 of everything under it, first 16
+digits), `objects`, `bytes`, `lodLevels`, `fixedBox` (`{ used, min, max, valid }` or null), `emitters` (each its first
+LOD level as read: `kind` sprite, mesh, ribbon, beam or trail, `lods`, `cookedOut`, `material`, `loops`, `duration`,
+`delay`, `bursts`, `lifetime` [least, most] of its lifetime table) and `offers` (each particle parameter distribution:
+`name`, `kind` scalar or vector, the `module` and `property` that read it, `modes`, `constant`, `input` and `output`
+ranges, `colour`: whether it feeds a particle's start colour or colour over life). No "looping" or "plays once" is made
+from `loops` (the plan's 2.2): the page says nothing of how long an effect lasts.
+
+**An emitter's `draw`** (export 29, draw version 4 since export 31, 5 since export 32,
+[effects_draw.py](../tools/viewer/effects_draw.py); the system's `drawVersion`): what the page draws its likeness from,
+or `null` with `why` (a ribbon, no level of detail left, a mesh or material in another package, nothing spawns it, or
+"it only sends events: nothing is seen": the engine's default particle material on an emitter with an event generator,
+each fire's last emitter). `kind` sprite or mesh; `blend`, `lit`, `twoSided`,
+`material`; a sprite's `textures` (`key` into the scene's `textures`, `name`, `parameter`, `alpha`, and the texture's
+traits from its pixels, `texture_traits`: `grey`, `shape` (its alpha holds a shape), `packed` (pictures in its channels,
+not a colour: no blue with red and green unrelated, or mostly blue to pink), `redShare`, `bright`); the colour and the
+shape come from different textures (`pick_textures`): `picture` (the colour: the first texture with colour; an added
+particle's first grey one; a see-through one's grey one only where it holds no shape and no packed one shapes; or null:
+the particle's own colour), `opacity` (what of the picture shapes it: `alpha` where its alpha holds a shape,
+`brightness`, or `none`), `mask` (the shape: beside a picture whose alpha holds its shape, only a texture named Mask,
+Alpha or Gradient; else such a texture, then a grey one, one with an alpha shape, a packed one; with no picture, one
+with an alpha shape, a packed one, a grey one) and
+`maskFrom` (`brightness`, `alpha` or `red`: a packed texture's red channel, its brightness where its red is all but
+empty); a normal map, distortion or reflection is neither. `colours`: the material's own colour parameters (vector
+parameters named Color, Colour or Tint, not specular ones, through its parents: `{ name: [r, g, b] }`), which tint a
+see-through particle with no picture (the night smoke's are all but black). Draw version 3's `opacity` `channel` (the
+picture a packed texture: its red channel the opacity, no colour) is still read so by the page. A mesh emitter's
+`mesh` (a key into `meshes`) and `materials`, with the same texture fields for the material it is drawn with; `facing` (`ScreenAlignment`), `subImages` [across, down], `interp`, `localSpace`,
+`duration`, `loops`, `delay`; `rate`, `rateScale` and each followed module of `modules` (`cls` without
+`ParticleModule`, then its properties) as numbers, flags and **distributions**; `bursts` (`count`, `countLow`,
+`time`); `ignored`: the classes of its modules the drawing doesn't follow.
+
+**A distribution** is one of:
+- a table, `{ op, lock, per, chunk, scale, start, min, max, entries }`: the game's baked lookup table. An entry is
+  `chunk` floats: the value (`op` 1), or its least then its most (`op` 2 random between them, 3 one or the other).
+  The entry at a time is `(time - start) * scale`, blended to the next and held at the last; `lock` ties a vector's
+  axes to one random number (4: all three). A cooked struct saves only its difference from the module class's
+  default, so the shape is read through the archetype chain (`Defaults.chain`);
+- a particle parameter, `{ parameter, kind, modes, constant, input, output }`: the value is the effect's saved
+  instance parameter of that name, else `constant`;
+- `{ unread: why }`: a curve the cook kept as an object, or a table of another shape; the page uses the module's
+  neutral value.
+
+**A sound** adds `startsOn` (`bAutoPlay`: true for `AmbientSound` and `AmbientSoundSimple`, false for the toggleable
+one, unless saved), `cue` (`{ path, private: whether it is the sound's own, under the actor, sharedBy: how many other
+sounds of the package play it }`), `node` (`{ path, nodeClass }` of its `SoundNodeInstance`), `nodes` (the classes of
+its cue's nodes, counted), `waves` (`soundWaves` keys), `noSound` (why it reaches no wave, or null: "a sound slot names
+no wave" and "its node has no sound slots" are the silent actors Firaxis left in) and `values` with `valuesFrom`
+(`radiusMin`, `radiusMax`, `volumeMin`, `volumeMax`, `pitchMin`, `pitchMax`, `attenuate`, `spatialize`,
+`distanceModel`, `lowPass`, `lowPassMin`, `lowPassMax`) from its own ambient node, or from the one attenuation node of
+a cue asset (no volume or pitch then), `valuesNode` naming the node. `can.values` holds only for a simple sound whose
+cue and node are its own.
+
+**A wave** (`soundWaves`): `path`, `name`, `package`, `seconds`, `channels`, `rate`, `size`, `ogg` (the Ogg stream's
+bytes) and `playable`: its PC bulk record (the second of five, read by its header) is in the export, uncompressed
+(flags 0, element count equal to its size) and starts as an Ogg stream; otherwise `why` says what it is.
+Since stage FX2 the page plays a playable wave through `GET`/`HEAD /maps/<id>/wave.ogg?id=<soundWaves key>`
+([audio.py](../tools/viewer/audio.py)): the key's package is the map's own (its file checked against `source.sha256`)
+or one of its `streams`; any other key is 404. The stream is checked as Ogg Vorbis before it is sent (a refusal is 422
+with why) and answered as `audio/ogg` with its length, an ETag and single byte ranges.
+
+**A flare** adds `template`, `colour` (its component's `SourceColor`, RGBA) and `hidden`; `can.values` is false (its
+template and colour aren't edited in this plan). `can.copy` is false for one that names no template, and all of
+`can` for one that rides on another actor.
+
+**Lens flares edited** (stage FX6b, 17 November 2026). A flare's override (`target`, then `location` and `rotation`, or
+`deleted: true`) and its copy (an added record of `kind: flare`) are checked as an effect's are and never carry a
+values object (`flare`, `effect` or `sound` on one is malformed). The family is `flare` (it builds for every project since EXP-71 passed, 17 November 2026; before, `--family
+flare`), the spec's and the native edit's object is `flares` (`moves`, `deletes`, `copies`, an always empty
+`values`), and the Build's writer is [native_flares.py](../tools/bake/native_flares.py): a LensFlareSource owns its
+LensFlareComponent alone, so a copy is those two exports, the flare template (the component's `Template`, or its
+archetype's) shared; a flare is in no floor's list; a cleared map loses its flares but for one the project moves
+itself, and copies are made after the clear. The library lists the base maps' flares as entries of `family` `flare`
+(index 10: `kind` "Lens flare", `flare` the template's path, `colour`; recipe: class, template, colour, scale), a
+copy of one names its map in `from` and is staged by the transplanter as an effect's is (the donor row's `flares`
+counts them among its `effects`), and the compiler's foreign gate (`FOREIGN_FAMILIES`) lists no flare until the game
+check.
+
+**Edited** (stage FX3, 17 November 2026). The project records of section 4 (schema 3) name the effects and sounds by
+their actors. The compiler ([compiler.py](../tools/editor/compiler.py) `effect_override`, `effect_add`) checks each
+against the export (`can`, `why`: an edit the export says no to is an error with its reason; a stream's
+too) and the family table (`effect`, `sound`: on since EXP-68 passed, 17 November 2026; held back, the Build takes them
+only with `--family`, which `serve --family` passes on), and writes the spec's `effects` and `sounds`
+objects: `moves` (`name`, `actorClass`, `location`, `rotation`, `before`), `deletes` (`name`, `actorClass`, `location`)
+and `copies` (`id`, `name`, `source`, `actorClass`, `location`, `rotation`). A carried effect whose piece is moved,
+copied or deleted goes with it (`carriedEffects`, export 23) unless its own record moves it, deletes it or says
+`follow: none`. The Build ([native_effects.py](../tools/bake/native_effects.py), [native_sounds.py](../tools/bake/native_sounds.py),
+after the carried pairs) writes a move into the actor's own pose, takes a deleted one out of the level's actor list
+(its export stays: what names it still resolves), and clones a copy's actor with everything under it, references
+remapped (a sound its own cue and node, so the copy's values are its own). Then every building's floors list the
+effects anew in `m_aCachedEmitters` (what hides an effect with its floor): an effect no lane touches keeps its
+listings; a moved one leaves its old ones and, like a copy, joins each upper floor (index 1 and up) whose box holds its
+place within 2 units; a deleted one leaves; floor 0 never lists. The manifest's `nativeCopies` records each lane's
+rows (`effects`, `sounds`: `how` moved, deleted or copied, a copy's export name) and each listing changed
+(`floorEmitters`: `effect`, `building`, `floor`, `how` joined or left).
+
+**From other maps** (stage FX4, 17 November 2026). The library's index (version 10 since stage FX6b's lens flares;
+[library.py](../tools/viewer/library.py)) lists each base map's effects and ambient sounds as entries of `family`
+`effect` or `sound`: `kind` the Add panel's ([effects_library.py](../tools/viewer/effects_library.py) `kind_of`, from
+the system's or first wave's path), `recipe` and `key` (effects_library's: the fields that make two placed actors the
+same thing to place), `system`, `emitters`, `lit`, `startsOn`, `scripted`, `waves`, `seconds`, `cue`, `sharedCue`, no
+`mesh` or `size`, with `source`, `placed`, `closure` as a piece's. `blocked` is `unavailable` for one the editor can't
+bring (effects_library `blocked`: a stream's, a landing's, one its export says can't be copied), `closure` for one
+whose closure the transplant refuses or that names another actor of its map, `family` while the compiler's
+`FOREIGN_FAMILIES` doesn't list its kind (it lists effects and sounds since EXP-69). `library.effect` gives one as a
+template: its export 28 record (as this section describes, read from the donor), its system or waves, the donor's SHA-256 and its recipe key. An added record
+whose `from` names another base map goes through `foreign_effect`: the library must have been scanned from the file
+the install has (`donor-changed` otherwise), the record's key must be an entry of the right family, and an entry
+`unavailable` or `closure` is refused (`not-placeable`); the record's own checks are a copy's (starts off, named by its
+map's script, a landing's). Its copy in the lane carries `donor` {`package`, `sha256`}, and the report's `donors` lists
+it. The Build stages each donor actor once in the map (transplant `stage_edit`, with the lanes' copies: alone, its
+system, material or wave reused where the map has the same path, `sizes` noting one of another size), outside the
+level's actor list, and rewrites the copies' `source` to the staged actor with `staged: true` and `donor.actor`; the
+lane clones it as it clones one of the map's own (`lane_actor` takes a staged source only outside the list). The
+manifest says `foreignEffects`, and each donor row its `effects`.
 
 ## What E0 still lacks
 

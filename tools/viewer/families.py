@@ -14,10 +14,16 @@ import ladders  # noqa: E402
 import piece_flags  # noqa: E402
 
 
+# families an experiment's server builds although the compiler doesn't yet (viewer.py serve --family, as build.py
+# --family): the page offers their edits and the server's Build makes them (the effects and sounds plan, EXP-C)
+ENABLED = set()
+
+
 def table():
     """What the page needs of the compiler's tables: each family (builds, milestone, grid, what), each class's family,
-    the families that are assemblies, and the pose rule's steps."""
-    return dict(families=compiler.FAMILIES, classFamily=compiler.CLASS_FAMILY,
+    the families that are assemblies, and the pose rule's steps. A family in ENABLED builds."""
+    families = {k: dict(v, builds=bool(v['builds'] or k in ENABLED)) for k, v in compiler.FAMILIES.items()}
+    return dict(families=families, classFamily=compiler.CLASS_FAMILY,
                 assemblyFamilies=list(compiler.ASSEMBLY_FAMILIES),
                 grid=dict(tile=compiler.TILE, storey=compiler.STOREY, quarter=compiler.QUARTER, slack=compiler.POSE_SLACK),
                 # cover blocks' recipe (compiler.COVER_RECIPES): the latest version's heights (below and above the

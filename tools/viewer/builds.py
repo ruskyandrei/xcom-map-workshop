@@ -108,14 +108,16 @@ class Attempt:
 
 
 class BuildRunner:
-    def __init__(self, projects, cache, output, command=None, reveal_with=None, launch=procs.launch):
+    def __init__(self, projects, cache, output, command=None, reveal_with=None, launch=procs.launch, enable=()):
         """projects: the ProjectStore; cache: the viewer cache the page shows; output: the builds folder.
         command(project_file) gives the build's command line, reveal_with(arguments) runs Explorer (tests stub both);
-        launch: how a process tree is started (procs.launch)."""
+        launch: how a process tree is started (procs.launch); enable: families every build makes although the
+        compiler doesn't yet (build.py --family; an experiment's server: viewer.py serve --family)."""
         self.projects, self.cache, self.output = projects, Path(cache), Path(output)
         self.reveal_with = reveal_with or (explorer if sys.platform == 'win32' else None)
+        self.families = [a for f in enable for a in ('--family', f)]
         self.command = command or (lambda f: [sys.executable, '-B', '-u', str(BUILD), str(f), '--cache', str(self.cache),
-                                              '--output', str(self.output)])
+                                              '--output', str(self.output)] + self.families)
         self.launch = launch
         self.lock = threading.Lock()
         self.job = None             # the latest job (a dict the routes show), as before attempts
@@ -138,7 +140,7 @@ class BuildRunner:
 
     def pinned_command(self, document, output, game, udk):
         return [sys.executable, '-B', '-u', str(BUILD), str(document), '--cache', str(self.cache),
-                '--output', str(output), '--game', str(game)] + (['--udk', str(udk)] if udk else [])
+                '--output', str(output), '--game', str(game)] + (['--udk', str(udk)] if udk else []) + self.families
 
     def start_pinned(self, document, output, game, udk, quick, started):
         """Build a private project file into its own fresh artifact directory under the shared lock."""
@@ -156,6 +158,7 @@ class BuildRunner:
                    '--saved-file', str(saved_file)]
         if context.get('udk'):
             command += ['--udk', str(context['udk'])]
+        command += self.families
         for game in context.get('checkGames') or ():
             command += ['--check-game', str(game)]
         return command
@@ -640,9 +643,10 @@ class BuildRunner:
             {'full': m['seconds']} if m.get('seconds') is not None and not m.get('quick') else {})
         return dict(folder=str(folder), buildId=m.get('buildId'), builtAt=m.get('builtAt'), seconds=m.get('seconds'),
                     quick=bool(m.get('quick')), times=times,
-                    # its pieces of other maps, and the maps they were brought from (build.py transplant)
-                    foreignPieces=m.get('foreignPieces') or 0,
-                    donors=[{k: d.get(k) for k in ('map', 'pieces', 'bytes')} for d in m.get('donors') or []],
+                    # its pieces, effects and sounds of other maps, and the maps they were brought from (build.py
+                    # transplant; effects and sounds since the effects and sounds plan's FX4)
+                    foreignPieces=m.get('foreignPieces') or 0, foreignEffects=m.get('foreignEffects') or 0,
+                    donors=[{k: d.get(k) for k in ('map', 'pieces', 'effects', 'bytes')} for d in m.get('donors') or []],
                     revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}))
 
     def status(self, project_id):

@@ -14,7 +14,11 @@ only. Every later editor reads schema 1 (plan D11).
       "floor": { "tiles": [8, 6] },
       "pieces": [ a project's added records in prefab space: { actor, from, components, location, rotation, prefab,
                   partner, tinted?, recipe? } | { actor, template: {kind: "cover", version}, cover, location,
-                  rotation } | { actor, template: {kind: "spot" | "point", version}, light, location, rotation } ],
+                  rotation } | { actor, template: {kind: "spot" | "point", version}, light, location, rotation }
+                  | { actor, kind: "effect" | "sound", from, location, rotation, effect? | sound? } (schema 3: a copy
+                  of a map's effect or ambient sound, with the values a project's record has)
+                  | { actor, kind: "flare", from, location, rotation } (schema 3 too, since stage FX6b: a copy of a
+                  map's lens flare; it has no values) ],
       "groups": [ { id, breakTogether?, members: [ {added} | {group} | {building} ] } ],
       "buildings": [ { id, name, kind, floors: [ { boxes: [[x0, y0, z0, x1, y1, z1]] } ] } ],
       "donors": [ { package, sha256? } ], "mission": null }
@@ -31,8 +35,15 @@ import uuid
 from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
 
 SCHEMA = 'xcom-map-workshop/prefab'
-SCHEMA_VERSION = 2      # 2: a copied piece's flags (`flags`; piece flags plan). 1 is read too
-READ_VERSIONS = (1, 2)
+# 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`; the effects and
+# sounds plan, stage FX6a; a lens flare is one more `kind` since stage FX6b, with no values object: an editor of
+# before FX6b says it doesn't know the kind). 1 and 2 are read too
+SCHEMA_VERSION = 3
+READ_VERSIONS = (1, 2, 3)
+EFFECT_KINDS = ('effect', 'sound', 'flare')
+EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
+                     'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
+MAX_PARAMETERS = 64
 FLAG_ROLES = ('walking', 'cover', 'sight', 'floor', 'mouse')
 TOP_KEYS = {'schema', 'schemaVersion', 'id', 'name', 'revision', 'created', 'savedAt', 'floor', 'pieces', 'groups',
             'buildings', 'donors', 'mission'}
@@ -141,9 +152,45 @@ def check_schema(document, writing=False):
                            schemaVersion=version)
 
 
+def check_values(values, kind, what):
+    """An effect's or a sound's values, as a project's record carries them (compiler.effect_values judges them
+    against the effect they are set on; here only their shape)."""
+    record(values, (), EFFECT_VALUE_KEYS[kind], what, True)
+    if not isinstance(values.get('startsOn', True), bool): raise bad(f'{what}: startsOn is not true or false.')
+    if values.get('follow', 'auto') not in ('none', 'auto'): raise bad(f'{what}: follow is not none or auto.')
+    if 'scale' in values and number(values['scale'], 1e4, f'{what}\'s size') <= 0: raise bad(f'{what}\'s size is not over 0.')
+    for key in ('radiusMin', 'radiusMax'):
+        if key in values and number(values[key], 1e7, f'{what}\'s {key}') < 0: raise bad(f'{what}\'s {key} is negative.')
+    for key in ('volume', 'pitch'):
+        if key not in values: continue
+        if not isinstance(values[key], list) or len(values[key]) != 2: raise bad(f'{what}\'s {key} is not two numbers.')
+        for v in values[key]: number(v, 1e4, f'{what}\'s {key}')
+    for k, p in enumerate(listed(values.get('parameters', []), MAX_PARAMETERS, f'{what}\'s parameters')):
+        p = record(p, ('name', 'value'), ('type',), f'{what}\'s parameter {k + 1}', True)
+        named(p['name'], COMPONENT, f'{what}\'s parameter name')
+        if 'type' in p: named(p['type'], WORD, f'{what}\'s parameter type')
+        value = p['value']
+        if isinstance(value, list):
+            if len(value) not in (3, 4): raise bad(f'{what}\'s parameter {p["name"]} is not a number, three or four.')
+            for v in value: number(v, 1e9, f'{what}\'s parameter {p["name"]}')
+        else:
+            number(value, 1e9, f'{what}\'s parameter {p["name"]}')
+
+
 def check_piece(piece, what):
     if not isinstance(piece, dict): raise bad(f'{what} is not a record.')
-    if 'template' in piece:
+    if 'kind' in piece and 'template' not in piece:
+        # an effect, an ambient sound or a lens flare: a copy of a map's own, with its values at most (a flare has none)
+        kind = piece['kind']
+        if kind not in EFFECT_KINDS:
+            raise bad(f'{what} is of a kind this editor doesn\'t know ({str(kind)[:40]}).')
+        record(piece, ('actor', 'kind', 'from', 'location', 'rotation'), (kind,) if kind in EFFECT_VALUE_KEYS else (), what, True)
+        source = record(piece['from'], ('package', 'level', 'actor'), (), f'{what}\'s source', True)
+        named(source['package'], PACKAGE, f'{what}\'s map')
+        if source['level'] != 'base': raise bad(f'{what} is not of a map\'s own level.')
+        named(source['actor'], ACTOR, f'{what}\'s source actor')
+        if kind in piece: check_values(piece[kind], kind, f'{what}\'s values')
+    elif 'template' in piece:
         template = record(piece['template'], ('kind', 'version'), (), f'{what}\'s template', True)
         kind = named(template['kind'], WORD, f'{what}\'s template kind')
         whole(template['version'], 1, 1000, f'{what}\'s template version')
@@ -203,7 +250,8 @@ def check_piece(piece, what):
 
 def recover_sources(document, index, read):
     """Propose exact recipe replacements while preserving the prefab's actor identities and edits."""
-    pieces = [p for p in document['pieces'] if p.get('from')]
+    # (an effect or a sound has no recipe to match by: it stays as saved)
+    pieces = [p for p in document['pieces'] if p.get('from') and 'kind' not in p]
     donors = {d['package'].casefold(): d for d in document.get('donors', [])}
     entries = {e['key']: e for e in (index or {}).get('entries', []) if e['placeable']}
     records, healthy, changes, reasons = {}, set(), {}, {}
@@ -288,7 +336,7 @@ def recover_sources(document, index, read):
     # A saved donor hash covers every reference to that package. Refresh it only if none of its old references remain.
     while proposals:
         proposed = {name: update for plan in proposals for name, update in plan.items()}
-        kept = {p['from']['package'].casefold() for p in pieces if p['actor'] not in proposed}
+        kept = {p['from']['package'].casefold() for p in document['pieces'] if p.get('from') and p['actor'] not in proposed}
         blocked = {key for p, digest in proposed.values() if (key := p['from']['package'].casefold()) in kept
                    and donors.get(key, {}).get('sha256') not in (None, digest)}
         if not blocked:
@@ -347,7 +395,7 @@ def _validate(document, prefab_id):
         if piece['actor'] in actors: raise bad(f'two pieces are called {piece["actor"]}.')
         actors.add(piece['actor'])
     for piece in document['pieces']:
-        if piece.get('partner') is not None and piece['partner'] not in actors:
+        if 'kind' not in piece and piece.get('partner') is not None and piece['partner'] not in actors:
             raise bad(f'{piece["actor"]} names a partner that is not in the prefab.')
 
     buildings = set()
@@ -446,8 +494,11 @@ class PrefabStore(ProjectStore):
         pieces = [p for p in document.get('pieces') if isinstance(p, dict)] if isinstance(document.get('pieces'), list) else []
         lights = sum(1 for p in pieces if isinstance(p.get('template'), dict) and p['template'].get('kind') in LIGHT_KINDS)
         floor = document.get('floor') if isinstance(document.get('floor'), dict) else {}
+        effects, sounds, flares = (sum(1 for p in pieces if 'template' not in p and p.get('kind') == kind)
+                                   for kind in EFFECT_KINDS)
         summary = dict(id=document['id'], name=document.get('name'), file=path.name, revision=document.get('revision'),
-                    savedAt=document.get('savedAt'), pieces=len(pieces) - lights, lights=lights,
+                    savedAt=document.get('savedAt'), pieces=len(pieces) - lights - effects - sounds - flares, lights=lights,
+                    effects=effects, sounds=sounds, flares=flares,
                     buildings=len(document['buildings']) if isinstance(document.get('buildings'), list) else 0,
                     tiles=floor.get('tiles'),
                     maps=sorted({str(d.get('package')) for d in (document.get('donors') if isinstance(document.get('donors'), list) else [])

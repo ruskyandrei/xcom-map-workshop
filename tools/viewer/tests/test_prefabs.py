@@ -84,7 +84,8 @@ class StoreTests(unittest.TestCase):
         previous = json.loads((self.root / '.workshop' / ID / 'prefab.prev.json').read_text(encoding='utf8'))
         self.assertEqual((previous['revision'], previous['name']), (1, 'Corner shop'))
         self.assertEqual(self.store.list(), [dict(id=ID, name='Corner shop 2', file='Corner shop 2.json', revision=2,
-                                                  savedAt=second['savedAt'], pieces=4, lights=1, buildings=1, tiles=[8, 6],
+                                                  savedAt=second['savedAt'], pieces=4, lights=1, effects=0, sounds=0, flares=0, buildings=1,
+                                                  tiles=[8, 6],
                                                   maps=['URB_Bar', 'URB_Street'], picture=False)])
         self.assertEqual(self.store.load(ID)['pieces'], prefab()['pieces'])
         with self.assertRaises(ProjectError) as stale: self.store.save(ID, prefab(), 1)
@@ -144,17 +145,82 @@ class StoreTests(unittest.TestCase):
     def test_other_schemas_and_versions_are_refused(self):
         for doc, status, words in ((None, 422, 'not an XCOM Map Workshop prefab'), ([], 422, 'not an XCOM Map Workshop prefab'),
                                    (prefab(schema='xcom-map-workshop/project'), 422, 'not an XCOM Map Workshop prefab'),
-                                   (prefab(schemaVersion=3), 409, 'A newer editor is needed'),
+                                   (prefab(schemaVersion=4), 409, 'A newer editor is needed'),
                                    (prefab(id='../../evil'), 422, 'no valid id')):
             with self.assertRaises(ProjectError) as refused: self.store.import_file(doc)
             self.assertEqual(refused.exception.status, status, doc)
             self.assertIn(words, refused.exception.message)
         self.assertFalse(self.root.exists())
 
-    def test_schema_1_is_read_imported_as_2_and_a_stale_page_cant_save(self):
-        # schema 2 adds a copied piece's flags (piece flags plan)
+    def test_effects_and_sounds_are_pieces_of_their_own_kind(self):
+        # schema 3 (effects and sounds plan, stage FX6a): a copy of a map's effect or sound, with its values at most
+        steam = dict(actor=PL + 'Emitter_3_copy6', kind='effect', **{'from': dict(package='URB_Bar', level='base', actor=PL + 'Emitter_3')},
+                     location=[96, 96, 32], rotation=[0, 0, 0],
+                     effect=dict(scale=1.5, startsOn=False, parameters=[dict(name='Color', value=[1, 0.5, 0.25]), dict(name='Brightness', value=2)]))
+        hum = dict(actor=PL + 'AmbientSoundSimple_2_copy7', kind='sound',
+                   **{'from': dict(package='URB_Street', level='base', actor=PL + 'AmbientSoundSimple_2')},
+                   location=[-4000, 9000, 64], rotation=[0, 0, 0], sound=dict(radiusMin=100, radiusMax=90000, volume=[0.4, 0.6], pitch=[1, 1]))
+        doc = prefab()
+        doc['pieces'] += [steam, hum]
+        doc['groups'].append(dict(id='g-fx', members=[dict(added=steam['actor']), dict(added=hum['actor'])]))
+        self.assertEqual(validate(doc, ID), [])
+        saved = self.store.save(ID, doc, 0)
+        self.assertEqual(self.store.load(ID)['pieces'][-2:], [steam, hum])
+        row = self.store.list()[0]
+        self.assertEqual((row['pieces'], row['lights'], row['effects'], row['sounds']), (4, 1, 1, 1))
+        self.assertEqual(saved['revision'], 1)
+        # each is where it stands for the size: a sound's reach is no part of the footprint
+        from prefab_bounds import measure
+        only = dict(doc, pieces=[steam, dict(hum, location=[200, 300, 64])], groups=[], buildings=[])
+        size = measure(only)
+        self.assertEqual((size['bounds'], size['tiles'], size['unknown']), ([96, 96, 32, 200, 300, 64], [2, 3], []))
+        for path, value in (
+                (['kind'], 'flare'), (['kind'], 'weather'), (['components'], ['x']),      # (a flare with an effect's values) (['partner'], None), (['sound'], dict(volume=[1, 1])),
+                (['from', 'level'], 'stream'), (['from', 'package'], '..\\x'), (['effect'], 'big'), (['effect', 'scale'], 0),
+                (['effect', 'scale'], 'two'), (['effect', 'startsOn'], 1), (['effect', 'follow'], 'me'), (['effect', 'script'], 'x'),
+                (['effect', 'parameters'], dict(Color=1)), (['effect', 'parameters', 0, 'value'], [1, 2]),
+                (['effect', 'parameters', 0, 'value'], 'red'), (['effect', 'parameters', 0, 'name'], '<b>'),
+                (['effect', 'parameters'], [dict(name=f'P{k}', value=1) for k in range(65)])):
+            with self.assertRaises(ProjectError, msg=path):
+                validate(changed(['pieces', 5] + path, value, doc), ID)
+        for path, value in ((['radiusMin'], -1), (['volume'], [1]), (['pitch'], 'high'), (['scale'], 2)):
+            with self.assertRaises(ProjectError, msg=path):
+                validate(changed(['pieces', 6, 'sound'] + path, value, doc), ID)
+        # the recipes' recovery leaves them as saved, and their map stays among the donors
+        out = recover_sources(dict(doc, pieces=[steam, hum], groups=[], donors=[dict(package='URB_Bar', sha256='a' * 64), dict(package='URB_Street')]),
+                              None, lambda source: None)
+        self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([steam, hum], [], []))
+        self.assertEqual([d['package'] for d in out['document']['donors']], ['URB_Bar', 'URB_Street'])
+
+    def test_a_lens_flare_is_a_piece_of_its_own_kind_without_values(self):
+        # effects and sounds plan, stage FX6b: a copy of a map's lens flare, in schema 3 still; never a values object
+        glare = dict(actor=PL + 'LensFlareSource_7_copy8', kind='flare', location=[48, 144, 300], rotation=[0, 8192, 0],
+                     **{'from': dict(package='URB_Bar', level='base', actor=PL + 'LensFlareSource_7')})
+        other = dict(glare, actor=PL + 'LensFlareSource_8_copy9', location=[48, 240, 300])
+        doc = prefab()
+        doc['pieces'] += [other, glare]
+        doc['groups'].append(dict(id='g-flare', members=[dict(added=glare['actor']), dict(added=other['actor'])]))
+        self.assertEqual(validate(doc, ID), [])
+        self.assertEqual(doc['schemaVersion'], 3)
+        self.store.save(ID, doc, 0)
+        self.assertEqual(self.store.load(ID)['pieces'][-1], glare)
+        row = self.store.list()[0]
+        self.assertEqual((row['pieces'], row['lights'], row['effects'], row['sounds'], row['flares']), (4, 1, 0, 0, 2))
+        from prefab_bounds import measure
+        size = measure(dict(doc, pieces=[glare], groups=[], buildings=[]))
+        self.assertEqual((size['bounds'], size['unknown']), ([48, 144, 300, 48, 144, 300], []))
+        at = ['pieces', len(doc['pieces']) - 1]
+        for path, value in ((['flare'], dict(colour=[1, 0, 0, 1])), (['flare'], {}), (['effect'], dict(scale=2)), (['sound'], dict(volume=[1, 1])),
+                            (['components'], ['x']), (['from', 'level'], 'stream'), (['template'], dict(kind='spot', version=1))):
+            with self.assertRaises(ProjectError, msg=path):
+                validate(changed(at + path, value, doc), ID)
+        out = recover_sources(dict(doc, pieces=[glare], groups=[], donors=[dict(package='URB_Bar', sha256='a' * 64)]), None, lambda source: None)
+        self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([glare], [], []))
+
+    def test_schema_1_is_read_imported_as_3_and_a_stale_page_cant_save(self):
+        # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds
         stored = self.store.import_file(prefab(schemaVersion=1))
-        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 2)
+        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 3)
         with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=1), 1)
         self.assertEqual(refused.exception.status, 409)
         self.assertIn('older than the editor', refused.exception.message)

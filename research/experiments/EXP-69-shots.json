@@ -1,0 +1,20 @@
+{"map": "URB_Bar", "project": "00000000-0000-4000-8000-000000000e69", "shots": [
+ {"out": "EXP-69-street.png", "title": "EXP-69: effects and sounds of other maps, in the car park in front of the bar",
+  "target": [-300, -1050, 0], "camera": [0, -2300, 3200], "effects": true,
+  "marks": [
+   {"n": "1", "at": [-900, -1250, 200], "color": "#ff6b6b", "r": 40, "text": "moths (Cliffside's: lit, mesh particles): fly here"},
+   {"n": "2", "at": [-250, -820, 30], "color": "#e0a040", "r": 40, "text": "a fire (Forest Trench's): burns here"},
+   {"n": "3", "at": [350, -820, 30], "color": "#e0a040", "r": 40, "text": "the same fire again: burns on its own"},
+   {"n": "4", "at": [-1500, -600, 48], "color": "#4aa8ff", "r": 40, "side": "left", "text": "a headlight beam (Military Ammo's; Bar has the beam's system): shines here"},
+   {"n": "5", "at": [1500, -1400, 40], "color": "#5ad17a", "r": 44, "text": "an air-conditioning unit's hum (Pier's): heard within about 1,250"},
+   {"n": "6", "at": [-500, -1500, 60], "color": "#c58cff", "r": 44, "text": "a hyperwave beacon (Alien Base's, a shared cue): heard within about 1,250"}]},
+ {"out": "EXP-69-fires.png", "title": "EXP-69: the fires and the beam in the car park",
+  "target": [-500, -760, 20], "camera": [0, -1100, 900], "effects": true,
+  "marks": [
+   {"n": "2", "at": [-250, -820, 30], "color": "#e0a040", "r": 36, "text": "a fire: flames and burning chunks"},
+   {"n": "3", "at": [350, -820, 30], "color": "#e0a040", "r": 36, "text": "the same fire: burns on its own"},
+   {"n": "4", "at": [-1500, -600, 48], "color": "#4aa8ff", "r": 36, "side": "left", "text": "the headlight beam"}]},
+ {"out": "EXP-69-fountain.png", "title": "EXP-69: the fountain's sound, in the street behind the bar",
+  "target": [-2300, 1300, 20], "camera": [900, -1300, 1800], "effects": true,
+  "marks": [
+   {"n": "7", "at": [-2300, 1300, 20], "color": "#5ad17a", "r": 44, "text": "a fountain's splashing (Boulevard's; its reach from its fountain's prefab): heard within about 2,500"}]}]}

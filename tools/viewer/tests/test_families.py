@@ -40,11 +40,29 @@ def scene():
 
 
 class FamilyTests(unittest.TestCase):
+    def test_serve_family_lifts_a_family(self):
+        """`serve --family other` (families.ENABLED): the page is told a family held back builds, as the Build is."""
+        import families as module
+        module.ENABLED.add('other')
+        try:
+            got = families(scene())['families']
+        finally:
+            module.ENABLED.discard('other')
+        self.assertTrue(got['other']['builds'])
+        self.assertFalse(families(scene())['families']['other']['builds'])
+
     def test_the_table_and_the_assemblies_each_once(self):
         got = families(scene())
         self.assertEqual(got['map'], 'URB_Bar')
         self.assertEqual(set(got['families']), {'scenery', 'destructible', 'collectible', 'ladder', 'door', 'frameless-door',
-                                                'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building'})
+                                                'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
+                                                'effect', 'sound', 'effect-values', 'sound-values', 'flare', 'spawn'})
+        # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed; their values (FX5) and
+        # lens flares (FX6b) have a gate of their own, on since EXP-71; base spawn points (the editor spawns plan, SP6
+        # and SP7) build since EXP-72 runs 6 to 8
+        self.assertTrue(got['families']['spawn']['builds'])
+        self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound', 'effect-values', 'sound-values', 'flare')},
+                         {'effect': True, 'sound': True, 'effect-values': True, 'sound-values': True, 'flare': True})
         self.assertTrue(got['families']['ladder']['grid'])
         # the page takes what builds and what keeps the pose rule from here: fracturing pieces build on the grid,
         # physics props at any pose (9 November 2026); doors without a frame still wait

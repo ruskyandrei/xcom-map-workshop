@@ -421,15 +421,128 @@ Projects). Nothing is built into the game yet.
 - Linked pieces need export version 12 (re-export the map). Run `setup_vendor.py` once more: it adds the pinned
   three.js `TransformControls` addon.
 
-### Effects (export 23)
+### Effects, sounds and lens flares (export 23, 28)
 
 The export lists the level's effects (`effects`: its Emitter actors, placed particle systems such as fires, rain
 run-off and a Skyranger's idle lights; `scene_metadata.effect_metadata`): each one's actor, place, turn, scale, particle
 system, whether the level lists it, `hidden`, its prefab and `carriedBy`. A mesh piece carries an effect standing at its
-own place (within 2 units on each axis) when it is the only piece there. The page does not show or edit effects yet.
+own place (within 2 units on each axis) when it is the only piece there. Since export 30 a piece also carries the
+effects a prefab instance places around it: an effect that no piece carries by its place, placed by a prefab
+instance at whose own place exactly one piece stands, is that piece's (`carriedHow: prefab`), and keeps its offset
+and turn about the piece when the piece is moved, copied or deleted. The alien vapour pods' five smoke emitters
+follow their pod so, and URB_Boulevard's splashes and glows their fountain's piece: 65 effects in 8 of the game's
+maps. Where no piece or several stand at the prefab's place, nothing is guessed.
 The compiler passes the carried pairs to the Build (`carriedEffects`), and
 [native_effects.py](../bake/native_effects.py) moves, copies or deletes each with its piece: the tutorial's loose
 Skyranger takes its lights along, as do Bar's claw machine and DEMO_SonOfFacemelt's water valves.
+
+Since export 28 ([effects_metadata.py](effects_metadata.py); the effects and sounds plan's stage FX1) each effect also
+carries its identity, where its starting state comes from, the particle parameters it saves (each against what its
+system offers), the building floors that hide it, what of the mission's script names it, what it rides on, its
+component's transform and what the editor may do with it (`can`, `why`). `sounds` (the ambient sound actors: cue, waves,
+radii, volume and pitch, each value with where it came from) and `flares` (lens flares) are new, and `effectSystems` and
+`soundWaves` describe each particle system and wave once. A mission stream's own are in its layer, read only. The
+contract is section 8 of [editor-contracts.md](../../research/editor-contracts.md).
+
+Since export 29 each effect is also **drawn as it looks**, in every view: a likeness, moving, made from its particle
+system's own textures, blend and baked tables and the effect's own parameters and size
+([effects_draw.py](effects_draw.py) reads them, [effects_sim.js](web/effects_sim.js) steps the particles,
+[effects_preview.js](web/effects_preview.js) draws them). It is a likeness, not the game's shader: scrolling and
+distorting textures, lit particles, swirls, bounces and what one emitter sets off in another are not followed, and
+the game stays the judge of how an effect looks. View options' **Effects as they look** switches it off; an effect
+that starts off is drawn only while it is picked; a likeness is never picked (its marker is the handle).
+The Add panel uses the same drawing: an effect's row shows its likeness as its picture (drawn once, kept under
+`/library/thumbs/` by a key of its own, `PICTURE_VERSION` in [library.js](web/library.js); the marker until then,
+and for good where nothing can be drawn), the pointer on a row plays it in a small pane beside the panel, over the
+outline of one tile for size, and while an effect is being placed its likeness comes with the cursor. A sound keeps
+its marker.
+
+The page's **Effects view** (Shift+X, the rail's spark; [effects_view.js](web/effects_view.js) draws,
+[effects_rules.js](web/effects_rules.js) words) shows them as markers drawn over everything: a spark for an effect,
+a speaker for a sound, a star for a flare, hollow when it starts off, greyed for a stream's. While it is on a click
+picks one (never a piece) and the panel says what it plays, whether it starts with the mission and as what saves it,
+its chips (starts off, named by the mission's script, carried by a piece, the landing's, hides with a floor, placed by
+a prefab, rides on an actor, no sound set, shared cue) and an effect's particle parameters. A picked effect shows its
+system's fixed box through its pose, scale and component, or says the bounds are unavailable; a picked sound shows
+where it is heard. Each marker stands where the Build will have it: an effect a piece carries follows the piece, goes
+with its delete and is copied with its copies (greyed); the landing's follow their moved zone; a cleared map keeps what
+`clear_level` keeps (every sound, the landing's, a moved carrier's, and the scenery outside when asked). The flyout
+on the rail button hides a kind; F or a double-click brings the camera to the picked one.
+
+**Editing** (stage FX3; project schema 3). Where an effect's family builds, a picked effect or sound moves and turns
+with the gizmo, copies (Ctrl+C, Ctrl+V), deletes, resets and groups with pieces (Ctrl+G) as a piece does, each one
+undo step; a stream's and one the export says no to stay view only, and Delete or Ctrl+C says why. A **lens flare**
+is edited the same way where the `flare` family builds (stage FX6b; the family is off until its game check, EXP-71:
+`serve --family flare` and `build.py --family flare` lift it, and until then a flare is view only): moved, turned,
+copied, deleted, box-selected and grouped, with no values (its template and colour stay as the map has them); one
+that rides on another actor (a dropship's) stays view only, and one that names no template is not copied. An
+effect a piece carries follows it until it is moved by itself; its panel's **Keep where it is** leaves it where the
+map has it (`effect.follow: "none"` in its override) and **Follow** lets it follow again. The Normal button's flyout
+has **Effects and sounds**: their markers drawn with the pieces and selected with them, so pieces and effects move,
+copy and group as one selection. **Box select** (T) takes the effects and sounds inside the box with the pieces
+while that switch is on, and counts them in its bar; in the Effects view it takes markers only and the view stays. A
+picked effect's or sound's panel has **Select all**: every drawn effect of the same particle system, every sound of
+the same waves (every lens flare of the same template, where flares are edited), inside the box where one is drawn. A project records an effect's or a sound's pose or delete as an override of its
+actor, a copy as an added record with `kind` and the original it copies ([project.js](web/project.js)
+`validAdded`, `validOverride`; contract section 4). The compiler turns them into the Build's `effects`, `sounds` and
+`flares` lanes, which [native_effects.py](../bake/native_effects.py), [native_sounds.py](../bake/native_sounds.py) and
+[native_flares.py](../bake/native_flares.py) write (a flare's copy is its actor and a LensFlareComponent of its own;
+the flare template, and the archetype some are made from, stay shared):
+moves in place, deletes out of the level's list, copies as actors of their own, then the buildings' floors list the
+effects anew (contract section 8). The effect and sound families build for every project since EXP-68 passed
+(17 November 2026); a family held back again (its `builds` off in the compiler's FAMILIES) shows view only, unless the
+server is started with `serve --family <family>` (its Builds get the same `--family`).
+
+**From other maps** (stage FX4). The Add panel's **All maps** lists the base maps' effects and ambient sounds beside
+their pieces ([library.py](library.py) `scan_effects`; [effects_library.py](effects_library.py)): one entry per recipe
+(an effect's class, particle system, saved parameters, scale, component offset and starting state; a sound's class,
+cue, waves, values and starting state), so an effect placed the same way in two maps is one entry, brought from the
+map whose copy brings least. The Kind menu has **Effects** and **Sounds**, each with its kinds (Fire, Smoke and steam,
+Water, Light beams and glows, Nature, Alien, Wreckage and trash; Machines, Engines, Nature and weather, Alien, Music
+and voices; Other where no rule matches). A row shows the Effects view's marker, what it plays (its emitters' kinds and
+whether it is lit; a sound's length and a shared cue), where it is placed, and **Starts off** for one that waits for its
+map's script. A landing's, one that rides on another and one that plays nothing are listed and can't be placed
+(**Not brought**, with why). The base maps' **lens flares** are listed too since stage FX6b (library index 10, so a
+library scanned before is scanned again): the Kind menu's **Lens flares**, one entry per template, colour and scale,
+a row with the view's star, its template and its colour; one is placed where the flare family builds, as a sound
+is. Placing one reads it from its map (`GET /library/effect.json?package=&actor=`: its export
+28 record and its particle system or waves, described once per map into `effects-v1.json` in the map's pieces folder;
+`POST /library/effects.json {sources}` many at once, as a project's opening asks) and places a copy as Ctrl+V places a
+copy of the map's own; the project saves it as an added record whose `from` names the other map. Its panel's Wave
+preview plays the wave from that map (`GET` or `HEAD /library/wave.ogg?package=&id=`, the donor read as it was when
+its records were made). The compiler checks it against the library (the map the library was scanned from, an entry it
+lists); the Build stages the actor in the map with what it needs ([transplant.py](../bake/transplant.py)
+`stage_edit`: once, however many copies name it; a system or wave the map has by path is the map's own) and clones the
+staged one. EXP-69 played them in the game (17 November 2026), and the compiler's foreign gate lists them since, so
+the list shows them placeable.
+
+**Values** (stage FX5; the `effect-values` and `sound-values` families, which build for every project since EXP-70
+passed on 17 November 2026). A picked effect's or simple sound's panel has
+**Values**: **Starts with the mission** (a sound's **Plays from the start**); an effect's particle parameters, each
+the first of its name the effect saves in the kind it is saved in (a number with a slider guided by its system's
+range, a vector's x, y and z, a colour; a vector that feeds a particle's colour as a colour and a strength, the maps'
+going past 1) and then each its system offers that it doesn't save, in its distribution's kind; one saved as a random
+or untyped value, or read as both kinds, shows why it stays as the map has it. A sound has **Volume** and **Pitch**,
+each least and most. The sizes are dragged in the view, as a light's radius is: an effect's **size handle** beside
+its marker (1/64 to 64 times the map's size, on a log scale; its box follows) and a sound's two handles on its
+spheres (where it is heard at full volume, where it fades out). Each change is one undo step, ↺ and Reset put one
+back, Reset piece and Reset all put them all back, and a copy takes the values of what it copies. A shared cue's
+sound shows its values read only, and a lens flare has none to set. The project saves them in the override's or copy's `effect` or
+`sound` ([effects_rules.js](web/effects_rules.js) `parameterControls`, `withValues`, `savedValues`; contract
+section 4), and the Build writes them on the actor's own exports ([native_effects.py](../bake/native_effects.py)
+`set_values`).
+
+A picked sound's panel has a **Wave preview** (stage FX2): each of its waves with a Play button, one wave at a time,
+at a preview volume, played by itself (the game's reach, volume, pitch, random choice and looping are not
+reproduced). The button turns to Stop, the clock shows how far it has got, and picking something else, Escape,
+leaving the view or opening another map or project stops it and lets it go; a wave that can't be played shows why.
+The server's route is `GET` or `HEAD /maps/<id>/wave.ogg?id=<wave id>`, the id a key of the export's `soundWaves`
+([audio.py](audio.py)): the wave's Ogg Vorbis stream is read from its package in the install (the map's own only
+while it is the file the map was exported from, by its SHA-256; a stream's from its folder), checked as an Ogg stream
+(one logical stream, every page's checksum and number, the three Vorbis headers, the end) before it is sent, and kept
+in a cache of at most 64 MB. It answers with `audio/ogg`, its length, an ETag (`If-None-Match`: 304) and one byte
+range at a time (206, 416 outside it); an id the export doesn't list is 404 and a wave it can't serve 422 with why,
+so one bad wave never fails the map. Every wave of the 97 LWR maps' packages (7,192) passes the check.
 
 ### Clear map, the ground grid and landing zones
 
@@ -905,30 +1018,46 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     everything but start the game.
 - **Manage projects…** (Project menu) opens the project manager ([`manager.js`](web/manager.js),
   [`manager.py`](manager.py)): every project with its last build (when, of which revision, baked or not, the editor
-  version that built it), the missions its base map serves and what is in the game of it.
-  - The list filters by text (name, map, mission, "baked", "not built"…) and by state (**Show**), sorts by any
-    column, and rows are ticked one by one, as a Shift+click run, or all that the filter shows (the header's box,
-    **Select all shown**, Ctrl+A). The selection keeps projects the filter hides, and says how many.
-  - The ticked projects' last builds go into campaigns one of two ways: **Additional maps** (the variant's records
-    go into the rotation beside the base map's) or **Replace the original maps** (as well, the base map's own records
-    are commented out, a `;` before each line: that is known to stop the game using a record, which
-    `bInRotation=False` is not). A variant gets one record per record of its base map, each in or out of rotation as
-    the base map's is.
-  - **Install as**, on each row, gives that project its own way (Additional or Replace) in place of the choice
-    below ("As below"), so one install, or one map pack, can hold maps that replace their originals beside maps that
-    are added. The requests carry it as `"modes": {project id: mode}`; a pack with both says `"mode": "mixed"` and
-    each of its maps its own `mode`, which the pack's scripts go by.
+  version that built it), the missions its base map serves and what is in the game of it. The projects are listed
+  on the left, the selected ones on the right with what to do with them.
+  - Each row has the project's name, its base map and when it was saved, a badge when it is in the game, and its
+    last build's state in one word: **Ready** (built, baked, of the saved revision), **Not baked** (a quick build),
+    **Out of date** (built from an older revision) or **Not built**, beside its revision (`rev. 1 of 3` when out of
+    date) or, for a build by another editor version, that version. The tooltip has the rest (when, the build id,
+    the folder).
+  - The list filters by text (name, map, mission, "baked", "not built"…) and by state (the chips **All**,
+    **Ready**, **Needs a build**, **In the game**, each with its count), sorts by **Sort** (last saved, last built,
+    name, map), and rows are ticked one by one, as a Shift+click run, or all that the filter shows (the header's
+    box, Ctrl+A). The selection keeps projects the filter hides, and says how many.
+  - Each selected project with a build goes into campaigns its own way, chosen on the right: **Additional** (the
+    variant's records go into the rotation beside the base map's) or **Replace** (as well, the base map's own records
+    for the missions the variant has records for are commented out, a `;` before each line: that is known to stop the
+    game using a record, which `bInRotation=False` is not; a record of a mission the build has none for, its project
+    being for other missions, stays in use: F-118). It starts as the way it is in the game now, else Additional; **Set all to** sets
+    every selected one. A variant gets one record per record of its base map, each in or out of rotation as the base
+    map's is. So one install, or one map pack, can hold maps that replace their originals beside maps that are
+    added. The requests carry each project's way as `"modes": {project id: mode}`; a pack with both says
+    `"mode": "mixed"` and each of its maps its own `mode`, which the pack's scripts go by. The warnings for a
+    selected project (below) are listed under it.
   - **Council missions** (and the story's) don't come from the rotation: the game asks for their map by its record's
     display name (`XGFundingCouncil.BuildMission`; Long War's `XGFundingCouncil_Mod.FixDisplayName` takes the last
     record of that council type whose name contains it), and their records are out of rotation in the install. So a
     replacing variant's record for such a mission keeps the base map's display name, and the base map's is commented
     out. Beside the original, a variant is never picked there, but for bombs under Long War, whose mutator makes an
     extra bomb mission of each extra bomb record. None of this has been played in the game yet.
+  - **A new campaign's first mission** asks for its map by name too, though its record is in rotation: under LWR the
+    record `URB_CommercialAlley_EWI (Commercial Alley Redux) |0` (`installs.FIRST_MISSION`; EXP-03). A replacing
+    variant's record for it keeps that display name and stays in rotation, so the variant plays the first mission;
+    with a name of its own the first mission found no map (F-117). Beside the original, the original keeps it, as it
+    does when the variant's build has no abduction record (F-118).
+  - **Map packs** say which records each replacing map comments out: `pack.json`'s `switch` (their display names,
+    which `Install.cmd` goes by) and `keep` (the base map's records left in use); the README lists both. A pack
+    from before `switch` comments out every record of the base map.
   - **Install in the game** does that in the install Play in game uses (`installs.install_rotation`): files copied,
     landing zones added, the records added after the base map's (after Play in game's own record, which stays first
     and separate). The Game maps window undoes it. The map list, the exporter and Build still read the install
     without any of it (`installs.maps_text`).
-  - **Zip as a map pack** writes `<builds>\Map packs\<name> <time>.zip`: the builds' files under
+  - **Export map pack** writes `<builds>\Map packs\<name> <time>.zip`: the builds' files under
     `XEW\XComGame\CookedPCConsole` (to copy over the game folder), `README.txt` with the config lines for the chosen
     way (worked out from the game install the editor reads), each build's own README and manifest under `packages\`,
     and `pack.json`. It also carries **`Install.cmd`** and **`Uninstall.cmd`** ([`pack_scripts.py`](pack_scripts.py);
@@ -940,11 +1069,16 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     `Uninstall.cmd` undoes exactly that and says whether `DefaultMaps.ini` is then as it was before the pack. A map
     whose base map the game has no record for is left out, as is one the game already has a record for. The lines
     are the ones worked out from the install the pack was made from; the README still lists them, to add by hand.
+  - **Include editor project files** (above Export map pack; the browser remembers it) adds each packed map's saved
+    project under `projects\` in the zip, byte for byte as it is in the projects folder, so whoever gets the pack
+    can open and change the maps in the editor. `pack.json` lists them under `projects` (file, revision, the
+    build's revision, SHA-256), and the README says where to copy them and which were saved again after their
+    build. The request carries it as `"projectFiles": true`.
   - Warnings never stop it: a quick build (lighting not baked), a build of an older revision, missions other than
     abductions (variants have been played on abductions only), and what each way does for the missions asked for
     by name.
   - Routes: `GET /manager.json`, `POST /manager/install` and `/manager/pack` (`{"projects": [id...], "mode":
-    "additional" | "replace"}`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
+    "additional" | "replace", "modes": {id: mode}}`, and for the pack `"projectFiles"`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
     Install and pack take a lease on each package they read (`builds.lease`): a project the build queue is building,
     or about to, is refused with the reason.
   - **Build** puts the ticked projects (in the list's order, those the filter hides included) in the **build queue**
@@ -952,16 +1086,17 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     another while the editor stays usable: each a full build (lighting baked) of the project as it is saved when its
     turn comes, captured into a snapshot of its own (`<builds>\.work\queue-attempts\<attempt>\project.json`, with
     the build's log beside it). Build saves the open project first when it is ticked and has unsaved changes. The
-    Show choice **Needs a full build** lists the projects not built, built quick, built from an older revision or by
-    another editor version.
+    chip **Needs a build** lists the projects not built, built quick, built from an older revision or by another
+    editor version.
     - While it runs, the queue holds the build slot: the editor's Build, Play in game's build and prefab tests are
       refused with the reason, and a build already running finishes first (the queue waits for it). A queue build
       opens no window, even on the open project; the Project menu shows its last build when it ends.
-    - Each row's Last build cell says where it is (waiting with its place, building with the step and the step's
+    - Each row's build state says where it is in the queue (waiting with its place, building with the step and the step's
       bar, built, failed), and a waiting row has Remove. The strip above the footer has the project building and its
       step, a bar of the rows done, the queue's building time, the time left going by each project's last full build
       (approximate, and saying how many have none), the failures with their reasons, and **Stop**, **Resume**,
-      **Clear** and, for a file that can't be read, **Reset the queue**. The editor's header has a chip (Building 2 of
+      **Clear** and, for a file that can't be read, **Reset the queue**; once every project in it is built, it is one
+      line. The editor's header has a chip (Building 2 of
       5, Queue stopped, 4 built, 1 failed) that opens the manager.
     - A failure is that row's alone: the queue goes on. Stop stops the queue's build (the project's last package
       stays) and starts no other; Resume captures the first waiting project again, the latest save, and builds it
@@ -1248,6 +1383,17 @@ test and explicitly launch a ready result. The game watch takes out the test ins
 
 Glowing props carry their source map's matched generated area lights into the prefab preview and every build.
 Quick builds carry the live lights. Baking also updates the light that reaches nearby static surfaces.
+
+A prefab holds **effects and ambient sounds** too (prefab schema 3): select them with the pieces (the Normal
+button's Effects and sounds switch, or the Effects view) and save. Each is kept as a copy of its original with the
+values set on it and its place in the prefab's groups; a sound's reach is no part of the footprint. An effect its
+piece carries is not listed: the piece's copy brings it. Placing the prefab places them as the Add panel places an
+effect of another map (read from their home map, built by the same path), with the effect's likeness under the
+cursor, with their values. The builder shows
+them (its Effects view, Shift+X, and the likeness), and Test in game plays them. A **lens flare** is held the same
+way where the flare family builds (stage FX6b; prefab schema 3 still): a piece of `kind: flare`, a copy of its
+original with no values, counted as a lens flare in the prefab's line; where the family doesn't build it can't be
+selected, so it isn't saved, and a prefab that holds one places it only where the family builds.
 
 Acceptance uses scratch stores on a test port; stop the server afterwards:
 

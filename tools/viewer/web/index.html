@@ -34,6 +34,8 @@
     <symbol id="i-add" viewBox="0 0 24 24"><path d="M10.5 3.6L3.5 7.3v8.4l7 3.8 7-3.8V7.3z"/><path d="M3.5 7.3l7 3.8 7-3.8M10.5 11.1v8.4"/><path d="M19.5 15.5v6M16.5 18.5h6"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
     <symbol id="i-zone" viewBox="0 0 24 24"><rect x="4.5" y="11.5" width="15" height="8" rx="1.5"/><path d="M12 3.5v9M8.5 7l3.5-3.5L15.5 7"/><circle cx="8.5" cy="15.5" r=".6"/><circle cx="12" cy="15.5" r=".6"/><circle cx="15.5" cy="15.5" r=".6"/></symbol>
+    <symbol id="i-spawn" viewBox="0 0 24 24"><path d="M12 20.5s-6-5.6-6-10.5a6 6 0 0 1 12 0c0 4.9-6 10.5-6 10.5z"/><circle cx="12" cy="10" r="2.2"/></symbol>
+    <symbol id="i-effect" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 3v4.5M12 16.5V21M3 12h4.5M16.5 12H21M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></symbol>
     <symbol id="i-light" viewBox="0 0 24 24"><path d="M9.5 17.5h5M10 20.5h4"/><path d="M12 3.5a5.5 5.5 0 0 0-3.3 9.9c.8.6 1.3 1.4 1.3 2.3v1.8h4v-1.8c0-.9.5-1.7 1.3-2.3A5.5 5.5 0 0 0 12 3.5z"/></symbol>
   </svg>
   <header>
@@ -76,11 +78,40 @@
           <div class="flytext">Pieces are selected. Also show and select:</div>
           <label class="check" title="The map's lights as markers, selected, moved, copied and deleted with pieces. Their values are set in the Lights view"><input id="normalLights" type="checkbox"> Lights</label>
           <label class="check" title="The project's floor boxes. A click on a box's edge, or the select box, takes its whole building with the pieces picked. Boxes are drawn and stretched in the Buildings view"><input id="boxesToggle" type="checkbox"> Floor boxes</label>
+          <label class="check" title="The map's effects, sounds and lens flares as markers, selected, moved, copied, deleted and grouped with pieces where the editor changes them. The Effects view (Shift+X) shows them alone"><input id="normalEffects" type="checkbox"> Effects and sounds</label>
+          <label class="check" title="The map's spawn points (pods, Meld points, drop-in points, starts and other points) and the objectives of the mission the header shows (the bomb and its power nodes, capture points, radar arrays, things to use), as markers picked ahead of the piece behind them. The Spawns view (Shift+U) shows them alone"><input id="normalSpawns" type="checkbox"> Spawn points and objectives</label>
         </div>
       </div>
       <button id="editBuildings" class="modifier" title="Buildings view (Shift+B): the boxes that make pieces a building for the game, to draw, stretch, move and tie to a building and a floor. While it is on only boxes are selected, never a piece" aria-label="Buildings view" aria-pressed="false"><svg class="i"><use href="#i-building"/></svg><kbd>⇧B</kbd></button>
       <button id="editLights" class="modifier" title="Lights view (Shift+L): the map's lights, to select, move, recolour, copy and delete. While it is on only lights are selected, never a piece" aria-label="Lights view" aria-pressed="false"><svg class="i"><use href="#i-light"/></svg><kbd>⇧L</kbd></button>
       <button id="editZones" class="modifier" title="Landing zones view (Shift+Z): the zones drawn over everything, to pick, move, turn, copy and delete. While it is on only zones are selected, never a piece" aria-label="Landing zones view" aria-pressed="false"><svg class="i"><use href="#i-zone"/></svg><kbd>⇧Z</kbd></button>
+      <div class="railfly">
+        <button id="editEffects" class="modifier" aria-label="Effects view (Shift+X): the map's effects, sounds and lens flares" aria-pressed="false"><svg class="i"><use href="#i-effect"/></svg><kbd>⇧X</kbd></button>
+        <div id="effectsFlyout" class="panel flyout" role="group" aria-label="Effects view">
+          <div class="flyhead">Effects view <kbd>Shift+X</kbd></div>
+          <div class="flytext">The map's effects, sounds and lens flares, drawn over everything.<br>A click on one says what it is. Show:</div>
+          <label class="check" title="Placed particle systems: fires, steam, fireflies, a Skyranger's lights (sparks)"><input id="effectShow-effect" type="checkbox" checked> Effects</label>
+          <label class="check" title="Ambient sounds: a machine's hum, traffic, a fire (speakers). A picked one shows where it is heard"><input id="effectShow-sound" type="checkbox" checked> Sounds</label>
+          <label class="check" title="Lens flares: the glare of a lamp or a light (stars)"><input id="effectShow-flare" type="checkbox" checked> Lens flares</label>
+        </div>
+      </div>
+      <div class="railfly">
+        <button id="editSpawns" class="modifier" aria-label="Spawns view (Shift+U): the map's spawn points and the mission's objectives" aria-pressed="false"><svg class="i"><use href="#i-spawn"/></svg><kbd>⇧U</kbd></button>
+        <div id="spawnsFlyout" class="panel flyout" role="group" aria-label="Spawns view">
+          <div class="flyhead">Spawns view <kbd>Shift+U</kbd></div>
+          <div class="flytext">The map's spawn points and the objectives of the mission the header shows, drawn over everything.<br>A click on one says what it is and what uses it. Show:</div>
+          <label class="check" title="The places the game deploys alien pods at (rings)"><input id="spawnShow-pods" type="checkbox" checked> Pods</label>
+          <label class="check" title="The places Meld canisters can stand (green dots)"><input id="spawnShow-meld" type="checkbox" checked> Meld</label>
+          <label class="check" title="Where scripted actions and wave systems drop aliens in (red arrows)"><input id="spawnShow-dropIns" type="checkbox" checked> Drop-in points</label>
+          <label class="check" title="The soldiers' points and starts of the mission's streams (the map's own landing is its zone)"><input id="spawnShow-soldiers" type="checkbox" checked> Soldier and start points</label>
+          <label class="check" title="The bomb and its power nodes, capture points, radar arrays and things to use (gems)"><input id="spawnShow-objectives" type="checkbox" checked> Objectives</label>
+          <label class="check" title="Covert operatives', VIPs', loot and multiplayer points, and no-spawn volumes"><input id="spawnShow-other" type="checkbox" checked> Other points and volumes</label>
+          <label class="check" title="The nodes pods walk their patrols through (small diamonds)"><input id="spawnShow-paths" type="checkbox"> Patrol nodes</label>
+          <hr>
+          <label class="check" title="Every scripted drop-in of every mission of the variant lands at its own point: the Build adds the variant to Long War's ExcludeMaps list (DefaultRandomSpawns.ini), so its drop-in mutator moves none of them near the squad, nor gives them its overwatch and reveal. Wave systems' drop-ins are never moved by Long War. Saved with the project; undo takes it back."><input id="dropInsPlaced" type="checkbox"> Scripted drop-ins land where placed (Long War)</label>
+          <div id="dropInsNote" class="flytext" hidden></div>
+        </div>
+      </div>
       <button id="editGrid" class="modifier" title="Map grid: drag the play area's handles to make the map's tile grid larger (or, once the map is cleared, smaller) by whole tiles and levels" aria-label="Map grid" aria-pressed="false"><svg class="i"><use href="#i-gridsize"/></svg></button>
       <hr>
       <button id="editSpace" class="modifier" title="World axes: click for the piece's own axes (X)" aria-label="World or local axes"><svg class="i"><use href="#i-world"/></svg><kbd>X</kbd></button>
@@ -101,6 +132,7 @@
       <button id="boxCancel" type="button" title="Put the box away (Esc)">Cancel</button>
     </div>
     <div id="floorTip" class="panel floortip" hidden></div>
+    <div id="likenessPane" class="panel likenesspane" hidden><canvas id="likenessCanvas" width="220" height="220"></canvas><div id="likenessText"></div></div>
     <div id="tileNote" class="panel tilenote" title="The tiles the selection covers (filled) and only reaches into at the edge (outlined), and its tile level (64 units each)" hidden></div>
     <div id="projectBanner" class="panel banner" role="status" hidden></div>
     <section id="projectMenu" class="panel pop left projectmenu" aria-label="Project" hidden>
@@ -170,9 +202,20 @@
         <div id="prefabFoot" class="libfoot"></div>
       </div>
     </section>
-    <section id="missionPanel" class="panel" aria-label="Mission object" hidden>
-      <div class="posehead" id="missionTitle">Mission object</div>
-      <div id="missionInfo" class="lightnote"></div>
+    <section id="spawnPanel" class="panel" aria-label="Spawn point or objective" hidden>
+      <div class="posehead" id="spawnTitle">Spawn point</div>
+      <div id="spawnInfo" class="lightnote spawninfo"></div>
+      <div id="spawnEdit" class="spawnedit" hidden></div>
+      <div class="row"><button id="spawnZoneEdit" type="button" hidden title="The Landing zones view, this zone picked: it is moved, turned, copied and deleted there">Edit in the Landing zones view</button></div>
+    </section>
+    <section id="effectPanel" class="panel" aria-label="Effect, sound or lens flare" hidden>
+      <div class="posehead" id="effectTitle">Effect</div>
+      <div id="effectChips" class="chips"></div>
+      <div id="effectInfo" class="lightnote"></div>
+      <div class="row" id="effectEdit"><button id="effectStay" type="button" hidden>Keep where it is</button><button id="effectKind" type="button" hidden>Select all</button></div>
+      <div id="effectWaves" hidden></div>
+      <div id="effectValues" hidden></div>
+      <div id="effectParams"></div>
     </section>
     <section id="landingPanel" class="panel" aria-label="Landing zone" hidden>
       <div class="posehead" id="landingTitle">Landing zone</div>
@@ -347,11 +390,11 @@
       <div id="skyRow" hidden><label class="check" title="The lights without a place: the sun or moon, and the sky light"><input id="skyToggle" type="checkbox"> Sun, moon and sky</label><div id="skyList" class="skylist" hidden></div></div>
       <h3>Show</h3>
       <label class="check" id="groundGridRow" title="A faint grid on the ground's plane (the landing zones' height), drawn only where the map has no floor: over holes on a map as it is, everywhere on a cleared one. Floor pieces laid at ground level cover it; a piece placed over nothing lands on it"><input id="groundGridToggle" type="checkbox" checked> Ground grid</label>
-      <label class="check" id="missionObjectsRow" hidden title="The objects of the mission the header's Mission picker shows, from its stream: drop-in points, pods, the landing's soldier points, the covert operative's and VIPs' points, capture points, radar arrays, the bomb and its power nodes. Marked where they stand; a click on one says what it is, what it moves with and what lists it, and its arrows move it with its group (the Build moves them in its copy of the mission's stream)"><input id="missionObjectsToggle" type="checkbox"> Mission objects</label>
       <label class="check" id="landingRow" title="The landing zones: where the squad lands, drawn as the drop zone's frame, the evac zone, the six soldier points and an arrow for the way it faces, each with its number. Picked, moved and turned in the Landing zones view (Shift+Z)"><input id="landingToggle" type="checkbox" checked> Landing zones</label>
       <label class="check" id="playAreaRow" title="The play area: the map's level volume, the box its tile grid fills, which units can't leave. Its sides show as faint amber walls and its edges as lines, from the lowest tile level to the top of the highest (B)"><input id="playAreaToggle" type="checkbox" checked> Play area</label>
       <label class="check" title="The tiles around the selected piece, or the piece being placed. Filled: tiles the piece reaches a quarter tile or more into. Outlined: tiles it only reaches into at the edge. Blue when it floats above the floor under it. From the drawn mesh: the game decides from its collision when the map loads."><input id="grid" type="checkbox" checked> Tile grid</label>
       <label class="check" title="The map's saved floor tiles, where the game's bake made floor, coloured by the piece that carries each. Hatched grey: a piece moved or deleted since, whose tiles the Build's rebuild checks again. The saved data only: a copy's floor comes from the Build's rebuild. Hover a tile to name its piece; click it to select the piece"><input id="floorTiles" type="checkbox"> Floor tiles</label>
+      <label class="check" id="likenessRow" title="Each effect drawn where it stands, moving, roughly as the game draws it: its own textures, colours, size and rhythm, without the game's shader. Untick it for a busy map on a slow computer; the markers and the editing stay"><input id="likenessToggle" type="checkbox" checked> Effects as they look</label>
       <label class="check"><input id="wire" type="checkbox"> Wireframe</label>
       <label class="check" id="helpersRow" hidden title="Pieces a patch places hidden in the game (LWR's invisible cover and blockers): unticked, they show as a wireframe"><input id="hideHelpers" type="checkbox" checked> Hide patch helpers</label>
       <label class="check"><input id="statsToggle" type="checkbox"> Performance stats</label>
@@ -364,6 +407,10 @@
       <dl class="keys"><dt>Click</dt><dd>Select</dd><dt>Ctrl or Shift+click</dt><dd>Add to the selection</dd><dt>V · G · R</dt><dd>Select · Move · Rotate</dd><dt>T</dt><dd>Box select: drag a box over the ground, stretch it by the white dots, move it by the dot in its middle. Enter selects every piece whose middle is inside, Shift+Enter adds them to the selection, Esc puts the box away. In the Lights view it takes lights. With the Normal button's switches on it takes lights and buildings with the pieces</dd><dt>P</dt><dd>Add: the pieces this map has (Kind: Floors for its floor pieces), and new lights (Kind: Lights). Click one, then click in the view to place it; Shift+click places more. A floor piece keeps its height in the map, moved by whole levels to the floor under the cursor</dd><dt>X</dt><dd>World or the piece's own axes</dd><dt>C</dt><dd>Pivot: move and turn about the piece's own origin (usually a corner), or about the middle of the selection, so a piece turns in place. With tile snap the middle keeps to a tile's centre or corner, so pieces stay on the tiles</dd><dt>Drag a white dot</dt><dd>On a selected cover block or invisible floor: move that face (its sides, a block's top and bottom) to size it, in the snap setting's steps (off: to the unit; 24: steps of 24; 96: whole tiles). A low side's drag moves its corner, so the far side stays. Esc during the drag puts it back</dd><dt>L</dt><dd>Level snap: floor pieces keep to whole levels when placed (to the Floor picker's floor when one is chosen) and when moved up or down</dd><dt>R · Shift+R</dt><dd>While placing: turn the piece a quarter turn</dd><dt>Esc</dt><dd>Cancel a drag, stop placing, or clear the selection</dd><dt>Ctrl+C · Ctrl+X</dt><dd>Copy · Cut</dd><dt>Ctrl+V</dt><dd>Paste: the copy follows the cursor; click to place it, Shift+click for more</dd><dt>Delete</dt><dd>Delete</dd><dt>Ctrl+G</dt><dd>Group the selected pieces and groups, with the lights and buildings selected with them. A group selects and moves as one</dd><dt>Ctrl+Shift+G</dt><dd>Ungroup</dd><dt>Align</dt><dd>With two or more pieces or groups selected, the piece panel lines the others up with the target along any of X, Y and Z (centres, low edges or high edges). The target is the last one picked unless another is chosen in the panel; a white box marks it</dd><dt>Ctrl+Z · Ctrl+Y</dt><dd>Undo · Redo</dd></dl>
       <h3>Lights</h3>
       <dl class="keys"><dt>Shift+N · Shift+B · Shift+L</dt><dd>The three views, one at a time: Normal (pieces are selected; hover its button to also show and select lights and floor boxes), Buildings (only floor boxes) and Lights (only lights)</dd><dt>Shift+L</dt><dd>The Lights view (the rail's bulb): click a marker to select it, then move, turn, recolour, copy or delete it as a piece. The light panel sets its colour, brightness, radius, falloff and cones; View options can outline what it is baked into or reaches</dd><dt>Drag a dot</dt><dd>On the selected light: the white dot sets its radius, a spot light's rim dots its outer cone (left) and inner cone (right). Esc during the drag puts it back</dd><dt>O</dt><dd>Solo: the map dimmed and the selected lights alone</dd><dt>P</dt><dd>Add: Point Light and Spot Light in the list (Kind: Lights), placed as pieces are</dd></dl>
+      <h3>Spawn points and objectives</h3>
+      <dl class="keys"><dt>Shift+U</dt><dd>The Spawns view (the rail's pin): the map's pods (rings), Meld points, drop-in points (arrows), starts and other points, and the objectives of the mission picked in the header (gems), drawn over everything. Click one to see its values and where each comes from, its group, what uses it, what it uses and what the game does with it; a landing zone to see what it is. Hover the pin to choose which kinds show</dd><dt>Move one</dt><dd>A mission's objective or a stream's point: drag its arrows to move it with its group by whole tiles and levels. The Normal button's flyout's Spawn points and objectives draws and picks them with the pieces</dd><dt>Esc</dt><dd>Let the picked one go</dd></dl>
+      <h3>Effects and sounds</h3>
+      <dl class="keys"><dt>Shift+X</dt><dd>The Effects view (the rail's spark): the map's effects (sparks), sounds (speakers) and lens flares (stars), and those of the mission picked in the header, drawn over everything. Hover one for its name; click one to see what it plays, whether it starts with the mission, what of the mission's script names it and which floor hides it. A picked effect shows its system's fixed box, a picked sound where it is heard. Hover the spark to choose which kinds show</dd><dt>Edit one</dt><dd>Where the panel says the gizmo moves it: a picked effect or sound moves, turns, copies (Ctrl+C, Ctrl+V) and deletes as a piece does, groups with pieces (Ctrl+G) and goes back with Reset. One a piece carries moves with it until moved by itself; its panel's Keep where it is leaves it where the map has it. The Normal button's flyout's Effects and sounds draws and selects them with the pieces</dd><dt>Esc</dt><dd>In the Effects view: let the picked one go</dd></dl>
       <p>Gizmo axes: red is game X, blue is game Y, green is up (game Z). Edits are a trial until saved as a project (Ctrl+S); Build (Ctrl+B) saves it and makes its variant package, ready to install. Its panel's Bake the lighting is off by default: the build takes seconds and the edit's lighting is not right in the game, but its pathing, cover and line of sight are, for checking those first; tick it for the proper lighting, which takes minutes. Play in game (Project menu) starts XCOM straight in a battle on the open map, or on the project's build, with a test squad: pick Enemy Within if the game's launcher asks, and the battle starts by itself, with no campaign to start. With a project open it opens Build's panel first, to build it (Bake the lighting off by default) and play it once built, or to play its last build as it is when that is of what is on screen; the build is installed in your game under its own name, nothing of the game's own is changed, and it is taken out again when the game closes. Manage projects (Project menu) installs builds for campaigns, as additional maps or in place of the originals, and Game maps shows what the game uses and undoes any of it.</p>
       <p class="helpscope"><b>What builds:</b> moving, rotating, deleting and copying scenery, props, breakable props (windows among them), collectibles, ladders, framed and frameless doors, cars, vans, fracturing walls and floors, physics props and lights. Ladders, doors and fracturing pieces use whole tiles and quarter turns. Pieces awaiting a build recipe carry a milestone in the inspector. A mission's own pieces and LWR's patches show for reference and can't be edited.</p>
       <p id="helpVersion" class="helpversion"></p>
@@ -398,26 +445,43 @@
     </form>
   </div>
   <div id="managerDialog" class="modal" hidden>
-    <form id="managerForm" class="panel filedialog managerdialog" role="dialog" aria-modal="true" aria-labelledby="managerTitle" novalidate>
+    <form id="managerForm" class="panel filedialog managerdialog pmdialog" role="dialog" aria-modal="true" aria-labelledby="managerTitle" novalidate>
       <div class="dialoghead"><h2 id="managerTitle">Project manager</h2><button id="managerClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
-      <div class="mapfind">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="managerSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: name, map, mission, built, baked…" aria-label="Filter projects" aria-controls="managerList">
-        <label>Show <select id="managerShow" aria-label="Show">
-          <option value="all">All projects</option><option value="built">Built</option><option value="baked">Built, lighting baked</option>
-          <option value="unbaked">Built, lighting not baked</option><option value="stale">Built from an older revision</option>
-          <option value="unbuilt">Not built</option><option value="needsfull" title="Not built, not baked, built from an older revision, or by another editor version: the projects a full build would bring up to date">Needs a full build</option><option value="ingame">In the game</option></select></label>
+      <div class="pmbody">
+        <div class="pmleft">
+          <div class="mapfind">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input id="managerSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Filter: name, map, mission…" aria-label="Filter projects" aria-controls="managerList">
+          </div>
+          <div class="pmbar">
+            <div id="managerShow" class="pmchips" role="radiogroup" aria-label="Show">
+              <button type="button" role="radio" data-show="all" title="Every project">All <span></span></button>
+              <button type="button" role="radio" data-show="ready" title="Built, its lighting baked, of the revision saved now">Ready <span></span></button>
+              <button type="button" role="radio" data-show="needsfull" title="Not built, not baked, built from an older revision, or by another editor version: the projects a full build would bring up to date">Needs a build <span></span></button>
+              <button type="button" role="radio" data-show="ingame" title="Installed in the game, for campaigns or for Play in game">In the game <span></span></button>
+            </div>
+            <label class="pmsort">Sort <select id="managerSort" aria-label="Sort by">
+              <option value="savedAt">Last saved</option><option value="build">Last built</option><option value="name">Name</option><option value="map">Map</option></select></label>
+          </div>
+          <div class="filetable">
+            <div id="managerHead" class="filehead pmhead"><label title="Select or clear every project the filter shows (Ctrl+A selects them)"><input id="managerAll" type="checkbox"> <span id="managerShown">Select all shown</span></label></div>
+            <div id="managerList" class="filelist mlist" role="listbox" aria-multiselectable="true" aria-label="Projects"></div>
+          </div>
+        </div>
+        <aside class="pmside" aria-label="Selected projects">
+          <div class="pmsidehead"><strong id="managerCount">Nothing selected</strong><button id="managerPickNone" class="link" type="button">Clear</button></div>
+          <div id="managerAllModes" class="pmallmodes" hidden>Set all to <button type="button" class="link" data-mode="additional">Additional</button> · <button type="button" class="link" data-mode="replace">Replace</button></div>
+          <ul id="managerPicked" class="pmpicked" aria-label="Selected projects and how each goes into the game"></ul>
+          <div class="pmactions">
+            <button id="managerBuild" type="button">Build</button>
+            <button id="managerInstall" class="primary" type="button">Install in the game</button>
+          </div>
+          <div class="pmexport">
+            <label title="Each map's saved project file goes into the pack's projects folder, to open in the XCOM Map Workshop"><input id="managerProjectFiles" type="checkbox"> <span>Include editor project files<small>So others can open and edit the maps</small></span></label>
+            <button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Export map pack</button>
+          </div>
+        </aside>
       </div>
-      <div class="filetable">
-        <div id="managerHead" class="filehead mhead"><input id="managerAll" type="checkbox" aria-label="Select every project shown" title="Select or clear every project the filter shows"><button type="button" data-sort="name">Name</button><button type="button" data-sort="map">Map</button><button type="button" data-sort="savedAt">Saved</button><button type="button" data-sort="build">Last build</button><button type="button" data-sort="inGame">In the game</button><span title="How this project goes into the game or a pack: as the choice below says, or its own way. One install or pack can hold both">Install as</span></div>
-        <div id="managerList" class="filelist mlist" role="listbox" aria-multiselectable="true" aria-label="Projects"></div>
-      </div>
-      <div class="mpick"><span id="managerCount"></span><button id="managerPickShown" type="button" title="Tick every project the filter shows (Ctrl+A)">Select all shown</button><button id="managerPickNone" type="button">Clear selection</button></div>
-      <fieldset class="mmode"><legend>With the selected projects' last builds (each as its row says; "As below" follows this choice)</legend>
-        <label title="The new map's records go into the rotation beside its base map's: missions draw from both"><input type="radio" name="managerMode" value="additional" checked> <span><strong>Additional maps</strong> in the rotation, beside the originals</span></label>
-        <label title="As well, the base map's own records are commented out, so the game no longer uses the original: missions draw the new map where they drew it, and a council mission that asks for the original by name gets the new map"><input type="radio" name="managerMode" value="replace"> <span><strong>Replace the original maps</strong>, council missions too</span></label>
-      </fieldset>
-      <ul id="managerWarnings" class="mwarnings" hidden></ul>
       <div id="managerMessage" class="filemessage" role="status" hidden></div>
       <section id="managerQueue" class="mqueue" aria-label="Build queue" hidden>
         <div class="mqhead"><strong id="managerQueueTitle"></strong><span id="managerQueueClock" class="mqclock" title="How long the queue has been building (its waits for other builds included; not while it was stopped)"></span></div>
@@ -428,7 +492,7 @@
         <ul id="managerQueueFailures" class="mqfailures" hidden></ul>
         <div class="mqbuttons"><span id="managerQueueLive" class="visually-hidden" role="status" aria-live="polite"></span><button id="managerQueueStop" type="button" title="Stop the queue: its build stops (that project's last package stays as it was) and no other starts. Resume goes on">Stop</button><button id="managerQueueResume" type="button">Resume</button><button id="managerQueueClear" type="button" title="Take every row and result out of the queue. No project or package is deleted">Clear</button><button id="managerQueueReset" type="button" title="Set the queue's unreadable file aside (it is kept) and start with an empty queue" hidden>Reset the queue</button></div>
       </section>
-      <div class="mapfoot"><span id="managerWhere"></span><button id="managerBuild" type="button">Build</button><button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Zip as a map pack</button><button id="managerInstall" class="primary" type="button">Install in the game</button><button id="managerDone" type="button">Close</button></div>
+      <div class="mapfoot"><span id="managerWhere"></span></div>
     </form>
   </div>
   <div id="gameMapsDialog" class="modal" hidden>

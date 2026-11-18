@@ -4,8 +4,11 @@
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
 
-// 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan). A project of schema 1 opens, and saves as 2.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 2, READ_VERSIONS = [1, 2];
+// 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
+// plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
+// (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7). A project of schema 1
+// to 3 opens, and saves as 4.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 4, READ_VERSIONS = [1, 2, 3, 4];
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -50,7 +53,11 @@ export const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakToge
 // Two edit states are the same project content when these match (records come sorted).
 export const stateKey = state => JSON.stringify([state.overrides, state.added, state.groups ?? [], state.areaLightBindings ?? [], state.stage ?? null,
                                                  state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
-                                                 state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null]);
+                                                 state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
+                                                 state.spawnRules ?? null]);
+// The project's spawn rules (spawns plan, SP8): null (the install's behaviour) or { dropIns: 'placed' } (Long War's
+// scripted drop-ins land where placed: the Build excludes the variant from its drop-in mutator). Nothing else is read.
+export const validSpawnRules = r => r && typeof r === 'object' && !Array.isArray(r) && Object.keys(r).length === 1 && r.dropIns === 'placed';
 // A building the Build makes from nothing (prefab plan 5.1; compiler.py Compiler.buildings): { id, name, kind:
 // 'building' | 'ufo', floors: [{ boxes: [[x0, y0, z0, x1, y1, z1]] }] }, floor 0 first, game units, unturned. Which
 // pieces each floor lists is not saved: the Build works it out from where the pieces stand.
@@ -154,7 +161,9 @@ export function sortState(state) {
            // the landing zones keep their order (it says which are the map's own); a malformed one is carried in place
            landingZones: Array.isArray(state.landingZones) ? state.landingZones.map(z => (validLandingZone(z) ? tidyLandingZone(z) : z)) : null,
            // the missions the variant serves (mission types plan, D1): null, every mission of the base map
-           missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null };
+           missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null,
+           // the spawn rules (SP8): a malformed one is carried as it is, for the compiler to refuse
+           spawnRules: validSpawnRules(state.spawnRules) ? { dropIns: 'placed' } : (state.spawnRules ?? null) };
 }
 
 // A record the browser can apply: a known shape with finite numbers (the server checks only the document's frame).
@@ -165,11 +174,27 @@ const LIGHT_KEYS = ['color', 'brightness', 'radius', 'falloffExponent', 'innerCo
 const validLight = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => LIGHT_KEYS.includes(k))
   && Object.entries(v).every(([k, x]) => (k === 'color' ? Array.isArray(x) && x.length === 3 && x.every(Number.isInteger)
                                           : k === 'enabled' ? typeof x === 'boolean' : Number.isFinite(x))));
+// An effect's or a sound's values (effects and sounds plan, Part C): `effect` {scale?, startsOn?, parameters?, follow?}
+// or `sound` {radiusMin?, radiusMax?, volume?, pitch?, startsOn?}, known keys only. `follow` ('none': it stays where
+// it is when the piece that carries it moves; 'auto': it follows) is stage FX3's; the others are carried as saved.
+export const EFFECT_VALUE_KEYS = { effect: ['scale', 'startsOn', 'parameters', 'follow'], sound: ['radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn'] };
+const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
+  && Object.keys(v).every(k => EFFECT_VALUE_KEYS[kind].includes(k)) && (v.follow === undefined || ['none', 'auto'].includes(v.follow)));
+// A base spawn point's values (the editor spawns plan, SP6): `spawn` {commander?, secondary?, use?} of a pod or
+// {difficulty?, destroyedOnTurn?, spawnGroup?} of a Meld point, each a boolean, a string or a whole number; which kind's
+// keys a point takes is the compiler's to check.
+const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
+  && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
-// map has it)
+// map has it; an effect's may be its values alone, and a spawn point's too)
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
+  && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
+  && validSpawnValues(r.spawn) && !(r.spawn !== undefined && (r.effect !== undefined || r.sound !== undefined || r.light !== undefined || r.flags !== undefined))
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
-      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined));
+      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
+      || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
+          && r.light === undefined && r.flags === undefined)
+      || (r.spawn !== undefined && r.location === undefined && r.rotation === undefined));
 // An added actor: a copy of a source actor's components (`from`, `components`), a light made from a built-in recipe
 // (`template`: { kind, version }, editor lights plan 3.5), or a cover block or invisible floor (`template` { kind: 'cover',
 // version } and `cover` { type, size, heights } in units, an invisible floor's { type, size }, an older record's
@@ -183,14 +208,26 @@ const validCover = c => c && typeof c === 'object' && (Object.hasOwn(c, 'size')
   : Number.isInteger(c.width) && Number.isInteger(c.length)
     && (Object.keys(c).length === 4 ? typeof c.type === 'string' && Number.isInteger(c.height)
       : Object.keys(c).length === 3 && typeof c.height === 'string'));
+// An added effect, sound or lens flare (effects and sounds plan, Part C): `kind` and the original it copies (`from`),
+// with its own values object at most, and nothing a piece's copy has. A lens flare has no values object (stage FX6b:
+// its template and colour stay as the map has them).
+export const EFFECT_KINDS = ['effect', 'sound', 'flare'];
+const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) && ['components', 'template', 'light', 'cover', 'flags',
+  'prefab', 'partner', 'tinted'].every(k => e[k] === undefined) && validEffectValues(e.effect, 'effect') && validEffectValues(e.sound, 'sound')
+  && (e.kind === 'effect' || e.effect === undefined) && (e.kind === 'sound' || e.sound === undefined) && e.flare === undefined;
+// A copy of one of the map's pods or Meld points (the editor spawns plan, SP7): `kind` pod or meld, `from` its template,
+// its own `spawn` values, nothing of a piece's.
+const validAddedSpawn = e => ['pod', 'meld'].includes(e.kind) && isTarget(e.from) && validSpawnValues(e.spawn)
+  && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'location', 'rotation', 'spawn'].includes(k));
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string' && finite3(e.location) && finite3(e.rotation)
+  && (['pod', 'meld'].includes(e.kind) ? validAddedSpawn(e) : e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')
       && e.cover === undefined
     : e.template?.kind === 'cover'
       ? validRecipe(e.template) && validCover(e.cover) && e.from === undefined && e.components === undefined && e.light === undefined
-      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined);
+      : validRecipe(e.template) && e.from === undefined && e.components === undefined && e.light !== undefined && e.cover === undefined));
 // An area light's glowing piece as the project sets it: { target, owner: { target, component } } or owner null (kept
 // fixed).
 export const validBinding = b => isTarget(b?.target) && (b.owner === null

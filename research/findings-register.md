@@ -12,6 +12,12 @@ Statuses:
 
 ## Open now
 
+- F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
+  editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
+  destroys that dust on every load anyway (F-120), so this matters for plain EW.
+- F-117, F-118: a variant replacing Commercial Alley Redux now keeps the first mission's record name, and Replace
+  comments out only the base map's records the variant has records for, so the first mission always has a map
+  (fixed offline, 17 November); not played in a new campaign.
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November). 17 November: a fracturing wall made from
@@ -66,8 +72,8 @@ Statuses:
 - T-26: a copy of a piece lit per vertex (CLrgScout_Stonewall's vine, Temple Ship's four door volumes) builds
   since 9 November but keeps its original's light: the relight writes textures only. Not played.
 - F-06: LWR's landing zone can land the squad on our objects.
-- F-85: LWR replaces a map's own landing zone, pods, Meld points and scripted drop-in points at load (read from its
-  scripts, 11 November; not yet run). The plan for editing them is editor-spawns-plan.md.
+- F-85: LWR can replace the landing, pod and Meld points at battle start, and choose a scripted drop-in point
+  when its action fires. EXP-43, EXP-51 and EXP-53 cover some of these paths.
 - T-31, T-32: pieces from other maps look feasible by copying a piece and what it depends on into the map (the
   game's art is the same in every map, its shaders and textures shared); measured offline on 11 November. The
   transplanter is built, passes its offline test on every base map (T-31), and two plain props of other maps played
@@ -253,28 +259,63 @@ points). A reference fact, not a defect.
 
   For the test patch, the row can simply move.
 
-  Planned (11 November 2026): options 1 and 2 in the editor, by editing LWR's landing-zone lines for the variant
-  (editor-spawns-plan.md, part 2).
+  The editor now warns when an added piece covers a soldier point (`landing-blocked`) and lets the author move
+  the zone. A moved and an added zone played on the cleared Bar under LWR. The original car-row obstruction
+  remains a separate case. [EXP-51](experiments/EXP-51-cleared-bar.md)
 
-### F-85: LWR replaces a map's own landing zone, pods, Meld points and scripted drop-in points when the battle loads
-**Open** (11 November 2026: read from LWR's decompiled mutators and its config, not yet seen in a run;
-editor-spawns-plan.md 2.4, EXP-34 is to show it). A reference fact, not a defect.
-- What happens, in `XGBattle_SP.PostLevelLoaded`, before the game reads the pods (`InitPlayers` follows in the same
-  frame, so nothing placed in a map can step in between):
-  - **Landing zone** (`XComLZMutator`): on a map with `LZArray` lines, the landing prefab's pieces are destroyed
-    and spawned again at one line's place, with the map's own pieces as templates (F-45). Off for covert extraction,
-    capture and hold, and council extraction and rescue missions.
-  - **Pods** (`XComPodSpawnMutator`): every `XComAlienPod` is destroyed and one plain `XComAlienPod` per squad pod
-    is spawned at a random floor tile. Off on the HQ assault and the final mission; the commander's pod is kept on
-    the alien base and on battleship and overseer maps.
-  - **Meld** (`XComMeldSpawnMutator`): every Meld point is destroyed and three are spawned at random.
-  - **Scripted drop-ins** (`XComSpawnAlienMutator`): each `SeqAct_SpawnAlien` drops at a new random point near the
-    squad, unless the map is in `ExcludeMaps` (`DefaultRandomSpawns.ini`). Wave systems (EXALT, data recovery,
-    covert extraction) are not touched.
-- So under LWR a pod, Meld point or scripted drop-in point moved in a map plays where LWR puts it, not where it was
-  moved to. A plain Enemy Within install plays them as placed.
-- Fix planned: the variant's own `LZArray` lines for the landing zone, an `ExcludeMaps` line for drop-ins, and a
-  mutator of our own listed after LWR's for pods and Meld (the plan's 4.5 and 4.7).
+### F-85: When LWR uses the map's authored spawn points
+
+**Partly observed in game.** The installed scripts and config were read on 11 November and checked again on
+18 November 2026. A fresh SP battle dispatches the `PostLevelLoaded` mutators before the battle selects Meld
+points and initialises pods. Scripted reinforcements use a later hook.
+
+- **Landing.** On a matching map/mission/council line, the LZ mutator hides the recognised grounded dropship
+  before it checks the zone kind and templates. Normal placement needs a frame, evac volume and six soldier
+  templates. Covert extraction, capture and hold, and council extraction/rescue skip randomisation. A council
+  bomb requires the bomb mutator. The cleared Bar with a moved landing and an extra LWR line played. The report
+  does not distinguish individual landing observations. [EXP-51](experiments/EXP-51-cleared-bar.md)
+- **Pods.** HQ assault, the final mission and an empty squad skip the normal rewrite. Insufficient generated
+  locations leave ordinary map pods available. The alien base, battleship and overseer reserve the commander.
+  Other crashed/landed UFOs try to place a commander before the remaining location count is checked. Both the
+  small-map fallback and the UFO commander-location search have been observed. [EXP-43](experiments/EXP-43-blank-map-stage.md)
+  [EXP-53](experiments/EXP-53-mission-kinds.md)
+- **Meld.** An eligible mission and sufficient generated places allow the mutator to replace the map's points.
+  The checked config requests three candidates. The battle then selects by spawn group, difficulty and roll.
+  Meld appeared in the enlarged area in EXP-43 run 3. [EXP-43](experiments/EXP-43-blank-map-stage.md)
+- **Scripted drop-ins.** When a `SeqAct_SpawnAlien` fires, the mutator can supply a temporary point near a
+  soldier. The final mission, a running map named in `ExcludeMaps`, a missing or ambiguous action, or failure
+  to find a soldier or location can leave the action using its own points. Wave groups have their own ordered
+  destination/origin lists, and Long War's mutator leaves them alone: a wave group's destinations moved by a
+  project are where its units dropped in (EXP-72 run 5). Where a scripted action's drop-in lands under the mutator,
+  and on its own points with the variant in `ExcludeMaps`, is EXP-72 runs 3 and 4 (with the map's points as they
+  were; a moved scripted point is not played).
+
+The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
+pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
+behaviour for these proposed edits still need direct observation.
+
+### F-124: A moved bomb leaves its helper point behind, and Long War then places nothing
+**Verified** (read offline on 18 November 2026, from the decompiled bomb mutator and the installed Slaughterhouse
+stream; fixed in export 33 the same day and played in EXP-72 run 1).
+- **What the mutator needs.** `XComBombMutator.FindBomb` counts the bomb, its button, its floor marker, five
+  emitters, the nearest rebuild volume and the squad's visible point, and every `PointInSpace` within 128 units
+  of the bomb across. With fewer than eleven it logs "can't find the bomb, skipping to defaults" and moves
+  neither the bomb nor the power nodes.
+- **What the editor moves.** Its bomb group is the first ten (`scene_metadata.mission_objects`). The stream's
+  `PointInSpace_0` stands 2.5 units from the bomb across and 204.5 above it, and is not in the group. Five Kismet
+  actions name it: the arrows pointing at the bomb, a camera look-at and a visibility viewer.
+- **So.** A bomb moved by one tile (96 units) is still found. Moved two tiles or more, the count is ten: under
+  Long War the bomb and its nodes play where the project put them, and the arrow and the camera point at where
+  the bomb was. On plain Enemy Within the bomb plays where it is put either way, with the same stray arrow.
+- **Fix, planned:** the helper joins the bomb's group in the next export, so it moves with the bomb and keeps its
+  offset (the mutator itself puts it 206 units above the bomb). Long War then finds the bomb again and places it
+  and the nodes itself wherever it finds a place for each, so the project's place becomes the fallback. A project
+  saved with the bomb moved gets the helper's move when it opens.
+- **Fixed** in export 33 (`scene_metadata.mission_objects`): every `PointInSpace` within 128 units across of the
+  bomb joins its group with role `point`; a project saved with the bomb moved gets the helper's move when it opens.
+- **Verified in EXP-72 run 1:** the bomb moved three tiles on URB_SlaughterhouseA; the mutator's log lists twelve
+  actors found near it, `PointInSpace_0` among them, finds 8 nodes, moves the bomb to a place of its own with the
+  helper 206 above it, and places each node; no "can't find" line. The arrow was not seen in the run's shot.
 
 ### F-103: A piece whose component is turned apart from its actor was refused for every copy
 **Fixed in the tools, checked offline** (14 November 2026; not played in the game).
@@ -1067,7 +1108,10 @@ first-editor plan defines the proposed runtime tests and snapping rules.
 
 ### F-50: Effects placed around a piece stay behind when it is moved or deleted
 
-**Open** (EXP-11 run 2).
+**Open for the light and the decals; the smoke fixed offline** (17 November 2026, export 30: an effect placed by a
+prefab instance at whose own place one piece stands is carried by that piece, `scene_metadata.effect_metadata`,
+`carriedHow: prefab`. URB_Bar's pod moved a tile east and two north and turned a quarter, built and read back: its
+five smoke emitters stand around it as before. Not played.) Found in EXP-11 run 2.
 - Symptom: the fog pod moved one tile east, but its green smoke kept rising from the old tile. The user's note: "can
   path through but there's some green smoke emitter still going".
 - Cause: the map placed the smoke as separate actors around the pod, not as part of it:
@@ -2526,7 +2570,318 @@ word; not looked at in the game).
   with 32, as copies of placed lights do; a baked recipe spot's shadow edges come out a little sharper than
   before. Checked with the real factory on the Bar (`test_native_lights.py`).
 
+### F-123: A copied ambient sound and its original report one NetIndex in the log
+**Accepted** (EXP-70 run 2, 17 November 2026).
+- **Seen.** The game's log says `Error: (AddNetObject) Objects AmbientSoundSimple_5 and AmbientSoundSimple_0 have
+  duplicate NetIndex 0` when the map loads and again after a save's load. `_5` is the project's copy of `_0`.
+- **Cause.** A copy is cloned from its original's export, NetIndex and all. The index names an object to the network
+  code, which a single-player battle doesn't use for a map's ambient sounds.
+- **Effect.** None seen: both play as set (volume, reach and pitch each its own), before the save and after the load.
+- **If it ever matters** (multiplayer maps): give a clone the next free NetIndex of its package.
+
+### F-122: A particle parameter saved as a number where the system reads a vector is read
+**Verified** (EXP-70 run 2, 17 November 2026).
+- **The question.** 18% of the values the game's maps save on their effects are a number (`PSPT_Scalar`) under a name
+  the particle system reads through a vector distribution. Is such a value live, or left over?
+- **Seen.** A copy of URB_Bar's steam with Brightness 5 saved as a number is a bright white cloud; its twin with the
+  map's 0.05 is a faint grey wisp. The same holds for a parameter the effect didn't save: a copy given Spawn 8 as a
+  new entry is far denser.
+- **So.** The editor's slider for such a value changes what plays, and the drawn likeness reads it as the number on
+  each axis (`effects_sim.js sample`).
+- **An earlier reading was wrong.** From the unedited map's pictures the steam at 0.05 looked too light for that
+  value to count, and the likeness was first made to ignore it. The steam is lit by the scene as well: its colour
+  parameter is what it glows with.
+
+### F-121: A piece or effect from a third map could be staged with an earlier map's imports
+**Fixed** (17 November 2026, offline, found while preparing EXP-69; not seen in the game).
+- **Seen.** One build of EXP-69's project (effects and sounds of six maps into URB_Bar) staged URB_Boulevard's
+  fountain sound with its node's class `Engine.SoundNodeWave` where the donor's is `Engine.SoundNodeAmbient`: the
+  node read as a wave holding no sound data, so the copy had nothing to play. The same edit staged again came out
+  right.
+- **Cause.** The transplanter keeps, for each donor, which of the destination's imports stands for each of the donor's
+  (`transplant.Destination.import_of`), and kept them by `id(donor)`. The staging opens one donor after another; once
+  an earlier donor is freed a later one can get its id, and is then given the earlier map's imports for its own wherever
+  the import numbers meet: classes, archetypes and outers named wrong. Whether it happens depends on how memory is
+  reused, so one run differs from the next.
+- **Reach.** Any build bringing pieces or effects from three or more maps, since the cross-map pieces (X4). Where the
+  two maps' import tables agree at the numbers met (the low numbers, Core's and Engine's classes, often do) nothing
+  shows; where they don't, a brought object can be of the wrong class. The cross-map experiments (EXP-37 to EXP-42)
+  passed in the game; whether any of their builds met it is not known.
+- **Fix.** The imports are kept by the donor's file (a donor with no file by the donor itself, held). A regression test
+  gives two donors one id (`test_transplant.ImportsKeptByDonor`); EXP-69's edit staged five times as the Build stages
+  it gives every brought object (141) its donor's class and archetype.
+
+### F-120: Under Long War the Skyranger is gone after a reload, its shadow left on the ground
+**Accepted** (17 November 2026, EXP-68 run 1: Long War's own behaviour, not the build's).
+- **Seen.** In EXP-68's battle on a variant of URB_Bar, the Skyranger stood at its landing at the start; after a save
+  and reload it was gone, its shadow still on the ground.
+- **Cause.** Long War's landing-zone mutator (`XComLZMutator`) runs `HideDropShip` whenever a battle's level loads,
+  whatever landing it picks: it hides and destroys every actor of the grounded Skyranger's prefab by archetype (the
+  ship `PRE_SkyrangerGrounded_*`, its emitter, its idle sound after stopping it, and the dust
+  `ARC_Skyranger_Ground_Periphery`). The ship seen at the start is the intro's dropship, in the streamed
+  `CIN_DropshipIntros`, parked where its flight ends. A reload doesn't stream the intro again (the log shows no
+  `AddStreamingMap` for it, though the travel names it), and the mutator's `PostLoadSaveGame` runs `HideDropShip`
+  again. The shadow is baked into the ground's lightmap from the map's own grounded ship.
+- **Evidence.** The lab game's logs: EXP-68 (`URB_Bar_X68`) and an unedited map (`URB_OfficePaper_EWI`, 15 November)
+  show the same sequence on a reload. Mutator source: `XComLZMutator.uc` (`HideDropShip`, `PostLoadSaveGame`), kept in
+  `private/research/evidence/upstream/`.
+- **Plain EW** has no mutator: the map's Kismet hides the grounded ship for the intro (`CIN_HideForIntro`) and shows it
+  after (`CIN_IntroFinished`), and nothing hides it on a load, so it most likely stays (not played).
+- Not the editor's to fix: a ship of the variant's own would stand at the map's landing even when Long War picks
+  another, and beside the intro's parked dropship at the start.
+
+### F-119: A moved landing leaves the grounded Skyranger's dust where the landing was
+**Open** (17 November 2026, found offline in FX3's clear and landing check; not seen in the game).
+- **Seen.** A cleared Bar with its landing moved four tiles east and turned (`clear_bar_project.py`'s first zone), built
+  quick and read back: the grounded Skyranger (`XComLevelActor_138`), its idle lights (`Emitter_78`) and its idle sound
+  (`AmbientSoundSimpleToggleable_0`) moved by one transform, from (560, -2971) to (-188, -1521), but `Emitter_0`
+  (`P_Skyranger_Ground_Periphery`, the dust the map's script hides for the intro and shows after it) stayed at
+  (512, -2112). The editor's Effects view draws it there too, so the view and the Build agree.
+- **Cause.** The landing's move (`native_spawns.py`) carries the actors the landing names by role (export 22's
+  `landingRole`: the Skyranger, its emitter, its sound, the spawn points); the dust is a landing actor only by its
+  archetype (`native_copy.LANDING_EXTRA`, `effects_metadata.LANDING_EXTRA`), which keeps it through a clear but gives
+  it no role, so nothing moves it.
+- **Fix to try.** Carry `LANDING_EXTRA` actors with the moved landing by the Skyranger's transform, give them a role in
+  the export (say `dust`) so the page shifts their markers with the zone, and look in the game at a moved landing after
+  the intro.
+
 ## Toolchain
+
+### F-117: A variant replacing Commercial Alley Redux left a new campaign's first mission with no map
+**Fixed** (17 November 2026, offline: `test_manager` `test_a_variant_replacing_the_first_missions_map_takes_its_record_name`
+and `test_a_packs_scripts_give_the_first_missions_name_to_the_variant_that_replaces_its_map`; not played).
+- **Seen.** A user installed a map pack with its `Install.cmd`: 15 maps made with 0.5.2, each replacing its
+  original, one of them a variant of `URB_CommercialAlley_EWI`. A new campaign's first mission didn't start.
+- **Cause.** The first mission asks for its map by the record's DisplayName,
+  `URB_CommercialAlley_EWI (Commercial Alley Redux) |0` (`XGGeoscape.TakeFirstMission` calls `DetermineMap`, EXP-03),
+  although that record is in rotation. A replacing variant kept the base map's DisplayName only on records out of
+  rotation (council and story missions), so its abduction record took a name of its own, and replacing commented the
+  original's record out. No live record had the name, and the travel falls back to `Command1` (EXP-03, route 2). The
+  pack's scripts and the editor's Install in the game (Replace) both did it: both take the records from
+  `installs.rotation_plan`.
+- **Fix.** `installs.FIRST_MISSION` names that record (LWR's name, and plain EW's guessed one without ` |0`). In replace
+  mode the variant's record that stands for it keeps that DisplayName and stays in rotation (`rotation_plan`,
+  `_rotation_from_build`); the record counts as asked for by name (`byName`, `firstMission`), and the Replace
+  warnings say the variant plays the first mission. Beside the original (Additional) nothing changes: the original
+  keeps the first mission. The user's pack was mended by hand, with that record's DisplayName changed in its
+  `pack.json`; a pack made before the fix needs the same.
+- A replacing variant whose build has no abduction record left the first mission without a map too: F-118.
+
+### F-118: Replacing commented out the base map's records for missions the variant has no record for
+**Fixed** (17 November 2026, offline: `test_manager` `test_a_variant_for_other_missions_leaves_the_first_missions_record_in_use`
+and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not played).
+- **Cause.** A build has records for its project's missions only (mission types plan, D4), but Replace commented
+  out every record of the base map: the editor's install by the base map's name (`_sync_off`), a pack's script by
+  the `Name` field. A mission the variant has no record for lost the map altogether: harmless for a rotation
+  mission (other maps serve it), but a mission that asks for its map by name found none. A variant of
+  `URB_CommercialAlley_EWI` for covert extraction only left a new campaign's first mission with no map (F-117),
+  and one leaving out a council mission left that mission with none.
+- **Fix.** A rotation install records the base map's records its build has records for (`standsFor`, from
+  `recordMissions`); only those are commented out (`installs.replaced_records`, `_sync_off`), and the others stay in
+  use. An install written before `standsFor` still replaces every record of its base map. A pack lists them in
+  `pack.json` (`switch`, the display names `Install.cmd` comments out; `keep`, the ones it leaves), and a pack from
+  before `switch` comments out every one. The Replace warnings name the missions left to the original (and say when
+  the original plays the first mission); the project manager works them out from the last build's records. The Game
+  maps window marks only the replaced records.
+
+### T-45: The game crashes as it starts when Windows sees no mouse
+**Fixed in the tool** (18 November 2026, five hidden starts from 09:09, EXP-72 run 11's two among them; no EXP file).
+- **What**: every hidden start from 09:09 crashed about 3.3 seconds in, before the main menu, URB_Bar's plain start
+  too. `Launch.log` ends `Init: XAudio2Device initialized.` and then `Critical error ... Address = 0x11fb6b8 [in
+  ...\XComEW.exe]`. DXVK's log stops before `Creating device`, and DXVK's mode options (`d3d9.modeCountCompatibility`,
+  a forced refresh rate and aspect ratio) changed nothing. The same starts worked at 04:08.
+- **Cause**: the dump shows an access violation reading address 0 at `XComEW.exe+0x31b6b8`. The code there is the
+  client's input set-up: `IDirectInput8::CreateDevice(GUID_SysMouse, &device, NULL)`, then `device->SetDataFormat`
+  without a check that a device came back. At the time Windows had no mouse and no keyboard: `GetSystemMetrics
+  (SM_MOUSEPRESENT)` was 0, and the HID mice and keyboards were not present (switched to another computer, asleep or
+  unplugged). So CreateDevice gave no device and the next call read through nothing.
+- **Fix**: `tools/lab/hidden_game.py` counts Windows' raw input devices before it starts the game. With a mouse or
+  keyboard missing it puts a stand-in `dinput8.dll` beside the game for the run (`tools/lab/StandInInput.c`, built
+  into `<lab>\\bin` by `build_stand_in_input.py`). The game imports `DirectInput8Create` from `DINPUT8.dll` by name,
+  so it loads that DLL first. The DLL hands every call to Windows' own `dinput8.dll` and gives a still mouse or
+  keyboard (attached, never moving, no key down) where Windows has none, and writes what the game got to
+  `<out>\\input.log`. Without the DLL, no mouse stops the run with the reason. The `game-test` skill says so under
+  "Before a run".
+- **Verified** (18 November 2026, the mouse and keyboard there, the stand-ins forced by `--stand-in-input`): outside
+  the game a 32-bit check (`tools/lab/tests/StandInInputCheck.cs`) got both stand-ins and every call the game makes
+  answered. In the game, URB_Bar started to turn 1 with the squad and the interface drawn; `input.log` showed the
+  stand-in mouse asked for twice and the keyboard once; `goto` moved a soldier two tiles, and Escape opened the
+  pause menu. A start with the devices really gone hasn't been played; the DLL takes the same path then (Windows'
+  CreateDevice fails, the stand-in is given).
+- A player's own game has a mouse, so this only stops unattended runs.
+
+### T-46: In a hidden run, every load of a save with aliens in the battle crashes: DXVK's texture budget
+**Fixed** (18 November 2026, EXP-72 runs 12 to 16; the mouse was a wrong lead).
+- **What**: in a hidden run the game crashed about 1.4 seconds after a save's `LoadMap ... LoadingFromShell=1`, just
+  after `XGBattle_SP.PostLoadSaveGame`, with an access violation, nothing in `Launch.log` and no dump: Long War's
+  reload of Police Station's data recovery (runs 12 and 13) and a quicksave loaded from the pause menu on URB_Bar
+  (run 14, a traced rerun, and a rerun with the mouse and keyboard there and no stand-in). The battles started and
+  played; only the loads crashed.
+- **Not the mouse**: the first runs had no mouse in Windows (the stand-in, T-45), and every load that had worked
+  before had a real mouse, which pointed there. But the load crashed with the real mouse too, and the same load of a
+  battle **without aliens** went through (run 15). Every load that had worked (EXP-70, EXP-71, the 17 November save
+  checks) was of a battle without aliens; every one that crashed had aliens, and Long War's pod mutator's own pods.
+  In a visible game Long War's reload of a data recovery with aliens had gone through (EXP-57 runs 2 and 4).
+- **Where**: the stand-in DLL's crash log (`--crash-log`, below) named it: a thread of the game's own (not the one
+  that made DirectInput) read address 0x61300001 at `XComEW.exe+0xf1331`, from code at `+0x222ee6` and `+0x300639`
+  under the thread's start at `+0xed9ed8`; `edx` held 0x61300000, a block of memory no longer there.
+- **Cause** [inferred from the fix]: DXVK, which the hidden runs need (T-43), keeps only so much texture memory
+  mapped in a 32-bit game (`d3d9.textureMemory`, 100 MB by default) and unmaps the rest; a load of a battle with
+  aliens brings in many textures at once, and a thread of the game's then read one DXVK had unmapped. Which texture
+  and which thread is not read.
+- **Fix** ([hidden_game.py](../tools/lab/hidden_game.py) `dxvk_config`): every hidden run gives DXVK its own
+  `<out>\dxvk.conf` (`DXVK_CONFIG_FILE`) with `d3d9.textureMemory = 0`, the budget off. Also `--crash-log`: the
+  stand-in DLL stands beside the game in any case and logs the run's first faults to `<out>\input.log` (thread,
+  code, module and offset, what it touched, registers, the module addresses on that thread's stack).
+- **Verified**: run 16, the same Bar quicksave and load with aliens, went through twice, once with the setting given
+  from outside and once through the tool's own file (`Found config file: <out>\dxvk.conf` in DXVK's log; 18 units
+  read back after the load). Before it every load with aliens had crashed (six of six).
+- **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
+  session might run out of it. Not seen in runs of a few minutes.
+
+### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative copies a SHIV
+**Fixed** (18 November 2026: EXP-72 runs 12 and 13 began; runs 5, 10 and 11 had not).
+- **What**: on URB_PoliceStation's Data recovery (EXALT, `eMission_CaptureAndHold`) the loading movie never stopped.
+  Long War never saved and "Mission Started" never came: `why=PostLevelLoaded` repeated every 0.39 seconds for four
+  minutes. The same on the editor's variant and on the map as installed, with saving on (as an EXALT mission needs
+  under Long War, F-109), and with the mission's open-line options too (run 11).
+- **Cause** (read from the game's script and the logs): with no campaign behind the battle,
+  `XGBattle_SPCovertOpsExtraction.SpawnCovertOperative` makes the stand-in operative with `CreateDebugCovertOperative
+  (squad member 0)`, which copies that unit's looks (`XComHumanPawn(kTemplate.GetPawn()).m_kAppearance`). The editor's
+  test squad had "Tracks", a SHIV (`iType=3`), first. A SHIV's pawn is no human pawn, so the copy read nothing
+  (`Accessed None 'm_kPawn'`), and the operative asked for a body, head, hair and voice of id 0
+  (`CacheRequiredArchetype: Requested missing ... content: Id=0`), which don't exist. The battle waited for them on
+  its loading screen. A MEC trooper's pawn is a human pawn (`XComMecPawn extends XComHumanPawn`), so only a SHIV does
+  this. Data recovery's battle class inherits covert extraction's, so both kinds have it. The two starts that began
+  on 15 November had a soldier first.
+- **Fix** (play.py, missions.py, squadrecords.py): a play of a kind with a covert operative (data recovery, covert
+  extraction) lands the squad's first soldier or MEC trooper first, and the play's notes say who and why. With only
+  SHIVs the play goes ahead and says the battle will stay on its loading screen.
+- **Verified**: run 12 (the editor's squad with Iron Fist first): no `m_kPawn` warning and no content of id 0; the male
+  operative took Iron Fist's head and hair; the loading movie stopped at 8.3 seconds, Long War saved at 15.0, and
+  "Mission Started" came at 16.4. Run 13 (six soldiers) the same. Both then crashed in Long War's reload, a separate
+  matter of the hidden runs (T-46, fixed: DXVK's texture budget).
+
+### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
+**Verified** (17 November 2026, the lab copy, five starts; no EXP file).
+- **With DXVK it runs.** DXVK 3.1.1's 32-bit `d3d9.dll` (DirectX 9 over Vulkan) beside `XComEW.exe`, the same start:
+  compatibility level 2/2/4 as on the screen, the main menu after 3.8 seconds, still running when the timeout ended it.
+  - A battle: `-EXEC=<file>` with `set XComContentManager bAllowJITLoad True` and `open URB_Bar` loaded the map and
+    stood at turn 1 with the squad and the interface drawn, 75 seconds after the start.
+  - Commands: a helper on the same desktop posted `WM_KEYDOWN`/`WM_KEYUP` to the game's window (class
+    `LaunchUnrealUWindowsClient`): backslash, the command's keys, Enter. The log shows each (`Console Command Use:
+    shot`, `togglefow`), and the fog was gone in the next picture. No window is in front on that desktop
+    (`GetForegroundWindow` is 0) and the game doesn't mind. Only keys were posted: no mouse, and no character that
+    needs Shift (an underscore), which a commands file run with `exec` gets round.
+  - Pictures: the game's own `shot` writes `XComGame\Screenshots\PCConsole\ScreenShotNNNNN.bmp` at the asked size
+    (1280 by 720, though the window's client area was 1024 by 576) and they show the game as it looks on the screen.
+    `PrintWindow` from outside gives a black picture.
+  - Left as it was: the DLL is out of the lab copy again (DXVK is unpacked in `<lab>\dxvk`), `XComContent.ini` put
+    back after the battle (F-73). Steam's shader cache for the game got DXVK's pipelines.
+  - **The tool** (17 November, later): [tools/lab/hidden_game.py](../tools/lab/hidden_game.py) puts the DLL in for
+    the run, starts the game through [GameRemote.cs](../tools/lab/GameRemote.cs) on the desktop `XComLab-Game`, does
+    a list of steps (wait, wait for a log line, a console command, a key, a shot) and puts back the DLL and every
+    config file the run changed (`XComContent.ini`, and `XComInput.ini` too). Three runs with it:
+    - the main menu: Right twice and Enter opened Options, so menus go by the keyboard;
+    - a battle on URB_Bar: the log's `m_bTacticalIntroDone` came 21 seconds in and the first shot at 73 showed turn
+      1; a console command written to a file and run by a typed `exec <file>` worked (`ToggleFOW`: the bar's inside
+      showed in the next shots; a `getall` with a wrong property name was answered in the log); Tab picked the next
+      soldier (his name and weapon in the shot), E three times and G four turned and pulled back the camera.
+  - **No mouse there.** Posted `WM_MOUSEMOVE` and button messages at the main menu's Options button did nothing (no
+    highlight, no screen), and `SetCursorPos` and `GetCursorPos` are refused on a desktop that isn't the one shown
+    (error 5), so the game has no cursor to move. Pointing goes by the camera instead (below).
+  - **Turns played there** (17 November, evening; URB_Bar, the default LWR test squad, two sessions of
+    `hidden_game.py --serve` with steps sent as the answers came back):
+    - Where the mouse is: the game's `UIMouseCursor.m_v2MouseLoc` stays 0,0 (a timer reads it from the interface ten
+      times a second, so `set` doesn't hold), and the tile under the picture's top left corner is where its 3D cursor
+      goes, every frame. Edge scrolling stays off (the mouse never left its first place).
+    - Pointing at a tile: with the camera straight down on the active soldier (`SetOverheadCameraParameters <fov>
+      1256 -89`), the corner's tile lies 1440 × tan(fov / 2) world units from him, in the direction of the camera's
+      yaw plus 72° (`SetCameraYaw`; yaw 0 gave the tile 96,288 from him, 90 gave -288,96, 180 gave -96,-288, 270 gave
+      288,-96). The cursor's place read back (`getall XCom3DCursor Location`) was the asked tile each time, once the
+      camera had stopped turning.
+    - A look-at (`ViewLocation`) is no way to point: while one is up the camera hides the cursor
+      (`m_bHiddenOverride`) and no path is built.
+    - The order: `Right_Mouse_Button_Press` and `Right_Mouse_Button_Release` as two console commands. The log:
+      "Alpha moved 2 tiles", and his place was the tile's (1583,911, then 1391,1103 by `hidden_game.py goto`). The
+      controller's `A_Button_Press` does nothing while the mouse is on (the game drops controller events then), and
+      `UseController` stops the game at "Please Reconnect Controller".
+    - **The game's own squad for this path can't walk**: its soldiers stand and show, but their animation trees have
+      no movement node (`Accessed None 'Animations'` in `PostInitAnimTree` as they spawn), so an ordered move starts
+      and never ends (`XGAction_Move_Direct`, `Accessed None 'MovementNode'` every frame) and the console stops
+      answering. With the test squad's records (`--squad`) the soldiers walk.
+    - Aliens: `DropSectoid` with the cursor aimed (`hidden_game.py aim`) put a Sectoid on that tile.
+    - A shot: key 1 opened Standard Shot on it (100% to hit), Enter fired; the log has the hit, 9 damage and the
+      death.
+    - A grenade: its key opened the view aimed at the thrower's own tile, and Tab did not move it; the same camera
+      commands while the view was open moved the aim onto the Sectoid (the view stays on the thrower), Enter threw,
+      a second Enter answered the box about a friendly unit in the blast. The log: 29 damage and the Sectoid's
+      death, 16 to the soldier beside it.
+    - The turn: `EndTurn` ran the aliens' turn (15 seconds) and XCOM's turn 2 began with a pod revealed.
+    - Read back: `getall XGUnit m_bInCover`, `m_iCurrentCoverValue` (50 for the one soldier in cover) and
+      `CurrentCoverPointFlags`; `getall XGUnit m_arrVisibleEnemies` printed nothing for anyone (an array `getall`
+      doesn't print, or nobody in sight: not told apart).
+  - **A ladder, a roof and the inside of the bar** (17 November, later; a third session):
+    - The storey the cursor picks on is the mouse wheel's count, `XCom3DCursor.m_iRequestedFloor`:
+      `Mouse_Scroll_Up` and `Mouse_Scroll_Down` as console commands change it by one and it stays (the F and C keys
+      did nothing). On 0 the pick over a building goes through its cut-away roof to the ground floor inside (URB_Bar
+      at 431,1199: height 81); on 1 the same tile read 221, on 3 the bar's roof (335,1103: 466).
+    - Up the ladder: Alpha, teleported beside the ladder at 432,1296 (`TeleportToCursor` with the cursor aimed, then
+      Tab round to him again), was ordered to the roof tile 335,1103 on storey 3: "Alpha moved 5 tiles", and he
+      stood at height 472 on the roof above the ladder (the shot shows him there). The game took the ladder by
+      itself. Orders to 431,1199 on storey 1 and to tiles the pick could not reach gave no move: the first has no
+      path (the readout's `PathActionEmpty: True`), though the cursor stood on it.
+    - Inside the bar: Delta, teleported to -241,1103 on storey 0, walked to -433,1007 ("Delta moved 2 tiles") and
+      the shot shows him on the bar's floor between the counters, the roof cut away. A tile with a counter on it
+      (47,1199: height 148) took no order. Bravo's order to -145,1295 ended on the pavement outside the fence, in
+      cover (value 50): that tile is outside, the bar's floor starts north of it.
+    - After a move the game goes on to the next soldier, and one who has no move left is not in Tab's round any
+      more. A look-at (`ViewLocation`, then `RemoveLookAt`) still serves to take a picture of a place.
+    - Aiming at a roof from 26 tiles away failed (the aim's correction ran off: "59 tiles away"); from three tiles
+      it held. `hidden_game.py`'s `--floor` set the storey to 3 and back to 0 in a fourth, short session.
+  - **Sounds** (17 November, night; a session on URB_Bar without aliens):
+    - The console's `ListWaves` writes the sounds playing now to the log, a line each: whether it started, a time,
+      the volume, the wave and the actor it belongs to. At the landing: the dropship's idle (0.09), two ambience
+      loops and the music of the sound manager (0.18, 0.60, 0.60). `ListSounds` lists loaded waves only and
+      `ListAudioComponents` every component, playing or not: neither says what is heard.
+    - The game hears from the camera, not from the place it looks at. The map's five `AmbientSoundSimple` have a
+      reach of 300 to 1000 (`getall SoundNodeAmbient RadiusMin`, `RadiusMax`, `SoundSlots` give radii and wave), the
+      play camera stands 1256 from what it looks at, and none of the five was in the list with the camera looking
+      straight at them.
+    - With the camera brought closer (`ViewLocation` at the sound, `SetOverheadCameraParameters 70 <distance> -45`)
+      the bar's music (`SoundBarMuzak.BarMuzakStereo`, radii 550 and 1000) was listed at 0.60 from 400, 0.40 from
+      700, 0.27 from 800, 0.07 from 950 and not at all from 1256; the machine hum on the roof (radii 100 and 300) at
+      0.32 from 150. So the list follows the radii, and 0.60 is a full ambient sound here.
+    - `hidden_game.py listen <folder> <x> <y> <z> [--distance <d>]` does this and prints the list.
+    - Nothing was recorded: the list is the engine's own account of what plays, not a recording.
+    - **Muted for the run** (later the same night): `GameRemote` mutes the game's audio session (Core Audio,
+      `ISimpleAudioVolume.SetMute` on the session of the game's process on the default output) as soon as it exists,
+      1.5 seconds after the start, and unmutes it before ending the game, because Windows keeps an application's
+      mute for its next start. A battle on URB_Bar run so: "sound muted", `ListWaves` answered as before (two
+      ambience loops 0.18 and 0.60, the music 0.60), "sound unmuted (1 session)". Not heard by anyone: that the
+      speakers were silent rests on Windows taking the mute. A run ended from outside keeps the mute until the next
+      run ends by itself or the mixer is used.
+  - **Saving and loading** (17 November, night; `hidden_game.py --saving`, URB_Bar without aliens): the start F-89
+    found for the editor's Enable saving works there too. The game stood at its main menu, logged in ("Obtained
+    steam user stats" 3.7 seconds in), F5 as a posted key ran the battle's commands and the map loaded. Alpha
+    walked to -2257,1009; F10 quicksaved (the log's checkpoint lines, the save in the load list as "QUICKSAVE");
+    he walked on to -2065,1009; Escape, Down twice, Enter opened Load Game with the quicksave first, Enter and
+    Enter again at "Confirm load game" loaded it (`LoadMap: URB_Bar?...LoadingFromShell=1`), and 60 seconds later
+    he stood at -2257,1009 again, the others where they were. An order after the load moved him ("Alpha moved 3
+    tiles"). The run put back the config it changed (`XComLZMutator.ini` and `XComMaps.ini` too, which the load
+    wrote), `profile.bin`, and `save8`, the slot the quicksave had taken from an older save.
+    - An order onto a tile with a prop (the cursor's height 128 there) ended on a tile beside it, twice.
+  - Not tried: stairs inside a building, a climb down, more than one game at once, the LWR install.
+- **Without DXVK it doesn't**, the first two starts:
+- What: `XComEW.exe` started by `HiddenRun` on a private desktop (`SteamAppId` and `SteamGameId` set to 200510,
+  `-FROMLAUNCHER -nostartupmovies -nohomedir -forcelogflush -windowed -ResX=1280 -ResY=720`) logged `Failed to get
+  Caps bits info from the D3D Object`, pixel and vertex shader version 0, compatibility level 0, and then nothing
+  more: it stood for 70 seconds (a box nobody sees, as in T-01) until the timeout ended it.
+- With `-dx11` added it took the DirectX 11 path (`Shader platform (RHI): PC-D3D-SM5`) and stopped after 3 seconds:
+  `Failed to compile global shader FResolveVertexShader` (`Common.usf(789,55)`: undeclared identifier
+  `ViewportPositionScaleBias`). The shipped game has no DirectX 11 shaders, so T-01's way out is closed for it.
+- The second start rewrote the lab copy's `XComEngine.ini` (its compatibility levels unchanged: 2, 2, 4) and left a
+  crash dump in its `Logs`.
 
 ### F-116: A wall's end on a tile edge reaches a unit into the next tile; a one-tile doorway with no door gives cover toward its sides
 **Fixed** for the ends (17 November 2026; seen in [EXP-67](experiments/EXP-67-fracturing-wall-poc.md) run 1); the

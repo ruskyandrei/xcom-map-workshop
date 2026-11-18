@@ -113,6 +113,7 @@ import maplist  # noqa: E402
 import missions as mission_kinds  # noqa: E402
 import outputnames  # noqa: E402
 import publication  # noqa: E402
+import spawnrules  # noqa: E402
 import spawns  # noqa: E402
 import settings as settings_module  # noqa: E402
 from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
@@ -130,6 +131,8 @@ LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
 # 9.3), passed to compiler.find_export where it takes a minimum
 EXPORT_MINIMUM = 18
+# the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
+EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
 # what a quick build does with light edits (editor lights plan, 4.3). Its wording stays conditional until EXP-26 run 2
 # has shown what the game does; the editor's build panel can show the same text beside Bake the lighting
@@ -293,6 +296,23 @@ def light_summary(counts):
 
 
 # ---------------------------------------------------------------- config lines
+
+def drop_in_exclusion(lwr, variant):
+    """The manifest's config.dropInExclusion for a project that leaves scripted drop-ins where placed (spawnRules;
+    the editor spawns plan, SP8): {file, section, line}, the line written as the install's own ExcludeMaps lines are
+    (spawnrules.exclusion_entry). Planned against the build's install as it is now, with `why` where that install
+    can't take it (plain Enemy Within, which plays them where placed already; a Long War whose loader has no drop-in
+    mutator, or whose file has no drop-in section); Play in game and the campaign install plan it again there."""
+    out = dict(file=spawnrules.RANDOM_SPAWNS, section=spawnrules.DROP_IN_SECTION, line=spawnrules.exclusion_entry(variant))
+    path = lwr_file(lwr, 'Config', spawnrules.RANDOM_SPAWNS)
+    if not path.is_file():
+        return dict(out, why='the install has no %s: plain Enemy Within lands scripted drop-ins where placed already'
+                    % spawnrules.RANDOM_SPAWNS)
+    if spawnrules.rules(lwr).get('dropIns') == 'absent':
+        return dict(out, why='the install\'s Long War loads no drop-in mutator: its scripted drop-ins land where placed already')
+    _, _, why = spawnrules.plan_exclusion(path.read_bytes().split(b'\n'), variant, 'planned')
+    return dict(out, why=why) if why else out
+
 
 def config_text(path):
     data = Path(path).read_bytes()
@@ -524,6 +544,13 @@ def readme(m):
     else:
         lines += ['DefaultLZMutator.ini: nothing to add; %s has no landing zones there, so its variant needs none.'
                   % m['source']['map']]
+    ex = c.get('dropInExclusion')
+    if ex and ex.get('why'):
+        lines += ['', 'The project leaves scripted drop-ins where placed (Long War\'s %s, [%s]), but %s.'
+                  % (ex['file'], ex['section'], ex['why'])]
+    elif ex:
+        lines += ['', '%s, in its [%s] section after its ExcludeMaps lines (the project leaves scripted drop-ins where '
+                  'placed: Long War\'s drop-in mutator leaves the variant alone):' % (ex['file'], ex['section']), ex['line']]
     if c['miniMods']:
         lines += ['', 'DefaultMiniMods.ini, beside %s\'s rules (optional):' % m['source']['map']] + c['miniMods']
     base = m['source']['map']
@@ -674,6 +701,15 @@ class Build:
         # by native_copy.py (a copy's flags go with the copy); flags alone change no light
         self.piece_flags = self.native.get('pieceFlags') or []
         self.flags_edit = bool(self.piece_flags)
+        # effects and ambient sounds moved, copied or deleted (the effects and sounds plan, Part D): made in the map by
+        # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
+        # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept. Lens flares
+        # (stage FX6b) are the same: a glare drawn over the picture, no baked light
+        # the base map's spawn points moved or given values (the editor spawns plan, SP6) are the same: settings and
+        # places the game reads, no light, so they go with the effects (made by native_copy.py, lighting kept)
+        self.spawn_edits = {op: len((self.native.get('spawns') or {}).get(op) or []) for op in ('moves', 'values', 'copies', 'deletes')}
+        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',)
+                                for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
         self.has_lights = has_light_edits(self.native)
@@ -684,6 +720,8 @@ class Build:
         # the project's landing zones (Clear map plan, section 4): its own lines, and the map's own landings moved in
         # the map (native_spawns.py, run by native_copy.py) where a zone that is also theirs moves them
         self.landing_zones = self.native.get('landingZones')
+        # the project's spawn rule (spawns plan, SP8): the variant's ExcludeMaps line, a change of its own
+        self.spawn_rules = self.native.get('spawnRules')
         self.moves_landings = bool(self.landing_zones and self.landing_zones.get('own'))
         # a mission's objects moved in their streams (mission types plan, Part E): moved in place in the variant's
         # copies of the streams (stream_copies), and the base map's tiles under a moved solid piece rebuilt
@@ -693,25 +731,29 @@ class Build:
         self.stream_tiles = bool(self.native.get('streamTiles'))
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.stream_moves or self.native.get('streamHides') or self.flags_edit):
+                or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit
+                or self.spawn_rules):
             if self.left_out:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
-            raise BuildError('the project changes nothing in the map: no piece is moved, deleted or added, no '
-                             'light or flag is changed, no building is made and the map keeps its size')
+            raise BuildError('the project changes nothing in the map: no piece, effect, sound, lens flare or spawn point is moved, deleted or '
+                             'added, no light or flag is changed, no building is made, the map keeps its size and no '
+                             'spawn rule is set')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
         compiler.write_json(self.copies, self.native)
         self.compiled = report['counts']
-        foreign = sum(1 for c in self.natives if c.get('donor'))
+        # pieces, effects and sounds of other maps (the effects and sounds plan, FX4): the transplant stage's step
+        foreign = sum(1 for c in self.natives if c.get('donor')) + sum(
+            1 for k in EFFECT_LANES for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
         for row in self.left_out[:LEFT_OUT_SHOWN]:
             self.echo('left out: %s' % row['message'])
         # what the edit does to the missions the variant keeps (mission types plan, C3): the build window lists them by
         # mission; the build goes on
         mission_rows = [dict(mission=w.get('mission'), message=w['message'], **({'actor': w['actor']} if w.get('actor') else {}))
-                        for w in report.get('warnings') or [] if str(w.get('code', '')).startswith('mission-')]
+                        for w in report.get('warnings') or [] if str(w.get('code', '')).startswith(('mission-', 'spawn-'))]
         for row in mission_rows[:LEFT_OUT_SHOWN]:
             self.echo('mission: %s' % row['message'])
         self.stage('compile', spec=str(self.spec), nativeCopies=len(self.natives), families=list(self.enable),
@@ -886,17 +928,20 @@ class Build:
         self.stage('leftout', pieces=dropped[:LEFT_OUT_SHOWN], count=len(dropped), reason=why)
         if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                 or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.flags_edit):
+                or self.flags_edit or self.effects_edit):
             raise BuildError('nothing of the project can be built: its %d piece%s could not be made (%s)'
                              % (len(gone), '' if len(gone) == 1 else 's', why))
         return True
 
     def transplant(self):
-        """Pieces of other maps (the native edit's copies with a donor): each staged in a copy of the base map, with
-        what it depends on (tools/bake/transplant.py). The copier then reads the staged map and the edit naming the
-        staged actors. Without such a piece nothing is done."""
+        """Pieces of other maps (the native edit's copies with a donor), and effects and sounds of other maps (its
+        `effects`, `sounds` and `flares` lanes' copies with a donor: the effects and sounds plan, stage FX4): each staged in a
+        copy of the base map, with what it depends on (tools/bake/transplant.py). The copier then reads the staged map
+        and the edit naming the staged actors. Without such a piece nothing is done."""
         self.source, self.donors = self.base, []
-        if not any(c.get('donor') for c in self.natives):
+        foreign_effects = any(c.get('donor') for k in EFFECT_LANES
+                              for c in (self.native.get(k) or {}).get('copies') or [])
+        if not (any(c.get('donor') for c in self.natives) or foreign_effects):
             return
         out = self.work / 'transplant'
         self.run_tool([sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
@@ -909,29 +954,36 @@ class Build:
         except (OSError, ValueError, KeyError) as error:
             raise BuildError('transplant.py staged no map (%s); see %s' % (error, self.work / 'logs' / 'transplant.log'))
         self.donors = [dict(map=d['map'], sha256=d['sha256'], file=d['file'], pieces=d['pieces'],
-                            objectsBrought=d['objectsBrought'], objectsReused=d['objectsReused'], cut=d['cut'],
+                            effects=d.get('effects', 0), flares=d.get('flares', 0), objectsBrought=d['objectsBrought'],
+                            objectsReused=d['objectsReused'], cut=d['cut'], sizes=d.get('sizes', []),
                             bytes=d['bytes']) for d in report['donors']]
         self.stage('transplant', staged=str(self.source), foreignPieces=report['foreignPieces'],
-                   donors=[dict(map=d['map'], pieces=d['pieces'], objectsBrought=d['objectsBrought'], bytes=d['bytes'],
-                                cut=len(d['cut'])) for d in self.donors])
+                   donors=[dict(map=d['map'], pieces=d['pieces'], effects=d['effects'], flares=d['flares'],
+                                objectsBrought=d['objectsBrought'],
+                                bytes=d['bytes'], cut=len(d['cut']), otherSizes=len(d['sizes'])) for d in self.donors])
 
     def light(self):
         self.lit = self.work / 'lit'
         if self.quick:
             return self.edit_unbaked()
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit):
-            # landing-zone lines alone (Clear map plan, section 4): nothing in the map changes, so nothing is relit
-            return self.edit_unbaked()
-        if (self.covers or self.any_buildings or self.cleared or self.flags_edit) and not (
+                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit):
+            # landing-zone lines alone (Clear map plan, section 4), or a spawn rule (spawns plan, SP8): nothing in the
+            # map changes, so nothing is relit, and the variant reads the map's own lightmaps (lighting unchanged)
+            self.edit_unbaked()
+            self.unchanged = True
+            return
+        if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit) and not (
                 self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
             # volumes and lists, no light. A landing moved in place is relit: its grounded Skyranger casts a shadow,
-            # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same
+            # which goes with it (F-98). Pieces' flags alone are settings the game reads, not light: the same. So are
+            # effects and sounds moved, copied or deleted (the effects and sounds plan). The map is the base map, or
+            # the staged one with the effects and sounds of other maps in it (transplant)
             self.cache_name, self.unchanged = None, True
-            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.base, self.lit, self.variant, '--copies',
+            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
                            self.copies], self.work / 'logs' / 'native-copy.log')
             self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
                               lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record(),
@@ -1068,7 +1120,7 @@ class Build:
         self.cache_name = None
         self.unchanged = False
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.stream_tiles or self.flags_edit):
+                or self.moves_landings or self.stream_tiles or self.flags_edit or self.effects_edit):
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
             # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
             # other maps in it (transplant)
@@ -1250,6 +1302,10 @@ class Build:
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,
                              zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None)
+        if self.spawn_rules:
+            lines['dropInExclusion'] = drop_in_exclusion(self.lwr, self.variant)
+            if lines['dropInExclusion'].get('why'):
+                self.echo('spawn rule: nothing to write on this install: %s' % lines['dropInExclusion']['why'])
         if self.landing_zones and self.landing_zones.get('own'):
             # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
             lines['ownLandingGroups'] = self.own_landing_groups()
@@ -1257,7 +1313,8 @@ class Build:
                  for p in (Path(__file__).resolve(), TOOLS / 'editor' / 'compiler.py', PATCHTOOL, RELIGHT,
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
                            TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
-                           TOOLS / 'upk' / 'seed_map.py') if p.is_file()}
+                           TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
+                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py') if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
@@ -1279,8 +1336,12 @@ class Build:
                  families=list(self.enable),
                  nativeCopies=len(self.natives), nativeHides=len(self.native['hides']), coverBlocks=len(self.covers),
                  **({'pieceFlags': len(self.piece_flags)} if self.piece_flags else {}),
+                 **({'spawnEdits': dict(moved=self.spawn_edits['moves'], valued=self.spawn_edits['values'],
+                                        added=self.spawn_edits['copies'], deleted=self.spawn_edits['deletes'])}
+                    if any(self.spawn_edits.values()) else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
+                 foreignEffects=sum(d.get('effects', 0) for d in self.donors),
                  lights=self.lights,
                  lightingUnchanged=self.unchanged,
                  stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)

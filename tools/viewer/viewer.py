@@ -9,7 +9,7 @@ from pathlib import Path
 import socket
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
-from export import export_map, EXPORT_VERSION
+from export import export_map, stream_package, EXPORT_VERSION
 from catalogue import load_catalogue, public_catalogue, with_install
 from projects import ProjectError, ProjectStore
 from prefabs import MAX_PICTURE, PrefabStore
@@ -21,6 +21,7 @@ from play import Player
 from gamesetup import GameSetup
 from families import FamilyCache
 from collision import CollisionCache
+from audio import OggError, WaveCache, byte_range
 from generated import GeneratedError, Meshes as GeneratedMeshes
 from library import LibraryRunner, pieces_root
 from precache import PrecacheRunner
@@ -80,6 +81,21 @@ def landing_lines(map_id):
     return dict(kind=game_kind(game), file=str(ini), lines=[z for z in zones if not z.get('verbatim')])
 
 
+def spawn_rules(map_id):
+    """What the game install does with the map's spawn points (spawnrules.rules; editor spawns implementation plan,
+    SP2): read each time, as landing_lines is, with `excluded` (whether the install's ExcludeMaps names the map)."""
+    import spawnrules
+    try:
+        game, _ = resolve_game(load_settings()['game']) if load_settings().get('game') else (None, None)
+    except (OSError, ValueError):
+        game = None
+    try:
+        found = spawnrules.rules(game)
+    except (OSError, ValueError) as error:
+        found = dict(spawnrules.rules(None), error=str(error))
+    return dict(found, map=map_id, excluded=spawnrules.excluded(found, map_id))
+
+
 class LocalServer(ThreadingHTTPServer):
     allow_reuse_address = False
 
@@ -103,6 +119,8 @@ class Handler(SimpleHTTPRequestHandler):
     family_cache = FamilyCache()
     # each map's line-check collision by mesh (collision.py), its package read once per server
     collision_cache = CollisionCache()
+    # each wave the Effects view previews (audio.py), read from its package once and kept within a bound
+    wave_cache = WaveCache()
     # the meshes of pieces the Build makes from numbers (generated.py), kept by their numbers
     generated_meshes = GeneratedMeshes()
 
@@ -388,6 +406,11 @@ class Handler(SimpleHTTPRequestHandler):
             if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
             else: self.send_json(200, landing_lines(parts[1]))
             return True
+        if len(parts) == 3 and parts[0] == 'maps' and parts[2] == 'spawn-rules.json':
+            # the install's spawn mutators and their config (spawns plan SP2): read each time, never exported
+            if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
+            else: self.send_json(200, spawn_rules(parts[1]))
+            return True
         if len(parts) != 3 or parts[0] != 'maps' or parts[2] != 'families.json': return False
         entry = self.catalogue['maps'].get(parts[1])
         if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
@@ -416,6 +439,77 @@ class Handler(SimpleHTTPRequestHandler):
             except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra))
             except (OSError, ValueError, KeyError) as error: self.send_json(500, dict(error=f'Could not read the map\'s collision: {error}'))
         return True
+
+    # A sound's wave for the Effects view's Wave preview (audio.py): GET or HEAD /maps/<id>/wave.ogg?id=<wave id>, the
+    # id a key of the export's soundWaves ('<package>|<path>'). The Ogg stream is read from the package in the install
+    # (the map's own only while it is the file the map was exported from), checked, kept, and answered with its length,
+    # an ETag (If-None-Match: 304) and one byte range at a time (206; 416 outside it). An id the export doesn't list is
+    # 404, a wave it can't serve 422 with why: one bad wave never fails the map.
+    # GET or HEAD /library/wave.ogg?package=<map>&id=<wave id> is a wave of an effect or sound of another map (the Add
+    # panel's All maps; library.effect_records lists the donor's waves), read from that map in the install as it was
+    # when its records were made.
+    def handle_wave(self, method):
+        split = urlsplit(self.path)
+        parts = split.path.strip('/').split('/')
+        if parts == ['library', 'wave.ogg']: return self.library_wave(method, split)
+        if len(parts) != 3 or parts[0] != 'maps' or parts[2] != 'wave.ogg': return False
+        entry = self.catalogue['maps'].get(parts[1])
+        wave_id = (parse_qs(split.query).get('id') or [''])[0]
+        if method not in ('GET', 'HEAD'): self.send_json(405, dict(error='Not allowed.'))
+        elif not entry or entry.get('root') is None: self.send_json(404, dict(error='That map is not exported.'), body=method == 'GET')
+        else:
+            try:
+                root = Path(entry['root'])
+                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
+                find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
+                cooked = lambda: Path(find())
+                data, etag, record = self.wave_cache.get(
+                    root, scene, wave_id, find, lambda name: stream_package(cooked(), name))
+            except KeyError: self.send_json(404, dict(error='That wave is not one of this map\'s.'), body=method == 'GET')
+            except OggError as error: self.send_json(422, dict(error=f'The wave can\'t be played: {error}'), body=method == 'GET')
+            except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the wave: {error}'), body=method == 'GET')
+            else: self.send_wave(data, f'"{etag}"', method == 'GET')
+        return True
+
+    def library_wave(self, method, split):
+        query = parse_qs(split.query)
+        package, wave_id = (query.get('package') or [''])[0], (query.get('id') or [''])[0]
+        if method not in ('GET', 'HEAD'): self.send_json(405, dict(error='Not allowed.'))
+        elif self.library is None: self.send_json(404, dict(error='This server has no library.'), body=method == 'GET')
+        else:
+            try:
+                path, scene = self.library.wave_scene(package)
+                data, etag, _ = self.wave_cache.get('library:' + scene['name'], scene, wave_id, lambda: path, lambda name: None)
+            except KeyError: self.send_json(404, dict(error=f'That wave is not one of {package}\'s.'), body=method == 'GET')
+            except OggError as error: self.send_json(422, dict(error=f'The wave can\'t be played: {error}'), body=method == 'GET')
+            except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the wave: {error}'), body=method == 'GET')
+            else: self.send_wave(data, f'"{etag}"', method == 'GET')
+        return True
+
+    def send_wave(self, data, etag, body):
+        if etag in [t.strip() for t in self.headers.get('If-None-Match', '').split(',')]:
+            self.send_response(304)
+            self.send_header('ETag', etag)
+            self.end_headers()
+            return
+        span = byte_range(self.headers.get('Range'), len(data))
+        if span is False:
+            self.send_response(416)
+            self.send_header('Content-Range', f'bytes */{len(data)}')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        start, end = span or (0, len(data) - 1)
+        self.send_response(206 if span else 200)
+        self.send_header('Content-Type', 'audio/ogg')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('ETag', etag)
+        if span: self.send_header('Content-Range', f'bytes {start}-{end}/{len(data)}')
+        self.send_header('Content-Length', str(end - start + 1))
+        self.end_headers()
+        if body: self.wfile.write(data[start:end + 1])
 
     # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
     # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order.
@@ -547,6 +641,9 @@ class Handler(SimpleHTTPRequestHandler):
     # once (a prefab's first use), and answers {errors: [null or why]}; POST /library/pieces.json {sources} (at most 200)
     # answers the records themselves, {pieces: [{record} or {error}]}; GET and PUT /library/thumbs/<key>.png keep the thumbnails the page draws; GET and PUT
     # /library/state.json ({expectedRevision, document}) are the user's favourites and recently used pieces.
+    # GET /library/effect.json?package=&actor= is one effect or ambient sound of another map as a template (library.effect:
+    # its export 28 record, its particle system or waves), POST /library/effects.json {sources} (at most 200) many,
+    # {effects: [{record} or {error}]} (a project's opening).
     def handle_library(self, method):
         split = urlsplit(self.path)
         parts = split.path.strip('/').split('/')
@@ -585,6 +682,15 @@ class Handler(SimpleHTTPRequestHandler):
                 if not isinstance(sources, list) or len(sources) > 200 or not all(isinstance(s, dict) for s in sources):
                     raise ProjectError(400, 'Send {sources: [{package, level, actor}]}, at most 200.')
                 self.send_json(200, dict(pieces=self.library.records(sources)))
+            elif parts == ['library', 'effect.json'] and method == 'GET':
+                query = parse_qs(split.query)
+                self.send_json(200, self.library.effect({k: (query.get(k) or [''])[0] for k in ('package', 'level', 'actor')}))
+            elif parts == ['library', 'effects.json'] and method == 'POST':
+                request = self.body_json()
+                sources = request.get('sources') if isinstance(request, dict) else None
+                if not isinstance(sources, list) or len(sources) > 200 or not all(isinstance(s, dict) for s in sources):
+                    raise ProjectError(400, 'Send {sources: [{package, level, actor}]}, at most 200.')
+                self.send_json(200, dict(effects=self.library.effects(sources)))
             elif parts == ['library', 'state.json'] and method == 'GET': self.send_json(200, self.library.load_state())
             elif parts == ['library', 'state.json'] and method == 'PUT':
                 request = self.body_json()
@@ -681,7 +787,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_generated, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self):
@@ -696,7 +802,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
-        else: super().do_HEAD()
+        elif not self.handle_wave('HEAD'): super().do_HEAD()
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)
@@ -741,6 +847,12 @@ def running_viewer(port):
         return False
 
 
+def compiler_families():
+    """The compiler's families (compiler.FAMILIES), for serve --family's choices."""
+    import families
+    return families.compiler.FAMILIES
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="command",required=True)
@@ -760,6 +872,7 @@ def main():
     serve.add_argument("--builds",type=Path,help="Builds folder (default: the output setting); tests use a scratch folder")
     serve.add_argument("--squad",type=Path,help="The test squad's file (default: test-squad.json beside the settings): a test server points it at a scratch file, never the user's")
     serve.add_argument("--dry-play",action="store_true",help="Play in game does everything but start the game: for tests, with --install <a scratch game folder>")
+    serve.add_argument("--family",action="append",default=[],choices=sorted(f for f, v in compiler_families().items() if not v['builds']),help="A family the compiler doesn't build yet that this server's page edits and its Build makes, for an experiment's runs (as build.py --family; EXP-C: effect, sound)")
     serve.add_argument("--try-mission-lines",action="store_true",help="Play in game puts in every mission command not yet known to work (missions.LINES: the open line's content options, the civilians' looks, the UFO and council types), for the game runs that try them (EXP-53)")
     serve.add_argument("--install",type=Path,help="The game folder Play in game installs into and starts (default: the install setting, else the game install); tests use a scratch copy")
     conf = sub.add_parser("settings",help="Show the editor settings, or set them (a folder path, or an empty string to clear)")
@@ -860,7 +973,10 @@ def main():
         except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
         # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
         cache_root = args.scene.parent.parent if exact else args.scene
-        builds = BuildRunner(projects, cache_root, args.builds or settings['output'])
+        if args.family:
+            import families as family_table
+            family_table.ENABLED.update(args.family)
+        builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
         if not (WEB/"vendor/three/three.module.js").is_file():
             ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
         # Serving a cache root lists every map the game install plays; those not exported yet export on first open.

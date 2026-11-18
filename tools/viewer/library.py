@@ -7,6 +7,8 @@ placed can be placed in another map (tools/bake/transplant.py brings it and what
   load_index(cache)            the index, or None
   piece(cache, game, source)   one piece as a template: its scene objects, meshes, materials and textures, exported
                                into <cache>/library/pieces/<donor>/<sha16>-v<exporter>/ on first request
+  effect(cache, game, source)  one effect, ambient sound or lens flare as a template: its export 28 record, its
+                               particle system or waves (the donor's described once, effects-v<n>.json in the same folder)
   load_state(), save_state()   the user's favourites and recently used pieces: library.json beside settings.json
   LibraryRunner                the scan as the server runs it: one at a time, with its progress
 
@@ -31,6 +33,14 @@ The index (version 1):
 - An entry is one actor, or one assembly (the compiler's: a car's body, glass and parts; a door's leaf and frame; a
   van's parts): `assembly` {family, members: how many}, `source` its pivot (the body, the leaf), `family` the
   assembly's. Its parts are not entries of their own. A van's closure counts its building and floor volumes.
+- The base maps' effects (Emitter actors) and ambient sounds are entries too (the effects and sounds plan, Part E,
+  stage FX4): `family` effect or sound, `kind` the panel's (effects_library.kind_of: Fire, Engines, ...), `recipe`
+  effects_library's (so an effect placed the same way in two maps is one entry), no mesh or size; `system`,
+  `emitters` (its emitters' kinds), `lit`, `startsOn`, `scripted` for an effect, `waves`, `seconds`, `cue`,
+  `sharedCue` for a sound. One the editor can't bring (a landing's actor, one that rides on another, one that plays
+  nothing) is listed `blocked` 'unavailable' with the reason. A stream's are a mission's own and are not scanned.
+- The base maps' lens flares (LensFlareSource actors) are entries the same way since stage FX6b (index 10): `family`
+  flare, `kind` effects_library.FLARE_KIND, `flare` its template's path and `colour` its colour; no system, no waves.
 """
 import datetime
 import hashlib
@@ -54,12 +64,13 @@ from export_math import multiply, transform  # noqa: E402
 from projects import ProjectError  # noqa: E402
 from settings import resolve_game, settings_path  # noqa: E402
 
-INDEX_VERSION = 8       # 2: an entry says what blocks it (`blocked`), and the family gate is the compiler's;
+INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the family gate is the compiler's;
                         # 3: scanned with the families EXP-39 switched on, and assemblies are one entry each;
                         # 4: with cars and framed doors switched on (EXP-40 run 1); 5: and ladders (run 2);
                         # 6: an entry says how it is brought when that waits for a check (`held`);
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
-                        # 8: vans switched on (EXP-42)
+                        # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4: the
+                        # number itself stayed 8 until FX6b); 10: the base maps' lens flares (FX6b)
 PIECE_VERSION = 9       # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags
                         # (export 27's pieceFlags) and its meshes' collision facts
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
@@ -83,6 +94,12 @@ LINKED = ('XComDestructibleActor', 'XComFracLevelActor', 'XComDecoFracLevelActor
 LOOSE_LINKS = ('AffectedChildren',)
 # classes that are a map's own fixtures, not pieces
 LEFT_OUT = ('XComLevelVolume', 'XComBuildingVolume', 'XComFloorVolume')
+# the entries that are effects, ambient sounds and lens flares (no mesh: effect(), not piece(), reads them)
+EFFECT_FAMILIES = ('effect', 'sound', 'flare')
+# what an effect, sound or flare entry says of itself beside the mesh entries' fields
+EFFECT_FIELDS = ('system', 'emitters', 'lit', 'startsOn', 'scripted', 'waves', 'seconds', 'cue', 'sharedCue', 'flare',
+                 'colour')
+EFFECTS_VERSION = 1     # a donor's effects record (effect_records)
 THUMB_LIMIT = 512 << 10
 PNG = b'\x89PNG\r\n\x1a\n'
 
@@ -370,10 +387,85 @@ def scan_donor(job):
                                                                                  bytes=found['bytes']),
                                refused=found['refused'], cuts=found['cuts'], links=found['links'],
                                shelled=found['shelled']))
+        # a stream's effects are a mission's own (plan Part E): the base maps' only
+        effects = scan_effects(donor) if role == 'base' else []
         return dict(package=name, role=role, sha256=sha256(path), size=stat.st_size, mtime=int(stat.st_mtime),
-                    pieces=pieces)
+                    pieces=pieces, effects=effects)
     except Exception as error:  # noqa: BLE001 (one unreadable donor must not stop the scan)
         return dict(package=name, role=role, error='%s: %s' % (type(error).__name__, error))
+
+
+def scan_effects(donor):
+    """A base donor's effects, ambient sounds and lens flares as library pieces (effects_library.py; the effects and
+    sounds plan, Part E; flares since FX6b): [dict(kind, actor, key, recipe, name, actorClass, group, system, emitters,
+    lit, startsOn, scripted, waves, seconds, cue, sharedCue, flare, colour, closure, refused, cuts, reason)]. `reason`: why one can't be brought
+    (effects_library.blocked), with no closure worked out for it; `closure` what one copy brings into a map that has
+    none of it, worked out once per recipe."""
+    import effects_library
+    import effects_metadata
+    import transplant
+    p = donor.p
+    described = effects_metadata.describe(p)
+    systems, waves = described['systems'], described['waves']
+    out, closures = [], {}
+    for record in described['effects'] + described['sounds'] + described['flares']:
+        actor = p.by_name.get(record['actor'])
+        if actor is None:
+            continue
+        key = effects_library.recipe_key(record)
+        reason = effects_library.blocked(record)
+        if reason is None and key not in closures:
+            try:
+                plan = transplant.closure(donor, [actor], _Nowhere)
+                closures[key] = dict(closure=dict(objects=len(plan.bring),
+                                                  bytes=sum(p.exports[i - 1]['size'] for i in plan.bring)),
+                                     cuts=sorted({p.cls(ref) for _, ref in plan.cut}), refused=None)
+            except transplant.Refused as error:
+                closures[key] = dict(closure=None, cuts=[], refused=str(error))
+            except ValueError as error:
+                closures[key] = dict(closure=None, cuts=[], refused='could not be read: %s' % error)
+        found = closures.get(key) if reason is None else None
+        system = systems.get(record.get('system') or '') or {}
+        heard = [waves[w] for w in record.get('waves') or [] if w in waves]
+        cue = record.get('cue') or {}
+        out.append(dict(kind=record['kind'], actor=p.exports[actor - 1]['name'], key=key,
+                        recipe=effects_library.recipe(record), name=effects_library.name_of(record),
+                        actorClass=record['actorClass'],
+                        group=effects_library.kind_of(record['kind'], effects_library.kind_path(record)),
+                        system=record.get('template') if record['kind'] == 'effect' else None,
+                        flare=record.get('template') if record['kind'] == 'flare' else None,
+                        colour=record.get('colour') if record['kind'] == 'flare' else None,
+                        emitters=sorted({e['kind'] for e in system.get('emitters') or [] if e.get('kind')}),
+                        lit=bool(record.get('lit')), startsOn=record.get('startsOn'),
+                        scripted=bool(record.get('referencedBy')), waves=[w['path'] for w in heard],
+                        seconds=max((w['seconds'] or 0 for w in heard), default=None) if heard else None,
+                        cue=cue.get('path'), sharedCue=bool(cue) and not cue.get('private'),
+                        **(found or dict(closure=None, cuts=[], refused=None)), reason=reason))
+    return out
+
+
+def effect_reason(piece, families, placeable=None):
+    """reason_of for an effect, sound or lens flare: 'unavailable' (the editor can't bring it: its own map's data says why),
+    'closure' (something it needs can't be brought, or it names something of its map that doesn't come with it) or
+    'family' (the compiler's gate, FOREIGN_FAMILIES or `placeable`, which an experiment's build lifts)."""
+    if placeable is None:
+        import compiler
+        placeable = compiler.FOREIGN_FAMILIES
+    if piece.get('reason'):
+        return 'unavailable', 'It can\'t be brought into another map: %s.' % piece['reason']
+    if piece.get('refused'):
+        m = (re.search(r': an? ([A-Za-z0-9_]+) has \d+ bytes of native data', piece['refused'])
+             or re.search(r'\(([A-Za-z0-9_]+)\)', piece['refused']))
+        return 'closure', ('It needs %s, which can\'t be brought into another map yet.'
+                           % ('an object of class ' + m.group(1) if m else 'an object'))
+    if piece.get('cuts'):
+        return 'closure', ('It names %s of its own map, which doesn\'t come with it.'
+                           % ' and '.join(piece['cuts']))
+    family = piece['kind']
+    if family not in placeable or not families.get(family, {}).get('builds'):
+        what = families.get(family, {}).get('what') or 'a kind with no build recipe'
+        return 'family', 'It is %s: these come from other maps with a later step.' % what
+    return None, None
 
 
 def reason_of(piece, family, families, placeable=None):
@@ -430,7 +522,7 @@ def build_index(results, seconds=None):
             continue
         number = len(listed)
         listed.append(dict(package=r['package'], role=r['role'], sha256=r['sha256'], size=r['size'],
-                           mtime=r['mtime'], pieces=len(r['pieces'])))
+                           mtime=r['mtime'], pieces=len(r['pieces']), effects=len(r.get('effects') or [])))
         for piece in r['pieces']:
             whole = piece.get('assembly')
             family = whole['family'] if whole else compiler.CLASS_FAMILY.get(piece['actorClass'], 'other')
@@ -447,6 +539,20 @@ def build_index(results, seconds=None):
                 e['floorMaps'].add(number)
             # the exemplar: a placeable one before any other (then one only the family gate holds back), then the
             # fewest bytes brought, then by name
+            closure = piece['closure']
+            rank = ((None, 'family').index(blocked) if blocked in (None, 'family') else 2,
+                    closure['bytes'] if closure else 1 << 62, r['package'].lower(), piece['actor'])
+            if e['best'] is None or rank < e['best'][0]:
+                e['best'] = (rank, r['package'], piece, reason, blocked)
+        for piece in r.get('effects') or []:
+            # an effect, sound or flare (scan_effects): one entry per recipe, its exemplar ranked as a piece's is
+            blocked, reason = effect_reason(piece, compiler.FAMILIES)
+            e = entries.setdefault(piece['key'], dict(
+                key=piece['key'], name=piece['name'], family=piece['kind'], kind=piece['group'],
+                actorClass=piece['actorClass'], recipe=piece['recipe'], **{k: piece.get(k) for k in EFFECT_FIELDS},
+                count=0, donors=set(), floorMaps=set(), best=None))
+            e['count'] += 1
+            e['donors'].add(number)
             closure = piece['closure']
             rank = ((None, 'family').index(blocked) if blocked in (None, 'family') else 2,
                     closure['bytes'] if closure else 1 << 62, r['package'].lower(), piece['actor'])
@@ -775,6 +881,147 @@ def piece(cache, game, source, shared=None):
     return out
 
 
+# ---------------------------------------------------------------------------------------------------- effects and sounds
+def donor_path(game, package, shared):
+    """The install's file of the donor map `package` (ProjectError 404 donor-missing when it has none)."""
+    if 'donors' not in shared:
+        shared['donors'] = donors(game)
+    path = next((p for name, _, p in shared['donors'] if name.lower() == str(package).lower()), None)
+    if path is None:
+        raise ProjectError(404, 'The map %s, which the effect comes from, is not in the game install.' % package,
+                           code='donor-missing')
+    return path
+
+
+def effect_records(cache, game, package, shared=None):
+    """A donor map's effects, ambient sounds and lens flares as export 28 describes a map's (effects_metadata.describe), kept in
+    its pieces folder (<cache>/library/pieces/<donor>/<generation>/effects-v<n>.json) once read: dict(version,
+    metadata, source {kind 'map', package, level, sha256}, effects, sounds, flares, systems, waves). `shared` as
+    piece()'s."""
+    import effects_metadata
+    from export import EXPORT_VERSION
+    from package import Package
+    shared = {} if shared is None else shared
+    path = donor_path(game, package, shared)
+    digest = digest_of(path)
+    folder = pieces_root(cache) / path.stem / ('%s-v%d' % (digest[:16], EXPORT_VERSION))
+    record = folder / ('effects-v%d.json' % EFFECTS_VERSION)
+    known = shared.setdefault('effects', {})
+    if str(record) in known:
+        return known[str(record)]
+    if record.is_file():
+        try:
+            kept = json.loads(record.read_text(encoding='utf-8'))
+            if (kept.get('version') == EFFECTS_VERSION and kept.get('metadata') == effects_metadata.METADATA_VERSION
+                    and kept['source']['sha256'] == digest):
+                known[str(record)] = kept
+                return kept
+        except (ValueError, KeyError, TypeError):
+            pass
+    p = shared.setdefault('packages', {}).get(str(path))
+    if p is None:
+        p = shared['packages'][str(path)] = Package(path)
+    out = dict(version=EFFECTS_VERSION, metadata=effects_metadata.METADATA_VERSION,
+               source=dict(kind='map', package=path.stem, level='base', sha256=digest), **effects_metadata.describe(p))
+    folder.mkdir(parents=True, exist_ok=True)
+    part = record.with_suffix('.json.part')
+    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
+    os.replace(part, record)
+    known[str(record)] = out
+    return out
+
+
+def effect_draw(cache, game, package, system, shared=None):
+    """What the page draws a donor map's particle system from (the effects and sounds plan, Part J1; export 29's
+    effects_draw): its record with `draw` on each emitter, and the textures, meshes and materials the drawing names,
+    written into the donor's pieces folder as a piece's are: dict(version, system, base, meshes, materials,
+    textures). Kept beside them once read (draw-v<n>-<the system's fingerprint>.json). `system` is its record as
+    effect_records gives it."""
+    import copy
+    import effects_draw
+    import effects_metadata
+    from export import EXPORT_VERSION, Exporter, compiled_textures
+    from package import Package
+    shared = {} if shared is None else shared
+    path = donor_path(game, package, shared)
+    digest = digest_of(path)
+    generation = '%s-v%d' % (digest[:16], EXPORT_VERSION)
+    folder = pieces_root(cache) / path.stem / generation
+    record = folder / ('draw-v%d-%s.json' % (effects_draw.DRAW_VERSION, system['fingerprint']))
+    if record.is_file():
+        try:
+            kept = json.loads(record.read_text(encoding='utf-8'))
+            if kept.get('version') == effects_draw.DRAW_VERSION:
+                return kept
+        except ValueError:
+            pass
+    p = shared.setdefault('packages', {}).get(str(path))
+    if p is None:
+        p = shared['packages'][str(path)] = Package(path)
+    folder.mkdir(parents=True, exist_ok=True)
+    exporter = Exporter(p, folder, namespace='lib-' + path.stem)
+    drawn = copy.deepcopy(system)
+    defaults = shared.setdefault('effect_defaults', {}).get(str(path))
+    if defaults is None:
+        defaults = shared['effect_defaults'][str(path)] = effects_metadata.Defaults(p)
+    effects_draw.attach(p, defaults, {'one': drawn}, exporter, compiled_textures, effects_draw.RULES, exporter.warn)
+    out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),
+               meshes=exporter.meshes, materials=exporter.materials,
+               textures={k: v for k, v in exporter.textures.items() if v})
+    part = record.with_suffix('.json.part')
+    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
+    os.replace(part, record)
+    return out
+
+
+def effect(cache, game, source, shared=None):
+    """One effect, ambient sound or lens flare of a donor map, `source` ({package, level, actor}), as a template for the page
+    and the compiler (the effects and sounds plan, Part E): dict(version, kind, key, source {kind 'map', package,
+    level, actor, sha256}, record (export 28's, as effects_metadata gives it), systems {id: its particle system},
+    waves {id: each wave it reaches}). `key` is its recipe's (effects_library.recipe_key), the index's entry key.
+    An effect's system comes with its draw data (effect_draw), and `draw`: dict(base, meshes, materials, textures),
+    what that drawing names. A lens flare's template has its record alone (no system, no waves, no drawing)."""
+    import effects_library
+    package, actor = str(source.get('package') or ''), str(source.get('actor') or '')
+    if not NAME.fullmatch(package) or not NAME.fullmatch(actor):
+        raise ProjectError(400, 'An effect is named by its map and its actor.')
+    if (source.get('level') or 'base') != 'base':
+        raise ProjectError(400, 'Only the effects, sounds and lens flares of a map\'s own level can be taken.')
+    records = effect_records(cache, game, package, shared)
+    want = LEVEL + '.' + actor
+    record = next((r for r in records['effects'] + records['sounds'] + (records.get('flares') or [])
+                   if r['actor'] == want), None)
+    if record is None:
+        raise ProjectError(404, '%s has no effect, ambient sound or lens flare called %s.' % (records['source']['package'], actor),
+                           code='effect-missing')
+    systems = records.get('systems') or {}
+    waves = records.get('waves') or {}
+    one, draw = {}, None
+    if systems.get(record.get('system')):
+        one = {record['system']: systems[record['system']]}
+        try:
+            drawn = effect_draw(cache, game, package, systems[record['system']], shared)
+            one = {record['system']: drawn['system']}
+            draw = {k: drawn[k] for k in ('base', 'meshes', 'materials', 'textures')}
+        except (OSError, ValueError, KeyError, IndexError, struct.error):
+            pass                # its marker and its values without a likeness
+    return dict(version=EFFECTS_VERSION, kind=record['kind'], key=effects_library.recipe_key(record),
+                source=dict(records['source'], actor=actor), record=record, systems=one, draw=draw,
+                waves={w: waves[w] for w in record.get('waves') or [] if w in waves})
+
+
+def read_effects(cache, game, sources):
+    """Yield (template, error) for each requested effect or sound, the donors read once for the batch."""
+    shared = {}
+    for source in sources:
+        try:
+            yield effect(cache, game, source, shared), None
+        except ProjectError as error:
+            yield None, error
+        except (OSError, ValueError, KeyError, struct.error) as error:
+            yield None, ProjectError(422, 'it could not be read (%s)' % error, code='effect-unreadable')
+
+
 # ---------------------------------------------------------------------------------------------------- every piece ahead
 # The cache filled ahead of use (precache.py, the page's Project menu): every piece the index lists, exported as
 # piece() exports one on first use, a donor map to a worker.
@@ -801,6 +1048,8 @@ def piece_plan(cache, game, index):
     scanned = {d['package'].lower(): d for d in index['donors']}
     by = {}
     for entry in index['entries']:
+        if entry.get('family') in EFFECT_FAMILIES:
+            continue        # nothing to export ahead: effect() reads the donor's records on first use
         source = entry['source']
         by.setdefault(source['package'], []).append(source['actor'])
     plan = []
@@ -1082,6 +1331,26 @@ class LibraryRunner:
         with self.piece_lock:
             return [dict(error=error.message) if error else dict(record=record)
                     for record, error in read_pieces(self.cache, self.install(), sources)]
+
+    def effect(self, source):
+        with self.piece_lock:
+            return effect(self.cache, self.install(), source)
+
+    def effects(self, sources):
+        """Many effects' and sounds' templates in one answer (a project's opening): [{record} or {error}]."""
+        with self.piece_lock:
+            return [dict(error=error.message) if error else dict(record=record)
+                    for record, error in read_effects(self.cache, self.install(), sources)]
+
+    def wave_scene(self, package):
+        """(the donor's file, its records as an export's: what viewer.py's WaveCache reads a wave by) for the Wave
+        preview of an effect or sound from the map `package`."""
+        with self.piece_lock:
+            game, shared = self.install(), {}
+            records = effect_records(self.cache, game, package, shared)
+            path = donor_path(game, package, shared)
+        return path, dict(name=records['source']['package'], soundWaves=records.get('waves') or {}, streams={},
+                          source=dict(file=str(path), sha256=records['source']['sha256']))
 
     def recover_prefab(self, document):
         from prefabs import recover_sources

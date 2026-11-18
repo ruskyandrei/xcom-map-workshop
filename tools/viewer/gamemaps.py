@@ -2,15 +2,16 @@
 now, what the editor changed of them, and undoing that.
 
 One row per record. The install's own records say whether they are in use: live; commented out because a project's
-build replaces their map (the project manager's Replace: manager.py, installs.install_rotation); switched off by hand
+build replaces them (the project manager's Replace: manager.py, installs.install_rotation; only the records of the
+missions the build has records for, installs.replaced_records); switched off by hand
 here; or commented out by the install itself (shown, never changed). The records the editor added sit under their base
 map: a build's records for campaigns, and the one Play in game adds for a build. Everything comes from the editor's
 ledger in the install (installs.py), so only its own changes can be undone, and undone they leave the file's lines as
 the install had them.
 
 Switching one of the install's records off comments its line out (a ';' before it), which is known to stop the game
-using it (bInRotation=False is not); switching it on takes the ';' off again. A record whose map is replaced stays
-off while it is.
+using it (bInRotation=False is not); switching it on takes the ';' off again. A record a build replaces stays off
+while it does.
 
   GET  /gamemaps.json     the install, its records by map, and what the editor has in it
   POST /gamemaps/use      {"records": [id...], "use": true | false}: the install's own records switched on or off
@@ -58,9 +59,9 @@ def listing(player):
     off = {c['original'] for c in ledger.get('linesOff') or []}
     manual = set(ledger.get('manualOff') or [])
     rotation = ledger.get('rotation') or []
-    replaced = {}
-    for entry in rotation:
-        if entry['mode'] == 'replace': replaced.setdefault(entry['base'], []).append((entry.get('project') or {}).get('name') or entry['variant'])
+    # each record a build replaces, with the projects replacing it (only the records the builds have records for)
+    replaced = {text: [(e.get('project') or {}).get('name') or e['variant'] for e in entries]
+                for text, entries in installs.replaced_records(ledger, pristine).items()}
     maps, order = {}, []
 
     def entry_of(name):
@@ -73,8 +74,8 @@ def listing(player):
             name = dep.field(line, 'Name')
             if not name: continue
             text = line.decode('latin-1')
-            state = 'replaced' if name in replaced and text in off else 'off' if text in off else 'on'
-            row = _row(line, kind='own', state=state, manual=text in manual, by=replaced.get(name) if state == 'replaced' else None)
+            state = 'replaced' if text in replaced and text in off else 'off' if text in off else 'on'
+            row = _row(line, kind='own', state=state, manual=text in manual, by=replaced.get(text) if state == 'replaced' else None)
             entry_of(name)['records'].append(row)
             entry_of(name)['displays'].append(row['display'])
         else:

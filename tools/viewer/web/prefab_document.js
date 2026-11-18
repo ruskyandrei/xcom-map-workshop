@@ -47,7 +47,8 @@ export function reconcilePrefab(pieces, buildings, groups) {
       for (const parent of tree.values()) parent.members = parent.members.flatMap(m => m.group === id ? g.members : [m]);
     }
   }
-  return { pieces: pieces.map(p => p.from ? { ...p, partner: actors.has(p.partner) ? p.partner : null } : p), groups: [...tree.values()] };
+  // (an effect or a sound has a source and no partner)
+  return { pieces: pieces.map(p => p.from && !p.kind ? { ...p, partner: actors.has(p.partner) ? p.partner : null } : p), groups: [...tree.values()] };
 }
 export function orderedWrites() {
   let tail = Promise.resolve();

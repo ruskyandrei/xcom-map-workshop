@@ -11,6 +11,23 @@ TILE_SIZE = [96, 96, 64]
 BOX_NOTE = 0.01
 
 
+def level_list(p):
+    """The persistent level's actor list as a set of export indices (export 33: the effects, the spawn points and the
+    mission objects read it here; tools/bake/native_copy.level_actors is the Build's ordered copy). None where the
+    package has no persistent level or its native data does not start with the list."""
+    level = p.by_name.get("TheWorld.PersistentLevel")
+    if level is None:
+        return None
+    try:
+        _, end = p.properties(level)
+        owner, count = struct.unpack_from("<ii", p.data, end)
+        if owner != level or not 0 <= count < 1_000_000:
+            return None
+        return set(struct.unpack_from("<%di" % count, p.data, end + 8))
+    except (ValueError, struct.error):
+        return None
+
+
 def tile_header(p, container):
     """The tile counts [nx, ny, nz] in the header of a world data container's first store."""
     r = p.native(container)
@@ -353,13 +370,22 @@ def effect_metadata(p):
     """The persistent level's effects (export 23; the user, 13 November 2026: the export carries them for the editor's
     effects to come): [dict(actor (path), location, rotation, scale (DrawScale3D times DrawScale), template (the
     particle system's path or None), listed (in the level's actor list), hidden (bHidden), prefab (its prefab
-    instance's name or None), carriedBy (the piece's path, EFFECT_SAME's rule, or None))], by actor."""
+    instance's name or None), carriedBy (the piece's path, or None), carriedHow ('place': EFFECT_SAME's rule; 'prefab':
+    the effect is placed by a prefab instance at whose own place exactly one mesh piece stands, as the fog pod's five
+    smoke emitters stand around the pod (F-50; the effects and sounds plan, stage FX6b); None))], by actor."""
+    origins = {}
+
+    def at_origin(prefab):
+        # the pieces standing at a prefab instance's own place
+        if prefab not in origins:
+            instance = p.by_name.get("TheWorld.PersistentLevel." + prefab)
+            at = p.effective(instance, "Location", [0.0, 0.0, 0.0]) if instance else None
+            origins[prefab] = [] if at is None else [n for n, where in pieces if all(abs(where[k] - at[k]) <= EFFECT_SAME for k in range(3))]
+        return origins[prefab]
     level = p.by_name.get("TheWorld.PersistentLevel")
     if level is None:
         return []
-    _, end = p.properties(level)
-    owner, count = struct.unpack_from("<ii", p.data, end)
-    listed = set(struct.unpack_from("<%di" % count, p.data, end + 8)) if owner == level else set()
+    listed = level_list(p) or set()
     members = prefab_members(p)
     pieces, effects = [], []
     for index, name in enumerate(p.paths, 1):
@@ -376,13 +402,18 @@ def effect_metadata(p):
         component = p.effective(index, "ParticleSystemComponent", 0) or 0
         template = p.effective(component, "Template", 0) if component > 0 else 0
         on = [n for n, at in pieces if all(abs(at[k] - location[k]) <= EFFECT_SAME for k in range(3))]
+        prefab = str(members[index]).rsplit(".", 1)[-1] if index in members else None
+        how = "place" if len(on) == 1 else None
+        # no piece at its own place, or several: the one piece at its prefab's place carries it
+        if how is None and prefab and index in listed and len(at_origin(prefab)) == 1:
+            on, how = at_origin(prefab), "prefab"
         out.append(dict(actor=p.paths[index - 1], location=location,
                         rotation=[int(v) for v in p.effective(index, "Rotation", [0, 0, 0])],
                         scale=[float(v) * float(p.effective(index, "DrawScale", 1.0)) for v in p.effective(index, "DrawScale3D", [1.0, 1.0, 1.0])],
                         template=p.name(template) if template else None, listed=index in listed,
                         hidden=bool(p.effective(index, "bHidden", False)),
-                        prefab=str(members[index]).rsplit(".", 1)[-1] if index in members else None,
-                        carriedBy=on[0] if len(on) == 1 and index in listed else None))
+                        prefab=prefab, carriedBy=on[0] if how and index in listed else None,
+                        carriedHow=how if how and index in listed else None))
     return sorted(out, key=lambda e: e["actor"])
 
 
@@ -580,23 +611,23 @@ def mission_objects(p, warn=None):
     a wave system's groups, a capture volume), group (the group it moves with, or None), role (its part in the
     group))], by actor. Kinds: MISSION_CLASSES's, an XComSpawnPoint's by its unit type (UNIT_KINDS, else "point"),
     the bomb and a power node ("bomb", "powerNode") and their parts ("part"). Group ids: "bomb",
-    "node:<the node's actor>", "capture:<the volume's actor>"."""
+    "node:<the node's actor>", "capture:<the volume's actor>".
+    Export 33 (SP1): each record also carries SpawnReader.record's listed, savesRotation, based, values, other, links
+    and uses; a PointInSpace within NEAR_2D of the bomb joins its group (role "point"), as XComBombMutator.FindBomb
+    collects it (F-124)."""
     level = p.by_name.get("TheWorld.PersistentLevel")
     if level is None: return []
-    kismet = kismet_references(p, warn)
+    reader = SpawnReader(p, warn)
+    kismet = reader.kismet
     out, by_index = [], {}
 
     def record_of(index, kind, unit=None):
-        name, cls = p.name(index), p.cls(index)
-        arch = p.exports[index - 1]["arch"]
-        location = [float(v) for v in p.effective(index, "Location", [0.0, 0.0, 0.0])]
-        rotation = [int(v) for v in p.effective(index, "Rotation", [0, 0, 0])]
-        tag = p.effective(index, "Tag")
-        box = volume_bounds(p, index) if cls.endswith("Volume") else None
-        return dict(actor=name, actorClass=cls, kind=kind, location=location, rotation=rotation,
-                    archetype=p.name(arch).rsplit(".", 1)[-1] if arch else None, tag=str(tag) if tag else None,
-                    unitType=unit, box=box, referencedBy=list(kismet.get(index, [])), group=None, role=None)
+        record = reader.record(index, kind)
+        record.pop("landing", None)
+        record.update(unitType=unit, referencedBy=list(kismet.get(index, [])), group=None, role=None)
+        return record
 
+    found = []
     for index, name in enumerate(p.paths, 1):
         if p.exports[index - 1]["outer"] != level: continue
         cls = p.cls(index)
@@ -615,9 +646,16 @@ def mission_objects(p, warn=None):
             elif (cls, short) in NODE_PARTS:
                 kind = kind or "part"
             if kind is None: continue
-            record = record_of(index, kind, unit)
         except Exception as error:      # noqa: BLE001
             if warn: warn(name, f"mission object not read: {error}")
+            continue
+        found.append((index, kind, unit))
+    reader.collect_incoming([i for i, _, _ in found])
+    for index, kind, unit in found:
+        try:
+            record = record_of(index, kind, unit)
+        except Exception as error:      # noqa: BLE001
+            if warn: warn(p.name(index), f"mission object not read: {error}")
             continue
         out.append(record)
         by_index[index] = record
@@ -639,6 +677,20 @@ def mission_objects(p, warn=None):
         for test, role in ((rebuild, "rebuild"), (lambda r: r["actorClass"] == "XComSquadVisiblePoint", "visible")):
             hit = nearest(test, bomb["location"])
             if hit: hit.update(group="bomb", role=role)
+        # every PointInSpace within reach (FindBomb's ArrPoints; it needs one): the arrow's and camera's helper,
+        # 2.5 units across and 204.5 above the bomb on Slaughterhouse's stream
+        for index, name in enumerate(p.paths, 1):
+            if p.cls(index) != "PointInSpace" or p.exports[index - 1]["outer"] != level or index in by_index: continue
+            try:
+                at = p.effective(index, "Location", [0.0, 0.0, 0.0])
+                if not near(at, bomb["location"]): continue
+                helper = record_of(index, "part")
+            except Exception as error:      # noqa: BLE001
+                if warn: warn(name, f"the bomb's helper point not read: {error}")
+                continue
+            helper.update(group="bomb", role="point")
+            out.append(helper)
+            by_index[index] = helper
     # each power node: its button and emitters within reach, and the nearest rebuild volume within reach
     for node in [r for r in out if r["kind"] == "powerNode"]:
         gid = "node:" + node["actor"].rsplit(".", 1)[-1]
@@ -687,3 +739,367 @@ def mission_objects(p, warn=None):
             if warn: warn(record["actor"], f"wave groups not read: {error}")
     for r in out: r["referencedBy"] = sorted(set(r["referencedBy"]))
     return sorted(out, key=lambda r: r["actor"])
+
+
+# ---------------------------------------------------------------- spawn points and who uses them (export 33)
+# private/plans/todo/editor-spawns-implementation-plan.md, SP1: the base map's pods, Meld points, drop-in points,
+# soldier and other points, starts, alien path nodes and no-spawn volumes, each with its values and where each came
+# from, its outgoing links and what uses it. A mission stream's pods, Meld points and drop-ins carry the same through
+# mission_objects. Read only.
+LEVEL_PATH = "TheWorld.PersistentLevel"
+SPAWN_BASE_CLASSES = ("XComMeldContainerSpawnPoint", "XComSpawnPoint", "XComSpawnPoint_Alien", "PlayerStart",
+                      "XComAlienPathNode", "XComNoSpawnVolume")
+# a family's values: (name in the export, the game's property, the type's zero where no default saves one). Names
+# from the game's scripts (<lab>\reference\XComGame-decompiled: XComAlienPod, XComMeldContainerSpawnPoint,
+# XComSpawnPoint, XComSpawnPoint_Alien), checked on URB_Bar's pods and Meld points on 18 November 2026.
+SPAWN_VALUES = {
+    "pod": (("podIndex", "PodIndex", 0), ("commander", "bCommanderPod", False), ("secondary", "bSecondaryPod", False),
+            ("use", "bUse", False), ("numAliens", "NumAliens", 0), ("aliensMin", "NumAliens_Min", 0), ("aliensMax", "NumAliens_Max", 0),
+            ("podGroup", "m_iPodGroup", 0), ("forceType", "ForceAlienType", False), ("alienType", "AlienType", None),
+            ("triggerOnView", "bTriggerOnViewPod", False), ("neverActivate", "bNeverActivate", False)),
+    "meld": (("difficulty", "m_eDifficulty", "eMeldContainerDifficulty_Easy"), ("destroyedOnTurn", "m_iDestroyedOnTurn", 0),
+             ("spawnGroup", "m_iSpawnGroup", 0), ("countdownWhenSeen", "m_bBeginCountdownWhenSeen", False)),
+    "dropIn": (("behaviour", "m_eBehavior", "EAIBehavior_None"), ("forcePlacement", "m_bForcePlacement", False),
+               ("kismetOnly", "bKismetSpawnOnly", False), ("seekRadius", "fSeekRadius", 0.0)),
+    "point": (("unitType", "UnitType", "UNIT_TYPE_Soldier"),),
+}
+# enum values shown without their enum's prefix (the writer puts it back: SP6)
+ENUM_PREFIX = {"m_eDifficulty": "eMeldContainerDifficulty_", "m_eBehavior": "EAIBehavior_"}
+# what an actor saves that is no value or link of its own: placing, drawing, collision and the editor's own
+PLUMBING = frozenset({
+    "Location", "Rotation", "Tag", "Base", "RelativeLocation", "RelativeRotation", "bDirtyComponents", "bEdShouldSnap",
+    "CreationTime", "CollisionComponent", "CylinderComponent", "Components", "LightEnvironment", "PodMesh",
+    "CenterpieceMesh", "NavGuid", "DrawScale", "DrawScale3D", "Brush", "BrushComponent", "Layer", "bHidden", "Name",
+    "ObjectArchetype", "bCollideActors", "bBlockActors", "bPathColliding", "bHiddenEd", "bHiddenEdGroup", "Sprite",
+    "GoodSprite", "BadSprite", "Arrow", "nextNavigationPoint", "PathList", "MaxPathSize", "Cost", "bForceNoStrafing",
+    "VisitedWeight", "bestPathWeight", "VolumeTreeNode", "bHasCrossLevelPaths", "NetworkID", "bDestinationOnly",
+    "bMustBeReachable", "bBlocked", "bOneWayPath", "bNoAutoConnect", "bNotBased", "bTempNoCollide", "bPathsChanged",
+    "bAlreadyVisited", "bHasUnresolvedCrossLevelPaths", "EditorProbeCollision", "PathIndex", "BlockedFlag", "Owner",
+})
+ROLE_ORIGIN = {"SpawnPoints": "destination", "OriginationPoints": "origin"}
+
+
+def spawn_family(cls):
+    """Which SPAWN_VALUES family a class's values are read by, or None."""
+    if cls.startswith("XComAlienPod"): return "pod"
+    if cls == "XComMeldContainerSpawnPoint": return "meld"
+    if cls == "XComSpawnPoint_Alien": return "dropIn"
+    if cls == "XComSpawnPoint": return "point"
+    return None
+
+
+def _short(path):
+    return str(path).rsplit(".", 1)[-1]
+
+
+def _sequence(p, i):
+    c = p.cls(i)
+    return c.startswith("Seq") or c in ("Sequence", "PrefabSequence")
+
+
+def _link_text(raw):
+    n = struct.unpack_from("<i", raw)[0] if isinstance(raw, (bytes, bytearray)) and len(raw) >= 4 else 0
+    if n > 0: return raw[4:4 + n - 1].decode("latin-1")
+    if n < 0: return raw[4:4 - 2 * n - 2].decode("utf-16-le")
+    return ""
+
+
+def _ref_values(p, item, keep):
+    """The export references an ObjectProperty or an array of plain references holds, kept by `keep` (an array of
+    other 4-byte values whose entries all happen to pass would read as references too: kismet_references' rule)."""
+    kind, value = item["kind"], item["value"]
+    if kind == "ObjectProperty" and isinstance(value, int):
+        return [value] if keep(value) else []
+    if kind == "ArrayProperty" and isinstance(value, (bytes, bytearray)) and len(value) >= 8:
+        n = struct.unpack_from("<i", value)[0]
+        if n > 0 and len(value) == 4 + 4 * n:
+            found = list(struct.unpack_from(f"<{n}i", value, 4))
+            if all(keep(v) for v in found): return found
+    return []
+
+
+def kismet_uses(p, warn=None):
+    """Placed actor (export index) -> what of the package's Kismet uses it, structured (export 33): [dict(by (the
+    sequence object's short name), byClass, how, link)], how one of
+    - 'direct': an action whose variable link holds the actor (URB_PierA_Stream's SeqAct_SpawnAlien_4 SpawnPoints),
+      or a sequence object that names it itself (an event's Originator);
+    - 'indirect': an object-list action stands between (SeqAct_AccessObjectList "Object List"); `then` names the
+      actions its other variables feed;
+    - 'variable': a variable holds it and no action reads that variable.
+    The walk is kismet_references' (sequence objects' own object properties and plain reference arrays)."""
+    level = p.by_name.get(LEVEL_PATH)
+
+    def placed(i): return 0 < i <= len(p.exports) and p.exports[i - 1]["outer"] == level and not _sequence(p, i)
+    named, users, links = {}, {}, {}
+    for i in range(1, len(p.exports) + 1):
+        if not _sequence(p, i) or p.exports[i - 1]["outer"] <= 0: continue
+        try:
+            for (key, slot), item in p.properties(i)[0].items():
+                for v in _ref_values(p, item, placed):
+                    named.setdefault(i, []).append((v, key if not slot else f"{key}[{slot}]"))
+                if key == "VariableLinks" and item["kind"] == "ArrayProperty":
+                    for row in p.structs(item["value"]):
+                        linked = row.get(("LinkedVariables", 0), {}).get("value")
+                        desc = _link_text(row.get(("LinkDesc", 0), {}).get("value"))
+                        for var in p.refs(linked) if linked else []:
+                            users.setdefault(var, []).append((i, desc))
+                            links.setdefault(i, []).append(var)
+        except Exception as error:      # noqa: BLE001
+            if warn: warn(p.name(i), f"Kismet uses not read: {error}")
+    out = {}
+    for i, refs in named.items():
+        for actor, prop in refs:
+            rows = out.setdefault(actor, [])
+            if not users.get(i):
+                how = "variable" if p.cls(i).startswith("SeqVar") else "direct"
+                rows.append(dict(by=_short(p.name(i)), byClass=p.cls(i), how=how, link=prop))
+                continue
+            for op, desc in users[i]:
+                use = dict(by=_short(p.name(op)), byClass=p.cls(op), how="direct", link=desc)
+                if "ObjectList" in p.cls(op):
+                    use["how"] = "indirect"
+                    use["then"] = sorted({_short(p.name(o)) for v in links.get(op, []) if v != i
+                                          for o, _ in users.get(v, []) if o != op})
+                rows.append(use)
+    for actor, rows in out.items():
+        seen, unique = set(), []
+        for r in rows:
+            key = (r["by"], r["how"], r["link"])
+            if key not in seen:
+                seen.add(key)
+                unique.append(r)
+        out[actor] = unique
+    return out
+
+
+def wave_uses(p, warn=None):
+    """Placed actor -> its places in the level's wave systems (export 33): [dict(how='wave', by, set, wave, group,
+    index, role)], set/wave/group/index counted from 1, role 'destination' (a group's SpawnPoints) or 'origin' (its
+    OriginationPoints, paired with a destination by index: XComWaveSystem.SpawnGroup)."""
+    level = p.by_name.get(LEVEL_PATH)
+    out = {}
+    for index, name in enumerate(p.paths, 1):
+        if p.cls(index) != "XComWaveSystem" or p.exports[index - 1]["outer"] != level: continue
+        try:
+            for s, row in enumerate(p.structs(p.own(index, "m_arrAlienSets"))):
+                for w, wave in enumerate(p.structs(row.get(("Waves", 0), {}).get("value"))):
+                    for g, group in enumerate(p.structs(wave.get(("Groups", 0), {}).get("value"))):
+                        for key, role in ROLE_ORIGIN.items():
+                            raw = group.get((key, 0), {}).get("value")
+                            for k, ref in enumerate(_ref_array(p, raw, lambda r: r > 0) if raw else []):
+                                out.setdefault(ref, []).append(dict(how="wave", by=_short(name), set=s + 1, wave=w + 1,
+                                                                    group=g + 1, index=k + 1, role=role))
+        except Exception as error:      # noqa: BLE001
+            if warn: warn(name, f"wave groups not read: {error}")
+    return out
+
+
+def pod_events(p, defaults=None, warn=None):
+    """Pod index -> the package's SeqEvent_OnRevealPod events that fire for it (XComAlienPodManager: an event fires
+    for the pod whose PodIndex is its thisPodID; one that saves none has the class's, 0): [dict(by, podId,
+    staticOnly)]."""
+    out = {}
+    for i, name in enumerate(p.paths, 1):
+        if p.cls(i) != "SeqEvent_OnRevealPod": continue
+        try:
+            if defaults is not None:
+                pod, _ = defaults.value(i, "thisPodID", 0)
+                static, _ = defaults.value(i, "staticMapPodsOnly", False)
+            else:
+                pod, static = p.own(i, "thisPodID", 0), p.own(i, "staticMapPodsOnly", False)
+            out.setdefault(int(pod or 0), []).append(dict(by=_short(name), podId=int(pod or 0), staticOnly=bool(static)))
+        except Exception as error:      # noqa: BLE001
+            if warn: warn(name, f"pod event not read: {error}")
+    return out
+
+
+class SpawnReader:
+    """What a package says of its spawn points, read once: the level's list, the class defaults, the Kismet's uses,
+    the wave systems', the pod events, and typed references between placed actors (export 33)."""
+
+    def __init__(self, p, warn=None, defaults=None):
+        self.p, self.warn = p, warn
+        self.level = p.by_name.get(LEVEL_PATH)
+        self.listed = level_list(p)
+        if defaults is None:
+            try:
+                import effects_metadata
+                defaults = effects_metadata.Defaults(p)
+            except Exception:       # noqa: BLE001
+                defaults = None
+        self.defaults = defaults
+        self.kismet = kismet_references(p, warn)
+        self.kismet_uses = kismet_uses(p, warn)
+        self.waves = wave_uses(p, warn)
+        self.events = pod_events(p, defaults, warn)
+        self.incoming = {}
+
+    def placed(self, i):
+        p = self.p
+        return 0 < i <= len(p.exports) and p.exports[i - 1]["outer"] == self.level and not _sequence(p, i)
+
+    def collect_incoming(self, wanted):
+        """Typed references to the actors `wanted` from every placed actor's own saved properties: {target: [dict(by,
+        byClass, property)]}. A wave system's groups are read by wave_uses, not here."""
+        p, wanted = self.p, set(wanted)
+        for i, path in enumerate(p.paths, 1):
+            if not self.placed(i) or p.cls(i) == "XComWaveSystem": continue
+            try:
+                props = p.properties(i)[0]
+            except Exception:       # noqa: BLE001
+                continue
+            for (key, slot), item in props.items():
+                if key in PLUMBING: continue
+                for v in _ref_values(p, item, lambda r: r in wanted or self.placed(r)):
+                    if v in wanted and v != i:
+                        self.incoming.setdefault(v, []).append(dict(by=_short(path), byClass=p.cls(i), property=key))
+
+    def value(self, index, key, zero):
+        """(value, from): from 'saved' (the actor's own), 'archetype', 'class' (the class's default, or the type's
+        zero where none saves it) or 'unknown'."""
+        if self.defaults is None:
+            item = self.p.properties(index)[0].get((key, 0))
+            return (item["value"], "saved") if item is not None else (zero, "unknown")
+        value, source = self.defaults.value(index, key, zero)
+        return value, {"actor": "saved", "table": "class", "unresolved": "unknown"}.get(source, source)
+
+    def values(self, index, family):
+        out = {}
+        for name, key, zero in SPAWN_VALUES.get(family, ()):
+            value, source = self.value(index, key, zero)
+            if isinstance(value, str) and key in ENUM_PREFIX and value.startswith(ENUM_PREFIX[key]):
+                value = value[len(ENUM_PREFIX[key]):]
+            if isinstance(value, (bytes, bytearray)): value = value.hex()
+            out[name] = {"value": value, "from": source}
+        return out
+
+    def links(self, index):
+        """The actor's outgoing typed references to placed actors (a pod's PathNodes, ConstrainedMovementVolume,
+        ContingentPods, TriggeredPods, CoverGoToPoints; a drop-in's kSeekActor): [dict(property, actor)]."""
+        p, out = self.p, []
+        for (key, slot), item in p.properties(index)[0].items():
+            if key in PLUMBING: continue
+            for v in _ref_values(p, item, lambda r: r != 0):
+                if self.placed(v): out.append(dict(property=key, actor=p.name(v)))
+        return out
+
+    def uses(self, index, pod_index=None):
+        """[dict(by, how, ...)]: the Kismet's (kismet_uses), the wave systems' (wave_uses), the pod events for its
+        index, and typed references from other actors (how 'typed', with the property)."""
+        out = [dict(u) for u in self.kismet_uses.get(index, [])]
+        out += [dict(u) for u in self.waves.get(index, [])]
+        if pod_index is not None:
+            out += [dict(how="event", **u) for u in self.events.get(pod_index, [])]
+        out += [dict(how="typed", **u) for u in self.incoming.get(index, [])]
+        return out
+
+    def record(self, index, kind, landing=None):
+        """The record an actor gets (export 33), with `unread` (why) where its values could not be read."""
+        p = self.p
+        name, cls = p.name(index), p.cls(index)
+        arch = p.exports[index - 1]["arch"]
+        own = p.properties(index)[0]
+        location = [float(v) for v in p.effective(index, "Location", [0.0, 0.0, 0.0])]
+        rotation = [int(v) for v in p.effective(index, "Rotation", [0, 0, 0])]
+        tag = p.effective(index, "Tag")
+        base = own.get(("Base", 0))
+        based = None
+        if base is not None and isinstance(base["value"], int) and base["value"] > 0:
+            rel = own.get(("RelativeLocation", 0))
+            relrot = own.get(("RelativeRotation", 0))
+            based = dict(base=p.name(base["value"]), relativeLocation=[float(v) for v in rel["value"]] if rel else None,
+                         relativeRotation=[int(v) for v in relrot["value"]] if relrot else None)
+        family = spawn_family(cls)
+        record = dict(actor=name, actorClass=cls, kind=kind, location=location, rotation=rotation,
+                      savesRotation=("Rotation", 0) in own, based=based,
+                      listed=None if self.listed is None else index in self.listed,
+                      archetype=_short(p.name(arch)) if arch else None, tag=str(tag) if tag else None,
+                      box=volume_bounds(p, index) if cls.endswith("Volume") else None,
+                      values={}, other=[], links=[], uses=[], landing=landing)
+        try:
+            record["values"] = self.values(index, family) if family else {}
+            known = {key for _, key, _ in SPAWN_VALUES.get(family, ())}
+            record["links"] = self.links(index)
+            linked = {lk["property"] for lk in record["links"]}
+            record["other"] = sorted({k for k, _ in own if k not in PLUMBING and k not in known and k not in linked}) if family else []
+            pod = record["values"].get("podIndex", {}).get("value") if family == "pod" else None
+            record["uses"] = self.uses(index, pod if isinstance(pod, int) else None)
+        except Exception as error:      # noqa: BLE001
+            record["unread"] = str(error)
+            if self.warn: self.warn(name, f"spawn values not read: {error}")
+        return record
+
+
+def spawn_kind(p, index, cls):
+    """A base record's kind: pod, meld, dropIn, start, pathNode, noSpawn, or an XComSpawnPoint's by its unit type
+    (UNIT_KINDS: soldier, operative, vip, loot; else point). None for a class that is no spawn point."""
+    if cls.startswith("XComAlienPod"): return "pod"
+    if cls == "XComSpawnPoint":
+        return UNIT_KINDS.get(_unit_type(p.effective(index, "UnitType", 0)), "point")
+    return {"XComMeldContainerSpawnPoint": "meld", "XComSpawnPoint_Alien": "dropIn", "PlayerStart": "start",
+            "XComAlienPathNode": "pathNode", "XComNoSpawnVolume": "noSpawn"}.get(cls)
+
+
+def spawn_metadata(p, landings=None, warn=None, reader=None):
+    """The base level's spawn points (export 33; SP1): [dict(actor, actorClass, kind, location, rotation, savesRotation,
+    based (a saved Base: dict(base, relativeLocation, relativeRotation)), listed (in the level's actor list; None where
+    the list doesn't read), archetype, tag, box (a volume's), values ({name: dict(value, from)}), other (saved
+    properties the reader doesn't know, by name), links (outgoing: [dict(property, actor)]), uses (incoming:
+    kismet_uses, wave_uses, pod events, typed), referencedBy (the strings the page shows), landing (the landing
+    prefab's name for the actors landing_metadata owns, so the page draws the zone and no marker), unitType (an
+    XComSpawnPoint's), unread (where its values could not be read))], by actor. `landings`: landing_metadata's."""
+    level = p.by_name.get(LEVEL_PATH)
+    if level is None: return []
+    reader = reader or SpawnReader(p, warn)
+    owned = {a["path"]: l["prefab"] for l in (landings or []) for a in l.get("actors", [])}
+    found = []
+    for index, name in enumerate(p.paths, 1):
+        if p.exports[index - 1]["outer"] != level: continue
+        cls = p.cls(index)
+        if not (cls.startswith("XComAlienPod") or cls in SPAWN_BASE_CLASSES): continue
+        try:
+            kind = spawn_kind(p, index, cls)
+        except Exception as error:      # noqa: BLE001
+            kind = "point" if cls == "XComSpawnPoint" else None
+            if warn: warn(name, f"spawn point kind not read: {error}")
+        if kind: found.append((index, kind))
+    reader.collect_incoming([i for i, _ in found])
+    out = []
+    for index, kind in found:
+        try:
+            record = reader.record(index, kind, owned.get(p.name(index)))
+        except Exception as error:      # noqa: BLE001
+            record = dict(actor=p.name(index), actorClass=p.cls(index), kind=kind, location=[0.0, 0.0, 0.0],
+                          rotation=[0, 0, 0], values={}, other=[], links=[], uses=[], landing=owned.get(p.name(index)),
+                          unread=str(error))
+            if warn: warn(p.name(index), f"spawn point not read: {error}")
+        if p.cls(index) == "XComSpawnPoint":
+            try: record["unitType"] = _unit_type(p.effective(index, "UnitType", 0))
+            except Exception: record["unitType"] = None      # noqa: BLE001
+        refs = list(reader.kismet.get(index, []))
+        refs += ["%s set %d wave %d group %d %s" % (u["by"], u["set"], u["wave"], u["group"],
+                                                     "SpawnPoints" if u["role"] == "destination" else "OriginationPoints")
+                 for u in reader.waves.get(index, [])]
+        refs += ["%s %s" % (u["by"], u["property"]) for u in reader.incoming.get(index, [])]
+        record["referencedBy"] = sorted(set(refs))
+        out.append(record)
+    return sorted(out, key=lambda r: r["actor"])
+
+
+BOMB_DONOR = "URB_Slaughterhouse_Stream"
+
+
+def donor_objects(path, warn=None):
+    """The bomb donor's mission objects (export 33, review item 7): {"Special/Bomb": dict(stream, package,
+    missionObjects)} read from the install's URB_Slaughterhouse_Stream (`path`, export.stream_package's), without its
+    pieces; {} where the package isn't there or doesn't read."""
+    from pathlib import Path
+    from package import Package
+    if path is None or not Path(path).is_file(): return {}
+    path = Path(path)
+    try:
+        objects = mission_objects(Package(path), warn)
+    except Exception as error:      # noqa: BLE001
+        if warn: warn(BOMB_DONOR, f"bomb donor not read: {error}")
+        return {}
+    return {"Special/Bomb": dict(stream=BOMB_DONOR, package=path.name, missionObjects=objects)}

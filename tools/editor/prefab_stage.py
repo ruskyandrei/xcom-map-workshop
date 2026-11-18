@@ -36,7 +36,7 @@ MAP = 'CB2_MP_Blank'
 OWN_GRID = [36, 36, 12]
 # a piece record's fields the compiler reads; a newer editor's field a prefab carries stays out of the test's project
 PIECE_FIELDS = ('actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe',
-                'template', 'light', 'cover', 'flags')
+                'template', 'light', 'cover', 'flags', 'kind', 'effect', 'sound')
 # The backdrop (prefab plan 5.11): URB_TruckStop_EWI's sky dome (Skybox.Meshes.SkyDome with the noon sky, a hemisphere
 # 127,000 units across), centred on the stage at its ground, and the same dome turned over under it, so what shows
 # past the hidden ground is sky, not black.
@@ -145,10 +145,11 @@ def resolve_sources(snapshot, cache, game):
     sources = {}
     for piece in snapshot['pieces']:
         source = piece.get('from')
-        if source:
+        if source and 'kind' not in piece:
             key = source['package'], source['actor']
             sources[key] = dict(source, actor=compiler.short(source['actor']))
     resolved = dict(zip(sources, read_pieces(cache, game, sources.values())))
+    shared = {}
     expected = {donor['package'].casefold(): donor['sha256']
                 for donor in snapshot.get('donors', []) if 'sha256' in donor}
     donors, records, targets, gone = {}, {}, {}, []
@@ -164,9 +165,29 @@ def resolve_sources(snapshot, cache, game):
                 gone.append(left('recipe-unsupported', f'{piece["actor"]} uses an unsupported {kind} recipe.',
                                  actor=piece['actor'], template=template))
             continue
+        where = dict(actor=piece['actor'], source=source)
+        if 'kind' in piece:
+            # an effect, a sound (the effects and sounds plan, stage FX6a) or a lens flare (FX6b): read from its map
+            # as a project's copy is
+            try:
+                template = piece_library.effect(cache, game, dict(source, actor=compiler.short(source['actor'])), shared)
+            except ProjectError as error:
+                gone.append(left(error.extra.get('code', 'piece-unreadable'), f'{piece["actor"]}: {error.message}', **where))
+                continue
+            package, sha = template['source']['package'], template['source']['sha256']
+            if template['kind'] != piece['kind']:
+                gone.append(left('piece-missing', f'{piece["actor"]}: {compiler.short(source["actor"])} of {package} is '
+                                 f'not {compiler.EFFECT_WORDS.get(piece["kind"], "of that kind")}.', **where))
+                continue
+            if expected.get(package.casefold(), sha) != sha or donors.get(package, sha) != sha:
+                gone.append(left('donor-changed', f'{piece["actor"]}: {package} is not the file this prefab was saved '
+                                 'from.', **where))
+                continue
+            donors[package] = sha
+            targets[piece['actor']] = dict(package=package, level='base', actor=LEVEL + '.' + compiler.short(source['actor']))
+            continue
         key = source['package'], source['actor']
         record, error = resolved[key]
-        where = dict(actor=piece['actor'], source=source)
         if error:
             gone.append(left(error.extra.get('code', 'piece-unreadable'), f'{piece["actor"]}: {error.message}', **where))
             continue
@@ -254,6 +275,12 @@ def make_project(snapshot, scene, placement, targets, test_id, levels=PLAYED_LEV
         actor = actors[source]
         record = dict(deepcopy({k: v for k, v in p.items() if k in PIECE_FIELDS}),
                       id=str(uuid5(namespace, 'actor:' + source)), actor=actor, location=translate(p['location'], shift))
+        kind = record.get('kind')
+        if kind and isinstance(record.get(kind), dict) and not compiler.FAMILIES.get(kind + '-values', {}).get('builds'):
+            # its values are built where their family builds: until then the test plays it as its map has it
+            kept = {k: v for k, v in record[kind].items() if k == 'follow'}
+            if kept: record[kind] = kept
+            else: del record[kind]
         if 'from' in record:
             record['from'] = targets[source]
             record.pop('recipe', None)

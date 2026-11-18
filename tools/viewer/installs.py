@@ -84,14 +84,21 @@ SCHEMA = 'xcom-map-workshop/installs'
 PLAY_SCHEMA = 'xcom-map-workshop/play'
 # what a play puts in, kept in play.json and taken out when the game closes (clear_play): the records it added, what
 # they are, the last play, the config kept aside, the save folders noted (and what was done with the play's saves
-# after the last one), and the files and landing zones a play copied in
-PLAY_KEYS = ('records', 'installed', 'lastPlay', 'config', 'saves', 'lastSaves', 'playFiles', 'playZones')
+# after the last one), the files and landing zones a play copied in, and its variant's drop-in exclusion line
+PLAY_KEYS = ('records', 'installed', 'lastPlay', 'config', 'saves', 'lastSaves', 'playFiles', 'playZones', 'playExclusions')
 PACKAGE_SCHEMA = 'xcom-map-workshop/variant-package'
 # The first mission's record, by its DisplayName: LWR's, then plain EW's as a guess (the same without LWR's " |0").
 # Only an install from before Play in game changed it (restore_intro).
 INTRO_SLOTS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
 INTRO_SLOT = INTRO_SLOTS[0]
+# A record in rotation that the game also asks for by its DisplayName: a new campaign's first mission
+# (XGGeoscape.TakeFirstMission -> DetermineMap, EXP-03). A variant that replaces its map keeps this name on the record
+# that stands for it, or the first mission finds no map (F-117).
+FIRST_MISSION = frozenset(INTRO_SLOTS)
 LZ = 'DefaultLZMutator.ini'     # Long War's landing zones: absent from plain EW
+# Long War's drop-in mutator's settings, whose ExcludeMaps list a project's spawn rule adds its variant to (the
+# editor spawns plan, SP8): absent from plain EW
+RANDOM_SPAWNS = 'DefaultRandomSpawns.ini'
 PACKAGE_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]*')     # a package's name (the lab's ledgers name packages: lab_deploys)
 PLAY_FILE = 'XComMapWorkshop-play.txt'      # in XEW\Binaries, where the game's exec command looks
 # A play with saving on starts the game with this one instead: it binds a key to the play's commands and leaves the
@@ -373,16 +380,18 @@ def status(game):
     at = _ours(ledger, lines)
     intro = None if at is None else dict(map=dep.field(lines[at], 'Name'),
                                          ownMap=dep.field(ledger['slot']['original'].encode('latin-1'), 'Name'))
-    rotation = [{k: v for k, v in entry.items() if k != 'lines'} for entry in ledger.get('rotation') or []]
+    rotation = [{k: v for k, v in entry.items() if k not in ('lines', 'standsFor')} for entry in ledger.get('rotation') or []]
     off = ledger.get('linesOff') or []
     return dict(installed=installed, intro=intro, playFile=play_file(game).is_file(), rotation=rotation,
                 recordsOff=len(off), switchedOff=len(ledger.get('manualOff') or []),
                 configKept=bool(ledger.get('config')), savesKept=bool(ledger.get('saves')),
                 lastSaves=ledger.get('lastSaves'), lastPlay=ledger.get('lastPlay'),
-                play=bool(ledger.get('records') or ledger.get('playZones') or ledger.get('playFiles') or play_file(game).is_file()
+                play=bool(ledger.get('records') or ledger.get('playZones') or ledger.get('playExclusions') or ledger.get('playFiles')
+                         or play_file(game).is_file()
                          or start_file(game).is_file()),
                 anything=bool(installed or intro or rotation or off or ledger.get('records') or ledger.get('landingZones') or ledger.get('files')
-                              or ledger.get('playZones') or ledger.get('playFiles')
+                              or ledger.get('playZones') or ledger.get('playFiles') or ledger.get('dropInExclusions')
+                              or ledger.get('playExclusions')
                               or ledger.get('config') or play_file(game).is_file() or start_file(game).is_file()))
 
 
@@ -396,7 +405,7 @@ def _backup(game, stamp):
     k = 2
     while folder.exists(): folder, k = folder.with_name(f'{stamp}-{k}'), k + 1
     folder.mkdir(parents=True)
-    for name in ('DefaultMaps.ini', LZ):
+    for name in ('DefaultMaps.ini', LZ, RANDOM_SPAWNS):
         if config(game, name).is_file(): shutil.copy2(config(game, name), folder / name)
     return folder
 
@@ -747,7 +756,7 @@ def recover_test_install(game):
     test = pending['test']
     if not re.fullmatch(r'[0-9a-f-]{36}', test): raise InstallError('Invalid test install journal.')
     for name, change in pending['config'].items():
-        if name not in ('DefaultMaps.ini', LZ): raise InstallError('Unknown file in the test install journal.')
+        if name not in ('DefaultMaps.ini', LZ, RANDOM_SPAWNS): raise InstallError('Unknown file in the test install journal.')
         path = config(game, name)
         original = bytes.fromhex(change['before'])
         actual = sha256(path)
@@ -769,6 +778,54 @@ def recover_test_install(game):
     else:
         replace_bytes(play, bytes.fromhex(pending['play']), test)
     journal.unlink()
+
+
+def exclusion_note(note, m):
+    """The comment of a variant's drop-in exclusion line: the editor's note and the project's name (printable ASCII)."""
+    name = re.sub(r'[^\x20-\x7E]', '', str((m.get('project') or {}).get('name') or '')).strip()
+    return f'{note}, project {name}' if name else note
+
+
+def plan_variant_exclusion(game, lines, m, note):
+    """(where, lines, why) to add to DefaultRandomSpawns.ini (lines of bytes, or None where the install has none) for
+    a package whose project leaves scripted drop-ins where placed (the manifest's config.dropInExclusion; the editor
+    spawns plan, SP8): spawnrules.plan_exclusion, planned afresh against this install, since the file can change
+    after the build. Nothing, with why, where this install plays them where placed already (plain Enemy Within, which
+    has no such file; a Long War whose loader has no drop-in mutator) or has no drop-in section; nothing, with no why,
+    for a package without the rule or a variant whose line is there already."""
+    import spawnrules
+    if not (m.get('config') or {}).get('dropInExclusion'):
+        return None, [], None
+    if lines is None:
+        return None, [], ('the install has no DefaultRandomSpawns.ini: plain Enemy Within lands scripted drop-ins where '
+                          'placed already')
+    if spawnrules.rules(game).get('dropIns') == 'absent':
+        return None, [], 'the install\'s Long War loads no drop-in mutator: its scripted drop-ins land where placed already'
+    return spawnrules.plan_exclusion(lines, m['variant'], note)
+
+
+def _exclusions_out(game, ledger, key, variants=None):
+    """The drop-in exclusion lines the ledger notes under `key` taken out of DefaultRandomSpawns.ini (every variant's,
+    or these), each only where it stands as written: (how many went, what was left in words). The ledger's list is
+    updated, not written."""
+    import deploy_fixture as dep
+    blocks = [b for b in ledger.get(key) or [] if variants is None or b['variant'] in variants]
+    if not blocks or not config(game, RANDOM_SPAWNS).is_file(): return 0, []
+    rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes())
+    done, left = 0, []
+    for block in blocks:
+        want = _encoded(block)
+        found = _run(rs, want)
+        if found is None:
+            left.append(f'the drop-in exclusion line for {block["variant"]} in {RANDOM_SPAWNS} has changed; take it out by hand')
+            continue
+        new_rs = rs[:found] + rs[found + len(want):]
+        dep.check_change(rs, new_rs, removed=(found, len(want)))
+        rs = new_rs
+        done += 1
+    if done: dep.write_checked(config(game, RANDOM_SPAWNS), rs)
+    ledger[key] = [b for b in ledger.get(key) or [] if b not in blocks]
+    return done, left
 
 
 def _zones_out(game, ledger, key, variants=None):
@@ -831,11 +888,11 @@ def clear_play(game, now=None):
     game = Path(game)
     ledger = read_ledger(game)
     records = ledger.get('records') or []
-    if not (records or ledger.get('playZones') or ledger.get('playFiles') or play_file(game).is_file()
-            or start_file(game).is_file()): return None
+    if not (records or ledger.get('playZones') or ledger.get('playExclusions') or ledger.get('playFiles')
+            or play_file(game).is_file() or start_file(game).is_file()): return None
     _check_ready(game)
     now, stamp = _now(now)
-    done = dict(records=0, landingZones=0, files=[], left=[], playFile=False)
+    done = dict(records=0, landingZones=0, dropInExclusions=0, files=[], left=[], playFile=False)
     if records:
         maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
         ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
@@ -849,6 +906,8 @@ def clear_play(game, now=None):
         ledger['records'] = kept
         ledger['installed'] = {k: v for k, v in (ledger.get('installed') or {}).items() if k in {b['variant'] for b in kept}}
     done['landingZones'], left = _zones_out(game, ledger, 'playZones')
+    done['left'] += left
+    done['dropInExclusions'], left = _exclusions_out(game, ledger, 'playExclusions')
     done['left'] += left
     done['files'], left = _files_out(game, ledger, 'playFiles')
     done['left'] += left
@@ -910,6 +969,9 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
             raise InstallError(f'{patch}.upk is in neither the package nor the install')
     preflight(game, ledger, m, files)
     lz_at, lz_new = plan_variant_lz(lz, m, note, zone) if lz is not None else (None, [])
+    # the variant's drop-in exclusion line (the project's spawn rule, SP8), planned against this install's file
+    rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes()) if config(game, RANDOM_SPAWNS).is_file() else None
+    rs_at, rs_new, rs_why = plan_variant_exclusion(game, rs, m, exclusion_note(note, m))
     # DefaultMaps.ini: an earlier build's record of this variant out (what it stood in for back), an earlier version's
     # intro line back, the new record in place of a patchtool record of the variant, else after the base map's last one
     new_maps = list(maps)
@@ -936,11 +998,17 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     if lz_new:
         new_lz = lz[:lz_at] + lz_new + lz[lz_at:]
         dep.check_change(lz, new_lz, inserted=(lz_at, len(lz_new)))
+    new_rs = None
+    if rs_new:
+        new_rs = rs[:rs_at] + rs_new + rs[rs_at:]
+        dep.check_change(rs, new_rs, inserted=(rs_at, len(rs_new)))
     kept = _backup(game, stamp)
     ledger['backups'] = ledger.get('backups', []) + [str(kept.relative_to(game))]
     writes = {'DefaultMaps.ini': dep.EOL.join(new_maps)}
     if new_lz is not None:
         writes[LZ] = dep.EOL.join(new_lz)
+    if new_rs is not None:
+        writes[RANDOM_SPAWNS] = dep.EOL.join(new_rs)
     if test:
         begin_test_install(game, test, files, writes)
     _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'),
@@ -951,9 +1019,12 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     else:
         dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
         if new_lz is not None: dep.write_checked(config(game, LZ), new_lz)
+        if new_rs is not None: dep.write_checked(config(game, RANDOM_SPAWNS), new_rs)
     ledger['records'] = [b for b in records if b['variant'] != variant] + [entry]
     if lz_new:
         ledger.setdefault('playZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
+    if rs_new:
+        ledger.setdefault('playExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
     project = m.get('project') or {}
     installed = dict(kind='project', map=variant, base=base, buildId=m.get('buildId'), installedAt=now.isoformat(timespec='seconds'),
                      project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
@@ -973,6 +1044,8 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
         if zone is not None else None
     return dict(installed, introBack=intro_back, standsInFor='patchtool' if 'original' in entry else None,
                 record=block[1].decode('latin-1'),
+                **({'dropInExclusion': dict(written=bool(rs_new), **({'why': rs_why} if rs_why else {}))}
+                   if (m.get('config') or {}).get('dropInExclusion') else {}),
                 **({'zone': zone} if zone is not None else {}), **({'spawnGroup': group} if group else {}))
 
 
@@ -1072,17 +1145,27 @@ def _in_rotation(line):
     return (dep.unquoted(line, 'bInRotation') or '').lower() == 'true'
 
 
+def _first_mission(line):
+    """Whether a record of the install is the one a new campaign's first mission asks for by name (FIRST_MISSION)."""
+    import deploy_fixture as dep
+    return (dep.field(line, 'DisplayName') or '') in FIRST_MISSION
+
+
 def rotation_plan(lines, m, note='', mode='additional'):
     """A package's records for campaigns, from the install's own lines (pristine_lines) and the package's manifest:
     one record per record of the base map (its missions), each under the variant's name, in or out of rotation as the
     base map's record is, streaming the package's patch (if any) in a free slot and its own copies of the intros in
     place of the originals. dict(block=[a comment line, the records], missions=[{type, label, group, inRotation,
-    byName, bomb}] one per record). Two records the renaming makes the same give one.
+    byName, bomb, firstMission (when true)}] one per record, standsFor=[the base map's records (text) the variant has a
+    record for], kept=[the missions, as in missions, of the base map's records it has none for]). Two records the
+    renaming makes the same give one.
 
     Display names: the game asks for a council mission's map (and the story's) by its record's DisplayName, not through
-    the rotation; those records are out of rotation in the install (byName). To replace the map, the variant's record
-    for such a mission keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every
-    other record gets a name of its own: <variant> (<project>[, <mission>])."""
+    the rotation; those records are out of rotation in the install (byName). So does a new campaign's first mission,
+    whose record is in rotation (FIRST_MISSION, F-117). To replace the map, the variant's record for such a mission
+    keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every other record gets a
+    name of its own: <variant> (<project>[, <mission>]). Replacing comments out only the records in standsFor: a base
+    record the build has no record for (its project is for other missions) stays in use (F-118)."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
@@ -1098,7 +1181,8 @@ def rotation_plan(lines, m, note='', mode='additional'):
         group, kind, label = maplist.mission_of(line.decode('latin-1'))
         seen[label] = seen.get(label, 0) + 1
         mission = label if seen[label] == 1 else f'{label} {seen[label]}'      # a map with two records of one mission
-        by_name = not _in_rotation(line)
+        in_rotation, first = _in_rotation(line), _first_mission(line)
+        by_name = not in_rotation or first
         new = dep.set_field(line, 'Name', variant)
         if not (by_name and mode == 'replace'):
             display = dep.field(line, 'DisplayName') or ''
@@ -1111,23 +1195,36 @@ def rotation_plan(lines, m, note='', mode='additional'):
             new = new.replace(f'MapName="{was}"'.encode(), f'MapName="{now}"'.encode())
         if new in records: continue
         records.append(new)
-        missions.append(dict(type=kind, label=mission, group=group, inRotation=not by_name, byName=by_name,
-                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb'))
+        missions.append(dict(type=kind, label=mission, group=group, inRotation=in_rotation, byName=by_name,
+                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {})))
     how = 'in place of' if mode == 'replace' else 'beside'
     comment = f'; {variant}: {base}\'s records under its own name, {how} {base}\'s ({note})'.encode()
-    return dict(block=[comment] + records, missions=missions)
+    return dict(block=[comment] + records, missions=missions, standsFor=[l.decode('latin-1') for _, l in found], kept=[])
+
+
+def _base_mission(line):
+    """A base map record's mission, as rotation_plan's missions give it."""
+    import deploy_fixture as dep
+    import maplist
+    group, kind, label = maplist.mission_of(line.decode('latin-1'))
+    in_rotation, first = _in_rotation(line), _first_mission(line)
+    return dict(type=kind, label=label, group=group, inRotation=in_rotation, byName=not in_rotation or first,
+                bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {}))
 
 
 def _rotation_from_build(found, m, note, mode):
     """rotation_plan for a package whose manifest names the base map record (or added kind) each of its records stands
     for (config.recordMissions): the Build's own records (the project's missions only, mission types plan D4), each in
     or out of rotation as the base map's record is (an added kind as ADDED_KINDS says: a bomb out, the rest in), and
-    in replace mode a record the game asks for by name with the base map's display name."""
+    in replace mode a record the game asks for by name (out of rotation, or the first mission's) with the base map's
+    display name. standsFor: the base map's records any of them names; kept: the others' missions."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
     variant, base = m['variant'], m['source']['map']
     records, out = [], []
+    stood = sorted({i for ids in m['config']['recordMissions'] for i in ids or []
+                    if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(found)})
     for line, ids in zip(m['config']['maps'], m['config']['recordMissions']):
         new = line.encode('latin-1')
         first = ids[0] if ids else None
@@ -1136,7 +1233,8 @@ def _rotation_from_build(found, m, note, mode):
             in_rotation = _in_rotation(base_line)
         else:
             in_rotation = (missions_module.ADDED_KINDS.get(first) or {}).get('rotation', True)
-        by_name = not in_rotation
+        first = base_line is not None and _first_mission(base_line)
+        by_name = not in_rotation or first
         if dep.unquoted(new, 'bInRotation') is not None:
             new = dep.set_field(new, 'bInRotation', 'True' if in_rotation else 'False', quoted=False)
         if by_name and mode == 'replace' and base_line is not None:
@@ -1146,21 +1244,35 @@ def _rotation_from_build(found, m, note, mode):
         group, kind, label = maplist.mission_of(new.decode('latin-1'))
         out.append(dict(type=kind, label=label, group=group, inRotation=in_rotation, byName=by_name,
                         bomb=dep.unquoted(new, 'CouncilType') == 'eFCMType_Bomb',
-                        **({} if base_line is not None else {'added': True})))
+                        **({} if base_line is not None else {'added': True}), **({'firstMission': True} if first else {})))
     how = 'in place of' if mode == 'replace' else 'beside'
     what = 'the records of the missions the project is for' if m['config'].get('missionsFromProject') else f'{base}\'s records'
     comment = f'; {variant}: {what} under its own name, {how} {base}\'s ({note})'.encode()
-    return dict(block=[comment] + records, missions=out)
+    return dict(block=[comment] + records, missions=out, standsFor=[found[i][1].decode('latin-1') for i in stood],
+                kept=[_base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
 
 
-def mission_warnings(missions, base, mode, lwr=True):
+def mission_warnings(missions, base, mode, lwr=True, kept=()):
     """What happens to the missions when a variant with these records (rotation_plan's missions) is installed for
     campaigns, in sentences. The missions whose records are out of rotation (council missions, the story's) get their
     map by its record's name: a variant can replace that map but not stand beside it, except that Long War's mutator
-    makes an extra bomb mission of each extra bomb record. Nothing here says a mission is untried (the user, 16
-    November 2026)."""
+    makes an extra bomb mission of each extra bomb record. A replacing variant's first-mission record (in rotation, but
+    asked for by name too: F-117) takes the original's name, so the variant plays a new campaign's first mission.
+    kept: the missions of the base map's records the variant has no record for (rotation_plan's kept), which a
+    replacing variant leaves to the original (F-118). Nothing here says a mission is untried (the user, 16 November
+    2026)."""
     named = [x for x in missions if not x['inRotation']]
     out = []
+    if mode == 'replace' and kept:
+        labels = list(dict.fromkeys(x['label'] for x in kept))
+        out.append(f'{", ".join(labels)}: the build has no record for {"these missions" if len(labels) > 1 else "this mission"}, '
+                   f'so {base}\'s own {"records stay" if len(kept) > 1 else "record stays"} in use there'
+                   + (', and the original plays a new campaign\'s first mission.' if any(x.get('firstMission') for x in kept) else '.'))
+    if mode == 'replace':
+        for x in missions:
+            if x.get('firstMission'):
+                out.append(f'{x["label"]}: a new campaign\'s first mission asks for {base}\'s record by name, so the variant '
+                           'takes that record\'s name and plays the first mission.')
     if named and mode == 'replace':
         out.append(f'{", ".join(x["label"] for x in named)}: the game asks for {"these missions\' map" if len(named) > 1 else "this mission\'s map"} '
                    f'by name, so the variant takes {base}\'s record name there.')
@@ -1177,16 +1289,34 @@ def mission_warnings(missions, base, mode, lwr=True):
     return out
 
 
+def replaced_records(ledger, lines):
+    """{record text: [the rotation entries that replace it]} over the install's own records in `lines` (pristine): an
+    entry in replace mode replaces the base map's records it stands for (standsFor: those its build has records for,
+    F-118), or, an entry written before standsFor, every record of its base map."""
+    import deploy_fixture as dep
+    entries = [e for e in ledger.get('rotation') or [] if e['mode'] == 'replace']
+    out = {}
+    for line in lines:
+        if not entries or not dep.is_record(line): continue
+        text = line.decode('latin-1')
+        for e in entries:
+            stands = e.get('standsFor')
+            if (text in stands) if stands is not None else dep.field(line, 'Name') == e['base']:
+                out.setdefault(text, []).append(e)
+    return out
+
+
 def _sync_off(lines, ledger, pristine):
     """The install's own records in `lines` (in place) commented out or live again, to follow the ledger: a record is
     commented out (a ';' before it: the game then never uses it, where bInRotation=False is not known to stop it)
-    while a variant replaces its map (a rotation install with mode 'replace') or it is switched off by hand (manualOff:
-    the Game maps window). What is commented out is kept in the ledger's linesOff ([{base, original, written}])."""
+    while a variant replaces it (a rotation install with mode 'replace' whose build has a record for its mission:
+    replaced_records) or it is switched off by hand (manualOff: the Game maps window). What is commented out is kept in
+    the ledger's linesOff ([{base, original, written}])."""
     import deploy_fixture as dep
-    replaced = {e['base'] for e in ledger.get('rotation') or [] if e['mode'] == 'replace'}
+    replaced = replaced_records(ledger, pristine)
     own = [l for l in pristine if dep.is_record(l)]
     manual = set(ledger.get('manualOff') or []) & {l.decode('latin-1') for l in own}
-    want = [l for l in own if dep.field(l, 'Name') in replaced or l.decode('latin-1') in manual]
+    want = [l for l in own if l.decode('latin-1') in replaced or l.decode('latin-1') in manual]
     wanted = {l.decode('latin-1') for l in want}
     kept = []
     for change in ledger.get('linesOff') or []:
@@ -1232,9 +1362,9 @@ def install_rotation(game, folder, mode, now=None):
 def _install_rotation(game, folder, mode, now=None):
     """Install a variant package for campaigns: its files, its landing zones and its records for the rotation
     (rotation_plan), after the base map's own records. mode 'additional': the base map's records stay as they are, so
-    missions draw from both; 'replace': the base map's own records are commented out, and the variant's records for
-    the missions the game asks for by name take their names (they go back when no variant replaces the map any more:
-    remove_rotation, reset). An earlier rotation install of the variant, of the same project, is replaced; what belongs
+    missions draw from both; 'replace': the base map's own records the variant has records for are commented out (the
+    entry's standsFor; the others stay in use, F-118), and the variant's records for the missions the game asks for by
+    name take their names (they go back when no variant replaces them any more: remove_rotation, reset). An earlier rotation install of the variant, of the same project, is replaced; what belongs
     to another project, or a file the editor didn't put there, is never replaced: everything is checked (preflight,
     the planned config lines) before anything is written. The record Play in game adds (install_package) is separate and stays first, so a play still
     opens the variant by it. Returns what was installed, with mission_warnings."""
@@ -1260,6 +1390,8 @@ def _install_rotation(game, folder, mode, now=None):
             raise InstallError(f'{patch}.upk is in neither the package nor the install')
     preflight(game, ledger, m, files)
     lz_at, lz_new = plan_variant_lz(lz, m, note) if lz is not None else (None, [])
+    rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes()) if config(game, RANDOM_SPAWNS).is_file() else None
+    rs_at, rs_new, rs_why = plan_variant_exclusion(game, rs, m, exclusion_note(note, m))
     new_maps = list(maps)
     left = _rotation_out(new_maps, ledger, variant)
     if left: raise InstallError(left[0])
@@ -1276,7 +1408,7 @@ def _install_rotation(game, folder, mode, now=None):
     entry = dict(variant=variant, base=base, mode=mode, lines=[l.decode('latin-1') for l in plan['block']],
                  installedAt=now.isoformat(timespec='seconds'), buildId=m.get('buildId'), quick=bool(m.get('quick')),
                  project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
-                 missions=plan['missions'])
+                 missions=plan['missions'], standsFor=plan['standsFor'])
     others = [e for e in ledger.get('rotation') or [] if e['variant'] != variant]
     # the planned lines checked on copies before anything is written
     _plan_rotation(json.loads(json.dumps(ledger)), list(new_maps), others + [entry], pristine)
@@ -1284,6 +1416,10 @@ def _install_rotation(game, folder, mode, now=None):
     if lz_new:
         new_lz = lz[:lz_at] + lz_new + lz[lz_at:]
         dep.check_change(lz, new_lz, inserted=(lz_at, len(lz_new)))
+    new_rs = None
+    if rs_new:
+        new_rs = rs[:rs_at] + rs_new + rs[rs_at:]
+        dep.check_change(rs, new_rs, inserted=(rs_at, len(rs_new)))
     kept = _backup(game, stamp)
     ledger['backups'] = ledger.get('backups', []) + [str(kept.relative_to(game))]
     _copy_files(game, ledger, files, project=project.get('id'), keep=kept)
@@ -1296,14 +1432,24 @@ def _install_rotation(game, folder, mode, now=None):
         taken = [b for b in ledger.get('playZones') or [] if b['variant'] == variant]
         ledger['playZones'] = [b for b in ledger.get('playZones') or [] if b not in taken]
         ledger['landingZones'] = (ledger.get('landingZones') or []) + taken
+    if new_rs is not None:
+        dep.write_checked(config(game, RANDOM_SPAWNS), new_rs)
+        ledger.setdefault('dropInExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
+    else:
+        # the variant's drop-in exclusion a play put there is the campaign's from now on
+        taken = [b for b in ledger.get('playExclusions') or [] if b['variant'] == variant]
+        ledger['playExclusions'] = [b for b in ledger.get('playExclusions') or [] if b not in taken]
+        ledger['dropInExclusions'] = (ledger.get('dropInExclusions') or []) + taken
     ledger.setdefault('history', []).append(dict(at=entry['installedAt'], rotation=variant, mode=mode, buildId=m.get('buildId')))
     write_ledger(game, ledger)
     import settings
-    warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr')
-    rivals = [e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
+    warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr', kept=plan['kept'])
+    rivals =[e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
     if rivals and any(x['byName'] for x in plan['missions']):
         warnings.append(f'{", ".join(rivals)} replace{"s" if len(rivals) == 1 else ""} {base} too: for a mission the game asks for by name, it plays one of them.')
-    return dict({k: v for k, v in entry.items() if k != 'lines'},
+    if rs_why:
+        warnings.append(f'The project leaves scripted drop-ins where placed; nothing is written for it: {rs_why}.')
+    return dict({k: v for k, v in entry.items() if k not in ('lines', 'standsFor')},
                 switchedOff=sum(1 for c in ledger.get('linesOff') or [] if c.get('base') == base) if mode == 'replace' else 0,
                 warnings=warnings)
 
@@ -1319,7 +1465,8 @@ def remove_rotation(game, variants, now=None, everything=False):
     variants = list(dict.fromkeys(variants))
     mine = [e['variant'] for e in ledger.get('rotation') or [] if e['variant'] in variants]
     played = [b for b in ledger.get('records') or [] if b['variant'] in variants] if everything else []
-    zones = [b for key in ('landingZones', 'playZones') for b in ledger.get(key) or [] if b['variant'] in variants] if everything else []
+    zones = [b for key in ('landingZones', 'playZones', 'dropInExclusions', 'playExclusions') for b in ledger.get(key) or []
+             if b['variant'] in variants] if everything else []
     if not mine and not played and not zones: return []
     _check_ready(game)
     now, stamp = _now(now)
@@ -1337,6 +1484,7 @@ def remove_rotation(game, variants, now=None, everything=False):
     _write_rotation(game, ledger, maps, new_maps, [e for e in ledger.get('rotation') or [] if e['variant'] not in mine], pristine)
     if zones:
         for key in ('landingZones', 'playZones'): _zones_out(game, ledger, key, variants)     # one changed since is left
+        for key in ('dropInExclusions', 'playExclusions'): _exclusions_out(game, ledger, key, variants)
     done = list(dict.fromkeys(mine + [b['variant'] for b in played] + [b['variant'] for b in zones]))
     ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), **{'undone' if everything else 'rotationOut': done}))
     write_ledger(game, ledger)
@@ -1345,8 +1493,8 @@ def remove_rotation(game, variants, now=None, everything=False):
 
 def set_records_use(game, originals, use, now=None):
     """Switch records of the install's own off (commented out: the game then never uses them) or back on, from the Game
-    maps window. originals: the records' lines as the install has them (text). A record whose map a variant replaces
-    stays commented out while it does, whatever is asked here. Returns dict(changed, replaced: the lines that stay off
+    maps window. originals: the records' lines as the install has them (text). A record a variant replaces
+    (replaced_records) stays commented out while it does, whatever is asked here. Returns dict(changed, replaced: the lines that stay off
     because a variant replaces their map)."""
     import deploy_fixture as dep
     game = Path(game)
@@ -1525,9 +1673,11 @@ def reset(game, now=None):
     ledger = read_ledger(game)
     now, stamp = _now(now)
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
-    done = dict(records=0, rotation=0, recordsBack=0, landingZones=0, files=[], left=[], intro=False, playFile=False, config=[])
+    done = dict(records=0, rotation=0, recordsBack=0, landingZones=0, dropInExclusions=0, files=[], left=[], intro=False,
+                playFile=False, config=[])
     records = ledger.get('records') or []
-    if records or any(ledger.get(k) for k in ('landingZones', 'playZones', 'files', 'playFiles', 'slot', 'rotation', 'linesOff')):
+    if records or any(ledger.get(k) for k in ('landingZones', 'playZones', 'dropInExclusions', 'playExclusions', 'files',
+                                              'playFiles', 'slot', 'rotation', 'linesOff')):
         ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
     new_maps = list(maps)
     had_slot = bool(ledger.get('slot'))
@@ -1552,6 +1702,10 @@ def reset(game, now=None):
         count, left = _zones_out(game, ledger, key)
         done['landingZones'] += count
         done['left'] += left
+    for key in ('dropInExclusions', 'playExclusions'):
+        count, left = _exclusions_out(game, ledger, key)
+        done['dropInExclusions'] += count
+        done['left'] += left
     for key in ('files', 'playFiles'):
         names, left = _files_out(game, ledger, key)
         done['files'] += names
@@ -1559,6 +1713,7 @@ def reset(game, now=None):
     done['files'].sort()
     if _commands_out(game): done['playFile'] = True
     ledger.update(slot=None, records=[], landingZones=[], files={}, playZones=[], playFiles={}, intro=None, installed={},
+                  dropInExclusions=[], playExclusions=[],
                   lastPlay=None, rotation=[], linesOff=[], manualOff=[], owners={})
     ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), reset=True, records=done['records'],
                                                   files=len(done['files']), **({'introBack': True} if done['intro'] else {})))

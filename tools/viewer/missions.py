@@ -45,6 +45,13 @@ EXALT_PODS_NOTE = 'Enemies: four pods of EXALT operatives, each with a heavy or 
 # (F-110: XComAlienPodManager places a commander only when the battle's description names one, which the campaign does)
 COMMANDER_NOTE = 'No commander: the campaign adds one.'
 OPERATIVE_NOTE = 'The covert operative is the game\'s stand-in (Debug McGee, with a pistol).'
+# The stand-in operative takes the first unit's looks (XGBattle_SPCovertOpsExtraction.CreateDebugCovertOperative, on a
+# battle with no campaign behind it). A SHIV has none, and the battle then waits on its loading screen for a body, head
+# and voice that don't exist (T-44, EXP-72 runs 5, 10 and 11). So a play of a kind with an operative (`operative`)
+# lands its first soldier or MEC trooper first, and says so; with only SHIVs it says what happens.
+LEAD_NOTE = '{name} lands first: the covert operative takes the first unit\'s looks, which a SHIV doesn\'t have.'
+NO_LEAD_MISSING = ('With only SHIVs in the squad the covert operative gets no looks, and the battle stays on its '
+                   'loading screen.')
 # EXALT's missions: their pods are EXALT_ALIENS (XGBattleDesc.GenerateAliens: the leader, one of the same and a sniper
 # or heavy). Under Long War a play of one has saving on (play_setup's `saving`, SAVING_WHY for the dialog's checkbox):
 # F-109, LWRebalance's RebalanceMutator.ReloadExaltMission saves every EXALT battle as it starts and loads the save,
@@ -71,9 +78,9 @@ KINDS = {
     # (played and working with the civilians' looks: EXP-53 run 6, 15 November, URB_StreetHurricane_Terror's variant)
     'TerrorSite': dict(label='Terror', state='works', run='EXP-53 run 6', lines=('civilians',)),
     'CaptureAndHold': dict(label='Data recovery', state='works', run='EXP-57 run 2, with saving on',
-                           options=('CapturePoints', 'RadarArrays'), note=OPERATIVE_NOTE),
+                           options=('CapturePoints', 'RadarArrays'), note=OPERATIVE_NOTE, operative=True),
     'CovertOpsExtraction': dict(label='Covert extraction', state='untried', run='EXP-57, with saving on',
-                                options=('RadarArrays',), note=OPERATIVE_NOTE),
+                                options=('RadarArrays',), note=OPERATIVE_NOTE, operative=True),
     'Special/Bomb': dict(label='Council bomb', state='works', run='EXP-53 run 1', lines=('councilType',)),
     'Special/Assault': dict(label='Council assault', state='untried', run='EXP-53 run 4', lines=('councilType',)),
     'Special/Rescue': dict(label='Council rescue', state='works', run='EXP-53 run 4', lines=('councilType',)),
@@ -90,6 +97,7 @@ KINDS = {
 }
 for _key, _kind in KINDS.items():
     _kind.setdefault('options', ())
+    _kind.setdefault('operative', False)
     _kind.setdefault('lines', ())
     _kind.setdefault('note', None)
     _kind['group'] = maplist.MISSION_GROUP.get(_key.split('/')[0], 'council' if _key.startswith('Special/') else
@@ -222,7 +230,8 @@ def play_setup(record, content_text=None, try_untried=False, lwr=False):
     """What a play of this record needs (plan A2): dict(kind, label, state, words, lines: the `set` commands to add,
     options: the open line's options [(name, value)], missing: what the play goes without, in sentences, notes: what
     else is known of the kind on this path, one sentence each, saving: why the play has saving on whatever was asked,
-    or None, aliens: the pods' character for gamelaunch.play_text, or None for its default).
+    or None, aliens: the pods' character for gamelaunch.play_text, or None for its default, operative: the battle has a
+    covert operative who takes the first unit's looks, LEAD_NOTE).
     content_text: the install's DefaultContent.ini (for terror's civilians). try_untried: put in the commands not yet
     known to work (serve --try-mission-lines, for EXP-53). lwr: the install is Long War Rebalance (SAVING_KINDS)."""
     if isinstance(record, bytes): record = record.decode('latin-1')
@@ -258,7 +267,7 @@ def play_setup(record, content_text=None, try_untried=False, lwr=False):
         if not OPTION.fullmatch(name) or not VALUE.fullmatch(value): raise ValueError(f'bad option {name}={value}')
     return dict(kind=key, label=k['label'], state=k['state'], words=words, lines=lines, options=options,
                 missing=missing, notes=notes, saving=SAVING_WHY if lwr and key in SAVING_KINDS else None,
-                aliens=EXALT_ALIENS if exalt else None)
+                aliens=EXALT_ALIENS if exalt else None, operative=k['operative'])
 
 
 def kinds_for_page(content_text=None, try_untried=False, lwr=False):
@@ -303,7 +312,7 @@ def named_map(name):
 
 
 # ---------------------------------------------------------------- a mission's objects (export 24: C2, C3)
-# the page's twin is web/mission_view.js KINDS
+# the page's twin is web/spawns_view.js KINDS
 OBJECT_WORDS = {'dropIn': ('drop-in point', 'drop-in points'), 'pod': ('pod', 'pods'), 'landing': ('the landing', 'landings'),
                 'soldier': ('a soldier\'s landing point', 'soldiers\' landing points'),
                 'operative': ('the covert operative\'s point', 'operative\'s points'), 'vip': ('a VIP\'s point', 'VIPs\' points'),

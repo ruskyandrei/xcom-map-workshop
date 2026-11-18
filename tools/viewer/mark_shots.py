@@ -14,6 +14,8 @@ The shots file (JSON) names the map, the project and the shots; points are in ga
               "fov": 50,                                 # optional
               "floor": "1",                              # optional: the floors control ("all" by default)
               "lights": true,                            # optional: the light markers shown (Shift+L)
+              "effects": true,                           # optional: effects and sounds drawn with the pieces (the
+                                                         # Normal button's Effects and sounds switch)
               "lighting": "map",                         # optional: the lighting mode (map, map-no-area, neutral)
               "missionObjects": true,                    # optional: View options' Mission objects shown
               "marks": [{"n": "1", "at": [-1392, -1392, 120], "color": "#5ad17a", "r": 36,
@@ -99,6 +101,7 @@ def take(page, shot, out):
     if floor.count() and 'on' not in (floor.first.get_attribute('class') or ''):
         floor.first.click()
     page.evaluate('on => viewer.setLightsShown?.(on)', bool(shot.get('lights')))
+    page.evaluate('on => viewer.setNormalEffects?.(on)', bool(shot.get('effects')))
     page.evaluate(MISSION_OBJECTS, bool(shot.get('missionObjects')))
     lighting = page.locator('#lighting button[data-value="%s"]' % shot.get('lighting', 'neutral'))
     if lighting.count():

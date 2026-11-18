@@ -43,6 +43,37 @@ class Spread(unittest.TestCase):
         self.assertIsNone(effects.spread([]))
 
 
+class Lifecycle(unittest.TestCase):
+    def test_by_the_live_emitters_loops(self):
+        self.assertEqual(effects.lifecycle([dict(lods=1, loops=0), dict(lods=2)]), 'looping')
+        self.assertEqual(effects.lifecycle([dict(lods=1, loops=1), dict(lods=1, loops=3)]), 'finite')
+        self.assertEqual(effects.lifecycle([dict(lods=1, loops=0), dict(lods=1, loops=1)]), 'mixed')
+
+    def test_stripped_emitters_do_not_count(self):
+        self.assertEqual(effects.lifecycle([dict(lods=0, loops=1), dict(lods=1, loops=0)]), 'looping')
+        self.assertEqual(effects.lifecycle([dict(lods=0, loops=1)]), 'empty')
+
+
+class Inside(unittest.TestCase):
+    BOX = dict(min=[0.0, 0.0, 0.0], max=[100.0, 50.0, 20.0])
+
+    def test_a_point_in_any_box_with_slack(self):
+        self.assertTrue(effects.inside([100.0, 25.0, 10.0], [self.BOX]))
+        self.assertFalse(effects.inside([101.0, 25.0, 10.0], [self.BOX]))
+        self.assertTrue(effects.inside([101.0, 25.0, 10.0], [self.BOX], 2.0))
+        self.assertTrue(effects.inside([500.0, 0.0, 0.0], [self.BOX, dict(min=[400.0, -1.0, -1.0], max=[600.0, 1.0, 1.0])]))
+        self.assertFalse(effects.inside([0.0, 0.0, 0.0], [None]))
+        self.assertFalse(effects.inside([0.0, 0.0, 0.0], []))
+
+
+class Copies(unittest.TestCase):
+    def test_a_newer_package_of_the_same_guid_is_a_copy(self):
+        found = dict(Bar=dict(guid='aa', modified=1000), Bar_Mine=dict(guid='aa', modified=1000 + 30 * 86400),
+                     Pier=dict(guid='bb', modified=1000), Pier_Asian=dict(guid='bb', modified=1500),
+                     Broken=dict(error='unreadable'), NoGuid=dict(guid='', modified=5))
+        self.assertEqual(effects.copies(found), {'Bar_Mine'})
+
+
 def package(role, licensee, emitters=None, sounds=None, systems=None, waves=None, closure=None):
     record = dict(role=role, licensee=licensee, emitters=emitters or {}, sounds=sounds or {}, flares={}, others={},
                   systems=systems or {}, waves=waves or {})

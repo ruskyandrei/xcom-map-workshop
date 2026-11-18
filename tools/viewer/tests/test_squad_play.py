@@ -129,6 +129,39 @@ class Snapshot(SquadPlay):
         self.assertEqual(played['squad']['count'], 6)
         self.settle(player)
 
+    def test_a_covert_operative_gets_a_soldier_first(self):
+        """T-44: the stand-in operative of a data recovery or covert extraction takes the first unit's looks, and a
+        SHIV has none (the battle then waits on its loading screen), so a soldier lands first there."""
+        import missions
+        exalt = test_play.dep.set_field(test_play.dep.set_field(test_play.record('bar'), 'MissionType', 'eMission_CaptureAndHold',
+                                                                quoted=False), 'DisplayName', 'URB_Bar (Data recovery) |0')
+        maps = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
+        maps.write_bytes(maps.read_bytes().replace(test_play.record('bar'), test_play.record('bar') + test_play.dep.EOL + exalt))
+        doc = squadrecords.default_document()
+        shiv = dict(squadrecords._unit(9, 'Tracks', '', 'eSC_None', 'eItem_SHIVDeck_I', None, ['eItem_ShivMinigun'], [],
+                                       None, None, kind='shiv'))
+        doc['units'] = [shiv] + doc['units'][:3]
+        self.squad_store.save(doc, self.squad_store.read()[1])
+        player = self.player()
+        r = player.play(dict(map='URB_Bar', mission=1))
+        line = next(l for l in self.play_file().split('\n') if 'm_aSoldiers' in l)
+        self.assertLess(line.index('strFirstName="Tom"'), line.index('strName="Tracks"'))
+        self.assertIn(missions.LEAD_NOTE.format(name='Tom Alpha'), r['played']['mission']['notes'])
+        self.assertEqual(r['played']['mission']['missing'], [])
+        self.settle(player)
+        # an abduction keeps the squad's order
+        player.play(dict(map='URB_Bar', mission=0))
+        line = next(l for l in self.play_file().split('\n') if 'm_aSoldiers' in l)
+        self.assertLess(line.index('strName="Tracks"'), line.index('strFirstName="Tom"'))
+        self.settle(player)
+        # only SHIVs: the play goes ahead and says what happens
+        doc['units'] = [shiv]
+        self.squad_store.save(doc, self.squad_store.read()[1])
+        r = player.play(dict(map='URB_Bar', mission=1))
+        self.assertEqual(r['played']['mission']['missing'], [missions.NO_LEAD_MISSING])
+        self.assertIn('strName="Tracks"', self.play_file())
+        self.settle(player)
+
 
 class Routes(SquadPlay):
     def test_get_save_check_import_export(self):

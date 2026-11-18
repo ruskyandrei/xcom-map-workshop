@@ -4,8 +4,11 @@ with Windows' own PowerShell (5.1 or later).
 
 Install asks for the game folder (or takes it as its argument; it offers the Steam installs it finds), refuses while
 XCOM runs, keeps copies of DefaultMaps.ini and DefaultLZMutator.ini as they are, copies the pack's files, adds each
-map's records after its base map's (and, for a map made to replace its original, comments the base map's own records
-out: each map says which in pack.json, so one pack can hold both kinds), adds its landing zones where the install has Long War's file, and writes down what it did in
+map's records after its base map's (and, for a map made to replace its original, comments out the base map's own
+records it has records for, by their DisplayName in pack.json's switch, leaving the others in use (F-118): each map
+says which way in pack.json, so one pack can hold both kinds), adds its landing zones where the install has Long War's file,
+adds its drop-in exclusion lines (a project that leaves scripted drop-ins where placed) where the install has Long War's
+DefaultRandomSpawns.ini and its drop-in section, and writes down what it did in
 <game>\\XCOM Map Workshop\\packs\\<pack id>.json. Uninstall undoes exactly that: the lines it added go, the lines it
 commented out come back, the files it copied are deleted if unchanged; it says whether DefaultMaps.ini is then byte
 for byte as it was before the pack (it is, unless something else changed the file meanwhile, whose changes stay).
@@ -93,6 +96,8 @@ if (Get-Process -Name XComEW -ErrorAction SilentlyContinue) { Fail 'XCOM is runn
 
 $mapsPath = Join-Path $Game 'XEW\XComGame\Config\DefaultMaps.ini'
 $lzPath = Join-Path $Game 'XEW\XComGame\Config\DefaultLZMutator.ini'
+$rsPath = Join-Path $Game 'XEW\XComGame\Config\DefaultRandomSpawns.ini'
+$dropInSection = '[XComLZMutator.XComSpawnAlienMutator]'
 $cooked = Join-Path $Game 'XEW\XComGame\CookedPCConsole'
 $stateFolder = Join-Path $Game 'XCOM Map Workshop\packs'
 $statePath = Join-Path $stateFolder "$($pack.id).json"
@@ -124,6 +129,16 @@ function Uninstall-Pack {
             $lz.RemoveRange($at, $run.Count)
         }
         Write-Lines $lzPath $lz
+    }
+    if (@($state.exclusions).Count -and (Test-Path -LiteralPath $rsPath)) {
+        $rs = Read-Lines $rsPath
+        foreach ($block in @($state.exclusions)) {
+            $run = [string[]]@($block.lines)
+            $at = Find-Run $rs $run
+            if ($at -lt 0) { $left += "the drop-in exclusion of $($block.variant) has changed: take it out by hand"; continue }
+            $rs.RemoveRange($at, $run.Count)
+        }
+        Write-Lines $rsPath $rs
     }
     $gone = 0
     foreach ($file in @($state.files)) {
@@ -174,7 +189,10 @@ $maps = Read-Lines $mapsPath
 $lz = $null
 if (Test-Path -LiteralPath $lzPath) { $lz = Read-Lines $lzPath }
 $hasLz = $null -ne $lz
-$added = @(); $commented = @(); $zones = @(); $skipped = @(); $done = @()
+$rs = $null
+if (Test-Path -LiteralPath $rsPath) { $rs = Read-Lines $rsPath }
+$hasRs = $null -ne $rs
+$added = @(); $commented = @(); $zones = @(); $exclusions = @(); $skipped = @(); $done = @()
 foreach ($map in @($pack.maps)) {
     $base = [regex]::Escape($map.base)
     $live = '^\s*Maps=\(.*(?<![A-Za-z])Name="' + $base + '"'
@@ -194,8 +212,18 @@ foreach ($map in @($pack.maps)) {
     $way = $map.mode
     if (-not $way) { $way = $pack.mode }
     if ($way -eq 'replace') {
+        # the base map's records the map has records for, by their DisplayName (switch); the others stay in use. A
+        # pack from before switch comments out every one.
+        $only = $null
+        if ($map.PSObject.Properties.Name -contains 'switch') { $only = [string[]]@($map.switch) }
         for ($i = 0; $i -lt $maps.Count; $i++) {
-            if ($maps[$i] -match $live) { $commented += $maps[$i]; $maps[$i] = ';' + $maps[$i] }
+            if ($maps[$i] -notmatch $live) { continue }
+            if ($null -ne $only) {
+                $display = ''
+                if ($maps[$i] -match 'DisplayName="([^"]*)"') { $display = $Matches[1] }
+                if ($only -cnotcontains $display) { continue }
+            }
+            $commented += $maps[$i]; $maps[$i] = ';' + $maps[$i]
         }
     }
     if ($hasLz -and $map.landingZones) {
@@ -213,6 +241,25 @@ foreach ($map in @($pack.maps)) {
             $zones += @{ variant = $map.variant; lines = $lines }
         }
     }
+    if ($hasRs -and $map.dropInExclusion) {
+        # after the last ExcludeMaps line of the drop-in section (live or commented), else at the section's end;
+        # nothing where a live line for the map is there already, or the file has no such section
+        $start = -1; $end = $rs.Count; $last = -1; $there = $false
+        for ($i = 0; $i -lt $rs.Count; $i++) {
+            $t = $rs[$i].Trim()
+            if ($t.StartsWith('[')) { if ($start -ge 0 -and $end -eq $rs.Count -and $i -gt $start) { $end = $i }; if ($t -eq $dropInSection -and $start -lt 0) { $start = $i }; continue }
+            if ($start -lt 0 -or $i -ge $end) { continue }
+            if ($t -match '^;*\s*[+.!]?ExcludeMaps\s*=') { $last = $i }
+            if ($t -match ('^[+.!]?ExcludeMaps\s*=\s*"?' + [regex]::Escape($map.variant) + '"?\s*$')) { $there = $true }
+        }
+        if ($start -ge 0 -and -not $there) {
+            $at = $last + 1
+            if ($last -lt 0) { $at = $end; while ($at - 1 -gt $start -and $rs[$at - 1].Trim() -eq '') { $at-- } }
+            $lines = [string[]]@($map.dropInExclusion)
+            $rs.InsertRange($at, $lines)
+            $exclusions += @{ variant = $map.variant; lines = $lines }
+        }
+    }
     $done += $map
 }
 if (-not $done.Count) {
@@ -223,6 +270,7 @@ if (-not $done.Count) {
 New-Item -ItemType Directory -Force -Path $backup | Out-Null
 Copy-Item -LiteralPath $mapsPath -Destination (Join-Path $backup 'DefaultMaps.ini') -Force
 if ($hasLz) { Copy-Item -LiteralPath $lzPath -Destination (Join-Path $backup 'DefaultLZMutator.ini') -Force }
+if ($hasRs) { Copy-Item -LiteralPath $rsPath -Destination (Join-Path $backup 'DefaultRandomSpawns.ini') -Force }
 $copied = @()
 $wanted = @($done | ForEach-Object { @($_.files) })
 foreach ($name in $names) {
@@ -233,11 +281,12 @@ foreach ($name in $names) {
     $copied += @{ name = $name; sha256 = $pack.files.$name }
 }
 $state = @{ pack = $pack.id; name = $pack.name; mode = $pack.mode; installedAt = (Get-Date).ToString('s'); added = $added;
-            commented = $commented; zones = $zones; files = $copied }
+            commented = $commented; zones = $zones; exclusions = $exclusions; files = $copied }
 New-Item -ItemType Directory -Force -Path $stateFolder | Out-Null
 ConvertTo-Json $state -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $statePath
 Write-Lines $mapsPath $maps
 if ($zones.Count) { Write-Lines $lzPath $lz }
+if ($exclusions.Count) { Write-Lines $rsPath $rs }
 
 Write-Host "Installed $($done.Count) map(s) in $Game." -ForegroundColor Green
 foreach ($map in $done) {

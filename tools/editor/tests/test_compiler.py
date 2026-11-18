@@ -5,7 +5,9 @@ import math
 import os
 from pathlib import Path
 import random
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -21,6 +23,16 @@ SHA = 'a' * 64
 PL = 'TheWorld.PersistentLevel.'
 import settings  # noqa: E402
 CACHE = Path(os.environ.get('XCOM_VIEWER_CACHE') or settings.configured('cache') or 'no-cache-configured')
+
+
+def library_scanned():
+    """Whether the configured cache holds a library index this version reads (an older one waits for its rescan)."""
+    try:
+        index = json.loads((CACHE / 'library' / 'index.json').read_text(encoding='utf-8'))
+        import library
+        return index.get('version') == library.INDEX_VERSION
+    except (OSError, ValueError):
+        return False
 BAR_SHA = 'a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5'
 
 
@@ -229,6 +241,299 @@ class CompilerTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(warned(report, 'mission-object-deleted'), ['mission-object-deleted'])
         self.assertEqual(native_split(stream_only(spec))[1]['streamHides'], {'URB_Bar_CNH': ['XComRadarArrayActor_0']})
+
+    def test_the_bombs_helper_point_moves_with_the_bomb(self):
+        # export 33 (spawns plan SP3, F-124): the PointInSpace beside the bomb is in its group; a move that leaves it
+        # behind splits the group, one that takes it along is accepted whole
+        s, at = self.mission_scene()
+        b = at(15, 15, 0.0)
+        obj = lambda actor, cls, kind, role, where: dict(actor=PL + actor, actorClass=cls, kind=kind, location=where, rotation=[0, 0, 0],  # noqa: E731
+                                                         archetype=None, tag=None, unitType=None, box=None, referencedBy=[],
+                                                         group='bomb', role=role)
+        s['missions'][1] = dict(type='Special', label='Council bomb', group='council', display='', streams=['URB_Bar_CNH'])
+        s['streams']['URB_Bar_CNH']['missionObjects'] += [
+            obj('XComLevelActor_50', 'XComLevelActor', 'bomb', 'bomb', b),
+            obj('XComInteractiveLevelActor_50', 'XComInteractiveLevelActor', 'use', 'button', b),
+            obj('PointInSpace_0', 'PointInSpace', 'part', 'point', [b[0] + 2.5, b[1], b[2] + 204.5])]
+        stream = lambda actor: dict(package='URB_Bar_CNH', level='stream', actor=PL + actor)  # noqa: E731
+        shift = lambda where: [where[0] + 288, where[1], where[2]]  # noqa: E731
+        moves = [dict(target=stream('XComLevelActor_50'), location=shift(b), rotation=[0, 0, 0]),
+                 dict(target=stream('XComInteractiveLevelActor_50'), location=shift(b), rotation=[0, 0, 0])]
+        _, report = compile_project(document(moves), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-group-split'), ['mission-group-split'])
+        moves.append(dict(target=stream('PointInSpace_0'), location=shift([b[0] + 2.5, b[1], b[2] + 204.5]), rotation=[0, 0, 0]))
+        spec, report = compile_project(document(moves), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-group-split'), [])
+        got = native_split(stream_only(spec))[1]['streamMoves']['URB_Bar_CNH']
+        self.assertIn('PointInSpace_0', [m['actor'] for m in got])
+
+    def donor_scene(self):
+        """mission_scene with the bomb donor's objects (export 33's `donors`): the bomb at Slaughterhouse's place, off
+        this map's grid, and a power node over a floor tile of the map."""
+        s, at = self.mission_scene()
+        node = at(5, 5)
+        obj = lambda actor, cls, kind, role, group, where: dict(actor=PL + actor, actorClass=cls, kind=kind, location=where,  # noqa: E731
+                                                                rotation=[0, 0, 0], archetype=None, tag=None, unitType=None, box=None,
+                                                                referencedBy=[], group=group, role=role)
+        s['donors'] = {'Special/Bomb': dict(stream='URB_Slaughterhouse_Stream', package='URB_Slaughterhouse_Stream.upk', missionObjects=[
+            obj('XComLevelActor_11', 'XComLevelActor', 'bomb', 'bomb', 'bomb', [-90000.0, 1872.0, 68.0]),
+            obj('PointInSpace_0', 'PointInSpace', 'part', 'point', 'bomb', [-89997.5, 1872.0, 272.5]),
+            obj('XComLevelActor_6', 'XComLevelActor', 'powerNode', 'node', 'node:XComLevelActor_6', node)])}
+        return s, at
+
+    def test_an_added_bombs_objects_are_moved_in_the_donor_stream_and_checked(self):
+        # spawns plan SP4: the added bomb's objects come from Slaughterhouse's stream (scene.donors); a move of them
+        # needs the kind in the project's missions; left at the donor's own place they are warned of where that place
+        # is off this map's grid, over no floor or inside a piece
+        s, at = self.donor_scene()
+        donor = lambda actor: dict(package='URB_Slaughterhouse_Stream', level='stream', actor=PL + actor)  # noqa: E731
+        bomb_mission = [dict(record=0), dict(kind='Special/Bomb')]
+        _, report = compile_project(document(missions=bomb_mission), s)
+        self.assertTrue(report['ok'], refused(report))
+        placed = [w for w in report['warnings'] if w['code'] == 'mission-donor-place']
+        self.assertEqual([w['actor'].rsplit('.', 1)[-1] for w in placed], ['XComLevelActor_11'])
+        self.assertIn('off the map\'s grid', placed[0]['message'])
+        self.assertEqual((placed[0]['mission'], placed[0]['missionKind'], placed[0]['stream']),
+                         ('Council bomb (added)', 'Special/Bomb', 'URB_Slaughterhouse_Stream'))
+        # the bomb moved onto the map with its helper: accepted, in the stream's moves, no warning of its place
+        there = at(12, 12, 0.0)
+        moves = [dict(target=donor('XComLevelActor_11'), location=there, rotation=[0, 0, 0]),
+                 dict(target=donor('PointInSpace_0'), location=[there[0] + 2.5, there[1], 204.5], rotation=[0, 0, 0])]
+        spec, report = compile_project(document(moves, missions=bomb_mission), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-donor-place'), [])
+        self.assertEqual(warned(report, 'mission-group-split'), [])
+        got = native_split(stream_only(spec))[1]['streamMoves']['URB_Slaughterhouse_Stream']
+        self.assertEqual(sorted(m['actor'] for m in got), ['PointInSpace_0', 'XComLevelActor_11'])
+        # a node's floor taken by the edit: the node's place is checked on this map too (a warning)
+        s['tactical']['floorTiles'] = [f for f in s['tactical']['floorTiles'] if f['tile'][:2] != [5, 5]]
+        _, report = compile_project(document(moves, missions=bomb_mission), s)
+        self.assertIn('over no floor', ' '.join(w['message'] for w in report['warnings'] if w['code'] == 'mission-donor-place'))
+        # the donor's objects moved by a project that adds no bomb: an error that says so
+        _, report = compile_project(document(moves), s)
+        self.assertEqual(sorted(set(codes(report))), ['stream-donor'])
+
+    def spawn_scene(self):
+        """mission_scene with the base map's pods and Meld points (export 33's `spawns`): three pods and a Meld group of
+        a hard and an easy point; the first pod and the hard point stand on XComLevelActor_1's floor tile."""
+        s, at = self.mission_scene()
+        rec = lambda actor, cls, kind, where, **values: dict(  # noqa: E731
+            actor=PL + actor, actorClass=cls, kind=kind, location=where, rotation=[0, 0, 0],
+            values={k: {'value': v, 'from': 'saved'} for k, v in values.items()})
+        s['spawns'] = [rec('XComAlienPod_0', 'XComAlienPod', 'pod', at(10, 10, 17.0), podIndex=0),
+                       rec('XComAlienPod_1', 'XComAlienPod', 'pod', at(15, 15, 17.0), podIndex=1),
+                       rec('XComAlienPod_2', 'XComAlienPod', 'pod', at(30, 30, 17.0), podIndex=2),
+                       rec('XComMeldContainerSpawnPoint_0', 'XComMeldContainerSpawnPoint', 'meld', at(10, 10, 17.0),
+                           difficulty='Hard', spawnGroup=0),
+                       rec('XComMeldContainerSpawnPoint_1', 'XComMeldContainerSpawnPoint', 'meld', at(25, 5, 17.0),
+                           difficulty='Easy', spawnGroup=0)]
+        return s, at
+
+    def test_the_drop_in_rule_is_checked_passed_on_and_says_what_it_covers(self):
+        # spawns plan SP8: spawnRules {"dropIns": "placed"} or nothing; it is work of its own, goes to the Build's
+        # native edit and the report, and a note counts the scripted actions it covers (export 33's uses) over the map
+        # and the kept missions' streams; anything else is refused
+        s, at = self.spawn_scene()
+        use = lambda by: dict(how='direct', by=by, byClass='SeqAct_SpawnAlien')  # noqa: E731
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={},
+                                uses=[use('Main_Sequence.SeqAct_SpawnAlien_1'),
+                                      dict(how='indirect', by='Main_Sequence.SeqAct_AccessObjectList_0',
+                                           then=['Main_Sequence.SeqAct_SpawnAlien_2', 'Main_Sequence.SeqAct_SpawnAlien_1'])]))
+        s['streams']['URB_Bar_CNH']['missionObjects'][2]['uses'] = [use('Stream_Sequence.SeqAct_SpawnAlien_0')]
+        spec, report = compile_project(document(spawnRules=dict(dropIns='placed')), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(report['spawnRules'], dict(dropIns='placed'))
+        self.assertEqual(native_split(spec)[1]['spawnRules'], dict(dropIns='placed'))
+        note = next(n for n in report['notes'] if n['code'] == 'dropins-placed')
+        self.assertEqual((note['actions'], note['missions']), (3, ['Abduction', 'Data recovery']))
+        self.assertIn('3 scripted actions in URB_Bar_CNH, the map', note['message'])
+        self.assertIn('URB_Bar_BarRemix_5005', note['message'])
+        # one mission kept: its stream alone is counted with the map
+        _, report = compile_project(document(spawnRules=dict(dropIns='placed'), missions=[dict(record=0)]), s)
+        note = next(n for n in report['notes'] if n['code'] == 'dropins-placed')
+        self.assertEqual((note['actions'], note['missions']), (2, ['Abduction']))
+        # not a rule this editor knows: refused
+        for bad in (dict(dropIns='install'), dict(dropIns='placed', waves='placed'), 'placed', []):
+            _, report = compile_project(document(spawnRules=bad), s)
+            self.assertEqual(codes(report), ['spawn-rules'], bad)
+        # none: no note, nothing passed on
+        spec, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)]), s)
+        self.assertEqual((noted(report, 'dropins'), report['spawnRules'], native_split(spec)[1].get('spawnRules')), ([], None, None))
+
+    def test_a_map_long_war_excludes_says_its_variant_is_not(self):
+        # spawns plan SP8: the install's ExcludeMaps names the base map (the Chryssalid Hive's case): with no rule, a note
+        # that the variant, under its own name, gets the drop-in mutator
+        s, _ = self.spawn_scene()
+        game = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, game, True)
+        cfg = game / 'XEW/XComGame/Config'
+        cfg.mkdir(parents=True)
+        (cfg / 'DefaultMutatorLoader.ini').write_bytes(b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n')
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "URB_Bar"\r\n')
+        library = compiler.Library(str(game), str(game))
+        edit = [dict(target=target('XComLevelActor_2'), deleted=True)]
+        _, report = compile_project(document(edit), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), ['dropins-base-excluded'])
+        _, report = compile_project(document(edit, spawnRules=dict(dropIns='placed')), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), ['dropins-placed'])
+        (cfg / 'DefaultRandomSpawns.ini').write_bytes(b'[XComLZMutator.XComSpawnAlienMutator]\r\nExcludeMaps = "EWI_ChryssalidHive"\r\n')
+        _, report = compile_project(document(edit), s, (), library)
+        self.assertEqual(noted(report, 'dropins'), [])
+
+    def test_base_spawn_points_moved_and_given_values_where_the_spawn_family_builds(self):
+        # spawns plan SP6: a base pod, Meld point or drop-in point moves, turns and takes the values of its kind, in
+        # place (the native `spawns` lane, with no patch); off while the spawn family doesn't build
+        s, at = self.spawn_scene()
+        s['spawns'][0]['links'] = [dict(property='PathNode', actor=PL + 'XComAlienPathNode_4')]
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={}))
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_18', actorClass='XComSpawnPoint', kind='soldier',
+                                location=at(6, 6), rotation=[0, 0, 0], values={}))
+        pod = s['spawns'][0]
+        edits = [dict(target=target('XComAlienPod_0'), location=[pod['location'][0] + 96, *pod['location'][1:]], rotation=[0, 16384, 0]),
+                 dict(target=target('XComAlienPod_1'), spawn=dict(commander=True)),
+                 dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(difficulty='Hard', destroyedOnTurn=6, spawnGroup=0)),
+                 dict(target=target('XComSpawnPoint_Alien_3'), location=at(7, 5), rotation=[0, -16384, 0])]
+        # (the family builds since EXP-72 runs 6 to 8; its gate still refuses where it is off)
+        with mock.patch.dict(compiler.FAMILIES['spawn'], builds=False):
+            _, report = compile_project(document(edits), s)
+        self.assertEqual(sorted(set(codes(report))), ['family'])
+        self.assertEqual(len(codes(report)), 4)
+        spec, report = compile_project(document(edits), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(report['counts']['spawns'], dict(moved=2, valued=2, added=0, deleted=0))
+        patch, native = native_split(spec)
+        self.assertFalse(any(o.get('type') == 'spawns' for o in patch['objects']))
+        lane = native['spawns']
+        self.assertEqual([m['name'] for m in lane['moves']], ['XComAlienPod_0', 'XComSpawnPoint_Alien_3'])
+        self.assertEqual(lane['moves'][0]['rotation'], [0, 16384, 0])
+        self.assertEqual(lane['moves'][0]['before']['location'], pod['location'])
+        # a value the map already has builds nothing (the Meld point's spawn group)
+        self.assertEqual([(v['name'], v['spawn']) for v in lane['values']],
+                         [('XComAlienPod_1', dict(commander=True)), ('XComMeldContainerSpawnPoint_1', dict(destroyedOnTurn=6, difficulty='Hard'))])
+        self.assertEqual((lane['copies'], lane['deletes']), ([], []))
+        # the pod's link to its path node stays where the map has it: a note says so
+        self.assertIn('its PathNode XComAlienPathNode_4', next(n for n in report['notes'] if n['code'] == 'spawn-links')['message'])
+        # refused: another kind's value, a value out of range, a kind the editor shows only, an actor the level
+        # doesn't list, one whose values weren't read
+        s['spawns'][2]['listed'] = False
+        s['spawns'][3]['unread'] = 'bad bytes'
+        for rec, code in [(dict(target=target('XComAlienPod_1'), spawn=dict(difficulty='Hard')), 'spawn-values'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(destroyedOnTurn=100)), 'spawn-values'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(difficulty='Medium')), 'spawn-values'),
+                          (dict(target=target('XComAlienPod_0'), spawn=dict(use=1)), 'spawn-values'),
+                          (dict(target=target('XComSpawnPoint_18'), location=at(9, 9), rotation=[0, 0, 0]), 'spawn-view-only'),
+                          (dict(target=target('XComAlienPod_2'), spawn=dict(commander=True)), 'spawn-unlisted'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_0'), spawn=dict(spawnGroup=1)), 'spawn-unread')]:
+            _, report = compile_project(document([rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+        # a value of no kind is noted and carried; a spawn point as the map has it builds nothing
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), spawn=dict(colour='red'))]), s, enable=['spawn'])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'un'), ['unchanged', 'unknown-field'])
+        self.assertEqual(report['counts']['spawns'], dict(moved=0, valued=0, added=0, deleted=0))
+
+    def test_base_spawn_points_copied_and_deleted(self):
+        # spawns plan SP7: a pod or Meld point copied from a plain template of the map (a pod's copy takes the next pod
+        # index no pod of the map or its streams has and no pod event names), a point deleted only when nothing names it
+        s, at = self.spawn_scene()
+        s['spawns'][1]['uses'] = [dict(how='event', by='Main_Sequence.SeqEvent_OnRevealPod_0', podId=7, staticOnly=False)]
+        s['spawns'][1]['values']['commander'] = {'value': True, 'from': 'saved'}
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={},
+                                uses=[dict(how='direct', by='Main_Sequence.SeqAct_SpawnAlien_1', byClass='SeqAct_SpawnAlien')]))
+        s['streams']['URB_Bar_CNH']['missionObjects'].append(dict(actor=PL + 'XComAlienPod_9', actorClass='XComAlienPod', kind='pod',
+                                                                  location=at(1, 1), values={'podIndex': {'value': 9, 'from': 'saved'}}))
+        copy = lambda n, src, kind, where, **extra: dict(id='c%d' % n, kind=kind, actor=PL + '%s_copy%d' % (src, n),  # noqa: E731
+                                                         **{'from': target(src)}, location=where, rotation=[0, 0, 0], **extra)
+        added = [copy(1, 'XComAlienPod_0', 'pod', at(12, 12, 17.0)), copy(2, 'XComAlienPod_2', 'pod', at(31, 31, 17.0), spawn=dict(use=False)),
+                 copy(3, 'XComMeldContainerSpawnPoint_1', 'meld', at(26, 6, 17.0), spawn=dict(difficulty='Hard', spawnGroup=0))]
+        gone = [dict(target=target('XComAlienPod_2'), deleted=True), dict(target=target('XComAlienPod_1'), deleted=True),
+                dict(target=target('XComSpawnPoint_Alien_3'), deleted=True)]
+        with mock.patch.dict(compiler.FAMILIES['spawn'], builds=False):
+            _, report = compile_project(document(gone, added=added), s)
+        self.assertEqual(sorted(set(codes(report))), ['family'])
+        spec, report = compile_project(document(gone, added=added), s)
+        self.assertTrue(report['ok'], refused(report))
+        lane = native_split(spec)[1]['spawns']
+        # above the stream's pod 9 (the map's are 0 to 2, an event names 7): 10 and 11, in the document's order
+        self.assertEqual([(c['name'], c['source'], c.get('podIndex'), c.get('spawn')) for c in lane['copies']],
+                         [('XComAlienPod_0_copy1', 'XComAlienPod_0', 10, None), ('XComAlienPod_2_copy2', 'XComAlienPod_2', 11, dict(use=False)),
+                          ('XComMeldContainerSpawnPoint_1_copy3', 'XComMeldContainerSpawnPoint_1', None, dict(difficulty='Hard'))])
+        # the delete of the pod nothing names is built; the pod an event names and the drop-in the Kismet uses stay
+        self.assertEqual([d['name'] for d in lane['deletes']], ['XComAlienPod_2'])
+        named = sorted(w['actor'] for w in report['warnings'] if w['code'] == 'spawn-delete-named')
+        self.assertEqual(named, [PL + 'XComAlienPod_1', PL + 'XComSpawnPoint_Alien_3'])
+        msg = next(w['message'] for w in report['warnings'] if w['actor'] == PL + 'XComAlienPod_1')
+        self.assertIn('SeqEvent_OnRevealPod_0 (a pod event for its index)', msg)
+        self.assertEqual(report['counts']['spawns'], dict(moved=0, valued=0, added=3, deleted=1))
+        # SP5's count: two pods copied onto floor make up for the one deleted (no pod place lost)
+        self.assertEqual(warned(report, 'spawn-pod'), [])
+        # refused: a template that isn't plain, one of another kind, a drop-in copied, a template the export lacks
+        for rec, code in [(copy(4, 'XComAlienPod_1', 'pod', at(12, 12, 17.0)), 'spawn-copy-template'),
+                          (copy(5, 'XComAlienPod_0', 'meld', at(12, 12, 17.0)), 'malformed'),
+                          (copy(6, 'XComMeldContainerSpawnPoint_0', 'meld', at(12, 12, 17.0), spawn=dict(commander=True)), 'spawn-values'),
+                          (copy(7, 'XComAlienPod_77', 'pod', at(12, 12, 17.0)), 'missing'),
+                          (dict(copy(8, 'XComAlienPod_0', 'pod', at(12, 12, 17.0)), id=''), 'malformed')]:
+            _, report = compile_project(document(added=[rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+        # a drop-in point is no kind a project copies: its record goes to the effects' copier, which refuses it
+        _, report = compile_project(document(added=[copy(9, 'XComSpawnPoint_Alien_3', 'dropIn', at(12, 12, 17.0))]), s, enable=['spawn'])
+        self.assertEqual(codes(report), ['malformed'])
+        # a pod deleted where the export could not read its uses stays too
+        s['spawns'][0]['unread'] = 'bad bytes'
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)]), s, enable=['spawn'])
+        self.assertEqual(warned(report, 'spawn-delete'), ['spawn-delete-named'])
+
+    def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
+        # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in
+        # no solid piece of the project; fewer pod places, or a Meld group without its hard points or any point, is
+        # a warning that names the first point lost; points a resized grid leaves outside, a note
+        s, at = self.spawn_scene()
+        spawn_codes = lambda report: warned(report, 'spawn-') + noted(report, 'spawn-')  # noqa: E731
+        _, report = compile_project(document(), s)
+        self.assertEqual(spawn_codes(report), [])
+        # XComLevelActor_1's floor tile goes, with the first pod's place and the hard point's
+        gone = [dict(target=target('XComLevelActor_1'), deleted=True)]
+        _, report = compile_project(document(gone), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(spawn_codes(report), ['spawn-meld-group', 'spawn-pod-places'])
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_0'))
+        self.assertEqual(pods['mission'], 'Every mission of the variant')
+        self.assertTrue(pods['message'].startswith('Every mission of the variant: 2 of the map'), pods['message'])
+        meld = next(w for w in report['warnings'] if w['code'] == 'spawn-meld-group')
+        self.assertIn('hard points', meld['message'])
+        self.assertEqual(meld['actor'], PL + 'XComMeldContainerSpawnPoint_0')
+        # one mission kept: the warnings name it
+        _, report = compile_project(document(gone, missions=[dict(record=1)]), s)
+        self.assertEqual({w['mission'] for w in report['warnings'] if w['code'].startswith('spawn-')}, {'Data recovery'})
+        # a piece of the project over the second pod: its place is lost too
+        _, report = compile_project(document(added=[add('XComLevelActor_2', 0, at(15, 15, 0.0))]), s)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_1'))
+        # every floor tile the deleted piece's (a cleared map's): no pod place left, the Meld group has no point
+        s2, _ = self.spawn_scene()
+        for f in s2['tactical']['floorTiles']:
+            f['actor'] = PL + 'XComLevelActor_1'
+        _, report = compile_project(document(gone), s2)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now']), (3, 0))
+        self.assertIn('none of its 2 usable points', next(w['message'] for w in report['warnings'] if w['code'] == 'spawn-meld-group'))
+        # a cleared map's grid shrunk past the third pod and the easy point: they are outside (a note) and the pod's
+        # place is lost
+        _, report = compile_project(document(cleared=True, stage={'grid': [20, 20]}), s)
+        self.assertTrue(report['ok'], refused(report))
+        out = next(n for n in report['notes'] if n['code'] == 'spawn-outside')
+        self.assertTrue(out['message'].startswith('1 pod and 1 Meld point of the map stand outside'), out['message'])
+        self.assertEqual(out['count'], 2)
+        pods = next(w for w in report['warnings'] if w['code'] == 'spawn-pod-places')
+        self.assertEqual((pods['before'], pods['now'], pods['actor']), (3, 2, PL + 'XComAlienPod_2'))
+        # the Meld group keeps its hard point: no Meld warning
+        self.assertEqual(warned(report, 'spawn-meld'), [])
 
     def test_a_missions_objects_warn_when_the_edit_takes_their_floor_or_covers_them(self):
         # mission types plan, C3: warnings only, each naming its mission; the drop-in only a note
@@ -669,7 +974,7 @@ class CompilerTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=3), 'schema'),
+        for doc, code in [(document(schemaVersion=5), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),
@@ -1802,8 +2107,8 @@ class ForeignTests(unittest.TestCase):
         spec, report = compile_project(doc, scene(), library=library)
         self.assertEqual((codes(report), library.asked), (['level'], []))
 
-    @unittest.skipUnless((CACHE / 'library' / 'index.json').is_file() and settings.configured('game'),
-                         'needs the game install and its library scanned into the cache')
+    @unittest.skipUnless(library_scanned() and settings.configured('game'),
+                         'needs the game install and its library scanned into the cache (by this version of the index)')
     def test_the_installs_library_gives_a_piece_and_says_what_it_lacks(self):
         game = settings.resolve_game(settings.configured('game'))[0]
         library = compiler.Library(CACHE, game)
@@ -1842,8 +2147,8 @@ class FamilyTests(unittest.TestCase):
 
     def test_the_families_table(self):
         self.assertEqual(sorted(f for f, v in compiler.FAMILIES.items() if v['builds']),
-                         ['building', 'car', 'collectible', 'destructible', 'door', 'fracturing', 'frameless-door',
-                          'ladder', 'light', 'physics', 'scenery', 'van'])
+                         ['building', 'car', 'collectible', 'destructible', 'door', 'effect', 'effect-values', 'flare', 'fracturing',
+                          'frameless-door', 'ladder', 'light', 'physics', 'scenery', 'sound', 'sound-values', 'spawn', 'van'])
         self.assertTrue(all(compiler.FAMILIES[compiler.CLASS_FAMILY[c]]['builds'] for c in compiler.M1_CLASSES))
         # every class with a family builds (fracturing pieces and physics props since 9 November), in the map itself
         # or as part of an assembly

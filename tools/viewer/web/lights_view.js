@@ -155,8 +155,10 @@ function coneLines(radius, angle, colour, opacity) {
 // the view basis, at(value), for values lo..hi (units, or degrees for a cone); the page drags one by finding the value
 // whose point comes nearest the pointer on screen (nearestValue). `side` (view basis, unit) is where the handles lean:
 // the camera's left (the panel takes the view's right), so they sit at the shapes' left and right edges on screen.
-const HANDLE_SIZES = { radius: 0.42, outer: 0.38, inner: 0.32 };
-export const HANDLE_COLOURS = { radius: 0xffffff, outer: 0xffe2a0, inner: 0xc8b88a, hover: 0xffc040 };
+// (an effect's size and a sound's radii: the effects and sounds plan, stage FX5)
+const HANDLE_SIZES = { radius: 0.42, outer: 0.38, inner: 0.32, size: 0.42, radiusMax: 0.42, radiusMin: 0.34 };
+export const HANDLE_COLOURS = { radius: 0xffffff, outer: 0xffe2a0, inner: 0xc8b88a, hover: 0xffc040, size: 0xffb070,
+                                radiusMax: 0x9fd8ff, radiusMin: 0x6fb0e0 };
 const HANDLE_RIM = new THREE.MeshBasicMaterial({ color: 0x0d1418, depthTest: false, depthWrite: false, transparent: true });
 /** A handle: a dot in its colour (userData.material) on a dark rim, drawn over everything. */
 export function makeHandle(key) {

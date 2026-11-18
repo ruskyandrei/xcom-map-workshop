@@ -14,11 +14,13 @@ from materials import coordinates, profile, static_switches, constant_color, app
 from PIL import Image
 from export_math import multiply, transform, view_matrix
 from scene_metadata import (building_metadata, cursor_volumes, effect_metadata, landing_metadata, destruction, fragment_breaks, kismet_references, prefab_members, tile_grid,
-                            tactical_metadata)
+                            tactical_metadata, spawn_metadata, donor_objects, BOMB_DONOR)
 from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
 import collision
+import effects_draw
+import effects_metadata
 import piece_flags
 
 # 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
@@ -48,9 +50,29 @@ import piece_flags
 #     class the flags apply to (its family, its settings with where each came from, its roles, whether it collides and
 #     whether its static meshes have simple collision), and each mesh's `collision` (its BodySetup, whether line and
 #     box checks use its simple collision; a skeletal mesh's kind)
-EXPORT_VERSION = 27   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 28: the map's effects, sounds and lens flares for the Effects view (effects and sounds plan, Part A, stage FX1;
+#     effects_metadata.describe): `effects` gains its identity, starting state, saved particle parameters, floors,
+#     script users, attachment and what the editor may do with it; `sounds` and `flares` are new; `effectSystems`
+#     and `soundWaves` describe each particle system and wave once; a mission stream's own are in its layer
+# 29: what the page draws an effect's likeness from (effects and sounds plan, Part J1, stage FXV1; effects_draw.py):
+#     each emitter of `effectSystems` gains `draw` (sprites or meshes, its textures and blend, its spawn rate, bursts
+#     and followed modules' tables or particle parameters) or `draw: null` with `why`; the particle textures and
+#     meshes are written with the map's others
+# 30: an effect placed by a prefab instance at whose own place one mesh piece stands is carried by that piece
+#     (`carriedBy`, `carriedHow: prefab`; scene_metadata.effect_metadata): the fog pod's smoke follows its pod (F-50)
+# 31: draw version 4 (effects_draw.texture_traits): each particle texture's traits from its pixels, and an emitter's
+#     colour and shape taken from different textures (`maskFrom`, `opacity: none`): the fires drawn as flames; the
+#     material's own colour parameters (`colours`): the night smoke drawn dark, not pink
+# 32: draw version 5: an added particle's grey texture is its picture, and a picture whose alpha holds its shape
+#     takes only a named mask (the police lights round again, not squares); an emitter that only sends events says so
+# 33: the map's spawn points and who uses them (editor spawns implementation plan, SP1; scene_metadata.spawn_metadata):
+#     `spawns` (pods, Meld points, drop-in and other points, starts, path nodes, no-spawn volumes, each with its values
+#     and where each comes from, its links and uses); an LWR patch's `spawns`; a mission object's values, links, uses
+#     and listed, and the bomb's PointInSpace helper in its group (F-124); `donors` (the bomb donor's objects)
+EXPORT_VERSION = 33   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
+EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
 SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
 
 
@@ -197,6 +219,47 @@ class Exporter:
                 self.warn(self.p.name(actor), f'Piece flags not read: {error}')
                 self.flags[actor] = None
         return self.flags[actor]
+
+    def effects(self, scope):
+        """The package's effects, sounds and flares (export 28; effects_metadata.describe): the map's own, each effect
+        with the piece that carries it (export 23's rule), and a mission stream's, read only; none for a sample or
+        for the patch a preview builds on. Sets self.landings (export 22), which they are matched against."""
+        p = self.p
+        self.landings = [] if self.prefix or scope != 'map' else landing_metadata(p, self.warn)
+        stream = self.prefix[len('stream-'):-1] if self.prefix.startswith('stream-') else None
+        if scope != 'map' or (self.prefix and stream is None):
+            return dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
+        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how=e['carriedHow'])
+                                     for e in effect_metadata(p) if e['carriedBy']}
+        defaults = effects_metadata.Defaults(p)
+        found = effects_metadata.describe(p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix,
+                                          layer='stream' if stream else 'base', stream=stream, defaults=defaults,
+                                          warn=self.warn)
+        found['defaults'] = 'script' if defaults.scripts else 'table'
+        # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
+        effects_draw.attach(p, defaults, found['systems'], self, compiled_textures, effects_draw.RULES, self.warn)
+        return found
+
+    def particle_mesh(self, mi, override=0):
+        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section, each
+        section's own material export), or (None, [], []) where it doesn't read. `override`: the emitter's own material, drawn on every section."""
+        p = self.p
+        mesh_key = self.prefix + str(mi)
+        if mesh_key not in self.meshes:
+            try:
+                mesh = read_mesh(p, mi)
+                write_glb(mesh, self.folder / f"mesh-{mesh_key}.glb")
+            except (ValueError, OSError, struct.error, IndexError, KeyError) as error:
+                self.warn(p.name(mi), f'Particle mesh not read: {error}')
+                return None, [], []
+            self.meshes[mesh_key] = dict(name=p.name(mi), url=f"mesh-{mesh_key}.glb",
+                vertices=len(mesh["positions"])//3, triangles=len(mesh["indices"])//3,
+                sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=None, kind='static', bones=[],
+                pose=None, origin=mesh.get('origin'), rotOrigin=mesh.get('rotOrigin'),
+                collision=self.mesh_collision(mi))
+        drawn = [s for s in self.meshes[mesh_key]["sections"] if s["count"]]
+        mats = [self.section_material(override if override > 0 else s["material"], mi) for s in drawn]
+        return mesh_key, mats, [s["material"] for s in drawn]
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup
@@ -557,13 +620,18 @@ class Exporter:
             if bounds is None or area > bounds[0]: bounds = (area,candidate)
         grid=tile_grid(p,bounds[1],self.warn) if bounds else None
         tactical=tactical_metadata(p,objects,self.meshes,grid,self.warn) if grid else None
+        effects = self.effects(scope)
+        # the map's spawn points (export 33): [] for a map with none, absent for a piece study or a streamed package
+        spawns = {} if self.prefix or scope != 'map' else dict(spawns=spawn_metadata(p, self.landings, self.warn))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
                     cursorVolumes=[] if self.prefix else cursor_volumes(p),
-                    landings=[] if self.prefix or scope != "map" else landing_metadata(p, self.warn),
-                    effects=[] if self.prefix or scope != "map" else effect_metadata(p),
+                    landings=self.landings, **spawns,
+                    effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
+                    effectSystems=effects['systems'], soundWaves=effects['waves'],
+                    effectsMetadata=dict(version=EFFECTS_METADATA_VERSION, defaults=effects['defaults']),
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
                     source=dict(file=str(p.path),sha256=sha256(p.path),
                     version=p.header["ver"],licensee=p.header["lic"]),
@@ -629,17 +697,25 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
         except (FormatError, ValueError, OSError, struct.error) as error:
             entry['error'] = str(error)
             continue
+        report_to = lambda source, error, name=name: result['diagnostics'].append(  # noqa: E731
+            dict(source=f'{name}: {source}', message=str(error)))
         if kind == 'mission':
             from scene_metadata import mission_objects
-            entry['missionObjects'] = mission_objects(package, lambda source, error, name=name: result['diagnostics'].append(
-                dict(source=f'{name}: {source}', message=str(error))))
+            entry['missionObjects'] = mission_objects(package, report_to)
+        else:
+            # an LWR patch's spawn points (export 33), shown read only with the layer named
+            entry['spawns'] = spawn_metadata(package, [], report_to)
         for key in ('meshes','materials','textures'):
             if set(result[key]) & set(layer[key]): raise ValueError(f'Asset identity collision in {name}')
             result[key].update(layer[key])
+        # its effects, sounds and flares (export 28), read only; their systems and waves are keyed by package
+        for key, into in (('effectSystems', 'effectSystems'), ('soundWaves', 'soundWaves')):
+            result.setdefault(into, {}).update(layer.get(key) or {})
         for record in layer['objects'] + layer.get('lights', []):
             record.update(layer='stream', stream=name)
         for obj in layer['objects']:
             obj.update(floors=[], sceneryRole=None)
+        entry.update(effects=layer.get('effects', []), sounds=layer.get('sounds', []), flares=layer.get('flares', []))
         entry.update(objects=layer['objects'], lights=layer.get('lights', []),
                      hiddenComponents=sum(bool(o['hidden']) for o in layer['objects']),
                      rebuildVolumes=sum(r.get('actorClass') == 'XComRebuildWorldDataVolume'
@@ -692,12 +768,16 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
             scene=resolve_scene(composed,spec,template)
             scene['preview']['source']=str(Path(path).resolve())
             scene['preview']['sha256']=sha256(path)
+            scene.pop('spawns',None)     # (export 33: a preview reads no spawn points)
             previews.append((f'preview-{i}.json',scene))
         if scope == 'map':
             # what the game streams into the map with each mission (LWR's patches, mission objects); the original
             # layout's only: a preview carries the patch it builds on itself
             result['missions'] = map_records(p.path)
             result['streams'] = stream_layers(p, result, stage, result['missions'], progress, base=exporter)
+            # the bomb donor's objects (export 33): an added bomb mission's markers, without its pieces
+            result['donors'] = donor_objects(stream_package(p.path, BOMB_DONOR), lambda source, error: result['diagnostics'].append(
+                dict(source=f'{BOMB_DONOR}: {source}', message=str(error))))
         for scene in [result]+[s for _,s in previews]:
             for key in ('meshes','materials','textures'):scene[key]=result[key]
             scene['counts'].update(components=len(scene['objects']),lights=len(scene.get('lights',[])),meshes=len(exporter.meshes),

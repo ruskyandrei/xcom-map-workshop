@@ -33,8 +33,21 @@ def piece(actor, cls='XComLevelActor', mesh='Kit.Meshes.Crate', size=1000, **cha
     return out
 
 
-def donor(package, pieces, role='base'):
-    return dict(package=package, role=role, sha256='0' * 64, size=1, mtime=1, pieces=pieces)
+def donor(package, pieces, role='base', effects=()):
+    return dict(package=package, role=role, sha256='0' * 64, size=1, mtime=1, pieces=pieces, effects=list(effects))
+
+
+def effect_piece(actor, kind='effect', system='FX_SmokeB.Misc.Steam_Small', size=500, **changes):
+    """scan_effects' row for an effect or a sound."""
+    recipe = dict(v=1, kind=kind, actorClass='Emitter' if kind == 'effect' else 'AmbientSoundSimple',
+                  system=system if kind == 'effect' else None)
+    out = dict(kind=kind, actor=actor, key=library.recipe_key(recipe), recipe=recipe, name=system.rsplit('.', 1)[-1],
+               actorClass=recipe['actorClass'], group='Smoke and steam' if kind == 'effect' else 'Machines',
+               system=system if kind == 'effect' else None, emitters=['sprite'] if kind == 'effect' else [], lit=False,
+               startsOn=True, scripted=False, waves=[] if kind == 'effect' else ['SoundAmbience.Hum'], seconds=None,
+               cue=None, sharedCue=False, closure=dict(objects=10, bytes=size), refused=None, cuts=[], reason=None)
+    out.update(changes)
+    return out
 
 
 class DonorTests(unittest.TestCase):
@@ -167,6 +180,88 @@ class IndexTests(unittest.TestCase):
         entries = {e['name']: e for e in library.build_index([donor('URB_One', [car, door, van])])['entries']}
         # (what a whole car's glass lists of its neighbours is cut, and no reason to hold it back)
         self.assertEqual({n: e['placeable'] for n, e in entries.items()}, dict(Body=True, Leaf=True, Van=False))
+
+    def test_effects_and_sounds_are_entries_of_their_own(self):
+        """The base maps' effects and ambient sounds (scan_effects, stage FX4): one entry per recipe, from the map that
+        brings least; held by the foreign gate until their game check, never by a later step's refusal."""
+        import compiler
+        index = library.build_index([
+            donor('URB_One', [piece('XComLevelActor_3')], effects=[effect_piece('Emitter_1', size=900),
+                                                                    effect_piece('AmbientSoundSimple_2', kind='sound', system='Hum')]),
+            donor('URB_Two', [], effects=[effect_piece('Emitter_7', size=300), effect_piece('Emitter_8', size=300)])])
+        self.assertEqual([d['effects'] for d in index['donors']], [2, 2])
+        fx = {e['name']: e for e in index['entries'] if e['family'] in library.EFFECT_FAMILIES}
+        steam, hum = fx['Steam_Small'], fx['Hum']
+        self.assertEqual(steam['source'], dict(kind='map', package='URB_Two', level='base', actor='Emitter_7'))
+        self.assertEqual(steam['placed'], {'maps': 2, 'count': 3, 'in': [0, 1]})
+        self.assertEqual((steam['family'], steam['kind'], steam['actorClass'], steam['system'], steam['emitters']),
+                         ('effect', 'Smoke and steam', 'Emitter', 'FX_SmokeB.Misc.Steam_Small', ['sprite']))
+        self.assertEqual((hum['family'], hum['kind'], hum['waves']), ('sound', 'Machines', ['SoundAmbience.Hum']))
+        self.assertNotIn('mesh', steam)
+        gated = 'effect' not in compiler.FOREIGN_FAMILIES
+        self.assertEqual((steam['placeable'], steam['blocked']), (not gated, 'family' if gated else None))
+        if gated:
+            self.assertIn('an effect', steam['reason'])
+        # what the foreign gate lists is placeable, in a fresh index and in one read back
+        self.addCleanup(setattr, compiler, 'FOREIGN_FAMILIES', compiler.FOREIGN_FAMILIES)
+        compiler.FOREIGN_FAMILIES = compiler.FOREIGN_FAMILIES + ('effect', 'sound')
+        again = library.build_index([donor('URB_One', [], effects=[effect_piece('Emitter_1')])])
+        self.assertEqual(again['entries'][0]['blocked'], None)
+        with tempfile.TemporaryDirectory() as d:
+            path = library.index_path(d)
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps(index), encoding='utf-8')
+            read = {e['name']: e for e in library.load_index(d)['entries']}
+            self.assertEqual((read['Steam_Small']['placeable'], read['Hum']['placeable']), (True, True))
+
+    def test_lens_flares_are_entries_of_their_own(self):
+        """The base maps' lens flares (stage FX6b, index 10): one entry per recipe, family flare, held by the foreign
+        gate until their game check."""
+        import compiler
+        import effects_library
+
+        def glare(actor, template='FX_Lens_Flares.LF_Alien_Ambient_A', **changes):
+            recipe = dict(v=1, kind='flare', actorClass='LensFlareSource', template=template, colour=[3.0, 0.5, 0.2, 1.0])
+            return effect_piece(actor, kind='flare', system=template, **dict(dict(
+                key=library.recipe_key(recipe), recipe=recipe, actorClass='LensFlareSource', group=effects_library.FLARE_KIND,
+                emitters=[], waves=[], flare=template, colour=[3.0, 0.5, 0.2, 1.0], closure=dict(objects=40, bytes=50000)),
+                **changes))
+        self.assertGreaterEqual(library.INDEX_VERSION, 10)
+        self.assertIn('flare', library.EFFECT_FAMILIES)
+        index = library.build_index([
+            donor('AlienBase01', [], effects=[glare('LensFlareSource_1'), glare('LensFlareSource_3'), effect_piece('Emitter_1'),
+                                              glare('LensFlareSource_9', template='FX_Lens_Flares.LF_Riding', closure=None,
+                                                    reason='it rides on SkeletalMeshActor_1 and moves with it')]),
+            donor('URB_Two', [], effects=[glare('LensFlareSource_0')])])
+        by = {e['name']: e for e in index['entries']}
+        one = by['LF_Alien_Ambient_A']
+        self.assertEqual((one['family'], one['kind'], one['actorClass'], one['flare'], one['colour'], one['system'], one['waves']),
+                         ('flare', 'Lens flare', 'LensFlareSource', 'FX_Lens_Flares.LF_Alien_Ambient_A', [3.0, 0.5, 0.2, 1.0], None, []))
+        self.assertEqual(one['placed'], {'maps': 2, 'count': 3, 'in': [0, 1]})
+        self.assertEqual(one['closure'], dict(objects=40, bytes=50000))
+        gated = 'flare' not in compiler.FOREIGN_FAMILIES or not compiler.FAMILIES['flare']['builds']
+        self.assertEqual((one['placeable'], one['blocked']), (not gated, 'family' if gated else None))
+        if gated:
+            self.assertIn('a lens flare', one['reason'])
+        self.assertEqual((by['LF_Riding']['blocked'], by['LF_Riding']['placeable']), ('unavailable', False))
+        self.assertIn('rides on', by['LF_Riding']['reason'])
+        # (an effect's entry has the flare's fields empty)
+        self.assertEqual((by['Steam_Small']['flare'], by['Steam_Small']['colour']), (None, None))
+
+    def test_an_effect_that_can_not_be_brought_says_why(self):
+        index = library.build_index([donor('URB_One', [], effects=[
+            effect_piece('Emitter_1', system='FX.Landing', closure=None,
+                         reason='it is one of the landing\'s actors, which Long War\'s landing mutator takes out'),
+            effect_piece('Emitter_2', system='FX.Movie', closure=None,
+                         refused='FX.Movie.T: a TextureMovie has 900 bytes of native data and no layout here'),
+            effect_piece('Emitter_3', system='FX.Riding', cuts=['InterpActor'])])])
+        why = {e['name']: (e['blocked'], e['reason'], e['placeable']) for e in index['entries']}
+        self.assertEqual(why['Landing'][0], 'unavailable')
+        self.assertIn('landing mutator', why['Landing'][1])
+        self.assertEqual(why['Movie'][:1] + (('TextureMovie' in why['Movie'][1]),), ('closure', True))
+        self.assertEqual(why['Riding'][0], 'closure')
+        self.assertIn('InterpActor', why['Riding'][1])
+        self.assertFalse(any(v[2] for v in why.values()))
 
     def test_a_placeable_instance_is_the_exemplar_before_a_smaller_one_that_is_not(self):
         index = library.build_index([donor('URB_One', [piece('A_1', size=10, hidden=True)]),
@@ -361,16 +456,17 @@ class GameTests(unittest.TestCase):
                          [('URB_Bar', 'base'), ('URB_PoliceStation', 'base')])
         self.assertEqual(index['failed'], [])
         self.assertEqual(library.load_index(self.cache), index)
-        self.assertEqual(sum(e['placed']['count'] for e in index['entries']), sum(d['pieces'] for d in index['donors']))
+        pieces = [e for e in index['entries'] if e['family'] not in library.EFFECT_FAMILIES]
+        self.assertEqual(sum(e['placed']['count'] for e in pieces), sum(d['pieces'] for d in index['donors']))
         self.assertEqual(len({e['key'] for e in index['entries']}), len(index['entries']))
-        both = [e for e in index['entries'] if e['placed']['in'] == [0, 1]]
+        both = [e for e in pieces if e['placed']['in'] == [0, 1]]
         self.assertGreater(len(both), 10)                               # recipes both maps place: one entry each
-        lamp = next(e for e in index['entries'] if e['mesh'] == 'parkLampPost.Meshes.ParkLampPost_B')
+        lamp = next(e for e in pieces if e['mesh'] == 'parkLampPost.Meshes.ParkLampPost_B')
         self.assertEqual((lamp['placeable'], lamp['family'], lamp['source']['package'], lamp['placed']['in'], lamp['cuts']),
                          (True, 'scenery', 'URB_PoliceStation', [1], []))
         self.assertGreater(lamp['closure']['bytes'], 30000)             # against a map with none of it
         self.assertTrue(all(20 < v < 400 for v in lamp['size']), lamp['size'])   # a post, by its mesh's bounds
-        for e in index['entries']:
+        for e in pieces:
             self.assertEqual(e['placeable'], e['reason'] is None)
             if e['placeable']:
                 import compiler
@@ -388,11 +484,120 @@ class GameTests(unittest.TestCase):
         vans = [e for e in index['entries'] if e['family'] == 'van']
         self.assertTrue(vans and all(e['closure'] and e['assembly']['members'] >= 5 for e in vans), vans)
         self.assertTrue(all(e['placeable'] == ('van' in compiler.FOREIGN_ASSEMBLIES) for e in vans))
-        self.assertFalse([e for e in index['entries'] if not e.get('assembly') and e['recipe']['parts'][0]['mesh'].endswith('Glass_FRACTURED')])
+        self.assertFalse([e for e in pieces if not e.get('assembly') and e['recipe']['parts'][0]['mesh'].endswith('Glass_FRACTURED')])
         doors = [e for e in index['entries'] if e.get('assembly') and e['family'] == 'door']
         self.assertTrue(doors and all(e['assembly']['members'] == 2 and e['actorClass'] == 'XComInteractiveLevelActor' for e in doors))
         self.assertEqual(library.stale(index, self.game)[0], [])
         self.assertGreater(len(library.stale(index, self.game)[1]), 100)   # the install's other donors
+
+    def test_the_base_maps_effects_and_sounds_are_entries(self):
+        import compiler
+        import effects_library
+        index = self.index
+        fx = [e for e in index['entries'] if e['family'] in library.EFFECT_FAMILIES]
+        self.assertEqual(sum(e['placed']['count'] for e in fx), sum(d['effects'] for d in index['donors']))
+        self.assertEqual(index['donors'][0]['effects'], 78)            # Bar's 71 effects, 5 ambient sounds, 2 lens flares
+        for e in fx:
+            self.assertEqual(e['placeable'], e['reason'] is None)
+            self.assertIn(e['blocked'], (None, 'family', 'unavailable', 'closure'))
+            self.assertEqual(e['kind'], effects_library.kind_of(e['family'], e['system'] or (e['waves'] or [e['cue']])[0]))
+        # the landing's (the grounded Skyranger's idle glow and sound, its dust): not brought
+        landing = [e for e in fx if e['name'] in ('P_Skyranger_Idle', 'P_Skyranger_Ground_Periphery', 'DropshipIdle')]
+        # (the two maps' own recipes of them: each map's are placed its own way)
+        self.assertEqual({e['name'] for e in landing}, {'P_Skyranger_Idle', 'P_Skyranger_Ground_Periphery', 'DropshipIdle'})
+        self.assertTrue(all(e['blocked'] == 'unavailable' and 'landing' in e['reason'] for e in landing))
+        steam = next(e for e in fx if e['system'] == 'FX_SmokeB.Misc.Steam_Small')
+        self.assertEqual((steam['family'], steam['kind'], steam['actorClass']), ('effect', 'Smoke and steam', 'Emitter'))
+        self.assertEqual(steam['blocked'], None if 'effect' in compiler.FOREIGN_FAMILIES else 'family')
+        self.assertGreater(steam['closure']['bytes'], 1000)
+        music = next(e for e in fx if e['waves'] == ['SoundBarMuzak.BarMuzakStereo'])
+        self.assertEqual((music['family'], music['kind'], music['source']['actor'], music['sharedCue']),
+                         ('sound', 'Music and voices', 'AmbientSoundSimple_2', False))
+        self.assertGreater(music['seconds'], 60)
+        # Bar's two lens flares are one entry (one template, one colour), which brings its template and archetype
+        glare, = [e for e in fx if e['family'] == 'flare']
+        self.assertEqual((glare['name'], glare['kind'], glare['flare'], glare['placed']['count'], glare['cuts']),
+                         ('LF_XCom_Base_C', 'Lens flare', 'FX_Lens_Flares.LF_XCom_Base_C', 2, []))
+        self.assertIn(glare['source']['actor'], ('LensFlareSource_7', 'LensFlareSource_8'))
+        self.assertGreater(glare['closure']['bytes'], 1000)
+        self.assertIn(glare['blocked'], (None, 'family'))
+
+    def test_an_effect_or_sound_is_read_as_a_template(self):
+        steam = library.effect(self.cache, self.game, dict(package='urb_bar', level='base', actor='Emitter_16'))
+        self.assertEqual((steam['kind'], steam['source']['package'], steam['source']['actor']), ('effect', 'URB_Bar', 'Emitter_16'))
+        self.assertEqual(steam['source']['sha256'], self.index['donors'][0]['sha256'])
+        self.assertEqual(list(steam['systems']), [steam['record']['system']])
+        self.assertEqual(steam['record']['actor'], 'TheWorld.PersistentLevel.Emitter_16')
+        self.assertEqual(next(e for e in self.index['entries'] if e['key'] == steam['key'])['family'], 'effect')
+        folder = self.cache / 'library' / 'pieces' / 'URB_Bar'
+        self.assertTrue(any((g / ('effects-v%d.json' % library.EFFECTS_VERSION)).is_file() for g in folder.iterdir()))
+        music = library.effect(self.cache, self.game, dict(package='URB_Bar', actor='AmbientSoundSimple_2'))
+        glare = library.effect(self.cache, self.game, dict(package='URB_Bar', actor='LensFlareSource_7'))
+        self.assertEqual((glare['kind'], glare['record']['template'], glare['systems'], glare['waves'], glare['draw']),
+                         ('flare', 'FX_Lens_Flares.LF_XCom_Base_C', {}, {}, None))
+        self.assertEqual(next(e for e in self.index['entries'] if e['key'] == glare['key'])['family'], 'flare')
+        self.assertEqual(list(music['waves']), ['URB_Bar|SoundBarMuzak.BarMuzakStereo'])
+        self.assertTrue(music['waves']['URB_Bar|SoundBarMuzak.BarMuzakStereo']['playable'])
+        # many at once, and what can't be had
+        runner = library.LibraryRunner(self.cache, self.game)
+        got = runner.effects([dict(package='URB_Bar', actor='Emitter_16'), dict(package='URB_Bar', actor='Emitter_99999'),
+                              dict(package='URB_NoSuchMap', actor='A_1')])
+        self.assertEqual((got[0]['record']['key'], got[0]['record']['source']), (steam['key'], steam['source']))
+        self.assertIn('Emitter_99999', got[1]['error'])
+        self.assertIn('URB_NoSuchMap', got[2]['error'])
+        for bad, status in ((dict(package='URB_Bar', actor='Emitter_99999'), 404), (dict(package='URB_Bar', actor='no such!'), 400),
+                            (dict(package='URB_Bar', level='stream', actor='Emitter_16'), 400)):
+            with self.assertRaises(ProjectError) as caught:
+                library.effect(self.cache, self.game, bad)
+            self.assertEqual(caught.exception.status, status)
+        # the Wave preview reads a donor's wave by its records
+        path, scene = runner.wave_scene('URB_Bar')
+        self.assertEqual((path.name, scene['name'], scene['source']['sha256']), ('URB_Bar.upk', 'URB_Bar', steam['source']['sha256']))
+        self.assertIn('URB_Bar|SoundBarMuzak.BarMuzakStereo', scene['soundWaves'])
+
+    def test_the_effect_routes(self):
+        """GET /library/effect.json, POST /library/effects.json and GET or HEAD /library/wave.ogg (a donor's wave for
+        the Wave preview) over the install's URB_Bar."""
+        from urllib.parse import quote, urlencode
+        import audio
+        runner = library.LibraryRunner(self.cache, self.game)
+        kept = Handler.wave_cache
+        Handler.wave_cache = audio.WaveCache()
+        self.addCleanup(setattr, Handler, 'wave_cache', kept)
+        server = LocalServer(('127.0.0.1', 0), partial(Handler, catalogue=load_catalogue(self.cache, allow_empty=True),
+                                                       library=runner))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(lambda: (server.shutdown(), server.server_close(), thread.join(timeout=5)))
+        base = f'http://127.0.0.1:{server.server_port}'
+
+        def get(path, method='GET', body=None):
+            request = Request(base + path, method=method, data=None if body is None else json.dumps(body).encode(),
+                              headers={'Content-Type': 'application/json'})
+            try:
+                with urlopen(request) as r:
+                    payload = r.read()
+                    return r.status, r.headers, payload
+            except HTTPError as error:
+                return error.code, error.headers, error.read()
+        status, _, payload = get('/library/effect.json?' + urlencode(dict(package='URB_Bar', actor='AmbientSoundSimple_2')))
+        music = json.loads(payload)
+        self.assertEqual((status, music['kind'], list(music['waves'])), (200, 'sound', ['URB_Bar|SoundBarMuzak.BarMuzakStereo']))
+        status, _, payload = get('/library/effects.json', 'POST', dict(sources=[dict(package='URB_Bar', actor='Emitter_16'),
+                                                                                dict(package='URB_Bar', actor='Emitter_99999')]))
+        both = json.loads(payload)['effects']
+        self.assertEqual((status, both[0]['record']['kind'], 'error' in both[1]), (200, 'effect', True))
+        self.assertEqual(get('/library/effects.json', 'POST', dict(sources='x'))[0], 400)
+        wave = base + '/library/wave.ogg?' + urlencode(dict(package='URB_Bar', id='URB_Bar|SoundBarMuzak.BarMuzakStereo'))
+        with urlopen(wave) as r:
+            whole = r.read()
+            self.assertEqual((r.status, r.headers['Content-Type']), (200, 'audio/ogg'))
+        self.assertEqual(audio.validate(whole)['channels'], 2)
+        with urlopen(Request(wave, method='HEAD')) as r:
+            self.assertEqual((r.status, int(r.headers['Content-Length']), r.read()), (200, len(whole), b''))
+        for query, code in ((dict(package='URB_Bar', id='URB_Bar|No.Such'), 404), (dict(package='URB_NoSuchMap', id='x'), 404),
+                            (dict(package='URB_Bar', id='URB_PoliceStation|' + quote('SoundBarMuzak.BarMuzakStereo')), 404)):
+            self.assertEqual(get('/library/wave.ogg?' + urlencode(query))[0], code, query)
 
     def test_an_assemblys_record_has_all_its_parts(self):
         car = next(e for e in self.index['entries'] if e.get('assembly') and e['family'] == 'car'

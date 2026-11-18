@@ -20,10 +20,12 @@ have been played in the game with a variant. All of that is said as warnings, ne
   POST /manager/install   {"projects": [id...], "mode": "additional" | "replace", "modes": {id: mode} optional}: each
                           project's last build installed its own way (modes), or else the request's (mode)
                           for campaigns; one that can't be is reported and the others go on
-  POST /manager/pack      {"projects": [id...], "mode": ..., "name": optional}: one zip in <builds>/Map packs with
-                          every build's files laid out as the game folder is, Install.cmd and Uninstall.cmd (which
-                          put the pack into a game folder and take it out again: pack_scripts.py), a README, each
-                          build's own manifest and README, and pack.json, which the scripts read
+  POST /manager/pack      {"projects": [id...], "mode": ..., "modes": optional, "name": optional, "projectFiles":
+                          optional}: one zip in <builds>/Map packs with every build's files laid out as the game
+                          folder is, Install.cmd and Uninstall.cmd (which put the pack into a game folder and take it
+                          out again: pack_scripts.py), a README, each build's own manifest and README, and pack.json,
+                          which the scripts read; with "projectFiles": true, each packed map's saved editor project
+                          too, under projects/ (the file as it is in the projects folder), for others to open and edit
 
 The pack's config lines are worked out from the game install the editor reads (the same lines install_rotation would
 add there); the README says so, since another install's records may differ.
@@ -41,6 +43,7 @@ import re
 import zipfile
 
 import installs
+import spawnrules
 import pack_scripts
 import publication
 from projects import ProjectError
@@ -72,16 +75,29 @@ def _lines(game):
 
 
 def _missions(lines, base):
-    """The missions the base map serves in the install: [{type, label, group, inRotation}], or None when not known."""
+    """The missions the base map serves in the install: [{type, label, group, inRotation, byName, bomb, firstMission
+    (when true)}], or None when not known."""
     if lines is None or not base: return None
     import deploy_fixture as dep
     import maplist
     out = []
     for _, line in installs.base_records(lines, base):
         group, kind, label = maplist.mission_of(line.decode('latin-1'))
+        first = installs._first_mission(line)
         out.append(dict(type=kind, label=label, group=group, inRotation=installs._in_rotation(line),
-                        byName=not installs._in_rotation(line), bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb'))
+                        byName=not installs._in_rotation(line) or first, bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb',
+                        **({'firstMission': True} if first else {})))
     return out
+
+
+def _mode_warnings(lines, m, missions, base, mode, lwr):
+    """What installing the project one way does to the missions (installs.mission_warnings): from its last build's
+    records when it has one (which of the base map's missions it has records for, F-118), else from the base map's."""
+    if m and lines is not None:
+        try: plan = installs.rotation_plan(lines, m, '', mode)
+        except (KeyError, TypeError, ValueError, installs.InstallError): plan = None
+        if plan: return installs.mission_warnings(plan['missions'], base, mode, lwr=lwr, kept=plan['kept'])
+    return installs.mission_warnings(missions, base, mode, lwr=lwr) if missions else []
 
 
 def _targets(player):
@@ -128,8 +144,7 @@ def listing(projects, builds, player):
         if build and build['quick']: warnings.append('Its last build is a quick one: its lighting is not baked.')
         if build and build['stale']:
             warnings.append(f'Its last build is of revision {build["revision"]}; the project is at revision {summary.get("revision")}.')
-        by_mode = {mode: installs.mission_warnings(missions, summary.get('map'), mode, lwr=lwr) if missions else []
-                   for mode in installs.ROTATION_MODES}
+        by_mode = {mode: _mode_warnings(lines, m, missions, summary.get('map'), mode, lwr) for mode in installs.ROTATION_MODES}
         in_game = None
         if variant in played or variant in rotation:
             entry = rotation.get(variant)
@@ -216,8 +231,8 @@ def _safe(name):
 
 def pack_readme(pack, parts):
     """The map pack's README: what is in it and how it goes into a game by hand. parts: one per build, dict(name,
-    variant, base, mode, files, records (text lines), switch (the base map's display names to comment out),
-    landingZones (text lines or None), warnings, quick)."""
+    variant, base, mode, files, records (text lines), switch (the base map's display names to comment out), keep
+    (those of its records to leave in use: the build has no record for their missions), landingZones (text lines or None), warnings, quick)."""
     replace = any(p['mode'] == 'replace' for p in parts)
     mixed = pack['mode'] == 'mixed'
     lines = [
@@ -262,14 +277,36 @@ def pack_readme(pack, parts):
         if p['mode'] == 'replace' and p['switch']:
             lines += ['', '   %s\'s own records to comment out (a ; before the line), by their DisplayName:' % p['base']]
             lines += ['     %s' % d for d in p['switch']]
-        elif p['mode'] == 'replace':
+        elif p['mode'] == 'replace' and not p.get('keep'):
             lines += ['', '   %s has no live record here: nothing to comment out.' % p['base']]
+        if p['mode'] == 'replace' and p.get('keep'):
+            lines += ['', '   %s\'s own records to leave as they are (the map has no record for their missions, so the' % p['base'],
+                      '   original stays in use there):']
+            lines += ['     %s' % d for d in p['keep']]
     zones = [p for p in parts if p['landingZones']]
     if zones:
         lines += ['', '3. XEW\\XComGame\\Config\\DefaultLZMutator.ini (Long War\'s landing zones; skip this without Long War): add each',
                   '   map\'s lines beside its base map\'s.']
         for p in zones:
             lines += ['', '   %s (beside %s\'s):' % (p['variant'], p['base'])] + p['landingZones']
+    excluded = [p for p in parts if p.get('dropInExclusion')]
+    if excluded:
+        lines += ['', '%d. XEW\\XComGame\\Config\\DefaultRandomSpawns.ini (Long War\'s drop-in settings; skip this without Long War):'
+                  % (4 if zones else 3),
+                  '   in its [%s] section, after its ExcludeMaps lines, add each map\'s lines (its project leaves' % spawnrules.DROP_IN_SECTION,
+                  '   scripted drop-ins where placed: Long War\'s drop-in mutator leaves the map alone).']
+        for p in excluded:
+            lines += ['', '   %s:' % p['variant']] + p['dropInExclusion']
+    shared = pack.get('projects') or []
+    if shared:
+        lines += ['', 'Editor projects. The projects folder has the XCOM Map Workshop project of %s, to open and change in the'
+                  % ('this map' if len(shared) == 1 else 'these maps'),
+                  'editor: copy the .json file into the editor\'s projects folder (by default <editor folder>\\projects), then open',
+                  'it with Load in the Project menu. The editor reads the base map from your own game install.']
+        for s in shared:
+            later = s['revision'] != s['buildRevision'] and s['buildRevision'] is not None
+            lines += ['  projects\\%s%s' % (s['file'], ' (saved after this build: the project is at revision %s, the map is of revision %s)'
+                                            % (s['revision'], s['buildRevision']) if later else '')]
     warned = [p for p in parts if p['warnings']]
     if warned:
         lines += ['', 'Notes:']
@@ -333,25 +370,44 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                 if files.get(src.name, (src, digest))[1] != digest:
                     raise installs.InstallError(f'{src.name} is in two of the builds with different contents')
                 files[src.name] = (src, digest)
-            # the base map's live records (a map whose records the install comments out has none)
-            switch = [dep.field(l, 'DisplayName') or '' for l in lines
-                      if dep.is_record(l) and dep.field(l, 'Name') == base] if its == 'replace' else []
+            # replacing: the base map's live records the build has records for are commented out (switch), the others
+            # stay in use (keep, F-118); a map whose records the install comments out has none
+            live = [l for l in lines if dep.is_record(l) and dep.field(l, 'Name') == base] if its == 'replace' else []
+            stands = set(plan['standsFor'])
+            switch = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') in stands]
+            keep = [dep.field(l, 'DisplayName') or '' for l in live if l.decode('latin-1') not in stands]
             _, zones = installs.plan_variant_lz(lz, m, note) if lz is not None else (None, [])
+            # the project's spawn rule (spawns plan, SP8): its ExcludeMaps lines, which the scripts add where the
+            # target install has Long War's drop-in section
+            exclusion = ([l.decode('latin-1') for l in spawnrules.exclusion_block(variant, installs.exclusion_note(note, m))]
+                         if (m.get('config') or {}).get('dropInExclusion') else None)
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
-                              records=[l.decode('latin-1') for l in plan['block']], switch=switch,
+                              records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
                               landingZones=[l.decode('latin-1') for l in zones] or None,
+                              **({'dropInExclusion': exclusion} if exclusion else {}),
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
                               donors=[{k: d.get(k) for k in ('map', 'sha256', 'pieces')} for d in m.get('donors') or []],
                               warnings=(['Its lighting is not baked (a quick build).'] if m.get('quick') else [])
-                              + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr')))
+                              + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr', kept=plan['kept'])))
         except (OSError, ValueError, KeyError, installs.InstallError) as error:
             skipped.append(dict(id=project_id, name=name, error=str(error)))
     if not parts:
         raise ProjectError(409, 'Not made: none of the chosen projects has a build to pack. '
                            + ' '.join(f'{s["name"]}: {s["error"]}' for s in skipped), skipped=skipped)
+    # the packed maps' editor projects, when asked for: each saved file as it is on disk, under projects/
+    shared, project_data = [], {}
+    if request.get('projectFiles') is True:
+        for p in parts:
+            try: document, data, digest, path = projects.capture(p['id'])
+            except ProjectError as error:
+                p['warnings'].append(f'Its editor project is not in the pack: {error.message}')
+                continue
+            project_data[path.name] = data
+            shared.append(dict(id=p['id'], name=p['name'], file=path.name, revision=document.get('revision'),
+                               buildRevision=p['revision'], sha256=digest))
     # the pack's mode: its maps' own, or "mixed" when some replace and some are added
     mode = parts[0]['mode'] if len({p['mode'] for p in parts}) == 1 else 'mixed'
     name = _safe(request.get('name') if isinstance(request.get('name'), str) else '') or (
@@ -360,9 +416,11 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                      id=re.sub(r'[^A-Za-z0-9_.-]+', '-', f'{name}-{stamp}'),
                      madeAt=now.isoformat(timespec='seconds'), game=kind_label(game) if game is not None else None,
                      maps=[{**{k: p[k] for k in ('id', 'name', 'variant', 'base', 'mode', 'quick', 'revision', 'buildId', 'files',
-                                              'records', 'switch', 'landingZones', 'donors', 'warnings')},
-                           **({'ownZones': True} if p.get('ownZones') else {})} for p in parts],
-                     files={n: digest for n, (_, digest) in sorted(files.items())})
+                                              'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings')},
+                           **({'ownZones': True} if p.get('ownZones') else {}),
+                           **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
+                     files={n: digest for n, (_, digest) in sorted(files.items())},
+                     **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f'{name} {stamp}.zip'
@@ -378,7 +436,9 @@ def _pack(projects, builds, player, request, chosen, mode, now):
         for p in parts:
             for n in ('README.txt', 'manifest.json'):
                 if (p['folder'] / n).is_file(): z.write(p['folder'] / n, f'packages/{p["variant"]}/{n}')
+        for n, data in sorted(project_data.items()):
+            z.writestr(f'projects/{n}', data)
     temp.replace(target)
     return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size,
                 packed=[dict(id=p['id'], name=p['name'], variant=p['variant'], mode=p['mode'], warnings=p['warnings']) for p in parts],
-                skipped=skipped)
+                skipped=skipped, projects=[s['file'] for s in shared])

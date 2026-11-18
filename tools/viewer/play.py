@@ -60,6 +60,7 @@ import installs
 import missions
 import publication
 import playsaves
+import squadrecords
 from projects import ProjectError
 from squads import SquadError
 from settings import documents, game_kind, game_setting, install_game, kind_label, lwr_game
@@ -200,11 +201,21 @@ class Player:
                 installs.write_start_file(game, gamelaunch.start_text(installs.PLAY_FILE) if saving else None)
                 # the pods: none in a prefab test, the mission's (EXALT's for its missions) or the game's default
                 aliens = False if test else (setup and setup['aliens']) or True
+                squad_value = None
                 if squad:
                     document, resolved = squad
                     played['squad'] = dict(name=document['name'], count=len(document['units']), **resolved.receipt())
+                    squad_value = resolved.text
+                    # a covert operative takes the first unit's looks: a soldier lands first (missions.LEAD_NOTE)
+                    if setup and setup['operative']:
+                        led, moved = squadrecords.soldier_first(resolved)
+                        mission = played['mission']
+                        if led is None: mission['missing'] = mission['missing'] + [missions.NO_LEAD_MISSING]
+                        else:
+                            squad_value = led
+                            if moved: mission['notes'] = mission['notes'] + [missions.LEAD_NOTE.format(name=moved)]
                 else: played['squad'] = None
-                installs.write_play_file(game, gamelaunch.play_text(played['map'], resolved.text if squad else None, aliens=aliens,
+                installs.write_play_file(game, gamelaunch.play_text(played['map'], squad_value, aliens=aliens,
                                                                     spawn_group=played.get('spawnGroup'),
                                                                     lines=setup['lines'] if setup else (),
                                                                     options=setup['options'] if setup else ()), played)

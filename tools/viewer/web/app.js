@@ -6,7 +6,7 @@ import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
-         BUILDING_SAME, validLandingZone, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
+         BUILDING_SAME, validLandingZone, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -20,7 +20,15 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
+import { FAMILIES, KINDS, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
+         copyTemplateWhy, editCopy, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnEditable, SPAWN_MARKER_SIZE,
+         spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf } from './spawns_view.js';
+import { consumerWords, fromWords, useLines } from './spawn_rules.js';
+import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
+import { SWAP, drawable, leftOut, makeLikeness, viewHeight } from './effects_preview.js';
+import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
+import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues,
+         soundReach, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
@@ -105,10 +113,21 @@ let pickTool = false, pickBox = null, pickDrag = null, pickHits = [], pickCentre
 let boxesShown = false, lightsOn = false, normalLights = false;
 // the Landing zones view (the user, 13 November 2026): the zones over everything, and only they are picked
 let zonesOn = false, zonesHidBefore = false;
+// the Effects view (effects and sounds plan, FX1; below the mission objects): its markers, and only they are picked.
+// Since FX3 each effect, sound and lens flare is a root of its own (effectRoots, an original's also by its key in
+// effectIndex), moved and turned by the gizmo, copied and deleted as pieces are where its family builds; the Normal
+// button's Effects switch (normalEffects) draws and picks them with pieces in the normal view. effectMarkers: the
+// markers drawn now, the roots' and the copies a piece's copy carries.
+let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers = [], normalEffects = false;
+// the Spawns view (editor spawns plan, SP3; its section is below the landing zones'): only its markers are picked; the
+// Normal button's switch (normalSpawns, remembered) draws and picks them with pieces
+let spawnsOn = false, normalSpawns = false, spawnLayerReady = false;
+const effectRoots = new Map(), effectIndex = new Map();
+let wavePlayer = null;     // the Wave preview's player: { audio, wave, record (its id), state: loading, playing or failed, why }
 world.add(volumeLayer);
-const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id),
-                   has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id),
-                   values: () => [...roots.values(), ...lightRoots.values(), ...volumeRoots.values()][Symbol.iterator]() };
+const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id),
+                   has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id) || effectRoots.has(id),
+                   values: () => [...roots.values(), ...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()][Symbol.iterator]() };
 const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
@@ -170,7 +189,7 @@ const assemblyOf = o => {
 // The exported pose of the original whose pose rule a piece keeps under tile snap (a ladder, door, car, van or
 // fracturing piece: the recipe snap), or null.
 function recipeOf(o) {
-  if (!o || o.isLight || isStream(o) || !pieceGrid(o)) return null;
+  if (!o || o.isLight || o.isEffect || isStream(o) || !pieceGrid(o)) return null;
   if (!o.added) return { location: o.location, rotation: o.rotation };
   if (!originalIndex) {
     originalIndex = new Map();
@@ -199,6 +218,8 @@ let clearKeepsOutside = false;
 // The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
 // {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
 let projectMissions = null;
+// the project's spawn rules (spawns plan, SP8): null, or { dropIns: 'placed' } (a malformed one is carried as saved)
+let projectSpawnRules = null;
 // The buildings drawn as boxes and edited (project.js validBuilding; setBuildings, further down, draws them): the
 // project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map
 // buildings plan, section 1). allBuildings is what the floors code reads: the map's as exported where unchanged (their
@@ -269,19 +290,19 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
                             lockedGroup: o => {
-                              if ((o.isVolume && volumesOn) || lightsOn) return null;
+                              if ((o.isVolume && volumesOn) || lightsOn || effectsOn) return null;
                               const g = groupIndex.get(memberOf(o));
                               return g ? topLocked(g)?.id ?? null : o.isVolume ? memberOf(o) : null;
                             },
-                            fixed: o => isStream(o) || Boolean(o.isLight && lightViewOnly(o)),
-                            assemblyOf: o => (o.isLight || o.isVolume ? null : assemblyOf(o)?.pivot ?? null),
-                            recipe: root => (root.userData.light || root.userData.volume ? null : recipeOf(root.userData.source)), gridOrigin,
+                            fixed: o => isStream(o) || Boolean(o.isLight && lightViewOnly(o)) || Boolean(o.isEffect && effectViewOnly(o, 'move')),
+                            assemblyOf: o => (o.isLight || o.isVolume || o.isEffect ? null : assemblyOf(o)?.pivot ?? null),
+                            recipe: root => (root.userData.light || root.userData.volume || root.userData.effect ? null : recipeOf(root.userData.source)), gridOrigin,
                             // a building's box moves by whole tiles and levels, whatever the snap
                             tiles: root => Boolean(root.userData.volume),
                             // Shift on a move handle drags a copy
                             copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) },
                             // Level snap: a floor piece moved up or down keeps to whole levels (64 units)
-                            levels: root => !root.userData.light && !root.userData.volume && levelSnap && floorSupportOf([root.userData.source]) != null });
+                            levels: root => !root.userData.light && !root.userData.volume && !root.userData.effect && levelSnap && floorSupportOf([root.userData.source]) != null });
 // The map's families arrived: an assembly also knows the link tag its copies' pieces share where a piece has no prefab
 // of its own (pasteSnapshot): its members' prefab (Police Station's standalone light bar joins its sedan's), else its
 // pivot (a door's leaf and frame share no prefab).
@@ -332,18 +353,27 @@ function select(id, add = false, keep = false) {
   if (volumesOn && id && !volumeRoots.has(id)) setVolumesShown(false);
   // the Landing zones view picks zones only: anything selected another way (a list, a paste, a placed piece) leaves it
   if (zonesOn && id) setZonesShown(false);
+  // (the Effects view picks its markers only; an effect selected another way, a paste or an undo, opens it unless the
+  // normal view draws effects)
+  if (effectsOn && id && !effectRoots.has(id)) setEffectsShown(false);
+  else if (id && effectRoots.has(id) && !effectsOn && !normalEffects) setEffectsShown(true);
   if (lightsOn && id && !lightRoots.has(id)) setLightsShown(false);
   else if (id && lightRoots.has(id) && !lightsShown) setLightsShown(true);
   if (id) ownPicked = null;
   if (!add && !keep) ownSet.clear();
   selected = id;
-  const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id);
+  { const was = pickedEffect; pickedEffect = effectRoots.has(id) ? id : null; if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
+  const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id);
   for (const button of $('objects').querySelectorAll('.piece')) button.classList.toggle('active', button.dataset.id === id);
   $('inspector').hidden = !root || Boolean(root.userData.volume);
   $('rail').classList.toggle('idle', !root);
   $('lightBox').hidden = !root?.userData.light;
   $('coverBox').hidden = !root?.userData.source?.cover;
-  if (!root || root.userData.volume) { highlight.visible = false; ladderMarks.visible = false; editChanged(); return; }
+  if (!root || root.userData.volume || root.userData.effect) {
+    highlight.visible = false; ladderMarks.visible = false;
+    if (root?.userData.effect) $('inspector').hidden = true;
+    paintEffects(); effectPanel(); drawEffectShape(); editChanged(); return;
+  }
   if (root.userData.light) { showLight(root); return; }
   const obj = root.userData.source, mesh = data.meshes[obj.mesh];
   refreshHighlight(root);
@@ -404,13 +434,14 @@ function select(id, add = false, keep = false) {
     chip.onclick = () => { areaShown = true; remember(AREA_SHOWN, '1'); setLightsShown(true); };
   }
   // the effects it carries (export 23's carriedBy; tools/bake/native_effects.py): the Build moves, copies and deletes
-  // them with it. The page doesn't draw effects yet.
+  // them with it. A click shows them in the Effects view.
   const effects = obj.foreign || isStream(obj) ? [] : (data?.effects ?? []).filter(e => e.carriedBy === glowActor);
   if (effects.length) {
-    text(chips, 'span', effects.length === 1 ? 'Carries an effect' : `Carries ${effects.length} effects`, 'chip').title =
-      `${effects.map(e => `${short(e.actor)} (${String(e.template ?? 'a particle system').split('.').at(-1)})`).join(', ')}: `
+    const chip = text(chips, 'span', effects.length === 1 ? 'Carries an effect' : `Carries ${effects.length} effects`, 'chip');
+    chip.title = `${effects.map(e => `${short(e.actor)} (${String(e.template ?? 'a particle system').split('.').at(-1)})`).join(', ')}: `
       + 'a particle effect standing on it, such as a Skyranger\'s lights. The Build moves, copies and deletes it with the piece. '
-      + 'The editor doesn\'t show effects yet';
+      + (effects[0].id ? 'Click to see it in the Effects view (Shift+X)' : 'Prepare the map again to see it in the Effects view');
+    if (effects[0].id) chip.onclick = () => { setEffectsShown(true); pickEffect(effects[0].id); };
   }
   if (unsettled.length && !obj.added && !isStream(obj)) {
     const chip = text(chips, 'span', `May glow · ${plural(unsettled.length, 'light')} to settle`, 'chip warn');
@@ -567,7 +598,7 @@ function flagsPanel() {
   const lines = [...shared.map(k => c.limits[k]), ...[...blocked].map(([why, n]) => `${all.length > 1 ? `${plural(n, 'piece')}: ` : ''}${why}`)];
   if (usable.some(t => t.roots.length > 1)) lines.push('a piece of several parts (a mesh and its glass) has one setting for all of them');
   const targeted = new Set(all.flatMap(t => t.roots));
-  const carried = new Set(gizmo.selection().filter(r => !r.userData.light && !r.userData.volume && !targeted.has(r)).map(r => flagKey(r.userData.source))).size;
+  const carried = new Set(gizmo.selection().filter(r => !r.userData.light && !r.userData.volume && !r.userData.effect && !targeted.has(r)).map(r => flagKey(r.userData.source))).size;
   if (carried) lines.push(`${plural(carried, 'piece')} that ${carried === 1 ? 'moves' : 'move'} with the selection ${carried === 1 ? 'keeps its' : 'keep their'} own flags: pick ${carried === 1 ? 'it' : 'them'} too (or Select all) to set ${carried === 1 ? 'it' : 'them'}`);
   $('flagsTargets').textContent = flagSentences(lines);
   $('flagsReset').disabled = !usable.some(t => t.roots[0]?.userData.flags);
@@ -646,54 +677,85 @@ function kindPiece(r) {
   return !r.userData.deleted && r.visible && !r.userData.light && !r.userData.volume && !isStream(o) && !o.cover && !o.hidden
     && !o.environment && typeof data.meshes[o.mesh]?.name === 'string';
 }
+// An effect's, a sound's or a lens flare's kind (effects and sounds plan, FX3b; a flare since FX6b): its particle
+// system, the waves it plays or its flare template; null for a sound with no wave, a flare with no template, one not
+// drawn or one the editor doesn't change.
+function effectKind(r) {
+  const o = r.userData.source;
+  if (!r.visible || r.userData.deleted || isStream(o) || !effectsShown()) return null;
+  if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) return null;
+  if (o.kind === 'effect' && o.system) return `system:${o.system}`;
+  if (o.kind === 'sound' && o.waves?.length) return `waves:${[...o.waves].sort().join('+')}`;
+  if (o.kind === 'flare' && o.template) return `flare:${o.template}`;
+  return null;
+}
 function kindSeeds() {
-  const seeds = new Map();     // full mesh path -> its short name
+  const seeds = new Map();     // full mesh path -> its short name; an effect's system or a sound's waves -> its name
   for (const id of gizmo.picks().ids) {
-    const r = roots.get(id);
+    const r = roots.get(id), fx = r ? null : effectRoots.get(id);
     if (r && kindPiece(r)) { const name = data.meshes[r.userData.source.mesh].name; seeds.set(name, short(name)); }
+    const kind = fx && effectKind(fx);
+    if (kind) seeds.set(kind, recordName(fx.userData.source, data));
   }
   return seeds;
 }
 function kindMatches(seeds) {
   const box = pickBox && !pickDrag ? pickBox : null, out = [];
+  const inBox = at => at.every((v, k) => v >= box[k] - PICK_SLACK && v <= box[k + 3] + PICK_SLACK);
   for (const r of roots.values()) {
     if (!kindPiece(r) || !seeds.has(data.meshes[r.userData.source.mesh].name)) continue;
     if (box) {
       const b = boxOf(r);
       if (!b) continue;
-      const at = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2];
-      if (!at.every((v, k) => v >= box[k] - PICK_SLACK && v <= box[k + 3] + PICK_SLACK)) continue;
+      if (!inBox([(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2])) continue;
     }
     out.push(r);
   }
-  return { roots: out, box: Boolean(box), actors: new Set(out.map(r => flagKey(r.userData.source))).size };
+  let effects = 0, flares = 0;
+  for (const r of effectRoots.values()) {
+    const kind = effectKind(r), e = r.matrix.elements;
+    if (!kind || !seeds.has(kind) || (box && !inBox([e[12], e[14], e[13]]))) continue;
+    out.push(r); effects++;
+    if (r.userData.source.kind === 'flare') flares++;
+  }
+  return { roots: out, box: Boolean(box), effects, flares, actors: new Set(out.map(r => (r.userData.effect ? r.userData.source.id : flagKey(r.userData.source)))).size };
 }
+// what Select all of a kind counts, in words: pieces, or effects and sounds where only those match
+const kindCount = found => (found.flares && found.flares === found.roots.length ? plural(found.actors, 'lens flare')
+  : found.effects && found.effects === found.roots.length ? `${found.actors} ${found.actors === 1 ? 'effect or sound' : 'effects and sounds'}` : plural(found.actors, 'piece'));
 function kindButton() {
   const button = $('editKind'), seeds = data ? kindSeeds() : new Map();
+  // the effect panel's own button (a picked effect's or sound's panel stands in the piece panel's place)
+  const twin = $('effectKind'), mirror = () => { twin.hidden = !seeds.size || ![...seeds.keys()].some(k => /^(system|waves|flare):/.test(k));
+    twin.textContent = button.textContent; twin.title = button.title; twin.disabled = button.disabled; };
   if (!seeds.size) {
+    mirror();
     button.disabled = true; button.textContent = 'Select all';
-    button.title = 'Select every piece with the same mesh as the one selected (a light, a cover block, a hidden or streamed piece has none to match)';
+    button.title = 'Select every piece with the same mesh as the one selected, or every effect of the same particle system, every sound of the same wave, every lens flare of the same template (a light, a cover block, a hidden or streamed piece has none to match)';
     return;
   }
   const found = kindMatches(seeds), picked = new Set(gizmo.picks().ids);
   const what = seeds.size === 1 ? [...seeds.values()][0] : `of these ${seeds.size} kinds`;
   button.textContent = `Select all ${what}${found.box ? ' in box' : ''} (${found.actors})`;
   button.disabled = !found.roots.length || (found.roots.every(r => picked.has(r.userData.source.id)) && found.roots.length === picked.size);
-  button.title = `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
+  button.title = found.effects && found.effects === found.roots.length
+    ? `Select every drawn effect of the same particle system, every sound of the same wave and every lens flare of the same template ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
+    : `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
     + `${plural(found.actors, 'piece')} (${[...seeds.keys()].join(', ')}). Shift+click adds them to the selection. Hidden, deleted and streamed pieces `
     + 'are left out. The Flags group then sets them all; moving, copying and deleting still take each one\'s linked pieces with it.';
+  mirror();
 }
 function selectKind(add = false) {
   const seeds = kindSeeds();
   if (!seeds.size) return;
   const found = kindMatches(seeds), was = gizmo.picks();
-  if (!found.roots.length) { flashHint('No drawn piece has that mesh'); return; }
+  if (!found.roots.length) { flashHint('Nothing drawn is of that kind'); return; }
   const ids = found.roots.map(r => r.userData.source.id);
   const next = add ? [...new Set([...was.ids.filter(id => allRoots.get(id)), ...ids])] : ids;
   if (found.box) stopPickBox();
   gizmo.setSelection(next, next.includes(was.active) ? was.active : next[0]);
   select(gizmo.active, false, true);
-  flashHint(`${plural(found.actors, 'piece')} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
+  flashHint(`${kindCount(found)} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
 }
 // A cover block's or invisible floor's panel: what it is, its size, height and cover (coverPanel), its actor and place.
 function showCover(root) {
@@ -704,7 +766,7 @@ function showCover(root) {
   const chips = text(details, 'div', '', 'chips');
   chips.append(groupChip);
   const others = gizmo.selection().filter(r => r !== root);
-  if (others.length) text(chips, 'span', `Moves with ${plural(others.length, 'other piece')}`, 'chip');
+  if (others.length) text(chips, 'span', `Moves with ${selectionWords(others, 'other ')}`, 'chip');
   text(chips, 'span', floor ? 'Added invisible floor' : isBlocker(c) ? 'Added blocker' : 'Added cover block', 'chip').title = floor
     ? 'The editor\'s own piece: a hidden plate units can stand on (EXP-32). The Build makes it on any install'
     : isBlocker(c) ? 'The editor\'s own piece: a hidden piece that blocks movement and gives no cover. The Build makes it on any '
@@ -815,13 +877,15 @@ function changes() {
     if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
   }
   for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
+  let effects = 0;
+  for (const root of effectRoots.values()) if (effectEdited(root)) effects++;
   const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
   // the buildings the project saves: its own, and the map's it changed or deleted
   const built = data ? savedBuildings().length : 0;
-  // a mission's objects moved in their streams (mission types plan, Part E)
-  const missions = missionMoves.size;
-  return { moved, added, deleted, lights, grid, zones, buildings: built, missions, flags: flagged.size,
-           total: moved + added + deleted + lights + areaBindings.size + grid + zones + built + missions + flagged.size };
+  // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
+  const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
+  return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size,
+           total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size };
 }
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
@@ -836,6 +900,7 @@ function editChanged() {
   try { return editChangedNow(); } finally { eventMemo = null; }
 }
 function editChangedNow() {
+  effectsDirty = true;     // (the Effects view's markers follow the pieces that carry them)
   // A command (undo of a paste, a delete) can change the selection under us: follow the gizmo.
   if (data && selected !== gizmo.active) { select(gizmo.active, false, true); return; }
   // the Buildings view: the project's buildings follow the boxes; a box is never turned
@@ -868,14 +933,15 @@ function editChangedNow() {
   $('editCount').hidden = builderMode ? !count.total && !builder.doc?.revision : !count.total;
   $('editCount').textContent = builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
     count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
+    count.effects && plural(count.effects, 'effect or sound edit'),
     count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
     count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
-    count.missions && `${plural(count.missions, 'mission object')} moved`, count.flags && `${plural(count.flags, 'piece')} with flags changed`,
+    count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`,
     saveState()].filter(Boolean).join(' · ');
   $('editCount').classList.toggle('warn', saveState() !== 'saved');
   $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
   $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
-  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)));
+  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
   flagsPanel(); kindButton();
   // (a building's box is in no group and is not aligned)
@@ -1022,38 +1088,51 @@ function snapButton() {
 }// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
-  : r.userData.light ? short(r.userData.source.actor) : short(data.meshes[r.userData.source.mesh].name));
+  : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
+  : short(data.meshes[r.userData.source.mesh].name));
 // "12 pieces, 2 lights and 1 building": what these roots are, by kind.
 function selectionWords(list, other = '') {
   const lights = list.filter(r => r.userData.light).length, boxes = list.filter(r => r.userData.volume);
-  const made = new Set(boxes.map(r => r.userData.volume.building)).size, n = list.length - lights - boxes.length;
-  const parts = [n && plural(n, `${other}piece`), lights && plural(lights, `${n ? '' : other}light`), made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
+  const fx = kind => list.filter(r => r.userData.effect && r.userData.source.kind === kind).length;
+  const effects = fx('effect'), sounds = fx('sound'), flares = fx('flare');
+  const made = new Set(boxes.map(r => r.userData.volume.building)).size, n = list.length - lights - boxes.length - effects - sounds - flares;
+  const parts = [n && plural(n, `${other}piece`), lights && plural(lights, `${n ? '' : other}light`), effects && plural(effects, 'effect'),
+                 sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare'),
+                 made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? `0 ${other}pieces`;
 }
 // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
 const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
 function copyable() {
   return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
-                                                         : !r.userData.source.hidden && !r.userData.source.environment));
+    : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
+    : !r.userData.source.hidden && !r.userData.source.environment));
 }
-const copyablePieces = () => copyable().filter(r => !r.userData.light);
+// (Align lines up pieces only: lights and effects have no box of their own to line up)
+const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
 // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
 const groupables = () => [...copyable(), ...selectedBoxes()];
 // "3 pieces, 1 light and 1 building": a group's members (their keys), by kind.
 function keyWords(keys) {
-  const kind = k => (k.startsWith('building|') ? 'building' : liveMembers().get(k)?.[0]?.userData.light ? 'light' : 'piece');
-  const parts = ['piece', 'light', 'building'].map(w => { const n = keys.filter(k => kind(k) === w).length; return n && plural(n, w); }).filter(Boolean);
+  const kind = k => { const r = liveMembers().get(k)?.[0]; return k.startsWith('building|') ? 'building' : r?.userData.light ? 'light'
+    : r?.userData.effect ? (r.userData.source.kind === 'flare' ? 'lens flare' : r.userData.source.kind) : 'piece'; };
+  const parts = ['piece', 'light', 'effect', 'sound', 'lens flare', 'building'].map(w => { const n = keys.filter(k => kind(k) === w).length; return n && plural(n, w); }).filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? plural(0, 'piece');
 }
 // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
 // for hints.
 function snapshot(selection = gizmo.selection(), own = ownSet) {
-  const list = selection.filter(r => !r.userData.deleted && !r.userData.volume && (r.userData.light ? !lightViewOnly(r.userData.source)
+  let list = selection.filter(r => !r.userData.deleted && !r.userData.volume && (r.userData.light ? !lightViewOnly(r.userData.source)
+    : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') && !r.userData.derivedGone
     : !r.userData.source.hidden && !r.userData.source.environment));
+  // an effect its piece carries, copied with the piece: the piece's copy carries a copy of it (the Build's carrying),
+  // so it isn't copied a second time (effects and sounds plan, Part C)
+  list = list.filter(r => !(r.userData.effect && effectFollows(r) && list.includes(ownerRoot(r.userData.source.carriedBy))));
   const boxes = selection.filter(r => r.userData.volume && !r.userData.deleted);
   if (!list.length && !boxes.length && !own.size) return null;
   const pivotRoot = list.includes(allRoots.get(gizmo.active)) ? allRoots.get(gizmo.active) : list[0];
-  const name = !pivotRoot ? 'Building' : pivotRoot.userData.light ? short(pivotRoot.userData.source.actor) : short(data.meshes[pivotRoot.userData.source.mesh].name);
+  const name = !pivotRoot ? 'Building' : pivotRoot.userData.light ? short(pivotRoot.userData.source.actor)
+    : pivotRoot.userData.effect ? recordName(pivotRoot.userData.source, data) : short(data.meshes[pivotRoot.userData.source.mesh].name);
   // the buildings selected with them: their boxes go along, and a paste makes new buildings of them
   // and the map's own buildings selected with them: their boxes as they are, for a building of the project
   const owns = ownVolumeLayer.children.filter(c => c.userData.own && own.has(c.userData.own.building)).map(c => c.userData.own);
@@ -1064,16 +1143,19 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
                                              ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
+                                     ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
                                      ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
-           name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name };
+           name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
+           // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
+           effectsOnly: list.length > 0 && list.every(r => r.userData.effect) && !boxes.length };
 }
 // A floor box as a clip carries it: the matrix that takes a unit cube to the box ([x0, y0, z0, x1, y1, z1], game units).
 const boxMatrix = b => new THREE.Matrix4().makeScale(b[3] - b[0], b[5] - b[2], b[4] - b[1]).setPosition((b[0] + b[3]) / 2, (b[2] + b[5]) / 2, (b[1] + b[4]) / 2);
 const UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
 // (and back: the box a clip's volume covers, in game units)
 const matrixBox = matrix => { const b = UNIT_BOX.clone().applyMatrix4(matrix); return [b.min.x, b.min.z, b.min.y, b.max.x, b.max.z, b.max.y]; };
-function sceneChanged() { touchShadows(); liveCache = null; cutaway(); catalogue(); refreshGroundGrid(false); }
+function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); catalogue(); refreshGroundGrid(false); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
 function actorPose(source, matrix) {
@@ -1547,8 +1629,8 @@ const mapChain = key => groupChain(groupIndex.get(key));
 async function pasteSnapshot(clip, delta, step = null) {
   const serial = copySerial + 1;   // the paste's own number, for its prefab groups
   const copies = new Map(), unitOf = e => e.unit ?? e.source.actor, keyOf = e => e.key ?? memberOf(e.source);
-  const lightEntries = clip.entries.filter(e => e.source.isLight);
-  clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight) };
+  const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
+  clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
   for (const e of clip.entries)
     if (!copies.has(unitOf(e))) copies.set(unitOf(e), { name: `${fromOf(e.source).actor}_copy${++copySerial}`, entity: uuid() });
   const tags = new Map(), tagged = new Set();
@@ -1563,6 +1645,7 @@ async function pasteSnapshot(clip, delta, step = null) {
     return tags.get(was);
   };
   const lights = lightEntries.map(e => addedLight(e.source, delta.clone().multiply(e.matrix), e.values));
+  const effects = effectEntries.map(e => addedEffect(e.source, delta.clone().multiply(e.matrix), null, null, e.values));
   // the copied buildings: each a new building with the same floors, its boxes moved (and turned) as the pieces are
   const twins = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
   const boxes = (clip.volumes ?? []).map(v => {
@@ -1593,6 +1676,7 @@ async function pasteSnapshot(clip, delta, step = null) {
   // (each copied member's key, and its copy's record: pieces, lights and buildings)
   const copied = [...clip.entries.map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
                   ...lightEntries.map((e, k) => [keyOf(e), memberRecord(lights[k].userData.source)]),
+                  ...effectEntries.map((e, k) => [keyOf(e), memberRecord(effects[k].userData.source)]),
                   ...[...twins].map(([was, t]) => [buildingKey(was), { building: t.id }])];
   let chainOf = mapChain;
   if (clip.groups) {
@@ -1615,18 +1699,19 @@ async function pasteSnapshot(clip, delta, step = null) {
   // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
   const built = await buildRoots(objs, step);
   const before = gizmo.picks(), ids = [...objs.map(o => o.id), ...lights.map(r => r.userData.source.id),
+                                       ...effects.map(r => r.userData.source.id),
                                        ...(boxesShown ? boxes.map(r => r.userData.source.id) : [])];
   gizmo.record({
     size: built.length,
     redo: () => {
-      addRoots(built); addLightRoots(lights);
+      addRoots(built); addLightRoots(lights); addEffectRoots(effects);
       for (const r of boxes) r.userData.deleted = false;
       for (const { id, meta } of twins.values()) buildingMeta.set(id, { ...meta });
       if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.set(g.id, cloneGroup(g)); setGroups(next); }
       gizmo.setSelection(ids, ids[Math.min(clip.pivotIndex, ids.length - 1)]); sceneChanged();
     },
     undo: () => {
-      removeRoots(built); removeLightRoots(lights);
+      removeRoots(built); removeLightRoots(lights); removeEffectRoots(effects);
       for (const r of boxes) r.userData.deleted = true;
       if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.delete(g.id); setGroups(next); }
       gizmo.setSelection(before.ids, before.active); sceneChanged();
@@ -1638,13 +1723,15 @@ function copySelection(cut = false) {
   if (volumesOn) { copyVolumes(cut); return; }
   const clip = snapshot();
   if (!clip) {
-    flashHint('Select a piece, light or floor box to copy');
+    // (a view-only effect is picked but no selection takes it in: the picked one says why)
+    const fx = gizmo.selection().find(r => r.userData.effect) ?? effectRoots.get(pickedEffect);
+    flashHint(fx ? `It isn't copied: ${effectViewOnly(fx.userData.source, 'copy') ?? 'it is deleted'}` : 'Select a piece, light or floor box to copy');
     return;
   }
   clipboard = clip;
   const made = new Set(clip.volumes.map(v => v.building)).size;
   if (cut) deleteSelection(true);
-  flashHint(`${cut ? 'Cut' : 'Copied'} ${plural(clip.entries.length, 'piece')}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
+  flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.words}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
 }
 // Where a paste or placement puts the pivot piece: the point under the screen point `at` (on a piece, or else
 // level with where it was copied from), in game units, or null. Fine snap rounds it to 24 units across the floor.
@@ -1804,17 +1891,69 @@ function libraryTemplate(source) {
   }
   return libraryRecords.get(id);
 }
-// The templates of the foreign pieces some added records name, read before the records are applied. Gives what
-// could not be had, as sentences.
+// An effect, ambient sound or lens flare of another map (effects and sounds plan, stage FX4; a flare since FX6b): its
+// template read from its map
+// (/library/effect.json: export 28's record, its particle system or waves), kept for the placing and the project's
+// copies (foreignEffects, by its target), its system and waves joined to the map's (the panel, the box, the Wave
+// preview read them by their ids, which name the donor). Gives the record as an effect root's source.
+const effectTemplates = new Map(), foreignEffects = new Map(), fetchedEffects = new Map();
+function effectTemplate(source) {
+  const id = recordId(source);
+  if (!effectTemplates.has(id)) {
+    const promise = (async () => {
+      let t = fetchedEffects.get(id);
+      fetchedEffects.delete(id);
+      if (!t) {
+        const response = await fetch(`/library/effect.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
+        t = await response.json().catch(() => ({}));
+        if (!response.ok) throw Error(t.error ?? `it could not be read (${response.status})`);
+      }
+      data.effectSystems ??= {}; data.soundWaves ??= {};
+      for (const [k, v] of Object.entries(t.systems ?? {})) data.effectSystems[k] ??= v;
+      for (const [k, v] of Object.entries(t.waves ?? {})) data.soundWaves[k] ??= v;
+      // what its likeness is drawn from (export 29): the donor's textures, meshes and materials, by their own keys
+      if (t.draw) {
+        for (const [k, m] of Object.entries(t.draw.meshes ?? {})) data.meshes[k] ??= { ...m, url: t.draw.base + m.url };
+        for (const [k, m] of Object.entries(t.draw.materials ?? {})) data.materials[k] ??= m;
+        for (const [k, x] of Object.entries(t.draw.textures ?? {})) data.textures[k] ??= { ...x, url: t.draw.base + x.url };
+      }
+      if (t.source.sha256) donorHashes.set(t.source.package.toLowerCase(), t.source.sha256);
+      const out = effectSource({ ...t.record, foreign: { package: t.source.package, key: t.key } });
+      foreignEffects.set(targetKey({ package: out.sourcePackage, level: 'base', actor: out.actor }), out);
+      return out;
+    })();
+    promise.catch(() => effectTemplates.delete(id));
+    effectTemplates.set(id, promise);
+  }
+  return effectTemplates.get(id);
+}
+// Many effects' templates in a few requests (a project's opening), kept for effectTemplate
+async function readEffectRecords(sources) {
+  for (let k = 0; k < sources.length; k += RECORD_CHUNK) {
+    const chunk = sources.slice(k, k + RECORD_CHUNK);
+    try {
+      const response = await fetch('/library/effects.json', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: chunk.map(s => ({ package: s.package, level: 'base', actor: short(s.actor) })) }) });
+      if (!response.ok) break;
+      const answer = await response.json();
+      answer.effects.forEach((r, i) => { if (r.record) fetchedEffects.set(recordId(chunk[i]), r.record); });
+    } catch { break; }
+  }
+}
+// The templates of the foreign pieces, effects and sounds some added records name, read before the records are
+// applied. Gives what could not be had, as sentences.
 async function loadForeignTemplates(added, progress = null) {
-  const wanted = new Map(), failed = [];
-  for (const e of added) if (!e.template && isForeignTarget(e.from)) wanted.set(targetKey(e.from), e.from);
-  const list = [...wanted.values()];
+  const wanted = new Map(), effects = new Map(), failed = [];
+  for (const e of added) if (!e.template && isForeignTarget(e.from)) (e.kind ? effects : wanted).set(targetKey(e.from), e.from);
+  const list = [...wanted.values()], effectList = [...effects.values()];
   if (list.length > 1) await readLibraryRecords(list, (done, total) => progress?.('reading', done, total));
+  if (effectList.length > 1) await readEffectRecords(effectList);
   let made = 0;
-  await Promise.all(list.map(from => libraryTemplate(from)
+  await Promise.all([...list.map(from => libraryTemplate(from)
     .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`))
-    .finally(() => progress?.('loading', ++made, list.length))));
+    .finally(() => progress?.('loading', ++made, list.length))),
+    ...effectList.map(from => effectTemplate(from)
+      .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`)))]);
   return failed;
 }
 const foreignCount = () => new Set([...roots.values()].map(r => r.userData.source).filter(o => o.added && o.foreign).map(o => o.actor)).size;
@@ -1839,6 +1978,7 @@ function setLibraryScope(scope) {
   $('libMap').hidden = libraryScope !== 'map';
   library.show(pieces.open && libraryScope === 'all');
   prefabTab.show(pieces.open && libraryScope === 'prefabs');
+  if (libraryScope !== 'all') hoverLikeness(null);
   if (placing?.entry) stopPlacing();
   if (pieces.open) $(LIBRARY_SCOPES[libraryScope]).focus({ preventScroll: true });
 }
@@ -1846,6 +1986,7 @@ function setLibraryScope(scope) {
 async function chooseLibraryEntry(entry) {
   const token = ++chooseToken;
   if (!entry) { stopPlacing(); return; }
+  if (entry.effect) { chooseLibraryEffect(entry, token); return; }
   let template;
   if (!isForeignTarget({ ...entry.source, level: 'base' })) {
     // the map's own piece: a copy of it, as from This map
@@ -1865,6 +2006,27 @@ async function chooseLibraryEntry(entry) {
                 pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry };
   startPlacing(clipboard, entry);
 }
+// An effect, sound or lens flare of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
+// Ctrl+C copies it, another map's read from it (effectTemplate); then placed as a copied effect is.
+async function chooseLibraryEffect(entry, token) {
+  let source;
+  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
+    source = [...effectRoots.values()].map(r => r.userData.source)
+      .find(o => !o.added && o.layer === 'base' && short(o.actor) === entry.source.actor);
+    if (!source) { flashHint(`${entry.name} is not in this export of the map`); return; }
+  } else {
+    flashHint(`Reading ${entry.name} from ${entry.source.package}…`);
+    const done = busyStart(`Reading ${entry.name} from ${entry.source.package}…`);
+    try { source = await effectTemplate(entry.source); }
+    catch (error) { if (token === chooseToken) flashHint(`${entry.name} could not be placed: ${error.message}`); return; }
+    finally { done(); }
+    if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
+  }
+  if (effectViewOnly({ ...source, added: true }, 'copy')) { flashHint(`${entry.name} can't be placed: ${effectViewOnly({ ...source, added: true }, 'copy')}`); return; }
+  clipboard = { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }], pivot: [...source.location], pivotIndex: 0,
+                name: entry.name, libraryEntry: entry };
+  startPlacing(clipboard, entry);
+}
 function showPieces(on) {
   $('libMap').hidden = libraryScope !== 'map';
   library.show(on && libraryScope === 'all');
@@ -1876,6 +2038,8 @@ function showPieces(on) {
     .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
     .concat(pieceRecipes()));
   if (!on && placing?.entry) stopPlacing();
+  // the hover pane goes with the panel or its All maps tab (closed with the pointer still on a row, it stayed)
+  if (!on || libraryScope !== 'all') hoverLikeness(null);
   $('editAdd').classList.toggle('on', on); $('editAdd').setAttribute('aria-pressed', on);
 }
 // The parts of a piece-list entry where the map has them.
@@ -1883,8 +2047,9 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
 function chooseEntry(entry) {
   chooseToken++;
-  if (!entry) { stopPlacing(); stopZonePlacing(); return; }
-  if (entry.zone) { stopPlacing(); startZonePlacing(); return; }      // the Landing zones kind
+  if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); return; }
+  if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
+  if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
   if (entry.light) {    // the Lights kind's Point Light and Spot Light
     const clip = lightClip(entry.light);
     if (!clip) return;
@@ -1905,7 +2070,7 @@ const ghostLine = new THREE.LineBasicMaterial({ color: 0x82d5ce, transparent: tr
 function startPlacing(clip, entry = null) {
   stopPlacing();
   // a floor piece snaps by levels (dropTarget): its saved floor's height over its pivot
-  clip.floor = clip.prefab || clip.entries.some(e => e.source.isLight) ? null : floorSupportOf(clip.entries.map(e => e.source));
+  clip.floor = clip.prefab || clip.entries.some(e => e.source.isLight || e.source.isEffect) ? null : floorSupportOf(clip.entries.map(e => e.source));
   const ghost = new THREE.Group(), here = new THREE.Matrix4();
   ghost.add(previewGroup(clip.entries, ghostHidden, here), previewGroup(clip.entries, ghostMaterial, here));
   // the floor boxes that come with it (a building copied, a prefab's), as outlines
@@ -2014,6 +2179,8 @@ function prefabRecords({ complete = false } = {}) {
   const grow = b => { for (let k = 0; k < 3; k++) { low[k] = Math.min(low[k], b[k]); high[k] = Math.max(high[k], b[k + 3]); } };
   const offGrid = [];
   for (const r of copyable()) {
+    // (an effect, a sound or a lens flare is where it stands: a sound's reach is no part of the footprint)
+    if (r.userData.effect) { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); continue; }
     if (r.userData.light) { const p = lightPose(r).location; grow([...p, ...p]); continue; }
     const b = physicalBox(r);
     if (b) grow(b);
@@ -2034,10 +2201,15 @@ function prefabRecords({ complete = false } = {}) {
   const units = new Map();
   for (const e of clip.entries) {
     if (e.source.isLight) continue;
+    if (e.source.isEffect) continue;        // (below, with the lights)
     if (!units.has(e.source.actor)) units.set(e.source.actor, []);
     units.get(e.source.actor).push(e);
   }
   const tags = new Map();
+  const donor = from => {
+    const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
+    donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
+  };
   for (const [actor, list] of units) {
     const s = list[0].source, placed = shift.clone().multiply(list[0].matrix), from = fromOf(s);
     if (s.cover) {
@@ -2056,11 +2228,25 @@ function prefabRecords({ complete = false } = {}) {
                   ...(s.provenance?.type === 'spawn' || s.added?.tinted ? { tinted: true } : {}),
                   ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}),
                   ...(list[0].flags ? { flags: { ...list[0].flags } } : {}) });
-    const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
-    donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
+    donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
   for (const p of pieces) if (p.from) p.partner = names.get(p.partner) ?? null;
+  // its effects and sounds (effects and sounds plan, stage FX6a) and its lens flares (FX6b): each a copy of its
+  // original, with the values set on it (a flare has none). One its piece carries isn't in the clip: the piece's
+  // copy brings it (snapshot)
+  let effects = 0, sounds = 0, flares = 0;
+  for (const e of clip.entries) {
+    if (!e.source.isEffect) continue;
+    const s = e.source, kind = s.kind, from = fromOf(s), what = kind === 'sound' ? 'a sound' : kind === 'flare' ? 'a lens flare' : 'an effect';
+    if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
+    const name = `${from.actor}_copy${++n}`, values = kind === 'flare' ? null : savedValues(e.values);
+    copied.push([memberOf(s), { added: name }]);
+    pieces.push({ actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
+                  ...actorPose(s, shift.clone().multiply(e.matrix)), ...(values ? { [kind]: values } : {}) });
+    donor(from);
+    if (kind === 'sound') sounds++; else if (kind === 'flare') flares++; else effects++;
+  }
   let lights = 0;
   for (const e of clip.entries) {
     if (!e.source.isLight) continue;
@@ -2089,7 +2275,7 @@ function prefabRecords({ complete = false } = {}) {
   const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
   const normalized = normalizePrefab({ pieces, groups, buildings }, [['Selection', [...low, ...high].map((v, k) => v - origin[k % 3])]]);
   return { ...normalized, groups, donors: [...donors.values()].sort((a, b) => a.package.localeCompare(b.package)), left, offGrid, clip,
-    counts: { pieces: pieces.length - lights, lights, buildings: buildings.length, tiles: normalized.tiles },
+    counts: { pieces: pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: buildings.length, tiles: normalized.tiles },
            box: new THREE.Box3(new THREE.Vector3(low[0], low[2], low[1]), new THREE.Vector3(high[0], high[2], high[1])) };
 }
 // A prefab as a clip to place in this map: its records put on the map's tile grid (the prefab's origin on the grid's
@@ -2098,7 +2284,9 @@ function prefabRecords({ complete = false } = {}) {
 async function prefabClip(doc, step = null) {
   const base = gridBase(), here = v => v.map((x, k) => x + base[k]), left = [];
   const records = doc.pieces.map(p => ({ ...p, location: here(p.location) }));
-  const foreign = [...new Map(records.filter(p => !p.template && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
+  const foreign = [...new Map(records.filter(p => !p.template && !p.kind && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
+  // (its effects and sounds of other maps: their templates, as a project's copies read them)
+  const foreignFx = [...new Map(records.filter(p => p.kind && !p.template && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
   const unread = foreign.filter(f => !libraryRecords.has(`${f.package}|${short(f.actor)}`.toLowerCase()));
   // the first use reads each piece from the game's maps: all of them asked for at once, so each map is opened once
   if (unread.length > 1) await readLibraryRecords(unread, (done, total) => step?.(done, total, `Opening ${doc.name}: pieces read`));
@@ -2109,9 +2297,28 @@ async function prefabClip(doc, step = null) {
     // (what the library only holds back is placed: library.js SOFT; what can't be brought is left)
     if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
   }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
+  const unreadFx = foreignFx.filter(f => !effectTemplates.has(recordId(f)));
+  if (unreadFx.length > 1) await readEffectRecords(unreadFx);
+  await Promise.all(foreignFx.map(from => effectTemplate(from).then(t => {
+    const entry = t.foreign?.key ? library?.entry(t.foreign.key) : null;
+    if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
+  }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
   const entries = [];
   for (const p of records) {
     const key = memberKey({ added: p.actor });
+    if (p.kind && !p.template) {
+      const failure = failed.get(targetKey(p.from));
+      if (failure) { left.push(failure); continue; }
+      const source = isForeignTarget(p.from) ? foreignEffects.get(targetKey(p.from)) : effectIndex.get(targetKey(p.from))?.userData.source;
+      const what = p.kind === 'sound' ? 'sound' : p.kind === 'flare' ? 'lens flare' : 'effect';
+      if (!source || source.kind !== p.kind) { left.push(`${short(p.from.actor)} of ${p.from.package}: this export of the map has no such ${what}`); continue; }
+      const why = effectViewOnly(source, 'copy');
+      if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
+      // its values are placed where their family builds (families.json); the prefab keeps them either way
+      const values = p.kind !== 'flare' && families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
+      entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), ...(values ? { values } : {}), unit: p.actor, key });
+      continue;
+    }
     if (p.template?.kind === COVER_KIND) {
       const source = coverOf(p);
       if (!source) { left.push(`${short(p.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
@@ -2140,7 +2347,7 @@ async function prefabClip(doc, step = null) {
            groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
            // held by the middle of its footprint, on a tile corner
            pivot: [base[0] + Math.round(tiles[0] / 2) * 96, base[1] + Math.round(tiles[1] / 2) * 96, base[2]],
-           gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && pieceGrid(e.source)) };
+           gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && !e.source.isEffect && pieceGrid(e.source)) };
 }
 function canRecoverPrefabSources(doc, missing) {
   const actors = new Set(missing);
@@ -2208,7 +2415,7 @@ const PREFAB_EXPORT_CHUNK = 20;
 async function savePrefab(name, records = prefabRecords(), replace = null, { step = null, going = () => true } = {}) {
   if (!records || (!records.pieces.length && !records.buildings.length)) throw Error('Nothing selected can go into a prefab');
   if (records.size && !records.size.supported) throw Error(records.size.errors.join('; '));
-  const sources = [...new Map(records.pieces.filter(p => p.from).map(p => {
+  const sources = [...new Map(records.pieces.filter(p => p.from && !p.kind).map(p => {
     const source = { package: p.from.package, level: 'base', actor: short(p.from.actor) };
     return [recordId(source), source];
   })).values()];
@@ -2328,21 +2535,31 @@ function deleteSelection(quiet = false) {
 }
 function deleteNow(quiet = false) {
   const targets = copyable(), boxes = selectedBoxes();
-  if (!targets.length && !boxes.length) { if (ownSet.size) flashHint('The map\'s own building is not deleted: its boxes are the map\'s'); return; }
-  const pieces = targets.filter(r => !r.userData.light), lights = targets.filter(r => r.userData.light);
+  if (!targets.length && !boxes.length) {
+    const fx = effectRoots.get(pickedEffect);
+    if (ownSet.size) flashHint('The map\'s own building is not deleted: its boxes are the map\'s');
+    else if (fx) flashHint(`It isn't deleted: ${effectViewOnly(fx.userData.source, 'delete') ?? 'it is deleted'}`);
+    return;
+  }
+  const pieces = targets.filter(r => !r.userData.light && !r.userData.effect), lights = targets.filter(r => r.userData.light);
   const added = pieces.filter(r => r.userData.source.added), originals = pieces.filter(r => !r.userData.source.added);
   const addedLights = lights.filter(r => r.userData.source.added), originalLights = lights.filter(r => !r.userData.source.added);
+  // effects and sounds (effects and sounds plan, FX3): those the export lets an edit delete
+  const effects = targets.filter(r => r.userData.effect && !effectViewOnly(r.userData.source, 'delete'));
+  const addedEffects = effects.filter(r => r.userData.source.added), originalEffects = effects.filter(r => !r.userData.source.added);
+  const kept = targets.filter(r => r.userData.effect && effectViewOnly(r.userData.source, 'delete'));
+  if (kept.length && kept.length === targets.length && !boxes.length) { flashHint(`It isn't deleted: ${effectViewOnly(kept[0].userData.source, 'delete')}`); return; }
   const before = gizmo.picks();
   gizmo.record({
     size: targets.length,
     redo: () => {
-      removeRoots(added); removeLightRoots(addedLights);
-      for (const r of [...originals, ...originalLights, ...boxes]) r.userData.deleted = true;
+      removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects);
+      for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = true;
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection([]); sceneChanged();
     },
     undo: () => {
-      addRoots(added); addLightRoots(addedLights);
-      for (const r of [...originals, ...originalLights, ...boxes]) r.userData.deleted = false;
+      addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects);
+      for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = false;
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection(before.ids, before.active); sceneChanged();
     },
   });
@@ -2352,12 +2569,16 @@ function deleteNow(quiet = false) {
 // Reset piece: the selection back where the map has it; a light's values too. One undo step.
 function resetSelected() {
   const selection = gizmo.selection(), lights = selection.filter(r => r.userData.light && valuesEdited(r));
-  if (!lights.length) { gizmo.resetSelection(); return; }
+  // an effect kept where it stands (follow none): back to following its piece (effects and sounds plan, Part C)
+  const stays = selection.filter(r => r.userData.effect && r.userData.stays);
+  // an effect's or sound's values (stage FX5): back to the map's
+  const valued = selection.filter(r => r.userData.effect && r.userData.values), fxValues = valued.map(r => r.userData.values);
+  if (!lights.length && !stays.length && !valued.length) { gizmo.resetSelection(); return; }
   const moved = selection.filter(r => r.userData.edit), before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r));
   const values = lights.map(r => ({ ...r.userData.values }));
   gizmo.record({
-    redo: () => { gizmo.applyMatrices(moved, home); for (const r of lights) setLightValues(r, r.userData.baseValues); },
-    undo: () => { gizmo.applyMatrices(moved, before); lights.forEach((r, k) => setLightValues(r, values[k])); },
+    redo: () => { gizmo.applyMatrices(moved, home); for (const r of lights) setLightValues(r, r.userData.baseValues); for (const r of stays) r.userData.stays = false; for (const r of valued) r.userData.values = null; sceneChanged(); },
+    undo: () => { gizmo.applyMatrices(moved, before); lights.forEach((r, k) => setLightValues(r, values[k])); for (const r of stays) r.userData.stays = true; valued.forEach((r, k) => { r.userData.values = fxValues[k]; }); sceneChanged(); },
   });
 }
 
@@ -2432,36 +2653,49 @@ function resetAll() {
   const flagged = all.filter(r => !r.userData.source.added && r.userData.flags), flagsBefore = flagged.map(r => r.userData.flags);
   const moved = [...all, ...lights].filter(r => r.userData.edit && !r.userData.source.added);
   const addedLights = lights.filter(r => r.userData.source.added), changed = lights.filter(r => !r.userData.source.added && valuesEdited(r));
+  // effects and sounds: copies go, deleted ones return, moved ones go home, kept ones follow their piece again
+  const fx = [...effectRoots.values()].filter(r => !isStream(r.userData.source));
+  const addedEffects = fx.filter(r => r.userData.source.added), stays = fx.filter(r => r.userData.stays);
+  const valued = fx.filter(r => !r.userData.source.added && r.userData.values), fxValues = valued.map(r => r.userData.values);
+  deleted.push(...fx.filter(r => r.userData.deleted && !r.userData.source.added));
+  moved.push(...fx.filter(r => r.userData.edit && !r.userData.source.added));
   // the map's own buildings changed or deleted come back as the map has them too
   const edits = mapEdits(), restore = mapRestoreChange([...edits.changed, ...edits.gone]);
   // the project's own buildings go: their boxes, which the buildings are made from
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
   if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
-      && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size) return;
+      && !addedEffects.length && !stays.length && !valued.length
+      && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
   // the map's own grid, landing zones and no clear mark
   const map = { stage, zones: landingZones ? landingZones.map(z => ({ ...z })) : null, cleared, keeps: clearKeepsOutside,
-                missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves) };
+                missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
+                rules: projectSpawnRules };
   const mapState = m => {
     cleared = m.cleared; clearKeepsOutside = m.keeps; landingZones = m.zones ? m.zones.map(z => ({ ...z })) : null;
     projectMissions = m.missions ? m.missions.map(e => ({ ...e })) : null;
     setMissionMoves(new Map(m.moves ?? []));
+    projectSpawnRules = m.rules ?? null; syncSpawnRule();
     mergedBuildings = null; pickedZone = null; setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
   };
   const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
   gizmo.record({
     redo: () => {
       for (const r of flagged) r.userData.flags = null;
-      removeRoots(added); removeLightRoots(addedLights); for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
+      removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects); for (const r of stays) r.userData.stays = false;
+      for (const r of valued) r.userData.values = null;
+      for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
       for (const r of changed) setLightValues(r, r.userData.baseValues);
       restore.redo();
       for (const r of ownBoxes) r.userData.deleted = true;
-      mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null });
+      mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
       areaBindings = new Map(); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
     },
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
-      addRoots(added); addLightRoots(addedLights); for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
+      addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects); for (const r of stays) r.userData.stays = true;
+      valued.forEach((r, k) => { r.userData.values = fxValues[k]; });
+      for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
       changed.forEach((r, k) => setLightValues(r, valuesBefore[k]));
       restore.undo();
       for (const r of ownBoxes) r.userData.deleted = false;
@@ -2485,6 +2719,7 @@ function liveMembers() {
     // lights, and the project's buildings by their boxes (a building's key holds all of them)
     for (const r of lightRoots.values()) if (!r.userData.deleted && !r.userData.derivedGone) live(r);
     for (const r of volumeRoots.values()) if (!r.userData.deleted) live(r);
+    for (const r of effectRoots.values()) if (!r.userData.deleted && !r.userData.derivedGone && !isStream(r.userData.source)) live(r);
   }
   return liveCache;
 }
@@ -2814,6 +3049,8 @@ function setLightsShown(on) {
   if (on === lightsOn) { syncLights(); return; }
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);
+  if (on && effectsOn) setEffectsShown(false);
+  if (on && spawnsOn) setSpawnsShown(false);
   if (on) stopPickBox();
   lightsOn = on;
   syncLights();
@@ -2824,11 +3061,13 @@ function setNormalLights(on) {
   normalLights = Boolean(on) && Boolean(data);
   syncLights();
 }
-// The normal view: out of the Buildings view, the Lights view and the Landing zones view.
+// The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
 function setNormalView() {
   if (volumesOn) setVolumesShown(false);
   if (lightsOn) setLightsShown(false);
   if (zonesOn) setZonesShown(false);
+  if (effectsOn) setEffectsShown(false);
+  if (spawnsOn) setSpawnsShown(false);
 }
 // The Landing zones view (Shift+Z): the zones shown and drawn over everything (under a floor, inside a piece), and a
 // click picks a zone or lets the picked one go, never a piece or a light. The zones' layer is put back as it was after.
@@ -2836,8 +3075,10 @@ function setZonesShown(on) {
   on = Boolean(on) && Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
   if (on === zonesOn) return;
   if (on) {
+    if (spawnsOn) setSpawnsShown(false);      // (first: it puts the zones' layer back as it was)
     if (volumesOn) setVolumesShown(false);
     if (lightsOn) setLightsShown(false);
+    if (effectsOn) setEffectsShown(false);
     stopPickBox(); select(null);
     zonesHidBefore = !landingLayer.visible;
     landingLayer.visible = true;
@@ -2862,10 +3103,14 @@ function syncLights() {
   if (data) select(gizmo.active, false, true);
 }
 function lightButton() {
-  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn], ['editBuildings', volumesOn], ['editLights', lightsOn], ['editZones', zonesOn]]) {
+  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
+                          ['editZones', zonesOn], ['editEffects', effectsOn], ['editSpawns', spawnsOn]]) {
     $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on);
   }
-  $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown;
+  $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown; $('normalEffects').checked = normalEffects;
+  $('normalSpawns').checked = normalSpawns;
+  // (the spawn markers show with the view, or with the switch in the normal view)
+  if (spawnLayerReady) { spawnLayer.visible = spawnsShown(); spawnPanel(); }
   $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
   $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
 }
@@ -3177,15 +3422,53 @@ const handleGuide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new
                                    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthTest: false }));
 handleGuide.renderOrder = 8; handleGuide.raycast = () => {}; handleLayer.add(handleGuide);
 const HANDLE_PICK = 10;
-const HANDLE_WORDS = { radius: 'Radius', outer: 'Outer cone', inner: 'Inner cone' };
+const HANDLE_WORDS = { radius: 'Radius', outer: 'Outer cone', inner: 'Inner cone', size: 'Size',
+                       radiusMin: 'Heard fully within', radiusMax: 'Fades out by' };
 const HANDLE_TITLES = { radius: 'Drag to change the radius', outer: 'Drag to widen or narrow the outer cone',
-                        inner: 'Drag to widen or narrow the inner cone' };
+                        inner: 'Drag to widen or narrow the inner cone', size: 'Drag to make the effect larger or smaller',
+                        radiusMin: 'Drag to change where the sound is heard at full volume',
+                        radiusMax: 'Drag to change where the sound fades out' };
 // The selected light when its handles show: shown, editable, with a radius, and nothing being placed.
 function handleRoot() {
   const root = lightRoots.get(selected);
   if (!root || !lightsShown || !root.visible || root.userData.deleted || placing || root.userData.values.radius == null
-      || lightViewOnly(root.userData.source)) return null;
+      || lightViewOnly(root.userData.source)) return effectHandleRoot();
   return root;
+}
+// The picked effect or sound when its handles show (stage FX5): alone in the selection, drawn, its values editable;
+// a sound only where its record gives it spheres.
+function effectHandleRoot() {
+  if (!effectsShown() || placing || gizmo.picks().ids.length !== 1) return null;
+  const root = pickedEffect ? effectRoots.get(pickedEffect) : null;
+  if (!root?.visible || !effectValuesEditable(root)) return null;
+  return root.userData.source.kind === 'effect' || soundReach(effectNow(root)) ? root : null;
+}
+// Its handles: an effect's size on the camera's left at a distance that grows with it (its fixed box, as the map
+// sizes it, else 64 units, at 1), a sound's outer radius on the left and its inner one on the right (game units).
+function effectHandles(root, side) {
+  const origin = new THREE.Vector3().setFromMatrixPosition(root.matrix), out = side.clone().normalize(), now = effectNow(root);
+  if (now.kind === 'sound') {
+    const reach = soundReach(now), back = out.clone().negate(), [, top] = VALUE_LIMITS.radius;
+    return [{ key: 'radiusMax', value: reach.outer, lo: Math.max(1, reach.inner), hi: top, log: true, origin, at: s => origin.clone().addScaledVector(out, s) },
+            { key: 'radiusMin', value: Math.max(1, reach.inner), lo: 1, hi: Math.max(1, reach.outer), log: true, origin, at: s => origin.clone().addScaledVector(back, s) }];
+  }
+  const box = data.effectSystems?.[now.system]?.fixedBox, mapScale = Math.max(...(root.userData.source.added?.base ?? root.userData.source).scale ?? [1]);
+  const unit = box?.used && box.valid ? Math.max(16, Math.max(...box.max.map((v, k) => v - box.min[k])) / 2 * mapScale) : 64;
+  const m = root.userData.values?.scale ?? 1, [lo, hi] = VALUE_LIMITS.scale;
+  return [{ key: 'size', value: m, lo, hi, log: true, origin, at: x => origin.clone().addScaledVector(out, unit * x) }];
+}
+// An effect's or sound's values after a drag of handle `h` to `raw`: a size to three places (1 is the map's own, no
+// value), radii in whole units, the inner never beyond the outer.
+function effectHandleValues(before, h, raw) {
+  const next = structuredClone(before ?? {});
+  if (h.key === 'size') {
+    const value = Math.min(h.hi, Math.max(h.lo, Number(raw.toFixed(3))));
+    if (Math.abs(value - 1) < 1e-3) delete next.scale; else next.scale = value;
+    return { next, value };
+  }
+  const value = Math.min(h.hi, Math.max(h.key === 'radiusMin' ? 0 : h.lo, Math.round(raw)));
+  next[h.key] = value;
+  return { next, value };
 }
 // the camera's left: the panel covers the view's right
 const cameraSide = () => new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize().negate();
@@ -3201,7 +3484,8 @@ function projector() {
 // Each frame: the handles where the selected light's shapes are (they lean to the camera's right).
 function updateLightHandles() {
   const root = lightDrag?.root ?? handleRoot();
-  handleDefs = root ? lightHandles(root.userData.source.kind, root.userData.values, root.matrix, lightDrag?.side ?? cameraSide()) : [];
+  handleDefs = !root ? [] : root.userData.effect ? effectHandles(root, lightDrag?.side ?? cameraSide())
+    : lightHandles(root.userData.source.kind, root.userData.values, root.matrix, lightDrag?.side ?? cameraSide());
   handleLayer.visible = handleDefs.length > 0;
   if (!handleDefs.length && handleHover) hoverHandle(null);
   for (const mesh of handleMeshes.values()) mesh.visible = false;
@@ -3213,8 +3497,8 @@ function updateLightHandles() {
     mesh.userData.material.color.setHex(h.key === lit ? HANDLE_COLOURS.hover : HANDLE_COLOURS[h.key]);
     scaleMarker(mesh, camera, mesh.position);
   }
-  // a thin line from the light to its radius handle
-  const radius = handleDefs.find(h => h.key === 'radius');
+  // a thin line from the light to its radius handle (an effect's to its size handle, a sound's to its outer radius's)
+  const radius = handleDefs.find(h => h.key === 'radius' || h.key === 'size' || h.key === 'radiusMax');
   if (radius) {
     const at = handleGuide.geometry.attributes.position;
     at.setXYZ(0, ...radius.origin.toArray()); at.setXYZ(1, ...radius.at(radius.value).toArray()); at.needsUpdate = true;
@@ -3247,7 +3531,7 @@ function lightDragHint(key, value) {
   const hint = $('dragHint');
   clearTimeout(hintTimer);
   hint.hidden = false;
-  hint.replaceChildren(`${HANDLE_WORDS[key]} ${key === 'radius' ? `${value} units` : `${value}°`} · `);
+  hint.replaceChildren(`${HANDLE_WORDS[key]} ${key === 'size' ? `${value} times the map's size` : key === 'radius' || key.startsWith('radius') ? `${value} units` : `${value}°`} · `);
   text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
 }
 function startLightDrag(e) {
@@ -3259,7 +3543,8 @@ function startLightDrag(e) {
   // two handles under the press (a spot's inner cone at 0 sits on its radius handle): the first move picks the one
   // whose way it goes
   const handle = near.length === 1 || near[1].d - near[0].d > 3 ? near[0] : null;
-  lightDrag = { root, before: { ...root.userData.values }, side: cameraSide(), start: [e.clientX, e.clientY], pointerId: e.pointerId,
+  lightDrag = { root, before: root.userData.effect ? structuredClone(root.userData.values ?? {}) : { ...root.userData.values },
+                side: cameraSide(), start: [e.clientX, e.clientY], pointerId: e.pointerId,
                 near, handle, offset: handle ? [handle.s[0] - e.clientX, handle.s[1] - e.clientY] : null };
   renderer.domElement.style.cursor = 'grabbing';
   return true;
@@ -3280,6 +3565,14 @@ function moveLightDrag(e) {
     d.offset = [d.handle.s[0] - d.start[0], d.handle.s[1] - d.start[1]];
   }
   const h = d.handle.h, raw = nearestValue(h, projector(), [e.clientX + d.offset[0], e.clientY + d.offset[1]]);
+  if (d.root.userData.effect) {
+    // an effect's size or a sound's radius: drawn live, one undo step at the release (endLightDrag)
+    const { next, value } = effectHandleValues(d.before, h, raw);
+    lightDragHint(h.key, value);
+    d.root.userData.values = Object.keys(next).length ? next : null;
+    drawEffectShape();
+    return;
+  }
   const { next, value } = handleValues(d.before, h, raw);
   lightDragHint(h.key, value);
   if (!Object.keys(changedValues(next, d.root.userData.values)).length) return;
@@ -3294,6 +3587,17 @@ function endLightDrag(keep) {
   lightDrag = null;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
   renderer.domElement.style.cursor = handleHover ? 'grab' : '';
+  if (d.root.userData.effect) {
+    const after = d.root.userData.values ? structuredClone(d.root.userData.values) : null, before = Object.keys(d.before).length ? d.before : null;
+    setEffectValues(d.root, before);
+    if (keep && JSON.stringify(after) !== JSON.stringify(before)) {
+      const id = d.root.userData.source.id;
+      gizmo.record({ redo: () => { setEffectValues(d.root, after); select(id, false, true); },
+                     undo: () => { setEffectValues(d.root, before); select(id, false, true); } });
+    }
+    restingHint();
+    return true;
+  }
   const after = { ...d.root.userData.values };
   setLightValues(d.root, d.before);
   if (keep && Object.keys(changedValues(after, d.before)).length)
@@ -3409,7 +3713,27 @@ function zoneEntries() {
             sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
             text: 'landing zone lz drop zone skyranger squad start spawn evac' }];
 }
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries()];
+// The piece list's Spawn points kind (the user, 18 November 2026: new spawns from the Add panel too): a Pod and a Meld
+// point, each placed with a click as a copy of the map's first plain pod or first Meld point (SP7's copies: the Build
+// clones the template, a pod with a pod index of its own), where the spawn family builds
+function spawnAddEntries() {
+  if (!spawnsAvailable() || !spawnFamilyBuilds()) return [];
+  const out = [];
+  for (const kind of SPAWN_COPY_KINDS) {
+    const template = addTemplate(data.spawns, kind);
+    if (!template) continue;
+    const name = KINDS[kind].label, of = short(template.actor);
+    out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points', pkg: `a copy of ${of}`,
+               detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : 'Placed on a tile, with its values',
+               count: (data.spawns ?? []).filter(o => o.kind === kind && !o.landing).length, builds: true,
+               title: `A new ${name.toLowerCase()}: click the tile it is to stand on. It is a copy of ${of}, with its values and the way it faces; `
+                 + 'move, turn, copy, delete and give it values in the Spawns view',
+               sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
+               text: `${name} spawn point ${kind === 'pod' ? 'pod aliens enemies' : 'meld canister'}`.toLowerCase() });
+  }
+  return out;
+}
+const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
 // source to copy: { source, values }, or null for a kind or version this page doesn't know.
 // A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
@@ -3628,12 +3952,14 @@ const physicalBoxes = new WeakMap();
 function physicalBox(root) {
   if (root.userData.light) { const p = lightPose(root).location; return [...p, ...p]; }
   if (root.userData.volume) return volumeBox(root);
+  if (root.userData.effect) return null;
   const key = root.matrix.elements.join(',') + ':' + root.userData.source.mesh;
   if (physicalBoxes.get(root)?.key === key) return physicalBoxes.get(root).box;
   const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
   physicalBoxes.set(root, { key, box }); return box;
 }
-const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags']);
+const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags',
+                              'kind', 'effect', 'sound']);
 function builderDocument() {
   if (!eventMemo) return builderDocumentNow();
   return eventMemo.document ??= builderDocumentNow();
@@ -3665,16 +3991,23 @@ function builderKey() {
 }
 function builderBounds() {
   const boxes = [...allRoots.values()].filter(r => !r.userData.deleted).map(r => [rootName(r), physicalBox(r)]).filter(([, b]) => b);
-  for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind)) boxes.push([p.actor, [...p.location, ...p.location]]);
+  for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind) || (p.kind && !p.template)) boxes.push([p.actor, [...p.location, ...p.location]]);
+  // (an effect, a sound or a lens flare is where it stands)
+  for (const r of effectRoots.values()) {
+    if (r.userData.deleted || !r.userData.source.added) continue;
+    const p = actorPose(r.userData.source, r.matrix).location;
+    boxes.push([short(r.userData.source.actor), [...p, ...p]]);
+  }
   return boxes;
 }
 function builderRecords() {
   const doc = builderDocument(), clip = snapshot([...allRoots.values()], new Set()) ?? { entries: [], volumes: [], name: doc.name };
-  const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.map(p => p.actor) });
+  const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.filter(p => !p.kind || p.template).map(p => p.actor) });
   const lights = records.pieces.filter(p => ['point', 'spot'].includes(p.template?.kind)).length;
+  const [effects, sounds, flares] = ['effect', 'sound', 'flare'].map(kind => records.pieces.filter(p => !p.template && p.kind === kind).length);
   const b = records.size.bounds;
   return { ...records, clip, left: [], offGrid: [...roots.values()].filter(r => gridNow(r)?.valid === false).map(rootName),
-    counts: { pieces: records.pieces.length - lights, lights, buildings: records.buildings.length, tiles: records.tiles },
+    counts: { pieces: records.pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: records.buildings.length, tiles: records.tiles },
     box: new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])) };
 }
 // Align to grid (the builder's warning, prefab plan 5.6b): the pieces keeping the pose rule (doors, ladders, cars, vans,
@@ -3749,7 +4082,7 @@ let builderGroundKey = '';
 function refreshBuilder() {
   if (!builderMode || builder.loading || !data) return;
   const records = builderRecords(), { size } = records, b = size.bounds;
-  $('prefabRecover').hidden = !records.pieces.some(p => p.from);
+  $('prefabRecover').hidden = !records.pieces.some(p => p.from && !p.kind);
   $('prefabRecover').disabled = builder.repairing;
   $('builderSize').textContent = `${size.tiles[0]} × ${size.tiles[1]} tiles · height ${b[2].toFixed(0)}–${b[5].toFixed(0)}, grid 0–${PREFAB_GRID_TOP}`
     + (size.warnings.length ? ' · larger than a map holds' : size.unknown.length ? ' · size unverified: missing pieces kept'
@@ -4001,6 +4334,7 @@ function editStateNow() {
   }
   for (const entity of added.values()) entity.components?.sort();
   const areaLightBindings = lightState(overrides, added);
+  effectState(overrides, added);
   // A group keeps the pieces still on the map and the groups inside it; one left with fewer than two members isn't
   // saved (its last member takes its place in the group it was in).
   const saved = cloneGroups();
@@ -4008,12 +4342,13 @@ function editStateNow() {
     && !(builderMode && builder.kept.some(p => memberKey({ added: p.actor }) === k))) g.members.delete(k);
   const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
                                                              ...(g.prefab ? { prefab: g.prefab } : {}) }));
-  return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values()], groups: kept, areaLightBindings, stage,
-                    buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions });
+  return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
+                    buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
+                    spawnRules: projectSpawnRules });
 }
 const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
 const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-  || cleared || landingZones || projectMissions);
+  || cleared || landingZones || projectMissions || projectSpawnRules);
 function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
 // Back to the map as exported, with no history: before a project's state is applied.
 function clearEdits() {
@@ -4024,7 +4359,9 @@ function clearEdits() {
   for (const r of all) { r.userData.deleted = false; r.userData.flags = null; }
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
+  clearEffectEdits();
   cleared = false; clearKeepsOutside = false; landingZones = null; mergedBuildings = null; projectMissions = null;
+  projectSpawnRules = null; syncSpawnRule();
   setMissionMoves(new Map());
   setStage(null);
   setBuildings([]);
@@ -4048,6 +4385,7 @@ async function applyState(state, progress = null) {
   cleared = state.cleared === true; clearKeepsOutside = cleared && state.clearKeepsOutside === true; mergedBuildings = null;
   landingZones = Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null;
   projectMissions = Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null;
+  projectSpawnRules = state.spawnRules ?? null; syncSpawnRule();
   setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
   clearedChanged();
   // (a record for a map building this export can't edit is kept and saved back unchanged)
@@ -4062,14 +4400,21 @@ async function applyState(state, progress = null) {
   for (const record of state.overrides) {
     if (record.target?.level === 'stream') {
       // a mission object moved in its stream (Part E): one of this export's, else carried unchanged
-      const o = data?.streams?.[record.target.package]?.missionObjects?.find(x => x.actor === record.target.actor);
+      const o = streamObjects(record.target.package).find(x => x.actor === record.target.actor);
       if (o && !record.deleted && Array.isArray(record.location) && Array.isArray(record.rotation))
         streamMoves.set(missionKey(record.target.package, o.actor), { stream: record.target.package, actor: o.actor,
                                                                       location: [...record.location], rotation: [...record.rotation] });
       else carried.overrides.push(record);
       continue;
     }
+    // a base pod, Meld point or drop-in point moved, turned or given values (SP6); one the page doesn't take is
+    // carried unchanged (below: no piece has its actor)
+    if (record.target?.level === 'base' && String(record.target.package).toLowerCase() === String(data.name).toLowerCase()) {
+      const o = baseSpawnOf(record.target.actor), entry = o ? spawnEntryOf(o, record) : null;
+      if (entry) { streamMoves.set(missionKey(null, o.actor), entry); continue; }
+    }
     if (applyLightRecord(record)) continue;
+    if (applyEffectRecord(record)) continue;
     const list = actors.get(targetKey(record.target));
     if (!list) { carried.overrides.push(record); continue; }
     if (record.deleted) { for (const r of list) if (!r.userData.source.hidden && !r.userData.source.environment) r.userData.deleted = true; }
@@ -4078,8 +4423,24 @@ async function applyState(state, progress = null) {
       if (record.flags) for (const r of list) r.userData.flags = { ...record.flags };
     }
   }
-  const objs = [], lights = [];
+  const objs = [], lights = [], effects = [];
   for (const entity of state.added) {
+    if (['pod', 'meld'].includes(entity.kind)) {
+      // a copy of one of the map's pods or Meld points (SP7); one the page doesn't take is carried unchanged
+      const from = entity.from, o = from?.level === 'base' && String(from.package).toLowerCase() === String(data.name).toLowerCase() ? baseSpawnOf(from.actor) : null;
+      const entry = o ? copyEntryOf(o, entity) : null;
+      if (entry) {
+        streamMoves.set(spawnKey('copy', entry.actor), entry);
+        const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+        if (serial > copySerial) copySerial = serial;
+      } else carried.added.push(entity);
+      continue;
+    }
+    if (entity.kind) {      // an effect, a sound or a flare copied (effects and sounds plan, Part C)
+      const root = addedEffectOf(entity);
+      if (root) effects.push(root); else carried.added.push(entity);
+      continue;
+    }
     if (entity.template?.kind === COVER_KIND) {
       const source = coverOf(entity);
       if (!source) { carried.added.push(entity); continue; }
@@ -4107,6 +4468,7 @@ async function applyState(state, progress = null) {
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
   addLightRoots(lights);
+  addEffectRoots(effects);
   setMissionMoves(streamMoves);
   // Area lights' glowing pieces as the project sets them; one naming a light this export lacks is carried.
   for (const b of state.areaLightBindings ?? []) {
@@ -4118,7 +4480,7 @@ async function applyState(state, progress = null) {
   if (builderMode) for (const p of builder.kept) applied.add(memberKey({ added: p.actor }));
   for (const o of objs) applied.add(memberKey({ added: o.actor }));
   // (lights and the project's buildings are members too)
-  for (const r of [...lightRoots.values(), ...volumeRoots.values()]) applied.add(memberOf(r.userData.source));
+  for (const r of [...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()]) applied.add(memberOf(r.userData.source));
   // (a group that names a group not applied goes with it; so does one in two groups, or in itself)
   const next = new Map(), wanted = state.groups ?? [];
   let fit = wanted.filter(g => g.members.every(m => m.group !== undefined || applied.has(memberKey(m))));
@@ -4219,12 +4581,20 @@ async function openProject(id) {
                                      cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
                                      landingZones: Array.isArray(doc.landingZones) ? doc.landingZones : null,
                                      missions: Array.isArray(doc.missions) ? doc.missions : null,
+                                     spawnRules: doc.spawnRules ?? null,
                                      nextSerial: doc.nextSerial }, openingProgress(doc.name));
   // a building this page can't read is kept and saved back unchanged, and so is one of the map's it can't edit
   carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
   carried.overrides.push(...malformed.overrides); carried.added.push(...malformed.added); carried.groups.push(...malformed.groups);
   carried.areaLightBindings.push(...malformed.areaLightBindings);
   project = { doc, revision: doc.revision, carried, savedKey: stateKey(editState()) };
+  // a bomb moved before export 33 left its helper point behind (F-124; decision D6): the helper gets the move now, and
+  // the project shows as changed until it is saved
+  const helped = bombHelperFix();
+  if (helped) {
+    setMissionMoves(helped);
+    banner('The bomb\'s helper point now moves with it: Long War\'s bomb mutator finds the bomb again and places it where it finds places, the project\'s place being where it plays when it finds none. Save the project to keep it.');
+  }
   askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
   touchRecent(id);
   // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
@@ -4250,6 +4620,7 @@ async function openProject(id) {
                     cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
                     landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
                     missions: Array.isArray(recovery.missions) ? recovery.missions : null,
+                    spawnRules: recovery.spawnRules ?? null,
                     nextSerial: recovery.nextSerial };
     if (stateKey(sortState(state)) !== project.savedKey) {
       const when = new Date(recovery.savedAt).toLocaleString();
@@ -4340,7 +4711,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
                                                areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
                                                stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
                                                cleared: state.cleared, clearKeepsOutside: state.clearKeepsOutside,
-                                               landingZones: state.landingZones, missions: state.missions }),
+                                               landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules }),
                        nextSerial: copySerial, view: { camera: camera.position.toArray(), target: controls.target.toArray() } };
     if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
     if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
@@ -4506,8 +4877,15 @@ function buildStepDetail(key, stage, job, running) {
       .filter(Boolean).join('; ');
   }
   if (key === 'patch' && stage?.bytes) return `${Math.round(stage.bytes / 1024)} KB cooked`;
-  if (key === 'transplant' && stage) return `${plural(stage.foreignPieces, 'piece')} from ${stage.donors.map(d => d.map).join(', ')}: `
-    + `${kilobytes(stage.donors.reduce((n, d) => n + d.bytes, 0))} more in the map`;
+  if (key === 'transplant' && stage) {
+    // pieces, and effects and sounds (effects and sounds plan, FX4) and lens flares (FX6b: counted among the
+    // effects, and of their own), each donor's actors staged once
+    const sum = k => stage.donors.reduce((n, d) => n + (d[k] ?? 0), 0), pieces = sum('pieces'), flares = sum('flares'), effects = sum('effects') - flares;
+    const what = [pieces && plural(pieces, 'piece'), effects && `${effects} ${effects === 1 ? 'effect or sound' : 'effects and sounds'}`,
+                  flares && plural(flares, 'lens flare')]
+      .filter(Boolean).join(' and ') || plural(stage.foreignPieces, 'piece');
+    return `${what} from ${stage.donors.map(d => d.map).join(', ')}: ${kilobytes(sum('bytes'))} more in the map`;
+  }
   if (key === 'light' && stage?.baked === false)    // a quick build's: the edit made, nothing relit
     return [stage.nativeCopies && `${copyCount(stage.nativeCopies)} made`, stage.hidden && `${stage.hidden} taken out`,
             stage.lights && 'light edits made', flagWords(stage.pieceFlags), 'lighting not baked'].filter(Boolean).join(', ');
@@ -4591,7 +4969,7 @@ function renderBuild() {
       text(missionList, 'li', mission ?? 'A mission', 'mission');
       for (const row of rows) {
         const li = text(missionList, 'li', row.message.replace(/^[^:]*: /, ''), row.actor ? 'pick' : '');
-        if (row.actor) { li.title = `Show ${short(row.actor)} (View options' Mission objects)`; li.onclick = () => showMissionObject(row.actor); }
+        if (row.actor) { li.title = `Show ${short(row.actor)} (its marker, the Normal button's Spawn points and objectives)`; li.onclick = () => showSpawn(row.actor, row.stream ?? null); }
       }
     }
     if (count > warned.length) text(missionList, 'li', `… and ${count - warned.length} more (the build's compile-report.json has them all)`);
@@ -5124,9 +5502,9 @@ async function ensureSavedFor(ids) {
 // The project manager (manager.js): every project and its last build, to install or zip several at once, or to build.
 const projectManager = createProjectManager({
   els: { root: $('managerDialog'), form: $('managerForm'), close: $('managerClose'), search: $('managerSearch'), show: $('managerShow'),
-         head: $('managerHead'), all: $('managerAll'), list: $('managerList'), count: $('managerCount'), pickShown: $('managerPickShown'),
-         pickNone: $('managerPickNone'), warnings: $('managerWarnings'), message: $('managerMessage'), pack: $('managerPack'),
-         install: $('managerInstall'), done: $('managerDone'), where: $('managerWhere'), build: $('managerBuild'),
+         sort: $('managerSort'), all: $('managerAll'), shownLabel: $('managerShown'), list: $('managerList'), count: $('managerCount'),
+         pickNone: $('managerPickNone'), allModes: $('managerAllModes'), picked: $('managerPicked'), message: $('managerMessage'),
+         pack: $('managerPack'), projectFiles: $('managerProjectFiles'), install: $('managerInstall'), where: $('managerWhere'), build: $('managerBuild'),
          queueBox: $('managerQueue'), queueTitle: $('managerQueueTitle'), queueClock: $('managerQueueClock'),
          queueStep: $('managerQueueStep'), queueStage: $('managerQueueStage'), queueBar: $('managerQueueBar'),
          queueNote: $('managerQueueNote'), queueFailures: $('managerQueueFailures'), queueLive: $('managerQueueLive'),
@@ -5310,6 +5688,13 @@ const loaded = (map, key) => settled.get(map.get(key));
 function previewGroup(parts, override, frame) {
   const group = new THREE.Group();
   for (const { source, matrix, values } of parts) {
+    if (source.isEffect) {
+      const holder = new THREE.Group(), marker = makeEffectMarker(source);
+      holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
+      group.add(holder);
+      ghostLikeness(holder, source);
+      continue;
+    }
     if (source.isLight) {
       const holder = new THREE.Group(), marker = makeMarker(source.kind);
       paintMarker(marker, values ?? valuesOf(source));
@@ -5994,7 +6379,7 @@ clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
 // The window's counts and notes, at the grid's size now (a clear keeps it; the rail's Map grid changes it)
 function clearSize() {
   const v = [...data.tileGrid.dimensions], notes = [];
-  if (landingLines.kind === 'ew') notes.push('The map\'s alien pods and Meld points stay where the map has them; they cannot be moved yet.');
+  if (landingLines.kind === 'ew') notes.push('The map\'s alien pods and Meld points stay where the map has them, some over nothing once it is cleared: move them onto your floors in the Spawns view (Shift+U).');
   $('clearMapWarn').hidden = !notes.length; $('clearMapWarn').textContent = notes.join(' ');
   clearWords(v);
   return v;
@@ -6238,31 +6623,68 @@ $('groundGridToggle').onchange = e => { setGroundGrid(e.target.checked); e.targe
 const LANDING_SHOWN = 'workshop.landingZones';
 const landingLayer = new THREE.Group(); world.add(landingLayer);
 landingLayer.visible = recall(LANDING_SHOWN) !== '0';
-// A mission's objects (mission_view.js; mission types plan, C2): a marker for each object of the streams the header's
-// Mission picker shows (export 24), on View options' Mission objects; a click on one shows its panel. View only.
-const MISSION_SHOWN = 'workshop.missionObjects';
-const missionLayer = new THREE.Group(); world.add(missionLayer);
-missionLayer.visible = recall(MISSION_SHOWN) !== '0';
-let pickedMission = null;      // {stream, actor} of the object whose panel shows
+// ---------------------------------------------------------------- spawn points and objectives (spawns plan, SP3)
+// The Spawns view (Shift+U, the rail's button) and the Normal button's "Spawn points and objectives" switch draw one
+// list of markers (spawns_view.js spawnRecords): the base map's spawn points (export 33), the objects of the streams
+// the header's mission streams, an added bomb's donor objects, an LWR patch's spawn points. A click on one opens its
+// panel (spawnPanel): what it is, its values and where each comes from, its group, what uses it and what it uses, and
+// what the game does with it (spawn_rules.js, from /maps/<id>/spawn-rules.json). In the view a click picks a marker,
+// or a landing zone to describe it, or lets the picked one go, never a piece; in Normal with the switch on, a marker
+// is picked ahead of the piece behind it. A stream object's arrows move its group by whole tiles (mission types plan,
+// Part E: missionMoves). The switch replaced View options' Mission objects (decision D2): a saved choice carries over.
+const NORMAL_SPAWNS = 'workshop.normalSpawns', SPAWN_FILTERS = 'workshop.spawnFilters';
+{
+  const old = recall('workshop.missionObjects');
+  if (old !== null && recall(NORMAL_SPAWNS) === null) remember(NORMAL_SPAWNS, old === '0' ? '0' : '1');
+  try { localStorage.removeItem('workshop.missionObjects'); } catch { /* not kept */ }
+}
+normalSpawns = recall(NORMAL_SPAWNS) === '1';
+const spawnLayer = new THREE.Group(); world.add(spawnLayer);
+spawnLayer.visible = false;
+spawnLayerReady = true;
+let spawnFilters = (() => { try { return JSON.parse(recall(SPAWN_FILTERS) || '{}') || {}; } catch { return {}; } })();
+let pickedSpawn = null;            // the picked marker's key (spawns_view.js spawnKey)
+let spawnZonePick = null;          // a landing zone picked in the Spawns view, described only (decision D3)
+let spawnLandingBefore = true;     // whether the landing zones showed before the Spawns view showed them
+let spawnRulesData = null;         // what the install does with spawn points (spawn-rules.json), read as a map opens
+let spawnEntriesNow = [];          // spawnRecords' entries for the mission the header shows
+const spawnsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
+const spawnsShown = () => spawnsAvailable() && (spawnsOn || (normalSpawns && !volumesOn && !lightsOn && !zonesOn && !effectsOn));
 // A mission's objects moved in their streams (mission types plan, Part E): `${stream}|${actor}` -> {stream, actor,
 // location, rotation}, saved as overrides of `level: "stream"` (the stream as the package). The Build moves each in
 // place in the variant's copy of the stream. An object moves with its group (a capture point with its volume, a bomb
-// or a power node with its button, emitters and rebuild volume), by whole tiles and levels, one undo step a drag.
+// or a power node with its button, emitters, rebuild volume and, for the bomb, its helper point), by whole tiles and
+// levels, one undo step a drag. The key is the marker's (spawnKey).
+// The base map's pods, Meld points and drop-in points the project edits (the editor spawns plan, SP6) are kept here
+// too, as `base|${actor}` -> {stream: null, actor, location, rotation, spawn}: where each stands and faces now and the
+// values it changes (spawns_view.js editSpawn), saved as overrides of `level: "base"`. Each moves alone, by whole tiles
+// and levels, turns by quarters in its panel, and takes its values there; the Build edits it in place.
 let missionMoves = new Map(), missionDragView = null;
-const missionKey = (stream, actor) => `${stream}|${actor}`;
+const missionKey = (stream, actor) => spawnKey(stream, actor);
 const missionMoveOf = (stream, actor) => (missionDragView ?? missionMoves).get(missionKey(stream, actor));
 const missionAt = (stream, o) => missionMoveOf(stream, o.actor)?.location ?? o.location;
+// a stream's mission objects: a stream of the export's, else the donor stream an added kind takes them from
+const streamObjects = stream => data?.streams?.[stream]?.missionObjects
+  ?? Object.values(data?.donors ?? {}).find(d => d.stream === stream)?.missionObjects ?? [];
 function missionMembers(stream, o) {
-  const objects = data?.streams?.[stream]?.missionObjects ?? [];
+  const objects = streamObjects(stream);
   return o.group ? objects.filter(x => x.group === o.group) : [o];
 }
 function missionOverrides() {
-  return [...missionMoves.values()].map(m => ({ target: { package: m.stream, level: 'stream', actor: m.actor },
-                                                location: [...m.location], rotation: [...m.rotation] }));
+  return [...missionMoves.values()].filter(m => m.stream !== 'copy').map(m => (m.stream === null ? spawnOverride(data.name, baseSpawnOf(m.actor), m)
+    : { target: { package: m.stream, level: 'stream', actor: m.actor }, location: [...m.location], rotation: [...m.rotation] }));
 }
-// The moves with an object's group shifted by `delta` (game units): a member back at its own place is no move.
+// the project's copies of the map's pods and Meld points (SP7), as its added records
+const spawnCopyRecords = () => [...missionMoves.values()].filter(m => m.stream === 'copy').map(m => copyRecord(data.name, m));
+// a base spawn point's record (export 33), but a landing's
+const baseSpawnOf = actor => (data?.spawns ?? []).find(r => r.actor === actor && !r.landing) ?? null;
+const spawnFamilyBuilds = () => Boolean(families?.families?.spawn?.builds);
+// The moves with an object's group shifted by `delta` (game units): a member back at its own place is no move. A base
+// spawn point (stream null) moves alone.
 function movedMissions(stream, actor, delta, from = missionMoves) {
-  const o = data?.streams?.[stream]?.missionObjects?.find(x => x.actor === actor);
+  if (stream === null) return editedSpawns(actor, { delta }, from);
+  if (stream === 'copy') return editedCopies(actor, { delta }, from);
+  const o = streamObjects(stream).find(x => x.actor === actor);
   const next = new Map(from);
   if (!o) return next;
   for (const m of missionMembers(stream, o)) {
@@ -6270,6 +6692,26 @@ function movedMissions(stream, actor, delta, from = missionMoves) {
     const location = at.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000);
     if (location.every((v, i) => Math.abs(v - m.location[i]) < 1e-3)) next.delete(k);
     else next.set(k, { stream, actor: m.actor, location, rotation: (m.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
+  }
+  return next;
+}
+// A project saved before export 33 moved the bomb without its helper point (F-124; decision D6): the helper gets the
+// group's move where every other part of the bomb shares one offset and the helper has none. Returns the moves with
+// it added, or null when nothing needs it.
+function bombHelperFix(moves = missionMoves) {
+  let next = null;
+  for (const stream of new Set([...moves.values()].map(m => m.stream))) {
+    const parts = streamObjects(stream).filter(o => o.group === 'bomb');
+    const helpers = parts.filter(o => o.role === 'point'), others = parts.filter(o => o.role !== 'point');
+    if (!helpers.length || !others.length || helpers.some(h => moves.has(missionKey(stream, h.actor)))) continue;
+    const offsets = new Set(others.map(o => { const m = moves.get(missionKey(stream, o.actor));
+      return (m ? m.location.map((v, i) => v - o.location[i]) : [0, 0, 0]).map(v => Math.round(v * 10) / 10).join(','); }));
+    if (offsets.size !== 1) continue;
+    const delta = [...offsets][0].split(',').map(Number);
+    if (delta.every(v => !v)) continue;
+    next = next ?? new Map(moves);
+    for (const h of helpers) next.set(missionKey(stream, h.actor), { stream, actor: h.actor,
+      location: h.location.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000), rotation: (h.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
   }
   return next;
 }
@@ -6288,57 +6730,318 @@ function placeStreamRoots() {
 }
 function setMissionMoves(next) {
   missionMoves = next; missionDragView = null;
-  placeStreamRoots(); refreshMissionObjects(); placeMissionGizmo();
+  placeStreamRoots(); refreshSpawnMarkers(); placeMissionGizmo();
+}
+// The edits with a base spawn point's changed (spawns_view.js editSpawn: delta, turn, spawn values).
+function editedSpawns(actor, change, from = missionMoves) {
+  const o = baseSpawnOf(actor), next = new Map(from), k = missionKey(null, actor);
+  if (!o) return next;
+  const entry = editSpawn(o, from.get(k) ?? null, change);
+  if (entry) next.set(k, entry); else next.delete(k);
+  return next;
+}
+// One undo step: a base spawn point turned or given values (its panel's controls; also the test's way in).
+function editBaseSpawn(actor, change, hint) {
+  const before = new Map(missionMoves), after = editedSpawns(actor, change);
+  if (stateKeyOf(after) === stateKeyOf(before)) return false;
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  if (hint) flashHint(hint);
+  return true;
+}
+const stateKeyOf = moves => JSON.stringify([...moves.entries()]);
+// The edits with a copy's changed (spawns_view.js editCopy), and one undo step of it (SP7).
+function editedCopies(actor, change, from = missionMoves) {
+  const k = spawnKey('copy', actor), entry = from.get(k), o = entry ? baseSpawnOf(entry.copy.from) : null, next = new Map(from);
+  if (o) next.set(k, editCopy(o, entry, change));
+  return next;
+}
+function editSpawnCopy(actor, change, hint) {
+  const before = new Map(missionMoves), after = editedCopies(actor, change);
+  if (stateKeyOf(after) === stateKeyOf(before)) return false;
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  if (hint) flashHint(hint);
+  return true;
+}
+// One undo step: a copy of a base pod or Meld point (or of a copy: its template's, with its values and turn), a tile
+// east of it, picked (SP7). Returns the copy's key, or null where it can't be copied.
+function copySpawn(key) {
+  const e = spawnEntry(key);
+  const o = e?.layer === 'copy' ? baseSpawnOf(e.record.copyOf) : e?.layer === 'base' ? e.record : null;
+  if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
+  const at = spawnAt(e), now = missionMoves.get(key);
+  const actor = `${o.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
+  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]],
+                               rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
+  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  setPickedSpawn(k);
+  flashHint(`Copied ${short(o.actor)} a tile east · drag its arrows to place it`);
+  return k;
+}
+// A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
+// and the next click places a copy of the kind's template (spawns_view.js addTemplate) on the tile under it
+let spawnPlacing = null;
+function startSpawnPlacing(kind) {
+  const template = addTemplate(data?.spawns, kind);
+  if (!template || !spawnFamilyBuilds()) return;
+  setSpawnsShown(true);
+  const family = KINDS[kind].family;
+  if (spawnFilters[family] === false) {
+    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters(); refreshSpawnMarkers();
+  }
+  spawnPlacing = kind; renderer.domElement.style.cursor = 'crosshair';
+  flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand on · Esc cancels`);
+}
+function stopSpawnPlacing() {
+  if (!spawnPlacing) return;
+  spawnPlacing = null; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
+}
+// One undo step: the copy placed where the click falls (on a piece, else on the ground grid's plane), on the tile under
+// it by whole tiles from its template, at the template's height above its own floor; then picked
+function placeSpawn(clientX, clientY) {
+  const kind = spawnPlacing, template = addTemplate(data?.spawns, kind);
+  stopSpawnPlacing();
+  if (!template) return null;
+  const hit = pick(clientX, clientY)?.point
+    ?? rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundHeight()), new THREE.Vector3());
+  if (!hit) return null;
+  const [tx, ty, tz] = template.location;
+  const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
+  const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
+  const actor = `${template.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
+  const entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
+  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  setPickedSpawn(k);
+  flashHint(`Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it, [ and ] turn it`);
+  return k;
+}
+// One undo step: a base pod, Meld point or drop-in point deleted (its moves and values go with it), or a copy taken
+// away (SP7).
+function deleteSpawn(key) {
+  const e = spawnEntry(key);
+  if (!e || !['base', 'copy'].includes(e.layer) || (e.layer === 'base' && (!spawnEditable(e.record) || missionMoves.get(key)?.deleted))) return false;
+  const before = new Map(missionMoves), after = new Map(missionMoves);
+  if (e.layer === 'copy') after.delete(key);
+  else after.set(key, { stream: null, actor: e.record.actor, location: [...e.record.location],
+                        rotation: (e.record.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {}, deleted: true });
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  flashHint(e.layer === 'copy' ? 'Copy taken away' : spawnNamed(e.record) ? 'Deleted · something names it, so the Build keeps it and warns' : 'Deleted · the Build takes it out of the level\'s list');
+  return true;
 }
 // One undo step: the picked object's group moved by `delta` (also the test's way in).
 function moveMissionGroup(stream, actor, delta) {
   if (!delta.some(v => Math.abs(v) > 1e-6)) return false;
+  if (stream === null) return editBaseSpawn(actor, { delta }, 'Moved the spawn point · the Build moves it in place');
+  if (stream === 'copy') return editSpawnCopy(actor, { delta }, 'Moved the copy');
   const before = new Map(missionMoves), after = movedMissions(stream, actor, delta);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  const o = data.streams[stream].missionObjects.find(x => x.actor === actor), n = missionMembers(stream, o).length;
+  const o = streamObjects(stream).find(x => x.actor === actor), n = missionMembers(stream, o).length;
   flashHint(`Moved ${n > 1 ? `the group of ${n}` : 'the mission object'} · the Build moves ${n > 1 ? 'them' : 'it'} in the stream's copy`);
   return true;
 }
-function refreshMissionObjects() {
-  for (const child of [...missionLayer.children]) { child.traverse(o => o.geometry?.dispose()); missionLayer.remove(child); }
-  const streams = data && !data.preview && !builderMode ? data.streams ?? {} : {};
-  $('missionObjectsRow').hidden = !Object.values(streams).some(s => s.missionObjects?.length);
-  if (pickedMission && !streamSet.has(pickedMission.stream)) pickedMission = null;
-  for (const [name, s] of Object.entries(streams)) {
-    if (!streamSet.has(name)) continue;
-    for (const o of s.missionObjects ?? []) {
-      if (!missionMarked(o)) continue;
-      const marker = makeMissionMarker(o.kind);
-      marker.position.copy(gameToView(missionAt(name, o)));
-      marker.userData.mission = { stream: name, actor: o.actor };
-      paintMissionMarker(marker, pickedMission?.stream === name && pickedMission?.actor === o.actor);
-      missionLayer.add(marker);
-    }
-  }
-  missionPanel();
+// the donor an added kind's objects come from (an added council bomb: Slaughterhouse's stream), or null
+function spawnDonor() {
+  if (missionIndex >= 0 || !missionPickValue.startsWith('kind:')) return null;
+  const kind = missionPickValue.slice(5), d = data?.donors?.[kind];
+  return d ? { kind, ...d } : null;
 }
-function missionPanel() {
-  const s = pickedMission ? data?.streams?.[pickedMission.stream] : null;
-  const o = s?.missionObjects?.find(x => x.actor === pickedMission.actor);
-  $('missionPanel').hidden = !o || !missionLayer.visible;
-  if (!o) return;
-  const { title, lines } = describeMissionObject(o, s.missionObjects, (data.missions ?? [])[missionIndex]?.label);
-  // the compiler's check (mission types plan, C3), on the map's saved floor: a point the squad, the operative or a VIP
-  // needs, or an objective, whose floor the edit took away (a copy's floor isn't counted here; the Build's check is)
-  const moved = missionMoves.get(missionKey(pickedMission.stream, o.actor));
-  if (!moved && missionReached(o) && missionFloorLost(o)) lines.splice(1, 0, 'The edit leaves no floor of the map under it: the Build warns of it.');
-  const n = missionMembers(pickedMission.stream, o).length;
-  if (!moved) lines.push('It stands where the original map has it.');
+const spawnEntry = key => (key ? spawnEntriesNow.find(e => e.key === key) ?? null : null);
+// where a marker stands now: where the project's move puts it (a stream's or donor's object, a base spawn point), else
+// where its map has it
+const spawnAt = e => missionAt(e.stream, e.record);
+// which way a base spawn point faces now (its yaw), or null for one that isn't edited here or saves no rotation
+function spawnFacing(e) {
+  if (!['base', 'copy'].includes(e.layer) || !['pod', 'dropIn'].includes(e.record.kind)) return null;
+  const m = missionMoveOf(e.stream, e.record.actor);
+  if (m?.deleted) return null;
+  return m ? m.rotation[1] : e.record.savesRotation || spawnMovable(e) ? Math.round(e.record.rotation?.[1] ?? 0) : null;
+}
+// the project's copies as the view's entries (SP7): `copy|${actor}`, layer 'copy', their template's record under their
+// own name (spawns_view.js copyMarkerRecord)
+function copyEntries() {
+  const out = [];
+  for (const m of missionMoves.values()) {
+    const o = m.stream === 'copy' ? baseSpawnOf(m.copy.from) : null;
+    if (o) out.push({ key: spawnKey('copy', m.actor), layer: 'copy', stream: 'copy', record: copyMarkerRecord(o, m), readOnly: false });
+  }
+  return out;
+}
+const spawnDeleted = e => e?.layer === 'base' && Boolean(missionMoves.get(e.key)?.deleted);
+function refreshSpawnMarkers() {
+  // (a halo's geometry is three.js's one for every sprite: only its material is the marker's own)
+  for (const child of [...spawnLayer.children]) { child.traverse(o => (o.isSprite ? o.material.dispose() : o.geometry?.dispose())); spawnLayer.remove(child); }
+  spawnEntriesNow = spawnsAvailable() ? [...spawnRecords(data, streamSet, spawnDonor()), ...copyEntries()] : [];
+  const shown = shownEntries(spawnEntriesNow, spawnFilters);
+  if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) pickedSpawn = null;      // another mission's, or a family hidden
+  spawnLayer.visible = spawnsShown();
+  for (const e of shown) {
+    const marker = makeSpawnMarker(THREE, e.record.kind, e.readOnly || spawnDeleted(e));
+    marker.position.copy(gameToView(spawnAt(e)));
+    marker.userData.spawn = e.key;
+    // (the picked pod or drop-in point shows the way it faces)
+    const yaw = e.key === pickedSpawn ? spawnFacing(e) : null;
+    if (yaw !== null) addFacingPointer(THREE, marker, yaw);
+    paintSpawnMarker(THREE, marker, e.key === pickedSpawn);
+    spawnLayer.add(marker);
+  }
+  spawnPanel();
+}
+// The picked marker's panel (or the picked zone's, in the Spawns view)
+function spawnPanel() {
+  const e = spawnEntry(pickedSpawn), shown = spawnsShown();
+  const zones = spawnsOn && spawnZonePick && !e ? zoneState() : null, k = zones ? zones.zones.findIndex(z => z.id === spawnZonePick) : -1;
+  $('spawnPanel').hidden = !shown || (!e && k < 0);
+  $('spawnZoneEdit').hidden = k < 0;
+  $('spawnEdit').hidden = true;
+  const info = $('spawnInfo');
+  info.replaceChildren();
+  const line = (head, value) => { const p = document.createElement('p'); if (head) text(p, 'strong', `${head}: `); p.append(value); info.append(p); };
+  if (k >= 0) {
+    const z = zones.zones[k], ewSlot = zones.slots.has(k);
+    $('spawnTitle').textContent = `Landing zone ${k + 1} of ${zones.zones.length}`;
+    line('', `${z.lwr === false ? 'Long War doesn\'t use it' : 'Long War lands the squad here (one of its landing lines)'}${ewSlot ? '; plain Enemy Within lands here in place of one of the map\'s own landings' : '; plain Enemy Within lands at the map\'s own landing instead'}.`);
+    if (z.missionType || z.councilType) line('', `Kept for ${[z.missionType, z.councilType].filter(Boolean).join(', ')}.`);
+    line('', 'Landing zones are moved, turned, copied and deleted in the Landing zones view.');
+    return;
+  }
+  if (!e) return;
+  const label = headerMissions().find(m => m.value === missionPickValue)?.label;
+  // a base spawn point the project edits shows the project's values, marked as its own (SP6); a copy (SP7) its own
+  const baseEdit = e.layer === 'base' || e.layer === 'copy' ? missionMoves.get(e.key) ?? null : null;
+  const o = e.layer === 'base' && baseEdit && Object.keys(baseEdit.spawn).length ? { ...e.record, values: { ...e.record.values,
+    ...Object.fromEntries(Object.entries(baseEdit.spawn).map(([k, v]) => [k, { value: v, from: 'project' }])) } } : e.record;
+  $('spawnTitle').textContent = e.layer === 'copy' ? `${KINDS[o.kind]?.label ?? o.kind}: a copy of ${short(o.copyOf)}` : titleOf(e, spawnEntriesNow, label);
+  for (const l of identityLines({ ...e, record: o }, spawnEntriesNow, fromWords)) line(l.head, l.text);
+  const movable = e.layer === 'stream' || e.layer === 'donor';
+  const moved = movable ? missionMoves.get(missionKey(e.stream, o.actor)) : null;
+  const n = movable ? missionMembers(e.stream, o).length : 1;
+  const { usedBy, uses } = useLines(o);
+  if (e.layer === 'copy') line('Used by', `nothing: the copy is the project's own${o.kind === 'pod' ? ', with a pod index no pod of the map or its streams has and no pod event names' : ''}.`);
+  else line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
+    : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
+  if (uses.length) line('Uses', `${uses.join('; ')}.`);
+  const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: validSpawnRules(projectSpawnRules), mapExcluded: Boolean(spawnRulesData?.excluded) });
+  if (words.length) line('In the game', words.join(' '));
+  if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
+  // (a base pod or Meld point: the Build counts the places left, compiler.spawn_places, spawns plan SP5; one the
+  // project moved, at its new place)
+  else if (!moved && e.layer === 'base' && ['pod', 'meld'].includes(o.kind) && missionFloorLost(baseEdit ? { ...o, location: baseEdit.location } : o)) {
+    line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
+  }
+  if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
+  else if (e.layer === 'copy') {
+    line('', `A copy of ${short(o.copyOf)}: the Build clones it with its components${o.kind === 'pod' ? ' and gives it a pod index of its own' : ''}, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'its template\'s values'}.`);
+    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
+  } else if (e.layer === 'base' && baseEdit?.deleted) {
+    line('', spawnNamed(e.record) ? 'Deleted, but something names it (Used by above): the Build keeps it, and warns, so what names it isn\'t left pointing at nothing.'
+      : 'Deleted: the Build takes it out of the level\'s list, so the game never has it.');
+  } else if (e.layer === 'base' && baseEdit) {
+    const words = spawnMoveWords(e.record, baseEdit);
+    line('', `${words ? `${words} ` : ''}The Build ${words ? 'moves it and sets its values' : 'sets its values'} in place: it keeps its name, so what uses it still does${o.links?.length && words ? `; what it links to (${o.links.map(k => k.property).join(', ')}) stays where the map has it` : ''}.`);
+    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
+  } else if (e.layer === 'base') line('', spawnMovable(e) ? 'It stands where the map has it.' : baseEditWords);
+  else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
   else {
     const d = moved.location.map((v, i) => v - o.location[i]);
-    lines.push(`Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${Math.round(d[2] / 64) ? ` and ${Math.round(d[2] / 64)} levels ${d[2] > 0 ? 'up' : 'down'}` : ''} from where the original map has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${pickedMission.stream}.`);
+    const levels = Math.abs(Math.round(d[2] / 64));
+    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
   }
-  if (projectsAvailable()) lines.push(`Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
-  $('missionTitle').textContent = title;
-  $('missionInfo').textContent = lines.join(' ');
+  if (movable) {
+    // a stream's copy replaces it in every record that streams it (keyed by the source package): name them all
+    const using = streamMissions(e.stream);
+    if (using.length > 1) line('', `The Build moves it for every mission of the variant that streams ${e.stream}: ${using.join(', ')}.`);
+  }
+  if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
+  if (['base', 'copy'].includes(e.layer) && projectsAvailable() && spawnMovable(e)) {
+    const below = [['pod', 'dropIn'].includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && 'set its values'].filter(Boolean);
+    line('', `Drag the arrows to move it by whole tiles and levels${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`);
+    spawnEditControls(e, baseEdit);
+  } else if (spawnDeleted(e) && projectsAvailable()) spawnEditControls(e, baseEdit);
+}
+// A base pod's, Meld point's or drop-in point's controls (SP6), or a copy's (SP7): quarter turns for a pod or a
+// drop-in point, a pod's commander, secondary and use ticks, a Meld point's difficulty, turn it is destroyed on and
+// spawn group; back to the map's; Copy (a plain pod or any Meld point: spawns_view.js copyTemplateWhy) and Delete. A
+// deleted point has Restore alone. Each change is one undo step.
+function spawnEditControls(e, entry) {
+  const box = $('spawnEdit'), copy = e.layer === 'copy';
+  const base = copy ? baseSpawnOf(e.record.copyOf) : e.record, actor = e.record.actor;
+  box.replaceChildren();
+  box.hidden = false;
+  const row = text(box, 'div', '', 'row');
+  const button = (label, title, act) => { const b = text(row, 'button', label); b.type = 'button'; b.title = title; b.onclick = act; return b; };
+  if (entry?.deleted) {
+    button('Restore', 'Back as the map has it', () => resetBaseSpawn(actor));
+    return;
+  }
+  const edit = (change, hint) => (copy ? editSpawnCopy(actor, change, hint) : editBaseSpawn(actor, change, hint));
+  const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
+  const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
+  if (['pod', 'dropIn'].includes(base.kind)) {
+    for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left ([)'], ['Turn right', 16384, 'A quarter turn to the right (])']]) {
+      button(label, `${title}: ${base.kind === 'pod' ? 'the way its aliens face when they deploy' : 'the way its units face when they arrive'}`,
+             () => edit({ turn }, `Turned the ${base.kind === 'pod' ? 'pod' : 'drop-in point'} a quarter ${turn > 0 ? 'right' : 'left'}`));
+    }
+  }
+  if (entry && !copy) button('As the map has it', 'Back where the map has it, facing its way, with its own values', () => resetBaseSpawn(actor));
+  const row2 = text(box, 'div', '', 'row');
+  const why = copyTemplateWhy(base);
+  const c = text(row2, 'button', 'Copy');
+  c.type = 'button'; c.disabled = Boolean(why);
+  c.title = why ? `Not copied: ${why}` : 'A copy a tile east, with its values and turn: the Build clones it with its components (Ctrl+D)';
+  c.onclick = () => copySpawn(e.key);
+  const d = text(row2, 'button', copy ? 'Delete copy' : 'Delete');
+  d.type = 'button';
+  d.title = `${copy ? 'The copy taken away' : spawnNamed(base) ? 'Something names it (Used by): a delete keeps it in the map, with a warning' : 'Out of the level\'s list: the game never has it'} (Delete)`;
+  d.onclick = () => deleteSpawn(e.key);
+  if (base.kind === 'pod') {
+    for (const [key, label, title] of [
+      ['commander', ' Commander\'s place', 'The mission\'s commander pod takes a commander\'s place first'],
+      ['secondary', ' Secondary', 'The pod\'s Secondary flag (bSecondaryPod)'],
+      ['use', ' Use', 'Off, the deployment leaves it out where the Overmind decides so (bUse)']]) {
+      const wrap = text(box, 'label', '', `check${entry && key in entry.spawn ? ' edited' : ''}`);
+      const tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.checked = now(key) === true;
+      tick.onchange = () => set(key, tick.checked, `${label.trim()} ${tick.checked ? 'on' : 'off'}`);
+      wrap.append(tick, label);
+      wrap.title = title;
+    }
+  } else if (base.kind === 'meld') {
+    const pick = text(box, 'label', 'Difficulty ', `valueline${entry && 'difficulty' in entry.spawn ? ' edited' : ''}`);
+    pick.title = 'The game draws a hard point of a spawn group first';
+    const select = document.createElement('select');
+    for (const v of ['Easy', 'Hard']) select.append(new Option(v, v));
+    select.value = now('difficulty') === 'Hard' ? 'Hard' : 'Easy';
+    select.onchange = () => set('difficulty', select.value, `Meld point ${select.value.toLowerCase()}`);
+    pick.append(select);
+    const turnRow = text(box, 'div', '', `valuepair${entry && 'destroyedOnTurn' in entry.spawn ? ' edited' : ''}`);
+    numberField(turnRow, 'Destroyed on turn', now('destroyedOnTurn') ?? -1, { lo: -1, hi: 99, step: 1,
+      title: 'The turn its canister is destroyed on, 1 to 99; 0 or -1 for no countdown',
+      onCommit: v => set('destroyedOnTurn', Math.round(v), Math.round(v) > 0 ? `Destroyed on turn ${Math.round(v)}` : 'No countdown') });
+    const groupRow = text(box, 'div', '', `valuepair${entry && 'spawnGroup' in entry.spawn ? ' edited' : ''}`);
+    numberField(groupRow, 'Spawn group', now('spawnGroup') ?? 0, { lo: 0, hi: 99, step: 1,
+      title: 'The game draws canisters from the points of a spawn group, 0 to 99',
+      onCommit: v => set('spawnGroup', Math.round(v), `Spawn group ${Math.round(v)}`) });
+  }
+}
+// One undo step: a base spawn point back where and as the map has it.
+function resetBaseSpawn(actor) {
+  const k = missionKey(null, actor);
+  if (!missionMoves.has(k)) return false;
+  const before = new Map(missionMoves), after = new Map(missionMoves);
+  after.delete(k);
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  flashHint('As the map has it');
+  return true;
+}
+// the missions the header lists (the project's, or the map's) that stream a package: a record that streams it, or an
+// added kind whose donor it is
+function streamMissions(stream) {
+  return headerMissions().filter(m => (m.mission?.streams ?? []).includes(stream)
+    || (m.value.startsWith('kind:') && data?.donors?.[m.value.slice(5)]?.stream === stream)).map(m => m.label);
 }
 const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'].includes(o.kind)
-  && !['effect', 'rebuild', 'visible', 'waypoint', 'volume'].includes(o.role);
+  && !['effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'].includes(o.role);
 // Whether the map's saved floor tiles under an object (its level and the one below) had floor and the edit took all
 // of it away (compiler.mission_objects' rule, on the saved tiles only).
 function missionFloorLost(o) {
@@ -6349,31 +7052,36 @@ function missionFloorLost(o) {
   const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
   return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
 }
-function setPickedMission(next) {
-  if (next && selected) select(null);
-  pickedMission = next;
-  for (const m of missionLayer.children) paintMissionMarker(m, Boolean(next) && m.userData.mission.stream === next.stream && m.userData.mission.actor === next.actor);
-  missionPanel(); placeMissionGizmo();
+function setPickedSpawn(key) {
+  if (key && selected) select(null);
+  pickedSpawn = key ?? null; spawnZonePick = null;
+  refreshSpawnMarkers(); placeMissionGizmo();
 }
-// The picked mission object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
+// A stream object's group moves by its arrows (a donor's too, an added bomb's: stage SP4), and so does a base pod, Meld
+// point or drop-in point where the spawn family builds (SP6)
+const spawnMovable = e => Boolean(e) && (e.layer === 'stream' || e.layer === 'donor'
+  || (e.layer === 'base' && spawnEditable(e.record) && spawnFamilyBuilds() && !spawnDeleted(e))
+  || (e.layer === 'copy' && spawnFamilyBuilds()));
+// The picked stream object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
 // (64 units) up, as a landing zone's do. Escape during a drag puts it back.
 const missionProxy = new THREE.Object3D(); world.add(missionProxy);
 const missionGizmo = new TransformControls(camera, renderer.domElement);
 missionGizmo.attach(missionProxy); missionGizmo.enabled = false; missionGizmo.setMode('translate');
 const missionGizmoHelper = missionGizmo.getHelper(); missionGizmoHelper.visible = false; world.add(missionGizmoHelper);
 let missionDrag = null;
-const missionGizmoWanted = () => Boolean(pickedMission && missionLayer.visible && projectsAvailable() && !placing && !volumesOn
-  && !lightsOn && !zonesOn && streamSet.has(pickedMission.stream));
+const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
+  && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
 function placeMissionGizmo() {
-  const o = missionGizmoWanted() ? data.streams[pickedMission.stream]?.missionObjects?.find(x => x.actor === pickedMission.actor) : null;
-  missionGizmo.enabled = missionGizmoHelper.visible = Boolean(o);
-  if (!o || missionGizmo.dragging) return;
-  missionProxy.position.copy(gameToView(missionAt(pickedMission.stream, o)));
+  const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null;
+  missionGizmo.enabled = missionGizmoHelper.visible = Boolean(e);
+  if (!e || missionGizmo.dragging) return;
+  missionProxy.position.copy(gameToView(spawnAt(e)));
   missionProxy.quaternion.identity(); missionProxy.updateMatrixWorld(true);
 }
 missionGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
 missionGizmo.addEventListener('mouseDown', () => {
-  missionDrag = pickedMission ? { ...pickedMission, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
+  const e = spawnEntry(pickedSpawn);
+  missionDrag = spawnMovable(e) ? { stream: e.stream, actor: e.record.actor, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
 });
 missionGizmo.addEventListener('objectChange', () => {
   const d = missionDrag;
@@ -6386,57 +7094,987 @@ missionGizmo.addEventListener('objectChange', () => {
   if (key !== d.key) {
     d.key = key;
     missionDragView = movedMissions(d.stream, d.actor, d.delta);
-    placeStreamRoots(); refreshMissionObjects();
+    placeStreamRoots(); refreshSpawnMarkers();
   }
 });
 missionGizmo.addEventListener('mouseUp', () => {
   const d = missionDrag;
   missionDrag = null; missionDragView = null;
   if (d && !d.cancelled && moveMissionGroup(d.stream, d.actor, d.delta)) return;
-  placeStreamRoots(); refreshMissionObjects();
+  placeStreamRoots(); refreshSpawnMarkers();
   setTimeout(placeMissionGizmo, 0);       // (the controls end their drag after this event)
 });
 function cancelMissionGizmo() {
   if (!missionDrag) return;
-  missionDrag.cancelled = true; missionDragView = null; placeStreamRoots(); refreshMissionObjects();
+  missionDrag.cancelled = true; missionDragView = null; placeStreamRoots(); refreshSpawnMarkers();
 }
-// the marker nearest the click within a few pixels, as a light's is picked
-function pickMissionMarker(clientX, clientY) {
-  if (!missionLayer.visible || !missionLayer.children.length) return null;
+// the marker nearest the click within a few pixels, as a light's is picked: its key, or null
+function pickSpawnMarker(clientX, clientY) {
+  if (!spawnLayer.visible || !spawnLayer.children.length) return null;
   const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  let best = null, bestD = 12;
-  for (const marker of missionLayer.children) {
+  let best = null, bestD = 18;          // (about the halo's size on screen)
+  for (const marker of spawnLayer.children) {
     marker.updateWorldMatrix(true, false);
     p.setFromMatrixPosition(marker.matrixWorld).project(camera);
     if (p.z > 1 || p.z < -1) continue;
     const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-    if (d < bestD) { bestD = d; best = marker.userData.mission; }
+    if (d < bestD) { bestD = d; best = marker.userData.spawn; }
   }
   return best;
 }
-// A mission object named in the build window: the mission that streams it picked in the header, its marker shown and
-// picked, the camera on it.
-function showMissionObject(actor) {
-  const stream = Object.entries(data?.streams ?? {}).find(([, s]) => (s.missionObjects ?? []).some(o => o.actor === actor))?.[0];
-  if (!stream) { flashHint(`${short(actor)} is in no stream of this export`); return; }
-  const index = (data.missions ?? []).findIndex(m => (m.streams ?? []).includes(stream));
-  if (index >= 0 && index !== missionIndex && headerMissions().some(m => m.index === index)) { $('mission').value = String(index); $('mission').onchange({ target: $('mission') }); }
-  if (!missionLayer.visible) { $('missionObjectsToggle').checked = true; $('missionObjectsToggle').onchange({ target: $('missionObjectsToggle') }); refreshMissionObjects(); }
-  setPickedMission({ stream, actor });
-  const o = data.streams[stream].missionObjects.find(x => x.actor === actor);
-  const at = gameToView(o.location);
+// A click in the Spawns view: a marker, else a landing zone to describe, else the picked one let go
+function spawnClick(e) {
+  const key = pickSpawnMarker(e.clientX, e.clientY);
+  if (key) { setPickedSpawn(key); return; }
+  const z = zoneHit(e.clientX, e.clientY);
+  setPickedSpawn(null);
+  spawnZonePick = z ? z.id : null;
+  spawnPanel();
+}
+// A spawn point or mission object named in the build window (`stream`: its stream, null for the base map's): the
+// mission that streams it picked in the header, its marker shown (the Normal switch turned on where neither control
+// shows it, its family too) and picked, the camera on it.
+function showSpawn(actor, stream = null) {
+  if (!data) return;
+  if (stream === undefined || stream === null) {
+    stream = (data.spawns ?? []).some(r => r.actor === actor) ? null
+      : Object.entries(data.streams ?? {}).find(([, s]) => (s.missionObjects ?? []).some(o => o.actor === actor))?.[0]
+        ?? Object.values(data.donors ?? {}).find(d => (d.missionObjects ?? []).some(o => o.actor === actor))?.stream ?? null;
+  }
+  if (stream && data.streams?.[stream] && !streamSet.has(stream)) {
+    const index = (data.missions ?? []).findIndex(m => (m.streams ?? []).includes(stream));
+    if (index >= 0 && headerMissions().some(m => m.index === index)) { $('mission').value = String(index); $('mission').onchange({ target: $('mission') }); }
+  }
+  if (stream && !data.streams?.[stream]) {
+    const kind = Object.entries(data.donors ?? {}).find(([, d]) => d.stream === stream)?.[0];
+    const pick = kind && headerMissions().find(m => m.value === `kind:${kind}`);
+    if (pick && missionPickValue !== pick.value) { $('mission').value = pick.value; $('mission').onchange({ target: $('mission') }); }
+  }
+  if (!spawnsShown()) setNormalSpawns(true);
+  const key = spawnKey(stream, actor), entry = spawnRecords(data, streamSet, spawnDonor()).find(x => x.key === key)
+    ?? spawnRecords(data, streamSet, spawnDonor()).find(x => x.record.actor === actor);
+  if (!entry) { flashHint(`${short(actor)} is no spawn point or mission object of the mission the header shows`); return; }
+  const family = familyOf(entry.record);
+  if (spawnFilters[family] === false || (!(family in spawnFilters) && FAMILIES.find(f => f.id === family)?.on === false)) {
+    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters();
+  }
+  refreshSpawnMarkers();
+  setPickedSpawn(entry.key);
+  const at = gameToView(spawnAt(entry));
   camera.position.add(at.clone().sub(controls.target)); controls.target.copy(at); controls.update();
 }
-function scaleMissionMarkers() {
-  if (!missionLayer.visible) return;
-  for (const marker of missionLayer.children) scaleMarker(marker, camera, marker.position);
+function scaleSpawnMarkers() {
+  if (!spawnLayer.visible) return;
+  for (const marker of spawnLayer.children) { scaleMarker(marker, camera, marker.position); marker.scale.multiplyScalar(SPAWN_MARKER_SIZE); }
 }
-$('missionObjectsToggle').checked = missionLayer.visible;
-$('missionObjectsToggle').onchange = e => {
-  missionLayer.visible = e.target.checked; remember(MISSION_SHOWN, e.target.checked ? '1' : '0');
-  if (!e.target.checked) setPickedMission(null);
-  e.target.blur();
+// The Spawns view on or off (Shift+U, the rail's button): the other views step aside, the selection goes, and the
+// landing zones show (a click on one describes it)
+function setSpawnsShown(on) {
+  on = Boolean(on) && spawnsAvailable();
+  if (on === spawnsOn) return;
+  if (on) {
+    if (volumesOn) setVolumesShown(false);
+    if (lightsOn) setLightsShown(false);
+    if (zonesOn) setZonesShown(false);
+    if (effectsOn) setEffectsShown(false);
+    stopPickBox(); select(null);
+    spawnLandingBefore = landingLayer.visible;
+    landingLayer.visible = true;
+  } else {
+    spawnZonePick = null;
+    stopSpawnPlacing();     // a spawn point asked for from the Add panel and not placed yet goes with its view
+    if (!spawnLandingBefore) landingLayer.visible = false;
+  }
+  spawnsOn = on;
+  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
+  if (on) {
+    const shown = shownEntries(spawnEntriesNow, spawnFilters), n = kinds => shown.filter(e => kinds.includes(e.record.kind)).length;
+    flashHint(`Spawns view: ${plural(n(['pod']), 'pod')}, ${plural(n(['meld']), 'Meld point')}, ${plural(n(['dropIn']), 'drop-in point')}`
+      + `${n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']) ? `, ${plural(n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']), 'objective')}` : ''} · click one to see what it is · Shift+U leaves it`);
+  }
+}
+// The Normal button's switch: the markers drawn and picked with pieces in the normal view (remembered)
+function setNormalSpawns(on) {
+  normalSpawns = Boolean(on);
+  remember(NORMAL_SPAWNS, normalSpawns ? '1' : '0');
+  if (!spawnsShown() && pickedSpawn) setPickedSpawn(null);
+  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
+}
+function syncSpawnFilters() {
+  for (const f of FAMILIES) { const box = $(`spawnShow-${f.id}`); if (box) box.checked = f.id in spawnFilters ? spawnFilters[f.id] !== false : f.on; }
+}
+$('normalSpawns').onchange = e => { setNormalSpawns(e.target.checked); e.target.blur(); };
+$('spawnZoneEdit').onclick = () => { const id = spawnZonePick; setZonesShown(true); if (id) pickZone(id); };
+for (const f of FAMILIES) {
+  const box = $(`spawnShow-${f.id}`);
+  if (!box) continue;
+  box.onchange = e => { spawnFilters = { ...spawnFilters, [f.id]: e.target.checked }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); refreshSpawnMarkers(); placeMissionGizmo(); e.target.blur(); };
+}
+syncSpawnFilters();
+// What the install does with spawn points, read as a map opens (spawn-rules.json); the panel says it once it is here
+// The Spawns flyout's "Scripted drop-ins land where placed" (spawns plan, SP8): ticked when the project has the rule;
+// off and greyed, with the reason, where the install plays them where placed already (plain Enemy Within, or a Long War
+// whose loader lacks the drop-in mutator); on a map the install's ExcludeMaps names (the Chryssalid Hive) and no rule,
+// a line says the variant, under a name of its own, loses that. A ticked box stays clickable, to take the rule off.
+function syncSpawnRule() {
+  const box = $('dropInsPlaced'), note = $('dropInsNote');
+  if (!box || !note) return;
+  const on = validSpawnRules(projectSpawnRules), r = spawnRulesData;
+  const why = !r ? '' : r.kind === 'ew' ? 'Plain Enemy Within lands scripted drop-ins where they are placed already.'
+    : r.dropIns === 'absent' ? 'This install\'s Long War has no drop-in mutator in its loader: scripted drop-ins land where placed already.' : '';
+  box.checked = on;
+  box.disabled = Boolean(why) && !on;
+  box.indeterminate = projectSpawnRules != null && !on;     // a rule this page can't read: saved back as it is
+  const lines = [];
+  if (why) lines.push(why);
+  if (projectSpawnRules != null && !on) lines.push('The project has a spawn rule this editor doesn\'t know; the Build refuses it. Click to take it off.');
+  if (!on && !why && r?.excluded) lines.push(`Long War's ExcludeMaps names ${activeMapId}, so it lands its scripted drop-ins where placed; the variant has a name of its own and loses that unless this is ticked.`);
+  note.textContent = lines.join(' ');
+  note.hidden = !lines.length;
+}
+function setSpawnRule(next) {
+  const before = projectSpawnRules;
+  if (JSON.stringify(before) === JSON.stringify(next)) return;
+  const put = v => { projectSpawnRules = v; syncSpawnRule(); spawnPanel(); };
+  gizmo.record({ redo: () => put(next), undo: () => put(before) });
+  flashHint(next ? 'Scripted drop-ins land where placed: the Build excludes the variant from Long War\'s drop-in mutator' : 'Scripted drop-ins as the install plays them');
+}
+$('dropInsPlaced').onchange = e => setSpawnRule(e.target.checked ? { dropIns: 'placed' } : null);
+function loadSpawnRules() {
+  spawnRulesData = null;
+  if (!spawnsAvailable()) return;
+  const id = activeMapId;
+  fetch(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(r => (r.ok ? r.json() : null)).then(rules => {
+    if (id === activeMapId) { spawnRulesData = rules; spawnPanel(); syncSpawnRule(); }
+  }).catch(() => {});
+}
+
+// ---------------------------------------------------------------- the Effects view (effects and sounds plan, FX1)
+// The map's effects, sounds and lens flares (export 28; effects_view.js draws them, effects_rules.js says what they
+// are), and those of the streams the header's Mission picker shows. Shift+X (the rail's spark) shows them as markers
+// drawn over everything; while it is on a click picks one, never a piece, a light or a zone, and its panel says what
+// it is, where its values come from and what of the map uses it. View only. Each marker stands where the Build will
+// have it: an effect a piece carries follows the piece's move and goes with its delete, and each copy of the piece
+// gets one (drawn greyed, never picked); the landing's follow their moved zone; a cleared map keeps what clear_level
+// keeps. The rail button's flyout chooses which of the three kinds show.
+const EFFECT_FILTERS = 'workshop.effectFilters';
+const effectLayer = new THREE.Group(); effectLayer.visible = false; world.add(effectLayer);
+const effectShapes = new THREE.Group(); world.add(effectShapes);
+const effectFilters = { effect: true, sound: true, flare: true };
+try { Object.assign(effectFilters, JSON.parse(recall(EFFECT_FILTERS) || '{}')); } catch { /* the defaults */ }
+const effectsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview;
+// An actor's matrix (view basis) with its scale, as a record has its pose
+function effectMatrix(location, rotation, scale = [1, 1, 1]) {
+  return actorMatrix(location, rotation ?? [0, 0, 0]).multiply(new THREE.Matrix4().makeScale(scale[0], scale[2], scale[1]));
+}
+// The map's own landings moved to another zone: actor path -> { from, to } for their Skyrangers' actors
+function landingShifts() {
+  const out = new Map();
+  if (!effectsAvailable()) return out;
+  const { zones, own, slots } = zoneState();
+  for (const [k, j] of slots) {
+    const o = own[j], z = zones[k];
+    if (z.direction === o.zone.direction && z.location.every((v, i) => Math.abs(v - o.zone.location[i]) < 0.5)) continue;
+    for (const a of o.landing?.skyranger?.actors ?? []) out.set(a.path, { from: o.zone, to: z });
+  }
+  return out;
+}
+// The roots (effects and sounds plan, FX3): one per record, its marker a child at the actor's place, its matrix the
+// actor's pose (view basis, no scale: a box or a sphere is drawn with it). A copy is a root whose source is its
+// original's record under its own output name (`added`: from, entity, kind, base: the original's record).
+const derivedEffects = new THREE.Group(); effectLayer.add(derivedEffects);
+const effectKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
+const effectSource = rec => ({ ...rec, isEffect: true, matrix: actorMatrix(rec.location, rec.rotation ?? [0, 0, 0]).toArray() });
+function makeEffectRoot(source) {
+  const root = new THREE.Group();
+  root.matrixAutoUpdate = false; root.matrix.fromArray(source.matrix);
+  const marker = makeEffectMarker(source);
+  marker.userData.record = source;
+  root.add(marker);
+  root.userData = { source, effect: true, marker, deleted: false, edit: null, stays: false, parts: [], values: null };
+  marker.userData.root = root;
+  return root;
+}
+function addEffectRoots(list) {
+  for (const root of list) {
+    const o = root.userData.source;
+    effectRoots.set(o.id, root); effectLayer.add(root);
+    if (!o.added && !isStream(o)) effectIndex.set(effectKey(o), root);
+  }
+  effectsDirty = true; liveCache = null;
+}
+function removeEffectRoots(list) {
+  for (const root of list) { effectRoots.delete(root.userData.source.id); effectLayer.remove(root); }
+  effectsDirty = true; liveCache = null;
+}
+// The map's records and every stream's, as roots, once the map's pieces are built (a stream's show with its mission)
+function buildEffects() {
+  removeEffectRoots([...effectRoots.values()]);
+  effectIndex.clear();
+  if (!effectsAvailable()) return;
+  const all = [...effectRecords(data, null), ...Object.values(data.streams ?? {}).flatMap(st => [...(st.effects ?? []), ...(st.sounds ?? []), ...(st.flares ?? [])])];
+  addEffectRoots(all.filter(r => r.kind && Array.isArray(r.location)).map(r => makeEffectRoot(effectSource(r))));
+}
+// Why an effect, sound or flare can't be moved, copied or deleted (`cap`), or null: a stream's is view only, as are
+// all of a kind whose family doesn't build (families.json: effect, sound, flare); an original as its record's `can`
+// says.
+function effectViewOnly(o, cap = 'move') {
+  if (isStream(o)) return `it belongs to the stream ${o.stream}, which the editor shows but doesn't change`;
+  if (!families?.families?.[o.kind]?.builds) return `${o.kind === 'sound' ? 'sounds' : o.kind === 'flare' ? 'lens flares' : 'effects'} are shown, not changed, in this editor version`;
+  if (o.added) return null;
+  return o.can?.[cap] ? null : (o.why?.[cap] ?? 'the map\'s export doesn\'t say it can');
+}
+// Whether an effect follows the piece that carries it (no pose of its own, not kept where it is, not deleted)
+const effectFollows = r => Boolean(r.userData.source.carriedBy && !r.userData.source.added && !r.userData.source.landingRole
+  && !r.userData.edit && !r.userData.stays && !r.userData.deleted);
+const effectEdited = r => !isStream(r.userData.source) && Boolean(r.userData.source.added || r.userData.deleted || r.userData.edit
+  || (r.userData.stays && r.userData.source.carriedBy) || r.userData.values);
+// The record as the project has it (stage FX5): its values put on it (a copy's on its original's record)
+const effectNow = (root, r = root.userData.source) => withValues(r.added ? { ...r.added.base, ...poseOf(r) } : r, root.userData.values, effectSystemsOf(r));
+const poseOf = r => ({ location: r.location, rotation: r.rotation, actor: r.actor });
+// The particle systems effects name: the map's, with those of other maps' copies joined (effectTemplate)
+const effectSystemsOf = () => data?.effectSystems;
+// Where each original stands now (a carried one with its piece, the landing's with its zone, one with a pose of its
+// own where it was put), whether its piece's delete takes it away, and the copies each copy of its piece carries
+// (markers of their own, drawn greyed, never picked)
+function deriveEffects() {
+  for (const m of [...derivedEffects.children]) { m.material.dispose(); derivedEffects.remove(m); }
+  const shifts = landingShifts(), copies = new Map();
+  for (const r of roots.values()) {
+    const o = r.userData.source;
+    if (!o.added?.from || o.foreign || r.userData.deleted) continue;
+    const k = `${o.added.from.actor}|${o.component}`;
+    if (!copies.has(k)) copies.set(k, []);
+    copies.get(k).push(r);
+  }
+  for (const root of effectRoots.values()) {
+    const o = root.userData.source;
+    root.userData.derivedGone = false; root.userData.carrierMoved = false;
+    if (o.added || isStream(o)) continue;
+    const base = baseMatrix(root);
+    const carrier = effectFollows(root) ? ownerRoot(o.carriedBy) : null;
+    if (!root.userData.edit) {
+      let matrix = base;
+      const shift = o.landingRole ? shifts.get(o.actor) : null;
+      if (shift) {
+        const d = yawOf(shift.to.direction) - yawOf(shift.from.direction), [pi, y, w] = o.rotation ?? [0, 0, 0];
+        matrix = actorMatrix(carried(o.location, shift.from, shift.to), [pi, y + d, w]);
+      } else if (carrier?.userData.deleted) root.userData.derivedGone = true;
+      else if (carrier?.userData.edit) { matrix = carrier.userData.edit.clone().multiply(base); root.userData.carrierMoved = true; }
+      root.matrix.copy(matrix); root.matrixWorldNeedsUpdate = true;
+    }
+    if (!carrier || carrier.userData.deleted) continue;
+    const back = baseMatrix(carrier).invert();
+    for (const copy of copies.get(`${carrier.userData.source.actor}|${carrier.userData.source.component}`) ?? []) {
+      const m = makeEffectMarker(o);
+      m.position.setFromMatrixPosition(copy.matrix.clone().multiply(back).multiply(base));
+      Object.assign(m.userData, { derived: true, matrix: copy.matrix.clone().multiply(back).multiply(base) });   // (its colour kept)
+      derivedEffects.add(m);
+    }
+  }
+}
+// The Effects view, or the normal view with its Effects switch: the markers are drawn and picked
+const effectsShown = () => effectsAvailable() && (effectsOn || (normalEffects && !volumesOn && !lightsOn && !zonesOn));
+const pickedMarker = () => { const root = pickedEffect ? effectRoots.get(pickedEffect) : null; return root?.visible ? root.userData.marker : null; };
+function paintEffects() {
+  const picks = new Set(gizmo.picks().ids);
+  for (const m of effectMarkers) {
+    const o = m.userData.record;
+    paintEffectMarker(m, { picked: !m.userData.derived && picks.has(o.id), dim: m.userData.derived || isStream(o) || Boolean(effectViewOnly(o, 'move') && effectViewOnly(o, 'copy')) });
+  }
+}
+// What is drawn now: each root shown or not (its kind ticked, not deleted or taken by its piece's delete, its stream's
+// mission chosen, kept by a clear, in the play area under Interior), and the carried copies
+function refreshEffects() {
+  effectsDirty = false; pickCentres = null;
+  if (!effectsAvailable()) { effectMarkers = []; effectLayer.visible = false; refreshLikenesses(); return; }
+  deriveEffects();
+  const shown = effectsShown();
+  effectLayer.visible = shown;
+  // Interior shows what stands in the play area (view basis, as playableBounds)
+  const play = $('scenery').value === 'interior' ? data.playableBounds : null;
+  const at = new THREE.Vector3(), inAnyPlay = v => !play || [0, 1, 2].every(k => v.getComponent(k) >= play.min[k] - 48 && v.getComponent(k) <= play.max[k] + 48);
+  effectMarkers = [];
+  for (const root of effectRoots.values()) {
+    const o = root.userData.source;
+    at.setFromMatrixPosition(root.matrix);
+    // (the Build will have it, and the view shows where it stands: what its likeness needs too)
+    root.userData.there = !root.userData.deleted && !root.userData.derivedGone
+      && (!isStream(o) || streamSet.has(o.stream))
+      && (Boolean(o.added) || survivesClear(o, { cleared, outside: pointOutside, carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) }))
+      && inAnyPlay(at);
+    root.visible = shown && effectFilters[o.kind] !== false && root.userData.there;
+    if (root.visible) effectMarkers.push(root.userData.marker);
+  }
+  for (const m of derivedEffects.children) {
+    m.userData.there = inAnyPlay(m.position);
+    m.visible = shown && effectFilters[m.userData.record.kind] !== false && m.userData.there;
+    if (m.visible) effectMarkers.push(m);
+  }
+  // what can't be seen can't stay selected
+  const picks = gizmo.picks(), keep = picks.ids.filter(id => !effectRoots.has(id) || effectRoots.get(id).visible || !shown);
+  if (keep.length !== picks.ids.length) gizmo.setSelection(keep, keep.includes(picks.active) ? picks.active : keep[0] ?? null);
+  paintEffects(); effectPanel(); drawEffectShape(); refreshLikenesses();
+}
+// ---- The likeness (effects and sounds plan, Part J2, stage FXV2; effects_preview.js, effects_sim.js): each effect the
+// Build will have, drawn where it stands, moving, roughly as the game draws it, in every view (View options' Effects
+// as they look). One that starts off is drawn only while it is picked. A likeness is never picked: its marker is the
+// handle. `likenesses`: a root's or a carried copy's marker -> { likeness, key }.
+const likenessLayer = new THREE.Group(); world.add(likenessLayer);
+const likenesses = new Map();
+let likenessOn = recall('workshop.likeness') !== '0', likenessThin = 1, likenessCount = 0;
+const likenessDeps = {
+  texture: key => texture(key, true),
+  // a mesh particle's mesh as the map's pieces' are read, each drawn part with its material's colour texture
+  async meshParts(draw) {
+    if (!data.meshes[draw.mesh]) return [];
+    track(geometryCache, draw.mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[draw.mesh].url)));
+    const gltf = await geometryCache.get(draw.mesh), parts = [];
+    gltf.scene.updateMatrixWorld(true);
+    gltf.scene.traverse(child => { if (child.isMesh) parts.push(child); });
+    return Promise.all(parts.map(async (child, i) => {
+      const info = data.materials[draw.materials?.[i] ?? draw.materials?.[0]];
+      return { geometry: child.geometry, map: info?.diffuse ? await texture(info.diffuse, true).catch(() => null) : null };
+    }));
+  },
 };
+function dropLikeness(owner) {
+  const kept = likenesses.get(owner);
+  if (!kept) return;
+  likenessLayer.remove(kept.likeness.group); kept.likeness.dispose(); likenesses.delete(owner);
+}
+// What a likeness is made of: its system, the effect's parameters as edited and its seed; a change makes it anew
+function refreshLikenesses() {
+  const wanted = new Map();
+  if (likenessOn && effectsAvailable()) {
+    const want = (owner, record, id) => {
+      const system = effectSystemsOf(record)?.[record.system];
+      if (drawable(system)) wanted.set(owner, { record, system, id });
+    };
+    for (const root of effectRoots.values()) {
+      const o = root.userData.source;
+      if (o.kind !== 'effect' || !root.userData.there) continue;
+      const now = effectNow(root, o);
+      if (now.startsOn === false && pickedEffect !== o.id) continue;
+      want(root, now, o.id);
+    }
+    for (const m of derivedEffects.children) if (m.userData.there && m.userData.record.kind === 'effect' && m.userData.record.startsOn !== false) want(m, m.userData.record, `derived:${m.id}`);
+  }
+  for (const owner of [...likenesses.keys()]) if (!wanted.has(owner)) dropLikeness(owner);
+  for (const [owner, { record, system, id }] of wanted) {
+    const params = parametersOf(record), key = `${record.system}|${system.fingerprint}|${JSON.stringify(params)}`;
+    if (likenesses.get(owner)?.key === key) { likenesses.get(owner).record = record; continue; }
+    dropLikeness(owner);
+    let seed = 0;
+    for (const c of String(id)) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+    const likeness = makeLikeness(system, likenessDeps, { params, seed: seed % 100003 });
+    likenessLayer.add(likeness.group);
+    likenesses.set(owner, { likeness, key, record });
+  }
+}
+const likenessBox = new THREE.Box3(), likenessFrustum = new THREE.Frustum(), likenessAt = new THREE.Vector3(), likenessMatrix = new THREE.Matrix4();
+// Each frame: every likeness put where its effect stands now (a drag moves it) and stepped, unless it is out of the
+// picture or too far to tell; over the view's budget of particles, what they spawn is thinned evenly
+function stepLikenesses(dt) {
+  if (!likenesses.size) { likenessCount = 0; return; }
+  likenessFrustum.setFromProjectionMatrix(likenessMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  let count = 0;
+  const pixelsPerUnit = renderer.domElement.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  for (const [owner, { likeness, record }] of likenesses) {
+    const matrix = owner.userData.effect ? owner.matrix : owner.userData.matrix, cp = record.componentPose;
+    const s = record.scale ?? [1, 1, 1], cs = cp?.scale ?? [1, 1, 1];
+    const g = likeness.group;
+    g.matrix.copy(matrix).multiply(likenessMatrix.makeScale(s[0], s[2], s[1]));
+    if (cp) g.matrix.multiply(effectMatrix(cp.translation, cp.rotation, cp.scale));
+    g.matrix.multiply(SWAP);
+    g.matrixWorldNeedsUpdate = true;
+    likenessAt.setFromMatrixPosition(matrix);
+    const reach = 1200 * Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2]), 1);
+    likenessBox.setFromCenterAndSize(likenessAt, likenessAt.clone().setScalar(2 * reach));
+    // (in the picture, and more than a few pixels of it: a whole large map seen from afar steps nothing)
+    g.visible = likenessFrustum.intersectsBox(likenessBox) && reach * pixelsPerUnit / Math.max(1, camera.position.distanceTo(likenessAt)) > 6;
+    if (!g.visible) continue;
+    likeness.step(dt, likenessThin, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+    count += likeness.count();
+  }
+  likenessCount = count;
+  // towards the budget, a little a frame, so nothing pops
+  const want = count > LIKENESS_LIMITS.view ? likenessThin * LIKENESS_LIMITS.view / count : Math.min(1, likenessThin * 1.05);
+  likenessThin = Math.max(0.02, likenessThin + (want - likenessThin) * 0.2);
+}
+// A drawn-only copy of an effect (what is being placed, under the cursor): its likeness plays there while the copy is
+// in the view; it goes a little after the copy does.
+const ghostLikenesses = [];
+function ghostLikeness(holder, source) {
+  if (!likenessOn || source.kind !== 'effect' || !data) return;
+  const record = source.added ? { ...source.added.base, scale: source.scale ?? source.added.base.scale } : source;
+  const system = effectSystemsOf(record)?.[record.system];
+  if (!drawable(system)) return;
+  const likeness = makeLikeness(system, likenessDeps, { params: parametersOf(record), seed: 11 });
+  holder.add(likeness.group);
+  ghostLikenesses.push({ likeness, holder, record, idle: 0 });
+}
+function stepGhostLikenesses(dt) {
+  for (let k = ghostLikenesses.length - 1; k >= 0; k--) {
+    const g = ghostLikenesses[k];
+    let top = g.holder;
+    while (top.parent) top = top.parent;
+    if (top !== world) { if (++g.idle > 180) { g.likeness.dispose(); g.holder.remove(g.likeness.group); ghostLikenesses.splice(k, 1); } continue; }
+    g.idle = 0;
+    const s = g.record.scale ?? [1, 1, 1], cp = g.record.componentPose, cs = cp?.scale ?? [1, 1, 1], m = g.likeness.group.matrix;
+    m.makeScale(s[0], s[2], s[1]);
+    if (cp) m.multiply(effectMatrix(cp.translation, cp.rotation, cp.scale));
+    m.multiply(SWAP);
+    g.likeness.group.matrixWorldNeedsUpdate = true;
+    g.likeness.step(dt, 1, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+  }
+}
+// ---- An effect of the Add panel as a picture and as a moving preview (stage FXV3). The picture: its likeness, warm,
+// with its textures read, handed to the list to draw in a frame as a piece's is. The preview: the likeness of the row
+// under the pointer, played in a small pane beside the list, turning slowly over a tile's square.
+async function likenessOfEntry(entry, seed) {
+  if (!data) return null;
+  const source = await effectTemplateOf(entry);
+  const system = source && effectSystemsOf(source)?.[source.system];
+  if (!drawable(system)) return null;
+  const likeness = makeLikeness(system, likenessDeps, { params: parametersOf(source), seed });
+  const s = source.scale ?? [1, 1, 1];
+  likeness.group.matrix.makeScale(s[0], s[2], s[1]).multiply(SWAP);
+  likeness.group.matrixWorldNeedsUpdate = true;
+  return { likeness, scale: [Math.abs(s[0]), Math.abs(s[1])], source, system };
+}
+// this map's own effect by its record, another map's by its template (read from its map)
+async function effectTemplateOf(entry) {
+  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
+    return [...effectRoots.values()].map(r => r.userData.source).find(o => !o.added && o.layer === 'base' && short(o.actor) === entry.source.actor) ?? null;
+  }
+  return effectTemplate(entry.source);
+}
+async function effectPicture(entry) {
+  const made = await likenessOfEntry(entry, 7);
+  if (!made) return null;
+  const { likeness, scale } = made;
+  await likeness.ready();
+  likeness.step(1 / 30, 1, scale);
+  // one that has nothing alive at its warm start (a rare spark) is run on until it has, for a few seconds
+  // (framed on what most of it fills: a fire's far sparks would make its flames a speck)
+  let box = likeness.bounds(0.8);
+  for (let t = 0; !box && t < 6; t += 1 / 15) { likeness.step(1 / 15, 1, scale); box = likeness.bounds(0.8); }
+  if (!box) { likeness.dispose(); return null; }
+  return { object: likeness.group, box: box.applyMatrix4(likeness.group.matrix), dispose: () => likeness.dispose() };
+}
+const likenessPane = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(32, 1, 1, 100000), shown: null, token: 0, turn: 0, sphere: new THREE.Sphere(new THREE.Vector3(), 96) };
+likenessPane.scene.background = new THREE.Color(0x10161b);
+{
+  // a tile's square on the ground, for size
+  const h = 48, pts = [[-h, -h], [h, -h], [h, -h], [h, h], [h, h], [-h, h], [-h, h], [-h, -h]].map(([x, z]) => new THREE.Vector3(x, 0, z));
+  const tile = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x5f7684 }));
+  likenessPane.scene.add(tile);
+}
+let likenessHover = null;
+function hoverLikeness(entry, item) {
+  clearTimeout(likenessHover);
+  const pane = $('likenessPane'), token = ++likenessPane.token;
+  const close = () => { if (likenessPane.shown) { likenessPane.scene.remove(likenessPane.shown.likeness.group); likenessPane.shown.likeness.dispose(); likenessPane.shown = null; } pane.hidden = true; };
+  // the row's tip is said in the pane while the pointer is on the row: the browser's own tooltip would cover it
+  // (a call with no row, as the panel closes, gives the last row hovered its tip back)
+  const row = item ?? likenessPane.item;
+  const giveBack = () => { if (row && row.dataset.tip !== undefined) { row.title = row.dataset.tip; delete row.dataset.tip; } if (likenessPane.item === row) likenessPane.item = null; };
+  if (!entry || !likenessOn) { giveBack(); close(); return; }
+  const tip = item.dataset.tip ?? item.title ?? '';
+  item.dataset.tip = tip; item.title = '';
+  likenessPane.item = item;
+  likenessHover = setTimeout(async () => {
+    const made = await likenessOfEntry(entry, 3).catch(() => null);
+    if (token !== likenessPane.token) { made?.likeness.dispose(); return; }
+    close();
+    if (!made) { giveBack(); return; }
+    likenessPane.shown = made; likenessPane.sphere.set(new THREE.Vector3(0, 48, 0), 96);
+    likenessPane.scene.add(made.likeness.group);
+    const row = item.getBoundingClientRect(), host = viewport.getBoundingClientRect();
+    pane.style.left = `${row.right - host.left + 10}px`;
+    pane.style.top = `${Math.max(8, Math.min(row.top - host.top - 90, host.height - 290))}px`;
+    const text = $('likenessText');
+    text.replaceChildren();
+    text.append(entry.name);
+    const out = leftOut(made.system), small = document.createElement('small');
+    small.textContent = [`${entry.group} · the square is one tile`, out.ignored.length ? 'drawn roughly' : null].filter(Boolean).join(' · ');
+    text.append(small);
+    for (const line of tip.split('\n').filter(Boolean)) { const more = document.createElement('small'); more.textContent = line; text.append(more); }
+    pane.hidden = false;
+  }, 300);
+}
+// Each frame, before the view is drawn: the pane's likeness stepped and drawn into its canvas (through the view's own
+// renderer, as the list's pictures are)
+function drawLikenessPane(dt) {
+  const shown = likenessPane.shown, canvas = renderer.domElement, size = renderer.getSize(new THREE.Vector2());
+  if (!shown || $('likenessPane').hidden || size.x < 220 || size.y < 220) return;
+  shown.likeness.step(dt, 1, shown.scale);
+  const box = shown.likeness.bounds(0.85);
+  if (box) {
+    // the camera follows what is alive, easing, and never closer than a tile
+    const s = box.applyMatrix4(shown.likeness.group.matrix).getBoundingSphere(new THREE.Sphere());
+    likenessPane.sphere.center.lerp(s.center, 0.08);
+    likenessPane.sphere.radius += (Math.max(70, s.radius) - likenessPane.sphere.radius) * 0.08;
+  }
+  likenessPane.turn += dt * 0.35;
+  const c = likenessPane.camera, r = likenessPane.sphere.radius, d = r / Math.sin(THREE.MathUtils.degToRad(c.fov / 2)) * 1.05;
+  c.position.set(Math.cos(likenessPane.turn) * d * 0.87, d * 0.5, Math.sin(likenessPane.turn) * d * 0.87).add(likenessPane.sphere.center);
+  c.near = Math.max(1, d - r * 3); c.far = d + r * 4;
+  c.lookAt(likenessPane.sphere.center); c.updateProjectionMatrix();
+  const px = Math.round(220 * renderer.getPixelRatio());
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, 0, 220, 220); renderer.setScissor(0, 0, 220, 220);
+  const height = viewHeight.value;
+  viewHeight.value = 220;
+  renderer.render(likenessPane.scene, c);
+  viewHeight.value = height;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, size.x, size.y);
+  const out = $('likenessCanvas');
+  if (out.width !== px) out.width = out.height = px;
+  out.getContext('2d').drawImage(canvas, 0, canvas.height - px, px, px, 0, 0, px, px);
+}
+function setLikeness(on) {
+  likenessOn = Boolean(on);
+  remember('workshop.likeness', likenessOn ? '1' : '0');
+  $('likenessToggle').checked = likenessOn;
+  refreshLikenesses();
+}
+$('likenessToggle').checked = likenessOn;
+$('likenessToggle').onchange = e => { setLikeness(e.target.checked); e.target.blur(); };
+function effectPanel() {
+  const m = effectsShown() ? pickedMarker() : null;
+  if (wavePlayer && (!m || m.userData.record.id !== wavePlayer.record)) stopWave();
+  $('effectPanel').hidden = !m;
+  if (!m) return;
+  const root = m.userData.root, r = m.userData.record, now = effectNow(root, r), { title, lines } = recordLines(now, { ...data, effectSystems: effectSystemsOf(r) });
+  // what an edit does with it here (effects and sounds plan, FX3), where its family builds
+  if (!effectViewOnly(r, 'move') || !effectViewOnly(r, 'copy') || !effectViewOnly(r, 'delete')) {
+    if (r.added?.base?.foreign) lines.unshift(`A copy of ${short(r.added.from.actor)} of ${r.added.from.package}: the Build brings it into this map with the ${r.kind === 'sound' ? 'waves' : r.kind === 'flare' ? 'flare template' : 'particle system'} it needs (or this map's, where it has them already) and makes it an actor of its own.`);
+    else if (r.added) lines.unshift(`A copy of ${short(r.added.from.actor)}: the Build makes it an actor of its own.`);
+    else if (root.userData.deleted) lines.unshift('Deleted: the Build takes it out of the level (Ctrl+Z brings it back).');
+    else if (root.userData.edit) lines.unshift(`Moved${r.carriedBy ? `: it stays where it is put when ${short(r.carriedBy)} moves` : ''}. Reset puts it back${r.carriedBy ? ' and lets it follow its piece again' : ''}.`);
+    else if (r.carriedBy && root.userData.stays) lines.unshift(`Kept where it is: it doesn't move with ${short(r.carriedBy)}. Reset lets it follow again.`);
+    else if (r.carriedBy && !r.landingRole) lines.unshift(`It moves with ${short(r.carriedBy)}; moved by itself, it stays where it is put.`);
+    const can = ['move', 'copy', 'delete'].filter(c => !effectViewOnly(r, c));
+    lines.push(`The gizmo ${can.includes('move') ? 'moves and turns it' : 'doesn\'t move it'}${can.includes('copy') ? ', Ctrl+C and Ctrl+V copy it' : ''}${can.includes('delete') ? ', Delete deletes it' : ''}.`);
+  }
+  const stayButton = $('effectStay');
+  stayButton.hidden = !(r.carriedBy && !r.added && !r.landingRole && !root.userData.edit && !root.userData.deleted && !effectViewOnly(r, 'move'));
+  stayButton.textContent = root.userData.stays ? `Follow ${short(r.carriedBy ?? '')}` : 'Keep where it is';
+  stayButton.title = root.userData.stays ? `It moves, copies and deletes with ${short(r.carriedBy ?? '')} again` : `It stays where it is when ${short(r.carriedBy ?? '')} moves or is deleted, and the piece's copies don't carry it`;
+  $('effectTitle').textContent = title;
+  const chips = $('effectChips');
+  chips.replaceChildren();
+  for (const c of recordChips(r.added ? { ...now, carriedBy: null, landingRole: null, referencedBy: [], floors: [], prefab: null } : now, data)) text(chips, 'span', c.text, 'chip').title = c.title;
+  chips.hidden = !chips.children.length;
+  // what its likeness leaves out, in words about the drawing
+  if (r.kind === 'effect' && likenessOn) {
+    const system = effectSystemsOf(r)?.[r.system], out = leftOut(system);
+    const WORDS = { Orbit: 'its swirl', Collision: 'its bounces', CollisionPrediction: 'its bounces', AttractorPoint: 'its pull to a point', EventGenerator: 'what its particles set off', EventReceiverSpawn: 'what another emitter sets off' };
+    const named = [...new Set(out.ignored.map(k => WORDS[k]).filter(Boolean))];
+    if (system && !drawable(system)) lines.push(`Not drawn here${out.undrawn.length ? `: ${out.undrawn[0]}` : ''}.`);
+    else if (named.length) lines.push(`Drawn here without ${named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0]}.`);
+  }
+  setParagraphs($('effectInfo'), lines.join('\n'));
+  // a sound's waves, each with its Play button
+  const waves = r.kind === 'sound' ? [...new Set(r.waves ?? [])] : [], box = $('effectWaves');
+  box.replaceChildren();
+  box.hidden = !waves.length;
+  if (waves.length) {
+    text(box, 'div', 'Wave preview', 'posehead').title = 'Plays the wave by itself at a preview volume: the game\'s sound (its reach, volume, pitch, random choice and looping) is not reproduced';
+    for (const w of waves) {
+      const info = data.soundWaves?.[w], line = text(box, 'div', '', 'waverow');
+      text(line, 'span', info?.name ?? w.split('|').at(-1), 'name').title = w.split('|').at(-1);
+      const button = text(line, 'button', 'Play');
+      button.type = 'button'; button.dataset.wave = w;
+      if (info?.playable) button.onclick = () => playWave(r, w);
+      else { button.disabled = true; button.title = `It can't be played: ${info?.why ?? 'the map doesn\'t describe it'}`; }
+      text(line, 'span', '', 'status').dataset.wave = w;
+    }
+  }
+  paintWaves();
+  // its values, where they build and its record says they can change (stage FX5); else what it has, read only
+  const valueBox = $('effectValues'), editable = effectValuesEditable(root);
+  valueBox.replaceChildren();
+  valueBox.hidden = !editable;
+  if (editable) effectValueControls(valueBox, root, now);
+  const rows = r.kind === 'effect' && !editable ? parameterRows(now, { ...data, effectSystems: effectSystemsOf(r) }) : [], table = $('effectParams');
+  table.replaceChildren();
+  table.hidden = !rows.length;
+  if (rows.length) {
+    const head = text(table, 'div', `Particle parameters${r.parametersFrom && r.parametersFrom !== 'actor' ? ` (${r.parametersFrom === 'archetype' ? 'its archetype\'s' : 'its class\'s'})` : ''}`, 'posehead');
+    head.title = 'What the map sets on this effect\'s particle system: values its system reads by name';
+    for (const row of rows) {
+      const line = text(table, 'div', '', 'effectparam');
+      text(line, 'span', row.name, 'name');
+      const value = text(line, 'span', row.text, 'value');
+      if (row.colour) {
+        const swatch = document.createElement('i');
+        swatch.className = 'swatch';
+        swatch.style.background = `rgb(${row.colour.map(v => Math.round(Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2) * 255)).join(',')})`;
+        value.prepend(swatch);
+      }
+      if (row.note) { line.classList.add('odd'); line.title = row.note; }
+    }
+  }
+}
+// The Wave preview (effects and sounds plan, FX2): one wave of the picked sound at a time, played by a click through
+// /maps/<id>/wave.ogg (audio.py), which checks it before sending it. Picking something else, leaving the view or
+// opening another map or project stops it and lets it go; a refusal shows the server's reason.
+function stopWave() {
+  const player = wavePlayer;
+  wavePlayer = null;
+  if (player) { player.audio.pause(); player.audio.removeAttribute('src'); player.audio.load(); }
+  paintWaves();
+}
+function ownWave(wave) {
+  const pkg = wave.split('|')[0].toLowerCase(), file = String(data.source?.file ?? '').split(/[\\/]/).pop().replace(/\.upk$/i, '');
+  return [data.name, file, ...Object.keys(data.streams ?? {})].some(n => String(n).toLowerCase() === pkg);
+}
+function playWave(record, wave) {
+  const again = wavePlayer?.wave === wave && wavePlayer.record === record.id && wavePlayer.state !== 'failed';
+  stopWave();
+  if (again) return;      // its Stop button
+  // a wave of this map or its streams through the map's export; another map's (a copy of its sound: FX4) from that map
+  const url = ownWave(wave) ? `/maps/${encodeURIComponent(activeMapId)}/wave.ogg?id=${encodeURIComponent(wave)}`
+    : `/library/wave.ogg?${new URLSearchParams({ package: wave.split('|')[0], id: wave })}`;
+  const audio = new Audio(), player = wavePlayer = { audio, wave, record: record.id, state: 'loading', why: null };
+  const mine = () => wavePlayer === player;
+  audio.volume = 0.6;
+  audio.addEventListener('playing', () => { if (mine()) { player.state = 'playing'; paintWaves(); } });
+  audio.addEventListener('timeupdate', () => { if (mine()) paintWaves(); });
+  audio.addEventListener('ended', () => { if (mine()) stopWave(); });
+  audio.addEventListener('error', () => { if (mine()) waveFailed(player, url); });
+  audio.src = url;
+  audio.play().catch(e => { if (mine() && e.name !== 'AbortError') waveFailed(player, url, e); });
+  paintWaves();
+}
+async function waveFailed(player, url, error) {
+  if (player.state === 'failed') return;
+  player.state = 'failed';
+  player.audio.pause(); player.audio.removeAttribute('src');
+  paintWaves();
+  // the server's reason when it refused the wave; else the browser couldn't play what it was sent
+  let why = error?.name === 'NotAllowedError' ? 'the browser did not let it play' : 'the browser could not decode it';
+  try {
+    const reply = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+    if (!reply.ok) why = (await reply.json().catch(() => null))?.error ?? `the server answered ${reply.status}`;
+  } catch { why = 'the server did not answer'; }
+  player.why = why;
+  if (wavePlayer === player) paintWaves();
+}
+function paintWaves() {
+  const clock = t => (Number.isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '');
+  for (const el of $('effectWaves').querySelectorAll('[data-wave]')) {
+    const p = wavePlayer?.wave === el.dataset.wave && wavePlayer.record === pickedEffect ? wavePlayer : null;
+    if (el.tagName === 'BUTTON') {
+      if (el.disabled) continue;
+      el.textContent = p && p.state !== 'failed' ? 'Stop' : 'Play';
+      el.classList.toggle('on', Boolean(p && p.state !== 'failed'));
+    } else {
+      el.textContent = !p ? '' : p.state === 'loading' ? 'loading…' : p.state === 'failed' ? (p.why ? `Not played: ${p.why}` : 'Not played…')
+        : `${clock(p.audio.currentTime)} / ${clock(p.audio.duration)}`;
+      el.classList.toggle('bad', p?.state === 'failed');
+    }
+  }
+}
+// The picked effect's fixed box through its pose, scale and component, or a picked sound's spheres
+function drawEffectShape() {
+  for (const c of [...effectShapes.children]) { c.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); }); effectShapes.remove(c); }
+  const m = effectsShown() ? pickedMarker() : null;
+  if (!m) return;
+  const r = effectNow(m.userData.root, m.userData.record), matrix = m.userData.root.matrix;
+  if (r.kind === 'effect') {
+    const cp = r.componentPose;
+    const component = cp ? effectMatrix(cp.translation, cp.rotation, cp.scale) : new THREE.Matrix4();
+    const scaled = matrix.clone().multiply(new THREE.Matrix4().makeScale(r.scale?.[0] ?? 1, r.scale?.[2] ?? 1, r.scale?.[1] ?? 1));
+    const shape = boxShape(effectSystemsOf(m.userData.record)?.[r.system], scaled.multiply(component));
+    if (shape) effectShapes.add(shape);
+  } else if (r.kind === 'sound') effectShapes.add(reachShape(soundReach(r), new THREE.Vector3().setFromMatrixPosition(matrix)));
+}
+// One effect, sound or flare selected by its id (the chip on a carrying piece, the tests), or none
+function pickEffect(id, add = false) {
+  if (effectsDirty) refreshEffects();
+  const root = id ? effectRoots.get(id) : null;
+  if (id && !root?.visible) {
+    const r = root?.userData.source;
+    if (r) flashHint(effectFilters[r.kind] === false ? `${KIND_LABEL[r.kind]}s are hidden: tick them in the Effects view's flyout`
+      : $('scenery').value === 'interior' ? 'It stands outside the play area: Full shows it' : 'It isn\'t drawn: it is deleted, its piece is, or the clear takes it out');
+  }
+  select(root?.visible ? id : null, add && Boolean(root?.visible));
+}
+// F in the Effects view: the camera on the picked marker, brought within `reach` of it (a sound: its reach)
+function frameEffect() {
+  const m = pickedMarker();
+  if (!m) return false;
+  // (far enough to see a sound's outer sphere and its handles whole)
+  const r = effectNow(m.userData.root, m.userData.record), reach = Math.max(600, Math.min(8000, (soundReach(r)?.outer ?? 240) * 2.6));
+  const at = new THREE.Vector3().setFromMatrixPosition(m.userData.root.matrix), away = camera.position.clone().sub(controls.target);
+  // (a sound from as far as shows its spheres whole; an effect from no further than that)
+  if (away.length() > reach || (r.kind === 'sound' && soundReach(r))) away.setLength(reach);
+  controls.target.copy(at); camera.position.copy(at).add(away); controls.update();
+  return true;
+}
+// The root whose marker is under a screen point (within 13 pixels), or null
+function effectAt(clientX, clientY) {
+  const m = nearestMarker(effectMarkers.filter(x => !x.userData.derived), camera, renderer.domElement.getBoundingClientRect(), clientX, clientY);
+  return m ? m.userData.root : null;
+}
+function pickEffectAt(clientX, clientY, add = false) {
+  const root = effectAt(clientX, clientY);
+  if (root) select(root.userData.source.id, add); else if (!add) select(null);
+}
+// Keep where it is / Follow (the panel's button): a carried effect kept from its piece's moves, or following again;
+// one undo step (its record's effect.follow: none, or none at all)
+function setEffectStays(root, stays) {
+  if (Boolean(root.userData.stays) === stays) return;
+  gizmo.record({ redo: () => { root.userData.stays = stays; sceneChanged(); select(root.userData.source.id, false, true); },
+                 undo: () => { root.userData.stays = !stays; sceneChanged(); select(root.userData.source.id, false, true); } });
+}
+// An effect's or sound's values (stage FX5): offered where their family builds (families.json effect-values,
+// sound-values) and the record (a copy's original's) says they can change. Each change is one undo step.
+function effectValuesEditable(root) {
+  const o = root.userData.source, base = o.added ? o.added.base : o;
+  if (isStream(o) || o.kind === 'flare' || root.userData.deleted) return false;
+  if (!families?.families?.[`${o.kind}-values`]?.builds) return false;
+  return !valuesViewOnly(base);
+}
+function setEffectValues(root, values) {
+  const v = values && Object.keys(values).length ? values : null;
+  root.userData.values = v ? structuredClone(v) : null;
+  sceneChanged();
+}
+// One change of values: `patch` merged in (a key set to undefined goes back to the map's), one undo step
+function changeEffectValues(root, patch) {
+  const before = root.userData.values ? structuredClone(root.userData.values) : null;
+  const after = { ...(before ?? {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === 'parameters') {
+      const params = { ...(after.parameters ?? {}) };
+      for (const [name, value] of Object.entries(v)) { if (value === undefined) delete params[name]; else params[name] = value; }
+      if (Object.keys(params).length) after.parameters = params; else delete after.parameters;
+    } else if (v === undefined) delete after[k];
+    else after[k] = v;
+  }
+  if (JSON.stringify(after) === JSON.stringify(before ?? {})) return;
+  const id = root.userData.source.id;
+  gizmo.record({ redo: () => { setEffectValues(root, after); select(id, false, true); },
+                 undo: () => { setEffectValues(root, before); select(id, false, true); } });
+}
+const fixed = (v, places = 3) => Number(Number(v).toFixed(places));
+const hexOf = rgb => `#${rgb.slice(0, 3).map(v => Math.round(Math.pow(Math.max(0, Math.min(1, v)), 1 / 2.2) * 255).toString(16).padStart(2, '0')).join('')}`;
+const rgbOf = hex => [1, 3, 5].map(k => fixed(Math.pow(parseInt(hex.slice(k, k + 2), 16) / 255, 2.2), 4));
+const byteRgbOf = hex => [1, 3, 5].map(k => fixed(parseInt(hex.slice(k, k + 2), 16) / 255, 4));
+const byteHexOf = rgb => `#${rgb.slice(0, 3).map(v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
+// A number field: committed on change when finite and within [lo, hi], else put back with why
+function numberField(parent, label, value, { lo = -VALUE_LIMITS.parameter, hi = VALUE_LIMITS.parameter, step = 'any', title = '', onCommit }) {
+  const wrap = text(parent, 'label', label);
+  wrap.title = title;
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = step; input.value = String(fixed(value, 4));
+  input.onchange = () => {
+    const v = Number(input.value);
+    if (!input.value.trim() || !Number.isFinite(v) || v < lo || v > hi) { flashHint(`${label || 'It'} is ${fixed(lo, 4)} to ${fixed(hi, 4)}`); input.value = String(fixed(value, 4)); return; }
+    onCommit(v);
+  };
+  wrap.append(input);
+  return input;
+}
+function effectValueControls(box, root, now) {
+  const o = root.userData.source, kind = o.kind, values = root.userData.values ?? {}, base = o.added ? o.added.base : o;
+  const head = text(box, 'div', kind === 'effect' ? 'Values' : 'Sound', 'posehead');
+  head.title = 'What the Build sets on this one (its own actor: a copy\'s are its own)';
+  const on = text(box, 'label', '', 'check');
+  const tick = document.createElement('input');
+  tick.type = 'checkbox'; tick.checked = now.startsOn !== false;
+  tick.onchange = () => changeEffectValues(root, { startsOn: tick.checked === (base.startsOn !== false) ? undefined : tick.checked });
+  on.append(tick, kind === 'effect' ? ' Starts with the mission' : ' Plays from the start');
+  on.title = kind === 'effect' ? 'Off, its particles wait for the mission\'s script to start them' : 'Off, it waits for the mission\'s script to start it';
+  if (kind === 'effect') {
+    const line = text(box, 'div', '', 'valueline');
+    const m = values.scale ?? 1;
+    text(line, 'span', m === 1 ? 'Size as the map has it' : `Size ${fixed(m, 3)} times the map's`);
+    line.title = 'Drag the handle beside its marker to make it larger or smaller';
+    if (values.scale != null) { const b = text(line, 'button', 'Reset'); b.type = 'button'; b.onclick = () => changeEffectValues(root, { scale: undefined }); }
+    const controls = parameterControls(base, effectSystemsOf(o), values.parameters ?? {});
+    if (controls.length) text(box, 'div', 'Particle parameters', 'posehead').title = 'Values its particle system reads by name: a parameter the effect saves keeps its kind; one it doesn\'t is set in the kind its system reads';
+    for (const c of controls) effectParameterRow(box, root, c);
+    return;
+  }
+  const v = now.values ?? {};
+  const reach = text(box, 'div', '', 'valueline');
+  text(reach, 'span', `Heard fully within ${Math.round(v.radiusMin ?? 0)}, fading out by ${Math.round(v.radiusMax ?? 0)} units`);
+  reach.title = 'Drag the handles on its spheres to change where it is heard';
+  if (values.radiusMin != null || values.radiusMax != null) { const b = text(reach, 'button', 'Reset'); b.type = 'button'; b.onclick = () => changeEffectValues(root, { radiusMin: undefined, radiusMax: undefined }); }
+  for (const [key, label, [lo, hi]] of [['volume', 'Volume', VALUE_LIMITS.volume], ['pitch', 'Pitch', VALUE_LIMITS.pitch]]) {
+    const row = text(box, 'div', '', 'valuepair');
+    text(row, 'span', label, 'name');
+    const pair = [v[`${key}Min`] ?? 1, v[`${key}Max`] ?? 1];
+    const commit = (k, x) => {
+      const next = [...pair]; next[k] = x;
+      if (next[0] > next[1]) next[1 - k] = x;
+      const same = next[0] === (base.values?.[`${key}Min`]) && next[1] === (base.values?.[`${key}Max`]);
+      changeEffectValues(root, { [key]: same ? undefined : next });
+    };
+    numberField(row, 'least', pair[0], { lo, hi, title: `The least ${key} it plays at (${lo} to ${hi}): each time it plays, the game picks one between least and most`, onCommit: x => commit(0, x) });
+    numberField(row, 'most', pair[1], { lo, hi, title: `The most ${key} it plays at (${lo} to ${hi})`, onCommit: x => commit(1, x) });
+    if (values[key]) { const b = text(row, 'button', '↺'); b.type = 'button'; b.title = 'As the map has it'; b.onclick = () => changeEffectValues(root, { [key]: undefined }); }
+  }
+}
+function effectParameterRow(box, root, c) {
+  const row = text(box, 'div', '', `effectvalue${c.edited ? ' edited' : ''}`);
+  text(row, 'span', c.name, 'name');
+  const set = value => changeEffectValues(root, { parameters: { [c.name]: value } });
+  if (c.readOnly) { row.classList.add('odd'); row.title = `Kept as the map has it: ${c.readOnly}`; text(row, 'span', '—', 'value'); return; }
+  if (c.control === 'scalar') {
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = String(c.guide[0]); slider.max = String(c.guide[1]); slider.step = 'any'; slider.value = String(c.value);
+    const field = numberField(row, '', c.value, { title: `${c.name}: a number`, onCommit: set });
+    slider.oninput = () => { field.value = String(fixed(slider.value, 4)); };
+    slider.onchange = () => set(fixed(slider.value, 4));
+    row.insertBefore(slider, field.parentElement);
+  } else if (c.control === 'vector') {
+    const parts = c.channels ? [['r', 'red'], ['g', 'green'], ['b', 'blue']] : [['x', 'x'], ['y', 'y'], ['z', 'z']];
+    parts.forEach(([label, part], k) => numberField(row, label, c.value[k], { title: `${c.name}: its ${part}`, onCommit: v => { const next = [...c.value]; next[k] = v; set(next); } }));
+  } else if (c.control === 'tint') {
+    const { colour, strength } = tintOf(c.value);
+    const swatch = document.createElement('input');
+    swatch.type = 'color'; swatch.value = hexOf(colour); swatch.title = `${c.name}: its colour`;
+    swatch.onchange = () => set(tintVector(rgbOf(swatch.value), strength || 1));
+    row.append(swatch);
+    numberField(row, '×', strength, { lo: 0, title: `${c.name}: its strength (how bright; the map's go past 1)`, onCommit: v => set(tintVector(colour, v)) });
+  } else if (c.control === 'colour') {
+    const swatch = document.createElement('input');
+    swatch.type = 'color'; swatch.value = byteHexOf(c.value); swatch.title = `${c.name}: its colour (saved as a colour)`;
+    swatch.onchange = () => set([...byteRgbOf(swatch.value), c.value[3] ?? 1]);
+    row.append(swatch);
+  }
+  if (c.edited) { const b = text(row, 'button', '↺'); b.type = 'button'; b.title = 'As the map has it'; b.onclick = () => set(undefined); }
+}
+
+// The project's records of effects and sounds (effects and sounds plan, Part C): an original moved (with
+// effect.follow none where a piece carries it), kept where it is (follow none alone) or deleted; a copy with its kind
+// and the original it copies. A stream's and those the view can't change are never saved.
+function effectState(overrides, added) {
+  for (const root of effectRoots.values()) {
+    const o = root.userData.source;
+    if (isStream(o)) continue;
+    const values = savedValues(root.userData.values);
+    if (o.added) {
+      added.set(o.actor, { id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from }, ...actorPose(o, root.matrix),
+                           ...(values ? { [o.added.kind]: values } : {}) });
+      continue;
+    }
+    const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
+    // its values object: what the project sets (stage FX5), with an effect's follow none where a piece carries it
+    const follow = o.carriedBy && o.kind === 'effect' && (root.userData.edit || root.userData.stays) ? { follow: 'none' } : {};
+    const own = values || Object.keys(follow).length ? { [o.kind]: { ...follow, ...(values ?? {}) } } : {};
+    if (root.userData.deleted) overrides.set(effectKey(o), { target, deleted: true });
+    else if (root.userData.edit) overrides.set(effectKey(o), { target, ...actorPose(o, root.matrix), ...own });
+    else if (Object.keys(own).length) overrides.set(effectKey(o), { target, ...own });
+  }
+}
+// Back to the effects as exported
+function clearEffectEdits() {
+  removeEffectRoots([...effectRoots.values()].filter(r => r.userData.source.added));
+  const moved = [...effectRoots.values()].filter(r => r.userData.edit);
+  gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
+  for (const r of effectRoots.values()) { r.userData.deleted = false; r.userData.stays = false; r.userData.values = null; }
+  effectsDirty = true;
+}
+// An override of a project state put on the map, or false when it names no effect, sound or flare of this export
+function applyEffectRecord(record) {
+  const root = effectIndex.get(targetKey(record.target));
+  if (!root) return false;
+  if (record.deleted) root.userData.deleted = true;
+  else if (Array.isArray(record.location)) gizmo.applyMatrices([root], [actorMatrix(record.location, record.rotation ?? root.userData.source.rotation)]);
+  else if (record.effect?.follow === 'none') root.userData.stays = true;
+  // its values (stage FX5), as saved: a deleted one's are kept for an undo, as the Build ignores them
+  root.userData.values = keptValues(record[root.userData.source.kind]);
+  return true;
+}
+// A copy of an effect, sound or flare (`source`: an original's or a copy's), at a render matrix; `actor` its output
+// name (a project's record), else a new one with the next serial
+function addedEffect(source, placed, actor = null, entity = null, values = null) {
+  const base = source.added ? source.added.base : source;
+  const from = source.added ? source.added.from : { package: source.sourcePackage, level: source.layer, actor: source.actor };
+  actor ??= `${from.actor}_copy${++copySerial}`;
+  const pose = actorPose(source, placed);
+  const o = { ...base, id: `effect-added:${uuid()}`, actor, layer: 'added', isEffect: true, matrix: placed.toArray(),
+              location: pose.location, rotation: pose.rotation, referencedBy: [], floors: [], carriedBy: null, carriedHow: null,
+              landingRole: null, landingActor: false, listed: true, prefab: null, attachedTo: null,
+              added: { from, entity: entity ?? uuid(), kind: base.kind, base } };
+  const root = makeEffectRoot(o);
+  root.userData.values = values ? structuredClone(values) : null;
+  return root;
+}
+function addedEffectOf(entity) {
+  // the map's own, or one of another map (its template read first: loadForeignTemplates)
+  const template = effectIndex.get(targetKey(entity.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(entity.from ?? {}));
+  if (!template || template.kind !== entity.kind || !Array.isArray(entity.location) || !Array.isArray(entity.rotation)) return null;
+  const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+  if (serial > copySerial) copySerial = serial;
+  const root = addedEffect(template, actorMatrix(entity.location, entity.rotation), entity.actor, entity.id, keptValues(entity[entity.kind]));
+  Object.assign(root.userData.source, { location: [...entity.location], rotation: [...entity.rotation] });
+  return root;
+}
+// The name of the marker under the pointer (the floor tiles' tip)
+function effectTip() {
+  tipDirty = false;
+  const tip = $('floorTip');
+  const m = pointer && !gizmo.controls.dragging && !gizmo.busy() ? nearestMarker(effectMarkers, camera, renderer.domElement.getBoundingClientRect(), ...pointer) : null;
+  tip.hidden = !m;
+  if (!m) return;
+  const r = m.userData.record;
+  tip.replaceChildren();
+  text(tip, 'strong', recordName(r, data));
+  text(tip, 'small', `${KIND_LABEL[r.kind]} · ${short(r.actor)}${r.stream ? ` · ${r.stream}` : ''}${r.added ? ` · a copy of ${short(r.added.from.actor)}` : ''}`);
+  if (m.userData.derived) text(tip, 'small', `the copy the Build makes with a copy of ${short(r.carriedBy)}`);
+  const rect = viewport.getBoundingClientRect();
+  tip.style.left = `${pointer[0] - rect.left}px`; tip.style.top = `${pointer[1] - rect.top}px`;
+}
+// The Effects view on or off (Shift+X, the rail's spark): the other views step aside and the selection goes
+function setEffectsShown(on) {
+  on = Boolean(on) && effectsAvailable();
+  if (on === effectsOn) return;
+  if (on) {
+    if (volumesOn) setVolumesShown(false);
+    if (lightsOn) setLightsShown(false);
+    if (zonesOn) setZonesShown(false);
+    stopPickBox();
+    // (an effect selected in the normal view stays selected)
+    if (gizmo.picks().ids.some(id => !effectRoots.has(id))) select(null);
+    if (spawnsOn) setSpawnsShown(false);
+    if (pickedSpawn) setPickedSpawn(null);
+  } else {
+    $('floorTip').hidden = true;
+    stopWave();
+  }
+  effectsOn = on;
+  // in or out, the selection goes: the view picks its markers only, and the normal view moves groups whole
+  if (!on && gizmo.picks().ids.some(id => effectRoots.has(id))) select(null);
+  refreshEffects(); lightButton();
+  if (on) {
+    const all = [...effectRecords(data, streamSet), ...[...effectRoots.values()].filter(r => r.userData.source.added && !r.userData.deleted).map(r => r.userData.source)];
+    const n = kind => all.filter(r => r.kind === kind).length;
+    const editable = ['effect', 'sound', 'flare'].some(k => families?.families?.[k]?.builds);
+    flashHint(`Effects view: ${plural(n('effect'), 'effect')}, ${plural(n('sound'), 'sound')}, ${plural(n('flare'), 'lens flare')} · click one to ${editable ? 'select it (Ctrl adds)' : 'see what it is'} · Shift+X leaves it`);
+  }
+}
+// The Normal button's Effects switch: the markers drawn and picked with pieces in the normal view
+function setNormalEffects(on) {
+  normalEffects = Boolean(on) && effectsAvailable();
+  if (!normalEffects && !effectsOn && gizmo.picks().ids.some(id => effectRoots.has(id))) select(null);
+  effectsDirty = true; lightButton();
+}
+$('effectStay').onclick = e => { const root = effectRoots.get(pickedEffect); if (root) setEffectStays(root, !root.userData.stays); e.target.blur(); };
+$('normalEffects').onchange = e => { setNormalEffects(e.target.checked); e.target.blur(); };
+for (const kind of ['effect', 'sound', 'flare']) {
+  const box = $(`effectShow-${kind}`);
+  box.checked = effectFilters[kind] !== false;
+  box.onchange = e => { effectFilters[kind] = e.target.checked; remember(EFFECT_FILTERS, JSON.stringify(effectFilters)); effectsDirty = true; e.target.blur(); };
+}
 const ZONE_OWN = 0x4aa3ff, ZONE_LWR = 0xffb347, ZONE_PICKED = 0xffffff;
 let pickedZone = null, zonePlacing = false;
 // While the zone gizmo is dragged: { id, change } drawn in place of the zone (zoneState)
@@ -6570,6 +8208,7 @@ function setZones(next, words) {
 }
 function zonesChanged() {
   if (pickedZone && !zonesNow().some(z => z.id === pickedZone)) pickedZone = null;
+  effectsDirty = true;     // (the landing's effects and sound follow a moved zone)
   refreshLandingZones(); refreshGroundGrid(); cutaway(); projectChanged(); editChanged();
 }
 // The zones with plain EW's marks written out (`ew: true`): a list saved before the mark goes by order (ownSlots),
@@ -6808,6 +8447,7 @@ function clearedChanged() {
   mergedBuildings = null;
   refreshMissionPicker();     // a project's missions, or none
   refreshLightVisibility();
+  effectsDirty = true;
   if (!builderMode) cutaway();
   refreshGroundGrid(); refreshLandingZones();
 }
@@ -6991,6 +8631,7 @@ function setVolumesShown(on) {
   if (next === volumesOn) return;
   if (next) {
     if (zonesOn) setZonesShown(false);
+    if (effectsOn) setEffectsShown(false);
     // the pieces selected on the way in: "Boxes around them" makes a building of them
     aroundIds = gizmo.selection().filter(r => roots.has(r.userData.source.id) && !r.userData.source.cover && !r.userData.deleted).map(r => r.userData.source.id);
     stopPickBox();
@@ -7734,7 +9375,7 @@ for (let axis = 0; axis < 3; axis++) for (let u = 0; u < 2; u++) for (let v = 0;
 function pickCandidates() {
   if (!pickCentres) {
     pickCentres = [];
-    for (const root of lightsOn ? [] : roots.values()) {
+    for (const root of lightsOn || effectsOn ? [] : roots.values()) {
       const o = root.userData.source;
       if (root.userData.deleted || !root.visible || isStream(o)) continue;
       const b = boxOf(root);
@@ -7746,13 +9387,21 @@ function pickCandidates() {
       if (!root.visible || root.userData.deleted || isStream(o) || lightViewOnly(o)) continue;
       pickCentres.push({ id: o.id, kind: 'light', at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
     }
-    if (boxesShown && !lightsOn) for (const root of volumeRoots.values()) {
+    // with the markers drawn (the Effects view, where only they are taken, or the Normal button's switch), the
+    // effects, sounds and flares the editor changes (effects and sounds plan, FX3b)
+    if (effectsShown() && !lightsOn) for (const root of effectRoots.values()) {
+      const o = root.userData.source, e = root.matrix.elements;
+      if (!root.visible || root.userData.deleted || isStream(o)) continue;
+      if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) continue;
+      pickCentres.push({ id: o.id, kind: o.kind, at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
+    }
+    if (boxesShown && !lightsOn && !effectsOn) for (const root of volumeRoots.values()) {
       if (!root.visible) continue;
       const b = volumeBox(root);
       pickCentres.push({ id: root.userData.source.id, kind: 'box', at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
     }
     // and the map's own boxes: taken to be copied
-    if (boxesShown && !lightsOn) ownVolumeLayer.children.filter(c => c.userData.own).forEach((mesh, n) => {
+    if (boxesShown && !lightsOn && !effectsOn) ownVolumeLayer.children.filter(c => c.userData.own).forEach((mesh, n) => {
       const b = mesh.userData.own.box;
       pickCentres.push({ id: `own:${n}`, kind: 'own', mesh, at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
     });
@@ -7780,13 +9429,16 @@ function refreshPickBox(recount = false) {
   }
   parts.hits.geometry.dispose();
   parts.hits.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(points, 3));
-  $('boxBarText').textContent = pickHits.length ? `${pickWords()} inside` : lightsOn ? 'No light inside' : 'No piece inside';
+  $('boxBarText').textContent = pickHits.length ? `${pickWords()} inside` : lightsOn ? 'No light inside' : effectsOn ? 'No effect or sound inside' : 'No piece inside';
   $('boxTake').disabled = $('boxAdd').disabled = !pickHits.length;
 }
 // what the box holds, in words: pieces, lights and floor boxes
 function pickWords() {
-  const lights = pickHits.filter(c => c.kind === 'light').length, boxes = pickHits.filter(c => c.kind === 'box' || c.kind === 'own').length, n = pickHits.length - lights - boxes;
-  const parts = [n && plural(n, 'piece'), lights && plural(lights, 'light'), boxes && `${boxes} floor ${boxes === 1 ? 'box' : 'boxes'}`].filter(Boolean);
+  const of = kind => pickHits.filter(c => c.kind === kind).length;
+  const lights = of('light'), boxes = of('box') + of('own'), effects = of('effect'), sounds = of('sound'), flares = of('flare');
+  const n = pickHits.length - lights - boxes - effects - sounds - flares;
+  const parts = [n && plural(n, 'piece'), lights && plural(lights, 'light'), boxes && `${boxes} floor ${boxes === 1 ? 'box' : 'boxes'}`,
+                 effects && plural(effects, 'effect'), sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare')].filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
 }
 const pickMovePoint = () => [(pickBox[0] + pickBox[3]) / 2, (pickBox[1] + pickBox[4]) / 2, (pickBox[2] + pickBox[5]) / 2];
@@ -7801,6 +9453,7 @@ function setPickTool(on) {
   if (on && (!data || placing)) return;
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);     // box select takes pieces, which the Landing zones view doesn't
+  // (the Effects view stays: there the box takes its markers only, as the Lights view's takes lights)
   pickTool = Boolean(on);
   if (!pickTool) { pickBox = null; pickDrag = null; }
   renderer.domElement.style.cursor = pickTool ? 'crosshair' : '';
@@ -7851,7 +9504,7 @@ function movePickDrag(e) {
     } else pickBox = [Math.min(d.from[0], at.x), Math.min(d.from[1], at.z), d.level - PICK_DROP, Math.max(d.from[0], at.x), Math.max(d.from[1], at.z), d.top].map(Math.round);
   }
   refreshPickBox();
-  volumeHint(`Box select: ${pickHits.length ? `${pickWords()} inside` : 'no piece inside'}`);
+  volumeHint(`Box select: ${pickHits.length ? `${pickWords()} inside` : effectsOn ? 'no effect or sound inside' : 'no piece inside'}`);
 }
 function endPickDrag(keep) {
   const d = pickDrag;
@@ -7873,7 +9526,7 @@ function takePickBox(add = false) {
   if (!pickBox) return;
   refreshPickBox(true);
   const owns = pickHits.filter(c => c.kind === 'own'), ids = pickHits.filter(c => c.kind !== 'own').map(c => c.id), was = gizmo.picks();
-  if (!ids.length && !owns.length) { flashHint(lightsOn ? 'No light is inside the box' : 'No piece has its middle inside the box'); return; }
+  if (!ids.length && !owns.length) { flashHint(lightsOn ? 'No light is inside the box' : effectsOn ? 'No effect or sound is inside the box' : 'No piece has its middle inside the box'); return; }
   const before = add ? was.ids.filter(id => allRoots.get(id)) : [];
   stopPickBox();
   // a piece holds the pivot when there is one
@@ -7982,7 +9635,7 @@ let floorActors = null, tileKey = '';
 function tileTargets() {
   if (!$('grid').checked || !data) return [];
   if (placing) return placing.ghost.visible ? [placing.ghost.children[1]] : [];
-  return gizmo.selection().filter(root => root.visible && !root.userData.light && !root.userData.volume);
+  return gizmo.selection().filter(root => root.visible && !root.userData.light && !root.userData.volume && !root.userData.effect);
 }
 function updateTileGrid() {
   const targets = tileTargets();
@@ -8141,7 +9794,7 @@ function refreshMissionPicker() {
   $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
   if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
   $('mission').value = missionPickValue;
-  if (missionPickValue !== before) { refreshLightVisibility(); refreshMissionObjects(); cutaway(); catalogue(); }
+  if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); catalogue(); }
 }
 const missionName = m => m.label;
 function missionLabels(missions) {
@@ -8162,6 +9815,8 @@ function chooseMission(value) {
 async function open() {
   stopPickBox();
   boxesShown = false; normalLights = false; lightsOn = false; lightsShown = false; zonesOn = false;
+  effectsOn = false; pickedEffect = null; normalEffects = false; effectLayer.visible = false; effectsDirty = true; stopWave();
+  spawnsOn = false; pickedSpawn = null; spawnZonePick = null; normalSpawns = recall(NORMAL_SPAWNS) === '1'; spawnRulesData = null;
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -8268,6 +9923,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // the map's own buildings that can be edited, as boxes (a project's records replace them when it opens)
   setBuildings([]);
   if (data.scope === 'map' && !data.preview) buildLights(streamLights);
+  buildEffects();
   lightButton();
   // The mission picker: shown when the map's missions stream different packages (Police Station's data recovery
   // streams its radar arrays, its abduction and terror missions don't).
@@ -8300,7 +9956,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
-  refreshGroundGrid(); refreshLandingZones(); refreshMissionObjects();
+  refreshGroundGrid(); refreshLandingZones(); refreshSpawnMarkers(); loadSpawnRules();
   // Import notes: a count on the header button; the list opens from it. Preview notes count as warnings.
   const issues = data.preview ? [...data.preview.notes,...data.diagnostics.filter(d => !data.preview.notes.some(n => n.source === d.source && n.message === d.message))] : data.diagnostics;
   $('issueCount').textContent = issues.length + loadErrorCount || '';
@@ -8354,7 +10010,16 @@ async function startScene({ parameters, familiesAsked, mapName }) {
         return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, 96 * tiles))]]; })) : {}; },
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
-    missionMoves: () => [...missionMoves.values()], moveMissionGroup, setPickedMission, pickedMission: () => pickedMission,
+    missionMoves: () => [...missionMoves.values()], moveMissionGroup,
+    // (a base spawn point: turned, given values, back as the map has it; SP6)
+    editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden, copySpawn, deleteSpawn, editSpawnCopy,
+    spawnAddEntries, startSpawnPlacing, placeSpawn, spawnPlacing: () => spawnPlacing,
+    // where a game point is drawn in the view's canvas (client pixels), for clicks at a tile
+    clientAt: ([x, y, z]) => { const p = gameToView([x, y, z]).project(camera), r = renderer.domElement.getBoundingClientRect();
+                               return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; },
+    // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
+    setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
+    pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
@@ -8397,7 +10062,40 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
-    missionLayer, pickMissionObject: picked => setPickedMission(picked), pickedMission: () => pickedMission,
+    // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point
+    spawnLayer, spawnsOn: () => spawnsOn, setSpawnsShown, normalSpawns: () => normalSpawns, setNormalSpawns, showSpawn,
+    pickedSpawn: () => pickedSpawn, pickSpawn: key => setPickedSpawn(key), spawnRules: () => spawnRulesData, bombHelperFix,
+    projectSpawnRules: () => projectSpawnRules, setSpawnRule,
+    spawns: () => { const project = projector(), shown = new Set(spawnLayer.children.map(m => m.userData.spawn));
+      return spawnEntriesNow.map(e => ({ key: e.key, layer: e.layer, stream: e.stream, kind: e.record.kind, role: e.record.role ?? null,
+        group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))) })); },
+    spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
+    setSpawnFilter: (family, on) => { spawnFilters = { ...spawnFilters, [family]: on }; syncSpawnFilters(); refreshSpawnMarkers(); },
+    // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
+    // screen point and whether it is a copy the Build makes with a piece
+    effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
+    // the Wave preview (FX2): what plays, how far it has got and why it failed
+    playWave: wave => { const r = effectRoots.get(pickedEffect)?.userData.source; if (r) playWave(r, wave); }, stopWave,
+    // effects and sounds edited (FX3): each root's state, the normal view's switch, keep where it is
+    likenessPane: () => ({ shown: likenessPane.shown ? likenessPane.shown.source.system : null, hidden: $('likenessPane').hidden,
+      particles: likenessPane.shown?.likeness.count() ?? 0 }), ghostLikenesses: () => ghostLikenesses.filter(g => !g.idle).length,
+    likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
+      drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
+    // one effect's likeness, emitter by emitter (effects_preview.js describe)
+    likenessOf: id => { const k = likenesses.get(effectRoots.get(id)); return k ? k.likeness.describe() : null; },
+    effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
+      deleted: r.userData.deleted, moved: Boolean(r.userData.edit), stays: r.userData.stays, gone: Boolean(r.userData.derivedGone), visible: r.visible,
+      at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move'),
+      // its values (FX5), as the project keeps them, and its record as edited
+      values: r.userData.values ? structuredClone(r.userData.values) : null, now: effectNow(r) }; },
+    setNormalEffects, normalEffects: () => normalEffects, setEffectStays: (id, on) => { const r = effectRoots.get(id); if (r) setEffectStays(r, on); },
+    seekWave: t => { if (wavePlayer) wavePlayer.audio.currentTime = t; },
+    wave: () => wavePlayer && { wave: wavePlayer.wave, record: wavePlayer.record, state: wavePlayer.state, why: wavePlayer.why,
+                                time: wavePlayer.audio.currentTime, duration: wavePlayer.audio.duration, paused: wavePlayer.audio.paused, volume: wavePlayer.audio.volume },
+    effectMarkers: () => { if (effectsDirty) refreshEffects(); const project = projector();
+      return effectMarkers.map(m => ({ id: m.userData.record.id, kind: m.userData.record.kind, derived: Boolean(m.userData.derived),
+                                       added: Boolean(m.userData.record.added),
+                                       ...(w => ({ at: [w.x, w.z, w.y], screen: project(w) }))(m.getWorldPosition(new THREE.Vector3())) })); },
     zoneHit: (x, y) => zoneHit(x, y), movedLandingActors: () => [...movedLandingActors()],
     // for the browser smoke test: floor pieces (each carrying actor's kind, and the floor stamps' supports), the
     // screen point of a game point, building-floor listings and the overlay
@@ -8487,12 +10185,13 @@ $('mission').onchange = e => {
   // a streamed piece that goes out of view leaves the selection
   if (isStream(allRoots.get(selected)?.userData.source) && !streamSet.has(allRoots.get(selected).userData.source.stream)) select(null);
   refreshLightVisibility();
-  refreshMissionObjects();
+  refreshSpawnMarkers(); placeMissionGizmo();     // (a marker of the mission before goes, with its gizmo)
+  effectsDirty = true;     // (the Effects view shows the streams of the mission picked)
   cutaway(); catalogue();
 };
 segmented($('floor'), () => { cutaway(); ghostDirty = true; restingHint(); });
 $('hideHelpers').onchange = () => {cutaway();catalogue();};
-segmented($('scenery'), () => {cutaway();catalogue();frame();refreshLightVisibility();});
+segmented($('scenery'), () => {cutaway();catalogue();frame();refreshLightVisibility();effectsDirty = true;});
 $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; tileKey = null; };
@@ -8555,17 +10254,26 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (volumesOn) { if (e.button === 0) volumeClick(e); return; }
   if (assigning) { const target = pick(e.clientX, e.clientY); if (target) assignOwner(target); else flashHint('Click the glowing piece'); return; }
   if (zonePlacing) { if (e.button === 0) placeZone(e.clientX, e.clientY); return; }
+  if (spawnPlacing) { if (e.button === 0) placeSpawn(e.clientX, e.clientY); return; }
   // the Landing zones view: only zones are picked; a click beside them lets the picked one go
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
+  // the Effects view: only its markers are picked; a click beside them lets the picked one go
+  if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY, e.ctrlKey || e.shiftKey || e.metaKey); return; }
+  // the Spawns view: only its markers (and, to describe them, landing zones) are picked, never a piece
+  if (spawnsOn) { if (e.button === 0) spawnClick(e); return; }
+  // with the Normal button's Effects switch, a marker is picked ahead of the light or piece behind it
+  const fx = effectsShown() && !lightsOn ? effectAt(e.clientX, e.clientY) : null;
+  if (fx) { select(fx.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // a light's marker is picked ahead of the piece behind it
   const light = pickLight(e.clientX, e.clientY);
   if (light) { select(light.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // the Lights view: only lights are picked
   if (lightsOn) return;
-  // a mission object's marker ahead of the piece behind it; a click elsewhere lets the picked one go
-  const missionObject = pickMissionMarker(e.clientX, e.clientY);
-  if (missionObject) { setPickedMission(missionObject); return; }
-  if (pickedMission) setPickedMission(null);
+  // with the Normal button's Spawn points switch, a marker ahead of the piece behind it; a click elsewhere lets the
+  // picked one go
+  const spawnHit = spawnsShown() ? pickSpawnMarker(e.clientX, e.clientY) : null;
+  if (spawnHit) { setPickedSpawn(spawnHit); return; }
+  if (pickedSpawn) setPickedSpawn(null);
   // the Normal button's Floor boxes: a box's edge picks its building
   const edge = pickBoxEdge(e.clientX, e.clientY);
   if (edge?.id) { select(edge.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
@@ -8583,7 +10291,7 @@ renderer.domElement.addEventListener('pointerup', e => {
 renderer.domElement.addEventListener('pointermove', e => { pointer = [e.clientX, e.clientY]; ghostDirty = true; tipDirty = true; });
 renderer.domElement.addEventListener('pointerleave', () => { pointer = null; ghostDirty = true; tipDirty = true; });
 controls.addEventListener('change', () => { ghostDirty = true; tipDirty = true; });
-renderer.domElement.addEventListener('dblclick', () => selected && !gizmo.busy() && frame(allRoots.get(selected)));
+renderer.domElement.addEventListener('dblclick', () => (effectsOn ? frameEffect() : selected && !gizmo.busy() && frame(allRoots.get(selected))));
 $('editMove').onclick = () => gizmo.setMode('translate');
 $('editRotate').onclick = () => gizmo.setMode('rotate');
 $('editOff').onclick = () => gizmo.setMode('off');
@@ -8626,6 +10334,14 @@ library = createLibraryBrowser({
   recipesForScene: pieceRecipes,
   paintRecipe: (entry, thumb) => pieces.paintThumbs([{ object: previewGroup(entryParts(entry), null, entry.frame), box: entry.box, thumb }]),
   onChoose: chooseLibraryEntry, onChooseRecipe: chooseEntry, hint: flashHint, recall, remember,
+  // an effect's picture and its moving preview (the likeness, stage FXV3)
+  effectPicture: entry => (likenessOn ? effectPicture(entry) : null), onHover: hoverLikeness,
+  paintObject: (object, box, thumb) => {
+    // (an effect's picture: its sprites' least size is the picture's pixels, not the view's)
+    const height = viewHeight.value;
+    viewHeight.value = 96;
+    try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
+  },
 });
 prefabTab = createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
@@ -8668,6 +10384,7 @@ $('editReset').onclick = () => resetSelected();
 $('editResetAll').onclick = () => resetAll();
 $('flagsReset').onclick = () => resetFlags();
 $('editKind').onclick = e => selectKind(e.shiftKey);
+$('effectKind').onclick = e => { selectKind(e.shiftKey); e.target.blur(); };
 $('editCopy').onclick = () => copySelection();
 $('editDelete').onclick = () => deleteSelection();
 for (const id of ['alignX', 'alignY', 'alignZ', 'alignBy']) $(id).onchange = e => { saveAlignPrefs(); e.target.blur(); };
@@ -8722,6 +10439,8 @@ $('lightKeep').onclick = () => { const root = lightRoots.get(selected); if (root
 $('lightAuto').onclick = () => { const root = lightRoots.get(selected); if (root) setBinding(root, undefined); };
 $('editLights').onclick = () => data && setLightsShown(!lightsOn);
 $('editZones').onclick = () => data && setZonesShown(!zonesOn);
+$('editEffects').onclick = () => data && setEffectsShown(!effectsOn);
+$('editSpawns').onclick = () => data && setSpawnsShown(!spawnsOn);
 $('editNormal').onclick = () => data && setNormalView();
 $('normalLights').onchange = e => { setNormalLights(e.target.checked); e.target.blur(); };
 $('areaToggle').onchange = e => { areaShown = e.target.checked; remember(AREA_SHOWN, areaShown ? '1' : '0'); refreshLightVisibility(); e.target.blur(); };
@@ -8918,6 +10637,7 @@ document.addEventListener('keydown', e => {
   if (gridDrag) { if (key === 'escape') endGridDrag(false); e.preventDefault(); return; }
   if (gridTool && key === 'escape' && !pickedZone && !selected && !placing) { setGridTool(false); e.preventDefault(); return; }
   if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
+  if (spawnPlacing && key === 'escape') { stopSpawnPlacing(); e.preventDefault(); return; }
   // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
   // go (Ctrl+Z undoes as for anything)
   if (pickedZone && !selected && !e.altKey) {
@@ -8928,6 +10648,24 @@ document.addEventListener('keydown', e => {
       setZoneGizmoMode(key === 'r' ? 'rotate' : 'translate'); e.preventDefault(); return;
     }
     if (key === 'escape') { pickZone(null); e.preventDefault(); return; }
+  }
+  // the Effects view: Escape lets the picked marker go (a drag or a placing first gives way)
+  if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { pickEffect(null); e.preventDefault(); return; }
+  // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go
+  if ((pickedSpawn || spawnZonePick) && !selected && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { setPickedSpawn(null); e.preventDefault(); return; }
+  // a picked base pod, Meld point or drop-in point, or a copy (SP6, SP7), as a landing zone: Delete, Ctrl+D copies,
+  // [ and ] turn a pod or a drop-in point a quarter
+  {
+    const se = pickedSpawn && !selected && !e.altKey && !placing && !gizmo.busy() ? spawnEntry(pickedSpawn) : null;
+    if (se && ['base', 'copy'].includes(se.layer) && projectsAvailable() && (spawnMovable(se) || spawnDeleted(se))) {
+      if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteSpawn(pickedSpawn); e.preventDefault(); return; }
+      if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
+      if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && ['pod', 'dropIn'].includes(se.record.kind) && spawnMovable(se)) {
+        const turn = key === '[' ? -16384 : 16384, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
+        if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
+        e.preventDefault(); return;
+      }
+    }
   }
   // the select box: Enter takes what is inside (Shift+Enter adds it to the selection), Escape puts the box away
   if ((pickTool || pickBox) && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
@@ -8971,7 +10709,7 @@ document.addEventListener('keydown', e => {
   else if (key === 'v') gizmo.setMode('off');
   else if (key === 't') { if (data && !e.repeat) setPickTool(!(pickTool || pickBox)); }
   else if (key === 'g') gizmo.setMode('translate');
-  else if (key === 'x') gizmo.toggleSpace();
+  else if (key === 'x') { if (e.shiftKey) { if (data) setEffectsShown(!effectsOn); } else gizmo.toggleSpace(); }
   else if (key === 'c') togglePivot();
   else if (key === 'b') {
     if (e.shiftKey) { if (data) setVolumesShown(!volumesOn); }
@@ -8980,8 +10718,9 @@ document.addEventListener('keydown', e => {
   else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else setLevelSnap(!levelSnap); }
   else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
   else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
+  else if (key === 'u') { if (!e.shiftKey || !data) return; setSpawnsShown(!spawnsOn); }
   else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
-  else if (key === 'f') frame(selected ? allRoots.get(selected) : undefined);
+  else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
   else return;
   e.preventDefault();
 });
@@ -8995,8 +10734,8 @@ let builderRefresh = 0, builderTarget = '';
 renderer.setAnimationLoop(() => {
   if (zoneGizmo.enabled !== zoneGizmoWanted() && !zoneGizmo.dragging) placeZoneGizmo();     // (a view or placing began or ended)
   if (missionGizmo.enabled !== missionGizmoWanted() && !missionGizmo.dragging) placeMissionGizmo();
-  const now = performance.now();
-  panCamera(Math.min(0.05, (now - lastFrame) / 1000));
+  const now = performance.now(), sinceFrame = Math.min(0.05, (now - lastFrame) / 1000);
+  panCamera(sinceFrame);
   lastFrame = now;
   controls.update();
   if (builderMode && now - builderRefresh > 250) {
@@ -9004,14 +10743,19 @@ renderer.setAnimationLoop(() => {
     if (at !== builderTarget || now - builderRefresh > 2000) { builderTarget = at; builderRefresh = now; refreshBuilder(); }
   }
   scaleMarkers();
-  scaleMissionMarkers();
+  scaleSpawnMarkers();
   updateLightHandles();
   updateVolumeHandles();
   updateCoverHandles();
   drawCursorRings();
   if (lightsDirty && !soloOn && $('lighting').value !== 'neutral' && now - lastLightSync > 120) applyLighting();
   if (placing && ghostDirty) moveGhost();
-  if (tipDirty && floorTileLayer) floorTip();
+  if (effectsDirty) refreshEffects();
+  stepLikenesses(sinceFrame);
+  stepGhostLikenesses(sinceFrame);
+  drawLikenessPane(sinceFrame);
+  if (tipDirty && (effectsOn || (normalEffects && effectsShown()))) effectTip();
+  else if (tipDirty && floorTileLayer) floorTip();
   updateTileGrid();
   pieces.drawThumbs();
   library.drawThumbs();
@@ -9020,6 +10764,7 @@ renderer.setAnimationLoop(() => {
     renderer.shadowMap.needsUpdate = true; shadowBeat = now;
     if (shadowsUntil === Infinity && data) touchShadows();      // (every frame until a scene is open)
   }
+  viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
   renderer.render(world,camera);
 });
 setInterval(() => {
