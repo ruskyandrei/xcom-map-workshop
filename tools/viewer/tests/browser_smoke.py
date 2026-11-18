@@ -3929,6 +3929,97 @@ def check_spawns_view(page):
     page.evaluate('on => viewer.setNormalSpawns(on)', normal)
 
 
+def check_spawn_edits(page):
+    """The spawn edits where the spawn family builds (editor spawns implementation plan, SP6 to SP8, and the Add
+    panel's spawn points): every marker in a halo, the picked one's larger; a base pod moved a tile, turned a quarter
+    by ] and given a value, an undo step each; Ctrl+D copies a plain pod a tile east, picked, and Delete takes the copy
+    away; Delete deletes a base Meld point; the Add panel's entries, Escape cancelling a placing, and a pod placed by a
+    click, whole tiles from its template; the drop-in rule's box ticked and undone; all of it undone back to as the
+    map was."""
+    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && Array.isArray(viewer.data.spawns)'): return
+    entries = page.evaluate('viewer.spawnAddEntries().map(e => e.name)')
+    if not entries: return      # the spawn family doesn't build on this server, or the map has no plain pod or Meld point
+    assert set(entries) <= {'Pod', 'Meld point'}, entries
+    normal = page.evaluate('viewer.normalSpawns()')
+    before = page.evaluate('viewer.changes().total')
+    page.evaluate('viewer.select(null); viewer.pickSpawn(null); viewer.setSpawnsShown(true)')
+    page.evaluate('document.activeElement && document.activeElement.blur()')
+    spawns = lambda: page.evaluate('viewer.spawns()')
+    moves = lambda: page.evaluate('viewer.missionMoves()')
+    halo = lambda key: page.evaluate('k => viewer.spawnLayer.children.find(m => m.userData.spawn === k)?.userData.halo?.scale.x ?? null', key)
+    undo = lambda n=1: [page.keyboard.press('Control+z') for _ in range(n)]
+    shown = page.evaluate('viewer.spawnLayer.children.map(m => m.userData.halo ? m.userData.halo.scale.x : null)')
+    assert shown and all(s == 2.6 for s in shown), shown
+    # a plain pod: one Ctrl+D copies (a pod with a flag, a forced type or links isn't copied)
+    pods = [s for s in spawns() if s['kind'] == 'pod' and s['layer'] == 'base']
+    pod = copy = None
+    for p in pods:
+        page.evaluate('k => viewer.pickSpawn(k)', p['key'])
+        page.keyboard.press('Control+d')
+        if page.evaluate('viewer.pickedSpawn()') != p['key']:
+            pod, copy = p, page.evaluate('viewer.pickedSpawn()')
+            break
+    if pod:
+        c = next(s for s in spawns() if s['key'] == copy)
+        assert c['layer'] == 'copy' and abs(c['at'][0] - pod['at'][0] - 96) < 1e-3 and abs(c['at'][1] - pod['at'][1]) < 1e-3, c
+        assert halo(copy) > 2.6 and halo(pod['key']) == 2.6
+        page.keyboard.press('Delete')
+        assert not any(s['key'] == copy for s in spawns()) and not moves()
+        # the pod moved a tile, turned a quarter, given a value: three undo steps
+        page.evaluate('k => viewer.pickSpawn(k)', pod['key'])
+        assert page.evaluate('viewer.spawnEditShown()')
+        assert page.evaluate('p => viewer.moveMissionGroup(null, p.actor, [96, 0, 0])', pod)
+        at = next(s for s in spawns() if s['key'] == pod['key'])['at']
+        assert abs(at[0] - pod['at'][0] - 96) < 1e-3, at
+        yaw = lambda: next(m for m in moves() if m['stream'] is None and m['actor'] == pod['actor'])['rotation'][1]
+        was = yaw()
+        page.keyboard.press(']')
+        assert yaw() - was == 16384, (was, yaw())
+        assert page.evaluate("a => viewer.editBaseSpawn(a, { spawn: { commander: true } }) || viewer.editBaseSpawn(a, { spawn: { commander: false } })", pod['actor'])
+        assert page.evaluate('viewer.changes().total') > before
+        undo(3)
+        assert not moves(), moves()
+    meld = next((s for s in spawns() if s['kind'] == 'meld' and s['layer'] == 'base'), None)
+    if meld:
+        page.evaluate('k => viewer.pickSpawn(k)', meld['key'])
+        page.keyboard.press('Delete')
+        assert [m.get('deleted') for m in moves() if m['actor'] == meld['actor']] == [True], moves()
+        undo()
+        assert not moves()
+    # the Add panel's spawn points: Escape cancels a placing; a click places a copy of the kind's template
+    kind = 'pod' if 'Pod' in entries else 'meld'
+    page.evaluate('k => viewer.startSpawnPlacing(k)', kind)
+    assert page.evaluate('viewer.spawnPlacing()') == kind
+    page.keyboard.press('Escape')
+    assert page.evaluate('viewer.spawnPlacing()') is None and not moves()
+    page.evaluate('viewer.pickSpawn(null)')     # no picked point's arrows under the click
+    page.evaluate('k => viewer.startSpawnPlacing(k)', kind)
+    # the middle of the 3D view, where the camera looks at the map
+    x, y = page.evaluate("(() => { const r = viewer.renderer.domElement.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()")
+    assert page.evaluate('([x, y]) => document.elementFromPoint(x, y) === viewer.renderer.domElement', [x, y])
+    page.mouse.click(x, y)
+    assert page.evaluate('viewer.spawnPlacing()') is None
+    added = [m for m in moves() if m.get('copy')]
+    assert len(added) == 1, moves()
+    template = next(o for o in page.evaluate('viewer.data.spawns') if o['actor'] == added[0]['copy']['from'])
+    steps = [(added[0]['location'][i] - template['location'][i]) / 96 for i in (0, 1)]
+    assert all(abs(s - round(s)) < 1e-3 for s in steps), (added[0]['location'], template['location'])
+    assert page.evaluate('viewer.pickedSpawn()') == next(s['key'] for s in spawns() if s['layer'] == 'copy')
+    undo()
+    assert not moves()
+    # the drop-in rule's box (where the install has Long War's drop-in mutator)
+    box = page.locator('#dropInsPlaced')
+    if not box.is_disabled() and not box.is_checked():
+        page.evaluate("() => { const b = document.getElementById('dropInsPlaced'); b.checked = true; b.dispatchEvent(new Event('change')); }")
+        assert page.evaluate('viewer.projectSpawnRules()') == {'dropIns': 'placed'}
+        page.evaluate('document.activeElement && document.activeElement.blur()')
+        undo()
+        assert page.evaluate('viewer.projectSpawnRules()') is None and not box.is_checked()
+    assert page.evaluate('viewer.changes().total') == before
+    page.evaluate('viewer.pickSpawn(null); viewer.setSpawnsShown(false)')
+    page.evaluate('on => viewer.setNormalSpawns(on)', normal)
+
+
 def check_project_menu(page):
     """The Project menu, first after the name, and the Save and Load dialogs opened and cancelled (nothing saved)."""
     assert page.evaluate("document.querySelector('header .brand').nextElementSibling.id") == 'projectButton'
@@ -4972,7 +5063,7 @@ def main():
             if 'map-buildings' in only: check_map_buildings(page)
             if 'clear-map' in only: check_clear_map(page)
             if 'streams' in only: check_streams(page)
-            if 'spawns' in only: check_spawns_view(page)
+            if 'spawns' in only: check_spawns_view(page); check_spawn_edits(page)
             if 'pan' in only: check_arrow_pan(page)
             if 'speeds' in only: check_camera_speeds(page)
             if 'pivot' in only: check_pivot(page)
@@ -5003,6 +5094,7 @@ def main():
         assert page.evaluate('viewer.roots.size === viewer.data.objects.length + viewer.streamPieces')
         check_streams(page)
         check_spawns_view(page)
+        check_spawn_edits(page)
         if page.evaluate('viewer.data.exporterVersion >= 7'):
             skin=page.evaluate("""async () => {
               const T=await import('/vendor/three/three.module.js');

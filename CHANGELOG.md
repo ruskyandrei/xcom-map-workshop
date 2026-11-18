@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Browser smoke: the spawn edits
+
+- [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_spawn_edits`, run with `check_spawns_view` (and by
+  `--only spawns`) where the spawn family builds: every marker in its halo and the picked one's larger; a plain pod
+  copied by Ctrl+D a tile east and the copy taken away by Delete; the pod moved a tile, turned by ] and given a value,
+  an undo step each; a base Meld point deleted by Delete; the Add panel's Pod and Meld point, Escape cancelling a
+  placing and a click placing a pod whole tiles from its template; the drop-in rule's box ticked and undone; all of it
+  back to as the map was.
+- Checked: `--only spawns` on a test server on URB_Bar and on URB_SlaughterhouseA, passing.
+
 ### Hidden game runs: loads of a battle with aliens no longer crash (T-46); a crash log
 
 - [hidden_game.py](tools/lab/hidden_game.py) `dxvk_config`: every run gives DXVK its own `<out>\dxvk.conf`
