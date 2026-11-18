@@ -94,7 +94,7 @@ KINDS = ('fracWall', 'fracSlab', 'ground', 'relit')
 MADE = ('fracWall', 'fracSlab')     # the fracturing kinds made from numbers (their own mesh and columns)
 # the kinds whose copy stands at scale 1 whatever its donor's (their numbers and looks are in world units: the editor
 # draws them so, custom geometry plan M4b item 5)
-UNSCALED = ('fracSlab', 'ground')
+UNSCALED = ('fracWall', 'fracSlab', 'ground')
 # the classes a ground shape copies (plain pieces with a StaticMeshComponent, which the editor copies natively)
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 # the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2 and M4 item 1), with its end styles
@@ -135,17 +135,21 @@ def check(generated):
     wall = generated.get('wall')
     if not isinstance(wall, dict) or not all(isinstance(wall.get(k), (int, float)) for k in ('x0', 'x1')):
         raise ValueError('a generated wall needs its ends, x0 and x1')
-    if wall['x1'] - wall['x0'] < MIN_LENGTH:
-        raise ValueError('a generated wall shorter than %d units (its solid %d, its ends stopping %d short)'
-                         % (MIN_LENGTH, MIN_LENGTH - 2 * frac_wall.RECIPE['endInset'], frac_wall.RECIPE['endInset']))
-    if wall.get('storeys', 2) not in frac_wall.STOREYS:
-        raise ValueError('a generated wall of %r storeys (it has 1 or 2)' % (wall.get('storeys'),))
     for key, what in (('ends', 'end styles'), ('look', 'look')):
         if key in wall and generated.get('version', 1) < 2:
             raise ValueError("a generated wall's %s come%s with request version 2" % (what, '' if key == 'ends' else 's'))
     donor_look('fracWall', wall, generated.get('version', 1), 3)
+    R = frac_wall.look_of(wall)
+    # (the shortest wall and its storeys by its look: the Bar look's 40 units, one or two storeys)
+    inset = max(0.0, float(R['endInset']))
+    least = MIN_LENGTH if not frac_wall.general(R) else 24 + 2 * inset
+    if wall['x1'] - wall['x0'] < least:
+        raise ValueError('a generated wall shorter than %d units (its solid %d, its ends stopping %d short)'
+                         % (least, least - 2 * inset, inset))
+    storeys = frac_wall.storeys_of(R)
+    if wall.get('storeys', max(storeys)) not in storeys:
+        raise ValueError('a generated wall of %r storeys (it has %s)' % (wall.get('storeys'), ' or '.join(map(str, storeys))))
     frac_wall.ends_of(wall)
-    frac_wall.look_of(wall)
     for o in wall.get('openings') or []:
         if not all(isinstance(o.get(k), (int, float)) for k in ('x0', 'x1', 'z0', 'z1')) \
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
@@ -175,10 +179,12 @@ def section_points(R):
 
 
 def local_box(wall):
-    """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall)."""
-    h = max(y for y, _, _ in frac_wall.RECIPE['section'])
+    """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall;
+    across, its look's outline: frac_wall.extent)."""
+    R = frac_wall.shaped(wall)
+    lo, hi = frac_wall.extent(R)
     solid = frac_wall.solid_wall(wall)
-    return [solid['x0'], solid['x1'], -h, h, frac_wall.RECIPE['bottom'], frac_wall.shaped(wall)['top']]
+    return [solid['x0'], solid['x1'], lo, hi, R['bottom'], R['top']]
 
 
 def world_box(box, matrix):
@@ -384,7 +390,8 @@ def _lod_colours(data, at):
 
 def painted(donor, built):
     """One painted colour for each vertex of the generated mesh: the donor's override at its nearest vertex of the
-    same slot (`donor`: dict(positions, colours, slots), the donor mesh's and its component's)."""
+    same slot (`donor`: dict(positions, colours, slots), the donor mesh's and its component's; with a measured look's
+    `frame`, in_frame first puts both in the wall's frame)."""
     out = []
     lod = built['mesh']['lods'][0]
     pos = np.array(lod['positions'], float)
@@ -393,12 +400,41 @@ def painted(donor, built):
         for v in set(lod['indices'][1][s['first']:s['first'] + 3 * s['triangles']]):
             slot_of[v] = s['slot']
     dpos, dslot = donor['positions'], donor['slots']
+    if donor.get('frame'):
+        dpos, pos = in_frame(dpos, pos, donor['frame'])
     for k in range(len(pos)):
         same = dslot == slot_of[k]
         cand = np.flatnonzero(same) if same.any() else np.arange(len(dpos))
         j = cand[np.argmin(((dpos[cand] - pos[k]) ** 2).sum(1))]
         out.append(donor['colours'][j])
     return out
+
+
+def in_frame(dpos, pos, frame):
+    """(donor positions, made positions) for painting a measured look's wall (custom geometry plan, M4): the donor's
+    turned along x, centred across and moved down as its measurer had them (wall_measure's `frame`: turned, centre,
+    lowered (a donor over its pivot), its x range),
+    and each made vertex's x put on the donor's length: by its distance from the made wall's nearer end, from the
+    donor's same end, up to half the donor's length; past that to and fro over its middle half, so a longer wall
+    repeats its donor's paint and keeps the ends' paint at its ends."""
+    d = np.array(dpos, float)
+    if frame.get('turned'):
+        d = np.c_[d[:, 1], -d[:, 0], d[:, 2]]
+    d[:, 1] -= float(frame.get('centre', 0.0))
+    if frame.get('lowered'):
+        d[:, 2] -= float(frame['lowered'])         # (a donor over its pivot: the made wall stands that much lower)
+    p = np.array(pos, float)
+    dlo, dhi = (float(v) for v in frame.get('x', (d[:, 0].min(), d[:, 0].max())))
+    half = max((dhi - dlo) / 2, 1e-6)
+    mlo, mhi = p[:, 0].min(), p[:, 0].max()
+    a, b = p[:, 0] - mlo, mhi - p[:, 0]
+
+    def fold(t):
+        q = half / 2
+        u = np.mod(t - half, 2 * q)
+        return np.where(t <= half, t, np.where(u < q, half - u, q + (u - q)))
+    p[:, 0] = np.where(a <= b, dlo + fold(a), dhi - fold(b))
+    return d, p
 
 
 def donor_paint(p, comp, mesh_dict):
@@ -1015,11 +1051,15 @@ def add_walls(g, p, items, grid, bake=True):
     for item, comp_old, donor_mesh, template, out, name in built:
         info = item['info']
         comp_new = info['mapping'][comp_old]
+        is_wall = item['generated']['kind'] == 'fracWall'
         plain = item['generated']['kind'] == 'ground'
         matrix = piece_matrix(p, comp_old, item['location'], item['rotation'], item['generated']['kind'])
         if item['generated']['kind'] in UNSCALED and donor_scale(p, comp_old) is not None:
             unscale(g, p, item['original'], info['actor'], comp_old, comp_new)
         paint = None if plain else donor_paint(p, comp_old, template)
+        if paint is not None and is_wall:
+            # a measured look paints in its wall's own frame (its donor turned and centred as the measurer had it)
+            paint['frame'] = frac_wall.look_of(item['resolved']['wall']).get('frame')
         # the fragments' world boxes, and the columns by F0's rule
         boxes = [world_box(f['box'], matrix) for f in out['fragments']]
         lo = [min(x[2 * k] for x in boxes) for k in range(3)]
@@ -1071,8 +1111,8 @@ def add_walls(g, p, items, grid, bake=True):
         template_col = bytes(b[s0:e0])
         pieces = [column_element(g, walker, template_col, c) for c in cols]
         g.relocate(actor, native_copy.rebuilt(b, field, pieces))
-        h = 0.0 if slab else max(y for y, _, _ in section_points(frac_wall.look_of(item['resolved']['wall'])))
-        holes = [] if slab else [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix)
+        lo, hi = (0.0, 0.0) if slab else frac_wall.extent(frac_wall.shaped(item['resolved']['wall']))
+        holes = [] if slab else [world_box([o['x0'], o['x1'], lo, hi, o['z0'], o['z1']], matrix)
                                  for o in item['generated']['wall'].get('openings') or []]
         records.append(dict(kind=item['generated']['kind'], copy=actor, original=item['original'], openings=holes,
                             group=item.get('wallGroup') or 0,

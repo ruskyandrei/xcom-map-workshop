@@ -287,6 +287,114 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
     test_the_base_map_is_found_whatever_the_case_of_its_name (records found, the place after them, a variant's record
     planned, another name not matched); the viewer and editor suites.
 
+### Walls whose donor stands over its pivot are made on the floor (custom geometry M4, work order A)
+
+- [wall_measure.py](tools/bake/wall_measure.py) (still VERSION 1): a donor whose bottom is above its pivot is moved
+  down by whole levels (64) until its bottom is in (-64, 0]: 64 and 192 become 0, 48 becomes -16 (`lift_of`).
+  `lowered_by` writes the recipe's heights again in the made wall's frame: bottom, top, both sides' outlines, the
+  splits between faces, the faces' texture planes (each texture stays where it was on the wall), and
+  `frame.lowered` (the levels taken off); storeys are counted again from the new heights. The facts follow: bottom,
+  top, the openings' heights, and `lowered`. Donors at or under their pivot are left as they were.
+- [frac_walls.py](tools/bake/frac_walls.py): painting from the donor takes `frame.lowered` off the donor's heights,
+  so a painted wall gets the colours of the same place on the donor.
+- [looks/walls.json](tools/bake/looks/walls.json) built again: 68 of the 344 looks moved, by 64 (26), 384 (15),
+  320 (7), 512 (5), 576 (4), 256 (4), 448 (4) and 192 (3). Their bottoms are now 0 (46), -16 (8), -2 (5), -32 (3),
+  -10 (3), -22, -35.675 and -62.207. The other 276 lines are unchanged byte for byte, the Bar's look among them.
+- Checked: the twin check over all 344 (326 ok, the same walls as before, the rest a donor top or bottom that isn't
+  level); every look builds closed and facing out as a doorway wall, a long wall, one storey and its twin; the
+  Bar's twelve builds byte for byte as before; `python tools/run_tests.py bake -k test_wall_measure` (23 tests,
+  one new: the lift's rule and a lowered recipe, and the catalogue's lowered looks), `-k test_frac_wall`
+  (test_frac_wall and test_frac_walls, 70 tests) and the repo suite.
+- Known gaps: the rule is taken as written, so the supply ship's crate walls (bottom 1.793) are moved by 64 to
+  -62.207, nearly a level under the floor. Two of the Grand Cemetery's walls have their storeys counted again from
+  the new heights: the front wall's [3] is now [1, 2], the top wall's [2] is now [1].
+
+### Tests for the walls' looks (custom geometry M4, work order A, step 4)
+
+- [test_wall_measure.py](tools/bake/tests/test_wall_measure.py), in the bake suite:
+  - the general path on a recipe written in the test, no install needed: a chair rail with two ledges, sides that
+    differ, seven slots two of them empty. Built as the twin, with a doorway and a window at the ledges' and the
+    split's heights, 16 tiles with joined ends, and one storey: closed fragments, triangles facing out, the slots in
+    order, faces in their slot by height with their slot's texture, the box, collision and checks, painting's frame;
+  - the measurer on the install: the Bar's donor against RECIPE (the old `--check`, 22 keys); a wall with one face
+    slot a side; the pier warehouse (no trim slot, its top sloping over from one side); the supply ship's (its trim
+    carrying the faces; a one-storey donor, made only at its own height); the Bar's facade (its sides' trims in other
+    textures); a modelled wall and its warning. Each passes its twin check, and the same donor gives the same entry;
+  - the catalogue: its form (LF, sorted, one look a line, every wall of the audit with its keys, its verdict, the
+    modelled walls' warning), every look building; and a fresh build of three of its walls gives their lines byte
+    for byte, twice over.
+- Checked: `python tools/run_tests.py bake -k test_wall_measure` (22 tests, 9 s), the whole bake suite and the repo
+  suite.
+- Known gaps: the whole catalogue's freshness is `wall_catalogue.py check` (a minute and a half), not a test.
+
+### The walls' catalogue: every wall of the install as a look (custom geometry M4, work order A, step 3)
+
+- [wall_catalogue.py](tools/bake/wall_catalogue.py) `build` writes [looks/walls.json](tools/bake/looks/walls.json):
+  the 344 walls of the wall-look audit, each measured by wall_measure.py and given its twin check. Each entry holds
+  the placing to copy, the maps it is placed in, a name from the mesh's name, the audit's setting, `lwrOnly`, its
+  facts, warnings, twin ('ok' or what differs) and recipe. `check` says whether a fresh build gives the file's bytes.
+  - The placing to copy is at scale 1: seven of the audit's placings were scaled and have another at scale 1 in their
+    maps; every wall has one.
+  - lwrOnly: true when the donor's map isn't Firaxis-cooked (its package's licensee isn't 64; Long War Rebalance's own
+    packages are licensee 0 and none holds a fracturing piece). Every donor map is Firaxis's, so no look needs Long
+    War Rebalance; the rule is in the file's `about`.
+- The twins: 326 of 344 ok. By verdict: swept 92 of 92, swept with openings 133 of 138, swept with framed openings
+  53 of 62, mostly swept 8 of 8, modelled 40 of 44. The 18 others have a top (14) or a bottom (4) that isn't level
+  in the donor (gables, slopes); the made wall's is flat, as their warning says. The 44 modelled walls carry "its
+  window frames and ledges aren't made".
+- [wall_measure.py](tools/bake/wall_measure.py): a donor that is no fracturing piece is a ValueError (it ended the
+  program before); the sweep no longer prints numpy's warning for heights with no face.
+- Checked: two builds with different hash seeds give the same bytes, and `check` passes on the file. Every look's
+  wall builds closed in four shapes (step 2's check). The file holds no folder of this computer.
+- Known gaps: inside or outside is the audit's guess by name and materials (16 unsure, 14 the UFOs'); the names are
+  the mesh's words; the file is 1.2 MB (one look a line).
+
+### Walls in the look of any of the game's walls (custom geometry M4, work order A, step 2)
+
+- [frac_wall.py](tools/bake/frac_wall.py) builds from any recipe the measurer gives. A wall's `look` is an id of
+  wall_looks.json, built as before, or a look by its donor, `{mesh, measure, recipe}`, built by a general path:
+  - each side's own outline (the two sides may differ), ledges included;
+  - every segment's slot and texture: faces take their side's face slots by height, the other segments (trims,
+    steps, ledges, a donor with no trim slot, the UFOs' one unwrap for the whole outline) their own;
+  - the top's and bottom's slot and texture, the donor's collision across the wall, its slot count (`sections`: the
+    mesh has as many, in slot order, an empty one with no triangles; the Bar's look keeps 6);
+  - one storey for a taller donor: 192 taken out of the longest stretch that is straight up on both sides
+    (`storeys_of`, `storey_cut`, `lowered`).
+- [wall_measure.py](tools/bake/wall_measure.py): `measure(package, what)` gives a look's entry: its recipe, its
+  warnings in plain words ("its window frames and ledges aren't made" for a modelled wall, as D12 says) and its facts
+  (size, the storeys it can be made at ([1], [2] or [1, 2]; [3] or [1, 3] for the taller donors), the sweep's verdict,
+  inside or outside). It measures each segment's slot and texture over the cuts and fits them over its triangles.
+  `twin(recipe)` builds the wall at its donor's length and measures it again: its outline, what each side shows (read
+  off the made mesh), its caps, colours, cells, collision, lightmap, slots and storeys against the recipe.
+- [frac_walls.py](tools/bake/frac_walls.py), only for the looks' generality:
+  - a wall's shortest length, its storeys, its box and its doorways' boxes follow its look;
+  - a made wall's copy stands at scale 1 where its donor is scaled (made_matrix, unscale; a donor at scale 1 keeps its
+    bytes);
+  - a measured look's paint is taken in the wall's own frame (in_frame: the donor turned and centred as measured, a
+    longer wall repeating the donor's paint with the ends' paint at its ends).
+- Checked: the Bar look's builds byte for byte. Twelve builds (the twin, a doorway, one storey, joined ends, a 16-tile
+  wall, a short one; the default template and the donor's) give the same mesh, solids, lightmap, fragments and names.
+  - test_frac_wall and test_frac_walls pass unchanged; the bake, viewer and editor suites pass.
+  - The research script's `--check` and four donors still give the same bytes.
+  - All 344 donors measured and built four ways: the twin, a 4-tile wall with a doorway and a window, a 16-tile wall
+    with three openings and joined ends, and one storey where the look has it. All 1,188 meshes have every fragment
+    closed, every triangle facing out, the lightmap in its square and the neighbours mutual.
+  - The twin check passes on 326 of the 344. The 18 others have a top or bottom that isn't level (gables, slopes):
+    the made wall's is flat, and their warning says so.
+- Known gaps: what the warnings name isn't made (modelled walls' frames and ledges, framed openings' frames, end
+  details); triangle counts aren't compared with the donor's (a made wall has its own cells); none of it is played
+  yet: a scaled donor's copy at scale 1 and measured looks' paint are offline only.
+
+### The wall measurer moved into the tools (custom geometry M4, work order A, step 1)
+
+- The measuring of a wall's look is now [wall_measure.py](tools/bake/wall_measure.py) (VERSION 1; `measure_raw`, the
+  entry the research script gave, and `check`, its comparison with a recipe), so the Build and the catalogue can
+  call it. [wall-look-measure.py](research/evidence/wall-look-measure.py) is a wrapper of it with the same command
+  line and output, and still gives the wall-look audit the names it imports.
+- Checked: `--check` writes the same bytes as before (22 of 22 keys within tolerance); `--look` on four donors (the
+  pier warehouse, the supply ship, the convenience store, the Bar's facade) writes the same bytes as the old script;
+  the wall-look audit on URB_Bar gives the same looks and sweeps as its 18 November run.
+
 ### The Add panel opens on maps with no no-spawn volume of their own
 
 - On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the
