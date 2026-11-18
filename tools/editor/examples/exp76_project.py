@@ -13,7 +13,10 @@ In the parking lot (floor 0), as the editor's tools make them:
 - a building round the room as the Room with a roof tool makes it: floor 1 from -16 to 192, floor 2 from 192 to 384,
   floor 3 (the roof's) from 384 to 576;
 - a second roof on its own over open ground east of the room (x -1152 to -960, y -1056 to -864, at 384), with no walls
-  under it: a roof standing in the air, to see what the game makes of one.
+  under it: a roof standing in the air, to see what the game makes of one;
+- a long floor on its own over the lot south of the room (x -1728 to -768, y -1440 to -1152, its plate 192 to 194), ten
+  tiles by three, to see how far one grenade breaks a made floor (run E's first pass: the room's whole floor went,
+  all of it within the blast's reach).
 Game tiles count from the map's corner (-2785, -1921, -1): tile centres at x -2737 + 96 i, y -1873 + 96 j.
 
 Usage: exp76_project.py --store <projects folder> --builds <builds folder> [--build] [--quick]
@@ -54,6 +57,8 @@ SLABS = (
      dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, holes=[dict(x0=192.0, x1=288.0, y0=96.0, y1=192.0)], seed=765, look='floor')),
     ('Roof', ROOF_DONOR, [-1728.0, -1056.0, LOT + TOP], dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, holes=[], seed=766)),
     ('LoneRoof', ROOF_DONOR, [-1152.0, -1056.0, LOT + TOP], dict(x0=0.0, x1=192.0, y0=0.0, y1=192.0, holes=[], seed=767)),
+    ('LongFloor', FLOOR_DONOR, [-1728.0, -1440.0, LOT],
+     dict(x0=0.0, x1=960.0, y0=0.0, y1=288.0, holes=[], seed=768, look='floor')),
 )
 ROOM_FLOORS = [[-1728.0, -1056.0, LOT - 16.0, -1344.0, -768.0, LOT + 192.0],
                [-1728.0, -1056.0, LOT + 192.0, -1344.0, -768.0, LOT + 384.0],

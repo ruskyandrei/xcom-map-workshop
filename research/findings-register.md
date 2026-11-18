@@ -430,13 +430,17 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 
 ### T-47: Grounded units have a post-destruction landing event
 
-**Open** for fractured floor tiles. The installed pawn script waits for the tile rebuild, skips units in flight,
+**Answered for a made floor** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E). Was open for fractured floor tiles. The installed pawn script waits for the tile rebuild, skips units in flight,
 snaps down to a collision surface and refreshes the tactical position. A destructible prop's mesh-swap action
 dispatches the event for pawns based on it. A fragment disappearing from a floor has yet to demonstrate that
 dispatch, a valid landing or a tactical HP loss. A fractured column can damage linked props and pass a hit to
 one neighbouring column per link. A multi-storey support rule needs additional logic.
 See the [floor collapse audit](experiments/EXP-28-floor-collapse-audit.md) for the donors, native caller,
 Kismet options and gameplay controls.
+- **Run E.** A soldier stood on a made floor (a copy of URB_Bar's upstairs floor, made from numbers) when a grenade
+  broke it. The game logged "Extended Base tile is not a floor tile" and "Debugged invalid location" for him and put
+  him on the ground below; on the next turn he was in play with his moves. Whether he took fall damage was not read
+  (invincibility was on).
 
 ### F-07: Explosions treat our cars exactly like the map's
 **Verified** (EXP-05 runs 3 and 7). A reference fact, not a defect.

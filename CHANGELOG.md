@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-76 run E, first pass written; a long made floor added for the second pass** (custom geometry plan, M5; branch
+  `fracturing-wall-poc`).
+  - [EXP-76](research/experiments/EXP-76-floors-and-roofs.md): load, look, walking on the made floor and its hole
+    passed. The cut-away and the cursor inside the room failed, by the building floors fixed in 0ef5535.
+  - One grenade took the room's whole made floor, all of it within the blast's reach by the game's rule.
+  - [exp76_project.py](tools/editor/examples/exp76_project.py) adds a floor ten tiles by three, so the second pass
+    shows how far one grenade breaks a made floor. Rebuilt baked.
+  - [T-47](research/findings-register.md): a soldier on a made floor that broke was put on the ground below and kept
+    in play.
+  - Checked by: the run's shots and log, and the quicksave's tiles.
+
 - **A room with a roof gets floors that break at its storeys, with one for its roof; a slab in no floor of its building
   is warned** (custom geometry plan, M5; found in EXP-76 run E; branch `fracturing-wall-poc`).
   - **What run E showed.** With a soldier inside the room, the made upper floor and roof were never cut away, and the

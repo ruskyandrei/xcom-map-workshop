@@ -26,8 +26,9 @@ Game tiles count from the map's corner (-2785, -1921, -1), so tile centres are a
 | Room | x -1728 to -1344, y -1056 to -768; a doorway in its south side at x -1632 to -1536 | four made walls (the bar's inside wall), two storeys, joined at the corners |
 | Floor | over the whole room, its top at 194; a hole at x -1536 to -1440, y -960 to -864 | a copy of the bar's upstairs floor (`XComFracLevelActor_17`), made from numbers |
 | Roof | over the whole room, its top at 386 | a copy of the bar's roof (`XComFracLevelActor_3`), made from numbers |
-| Building | the room's footprint: floor 1 from -16 to 208, floor 2 from 208 to 400 | as the Room with a roof tool makes it |
+| Building | the room's footprint: floor 1 from -16 to 192, floor 2 from 192 to 384, floor 3 (the roof's) from 384 to 576 | as the Room with a roof tool makes it since the first pass (it was -16 to 208 and 208 to 400) |
 | Lone roof | x -1152 to -960, y -1056 to -864, its top at 386, nothing under it | a roof standing in the air |
+| Long floor | x -1728 to -768, y -1440 to -1152, its top at 194, nothing under it | a floor ten tiles by three, for the second pass's check 6 |
 
 The room's tiles: x centres -1681, -1585, -1489, -1393; y centres -1009, -913, -817. The doorway's tile is
 (-1585, -1009). The hole's tile is (-1489, -913).
@@ -62,6 +63,57 @@ The room's tiles: x centres -1681, -1585, -1489, -1393; y centres -1009, -913, -
 7. **Save and load**: a quicksave after the break, then a load. The hole the grenade made is still there, and the
    soldiers stand where they stood.
 
+## Run E, second pass (on the rebuilt map)
+
+Only what the first pass left: the room's building rebuilt with floors breaking at 192 and 384 and a roof floor, and
+the long floor added.
+
+3. **Cut away**: a soldier inside the room on the ground, the camera's floor 0: the made floor and the roof are not
+   drawn, as the bar's upper floor and roof are not with a soldier inside it. Floor up once: the made floor drawn, the
+   roof not. Floor up again: both drawn.
+5. **The cursor inside**: from a soldier near the room, aimed inside it on floor 0, the cursor lands on the ground
+   (about 64 by ShowCursorLoc); on floor 1, on the made floor (about 258); never on the roof unless on the roof's
+   floor.
+6. **How far a grenade breaks a made floor**: a soldier put on the long floor at (-1009, -1297) (about 264), a
+   grenade on (-1681, -1297), its west end. Read the floor afterwards with the cursor on (-1681, -1297),
+   (-1489, -1297), (-1297, -1297), (-1105, -1297) and (-817, -1297): which tiles are still floor (about 258) and
+   which read the ground. Expected, as the game's own rule: the tiles within the blast's reach (two or three tiles)
+   broken, the east end standing. A shot from low along it.
+7. **Save and load**: a quicksave after the break, then a load: the hole is still there, and the soldiers stand where
+   they stood.
+
 ## Result
 
-Not played yet.
+### Run E, first pass (18 November 2026)
+
+Played unattended in the lab copy (the game-test skill). Pictures are in `<lab>\hidden-runs\exp76-runE`.
+
+1. **Load: passed.** No crash; the slabs appear only in the routine "Cooking Convex" lines.
+2. **The look: passed** (still pictures). The roof sits flush on the room, its gravel top lit as the lot is, with no
+   holes; the lone roof stands whole in the air. The room's made walls look nearly black from outside (a side
+   observation, not judged).
+3. **Under the floor: the walk passed, the cut-away failed.** A soldier walked in through the doorway and across the
+   room on the ground. With soldiers inside on the camera's floor 0, the walls were cut to their lower storey, but the
+   made floor stayed drawn as a lid over the room and the roof over it. The look up at the hole was not seen.
+   - Cause: the Room with a roof tool made the building's floors break at 208 and 400, and the slabs' boxes are 192
+     to 194 and 382 to 386. The game lists a piece in a floor only when its bottom is more than 20 under the floor's
+     top, so the slabs were in no floor. URB_Bar breaks at 192 and 384 over its ground, with a roof floor; its
+     upstairs floor is listed on floor 1, its roof on floor 2. Fixed (0ef5535): the tool's floors now match, and the
+     compiler warns of a made slab in no floor of its building.
+4. **On the floor: passed.** A soldier put on the made floor stood at about 264 (its top 194) and walked across it.
+   Aimed at the hole's tile, the cursor fell to the ground; sent there, he dropped through the hole to the ground,
+   so the hole is no floor.
+5. **The roof takes no clicks: failed**, by the same cause as check 3: inside the room the cursor's floor 0 landed
+   on the made floor and floor 1 on the roof (both drawn, so both take clicks).
+6. **A break in the floor: the whole floor went.**
+   - A grenade on (-1393, -1009) on the made floor: every one of the room's twelve tiles lost floor (the cursor read
+     the ground on all of them; the quicksave's tiles agree: no floor at that level in the room), and no slab was left
+     drawn. The roof stayed whole and still floor, with a soldier on it; the wall by the blast broke at its top.
+   - The game damages every column of a fracturing piece within the blast's radius of its centre, each listed
+     fragment losing the full damage ([frac-neighbours.md](../native/frac-neighbours.md), ApplyDamage). From the
+     blast, even the room's farthest floor tile is about 280 units off, so the whole floor was probably within reach;
+     the second pass's long floor shows whether a made floor breaks only within it.
+   - T-47: a soldier standing on the made floor two tiles from the blast lost his floor. The game logged "Extended
+     Base tile is not a floor tile" and "Debugged invalid location", put him on the ground below, and he was still in
+     play, with his moves, on the next turn.
+7. **Save and load: not done** (the run was paused): the quicksave was written, the load not made.
