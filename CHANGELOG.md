@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### The wall measurer moved into the tools (custom geometry M4, work order A, step 1)
+
+- The measuring of a wall's look is now [wall_measure.py](tools/bake/wall_measure.py) (VERSION 1; `measure_raw`, the
+  entry the research script gave, and `check`, its comparison with a recipe), so the Build and the catalogue can
+  call it. [wall-look-measure.py](research/evidence/wall-look-measure.py) is a wrapper of it with the same command
+  line and output, and still gives the wall-look audit the names it imports.
+- Checked: `--check` writes the same bytes as before (22 of 22 keys within tolerance); `--look` on four donors (the
+  pier warehouse, the supply ship, the convenience store, the Bar's facade) writes the same bytes as the old script;
+  the wall-look audit on URB_Bar gives the same looks and sweeps as its 18 November run.
+
 ### The Add panel opens on maps with no no-spawn volume of their own
 
 - On Act1_IntroLevel (the tutorial map) the Add panel did not open: listing the Spawn points kind, it named the
