@@ -64,9 +64,12 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   it out after, and puts back every config file the run changed.
 - The map must be in the lab copy: a game map as it is, or the project's map staged there the way its experiment
   does (the editor's Build and Play in game, or `tools/lab/lab_install.py`).
-- Windows must see a mouse. The game asks DirectInput for the system mouse as it starts, and with none (the mouse
-  and keyboard switched to another computer, asleep or unplugged) it crashes about 3 seconds in, before its main
-  menu (T-45). The tool refuses to start then; ask the user to connect or wake the mouse.
+- No mouse or keyboard in Windows is fine once the stand-in is built. The game asks DirectInput for the system mouse
+  as it starts, and with none (the mouse and keyboard switched to another computer, asleep or unplugged) it crashed
+  about 3 seconds in (T-45). The tool then puts the stand-in `dinput8.dll` beside the game for the run (a still mouse
+  and keyboard where Windows has none; what the game got is in `<out>\input.log`). Build it once with
+  `python tools/lab/build_stand_in_input.py --llvm <LLVM bin folder>` (clang-cl, lld-link, llvm-dlltool) into
+  `<lab>\bin`. Without it the tool refuses to start with no mouse; then ask the user to connect or wake the mouse.
 - A mission of a kind (EXALT's, a UFO, terror, a Council mission, a project's variant) is played from the editor's
   own commands: stage it with Play in game on a test server started with `--dry-play` (it writes everything and
   starts no game), then start with `--play-file <game>\XEW\Binaries\XComMapWorkshop-play.txt` (with `--saving` when

@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Hidden game runs: a stand-in mouse and keyboard when Windows has none (T-45)
+
+- [StandInInput.c](tools/lab/StandInInput.c): a 32-bit `dinput8.dll` that hands every call to Windows' own and gives
+  the game a still mouse or keyboard where Windows has none (the game's start asks DirectInput for the system mouse
+  and crashed without one). No C runtime and no Windows SDK; [build_stand_in_input.py](tools/lab/build_stand_in_input.py)
+  builds it with clang-cl, lld-link and llvm-dlltool (`--llvm <LLVM bin folder>`) into `<lab>\bin`, where
+  [hidden_game.py](tools/lab/hidden_game.py) takes it from, as it takes DXVK from `<lab>\dxvk`.
+- [hidden_game.py](tools/lab/hidden_game.py) `input_plan`: with a mouse or keyboard missing in Windows the DLL goes
+  beside the game for the run and comes out after (a different `dinput8.dll` already there stops the run); the DLL
+  writes what the game asked for and got to `<out>\input.log`. Without the DLL, no mouse still stops the run.
+  `--stand-in-input` gives the stand-ins anyway, to check them. The
+  [game-test skill](.claude/skills/game-test/SKILL.md) and the [findings register](research/findings-register.md)'s
+  T-45 say so.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the plan's cases, the DLL placed and taken
+  away, the built DLL in a 32-bit process by [StandInInputCheck.cs](tools/lab/tests/StandInInputCheck.cs): both
+  stand-ins and every call the game makes on them), the lab suite; in the game with the stand-ins forced, URB_Bar
+  started to turn 1, a soldier walked two tiles by `goto` and Escape opened the pause menu, and nothing was left
+  beside the game. A start with the devices really gone hasn't been played.
+
 ### Play in game: EXALT's open-line options taken out again (T-44)
 
 - [missions.py](tools/viewer/missions.py) and [test_play.py](tools/viewer/tests/test_play.py) as before the entry

@@ -184,19 +184,78 @@ class Sounds(unittest.TestCase):
 
 
 class Input(unittest.TestCase):
-    """T-45: with no mouse in Windows the game crashes as it starts (DirectInput's system mouse), so no run starts."""
+    """T-45: with no mouse in Windows the game crashes as it starts (DirectInput's system mouse). A run then takes the
+    stand-in dinput8.dll when it is built, and stops when it isn't."""
+    DLL = Path('lab/bin/dinput8.dll')
 
-    def test_no_mouse_stops_the_run(self):
-        with self.assertRaisesRegex(RunError, 'no mouse'): hidden_game.check_input((0, 1))
+    def test_devices_there_need_nothing(self):
+        self.assertEqual(hidden_game.input_plan((1, 1), self.DLL), (None, None))
+        self.assertEqual(hidden_game.input_plan(None, None), (None, None))
 
-    def test_no_keyboard_is_a_note(self):
-        self.assertIsNone(hidden_game.check_input((1, 1)))
-        self.assertIn('no keyboard', hidden_game.check_input((2, 0)))
-        self.assertIsNone(hidden_game.check_input(None))
+    def test_a_missing_device_takes_the_stand_in(self):
+        for devices, words in (((0, 1), 'no mouse'), ((1, 0), 'no keyboard'), ((0, 0), 'no mouse and no keyboard')):
+            dll, note = hidden_game.input_plan(devices, self.DLL)
+            self.assertEqual(dll, self.DLL)
+            self.assertIn(words, note)
+
+    def test_without_the_stand_in_no_mouse_stops_the_run(self):
+        with self.assertRaisesRegex(RunError, 'no mouse.*build_stand_in_input'): hidden_game.input_plan((0, 1), None)
+        self.assertEqual(hidden_game.input_plan((2, 0), None)[0], None)
+        self.assertIn('no keyboard', hidden_game.input_plan((2, 0), None)[1])
+
+    def test_asked_for_stand_ins(self):
+        self.assertEqual(hidden_game.input_plan((1, 1), self.DLL, force=True)[0], self.DLL)
+        with self.assertRaisesRegex(RunError, 'No stand-in'): hidden_game.input_plan((1, 1), None, force=True)
 
     def test_the_devices_are_counted(self):
         devices = hidden_game.input_devices()
         if devices is not None: self.assertTrue(all(isinstance(n, int) and n >= 0 for n in devices))
+
+    def test_the_stand_in_is_put_beside_the_game_and_taken_away(self):
+        with tempfile.TemporaryDirectory() as root:
+            game, dll = make_game(root), hidden_game.dxvk_dll(make_dxvk(root, 'dxvk-3.1.1'))
+            stand_in = Path(root) / 'lab' / 'bin' / 'dinput8.dll'
+            stand_in.parent.mkdir(parents=True)
+            stand_in.write_bytes(b'stand-in')
+            self.assertEqual(hidden_game.stand_in_dll(Path(root) / 'lab'), stand_in)
+            prepared = Prepared(game, dll, 'open URB_Bar\n', stand_in=stand_in)
+            target = hidden_game.win32(game) / 'dinput8.dll'
+            self.assertEqual(target.read_bytes(), b'stand-in')
+            prepared.restore()
+            self.assertFalse(target.exists() or (hidden_game.win32(game) / 'd3d9.dll').exists())
+            # another dinput8.dll beside the game (a mod's) stops the run before anything is placed
+            target.write_bytes(b'a mod\'s')
+            with self.assertRaisesRegex(RunError, 'another dinput8.dll'): Prepared(game, dll, stand_in=stand_in)
+            self.assertFalse((hidden_game.win32(game) / 'd3d9.dll').exists())
+            self.assertEqual(target.read_bytes(), b'a mod\'s')
+
+
+class StandInDll(unittest.TestCase):
+    """The built stand-in (<lab>\\bin\\dinput8.dll, build_stand_in_input.py) in a 32-bit process outside the game: the
+    calls the game makes on the system mouse and keyboard answer as a still device (StandInInputCheck.cs)."""
+
+    def test_the_built_dll_answers_as_a_stand_in(self):
+        import os
+        import subprocess
+        try: lab = hidden_game.labpaths.lab_root()
+        except Exception: self.skipTest('no lab folder in the settings')
+        dll = hidden_game.stand_in_dll(lab)
+        if not dll or sys.platform != 'win32': self.skipTest('the stand-in is not built (build_stand_in_input.py)')
+        import build_stand_in_input
+        machine, names = build_stand_in_input.exports(dll.read_bytes())
+        self.assertEqual((machine, sorted(names)), (0x14c, sorted(build_stand_in_input.EXPORTS)))
+        with tempfile.TemporaryDirectory() as work:
+            exe, log = Path(work) / 'check.exe', Path(work) / 'input.log'
+            source = Path(__file__).resolve().parent / 'StandInInputCheck.cs'
+            done = subprocess.run([str(hidden_game.csc()), '/nologo', '/platform:x86', f'/out:{exe}', str(source)],
+                                  capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stdout)
+            env = dict(os.environ, XCOM_STAND_IN_INPUT='always', XCOM_STAND_IN_INPUT_LOG=str(log))
+            done = subprocess.run([str(exe), str(dll)], capture_output=True, text=True, env=env)
+            self.assertEqual(done.returncode, 0, done.stdout)
+            self.assertIn('ok   mouse GetDeviceState: all zero', done.stdout)
+            self.assertEqual(log.read_text().splitlines(), ['system mouse: the stand-in (asked for)',
+                                                            'system keyboard: the stand-in (asked for)'])
 
 
 class Arguments(unittest.TestCase):

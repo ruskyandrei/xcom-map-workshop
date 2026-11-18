@@ -2691,9 +2691,19 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   without a check that a device came back. At the time Windows had no mouse and no keyboard: `GetSystemMetrics
   (SM_MOUSEPRESENT)` was 0, and the HID mice and keyboards were not present (switched to another computer, asleep or
   unplugged). So CreateDevice gave no device and the next call read through nothing.
-- **Fix**: `tools/lab/hidden_game.py` counts Windows' raw input devices before it starts the game. With no mouse it
-  refuses and says why. With no keyboard it prints a note: whether the game needs one hasn't been seen. The
-  `game-test` skill says so under "Before a run".
+- **Fix**: `tools/lab/hidden_game.py` counts Windows' raw input devices before it starts the game. With a mouse or
+  keyboard missing it puts a stand-in `dinput8.dll` beside the game for the run (`tools/lab/StandInInput.c`, built
+  into `<lab>\\bin` by `build_stand_in_input.py`). The game imports `DirectInput8Create` from `DINPUT8.dll` by name,
+  so it loads that DLL first. The DLL hands every call to Windows' own `dinput8.dll` and gives a still mouse or
+  keyboard (attached, never moving, no key down) where Windows has none, and writes what the game got to
+  `<out>\\input.log`. Without the DLL, no mouse stops the run with the reason. The `game-test` skill says so under
+  "Before a run".
+- **Verified** (18 November 2026, the mouse and keyboard there, the stand-ins forced by `--stand-in-input`): outside
+  the game a 32-bit check (`tools/lab/tests/StandInInputCheck.cs`) got both stand-ins and every call the game makes
+  answered. In the game, URB_Bar started to turn 1 with the squad and the interface drawn; `input.log` showed the
+  stand-in mouse asked for twice and the keyboard once; `goto` moved a soldier two tiles, and Escape opened the
+  pause menu. A start with the devices really gone hasn't been played; the DLL takes the same path then (Windows'
+  CreateDevice fails, the stand-in is given).
 - A player's own game has a mouse, so this only stops unattended runs.
 
 ### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative isn't made
