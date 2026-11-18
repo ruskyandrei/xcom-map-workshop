@@ -2679,6 +2679,22 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   the original plays the first mission); the project manager works them out from the last build's records. The Game
   maps window marks only the replaced records.
 
+### T-45: The game crashes as it starts when Windows sees no mouse
+**Fixed in the tool** (18 November 2026, five hidden starts from 09:09, EXP-72 run 11's two among them; no EXP file).
+- **What**: every hidden start from 09:09 crashed about 3.3 seconds in, before the main menu, URB_Bar's plain start
+  too. `Launch.log` ends `Init: XAudio2Device initialized.` and then `Critical error ... Address = 0x11fb6b8 [in
+  ...\XComEW.exe]`. DXVK's log stops before `Creating device`, and DXVK's mode options (`d3d9.modeCountCompatibility`,
+  a forced refresh rate and aspect ratio) changed nothing. The same starts worked at 04:08.
+- **Cause**: the dump shows an access violation reading address 0 at `XComEW.exe+0x31b6b8`. The code there is the
+  client's input set-up: `IDirectInput8::CreateDevice(GUID_SysMouse, &device, NULL)`, then `device->SetDataFormat`
+  without a check that a device came back. At the time Windows had no mouse and no keyboard: `GetSystemMetrics
+  (SM_MOUSEPRESENT)` was 0, and the HID mice and keyboards were not present (switched to another computer, asleep or
+  unplugged). So CreateDevice gave no device and the next call read through nothing.
+- **Fix**: `tools/lab/hidden_game.py` counts Windows' raw input devices before it starts the game. With no mouse it
+  refuses and says why. With no keyboard it prints a note: whether the game needs one hasn't been seen. The
+  `game-test` skill says so under "Before a run".
+- A player's own game has a mouse, so this only stops unattended runs.
+
 ### T-44: The hidden game's saving start hangs on Police Station's Data recovery
 **Open** (18 November 2026, EXP-72 runs 5 and 10).
 - **What**: `tools/lab/hidden_game.py --saving` (main menu, log in, the editor's Enable saving key) on URB_PoliceStation's

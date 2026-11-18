@@ -64,6 +64,14 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   it out after, and puts back every config file the run changed.
 - The map must be in the lab copy: a game map as it is, or the project's map staged there the way its experiment
   does (the editor's Build and Play in game, or `tools/lab/lab_install.py`).
+- Windows must see a mouse. The game asks DirectInput for the system mouse as it starts, and with none (the mouse
+  and keyboard switched to another computer, asleep or unplugged) it crashes about 3 seconds in, before its main
+  menu (T-45). The tool refuses to start then; ask the user to connect or wake the mouse.
+- A mission of a kind (EXALT's, a UFO, terror, a Council mission, a project's variant) is played from the editor's
+  own commands: stage it with Play in game on a test server started with `--dry-play` (it writes everything and
+  starts no game), then start with `--play-file <game>\XEW\Binaries\XComMapWorkshop-play.txt` (with `--saving` when
+  the play staged `XComMapWorkshop-start.txt` too). `--map` opens the map bare: the squad and Sectoid pods, none of
+  the mission's commands.
 - One game at a time. A run takes about 75 seconds to reach turn 1.
 
 ## Starting

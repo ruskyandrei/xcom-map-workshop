@@ -11,7 +11,8 @@ DXVK's 32-bit d3d9.dll (DirectX 9 over Vulkan) stands beside XComEW.exe and is t
 the game there and does the steps (its header lists them: wait, waitlog, console, type, shot, key; no mouse).
 
 - Which game: the folder Steam runs (<Steam common>\\XCom-Enemy-Unknown) and only while it is the lab copy (its
-  marker XComLab-copy.txt); --game names another lab copy. Steam must be running, the game must not be.
+  marker XComLab-copy.txt); --game names another lab copy. Steam must be running, the game must not be, and Windows
+  must see a mouse: the game asks DirectInput for the system mouse as it starts and crashes without one (T-45).
 - Started as XComEW.exe -FROMLAUNCHER itself, with SteamAppId and SteamGameId set (F-84), -nohomedir (settings, saves
   and logs stay inside the copy), -windowed at --res, and -EXEC of a commands file when a map is asked for:
   --map writes Play in game's commands (gamelaunch.play_text; --squad <file> for the squad, without it the game's
@@ -188,6 +189,34 @@ def running(name):
     return name.lower() in out.lower()
 
 
+def input_devices():
+    """(mice, keyboards) Windows has now, from its raw input device list, or None off Windows."""
+    if sys.platform != 'win32': return None
+    import ctypes
+    from ctypes import wintypes
+
+    class Device(ctypes.Structure):
+        _fields_ = [('handle', wintypes.HANDLE), ('kind', wintypes.DWORD)]
+    user32, count = ctypes.windll.user32, wintypes.UINT(0)
+    user32.GetRawInputDeviceList(None, ctypes.byref(count), ctypes.sizeof(Device))
+    devices = (Device * count.value)()
+    got = user32.GetRawInputDeviceList(devices, ctypes.byref(count), ctypes.sizeof(Device))
+    kinds = [d.kind for d in devices[:max(got, 0)]]
+    return kinds.count(0), kinds.count(1)      # RIM_TYPEMOUSE, RIM_TYPEKEYBOARD
+
+
+def check_input(devices):
+    """Stops a run that would crash: the game asks DirectInput for the system mouse as it starts, and with no mouse in
+    Windows it gets none and crashes about 3 seconds in, before its main menu (T-45). Returns a note when there is
+    no keyboard (not seen yet), or None."""
+    if devices is None: return None
+    mice, keyboards = devices
+    if not mice:
+        raise RunError('Windows sees no mouse (switched to another computer, asleep or unplugged): the game asks for '
+                       'the system mouse as it starts and crashes without one (T-45). Connect or wake a mouse first')
+    return None if keyboards else 'Windows sees no keyboard: the game may stop at its start as it does without a mouse'
+
+
 def csc():
     path = Path(os.environ.get('WINDIR', r'C:\Windows')) / 'Microsoft.NET' / 'Framework64' / 'v4.0.30319' / 'csc.exe'
     if not path.is_file(): raise RunError(f'No C# compiler at {path}')
@@ -215,6 +244,7 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
     steps = check_steps((list(SAVING_STEPS) if saving else []) + list(steps))
     if not running('steam.exe'): raise RunError('Steam is not running: the game ends at once without it')
     if running('XComEW.exe'): raise RunError('The game is running: close it first')
+    if note := check_input(input_devices()): echo(f'note: {note}')
     hidden_run, remote = helper(lab, 'HiddenRun.exe'), helper(lab, 'GameRemote.exe')
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)

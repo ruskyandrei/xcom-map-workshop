@@ -183,6 +183,22 @@ class Sounds(unittest.TestCase):
                                                     (0.6, 'SoundBarMuzak.BarMuzakStereo', 'AmbientSoundSimple_2')])
 
 
+class Input(unittest.TestCase):
+    """T-45: with no mouse in Windows the game crashes as it starts (DirectInput's system mouse), so no run starts."""
+
+    def test_no_mouse_stops_the_run(self):
+        with self.assertRaisesRegex(RunError, 'no mouse'): hidden_game.check_input((0, 1))
+
+    def test_no_keyboard_is_a_note(self):
+        self.assertIsNone(hidden_game.check_input((1, 1)))
+        self.assertIn('no keyboard', hidden_game.check_input((2, 0)))
+        self.assertIsNone(hidden_game.check_input(None))
+
+    def test_the_devices_are_counted(self):
+        devices = hidden_game.input_devices()
+        if devices is not None: self.assertTrue(all(isinstance(n, int) and n >= 0 for n in devices))
+
+
 class Arguments(unittest.TestCase):
     def test_exec_only_with_a_commands_file(self):
         self.assertEqual(hidden_game.game_arguments((1280, 720)),

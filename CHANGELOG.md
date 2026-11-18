@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Hidden game runs: no start without a mouse (T-45)
+
+- [hidden_game.py](tools/lab/hidden_game.py) counts Windows' raw input devices before it starts the game
+  (`input_devices`, `check_input`). With no mouse it refuses and says why: the game asks DirectInput for the system
+  mouse as it starts, and without one it crashed about 3 seconds in, before its main menu, on every start from 09:09
+  ([findings register](research/findings-register.md) T-45: the dump's null read follows `IDirectInput8::CreateDevice
+  (GUID_SysMouse)`). With no keyboard it prints a note.
+- The [game-test skill](.claude/skills/game-test/SKILL.md) says so under "Before a run". It also says how to play a
+  mission of a kind: stage it with Play in game on a `--dry-play` server and start from the editor's commands file,
+  since `--map` opens the map bare.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the refusal, the note, the count), the lab
+  suite; with the mouse and keyboard away, a start refused with the reason instead of crashing.
+
 ### Spawns: the spawn family builds (SP6 and SP7 played)
 
 - [compiler.py](tools/editor/compiler.py) `FAMILIES['spawn']` builds: the base map's pods, Meld points and drop-in
