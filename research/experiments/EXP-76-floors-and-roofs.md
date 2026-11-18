@@ -53,6 +53,9 @@ The room's tiles: x centres -1681, -1585, -1489, -1393; y centres -1009, -913, -
 6. **A break in the floor**: from the upper floor, a grenade on (-1393, -1009), storey 1 (two tiles from the hole):
    - the floor holed there, and what falls;
    - whether the walls under it and the roof over it stay (F-127);
+   - a soldier standing on a floor tile that breaks (put him on (-1393, -817), storey 1, and throw at his tile):
+     does the game drop him to the ground below and keep him in play (T-47: the game's landing event fires for a prop
+     whose mesh swaps, and has not been seen for a fragment gone from a floor)?
    - the soldier on the floor sent onto the broken tile: does the game still take it as floor?
    - a soldier on the ground under it;
    - the save's tiles if needed (tools/lab/save_tiles.py).

@@ -1730,7 +1730,8 @@ def list_made_walls(g, p, walls, replaced=None):
     and buildings made from nothing list them by the same rule themselves. Returns the manifest's section: [dict(wall,
     building, floors: [[floor, CutdownFloor]])]."""
     import buildings as building_tools
-    walls = [w for w in walls if w.get('kind') in ('fracWall', 'fracSlab')]
+    # (ground shapes too, M6: their donor is a ground plane, in no building)
+    walls = [w for w in walls if w.get('kind') in ('fracWall', 'fracSlab', 'ground')]
     if not walls:
         return []
     walker = Walker(p)
@@ -2454,7 +2455,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         if bi is not None:
             replaced[bi] = None if e.get('deleted') else [x for f in e['floors'] for x in [f['boxes']]]
     # a van's parts are in its own building's cutaway, which comes with them
-    made_walls = {r['copy'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')}
+    made_walls = {r['copy'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
     floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van' and x[1] not in made_walls], replaced)
     # walls made from numbers in the map's own buildings they stand in, by their own boxes (M3 item 7)
     made_floors = list_made_walls(g, p, generated_records, replaced) if made_walls else []
@@ -2471,7 +2472,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         candidates = [dict(actor=i, source=i, name=p.name(i).split('.')[-1]) for i in level_actors(p)
                       if i > 0 and i not in gone and p.exports[i - 1]['outer'] == level_index
                       and not p.effective(i, 'bHidden', False)]
-        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')}
+        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
         candidates += [dict(actor=copy, source=original, location=after[0], rotation=after[1], label=m['label'],
                             name='copy of ' + p.name(original).split('.')[-1],
                             **({'box': made_boxes[copy]} if copy in made_boxes else {}))

@@ -2575,8 +2575,12 @@ class Compiler:
         self.loot(src, short(out), 'add', where)
         # (a made wall's height is free: its columns are made for where it stands, so only its tiles and quarter turns
         # follow its template's)
-        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS + ('ground',) else loc
-        if not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
+        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS else loc
+        # (a ground shape keeps to the map's tiles by its numbers, not to its donor's place: the game's ground planes
+        # stand off the tile grid, scaled, and are no rule for it)
+        if made and made['kind'] == 'ground':
+            pass
+        elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
         along = ((made['wall']['x0'] + FRAC_WALL_END_INSET, made['wall']['x1'] - FRAC_WALL_END_INSET)
@@ -2615,7 +2619,9 @@ class Compiler:
                     for light in area['lights']:
                         self.copy_area_light(light, rec['from']['actor'], out, move, donor)
         else:
-            self.floor_note(short(out), src, new, where, self.boxes(parts, src['location'], src['rotation']))
+            if not (made and made['kind'] == 'ground'):
+                # (a ground shape is listed in the building it stands in by its own box, as a made wall is)
+                self.floor_note(short(out), src, new, where, self.boxes(parts, src['location'], src['rotation']))
             self.owner_edits.append(('copy', rec['from']['actor'], out,
                                      rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(1, out), source=name, label=short(out), location=loc, rotation=rot, box=new,
@@ -4094,7 +4100,7 @@ class Compiler:
         for copy in self.copies:
             source = self.floor_sources.get(copy['label'])
             # (a wall made from numbers is not its donor: the rule lists it by its own box, custom geometry plan M3)
-            if source is None or (copy.get('generated') or {}).get('kind') in MADE_KINDS:
+            if source is None or (copy.get('generated') or {}).get('kind') in MADE_KINDS + ('ground',):
                 continue
             donor = copy.get('donor')
             originals = self.donor_buildings.get(donor['package'].casefold(), []) if donor else (self.scene.get('buildings') or [])

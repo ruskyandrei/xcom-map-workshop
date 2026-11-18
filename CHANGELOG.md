@@ -8,6 +8,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### EXP-77 prepared (custom geometry M6, run F); ground shapes in buildings
+
+- [EXP-77](research/experiments/EXP-77-ground.md) and its project,
+  [exp77_project.py](tools/editor/examples/exp77_project.py), on URB_Bar:
+  - in the lot, a ramp up onto a block, a patch with a low block on it, and a block of each ground look;
+  - another block of each look in the bar's kitchen.
+  - Eight checks for run F.
+- A ground shape is listed in the building it stands in by its own box, as made walls are
+  ([native_copy.py](tools/bake/native_copy.py) `list_made_walls`). Its donor is a ground plane, in no building.
+- [compiler.py](tools/editor/compiler.py):
+  - a ground shape is not held to its donor's place on the tile grid (the game's ground planes stand off it);
+  - it gets no "in no building floor's cutaway" warning, since the Build lists it by its own box.
+- [EXP-76](research/experiments/EXP-76-floors-and-roofs.md) check 6 also asks whether a soldier on a floor tile that
+  breaks drops to the ground (T-47).
+
+Checked:
+- EXP-77's project compiles with no warnings.
+- Its baked Build makes the six shapes, each with a lightmap of its own, and lists the kitchen's block in the bar's
+  building, floor 0.
+- The compiler tests pass.
+
 ### Research on destructible floors, falling units and structural support
 
 The [floor collapse audit](research/experiments/EXP-28-floor-collapse-audit.md) and
