@@ -3839,9 +3839,10 @@ def check_streams(page):
       return null; }""")
     if not found: return
     page.locator('#mission').select_option(str(found['mission'])) if missions > 1 else None
-    if not page.locator('#missionObjectsToggle').is_checked(): page.locator('#missionObjectsToggle').check()
+    normal = page.evaluate('viewer.normalSpawns()')
+    page.evaluate('viewer.setNormalSpawns(true)')       # (the Normal button's Spawn points and objectives)
     page.evaluate('o => viewer.setPickedMission({ stream: o.stream, actor: o.actor })', found)
-    assert page.evaluate('viewer.missionGizmo().enabled') and page.locator('#missionPanel').is_visible()
+    assert page.evaluate('viewer.missionGizmo().enabled') and page.locator('#spawnPanel').is_visible()
     at = page.evaluate('viewer.missionGizmo().at')
     assert page.evaluate('o => viewer.moveMissionGroup(o.stream, o.actor, [96, 0, 0])', found)
     moved = page.evaluate("viewer.editState().overrides.filter(o => o.target.level === 'stream')")
@@ -3851,7 +3852,81 @@ def check_streams(page):
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.missionMoves().length') == 0 and page.evaluate('viewer.changes().total') == before
     page.evaluate('viewer.setPickedMission(null)')
+    page.evaluate('on => viewer.setNormalSpawns(on)', normal)
     if missions > 1: page.locator('#mission').select_option('0')
+
+
+def check_spawns_view(page):
+    """The Spawns view and the Normal button's switch (editor spawns implementation plan, SP3): the view entered with
+    the switch off picks a pod through the walls by a click, never a piece; back in Normal with the switch on a click
+    picks a marker ahead of the piece behind it; with the switch off no marker picks and no gizmo is left. On a map
+    with a council bomb record: one marker for the bomb and one for each power node, none on another record and
+    nothing left picked; the bomb and a node moved apart and undone, the bomb's group with its helper."""
+    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && Array.isArray(viewer.data.spawns)'): return
+    normal = page.evaluate('viewer.normalSpawns()')
+    page.evaluate('viewer.setNormalSpawns(false); viewer.select(null)')
+    pod = page.evaluate("(viewer.spawns().find(s => s.kind === 'pod' && s.layer === 'base') ?? null)")
+    if pod:
+        page.evaluate('k => { const s = viewer.spawns().find(x => x.key === k); viewer.showSpawn(s.actor, null); viewer.pickSpawn(null); viewer.setNormalSpawns(false); }', pod['key'])
+        page.wait_for_timeout(200)
+        pod = page.evaluate('k => viewer.spawns().find(x => x.key === k)', pod['key'])
+        x, y = pod['screen']
+        page.evaluate('document.activeElement && document.activeElement.blur()')
+        page.keyboard.press('Shift+U')
+        assert page.evaluate('viewer.spawnsOn()') and page.locator('#editSpawns').get_attribute('aria-pressed') == 'true'
+        page.mouse.click(x, y)
+        assert page.evaluate('viewer.pickedSpawn()') == pod['key'] and page.evaluate('viewer.gizmo.active') is None
+        assert page.locator('#spawnPanel').is_visible() and page.locator('#spawnTitle').text_content().startswith('Pod')
+        assert 'In the game' in page.locator('#spawnInfo').inner_text()
+        page.keyboard.press('Shift+N')
+        assert not page.evaluate('viewer.spawnsOn()') and not page.evaluate('viewer.spawnLayer.visible')
+        assert page.locator('#spawnPanel').is_hidden()
+        page.evaluate('viewer.setNormalSpawns(true)')
+        assert page.evaluate('viewer.spawnLayer.visible') and page.locator('#normalSpawns').is_checked()
+        page.mouse.click(x, y)
+        assert page.evaluate('viewer.pickedSpawn()') == pod['key'] and page.evaluate('viewer.gizmo.active') is None
+        page.evaluate('viewer.setNormalSpawns(false)')
+        assert page.evaluate('viewer.pickedSpawn()') is None and not page.evaluate('viewer.missionGizmo().enabled')
+        page.mouse.click(x, y)
+        assert page.evaluate('viewer.pickedSpawn()') is None
+        page.evaluate('viewer.select(null)')
+    bomb_record = page.evaluate("viewer.headerMissions().find(m => m.label === 'Council bomb')?.value ?? null")
+    if bomb_record is None:
+        page.evaluate('on => viewer.setNormalSpawns(on)', normal)
+        return
+    page.evaluate('viewer.setSpawnsShown(true)')
+    page.locator('#mission').select_option(bomb_record)
+    marked = page.evaluate("viewer.spawns().filter(s => s.marked && ['bomb', 'powerNode'].includes(s.kind)).map(s => s.kind)")
+    assert sorted(marked) == ['bomb'] + ['powerNode'] * 8, marked
+    bomb = page.evaluate("viewer.spawns().find(s => s.kind === 'bomb')")
+    node = page.evaluate("viewer.spawns().find(s => s.kind === 'powerNode')")
+    page.evaluate('k => viewer.pickSpawn(k)', bomb['key'])
+    assert page.evaluate('viewer.missionGizmo().enabled')
+    before = page.evaluate('viewer.changes().total')
+    assert page.evaluate('b => viewer.moveMissionGroup(b.stream, b.actor, [288, 0, 0])', bomb)
+    moved = page.evaluate("viewer.editState().overrides.filter(o => o.target.level === 'stream').map(o => o.target.actor.split('.').pop())")
+    assert len(moved) == 11 and 'PointInSpace_0' in moved, moved
+    assert page.evaluate('n => viewer.moveMissionGroup(n.stream, n.actor, [0, 96, 0])', node)
+    assert page.evaluate("viewer.editState().overrides.filter(o => o.target.level === 'stream').length") == 16
+    page.evaluate('document.activeElement && document.activeElement.blur()')
+    page.keyboard.press('Control+z')
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.missionMoves().length') == 0 and page.evaluate('viewer.changes().total') == before
+    # a project from before export 33 moved the bomb without its helper: opening it adds the helper's move
+    page.evaluate('b => viewer.moveMissionGroup(b.stream, b.actor, [288, 0, 0])', bomb)
+    fixed = page.evaluate("""() => { const all = viewer.missionMoves(); viewer.gizmo.undo();
+      const without = new Map(all.filter(m => !m.actor.endsWith('PointInSpace_0')).map(m => [`${m.stream}|${m.actor}`, m]));
+      const fix = viewer.bombHelperFix(without); return fix ? [...fix.values()].map(m => m.actor.split('.').pop()) : null; }""")
+    assert fixed and len(fixed) == 11 and 'PointInSpace_0' in fixed, fixed
+    abduction = page.evaluate("viewer.headerMissions().find(m => m.label === 'Abduction')?.value ?? null")
+    if abduction is not None:
+        page.evaluate('k => viewer.pickSpawn(k)', bomb['key'])
+        page.locator('#mission').select_option(abduction)
+        assert not page.evaluate("viewer.spawns().some(s => s.marked && ['bomb', 'powerNode'].includes(s.kind))")
+        assert page.evaluate('viewer.pickedSpawn()') is None and not page.evaluate('viewer.missionGizmo().enabled')
+    page.evaluate('viewer.setSpawnsShown(false)')
+    page.locator('#mission').select_option('0')
+    page.evaluate('on => viewer.setNormalSpawns(on)', normal)
 
 
 def check_project_menu(page):
@@ -4840,7 +4915,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, light-grid, output-names, squad, effects, flares, library-flares, likeness), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -4897,6 +4972,7 @@ def main():
             if 'map-buildings' in only: check_map_buildings(page)
             if 'clear-map' in only: check_clear_map(page)
             if 'streams' in only: check_streams(page)
+            if 'spawns' in only: check_spawns_view(page)
             if 'pan' in only: check_arrow_pan(page)
             if 'speeds' in only: check_camera_speeds(page)
             if 'pivot' in only: check_pivot(page)
@@ -4926,6 +5002,7 @@ def main():
         # the map's pieces, and its missions' streamed packages' (export 13)
         assert page.evaluate('viewer.roots.size === viewer.data.objects.length + viewer.streamPieces')
         check_streams(page)
+        check_spawns_view(page)
         if page.evaluate('viewer.data.exporterVersion >= 7'):
             skin=page.evaluate("""async () => {
               const T=await import('/vendor/three/three.module.js');

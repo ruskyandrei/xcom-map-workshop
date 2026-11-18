@@ -81,6 +81,30 @@ class MissionStreamMoves(unittest.TestCase):
         b = boxes[0]
         self.assertEqual([round(b['new'][k] - b['old'][k], 2) for k in range(6)], [192, 192, -96, -96, 64, 64])
 
+    def test_the_bomb_moves_with_its_helper_point_and_keeps_its_offset(self):
+        # export 33 (spawns plan SP3, F-124): the bomb's group of eleven, its PointInSpace helper among them, moved three
+        # tiles: the helper keeps its offset from the bomb, which Long War's bomb mutator then finds within 128 units
+        import scene_metadata
+        group = [o['actor'].rsplit('.', 1)[-1] for o in scene_metadata.mission_objects(lighting.Package(BOMB)) if o['group'] == 'bomb']
+        self.assertEqual(len(group), 11)
+        self.assertIn('PointInSpace_0', group)
+        p = lighting.Package(BOMB)
+        at = {n: p.own(p.by_name[PL + n], 'Location', [0.0, 0.0, 0.0]) for n in group}
+        moves = [dict(actor=n, location=[at[n][0] + 288, at[n][1], at[n][2]], rotation=list(p.own(p.by_name[PL + n], 'Rotation') or [0, 0, 0]))
+                 for n in group]
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / 'URB_Slaughterhouse_Stream_URB_Test_1234.upk'
+            stream_copy.make(BOMB, dst, [], moves)
+            q = lighting.Package(dst)
+            bomb, helper = q.by_name[PL + 'XComLevelActor_11'], q.by_name[PL + 'PointInSpace_0']
+            offset = [q.own(helper, 'Location')[k] - q.own(bomb, 'Location')[k] for k in range(3)]
+            before = [at['PointInSpace_0'][k] - at['XComLevelActor_11'][k] for k in range(3)]
+            self.assertEqual([round(v, 2) for v in offset], [round(v, 2) for v in before])
+            self.assertLessEqual((offset[0] ** 2 + offset[1] ** 2) ** 0.5, 128)
+            # the nodes' groups stay where they were
+            for n in NODE:
+                self.assertEqual(q.own(q.by_name[PL + n], 'Location'), p.own(p.by_name[PL + n], 'Location'), n)
+
     def test_an_actor_moved_and_taken_out_is_refused(self):
         with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
             stream_copy.make(BOMB, Path(d) / 'x.upk', ['Emitter_0'], [dict(actor='Emitter_0', location=[0, 0, 0], rotation=[0, 0, 0])])

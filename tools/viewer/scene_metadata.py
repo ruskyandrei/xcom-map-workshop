@@ -754,7 +754,7 @@ SPAWN_BASE_CLASSES = ("XComMeldContainerSpawnPoint", "XComSpawnPoint", "XComSpaw
 # XComSpawnPoint, XComSpawnPoint_Alien), checked on URB_Bar's pods and Meld points on 18 November 2026.
 SPAWN_VALUES = {
     "pod": (("podIndex", "PodIndex", 0), ("commander", "bCommanderPod", False), ("secondary", "bSecondaryPod", False),
-            ("use", "bUse", False), ("aliensMin", "NumAliens_Min", 0), ("aliensMax", "NumAliens_Max", 0),
+            ("use", "bUse", False), ("numAliens", "NumAliens", 0), ("aliensMin", "NumAliens_Min", 0), ("aliensMax", "NumAliens_Max", 0),
             ("podGroup", "m_iPodGroup", 0), ("forceType", "ForceAlienType", False), ("alienType", "AlienType", None),
             ("triggerOnView", "bTriggerOnViewPod", False), ("neverActivate", "bNeverActivate", False)),
     "meld": (("difficulty", "m_eDifficulty", "eMeldContainerDifficulty_Easy"), ("destroyedOnTurn", "m_iDestroyedOnTurn", 0),
@@ -1021,7 +1021,7 @@ class SpawnReader:
             known = {key for _, key, _ in SPAWN_VALUES.get(family, ())}
             record["links"] = self.links(index)
             linked = {lk["property"] for lk in record["links"]}
-            record["other"] = sorted({k for k, _ in own if k not in PLUMBING and k not in known and k not in linked})
+            record["other"] = sorted({k for k, _ in own if k not in PLUMBING and k not in known and k not in linked}) if family else []
             pod = record["values"].get("podIndex", {}).get("value") if family == "pod" else None
             record["uses"] = self.uses(index, pod if isinstance(pod, int) else None)
         except Exception as error:      # noqa: BLE001

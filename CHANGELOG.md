@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP3: the Spawns view, the Normal switch, objectives, the bomb's helper
+
+- New [spawns_view.js](tools/viewer/web/spawns_view.js) takes over `mission_view.js`: one list of records both
+  controls draw (the base map's spawn points but the landing's, the header mission's stream objects, an added
+  bomb's donor objects, an LWR patch's points, read only), one marker an actor (a bomb's parts and helper stay in
+  its panel), the flyout's families (patrol nodes start off), and the panel's lines.
+- [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+  [style.css](tools/viewer/web/style.css):
+  - a **Spawns** view on the rail (Shift+U, a pin), its flyout choosing which kinds show; only its markers are
+    picked there, through walls; a click on a landing zone describes it, with a button that opens the Landing zones
+    view on it (zones are still edited only there);
+  - a **Spawn points and objectives** switch in the Normal button's flyout, remembered: markers are picked ahead
+    of the piece behind them; off, they leave with their gizmo;
+  - the panel (renamed `spawnPanel`): the actor, class and archetype, whether the level lists it, its values with
+    where each comes from, its group, Used by and Uses, In the game (from the install's rules), its floor;
+  - View options' Mission objects is gone; its saved choice carries over to the switch;
+  - the build window's mission warnings show their marker; changing the mission drops a marker and gizmo no longer
+    shown;
+  - a project whose bomb was moved before export 33 gets its helper point's move when it opens, with a banner, and
+    shows as changed until saved (F-124).
+- Checked: new [spawns_view_test.mjs](tools/viewer/tests/spawns_view_test.mjs);
+  [browser_smoke.py](tools/viewer/tests/browser_smoke.py) gains `check_spawns_view` (passed on Slaughterhouse on a
+  test server: a pod picked through the walls in the view, a marker then a piece in Normal, nothing picked with the
+  switch off, one bomb and eight nodes on the bomb record and none on the abduction, the bomb and a node moved and
+  undone, the helper fix); a project saved with the bomb moved without its helper opened with the banner and saved
+  with it; [test_compiler.py](tools/editor/tests/test_compiler.py) (the helper left behind splits the group) and
+  [test_stream_copy.py](tools/bake/tests/test_stream_copy.py) (the bomb moved with its eleven keeps the helper's
+  offset, the nodes stay). The game check (Long War finding the moved bomb) is run separately.
+- The guide's shot script follows the renamed panel ([take_shots.py](tools/release/guide/take_shots.py)); the
+  guide's text still names View options' Mission objects until it is brought up to date.
+
 ### Spawns, stage SP2: the install's spawn rules, read live
 
 - New [spawnrules.py](tools/viewer/spawnrules.py): Long War's five tactical spawn mutators from the install's

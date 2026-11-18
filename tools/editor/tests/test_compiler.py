@@ -240,6 +240,33 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(warned(report, 'mission-object-deleted'), ['mission-object-deleted'])
         self.assertEqual(native_split(stream_only(spec))[1]['streamHides'], {'URB_Bar_CNH': ['XComRadarArrayActor_0']})
 
+    def test_the_bombs_helper_point_moves_with_the_bomb(self):
+        # export 33 (spawns plan SP3, F-124): the PointInSpace beside the bomb is in its group; a move that leaves it
+        # behind splits the group, one that takes it along is accepted whole
+        s, at = self.mission_scene()
+        b = at(15, 15, 0.0)
+        obj = lambda actor, cls, kind, role, where: dict(actor=PL + actor, actorClass=cls, kind=kind, location=where, rotation=[0, 0, 0],  # noqa: E731
+                                                         archetype=None, tag=None, unitType=None, box=None, referencedBy=[],
+                                                         group='bomb', role=role)
+        s['missions'][1] = dict(type='Special', label='Council bomb', group='council', display='', streams=['URB_Bar_CNH'])
+        s['streams']['URB_Bar_CNH']['missionObjects'] += [
+            obj('XComLevelActor_50', 'XComLevelActor', 'bomb', 'bomb', b),
+            obj('XComInteractiveLevelActor_50', 'XComInteractiveLevelActor', 'use', 'button', b),
+            obj('PointInSpace_0', 'PointInSpace', 'part', 'point', [b[0] + 2.5, b[1], b[2] + 204.5])]
+        stream = lambda actor: dict(package='URB_Bar_CNH', level='stream', actor=PL + actor)  # noqa: E731
+        shift = lambda where: [where[0] + 288, where[1], where[2]]  # noqa: E731
+        moves = [dict(target=stream('XComLevelActor_50'), location=shift(b), rotation=[0, 0, 0]),
+                 dict(target=stream('XComInteractiveLevelActor_50'), location=shift(b), rotation=[0, 0, 0])]
+        _, report = compile_project(document(moves), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-group-split'), ['mission-group-split'])
+        moves.append(dict(target=stream('PointInSpace_0'), location=shift([b[0] + 2.5, b[1], b[2] + 204.5]), rotation=[0, 0, 0]))
+        spec, report = compile_project(document(moves), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission-group-split'), [])
+        got = native_split(stream_only(spec))[1]['streamMoves']['URB_Bar_CNH']
+        self.assertIn('PointInSpace_0', [m['actor'] for m in got])
+
     def test_a_missions_objects_warn_when_the_edit_takes_their_floor_or_covers_them(self):
         # mission types plan, C3: warnings only, each naming its mission; the drop-in only a note
         s, at = self.mission_scene()

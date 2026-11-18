@@ -303,7 +303,7 @@ def named_map(name):
 
 
 # ---------------------------------------------------------------- a mission's objects (export 24: C2, C3)
-# the page's twin is web/mission_view.js KINDS
+# the page's twin is web/spawns_view.js KINDS
 OBJECT_WORDS = {'dropIn': ('drop-in point', 'drop-in points'), 'pod': ('pod', 'pods'), 'landing': ('the landing', 'landings'),
                 'soldier': ('a soldier\'s landing point', 'soldiers\' landing points'),
                 'operative': ('the covert operative\'s point', 'operative\'s points'), 'vip': ('a VIP\'s point', 'VIPs\' points'),

@@ -935,7 +935,7 @@ class Shots:
         if index < 0: raise SystemExit('%s has no mission with %s' % (BOMB_MAP, BOMB_STREAM))
         page.locator('#mission').select_option(str(index))
         page.wait_for_timeout(1500)
-        page.evaluate("t => { const box = document.getElementById(t); if (!box.checked) box.click(); }", 'missionObjectsToggle')
+        page.evaluate('viewer.setNormalSpawns(true)')       # (the Normal button's Spawn points and objectives)
         page.locator('#floor button[data-value="1"]').click()
         objects = page.evaluate('s => viewer.data.streams[s].missionObjects', BOMB_STREAM)
         bomb = next(o for o in objects if o['kind'] == 'bomb')
@@ -944,7 +944,7 @@ class Shots:
         self.camera([at[0] + 150, at[1] - 150, at[2]], [900, -1500, 1500])
         self.settle(3000)
         top, bottom = self.rect('header')[3] + 40, self.rect('.dock')[1] - 30
-        panel = self.rect('#missionPanel')
+        panel = self.rect('#spawnPanel')
 
         def nearest(kind):
             """The object of a kind nearest the bomb that shows in the picture, clear of the panel."""
@@ -963,7 +963,7 @@ class Shots:
         for n, kind in ((3, 'powerNode'), (4, 'dropIn'), (5, 'pod')):
             s = nearest(kind)
             marks.append(dict(n=n, rect=[s[0] - 6, s[1] - 6, 12, 12], side='bottom', gap=34, inset=3))
-        marks.append(dict(n=6, sel='#missionPanel', frame=True, side='left', gap=3, at=0.1))
+        marks.append(dict(n=6, sel='#spawnPanel', frame=True, side='left', gap=3, at=0.1))
         self.shot('mission-objects', marks, resize=0.75)
         page.evaluate('viewer.setPickedMission(null)')
 

@@ -20,7 +20,8 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { describe as describeMissionObject, makeMissionMarker, marked as missionMarked, paintMissionMarker } from './mission_view.js';
+import { FAMILIES, baseEditWords, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnKey, spawnRecords, titleOf } from './spawns_view.js';
+import { consumerWords, fromWords, useLines } from './spawn_rules.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { SWAP, drawable, leftOut, makeLikeness, viewHeight } from './effects_preview.js';
 import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
@@ -116,6 +117,9 @@ let zonesOn = false, zonesHidBefore = false;
 // button's Effects switch (normalEffects) draws and picks them with pieces in the normal view. effectMarkers: the
 // markers drawn now, the roots' and the copies a piece's copy carries.
 let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers = [], normalEffects = false;
+// the Spawns view (editor spawns plan, SP3; its section is below the landing zones'): only its markers are picked; the
+// Normal button's switch (normalSpawns, remembered) draws and picks them with pieces
+let spawnsOn = false, normalSpawns = false, spawnLayerReady = false;
 const effectRoots = new Map(), effectIndex = new Map();
 let wavePlayer = null;     // the Wave preview's player: { audio, wave, record (its id), state: loading, playing or failed, why }
 world.add(volumeLayer);
@@ -3012,6 +3016,7 @@ function setLightsShown(on) {
   if (on && volumesOn) setVolumesShown(false);
   if (on && zonesOn) setZonesShown(false);
   if (on && effectsOn) setEffectsShown(false);
+  if (on && spawnsOn) setSpawnsShown(false);
   if (on) stopPickBox();
   lightsOn = on;
   syncLights();
@@ -3028,6 +3033,7 @@ function setNormalView() {
   if (lightsOn) setLightsShown(false);
   if (zonesOn) setZonesShown(false);
   if (effectsOn) setEffectsShown(false);
+  if (spawnsOn) setSpawnsShown(false);
 }
 // The Landing zones view (Shift+Z): the zones shown and drawn over everything (under a floor, inside a piece), and a
 // click picks a zone or lets the picked one go, never a piece or a light. The zones' layer is put back as it was after.
@@ -3035,6 +3041,7 @@ function setZonesShown(on) {
   on = Boolean(on) && Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
   if (on === zonesOn) return;
   if (on) {
+    if (spawnsOn) setSpawnsShown(false);      // (first: it puts the zones' layer back as it was)
     if (volumesOn) setVolumesShown(false);
     if (lightsOn) setLightsShown(false);
     if (effectsOn) setEffectsShown(false);
@@ -3062,11 +3069,14 @@ function syncLights() {
   if (data) select(gizmo.active, false, true);
 }
 function lightButton() {
-  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
-                          ['editZones', zonesOn], ['editEffects', effectsOn]]) {
+  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
+                          ['editZones', zonesOn], ['editEffects', effectsOn], ['editSpawns', spawnsOn]]) {
     $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on);
   }
   $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown; $('normalEffects').checked = normalEffects;
+  $('normalSpawns').checked = normalSpawns;
+  // (the spawn markers show with the view, or with the switch in the normal view)
+  if (spawnLayerReady) { spawnLayer.visible = spawnsShown(); spawnPanel(); }
   $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
   $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
 }
@@ -4332,7 +4342,7 @@ async function applyState(state, progress = null) {
   for (const record of state.overrides) {
     if (record.target?.level === 'stream') {
       // a mission object moved in its stream (Part E): one of this export's, else carried unchanged
-      const o = data?.streams?.[record.target.package]?.missionObjects?.find(x => x.actor === record.target.actor);
+      const o = streamObjects(record.target.package).find(x => x.actor === record.target.actor);
       if (o && !record.deleted && Array.isArray(record.location) && Array.isArray(record.rotation))
         streamMoves.set(missionKey(record.target.package, o.actor), { stream: record.target.package, actor: o.actor,
                                                                       location: [...record.location], rotation: [...record.rotation] });
@@ -4502,6 +4512,13 @@ async function openProject(id) {
   carried.overrides.push(...malformed.overrides); carried.added.push(...malformed.added); carried.groups.push(...malformed.groups);
   carried.areaLightBindings.push(...malformed.areaLightBindings);
   project = { doc, revision: doc.revision, carried, savedKey: stateKey(editState()) };
+  // a bomb moved before export 33 left its helper point behind (F-124; decision D6): the helper gets the move now, and
+  // the project shows as changed until it is saved
+  const helped = bombHelperFix();
+  if (helped) {
+    setMissionMoves(helped);
+    banner('The bomb\'s helper point now moves with it: Long War\'s bomb mutator finds the bomb again and places it where it finds places, the project\'s place being where it plays when it finds none. Save the project to keep it.');
+  }
   askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
   touchRecent(id);
   // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
@@ -4875,7 +4892,7 @@ function renderBuild() {
       text(missionList, 'li', mission ?? 'A mission', 'mission');
       for (const row of rows) {
         const li = text(missionList, 'li', row.message.replace(/^[^:]*: /, ''), row.actor ? 'pick' : '');
-        if (row.actor) { li.title = `Show ${short(row.actor)} (View options' Mission objects)`; li.onclick = () => showMissionObject(row.actor); }
+        if (row.actor) { li.title = `Show ${short(row.actor)} (its marker, the Normal button's Spawn points and objectives)`; li.onclick = () => showSpawn(row.actor, row.stream ?? null); }
       }
     }
     if (count > warned.length) text(missionList, 'li', `… and ${count - warned.length} more (the build's compile-report.json has them all)`);
@@ -6529,22 +6546,47 @@ $('groundGridToggle').onchange = e => { setGroundGrid(e.target.checked); e.targe
 const LANDING_SHOWN = 'workshop.landingZones';
 const landingLayer = new THREE.Group(); world.add(landingLayer);
 landingLayer.visible = recall(LANDING_SHOWN) !== '0';
-// A mission's objects (mission_view.js; mission types plan, C2): a marker for each object of the streams the header's
-// Mission picker shows (export 24), on View options' Mission objects; a click on one shows its panel. View only.
-const MISSION_SHOWN = 'workshop.missionObjects';
-const missionLayer = new THREE.Group(); world.add(missionLayer);
-missionLayer.visible = recall(MISSION_SHOWN) !== '0';
-let pickedMission = null;      // {stream, actor} of the object whose panel shows
+// ---------------------------------------------------------------- spawn points and objectives (spawns plan, SP3)
+// The Spawns view (Shift+U, the rail's button) and the Normal button's "Spawn points and objectives" switch draw one
+// list of markers (spawns_view.js spawnRecords): the base map's spawn points (export 33), the objects of the streams
+// the header's mission streams, an added bomb's donor objects, an LWR patch's spawn points. A click on one opens its
+// panel (spawnPanel): what it is, its values and where each comes from, its group, what uses it and what it uses, and
+// what the game does with it (spawn_rules.js, from /maps/<id>/spawn-rules.json). In the view a click picks a marker,
+// or a landing zone to describe it, or lets the picked one go, never a piece; in Normal with the switch on, a marker
+// is picked ahead of the piece behind it. A stream object's arrows move its group by whole tiles (mission types plan,
+// Part E: missionMoves). The switch replaced View options' Mission objects (decision D2): a saved choice carries over.
+const NORMAL_SPAWNS = 'workshop.normalSpawns', SPAWN_FILTERS = 'workshop.spawnFilters';
+{
+  const old = recall('workshop.missionObjects');
+  if (old !== null && recall(NORMAL_SPAWNS) === null) remember(NORMAL_SPAWNS, old === '0' ? '0' : '1');
+  try { localStorage.removeItem('workshop.missionObjects'); } catch { /* not kept */ }
+}
+normalSpawns = recall(NORMAL_SPAWNS) === '1';
+const spawnLayer = new THREE.Group(); world.add(spawnLayer);
+spawnLayer.visible = false;
+spawnLayerReady = true;
+let spawnFilters = (() => { try { return JSON.parse(recall(SPAWN_FILTERS) || '{}') || {}; } catch { return {}; } })();
+let pickedSpawn = null;            // the picked marker's key (spawns_view.js spawnKey)
+let spawnZonePick = null;          // a landing zone picked in the Spawns view, described only (decision D3)
+let spawnLandingBefore = true;     // whether the landing zones showed before the Spawns view showed them
+let spawnRulesData = null;         // what the install does with spawn points (spawn-rules.json), read as a map opens
+let spawnEntriesNow = [];          // spawnRecords' entries for the mission the header shows
+const spawnsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
+const spawnsShown = () => spawnsAvailable() && (spawnsOn || (normalSpawns && !volumesOn && !lightsOn && !zonesOn && !effectsOn));
 // A mission's objects moved in their streams (mission types plan, Part E): `${stream}|${actor}` -> {stream, actor,
 // location, rotation}, saved as overrides of `level: "stream"` (the stream as the package). The Build moves each in
 // place in the variant's copy of the stream. An object moves with its group (a capture point with its volume, a bomb
-// or a power node with its button, emitters and rebuild volume), by whole tiles and levels, one undo step a drag.
+// or a power node with its button, emitters, rebuild volume and, for the bomb, its helper point), by whole tiles and
+// levels, one undo step a drag. The key is the marker's (spawnKey).
 let missionMoves = new Map(), missionDragView = null;
-const missionKey = (stream, actor) => `${stream}|${actor}`;
+const missionKey = (stream, actor) => spawnKey(stream, actor);
 const missionMoveOf = (stream, actor) => (missionDragView ?? missionMoves).get(missionKey(stream, actor));
 const missionAt = (stream, o) => missionMoveOf(stream, o.actor)?.location ?? o.location;
+// a stream's mission objects: a stream of the export's, else the donor stream an added kind takes them from
+const streamObjects = stream => data?.streams?.[stream]?.missionObjects
+  ?? Object.values(data?.donors ?? {}).find(d => d.stream === stream)?.missionObjects ?? [];
 function missionMembers(stream, o) {
-  const objects = data?.streams?.[stream]?.missionObjects ?? [];
+  const objects = streamObjects(stream);
   return o.group ? objects.filter(x => x.group === o.group) : [o];
 }
 function missionOverrides() {
@@ -6553,7 +6595,7 @@ function missionOverrides() {
 }
 // The moves with an object's group shifted by `delta` (game units): a member back at its own place is no move.
 function movedMissions(stream, actor, delta, from = missionMoves) {
-  const o = data?.streams?.[stream]?.missionObjects?.find(x => x.actor === actor);
+  const o = streamObjects(stream).find(x => x.actor === actor);
   const next = new Map(from);
   if (!o) return next;
   for (const m of missionMembers(stream, o)) {
@@ -6561,6 +6603,26 @@ function movedMissions(stream, actor, delta, from = missionMoves) {
     const location = at.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000);
     if (location.every((v, i) => Math.abs(v - m.location[i]) < 1e-3)) next.delete(k);
     else next.set(k, { stream, actor: m.actor, location, rotation: (m.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
+  }
+  return next;
+}
+// A project saved before export 33 moved the bomb without its helper point (F-124; decision D6): the helper gets the
+// group's move where every other part of the bomb shares one offset and the helper has none. Returns the moves with
+// it added, or null when nothing needs it.
+function bombHelperFix(moves = missionMoves) {
+  let next = null;
+  for (const stream of new Set([...moves.values()].map(m => m.stream))) {
+    const parts = streamObjects(stream).filter(o => o.group === 'bomb');
+    const helpers = parts.filter(o => o.role === 'point'), others = parts.filter(o => o.role !== 'point');
+    if (!helpers.length || !others.length || helpers.some(h => moves.has(missionKey(stream, h.actor)))) continue;
+    const offsets = new Set(others.map(o => { const m = moves.get(missionKey(stream, o.actor));
+      return (m ? m.location.map((v, i) => v - o.location[i]) : [0, 0, 0]).map(v => Math.round(v * 10) / 10).join(','); }));
+    if (offsets.size !== 1) continue;
+    const delta = [...offsets][0].split(',').map(Number);
+    if (delta.every(v => !v)) continue;
+    next = next ?? new Map(moves);
+    for (const h of helpers) next.set(missionKey(stream, h.actor), { stream, actor: h.actor,
+      location: h.location.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000), rotation: (h.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
   }
   return next;
 }
@@ -6579,57 +6641,83 @@ function placeStreamRoots() {
 }
 function setMissionMoves(next) {
   missionMoves = next; missionDragView = null;
-  placeStreamRoots(); refreshMissionObjects(); placeMissionGizmo();
+  placeStreamRoots(); refreshSpawnMarkers(); placeMissionGizmo();
 }
 // One undo step: the picked object's group moved by `delta` (also the test's way in).
 function moveMissionGroup(stream, actor, delta) {
   if (!delta.some(v => Math.abs(v) > 1e-6)) return false;
   const before = new Map(missionMoves), after = movedMissions(stream, actor, delta);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  const o = data.streams[stream].missionObjects.find(x => x.actor === actor), n = missionMembers(stream, o).length;
+  const o = streamObjects(stream).find(x => x.actor === actor), n = missionMembers(stream, o).length;
   flashHint(`Moved ${n > 1 ? `the group of ${n}` : 'the mission object'} · the Build moves ${n > 1 ? 'them' : 'it'} in the stream's copy`);
   return true;
 }
-function refreshMissionObjects() {
-  for (const child of [...missionLayer.children]) { child.traverse(o => o.geometry?.dispose()); missionLayer.remove(child); }
-  const streams = data && !data.preview && !builderMode ? data.streams ?? {} : {};
-  $('missionObjectsRow').hidden = !Object.values(streams).some(s => s.missionObjects?.length);
-  if (pickedMission && !streamSet.has(pickedMission.stream)) pickedMission = null;
-  for (const [name, s] of Object.entries(streams)) {
-    if (!streamSet.has(name)) continue;
-    for (const o of s.missionObjects ?? []) {
-      if (!missionMarked(o)) continue;
-      const marker = makeMissionMarker(o.kind);
-      marker.position.copy(gameToView(missionAt(name, o)));
-      marker.userData.mission = { stream: name, actor: o.actor };
-      paintMissionMarker(marker, pickedMission?.stream === name && pickedMission?.actor === o.actor);
-      missionLayer.add(marker);
-    }
-  }
-  missionPanel();
+// the donor an added kind's objects come from (an added council bomb: Slaughterhouse's stream), or null
+function spawnDonor() {
+  if (missionIndex >= 0 || !missionPickValue.startsWith('kind:')) return null;
+  const kind = missionPickValue.slice(5), d = data?.donors?.[kind];
+  return d ? { kind, ...d } : null;
 }
-function missionPanel() {
-  const s = pickedMission ? data?.streams?.[pickedMission.stream] : null;
-  const o = s?.missionObjects?.find(x => x.actor === pickedMission.actor);
-  $('missionPanel').hidden = !o || !missionLayer.visible;
-  if (!o) return;
-  const { title, lines } = describeMissionObject(o, s.missionObjects, (data.missions ?? [])[missionIndex]?.label);
-  // the compiler's check (mission types plan, C3), on the map's saved floor: a point the squad, the operative or a VIP
-  // needs, or an objective, whose floor the edit took away (a copy's floor isn't counted here; the Build's check is)
-  const moved = missionMoves.get(missionKey(pickedMission.stream, o.actor));
-  if (!moved && missionReached(o) && missionFloorLost(o)) lines.splice(1, 0, 'The edit leaves no floor of the map under it: the Build warns of it.');
-  const n = missionMembers(pickedMission.stream, o).length;
-  if (!moved) lines.push('It stands where the original map has it.');
+const spawnEntry = key => (key ? spawnEntriesNow.find(e => e.key === key) ?? null : null);
+// where a marker stands now: a stream or donor object where its move puts it, a base point where the map has it
+const spawnAt = e => (e.layer === 'stream' || e.layer === 'donor' ? missionAt(e.stream, e.record) : e.record.location);
+function refreshSpawnMarkers() {
+  for (const child of [...spawnLayer.children]) { child.traverse(o => o.geometry?.dispose()); spawnLayer.remove(child); }
+  spawnEntriesNow = spawnsAvailable() ? spawnRecords(data, streamSet, spawnDonor()) : [];
+  const shown = shownEntries(spawnEntriesNow, spawnFilters);
+  if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) pickedSpawn = null;      // another mission's, or a family hidden
+  spawnLayer.visible = spawnsShown();
+  for (const e of shown) {
+    const marker = makeSpawnMarker(THREE, e.record.kind, e.readOnly);
+    marker.position.copy(gameToView(spawnAt(e)));
+    marker.userData.spawn = e.key;
+    paintSpawnMarker(THREE, marker, e.key === pickedSpawn);
+    spawnLayer.add(marker);
+  }
+  spawnPanel();
+}
+// The picked marker's panel (or the picked zone's, in the Spawns view)
+function spawnPanel() {
+  const e = spawnEntry(pickedSpawn), shown = spawnsShown();
+  const zones = spawnsOn && spawnZonePick && !e ? zoneState() : null, k = zones ? zones.zones.findIndex(z => z.id === spawnZonePick) : -1;
+  $('spawnPanel').hidden = !shown || (!e && k < 0);
+  $('spawnZoneEdit').hidden = k < 0;
+  const info = $('spawnInfo');
+  info.replaceChildren();
+  const line = (head, value) => { const p = document.createElement('p'); if (head) text(p, 'strong', `${head}: `); p.append(value); info.append(p); };
+  if (k >= 0) {
+    const z = zones.zones[k], ewSlot = zones.slots.has(k);
+    $('spawnTitle').textContent = `Landing zone ${k + 1} of ${zones.zones.length}`;
+    line('', `${z.lwr === false ? 'Long War doesn\'t use it' : 'Long War lands the squad here (one of its landing lines)'}${ewSlot ? '; plain Enemy Within lands here in place of one of the map\'s own landings' : '; plain Enemy Within lands at the map\'s own landing instead'}.`);
+    if (z.missionType || z.councilType) line('', `Kept for ${[z.missionType, z.councilType].filter(Boolean).join(', ')}.`);
+    line('', 'Landing zones are moved, turned, copied and deleted in the Landing zones view.');
+    return;
+  }
+  if (!e) return;
+  const o = e.record, label = headerMissions().find(m => m.value === missionPickValue)?.label;
+  $('spawnTitle').textContent = titleOf(e, spawnEntriesNow, label);
+  for (const l of identityLines(e, spawnEntriesNow, fromWords)) line(l.head, l.text);
+  const movable = e.layer === 'stream' || e.layer === 'donor';
+  const moved = movable ? missionMoves.get(missionKey(e.stream, o.actor)) : null;
+  const n = movable ? missionMembers(e.stream, o).length : 1;
+  const { usedBy, uses } = useLines(o);
+  line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
+    : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. Another layer, a pod index or the game's code may still use it.`);
+  if (uses.length) line('Uses', `${uses.join('; ')}.`);
+  const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: false, mapExcluded: Boolean(spawnRulesData?.excluded) });
+  if (words.length) line('In the game', words.join(' '));
+  if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
+  if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
+  else if (e.layer === 'base') line('', baseEditWords);
+  else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
   else {
     const d = moved.location.map((v, i) => v - o.location[i]);
-    lines.push(`Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${Math.round(d[2] / 64) ? ` and ${Math.round(d[2] / 64)} levels ${d[2] > 0 ? 'up' : 'down'}` : ''} from where the original map has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${pickedMission.stream}.`);
+    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${Math.round(d[2] / 64) ? ` and ${Math.round(d[2] / 64)} levels ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
   }
-  if (projectsAvailable()) lines.push(`Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
-  $('missionTitle').textContent = title;
-  $('missionInfo').textContent = lines.join(' ');
+  if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
 }
 const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'].includes(o.kind)
-  && !['effect', 'rebuild', 'visible', 'waypoint', 'volume'].includes(o.role);
+  && !['effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'].includes(o.role);
 // Whether the map's saved floor tiles under an object (its level and the one below) had floor and the edit took all
 // of it away (compiler.mission_objects' rule, on the saved tiles only).
 function missionFloorLost(o) {
@@ -6640,31 +6728,34 @@ function missionFloorLost(o) {
   const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
   return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
 }
-function setPickedMission(next) {
-  if (next && selected) select(null);
-  pickedMission = next;
-  for (const m of missionLayer.children) paintMissionMarker(m, Boolean(next) && m.userData.mission.stream === next.stream && m.userData.mission.actor === next.actor);
-  missionPanel(); placeMissionGizmo();
+function setPickedSpawn(key) {
+  if (key && selected) select(null);
+  pickedSpawn = key ?? null; spawnZonePick = null;
+  for (const m of spawnLayer.children) paintSpawnMarker(THREE, m, m.userData.spawn === pickedSpawn);
+  spawnPanel(); placeMissionGizmo();
 }
-// The picked mission object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
+// A stream object's group moves by its arrows (a donor's too, an added bomb's: stage SP4)
+const spawnMovable = e => Boolean(e) && (e.layer === 'stream' || e.layer === 'donor');
+// The picked stream object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
 // (64 units) up, as a landing zone's do. Escape during a drag puts it back.
 const missionProxy = new THREE.Object3D(); world.add(missionProxy);
 const missionGizmo = new TransformControls(camera, renderer.domElement);
 missionGizmo.attach(missionProxy); missionGizmo.enabled = false; missionGizmo.setMode('translate');
 const missionGizmoHelper = missionGizmo.getHelper(); missionGizmoHelper.visible = false; world.add(missionGizmoHelper);
 let missionDrag = null;
-const missionGizmoWanted = () => Boolean(pickedMission && missionLayer.visible && projectsAvailable() && !placing && !volumesOn
-  && !lightsOn && !zonesOn && streamSet.has(pickedMission.stream));
+const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
+  && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
 function placeMissionGizmo() {
-  const o = missionGizmoWanted() ? data.streams[pickedMission.stream]?.missionObjects?.find(x => x.actor === pickedMission.actor) : null;
-  missionGizmo.enabled = missionGizmoHelper.visible = Boolean(o);
-  if (!o || missionGizmo.dragging) return;
-  missionProxy.position.copy(gameToView(missionAt(pickedMission.stream, o)));
+  const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null;
+  missionGizmo.enabled = missionGizmoHelper.visible = Boolean(e);
+  if (!e || missionGizmo.dragging) return;
+  missionProxy.position.copy(gameToView(spawnAt(e)));
   missionProxy.quaternion.identity(); missionProxy.updateMatrixWorld(true);
 }
 missionGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
 missionGizmo.addEventListener('mouseDown', () => {
-  missionDrag = pickedMission ? { ...pickedMission, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
+  const e = spawnEntry(pickedSpawn);
+  missionDrag = spawnMovable(e) ? { stream: e.stream, actor: e.record.actor, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
 });
 missionGizmo.addEventListener('objectChange', () => {
   const d = missionDrag;
@@ -6677,57 +6768,131 @@ missionGizmo.addEventListener('objectChange', () => {
   if (key !== d.key) {
     d.key = key;
     missionDragView = movedMissions(d.stream, d.actor, d.delta);
-    placeStreamRoots(); refreshMissionObjects();
+    placeStreamRoots(); refreshSpawnMarkers();
   }
 });
 missionGizmo.addEventListener('mouseUp', () => {
   const d = missionDrag;
   missionDrag = null; missionDragView = null;
   if (d && !d.cancelled && moveMissionGroup(d.stream, d.actor, d.delta)) return;
-  placeStreamRoots(); refreshMissionObjects();
+  placeStreamRoots(); refreshSpawnMarkers();
   setTimeout(placeMissionGizmo, 0);       // (the controls end their drag after this event)
 });
 function cancelMissionGizmo() {
   if (!missionDrag) return;
-  missionDrag.cancelled = true; missionDragView = null; placeStreamRoots(); refreshMissionObjects();
+  missionDrag.cancelled = true; missionDragView = null; placeStreamRoots(); refreshSpawnMarkers();
 }
-// the marker nearest the click within a few pixels, as a light's is picked
-function pickMissionMarker(clientX, clientY) {
-  if (!missionLayer.visible || !missionLayer.children.length) return null;
+// the marker nearest the click within a few pixels, as a light's is picked: its key, or null
+function pickSpawnMarker(clientX, clientY) {
+  if (!spawnLayer.visible || !spawnLayer.children.length) return null;
   const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
   let best = null, bestD = 12;
-  for (const marker of missionLayer.children) {
+  for (const marker of spawnLayer.children) {
     marker.updateWorldMatrix(true, false);
     p.setFromMatrixPosition(marker.matrixWorld).project(camera);
     if (p.z > 1 || p.z < -1) continue;
     const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-    if (d < bestD) { bestD = d; best = marker.userData.mission; }
+    if (d < bestD) { bestD = d; best = marker.userData.spawn; }
   }
   return best;
 }
-// A mission object named in the build window: the mission that streams it picked in the header, its marker shown and
-// picked, the camera on it.
-function showMissionObject(actor) {
-  const stream = Object.entries(data?.streams ?? {}).find(([, s]) => (s.missionObjects ?? []).some(o => o.actor === actor))?.[0];
-  if (!stream) { flashHint(`${short(actor)} is in no stream of this export`); return; }
-  const index = (data.missions ?? []).findIndex(m => (m.streams ?? []).includes(stream));
-  if (index >= 0 && index !== missionIndex && headerMissions().some(m => m.index === index)) { $('mission').value = String(index); $('mission').onchange({ target: $('mission') }); }
-  if (!missionLayer.visible) { $('missionObjectsToggle').checked = true; $('missionObjectsToggle').onchange({ target: $('missionObjectsToggle') }); refreshMissionObjects(); }
-  setPickedMission({ stream, actor });
-  const o = data.streams[stream].missionObjects.find(x => x.actor === actor);
-  const at = gameToView(o.location);
+// A click in the Spawns view: a marker, else a landing zone to describe, else the picked one let go
+function spawnClick(e) {
+  const key = pickSpawnMarker(e.clientX, e.clientY);
+  if (key) { setPickedSpawn(key); return; }
+  const z = zoneHit(e.clientX, e.clientY);
+  setPickedSpawn(null);
+  spawnZonePick = z ? z.id : null;
+  spawnPanel();
+}
+// A spawn point or mission object named in the build window (`stream`: its stream, null for the base map's): the
+// mission that streams it picked in the header, its marker shown (the Normal switch turned on where neither control
+// shows it, its family too) and picked, the camera on it.
+function showSpawn(actor, stream = null) {
+  if (!data) return;
+  if (stream === undefined || stream === null) {
+    stream = (data.spawns ?? []).some(r => r.actor === actor) ? null
+      : Object.entries(data.streams ?? {}).find(([, s]) => (s.missionObjects ?? []).some(o => o.actor === actor))?.[0]
+        ?? Object.values(data.donors ?? {}).find(d => (d.missionObjects ?? []).some(o => o.actor === actor))?.stream ?? null;
+  }
+  if (stream && data.streams?.[stream] && !streamSet.has(stream)) {
+    const index = (data.missions ?? []).findIndex(m => (m.streams ?? []).includes(stream));
+    if (index >= 0 && headerMissions().some(m => m.index === index)) { $('mission').value = String(index); $('mission').onchange({ target: $('mission') }); }
+  }
+  if (stream && !data.streams?.[stream]) {
+    const kind = Object.entries(data.donors ?? {}).find(([, d]) => d.stream === stream)?.[0];
+    const pick = kind && headerMissions().find(m => m.value === `kind:${kind}`);
+    if (pick && missionPickValue !== pick.value) { $('mission').value = pick.value; $('mission').onchange({ target: $('mission') }); }
+  }
+  if (!spawnsShown()) setNormalSpawns(true);
+  const key = spawnKey(stream, actor), entry = spawnRecords(data, streamSet, spawnDonor()).find(x => x.key === key)
+    ?? spawnRecords(data, streamSet, spawnDonor()).find(x => x.record.actor === actor);
+  if (!entry) { flashHint(`${short(actor)} is no spawn point or mission object of the mission the header shows`); return; }
+  const family = familyOf(entry.record);
+  if (spawnFilters[family] === false || (!(family in spawnFilters) && FAMILIES.find(f => f.id === family)?.on === false)) {
+    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters();
+  }
+  refreshSpawnMarkers();
+  setPickedSpawn(entry.key);
+  const at = gameToView(spawnAt(entry));
   camera.position.add(at.clone().sub(controls.target)); controls.target.copy(at); controls.update();
 }
-function scaleMissionMarkers() {
-  if (!missionLayer.visible) return;
-  for (const marker of missionLayer.children) scaleMarker(marker, camera, marker.position);
+function scaleSpawnMarkers() {
+  if (!spawnLayer.visible) return;
+  for (const marker of spawnLayer.children) scaleMarker(marker, camera, marker.position);
 }
-$('missionObjectsToggle').checked = missionLayer.visible;
-$('missionObjectsToggle').onchange = e => {
-  missionLayer.visible = e.target.checked; remember(MISSION_SHOWN, e.target.checked ? '1' : '0');
-  if (!e.target.checked) setPickedMission(null);
-  e.target.blur();
-};
+// The Spawns view on or off (Shift+U, the rail's button): the other views step aside, the selection goes, and the
+// landing zones show (a click on one describes it)
+function setSpawnsShown(on) {
+  on = Boolean(on) && spawnsAvailable();
+  if (on === spawnsOn) return;
+  if (on) {
+    if (volumesOn) setVolumesShown(false);
+    if (lightsOn) setLightsShown(false);
+    if (zonesOn) setZonesShown(false);
+    if (effectsOn) setEffectsShown(false);
+    stopPickBox(); select(null);
+    spawnLandingBefore = landingLayer.visible;
+    landingLayer.visible = true;
+  } else {
+    spawnZonePick = null;
+    if (!spawnLandingBefore) landingLayer.visible = false;
+  }
+  spawnsOn = on;
+  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
+  if (on) {
+    const shown = shownEntries(spawnEntriesNow, spawnFilters), n = kinds => shown.filter(e => kinds.includes(e.record.kind)).length;
+    flashHint(`Spawns view: ${plural(n(['pod']), 'pod')}, ${plural(n(['meld']), 'Meld point')}, ${plural(n(['dropIn']), 'drop-in point')}`
+      + `${n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']) ? `, ${plural(n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']), 'objective')}` : ''} · click one to see what it is · Shift+U leaves it`);
+  }
+}
+// The Normal button's switch: the markers drawn and picked with pieces in the normal view (remembered)
+function setNormalSpawns(on) {
+  normalSpawns = Boolean(on);
+  remember(NORMAL_SPAWNS, normalSpawns ? '1' : '0');
+  if (!spawnsShown() && pickedSpawn) setPickedSpawn(null);
+  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
+}
+function syncSpawnFilters() {
+  for (const f of FAMILIES) { const box = $(`spawnShow-${f.id}`); if (box) box.checked = f.id in spawnFilters ? spawnFilters[f.id] !== false : f.on; }
+}
+$('normalSpawns').onchange = e => { setNormalSpawns(e.target.checked); e.target.blur(); };
+$('spawnZoneEdit').onclick = () => { const id = spawnZonePick; setZonesShown(true); if (id) pickZone(id); };
+for (const f of FAMILIES) {
+  const box = $(`spawnShow-${f.id}`);
+  if (!box) continue;
+  box.onchange = e => { spawnFilters = { ...spawnFilters, [f.id]: e.target.checked }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); refreshSpawnMarkers(); placeMissionGizmo(); e.target.blur(); };
+}
+syncSpawnFilters();
+// What the install does with spawn points, read as a map opens (spawn-rules.json); the panel says it once it is here
+function loadSpawnRules() {
+  spawnRulesData = null;
+  if (!spawnsAvailable()) return;
+  const id = activeMapId;
+  fetch(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(r => (r.ok ? r.json() : null)).then(rules => {
+    if (id === activeMapId) { spawnRulesData = rules; spawnPanel(); }
+  }).catch(() => {});
+}
 
 // ---------------------------------------------------------------- the Effects view (effects and sounds plan, FX1)
 // The map's effects, sounds and lens flares (export 28; effects_view.js draws them, effects_rules.js says what they
@@ -7525,7 +7690,8 @@ function setEffectsShown(on) {
     stopPickBox();
     // (an effect selected in the normal view stays selected)
     if (gizmo.picks().ids.some(id => !effectRoots.has(id))) select(null);
-    if (pickedMission) setPickedMission(null);
+    if (spawnsOn) setSpawnsShown(false);
+    if (pickedSpawn) setPickedSpawn(null);
   } else {
     $('floorTip').hidden = true;
     stopWave();
@@ -9273,7 +9439,7 @@ function refreshMissionPicker() {
   $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
   if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
   $('mission').value = missionPickValue;
-  if (missionPickValue !== before) { refreshLightVisibility(); refreshMissionObjects(); cutaway(); catalogue(); }
+  if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); catalogue(); }
 }
 const missionName = m => m.label;
 function missionLabels(missions) {
@@ -9295,6 +9461,7 @@ async function open() {
   stopPickBox();
   boxesShown = false; normalLights = false; lightsOn = false; lightsShown = false; zonesOn = false;
   effectsOn = false; pickedEffect = null; normalEffects = false; effectLayer.visible = false; effectsDirty = true; stopWave();
+  spawnsOn = false; pickedSpawn = null; spawnZonePick = null; normalSpawns = recall(NORMAL_SPAWNS) === '1'; spawnRulesData = null;
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -9434,7 +9601,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
-  refreshGroundGrid(); refreshLandingZones(); refreshMissionObjects();
+  refreshGroundGrid(); refreshLandingZones(); refreshSpawnMarkers(); loadSpawnRules();
   // Import notes: a count on the header button; the list opens from it. Preview notes count as warnings.
   const issues = data.preview ? [...data.preview.notes,...data.diagnostics.filter(d => !data.preview.notes.some(n => n.source === d.source && n.message === d.message))] : data.diagnostics;
   $('issueCount').textContent = issues.length + loadErrorCount || '';
@@ -9488,7 +9655,10 @@ async function startScene({ parameters, familiesAsked, mapName }) {
         return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, 96 * tiles))]]; })) : {}; },
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
-    missionMoves: () => [...missionMoves.values()], moveMissionGroup, setPickedMission, pickedMission: () => pickedMission,
+    missionMoves: () => [...missionMoves.values()], moveMissionGroup,
+    // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
+    setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
+    pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
@@ -9531,7 +9701,14 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
-    missionLayer, pickMissionObject: picked => setPickedMission(picked), pickedMission: () => pickedMission,
+    // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point
+    spawnLayer, spawnsOn: () => spawnsOn, setSpawnsShown, normalSpawns: () => normalSpawns, setNormalSpawns, showSpawn,
+    pickedSpawn: () => pickedSpawn, pickSpawn: key => setPickedSpawn(key), spawnRules: () => spawnRulesData, bombHelperFix,
+    spawns: () => { const project = projector(), shown = new Set(spawnLayer.children.map(m => m.userData.spawn));
+      return spawnEntriesNow.map(e => ({ key: e.key, layer: e.layer, stream: e.stream, kind: e.record.kind, role: e.record.role ?? null,
+        group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))) })); },
+    spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
+    setSpawnFilter: (family, on) => { spawnFilters = { ...spawnFilters, [family]: on }; syncSpawnFilters(); refreshSpawnMarkers(); },
     // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
     // screen point and whether it is a copy the Build makes with a piece
     effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
@@ -9646,7 +9823,7 @@ $('mission').onchange = e => {
   // a streamed piece that goes out of view leaves the selection
   if (isStream(allRoots.get(selected)?.userData.source) && !streamSet.has(allRoots.get(selected).userData.source.stream)) select(null);
   refreshLightVisibility();
-  refreshMissionObjects();
+  refreshSpawnMarkers(); placeMissionGizmo();     // (a marker of the mission before goes, with its gizmo)
   effectsDirty = true;     // (the Effects view shows the streams of the mission picked)
   cutaway(); catalogue();
 };
@@ -9719,6 +9896,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
   // the Effects view: only its markers are picked; a click beside them lets the picked one go
   if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY, e.ctrlKey || e.shiftKey || e.metaKey); return; }
+  // the Spawns view: only its markers (and, to describe them, landing zones) are picked, never a piece
+  if (spawnsOn) { if (e.button === 0) spawnClick(e); return; }
   // with the Normal button's Effects switch, a marker is picked ahead of the light or piece behind it
   const fx = effectsShown() && !lightsOn ? effectAt(e.clientX, e.clientY) : null;
   if (fx) { select(fx.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
@@ -9727,10 +9906,11 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (light) { select(light.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // the Lights view: only lights are picked
   if (lightsOn) return;
-  // a mission object's marker ahead of the piece behind it; a click elsewhere lets the picked one go
-  const missionObject = pickMissionMarker(e.clientX, e.clientY);
-  if (missionObject) { setPickedMission(missionObject); return; }
-  if (pickedMission) setPickedMission(null);
+  // with the Normal button's Spawn points switch, a marker ahead of the piece behind it; a click elsewhere lets the
+  // picked one go
+  const spawnHit = spawnsShown() ? pickSpawnMarker(e.clientX, e.clientY) : null;
+  if (spawnHit) { setPickedSpawn(spawnHit); return; }
+  if (pickedSpawn) setPickedSpawn(null);
   // the Normal button's Floor boxes: a box's edge picks its building
   const edge = pickBoxEdge(e.clientX, e.clientY);
   if (edge?.id) { select(edge.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
@@ -9897,6 +10077,7 @@ $('lightAuto').onclick = () => { const root = lightRoots.get(selected); if (root
 $('editLights').onclick = () => data && setLightsShown(!lightsOn);
 $('editZones').onclick = () => data && setZonesShown(!zonesOn);
 $('editEffects').onclick = () => data && setEffectsShown(!effectsOn);
+$('editSpawns').onclick = () => data && setSpawnsShown(!spawnsOn);
 $('editNormal').onclick = () => data && setNormalView();
 $('normalLights').onchange = e => { setNormalLights(e.target.checked); e.target.blur(); };
 $('areaToggle').onchange = e => { areaShown = e.target.checked; remember(AREA_SHOWN, areaShown ? '1' : '0'); refreshLightVisibility(); e.target.blur(); };
@@ -10106,6 +10287,8 @@ document.addEventListener('keydown', e => {
   }
   // the Effects view: Escape lets the picked marker go (a drag or a placing first gives way)
   if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { pickEffect(null); e.preventDefault(); return; }
+  // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go
+  if ((pickedSpawn || spawnZonePick) && !selected && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { setPickedSpawn(null); e.preventDefault(); return; }
   // the select box: Enter takes what is inside (Shift+Enter adds it to the selection), Escape puts the box away
   if ((pickTool || pickBox) && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
     if (key === 'escape' && !gizmo.controls.dragging) { stopPickBox(); e.preventDefault(); return; }
@@ -10157,6 +10340,7 @@ document.addEventListener('keydown', e => {
   else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else setLevelSnap(!levelSnap); }
   else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
   else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
+  else if (key === 'u') { if (!e.shiftKey || !data) return; setSpawnsShown(!spawnsOn); }
   else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
   else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
   else return;
@@ -10181,7 +10365,7 @@ renderer.setAnimationLoop(() => {
     if (at !== builderTarget || now - builderRefresh > 2000) { builderTarget = at; builderRefresh = now; refreshBuilder(); }
   }
   scaleMarkers();
-  scaleMissionMarkers();
+  scaleSpawnMarkers();
   updateLightHandles();
   updateVolumeHandles();
   updateCoverHandles();
