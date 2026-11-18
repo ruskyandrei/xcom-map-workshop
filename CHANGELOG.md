@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 4): a door in a made wall's doorway breaks with it
+
+- A door copied from one of the map's own walls into a made wall's doorway was already listed in the made wall's
+  columns where its original's listing lands (`native_copy.edit_columns`, the made wall being a fracturing copy);
+  now a test holds it (`DoorInMadeWall`: URB_Bar's door 7 and frame in a made wall on the pavement).
+- A door that nothing lists (one brought from another map, or one that stood in no wall) is now listed too:
+  [frac_walls.py](tools/bake/frac_walls.py) `door_columns` lists each door-family copy whose box meets a made wall's
+  opening in the wall's columns within a tile of it along the wall, on every storey the wall reaches, each entry a
+  copy of one of the map's own entries for a piece of that class (its MinZ the door's lowest point less one, as the
+  game's frames save it). The game lists URB_Bar's door 7 over four tiles of its wall, both storeys.
+  [native_copy.py](tools/bake/native_copy.py) calls it after `edit_columns`, logs each door listed and puts them in
+  the manifest (`doorListings`); add_walls' records carry their opening boxes.
+- [run_tests.py](tools/run_tests.py) reads a suite's result after unittest's "Ran N tests" line, not from the last
+  five lines only: a test's prints can come after it in the log (the bake suite's Build output did).
+
+Checked: the bake suite (`-k frac`: 44 tests; new: `DoorInMadeWall`, and `StagedDoorInMadeWall`: door 7 and its
+frame brought from URB_Bar into a made wall's doorway on URB_PoliceStation, listed in all nine of the wall's columns
+round the doorway, the wall reaching three of the station's storeys); the repo suite. Not seen in the game yet (run
+C: a door in a made wall when the wall round it breaks).
+
 ### EXP-74 prepared (custom walls M2, run B)
 
 - [exp74_project.py](tools/editor/examples/exp74_project.py) writes EXP-74's two projects on URB_Bar (baked and

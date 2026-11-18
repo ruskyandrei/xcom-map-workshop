@@ -36,7 +36,13 @@ columns moved by move_columns), then add_walls changes it:
                    generated wall is (a reference beside one, in the same light).
 
 The relight lights both kinds from nothing (relight.py --fresh-copy), and their tiles are seeded and rebuilt over the
-generated wall's box (wall_box)."""
+generated wall's box (wall_box).
+
+A door standing in a made wall's opening goes when the wall round it breaks (custom geometry plan, M3 item 4): a door
+copied from one of the map's own walls is listed in the made wall's columns where its original's listing lands
+(native_copy.edit_columns); one that nothing lists yet (a door of another map, or one that stood in no wall) is listed
+by door_columns in the wall's columns within a tile of it along the wall, on every storey, as the game's walls list
+their doors (URB_Bar's door 7 in four tiles' columns, both storeys)."""
 import hashlib
 import struct
 import sys
@@ -546,6 +552,79 @@ def _package(g, p, names):
     return index
 
 
+def door_columns(g, p, walls, doors, pad=TILE):
+    """Each door copy that stands in a made wall's opening and that the wall's columns don't list yet, listed in the
+    wall's columns within `pad` of it along the wall, on every storey (the game lists URB_Bar's door 7 in its wall's
+    columns over four tiles, both storeys). `walls`: add_walls' records; `doors`: [(copy export, world box, its
+    original's export)] of the door families' copies (leaf and frame). A door stands in an opening when their boxes meet by more than 8 along the
+    wall and up, and at all across it (the compiler's overlaps_by). Each entry is a copy of one of the map's own
+    entries for a piece of the same class (its MinZ the door's lowest point less one, as URB_Bar's frames save it).
+    Returns [dict(wall, door, columns)] for each door listed."""
+    import native_copy
+    if not doors:
+        return []
+    walker = native_copy.Walker(p)
+    level = p.by_name['TheWorld.PersistentLevel']
+    templates = {}
+    for i in range(1, len(p.exports) + 1):
+        if p.cls(i) in native_copy.FRACTURING and p.exports[i - 1]['outer'] == level:
+            e = p.exports[i - 1]
+            start = legacy_props.props_start(p.data, e, p.names) - e['off']
+            parsed = native_copy.fragment_columns(walker, p.data[e['off']:e['off'] + e['size']], start)
+            for c in (parsed[1] if parsed else []):
+                for x in c['entries']:
+                    if x['actor'] > 0 and x['actorAt'] is not None:
+                        templates.setdefault(p.cls(x['actor']), x)
+    if not templates:
+        return []
+    out = []
+    for w in walls:
+        if w.get('kind') != 'fracWall':
+            continue
+        e = p.exports[w['original'] - 1]
+        start = legacy_props.props_start(p.data, e, p.names) - e['off']
+        b = bytearray(g.export_data(w['copy']))
+        parsed = native_copy.fragment_columns(walker, b, start)
+        if parsed is None:
+            continue
+        field, columns = parsed
+        box = w['box']
+        along = 0 if box[1] - box[0] >= box[3] - box[2] else 1
+        lists = [[x['raw'] for x in c['entries']] for c in columns]
+        changed = False
+        for door, dbox, original in doors:
+            if any(x['actor'] == door for c in columns for x in c['entries']):
+                continue                # listed already (edit_columns)
+            if not any(overlaps_by(dbox, hole, 8.0) for hole in w['openings']):
+                continue
+            template = templates.get(p.cls(original)) or next(iter(templates.values()))
+            lo, hi = dbox[2 * along] - pad, dbox[2 * along + 1] + pad
+            hit = [k for k, c in enumerate(columns) if min(hi, c['box'][2 * along + 1]) - max(lo, c['box'][2 * along]) > 1.0]
+            if not hit:
+                continue
+            raw = bytearray(native_copy.entry_for(template, door))
+            if template['minZAt'] is not None:
+                struct.pack_into('<f', raw, template['minZAt'], float(dbox[4]) - 1.0)
+            if template['cutdownAt'] is not None:
+                raw[template['cutdownAt']] = 0
+            for k in hit:
+                lists[k].append(bytes(raw))
+            changed = True
+            out.append(dict(wall=w['copy'], door=door, original=original, columns=hit))
+        if changed:
+            parts = [native_copy.column_with(g, walker, b, c, new) for c, new in zip(columns, lists)]
+            g.relocate(w['copy'], native_copy.rebuilt(b, field, parts))
+    return out
+
+
+def overlaps_by(a, b, least):
+    """Whether the boxes a and b ([x0, x1, y0, y1, z0, z1]) meet by more than `least` along b's longer side and up,
+    and at all across it (the compiler's overlaps_by, the page's boxesMeet)."""
+    along = 0 if b[1] - b[0] >= b[3] - b[2] else 1
+    over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(3)]
+    return over[along] > least and over[2] > least and over[1 - along] > 0
+
+
 def add_walls(g, p, items, grid, bake=True):
     """The generated copies `items` ([dict(original: the donor actor's export, info: clone_assembly's dict for the
     copy, generated, location, rotation, label)]) made in the map being grown: returns a record for each (dict(kind,
@@ -632,7 +711,10 @@ def add_walls(g, p, items, grid, bake=True):
         template_col = bytes(b[s0:e0])
         pieces = [column_element(g, walker, template_col, c) for c in cols]
         g.relocate(actor, native_copy.rebuilt(b, field, pieces))
-        records.append(dict(kind='fracWall', copy=actor, label=item.get('label'), mesh=made[name], meshName=name,
+        h = max(y for y, _, _ in frac_wall.RECIPE['section'])
+        holes = [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix) for o in item['generated']['wall'].get('openings') or []]
+        records.append(dict(kind='fracWall', copy=actor, original=item['original'], openings=holes,
+                            label=item.get('label'), mesh=made[name], meshName=name,
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                             solids=len(out['solids']), columns=len(cols), painted=paint is not None,

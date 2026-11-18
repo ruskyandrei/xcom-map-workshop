@@ -327,6 +327,106 @@ class BakedLayout(unittest.TestCase):
         self.assertEqual(len(textures), 2)
 
 
+class DoorInMadeWall(unittest.TestCase):
+    """(M3 item 4) A door standing in a made wall's doorway is listed in the wall's columns, so the two break together:
+    URB_Bar's door 7 and its frame (XComInteractiveLevelActor_7, XComDestructibleActor_65, listed in the inner wall
+    XComDecoFracLevelActor_16's columns where they stand) copied into the doorway of a made wall on the pavement (a
+    half turn, as the wall's yaw is the door's wall's turned), as one door: native_copy.edit_columns lists them where
+    their original's listing lands, now in the made wall's columns."""
+    DOOR = ['XComInteractiveLevelActor_7', 'XComDestructibleActor_65']
+    WALL = dict(actor=DONOR, location=[-1728.0, -192.0, 16.0], rotation=[0, 0, 0], label='Made',
+                generated=dict(kind='fracWall', version=1, wall=dict(
+                    x0=0.0, x1=384.0, openings=[dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)], seed=5)))
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        copies = [dict(cls.WALL)]
+        for n in cls.DOOR:
+            # the doorway's tile centre (x -1584) and the wall's line; the door's yaw a half turn from its own
+            copies.append(dict(actor=n, location=[-1584.0, -192.0, 16.0], rotation=[0, 0, 0],
+                               assembly='add:XComInteractiveLevelActor_7_copy', family='door'))
+        cls.m = native_copy.build(BAR, out, 'FracDoor', copies)
+        cls.q = Package(out / 'FracDoor.upk')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_door_and_its_frame_are_in_the_made_walls_columns_at_its_doorway(self):
+        q = self.q
+        nc = self.m['nativeCopies']
+        sec = {c['actor']: c for c in nc['copies']}
+        wall = sec[DONOR]['export']
+        doors = [sec[n]['export'] for n in self.DOOR]
+        cols = []
+        for c in q.structs(q.own(wall, 'FragmentColumns')):
+            b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
+            names = [e[('DestructibleActor', 0)]['value'] for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value'))]
+            cols.append(([b[0], b[3]], names))
+        for d in doors:
+            at = [x for x, names in cols if d in names]
+            # in the columns round the doorway (its tile and the tiles beside it, both storeys), each once
+            self.assertGreaterEqual(len(at), 4, q.name(d))
+            self.assertTrue(all(-1728 - 1 <= x[0] and x[1] <= -1440 + 1 for x in at), at)
+            self.assertTrue(all(names.count(d) <= 1 for _, names in cols))
+
+
+class StagedDoorInMadeWall(unittest.TestCase):
+    """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
+    URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by
+    frac_walls.door_columns in the made wall's columns within a tile of the door, on every storey."""
+    DOOR = ['XComInteractiveLevelActor_7', 'XComDestructibleActor_65']
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        import transplant
+        sys.path.insert(0, str(TOOLS / 'editor'))
+        import schema as schema_module
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        schema = schema_module.Schema(schema_module.build(BAR.parent))
+        donor = dict(package='URB_Bar', sha256=transplant.sha256(BAR))
+        copies = [dict(actor=DONOR, donor=donor, location=[0.0, 0.0, 16.0], rotation=[0, 0, 0], label='Made',
+                       generated=dict(kind='fracWall', version=1, wall=dict(
+                           x0=0.0, x1=384.0, openings=[dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)], seed=6)))]
+        for n in cls.DOOR:
+            copies.append(dict(actor=n, donor=donor, location=[144.0, 0.0, 16.0], rotation=[0, 0, 0],
+                               assembly='add:XComInteractiveLevelActor_7_copy', family='door'))
+        cls.staged, cls.edit, _ = transplant.stage_edit(POLICE, out, dict(copies=copies), schema=schema)
+        cls.m = native_copy.build(cls.staged, out / 'build', 'FracStagedDoor', cls.edit['copies'])
+        cls.q = Package(out / 'build' / 'FracStagedDoor.upk')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_door_and_its_frame_are_listed_by_the_doorway(self):
+        q = self.q
+        nc = self.m['nativeCopies']
+        wall = next(c['export'] for c in nc['copies'] if c.get('generated') == 'fracWall')
+        doors = [c['export'] for c in nc['copies'] if c.get('family') == 'door' or c['actor'] in self.DOOR]
+        self.assertEqual(len(doors), 2, nc['copies'])
+        listed, near = {}, []
+        for c in q.structs(q.own(wall, 'FragmentColumns')):
+            b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
+            box = (round(b[0]), round(b[3]), round(b[2]), round(b[5]))
+            if b[0] < 287:
+                near.append(box)            # the doorway's tile (96 to 192) and one tile each side
+            for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value')):
+                listed.setdefault(e[('DestructibleActor', 0)]['value'], []).append(box)
+        # every storey of the station's grid the wall reaches (three: it stands 400 tall)
+        self.assertEqual(len(near), 9)
+        for d in doors:
+            self.assertEqual(sorted(listed.get(d, [])), sorted(near), q.name(d))
+        self.assertEqual(sorted(len(d['columns']) for d in nc.get('doorListings', [])), [9, 9])
+
+
 class StagedDonor(unittest.TestCase):
     """A made wall on a map without the Bar's wall (custom geometry plan, M1 item 1): the donor brought from URB_Bar
     as any piece of another map is (transplant.stage_edit), then the copy made from numbers through the staged actor:

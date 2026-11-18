@@ -57,7 +57,9 @@ def failure_blocks(output):
 def outcome(output, code):
     """The suite's last unittest line (OK, OK (skipped=3), FAILED (failures=2)), or why it did not run."""
     tail = [line for line in output.splitlines() if line.strip()]
-    for line in reversed(tail[-5:]):
+    # after unittest's own "Ran N tests" line (a test's prints can follow it in the log, stdout coming after stderr)
+    ran = max((k for k, line in enumerate(tail) if line.startswith('Ran ') and ' test' in line), default=len(tail) - 5)
+    for line in tail[max(0, ran):]:
         if line.startswith(('OK', 'FAILED')):
             return line
     return f'did not finish (exit {code})' + (f': {tail[-1]}' if tail else '')

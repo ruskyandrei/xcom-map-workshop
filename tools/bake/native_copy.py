@@ -2340,6 +2340,16 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     # the walls' columns without the hidden pieces and with the door copies (G8); every copy in the cutaway of its
     # building floor (G7)
     columns = edit_columns(g, p, {h['export'] for h in hidden}, [x[:4] for x in poses if x[4] == 'door'], fracturing)
+    # a door in a made wall's opening that nothing lists yet (a door of another map): in the wall's columns by it
+    door_listings = []
+    if any(r['kind'] == 'fracWall' for r in generated_records):
+        import frac_walls
+        door_listings = frac_walls.door_columns(
+            g, p, generated_records, [(copy, piece_box(p, original, *after), original)
+                                      for original, copy, before, after, family in poses if family == 'door'])
+        for d in door_listings:
+            print("    %s's copy: in a made wall's doorway, listed in %d of its columns"
+                  % (p.name(d['original']).split('.')[-1], len(d['columns'])))
     # the map's own buildings edited in place (their new boxes), for the copies' floors
     replaced = {}
     for e in building_edits:
@@ -2515,6 +2525,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
                                               **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
                                          for r in generated_records]} if generated_records else {}),
+                  **({'doorListings': [dict(door=p.name(d['original']).split('.')[-1], copy=q.name(d['door']).split('.')[-1],
+                                            wall=q.name(d['wall']).split('.')[-1], columns=d['columns'])
+                                       for d in door_listings]} if door_listings else {}),
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),
