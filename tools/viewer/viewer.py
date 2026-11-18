@@ -80,6 +80,21 @@ def landing_lines(map_id):
     return dict(kind=game_kind(game), file=str(ini), lines=[z for z in zones if not z.get('verbatim')])
 
 
+def spawn_rules(map_id):
+    """What the game install does with the map's spawn points (spawnrules.rules; editor spawns implementation plan,
+    SP2): read each time, as landing_lines is, with `excluded` (whether the install's ExcludeMaps names the map)."""
+    import spawnrules
+    try:
+        game, _ = resolve_game(load_settings()['game']) if load_settings().get('game') else (None, None)
+    except (OSError, ValueError):
+        game = None
+    try:
+        found = spawnrules.rules(game)
+    except (OSError, ValueError) as error:
+        found = dict(spawnrules.rules(None), error=str(error))
+    return dict(found, map=map_id, excluded=spawnrules.excluded(found, map_id))
+
+
 class LocalServer(ThreadingHTTPServer):
     allow_reuse_address = False
 
@@ -387,6 +402,11 @@ class Handler(SimpleHTTPRequestHandler):
             # the game install's LZArray lines for the map (Clear map plan, section 4): read each time, never exported
             if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
             else: self.send_json(200, landing_lines(parts[1]))
+            return True
+        if len(parts) == 3 and parts[0] == 'maps' and parts[2] == 'spawn-rules.json':
+            # the install's spawn mutators and their config (spawns plan SP2): read each time, never exported
+            if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
+            else: self.send_json(200, spawn_rules(parts[1]))
             return True
         if len(parts) != 3 or parts[0] != 'maps' or parts[2] != 'families.json': return False
         entry = self.catalogue['maps'].get(parts[1])

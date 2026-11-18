@@ -81,8 +81,9 @@ class Streams(unittest.TestCase):
         groups = {}
         for o in objects:
             if o['group']: groups.setdefault(o['group'], []).append(o['role'])
+        # export 33: the PointInSpace beside it too, as FindBomb collects it (F-124)
         self.assertEqual(sorted(groups['bomb']), ['bomb', 'button', 'effect', 'effect', 'effect', 'effect', 'effect',
-                                                  'rebuild', 'visible', 'waypoint'])
+                                                  'point', 'rebuild', 'visible', 'waypoint'])
         nodes = [g for g in groups if g.startswith('node:')]
         self.assertEqual(len(nodes), 8)
         self.assertTrue(all(sorted(groups[g]) == ['button', 'effect', 'effect', 'node', 'rebuild'] for g in nodes))

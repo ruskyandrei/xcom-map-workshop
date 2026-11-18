@@ -3,11 +3,17 @@ soldier start points and landing zones, alien pods, alien (drop-in) spawn points
 the Kismet actions that spawn aliens. Read-only; made for private/plans/todo/editor-spawns-plan.md.
 
   python -B tools/upk/audit_spawns.py <game install> <out.json> [--jobs 6] [--detail]
+  python -B tools/upk/audit_spawns.py <game install> <out.json> --values [--jobs 6]
 
 Per package: whether a record names it as a base map or as a stream, the actors of each class placed in its level,
 and tallies of the properties that decide what an editor can do with them (tags, unit types, archetypes, the pods'
 flags and references). --detail adds every such actor with its saved properties (large). The install's
 DefaultLZMutator.ini (Long War's landing zones), where it has one, is counted per map.
+
+--values (export 33; private/plans/todo/editor-spawns-implementation-plan.md, SP1) runs the editor's own reader
+(tools/viewer/scene_metadata.spawn_metadata) over every base map instead: the effective values and where each came
+from, the links and uses, tallied, with every actor it could not read listed by map, so the reader is proved over the
+whole install before the page depends on it.
 """
 import argparse
 import collections
@@ -81,10 +87,73 @@ def survey(job):
     return name, out
 
 
+def value_survey(path):
+    """The editor's reader over one base map (--values): per kind counts, every unread actor, and tallies of the
+    values (with where each came from), links and uses that decide what the editor can do with the points."""
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'viewer'))
+    from package import Package
+    import scene_metadata
+    name = Path(path).stem
+    warnings = []
+    try:
+        p = Package(path)
+        landings = scene_metadata.landing_metadata(p, lambda s, m: warnings.append('%s: %s' % (s, m)))
+        records = scene_metadata.spawn_metadata(p, landings, lambda s, m: warnings.append('%s: %s' % (s, m)))
+    except Exception as error:  # noqa: BLE001
+        return name, dict(error=repr(error))
+    kinds, tallies, unread, odd = collections.Counter(), collections.Counter(), [], []
+    for r in records:
+        kinds[r['kind']] += 1
+        short = r['actor'].rsplit('.', 1)[-1]
+        if 'unread' in r:
+            unread.append(dict(actor=short, why=r['unread']))
+        if r['listed'] is False:
+            odd.append('%s not in the level list' % short)
+        family = r['kind'] if r['kind'] in ('pod', 'meld', 'dropIn') else 'point' if r['actorClass'] == 'XComSpawnPoint' else None
+        for key, v in r.get('values', {}).items():
+            value = v['value']
+            if key in ('podIndex', 'aliensMin', 'aliensMax', 'seekRadius'):
+                value = 'n' if isinstance(value, (int, float)) else value
+            tallies['%s %s=%s (%s)' % (family, key, value, v['from'])] += 1
+        for link in r.get('links', []):
+            tallies['%s links %s' % (r['kind'], link['property'])] += 1
+        for use in r.get('uses', []):
+            tallies['%s used %s%s' % (r['kind'], use['how'], ' ' + use['byClass'] if 'byClass' in use else '')] += 1
+        for other in r.get('other', []):
+            tallies['%s saves %s' % (r['actorClass'], other)] += 1
+        if r['based']:
+            tallies['%s based' % r['kind']] += 1
+    pods = [r['values'].get('podIndex', {}).get('value') for r in records if r['kind'] == 'pod']
+    if len(pods) != len(set(pods)):
+        odd.append('pod indices repeat: %s' % sorted(pods, key=str))
+    return name, dict(kinds=dict(kinds), unread=unread, odd=odd, warnings=warnings, tallies=dict(tallies))
+
+
+def values_main(a, base, files):
+    names = sorted({n.lower() for n in base} & set(files))
+    with multiprocessing.get_context('spawn').Pool(a.jobs) as pool:
+        found = dict(pool.imap_unordered(value_survey, [str(files[n]) for n in names], chunksize=2))
+    tallies, kinds = collections.Counter(), collections.Counter()
+    for entry in found.values():
+        tallies.update(entry.get('tallies', {}))
+        kinds.update(entry.get('kinds', {}))
+    summary = dict(maps=len(found), errors=sorted(n for n, e in found.items() if 'error' in e),
+                   unread=sum(len(e.get('unread', [])) for e in found.values()),
+                   withOddities=sorted(n for n, e in found.items() if e.get('odd')),
+                   kinds=dict(kinds.most_common()), tallies=dict(sorted(tallies.items())))
+    Path(a.out).write_text(json.dumps(dict(scope='every base map named by a live DefaultMaps.ini record, read by the '
+                                                 "editor's spawn reader (scene_metadata.spawn_metadata, export 33)",
+                                           summary=summary, maps={n: found[n] for n in sorted(found, key=str.lower)}),
+                                      indent=1) + '\n', encoding='utf-8', newline='\n')
+    print('%d base maps read, %d not, %d actors unread, %d maps with oddities'
+          % (len(found), len(summary['errors']), summary['unread'], len(summary['withOddities'])))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('install'); ap.add_argument('out')
     ap.add_argument('--jobs', type=int, default=6); ap.add_argument('--detail', action='store_true')
+    ap.add_argument('--values', action='store_true', help="the editor's spawn reader over every base map instead")
     a = ap.parse_args()
     config = Path(a.install) / 'XEW' / 'XComGame' / 'Config'
     base, streams = set(), set()
@@ -101,6 +170,9 @@ def main():
             if m:
                 zones[m.group(1).lower()] += 1
     files = {p.stem.lower(): p for p in (Path(a.install) / 'XEW' / 'XComGame' / 'CookedPCConsole').glob('*.upk')}
+    if a.values:
+        values_main(a, base, files)
+        return
     wanted = {n.lower() for n in base | streams}
     with multiprocessing.get_context('spawn').Pool(a.jobs) as pool:
         found = dict(pool.imap_unordered(survey, [(str(files[n]), a.detail) for n in sorted(wanted) if n in files],

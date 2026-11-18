@@ -8,6 +8,46 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP2: the install's spawn rules, read live
+
+- New [spawnrules.py](tools/viewer/spawnrules.py): Long War's five tactical spawn mutators from the install's
+  `DefaultMutatorLoader.ini` (active, absent, or unknown where its section can't be found; plain Enemy Within has
+  every family absent), and from `DefaultRandomSpawns.ini` the drop-in range and flags, the proximities, the bomb's
+  and the Meld mutator's numbers, and every `ExcludeMaps` line of the drop-in section (quoted, plain and commented
+  told apart). It also plans a variant's `ExcludeMaps` line for stage SP8.
+- The server answers `GET /maps/<id>/spawn-rules.json` ([viewer.py](tools/viewer/viewer.py)), read each time as
+  the landing lines are, with whether the install excludes the map.
+- New [spawn_rules.js](tools/viewer/web/spawn_rules.js): the sentences the Spawns inspector will show under "In
+  the game" for pods, Meld points, scripted and wave drop-ins, the bomb and nodes, the landing, and the other
+  points, by install and mission, from the decompiled mutators' conditions; and the uses in words.
+- Checked: new [test_spawnrules.py](tools/viewer/tests/test_spawnrules.py) (fixtures and the configured install)
+  and [spawn_rules_test.mjs](tools/viewer/tests/spawn_rules_test.mjs) (each row of the plan's table). The page
+  does not read them yet (stage SP3).
+
+### Spawns, stage SP1: export 33 carries the map's spawn points and who uses them
+
+- [scene_metadata.py](tools/viewer/scene_metadata.py) reads the base map's pods, Meld points, drop-in and other
+  points, player starts, alien path nodes and no-spawn volumes (`spawn_metadata`). Each record has its values with
+  where each comes from (the map, its archetype or the class's default in the game's script packages), its outgoing
+  links (a pod's patrol nodes, volume, contingent pods, cover points), whether the level lists it, and its uses:
+  Kismet actions that hold it directly or through an object list, wave places (set, wave, group, place, destination
+  or origin), pod reveal events by pod index, and other actors naming it. The landing's own actors carry their
+  landing. The level's actor list is read in one place (`level_list`) for effects, spawn points and mission objects.
+- A mission stream's objects carry the same values, links, uses and list membership, and the bomb's
+  `PointInSpace` helper joins the bomb's group, as Long War's bomb mutator finds it (F-124).
+- [export.py](tools/viewer/export.py): export 33. `scene.json` has `spawns` (absent for a piece study or a
+  preview), an LWR patch's layer its own `spawns`, and `donors` (the bomb donor stream's objects, without pieces).
+- [audit_spawns.py](tools/upk/audit_spawns.py) `--values` runs the editor's reader over every base map; its first
+  run is [spawn-values-2026-11-18.json](research/evidence/spawn-values-2026-11-18.json): 97 maps, no actor unread,
+  7 maps whose pods repeat a pod index (Roadhouse, Badlands, Barrens and four others).
+- Checked: new [test_spawn_metadata.py](tools/viewer/tests/test_spawn_metadata.py) (Bar: five pods 0-4, four
+  Meld points and where each value comes from, the landing's seven actors, its other twelve points multiplayer;
+  Police Station's 24 drop-ins and 36 wave places; HQ assault's 34 origins; Pier A's 6 direct, 9 indirect and 3
+  unused drop-ins; Slaughterhouse's bomb group of eleven), [test_streams.py](tools/viewer/tests/test_streams.py)
+  and [test_audit_spawns.py](tools/upk/tests/test_audit_spawns.py); a v33 export of Bar, Slaughterhouse, Police
+  Station, Pier A and the largest map, Furies (17 s; the spawn reader takes under a second of it). The page reads
+  none of it yet.
+
 ### Spawns plan reviewed again; an implementation plan written; F-124
 
 - Reviewed the private spawns plan against main (export 32, project schema 3), the installed Bar and

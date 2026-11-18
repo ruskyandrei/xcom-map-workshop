@@ -14,7 +14,7 @@ from materials import coordinates, profile, static_switches, constant_color, app
 from PIL import Image
 from export_math import multiply, transform, view_matrix
 from scene_metadata import (building_metadata, cursor_volumes, effect_metadata, landing_metadata, destruction, fragment_breaks, kismet_references, prefab_members, tile_grid,
-                            tactical_metadata)
+                            tactical_metadata, spawn_metadata, donor_objects, BOMB_DONOR)
 from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
@@ -65,7 +65,11 @@ import piece_flags
 #     material's own colour parameters (`colours`): the night smoke drawn dark, not pink
 # 32: draw version 5: an added particle's grey texture is its picture, and a picture whose alpha holds its shape
 #     takes only a named mask (the police lights round again, not squares); an emitter that only sends events says so
-EXPORT_VERSION = 32   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 33: the map's spawn points and who uses them (editor spawns implementation plan, SP1; scene_metadata.spawn_metadata):
+#     `spawns` (pods, Meld points, drop-in and other points, starts, path nodes, no-spawn volumes, each with its values
+#     and where each comes from, its links and uses); an LWR patch's `spawns`; a mission object's values, links, uses
+#     and listed, and the bomb's PointInSpace helper in its group (F-124); `donors` (the bomb donor's objects)
+EXPORT_VERSION = 33   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
@@ -617,12 +621,14 @@ class Exporter:
         grid=tile_grid(p,bounds[1],self.warn) if bounds else None
         tactical=tactical_metadata(p,objects,self.meshes,grid,self.warn) if grid else None
         effects = self.effects(scope)
+        # the map's spawn points (export 33): [] for a map with none, absent for a piece study or a streamed package
+        spawns = {} if self.prefix or scope != 'map' else dict(spawns=spawn_metadata(p, self.landings, self.warn))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
                     cursorVolumes=[] if self.prefix else cursor_volumes(p),
-                    landings=self.landings,
+                    landings=self.landings, **spawns,
                     effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
                     effectSystems=effects['systems'], soundWaves=effects['waves'],
                     effectsMetadata=dict(version=EFFECTS_METADATA_VERSION, defaults=effects['defaults']),
@@ -691,10 +697,14 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
         except (FormatError, ValueError, OSError, struct.error) as error:
             entry['error'] = str(error)
             continue
+        report_to = lambda source, error, name=name: result['diagnostics'].append(  # noqa: E731
+            dict(source=f'{name}: {source}', message=str(error)))
         if kind == 'mission':
             from scene_metadata import mission_objects
-            entry['missionObjects'] = mission_objects(package, lambda source, error, name=name: result['diagnostics'].append(
-                dict(source=f'{name}: {source}', message=str(error))))
+            entry['missionObjects'] = mission_objects(package, report_to)
+        else:
+            # an LWR patch's spawn points (export 33), shown read only with the layer named
+            entry['spawns'] = spawn_metadata(package, [], report_to)
         for key in ('meshes','materials','textures'):
             if set(result[key]) & set(layer[key]): raise ValueError(f'Asset identity collision in {name}')
             result[key].update(layer[key])
@@ -758,12 +768,16 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
             scene=resolve_scene(composed,spec,template)
             scene['preview']['source']=str(Path(path).resolve())
             scene['preview']['sha256']=sha256(path)
+            scene.pop('spawns',None)     # (export 33: a preview reads no spawn points)
             previews.append((f'preview-{i}.json',scene))
         if scope == 'map':
             # what the game streams into the map with each mission (LWR's patches, mission objects); the original
             # layout's only: a preview carries the patch it builds on itself
             result['missions'] = map_records(p.path)
             result['streams'] = stream_layers(p, result, stage, result['missions'], progress, base=exporter)
+            # the bomb donor's objects (export 33): an added bomb mission's markers, without its pieces
+            result['donors'] = donor_objects(stream_package(p.path, BOMB_DONOR), lambda source, error: result['diagnostics'].append(
+                dict(source=f'{BOMB_DONOR}: {source}', message=str(error))))
         for scene in [result]+[s for _,s in previews]:
             for key in ('meshes','materials','textures'):scene[key]=result[key]
             scene['counts'].update(components=len(scene['objects']),lights=len(scene.get('lights',[])),meshes=len(exporter.meshes),
