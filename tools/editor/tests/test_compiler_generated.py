@@ -191,25 +191,55 @@ class GeneratedTests(unittest.TestCase):
         self.assertEqual(w.get('record'), 'added[0]')
         self.assertEqual(run([(-16.0, 192.0), (192.0, 384.0), (384.0, 576.0)]), [])
 
-    def test_a_slab_under_a_cursor_floor_break_is_warned(self):
-        # (F-128, EXP-76 run E) URB_Bar's cursor floors break at 210 and 402: a made floor whose top is at 194 is 16
-        # under the break, so floor 0's cursor lands on it; one whose top is on the break is not warned
+    def test_made_slabs_bring_cursor_floors_of_their_own(self):
+        # (M5b, F-128) URB_Bar's cursor floors break at 210, 402 and 594. A made floor with its top at 300 takes the
+        # break at 210 over its footprint (tools/bake/made_cursors.py): a building's floor starting at 300 there is
+        # where the cursor's floor starts, and is not warned (building-cursor); slab-under-cursor-break is gone
         floor = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[], look='floor'))
+        bands = [(0.0, 210.0), (210.0, 402.0), (402.0, 594.0), (594.0, 768.0)]
 
-        def run(z):
-            doc = document((), [made(floor, at=(0, 1212, z))], schemaVersion=4)
+        def scene_with(volumes, tiles=()):
             s = scene()
             s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
             s['exporterVersion'] = max(20, s.get('exporterVersion') or 0)
-            s['cursorVolumes'] = [dict(floor=n + 1, box=dict(min=[-5000.0, -5000.0, lo], max=[5000.0, 5000.0, hi]))
-                                  for n, (lo, hi) in enumerate([(0.0, 210.0), (210.0, 402.0), (402.0, 594.0)])]
-            _, report = compile_project(doc, s)
-            self.assertTrue(report['ok'], refused(report))
-            return [w for w in report['warnings'] if w['code'] == 'slab-under-cursor-break']
+            s['cursorVolumes'] = volumes
+            s['tactical'] = dict(floorTiles=list(tiles))
+            return s
 
-        (w,) = run(0.0)
-        self.assertIn('16 under', w['message'])
-        self.assertEqual(run(16.0), [])
+        bar = [dict(name='TheWorld.PersistentLevel.XComCursorVolume_%d' % n, floor=n + 1,
+                    box=dict(min=[-5000.0, -5000.0, lo], max=[5000.0, 5000.0, hi])) for n, (lo, hi) in enumerate(bands)]
+
+        def run(z, building_bottom=None, volumes=bar, tiles=()):
+            house = [dict(id='00000000-0000-4000-8000-0000000000b1', name='Room', kind='building',
+                          floors=[dict(boxes=[[0.0, 1212.0, 0.0, 384.0, 1500.0, building_bottom]]),
+                                  dict(boxes=[[0.0, 1212.0, building_bottom, 384.0, 1500.0, building_bottom + 192.0]])])] \
+                if building_bottom is not None else []
+            doc = document((), [made(floor, at=(0, 1212, z))], schemaVersion=4, buildings=house)
+            _, report = compile_project(doc, scene_with(volumes, tiles))
+            self.assertTrue(report['ok'], refused(report))
+            return report
+
+        report = run(106.0, building_bottom=300.0)
+        self.assertNotIn('building-cursor', warned(report))
+        self.assertNotIn('slab-under-cursor-break', warned(report))
+        # the same building box over no made floor is away from the map's floors
+        doc = document((), [], schemaVersion=4, buildings=[dict(id='00000000-0000-4000-8000-0000000000b1', name='Room', kind='building',
+                                                                floors=[dict(boxes=[[0.0, 1212.0, 0.0, 384.0, 1500.0, 300.0]]),
+                                                                        dict(boxes=[[0.0, 1212.0, 300.0, 384.0, 1500.0, 492.0]])])])
+        _, report = compile_project(doc, scene_with(bar))
+        self.assertIn('building-cursor', warned(report))
+        # a stair's cursor volume under the floor stays as it is, and is warned of
+        stair = dict(name='TheWorld.PersistentLevel.XComCursorVolume_9', floor=2, stair=True,
+                     box=dict(min=[96.0, 1300.0, 0.0], max=[192.0, 1400.0, 220.0]))
+        (w,) = [d for d in run(106.0, volumes=bar + [stair])['warnings'] if d['code'] == 'slab-cursor-volume']
+        self.assertIn("XComCursorVolume_9 (a stair's)", w['message'])
+        self.assertEqual(w.get('record'), 'added[0]')
+        # a made floor less than standing room over the map's floor tiles under it: their floor goes (F-71)
+        tiles = [dict(tile=[x, 13, 0], location=[48.0 + 96.0 * x, 1260.0, 16.0], actor='TheWorld.PersistentLevel.Ground')
+                 for x in range(4)]
+        (w,) = [d for d in run(-40.0, tiles=tiles)['warnings'] if d['code'] == 'slab-headroom']
+        self.assertIn('at 4 tiles', w['message'])
+        self.assertNotIn('slab-headroom', warned(run(106.0, tiles=tiles)))
 
     def test_a_made_piece_on_a_scaled_donor_stands_in_its_box_at_scale_1(self):
         # (M4b item 5) the Build makes a piece from numbers at scale 1 whatever its donor's (frac_walls.unscale): its box

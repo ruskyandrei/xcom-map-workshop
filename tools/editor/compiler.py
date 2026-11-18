@@ -106,6 +106,7 @@ import piece_flags  # noqa: E402
 if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
 import looks  # noqa: E402
+import made_cursors  # noqa: E402
 import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
@@ -344,7 +345,6 @@ SCENERY_LOW = 32.0
 # The cursor's floors (the export's cursorVolumes, export 20): a building's floor should start within CURSOR_NEAR of
 # where one starts. A map with none gets CURSOR_STOREYS even storeys of CURSOR_STOREY from the Build (shell.py).
 CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
-CURSOR_BREAK_SLACK = 2.0    # a made slab's top this near a cursor floor's break is on it (made_slabs_on_cursor_floors)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1513,31 +1513,47 @@ class Compiler:
                               % (upper['label'], lower['label'], lower['label']), **where)
                     break
 
-    def made_slabs_on_cursor_floors(self):
-        """A warning for each floor or roof made from numbers whose top is not on a break of the map's cursor floors
-        (cursor_storeys) but under one (F-128, EXP-76 run E): the cursor of the floor below looks down from the break and
-        lands on it, and a room under it is not cut away on the floor above. The game's slabs stand on the breaks:
-        URB_Bar's upper floor's top is at 210, where its cursor floors break."""
-        storeys = self.cursor_storeys() if self.made_slabs else None
-        if not storeys:
+    def made_slab_boxes(self):
+        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)]."""
+        return [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label'])
+                for c, _ in self.made_slabs for b in [c.get('box')] if b]
+
+    def made_slab_cursors(self):
+        """The made floors' and roofs' own cursor floors (custom geometry plan, M5b; F-128): the Build gives each its
+        floors over its footprint (tools/bake/made_cursors.py), and cursor_storeys has them. Warned of:
+        - slab-cursor-volume: a footprint over a stair or turned cursor volume of the map's, which stays as it is
+          over the made floors;
+        - slab-headroom: a made slab less than HEADROOM over the map's own floor tiles under it (F-71: the game gives
+          no floor to a tile a soldier can't stand on). A made slab over another flat piece the project adds is
+          floor_headroom's."""
+        if not self.made_slabs:
             return
-        for c, where in self.made_slabs:
-            box = c.get('box')
-            if not box:
-                continue
-            cx, cy, top = (box[0] + box[1]) / 2, (box[2] + box[3]) / 2, box[5]
-            over = [b for _, b in storeys if b[0] <= cx <= b[3] and b[1] <= cy <= b[4]]
-            breaks = sorted({b[2] for b in over} | {b[5] for b in over})
-            if not breaks or min(abs(z - top) for z in breaks) <= CURSOR_BREAK_SLACK:
-                continue
-            above = [z for z in breaks if z > top]
-            if not above or min(above) - top > CURSOR_STOREY / 2:
-                continue
-            z = min(above)
-            self.warn('slab-under-cursor-break', "%s's top, %g, is %g under the map's cursor floor break at %g: the cursor "
-                      'of the floor below it lands on it, and a room under it is not cut away on the floor above (the '
-                      "game's floors and roofs have their tops on the cursor floors' breaks)"
-                      % (c['label'], round(top, 2), round(z - top, 2), round(z, 2)), **where)
+        slabs = self.made_slab_boxes()
+        if (self.scene.get('exporterVersion') or 0) >= 20:
+            volumes = [dict(key=v.get('name') or str(k), floor=v.get('floor'), box=list(v['box']['min']) + list(v['box']['max']),
+                            stair=bool(v.get('stair')))
+                       for k, v in enumerate(self.scene.get('cursorVolumes') or []) if v.get('box')]
+            crossed = {}
+            for c in made_cursors.split(volumes, slabs)['crossed']:
+                crossed.setdefault(c['slab'], set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))
+            for label, names in sorted(crossed.items()):
+                where = next((w for c, w in self.made_slabs if c['label'] == label), {})
+                self.warn('slab-cursor-volume', "%s is over the map's cursor %s %s, which the Build leaves as %s over it: "
+                          "the cursor may keep to %s floor there rather than the made floor's" % (
+                              label, 'volume' if len(names) == 1 else 'volumes', ', '.join(sorted(names)),
+                              'it is' if len(names) == 1 else 'they are', 'its' if len(names) == 1 else 'their'), **where)
+        # (the floor tiles' saved places: a tile's floor is where the map's own piece has it)
+        floors = [f for f in self.floor_records_now() if len(f.get('location') or ()) == 3]
+        for (c, where), s in zip([(c, w) for c, w in self.made_slabs if c.get('box')], slabs):
+            b, under = s['box'], c['box'][4]
+            tiles = sorted(list(f['tile']) for f in floors
+                           if b[0] < f['location'][0] < b[3] and b[1] < f['location'][1] < b[4]
+                           and 8.0 < under - f['location'][2] < HEADROOM)
+            if tiles:
+                self.warn('slab-headroom', "%s is less than %d units over the map's floor under it at %d %s: the game gives no "
+                          "floor to a tile a soldier can't stand on, so %s won't be walked on" % (
+                              c['label'], HEADROOM, len(tiles), 'tile' if len(tiles) == 1 else 'tiles',
+                              'it' if len(tiles) == 1 else 'they'), tiles=tiles[:12], **where)
 
     def made_slabs_in_floors(self):
         """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
@@ -1757,25 +1773,37 @@ class Compiler:
         even storeys from the tile grid's bottom over the whole map, the last one up to the grid's top. A map as it
         is that keeps its own and is given a larger grid has them as shell.py grow_cursors leaves them: those
         reaching the old far X or Y side stretched to the new one, and with more levels even storeys over the whole
-        grid from the top of its own up to the new top, with the floors after its highest. Stair volumes are left
-        out. web/floors.js cursorStoreys is the twin."""
+        grid from the top of its own up to the new top, with the floors after its highest. The made floors and roofs
+        bring floors of their own over their footprints (with_made_slabs; M5b). Stair volumes are left out.
+        web/floors.js cursorStoreys is the twin."""
         if (self.scene.get('exporterVersion') or 0) < 20:
             return None
         volumes = self.scene.get('cursorVolumes') or []
         own = [(v.get('floor'), list(v['box']['min']) + list(v['box']['max'])) for v in volumes if v.get('box') and not v.get('stair')]
         grid = self.scene.get('tileGrid') or {}
         if not grid.get('origin'):
-            return own
+            return self.with_made_slabs(own, None)
+        count = list(getattr(self, 'stage_grid', None) or grid['dimensions'][:3])
+        box = [float(grid['origin'][k]) for k in range(3)] + [grid['origin'][k] + count[k] * grid['size'][k] for k in range(3)]
         if (own or volumes) and not getattr(self, 'cleared', False):
-            return self.grown_storeys(own, grid)
+            return self.with_made_slabs(self.grown_storeys(own, grid), box)
         bottom = float(grid['origin'][2])
         levels = (getattr(self, 'stage_grid', None) or grid['dimensions'])[2]
         top = bottom + levels * grid['size'][2]
         # (a grid made taller gets a storey more for each 192 units: shell.py clones the last)
         storeys = max(CURSOR_STOREYS, round((top - bottom) / CURSOR_STOREY))
-        return [(n + 1, [-1e9, -1e9, bottom + CURSOR_STOREY * n, 1e9, 1e9,
-                         max(top, bottom + CURSOR_STOREY * (n + 1)) if n == storeys - 1 else bottom + CURSOR_STOREY * (n + 1)])
-                for n in range(storeys)]
+        return self.with_made_slabs(
+            [(n + 1, [-1e9, -1e9, bottom + CURSOR_STOREY * n, 1e9, 1e9,
+                      max(top, bottom + CURSOR_STOREY * (n + 1)) if n == storeys - 1 else bottom + CURSOR_STOREY * (n + 1)])
+             for n in range(storeys)], box)
+
+    def with_made_slabs(self, storeys, grid_box):
+        """The cursor's floors `storeys` [(floor, box)] with the made floors' and roofs' own over their footprints, as
+        the Build gives them (made_cursors.storeys; M5b)."""
+        slabs = self.made_slab_boxes() if getattr(self, 'made_slabs', None) else []
+        if not slabs:
+            return storeys
+        return made_cursors.storeys([dict(key=k, floor=f, box=list(b)) for k, (f, b) in enumerate(storeys)], slabs, grid_box)
 
     def grown_storeys(self, own, grid):
         """The map's own cursor floors `own` [(floor, box)] on the project's grid (cursor_storeys; shell.py
@@ -4946,9 +4974,12 @@ class Compiler:
     def floor_now(self):
         """The map's saved floor tiles whose piece is still where it was: a deleted or moved piece takes its floor
         with it (a moved one's copy gives floor where it lands: added_floors)."""
+        return {tuple(f['tile']) for f in self.floor_records_now()}
+
+    def floor_records_now(self):
+        """The export's floor tile records (tactical.floorTiles: tile, location, actor) of floor_now."""
         gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | getattr(self, 'floor_off', set())
-        return {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])
-                if f.get('actor') not in gone}
+        return [f for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') not in gone]
 
     def run(self):
         spec = None
@@ -4972,7 +5003,7 @@ class Compiler:
             self.floor_headroom()
             self.buildings()
             self.made_slabs_in_floors()
-            self.made_slabs_on_cursor_floors()
+            self.made_slab_cursors()
             self.landing_zones()
             self.missions_check()
             self.stage_outside()

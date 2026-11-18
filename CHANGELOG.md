@@ -8,6 +8,43 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Made floors and roofs bring cursor floors of their own** (custom geometry plan, M5b; F-128; branch
+  `fracturing-wall-poc`). The user chose this fix: a room's walls can be any height, so its floors can stand at any
+  height.
+  - [made_cursors.py](tools/bake/made_cursors.py), new:
+    - `split` is the rule. Each of the map's plain cursor volumes that a made floor or roof crosses is taken out and
+      stands again as clones of itself round the made slabs, with the same floor and heights. Over the made slabs
+      the floors are made again cell by cell: each slab top takes the nearest break within half a storey (never the
+      bottom) or adds one. A floor starts exactly at a slab's top. The floor numbers are kept where a break was
+      taken.
+    - A top on a break already, or within half a storey of the bottom, changes nothing. Stair and turned volumes
+      stay as they are.
+    - `apply` is the Build's writer. `verify` reads the volumes back.
+  - [native_copy.py](tools/bake/native_copy.py) runs it after the made pieces are written. The report has
+    `madeCursors`: the volumes taken out, and the ones added with their floors and boxes.
+  - [compiler.py](tools/editor/compiler.py):
+    - `cursor_storeys` has the made slabs' floors, so `building-cursor` goes by them.
+    - `slab-under-cursor-break` is gone.
+    - `slab-headroom` warns of a made slab less than 150 over the map's own floor tiles under it (F-71).
+    - `slab-cursor-volume` warns of a made slab over a stair's or a turned cursor volume.
+  - [floors.js](tools/viewer/web/floors.js) `madeStoreys` is the page's twin. `cursorStoreys` takes the made slabs'
+    boxes from [app.js](tools/viewer/web/app.js), so the Buildings view's yellow lines and its snap go by the same
+    floors.
+  - [findings-register.md](research/findings-register.md): F-128 fixed offline, to be played. The plan's new M5b
+    section has the rule.
+  - Checked:
+    - [test_made_cursors.py](tools/bake/tests/test_made_cursors.py): the rule on URB_Bar's floors and on local and
+      missing volumes; nothing overlaps and the whole is covered; the twin gives the same floors.
+    - [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) MadeSlabs: a Build on URB_Bar takes the bar's four
+      cursor volumes out, and over the made floor the new floors break at 194. Read back: the clones are listed and
+      the bar's own are not.
+    - [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py): the building box at a made
+      floor's top is not warned, and the same box with no made floor is; the two new warnings.
+    - The editor and node suites.
+    - In the page on EXP-76's project, the room's box reads "The cursor's 4 floors here start at 0, 194, 386 and
+      594"; the bar's own boxes still start at 210 and 402.
+  - Known gap: not played yet. The run checks the floors and the cutaway in EXP-76's room.
+
 - **EXP-79 prepared: run D's three projects, looks from any piece beside their donors** (custom geometry plan, M4d;
   branch `fracturing-wall-poc`).
   - [exp79_project.py](tools/editor/examples/exp79_project.py) writes three projects into a scratch store and builds

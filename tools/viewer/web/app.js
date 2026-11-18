@@ -6269,8 +6269,17 @@ function gridRule() {
   // levels, or the map's own where more (stageMax)
   return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
 }
-// The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py)
-const storeysNow = () => cursorStoreys(data, { cleared, own: ownSize()?.dims ?? null });
+// The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py), with the made
+// floors' and roofs' own over their footprints (floors.js madeStoreys; the Build's made_cursors.py)
+const madeSlabBoxes = () => [...roots.values()].filter(r => !r.userData.deleted && isMadeSlab(r.userData.source))
+  .map(r => boxOf(r)).filter(Boolean).map(b => ({ box: [b[0], b[2], b[4], b[1], b[3], b[5]] }));
+let storeysKept = null;
+const storeysNow = () => {
+  const own = ownSize()?.dims ?? null, slabs = madeSlabBoxes();
+  const key = JSON.stringify([cleared, own, data?.tileGrid?.dimensions ?? null, slabs]);
+  if (storeysKept?.data !== data || storeysKept.key !== key) storeysKept = { data, key, value: cursorStoreys(data, { cleared, own, slabs }) };
+  return storeysKept.value;
+};
 // The stage a grid of `dims` asks for (null: the map's own)
 function stageFor(dims) {
   const own = ownSize();

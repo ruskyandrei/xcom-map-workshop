@@ -641,6 +641,26 @@ class MadeSlabs(unittest.TestCase):
         self.assertAlmostEqual(max(b[3] for b in boxes), -1344.0, 2)
         self.assertAlmostEqual(min(b[2] for b in boxes), 398.0 - 1.0, 2)
 
+    def test_the_floor_brings_cursor_floors_breaking_at_its_top(self):
+        # (M5b, F-128) the floor's top, 194, is under the bar's cursor floor break at 210: the bar's four map-wide
+        # cursor volumes are taken out and stand again round it (four rectangles each), and over it the floors break
+        # at 194, the map's numbers kept; the roof's top, 402, is on a break and changes nothing
+        import shell
+        rec = self.m['nativeCopies']['madeCursors']
+        self.assertEqual(len(rec['hidden']), 4)
+        over = [a for a in rec['added'] if a['over']]
+        self.assertEqual(sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in over),
+                         [(0, 194, 1), (194, 402, 2), (402, 594, 3), (594, 768, 4)])
+        for a in over:
+            for got, want in zip([a['box'][k] for k in (0, 1, 3, 4)], [-1344.0, -1440.0, -1056.0, -1248.0]):
+                self.assertAlmostEqual(got, want, 2)
+        self.assertEqual(len(rec['added']) - len(over), 16)
+        # read back: the clones listed, the bar's own not
+        q, live = self.q, shell.listed(self.q)
+        listed = [i for i in shell.actors(q, 'XComCursorVolume') if i in live]
+        self.assertEqual(sorted(q.name(i).split('.')[-1] for i in listed), sorted(a['copy'] for a in rec['added']))
+        self.assertFalse(set(rec['hidden']) & {q.name(i).split('.')[-1] for i in listed})
+
     def test_the_wall_under_the_roof_and_the_roof_list_each_other(self):
         listings = {(d['wall'], d['other']) for d in self.m['nativeCopies']['neighbourListings']}
         name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731

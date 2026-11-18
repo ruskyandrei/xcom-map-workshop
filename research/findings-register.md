@@ -330,7 +330,7 @@ behaviour for these proposed edits still need direct observation.
   have to be taller than a storey (not tried).
 
 ### F-128: The cursor takes a room's made floor on floor 0, and the room isn't cut away on floor 1, where the map's cursor floors break higher than the room's
-**Open** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass).
+**Fixed offline, to be played** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass; the fix the same night, custom geometry plan M5b).
 - **Seen.** In a room of made walls with a made floor (top 194) and roof (top 386) on URB_Bar's lot, the cursor on
   floor 0 lands on the made floor and on floors 1 and 2 on the roof, from inside the room or outside it. With a
   soldier on the ground inside, floor 0 cuts the room away as it should; floor 1 draws it whole, roof and all.
@@ -339,10 +339,18 @@ behaviour for these proposed edits still need direct observation.
   The room stands on the lot at 0, so its floors break at 192 and 384: floor 0's cursor, looking down from 210, meets
   the made floor first. The room's building has floor volumes of its own at its floors (buildings.py), and the cursor
   does not follow them.
-- **What could fix it** (not chosen): the room tool and the made slabs keep to the map's cursor floors (the made
-  floor's top on a break, as the game's slabs are), or the room brings cursor floors of its own over its footprint,
-  if the game takes them over the map-wide ones (to be tried). Meanwhile the compiler warns of a made slab whose top
-  is under a cursor floor's break (`slab-under-cursor-break`, 18 November).
+- **Ways to fix it.** The made slabs keep to the map's cursor floors (the made floor's top on a break, as the
+  game's slabs are), or each made floor and roof brings cursor floors of its own over its footprint. A room's walls
+  can be dragged to any height, so the user chose the second (18 November 2026).
+- **Fix** ([made_cursors.py](../tools/bake/made_cursors.py), the Build's copy stage). Each of the map's plain cursor
+  volumes that a made floor or roof crosses is taken out of the level's list and stands again as clones of itself
+  round the made slabs, the same floor and heights. Over the made slabs the floors are made again: each slab top
+  takes the nearest break within half a storey (96, never the bottom) or adds one, and a floor starts exactly at the
+  top, as the Bar's upper floor's is on its break. Nothing overlaps, as in the game's maps. On URB_Bar with EXP-76's
+  room the cursor floors over the room break at 194 and 386, and round it at 210 and 402 as before. The compiler's
+  `slab-under-cursor-break` is gone: `slab-headroom` warns of a made slab less than 150 over the map's floor tiles
+  under it (F-71), `slab-cursor-volume` of a made slab over a stair's cursor volume, which stays as it is. Whether
+  the cutaway on floor 1 follows the room's own floors is the run's question.
 
 ### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
 **Explained: the game's own walls do the same** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B; [EXP-75](experiments/EXP-75-joined-walls.md) run C).

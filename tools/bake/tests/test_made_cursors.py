@@ -1,0 +1,138 @@
+"""The cursor's own floors over made floors and roofs (made_cursors.py; custom geometry plan M5b, F-128): the split
+rule on plain numbers, and the page's twin (web/floors.js madeStoreys) on the same cases."""
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import unittest
+
+HERE = Path(__file__).resolve().parent
+TOOLS = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent))
+import made_cursors  # noqa: E402
+
+# URB_Bar's four map-wide cursor floors (its export's cursorVolumes), breaking at 210, 402 and 594
+BAR = [dict(key='C%d' % n, floor=n, box=[-2784.0, -1920.0, lo, 2208.0, 1824.0, hi])
+       for n, (lo, hi) in enumerate([(0.0, 210.0), (210.0, 402.0), (402.0, 594.0), (594.0, 768.0)], 1)]
+ROOM = [0.0, 0.0, 384.0, 288.0]     # a room's footprint, x0 y0 x1 y1
+
+
+def slab(top, foot=ROOM, label='Slab', thick=16.0):
+    return dict(box=[foot[0], foot[1], top - thick, foot[2], foot[3], top], label=label)
+
+
+def area(b):
+    return (b[3] - b[0]) * (b[4] - b[1])
+
+
+class Split(unittest.TestCase):
+    def test_a_room_on_the_bar_brings_floors_breaking_at_its_floor_and_roof(self):
+        # (F-128, EXP-76 run E) a made floor at 194 and a roof at 386: over the room the floors break at them, the
+        # map's floor numbers kept; outside it each of the bar's floors stands again round the room, the same heights
+        s = made_cursors.split(BAR, [slab(194.0, label='Floor'), slab(386.0, label='Roof')])
+        self.assertEqual(s['hidden'], ['C1', 'C2', 'C3', 'C4'])
+        over = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'])
+        self.assertEqual(over, [(0.0, 194.0, 1), (194.0, 386.0, 2), (386.0, 594.0, 3), (594.0, 768.0, 4)])
+        for v in s['volumes']:
+            if v['over']:
+                self.assertEqual([v['box'][k] for k in (0, 1, 3, 4)], ROOM)
+        for c in BAR:
+            outside = [v for v in s['volumes'] if not v['over'] and v['source'] == c['key']]
+            self.assertEqual(len(outside), 4)
+            self.assertTrue(all(v['floor'] == c['floor'] and v['box'][2] == c['box'][2] and v['box'][5] == c['box'][5]
+                                for v in outside))
+            self.assertAlmostEqual(sum(area(v['box']) for v in outside), area(c['box']) - 384.0 * 288.0)
+        self.assertEqual(s['crossed'], [])
+
+    def test_nothing_overlaps_and_everything_is_covered(self):
+        s = made_cursors.split(BAR, [slab(194.0), slab(386.0, foot=[192.0, 96.0, 768.0, 480.0])])
+        boxes = [v['box'] for v in s['volumes']]
+        for n, a in enumerate(boxes):
+            for b in boxes[n + 1:]:
+                self.assertFalse(all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > 1e-6 for k in range(3)), (a, b))
+        whole = sum(area(c['box']) * (c['box'][5] - c['box'][2]) for c in BAR)
+        self.assertAlmostEqual(sum(area(b) * (b[5] - b[2]) for b in boxes), whole, 1)
+
+    def test_a_slab_on_a_break_or_near_the_bottom_changes_nothing(self):
+        for top in (210.0, 402.0, 16.0, 90.0):
+            self.assertEqual(made_cursors.split(BAR, [slab(top)]), dict(hidden=[], volumes=[], crossed=[]), top)
+        self.assertEqual(made_cursors.split(BAR, []), dict(hidden=[], volumes=[], crossed=[]))
+
+    def test_a_top_with_no_break_near_adds_a_floor_and_the_floors_over_it_go_up(self):
+        one = [dict(key='A', floor=1, box=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 210.0]),
+               dict(key='B', floor=2, box=[-1000.0, -1000.0, 210.0, 1000.0, 1000.0, 768.0])]
+        s = made_cursors.split(one, [slab(500.0)])
+        over = sorted((v['box'][2], v['box'][5], v['floor'], v['source']) for v in s['volumes'] if v['over'])
+        self.assertEqual(over, [(0.0, 210.0, 1, 'A'), (210.0, 500.0, 2, 'B'), (500.0, 768.0, 3, 'B')])
+
+    def test_a_footprint_across_two_local_volumes_is_cut_at_their_edge(self):
+        # (the police station's cursor volumes are fitted to its parts) two volumes side by side breaking at
+        # different heights: the room over both gets the floors of each on its own side; at 300 the west break (256)
+        # is taken, the east one (192) is too far and a floor is added over it
+        local = [dict(key='W1', floor=1, box=[-500.0, -500.0, 0.0, 192.0, 500.0, 256.0]),
+                 dict(key='W2', floor=2, box=[-500.0, -500.0, 256.0, 192.0, 500.0, 512.0]),
+                 dict(key='E1', floor=1, box=[192.0, -500.0, 0.0, 900.0, 500.0, 192.0]),
+                 dict(key='E2', floor=2, box=[192.0, -500.0, 192.0, 900.0, 500.0, 512.0])]
+        s = made_cursors.split(local, [slab(300.0)])
+        west = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'] and v['box'][3] <= 192.0)
+        east = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'] and v['box'][0] >= 192.0)
+        self.assertEqual(west, [(0.0, 300.0, 1), (300.0, 512.0, 2)])
+        self.assertEqual(east, [(0.0, 192.0, 1), (192.0, 300.0, 2), (300.0, 512.0, 3)])
+        # the same floors on both sides make one volume each across the edge
+        s = made_cursors.split(local, [slab(224.0)])
+        self.assertEqual(sorted((v['box'][0], v['box'][3], v['box'][2], v['box'][5]) for v in s['volumes'] if v['over']),
+                         [(0.0, 384.0, 0.0, 224.0), (0.0, 384.0, 224.0, 512.0)])
+
+    def test_a_cell_with_no_volume_takes_the_grids_floors(self):
+        s = made_cursors.split([], [slab(194.0)], grid=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 768.0])
+        self.assertEqual(sorted((v['box'][2], v['box'][5], v['floor'], v['source']) for v in s['volumes']),
+                         [(0.0, 194.0, 1, None), (194.0, 768.0, 2, None)])
+        self.assertEqual(made_cursors.split([], [slab(194.0)]), dict(hidden=[], volumes=[], crossed=[]))
+
+    def test_a_stair_volume_under_a_footprint_is_reported_and_left(self):
+        stair = dict(key='S', floor=2, box=[100.0, 100.0, 0.0, 200.0, 200.0, 220.0], stair=True)
+        s = made_cursors.split(BAR + [stair], [slab(194.0, label='Floor')])
+        self.assertEqual(s['crossed'], [dict(slab='Floor', volume='S', why='stair')])
+        self.assertNotIn('S', s['hidden'])
+        self.assertFalse(any(v['source'] == 'S' for v in s['volumes']))
+
+    def test_storeys_are_the_volumes_kept_and_made(self):
+        st = made_cursors.storeys(BAR, [slab(194.0)])
+        self.assertEqual(len(st), 4 * 4 + 4)
+        inside = sorted((b[2], f) for f, b in st if b[0] <= 192.0 <= b[3] and b[1] <= 144.0 <= b[4])
+        self.assertEqual(inside, [(0.0, 1), (194.0, 2), (402.0, 3), (594.0, 4)])
+
+
+class Rectangles(unittest.TestCase):
+    def test_a_ring_of_cells_is_four_rectangles(self):
+        xs = ys = [0.0, 1.0, 2.0, 3.0]
+        out = made_cursors.rectangles(xs, ys, lambda i, j: None if (i, j) == (1, 1) else 'v')
+        self.assertEqual(len(out), 4)
+        self.assertEqual(sum((r[2] - r[0]) * (r[3] - r[1]) for _, r in out), 8.0)
+
+
+@unittest.skipUnless(shutil.which('node'), 'node is not on the PATH')
+class Twin(unittest.TestCase):
+    """web/floors.js madeStoreys gives the same floors as made_cursors.storeys on the same cases."""
+
+    def test_the_page_splits_as_the_build_does(self):
+        cases = [dict(volumes=BAR, slabs=[slab(194.0), slab(386.0)], grid=None),
+                 dict(volumes=BAR, slabs=[slab(194.0), slab(386.0, foot=[192.0, 96.0, 768.0, 480.0])], grid=None),
+                 dict(volumes=[], slabs=[slab(194.0)], grid=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 768.0]),
+                 dict(volumes=BAR, slabs=[slab(210.0), slab(60.0)], grid=None)]
+        script = ("import('%s').then(m => { const cases = JSON.parse(process.argv[1]);"
+                  " console.log(JSON.stringify(cases.map(c => m.madeStoreys("
+                  "c.volumes.map(v => ({ floor: v.floor, box: v.box, made: false })), c.slabs, c.grid)"
+                  ".map(s => [s.floor, s.box])))); })") % (TOOLS / 'viewer' / 'web' / 'floors.js').as_uri()
+        got = json.loads(subprocess.run(['node', '-e', script, json.dumps(cases)], capture_output=True, text=True,
+                                        check=True).stdout)
+        for case, page in zip(cases, got):
+            want = [[f, [float(round(x, 3)) for x in b]] for f, b in
+                    made_cursors.storeys([dict(v, key=k) for k, v in enumerate(case['volumes'])], case['slabs'], case['grid'])]
+            self.assertEqual(sorted(json.dumps(x) for x in want),
+                             sorted(json.dumps([f, [float(round(x, 3)) for x in b]]) for f, b in page))
+
+
+if __name__ == '__main__':
+    unittest.main()

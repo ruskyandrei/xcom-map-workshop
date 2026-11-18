@@ -2590,7 +2590,23 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                     | {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'deleted'})
     floor_emitters = native_effects.floor_lists(g, p, moved_now, new_now, gone_effects, building_edits,
                                                 building_records)
-    level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones
+    # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,
+    # F-128): the map's cursor volumes they cross taken out and stood again round them, and floors breaking at
+    # their tops over them
+    cursor_record, cursor_clones = None, []
+    made_slabs = [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=r['label'])
+                  for r in generated_records if r['kind'] == 'fracSlab' for b in [r['box']]]
+    if made_slabs:
+        import made_cursors
+        cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs)
+        if cursor_record:
+            print("    the made floors' and roofs' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "
+                  '(%d over the made slabs)' % (len(cursor_record['hidden']), ', '.join(cursor_record['hidden']) or 'none',
+                                               len(cursor_record['added']), sum(a['over'] for a in cursor_record['added'])))
+            for c in cursor_record['crossed']:
+                print("    %s is over the map's %s cursor volume %s, left as it is" % (
+                    c['slab'], 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
+    level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones + cursor_clones
                          + (light_result['actors'] if light_result else []), before_rebuild=priority)
     dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -2612,6 +2628,11 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         native_sounds.verify(r, lane_sounds)
         native_flares.verify(r, lane_flares)
         native_spawns.verify(r, lane_spawns, p)
+    # the made floors' cursor volumes read back
+    if cursor_record and cursor_record['added']:
+        import made_cursors
+        from package import Package as Reader
+        made_cursors.verify(Reader(dst), cursor_record)
     # the flags read back with a fresh reader: an edit not in the map is an error, never a success
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
@@ -2687,6 +2708,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                      if neighbour_listings else {}),
                   **({'cleared': cleared_record} if cleared_record else {}),
                   **({'landings': landing_record} if landing_record else {}),
+                  **({'madeCursors': dict(cursor_record, added=[dict({k: v for k, v in a.items() if k != 'export'},
+                                                                     copy=q.name(a['export']).split('.')[-1])
+                                                                for a in cursor_record['added']])}
+                     if cursor_record else {}),
                   **({'streamTiles': stream_record} if stream_record else {}),
                   **({'pieceFlags': dict(
                       onCopies=[dict(r, copy=q.name(r['export']).split('.')[-1]) for r in flag_copies],

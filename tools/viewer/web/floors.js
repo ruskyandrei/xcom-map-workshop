@@ -190,9 +190,17 @@ export const CURSOR_NEAR = 32, CURSOR_STOREY = 192, CURSOR_STOREYS = 4;
  *  the last one up to the grid's top (`made`). A map as it is on a grid larger than its own size `own` has its own as
  *  shell.py grow_cursors leaves them: those reaching the old far X or Y side stretched to the new one, and with more
  *  levels even storeys over the whole grid from the top of its own to the new top. Stair volumes are left out.
- *  compiler.py cursor_storeys is the twin. */
-export function cursorStoreys(data, { cleared = false, own: ownDims = null } = {}) {
+ *  The made floors and roofs `slabs` ([{ box: [x0, y0, z0, x1, y1, z1] }]) bring floors of their own over their
+ *  footprints (madeStoreys). compiler.py cursor_storeys is the twin. */
+export function cursorStoreys(data, { cleared = false, own: ownDims = null, slabs = null } = {}) {
   if (!(data?.exporterVersion >= 20)) return null;
+  const grid = data.tileGrid;
+  const size = grid?.size ?? [96, 96, 64];
+  const gridBox = grid?.origin && grid.dimensions ? [0, 1, 2].map(k => grid.origin[k]).concat([0, 1, 2].map(k => grid.origin[k] + grid.dimensions[k] * size[k])) : null;
+  const st = cursorStoreysOf(data, cleared, ownDims);
+  return slabs?.length && st ? madeStoreys(st, slabs, gridBox) : st;
+}
+function cursorStoreysOf(data, cleared, ownDims) {
   const own = (data.cursorVolumes ?? []).filter(v => v.box && !v.stair).map(v => ({ floor: v.floor, box: [...v.box.min, ...v.box.max], made: false }));
   const grid = data.tileGrid;
   if (!grid?.origin) return own;
@@ -228,6 +236,137 @@ export function cursorStoreys(data, { cleared = false, own: ownDims = null } = {
     out.push({ floor: n + 1, box: [-1e9, -1e9, z0, 1e9, 1e9, z1], made: true });
   }
   return out;
+}
+
+// The made floors' and roofs' own cursor floors (custom geometry plan M5b, F-128): tools/bake/made_cursors.py is the
+// rule and the Build's writer, this its twin (tools/bake/tests/test_made_cursors.py checks the two agree).
+const MADE_HALF = 96, MADE_EDGE = 1, MADE_TOP_SLACK = 2;
+const madeOverlap = (a, b) => Math.min(a[3], b[3]) - Math.max(a[0], b[0]) > MADE_EDGE && Math.min(a[4], b[4]) - Math.max(a[1], b[1]) > MADE_EDGE;
+const madeCovers = (b, x, y) => b[0] <= x && x <= b[3] && b[1] <= y && y <= b[4];
+const round3 = v => Math.round(v * 1000) / 1000;
+const sortedUnique = values => [...new Set(values)].sort((a, b) => a - b);
+
+/** Cells [xs[i], xs[i + 1]] x [ys[j], ys[j + 1]] merged into rectangles of one value (`value(i, j)`: a string or
+ *  number, or null for a cell left out): runs along X in each row, carried up Y while the run and value hold.
+ *  [[value, [x0, y0, x1, y1]]] (made_cursors.rectangles). */
+export function madeRectangles(xs, ys, value) {
+  const out = [], nx = xs.length - 1, ny = ys.length - 1;
+  let open = new Map();
+  for (let j = 0; j <= ny; j++) {
+    const runs = [];
+    for (let i = 0; j < ny && i < nx; i++) {
+      const v = value(i, j);
+      if (v == null) continue;
+      const start = i;
+      while (i + 1 < nx && value(i + 1, j) === v) i++;
+      runs.push([start, i + 1, v]);
+    }
+    const now = new Map();
+    for (const [a, b, v] of runs) {
+      const key = `${a}|${b}|${v}`;
+      now.set(key, { a, b, v, start: open.has(key) ? open.get(key).start : j });
+      open.delete(key);
+    }
+    for (const r of open.values()) out.push([r.v, [xs[r.a], ys[r.start], xs[r.b], ys[j]]]);
+    open = now;
+  }
+  return out;
+}
+function madeColumn(cx, cy, plain, slabs, grid) {
+  const over = plain.filter(v => madeCovers(v.box, cx, cy));
+  let bottom, top, marks;
+  if (over.length) {
+    bottom = Math.min(...over.map(v => v.box[2]));
+    top = Math.max(...over.map(v => v.box[5]));
+    marks = [];
+    const order = [...over].sort((a, b) => a.box[2] - b.box[2] || (b.floor || 0) - (a.floor || 0) || (String(a.key) < String(b.key) ? -1 : String(a.key) > String(b.key) ? 1 : 0));
+    for (const v of order) if (!marks.some(m => Math.abs(v.box[2] - m.z) <= MADE_EDGE)) marks.push({ z: v.box[2], floor: v.floor || 0, source: v.key, taken: false });
+  } else if (grid) {
+    [bottom, top] = [grid[2], grid[5]];
+    marks = [{ z: bottom, floor: 1, source: null, taken: false }];
+  } else return null;
+  for (const t of sortedUnique(slabs.filter(s => madeCovers(s.box, cx, cy)).map(s => s.box[5]))) {
+    if (t <= bottom + MADE_HALF || t >= top - MADE_TOP_SLACK) continue;
+    const near = marks.slice(1).filter(m => !m.taken && Math.abs(m.z - t) <= MADE_HALF);
+    if (near.length) {
+      const m = near.reduce((a, b) => (Math.abs(b.z - t) < Math.abs(a.z - t) || (Math.abs(b.z - t) === Math.abs(a.z - t) && b.z < a.z) ? b : a));
+      m.z = t; m.taken = true;
+    } else {
+      const below = marks.filter(m => m.z < t).reduce((a, b) => (b.z > a.z ? b : a));
+      marks.push({ z: t, floor: null, source: below.source, taken: true });
+    }
+    marks.sort((a, b) => a.z - b.z);
+  }
+  let floor = null;
+  for (const m of marks) {
+    if (m.floor == null || (floor != null && m.floor <= floor)) m.floor = (floor ?? 0) + 1;
+    floor = m.floor;
+  }
+  const ends = [...marks.slice(1).map(m => m.z), top];
+  return { bands: marks.map((m, k) => [round3(m.z), round3(ends[k]), m.floor]), sources: marks.map(m => m.source) };
+}
+function madeMoves(slab, plain, grid) {
+  const b = slab.box, cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, t = b[5];
+  const over = plain.filter(v => madeCovers(v.box, cx, cy));
+  let bottom, top, breaks;
+  if (over.length) {
+    bottom = Math.min(...over.map(v => v.box[2])); top = Math.max(...over.map(v => v.box[5]));
+    breaks = over.map(v => v.box[2]).filter(z => z > bottom + MADE_EDGE);
+  } else if (grid) [bottom, top, breaks] = [grid[2], grid[5], []];
+  else return false;
+  return bottom + MADE_HALF < t && t < top - MADE_TOP_SLACK && !breaks.some(z => Math.abs(z - t) <= MADE_EDGE);
+}
+/** made_cursors.split: { hidden: [keys], volumes: [{ source, floor, box, over }], crossed: [{ slab, volume, why }] }
+ *  for the cursor volumes [{ key, floor, box, stair, turned }] and the made slabs [{ box, label }]. */
+export function madeSplit(volumes, slabs, grid = null) {
+  slabs = (slabs ?? []).filter(s => s.box[3] - s.box[0] > MADE_EDGE && s.box[4] - s.box[1] > MADE_EDGE);
+  const out = { hidden: [], volumes: [], crossed: [] };
+  const plain = volumes.filter(v => !v.stair && !v.turned);
+  const moving = slabs.filter(s => madeMoves(s, plain, grid));
+  if (!moving.length) return out;
+  for (const v of volumes) if (v.stair || v.turned) {
+    for (const s of moving) if (madeOverlap(v.box, s.box)) out.crossed.push({ slab: s.label, volume: v.key, why: v.stair ? 'stair' : 'turned' });
+  }
+  const hit = plain.filter(v => moving.some(s => madeOverlap(v.box, s.box)));
+  const feet = moving.map(s => s.box);
+  const inside = (x, y) => feet.some(f => f[0] < x && x < f[3] && f[1] < y && y < f[4]);
+  for (const v of hit) {
+    const b = v.box;
+    const xs = sortedUnique([b[0], b[3], ...feet.flatMap(f => [f[0], f[3]]).filter(e => b[0] < e && e < b[3])]);
+    const ys = sortedUnique([b[1], b[4], ...feet.flatMap(f => [f[1], f[4]]).filter(e => b[1] < e && e < b[4])]);
+    for (const [, r] of madeRectangles(xs, ys, (i, j) => (inside((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2) ? null : 1))) {
+      out.volumes.push({ source: v.key, floor: v.floor, box: [r[0], r[1], b[2], r[2], r[3], b[5]], over: false });
+    }
+  }
+  const lo = [0, 1].map(k => Math.min(...feet.map(f => f[k]))), hi = [0, 1].map(k => Math.max(...feet.map(f => f[k + 3])));
+  const xs = sortedUnique([...feet.flatMap(f => [f[0], f[3]]), ...hit.flatMap(v => [v.box[0], v.box[3]]).filter(e => lo[0] < e && e < hi[0])]);
+  const ys = sortedUnique([...feet.flatMap(f => [f[1], f[4]]), ...hit.flatMap(v => [v.box[1], v.box[4]]).filter(e => lo[1] < e && e < hi[1])]);
+  const columns = new Map();
+  const cell = (i, j) => {
+    const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+    if (!inside(cx, cy)) return null;
+    const c = madeColumn(cx, cy, plain, slabs, grid);
+    if (!c) return null;
+    const key = JSON.stringify(c.bands);
+    if (!columns.has(key)) columns.set(key, c);
+    return key;
+  };
+  for (const [key, r] of madeRectangles(xs, ys, cell)) {
+    const c = columns.get(key);
+    c.bands.forEach(([z0, z1, floor], k) => out.volumes.push({ source: c.sources[k], floor, box: [r[0], r[1], z0, r[2], r[3], z1], over: true }));
+  }
+  out.hidden = hit.map(v => v.key);
+  return out;
+}
+/** The cursor's floors `storeys` ([{ floor, box, made }], cursorStoreys) with the made slabs' own over their
+ *  footprints (made_cursors.storeys). A floor over a made slab's footprint has `slab: true`. */
+export function madeStoreys(storeys, slabs, grid = null) {
+  const volumes = storeys.map((s, k) => ({ key: k, floor: s.floor, box: s.box }));
+  const s = madeSplit(volumes, slabs, grid);
+  if (!s.hidden.length && !s.volumes.length) return storeys;
+  const gone = new Set(s.hidden);
+  return [...storeys.filter((_, k) => !gone.has(k)),
+          ...s.volumes.map(v => ({ floor: v.floor, box: v.box, made: v.source == null || storeys[v.source].made, ...(v.over ? { slab: true } : {}) }))];
 }
 
 /** Where the cursor's floors start over a box's footprint: [{ z, top, floor }] from the lowest up, one for each
