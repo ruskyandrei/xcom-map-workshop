@@ -8,17 +8,25 @@ footprint:
 
 - each of the map's plain cursor volumes that overlaps a footprint is taken out and stands again as clones of itself
   over what it covered outside the footprints (the same floor and heights; nothing overlaps, as in the game's maps);
-- over the footprints the floors are made again cell by cell: the map's breaks there, each slab top taking the
-  nearest within HALF a storey (never the column's bottom) or adding a break of its own, a floor starting exactly at
-  a slab's top (the Bar's upper floor's top is on its break, 210);
+- over the footprints the floors are made again cell by cell: the map's breaks there, each slab's break taking the
+  nearest within HALF a storey (never the column's bottom) or adding one of its own. A slab's break is UNDER units
+  under its underside: the cursor of a floor looks down from its volume's top, and one starting on the slab's top
+  landed on it where no building cut the slab away (EXP-80 run G, the long floor), while the floor over it finds
+  the slab's top inside its own volume;
 - stair and turned volumes stay as they are; a footprint over one is reported.
 
 split() is the rule, on plain numbers: the compiler runs it on its cursor_storeys and the page's twin is
 web/floors.js madeStoreys. apply() is the Build's writer (native_copy, after the made pieces are written)."""
 
-HALF = 96.0         # a slab's top takes a break this near it (half a storey)
+HALF = 96.0         # a slab's break takes a map break this near it (half a storey)
 EDGE = 1.0          # an overlap thinner than this is none
-TOP_SLACK = 2.0     # a slab top this near the column's top adds no floor
+TOP_SLACK = 2.0     # a slab's break this near the column's top adds no floor
+UNDER = 2.0         # a slab's floor starts this far under its underside
+
+
+def slab_break(box):
+    """Where a made slab's floor starts: UNDER under its underside (box [x0, y0, z0, x1, y1, z1])."""
+    return box[2] - UNDER
 
 
 def _overlap(a, b):
@@ -76,7 +84,7 @@ def _column(cx, cy, plain, slabs, grid):
         marks = [dict(z=bottom, floor=1, source=None, taken=False)]
     else:
         return None, None
-    for t in sorted({s['box'][5] for s in slabs if _covers(s['box'], cx, cy)}):
+    for t in sorted({slab_break(s['box']) for s in slabs if _covers(s['box'], cx, cy)}):
         if t <= bottom + HALF or t >= top - TOP_SLACK:
             continue
         near = [m for m in marks[1:] if not m['taken'] and abs(m['z'] - t) <= HALF]
@@ -98,9 +106,9 @@ def _column(cx, cy, plain, slabs, grid):
 
 
 def _moves(slab, plain, grid):
-    """Whether a slab's top changes the floors over its centre (split's rule)."""
+    """Whether a slab's break changes the floors over its centre (split's rule)."""
     b = slab['box']
-    cx, cy, top_z = (b[0] + b[3]) / 2, (b[1] + b[4]) / 2, b[5]
+    cx, cy, top_z = (b[0] + b[3]) / 2, (b[1] + b[4]) / 2, slab_break(b)
     over = [v for v in plain if _covers(v['box'], cx, cy)]
     if over:
         bottom, top = min(v['box'][2] for v in over), max(v['box'][5] for v in over)

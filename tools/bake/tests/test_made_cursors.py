@@ -18,7 +18,9 @@ BAR = [dict(key='C%d' % n, floor=n, box=[-2784.0, -1920.0, lo, 2208.0, 1824.0, h
 ROOM = [0.0, 0.0, 384.0, 288.0]     # a room's footprint, x0 y0 x1 y1
 
 
-def slab(top, foot=ROOM, label='Slab', thick=16.0):
+def slab(top, foot=ROOM, label='Slab', thick=2.0):
+    """A made slab's box, 2 thick as the made floors are: its floor starts at made_cursors.UNDER under its underside,
+    4 under its top."""
     return dict(box=[foot[0], foot[1], top - thick, foot[2], foot[3], top], label=label)
 
 
@@ -28,12 +30,14 @@ def area(b):
 
 class Split(unittest.TestCase):
     def test_a_room_on_the_bar_brings_floors_breaking_at_its_floor_and_roof(self):
-        # (F-128, EXP-76 run E) a made floor at 194 and a roof at 386: over the room the floors break at them, the
-        # map's floor numbers kept; outside it each of the bar's floors stands again round the room, the same heights
-        s = made_cursors.split(BAR, [slab(194.0, label='Floor'), slab(386.0, label='Roof')])
+        # (F-128, EXP-76 run E) a made floor (192 to 194) and a roof (382 to 386): over the room the floors break 2
+        # under their undersides (EXP-80 run G: a floor's cursor looks down from its volume's top, and one starting on
+        # a slab's top landed on it), the map's floor numbers kept; outside it each of the bar's floors stands again
+        # round the room, the same heights
+        s = made_cursors.split(BAR, [slab(194.0, label='Floor'), slab(386.0, label='Roof', thick=4.0)])
         self.assertEqual(s['hidden'], ['C1', 'C2', 'C3', 'C4'])
         over = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'])
-        self.assertEqual(over, [(0.0, 194.0, 1), (194.0, 386.0, 2), (386.0, 594.0, 3), (594.0, 768.0, 4)])
+        self.assertEqual(over, [(0.0, 190.0, 1), (190.0, 380.0, 2), (380.0, 594.0, 3), (594.0, 768.0, 4)])
         for v in s['volumes']:
             if v['over']:
                 self.assertEqual([v['box'][k] for k in (0, 1, 3, 4)], ROOM)
@@ -55,14 +59,15 @@ class Split(unittest.TestCase):
         self.assertAlmostEqual(sum(area(b) * (b[5] - b[2]) for b in boxes), whole, 1)
 
     def test_a_slab_on_a_break_or_near_the_bottom_changes_nothing(self):
-        for top in (210.0, 402.0, 16.0, 90.0):
+        # (its floor's start, 4 under its top, on a break of the map's, or within half a storey of the bottom)
+        for top in (214.0, 406.0, 16.0, 90.0):
             self.assertEqual(made_cursors.split(BAR, [slab(top)]), dict(hidden=[], volumes=[], crossed=[]), top)
         self.assertEqual(made_cursors.split(BAR, []), dict(hidden=[], volumes=[], crossed=[]))
 
     def test_a_top_with_no_break_near_adds_a_floor_and_the_floors_over_it_go_up(self):
         one = [dict(key='A', floor=1, box=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 210.0]),
                dict(key='B', floor=2, box=[-1000.0, -1000.0, 210.0, 1000.0, 1000.0, 768.0])]
-        s = made_cursors.split(one, [slab(500.0)])
+        s = made_cursors.split(one, [slab(504.0)])
         over = sorted((v['box'][2], v['box'][5], v['floor'], v['source']) for v in s['volumes'] if v['over'])
         self.assertEqual(over, [(0.0, 210.0, 1, 'A'), (210.0, 500.0, 2, 'B'), (500.0, 768.0, 3, 'B')])
 
@@ -74,20 +79,20 @@ class Split(unittest.TestCase):
                  dict(key='W2', floor=2, box=[-500.0, -500.0, 256.0, 192.0, 500.0, 512.0]),
                  dict(key='E1', floor=1, box=[192.0, -500.0, 0.0, 900.0, 500.0, 192.0]),
                  dict(key='E2', floor=2, box=[192.0, -500.0, 192.0, 900.0, 500.0, 512.0])]
-        s = made_cursors.split(local, [slab(300.0)])
+        s = made_cursors.split(local, [slab(304.0)])
         west = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'] and v['box'][3] <= 192.0)
         east = sorted((v['box'][2], v['box'][5], v['floor']) for v in s['volumes'] if v['over'] and v['box'][0] >= 192.0)
         self.assertEqual(west, [(0.0, 300.0, 1), (300.0, 512.0, 2)])
         self.assertEqual(east, [(0.0, 192.0, 1), (192.0, 300.0, 2), (300.0, 512.0, 3)])
         # the same floors on both sides make one volume each across the edge
-        s = made_cursors.split(local, [slab(224.0)])
+        s = made_cursors.split(local, [slab(228.0)])
         self.assertEqual(sorted((v['box'][0], v['box'][3], v['box'][2], v['box'][5]) for v in s['volumes'] if v['over']),
                          [(0.0, 384.0, 0.0, 224.0), (0.0, 384.0, 224.0, 512.0)])
 
     def test_a_cell_with_no_volume_takes_the_grids_floors(self):
         s = made_cursors.split([], [slab(194.0)], grid=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 768.0])
         self.assertEqual(sorted((v['box'][2], v['box'][5], v['floor'], v['source']) for v in s['volumes']),
-                         [(0.0, 194.0, 1, None), (194.0, 768.0, 2, None)])
+                         [(0.0, 190.0, 1, None), (190.0, 768.0, 2, None)])
         self.assertEqual(made_cursors.split([], [slab(194.0)]), dict(hidden=[], volumes=[], crossed=[]))
 
     def test_a_stair_volume_under_a_footprint_is_reported_and_left(self):
@@ -101,7 +106,7 @@ class Split(unittest.TestCase):
         st = made_cursors.storeys(BAR, [slab(194.0)])
         self.assertEqual(len(st), 4 * 4 + 4)
         inside = sorted((b[2], f) for f, b in st if b[0] <= 192.0 <= b[3] and b[1] <= 144.0 <= b[4])
-        self.assertEqual(inside, [(0.0, 1), (194.0, 2), (402.0, 3), (594.0, 4)])
+        self.assertEqual(inside, [(0.0, 1), (190.0, 2), (402.0, 3), (594.0, 4)])
 
 
 class Rectangles(unittest.TestCase):
@@ -120,7 +125,8 @@ class Twin(unittest.TestCase):
         cases = [dict(volumes=BAR, slabs=[slab(194.0), slab(386.0)], grid=None),
                  dict(volumes=BAR, slabs=[slab(194.0), slab(386.0, foot=[192.0, 96.0, 768.0, 480.0])], grid=None),
                  dict(volumes=[], slabs=[slab(194.0)], grid=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 768.0]),
-                 dict(volumes=BAR, slabs=[slab(210.0), slab(60.0)], grid=None)]
+                 dict(volumes=BAR, slabs=[slab(214.0), slab(60.0)], grid=None),
+                 dict(volumes=BAR, slabs=[slab(210.0, thick=32.0)], grid=None)]
         script = ("import('%s').then(m => { const cases = JSON.parse(process.argv[1]);"
                   " console.log(JSON.stringify(cases.map(c => m.madeStoreys("
                   "c.volumes.map(v => ({ floor: v.floor, box: v.box, made: false })), c.slabs, c.grid)"

@@ -240,7 +240,9 @@ function cursorStoreysOf(data, cleared, ownDims) {
 
 // The made floors' and roofs' own cursor floors (custom geometry plan M5b, F-128): tools/bake/made_cursors.py is the
 // rule and the Build's writer, this its twin (tools/bake/tests/test_made_cursors.py checks the two agree).
-const MADE_HALF = 96, MADE_EDGE = 1, MADE_TOP_SLACK = 2;
+const MADE_HALF = 96, MADE_EDGE = 1, MADE_TOP_SLACK = 2, MADE_UNDER = 2;
+// where a made slab's floor starts: MADE_UNDER under its underside (made_cursors.slab_break)
+const slabBreak = box => box[2] - MADE_UNDER;
 const madeOverlap = (a, b) => Math.min(a[3], b[3]) - Math.max(a[0], b[0]) > MADE_EDGE && Math.min(a[4], b[4]) - Math.max(a[1], b[1]) > MADE_EDGE;
 const madeCovers = (b, x, y) => b[0] <= x && x <= b[3] && b[1] <= y && y <= b[4];
 const round3 = v => Math.round(v * 1000) / 1000;
@@ -285,7 +287,7 @@ function madeColumn(cx, cy, plain, slabs, grid) {
     [bottom, top] = [grid[2], grid[5]];
     marks = [{ z: bottom, floor: 1, source: null, taken: false }];
   } else return null;
-  for (const t of sortedUnique(slabs.filter(s => madeCovers(s.box, cx, cy)).map(s => s.box[5]))) {
+  for (const t of sortedUnique(slabs.filter(s => madeCovers(s.box, cx, cy)).map(s => slabBreak(s.box)))) {
     if (t <= bottom + MADE_HALF || t >= top - MADE_TOP_SLACK) continue;
     const near = marks.slice(1).filter(m => !m.taken && Math.abs(m.z - t) <= MADE_HALF);
     if (near.length) {
@@ -306,7 +308,7 @@ function madeColumn(cx, cy, plain, slabs, grid) {
   return { bands: marks.map((m, k) => [round3(m.z), round3(ends[k]), m.floor]), sources: marks.map(m => m.source) };
 }
 function madeMoves(slab, plain, grid) {
-  const b = slab.box, cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, t = b[5];
+  const b = slab.box, cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, t = slabBreak(b);
   const over = plain.filter(v => madeCovers(v.box, cx, cy));
   let bottom, top, breaks;
   if (over.length) {

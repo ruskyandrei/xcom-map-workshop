@@ -389,10 +389,12 @@ climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComL
   can be dragged to any height, so the user chose the second (18 November 2026).
 - **Fix** ([made_cursors.py](../tools/bake/made_cursors.py), the Build's copy stage). Each of the map's plain cursor
   volumes that a made floor or roof crosses is taken out of the level's list and stands again as clones of itself
-  round the made slabs, the same floor and heights. Over the made slabs the floors are made again: each slab top
-  takes the nearest break within half a storey (96, never the bottom) or adds one, and a floor starts exactly at the
-  top, as the Bar's upper floor's is on its break. Nothing overlaps, as in the game's maps. On URB_Bar with EXP-76's
-  room the cursor floors over the room break at 194 and 386, and round it at 210 and 402 as before. The compiler's
+  round the made slabs, the same floor and heights. Over the made slabs the floors are made again: each slab's
+  break, 2 under its underside, takes the nearest break within half a storey (96, never the bottom) or adds one.
+  Nothing overlaps, as in the game's maps. At first the floors broke at the slabs' tops; on the long floor, with no
+  building to cut it away, floor 0's cursor looked down from the slab's top and landed on it (EXP-80 run G), so they
+  break under the undersides now. On URB_Bar with EXP-76's room the cursor floors over the room break at 190 and
+  380, and round it at 210 and 402 as before. The compiler's
   `slab-under-cursor-break` is gone: `slab-headroom` warns of a made slab less than 150 over the map's floor tiles
   under it (F-71), `slab-cursor-volume` of a made slab over a stair's cursor volume, which stays as it is. Whether
   the cutaway on floor 1 follows the room's own floors is the run's question.

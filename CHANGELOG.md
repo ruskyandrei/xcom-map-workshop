@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Made floors' and roofs' cursor floors break 2 under the slab's underside, not at its top** (custom geometry
+  plan, M5b; F-128; branch `fracturing-wall-poc`). In EXP-80 run G the cursor was right in the room, but on the long
+  floor, with no building to cut it away, floor 0's cursor looked down from the slab's top and landed on it (258, not
+  the ground's 64).
+  - [made_cursors.py](tools/bake/made_cursors.py): `UNDER = 2` and `slab_break(box)`; a slab's break takes the
+    nearest of the map's within half a storey or adds one, as its top did. The page's twin in
+    [floors.js](tools/viewer/web/floors.js) does the same (`MADE_UNDER`, `slabBreak`).
+  - Tests: [test_made_cursors.py](tools/bake/tests/test_made_cursors.py) (the room on the Bar breaks at 190 and 380;
+    the twin cases add a slab 32 thick) and the Build's readback in
+    [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) (the floor's footprint breaks at 190, the roof's at
+    396).
+  - [EXP-80-made-cursor-floors.md](research/experiments/EXP-80-made-cursor-floors.md) gives run H's breaks, and
+    F-128's fix text in the [findings register](research/findings-register.md) says why.
+  - Checked: the bake suite's made-cursor and made-slab tests, the editor's, node's and repo suites; EXP-76 built
+    again with its lighting: over the room the volumes break at 190 and 380, over the long floor at 190 and 402, and
+    the bar's strip keeps the map's 210 and 402. Not yet played.
+
 - **EXP-79 run D played, and three fixes from it: the blank map's light for pieces from other maps, ground shapes'
   world geometry and stepping up, and made slabs' textures read centre to centre** (custom geometry plan, M4;
   F-132, F-133, F-134; branch `fracturing-wall-poc`).

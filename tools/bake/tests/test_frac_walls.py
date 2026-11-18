@@ -643,20 +643,28 @@ class MadeSlabs(unittest.TestCase):
         self.assertAlmostEqual(max(b[3] for b in boxes), -1344.0, 2)
         self.assertAlmostEqual(min(b[2] for b in boxes), 398.0 - 1.0, 2)
 
-    def test_the_floor_brings_cursor_floors_breaking_at_its_top(self):
-        # (M5b, F-128) the floor's top, 194, is under the bar's cursor floor break at 210: the bar's four map-wide
-        # cursor volumes are taken out and stand again round it (four rectangles each), and over it the floors break
-        # at 194, the map's numbers kept; the roof's top, 402, is on a break and changes nothing
+    def test_the_slabs_bring_cursor_floors_breaking_under_them(self):
+        # (M5b, F-128) the bar's four map-wide cursor volumes are taken out and stand again round the slabs; over the
+        # floor (192 to 194) the floors break at 190 and over the roof (398 to 402) at 396, 2 under each underside
+        # (EXP-80 run G), the map's floor numbers kept
         import shell
         rec = self.m['nativeCopies']['madeCursors']
         self.assertEqual(len(rec['hidden']), 4)
         over = [a for a in rec['added'] if a['over']]
-        self.assertEqual(sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in over),
-                         [(0, 194, 1), (194, 402, 2), (402, 594, 3), (594, 768, 4)])
-        for a in over:
-            for got, want in zip([a['box'][k] for k in (0, 1, 3, 4)], [-1344.0, -1440.0, -1056.0, -1248.0]):
-                self.assertAlmostEqual(got, want, 2)
-        self.assertEqual(len(rec['added']) - len(over), 16)
+
+        def bands(foot):
+            return sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in over
+                          if all(abs(a['box'][k] - v) < 0.01 for k, v in zip((0, 1, 3, 4), foot)))
+        self.assertEqual(bands([-1344.0, -1440.0, -1056.0, -1248.0]),
+                         [(0, 190, 1), (190, 402, 2), (402, 594, 3), (594, 768, 4)])
+        self.assertEqual(bands([-1728.0, -1056.0, -1344.0, -768.0]),
+                         [(0, 210, 1), (210, 396, 2), (396, 594, 3), (594, 768, 4)])
+        self.assertEqual(len(over), 8)
+        # what the bar's volumes covered outside the slabs stands again at the same heights and floors
+        for a in rec['added']:
+            if not a['over']:
+                self.assertIn((round(a['box'][2]), round(a['box'][5]), a['floor']),
+                              [(0, 210, 1), (210, 402, 2), (402, 594, 3), (594, 768, 4)])
         # read back: the clones listed, the bar's own not
         q, live = self.q, shell.listed(self.q)
         listed = [i for i in shell.actors(q, 'XComCursorVolume') if i in live]

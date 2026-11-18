@@ -8,8 +8,9 @@ game, the game-test skill), checking only what is new.
 
 The Build gives each made floor and roof cursor floors of its own (tools/bake/made_cursors.py). URB_Bar's four
 map-wide cursor volumes (breaking at 210, 402 and 594) are taken out and stand again round the made slabs. Over the
-room the floors break at 194 and 386, the made floor's and the roof's tops. In EXP-76 run E the cursor of floor 0
-landed on the made floor and floor 1 drew the room whole.
+room the floors break at 194 and 386, the made floor's and the roof's tops (run G); after run G, at 190 and 380, 2
+under their undersides (run H). In EXP-76 run E the cursor of floor 0 landed on the made floor and floor 1 drew the
+room whole.
 
 ## The project
 
@@ -21,9 +22,9 @@ the roof 450, the bar's upper floor 274.
 
 | Piece | Where | Cursor floors over it after the Build |
 | --- | --- | --- |
-| Room | x -1728 to -1344, y -1056 to -768; doorway tile (-1585, -1009); a hole in its floor at tile (-1489, -913) | 0 to 194, 194 to 386, 386 to 594, 594 to 768 |
-| Long floor | x -1728 to -768, y -1440 to -1152, top 194, nothing under it | 0 to 194, 194 to 402, ... |
-| Lone roof | x -1152 to -960, y -1056 to -864, top 386, nothing under it | 0 to 210, 210 to 386, 386 to 594, ... |
+| Room | x -1728 to -1344, y -1056 to -768; doorway tile (-1585, -1009); a hole in its floor at tile (-1489, -913) | run G: 0 to 194, 194 to 386, 386 to 594, 594 to 768; run H: 0 to 190, 190 to 380, 380 to 594, 594 to 768 |
+| Long floor | x -1728 to -768, y -1440 to -1152, top 194, nothing under it | run G: 0 to 194, 194 to 402, ...; run H: 0 to 190, 190 to 402, ... |
+| Lone roof | x -1152 to -960, y -1056 to -864, top 386, nothing under it | run G: 0 to 210, 210 to 386, 386 to 594, ...; run H: 0 to 210, 210 to 380, 380 to 594, ... |
 | Everywhere else | | the map's: 0 to 210, 210 to 402, 402 to 594, 594 to 768 |
 
 ## Run (hidden game)
