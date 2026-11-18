@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-77 played (run F): ground shapes made from numbers pass in the game** (custom geometry plan, M6; branch
+  `fracturing-wall-poc`).
+  - [EXP-77-ground.md](research/experiments/EXP-77-ground.md): the ramp, the block, the patch, the cover block and
+    the rock load, show in their donors' materials outdoors and in the bar's kitchen, and stay unbroken by a grenade.
+    Units walk up the ramp onto the block (96 over the lot) and back, stand on the patch 1 up, and get low cover by
+    the 64-high block and high cover by the rock. The rock can't be stood on, and paths go round it. The shapes' own
+    shadows were unclear at the bar's night light; EXP-78 looks again on the farm.
+  - [findings-register.md](research/findings-register.md): F-129, a block a storey high is climbed onto from its
+    side (cause not read). F-128 now names the compiler's warning.
+  - Checked: the agent's report against its shots (the ramp and block, the kitchen, the block top, after the
+    grenade, the rock, the path round it); the repo suite.
+
 - **An uncatalogued ground look is measured for its own material**, and the floors and ground work's Build tests
   send donor looks at their request version (custom geometry plan, M4; branch `fracturing-wall-poc`).
   - [looks.py](tools/bake/looks.py) resolve: a ground look is one material on its donor, and a look the catalogue

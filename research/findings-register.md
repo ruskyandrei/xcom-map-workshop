@@ -294,6 +294,16 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-129: A made ground block a storey high is climbed onto from its side
+**Open: the cause is not read** (18 November 2026, [EXP-77](experiments/EXP-77-ground.md) run F).
+- **Seen.** A soldier east of a 96-high made block (in Asphalt, on URB_Bar's lot) ordered onto its top moved one
+  tile and stood on it, 96 over the lot, with no detour by the ramp beside it. Beside the block he had high cover.
+  The tiles beside a 64-high cover block read low cover with the climb-onto bit toward it.
+- **Why, as far as known.** Not read. The cover build gives its climb-onto bit only beside low cover
+  ([cover-build.md](native/cover-build.md) step 12), so the climb onto a block a storey high comes from another part
+  of the path build. Either way, a ramp is a way up a block, not the only one, and a block meant to stop units may
+  have to be taller than a storey (not tried).
+
 ### F-128: The cursor takes a room's made floor on floor 0, and the room isn't cut away on floor 1, where the map's cursor floors break higher than the room's
 **Open** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass).
 - **Seen.** In a room of made walls with a made floor (top 194) and roof (top 386) on URB_Bar's lot, the cursor on
@@ -306,8 +316,8 @@ behaviour for these proposed edits still need direct observation.
   does not follow them.
 - **What could fix it** (not chosen): the room tool and the made slabs keep to the map's cursor floors (the made
   floor's top on a break, as the game's slabs are), or the room brings cursor floors of its own over its footprint,
-  if the game takes them over the map-wide ones (to be tried). Meanwhile the compiler could warn of a made slab whose
-  top is not on a cursor floor's break.
+  if the game takes them over the map-wide ones (to be tried). Meanwhile the compiler warns of a made slab whose top
+  is under a cursor floor's break (`slab-under-cursor-break`, 18 November).
 
 ### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
 **Explained: the game's own walls do the same** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B; [EXP-75](experiments/EXP-75-joined-walls.md) run C).
