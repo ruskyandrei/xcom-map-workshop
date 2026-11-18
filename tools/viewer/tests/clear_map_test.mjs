@@ -109,6 +109,18 @@ for (const direction of ['north', 'east', 'south', 'west']) {
 const [intro] = own2({ landings: [{ group: 'XComSpawnPoint', actors: introActors }] });
 assert.ok(intro.fitted && intro.frame === null);
 assert.deepEqual(soldierSpots(intro.zone, intro).map(s => s.location), introPoints);
+
+// Whether a zone leaves the map's own landing in place, as the Build reckons it (spawns.js landingUnmoved,
+// native_spawns.unmoved): the Bar's line, a unit off its frame, keeps it (the view hid a cleared Bar's Skyranger at
+// half a unit, while its lights stayed drawn); a tile off, or turned, moves it; a frameless landing by its fitted zone
+const { landingUnmoved } = await import('../web/spawns.js');
+const barFrame = { role: 'frame', path: 'F', location: [719.9998779296875, -1679.9998779296875, 0], rotation: [0, 0, 0] };
+const barOwn = own2({ landings: [{ group: 'XComSpawnPoint', actors: [barFrame, ...place(bar1).soldiers.map((s, k) => ({ role: `soldier${k + 1}`, location: s.location.map(v => v + 0.4), rotation: [0, s.yaw, 0] }))] }] })[0];
+assert.ok(landingUnmoved(bar1, barOwn));
+assert.ok(!landingUnmoved({ ...bar1, location: [815, -1681, 64] }, barOwn));
+assert.ok(!landingUnmoved({ ...bar1, direction: 'east' }, barOwn));
+assert.ok(!landingUnmoved(bar1, null));
+assert.ok(landingUnmoved(intro.zone, intro) && !landingUnmoved({ ...intro.zone, location: [-352, -240, 64] }, intro));
 const shifted = { ...intro.zone, location: [intro.zone.location[0] + 96, intro.zone.location[1], intro.zone.location[2]] };
 assert.deepEqual(soldierSpots(shifted, intro), place2(shifted).soldiers);
 

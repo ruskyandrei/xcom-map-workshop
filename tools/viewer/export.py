@@ -71,7 +71,9 @@ import piece_flags
 #     and listed, and the bomb's PointInSpace helper in its group (F-124); `donors` (the bomb donor's objects)
 # 34: a no-spawn volume's values (`aliens`, `civilians`: AlienNoSpawnZone, CivilianNoSpawnZone), for the Spawns view's
 #     volume edits
-EXPORT_VERSION = 34   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 35: a landing's Skyranger lists its dust (the ARC_Skyranger_Ground_Periphery emitter beside its prefab, role `dust`),
+#     so the view carries it with a moved zone as the Build does
+EXPORT_VERSION = 35   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION

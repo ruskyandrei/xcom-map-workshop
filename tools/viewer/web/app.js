@@ -8,7 +8,7 @@ import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKe
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
-import { ownLandings, startingZones, place as zonePlace, soldierSpots, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
+import { ownLandings, startingZones, place as zonePlace, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
 import { createSquadDialog, squadLine } from './squad.js';
@@ -6374,6 +6374,24 @@ function clearedSpawns() {
   }
   return { after, deleted, named, copies, volumes };
 }
+// What a clear does to the effects, sounds and lens flares standing now (effects_rules.js survivesClear, the Build's
+// clear_level): { effects (and flares) and sounds that go, landing: the landing's that stay (the Skyranger's lights,
+// dust and sound) }. `keepOutside`: the grid size of a clear that keeps the scenery outside the play area.
+function clearedEffects(keepOutside = null) {
+  const area = keepOutside ? outsideBox(keepOutside) : null;
+  const outside = (x, y) => Boolean(area) && (x < area[0] || x > area[2] || y < area[1] || y > area[3]);
+  let effects = 0, sounds = 0, landing = 0;
+  for (const root of effectRoots.values()) {
+    const o = root.userData.source;
+    if (o.added || isStream(o) || root.userData.deleted || root.userData.derivedGone) continue;
+    const ctx = { carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) };
+    if (!survivesClear(o, { ...ctx, cleared, outside: pointOutside })) continue;      // (an earlier clear's)
+    if (survivesClear(o, { ...ctx, cleared: true, outside })) { if (o.landingActor) landing++; }
+    else if (o.kind === 'sound') sounds++;
+    else effects++;
+  }
+  return { effects, sounds, landing };
+}
 const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside') };
 const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside';
 clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
@@ -6399,9 +6417,12 @@ function clearWords(v) {
   const placeless = (data.lights ?? []).filter(l => l.layer === 'base');
   const sky = placeless.some(l => l.role === 'sky' || l.kind === 'sky'), sun = placeless.some(l => l.kind === 'directional');
   const scenery = clearDialog.keep.checked ? `, ${plural(plan.outside, 'piece')} and ${plural(plan.lightsOutside, 'light')} outside the play area` : '';
-  const sp = clearedSpawns(), points = sp.deleted.length + sp.copies;
-  $('clearMapPlan').textContent = `Removes ${plural(plan.pieces, 'piece')}, ${plural(plan.lights, 'light')}${points ? ` and ${plural(points, 'spawn point')} (pods, Meld points and drop-in points)` : ''}. `
-    + `Keeps the landing's ${plural(plan.landing, 'piece')}, `
+  const sp = clearedSpawns(), points = sp.deleted.length + sp.copies, fx = clearedEffects(clearDialog.keep.checked ? v : null);
+  const and = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+  const gone = [plural(plan.pieces, 'piece'), plural(plan.lights, 'light'), points && `${plural(points, 'spawn point')} (pods, Meld points and drop-in points)`,
+                fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound')].filter(Boolean);
+  $('clearMapPlan').textContent = `Removes ${and(gone)}. `
+    + `Keeps the landing's ${plural(plan.landing, 'piece')}${fx.landing ? ` and its ${fx.landing === 1 ? 'effect' : `${fx.landing} effects and sounds`}` : ''}, `
     + `${kept ? `one landing zone (${zones.findIndex(z => z.id === kept.id) === 0 ? 'the first' : `zone ${zones.findIndex(z => z.id === kept.id) + 1}`}, the map's own landing${zones.length > 1 ? `; the other ${zones.length - 1} go` : ''})` : 'no landing zone'}`
     + `${scenery}${sp.volumes ? `, the ${plural(sp.volumes, 'no-spawn volume')}` : ''}${sun ? ', the sun' : ''}${sky ? ' and the sky light' : ''}.`
     + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '');
@@ -7337,14 +7358,15 @@ const effectsAvailable = () => Boolean(data) && data.scope === 'map' && !data.pr
 function effectMatrix(location, rotation, scale = [1, 1, 1]) {
   return actorMatrix(location, rotation ?? [0, 0, 0]).multiply(new THREE.Matrix4().makeScale(scale[0], scale[2], scale[1]));
 }
-// The map's own landings moved to another zone: actor path -> { from, to } for their Skyrangers' actors
+// The map's own landings moved to another zone (as the Build reckons it: spawns.js landingUnmoved): actor path ->
+// { from, to } for their Skyrangers' actors
 function landingShifts() {
   const out = new Map();
   if (!effectsAvailable()) return out;
   const { zones, own, slots } = zoneState();
   for (const [k, j] of slots) {
     const o = own[j], z = zones[k];
-    if (z.direction === o.zone.direction && z.location.every((v, i) => Math.abs(v - o.zone.location[i]) < 0.5)) continue;
+    if (landingUnmoved(z, o)) continue;
     for (const a of o.landing?.skyranger?.actors ?? []) out.set(a.path, { from: o.zone, to: z });
   }
   return out;
@@ -8249,13 +8271,14 @@ function refreshLandingZones() {
   });
   landingPanel();
 }
-// The map's own landing pieces (the frame, the Skyranger) whose zone has moved from where the map has them: the
-// zone draws them, the pieces are not shown
+// The map's own landing pieces (the frame, the Skyranger) whose zone has moved from where the map has them (as the
+// Build reckons it: spawns.js landingUnmoved, so a zone a unit off its frame keeps them): the zone draws them, the
+// pieces are not shown
 function movedLandingActors() {
   const { zones, own, slots } = zoneState(), out = new Set();
   for (const [k, j] of slots) {
     const o = own[j], z = zones[k];
-    if (z.direction === o.zone.direction && z.location.every((v, i) => Math.abs(v - o.zone.location[i]) < 0.5)) continue;
+    if (landingUnmoved(z, o)) continue;
     if (o.frame) out.add(o.frame);
     for (const a of o.landing?.skyranger?.actors ?? []) out.add(a.path);
     if (!o.landing) {     // an older export: the Skyranger nearest the frame

@@ -194,6 +194,21 @@ class Lanes(unittest.TestCase):
                 native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
             self.assertIn(words, str(caught.exception))
 
+    def test_a_cleared_map_keeps_the_moved_sound_the_copies_and_the_skyrangers(self):
+        # (the user, 18 November 2026: Clear left a cleared Bar's ambient sounds in its play area) the map's own
+        # sounds go with the clear, but one the project moved, its copies and the Skyranger's
+        out = Path(self.tmp.name) / 'Cleared'
+        m = native_copy.build(BAR, out, 'Cleared', [], sounds=dict(moves=self.SOUNDS['moves'], copies=self.SOUNDS['copies'][:1]),
+                              cleared=dict(grid=[52, 39, 12]))
+        q = Package(out / 'Cleared.upk')
+        listed = set(native_copy.level_actors(q))
+        self.assertIn(q.by_name[PL + 'AmbientSoundSimple_2'], listed)               # moved by the project: kept
+        self.assertIn(q.by_name[PL + 'AmbientSoundSimpleToggleable_0'], listed)     # the Skyranger's
+        for name in ('AmbientSoundSimple_0', 'AmbientSoundSimple_1', 'AmbientSoundSimple_3', 'AmbientSoundSimple_4'):
+            self.assertNotIn(q.by_name[PL + name], listed)                          # the map's own: out with the clear
+        copy, = [r['copy'] for r in m['nativeCopies']['sounds'] if r['how'] == 'copied']
+        self.assertIn(q.by_name[PL + copy], listed)
+
 
 # ---------------------------------------------------------------- values (plan Part D, stage FX5)
 def component_bytes(p, actor, prop='ParticleSystemComponent'):

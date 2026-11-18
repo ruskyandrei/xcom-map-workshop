@@ -1302,6 +1302,10 @@ def check_clear_map(page):
     text = page.locator('#clearMap').inner_text()
     assert 'Removes %d piece' % plan['pieces'] in text and 'one landing zone' in text, text
     assert page.locator('#clearMap input[type=number]').count() == 0
+    # the map's ambient sounds go with the clear, but the landing's (the user, 18 November 2026)
+    sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
+    if sounds:
+        assert ('%d ambient sound' % sounds) in text, text
     page.keyboard.press('Escape')
     # what the cleared map is for (mission types plan, D2): the dialog says it asks; a clear from the dialog asks "What
     # is this map for?", the header's abduction or terror ticked (else an abduction); OK sets the missions, one undo
@@ -1351,6 +1355,13 @@ def check_clear_map(page):
     first_own = next((z for z in before_zones if z.get('ew')), before_zones[0])
     assert len(left) == 1 and left[0]['id'] == first_own['id'] and left[0].get('lwr') is not False, left
     assert left[0].get('ew') is (True if page.evaluate('viewer.ownLandingCount()') else None), left
+    # the zone left is where the map has its landing (the Bar's line a unit off its frame), so its Skyranger isn't
+    # taken for moved and hidden; it stays with its lights, dust and sound, and no other effect or sound is left
+    assert page.evaluate('viewer.movedLandingActors()') == [], page.evaluate('viewer.movedLandingActors()')
+    page.evaluate('viewer.effectMarkers()')
+    left_fx = page.evaluate("""() => [...viewer.effectRoots.values()].filter(r => r.userData.there).map(r => r.userData.source)
+                                .filter(o => !o.added && !o.stream).map(o => [o.actor, o.kind, Boolean(o.landingActor)])""")
+    assert all(landing for _, _, landing in left_fx), left_fx
     # zones are picked in the Landing zones view only (Shift+Z): drawn over everything, a click on one (its number
     # badge here) picks it and never a piece; the normal view's clicks go to pieces; the Lights view takes over
     badge_at = """() => { let b = null; viewer.landingLayer.traverse(o => { if (o.userData.zoneBadge) b = o; });

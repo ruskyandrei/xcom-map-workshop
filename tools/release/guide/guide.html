@@ -1446,23 +1446,26 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b class="ui">Clear map…</b> in the Project menu takes every piece off the map, the ground too, so that you can
   build a new map with pieces and prefabs on an old map's light and landing. It is meant for an unchanged map, but it
   works on any.</p>
-<figure><img src="shots/clear-map.webp" width="484" height="343" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
+<figure><img src="shots/clear-map.webp" width="484" height="379" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
 <ul>
-  <li><b>A window comes first.</b> It warns what will go and counts it for this map: the pieces, the lights, and the
-    pieces the mission's script names. It also counts what stays:
+  <li><b>A window comes first.</b> It warns what will go and counts it for this map: the pieces, the lights, the
+    spawn points, the effects and ambient sounds, and the pieces the mission's script names. It also counts what
+    stays:
     <ul>
-      <li>the landing's own pieces (the Skyranger's frame and the drop zone);</li>
+      <li>the landing's own pieces (the drop zone's frame and the grounded Skyranger), with the Skyranger's lights,
+        dust and sound;</li>
       <li>one landing zone: the map's own first landing, used by Long War and plain EW alike (copy it for more);</li>
       <li>the sun or moon and the sky light.</li>
     </ul>
     The clear keeps the grid's size. Change it with <a href="#mapgrid">Map grid</a>, before or after.</li>
   <li><b class="ui">Keep the scenery outside the play area</b> leaves the pieces that stand wholly outside it: the
-    buildings, trees and fences the map is seen against. The lights, smoke and stains placed out there stay too. Here
+    buildings, trees and fences the map is seen against. The lights, smoke, stains and sounds placed out there stay
+    too. Here
     the play area is the map's own, and the new grid where it reaches further, so pieces the new grid brings into play
     still go. So does a piece across the edge. The window counts what stays. The tick is remembered.</li>
-  <li><b>Effects go with the clear</b>, except the landing's and the ones outside that the tick keeps; the map's
-    ambient sounds all stay. Delete a sound in the <a href="#effects">Effects view</a> if it doesn't belong in your
-    map.</li>
+  <li><b>Effects and ambient sounds go with the clear</b>, except the Skyranger's, which stay with it, and the ones
+    outside that the tick keeps. One you moved yourself in the <a href="#effects">Effects view</a> stays, and so do
+    your copies.</li>
   <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings everything back, the size too. What
     your project had added goes as well, with its groups and buildings.</li>
   <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>

@@ -1179,6 +1179,9 @@ CLEAR_OUT = (
     'XComBuildingVolume', 'XComFloorVolume',
     # smoke, steam, stains and glints of what is gone (F-50)
     'Emitter', 'DecalActor', 'DecalActorMovable', 'LensFlareSource',
+    # the map's ambient sounds: the jukebox, the hum of what is gone (the user, 18 November 2026: Clear left them in
+    # the play area); the landing's go with its Skyranger, kept as the landing's
+    'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop', 'AmbientSoundMovable',
     # path-blocking, camera-blocking and damage volumes (EXP-08 switched Bar's off for the same reason)
     'PathBlockingVolume', 'GameCameraBlockingVolume', 'BlockingVolume', 'XComDamageVolume', 'DynamicBlockingVolume',
     'XComCameraVolume', 'XComHideVolume',
@@ -1191,6 +1194,7 @@ CLEAR_OUT = (
 # What of CLEAR_OUT a clear that keeps the scenery outside the play area leaves when it stands outside (the compiler's
 # `keepOutside` box): the lights, smoke, stains and glints of the pieces it kept
 KEEP_OUTSIDE = ('Emitter', 'DecalActor', 'DecalActorMovable', 'LensFlareSource', 'PointLight', 'PointLightMovable',
+                'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop', 'AmbientSoundMovable',
                 'PointLightToggleable', 'SpotLight', 'SpotLightMovable', 'SpotLightToggleable', 'GeneratedMeshAreaLight',
                 'XComPointLight', 'XComSpotLight')
 # What a clear leaves (section 2's "Stay" rows), so an actor of a class on neither list is named in the report
@@ -1199,7 +1203,6 @@ CLEAR_KEEP = (
     'XComLevelVolume', 'XComCursorVolume', 'LightmassImportanceVolume', 'PostProcessVolume', 'WorldInfo', 'PlayerStart', 'PointInSpace',
     'XComSpawnPoint', 'XComSpawnPoint_Alien', 'XComAlienPod', 'XComAlienPod_Abduction', 'XComAlienPathNode',
     'XComMeldContainerSpawnPoint', 'XComNoSpawnVolume', 'TriggerVolume', 'XComRebuildWorldDataVolume',
-    'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSound', 'AmbientSoundNonLoop',
     'XComAlienPod_Terror', 'XComAlienPod_Hunter', 'XComAlienSpawnVolume', 'XComWaveSystem', 'XComRainVolume',
     'XComWeatherControl', 'XComSquadVisiblePoint',
     # a prefab's instance stays: the native picks the squad's spawn group from the points prefabs hold (F-96)
@@ -2306,7 +2309,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     if effect_gone:
         empty_slots(g, p, effect_gone)
     effect_moved = ({p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
-                    | {r['export'] for r in lane_effects + lane_flares if r['how'] == 'moved'})
+                    | {r['export'] for r in lane_effects + lane_flares + lane_sounds if r['how'] == 'moved'})
     # a moved or deleted van's building and floor volumes go with it
     edited = {p.by_name[PL + e['actor']] for e in building_edits if PL + e['actor'] in p.by_name}
     hidden_buildings = hide_van_buildings(g, p, {h['export'] for h in hidden}, edited) if hidden else []

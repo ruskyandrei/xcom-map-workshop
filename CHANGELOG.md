@@ -8,6 +8,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Clear map: the Skyranger stays drawn with its effects; the map's ambient sounds go; the Skyranger's dust moves with it
+
+The user, on a cleared Bar: effect and sound markers were left in the play area, and the Skyranger's effects stayed
+though the Skyranger itself was gone ("either leave the skyranger and its effects on a clear or remove both").
+
+- **The Skyranger was never taken out; the view hid it.** The clear keeps the landing's pieces, and the Build left
+  the Skyranger where it was. But the page took the kept zone for moved and hid the Skyranger and the drop zone's
+  frame, drawing an outline in their place, while it still drew their lights and dust. The zone is the install's line
+  joined with the map's own landing, and on the Bar that line stands a unit off the frame (719 against 719.9998). The
+  page's test allowed half a unit; the Build's (native_spawns.py `unmoved`) allows 4 units for the frame and the
+  soldier points. Before a clear the page has no zone list of its own, so the test never ran. The clear writes one,
+  and the Skyranger vanished. [spawns.js](tools/viewer/web/spawns.js) `landingUnmoved` now follows the Build's rule,
+  and [app.js](tools/viewer/web/app.js) `movedLandingActors` and `landingShifts` use it.
+- **The map's ambient sounds go with a clear** ([native_copy.py](tools/bake/native_copy.py): the AmbientSound
+  classes moved from `CLEAR_KEEP` to `CLEAR_OUT` and `KEEP_OUTSIDE`). They follow the emitters' rule: the
+  landing's stay (the Skyranger's sound), so do those outside the play area when the tick keeps the scenery outside,
+  one the project moved (the sounds lane's moves join `effect_moved`), and the project's copies (made after the
+  clear). [effects_rules.js](tools/viewer/web/effects_rules.js) `survivesClear` no longer keeps every sound. Sounds
+  stayed before because the clear came before sounds could be edited.
+- **The Skyranger's dust moves with it** (export 35): the ARC_Skyranger_Ground_Periphery emitter stands beside the
+  Skyranger's prefab, not in it. [scene_metadata.py](tools/viewer/scene_metadata.py) `landing_metadata` lists it with
+  the nearest Skyranger (within 2,500 units) as role `dust`. A moved zone now carries it with the Skyranger's mesh,
+  lights and sound, in the Build (native_spawns `plan`) and in the view; before, it stayed where the Skyranger had
+  been. The Farm's Skyrangers have none.
+- **The Clear window** (`clearedEffects`) counts the effects and ambient sounds it removes and the landing's it
+  keeps: on the Bar "Removes 964 pieces, 254 lights, 9 spawn points (...), 70 effects and 5 ambient sounds. Keeps the
+  landing's 2 pieces and its 3 effects and sounds, ...".
+- The guide ([guide.html](tools/release/guide/guide.html)): the Clear map window's counts and what stays (the
+  Skyranger's lights, dust and sound), the tick keeping sounds outside, and "Effects and ambient sounds go with the
+  clear". The `clear-map` picture is retaken (its new counts; 484 by 379).
+- Checked:
+  - node tests: clear_map (`landingUnmoved`: the Bar's line a unit off its frame is unmoved; a tile off, or turned,
+    is moved; a frameless landing by its fitted zone) and effects_rules (a sound goes, one outside stays with the
+    tick, the landing's stays);
+  - the viewer suite (test_spawns: the Bar's Skyranger lists its dust Emitter_0);
+  - bake tests:
+    - ClearLevel: the Bar's five ambient sounds go; the Skyranger's lights, dust and sound stay as the landing's;
+    - BarMoved: a moved zone moves 15 actors, the dust among them;
+    - Lanes: a cleared build keeps the moved sound, its copy and the Skyranger's, and takes the map's other four;
+  - editor and repo suites;
+  - the browser smoke `--only spawns,clear-map,effects` on a test server. After a clear no landing piece is taken for
+    moved, and only the landing's effects and sounds are left. The window names the ambient sounds.
+  - On the test server, a cleared Bar shows its Skyranger with its lights and dust. Not built in the game.
+
 ### Clear map deletes the map's spawn points; no-spawn volumes are edited and added; multiplayer starts hidden
 
 The user, on a cleared Bar: the map's pods, Meld points and grey points stayed. Asked what the grey points and the

@@ -94,6 +94,11 @@ class ClearLevel(unittest.TestCase):
         self.assertTrue(native_copy.archetype_path(self.q, evac[0]).endswith('SoldierSpawns_DrpshipVol_Arc0'))
         self.assertIn('XComLevelActor_6', self.report['landing'])          # the drop zone's frame
         self.assertIn('XComLevelActor_138', self.report['landing'])        # the grounded Skyranger
+        # its lights, dust and sound stay with it; the map's own ambient sounds go (18 November 2026)
+        for name in ('Emitter_78', 'Emitter_0', 'AmbientSoundSimpleToggleable_0'):
+            self.assertIn(name, self.report['landing'])
+        self.assertEqual(out.get('AmbientSoundSimple'), 5)
+        self.assertNotIn('AmbientSoundSimple', kept)
         print('\nclear_level on URB_Bar:', out, '\n  kept:', kept, '\n  odd:', {k: len(v) for k, v in self.report['odd'].items()})
 
     def test_one_rebuild_volume_over_the_whole_grid(self):

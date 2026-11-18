@@ -271,14 +271,15 @@ export function valuesViewOnly(r) {
   return r?.can?.values ? null : (r?.why?.values ?? 'the map\'s export doesn\'t say its values can change');
 }
 
-/** Whether a cleared map keeps a record (tools/bake/native_copy.py clear_level): every sound stays; an effect or a
- *  flare goes unless it is the landing's, the project moved it itself or its carrying piece survives the clear moved
- *  (the Build keeps both), or the clear keeps the scenery outside the play area and it stands outside it. (A copy is
- *  made after the clear: it always stays.)
+/** Whether a cleared map keeps a record (tools/bake/native_copy.py clear_level): an effect, a sound or a flare goes
+ *  unless it is the landing's (the Skyranger's lights, dust and sound stay with it), the project moved it itself or
+ *  its carrying piece survives the clear moved (the Build keeps both), or the clear keeps the scenery outside the play
+ *  area and it stands outside it. (A copy is made after the clear: it always stays. Sounds stayed too before
+ *  18 November 2026, when the user found a cleared Bar's jukebox and hum left in its play area.)
  *  ctx: { cleared, outside(x, y): whether the clear keeps that point as outside scenery, carrierMoved: whether the
  *  piece that carries it is kept and moved, moved: whether the project moves it itself }. */
 export function survivesClear(r, ctx) {
-  if (!ctx?.cleared || r.kind === 'sound' || r.stream) return true;
+  if (!ctx?.cleared || r.stream) return true;
   if (r.landingActor || ctx.moved) return true;
   if (r.carriedBy && ctx.carrierMoved) return true;
   return Boolean(ctx.outside?.(r.location[0], r.location[1]));

@@ -101,7 +101,9 @@ class BarMoved(unittest.TestCase):
     def test_every_landing_actor_is_at_its_new_place_under_its_own_name(self):
         self.assertEqual(len(self.report), 1)
         moved = self.report[0]['actors']
-        self.assertEqual(len(moved), 14)        # ten of the landing's, four of the Skyranger's
+        self.assertEqual(len(moved), 15)        # ten of the landing's, five of the Skyranger's (its dust: export 35)
+        dust = next(a for a in moved if a['role'] == 'dust')
+        self.assertEqual(dust['path'], 'TheWorld.PersistentLevel.Emitter_0')
         for a in moved:
             i = self.q.by_name[a['path']]       # the same name
             self.assertEqual(self.q.exports[i - 1]['arch'], self.p.exports[self.p.by_name[a['path']] - 1]['arch'])

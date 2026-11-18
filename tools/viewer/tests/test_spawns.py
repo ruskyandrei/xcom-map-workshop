@@ -125,7 +125,11 @@ class Export22(unittest.TestCase):
         self.assertEqual(roles, sorted(['frame', 'volume', 'playerStart', 'point'] + ['soldier%d' % k for k in range(1, 7)]))
         frame = next(a for a in landings[0]['actors'] if a['role'] == 'frame')
         self.assertEqual(frame['path'], 'TheWorld.PersistentLevel.XComLevelActor_6')
-        self.assertEqual(sorted(a['role'] for a in landings[0]['skyranger']['actors']), ['emitter', 'mesh', 'point', 'sound'])
+        self.assertEqual(sorted(a['role'] for a in landings[0]['skyranger']['actors']), ['dust', 'emitter', 'mesh', 'point', 'sound'])
+        # (export 35) its dust, the emitter beside the prefab, goes with it
+        dust = next(a for a in landings[0]['skyranger']['actors'] if a['role'] == 'dust')
+        self.assertEqual((dust['path'], dust['actorClass']), ('TheWorld.PersistentLevel.Emitter_0', 'Emitter'))
+        self.assertTrue(dust['archetype'].endswith('ARC_Skyranger_Ground_Periphery'))
         # the mutator's offsets from Bar's first line put every actor within two units of the map's own
         zone = spawns.parse_line(BAR_1)[1]
         at = spawns.place(zone)
