@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-79 prepared: run D's three projects, looks from any piece beside their donors** (custom geometry plan, M4d;
+  branch `fracturing-wall-poc`).
+  - [exp79_project.py](tools/editor/examples/exp79_project.py) writes three projects into a scratch store and builds
+    them. Donors from other maps come through the library.
+    - `walls`: the twelve shortlisted walls on the blank map, each as a copy of its donor, its made twin and a longer
+      made wall with a doorway, level with each other.
+    - `floors`: six floors and roofs beside their donors, and eight ground looks on their donor planes, one donor at
+      0.6.
+    - `eyedropper`: on URB_Bar, a copy of another map's floor. The editor's eyedropper then drew a slab in that
+      floor's look and a wall in the look of the bar's own facade wall, and the script only builds it.
+  - [EXP-79-looks.md](research/experiments/EXP-79-looks.md): the pieces, where they stand, and run D's checks.
+  - Also checked for M4d:
+    - three of the user's projects without made pieces (the farm with every kind, cover blocks that break, walls and
+      corpses on the bar) quick-built on main and on the branch to the same map and intro packages, byte for byte;
+    - every catalogued donor has a library entry a Build takes;
+    - the walls and looks browser checks pass on the full catalogues.
+  - Checked: the three projects compile and build with the lighting baked (walls in 39 s, floors in 26 s, eyedropper
+    in 27 s); the repo suite.
+
 - **EXP-78 played (run F part 2), and two fixes from it: a ground shape copied from a StaticMeshActor becomes an
   XComLevelActor, and a deleted piece in the ground level alone gets its rebuild volume** (custom geometry plan, M6;
   F-130, F-131; branch `fracturing-wall-poc`).
