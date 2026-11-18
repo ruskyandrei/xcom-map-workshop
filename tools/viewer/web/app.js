@@ -46,7 +46,7 @@ import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
-import { gridMove, nearestGridPose } from './poserule.js';
+import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
          withoutOpening, withStoreys } from './walls.js';
@@ -9613,6 +9613,24 @@ function wallPanel(root) {
     remove.disabled = !tool;
     remove.onclick = () => { wallFocus = null; changeWall(s => ({ ...s, generated: { ...s.generated, wall: withoutOpening(s.generated.wall, index) } })); };
     row.append(remove);
+    if (openingKind(p) === 'doorway' && !door && tool && play.walk) {
+      const put = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Put a door in it',
+        className: 'walldoorput', title: 'Choose a door that fits this doorway: it is placed in it, turned with the wall and grouped with it' });
+      const list = Object.assign(document.createElement('div'), { className: 'walldoors', hidden: true });
+      put.onclick = async () => {
+        list.hidden = !list.hidden;
+        if (list.hidden) return;
+        list.replaceChildren(Object.assign(document.createElement('small'), { textContent: 'Finding the doors that fit…' }));
+        const choices = await doorChoices(Math.round((p.x1 - p.x0) / TILE));
+        list.replaceChildren(...(choices.length ? choices.map(c => {
+          const b = Object.assign(document.createElement('button'), { type: 'button', textContent: c.name, title: `${c.name}, from ${c.from}` });
+          b.append(Object.assign(document.createElement('small'), { textContent: c.from }));
+          b.onclick = () => putDoor(root, index, c);
+          return b;
+        }) : [Object.assign(document.createElement('small'), { textContent: 'No door of the game\'s is this wide (the game names its swinging doors Single, one tile wide, and Double, two).' })]));
+      };
+      row.append(put, list);
+    }
     row.onmouseenter = () => { wallFocus = { id: o.id, index }; };
     return row;
   }));
@@ -9648,6 +9666,77 @@ function openingWorldBox(root, p) {
 function boxesMeet(a, b, least) {
   const along = a[1] - a[0] >= a[3] - a[2] ? 0 : 1, over = [0, 1, 2].map(k => Math.min(a[2 * k + 1], b[2 * k + 1]) - Math.max(a[2 * k], b[2 * k]));
   return over[along] > least && over[2] > least && over[1 - along] > 0;
+}
+// ---- "Put a door in it" (custom geometry plan, M3 item 5, D5)
+// The doors that fit a doorway `tiles` wide: the game names its swinging doors by their width (DoorSwingSingle, one tile;
+// DoorSwingDouble, two; their meshes' saved sizes include the swing, so they can't tell). This map's own first, then the
+// library's (All maps), one of each name. Each { name, from, map (this map's door: its pivot source) or entry }.
+const DOOR_WIDTHS = [[/^DoorSwingSingle/i, 1], [/^DoorSwingDouble/i, 2]];
+const doorTiles = name => DOOR_WIDTHS.find(([re]) => re.test(name))?.[1] ?? null;
+let doorIndex = null;
+async function doorChoices(tiles) {
+  const out = [], seen = new Set();
+  for (const r of roots.values()) {
+    const o = r.userData.source, name = short(data.meshes[o.mesh]?.name ?? '');
+    if (o.added || r.userData.deleted || o.actorClass !== 'XComInteractiveLevelActor' || assemblyOf(o)?.family !== 'door') continue;
+    if (doorTiles(name) !== tiles || seen.has(name)) continue;
+    seen.add(name);
+    out.push({ name, from: 'this map', map: o });
+  }
+  doorIndex ??= fetch('/library.json?index=1').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const index = await doorIndex;
+  for (const e of (index?.index ?? index)?.entries ?? []) {
+    if (e.family !== 'door' || !e.placeable || doorTiles(e.name) !== tiles || seen.has(e.name)) continue;
+    seen.add(e.name);
+    out.push({ name: e.name, from: e.source.package, entry: e });
+  }
+  return out;
+}
+// The door `choice` placed in opening `index` of the wall `root`: its box's bottom middle at the doorway's middle on the
+// wall's line and floor, turned so it runs along the wall (whole quarter turns from its own yaw), on its own pose rule
+// (the recipe snap: whole tiles, storeys and quarter turns from its original); then grouped with the wall.
+async function putDoor(root, index, choice) {
+  const wall = root.userData.source, w = wall.added.generated.wall, o = sortedOpenings(w.openings ?? [])[index];
+  if (!o) return;
+  let sources, pivotIndex;
+  if (choice.map) {
+    const a = assemblyOf(choice.map);
+    sources = (a?.members ?? [short(choice.map.actor)]).flatMap(m => partsOf(targetKey({ package: data.name, level: 'base', actor: m.includes('.') ? m : `TheWorld.PersistentLevel.${m}` })));
+    pivotIndex = Math.max(0, sources.findIndex(s => s.actor === a?.pivot || short(s.actor) === short(a?.pivot ?? '')));
+  } else if (!isForeignTarget({ ...choice.entry.source, level: 'base' })) {
+    sources = partsOf(targetKey({ package: data.name, level: 'base', actor: `TheWorld.PersistentLevel.${choice.entry.source.actor}` }));
+    pivotIndex = 0;
+  } else {
+    const done = busyStart(`Reading ${choice.name} from ${choice.from}…`);
+    try { ({ sources, pivotIndex } = await libraryTemplate(choice.entry.source)); }
+    catch (error) { flashHint(`${choice.name} could not be placed: ${error.message}`); return; }
+    finally { done(); }
+  }
+  if (!sources?.length) { flashHint(`${choice.name} is not in this export of the map`); return; }
+  await Promise.all(sources.map(buildRoot));
+  const pivot = sources[pivotIndex], box = boundsOf(sources, actorMatrix(pivot.location, pivot.rotation).invert());
+  if (box.isEmpty()) { flashHint(`${choice.name} has nothing drawn to place by`); return; }
+  // along the wall: the door's longer side across the ground (render x is game x, render z game y)
+  const alongY = box.max.z - box.min.z > box.max.x - box.min.x;
+  const wallYaw = wallState(root).rotation[1], own = pivot.rotation[1];
+  const yaws = [0, 2].map(k => wallYaw + (alongY ? -QUARTER : 0) + k * QUARTER);
+  const turnOf = y => Math.abs(((y - own) % (4 * QUARTER) + 6 * QUARTER) % (4 * QUARTER) - 2 * QUARTER);
+  const yaw = yaws.reduce((a, b) => (turnOf(b) < turnOf(a) ? b : a));     // the fewer turns from its own
+  const rotation = [pivot.rotation[0], yaw, pivot.rotation[2]];
+  root.updateMatrixWorld(true);
+  const at = new THREE.Vector3((o.x0 + o.x1) / 2, 0, 0).applyMatrix4(root.matrixWorld);
+  const bottom = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2).applyMatrix4(actorMatrix([0, 0, 0], rotation));
+  const t = at.sub(bottom);
+  let location = [t.x, t.z, t.y];
+  const from = recipeOf(pivot) ?? { location: pivot.location, rotation: pivot.rotation }, origin = gridOrigin();
+  if (origin) ({ location } = nearestGridPose(from.location, from.rotation, location, rotation, origin));
+  const delta = actorMatrix(location, rotation).multiply(actorMatrix(pivot.location, pivot.rotation).invert());
+  const entries = sources.map(source => ({ source, matrix: delta.clone().multiply(new THREE.Matrix4().fromArray(source.matrix)) }));
+  await pasteSnapshot({ entries, pivotIndex, name: choice.name }, new THREE.Matrix4());
+  const placed = gizmo.picks().ids;
+  gizmo.setSelection([...placed, wall.id], wall.id);
+  lockAsGroup();
+  flashHint(`Put ${choice.name} (from ${choice.from}) in the doorway · grouped with the wall, it breaks with it · Ctrl+Z twice takes it out`);
 }
 $('wallDoor').onclick = () => addWallOpening('doorway');
 $('wallWindow').onclick = () => addWallOpening('window');

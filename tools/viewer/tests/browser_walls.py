@@ -8,7 +8,7 @@ and pose; Add doorway and Add window put each in a free tile and their words in 
 wall a tile longer at its start with the openings left where they are in the world; an opening's middle slides it;
 Flip sides swaps the faces with the openings in place; undo and redo step through each change; Delete with an
 opening's handle last touched takes only the opening out; the top's handle makes it one storey and the panel's button
-two again (M2); grouped with a prop, the group can break together (M3); saved and reopened, the wall is as it was; a quick Build
+two again (M2); grouped with a prop, the group can break together, and Put a door in it puts the map's door in the doorway (M3); saved and reopened, the wall is as it was; a quick Build
 makes it from numbers, with the donor brought from URB_Bar and the doorway's warning."""
 import json
 
@@ -152,6 +152,31 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     note = page.locator('#groupNote').inner_text()
     assert 'go when the part of its made wall they stand by breaks' in note, note
     page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.evaluate('id => viewer.select(id)', wall)
+    assert state(page, wall) == kept, (state(page, wall), kept)
+    # (M3) Put a door in it: the station's own door (DoorSwingSingle, one tile) placed in the doorway, turned with the
+    # wall and grouped with it; the panel then sees a door there; two undos take it out
+    page.evaluate('id => viewer.select(id)', wall)
+    page.wait_for_selector('#wallBox:not([hidden]) .walldoorput')
+    page.locator('#wallBox .walldoorput').first.click()
+    page.wait_for_selector('#wallBox .walldoors button', timeout=60000)
+    choices = page.locator('#wallBox .walldoors button').all_inner_texts()
+    assert any('this map' in c for c in choices), choices
+    before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
+    page.locator('#wallBox .walldoors button', has_text='this map').first.click()
+    page.wait_for_function('n => viewer.roots.size > n', arg=len(before_ids), timeout=60000)
+    page.wait_for_timeout(500)
+    door = page.evaluate("""before => [...viewer.roots.values()].filter(r => !before.includes(r.userData.source.id)
+      && r.userData.source.actorClass === 'XComInteractiveLevelActor').map(r => ({ id: r.userData.source.id, location: r.userData.source.location }))""",
+                         list(before_ids))
+    assert len(door) == 1, door
+    page.evaluate('id => viewer.select(id)', wall)
+    text = page.evaluate('viewer.wallPanelText()')
+    assert 'put a door in it' not in text.lower() or 'Put a door in it' not in text, text
+    assert 'A unit in a doorway with no door' not in text, text
+    out['door'] = door[0]['location']
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
     # saved and reopened

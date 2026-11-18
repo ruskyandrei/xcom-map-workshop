@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M3 (item 5): Put a door in it
+
+- A made wall's doorway with no door in it has a "Put a door in it" button in the piece panel's Wall section: it lists
+  the doors that fit (this map's own first, then the library's, one of each name; the game names its swinging doors
+  by width, DoorSwingSingle one tile and DoorSwingDouble two, since their meshes' saved sizes include the swing), and
+  the one chosen is placed in the doorway: its box's bottom middle at the doorway's middle on the wall's line and
+  floor, turned to run along the wall by the fewer quarter turns from its own yaw, kept to its pose rule (whole tiles,
+  storeys and quarter turns from its original), and grouped with the wall; the Build then lists it in the wall's
+  columns, so it breaks with it ([app.js](tools/viewer/web/app.js) `doorChoices`, `putDoor`;
+  [style.css](tools/viewer/web/style.css)).
+- The page imports the pose rule's `QUARTER` and `TILE`.
+
+Checked: `browser_smoke.py --only walls --projects` on a test server (the police station's own door put in the
+wall's doorway at the doorway's middle on the wall's line, the panel then seeing a door there, two undos taking it
+out); a close shot showed the door and its frame standing in the doorway along the wall, the three in one group; the
+node suite.
+
 ### EXP-73 run A passed (custom walls M1): windows are climbed through
 
 - [EXP-73](research/experiments/EXP-73-wall-tool.md) run A, played unattended in the lab copy: made walls on
