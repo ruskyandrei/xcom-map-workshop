@@ -3977,7 +3977,8 @@ class Compiler:
         carry = {}
         for copy in self.copies:
             source = self.floor_sources.get(copy['label'])
-            if source is None:
+            # (a wall made from numbers is not its donor: the rule lists it by its own box, custom geometry plan M3)
+            if source is None or (copy.get('generated') or {}).get('kind') == 'fracWall':
                 continue
             donor = copy.get('donor')
             originals = self.donor_buildings.get(donor['package'].casefold(), []) if donor else (self.scene.get('buildings') or [])

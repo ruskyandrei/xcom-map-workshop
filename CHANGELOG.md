@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### EXP-75 prepared (custom walls M3, run C)
+
+- [EXP-75](research/experiments/EXP-75-joined-walls.md) and its project,
+  [exp75_project.py](tools/editor/examples/exp75_project.py), on URB_Bar:
+  - an L and a T of made walls;
+  - a room in a building made round it;
+  - a made wall on the pavement with the bar's door copied into its doorway;
+  - a wall on the bar's roof;
+  - a wall standing on another.
+  - Eleven checks, among them the leftovers of EXP-73 and EXP-74 (a straight walk through a roof wall's doorway,
+    F-127's floating storeys against one of the game's own walls).
+- [compiler.py](tools/editor/compiler.py): a building made in the editor no longer carries a made wall's donor's
+  listing as the made wall's own (`new_building`'s carry); the rule lists it by its own box.
+
+Checked: the project compiles (A, the room's south and north walls run through at their corners; F's doorway holds
+the door, so it gives no doorway warning). Its baked Build lists the L, the T, the room's corners and the wall on a
+wall in each other's columns, and the roof wall with the roof slab. The roof wall is in the bar's roof floor. The
+room's four walls are in its building's first floor, cut down by the editor's rule. The editor suite passes.
+
 ### Custom geometry, stage M6 (item 3): general convex hulls, as the game's cooker writes them
 
 - [hull-audit.py](research/evidence/hull-audit.py) (read only; output
