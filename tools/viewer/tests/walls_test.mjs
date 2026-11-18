@@ -2,10 +2,12 @@
 // limits, flip, reshuffle, openings added, moved and kept or dropped when the wall is shortened, and what the game
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
-         withOpening, withoutOpening, WALL } from '../web/walls.js';
+         withOpening, withoutOpening, WALL, WALL_LOOKS,
+         SLAB, SLAB_LOOKS, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, toolSlab, slabWords, holeWords, roomRoof } from '../web/walls.js';
 
 const origin = [-2784, -1920, -1];
 // the Bar's donor: its location on a tile corner, yaw 0, its z the pavement's top
@@ -190,5 +192,62 @@ assert.equal(PRESETS.doorway.z1 - 0, 160);
   // a click: one tile each way; a long drag: the longest
   assert.deepEqual(drawnRoom([5, 5], [6, 6], { origin, template, floor: 0 }).tiles, [1, 1]);
   assert.deepEqual(drawnRoom([0, 0], [5000, 300], { origin, template, floor: 0 }).tiles, [WALL.maxTiles, 3]);
+}
+// ---- looks (M4 item 1): the page's list is wall_looks.json's, look for look
+{
+  const file = JSON.parse(readFileSync(new URL('../../bake/wall_looks.json', import.meta.url), 'utf8'));
+  assert.deepEqual(WALL_LOOKS.map(l => [l.id, l.name, l.package, l.actor, l.mesh, l.lwrOnly, l.words]),
+                   file.looks.map(l => [l.id, l.name, l.package, l.actor, l.donor, l.lwrOnly, l.words]));
+  const bar = file.looks[0].recipe;
+  assert.deepEqual([WALL.endInset, WALL.bottom, WALL.top, WALL.faceTop, WALL.storey], [bar.endInset, bar.bottom, bar.top, bar.face[1], bar.storey]);
+}
+// ---- floors and roofs (M5): a drag to a slab's pose and numbers, its edges, its holes; the page's looks are slab_looks.json's
+{
+  const file = JSON.parse(readFileSync(new URL('../../bake/slab_looks.json', import.meta.url), 'utf8'));
+  assert.deepEqual(SLAB_LOOKS.map(l => [l.id, l.name, l.role, l.package, l.actor, l.mesh, l.lwrOnly, l.words, l.bottom, l.top]),
+                   file.looks.map(l => [l.id, l.name, l.role, l.package, l.actor, l.donor, l.lwrOnly, l.words, l.recipe.bottom, l.recipe.top]));
+  // a drag from one corner to the other: the tile edges nearest them, the piece at the lower corner, its mesh's x the world's
+  let s = drawnSlab([-180, -200], [210, 130], { origin, template: { rotation: [0, 16384, 0] }, z: 16 });
+  assert.deepEqual(s.location, [-192, -192, 16]);
+  assert.deepEqual(s.rotation, [0, 0, 0]);
+  assert.deepEqual(s.slab, { x0: 0, x1: 384, y0: 0, y1: 288, holes: [], seed: 1 });
+  assert.deepEqual(s.tiles, [4, 3]);
+  // backwards, a click, the largest; an upper floor names its look
+  assert.deepEqual(drawnSlab([210, 130], [-180, -200], { origin, template, z: 0 }).location.slice(0, 2), [-192, -192]);
+  assert.deepEqual(drawnSlab([5, 5], [6, 6], { origin, template, z: 0 }).tiles, [1, 1]);
+  assert.deepEqual(drawnSlab([0, 0], [5000, -5000], { origin, template, z: 0 }).tiles, [SLAB.maxTiles, SLAB.maxTiles]);
+  assert.equal(drawnSlab([0, 0], [100, 100], { origin, template, z: 0, look: SLAB_LOOKS[1] }).slab.look, 'floor');
+  assert.ok(toolSlab(s.slab));
+  assert.ok(!toolSlab({ ...s.slab, x0: 96 }));
+  assert.ok(!toolSlab({ ...s.slab, x1: 380 }));
+  assert.ok(!toolSlab({ ...s.slab, look: 'marble' }));
+  // holes: one tile in the free tile nearest the middle, then the next; slid and sized by whole tiles, kept inside
+  let h = withHole(s.slab);
+  assert.equal(h.index, 0);
+  assert.deepEqual(h.slab.holes, [{ x0: 96, x1: 192, y0: 96, y1: 192 }]);
+  h = withHole(h.slab);
+  assert.deepEqual(h.slab.holes[1], { x0: 192, x1: 288, y0: 96, y1: 192 });
+  let slab = withoutHole(h.slab, 0);
+  assert.deepEqual(slab.holes, [{ x0: 192, x1: 288, y0: 96, y1: 192 }]);
+  assert.deepEqual(movedHole(slab, 0, 'x', 500).holes[0], { x0: 288, x1: 384, y0: 96, y1: 192 });
+  assert.deepEqual(movedHole(slab, 0, 'y', -130).holes[0], { x0: 192, x1: 288, y0: 0, y1: 96 });
+  assert.deepEqual(movedHole(slab, 0, 'x1', 200).holes[0], { x0: 192, x1: 384, y0: 96, y1: 192 });
+  assert.deepEqual(movedHole(slab, 0, 'x0', 300).holes[0], { x0: 192, x1: 288, y0: 96, y1: 192 });     // a tile wide at least
+  assert.equal(holeWords(movedHole(slab, 0, 'y1', 96).holes[0]), 'Hole, 1 by 2 tiles');
+  assert.equal(withHole({ x0: 0, x1: 96, y0: 0, y1: 96, holes: [{ x0: 0, x1: 96, y0: 0, y1: 96 }] }), null);
+  // its edges: outwards grows it; the near edges move its corner and keep the holes where they are in the world
+  let r = resizedSlab(slab, 'x1', 100);
+  assert.deepEqual([r.slab.x1, r.shift, r.removed], [480, [0, 0], 0]);
+  r = resizedSlab(slab, 'y0', 96);
+  assert.deepEqual([r.slab.y1, r.shift, r.slab.holes[0]], [384, [0, -96], { x0: 192, x1: 288, y0: 192, y1: 288 }]);
+  r = resizedSlab(slab, 'x1', -96 * 2);
+  assert.deepEqual([r.slab.x1, r.removed, r.slab.holes], [192, 1, []]);
+  assert.equal(resizedSlab(slab, 'x0', -5000).slab.x1, 96);
+  assert.equal(resizedSlab(slab, 'y1', 5000).slab.y1, 96 * SLAB.maxTiles);
+  assert.equal(slabWords(h.slab), '4 by 3 tiles, 2 holes');
+  // a room's roof: its rectangle, on its walls' tops
+  const room = drawnRoom([-180, -200], [210, 130], { origin, template, floor: 16 });
+  const roof = roomRoof(room, { template, floor: 16 });
+  assert.deepEqual([roof.location, roof.slab.x1, roof.slab.y1], [[-192, -192, 400], 384, 288]);
 }
 console.log('walls: ok');

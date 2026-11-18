@@ -68,6 +68,18 @@ class GeneratedTests(unittest.TestCase):
         _, native = compiler.native_split(spec)
         self.assertEqual(native['copies'][0]['box'][:2], [8.0, 392.0])
 
+    def test_a_wall_names_its_look_and_leaves_its_ends_to_the_build(self):
+        # (M4 item 1) version 2 names a look of wall_looks.json; a project's wall carries no end styles (the Build's)
+        self.assertEqual(compiler.FRAC_WALL_LOOKS[0], 'bar-inside')
+        named = dict(WALL, version=2, wall=dict(WALL['wall'], look='bar-inside'))
+        spec, report = compiled([made(named)])
+        self.assertTrue(report['ok'], refused(report))
+        for bad in (dict(WALL, wall=dict(WALL['wall'], look='bar-inside')),          # a look needs version 2
+                    dict(WALL, version=2, wall=dict(WALL['wall'], look='marble')),
+                    dict(WALL, version=2, wall=dict(WALL['wall'], ends=['free', 'through']))):
+            _, report = compiled([made(bad)])
+            self.assertIn('malformed', codes(report), bad)
+
     def test_the_join_rule(self):
         def wall(key, at, yaw=0, length=384.0, storeys=2):
             return dict(key=key, location=list(at), rotation=[0, yaw, 0],
@@ -134,6 +146,29 @@ class GeneratedTests(unittest.TestCase):
             spec, report = compiled([made(g)])
             self.assertIn('malformed', codes(report), g)
             self.assertFalse([o for o in (spec or {}).get('objects', []) if o['type'] == 'copy'], g)
+
+    def test_a_slab_stands_in_its_footprint_and_bad_slabs_are_left_out(self):
+        # (M5) a roof slab of 4 by 3 tiles with a hole: it goes to the Build as it is, noted, in its own box (its
+        # footprint, between its look's heights: the roof's -2 to 2, the floor's 192 to 194), its height free
+        slab = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4,
+                                                         holes=[dict(x0=96.0, x1=192.0, y0=96.0, y1=192.0)]))
+        floor = dict(slab, slab=dict(slab['slab'], holes=[], look='floor'))
+        spec, report = compiled([made(slab, at=(0, 636, 14.5)), made(floor, serial=2, at=(0, 1212, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertNotIn('off-grid', warned(report))
+        self.assertEqual(noted(report, 'generated'), ['generated-slab', 'generated-slab'])
+        _, native = compiler.native_split(spec)
+        roof, up = (c['box'] for c in native['copies'])
+        self.assertEqual(roof, [0.0, 384.0, 636.0, 924.0, 12.5, 16.5])
+        self.assertEqual(up, [0.0, 384.0, 1212.0, 1500.0, 192.0, 194.0])
+        for bad in (dict(slab, version=2), dict(slab, slab=dict(slab['slab'], x1=380.0)),
+                    dict(slab, slab=dict(slab['slab'], x1=96.0 * 17)), dict(slab, slab=dict(slab['slab'], look='marble')),
+                    dict(slab, slab=dict(slab['slab'], holes=[dict(x0=0.0, x1=50.0, y0=0.0, y1=96.0)])),
+                    dict(slab, slab=dict(slab['slab'], holes=[dict(x0=0.0, x1=96.0, y0=0.0, y1=480.0)])),
+                    dict(slab, slab=dict(slab['slab'], seed=True)), dict(slab, slab=None)):
+            spec, report = compiled([made(bad)])
+            self.assertIn('malformed', codes(report), bad)
+            self.assertFalse([o for o in (spec or {}).get('objects', []) if o['type'] == 'copy'], bad)
 
     def test_a_one_storey_wall_is_a_wall(self):
         # (M2) storeys 1 or 2 (left out, 2) go to the Build as they are

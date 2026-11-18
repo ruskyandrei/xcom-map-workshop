@@ -581,6 +581,73 @@ class MadeWallInBuilding(unittest.TestCase):
         self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
 
 
+@unittest.skipUnless(BAR.exists(), NO_BAR)
+class MadeSlabs(unittest.TestCase):
+    """(M5) Slabs made from numbers in URB_Bar: a roof on a copy of the bar's roof (XComFracLevelActor_3, which paints
+    27 of its fragments out) over a made wall, and an upper floor on a copy of the bar's upstairs strip
+    (XComFracLevelActor_17, turned a half turn)."""
+    ROOF, FLOOR = 'XComFracLevelActor_3', 'XComFracLevelActor_17'
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        copies = [dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracSlab', version=1,
+                                      slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4,
+                                                holes=[dict(x0=96.0, x1=192.0, y0=96.0, y1=192.0)]))),
+                  dict(actor=cls.FLOOR, label='Floor', location=[-1056.0, -768.0, 0.0], rotation=[0, 32768, 0],
+                       generated=dict(kind='fracSlab', version=1,
+                                      slab=dict(x0=0.0, x1=288.0, y0=480.0, y1=672.0, seed=5, look='floor'))),
+                  dict(actor=DONOR, label='Under', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=6)))]
+        cls.m = native_copy.build(BAR, out, 'FracSlabs', copies)
+        cls.p = Package(BAR)
+        cls.q = Package(out / 'FracSlabs.upk')
+        cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_slabs_are_made_with_their_own_mesh_and_keep_their_floor_flags(self):
+        q = self.q
+        for label in ('Roof', 'Floor'):
+            actor = self.sec[label]
+            comp = q.own(actor, 'FracturedStaticMeshComponent')
+            self.assertTrue(q.name(q.own(comp, 'StaticMesh')).split('.')[-1].startswith('FracSlab_'), label)
+            self.assertIsNone(q.own(comp, 'EditorPaintedVisibleFragments'))
+            self.assertTrue(q.effective(actor, 'bPathColliding', False), label)
+            self.assertTrue(q.effective(actor, 'bCanStepUpOn', False), label)
+        rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
+        self.assertEqual(rec['Roof']['kind'], 'fracSlab')
+        # the roof's box: x -1728 to -1344, y -1056 to -768, its plate 398 to 402
+        for got, want in zip(rec['Roof']['box'], [-1728.0, -1344.0, -1056.0, -768.0, 398.0, 402.0]):
+            self.assertAlmostEqual(got, want, 2)
+        # the floor turned a half turn: its mesh's y 480 to 672 lies at y -1440 to -1248, its top at 194
+        for got, want in zip(rec['Floor']['box'], [-1344.0, -1056.0, -1440.0, -1248.0, 192.0, 194.0]):
+            self.assertAlmostEqual(got, want, 2)
+
+    def test_a_slabs_columns_follow_the_slabs_rule(self):
+        q = self.q
+        cols = list(q.structs(q.own(self.sec['Roof'], 'FragmentColumns')))
+        self.assertEqual(len(cols), 5 * 4)            # 4 by 3 tiles: a column a cell, the last row and column 1 wide
+        boxes = [struct.unpack('<6f', c[('Bounds', 0)]['value'][:24]) for c in cols]
+        # cells from the slab's corner less one unit, cut across to the fragments they list
+        self.assertAlmostEqual(min(b[0] for b in boxes), -1728.0, 2)
+        self.assertAlmostEqual(min(b[1] for b in boxes), -1056.0, 2)
+        self.assertAlmostEqual(max(b[3] for b in boxes), -1344.0, 2)
+        self.assertAlmostEqual(min(b[2] for b in boxes), 398.0 - 1.0, 2)
+
+    def test_the_wall_under_the_roof_and_the_roof_list_each_other(self):
+        listings = {(d['wall'], d['other']) for d in self.m['nativeCopies']['neighbourListings']}
+        name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731
+        self.assertTrue((name(self.sec['Roof']), name(self.sec['Under'])) in listings
+                        or (name(self.sec['Under']), name(self.sec['Roof'])) in listings, listings)
+
+
 class StagedDoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
     URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by

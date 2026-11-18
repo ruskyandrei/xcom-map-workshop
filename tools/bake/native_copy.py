@@ -1730,7 +1730,7 @@ def list_made_walls(g, p, walls, replaced=None):
     and buildings made from nothing list them by the same rule themselves. Returns the manifest's section: [dict(wall,
     building, floors: [[floor, CutdownFloor]])]."""
     import buildings as building_tools
-    walls = [w for w in walls if w.get('kind') == 'fracWall']
+    walls = [w for w in walls if w.get('kind') in ('fracWall', 'fracSlab')]
     if not walls:
         return []
     walker = Walker(p)
@@ -2344,7 +2344,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         import frac_walls
         generated_records = frac_walls.add_walls(g, p, generated, level_grid(p), bake=bake)
         for r in generated_records:
-            if r['kind'] == 'fracWall':
+            if r['kind'] in frac_walls.MADE:
                 light = r.get('light') or {}
                 print('    %s: made from numbers as %s, %d fragments, %d triangles, %d collision boxes; its columns '
                       'are its own (%d); its lightmap %s' % (
@@ -2419,9 +2419,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         for d in group_listings:
             print("    %s: breaks with its group's made wall, listed in %d of its columns"
                   % (labels.get(d['piece'], d['piece']), len(d['columns'])))
-    # made walls and the fracturing pieces they touch list each other's columns, by the game's rule (M3 item 3)
+    # made walls and slabs and the fracturing pieces they touch list each other's columns, by the game's rule (M3 item 3)
     neighbour_listings = []
-    if any(r['kind'] == 'fracWall' for r in generated_records):
+    if any(r['kind'] in ('fracWall', 'fracSlab') for r in generated_records):
         import frac_walls
         gone = {h['export'] for h in hidden}
         level_index = p.by_name['TheWorld.PersistentLevel']
@@ -2440,7 +2440,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         neighbour_listings = frac_walls.neighbour_columns(g, p, generated_records, others)
         named = {x['export']: p.name(x['original']).split('.')[-1] + ('' if x['export'] == x['original'] else "'s copy")
                  for x in others}
-        named.update({r['copy']: r['label'] for r in generated_records if r['kind'] == 'fracWall'})
+        named.update({r['copy']: r['label'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')})
         for d in neighbour_listings:
             print('    %s and %s list each other\'s columns where they meet (%d and %d listings)'
                   % (named[d['wall']], named.get(d['other'], d['other']), d['lists'], d['listed']))
@@ -2451,7 +2451,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         if bi is not None:
             replaced[bi] = None if e.get('deleted') else [x for f in e['floors'] for x in [f['boxes']]]
     # a van's parts are in its own building's cutaway, which comes with them
-    made_walls = {r['copy'] for r in generated_records if r['kind'] == 'fracWall'}
+    made_walls = {r['copy'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')}
     floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van' and x[1] not in made_walls], replaced)
     # walls made from numbers in the map's own buildings they stand in, by their own boxes (M3 item 7)
     made_floors = list_made_walls(g, p, generated_records, replaced) if made_walls else []
@@ -2468,7 +2468,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         candidates = [dict(actor=i, source=i, name=p.name(i).split('.')[-1]) for i in level_actors(p)
                       if i > 0 and i not in gone and p.exports[i - 1]['outer'] == level_index
                       and not p.effective(i, 'bHidden', False)]
-        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] == 'fracWall'}
+        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')}
         candidates += [dict(actor=copy, source=original, location=after[0], rotation=after[1], label=m['label'],
                             name='copy of ' + p.name(original).split('.')[-1],
                             **({'box': made_boxes[copy]} if copy in made_boxes else {}))

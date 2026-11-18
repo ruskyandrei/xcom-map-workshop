@@ -6,7 +6,11 @@ mesh tools/bake/frac_wall.py builds from them, as the export's mesh files are (m
 slot order (each side's face by storey, the trims, the inside faces), which the page binds to its template's
 materials. A slot the wall has no triangles in (openings over a whole storey's face) is drawn as one triangle of no
 area inside the wall, so every slot keeps its place in that order. The geometry is the numbers' and the recipe's
-alone, so no map is read. Meshes are kept by their numbers while the server runs (the last CACHE_SIZE)."""
+alone, so no map is read. Meshes are kept by their numbers while the server runs (the last CACHE_SIZE).
+
+A floor or roof slab made from numbers (kind 'fracSlab': tools/bake/frac_slab.py, custom geometry plan M5) is drawn
+the same way: GET /generated/fracslab.glb?slab=<its numbers as JSON>, its two sections (the top with the edges, the
+underside) in slot order."""
 from collections import OrderedDict
 import json
 import math
@@ -18,6 +22,7 @@ HERE = Path(__file__).resolve().parent
 # (after the viewer's own modules, so no module of the Build's can stand in for one of them)
 if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
+import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
@@ -27,6 +32,8 @@ MAX_LENGTH = 3072.0
 MAX_OPENINGS = 16
 MIN_LENGTH = 24 + 2 * frac_wall.RECIPE['endInset']
 SLOTS = 6
+SLAB_SLOTS = 2
+MAX_HOLES = 32
 
 
 class GeneratedError(ValueError):
@@ -66,8 +73,43 @@ def wall_numbers(text):
     ends = wall.get('ends', ['free', 'free'])
     if not isinstance(ends, list) or len(ends) != 2 or any(e not in frac_wall.END_INSETS for e in ends):
         raise GeneratedError("a wall's ends are each %s" % ', '.join(frac_wall.END_INSETS))
+    # its look (M4 item 1): the default left out
+    look = wall.get('look', frac_wall.DEFAULT_LOOK)
+    if look not in frac_wall.LOOKS:
+        raise GeneratedError('a wall\'s look is one of %s' % ', '.join(frac_wall.LOOKS))
     return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}),
-                **({'ends': list(ends)} if ends != ['free', 'free'] else {}))
+                **({'ends': list(ends)} if ends != ['free', 'free'] else {}),
+                **({'look': look} if look != frac_wall.DEFAULT_LOOK else {}))
+
+
+def slab_numbers(text):
+    """A slab's numbers from the JSON `text`, checked (frac_slab.check: whole tiles, 1 to 16 each way, holes of whole
+    tiles inside it; at most MAX_HOLES holes), in the form frac_slab.build takes: x0, x1, y0, y1, holes, seed, and its
+    look when it is not the first."""
+    try:
+        slab = json.loads(text)
+    except (TypeError, ValueError):
+        raise GeneratedError('a slab is its numbers as JSON')
+    if not isinstance(slab, dict):
+        raise GeneratedError('a slab is its numbers as JSON')
+    holes = slab.get('holes') or []
+    if not isinstance(holes, list) or len(holes) > MAX_HOLES:
+        raise GeneratedError('a slab has at most %d holes' % MAX_HOLES)
+    def number(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    if not all(number(slab.get(k)) for k in ('x0', 'x1', 'y0', 'y1')) or \
+            not all(isinstance(h, dict) and all(number(h.get(k)) for k in ('x0', 'x1', 'y0', 'y1')) for h in holes):
+        raise GeneratedError("a slab's footprint and holes are numbers")
+    out = dict(x0=float(slab['x0']), x1=float(slab['x1']), y0=float(slab['y0']), y1=float(slab['y1']),
+               holes=[{k: float(h[k]) for k in ('x0', 'x1', 'y0', 'y1')} for h in holes], seed=slab.get('seed', 1))
+    look = slab.get('look', frac_slab.DEFAULT_LOOK)
+    if look != frac_slab.DEFAULT_LOOK:
+        out['look'] = look
+    try:
+        frac_slab.check(out)
+    except ValueError as error:
+        raise GeneratedError(str(error))
+    return out
 
 
 def viewer_mesh(built):
@@ -114,7 +156,7 @@ class _Bytes:
 
 
 class Meshes:
-    """The made walls' mesh files, by their numbers."""
+    """The made walls' and slabs' mesh files, by their numbers."""
 
     def __init__(self, size=CACHE_SIZE):
         self.size = size
@@ -129,11 +171,23 @@ class Meshes:
             if key in self.kept:
                 self.kept.move_to_end(key)
                 return self.kept[key]
-        built = frac_wall.build(wall)
-        mesh = viewer_mesh(built)
-        if len(mesh['sections']) != SLOTS:
+        return self.made(key, lambda: frac_wall.build(wall), SLOTS, 'wall')
+
+    def fracslab(self, text):
+        """The GLB of the slab whose numbers are the JSON `text`."""
+        slab = slab_numbers(text)
+        key = 'slab:' + json.dumps(slab, sort_keys=True)
+        with self.lock:
+            if key in self.kept:
+                self.kept.move_to_end(key)
+                return self.kept[key]
+        return self.made(key, lambda: frac_slab.build(slab), SLAB_SLOTS, 'slab')
+
+    def made(self, key, build, slots, what):
+        mesh = viewer_mesh(build())
+        if len(mesh['sections']) != slots:
             # the page binds the parts to the materials in slot order
-            raise GeneratedError('the wall has %d slots, not %d' % (len(mesh['sections']), SLOTS))
+            raise GeneratedError('the %s has %d slots, not %d' % (what, len(mesh['sections']), slots))
         sink = _Bytes()
         write_glb(mesh, sink)
         with self.lock:

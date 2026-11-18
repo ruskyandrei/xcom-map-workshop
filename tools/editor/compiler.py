@@ -110,6 +110,18 @@ COMPILER_VERSION = 3
 # test_frac_walls checks they agree)
 FRAC_WALL_END_INSET = 8.0
 FRAC_WALL_MIN_LENGTH = 40.0
+# the looks a made wall can be in (custom geometry plan, M4 item 1: tools/bake/wall_looks.json, frac_wall.LOOKS); the
+# first is the one a wall naming none is in
+FRAC_WALL_LOOKS = [look['id'] for look in json.loads(
+    (Path(__file__).resolve().parents[1] / 'bake' / 'wall_looks.json').read_text(encoding='utf-8'))['looks']]
+# a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): its
+# looks, each with the heights of its plate in its donor's frame; a slab is whole tiles, 1 to FRAC_SLAB_MAX_TILES each
+# way, its holes whole tiles inside it
+FRAC_SLAB_LOOKS = {look['id']: (look['recipe']['bottom'], look['recipe']['top']) for look in json.loads(
+    (Path(__file__).resolve().parents[1] / 'bake' / 'slab_looks.json').read_text(encoding='utf-8'))['looks']}
+FRAC_SLAB_DEFAULT_LOOK = 'roof'
+FRAC_SLAB_MAX_TILES = 16
+MADE_KINDS = ('fracWall', 'fracSlab')    # made from numbers: their own mesh, columns and box
 # What the game does at a made wall's opening (custom geometry plan, M1 item 4; tools/viewer/web/walls.js is the twin):
 # its sweeps over a tile's floor along the line between two tiles' centres (research/native/cover-build.md,
 # line-of-sight.md): cover 44 to 60, high or low 88 to 104, walking 64 (half a unit thick), sight from the eye tile 96
@@ -433,9 +445,12 @@ def finite(v, n):
 def world_box(obj, meshes, location, rotation, along=None):
     """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given. `along` (x0, x1) puts
     the mesh's x range in its own frame in place of its bounds' (a fracturing wall made from numbers on the component's
-    materials, tools/bake/frac_wall.py: its section, so its y and z, are the template's)."""
+    materials, tools/bake/frac_wall.py: its section, so its y and z, are the template's); a whole box (x0, x1, y0, y1,
+    z0, z1) in its frame stands for its bounds (a slab made from numbers, frac_slab.local_box)."""
     b = list(meshes[obj['mesh']]['bounds'])
-    if along is not None:
+    if along is not None and len(along) == 6:
+        b = [(along[2 * k] + along[2 * k + 1]) / 2 for k in range(3)] + [(along[2 * k + 1] - along[2 * k]) / 2 for k in range(3)]
+    elif along is not None:
         b[0], b[3] = (along[0] + along[1]) / 2, (along[1] - along[0]) / 2
     m = multiply(transform(location, rotation, obj['scale']), obj.get('componentTransform') or IDENTITY)
     pts = []
@@ -1258,10 +1273,15 @@ class Compiler:
             return True
         g = rec['generated']
         num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
-        ok = isinstance(g, dict) and g.get('version') == 1 and g.get('kind') in ('fracWall', 'relit')
-        if ok and g['kind'] == 'fracWall':
+        # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet)
+        ok = isinstance(g, dict) and g.get('kind') in ('fracWall', 'fracSlab', 'relit') \
+            and g.get('version') in ((1, 2) if g.get('kind') == 'fracWall' else (1,))
+        if ok and g['kind'] == 'fracSlab':
+            ok = self.slab_valid(g.get('slab'), num)
+        elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
+                  and 'ends' not in w and (('look' not in w) or (g['version'] == 2 and w['look'] in FRAC_WALL_LOOKS))
                   and isinstance(w.get('seed', 1), int) and w.get('storeys', 2) in (1, 2)
                   and not isinstance(w.get('storeys'), bool)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
@@ -1270,8 +1290,29 @@ class Compiler:
         if ok:
             return True
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
-                   '{x0, x1, openings, seed, storeys}}) or {kind: relit, version: 1} (it has %r)' % (g,), **where)
+                   '{x0, x1, openings, seed, storeys}}, or version 2 with its look: one of %s), a slab\'s ({kind: '
+                   'fracSlab, version: 1, slab: {x0, x1, y0, y1, holes, seed, look}}: whole tiles, 1 to %d each way, '
+                   'its holes whole tiles inside it, its look one of %s) or {kind: relit, version: 1} (it has %r)'
+                   % (', '.join(FRAC_WALL_LOOKS), FRAC_SLAB_MAX_TILES, ', '.join(FRAC_SLAB_LOOKS), g), **where)
         return False
+
+    @staticmethod
+    def slab_valid(s, num):
+        """Whether a slab's numbers are well formed (tools/bake/frac_slab.py check is the Build's)."""
+        def whole(v, base):
+            return abs((v - base) / 96.0 - round((v - base) / 96.0)) < 1e-4
+        if not (isinstance(s, dict) and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
+            return False
+        if not all(whole(s[b], s[a]) and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES
+                   for a, b in (('x0', 'x1'), ('y0', 'y1'))):
+            return False
+        if s.get('look', FRAC_SLAB_DEFAULT_LOOK) not in FRAC_SLAB_LOOKS or not isinstance(s.get('seed', 1), int) \
+                or isinstance(s.get('seed'), bool) or not isinstance(s.get('holes') or [], list):
+            return False
+        return all(isinstance(h, dict) and all(num(h.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))
+                   and s['x0'] <= h['x0'] < h['x1'] <= s['x1'] and s['y0'] <= h['y0'] < h['y1'] <= s['y1']
+                   and all(whole(h[k], s[k[0] + '0']) for k in ('x0', 'x1', 'y0', 'y1'))
+                   for h in s.get('holes') or [])
 
     def join_made_walls(self):
         """Made walls that meet (custom geometry plan, M3 item 2): each copy's request gains its end styles
@@ -2480,12 +2521,16 @@ class Compiler:
         self.loot(src, short(out), 'add', where)
         # (a made wall's height is free: its columns are made for where it stands, so only its tiles and quarter turns
         # follow its template's)
-        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] == 'fracWall' else loc
+        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS else loc
         if not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
         along = ((made['wall']['x0'] + FRAC_WALL_END_INSET, made['wall']['x1'] - FRAC_WALL_END_INSET)
                  if made and made['kind'] == 'fracWall' else None)
+        if made and made['kind'] == 'fracSlab':
+            # (a slab made from numbers stands in its footprint, between its look's heights)
+            s = made['slab']
+            along = (s['x0'], s['x1'], s['y0'], s['y1']) + FRAC_SLAB_LOOKS[s.get('look', FRAC_SLAB_DEFAULT_LOOK)]
         new = self.boxes(parts, loc, rot, along)
         name = short(rec['from']['actor'])
         donor = self.donors.get((rec['from']['package'].casefold(), rec['from']['actor']))
@@ -2528,6 +2573,10 @@ class Compiler:
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
                           'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
                           "the game's walls pass theirs on" % (short(out), name), **where)
+            elif rec['generated']['kind'] == 'fracSlab':
+                self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
+                          'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
+                          'to it' % (short(out), name), **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
@@ -3555,7 +3604,7 @@ class Compiler:
                     c = copies[key]
                     if c['actorClass'] in BREAKABLE:
                         links.append(('copy', key, c['label']))
-                    elif (c.get('generated') or {}).get('kind') == 'fracWall':
+                    elif (c.get('generated') or {}).get('kind') in MADE_KINDS:
                         walls.append((key, c['label']))
                     else:
                         entry['notBreakable'].append(c['label'])
@@ -3978,7 +4027,7 @@ class Compiler:
         for copy in self.copies:
             source = self.floor_sources.get(copy['label'])
             # (a wall made from numbers is not its donor: the rule lists it by its own box, custom geometry plan M3)
-            if source is None or (copy.get('generated') or {}).get('kind') == 'fracWall':
+            if source is None or (copy.get('generated') or {}).get('kind') in MADE_KINDS:
                 continue
             donor = copy.get('donor')
             originals = self.donor_buildings.get(donor['package'].casefold(), []) if donor else (self.scene.get('buildings') or [])

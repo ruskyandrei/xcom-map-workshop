@@ -1,0 +1,49 @@
+{
+ "about": "Slab looks (custom geometry plan, stage M5): each a fracturing floor or roof of the game's that the Build makes slabs in, and what was measured on it (research/evidence/slab-audit.py; tools/bake/frac_slab.py builds a slab from it). A slab's numbers name their look (`look`; left out, the first). Heights are in the donor mesh's frame; texture coordinates are u = sx * x / repeat + du, v = sy * y / repeat + dv on the top and the underside; the edges are in the top's slot.",
+ "looks": [
+  {
+   "id": "roof",
+   "name": "Roof",
+   "role": "roof",
+   "version": 1,
+   "package": "URB_Bar",
+   "actor": "XComFracLevelActor_3",
+   "donor": "ComKit_Meshes.Roofing.Roof_BarrierSmallFloor_FRACTURED",
+   "lwrOnly": false,
+   "words": "a flat roof: gravel and asphalt on top, ceiling tiles under it",
+   "recipe": {
+    "bottom": -2.0, "top": 2.0,
+    "slots": {"top": 0, "underside": 1}, "sections": 2, "interior": 2,
+    "repeat": 192.0,
+    "topUV": [1.0, 1.0, 0.0, 0.5], "undersideUV": [-1.0, 1.0, 0.0, 0.5],
+    "collision": [-2.0, 0.0],
+    "tile": 96.0,
+    "split": 0.35, "long": 0.3,
+    "colours": {"outside": "ffffffff", "interior": "ffffffff"},
+    "lightmap": {"density": 0.32, "margin": 2, "interiorDensity": 1.0, "block": 4}
+   }
+  },
+  {
+   "id": "floor",
+   "name": "Upper floor",
+   "role": "floor",
+   "version": 1,
+   "package": "URB_Bar",
+   "actor": "XComFracLevelActor_17",
+   "donor": "ComKit_Meshes.Cores.Core_384FloorB_FRACTURED",
+   "lwrOnly": false,
+   "words": "a storey floor: dark brown floor tiles on top, butcher's tiles under it",
+   "recipe": {
+    "bottom": 192.0, "top": 194.0,
+    "slots": {"top": 0, "underside": 1}, "sections": 2, "interior": 2,
+    "repeat": 192.0,
+    "topUV": [1.0, 1.0, 0.5, 0.0], "undersideUV": [-1.0, 1.0, 0.5, 0.0],
+    "collision": [192.0, 194.0],
+    "tile": 96.0,
+    "split": 0.0, "long": 0.4,
+    "colours": {"outside": "00ffffff", "interior": "00ffffff"},
+    "lightmap": {"density": 0.2, "margin": 2, "interiorDensity": 1.0, "block": 4}
+   }
+  }
+ ]
+}

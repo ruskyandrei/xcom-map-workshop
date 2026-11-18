@@ -1,8 +1,11 @@
 """A fracturing wall made from numbers, built the way one of the game's inside walls is
 (private/plans/todo/custom-geometry-implementation-plan.md, section 0, stage F2).
 
-The donor is URB_Bar's URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED, an inside wall 560 long and 400 tall (two
-storeys), and RECIPE holds what was measured on it (research/evidence/frac-wall-audit.py; findings register T-42):
+A wall is made in a look (custom geometry plan, M4): one of the game's fracturing walls and the recipe measured on
+it, listed in wall_looks.json (LOOKS; research/evidence/wall-look-measure.py measures one); a wall's numbers name
+their look (`look`, left out: DEFAULT_LOOK). The first, DEFAULT_LOOK, is URB_Bar's
+URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED, an inside wall 560 long and 400 tall (two storeys), and RECIPE is its
+recipe, what was measured on it (research/evidence/frac-wall-audit.py; findings register T-42):
 
   slots       0 and 1: one side's face (y = +8), the lower and the upper storey, split at z 192, and the wall's
               ends and openings' sides; 2 and 3: the other side's face (y = -8); 4: the trims (skirting, cornice, the
@@ -55,38 +58,53 @@ How it is made:
   each (cover_blocks' hull writer), so no box spans an opening.
 """
 import hashlib
+import json
 import math
+from pathlib import Path
 import random
 import struct
 
 import gen_mesh
 
-RECIPE = {
-    'version': 1,
-    'donor': 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED',
-    'bottom': -16.0, 'top': 384.0, 'storey': 192.0,
-    'face': [12.0, 372.0], 'half': 8.0,
-    # the solid's ends this short of the wall's tile edges (the donor's -376 and 184 for -384 and 192; the inside walls
-    # of URB_Bar, URB_PoliceStation and URB_CommercialStreet end 8 short of theirs too)
-    'endInset': 8.0,
-    # the section's corners, bottom to top on the +y side: (y, z, the trim set's v there)
-    'section': [[11.0, -16.0, 0.5], [11.0, 0.0, 0.5835], [10.0, 9.0, 0.6499], [8.0, 12.0, 0.6694],
-                [8.0, 372.0, 0.0117], [12.0, 374.0, 0.039], [12.0, 384.0, 0.0917]],
-    'faceRepeat': 192.0, 'faceV': [4.0, 7.0], 'faceU': 0.5,
-    'trimRepeat': 96.0, 'trimU': 1.0,
-    'topV': [0.1659, -0.00488], 'bottomV': [0.9627, -0.00339],
-    'colours': {'outside': 'fffffeff', 'interior': 'ffffffff'},
-    'slots': {'sideA': [0, 1], 'sideB': [2, 3], 'trim': 4, 'interior': 5},
-    'cell': [96.0, 80.0], 'jitter': 0.3,
-    'collisionHalf': 8.0,
-    # the lightmap: the donor's density, texels a unit on its two faces as a baked Build lays them out (0.196 on
-    # URB_Bar's XComDecoFracLevelActor_17: custom geometry plan, M2's check); texels between charts; inside faces'
-    'lightmap': {'density': 0.196, 'margin': 2, 'interiorDensity': 0.5, 'block': 4},
-}
+LOOKS_FILE = Path(__file__).resolve().parent / 'wall_looks.json'
+DEFAULT_LOOK = 'bar-inside'
+
+
+def _looks():
+    """wall_looks.json's looks: {id: the look, its recipe with the look's version and donor mesh in it}."""
+    out = {}
+    for look in json.loads(LOOKS_FILE.read_text(encoding='utf-8'))['looks']:
+        out[look['id']] = dict(look, recipe=dict(look['recipe'], version=look['version'], donor=look['donor']))
+    return out
+
+
+LOOKS = _looks()
+# the default look's recipe: the heights (the floor at z -16, the top at 384, the storey split at 192), the face and the
+# half thickness, the solid's ends this short of the wall's tile edges ('endInset': the donor's -376 and 184 for -384
+# and 192; the inside walls of URB_Bar, URB_PoliceStation and URB_CommercialStreet end 8 short of theirs too), the
+# section's corners bottom to top on the +y side ([y, z, the trim set's v there]), the texture repeats, the colours,
+# the slots, the cells, the collision's half thickness, and the lightmap (the donor's density, texels a unit on its
+# two faces as a baked Build lays them out: 0.196 on URB_Bar's XComDecoFracLevelActor_17, custom geometry plan M2;
+# texels between charts; the inside faces' share of that density; the rectangle's sides in DXT1 blocks)
+RECIPE = LOOKS[DEFAULT_LOOK]['recipe']
 EPS = 1e-4
 STOREYS = (1, 2)
-# a wall end's styles: how far in from its tile edge its solid stops there (M3 item 2; the docstring)
-END_INSETS = {'free': RECIPE['endInset'], 'line': 0.0, 'through': -RECIPE['half']}
+# a wall end's styles: how far in from its tile edge its solid stops there (M3 item 2; the docstring), the default look's
+def end_insets(R):
+    """A look's (its recipe `R`) end styles' insets: a free end its endInset, 'line' on the tile edge, 'through' its half
+    thickness past it."""
+    return {'free': R['endInset'], 'line': 0.0, 'through': -R['half']}
+
+
+END_INSETS = end_insets(RECIPE)
+
+
+def look_of(wall):
+    """The recipe of the wall's look (its numbers' `look`; left out, DEFAULT_LOOK). ValueError for one not listed."""
+    name = (wall or {}).get('look', DEFAULT_LOOK)
+    if name not in LOOKS:
+        raise ValueError('a wall in a look not listed in wall_looks.json: %r (they are %s)' % (name, ', '.join(LOOKS)))
+    return LOOKS[name]['recipe']
 
 
 def ends_of(wall):
@@ -100,17 +118,18 @@ def ends_of(wall):
 
 
 def shaped(wall):
-    """RECIPE for the wall's height: as it is for two storeys (the donor's); for one, its top, the face's top and the
-    section's corners above the face a storey lower."""
+    """The wall's look's recipe (look_of) for its height: as it is for two storeys (the donor's); for one, its top, the
+    face's top and the section's corners above the face a storey lower."""
+    base = look_of(wall)
     storeys = int((wall or {}).get('storeys', 2))
     if storeys not in STOREYS:
         raise ValueError('a wall of %r storeys (it has 1 or 2)' % (storeys,))
     if storeys == 2:
-        return RECIPE
-    drop = RECIPE['storey'] * (2 - storeys)
-    face = RECIPE['face']
-    return dict(RECIPE, top=RECIPE['top'] - drop, face=[face[0], face[1] - drop],
-                section=[[y, z - drop if z > face[0] + 1e-6 else z, v] for y, z, v in RECIPE['section']])
+        return base
+    drop = base['storey'] * (2 - storeys)
+    face = base['face']
+    return dict(base, top=base['top'] - drop, face=[face[0], face[1] - drop],
+                section=[[y, z - drop if z > face[0] + 1e-6 else z, v] for y, z, v in base['section']])
 
 
 # ---------------------------------------------------------------------------------------------------- 2D polygons
@@ -212,7 +231,8 @@ def solid_wall(wall):
     RECIPE['endInset']), its openings cut to what is left (an opening's own sides are kept: the game's doorways have
     them on the tile edges too)."""
     e0, e1 = ends_of(wall)
-    x0, x1 = float(wall['x0']) + END_INSETS[e0], float(wall['x1']) - END_INSETS[e1]
+    insets = end_insets(look_of(wall))
+    x0, x1 = float(wall['x0']) + insets[e0], float(wall['x1']) - insets[e1]
     openings = []
     for o in wall.get('openings') or ():
         a, b = max(float(o['x0']), x0), min(float(o['x1']), x1)
@@ -223,15 +243,16 @@ def solid_wall(wall):
 
 def seeds(wall):
     rng = random.Random(wall.get('seed', 1))
+    R = shaped(wall)
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], shaped(wall)['top']
-    nx = max(1, round((x1 - x0) / RECIPE['cell'][0]))
-    nz = max(1, round((zt - zb) / RECIPE['cell'][1]))
+    zb, zt = R['bottom'], R['top']
+    nx = max(1, round((x1 - x0) / R['cell'][0]))
+    nz = max(1, round((zt - zb) / R['cell'][1]))
     dx, dz = (x1 - x0) / nx, (zt - zb) / nz
     out = []
     for k in range(nz):
         for i in range(nx):
-            jx, jz = rng.uniform(-1, 1) * RECIPE['jitter'], rng.uniform(-1, 1) * RECIPE['jitter']
+            jx, jz = rng.uniform(-1, 1) * R['jitter'], rng.uniform(-1, 1) * R['jitter']
             s = (x0 + (i + 0.5 + jx) * dx, zb + (k + 0.5 + jz) * dz)
             if any(o['x0'] - 1 < s[0] < o['x1'] + 1 and o['z0'] - 1 < s[1] < o['z1'] + 1 for o in wall.get('openings', ())):
                 continue
@@ -252,7 +273,8 @@ def cut_opening(poly, o):
 def cells(wall):
     """[(seed, convex polygon)] of the wall's fragments, before their faces are made."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], shaped(wall)['top']
+    R = shaped(wall)
+    zb, zt = R['bottom'], R['top']
     outline = [((x0, zb), 'out'), ((x1, zb), 'out'), ((x1, zt), 'out'), ((x0, zt), 'out')]
     pts = seeds(wall)
     out = []
@@ -278,7 +300,8 @@ def classify(wall, p, q):
     """What the edge p..q of a fragment is: 'x0' or 'x1' (a wall's end), 'zb' or 'zt' (its bottom or top), ('open',
     k) (an opening's side), or 'in' (an edge it shares with another fragment)."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], shaped(wall)['top']
+    R = shaped(wall)
+    zb, zt = R['bottom'], R['top']
     m = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
     vertical, flat = abs(p[0] - q[0]) < 1e-5, abs(p[1] - q[1]) < 1e-5
     if vertical and abs(m[0] - x0) < 1e-4:
@@ -527,8 +550,9 @@ def solids(wall):
     """The collision boxes [(lo, hi)]: the slab (the donor's 16 thick) cut into upright strips at every opening's
     sides, each strip's stretches clear of openings one box, neighbouring strips with the same stretches joined."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    zb, zt = RECIPE['bottom'], shaped(wall)['top']
-    hy = RECIPE['collisionHalf']
+    R = shaped(wall)
+    zb, zt = R['bottom'], R['top']
+    hy = R['collisionHalf']
     openings = wall.get('openings', ())
     xs = sorted({x0, x1} | {o[k] for o in openings for k in ('x0', 'x1') if x0 < o[k] < x1})
     strips = []
@@ -647,11 +671,24 @@ def build(wall, template=None):
                 nb.append(g)
                 dims.append(a * over / math.dist(p, q))
         records.append(dict(seed=seed, neighbours=nb, dims=dims))
+    for rec in records:
+        rec['centre'] = (rec['seed'][0], 0.0, rec['seed'][1])
+    guid = hashlib.md5(('frac_wall|%r' % (sorted(wall.items(), key=str),)).encode()).digest()
+    out = assemble(faces, records, template, R, guid, slots=6, what='a wall')
+    return dict(out, solids=solids(wall))
+
+
+def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):
+    """The fractured mesh (gen_mesh's form) of the polygons `faces` (Faces: each with its slot, fragment, uv0, chart and
+    chart coordinates, and optionally a colour for each corner, else the recipe's outside or interior colour) and the
+    fragment records `records` ([dict(centre (x, y, z), neighbours, dims)]), on the donor's decoded mesh `template`,
+    with the recipe `R`'s lightmap packing and colours, `slots` sections and the tail's `guid`: dict(mesh, fragments
+    (their boxes), lightmapRect, counts). frac_wall.build and frac_slab.build make theirs with it."""
     L = R['lightmap']
     origins, rect = pack_rect(faces.charts, L['density'], L['margin'], L['block'])
     # the vertices and triangles, slot by slot and fragment by fragment
-    nfrag = len(found)
-    by_slot = {s: [[] for _ in range(nfrag)] for s in range(6)}
+    nfrag = len(records)
+    by_slot = {s: [[] for _ in range(nfrag)] for s in range(slots)}
     for poly in faces.polys:
         by_slot[poly['slot']][poly['fragment']].append(poly)
     positions, vertices, colours, indices, kdop = [], [], [], [], []
@@ -659,7 +696,7 @@ def build(wall, template=None):
     out_colour, in_colour = bytes.fromhex(R['colours']['outside']), bytes.fromhex(R['colours']['interior'])
     frag_points = [[] for _ in range(nfrag)]
     ext_normal = [[0.0, 0.0, 0.0] for _ in range(nfrag)]
-    for slot in range(6):
+    for slot in range(slots):
         first = len(indices)
         ranges = []
         lo_v, hi_v = None, None
@@ -680,12 +717,15 @@ def build(wall, template=None):
                         return tuple(sum(r[k] for r in rows) / len(rows) for k in range(len(rows[0])))
                     pts = [mean(pts)] + list(pts)
                     uv0s, cuvs = [mean(uv0s)] + list(uv0s), [mean(cuvs)] + list(cuvs)
-                for p, uv, c in zip(pts, uv0s, cuvs):
+                    if poly.get('colours'):
+                        poly = dict(poly, colours=[poly['colours'][0]] + list(poly['colours']))
+                for k, (p, uv, c) in enumerate(zip(pts, uv0s, cuvs)):
                     positions.append(struct.unpack('<3f', struct.pack('<3f', *p)))
                     lm = (u0 + c[0] * L['density'] * density / rect[0], v0 + c[1] * L['density'] * density / rect[1])
                     vertices.append((_packed(t, 0x80), _packed(n, 0xFF if sign > 0 else 0x00),
                                      [tuple(uv), lm]))
-                    colours.append(in_colour if poly['interior'] else out_colour)
+                    colours.append(poly['colours'][k] if poly.get('colours')
+                                   else in_colour if poly['interior'] else out_colour)
                     frag_points[f].append(p)
                 if not poly['interior']:
                     a3 = poly_area3(pts)
@@ -710,7 +750,7 @@ def build(wall, template=None):
                              triangles=(len(indices) - first) // 3, minVertex=lo_v or 0, maxVertex=hi_v or 0,
                              slot=slot, fragments=ranges, platform=0))
     if len(positions) > 65535:
-        raise ValueError('a wall of %d vertices: more than 16-bit indices hold' % len(positions))
+        raise ValueError('%s of %d vertices: more than 16-bit indices hold' % (what, len(positions)))
     lod = dict(template['lods'][0])
     nv = len(positions)
     lod.update(sections=sections, positionHead=[12, nv], positionStride=12, positions=positions,
@@ -728,7 +768,7 @@ def build(wall, template=None):
         n = ext_normal[f]
         ln = math.sqrt(_dot(n, n))
         normal = [v / ln for v in n] if ln > 1e-3 else [0.0, 1.0, 0.0]
-        frags.append(dict(centre=(rec['seed'][0], 0.0, rec['seed'][1]), box=(0.0,) * 6 + (0,),
+        frags.append(dict(centre=tuple(rec['centre']), box=(0.0,) * 6 + (0,),
                           bounds=tuple(struct.unpack('<7f', struct.pack('<7f', *centre, *halfs,
                                                                         math.sqrt(_dot(halfs, halfs))))),
                           neighbours=rec['neighbours'], destroyable=1, root=0, neverSpawn=0,
@@ -740,21 +780,21 @@ def build(wall, template=None):
     mesh['kdop'] = gen_mesh.kdop_tree(positions, kdop)
     mesh['lods'] = [lod]
     tail = dict(template['tail'])
-    tail['guid'] = hashlib.md5(('frac_wall|%r' % (sorted(wall.items(), key=str),)).encode()).digest()
+    tail['guid'] = guid
     mesh['tail'] = tail
     fr = dict(template['fractured'])
-    fr.update(fragments=frags, core=-1, interior=R['slots']['interior'], sourceMesh=0)
+    fr.update(fragments=frags, core=-1, interior=R['slots'].get('interior', R.get('interior')), sourceMesh=0)
     mesh['fractured'] = fr
     boxes = []
     for f, pts in enumerate(frag_points):
         boxes.append(dict(box=[v for k in range(3) for v in (min(p[k] for p in pts), max(p[k] for p in pts))]))
-    return dict(mesh=mesh, fragments=boxes, solids=solids(wall), lightmapRect=list(rect),
+    return dict(mesh=mesh, fragments=boxes, lightmapRect=list(rect),
                 counts=dict(fragments=nfrag, vertices=nv, triangles=len(indices) // 3, charts=len(faces.charts)))
 
 
 def mesh_name(wall):
     """A name for the wall's mesh from its numbers and the recipe: the same wall is the same mesh in every build, and
     a changed recipe never reuses a name (the meshes are forced exports, one object per name in the game)."""
-    digest = hashlib.sha256(repr((sorted((k, repr(v)) for k, v in RECIPE.items()),
+    digest = hashlib.sha256(repr((sorted((k, repr(v)) for k, v in look_of(wall).items()),
                                   sorted((k, repr(v)) for k, v in wall.items()))).encode()).hexdigest()
     return 'FracWall_%d_%s' % (round(float(wall['x1']) - float(wall['x0'])), digest[:10])

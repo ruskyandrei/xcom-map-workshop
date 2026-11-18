@@ -246,6 +246,54 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     if page.evaluate('viewer.wallDrawing()'):
         page.keyboard.press('Escape')
     page.evaluate('id => viewer.select(id)', wall)
+    # (M5) floors and roofs: the Floors and roofs kind's entries and the room with a roof; a roof dragged out over the
+    # same ground (no made walls round it: two storeys up), its edge's handle a tile out, a hole from the panel, each
+    # one undo step; a room with a roof: four walls, the roof on their tops and a building round them, two undo steps
+    names = page.evaluate('viewer.slabEntries().map(e => [e.name, e.kind])')
+    assert names == [['Roof', 'Floors and roofs'], ['Upper floor', 'Floors and roofs'],
+                     ['Room of bar inside walls with a roof', 'Walls']], names
+    before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
+    page.evaluate("viewer.startWallDrawing(viewer.slabEntries()[0].wallLook, { slab: true })")
+    page.wait_for_function('viewer.wallDrawing()?.ready && viewer.wallDrawing().slab', timeout=90000)
+    drag(page, ground_point(page, a), ground_point(page, b))
+    page.wait_for_function('n => viewer.roots.size === n + 1', arg=len(before_ids), timeout=60000)
+    slab = page.evaluate('viewer.gizmo.active')
+    mesh_ready(page, slab)
+    s = state(page, slab)
+    assert s['generated']['kind'] == 'fracSlab' and s['generated']['slab']['x1'] == 288 and s['generated']['slab']['y1'] == 192, s
+    assert abs(s['location'][2] - (corner[2] + 384)) < 1e-3 and s['rotation'] == [0, 0, 0], s
+    h = page.evaluate('viewer.wallHandles()')
+    assert {'side:x0', 'side:x1', 'side:y0', 'side:y1'} <= set(h), sorted(h)
+    drag(page, h['side:x1'][:2], h['side:x1'][2:])
+    assert state(page, slab)['generated']['slab']['x1'] == 384, state(page, slab)
+    page.locator('#slabHole').click()
+    page.wait_for_function("id => viewer.wallState(id).generated.slab.holes.length === 1", arg=slab)
+    assert 'Hole, 1 by 1 tile' in page.evaluate('viewer.slabPanelText()'), page.evaluate('viewer.slabPanelText()')
+    mesh_ready(page, slab)
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function("id => viewer.wallState(id)?.generated.slab.x1 === 288 && !viewer.wallState(id).generated.slab.holes.length", arg=slab)
+    page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    out['slab'] = dict(location=s['location'], tiles=[3, 2])
+    page.evaluate("viewer.startWallDrawing(viewer.wallEntries()[0].wallLook, { room: true, roof: true })")
+    page.wait_for_function('viewer.wallDrawing()?.ready && viewer.wallDrawing().roof', timeout=90000)
+    named = [b['name'] for b in page.evaluate('viewer.buildingsNow()')]
+    houses = len(named)
+    drag(page, ground_point(page, a), ground_point(page, b))
+    page.wait_for_function('n => viewer.roots.size === n + 5', arg=len(before_ids), timeout=60000)
+    page.wait_for_function('n => viewer.buildingsNow().length === n + 1', arg=houses, timeout=30000)
+    made = page.evaluate("""before => [...viewer.roots.values()].filter(r => !before.includes(r.userData.source.id))
+      .map(r => r.userData.source.id)""", list(before_ids))
+    roof = [m for m in made if state(page, m)['generated']['kind'] == 'fracSlab']
+    assert len(roof) == 1 and abs(state(page, roof[0])['location'][2] - (corner[2] + 384)) < 1e-3, [state(page, m) for m in made]
+    (house,) = [b for b in page.evaluate('viewer.buildingsNow()') if b['name'] not in named]
+    assert len(house['floors']) == 2 and house['name'].startswith('Building'), house
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
+    page.wait_for_function('n => viewer.buildingsNow().length === n', arg=houses, timeout=30000)
+    if page.evaluate('viewer.wallDrawing()'):
+        page.keyboard.press('Escape')
+    page.evaluate('id => viewer.select(id)', wall)
     # saved and reopened
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')

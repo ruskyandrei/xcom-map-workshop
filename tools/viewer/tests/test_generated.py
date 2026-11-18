@@ -79,6 +79,10 @@ class FracWall(unittest.TestCase):
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=2))),
                          dict(x0=0.0, x1=96.0, openings=[], seed=1))
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, storeys=1)))['storeys'], 1)
+        # (M4) its look: the default left out, one not listed refused
+        self.assertNotIn('look', generated.wall_numbers(json.dumps(dict(x0=0, x1=96, look='bar-inside'))))
+        with self.assertRaises(generated.GeneratedError):
+            generated.wall_numbers(json.dumps(dict(x0=0, x1=96, look='marble')))
         # (M3) its end styles: two free ends left out, a joined one kept
         self.assertNotIn('ends', generated.wall_numbers(json.dumps(dict(x0=0, x1=96, ends=['free', 'free']))))
         self.assertEqual(generated.wall_numbers(json.dumps(dict(x0=0, x1=96, ends=['through', 'free'])))['ends'],
@@ -89,6 +93,36 @@ class FracWall(unittest.TestCase):
         self.assertEqual(max(p[2] for p in built['mesh']['lods'][0]['positions']), 192.0)
         mesh = generated.viewer_mesh(built)
         self.assertEqual(len(mesh['sections']), generated.SLOTS)
+
+
+class FracSlab(unittest.TestCase):
+    """(M5) a floor or roof slab's mesh file from its numbers."""
+    SLAB = dict(x0=0, x1=384, y0=0, y1=288, holes=[dict(x0=96, x1=192, y0=96, y1=192)], seed=4)
+
+    def test_the_mesh_has_two_sections_in_slot_order_and_the_slabs_plate_for_its_box(self):
+        doc = gltf(generated.Meshes().fracslab(json.dumps(self.SLAB)))
+        prims = doc['meshes'][0]['primitives']
+        self.assertEqual([p['extras']['materialSlot'] for p in prims], [0, 1])
+        pos = doc['accessors'][prims[0]['attributes']['POSITION']]
+        # the page's axes (x, up, y): the footprint, the roof's plate -2 to 2
+        self.assertEqual(pos['min'], [0.0, -2.0, 0.0])
+        self.assertEqual(pos['max'], [384.0, 2.0, 288.0])
+        floor = gltf(generated.Meshes().fracslab(json.dumps(dict(self.SLAB, look='floor'))))
+        pos = floor['accessors'][floor['meshes'][0]['primitives'][0]['attributes']['POSITION']]
+        self.assertEqual((pos['min'][1], pos['max'][1]), (192.0, 194.0))
+
+    def test_the_numbers_are_kept_in_one_spelling_and_bad_ones_refused(self):
+        self.assertEqual(generated.slab_numbers(json.dumps(dict(x0=0, x1=96, y0=0, y1=96, look='roof'))),
+                         dict(x0=0.0, x1=96.0, y0=0.0, y1=96.0, holes=[], seed=1))
+        meshes = generated.Meshes()
+        self.assertIs(meshes.fracslab(json.dumps(self.SLAB)),
+                      meshes.fracslab(json.dumps(dict(self.SLAB, x1=384.0, look='roof'))))
+        for text in ('', '[]', json.dumps(dict(self.SLAB, x1=380)), json.dumps(dict(self.SLAB, look='marble')),
+                     json.dumps(dict(self.SLAB, holes=[dict(x0=0, x1=96, y0=0, y1=480)])),
+                     json.dumps(dict(self.SLAB, holes=[dict(x0=0, x1=96, y0=0, y1=96)] * 33)),
+                     json.dumps(dict(self.SLAB, x0=True)), '{"x0": 0, "x1": NaN, "y0": 0, "y1": 96}'):
+            with self.assertRaises(generated.GeneratedError, msg=text):
+                generated.Meshes().fracslab(text)
 
 
 if __name__ == '__main__':

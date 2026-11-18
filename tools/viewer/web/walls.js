@@ -348,3 +348,105 @@ export function joinWords(joins) {
   return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
 }
 export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeysOf(wall) === 1 ? 'one storey' : 'two storeys'} (${wallTop(wall) - WALL.bottom} tall)`;
+
+// ---- floors and roofs (custom geometry plan, M5): a slab is an added copy of its look's donor (one of the game's
+// fracturing floors or roofs) carrying `generated: { kind: 'fracSlab', version: 1, slab }`, its numbers in the donor
+// mesh's frame (tools/bake/frac_slab.py): `x0`, `x1`, `y0`, `y1` its footprint on tile lines (the tool always writes
+// x0 and y0 0 and puts the piece at the footprint's corner, its mesh's axes the world's), `holes` [{ x0, x1, y0, y1 }]
+// (whole tiles inside it), `seed`, `look` (left out, the first). Its plate lies between its look's heights.
+export const SLAB_LOOKS = [
+  { id: 'roof', name: 'Roof', role: 'roof', package: 'URB_Bar', actor: 'XComFracLevelActor_3',
+    mesh: 'ComKit_Meshes.Roofing.Roof_BarrierSmallFloor_FRACTURED', lwrOnly: false, bottom: -2, top: 2,
+    words: 'a flat roof: gravel and asphalt on top, ceiling tiles under it' },
+  { id: 'floor', name: 'Upper floor', role: 'floor', package: 'URB_Bar', actor: 'XComFracLevelActor_17',
+    mesh: 'ComKit_Meshes.Cores.Core_384FloorB_FRACTURED', lwrOnly: false, bottom: 192, top: 194,
+    words: "a storey floor: dark brown floor tiles on top, butcher's tiles under it" }];
+export const SLAB = { maxTiles: 16, maxHoles: 32 };
+export const slabLookOf = slab => SLAB_LOOKS.find(l => l.id === (slab?.look ?? SLAB_LOOKS[0].id)) ?? null;
+export const slabTiles = slab => [Math.round((slab.x1 - slab.x0) / TILE), Math.round((slab.y1 - slab.y0) / TILE)];
+/** Whether the slab's numbers are ones the tool edits (its own: x0 and y0 0, whole tiles, holes of whole tiles). */
+export function toolSlab(slab) {
+  const whole = v => Math.abs(v / TILE - Math.round(v / TILE)) < 1e-6;
+  if (!slab || slab.x0 !== 0 || slab.y0 !== 0 || !whole(slab.x1) || !whole(slab.y1) || !slabLookOf(slab)) return false;
+  const [nx, ny] = slabTiles(slab);
+  return nx >= 1 && ny >= 1 && nx <= SLAB.maxTiles && ny <= SLAB.maxTiles
+    && (slab.holes ?? []).every(h => ['x0', 'x1', 'y0', 'y1'].every(k => whole(h[k])) && 0 <= h.x0 && h.x0 < h.x1 && h.x1 <= slab.x1
+                                     && 0 <= h.y0 && h.y0 < h.y1 && h.y1 <= slab.y1);
+}
+/** The slab a drag from `start` to `end` ([x, y] on the ground) draws: the rectangle between the tile edges nearest them
+ *  (a click: one tile; at most SLAB.maxTiles each way), the piece at `z` (its plate lies its look's heights over it:
+ *  an upper floor's donor carries its plate a storey up, so for one it is the floor under the start; for a roof, the
+ *  roof's height). Gives { location, rotation (the donor's pitch and roll, its mesh's x along the world's),
+ *  slab: { x0: 0, x1, y0: 0, y1, holes: [], seed, look? }, tiles: [along x, along y] }. */
+export function drawnSlab(start, end, { origin, template, z, seed = 1, look = SLAB_LOOKS[0] }) {
+  const edge = (v, k) => origin[k] + round(v - origin[k], TILE);
+  const span = k => {
+    const a = edge(start[k], k);
+    let b = edge(end[k], k);
+    if (b === a) b = a + TILE * sign(end[k] - start[k]);
+    const tiles = Math.min(SLAB.maxTiles, Math.round(Math.abs(b - a) / TILE));
+    return [Math.min(a, a + sign(b - a) * tiles * TILE), tiles];
+  };
+  const [x0, nx] = span(0), [y0, ny] = span(1);
+  return { location: [tidy(x0), tidy(y0), tidy(z)], rotation: wallRotation(template.rotation, 0, 1),
+           slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed, ...(look.id !== SLAB_LOOKS[0].id ? { look: look.id } : {}) },
+           tiles: [nx, ny] };
+}
+const holeInside = (h, slab) => h.x0 >= 0 && h.x1 <= slab.x1 && h.y0 >= 0 && h.y1 <= slab.y1;
+/** The slab with one side ('x0', 'x1', 'y0', 'y1') moved `delta` units outwards, in whole tiles, kept to
+ *  1..SLAB.maxTiles. The holes stay where they are in the world (moving x0 or y0 shifts them in the slab's frame);
+ *  those no longer inside go. Gives { slab, shift: [dx, dy] (how far the piece's corner moves), removed }. */
+export function resizedSlab(slab, side, delta) {
+  const [nx, ny] = slabTiles(slab), axis = side[0] === 'x' ? 0 : 1, n = axis ? ny : nx, key = side[0];
+  const step = Math.max(1 - n, Math.min(SLAB.maxTiles - n, Math.round(delta / TILE)));
+  const shift = [0, 0];
+  if (side[1] === '0') shift[axis] = -step * TILE;
+  const moved = (slab.holes ?? []).map(h => ({ ...h, [`${key}0`]: h[`${key}0`] - shift[axis], [`${key}1`]: h[`${key}1`] - shift[axis] }));
+  const out = { ...slab, [`${key}1`]: (n + step) * TILE };
+  out.holes = moved.filter(h => holeInside(h, out));
+  return { slab: out, shift, removed: moved.length - out.holes.length };
+}
+/** The slab with a hole one tile square in the free tile nearest its middle: { slab, index } or null when every tile
+ *  is a hole (or it has SLAB.maxHoles). */
+export function withHole(slab) {
+  const [nx, ny] = slabTiles(slab), holes = slab.holes ?? [];
+  if (holes.length >= SLAB.maxHoles) return null;
+  const free = [];
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+    const cx = (i + 0.5) * TILE, cy = (j + 0.5) * TILE;
+    if (!holes.some(h => h.x0 < cx && cx < h.x1 && h.y0 < cy && cy < h.y1))
+      free.push([Math.hypot(cx - slab.x1 / 2, cy - slab.y1 / 2), i, j]);
+  }
+  if (!free.length) return null;
+  free.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+  const [, i, j] = free[0];
+  return { slab: { ...slab, holes: [...holes, { x0: i * TILE, x1: (i + 1) * TILE, y0: j * TILE, y1: (j + 1) * TILE }] }, index: holes.length };
+}
+export const withoutHole = (slab, index) => ({ ...slab, holes: (slab.holes ?? []).filter((_, k) => k !== index) });
+/** The slab with its hole `index` changed by a drag of `delta` units: 'x' or 'y' slides it along that axis, a side
+ *  ('x0', 'x1', 'y0', 'y1') moves that side; whole tiles, kept inside the slab and a tile wide at least. */
+export function movedHole(slab, index, part, delta) {
+  const holes = [...(slab.holes ?? [])], h = { ...holes[index] }, step = Math.round(delta / TILE) * TILE;
+  const k = part[0], size = k === 'x' ? slab.x1 : slab.y1;
+  if (part === 'x' || part === 'y') {
+    const s = Math.max(-h[`${k}0`], Math.min(size - h[`${k}1`], step));
+    h[`${k}0`] += s; h[`${k}1`] += s;
+  } else if (part[1] === '0') h[part] = Math.max(0, Math.min(h[`${k}1`] - TILE, h[part] + step));
+  else h[part] = Math.min(size, Math.max(h[`${k}0`] + TILE, h[part] + step));
+  holes[index] = h;
+  return { ...slab, holes };
+}
+/** Another break pattern: a new seed (`pick` in [0, 1)). */
+export const reshuffledSlab = (slab, pick = Math.random()) => ({ ...slab, seed: 1 + Math.floor(pick * 999999) });
+const tileWords = (a, b) => `${a} by ${b} tile${a * b === 1 ? '' : 's'}`;
+export const holeWords = h => `Hole, ${tileWords(Math.round((h.x1 - h.x0) / TILE), Math.round((h.y1 - h.y0) / TILE))}`;
+export const slabWords = slab => {
+  const [nx, ny] = slabTiles(slab), n = (slab.holes ?? []).length;
+  return `${tileWords(nx, ny)}${n ? `, ${plural(n, 'hole')}` : ''}`;
+};
+/** The roof a room drawn as `room` (drawnRoom) takes: its footprint the room's rectangle, on its walls' tops. */
+export function roomRoof(room, { template, floor, storeys = 2, seed = 1 }) {
+  const [south] = room.walls, [nx, ny] = room.tiles;
+  return { location: [south.location[0], south.location[1], tidy(floor + STOREY_TOPS[storeys])], rotation: wallRotation(template.rotation, 0, 1),
+           slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed }, tiles: [nx, ny] };
+}

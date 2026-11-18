@@ -214,6 +214,80 @@ class Walls(unittest.TestCase):
         self.assertEqual(built(CUSTOM)['counts']['fragments'], 27)
 
 
+class Looks(unittest.TestCase):
+    """(M4 item 1) A look is data: wall_looks.json's looks, the first the Bar's inside wall, whose recipe is RECIPE."""
+
+    def test_the_default_look_is_the_bars_and_its_recipe_is_recipe(self):
+        self.assertEqual(frac_wall.DEFAULT_LOOK, 'bar-inside')
+        self.assertIs(frac_wall.look_of({}), frac_wall.RECIPE)
+        self.assertIs(frac_wall.look_of(dict(look='bar-inside')), frac_wall.RECIPE)
+        look = frac_wall.LOOKS['bar-inside']
+        self.assertEqual((look['donor'], look['package'], look['actor']),
+                         (frac_wall.RECIPE['donor'], 'URB_Bar', 'XComDecoFracLevelActor_17'))
+        for key in ('bottom', 'top', 'storey', 'face', 'half', 'endInset', 'section', 'slots', 'cell', 'lightmap'):
+            self.assertIn(key, frac_wall.RECIPE)
+
+    def test_a_look_not_listed_is_refused(self):
+        import frac_walls
+        with self.assertRaises(ValueError):
+            frac_wall.look_of(dict(look='marble'))
+        with self.assertRaises(ValueError):
+            frac_walls.check(dict(kind='fracWall', version=2, wall=dict(x0=0, x1=96, look='marble')))
+        with self.assertRaises(ValueError):
+            frac_walls.check(dict(kind='fracWall', version=1, wall=dict(x0=0, x1=96, look='bar-inside')))
+        frac_walls.check(dict(kind='fracWall', version=2, wall=dict(x0=0, x1=96, look='bar-inside')))
+
+    def test_the_file_is_lf_and_checked_in_order(self):
+        raw = frac_wall.LOOKS_FILE.read_bytes()
+        self.assertNotIn(b'\r', raw)
+        self.assertEqual(list(frac_wall.LOOKS)[0], frac_wall.DEFAULT_LOOK)
+
+
+class Slabs(unittest.TestCase):
+    """(M5) frac_slab: a slab of whole tiles with a hole, its fragments, faces, collision and records."""
+    S = dict(x0=0.0, x1=480.0, y0=0.0, y1=384.0, holes=[dict(x0=192.0, x1=288.0, y0=96.0, y1=288.0)], seed=3)
+
+    def test_it_covers_its_footprint_but_the_hole_in_its_own_fragments(self):
+        import frac_slab
+        polys = frac_slab.fragments(self.S)
+        def area(poly):
+            return 0.5 * abs(sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1])))
+        self.assertAlmostEqual(sum(area(p) for p in polys), 480 * 384 - 96 * 192, 3)
+        for poly in polys:
+            cx, cy = sum(x for x, _ in poly) / len(poly), sum(y for _, y in poly) / len(poly)
+            self.assertFalse(192 < cx < 288 and 96 < cy < 288)
+        self.assertEqual(polys, frac_slab.fragments(dict(self.S)))      # the same seed, the same pattern
+
+    def test_its_mesh_has_the_looks_slots_and_no_faces_inside(self):
+        import frac_slab
+        out = frac_slab.build(self.S)
+        lod = out['mesh']['lods'][0]
+        self.assertEqual([s['slot'] for s in lod['sections']], [0, 1])
+        self.assertEqual(out['mesh']['fractured']['interior'], 2)
+        zs = sorted({round(p[2], 3) for p in lod['positions']})
+        self.assertEqual(zs, [-2.0, 2.0])
+        # the top's and underside's areas are the footprint's less the hole; the edges' the outline's and the hole's
+        n = len(lod['indices'][1]) // 3
+        self.assertGreater(n, 0)
+        self.assertEqual(out['counts']['fragments'], len(frac_slab.fragments(self.S)))
+        rec = out['mesh']['fractured']['fragments']
+        self.assertTrue(all(set(r['dims']) == {1.0} for r in rec))
+        self.assertTrue(all(r['root'] == 0 and r['destroyable'] == 1 for r in rec))
+
+    def test_its_collision_is_a_box_a_rectangle_round_the_hole_under_the_top(self):
+        import frac_slab
+        boxes = frac_slab.solids(self.S)
+        self.assertEqual(boxes, [((0.0, 0.0, -2.0), (192.0, 384.0, 0.0)), ((192.0, 0.0, -2.0), (288.0, 96.0, 0.0)),
+                                 ((192.0, 288.0, -2.0), (288.0, 384.0, 0.0)), ((288.0, 0.0, -2.0), (480.0, 384.0, 0.0))])
+
+    def test_bad_numbers_are_refused(self):
+        import frac_slab
+        for bad in (dict(self.S, x1=500.0), dict(self.S, x1=96.0 * 17), dict(self.S, holes=[dict(x0=0, x1=50, y0=0, y1=96)]),
+                    dict(self.S, holes=[dict(x0=0, x1=96, y0=0, y1=500)]), dict(self.S, look='marble'), dict(self.S, seed=1.5)):
+            with self.assertRaises(ValueError):
+                frac_slab.check(bad)
+
+
 class JoinedEnds(unittest.TestCase):
     """(M3 item 2) A wall's ends joined to another made wall: 'through' to the far face of the wall it meets at an L,
     'line' on the tile edge against the next wall end to end, 'free' 8 short as before; the corner of an L closed."""

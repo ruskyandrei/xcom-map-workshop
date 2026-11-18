@@ -33,6 +33,12 @@ columns moved by move_columns), then add_walls changes it:
                      the wall the listed fragments' boxes together. Its list of the pieces that go with it starts empty
                      (door_columns and group_columns fill it); its neighbours' columns, by the game's rule
                      (neighbour_columns);
+  kind 'fracSlab'  dict(kind, version 1, slab: frac_slab's numbers): a floor or roof slab (custom geometry plan,
+                   M5), made as a wall is (its mesh by frac_slab.build, its body setup, its component, light and shadow
+                   map), on a copy of one of the game's slabs (which keeps its floor flags, bPathColliding and
+                   bCanStepUpOn, and its component's), the donor's painted-out fragments (EditorPaintedVisibleFragments)
+                   dropped; its FragmentColumns by the slabs' rule (slab_columns: the piece's own 96 x 96 x 192 grid
+                   from its lowest corner less one unit, a column for every cell, research/evidence/slab-audit.py);
   kind 'relit'     the copy's mesh is the donor's, unchanged: it only goes to the relight lit from nothing, as a
                    generated wall is (a reference beside one, in the same light).
 
@@ -65,15 +71,18 @@ sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
 import cover_blocks  # noqa: E402
+import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
 import gen_mesh  # noqa: E402
 import light_factory  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
-KINDS = ('fracWall', 'relit')
-# the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2), with its end styles (`ends`), which
-# the compiler works out from where the project's made walls meet (version 1 reads as two free ends)
+KINDS = ('fracWall', 'fracSlab', 'relit')
+MADE = ('fracWall', 'fracSlab')     # the kinds made from numbers (their own mesh and columns)
+# the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2 and M4 item 1), with its end styles
+# (`ends`), which the compiler works out from where the project's made walls meet, and its look (`look`, one of
+# frac_wall.LOOKS); version 1 reads as two free ends in the Bar's inside wall
 VERSIONS = (1, 2)
 TILE, STOREY = 96.0, 192.0
 # the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
@@ -90,6 +99,11 @@ def check(generated):
                          % (generated.get('version'), ' and '.join(map(str, VERSIONS))))
     if generated['kind'] == 'relit':
         return generated
+    if generated['kind'] == 'fracSlab':
+        if generated.get('version', 1) != 1:
+            raise ValueError('generated slab request version %r (this Build knows 1)' % (generated.get('version'),))
+        frac_slab.check(generated.get('slab'))
+        return generated
     wall = generated.get('wall')
     if not isinstance(wall, dict) or not all(isinstance(wall.get(k), (int, float)) for k in ('x0', 'x1')):
         raise ValueError('a generated wall needs its ends, x0 and x1')
@@ -98,9 +112,11 @@ def check(generated):
                          % (MIN_LENGTH, MIN_LENGTH - 2 * frac_wall.RECIPE['endInset'], frac_wall.RECIPE['endInset']))
     if wall.get('storeys', 2) not in frac_wall.STOREYS:
         raise ValueError('a generated wall of %r storeys (it has 1 or 2)' % (wall.get('storeys'),))
-    if 'ends' in wall and generated.get('version', 1) < 2:
-        raise ValueError("a generated wall's end styles come with request version 2")
+    for key, what in (('ends', 'end styles'), ('look', 'look')):
+        if key in wall and generated.get('version', 1) < 2:
+            raise ValueError("a generated wall's %s come%s with request version 2" % (what, '' if key == 'ends' else 's'))
     frac_wall.ends_of(wall)
+    frac_wall.look_of(wall)
     for o in wall.get('openings') or []:
         if not all(isinstance(o.get(k), (int, float)) for k in ('x0', 'x1', 'z0', 'z1')) \
                 or not (wall['x0'] <= o['x0'] < o['x1'] <= wall['x1']) or not o['z0'] < o['z1']:
@@ -125,10 +141,11 @@ def wall_box(p, actor, location, rotation, generated):
     """The world box a generated copy stands in (its tiles are seeded and rebuilt over it): the generated wall's,
     or for 'relit' the donor's own box at the copy's pose (None: let the caller work it out as for any copy)."""
     import lightmap_texels
-    if generated.get('kind') != 'fracWall':
+    if generated.get('kind') not in MADE:
         return None
     comp = p.own(actor, 'FracturedStaticMeshComponent')
-    return world_box(local_box(generated['wall']), lightmap_texels.world_matrix(p, comp, location, rotation))
+    box = local_box(generated['wall']) if generated['kind'] == 'fracWall' else frac_slab.local_box(generated['slab'])
+    return world_box(box, lightmap_texels.world_matrix(p, comp, location, rotation))
 
 
 # ---------------------------------------------------------------------------------------------------- columns
@@ -165,6 +182,36 @@ def columns(frag_boxes, grid):
             box[2 * across + 1] = max(frag_boxes[f][2 * across + 1] for f in listed)
             frags = sorted(((f, frag_boxes[f][4]) for f in listed), key=lambda x: (x[1], x[0]))
             out.append(dict(box=box, frags=frags))
+    return out
+
+
+def slab_columns(frag_boxes):
+    """The fragment columns of a slab whose fragments have the world boxes `frag_boxes`, by the slabs' rule (custom
+    geometry plan, M5; research/evidence/slab-audit.py rule_columns, 97% of the game's roof columns): cells of 96 x 96 x
+    192 counted from the slab's lowest corner less one unit; a column for every cell its box reaches, empty ones
+    included, in x, then y, then up; it lists the fragments whose box meets the cell (touching counts, as UE3's
+    FBox::Intersect), each with its lowest corner's height, lowest first; its box the cell cut across to the listed
+    fragments' boxes (the cell's whole height; an empty column the whole cell)."""
+    lo = [min(b[2 * k] for b in frag_boxes) for k in range(3)]
+    hi = [max(b[2 * k + 1] for b in frag_boxes) for k in range(3)]
+    step = (TILE, TILE, STOREY)
+    anchor = [v - 1.0 for v in lo]
+    n = [max(1, int(np.ceil((hi[k] - anchor[k]) / step[k] - 1e-6))) for k in range(3)]
+    out = []
+    for i in range(n[0]):
+        for j in range(n[1]):
+            for s in range(n[2]):
+                cell = [anchor[0] + step[0] * i, anchor[0] + step[0] * (i + 1), anchor[1] + step[1] * j,
+                        anchor[1] + step[1] * (j + 1), anchor[2] + step[2] * s, anchor[2] + step[2] * (s + 1)]
+                listed = [f for f, b in enumerate(frag_boxes)
+                          if all(min(b[2 * q + 1], cell[2 * q + 1]) - max(b[2 * q], cell[2 * q]) >= 0 for q in range(3))]
+                box = list(cell)
+                for k in range(2):
+                    if listed:
+                        box[2 * k] = max(cell[2 * k], min(frag_boxes[f][2 * k] for f in listed))
+                        box[2 * k + 1] = min(cell[2 * k + 1], max(frag_boxes[f][2 * k + 1] for f in listed))
+                frags = sorted(((f, frag_boxes[f][4]) for f in listed), key=lambda x: (x[1], x[0]))
+                out.append(dict(box=box, frags=frags))
     return out
 
 
@@ -505,6 +552,12 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
     data = bytes(data[:flag] + block + data[end:])
     if shadow and shadow['export'] is not None:
         data = add_shadow_ref(data, end_props, shadow['export'])
+    # the donor's painted-out fragments (a list of the donor's own) say nothing of the made mesh's: dropped
+    import native_copy
+    found = native_copy.find_prop(walker, data, start, len(data), 'EditorPaintedVisibleFragments[0]')
+    if found is not None:
+        _, tag, at, size = found
+        data = data[:tag] + data[at + size:]
     return data
 
 
@@ -704,7 +757,7 @@ def neighbour_columns(g, p, walls, pieces):
     import native_copy
     walker = native_copy.Walker(p)
     made = [dict(export=w['copy'], original=w['original'], bounds=list(w['box']), made=True)
-            for w in walls if w.get('kind') == 'fracWall']
+            for w in walls if w.get('kind') in MADE]
     if not made:
         return []
     every = made + [dict(x, made=False) for x in pieces if x['export'] not in {m['export'] for m in made}]
@@ -788,6 +841,10 @@ def add_walls(g, p, items, grid, bake=True):
             records.append(dict(kind='relit', copy=item['info']['actor'], label=item.get('label')))
             continue
         template = gen_mesh.read(p, donor_mesh)
+        if gen['kind'] == 'fracSlab':
+            out = frac_slab.build(gen['slab'], template)
+            built.append((item, comp_old, donor_mesh, template, out, frac_slab.mesh_name(gen['slab'])))
+            continue
         out = frac_wall.build(gen['wall'], template)
         built.append((item, comp_old, donor_mesh, template, out, frac_wall.mesh_name(gen['wall'])))
     if not built:
@@ -840,7 +897,8 @@ def add_walls(g, p, items, grid, bake=True):
             shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
                                             shadow))
-        cols = columns(boxes, grid)
+        slab = item['generated']['kind'] == 'fracSlab'
+        cols = slab_columns(boxes) if slab else columns(boxes, grid)
         actor = info['actor']
         e = p.exports[item['original'] - 1]
         start = legacy_props.props_start(p.data, e, p.names) - e['off']
@@ -854,8 +912,9 @@ def add_walls(g, p, items, grid, bake=True):
         pieces = [column_element(g, walker, template_col, c) for c in cols]
         g.relocate(actor, native_copy.rebuilt(b, field, pieces))
         h = max(y for y, _, _ in frac_wall.RECIPE['section'])
-        holes = [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix) for o in item['generated']['wall'].get('openings') or []]
-        records.append(dict(kind='fracWall', copy=actor, original=item['original'], openings=holes,
+        holes = [] if slab else [world_box([o['x0'], o['x1'], -h, h, o['z0'], o['z1']], matrix)
+                                 for o in item['generated']['wall'].get('openings') or []]
+        records.append(dict(kind=item['generated']['kind'], copy=actor, original=item['original'], openings=holes,
                             group=item.get('wallGroup') or 0,
                             label=item.get('label'), mesh=made[name], meshName=name,
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],

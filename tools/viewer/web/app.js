@@ -49,7 +49,9 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom } from './walls.js';
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
+         SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
+         toolSlab, slabLookOf, roomRoof } from './walls.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -202,7 +204,7 @@ function recipeOf(o) {
   const original = originalIndex.get(targetKey(o.added.from)) ?? foreignTemplates.get(`${targetKey(o.added.from)}|${o.component}`);
   if (!original) return null;
   // a made wall's height is free (its columns are made for where it stands): it moves by storeys from its own
-  return isMadeWall(o) ? { location: [original.location[0], original.location[1], o.location[2]], rotation: original.rotation }
+  return isMade(o) ? { location: [original.location[0], original.location[1], o.location[2]], rotation: original.rotation }
     : { location: original.location, rotation: original.rotation };
 }
 const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
@@ -377,6 +379,7 @@ function select(id, add = false, keep = false) {
   $('lightBox').hidden = !root?.userData.light;
   $('coverBox').hidden = !root?.userData.source?.cover;
   $('wallBox').hidden = !isMadeWall(root?.userData.source);
+  $('slabBox').hidden = !isMadeSlab(root?.userData.source);
   if (wallFocus && wallFocus.id !== id) wallFocus = null;
   if (!root || root.userData.volume || root.userData.effect) {
     highlight.visible = false; ladderMarks.visible = false;
@@ -390,6 +393,7 @@ function select(id, add = false, keep = false) {
   details.replaceChildren();
   if (obj.cover) { showCover(root); return; }
   if (isMadeWall(obj)) wallPanel(root);
+  if (isMadeSlab(obj)) slabPanel(root);
   text(details, 'h2', short(mesh.name));
   text(details, 'div', `${obj.actorClass} · ${obj.sourcePackage || data.source.file.split(/[\\/]/).at(-1)}`, 'sub');
   const chips = text(details, 'div', '', 'chips');
@@ -1197,13 +1201,40 @@ function madeBounds(wall) {
 // with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
 const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
                                 seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}),
+                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: w.look } : {}),
                                 ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
+// A made slab (custom geometry plan, M5): drawn from /generated/fracslab.glb (generated.py), its two sections (the top
+// with the edges, the underside) bound to its template's materials by slot; its bounds its footprint between its look's
+// heights.
+const FRAC_SLAB = { slots: 2 };
+const madeSlabNumbers = s => ({ x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, holes: (s.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 })),
+                                seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: s.look } : {}) });
+function slabBounds(s) {
+  const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
+  return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
+}
+function madeSlabShape(template, s) {
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!s || !['x0', 'x1', 'y0', 'y1'].every(k => finite(s[k])) || !slabLookOf(s) || !Number.isInteger(s.seed ?? 1)
+    || (s.holes ?? []).length > SLAB.maxHoles) return {};
+  const numbers = madeSlabNumbers(s), key = `made:fracslab:${JSON.stringify(numbers)}`;
+  if (!data.meshes[key]) {
+    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a slab'}, made from numbers`, kind: 'static', made: true,
+      look: data.meshes[template.mesh]?.name ?? null, url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`,
+      sections: Array.from({ length: FRAC_SLAB.slots }, (_, slot) => ({ slot, count: 1 })), bounds: slabBounds(numbers) };
+  }
+  const slots = (data.meshes[template.mesh]?.sections ?? []).filter(x => x.count).map(x => x.slot);
+  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
+  return { mesh: key, materials: Array.from({ length: FRAC_SLAB.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+}
 function madeShape(template, generated) {
+  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab);
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
     || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
-      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1) || ![undefined, 1, 2].includes(w.storeys)) return {};
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1) || ![undefined, 1, 2].includes(w.storeys)
+    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look))) return {};
   const wall = madeWallNumbers(w);
   const key = `made:fracwall:${JSON.stringify(wall)}`;
   if (!data.meshes[key]) {
@@ -2075,7 +2106,7 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  if (entry.wallLook) { startWallDrawing(entry.wallLook, { room: Boolean(entry.room) }); return; }     // the Walls kind: drawn by dragging
+  if (entry.wallLook) { startWallDrawing(entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof) }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
   if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
@@ -3771,7 +3802,7 @@ function spawnAddEntries() {
   }
   return out;
 }
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...wallEntries(), ...zoneEntries(), ...spawnAddEntries()];
+const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...wallEntries(), ...slabEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
 // source to copy: { source, values }, or null for a kind or version this page doesn't know.
 // A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
@@ -9294,6 +9325,13 @@ function endCoverDrag(keep) {
 // drawing kept until the next arrives.
 const isMadeWall = o => o?.added?.generated?.kind === 'fracWall';
 const madeWallRoot = id => { const r = roots.get(id); return r && isMadeWall(r.userData.source) ? r : null; };
+// floor and roof slabs (custom geometry plan, M5): drawn by dragging a rectangle (the floor under the start, an upper
+// floor a storey over it, a roof on the tops of the made walls round it, or two storeys up); white handles on its four
+// edges grow or shrink it by whole tiles, blue ones move and size its holes; the piece panel's Floor section adds and
+// removes holes and reshuffles its break pattern. Shared with the walls: the drawing, the handles, the undo steps.
+const isMadeSlab = o => o?.added?.generated?.kind === 'fracSlab';
+const isMade = o => isMadeWall(o) || isMadeSlab(o);
+const madeRoot = id => { const r = roots.get(id); return r && isMade(r.userData.source) ? r : null; };
 const wallLookOf = o => WALL_LOOKS.find(l => short(o.added?.from?.actor ?? '') === l.actor && (o.added?.from?.package ?? '').toLowerCase() === l.package.toLowerCase()) ?? null;
 // The look's donor as a template: this map's own piece, or the piece read from its home map (libraryTemplate).
 async function wallTemplate(look) {
@@ -9327,25 +9365,61 @@ function wallEntries() {
         + `round the rectangle on its tile lines (up to ${WALL.maxTiles} tiles a side), joined at the corners, each with the same face in, `
         + `with a doorway in the side nearest you. Afterwards they are four walls, each edited as any. ${install(look)}` }]);
 }
-let wallDrawing = null;    // { look, room (a room's four walls), template (once read), start, floor, pointerId, last }
+// The Add panel's Floors and roofs kind: one entry for each slab look; the Walls kind's rooms with a roof.
+const SLABS_KIND = 'Floors and roofs';
+function slabEntries() {
+  if (!data || data.preview || builderMode) return [];
+  const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
+  return [...SLAB_LOOKS.map(look => ({ key: `slab:${look.id}`, id: `slab-${look.id}`, name: look.name, mesh: look.name, kind: SLABS_KIND,
+    pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
+    wallLook: look, slab: true, size: [96, 96, 4], detail: 'A rectangle dragged out; up to 16 tiles each way, holes',
+    text: `floor floors roof roofs slab ${look.name} ${look.package} ${look.words} fracturing breaks hole storey`.toLowerCase(),
+    title: `${look.name}: ${look.words}. Press at one corner, drag to the other and let go: it covers the tiles between, up to `
+      + `${SLAB.maxTiles} each way, ${look.role === 'roof' ? 'on the tops of the made walls round it (two storeys over the ground where there are none)'
+        : 'a storey over the floor you press on'}. It breaks a piece at a time as the game's do; units walk on it. `
+      + `Add holes in the piece panel; its handles grow it and move them. ${install(look)}` })),
+    ...WALL_LOOKS.map(look => ({ key: `roomroof:${look.id}`, id: `roomroof-${look.id}`, name: `Room of ${look.name.toLowerCase()}s with a roof`, mesh: look.name,
+      kind: WALLS_KIND, pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
+      wallLook: look, room: true, roof: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'Four joined walls, a doorway, a roof and its building',
+      text: `room rooms walls roof building ${look.name} ${look.package} rectangle doorway cutaway`.toLowerCase(),
+      title: `A room of ${look.name.toLowerCase()}s with a roof: press at one corner, drag to the other and let go. Four walls run round `
+        + `the rectangle, a doorway in the side nearest you, a roof on their tops, and a building round it, so the roof is cut away `
+        + `when the cursor is inside, as the game's buildings are. Afterwards each is edited as any. ${install(look)}` }))];
+}
+// The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
+function wallTopsRound(rect, floor) {
+  let top = null;
+  for (const r of roots.values()) {
+    if (r.userData.deleted || !r.visible || !isMadeWall(r.userData.source)) continue;
+    const b = new THREE.Box3().setFromObject(r);
+    if (b.isEmpty() || b.max.x < rect[0] - 16 || b.min.x > rect[1] + 16 || b.max.z < rect[2] - 16 || b.min.z > rect[3] + 16) continue;
+    if (Math.abs(b.min.y - WALL.bottom - floor) > 64) continue;
+    const inside = b.min.x > rect[0] + 16 && b.max.x < rect[1] - 16 && b.min.z > rect[2] + 16 && b.max.z < rect[3] - 16;
+    if (!inside) top = Math.max(top ?? -Infinity, b.max.y);
+  }
+  return top;
+}
+let wallDrawing = null;    // { look, room (a room's four walls), slab, roof (a room's roof: roofTemplate), template (once read), start, floor, pointerId, last }
 const wallGhostMaterial = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.4, depthWrite: false });
 // (a wall's ghost, and three more for a room's other sides)
-const wallGhosts = [0, 1, 2, 3].map(() => {
+const wallGhosts = [0, 1, 2, 3, 4].map(() => {
   const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), wallGhostMaterial);
   ghost.visible = false; ghost.matrixAutoUpdate = false; ghost.raycast = () => {}; ghost.renderOrder = 7; world.add(ghost);
   return ghost;
 });
 const wallGhost = { set visible(on) { for (const g of wallGhosts) g.visible = on; } };
-async function startWallDrawing(look, { room = false } = {}) {
+async function startWallDrawing(look, { room = false, slab = false, roof = false } = {}) {
   stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing();
-  const drawing = wallDrawing = { look, room, template: null, start: null };
+  const drawing = wallDrawing = { look, room, slab, roof, template: null, start: null };
   renderer.domElement.style.cursor = 'crosshair';
-  pieces.setChosen(wallEntries().find(e => e.wallLook === look && Boolean(e.room) === room) ?? null);
+  pieces.setChosen([...wallEntries(), ...slabEntries()].find(e => e.wallLook === look && Boolean(e.room) === room
+                                                              && Boolean(e.slab) === slab && Boolean(e.roof) === roof) ?? null);
   const done = busyStart(`Reading ${look.name}…`);
   try {
     const template = await wallTemplate(look);
+    const roofTemplate = roof ? await wallTemplate(SLAB_LOOKS[0]) : null;
     if (wallDrawing !== drawing) return;
-    drawing.template = template;
+    drawing.template = template; drawing.roofTemplate = roofTemplate;
     askLineCollision();
     wallHint();
   } catch (error) {
@@ -9356,8 +9430,10 @@ function wallHint(words = null) {
   clearTimeout(hintTimer);
   const hint = $('dragHint');
   hint.hidden = false;
-  hint.replaceChildren(words ?? (wallDrawing.room
-    ? `Drawing a room of ${wallDrawing.look.name.toLowerCase()}s: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
+  hint.replaceChildren(words ?? (wallDrawing.slab
+    ? `Drawing a ${wallDrawing.look.name.toLowerCase()}: press at one corner, drag to the other, let go · Shift keeps drawing · `
+    : wallDrawing.room
+    ? `Drawing a room of ${wallDrawing.look.name.toLowerCase()}s${wallDrawing.roof ? ' with a roof' : ''}: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
     : `Drawing a ${wallDrawing.look.name}: press on the ground at one end, drag along a tile line, let go · Shift keeps drawing · `));
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
@@ -9375,11 +9451,22 @@ function wallGround(clientX, clientY) {
 }
 function drawnNow(d, at) {
   const options = { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed };
+  if (d.slab) {
+    const flat = drawnSlab(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, look: d.look });
+    if (d.look.role !== 'roof') return flat;
+    // a roof: on the tops of the made walls round it, else two storeys over the floor
+    const [x, y] = flat.location, top = wallTopsRound([x, x + flat.slab.x1, y, y + flat.slab.y1], d.floor);
+    return { ...flat, location: [x, y, Math.round((top ?? d.floor + WALL.top) * 1000) / 1000] };
+  }
   if (!d.room) return drawnWall(d.start.slice(0, 2), at.slice(0, 2), options);
-  return drawnRoom(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
+  const room = drawnRoom(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
+  return d.roof ? { ...room, roof: roomRoof(room, { template: d.roofTemplate, floor: d.floor, seed: d.seed + 4 }) } : room;
 }
 // The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place); a room's four.
 function showWallGhost(template, drawn) {
+  if (drawn.slab) { showSlabGhost(template, drawn, 0); for (const g of wallGhosts.slice(1)) g.visible = false; return; }
+  if (drawn.roof) { showSlabGhost(wallDrawing.roofTemplate, drawn.roof, 4); }
+  else wallGhosts[4].visible = false;
   const walls = drawn.walls ?? [drawn];
   wallGhosts.forEach((ghost, k) => {
     const w = walls[k];
@@ -9392,7 +9479,16 @@ function showWallGhost(template, drawn) {
     ghost.matrixWorldNeedsUpdate = true;
   });
 }
-const drawnWords = d => (d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(WALL.maxTiles) ? ' (the longest)' : ''}`
+// A slab's ghost (k: which ghost): its footprint between its look's heights (at least 4 thick, to be seen).
+function showSlabGhost(template, drawn, k) {
+  const ghost = wallGhosts[k], look = slabLookOf(drawn.slab), mid = (look.top + look.bottom) / 2;
+  ghost.visible = true;
+  ghost.matrix.copy(movedMatrix(template, drawn.location, drawn.rotation))
+    .multiply(new THREE.Matrix4().makeTranslation(drawn.slab.x1 / 2, mid, drawn.slab.y1 / 2))
+    .multiply(new THREE.Matrix4().makeScale(drawn.slab.x1, Math.max(4, look.top - look.bottom), drawn.slab.y1));
+  ghost.matrixWorldNeedsUpdate = true;
+}
+const drawnWords = d => (d.slab || d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(d.slab ? SLAB.maxTiles : WALL.maxTiles) ? ' (the largest)' : ''}`
   : `${plural(d.last.tiles, 'tile')}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''}`);
 function startWallDraw(e) {
   const d = wallDrawing;
@@ -9422,19 +9518,44 @@ async function endWallDraw(keep) {
   const d = wallDrawing;
   if (!d?.start) return;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* released */ }
-  const made = d.last, template = d.template, look = d.look, room = d.room;
+  const made = d.last, template = d.template, look = d.look, room = d.room, roofTemplate = d.roofTemplate, floor = d.floor;
   d.start = null; d.pointerId = null; wallGhost.visible = false;
   if (!keep) stopWallDrawing(); else wallHint();
+  if (made.slab) {
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracSlab', version: 1, slab: made.slab } } },
+                                      matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
+    flashHint(`Made a ${look.name.toLowerCase()}, ${made.tiles[0]} by ${made.tiles[1]} tiles · its white handles grow it; Add hole is in the piece panel`);
+    return;
+  }
   const entries = (made.walls ?? [made]).map(w => ({
     source: { ...template, added: { from: fromOf(template), generated: { kind: 'fracWall', version: 1, wall: w.wall } } },
     matrix: movedMatrix(template, w.location, w.rotation) }));
+  if (made.roof)
+    entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: { kind: 'fracSlab', version: 1, slab: made.roof.slab } } },
+                   matrix: movedMatrix(roofTemplate, made.roof.location, made.roof.rotation) });
   await pasteSnapshot({ entries, pivotIndex: 0, name: room ? `room of ${look.name.toLowerCase()}s` : look.name }, new THREE.Matrix4());
+  if (made.roof) {
+    // its building: the room's rectangle, a floor a storey high and the one over it to the roof's top, as the game's are
+    const [x0, y0] = made.roof.location, x1 = x0 + made.roof.slab.x1, y1 = y0 + made.roof.slab.y1, z = floor;
+    addVolumes([{ box: [x0, y0, z + WALL.bottom, x1, y1, z + WALL.storey + 16], floor: 0 },
+                { box: [x0, y0, z + WALL.storey + 16, x1, y1, z + WALL.top + 16], floor: 1 }], newBuilding());
+    gizmo.setSelection([]);
+    flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z twice takes it out`);
+    return;
+  }
   flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four ${look.name.toLowerCase()}s joined at the corners, a doorway in the near side · click one wall to edit it`
     : `Made a ${look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add doorway and Add window are in the piece panel`);
 }
 // ---- the wall as it is now, and changing it
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
 // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key.
+function madeMesh(o, generated, ends = null) {
+  if (generated.kind !== 'fracSlab') return madeWallMesh(o, generated.wall, ends);
+  const numbers = madeSlabNumbers(generated.slab), key = `made:fracslab:${JSON.stringify(numbers)}`;
+  if (!data.meshes[key])
+    data.meshes[key] = { ...data.meshes[o.mesh], url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`, bounds: slabBounds(numbers) };
+  return key;
+}
 function madeWallMesh(o, wall, ends = null) {
   const numbers = madeWallNumbers(wall, ends);
   const key = `made:fracwall:${JSON.stringify(numbers)}`;
@@ -9470,7 +9591,7 @@ function refreshJoins() {
 async function applyWall(root, state) {
   const o = root.userData.source;
   o.added = { ...o.added, generated: structuredClone(state.generated) };
-  const key = madeWallMesh(o, state.generated.wall, root.userData.joins?.ends);
+  const key = madeMesh(o, state.generated, root.userData.joins?.ends);
   o.mesh = key;
   gizmo.applyMatrices([root], [movedMatrix(o, state.location, state.rotation)]);
   root.updateMatrixWorld(true);
@@ -9494,7 +9615,7 @@ async function applyWall(root, state) {
   pickables.splice(0, pickables.length, ...pickables.filter(p => !gone.has(p)), ...(roots.get(o.id) === root ? parts : []));
   root.updateMatrixWorld(true);
   sceneChanged();
-  if (selected === o.id) { refreshHighlight(root); wallPanel(root); }
+  if (selected === o.id) { refreshHighlight(root); (isMadeSlab(o) ? slabPanel : wallPanel)(root); }
 }
 // One undo step from `before` to `after` (states), the piece picked again each way.
 function setWall(root, after, before) {
@@ -9504,7 +9625,7 @@ function setWall(root, after, before) {
                  undo: () => { applyWall(root, before); select(id, false, true); } });
 }
 function changeWall(change) {
-  const root = madeWallRoot(selected);
+  const root = madeRoot(selected);
   if (!root) return;
   const before = wallState(root), after = change(before);
   if (after) setWall(root, after, before);
@@ -9512,21 +9633,43 @@ function changeWall(change) {
 // ---- the handles
 const wallHandleLayer = new THREE.Group(); world.add(wallHandleLayer);
 const wallHandleMeshes = [];
-const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3)),
+const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(24), 3)),
                                          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
 wallStems.renderOrder = 8; wallStems.raycast = () => {}; wallStems.frustumCulled = false; wallHandleLayer.add(wallStems);
 let wallDrag = null, wallHover = null, wallFocus = null;   // wallFocus: { id, index }: the opening whose handle was last touched
 const WALL_PART_WORDS = { middle: 'Opening: drag to slide it along the wall', x0: 'Opening\'s side', x1: 'Opening\'s side',
                           z1: 'Opening\'s top', z0: 'Window\'s sill' };
 function handleWall() {
-  const root = madeWallRoot(selected);
+  const root = madeRoot(selected);
   if (!root || root.userData.deleted || !root.visible || placing || wallDrawing || volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn
-      || gizmo.picks().ids.length !== 1 || !toolWall(root.userData.source.added.generated.wall)) return null;
-  return root;
+      || gizmo.picks().ids.length !== 1) return null;
+  const g = root.userData.source.added.generated;
+  return (g.kind === 'fracSlab' ? toolSlab(g.slab) : toolWall(g.wall)) ? root : null;
+}
+// A slab's handles: a white one out of the middle of each edge ('side', its part the side), at its top; on each hole a
+// blue one at each side and one in its middle ('hole'; the middle slides it on the slab, `dir` null).
+function slabHandlesNow(root) {
+  const s = root.userData.source.added.generated.slab, look = slabLookOf(s), z = look.top + 1;
+  root.updateMatrixWorld(true);
+  const toView = (x, y, h) => new THREE.Vector3(x, h, y).applyMatrix4(root.matrixWorld);
+  const axis = (x, y) => toView(x, y, 0).sub(toView(0, 0, 0)).normalize();
+  const out = [
+    { key: 'side:x0', kind: 'side', part: 'x0', at: toView(0, s.y1 / 2, z), dir: axis(-1, 0) },
+    { key: 'side:x1', kind: 'side', part: 'x1', at: toView(s.x1, s.y1 / 2, z), dir: axis(1, 0) },
+    { key: 'side:y0', kind: 'side', part: 'y0', at: toView(s.x1 / 2, 0, z), dir: axis(0, -1) },
+    { key: 'side:y1', kind: 'side', part: 'y1', at: toView(s.x1 / 2, s.y1, z), dir: axis(0, 1) }];
+  (s.holes ?? []).forEach((h, index) => {
+    const cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2;
+    out.push({ key: `hole:${index}:middle`, kind: 'hole', part: 'middle', index, at: toView(cx, cy, z), dir: null });
+    for (const [part, x, y, d] of [['x0', h.x0, cy, [1, 0]], ['x1', h.x1, cy, [1, 0]], ['y0', cx, h.y0, [0, 1]], ['y1', cx, h.y1, [0, 1]]])
+      out.push({ key: `hole:${index}:${part}`, kind: 'hole', part, index, at: toView(x, y, z), dir: axis(...d) });
+  });
+  return out;
 }
 // The handles of the wall now: each { key, kind ('end' | 'opening'), part, index, at (on the wall), dir (the drag's
 // axis, out of an end), out (whether it stands off the wall, out from `at`) } in the view.
 function wallHandlesNow(root) {
+  if (isMadeSlab(root.userData.source)) return slabHandlesNow(root);
   const w = root.userData.source.added.generated.wall;
   root.updateMatrixWorld(true);
   const toView = (x, y, z) => new THREE.Vector3(x, z, y).applyMatrix4(root.matrixWorld);
@@ -9548,7 +9691,7 @@ function wallHandlesNow(root) {
   });
   return out;
 }
-const wallHandlePoint = h => (h.kind === 'end' ? h.at.clone().addScaledVector(h.dir, camera.position.distanceTo(h.at) * 0.06) : h.at);
+const wallHandlePoint = h => (h.kind === 'end' || h.kind === 'side' ? h.at.clone().addScaledVector(h.dir, camera.position.distanceTo(h.at) * 0.06) : h.at);
 function updateWallHandles() {
   const root = wallDrag?.root ?? handleWall();
   wallHandleLayer.visible = Boolean(root) && !gizmo.controls.dragging;
@@ -9567,13 +9710,14 @@ function updateWallHandles() {
     mesh.visible = Boolean(h);
     if (!h) return;
     mesh.position.copy(wallHandlePoint(h));
-    const focused = h.kind === 'opening' && wallFocus?.id === root.userData.source.id && wallFocus.index === h.index;
-    mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : h.kind === 'end' ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
+    const white = h.kind === 'end' || h.kind === 'side';
+    const focused = !white && wallFocus?.id === root.userData.source.id && wallFocus.index === h.index;
+    mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : white ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
     scaleMarker(mesh, camera, mesh.position);
-    if (h.kind === 'opening') mesh.scale.multiplyScalar(0.8);
-    if (h.kind === 'end' && n < 6) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
+    if (!white) mesh.scale.multiplyScalar(h.part === 'middle' ? 1 : 0.8);
+    if (white && n < 8) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
   });
-  for (; n < 6; n++) stems.setXYZ(n, 0, 0, 0);
+  for (; n < 8; n++) stems.setXYZ(n, 0, 0, 0);
   stems.needsUpdate = true;
 }
 function wallHandleNear(x, y) {
@@ -9588,7 +9732,9 @@ function hoverWallHandle(h) {
   if (key === wallHover) return;
   wallHover = key;
   renderer.domElement.style.cursor = key ? 'grab' : wallDrawing ? 'crosshair' : '';
-  renderer.domElement.title = !h ? '' : h.part === 'top' ? `The wall's top: drag ${storeysOf(handleWall()?.userData.source.added.generated.wall) === 1 ? 'up to make it two storeys' : 'down to make it one storey'}`
+  renderer.domElement.title = !h ? '' : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
+    : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
+    : h.part === 'top' ? `The wall's top: drag ${storeysOf(handleWall()?.userData.source.added.generated.wall) === 1 ? 'up to make it two storeys' : 'down to make it one storey'}`
     : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
     : `${WALL_PART_WORDS[h.part]}${h.part === 'x0' || h.part === 'x1' || h.part === 'middle' ? ' (whole tiles; Alt: steps of 8)' : ' (steps of 8)'}`;
 }
@@ -9597,16 +9743,55 @@ function startWallDrag(e) {
   if (e.button !== 0 || wallDrag || coverDrag || volumeDrag || gizmo.controls.dragging) return false;
   const h = wallHandleNear(e.clientX, e.clientY);
   if (!h) return false;
-  const root = handleWall(), from = alongLine(e.clientX, e.clientY, h.at, h.dir);
+  const root = handleWall(), from = h.dir ? alongLine(e.clientX, e.clientY, h.at, h.dir) : onLevel(e.clientX, e.clientY, h.at.y);
   if (from == null) return false;
   wallDrag = { root, key: h.key, handle: h, from, pointerId: e.pointerId, before: wallState(root), after: null, shown: null };
   if (h.kind === 'opening') { wallFocus = { id: root.userData.source.id, index: h.index }; wallPanel(root); }
+  if (h.kind === 'hole') { wallFocus = { id: root.userData.source.id, index: h.index }; slabPanel(root); }
   showPop(null);
   renderer.domElement.setPointerCapture(e.pointerId);
   renderer.domElement.style.cursor = 'grabbing';
   return true;
 }
+// The point where the pointer's ray meets the level at view height y (null when it runs along it).
+function onLevel(clientX, clientY, y) {
+  return rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -y), new THREE.Vector3());
+}
+function moveSlabDrag(e) {
+  const d = wallDrag, h = d.handle, b = d.before, s = b.generated.slab;
+  let slab = s, location = b.location, words;
+  if (h.part === 'middle') {
+    const at = onLevel(e.clientX, e.clientY, h.at.y);
+    if (!at) return;
+    // the pointer's move in the slab's own frame (its x and y), a hole slid by whole tiles each way
+    const inv = new THREE.Matrix4().copy(d.root.matrixWorld).invert();
+    const a = d.from.clone().applyMatrix4(inv), c = at.clone().applyMatrix4(inv);
+    slab = movedHole(movedHole(s, h.index, 'x', c.x - a.x), h.index, 'y', c.z - a.z);
+    words = holeWords(slab.holes[h.index]);
+  } else {
+    const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
+    if (t == null) return;
+    if (h.kind === 'side') {
+      const r = resizedSlab(s, h.part, t - d.from);
+      slab = r.slab;
+      const turned = new THREE.Vector3(r.shift[0], 0, r.shift[1]).transformDirection(new THREE.Matrix4().extractRotation(d.root.matrixWorld))
+        .multiplyScalar(Math.hypot(r.shift[0], r.shift[1]));
+      location = [b.location[0] + turned.x, b.location[1] + turned.z, b.location[2]].map(v => Math.round(v * 1000) / 1000);
+      words = `${slabWords(slab)}${r.removed ? ` · ${plural(r.removed, 'hole')} past the edge will go` : ''}`;
+    } else {
+      slab = movedHole(s, h.index, h.part, t - d.from);
+      words = holeWords(slab.holes[h.index]);
+    }
+  }
+  const key = JSON.stringify([slab, location]);
+  if (key === d.shown) return;
+  d.shown = key;
+  d.after = { generated: { ...b.generated, slab }, location, rotation: b.rotation };
+  applyWall(d.root, d.after);
+  volumeHint(words);
+}
 function moveWallDrag(e) {
+  if (isMadeSlab(wallDrag.root.userData.source)) { moveSlabDrag(e); return; }
   const d = wallDrag, t = alongLine(e.clientX, e.clientY, d.handle.at, d.handle.dir);
   if (t == null) return;
   const delta = t - d.from, b = d.before, w = b.generated.wall, h = d.handle;
@@ -9694,8 +9879,45 @@ function wallPanel(root) {
   $('wallStoreys').title = storeysOf(w) === 1 ? 'Make the wall two storeys tall (400)' : 'Make the wall one storey tall (208): openings in its upper storey go';
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
-    + 'A blast doesn\'t spread from it to the walls beside it, nor from them to it.';
+    + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
 }
+// ---- the piece panel's Floor section (made slabs)
+function slabPanel(root) {
+  const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
+  $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${look?.name ?? 'made from numbers'}`;
+  $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.`
+    : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
+  const holes = s.holes ?? [];
+  $('slabHoles').replaceChildren(...holes.map((h, index) => {
+    const row = document.createElement('div');
+    row.className = 'wallopening';
+    row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
+    row.append(Object.assign(document.createElement('strong'), { textContent: holeWords(h) }),
+               Object.assign(document.createElement('small'), { textContent: 'Open: units fall through it only as the game lets them (they don\'t); a ladder or stairs of the game\'s go in it' }));
+    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Remove', title: 'Fill this hole' });
+    remove.disabled = !tool;
+    remove.onclick = () => { wallFocus = null; changeWall(st => ({ ...st, generated: { ...st.generated, slab: withoutHole(st.generated.slab, index) } })); };
+    row.append(remove);
+    row.onmouseenter = () => { wallFocus = { id: o.id, index }; };
+    return row;
+  }));
+  $('slabHole').disabled = !tool || !withHole(s);
+  $('slabShuffle').disabled = !tool;
+  $('slabNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's `
+    + `${look?.role === 'roof' ? 'roofs do' : 'floors do'}, a piece at a time, and a break passes to the walls and pieces it touches. `
+    + (look?.role === 'roof' ? 'It is cut away with its building\'s top floor when the cursor is inside, and takes no clicks.'
+      : 'Units walk on it where there is standing room over it; a hole in it is no floor.');
+}
+$('slabHole').onclick = () => {
+  const root = madeRoot(selected);
+  if (!root || !isMadeSlab(root.userData.source)) return;
+  const r = withHole(root.userData.source.added.generated.slab);
+  if (!r) { flashHint('Every tile of it is a hole'); return; }
+  wallFocus = { id: root.userData.source.id, index: r.index };
+  changeWall(st => ({ ...st, generated: { ...st.generated, slab: r.slab } }));
+  flashHint('Added a hole, one tile · its blue handles move and size it');
+};
+$('slabShuffle').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, slab: reshuffledSlab(st.generated.slab) } }));
 // The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
 function doorBoxes(except) {
   const out = [];
@@ -9811,6 +10033,15 @@ $('wallStoreys').onclick = () => changeWall(s => ({ ...s, generated: { ...s.gene
   wall: withStoreys(s.generated.wall, storeysOf(s.generated.wall) === 1 ? 2 : 1).wall } }));
 // Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
 function deleteWallOpening() {
+  const slabRoot = madeRoot(selected);
+  if (slabRoot && isMadeSlab(slabRoot.userData.source) && wallFocus?.id === slabRoot.userData.source.id && handleWall()) {
+    const index = wallFocus.index;
+    if (index >= (slabRoot.userData.source.added.generated.slab.holes ?? []).length) return false;
+    wallFocus = null;
+    changeWall(st => ({ ...st, generated: { ...st.generated, slab: withoutHole(st.generated.slab, index) } }));
+    flashHint('Filled the hole · Ctrl+Z opens it again');
+    return true;
+  }
   const root = madeWallRoot(selected);
   if (!root || wallFocus?.id !== root.userData.source.id || !handleWall()) return false;
   const index = wallFocus.index;
@@ -10751,17 +10982,20 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     // made walls (custom geometry plan, M1): the Walls entries, drawing, a game point on the screen, the picked wall's
     // handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
-    wallEntries, startWallDrawing, stopWallDrawing,
-    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, ready: Boolean(wallDrawing.template), drawing: Boolean(wallDrawing.start),
+    wallEntries, slabEntries, startWallDrawing, stopWallDrawing,
+    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof,
+                                        ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         return [h.key, [...project(p), ...project(p.clone().addScaledVector(h.dir, units))]]; })) : {}; },
-    wallState: id => { const r = madeWallRoot(id); return r ? wallState(r) : null; },
+    wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
+    slabPanelText: () => $('slabBox').hidden ? null : $('slabBox').innerText,
+    buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
     // the map's surface below a point (game x, y, from z down), as the wall tool and the Add panel find the floor
     groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
-    wallMeshReady: id => { const r = madeWallRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
+    wallMeshReady: id => { const r = madeRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
     addWallOpening, wallPanelText: () => $('wallBox').hidden ? null : $('wallBox').innerText,
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
     missionMoves: () => [...missionMoves.values()], moveMissionGroup,

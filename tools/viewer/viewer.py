@@ -512,17 +512,20 @@ class Handler(SimpleHTTPRequestHandler):
         if body: self.wfile.write(data[start:end + 1])
 
     # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
-    # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order.
+    # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order;
+    # GET /generated/fracslab.glb?slab=<numbers> a floor or roof slab's (kind fracSlab).
     def handle_generated(self, method):
         split = urlsplit(self.path)
-        if split.path != '/generated/fracwall.glb': return False
+        kinds = {'/generated/fracwall.glb': ('wall', 'fracwall'), '/generated/fracslab.glb': ('slab', 'fracslab')}
+        if split.path not in kinds: return False
         if method != 'GET':
             self.send_json(405, dict(error='Not allowed.'))
             return True
+        what, maker = kinds[split.path]
         try:
-            payload = self.generated_meshes.fracwall((parse_qs(split.query).get('wall') or [''])[0])
+            payload = getattr(self.generated_meshes, maker)((parse_qs(split.query).get(what) or [''])[0])
         except (GeneratedError, ValueError) as error:
-            self.send_json(400, dict(error=f"The wall can't be drawn: {error}"))
+            self.send_json(400, dict(error=f"The {what} can't be drawn: {error}"))
             return True
         self.send_response(200)
         self.send_header('Content-Type', 'model/gltf-binary')

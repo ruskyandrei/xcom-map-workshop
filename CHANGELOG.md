@@ -8,6 +8,71 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M5: floors and roofs made from numbers
+
+- [frac_slab.py](tools/bake/frac_slab.py) (new) makes a fracturing slab from its numbers, from the slab audit's rules:
+  - a footprint of whole tiles, 1 to 16 each way, with holes of whole tiles;
+  - fragments of half tiles, cut on a diagonal, and whole or double tiles, from a seed;
+  - the top with the edges in slot 0, the underside in slot 1, and no faces inside;
+  - painted colours from its donor;
+  - a collision box for each solid strip round the holes.
+- Its looks are in [slab_looks.json](tools/bake/slab_looks.json), both on URB_Bar's own pieces:
+  - Roof: the bar's roof, XComFracLevelActor_3;
+  - Upper floor: the bar's upstairs floor, XComFracLevelActor_17.
+- [frac_walls.py](tools/bake/frac_walls.py) and [native_copy.py](tools/bake/native_copy.py) build `fracSlab` copies
+  as made walls are built:
+  - each has its own mesh, body, light and shadow map;
+  - its columns follow the slabs' rule (`slab_columns`);
+  - the donor's painted-out fragments (`EditorPaintedVisibleFragments`) are dropped;
+  - its floor flags are kept;
+  - it is listed with the pieces it touches and in its building's floors.
+- [compiler.py](tools/editor/compiler.py) accepts `{kind: fracSlab, version: 1, slab}`:
+  - its numbers are checked as the Build checks them;
+  - it stands in its own box (its footprint, between its look's heights);
+  - its height is free;
+  - it is noted, it can break with a group, and a new building lists it by its own box.
+  - A `relit` request of version 2 is refused again: only walls have a version 2.
+- [generated.py](tools/viewer/generated.py) and [viewer.py](tools/viewer/viewer.py) draw a slab:
+  `/generated/fracslab.glb?slab=`.
+- **The page**:
+  - [walls.js](tools/viewer/web/walls.js) holds the slab tool's pure part (`drawnSlab`, `resizedSlab`, `withHole`,
+    `movedHole`, `roomRoof`). [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html) and
+    [pieces.js](tools/viewer/web/pieces.js) hold the rest.
+  - A **Floors and roofs** kind in the Add panel (Roof, Upper floor) draws a slab by dragging a rectangle:
+    - an upper floor goes a storey over the floor pressed on;
+    - a roof goes on the tops of the made walls round it, or two storeys up where there are none.
+  - A picked slab has white handles on its edges (whole tiles) and blue ones on its holes (slide, sides).
+  - The piece panel's Floor section has Add hole, Remove and Reshuffle. Delete with a hole's handle last touched
+    fills that hole.
+  - **Room with a roof** (in Walls) draws four joined walls, a roof on their tops and a building round them (two
+    floors, so the roof is cut away with the top floor).
+  - The made wall's panel note now says a break passes to what it touches (M3's listings).
+- **Stage M4, item 1**: the wall looks moved into [wall_looks.json](tools/bake/wall_looks.json).
+  - [frac_wall.py](tools/bake/frac_wall.py) reads them and its mesh writer is split out (`assemble`, which the slabs
+    share).
+  - A wall can name its look at version 2 (`look`; the first look is left out).
+  - The compiler, generated.py and the page check the look against the file. walls_test.mjs compares the page's
+    list with it.
+  - The walls' meshes are unchanged (the same bytes before and after).
+
+Checked:
+- New tests:
+  - frac_slab (coverage, faces, collision, bad numbers);
+  - a Build of a roof, an upper floor turned a half turn and a made wall on URB_Bar (meshes, flags, boxes, columns
+    by the rule, the wall and roof listing each other);
+  - compiler boxes and refusals;
+  - the GLB route;
+  - walls_test.mjs (drawing, edges, holes, room roof).
+- The browser check (`browser_smoke.py --only walls --projects`, on the police station) now draws a roof, grows it,
+  adds a hole, undoes each step, draws a room with a roof and its building, then saves and builds.
+- The bake, editor, viewer and repo suites pass. One viewer Build test failed once on a Windows file lock while the
+  browser check was building, and passed when run again.
+
+Gaps:
+- Not played yet (run E).
+- The hole is one tile; no preset for a stair's size yet.
+- A slab's height is set by the gizmo after drawing.
+
 ### EXP-75 prepared (custom walls M3, run C)
 
 - [EXP-75](research/experiments/EXP-75-joined-walls.md) and its project,

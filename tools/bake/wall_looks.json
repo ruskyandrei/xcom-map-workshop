@@ -1,0 +1,108 @@
+{
+ "about": "Wall looks (custom geometry plan, stage M4): each a fracturing wall of the game's that the Build makes walls in, and the recipe measured on it (tools/bake/frac_wall.py builds a wall from it; research/evidence/wall-look-measure.py measures one). A wall's numbers name their look (`look`; left out, the first). tools/viewer/web/walls.js WALL_LOOKS is the page's list of the same looks.",
+ "looks": [
+  {
+   "id": "bar-inside",
+   "name": "Bar inside wall",
+   "version": 1,
+   "package": "URB_Bar",
+   "actor": "XComDecoFracLevelActor_17",
+   "donor": "URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED",
+   "lwrOnly": false,
+   "words": "one or two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice",
+   "measured": "research/evidence/wall-look-measure.py --check (22 of 22 keys within tolerance); research/evidence/frac-wall-audit.py",
+   "recipe": {
+    "bottom": -16.0,
+    "top": 384.0,
+    "storey": 192.0,
+    "face": [
+     12.0,
+     372.0
+    ],
+    "half": 8.0,
+    "endInset": 8.0,
+    "section": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.039
+     ],
+     [
+      12.0,
+      384.0,
+      0.0917
+     ]
+    ],
+    "faceRepeat": 192.0,
+    "faceV": [
+     4.0,
+     7.0
+    ],
+    "faceU": 0.5,
+    "trimRepeat": 96.0,
+    "trimU": 1.0,
+    "topV": [
+     0.1659,
+     -0.00488
+    ],
+    "bottomV": [
+     0.9627,
+     -0.00339
+    ],
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "slots": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      2,
+      3
+     ],
+     "trim": 4,
+     "interior": 5
+    },
+    "cell": [
+     96.0,
+     80.0
+    ],
+    "jitter": 0.3,
+    "collisionHalf": 8.0,
+    "lightmap": {
+     "density": 0.196,
+     "margin": 2,
+     "interiorDensity": 0.5,
+     "block": 4
+    }
+   }
+  }
+ ]
+}

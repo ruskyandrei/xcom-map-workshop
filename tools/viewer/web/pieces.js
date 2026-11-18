@@ -123,7 +123,20 @@ function drawSpawnIcon(canvas, kind) {
 }
 // A wall look's icon (app.js wallEntries): a stretch of wall with a doorway, its skirting and cornice, a tile line under it
 // A room's (M3 item 6): four walls round a floor seen from above at a slant, a gap for the doorway in the near one.
-function drawRoomIcon(canvas) {
+// A floor or roof's (M5): a slab seen at a slant, its break lines, a hole in a floor; a roof's grey gravel.
+function drawSlabIcon(canvas, role) {
+  const g = canvas.getContext('2d'), s = canvas.width;
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  const top = role === 'roof' ? '#8d949a' : '#6b4a32', side = role === 'roof' ? '#5d6368' : '#4a3222';
+  g.fillStyle = side; g.beginPath(); g.moveTo(4, 26); g.lineTo(24, 36); g.lineTo(44, 26); g.lineTo(44, 30); g.lineTo(24, 40); g.lineTo(4, 30); g.closePath(); g.fill();
+  g.fillStyle = top; g.beginPath(); g.moveTo(4, 26); g.lineTo(24, 16); g.lineTo(44, 26); g.lineTo(24, 36); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(14, 21); g.lineTo(34, 31); g.moveTo(14, 31); g.lineTo(34, 21); g.moveTo(9, 28.5); g.lineTo(19, 23.5); g.stroke();
+  if (role !== 'roof') { g.fillStyle = '#1f2a33'; g.beginPath(); g.moveTo(26, 27); g.lineTo(32, 24); g.lineTo(37, 26.5); g.lineTo(31, 29.5); g.closePath(); g.fill(); }
+  g.restore();
+}
+function drawRoomIcon(canvas, roof = false) {
   const g = canvas.getContext('2d'), s = canvas.width;
   g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
   g.save(); g.scale(s / 48, s / 48);
@@ -135,6 +148,9 @@ function drawRoomIcon(canvas) {
   g.fillStyle = '#b8a288';
   g.beginPath(); g.moveTo(8, 30); g.lineTo(13, 32.5); g.lineTo(13, 20.5); g.lineTo(8, 18); g.closePath(); g.fill();  // near left, to the doorway
   g.beginPath(); g.moveTo(19, 35.5); g.lineTo(24, 38); g.lineTo(40, 30); g.lineTo(40, 18); g.lineTo(24, 26); g.lineTo(19, 23.5); g.closePath(); g.fill();
+  if (roof) {     // a roof over it, the grey gravel lid at its walls' tops
+    g.fillStyle = 'rgba(141,148,154,0.92)'; g.beginPath(); g.moveTo(8, 18); g.lineTo(24, 10); g.lineTo(40, 18); g.lineTo(24, 26); g.closePath(); g.fill();
+  }
   g.strokeStyle = '#82d5ce'; g.lineWidth = 1.5;
   g.beginPath(); g.arc(8, 30, 2.5, 0, Math.PI * 2); g.moveTo(42.5, 30); g.arc(40, 30, 2.5, 0, Math.PI * 2); g.stroke();
   g.restore();
@@ -199,7 +215,7 @@ export function pieceRow(entry, pixelRatio, choose) {
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
     const thumb = document.createElement('canvas');
     thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    (entry.room ? drawRoomIcon : drawWallIcon)(thumb);
+    (entry.slab ? c => drawSlabIcon(c, entry.wallLook.role) : entry.room ? c => drawRoomIcon(c, entry.roof) : drawWallIcon)(thumb);
     thumb.dataset.drawn = '1';
     const label = document.createElement('span');
     label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
@@ -207,7 +223,7 @@ export function pieceRow(entry, pixelRatio, choose) {
       Object.assign(document.createElement('small'), { textContent: entry.detail }));
     const tags = Object.assign(document.createElement('span'), { className: 'tags' });
     tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: entry.wallLook.lwrOnly ? 'LWR only' : 'Made',
-      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within' : 'Made by the Build from numbers, like the game\'s own walls' }));
+      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within' : `Made by the Build from numbers, like the game's own ${entry.slab ? 'floors and roofs' : 'walls'}` }));
     button.title = entry.title;
     button.append(thumb, label, tags);
     button.onclick = choose;
