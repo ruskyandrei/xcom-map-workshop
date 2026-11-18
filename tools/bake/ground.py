@@ -11,7 +11,10 @@ A shape's numbers are in its piece's frame (the tool puts the piece at the shape
   height    a block's top, a ramp's high edge or a rock's top over its bottom (1 to MAX_HEIGHT); a patch's is its
             look's thickness
   seed      a rock's: 0 to ROCK_SEEDS - 1 (each seed another rock)
-  look      the material it is drawn in (ground_looks.json; left out, the first)
+  look      the material it is drawn in: a name (ground_looks.json; left out, the first), or a look given whole, a
+            dict {'mesh' (the donor's mesh path), 'material' (its material's), 'measure' (ground_measure's VERSION),
+            'recipe' (what ground_measure.measure gives, from the catalogue tools/bake/looks/ground.json or measured
+            on the donor: tools/bake/looks.py resolves it)}
 
 A shape stands on z 0 (its bottom), a patch with its top PATCH_LIFT over z 0 (it lies over the ground it covers, its
 plate under it, a unit over it so the two don't fight to be drawn). Its faces: the top (a ramp's slope), the sides (a ramp's two triangles and its high end); no bottom. Texture
@@ -26,13 +29,20 @@ reaches its height. Its faces are flat, each with its own normal.
 
 A ramp's slope matters to the game (F-81): a floor tile steeper than about 10 degrees (its normal's z under 0.9848)
 is sloped, and sloped tiles get no cover; past about 45 degrees it is no floor to stand on. slope() and
-slope_words() say so."""
+slope_words() say so.
+
+A measured recipe (it has `uv`, ground_measure's) gives the top its own planar map (u = a x + b y + c, v = d x + e y +
+f, in the piece's frame, offsets modulo 1: turned, mirrored or of two repeats) and the sides the same repeats (u along
+each side, v down it); its faces go in the donor's slot of its material, among the donor's sections (the others
+empty), and its vertices take its colour (the commonest its donor draws the material with) unless the Build gives
+one."""
 import hashlib
 import json
 import math
 from pathlib import Path
 import random
 
+import frac_slab
 import frac_wall
 import hulls
 
@@ -63,11 +73,29 @@ DEFAULT_LOOK = next(iter(LOOKS))
 
 
 def look_of(shape):
-    """The shape's look's recipe (ValueError for one not listed)."""
+    """The shape's look's recipe: a named one's (ValueError for one not listed), or a given one's (a dict with its
+    resolved recipe: the module's words; ValueError without it)."""
     look = (shape or {}).get('look', DEFAULT_LOOK)
-    if look not in LOOKS:
+    if isinstance(look, dict):
+        recipe = look.get('recipe')
+        if not isinstance(recipe, dict) or not isinstance(look.get('mesh'), str):
+            raise ValueError("a ground shape's look is a name or {mesh, material, measure, recipe} with its recipe "
+                             "resolved (it has %r)" % (sorted(look),))
+        return dict(DEFAULT_RECIPE, **recipe)
+    if not isinstance(look, str) or look not in LOOKS:
         raise ValueError('a ground shape\'s look is one of %s (it has %r)' % (', '.join(LOOKS), look))
     return dict(LOOKS[look]['recipe'], look=look)
+
+
+def _named(shape):
+    """The shape's numbers with a given look (a dict) as its identity: its donor's mesh, material and measurer and its
+    recipe in one spelling (a recipe from the catalogue and one measured again are the same look); a named one as it
+    is."""
+    look = shape.get('look')
+    if not isinstance(look, dict):
+        return shape
+    return dict(shape, look='%s|%s|%s|%s' % (look.get('mesh'), look.get('material'), look.get('measure'),
+                                            json.dumps(look.get('recipe'), sort_keys=True)))
 
 
 def check(shape):
@@ -167,13 +195,20 @@ def faces_of(shape):
     R = look_of(shape)
     corners, loops = corners_and_faces(shape)
     rep, slot = R['repeat'], R['slot']
+    top_map = R['uv']['top'] if 'uv' in R else None
+    if top_map:
+        # the sides' repeats: the top map's, u along each side, v down it
+        rep_u = 1.0 / max(math.hypot(top_map[0][0], top_map[0][1]), 1e-9)
+        rep_v = 1.0 / max(math.hypot(top_map[1][0], top_map[1][1]), 1e-9)
     faces = frac_wall.Faces()
     for k, loop in enumerate(loops[:-1]):
         pts = [corners[i] for i in loop]
         n = _normal(pts)
         if abs(n[2]) > 0.5:
             # the top (or a ramp's slope): projected straight down; its chart its true size up the slope
-            uv = [(x / rep, y / rep) for x, y, _ in pts]
+            uv = ([(top_map[0][0] * x + top_map[0][1] * y + top_map[0][2],
+                    top_map[1][0] * x + top_map[1][1] * y + top_map[1][2]) for x, y, _ in pts] if top_map
+                  else [(x / rep, y / rep) for x, y, _ in pts])
             run = max(p[0] for p in pts) - min(p[0] for p in pts)
             rise = max(p[2] for p in pts) - min(p[2] for p in pts)
             width, depth = math.hypot(run, rise), max(p[1] for p in pts) - min(p[1] for p in pts)
@@ -185,7 +220,8 @@ def faces_of(shape):
             # a side: u along it (the axis it runs on), v down it
             along = 0 if abs(n[1]) > abs(n[0]) else 1
             sign = 1.0 if (n[1] if along == 0 else -n[0]) < 0 else -1.0
-            uv = [(sign * p[along] / rep, -p[2] / rep) for p in pts]
+            uv = ([(sign * p[along] / rep_u, -p[2] / rep_v) for p in pts] if top_map
+                  else [(sign * p[along] / rep, -p[2] / rep) for p in pts])
             a_lo, z_lo = min(p[along] for p in pts), min(p[2] for p in pts)
             cuv = [(p[along] - a_lo, p[2] - z_lo) for p in pts]
             chart = faces.chart(('side', k), max(p[along] for p in pts) - a_lo, max(p[2] for p in pts) - z_lo)
@@ -234,16 +270,18 @@ def build(shape, template=None, colour=None):
     which the game's blend materials read (the ground's are painted: the Build gives the donor's commonest painted
     colour, so the shape shows the donor's main layer); None: the donor mesh's commonest, else the look's."""
     R = look_of(shape)
-    colour = colour or dominant_colour((template or {}).get('lods', [{}])[0].get('colours'))
+    if not isinstance(shape.get('look'), dict):
+        # (a look given whole carries its colour, measured on its donor's placing)
+        colour = colour or dominant_colour((template or {}).get('lods', [{}])[0].get('colours'))
     if colour:
         R = dict(R, colours=dict(outside=bytes(colour).hex(), interior=bytes(colour).hex()))
     check(shape)
-    template = template or default_template()
+    template = frac_slab.two_channels(template or default_template())
     faces = faces_of(shape)
     corners, _ = corners_and_faces(shape)
     centre = tuple((min(c[k] for c in corners) + max(c[k] for c in corners)) / 2 for k in range(3))
     records = [dict(centre=centre, neighbours=[], dims=[])]
-    guid = hashlib.md5(('ground|%r' % (sorted(shape.items(), key=str),)).encode()).digest()
+    guid = hashlib.md5(('ground|%r' % (sorted(_named(shape).items(), key=str),)).encode()).digest()
     R = dict(R, slots={})
     out = frac_wall.assemble(faces, records, template, R, guid, slots=R['sections'], what='a ground shape')
     return dict(out, solids=solids(shape))
@@ -257,8 +295,10 @@ def local_box(shape):
 
 def mesh_name(shape):
     """A name for the shape's mesh from its numbers and its look's recipe (as frac_wall.mesh_name)."""
-    digest = hashlib.sha256(repr((sorted((k, repr(v)) for k, v in look_of(shape).items()),
-                                  sorted((k, repr(v)) for k, v in shape.items()))).encode()).hexdigest()
+    R = look_of(shape)
+    recipe = (sorted((k, repr(v)) for k, v in R.items()) if not isinstance(shape.get('look'), dict)
+              else json.dumps(R, sort_keys=True))
+    digest = hashlib.sha256(repr((recipe, sorted((k, repr(v)) for k, v in _named(shape).items()))).encode()).hexdigest()
     return 'Ground_%s_%dx%d_%s' % (shape['shape'], round((shape['x1'] - shape['x0']) / TILE),
                                   round((shape['y1'] - shape['y0']) / TILE), digest[:10])
 

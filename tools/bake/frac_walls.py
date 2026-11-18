@@ -37,12 +37,18 @@ columns moved by move_columns), then add_walls changes it:
                    M5), made as a wall is (its mesh by frac_slab.build, its body setup, its component, light and shadow
                    map), on a copy of one of the game's slabs (which keeps its floor flags, bPathColliding and
                    bCanStepUpOn, and its component's), the donor's painted-out fragments (EditorPaintedVisibleFragments)
-                   dropped; its FragmentColumns by the slabs' rule (slab_columns: the piece's own 96 x 96 x 192 grid
-                   from its lowest corner less one unit, a column for every cell, research/evidence/slab-audit.py);
+                   dropped, at scale 1 whatever its donor's (as a ground shape's: unscale); its FragmentColumns by the
+                   slabs' rule (slab_columns: the piece's own 96 x 96 x 192 grid from its lowest corner less one unit,
+                   a column for every cell, research/evidence/slab-audit.py);
   kind 'ground'    dict(kind, version 1, ground: ground.py's numbers): a patch, block or ramp (custom geometry plan,
                    M6) on a copy of one of the game's plain pieces (GROUND_CLASSES: a StaticMeshComponent, its
                    material the ground's): its mesh a plain static mesh by ground.build, its body setup (a box or a
-                   ramp's wedge, hulls.py), its lightmap and shadow map as a wall's; no columns (it doesn't break);
+                   ramp's wedge, hulls.py), its lightmap and shadow map as a wall's; no columns (it doesn't break). A
+                   donor placed scaled (the farm's ground planes at 2, the dirt road's grass at 4) gives a copy at
+                   scale 1, its actor's DrawScale and DrawScale3D and its component's Scale and Scale3D set to 1
+                   (unscale): the shape is made in world units, its look's repeat the one its donor's placing draws
+                   (custom geometry plan, M4b item 5). A look given whole (ground_measure's recipe) carries its colour,
+                   so the donor's paint is not passed to it;
   kind 'relit'     the copy's mesh is the donor's, unchanged: it only goes to the relight lit from nothing, as a
                    generated wall is (a reference beside one, in the same light).
 
@@ -86,6 +92,9 @@ import props as legacy_props  # noqa: E402
 PACKAGE = 'XComMapEdGeo'
 KINDS = ('fracWall', 'fracSlab', 'ground', 'relit')
 MADE = ('fracWall', 'fracSlab')     # the fracturing kinds made from numbers (their own mesh and columns)
+# the kinds whose copy stands at scale 1 whatever its donor's (their numbers and looks are in world units: the editor
+# draws them so, custom geometry plan M4b item 5)
+UNSCALED = ('fracSlab', 'ground')
 # the classes a ground shape copies (plain pieces with a StaticMeshComponent, which the editor copies natively)
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 # the request's versions: 1, a wall's numbers; 2 (custom geometry plan, M3 item 2 and M4 item 1), with its end styles
@@ -181,7 +190,6 @@ def world_box(box, matrix):
 def wall_box(p, actor, location, rotation, generated):
     """The world box a generated copy stands in (its tiles are seeded and rebuilt over it): the generated wall's,
     or for 'relit' the donor's own box at the copy's pose (None: let the caller work it out as for any copy)."""
-    import lightmap_texels
     kind = generated.get('kind')
     if kind not in MADE and kind != 'ground':
         return None
@@ -189,7 +197,58 @@ def wall_box(p, actor, location, rotation, generated):
     generated = looks.resolved(generated, p, p.name(actor))
     box = (local_box(generated['wall']) if kind == 'fracWall' else frac_slab.local_box(generated['slab']) if kind == 'fracSlab'
            else ground.local_box(generated['ground']))
-    return world_box(box, lightmap_texels.world_matrix(p, comp, location, rotation))
+    return world_box(box, piece_matrix(p, comp, location, rotation, kind))
+
+
+def donor_scale(p, comp):
+    """The scale the donor's placing draws its mesh at (its actor's DrawScale and DrawScale3D times its component's
+    Scale and Scale3D), or None where that is 1."""
+    actor = p.exports[comp - 1]['outer']
+    a = [v * p.effective(actor, 'DrawScale', 1) for v in p.effective(actor, 'DrawScale3D', [1, 1, 1])]
+    c = [v * p.effective(comp, 'Scale', 1) for v in p.effective(comp, 'Scale3D', [1, 1, 1])]
+    scale = [x * y for x, y in zip(a, c)]
+    return None if all(abs(v - 1.0) < 1e-4 for v in scale) else scale
+
+
+def piece_matrix(p, comp, location, rotation, kind):
+    """The copy's local-to-world matrix (lightmap_texels.world_matrix at its pose); a ground shape's or slab's on a
+    scaled donor at scale 1, as unscale leaves its copy."""
+    import lightmap_texels
+    if kind not in UNSCALED or donor_scale(p, comp) is None:
+        return lightmap_texels.world_matrix(p, comp, location, rotation)
+    from export_math import multiply, transform
+    actor = p.exports[comp - 1]['outer']
+    am = transform(p.effective(actor, 'Location', [0, 0, 0]) if location is None else location,
+                   p.effective(actor, 'Rotation', [0, 0, 0]) if rotation is None else rotation, [1.0, 1.0, 1.0])
+    cm = transform(p.effective(comp, 'Translation', [0, 0, 0]), p.effective(comp, 'Rotation', [0, 0, 0]), [1.0, 1.0, 1.0])
+    return np.array(multiply(am, cm), float)
+
+
+def unscale(g, p, actor_old, actor_new, comp_old, comp_new):
+    """A ground shape's or slab's copy of a scaled donor at scale 1: the clone actor's DrawScale and DrawScale3D and its
+    component's Scale and Scale3D, those that aren't 1, set to 1 (in place, or added where only the archetype has
+    them). Returns the names set."""
+    import native_copy
+    import native_lights
+    walker = native_copy.Walker(p)
+    walker.names = g.names
+    done = []
+    for old, new, single, vector in ((actor_old, actor_new, 'DrawScale', 'DrawScale3D'),
+                                     (comp_old, comp_new, 'Scale', 'Scale3D')):
+        data = bytearray(g.export_data(new))
+        start = native_lights.props_start(p, old)
+        before = bytes(data)
+        if abs(float(p.effective(old, single, 1.0)) - 1.0) > 1e-6:
+            data = native_lights.set_property(walker, g, data, start, single, 'FloatProperty', None,
+                                              struct.pack('<f', 1.0))
+            done.append(single)
+        if any(abs(float(v) - 1.0) > 1e-6 for v in p.effective(old, vector, [1.0, 1.0, 1.0])):
+            data = native_lights.set_property(walker, g, data, start, vector, 'StructProperty', 'Vector',
+                                              struct.pack('<3f', 1.0, 1.0, 1.0))
+            done.append(vector)
+        if bytes(data) != before:
+            g.relocate(new, bytes(data))
+    return done
 
 
 def mesh_component(p, actor):
@@ -668,6 +727,8 @@ def mesh_properties(g, p, donor_mesh, body):
     out = _tag(g, 'BodySetup', 'ObjectProperty', 4) + struct.pack('<i', body)
     for name in ('LightMapCoordinateIndex', 'LightMapResolution'):
         value = p.own(donor_mesh, name)
+        if name == 'LightMapCoordinateIndex' and value is not None:
+            value = 1       # (a made mesh's lightmap is its second channel, whatever channel the donor's is in)
         if value is not None:
             out += _tag(g, name, 'IntProperty', 4) + struct.pack('<i', int(value))
     for name in ('UseSimpleRigidBodyCollision', 'UseSimpleLineCollision', 'UseSimpleBoxCollision'):
@@ -894,7 +955,6 @@ def add_walls(g, p, items, grid, bake=True):
     copy, generated, location, rotation, label)]) made in the map being grown: returns a record for each (dict(kind,
     copy, mesh, bodySetup, fragments, columns, vertices, triangles, box, light)). `bake`: the Build bakes the lighting
     (each wall's lightmap its own rectangle, which the relight fills); without, each wall gets an even light."""
-    import lightmap_texels
     import native_copy
     walker = native_copy.Walker(p)
     built, records = [], []
@@ -919,7 +979,8 @@ def add_walls(g, p, items, grid, bake=True):
         template = gen_mesh.read(p, donor_mesh)
         if gen['kind'] == 'ground':
             # (its vertices take the donor's commonest painted colour: the ground's blend materials read them)
-            paint = donor_paint(p, comp_old, template)
+            # (a look given whole carries the colour measured on its donor's placing)
+            paint = None if isinstance(gen['ground'].get('look'), dict) else donor_paint(p, comp_old, template)
             out = ground.build(gen['ground'], template, colour=ground.dominant_colour(paint['colours']) if paint else None)
             built.append((item, comp_old, donor_mesh, template, out, ground.mesh_name(gen['ground'])))
             continue
@@ -954,8 +1015,10 @@ def add_walls(g, p, items, grid, bake=True):
     for item, comp_old, donor_mesh, template, out, name in built:
         info = item['info']
         comp_new = info['mapping'][comp_old]
-        matrix = lightmap_texels.world_matrix(p, comp_old, item['location'], item['rotation'])
         plain = item['generated']['kind'] == 'ground'
+        matrix = piece_matrix(p, comp_old, item['location'], item['rotation'], item['generated']['kind'])
+        if item['generated']['kind'] in UNSCALED and donor_scale(p, comp_old) is not None:
+            unscale(g, p, item['original'], info['actor'], comp_old, comp_new)
         paint = None if plain else donor_paint(p, comp_old, template)
         # the fragments' world boxes, and the columns by F0's rule
         boxes = [world_box(f['box'], matrix) for f in out['fragments']]
