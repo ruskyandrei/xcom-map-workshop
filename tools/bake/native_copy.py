@@ -1128,6 +1128,10 @@ def hide_tiles(g, p, box, grid=None):
     nothing to re-check."""
     grid = grid or level_grid(p)
     t = seed_map.tiles_touched(box, grid, seed_map.MARGIN)
+    # (a piece in the ground level alone, a flat ground plane among them, reaches no level from 1 up, which seeds
+    # count from: its tiles still need re-checking, and the volume reaches down to the grid's bottom anyway. EXP-78:
+    # the farm's deleted ground plane at -128 kept its floors, "outside the map's tiles")
+    t = t[:5] + (max(t[5], t[4] - 1),) if t else None
     t = seed_map.clamp((t[0] - 1, t[1] + 1, t[2] - 1, t[3] + 1, t[4], t[5] + 1), grid) if t else None
     if t is None:
         return None

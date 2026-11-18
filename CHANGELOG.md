@@ -8,6 +8,28 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-78 played (run F part 2), and two fixes from it: a ground shape copied from a StaticMeshActor becomes an
+  XComLevelActor, and a deleted piece in the ground level alone gets its rebuild volume** (custom geometry plan, M6;
+  F-130, F-131; branch `fracturing-wall-poc`).
+  - [EXP-78-farm-ground.md](research/experiments/EXP-78-farm-ground.md):
+    - load, look and the patch passed;
+    - the made block's top was not picked by the cursor (an order onto it left a soldier sunk in it), though units
+      walked onto it from the field;
+    - the old mound's floor at one tile is unclear (it was in the mound's rebuild volume);
+    - the uncovered half of the hole can't be walked into.
+  - [frac_walls.py](tools/bake/frac_walls.py) retype_ground_copy: the game's mouse and 3D cursor never pick a
+    StaticMeshActor. A ground shape's copy of one (38 of the 193 ground looks, the Ground tool's Dirt among them) now
+    takes XComLevelActor's class and its mesh component the class default's StaticMeshComponent0 as archetype. Its
+    record says `retyped`.
+  - [native_copy.py](tools/bake/native_copy.py) hide_tiles: a piece whose box lies in the ground level alone (the
+    farm's deleted ground plane at -128) counted no tiles, was taken for one outside the map and got no rebuild
+    volume. It now gets one.
+  - [findings-register.md](research/findings-register.md): F-130 and F-131.
+  - Checked: [test_ground_measure.py](tools/bake/tests/test_ground_measure.py)
+    test_its_copy_is_an_xcomlevelactor (URB_MilitaryAmmo's dirt: the copy's class and component archetype);
+    [test_native_copy.py](tools/bake/tests/test_native_copy.py) test_a_flat_piece_at_the_grids_bottom_gets_a_rebuild;
+    the bake suite; the repo suite. Neither fix has been played yet: EXP-78's block goes again with run D.
+
 - **A wall donor barely over its pivot is not lowered** (custom geometry plan, M4; branch `fracturing-wall-poc`).
   - [wall_measure.py](tools/bake/wall_measure.py) lift_of: a donor whose bottom is 8 or less over its pivot keeps its
     heights (LIFT_SLACK). The supply ship crate's walls, 1.793 over theirs, had been lowered a whole level to -62.2,

@@ -851,6 +851,17 @@ class NativeCopy(unittest.TestCase):
             for v in volumes:
                 self.assertEqual(q.cls(v), 'XComRebuildWorldDataVolume')
 
+    def test_a_flat_piece_at_the_grids_bottom_gets_a_rebuild(self):
+        # (EXP-78) a ground plane at the grid's bottom reaches no level from 1 up: it still gets a rebuild volume over
+        # its tiles and the ring round them, reaching down to the grid's bottom
+        p = self.p
+        g = package_grow.Grower(str(BAR))
+        grid = native_copy.level_grid(p)
+        flat = [-1536.0, -1152.0, -960.0, -672.0, grid['oz'], grid['oz']]
+        hidden, volumes = native_copy.hide_pieces(g, p, [dict(name='XComDestructibleActor_61', box=flat)])
+        self.assertEqual(hidden[0]['tiles'][4:], [1, 1])
+        self.assertEqual(volumes, [hidden[0]['volume']['export']])
+
     def test_pieces_outside_the_maps_tiles_are_hidden_and_copied_without_a_rebuild(self):
         # the tutorial map's backdrop pieces stand two tiles past its level volume: a delete of one stopped the build
         p = self.p

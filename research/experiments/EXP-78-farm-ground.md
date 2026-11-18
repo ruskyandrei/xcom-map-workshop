@@ -1,6 +1,6 @@
 # EXP-78: the farm's earth mounds replaced, and a hole half covered (custom geometry plan, M6, run F part 2)
 
-Date: 18 November 2026. Status: **prepared**. The second part of the custom geometry plan's run F (branch
+Date: 18 November 2026. Status: **played, part failed** (run F part 2: the made block's top is not picked by the cursor where its donor is a StaticMeshActor, F-130, fixed offline; the old mound's floor at one tile unclear; the patch passed). The second part of the custom geometry plan's run F (branch
 `fracturing-wall-poc`). EXP-77 is the first: ground shapes made from numbers on URB_Bar. This one takes a piece of
 the game's own ground out and puts made ones in its place. Played unattended in the lab copy (the hidden game, the
 game-test skill), checking only what is new.
@@ -67,4 +67,46 @@ Tiles:
 
 ## Result
 
-Not played yet.
+Run F part 2, 18 November 2026, unattended (the hidden game; the shots stay in `<lab>\hidden-runs\exp78-runF`).
+Staging first stopped on the farm's two spellings in Play in game (fixed the same evening: installs.same_map); after
+that, the play was staged under the variant's record with the farm's crash-site mission.
+
+1. **Load: passed.** The battle started on `EXP78FarmGround` with no crash. The landing zones were found under
+   `CSmallScout_Farm`, and the squad stood on the map's spawn points with the evac zone drawn.
+2. **The look: passed; the shapes' own shadows unclear.**
+   - The block and the ramp are drawn in the field's dirt, earth faces and stony tops, lit by the dusk light (the
+     ramp's side warm orange).
+   - Where the mounds were, no mound is drawn: the field ends at a straight edge over the crater floor.
+   - The patch is flat grass. The uncovered half of the hole shows black between strips of the earth left round it.
+   - A low shot against the light showed no cast shadow beside the shapes, nor beside the game's own boulders there:
+     unclear at this light, as in EXP-77.
+3. **Up and down the made ramp: the walks work; the block's top is not picked by the cursor (failed).**
+   - A soldier from the crater floor at (1199, -2737) was sent to (815, -2737): he moved four tiles and stood at
+     z 20.7, his legs inside the block's top, not at about 67. His next order, toward the field, stopped a tile on.
+   - With the cursor on its lowest storey, it read the crater's height (-64) on four of the block's tiles and on the
+     ramp's, and the field's (64) on two of them, (527, -2737) and (815, -2833).
+   - A soldier put on the field walked onto the block's top at (623, -2737) and on to (815, -2833), standing at 67,
+     level with the field. One walked down the ramp to (1199, -2641) and back up onto the block.
+   - On the ramp tile (1007, -2737) a soldier had no cover (cover 0, flags 0), as a sloped tile should.
+   - Cause (F-130): the block and the ramp are copies of URB_MilitaryAmmo's dirt, a StaticMeshActor, and the game's
+     mouse and 3D cursor never pick a StaticMeshActor. Their tops are floor (units walk them), but the cursor goes
+     through to the crater under them, so an order aimed at the block's top went to a tile under it. EXP-77's block,
+     a copy of an XComLevelActor, read the cursor on its top. Fixed offline: the Build makes a ground shape's copy of
+     a StaticMeshActor an XComLevelActor (its subclass). Not played yet.
+4. **Nothing left of the old mounds' floor: unclear.**
+   - At (1871, -3025) the cursor read 64 (a floor at about 0) with a path, on the old south mound's place, where the
+     mound's floors were -67, -3, 61 and 90. A soldier sent there stopped on the tile beside it, at -39 (the crater's
+     rubble).
+   - At (527, -2449) the cursor read 64 and a soldier stood at 67: floor 0, which is the made block's top as well as
+     about the old mound's "about 3".
+   - The mound's tiles were in the rebuild volume over its box (the build's record), so the floor at (1871, -3025) may
+     be ground left there rather than the mound's. A save read with save_tiles.py would settle it.
+5. **The hole and the patch:**
+   - **The patch: passed.** The cursor lands on it at -63 (its top at -127), and a soldier stood on it at -59.8 (the
+     tile asked for holds a piece of the UFO's debris, so he stood on the next).
+   - **The uncovered half: not walkable.** The cursor lands at -57 there (a floor at about -121), but no path is
+     built, and a soldier ordered there didn't move. EXP-08's hole (F-46) was crossed by paths after the rebuild; this
+     one, a deleted plane's, isn't. The deleted plane had no rebuild volume of its own (its box lies in the ground
+     level alone: fixed offline the same evening), though the game rebuilds the ground level's tiles at load anyway
+     (F-46).
+- Soldiers put on the crater floor stood at about -39, about 22 over the crater floor: most likely on its rubble.

@@ -294,6 +294,31 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-130: The 3D cursor goes through a ground shape copied from a StaticMeshActor
+**Fixed offline, not played** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2).
+- **Seen.** On the farm, a made block and ramp in Dirt (copies of URB_MilitaryAmmo's `StaticMeshActor_67`): the
+  cursor read the crater's height on most of the block's tiles, and a soldier sent onto its top stood at z 20.7, his
+  legs inside it. Soldiers walking onto it from the field stood on its top, level with the field: its top is floor.
+- **Why.** XComLevelActor extends StaticMeshActor, and the game's mouse and 3D cursor never pick a StaticMeshActor
+  ([piece-flags.md](native/piece-flags.md)): the tile rebuild takes its top as floor, but the cursor passes through it to
+  the ground under it, and an order goes to a tile there. EXP-77's block, a copy of an XComLevelActor, read the cursor
+  on its top. 38 of the 193 ground looks are StaticMeshActors, the Ground tool's own Dirt among them.
+- **Fix.** The Build makes a ground shape's copy of a StaticMeshActor an XComLevelActor: its class and its mesh
+  component's archetype become XComLevelActor's, its properties (all a StaticMeshActor's) kept
+  (frac_walls.retype_ground_copy). To be played.
+
+### F-131: A deleted piece in the ground level alone got no rebuild volume
+**Fixed offline** (18 November 2026, [EXP-78](experiments/EXP-78-farm-ground.md) run F part 2).
+- **Seen.** The farm's deleted ground plane (`XComLevelActor_145`, at -128 on a grid whose bottom is -129) was
+  "outside the map's tiles" in the build's record and got no rebuild volume. Its tiles' baked floor stayed in the map;
+  in the game the cursor landed at about -121 in the hole, with no path into it.
+- **Why.** The tiles a hidden piece's volume covers were counted as a copy's seeds are, from level 1 up; a flat box in
+  the ground level gave an empty range, taken for a piece outside the map. The volume itself always reaches down to
+  the grid's bottom.
+- **Fix.** native_copy.hide_tiles counts such a piece's tiles from its own level, so it gets its volume. The game
+  rebuilds the ground level's tiles at load anyway (F-46), so this may change nothing in the game; the record is
+  right now.
+
 ### F-129: A made ground block a storey high is climbed onto from its side
 **Open: the cause is not read** (18 November 2026, [EXP-77](experiments/EXP-77-ground.md) run F).
 - **Seen.** A soldier east of a 96-high made block (in Asphalt, on URB_Bar's lot) ordered onto its top moved one

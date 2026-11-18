@@ -257,6 +257,37 @@ def unscale(g, p, actor_old, actor_new, comp_old, comp_new):
     return done
 
 
+# a ground shape copied from a StaticMeshActor is made an XComLevelActor (its subclass): the game's mouse and 3D
+# cursor never pick a StaticMeshActor (research/native/piece-flags.md), so the cursor went through a made block's top
+# to the ground under it (F-130, EXP-78 run F)
+RETYPED = {'StaticMeshActor': 'XComLevelActor'}
+
+
+def retype_ground_copy(g, p, original, actor, comp):
+    """A ground shape's copy of a StaticMeshActor made an XComLevelActor (RETYPED): its class and its mesh component's
+    archetype (the class default's StaticMeshComponent0) set to XComLevelActor's, imported where the map has none. Its
+    properties are all a StaticMeshActor's, which an XComLevelActor has too; the rest take the class's defaults, as
+    the game's own XComLevelActors with no archetype do. Returns the class it took, or None (a donor of another class
+    keeps it)."""
+    new_class = RETYPED.get(p.cls(original))
+    if new_class is None:
+        return None
+    package = g.find_import('Package', 'XComGame', 0)
+    if package is None:
+        # (the cooked maps hold XComGame as a package export: their XComGame class imports hang under it)
+        found = [i for i in range(1, len(p.exports) + 1)
+                 if p.cls(i) == 'Package' and p.name(i) == 'XComGame' and p.exports[i - 1]['outer'] == 0]
+        if len(found) != 1:
+            raise ValueError('the map has no XComGame package to import %s from' % new_class)
+        package = found[0]
+    cls = g.add_import('Core', 'Class', package, new_class)
+    default = g.add_import('XComGame', new_class, package, 'Default__%s' % new_class)
+    comp_arch = g.add_import('Engine', 'StaticMeshComponent', default, 'StaticMeshComponent0')
+    g.entries[actor - 1].put('<i', 0, cls)
+    g.entries[comp - 1].put('<i', 20, comp_arch)
+    return new_class
+
+
 def mesh_component(p, actor):
     """The actor's mesh component: its FracturedStaticMeshComponent, or a plain piece's StaticMeshComponent."""
     return p.own(actor, 'FracturedStaticMeshComponent') or p.own(actor, 'StaticMeshComponent')
@@ -1056,6 +1087,7 @@ def add_walls(g, p, items, grid, bake=True):
         matrix = piece_matrix(p, comp_old, item['location'], item['rotation'], item['generated']['kind'])
         if item['generated']['kind'] in UNSCALED and donor_scale(p, comp_old) is not None:
             unscale(g, p, item['original'], info['actor'], comp_old, comp_new)
+        retyped = retype_ground_copy(g, p, item['original'], info['actor'], comp_new) if plain else None
         paint = None if plain else donor_paint(p, comp_old, template)
         if paint is not None and is_wall:
             # a measured look paints in its wall's own frame (its donor turned and centred as the measurer had it)
@@ -1085,7 +1117,7 @@ def add_walls(g, p, items, grid, bake=True):
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
                                             shadow, plain=plain))
         if plain:
-            records.append(dict(kind='ground', copy=info['actor'], original=item['original'], openings=[], group=0,
+            records.append(dict(kind='ground', copy=info['actor'], original=item['original'], openings=[], group=0, retyped=retyped,
                                 label=item.get('label'), mesh=made[name], meshName=name, bodySetup=made[name] + 1,
                                 fragments=0, vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                                 solids=len(out['solids']), columns=0, painted=False, box=wall_box,

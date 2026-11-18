@@ -111,6 +111,35 @@ class TodaysDonors(unittest.TestCase):
         self.assertTrue(any('painted colours' in w and 'ffffffff' in w for w in entry['warnings']), entry['warnings'])
 
 
+class StaticMeshActorDonor(unittest.TestCase):
+    """(F-130, EXP-78 run F) a ground shape copied from a StaticMeshActor (URB_MilitaryAmmo's dirt, StaticMeshActor_67) is
+    made an XComLevelActor: the game's 3D cursor never picks a StaticMeshActor, and went through a made block's top."""
+
+    def test_its_copy_is_an_xcomlevelactor(self):
+        import native_copy
+        from package import Package
+        path, why = labpaths.install_map('URB_MilitaryAmmo')
+        if not (path and path.exists()):
+            self.skipTest(why)
+        shape = dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0, look='dirt')
+        with tempfile.TemporaryDirectory() as tmp:
+            m = native_copy.build(path, Path(tmp), 'Dirt', [dict(
+                actor='StaticMeshActor_67', label='Block', location=[0.0, 0.0, 0.0], rotation=[0, 0, 0],
+                generated=dict(kind='ground', version=1, ground=shape))], bake=False)
+            q = Package(Path(tmp) / 'Dirt.upk')
+            actor = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Block']
+            self.assertEqual(q.cls(actor), 'XComLevelActor')
+            comp = q.own(actor, 'StaticMeshComponent')
+            arch = q.exports[comp - 1]['arch']
+            self.assertLess(arch, 0)
+            self.assertEqual((q.imports[-arch - 1]['name'], q.imports[q.imports[-arch - 1]['outer'] * -1 - 1]['name']),
+                             ('StaticMeshComponent0', 'Default__XComLevelActor'))
+            rec = {r['label']: r for r in m['nativeCopies']['generatedWalls']}['Block']
+            self.assertEqual(rec['retyped'], 'XComLevelActor')
+            # the map's own StaticMeshActor stays one
+            self.assertEqual(q.cls(q.by_name['TheWorld.PersistentLevel.StaticMeshActor_67']), 'StaticMeshActor')
+
+
 @unittest.skipUnless(PIER and PIER.exists(), NO_PIER)
 class PierDonors(unittest.TestCase):
     """URB_PierA_Terror: a road plane placed at scale 2 (XComLevelActor_140) and a masked rubble overlay
