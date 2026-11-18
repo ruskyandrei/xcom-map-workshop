@@ -281,7 +281,10 @@ points and initialises pods. Scripted reinforcements use a later hook.
 - **Scripted drop-ins.** When a `SeqAct_SpawnAlien` fires, the mutator can supply a temporary point near a
   soldier. The final mission, a running map named in `ExcludeMaps`, a missing or ambiguous action, or failure
   to find a soldier or location can leave the action using its own points. Wave groups have their own ordered
-  destination/origin lists. A controlled comparison of an edited scripted point and a moved wave is pending.
+  destination/origin lists, and Long War's mutator leaves them alone: a wave group's destinations moved by a
+  project are where its units dropped in (EXP-72 run 5). Where a scripted action's drop-in lands under the mutator,
+  and on its own points with the variant in `ExcludeMaps`, is EXP-72 runs 3 and 4 (with the map's points as they
+  were; a moved scripted point is not played).
 
 The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload

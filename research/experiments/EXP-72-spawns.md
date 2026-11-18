@@ -133,7 +133,8 @@ So the rule's line is read by Long War and the drop-ins land where the map (or t
 
 ## Run 5: a wave's places moved (SP9)
 
-**Played 18 November 2026: unclear; the battle never started.**
+**Played 18 November 2026: unclear at first (the battle never started); played again the same day after T-44's and
+T-46's fixes: passed.**
 
 The project `EXP-72 Police Station wave moved` on URB_PoliceStation (variant `URB_PoliceS_X72W`, Data recovery,
 EXALT's capture and hold), started with saving on (Long War saves EXALT missions as they start): the nine destination
@@ -149,7 +150,34 @@ events; set 1 comes by turns and set 2 takes over when the transmitter is captur
 enough.
 
 Run 10 started the plain URB_PoliceStation's Data recovery the same way and hung the same way: the hang is the hidden
-game's saving start on this mission, not the variant (T-44). The moved wave places are not checked in game.
+game's saving start on this mission, not the variant (T-44). The moved wave places were not checked in game then.
+
+**Played again** (out folder `<lab>\hidden-runs\sp9-wave-run5`), staged with Play in game on a `--dry-play` test
+server (the project's build, Data recovery, saving on; Iron Fist, a MEC trooper, first, T-44) and started with
+`--play-file ... --saving`:
+- Long War saved and reloaded (`LoadingFromShell=1` at 34.6 seconds) and the battle went on: "Mission Started" at 16.1
+  and again at 37.8 seconds, `LWRMISSION ... waves=0/5 ... aliens=12 xcom=6`. No crash (T-46's fix).
+- **The points**: `getall XComSpawnPoint_Alien Location` read the nine in the variant's copy of the stream
+  (`URB_PoliceStation_CNH_URB_PoliceS_X72W`) at their moved places, every one, at Z 32; none at an original place.
+- **The wave**: invincibility on, turns ended. At the alien turn 2 (211.96 seconds) the log shows the wave system
+  (`XComWaveSystem::OnEndTurn`, `UpdateWaveSpawning`, `SpawnWave`, `SpawnGroup`) making three drop-ins
+  (`XGAISpawnMethod_DropIn_0` to `_2`), and Long War's count went to `waves=1/5` (227.89), then 15 aliens. The three
+  new units, read as they dropped (230.75) and again at the squad's turn 3 (268.12, their pawns' places the same at
+  279.90):
+
+  | unit | what | place (x, y, z) | nearest moved point | nearest original |
+  |---|---|---|---|---|
+  | XGUnit_22 | EXALT operative | -924, 720, 224 | 17 (-908, 720), 16 off | 672 off |
+  | XGUnit_23 | EXALT sniper | -716, 1008, 82 | 46 (-716, 1008), on it | 672 off |
+  | XGUnit_24 | EXALT operative | -812, 528, 82 | 48 (-812, 528), on it | 672 off |
+
+  XGUnit_22 stands 140 units higher than the others, by moved point 17 (on a car there, as the shot suggests).
+  The shot `wave1.png` (fog lifted, the camera over the moved points) shows the parking lot with three EXALT markers
+  by the cars, two operatives and a marksman, and the HUD's "Active: 3".
+
+So a wave's destination points moved by the project are where its units drop in: the Build's stream move holds for
+the wave system, and Long War's drop-in mutator, which moves the scripted actions' drop-ins (run 3), leaves the wave
+system's alone.
 
 ## Runs 6 to 8: the base map's pods and Meld points edited, copied and deleted (SP6, SP7)
 
