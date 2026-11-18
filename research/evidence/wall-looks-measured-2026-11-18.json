@@ -1,0 +1,2983 @@
+{
+ "check": {
+  "donor": "URB_Bar:XComDecoFracLevelActor_17",
+  "rows": [
+   {
+    "key": "bottom",
+    "measured": -16.0,
+    "recipe": -16.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "top",
+    "measured": 384.0,
+    "recipe": 384.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "storey",
+    "measured": 192.0,
+    "recipe": 192.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "half",
+    "measured": 8.0,
+    "recipe": 8.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "faceRepeat",
+    "measured": 192.05,
+    "recipe": 192.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "faceU",
+    "measured": 0.4997,
+    "recipe": 0.5,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "trimRepeat",
+    "measured": 95.93,
+    "recipe": 96.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "trimU",
+    "measured": 1.0009,
+    "recipe": 1.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "collisionHalf",
+    "measured": 8.0,
+    "recipe": 8.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "endInset",
+    "measured": 8.0,
+    "recipe": 8.0,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "face",
+    "measured": [
+     12.0,
+     372.0
+    ],
+    "recipe": [
+     12.0,
+     372.0
+    ],
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "faceV",
+    "measured": [
+     3.9991,
+     7.0004
+    ],
+    "recipe": [
+     4.0,
+     7.0
+    ],
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "topV",
+    "measured": [
+     0.16591,
+     -0.00488
+    ],
+    "recipe": [
+     0.1659,
+     -0.00488
+    ],
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "bottomV",
+    "measured": [
+     0.96266,
+     -0.003393
+    ],
+    "recipe": [
+     0.9627,
+     -0.00339
+    ],
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "section",
+    "measured": [
+     [
+      11.0,
+      -16.0,
+      0.4998
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.039
+     ],
+     [
+      12.0,
+      384.0,
+      0.0917
+     ]
+    ],
+    "recipe": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.039
+     ],
+     [
+      12.0,
+      384.0,
+      0.0917
+     ]
+    ],
+    "ok": true,
+    "note": "7 corners against 7"
+   },
+   {
+    "key": "colours",
+    "measured": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "recipe": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "slots",
+    "measured": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      2,
+      3
+     ],
+     "trim": 4,
+     "interior": 5
+    },
+    "recipe": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      2,
+      3
+     ],
+     "trim": 4,
+     "interior": 5
+    },
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "cell",
+    "measured": [
+     93.3,
+     80.0
+    ],
+    "recipe": [
+     96.0,
+     80.0
+    ],
+    "ok": true,
+    "note": "the measured grid 6 x 5 (30 fragments, the donor 30); the recipe's cell gives 6 x 5 on the donor's 560 x 400 solid"
+   },
+   {
+    "key": "lightmap.density",
+    "measured": 0.1955,
+    "recipe": 0.196,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "lightmap.interiorDensity",
+    "measured": 0.483,
+    "recipe": 0.5,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "version",
+    "measured": 1,
+    "recipe": 1,
+    "ok": true,
+    "note": ""
+   },
+   {
+    "key": "donor",
+    "measured": "URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED",
+    "recipe": "URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED",
+    "ok": true,
+    "note": ""
+   }
+  ],
+  "passed": 22,
+  "of": 22,
+  "notMeasured": {
+   "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+   "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+   "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+  }
+ },
+ "looks": {
+  "URB_Bar:XComDecoFracLevelActor_17": {
+   "entry": {
+    "version": 1,
+    "donor": "URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED",
+    "bottom": -16.0,
+    "top": 384.0,
+    "storey": 192.0,
+    "face": [
+     12.0,
+     372.0
+    ],
+    "half": 8.0,
+    "endInset": 8.0,
+    "section": [
+     [
+      11.0,
+      -16.0,
+      0.4998
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.039
+     ],
+     [
+      12.0,
+      384.0,
+      0.0917
+     ]
+    ],
+    "faceRepeat": 192.05,
+    "faceV": [
+     3.9991,
+     7.0004
+    ],
+    "faceU": 0.4997,
+    "trimRepeat": 95.93,
+    "trimU": 1.0009,
+    "topV": [
+     0.16591,
+     -0.00488
+    ],
+    "bottomV": [
+     0.96266,
+     -0.003393
+    ],
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "slots": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      2,
+      3
+     ],
+     "trim": 4,
+     "interior": 5
+    },
+    "cell": [
+     93.3,
+     80.0
+    ],
+    "collisionHalf": 8.0,
+    "lightmap": {
+     "density": 0.1955,
+     "interiorDensity": 0.483
+    }
+   },
+   "measured": {
+    "map": "URB_Bar",
+    "actor": "XComDecoFracLevelActor_17",
+    "turned": false,
+    "size": [
+     560.0,
+     24.0,
+     400.0
+    ],
+    "x": [
+     -376.0,
+     184.0
+    ],
+    "planes": {
+     "a": 8.0,
+     "b": -8.0,
+     "centre": -0.0
+    },
+    "sweep": {
+     "verdict": "swept",
+     "cuts": 137,
+     "bodyCuts": 127,
+     "holedCuts": 0,
+     "agreeShare": 1.0,
+     "worst": 0.0,
+     "differAt": [],
+     "cornerPiece": false,
+     "openings": [],
+     "edgeZone": 26.0,
+     "endDetail": {
+      "cuts": 0,
+      "worst": null,
+      "reach": 0.0
+     }
+    },
+    "flat": {
+     "flatShare": 0.823,
+     "faceCoverA": 0.9,
+     "faceCoverB": 0.9
+    },
+    "sectionB": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.039
+     ],
+     [
+      12.0,
+      384.0,
+      0.0917
+     ]
+    ],
+    "sectionMirrored": "mirror",
+    "sectionCuts": [
+     26,
+     26
+    ],
+    "storeySplits": {
+     "A": [
+      192.0
+     ],
+     "B": [
+      192.0
+     ]
+    },
+    "slots": [
+     {
+      "slot": 0,
+      "role": "sideA",
+      "triangles": 63,
+      "area": 106560.0,
+      "share": {
+       "faceA": 0.946,
+       "faceB": 0.0,
+       "ends": 0.054,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       12.0,
+       192.0
+      ],
+      "material": "TexLibrary_SurfacesCK.Materials.ComKitPubBaseINTAFull",
+      "carriesFaces": false
+     },
+     {
+      "slot": 1,
+      "role": "sideA",
+      "triangles": 69,
+      "area": 106560.0,
+      "share": {
+       "faceA": 0.946,
+       "faceB": 0.0,
+       "ends": 0.054,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       192.0,
+       372.0
+      ],
+      "material": "TexLibrary_Surfaces.Materials.Brick_DarkRed-DarkGrey_BLEND",
+      "carriesFaces": false
+     },
+     {
+      "slot": 2,
+      "role": "sideB",
+      "triangles": 51,
+      "area": 100800.0,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 1.0,
+       "ends": 0.0,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       12.0,
+       192.0
+      ],
+      "material": "TexLibrary_Interiors.Materials.RestInteriorBaseCWhite",
+      "carriesFaces": false
+     },
+     {
+      "slot": 3,
+      "role": "sideB",
+      "triangles": 61,
+      "area": 100800.0,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 1.0,
+       "ends": 0.0,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       192.0,
+       372.0
+      ],
+      "material": "TexLibrary_Interiors.Materials.RestInteriorTileBlack",
+      "carriesFaces": false
+     },
+     {
+      "slot": 4,
+      "role": "trim",
+      "triangles": 250,
+      "area": 75414.2,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.022,
+       "up": 0.178,
+       "down": 0.162,
+       "steppedA": 0.258,
+       "steppedB": 0.258,
+       "sloping": 0.121
+      },
+      "faceZ": null,
+      "material": "TexLibrary_TrimCK.Materials.TRIMSETCK_GThreeToothB_DarkBrown",
+      "carriesFaces": false
+     },
+     {
+      "slot": 5,
+      "role": "interior",
+      "triangles": 408,
+      "area": 137459.6,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.061,
+       "up": 0.055,
+       "down": 0.055,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.83
+      },
+      "faceZ": null,
+      "material": "GEN_MaterialParents.Destruction.Building_Fracturable_InteriorFaces",
+      "carriesFaces": false
+     }
+    ],
+    "faceFits": {
+     "0A": {
+      "slot": 0,
+      "side": "A",
+      "triangles": 51,
+      "u": [
+       0.005206,
+       -0.0,
+       0.499797
+      ],
+      "v": [
+       -0.0,
+       -0.005209,
+       3.999428
+      ],
+      "rms": [
+       0.0002,
+       0.0006
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.08,
+       191.99
+      ]
+     },
+     "1A": {
+      "slot": 1,
+      "side": "A",
+      "triangles": 61,
+      "u": [
+       0.005206,
+       1e-06,
+       0.499584
+      ],
+      "v": [
+       -1e-06,
+       -0.005207,
+       3.99886
+      ],
+      "rms": [
+       0.0002,
+       0.0007
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.1,
+       192.06
+      ]
+     },
+     "2B": {
+      "slot": 2,
+      "side": "B",
+      "triangles": 51,
+      "u": [
+       -0.005205,
+       0.0,
+       0.499425
+      ],
+      "v": [
+       -1e-06,
+       -0.005207,
+       6.998402
+      ],
+      "rms": [
+       0.0004,
+       0.0014
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.13,
+       192.05
+      ]
+     },
+     "3B": {
+      "slot": 3,
+      "side": "B",
+      "triangles": 61,
+      "u": [
+       -0.005205,
+       0.0,
+       0.499337
+      ],
+      "v": [
+       -0.0,
+       -0.005228,
+       7.002386
+      ],
+      "rms": [
+       0.0003,
+       0.0014
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.13,
+       191.27
+      ]
+     }
+    },
+    "trimFits": {
+     "stripA": {
+      "u": [
+       -0.010424,
+       -1.0009
+      ],
+      "rms": 0.0021,
+      "shifted": 0.465,
+      "triangles": 96,
+      "repeat": 95.93
+     },
+     "stripB": {
+      "u": [
+       0.010424,
+       1.0005
+      ],
+      "rms": 0.0021,
+      "shifted": 0.0,
+      "triangles": 97,
+      "repeat": 95.93
+     },
+     "top": {
+      "v": [
+       0.16591,
+       -0.00488,
+       -0.0
+      ],
+      "rmsV": 0.0,
+      "u": [
+       -0.010413,
+       0.0002
+      ],
+      "rmsU": 0.0005
+     },
+     "bottom": {
+      "v": [
+       0.96266,
+       -0.003393,
+       -0.0
+      ],
+      "rmsV": 0.0001,
+      "u": [
+       0.010435,
+       1.0017
+      ],
+      "rmsU": 0.0002
+     }
+    },
+    "faceSides": {
+     "A": {
+      "repeatAlong": 192.09,
+      "repeatUp": 192.01,
+      "u": 0.4997,
+      "v": 3.9991,
+      "uSign": 1,
+      "vSign": -1,
+      "repeats": [
+       [
+        192.08,
+        191.99
+       ],
+       [
+        192.1,
+        192.06
+       ]
+      ]
+     },
+     "B": {
+      "repeatAlong": 192.12,
+      "repeatUp": 191.66,
+      "u": 0.4994,
+      "v": 7.0004,
+      "uSign": -1,
+      "vSign": -1,
+      "repeats": [
+       [
+        192.13,
+        191.27
+       ],
+       [
+        192.13,
+        192.05
+       ]
+      ]
+     }
+    },
+    "stripB": {
+     "u": [
+      0.010424,
+      1.0005
+     ],
+     "rms": 0.0021,
+     "shifted": 0.0,
+     "triangles": 97,
+     "repeat": 95.93
+    },
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff",
+     "rule": "constant"
+    },
+    "cells": {
+     "fragments": 30,
+     "medianBox": [
+      104.6,
+      22.0,
+      110.8
+     ],
+     "grid": [
+      6,
+      5
+     ],
+     "cell": [
+      93.3,
+      80.0
+     ],
+     "unevenness": 0.504
+    },
+    "collision": {
+     "simple": true,
+     "elements": 1,
+     "half": 8.0,
+     "y": [
+      -8.0,
+      8.0
+     ],
+     "x": [
+      -376.0,
+      184.0
+     ],
+     "z": [
+      -16.0,
+      384.0
+     ]
+    },
+    "lightmap": {
+     "channel": 1,
+     "resolution": 160,
+     "rect": [
+      158.0,
+      158.0
+     ],
+     "byRect": {
+      "faces": 0.1955,
+      "interior": 0.0945,
+      "interiorRatio": 0.483
+     },
+     "byResolution": {
+      "faces": 0.198,
+      "interior": 0.0957,
+      "interiorRatio": 0.483
+     }
+    },
+    "endInsets": {
+     "grid": "level",
+     "ends": [
+      8.0,
+      8.0
+     ],
+     "tiles": 6.0,
+     "gridZ": -0.0
+    },
+    "fragments": 30,
+    "triangles": 902
+   },
+   "notMeasured": {
+    "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+    "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+    "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+   }
+  },
+  "URB_ConvienienceStore:URB_ConvenienceStore_FRAC.Meshes.ConvStoreIntWallA_FRACTURED": {
+   "entry": {
+    "version": 1,
+    "donor": "URB_ConvenienceStore_FRAC.Meshes.ConvStoreIntWallA_FRACTURED",
+    "bottom": -16.0,
+    "top": 384.0,
+    "storey": 192.0,
+    "face": [
+     12.0,
+     372.0
+    ],
+    "half": 8.0,
+    "endInset": 8.0,
+    "section": [
+     [
+      11.0,
+      -16.0,
+      0.4998
+     ],
+     [
+      11.0,
+      0.0,
+      0.5835
+     ],
+     [
+      10.0,
+      9.0,
+      0.6499
+     ],
+     [
+      8.0,
+      12.0,
+      0.6694
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.0391
+     ],
+     [
+      12.0,
+      384.0,
+      0.0918
+     ]
+    ],
+    "faceRepeat": 192.01,
+    "faceV": [
+     0.9999,
+     0.9999
+    ],
+    "faceU": -0.5,
+    "trimRepeat": 96.06,
+    "trimU": -3.9988,
+    "topV": [
+     0.16601,
+     0.004883
+    ],
+    "bottomV": [
+     0.96265,
+     -0.001331
+    ],
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "slots": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      0,
+      1
+     ],
+     "trim": 2,
+     "interior": 3,
+     "bothSides": [
+      0,
+      1
+     ]
+    },
+    "cell": [
+     80.7,
+     80.0
+    ],
+    "collisionHalf": 8.0,
+    "lightmap": {
+     "density": 0.2012,
+     "interiorDensity": 0.543
+    }
+   },
+   "measured": {
+    "map": "URB_ConvienienceStore",
+    "actor": "XComDecoFracLevelActor_13",
+    "turned": false,
+    "size": [
+     484.0,
+     24.0,
+     400.0
+    ],
+    "x": [
+     -204.0,
+     280.0
+    ],
+    "planes": {
+     "a": 104.0,
+     "b": 88.0,
+     "centre": 96.0
+    },
+    "sweep": {
+     "verdict": "swept with openings",
+     "cuts": 118,
+     "bodyCuts": 80,
+     "holedCuts": 24,
+     "agreeShare": 1.0,
+     "worst": 0.0,
+     "differAt": [],
+     "cornerPiece": false,
+     "openings": [
+      {
+       "x": [
+        -95.6,
+        0.4
+       ],
+       "z": [
+        -16.0,
+        160.0
+       ],
+       "through": [
+        10.0,
+        160.0
+       ]
+      }
+     ],
+     "edgeZone": 26.0,
+     "endDetail": {
+      "cuts": 7,
+      "worst": 17.63,
+      "reach": 22.4
+     }
+    },
+    "flat": {
+     "flatShare": 0.799,
+     "faceCoverA": 0.819,
+     "faceCoverB": 0.789
+    },
+    "sectionB": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.584
+     ],
+     [
+      10.0,
+      9.0,
+      0.6504
+     ],
+     [
+      8.0,
+      12.0,
+      0.6699
+     ],
+     [
+      8.0,
+      372.0,
+      0.0117
+     ],
+     [
+      12.0,
+      374.0,
+      0.0391
+     ],
+     [
+      12.0,
+      384.0,
+      0.0918
+     ]
+    ],
+    "sectionMirrored": "mirror",
+    "sectionCuts": [
+     26,
+     26
+    ],
+    "storeySplits": {
+     "A": [
+      192.0
+     ],
+     "B": [
+      192.0
+     ]
+    },
+    "slots": [
+     {
+      "slot": 0,
+      "role": "bothSides",
+      "triangles": 150,
+      "area": 154728.9,
+      "share": {
+       "faceA": 0.467,
+       "faceB": 0.448,
+       "ends": 0.049,
+       "up": 0.0,
+       "down": 0.01,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.026
+      },
+      "faceZ": [
+       12.0,
+       192.0
+      ],
+      "material": "TexLibrary_Interiors.Materials.Wall_ConvenienceStore_Orange",
+      "carriesFaces": false
+     },
+     {
+      "slot": 1,
+      "role": "bothSides",
+      "triangles": 122,
+      "area": 176872.9,
+      "share": {
+       "faceA": 0.488,
+       "faceB": 0.472,
+       "ends": 0.016,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.023
+      },
+      "faceZ": [
+       192.0,
+       372.0
+      ],
+      "material": "TexLibrary_Interiors.Materials.Wall_ConvenienceStore_Cream",
+      "carriesFaces": false
+     },
+     {
+      "slot": 2,
+      "role": "trim",
+      "triangles": 274,
+      "area": 58231.8,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.028,
+       "up": 0.193,
+       "down": 0.144,
+       "steppedA": 0.249,
+       "steppedB": 0.235,
+       "sloping": 0.151
+      },
+      "faceZ": null,
+      "material": "TexLibrary_TrimCK.Materials.TRIMSETCK_DBlockB_DarkBlue",
+      "carriesFaces": false
+     },
+     {
+      "slot": 3,
+      "role": "interior",
+      "triangles": 348,
+      "area": 114251.9,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.077,
+       "up": 0.06,
+       "down": 0.06,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.803
+      },
+      "faceZ": null,
+      "material": "GEN_MaterialParents.Destruction.Building_Fracturable_InteriorFaces",
+      "carriesFaces": false
+     }
+    ],
+    "faceFits": {
+     "0A": {
+      "slot": 0,
+      "side": "A",
+      "triangles": 59,
+      "u": [
+       0.005207,
+       0.0,
+       -0.500155
+      ],
+      "v": [
+       0.0,
+       -0.005208,
+       0.999898
+      ],
+      "rms": [
+       0.0002,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.03,
+       192.01
+      ]
+     },
+     "0B": {
+      "slot": 0,
+      "side": "B",
+      "triangles": 59,
+      "u": [
+       -0.005208,
+       -2e-06,
+       1.500075
+      ],
+      "v": [
+       0.0,
+       -0.005208,
+       0.999876
+      ],
+      "rms": [
+       0.0004,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.0,
+       192.01
+      ]
+     },
+     "1A": {
+      "slot": 1,
+      "side": "A",
+      "triangles": 55,
+      "u": [
+       0.005208,
+       -2e-06,
+       -0.499889
+      ],
+      "v": [
+       0.0,
+       -0.005208,
+       0.999905
+      ],
+      "rms": [
+       0.0002,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       191.99,
+       192.02
+      ]
+     },
+     "1B": {
+      "slot": 1,
+      "side": "B",
+      "triangles": 55,
+      "u": [
+       -0.005211,
+       6e-06,
+       1.49877
+      ],
+      "v": [
+       -0.0,
+       -0.005208,
+       0.999999
+      ],
+      "rms": [
+       0.0004,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       191.9,
+       192.02
+      ]
+     }
+    },
+    "trimFits": {
+     "stripA": {
+      "u": [
+       -0.01041,
+       3.9988
+      ],
+      "rms": 0.0016,
+      "shifted": 0.567,
+      "triangles": 88,
+      "repeat": 96.06
+     },
+     "stripB": {
+      "u": [
+       0.010408,
+       -0.0014
+      ],
+      "rms": 0.0008,
+      "shifted": 0.536,
+      "triangles": 86,
+      "repeat": 96.08
+     },
+     "top": {
+      "v": [
+       0.16601,
+       0.004883,
+       -0.0
+      ],
+      "rmsV": 0.0,
+      "u": [
+       0.0104,
+       -0.004
+      ],
+      "rmsU": 0.0009
+     },
+     "bottom": {
+      "v": [
+       0.96265,
+       -0.001331,
+       -9e-06
+      ],
+      "rmsV": 0.0324,
+      "u": [
+       0.01045,
+       1.7462
+      ],
+      "rmsU": 0.0699
+     }
+    },
+    "faceSides": {
+     "A": {
+      "repeatAlong": 192.03,
+      "repeatUp": 192.01,
+      "u": -0.5,
+      "v": 0.9999,
+      "uSign": 1,
+      "vSign": -1,
+      "repeats": [
+       [
+        191.99,
+        192.02
+       ],
+       [
+        192.03,
+        192.01
+       ]
+      ]
+     },
+     "B": {
+      "repeatAlong": 191.96,
+      "repeatUp": 192.01,
+      "u": 1.4994,
+      "v": 0.9999,
+      "uSign": -1,
+      "vSign": -1,
+      "repeats": [
+       [
+        191.9,
+        192.02
+       ],
+       [
+        192.0,
+        192.01
+       ]
+      ]
+     }
+    },
+    "stripB": {
+     "u": [
+      0.010408,
+      -0.0014
+     ],
+     "rms": 0.0008,
+     "shifted": 0.536,
+     "triangles": 86,
+     "repeat": 96.08
+    },
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff",
+     "rule": "constant"
+    },
+    "cells": {
+     "fragments": 30,
+     "medianBox": [
+      94.5,
+      16.0,
+      95.0
+     ],
+     "grid": [
+      6,
+      5
+     ],
+     "cell": [
+      80.7,
+      80.0
+     ],
+     "unevenness": 0.577
+    },
+    "collision": {
+     "simple": true,
+     "elements": 3,
+     "half": 8.0,
+     "y": [
+      -8.0,
+      8.0
+     ],
+     "x": [
+      -200.0,
+      280.0
+     ],
+     "z": [
+      -16.0,
+      384.0
+     ]
+    },
+    "lightmap": {
+     "channel": 1,
+     "resolution": 160,
+     "rect": [
+      158.0,
+      158.0
+     ],
+     "byRect": {
+      "faces": 0.2012,
+      "interior": 0.1093,
+      "interiorRatio": 0.543
+     },
+     "byResolution": {
+      "faces": 0.2038,
+      "interior": 0.1106,
+      "interiorRatio": 0.543
+     }
+    },
+    "endInsets": {
+     "grid": "level",
+     "ends": [
+      8.0,
+      -12.0
+     ],
+     "tiles": 5.0,
+     "gridZ": -0.0
+    },
+    "fragments": 30,
+    "triangles": 894
+   },
+   "notMeasured": {
+    "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+    "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+    "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+   }
+  },
+  "URB_Bar:ComKit_Meshes.Cores.Core_384FacadeA_FRACTURED": {
+   "entry": {
+    "version": 1,
+    "donor": "ComKit_Meshes.Cores.Core_384FacadeA_FRACTURED",
+    "bottom": -16.0,
+    "top": 384.0,
+    "storey": 192.0,
+    "face": [
+     12.0,
+     384.0
+    ],
+    "half": 8.0,
+    "endInset": 0.0,
+    "section": [
+     [
+      11.0,
+      -16.0,
+      0.9258
+     ],
+     [
+      11.0,
+      -0.0,
+      0.8418
+     ],
+     [
+      10.0,
+      9.0,
+      0.7754
+     ],
+     [
+      8.0,
+      12.0,
+      0.7559
+     ],
+     [
+      8.0,
+      384.0,
+      null
+     ]
+    ],
+    "sectionB": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.584
+     ],
+     [
+      10.0,
+      9.0,
+      0.6504
+     ],
+     [
+      8.0,
+      12.0,
+      0.6699
+     ],
+     [
+      8.0,
+      384.0,
+      null
+     ]
+    ],
+    "faceRepeat": 192.06,
+    "faceV": [
+     0.9998,
+     0.9998
+    ],
+    "faceU": 2.9991,
+    "trimRepeat": 96.01,
+    "trimU": -5.9992,
+    "topV": null,
+    "bottomV": [
+     0.96289,
+     -0.003374
+    ],
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff"
+    },
+    "slots": {
+     "sideA": [
+      0,
+      1
+     ],
+     "sideB": [
+      2,
+      3
+     ],
+     "trim": 4,
+     "interior": 5
+    },
+    "cell": [
+     104.7,
+     100.0
+    ],
+    "collisionHalf": 8.0,
+    "lightmap": {
+     "density": 0.2065,
+     "interiorDensity": 0.349
+    }
+   },
+   "measured": {
+    "map": "URB_Bar",
+    "actor": "XComDecoFracLevelActor_10",
+    "turned": false,
+    "size": [
+     1152.0,
+     22.0,
+     400.0
+    ],
+    "x": [
+     -576.0,
+     576.0
+    ],
+    "planes": {
+     "a": 584.0,
+     "b": 568.0,
+     "centre": 576.0
+    },
+    "sweep": {
+     "verdict": "swept with openings",
+     "cuts": 285,
+     "bodyCuts": 252,
+     "holedCuts": 236,
+     "agreeShare": 1.0,
+     "worst": 0.0,
+     "differAt": [],
+     "cornerPiece": false,
+     "openings": [
+      {
+       "x": [
+        -471.6,
+        472.4
+       ],
+       "z": [
+        -16.0,
+        192.0
+       ],
+       "through": [
+        10.0,
+        192.0
+       ]
+      }
+     ],
+     "edgeZone": 24.0,
+     "endDetail": {
+      "cuts": 11,
+      "worst": 21.37,
+      "reach": 18.0
+     }
+    },
+    "flat": {
+     "flatShare": 0.877,
+     "faceCoverA": 0.561,
+     "faceCoverB": 0.549
+    },
+    "sectionB": [
+     [
+      11.0,
+      -16.0,
+      0.5
+     ],
+     [
+      11.0,
+      0.0,
+      0.584
+     ],
+     [
+      10.0,
+      9.0,
+      0.6504
+     ],
+     [
+      8.0,
+      12.0,
+      0.6699
+     ],
+     [
+      8.0,
+      384.0,
+      null
+     ]
+    ],
+    "sectionMirrored": "mirror, other v",
+    "sectionCuts": [
+     25,
+     25
+    ],
+    "storeySplits": {
+     "A": [
+      192.0
+     ],
+     "B": [
+      192.0
+     ]
+    },
+    "slots": [
+     {
+      "slot": 0,
+      "role": "sideA",
+      "triangles": 55,
+      "area": 51345.9,
+      "share": {
+       "faceA": 0.729,
+       "faceB": 0.0,
+       "ends": 0.112,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.159
+      },
+      "faceZ": [
+       12.0,
+       192.0
+      ],
+      "material": "TexLibrary_SurfacesCK.Materials.ComKitPubBaseAFull",
+      "carriesFaces": false
+     },
+     {
+      "slot": 1,
+      "role": "sideA",
+      "triangles": 185,
+      "area": 261120.0,
+      "share": {
+       "faceA": 0.847,
+       "faceB": 0.0,
+       "ends": 0.024,
+       "up": 0.071,
+       "down": 0.059,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       192.0,
+       384.0
+      ],
+      "material": "TexLibrary_Surfaces.Materials.Brick_DarkRed-DarkGrey_BLEND",
+      "carriesFaces": false
+     },
+     {
+      "slot": 2,
+      "role": "sideB",
+      "triangles": 21,
+      "area": 31680.0,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 1.0,
+       "ends": 0.0,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       12.0,
+       192.0
+      ],
+      "material": "TexLibrary_SurfacesCK.Materials.ComKitPubBaseINTAFull",
+      "carriesFaces": false
+     },
+     {
+      "slot": 3,
+      "role": "sideB",
+      "triangles": 119,
+      "area": 221184.0,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 1.0,
+       "ends": 0.0,
+       "up": 0.0,
+       "down": 0.0,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.0
+      },
+      "faceZ": [
+       192.0,
+       384.0
+      ],
+      "material": "TexLibrary_Surfaces.Materials.Brick_DarkRed-DarkGrey_BLEND",
+      "carriesFaces": false
+     },
+     {
+      "slot": 4,
+      "role": "trim",
+      "triangles": 74,
+      "area": 18102.7,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.066,
+       "up": 0.0,
+       "down": 0.233,
+       "steppedA": 0.296,
+       "steppedB": 0.236,
+       "sloping": 0.169
+      },
+      "faceZ": null,
+      "material": "TexLibrary_TrimCK.Materials.TRIMSETCK_GThreeToothB_Black-DarkBrown",
+      "carriesFaces": false
+     },
+     {
+      "slot": 5,
+      "role": "interior",
+      "triangles": 370,
+      "area": 158783.1,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.056,
+       "up": 0.053,
+       "down": 0.053,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.837
+      },
+      "faceZ": null,
+      "material": "GEN_MaterialParents.Destruction.Building_Fracturable_InteriorFaces",
+      "carriesFaces": false
+     }
+    ],
+    "faceFits": {
+     "0A": {
+      "slot": 0,
+      "side": "A",
+      "triangles": 24,
+      "u": [
+       0.005206,
+       -4e-06,
+       2.999145
+      ],
+      "v": [
+       -0.0,
+       -0.005207,
+       0.999634
+      ],
+      "rms": [
+       0.0009,
+       0.0002
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.07,
+       192.06
+      ]
+     },
+     "1A": {
+      "slot": 1,
+      "side": "A",
+      "triangles": 119,
+      "u": [
+       0.005205,
+       -5e-06,
+       2.999119
+      ],
+      "v": [
+       0.0,
+       -0.005208,
+       0.999992
+      ],
+      "rms": [
+       0.0007,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.14,
+       192.01
+      ]
+     },
+     "2B": {
+      "slot": 2,
+      "side": "B",
+      "triangles": 21,
+      "u": [
+       -0.005206,
+       -3e-06,
+       2.99902
+      ],
+      "v": [
+       0.0,
+       -0.005207,
+       0.99964
+      ],
+      "rms": [
+       0.0016,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.08,
+       192.07
+      ]
+     },
+     "3B": {
+      "slot": 3,
+      "side": "B",
+      "triangles": 119,
+      "u": [
+       -0.005206,
+       5e-06,
+       2.996942
+      ],
+      "v": [
+       -0.0,
+       -0.005208,
+       1.000019
+      ],
+      "rms": [
+       0.0011,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.09,
+       192.01
+      ]
+     }
+    },
+    "trimFits": {
+     "stripA": {
+      "u": [
+       0.010416,
+       5.9992
+      ],
+      "rms": 0.001,
+      "shifted": 0.364,
+      "triangles": 22,
+      "repeat": 96.01
+     },
+     "stripB": {
+      "u": [
+       0.010417,
+       5.9989
+      ],
+      "rms": 0.001,
+      "shifted": 0.364,
+      "triangles": 22,
+      "repeat": 96.0
+     },
+     "bottom": {
+      "v": [
+       0.96289,
+       -0.003374,
+       0.0
+      ],
+      "rmsV": 0.0,
+      "u": [
+       0.010416,
+       5.9726
+      ],
+      "rmsU": 0.0015
+     }
+    },
+    "faceSides": {
+     "A": {
+      "repeatAlong": 192.1,
+      "repeatUp": 192.03,
+      "u": 2.9991,
+      "v": 0.9998,
+      "uSign": 1,
+      "vSign": -1,
+      "repeats": [
+       [
+        192.07,
+        192.06
+       ],
+       [
+        192.14,
+        192.01
+       ]
+      ]
+     },
+     "B": {
+      "repeatAlong": 192.09,
+      "repeatUp": 192.03,
+      "u": 2.998,
+      "v": 0.9998,
+      "uSign": -1,
+      "vSign": -1,
+      "repeats": [
+       [
+        192.08,
+        192.07
+       ],
+       [
+        192.09,
+        192.01
+       ]
+      ]
+     }
+    },
+    "stripB": {
+     "u": [
+      0.010417,
+      5.9989
+     ],
+     "rms": 0.001,
+     "shifted": 0.364,
+     "triangles": 22,
+     "repeat": 96.0
+    },
+    "colours": {
+     "outside": "fffffeff",
+     "interior": "ffffffff",
+     "rule": "constant"
+    },
+    "cells": {
+     "fragments": 43,
+     "medianBox": [
+      104.0,
+      16.0,
+      89.5
+     ],
+     "grid": [
+      11,
+      4
+     ],
+     "cell": [
+      104.7,
+      100.0
+     ],
+     "unevenness": 0.441
+    },
+    "collision": {
+     "simple": true,
+     "elements": 3,
+     "half": 8.0,
+     "y": [
+      -8.0,
+      8.0
+     ],
+     "x": [
+      -576.0,
+      576.0
+     ],
+     "z": [
+      -16.0,
+      384.0
+     ]
+    },
+    "lightmap": {
+     "channel": 1,
+     "resolution": 240,
+     "rect": [
+      238.0,
+      238.0
+     ],
+     "byRect": {
+      "faces": 0.2065,
+      "interior": 0.072,
+      "interiorRatio": 0.349
+     },
+     "byResolution": {
+      "faces": 0.2083,
+      "interior": 0.0726,
+      "interiorRatio": 0.349
+     }
+    },
+    "endInsets": {
+     "grid": "level",
+     "ends": [
+      0.0,
+      0.0
+     ],
+     "tiles": 12.0,
+     "gridZ": -0.0
+    },
+    "fragments": 43,
+    "triangles": 824
+   },
+   "notMeasured": {
+    "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+    "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+    "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+   }
+  },
+  "URB_PierA:URB_Pier_A_Building.Meshes.URBPierAWH_WallMainSouth_FRACTURED": {
+   "entry": {
+    "version": 1,
+    "donor": "URB_Pier_A_Building.Meshes.URBPierAWH_WallMainSouth_FRACTURED",
+    "bottom": 0.0,
+    "top": 395.0,
+    "storey": 64.0,
+    "face": [
+     0.0,
+     390.0
+    ],
+    "half": 8.0,
+    "endInset": -8.0,
+    "section": [
+     [
+      8.0,
+      0.0,
+      null
+     ],
+     [
+      8.0,
+      390.0,
+      null
+     ],
+     [
+      -8.0,
+      395.0,
+      null
+     ]
+    ],
+    "sectionB": [
+     [
+      8.0,
+      0.0,
+      null
+     ],
+     [
+      8.0,
+      395.0,
+      null
+     ]
+    ],
+    "faceRepeat": 192.01,
+    "faceV": [
+     0.9997,
+     0.9995
+    ],
+    "faceU": -2.4998,
+    "trimRepeat": null,
+    "trimU": null,
+    "topV": null,
+    "bottomV": null,
+    "colours": {
+     "outside": {
+      "values": 103,
+      "commonest": [
+       [
+        "fffffeff",
+        233
+       ],
+       [
+        "ffff00ff",
+        53
+       ],
+       [
+        "ffffffff",
+        30
+       ]
+      ]
+     },
+     "interior": {
+      "values": 113,
+      "commonest": [
+       [
+        "ffffffff",
+        463
+       ],
+       [
+        "ffff00ff",
+        53
+       ],
+       [
+        "ffffff00",
+        18
+       ]
+      ]
+     }
+    },
+    "slots": {
+     "sideA": [
+      1,
+      0
+     ],
+     "sideB": [
+      1,
+      0
+     ],
+     "trim": null,
+     "interior": 2,
+     "bothSides": [
+      1,
+      0
+     ]
+    },
+    "cell": [
+     80.0,
+     98.8
+    ],
+    "collisionHalf": 8.0,
+    "lightmap": {
+     "density": 0.1997,
+     "interiorDensity": 0.351
+    }
+   },
+   "measured": {
+    "map": "URB_PierA",
+    "actor": "XComDecoFracLevelActor_88",
+    "turned": false,
+    "size": [
+     880.0,
+     16.0,
+     395.0
+    ],
+    "x": [
+     -392.0,
+     488.0
+    ],
+    "planes": {
+     "a": 392.0,
+     "b": 376.0,
+     "centre": 384.0
+    },
+    "sweep": {
+     "verdict": "swept with openings",
+     "cuts": 217,
+     "bodyCuts": 171,
+     "holedCuts": 96,
+     "agreeShare": 1.0,
+     "worst": 0.0,
+     "differAt": [],
+     "cornerPiece": false,
+     "openings": [
+      {
+       "x": [
+        -95.6,
+        96.4
+       ],
+       "z": [
+        64.0,
+        362.0
+       ],
+       "through": [
+        64.0,
+        362.0
+       ]
+      },
+      {
+       "x": [
+        192.4,
+        384.4
+       ],
+       "z": [
+        64.0,
+        362.0
+       ],
+       "through": [
+        64.0,
+        362.0
+       ]
+      }
+     ],
+     "edgeZone": 18.0,
+     "endDetail": {
+      "cuts": 5,
+      "worst": 9.63,
+      "reach": 14.4
+     }
+    },
+    "flat": {
+     "flatShare": 0.853,
+     "faceCoverA": 0.658,
+     "faceCoverB": 0.634
+    },
+    "sectionB": [
+     [
+      8.0,
+      0.0,
+      null
+     ],
+     [
+      8.0,
+      395.0,
+      null
+     ]
+    ],
+    "sectionMirrored": "differs",
+    "sectionCuts": [
+     26,
+     26
+    ],
+    "storeySplits": {
+     "A": [
+      64.0
+     ],
+     "B": [
+      64.0
+     ]
+    },
+    "slots": [
+     {
+      "slot": 0,
+      "role": "bothSides",
+      "triangles": 481,
+      "area": 393269.5,
+      "share": {
+       "faceA": 0.438,
+       "faceB": 0.423,
+       "ends": 0.048,
+       "up": 0.0,
+       "down": 0.016,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.075
+      },
+      "faceZ": [
+       64.0,
+       395.0
+      ],
+      "material": "TexLibrary_SurfacesCK.Materials.WALLMetalPanelA_White-Dirty_BLEND",
+      "carriesFaces": false
+     },
+     {
+      "slot": 1,
+      "role": "bothSides",
+      "triangles": 114,
+      "area": 133456.3,
+      "share": {
+       "faceA": 0.422,
+       "faceB": 0.407,
+       "ends": 0.0,
+       "up": 0.046,
+       "down": 0.104,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.022
+      },
+      "faceZ": [
+       0.0,
+       64.0
+      ],
+      "material": "TexLibrary_Surfaces.Materials.CinderBlockC_Green-Dirty_BLEND",
+      "carriesFaces": false
+     },
+     {
+      "slot": 2,
+      "role": "interior",
+      "triangles": 410,
+      "area": 147102.5,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.132,
+       "up": 0.024,
+       "down": 0.024,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.819
+      },
+      "faceZ": null,
+      "material": "GEN_MaterialParents.Destruction.Building_Fracturable_InteriorFaces",
+      "carriesFaces": false
+     }
+    ],
+    "faceFits": {
+     "0A": {
+      "slot": 0,
+      "side": "A",
+      "triangles": 206,
+      "u": [
+       0.005208,
+       1e-06,
+       -2.499916
+      ],
+      "v": [
+       0.0,
+       -0.005206,
+       0.999479
+      ],
+      "rms": [
+       0.0007,
+       0.0003
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.01,
+       192.1
+      ]
+     },
+     "0B": {
+      "slot": 0,
+      "side": "B",
+      "triangles": 148,
+      "u": [
+       -0.00521,
+       -0.0,
+       3.499602
+      ],
+      "v": [
+       -0.0,
+       -0.005206,
+       0.999537
+      ],
+      "rms": [
+       0.0011,
+       0.0002
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       191.96,
+       192.1
+      ]
+     },
+     "1A": {
+      "slot": 1,
+      "side": "A",
+      "triangles": 45,
+      "u": [
+       0.005208,
+       -2e-06,
+       -2.499674
+      ],
+      "v": [
+       -0.0,
+       -0.00521,
+       0.999901
+      ],
+      "rms": [
+       0.0007,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       192.0,
+       191.94
+      ]
+     },
+     "1B": {
+      "slot": 1,
+      "side": "B",
+      "triangles": 21,
+      "u": [
+       -0.005211,
+       -7e-06,
+       3.500042
+      ],
+      "v": [
+       -0.0,
+       -0.005204,
+       0.999557
+      ],
+      "rms": [
+       0.001,
+       0.0001
+      ],
+      "shifted": [
+       0.0,
+       0.0
+      ],
+      "repeat": [
+       191.91,
+       192.17
+      ]
+     }
+    },
+    "trimFits": {},
+    "faceSides": {
+     "A": {
+      "repeatAlong": 192.01,
+      "repeatUp": 192.01,
+      "u": -2.4998,
+      "v": 0.9997,
+      "uSign": 1,
+      "vSign": -1,
+      "repeats": [
+       [
+        192.0,
+        191.94
+       ],
+       [
+        192.01,
+        192.1
+       ]
+      ]
+     },
+     "B": {
+      "repeatAlong": 191.92,
+      "repeatUp": 192.12,
+      "u": 3.4998,
+      "v": 0.9995,
+      "uSign": -1,
+      "vSign": -1,
+      "repeats": [
+       [
+        191.91,
+        192.17
+       ],
+       [
+        191.96,
+        192.1
+       ]
+      ]
+     }
+    },
+    "stripB": {},
+    "colours": {
+     "outside": {
+      "values": 103,
+      "commonest": [
+       [
+        "fffffeff",
+        233
+       ],
+       [
+        "ffff00ff",
+        53
+       ],
+       [
+        "ffffffff",
+        30
+       ]
+      ]
+     },
+     "interior": {
+      "values": 113,
+      "commonest": [
+       [
+        "ffffffff",
+        463
+       ],
+       [
+        "ffff00ff",
+        53
+       ],
+       [
+        "ffffff00",
+        18
+       ]
+      ]
+     },
+     "rule": "varying"
+    },
+    "cells": {
+     "fragments": 46,
+     "medianBox": [
+      90.3,
+      16.0,
+      95.2
+     ],
+     "grid": [
+      11,
+      4
+     ],
+     "cell": [
+      80.0,
+      98.8
+     ],
+     "unevenness": 0.632
+    },
+    "collision": {
+     "simple": true,
+     "elements": 7,
+     "half": 8.0,
+     "y": [
+      -8.0,
+      8.0
+     ],
+     "x": [
+      -392.0,
+      488.0
+     ],
+     "z": [
+      0.0,
+      390.0
+     ]
+    },
+    "lightmap": {
+     "channel": 1,
+     "resolution": 192,
+     "rect": [
+      190.0,
+      190.0
+     ],
+     "byRect": {
+      "faces": 0.1997,
+      "interior": 0.0701,
+      "interiorRatio": 0.351
+     },
+     "byResolution": {
+      "faces": 0.2018,
+      "interior": 0.0708,
+      "interiorRatio": 0.351
+     }
+    },
+    "endInsets": {
+     "grid": "level",
+     "ends": [
+      -8.0,
+      -8.0
+     ],
+     "tiles": 9.0,
+     "gridZ": -0.0
+    },
+    "fragments": 46,
+    "triangles": 1005
+   },
+   "notMeasured": {
+    "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+    "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+    "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+   }
+  },
+  "LSupplyShip_ForestGrove:SupplyShipBody.MeshesWall.SupplyWallAx6_FRACTURED": {
+   "entry": {
+    "version": 1,
+    "donor": "SupplyShipBody.MeshesWall.SupplyWallAx6_FRACTURED",
+    "bottom": 0.0,
+    "top": 192.0,
+    "storey": null,
+    "face": [
+     64.022,
+     135.022
+    ],
+    "half": 8.0,
+    "endInset": 0.04,
+    "section": [
+     [
+      20.663,
+      0.0,
+      -0.2207
+     ],
+     [
+      20.663,
+      17.705,
+      -0.2413
+     ],
+     [
+      16.066,
+      21.899,
+      0.1127
+     ],
+     [
+      8.0,
+      64.022,
+      0.4187
+     ],
+     [
+      8.0,
+      135.022,
+      0.3274
+     ],
+     [
+      24.164,
+      192.0,
+      0.251
+     ]
+    ],
+    "sectionB": [
+     [
+      3.525,
+      0.0,
+      -0.1876
+     ],
+     [
+      3.525,
+      17.705,
+      -0.2108
+     ],
+     [
+      -0.066,
+      21.899,
+      0.006
+     ],
+     [
+      8.0,
+      64.022,
+      0.1731
+     ],
+     [
+      8.0,
+      135.022,
+      0.0788
+     ],
+     [
+      -5.585,
+      192.0,
+      0.001
+     ]
+    ],
+    "faceRepeat": null,
+    "faceV": [
+     null,
+     null
+    ],
+    "faceU": null,
+    "trimRepeat": 288.03,
+    "trimU": 1.9988,
+    "topV": [
+     -0.6108,
+     0.000867
+    ],
+    "bottomV": [
+     -0.59576,
+     -0.000848
+    ],
+    "colours": {
+     "outside": "ffffffff",
+     "interior": {
+      "values": 2,
+      "commonest": [
+       [
+        "ffffffff",
+        370
+       ],
+       [
+        "ffffff00",
+        12
+       ]
+      ]
+     }
+    },
+    "slots": {
+     "sideA": null,
+     "sideB": null,
+     "trim": 0,
+     "interior": 1
+    },
+    "cell": [
+     96.0,
+     64.0
+    ],
+    "collisionHalf": 24.158,
+    "lightmap": {
+     "density": 0.1076,
+     "interiorDensity": 0.352
+    }
+   },
+   "measured": {
+    "map": "LSupplyShip_ForestGrove",
+    "actor": "XComFracLevelActor_179",
+    "turned": false,
+    "size": [
+     576.0,
+     32.16,
+     192.0
+    ],
+    "x": [
+     0.0,
+     576.0
+    ],
+    "planes": {
+     "a": -0.189,
+     "b": -16.189,
+     "centre": -8.189
+    },
+    "sweep": {
+     "verdict": "swept",
+     "cuts": 141,
+     "bodyCuts": 127,
+     "holedCuts": 0,
+     "agreeShare": 1.0,
+     "worst": 0.0,
+     "differAt": [],
+     "cornerPiece": false,
+     "openings": [],
+     "edgeZone": 34.2,
+     "endDetail": {
+      "cuts": 0,
+      "worst": null,
+      "reach": 0.0
+     }
+    },
+    "flat": {
+     "flatShare": 0.318,
+     "faceCoverA": 0.37,
+     "faceCoverB": 0.37
+    },
+    "sectionB": [
+     [
+      3.525,
+      0.0,
+      -0.1876
+     ],
+     [
+      3.525,
+      17.705,
+      -0.2108
+     ],
+     [
+      -0.066,
+      21.899,
+      0.006
+     ],
+     [
+      8.0,
+      64.022,
+      0.1731
+     ],
+     [
+      8.0,
+      135.022,
+      0.0788
+     ],
+     [
+      -5.585,
+      192.0,
+      0.001
+     ]
+    ],
+    "sectionMirrored": "differs",
+    "sectionCuts": [
+     25,
+     25
+    ],
+    "storeySplits": {
+     "A": [],
+     "B": []
+    },
+    "slots": [
+     {
+      "slot": 0,
+      "role": "trim",
+      "triangles": 274,
+      "area": 257462.8,
+      "share": {
+       "faceA": 0.159,
+       "faceB": 0.159,
+       "ends": 0.026,
+       "up": 0.042,
+       "down": 0.054,
+       "steppedA": 0.04,
+       "steppedB": 0.04,
+       "sloping": 0.482
+      },
+      "faceZ": [
+       64.02,
+       135.02
+      ],
+      "material": "TexLibraryUFO.Materials.UFOIndTileSupplyA",
+      "carriesFaces": true
+     },
+     {
+      "slot": 1,
+      "role": "interior",
+      "triangles": 230,
+      "area": 68810.9,
+      "share": {
+       "faceA": 0.0,
+       "faceB": 0.0,
+       "ends": 0.015,
+       "up": 0.021,
+       "down": 0.021,
+       "steppedA": 0.0,
+       "steppedB": 0.0,
+       "sloping": 0.943
+      },
+      "faceZ": null,
+      "material": "GenericDestructionLibrary.Materials.MI_Alien_Machinery_B",
+      "carriesFaces": false
+     }
+    ],
+    "faceFits": {},
+    "trimFits": {
+     "stripA": {
+      "u": [
+       0.003472,
+       -1.9988
+      ],
+      "rms": 0.0009,
+      "shifted": 0.276,
+      "triangles": 114,
+      "repeat": 288.03
+     },
+     "stripB": {
+      "u": [
+       -0.003471,
+       0.0004
+      ],
+      "rms": 0.0006,
+      "shifted": 0.217,
+      "triangles": 100,
+      "repeat": 288.11
+     },
+     "top": {
+      "v": [
+       -0.6108,
+       0.000867,
+       0.0
+      ],
+      "rmsV": 0.0,
+      "u": [
+       0.003471,
+       -4.9982
+      ],
+      "rmsU": 0.0011
+     },
+     "bottom": {
+      "v": [
+       -0.59576,
+       -0.000848,
+       -0.0
+      ],
+      "rmsV": 0.0,
+      "u": [
+       0.003471,
+       -4.9986
+      ],
+      "rmsU": 0.001
+     }
+    },
+    "faceSides": {
+     "A": null,
+     "B": null
+    },
+    "stripB": {
+     "u": [
+      -0.003471,
+      0.0004
+     ],
+     "rms": 0.0006,
+     "shifted": 0.217,
+     "triangles": 100,
+     "repeat": 288.11
+    },
+    "colours": {
+     "outside": "ffffffff",
+     "interior": {
+      "values": 2,
+      "commonest": [
+       [
+        "ffffffff",
+        370
+       ],
+       [
+        "ffffff00",
+        12
+       ]
+      ]
+     },
+     "rule": "constant"
+    },
+    "cells": {
+     "fragments": 18,
+     "medianBox": [
+      99.2,
+      27.7,
+      87.6
+     ],
+     "grid": [
+      6,
+      3
+     ],
+     "cell": [
+      96.0,
+      64.0
+     ],
+     "unevenness": 0.629
+    },
+    "collision": {
+     "simple": true,
+     "elements": 1,
+     "half": 24.158,
+     "y": [
+      -7.999,
+      24.158
+     ],
+     "x": [
+      0.0,
+      576.0
+     ],
+     "z": [
+      0.0,
+      192.0
+     ]
+    },
+    "lightmap": {
+     "channel": 1,
+     "resolution": 64,
+     "rect": [
+      62.0,
+      62.0
+     ],
+     "byRect": {
+      "faces": 0.1076,
+      "interior": 0.0378,
+      "interiorRatio": 0.352
+     },
+     "byResolution": {
+      "faces": 0.1111,
+      "interior": 0.0391,
+      "interiorRatio": 0.352
+     }
+    },
+    "endInsets": {
+     "grid": "level",
+     "ends": [
+      -0.04,
+      0.04
+     ],
+     "tiles": 6.0,
+     "gridZ": -0.0
+    },
+    "fragments": 18,
+    "triangles": 504
+   },
+   "notMeasured": {
+    "cell jitter": "the donors' cells come from the game's fracture tool, not a jittered grid; the generator's jitter is its own choice (measured instead: the fragments' unevenness, the spread of their areas on the +y face)",
+    "lightmap margin": "texels between charts: how the Build packs a made wall's lightmap, not the donor's",
+    "lightmap block": "the DXT block the Build rounds a rectangle to (4): a format constant"
+   }
+  }
+ }
+}

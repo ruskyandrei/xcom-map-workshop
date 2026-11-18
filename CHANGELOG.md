@@ -8,6 +8,31 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M4 (items 2 and 3): wall looks measured, and which of the game's walls a generator can make
+
+- [wall-look-measure.py](research/evidence/wall-look-measure.py) measures one of the game's fracturing walls into a
+  look entry with `frac_wall.RECIPE`'s keys:
+  - the cross-section and its trim v;
+  - face heights and storey split;
+  - slots' roles, texture repeats and offsets;
+  - colours, fragment size and lightmap density.
+  `--check` measures the Bar's donor back to RECIPE: 22 of 22 keys within tolerance. The cells' jitter and the
+  packing margin are not measurable.
+- [wall-look-audit.py](research/evidence/wall-look-audit.py) measures every wall mesh of the listed maps (output
+  [wall-look-audit-2026-11-18.json](research/evidence/wall-look-audit-2026-11-18.json); the Bar check and four
+  candidates in [wall-looks-measured-2026-11-18.json](research/evidence/wall-looks-measured-2026-11-18.json)):
+  - It tests each mesh by cuts across its length: swept as the Bar's, swept with openings, framed openings, mostly
+    swept, or modelled.
+  - Of 246 meshes named as walls, 202 are swept in some form and 44 modelled (mostly outside walls with window
+    frames). 98 more wall-shaped meshes are found (ComKit cores, office and outpost walls), all swept.
+  - It recommends 12 candidates across settings: shop and office interiors, brick and pub shopfronts, concrete, the
+    pier's metal panels, the police station, the outpost, and two UFO walls (the alien base has no fracturing pieces).
+  - All are base-game walls.
+  - What a generator needs beyond the Bar's recipe: slots by look, side B's own outline, other heights and tops, ends
+    on or past the tile edge, per-look cells and densities.
+
+Checked: `--check` on the Bar's donor; the audit over all 151 maps; the `repo` suite.
+
 ### Custom geometry, stage M5 (item 1): the game's fracturing floors and roofs
 
 - [slab-audit.py](research/evidence/slab-audit.py) (read only; output
