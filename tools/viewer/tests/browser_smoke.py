@@ -5084,7 +5084,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness, walls), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -5149,6 +5149,13 @@ def main():
             if 'play-area' in only: check_play_area(page); check_interior_whole(page)
             if 'light-grid' in only: check_light_grid(page)
             if 'squad' in only: check_squad(page, saves=args.squad)
+            if 'walls' in only:
+                # (saves a project and builds it: --projects, on a test server with scratch folders)
+                assert args.projects, 'the walls check saves and builds a project: give --projects, on a test server'
+                from browser_walls import check_walls
+                found = []
+                print(json.dumps(dict(walls=check_walls(browser, page.url, open_viewer, type_project_name, project_url))))
+                errors.update(found)
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

@@ -5,8 +5,13 @@
 // piece at the wall's start), `openings` [{ x0, x1, z0, z1 }] (rectangles through it; z 0 is the floor the wall
 // stands on, its bottom WALL.bottom), `seed` (the break pattern). Its solid stops WALL.endInset short of each end.
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
-import { QUARTER, STOREY, TILE } from './poserule.js';
+import { QUARTER, TILE } from './poserule.js';
 
+// The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
+// mesh its actor holds, and what it looks like in words. M1 has one, the Bar's inside wall (frac_wall.RECIPE).
+export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package: 'URB_Bar', actor: 'XComDecoFracLevelActor_17',
+  mesh: 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED', lwrOnly: false,
+  words: 'two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice' }];
 // The one look of M1, the Bar's inside wall (frac_wall.RECIPE): its heights over the floor, and the tool's limits.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 16 };
 // An opening's limits: its top under the cornice, a window's sill over the floor, the smallest sizes, the fine step
@@ -49,8 +54,9 @@ const YAWS = [[0, 1, 0], [1, 1, 1], [0, -1, 2], [1, -1, 3]];      // [axis, dire
  *  to the one nearest the end, along x or y by the drag's longer way, on the tile line nearest the start; at least one
  *  tile (in the drag's direction), at most WALL.maxTiles. `origin`: the tile grid's corner (tile edges at origin +
  *  96k); `template`: the donor's location and rotation (the copy keeps its pitch and roll and turns by quarter turns
- *  from its yaw); `floor`: the height of the floor under the start. The wall's z is the donor's by whole storeys (the
- *  pose rule of fracturing pieces), the highest that leaves no gap under it (its bottom at or under the floor).
+ *  from its yaw); `floor`: the height of the floor under the start, where the wall stands (its bottom WALL.bottom
+ *  under it). A made wall's height is free: its columns are made for where it stands, so the pose rule's whole
+ *  storeys from the donor don't hold it (the donor's height on its own map seldom matches this map's floors).
  *  Gives { location, rotation, wall: { x0: 0, x1, openings: [], seed }, axis, direction, tiles }. */
 export function drawnWall(start, end, { origin, template, floor, seed = 1 }) {
   const d = [end[0] - start[0], end[1] - start[1]], axis = Math.abs(d[0]) >= Math.abs(d[1]) ? 0 : 1, across = 1 - axis;
@@ -59,14 +65,11 @@ export function drawnWall(start, end, { origin, template, floor, seed = 1 }) {
   let b = edge(end[axis], axis);
   if (b === a) b = a + TILE * sign(d[axis]);
   const direction = sign(b - a), tiles = Math.min(WALL.maxTiles, Math.round(Math.abs(b - a) / TILE));
-  const location = [0, 0, wallZ(template.location[2], floor)];
+  const location = [0, 0, tidy(floor)];
   location[axis] = a; location[across] = edge(start[across], across);
   return { location: location.map(tidy), rotation: wallRotation(template.rotation, axis, direction),
            wall: { x0: 0, x1: tiles * TILE, openings: [], seed }, axis, direction, tiles };
 }
-/** The donor's z moved by whole storeys to the highest that leaves no gap under the wall (its bottom, WALL.bottom under
- *  its z, at or under `floor`). */
-export const wallZ = (templateZ, floor) => tidy(templateZ + STOREY * Math.floor((floor - WALL.bottom - templateZ) / STOREY + 1e-6));
 /** The rotation that runs the wall's +x along `axis` in `direction`, a whole number of quarter turns from the donor's. */
 export function wallRotation(templateRotation, axis, direction) {
   const turns = YAWS.find(([x, s]) => x === axis && s === direction)[2];

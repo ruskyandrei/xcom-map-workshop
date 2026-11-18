@@ -8,6 +8,37 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom walls, stage M1 (editor side): the wall tool
+
+Walls are drawn in the editor on any map (branch `fracturing-wall-poc`).
+
+- **The Add panel's Walls kind** ([app.js](tools/viewer/web/app.js) `wallEntries`, [pieces.js](tools/viewer/web/pieces.js)
+  `drawWallIcon`, [piece_categories.js](tools/viewer/web/piece_categories.js)): one entry per look, a recipe in This map
+  and All maps; M1 has the Bar's inside wall ([walls.js](tools/viewer/web/walls.js) `WALL_LOOKS`). Choosing it reads the
+  donor (this map's own piece on URB_Bar, else from URB_Bar through the library), then a press on the ground, a drag
+  along a tile line and a release make the wall (a see-through box shows it while dragging; Shift keeps drawing, Esc
+  stops). The wall is an added copy of the donor carrying `generated`, as the proof of concept's were.
+- **A made wall's height is free**: the pose rule's whole storeys from the donor no longer hold it (its columns are
+  made for where it stands, and the donor's height on its own map seldom matches another map's floors: the first wall
+  drawn on URB_PoliceStation stood 46 into the ground). It stands on the floor under the drag's start; its tiles and
+  quarter turns still follow the donor's ([compiler.py](tools/editor/compiler.py) `add`, app.js `recipeOf`).
+- **Handles** on a picked made wall: white ones at its ends (whole tiles, the openings kept where they are in the
+  world, one the wall no longer holds dropped), blue ones on each opening (its middle slides it, its sides in whole
+  tiles or with Alt in steps of 8, its top, a window's sill). The view draws each step as the Build makes it, the last
+  drawing kept until the next arrives.
+- **The piece panel's Wall section** ([index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)):
+  its size in words, its openings listed with what the game does at each (walked, seen through, the cover under it;
+  a doorway with no door in it says so) and a Remove button, Add doorway, Add window, Flip sides, Reshuffle. Delete with
+  an opening's handle last touched takes that opening out. Each change is one undo step.
+- **Select all of a kind** counts a made wall as its look's mesh (its template's).
+- **Fixed**: selecting a made wall threw (the panel read a vertex count the made mesh's record hasn't), which also kept
+  each change to it off the undo stack.
+
+Checked: [browser_walls.py](tools/viewer/tests/browser_walls.py) (`browser_smoke.py --only walls --projects` on a test
+server: a wall drawn on URB_PoliceStation by mouse, openings, both kinds of handle, flip, undo and redo, Delete of an
+opening, saved and reopened, a quick Build with the donor brought from URB_Bar and the doorway warned of); a compiler
+case for the free height; the editor, viewer, node and repo suites. The game has not seen a drawn wall yet (run A).
+
 ### Custom walls, stage M1 (Build side): a made wall on any map, empty slots drawn, what an opening does in play
 
 The custom geometry plan's stage M1, first part (branch `fracturing-wall-poc`; the plan is private, its stages are

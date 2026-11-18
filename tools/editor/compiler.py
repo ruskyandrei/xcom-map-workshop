@@ -2361,7 +2361,10 @@ class Compiler:
                        % (short(out), src['actorClass']), **where)
             return
         self.loot(src, short(out), 'add', where)
-        if not extra.get('assembly') and self.single_grid_rule(short(out), src, loc, rot, where) is None:
+        # (a made wall's height is free: its columns are made for where it stands, so only its tiles and quarter turns
+        # follow its template's)
+        ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] == 'fracWall' else loc
+        if not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
         along = ((made['wall']['x0'] + FRAC_WALL_END_INSET, made['wall']['x1'] - FRAC_WALL_END_INSET)

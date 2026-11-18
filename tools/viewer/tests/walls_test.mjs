@@ -3,7 +3,7 @@
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
 import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
-         PRESETS, resizedWall, reshuffled, shiftedLocation, toolWall, wallDirection, wallRotation, wallWords, wallZ,
+         PRESETS, resizedWall, reshuffled, shiftedLocation, toolWall, wallDirection, wallRotation, wallWords,
          withOpening, withoutOpening, WALL } from '../web/walls.js';
 
 const origin = [-2784, -1920, -1];
@@ -25,12 +25,8 @@ assert.deepEqual(wallDirection(d.rotation[1]), [0, -1]);
 // a click with no drag: one tile; a drag past the longest: the longest
 assert.equal(drawnWall([5, 5], [6, 6], { origin, template, floor: 16 }).wall.x1, 96);
 assert.equal(drawnWall([0, 0], [5000, 0], { origin, template, floor: 16 }).wall.x1, 96 * WALL.maxTiles);
-// the z: the donor's by whole storeys of 64, the highest leaving no gap under the wall (its bottom 16 under its z)
-assert.equal(wallZ(16, 16), 16);
-assert.equal(wallZ(16, 0), 16);          // bottom at 0: on the floor
-assert.equal(wallZ(16, -1), -48);        // bottom at -64: no gap under it
-assert.equal(wallZ(16, 208), 208);       // the next storey up in the bar
-assert.equal(wallZ(16, 239), 208);
+// the z: the floor under the start (a made wall's height is free of the donor's storeys)
+assert.equal(drawnWall([5, 5], [200, 6], { origin, template, floor: 14.5 }).location[2], 14.5);
 // quarter turns from the donor's yaw
 assert.deepEqual(wallRotation([0, 16384, 0], 0, -1), [0, 32768, 0]);
 assert.deepEqual(wallRotation([0, -16384, 0], 1, 1), [0, 16384, 0]);

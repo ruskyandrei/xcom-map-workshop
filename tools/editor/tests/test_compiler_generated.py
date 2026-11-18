@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 import compiler  # noqa: E402
 from compiler import compile_project  # noqa: E402
-from test_compiler import add, codes, document, noted, refused, scene  # noqa: E402
+from test_compiler import add, codes, document, noted, refused, scene, warned  # noqa: E402
 
 WALL = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[dict(x0=96, x1=192, z0=0, z1=60)], seed=2))
 RELIT = dict(kind='relit', version=1)
@@ -50,6 +50,14 @@ class GeneratedTests(unittest.TestCase):
         # solid, 8 in from its tile edges at each end
         self.assertEqual(wall, [8.0, 376.0, 552.0, 648.0, 0.0, 100.0])
         self.assertEqual(relit, [-48.0, 48.0, 1152.0, 1248.0, 0.0, 100.0])
+
+    def test_a_made_walls_height_is_free(self):
+        # 14.5 over the template's floor (16 tiles from it): off its storeys, which a made wall keeps to no more (its columns are its
+        # own); off its tiles still warns
+        _, report = compiled([made(WALL, at=(0, 636, 14.5))])
+        self.assertNotIn('off-grid', warned(report))
+        _, report = compiled([made(WALL, at=(10, 636, 14.5))])
+        self.assertIn('off-grid', warned(report))
 
     def test_none_without_a_request(self):
         spec, _ = compiled([add('XComFracLevelActor_11', 1, (0, 600, 0))])

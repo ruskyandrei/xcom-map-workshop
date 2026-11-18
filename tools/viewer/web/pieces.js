@@ -121,6 +121,21 @@ function drawSpawnIcon(canvas, kind) {
   } else { g.fillStyle = colour; g.beginPath(); g.arc(24, 24, 8, 0, Math.PI * 2); g.fill(); }
   g.restore();
 }
+// A wall look's icon (app.js wallEntries): a stretch of wall with a doorway, its skirting and cornice, a tile line under it
+function drawWallIcon(canvas) {
+  const g = canvas.getContext('2d'), s = canvas.width;
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  g.strokeStyle = '#4a5a66'; g.lineWidth = 1; g.setLineDash([2, 2]);
+  g.beginPath(); g.moveTo(2, 40.5); g.lineTo(46, 40.5); g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#c9b49a'; g.fillRect(6, 10, 36, 30);          // the wall
+  g.fillStyle = '#8a6f55'; g.fillRect(6, 36, 36, 4); g.fillRect(5, 9, 38, 3);    // skirting, cornice
+  g.fillStyle = '#9c8a74'; g.fillRect(6, 24, 36, 1);           // the storey line
+  g.fillStyle = '#1f2a33'; g.fillRect(19, 19, 10, 21);         // the doorway
+  g.strokeStyle = '#82d5ce'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(6, 25, 2.5, 0, Math.PI * 2); g.moveTo(44.5, 25); g.arc(42, 25, 2.5, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
 const tiles = units => Math.max(1, Math.round(units / 96));   // a floor piece's size across in whole tiles (a curb drops out)
 const short = path => path.split('.').at(-1);
 // The package path an archetype sits in: a prefab's parts share their prefab's (VEH_MovingVan.Prefab.PRE_MovingVanA).
@@ -162,6 +177,26 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
 
 // Rows for pieces of This map and recipes in either scope.
 export function pieceRow(entry, pixelRatio, choose) {
+  if (entry.wallLook) {     // the Walls kind (app.js wallEntries): drawn by dragging along the tile lines
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
+    const thumb = document.createElement('canvas');
+    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+    drawWallIcon(thumb);
+    thumb.dataset.drawn = '1';
+    const label = document.createElement('span');
+    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
+      Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}` }),
+      Object.assign(document.createElement('small'), { textContent: entry.detail }));
+    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
+    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: entry.wallLook.lwrOnly ? 'LWR only' : 'Made',
+      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within' : 'Made by the Build from numbers, like the game\'s own walls' }));
+    button.title = entry.title;
+    button.append(thumb, label, tags);
+    button.onclick = choose;
+    button.thumb = thumb;
+    return button;
+  }
   if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
@@ -270,7 +305,7 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
   function load(list) {
     entries = list;
     setKindOptions(els.kind, entries);
-    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd).map(e => e.role))];
+    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd && !e.wallLook).map(e => e.role))];
     els.where.replaceChildren(new Option('Anywhere', 'all'), ...roles.map(r => new Option(ROLES[r] ?? r, r)));
     els.where.hidden = roles.length < 2;
   }
@@ -285,12 +320,12 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const kind = els.kind.value;
     const shown = entries.filter(e => inKind(e, kind)
-      && (els.where.value === 'all' || e.light || e.zone || e.spawnAdd || e.role === els.where.value) && words.every(w => e.text.includes(w)));
+      && (els.where.value === 'all' || e.light || e.zone || e.spawnAdd || e.wallLook || e.role === els.where.value) && words.every(w => e.text.includes(w)));
     shown.sort(SORTS[els.sort.value]);
     els.list.replaceChildren(...shown.map(row));
     for (const [k, b] of rows) b.classList.toggle('on', k === chosen?.key);
     // pieces and lights counted apart
-    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone && !e.spawnAdd)).length;
+    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone && !e.spawnAdd && !e.wallLook)).length;
     const say = (n, of, what) => (n === of ? `${of} ${what}${of === 1 ? '' : 's'}` : `${n} of ${of} ${what}s`);
     const total = [count(shown, 'piece') && say(count(shown, 'piece'), count(entries, 'piece'), 'piece'),
                    count(shown, 'light') && say(count(shown, 'light'), count(entries, 'light'), 'light')].filter(Boolean).join(' and ');

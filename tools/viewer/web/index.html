@@ -325,6 +325,20 @@
         <div id="coverNote" class="lightnote"></div>
         <div class="row" id="coverFitRow" hidden><button id="coverFit" type="button" title="Raise or lower the floor so its top stands 1 unit over the ground at the tile centre where the ground is highest: the game looks for a tile's floor straight down through the tile's centre, so the floor is found there, as low as it can be">Fit to ground</button></div>
       </div>
+      <div id="wallBox" class="lightbox" hidden>
+        <div class="posehead" id="wallHead">Wall</div>
+        <div id="wallSize" class="lightnote" title="Drag the white handles at its ends to lengthen or shorten it by whole tiles: its openings stay where they are, and one the wall no longer holds goes"></div>
+        <div id="wallOpenings" class="wallopenings"></div>
+        <div class="row">
+          <button id="wallDoor" type="button" title="A doorway one tile wide, its top 160 over the floor, as the game's are, in the free tile nearest the wall's middle. Its handles (in blue) move and size it">Add doorway</button>
+          <button id="wallWindow" type="button" title="A window one tile wide, its sill 72 over the floor and its top at 168, as the game's windows are, in the free tile nearest the wall's middle. Its handles (in blue) move and size it">Add window</button>
+        </div>
+        <div class="row">
+          <button id="wallFlip" type="button" title="Turn the wall round where it stands: its two faces swap sides, its openings stay where they are">Flip sides</button>
+          <button id="wallShuffle" type="button" title="Another break pattern: the wall's fragments cut afresh (a new seed). It looks the same until it breaks">Reshuffle</button>
+        </div>
+        <div id="wallNote" class="lightnote"></div>
+      </div>
       <div id="groupBox" class="groupbox" hidden>
         <div id="groupHead" class="grouphead"><svg class="i"><use id="groupIcon" href="#i-lock"/></svg><span id="groupTitle"></span></div>
         <div id="groupText" class="grouptext"></div>

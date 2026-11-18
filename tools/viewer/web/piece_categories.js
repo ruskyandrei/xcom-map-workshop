@@ -35,6 +35,8 @@ export function setKindOptions(select, entries) {
   const value = select.value;
   const kinds = ['Car', 'Collectible', 'Destructible', 'Door', 'Fracturing', 'Invisible', 'Ladder',
                  'Other', 'Physics', 'Scenery', 'Van'];
+  // the made pieces (custom geometry plan) first, where the list has them
+  const made = ['Walls'].filter(k => entries.some(e => e.kind === k));
   const counts = new Map();
   for (const entry of entries) {
     const kind = entry.light ? 'lights' : entry.zone ? 'landing' : entry.spawnAdd ? 'spawns' : entry.kind;
@@ -47,7 +49,7 @@ export function setKindOptions(select, entries) {
   const sounds = counts.get('sounds') ? [['sounds', 'Sounds'], ...SOUND_KINDS.map(k => [effectKind('sound', k), `Sounds: ${k}`])] : [];
   const flares = counts.get('flares') ? [['flares', 'Lens flares']] : [];
   select.replaceChildren(new Option('All kinds', 'all'),
-    ...[['floors', 'Floors'], ['lights', 'Lights'], ['landing', 'Landing zones'], ...(counts.get('spawns') ? [['spawns', 'Spawn points']] : []),
+    ...[...made.map(k => [k, k]), ['floors', 'Floors'], ['lights', 'Lights'], ['landing', 'Landing zones'], ...(counts.get('spawns') ? [['spawns', 'Spawn points']] : []),
         ...kinds.map(k => [k, k]), ...effects, ...sounds, ...flares]
       .map(([key, label]) => new Option(`${label} (${(counts.get(key) ?? 0).toLocaleString()})`, key)));
   if ([...select.options].some(o => o.value === value)) select.value = value;
