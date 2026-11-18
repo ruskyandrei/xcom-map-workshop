@@ -20,6 +20,10 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   leaves its `PointInSpace` helper behind, and Long War's bomb mutator then places nothing. Read from the script
   and the installed stream ([mission objects reader](tools/viewer/scene_metadata.py)); not played.
 - Checked: the repo suite. No tool changed.
+- Later the same day the user answered the plan's decisions: the run goes through every stage, the edits
+  included; View options' Mission objects is folded into Spawns; a project with a bomb already moved gets the
+  helper's move when it opens. The private plan now sets out the edit stages in full, with the scripted drop-in
+  rule built before the base pod and Meld edits. Still waiting for the word to build.
 
 ### The user guide covers effects and sounds
 
