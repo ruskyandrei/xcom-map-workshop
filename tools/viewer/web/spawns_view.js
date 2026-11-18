@@ -204,6 +204,22 @@ export function copyTemplateWhy(o) {
                o.links?.length && `linked to ${o.links.map(l => shortName(l.actor)).join(', ')}`].filter(Boolean);
   return why.length ? `it is ${why.join(' and ')}: a copy is made only from a plain pod` : '';
 }
+/** The base spawn point a new one of `kind` from the Add panel is a copy of (its Spawn points kind: a Pod, a Meld
+ * point): the map's first that copyTemplateWhy lets be copied (a plain pod, any listed Meld point), or null. `records`:
+ * the export's spawns (a landing's points are never one). */
+export function addTemplate(records, kind) {
+  if (!SPAWN_COPY_KINDS.includes(kind)) return null;
+  return (records ?? []).find(o => o.kind === kind && !o.landing && !copyTemplateWhy(o)) ?? null;
+}
+/** Where a new spawn point placed at game point `at` (the click's, on the floor under it) stands: on the tile under
+ * the click by whole tiles from its template (so it keeps the template's place within a tile), at the template's
+ * height above its own floor (`templateFloor`, `floor`: the surface under each; null where none is found). */
+export function addPlace(template, at, floor, templateFloor) {
+  const [tx, ty, tz] = template.location;
+  const over = templateFloor == null ? 0 : Math.min(Math.max(tz - templateFloor, 0), 128);
+  const x = tx + Math.round((at[0] - tx) / 96) * 96, y = ty + Math.round((at[1] - ty) / 96) * 96;
+  return [x, y, Math.round((floor ?? at[2]) + over)];
+}
 /** A copy's entry ({stream: 'copy', copy: {id, kind, from}, actor, location, rotation, spawn}: kept as
  * `copy|${actor}`) of template `o`. */
 export const copyEntry = (o, { id, actor, location, rotation, spawn = {} }) =>
@@ -266,6 +282,12 @@ export function spawnMoveWords(o, entry) {
 
 // ---------------------------------------------------------------- markers (three.js passed in)
 
+// A spawn marker's size against a light's (both one size on screen, lights_view.js scaleMarker): larger, as the user
+// found the small ones hard to see (18 November 2026)
+export const SPAWN_MARKER_SIZE = 1.7;
+// how strongly a marker shows through walls, and its halo, plain and picked
+const GHOST = { plain: 0.5, picked: 0.8 }, HALO = { plain: 0.75, picked: 1, pale: 0.4 };
+
 function shape(THREE, kind) {
   switch (KINDS[kind]?.shape) {
     case 'arrow': return new THREE.ConeGeometry(0.45, 1.1, 10).rotateX(Math.PI).translate(0, 0.55, 0);
@@ -273,22 +295,52 @@ function shape(THREE, kind) {
     case 'gem': return new THREE.OctahedronGeometry(0.6);
     case 'diamond': return new THREE.OctahedronGeometry(0.32);
     case 'cube': return new THREE.BoxGeometry(0.6, 0.6, 0.6);
-    default: return new THREE.SphereGeometry(0.4, 12, 8);
+    default: return new THREE.SphereGeometry(0.5, 12, 8);
   }
 }
 
-/** A marker: a solid shape, and the same faint over everything, so it shows through walls. readOnly (a patch's): drawn
- * paler. */
+// The halo every marker stands in: a ring of its colour with a dark edge, clear in the middle so the shape shows, drawn
+// over everything and facing the camera, so a marker stands out from bright floors and dark rooms alike. One texture
+// for all (white, tinted by each marker's colour; the dark edge stays dark).
+let haloMap = null;
+function haloTexture(THREE) {
+  if (haloMap || typeof document === 'undefined') return haloMap;
+  const size = 64, c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d'), mid = size / 2;
+  const glow = g.createRadialGradient(mid, mid, 0, mid, mid, mid);
+  glow.addColorStop(0, 'rgba(255,255,255,0)'); glow.addColorStop(0.5, 'rgba(255,255,255,0)');
+  glow.addColorStop(0.72, 'rgba(255,255,255,0.85)'); glow.addColorStop(0.86, 'rgba(255,255,255,0.35)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, size, size);
+  g.beginPath(); g.arc(mid, mid, size * 0.43, 0, Math.PI * 2);
+  g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = 3; g.stroke();
+  haloMap = new THREE.CanvasTexture(c);
+  return haloMap;
+}
+
+/** A marker: a solid shape, the same fainter over everything (so it shows through walls), and a halo of its colour
+ * round it. readOnly (a patch's, a deleted point): drawn paler. */
 export function makeSpawnMarker(THREE, kind, readOnly = false) {
   const colour = new THREE.Color(KINDS[kind]?.colour ?? 0xffffff);
   if (readOnly) colour.lerp(new THREE.Color(0x808080), 0.5);
   const solid = new THREE.MeshBasicMaterial({ color: colour });
-  const ghost = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false });
+  const ghost = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: GHOST.plain, depthTest: false, depthWrite: false });
   const geometry = shape(THREE, kind), marker = new THREE.Group();
   const front = new THREE.Mesh(geometry, solid), behind = new THREE.Mesh(geometry, ghost);
   behind.renderOrder = 6;
   for (const m of [front, behind]) { m.raycast = () => {}; marker.add(m); }
-  marker.userData = { front, behind, solid, ghost, colour };
+  let halo = null;
+  const map = haloTexture(THREE);
+  if (map) {
+    halo = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: colour, transparent: true, opacity: readOnly ? HALO.pale : HALO.plain,
+                                                        depthTest: false, depthWrite: false }));
+    halo.scale.set(2.6, 2.6, 1);
+    halo.renderOrder = 5;
+    halo.raycast = () => {};
+    marker.add(halo);
+  }
+  marker.userData = { front, behind, solid, ghost, halo, colour, readOnly };
   return marker;
 }
 
@@ -306,8 +358,13 @@ export function addFacingPointer(THREE, marker, yaw) {
 
 /** A marker brighter while its record is picked. */
 export function paintSpawnMarker(THREE, marker, picked) {
-  const { solid, ghost, colour } = marker.userData;
+  const { solid, ghost, halo, colour, readOnly } = marker.userData;
   const c = colour.clone();
   if (picked) c.lerp(new THREE.Color(0xffffff), 0.45);
-  solid.color.copy(c); ghost.color.copy(c); ghost.opacity = picked ? 0.6 : 0.3;
+  solid.color.copy(c); ghost.color.copy(c); ghost.opacity = picked ? GHOST.picked : GHOST.plain;
+  if (halo) {
+    halo.material.color.copy(c);
+    halo.material.opacity = picked ? HALO.picked : readOnly ? HALO.pale : HALO.plain;
+    halo.scale.setScalar(picked ? 3.1 : 2.6);
+  }
 }

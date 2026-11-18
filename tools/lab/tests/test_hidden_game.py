@@ -230,6 +230,26 @@ class Input(unittest.TestCase):
             self.assertEqual(target.read_bytes(), b'a mod\'s')
 
 
+class HeldFiles(unittest.TestCase):
+    """A game that has just crashed can hold its DLLs a moment longer (EXP-72 run 13): the put-back waits for them."""
+
+    @unittest.skipUnless(sys.platform == 'win32', 'Windows keeps an open file from being deleted')
+    def test_a_file_let_go_soon_goes_and_one_held_is_reported(self):
+        import threading
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'd3d9.dll'
+            path.write_bytes(b'dll')
+            held = open(path, 'rb')
+            threading.Timer(0.6, held.close).start()
+            self.assertTrue(hidden_game.remove_held(path, wait=5, every=0.1))
+            self.assertFalse(path.exists())
+            path.write_bytes(b'dll')
+            with open(path, 'rb'):
+                self.assertFalse(hidden_game.remove_held(path, wait=0.3, every=0.1))
+            self.assertTrue(hidden_game.remove_held(path, wait=0.3))
+            self.assertTrue(hidden_game.remove_held(path))           # (already gone)
+
+
 class StandInDll(unittest.TestCase):
     """The built stand-in (<lab>\\bin\\dinput8.dll, build_stand_in_input.py) in a 32-bit process outside the game: the
     calls the game makes on the system mouse and keyboard answer as a still device (StandInInputCheck.cs)."""

@@ -138,7 +138,7 @@ class Prepared:
     with a file that binds SAVE_KEY to the commands instead of running them (gamelaunch.start_text, F-89)."""
 
     def __init__(self, game, dll, play_text=None, saving=False, stand_in=None):
-        self.game, self.placed, self.play, self.saving, self.start = Path(game), [], None, saving, None
+        self.game, self.placed, self.play, self.saving, self.start, self.left = Path(game), [], None, saving, None, []
         if saving and play_text is None: raise RunError('Saving needs a battle: give --map or --play-file')
         if not (self.game / settings.LAB_MARKER).is_file():
             raise RunError(f'{self.game} is not the lab copy (no {settings.LAB_MARKER}): hidden runs are for the lab copy')
@@ -180,9 +180,22 @@ class Prepared:
                 path.write_bytes(self.config[path]); changed.append(path.name)
         binaries = self.game / 'XEW' / 'Binaries'
         for path in list(binaries.glob('XComMapWorkshop-hidden*.txt')) + list(binaries.glob('xmwh*.txt')): path.unlink()
-        for path in self.placed:
-            if path.exists(): path.unlink()
+        # (a game that has just crashed can hold its DLLs a moment longer: EXP-72 run 13 left both behind)
+        self.left = [path.name for path in self.placed if not remove_held(path)]
         return changed
+
+
+def remove_held(path, wait=20.0, every=0.5):
+    """Takes a file away that a game which has just ended, or crashed, may still hold open for a moment: tries again
+    until `wait` seconds have gone by. Returns whether it is gone."""
+    until = time.monotonic() + wait
+    while True:
+        try:
+            if path.exists(): path.unlink()
+            return True
+        except PermissionError:
+            if time.monotonic() >= until: return False
+            time.sleep(every)
 
 
 def game_arguments(res, play_file=None):
@@ -301,8 +314,12 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
             code = proc.wait()
         (out / 'run.log').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
     finally:
-        changed = prepared.restore()
-    if log.is_file(): shutil.copyfile(log, out / 'Launch.log')
+        try: changed = prepared.restore()
+        finally:
+            if log.is_file(): shutil.copyfile(log, out / 'Launch.log')
+    if prepared.left:
+        echo(f'FAIL: the game still holds {", ".join(prepared.left)} in {win32(game)}: take {"it" if len(prepared.left) == 1 else "them"} '
+             'away before the next run')
     return code, changed
 
 

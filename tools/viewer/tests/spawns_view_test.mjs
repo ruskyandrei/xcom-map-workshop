@@ -2,7 +2,7 @@
 // for a base map, a mission's streams, an added bomb's donor and an LWR patch; one marker an objective; the families;
 // the panel's lines. Run: node tools/viewer/tests/spawns_view_test.mjs
 import assert from 'node:assert/strict';
-import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, describe, editCopy,
+import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, addPlace, addTemplate, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, describe, editCopy,
          editSpawn, familyOf, groupOf, identityLines, marked, shownEntries, spawnEditable, spawnEntryOf, spawnKey, spawnMoveWords,
          spawnNamed, spawnOverride, spawnPosed, spawnRecords, titleOf } from '../web/spawns_view.js';
 import { fromWords } from '../web/spawn_rules.js';
@@ -164,4 +164,18 @@ assert.equal(fromWords('template'), '(its template\'s)');
 // what names a point keeps its delete back
 assert.ok(!spawnNamed(P));
 assert.ok(spawnNamed({ ...P, uses: [{ how: 'event' }] }) && spawnNamed({ ...P, referencedBy: ['x'] }) && spawnNamed({ ...P, unread: 'bad' }));
+// new spawn points from the Add panel (the user, 18 November 2026): a copy of the map's first plain pod or first Meld
+// point, never a landing's point, a commander's pod or a point of another kind
+assert.equal(addTemplate(data.spawns, 'pod').actor, `${L}XComAlienPod_0`);
+assert.equal(addTemplate([{ ...pod(0), values: { commander: { value: true } } }, pod(3)], 'pod').actor, `${L}XComAlienPod_3`);
+assert.equal(addTemplate(data.spawns, 'meld').actor, `${L}XComMeldContainerSpawnPoint_0`);
+assert.equal(addTemplate(data.spawns, 'dropIn'), null);
+assert.equal(addTemplate([{ ...pod(0), values: { forceType: { value: 'eChar_Sectoid' } } }], 'pod'), null);
+assert.equal(addTemplate(undefined, 'pod'), null);
+// placed on the tile under the click by whole tiles from its template, at its height above its own floor
+const T48 = { location: [1968, 144, 48] };
+assert.deepEqual(addPlace(T48, [2300, 10, 300], 256, 0), [2256, 48, 304]);
+assert.deepEqual(addPlace(T48, [1960, 150, 40], null, null), [1968, 144, 40]);
+assert.deepEqual(addPlace(T48, [1600, -210, 12], 0, null), [1584, -240, 0]);
+assert.deepEqual(addPlace({ location: [0, 0, 900] }, [0, 0, 0], 0, 0), [0, 0, 128]);      // (a height over its floor kept to a level or two)
 console.log('spawns view: ok');

@@ -8,6 +8,47 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Play in game: a covert operative's mission lands a soldier first (T-44)
+
+- [play.py](tools/viewer/play.py), [missions.py](tools/viewer/missions.py) (`operative`, `LEAD_NOTE`,
+  `NO_LEAD_MISSING`), [squadrecords.py](tools/viewer/squadrecords.py) (`soldier_first`): a play of a data recovery or a
+  covert extraction moves the squad's first soldier or MEC trooper to the front, and its notes say who and why. The
+  game's stand-in covert operative copies the first unit's looks, and with a SHIV first it asked for content that
+  doesn't exist and the battle never left its loading screen ([findings register](research/findings-register.md)
+  T-44). With only SHIVs the play goes ahead and its missing list says what will happen.
+- Checked: [test_squad_play.py](tools/viewer/tests/test_squad_play.py) (a SHIV-first squad on a data recovery and on
+  an abduction, and a squad of only SHIVs), the viewer suite; in the game, [EXP-72](research/experiments/EXP-72-spawns.md)
+  runs 12 and 13: Police Station's data recovery began. Known gap: in hidden runs without a mouse the load that Long
+  War makes next crashes (T-46).
+
+### Hidden game runs: the put-back waits for a crashed game's DLLs; the stand-in's trace (T-46)
+
+- [hidden_game.py](tools/lab/hidden_game.py) `remove_held`: a game that has just crashed can hold `d3d9.dll` and
+  `dinput8.dll` a moment longer (EXP-72 run 13 left both behind and skipped the log copy). The put-back now tries again
+  for up to 20 seconds, copies `Launch.log` whatever happens, and names any DLL still left.
+- [StandInInput.c](tools/lab/StandInInput.c): with `XCOM_STAND_IN_INPUT_TRACE=1` every call the game makes on a
+  stand-in goes to `<out>\input.log` (the per-frame ones now and then), and so do the other devices it creates. It
+  showed nothing at the load that crashes in runs without a mouse (T-46).
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (a held file let go, one kept held), the lab
+  suite, a traced run.
+
+### Spawns: larger markers with a halo; new pods and Meld points from the Add panel
+
+- **Markers** ([spawns_view.js](tools/viewer/web/spawns_view.js), [app.js](tools/viewer/web/app.js)): the Spawns
+  view's and the Normal switch's markers are 1.7 times a light's size on screen, each in a halo of its colour with a
+  dark edge, drawn over everything, and show more strongly through walls; the picked one's halo is larger and
+  brighter. A click picks within the halo.
+- **Add panel** ([app.js](tools/viewer/web/app.js), [piece_categories.js](tools/viewer/web/piece_categories.js),
+  [spawns_view.js](tools/viewer/web/spawns_view.js) `addTemplate`, `addPlace`): a Spawn points kind with a Pod and a
+  Meld point, where the spawn family builds. Choosing one shows the Spawns view, and a click places a copy of the
+  map's first plain pod or first Meld point (SP7's copies, so the Build needs nothing new) on the tile under the
+  click: by whole tiles from its template, at the template's height above its own floor, picked, one undo step. Esc,
+  or leaving the Spawns view, cancels.
+- Checked: [spawns_view_test.mjs](tools/viewer/tests/spawns_view_test.mjs) (the template and the place),
+  [piece_categories_test.mjs](tools/viewer/tests/piece_categories_test.mjs) (the kind), the viewer and node suites; on
+  a test server, URB_Bar: 25 markers with haloes, the Add panel's Spawn points (2), a pod placed on the bar's roof with
+  its panel and arrows, undo and redo, no script errors.
+
 ### Hidden game runs: a stand-in mouse and keyboard when Windows has none (T-45)
 
 - [StandInInput.c](tools/lab/StandInInput.c): a 32-bit `dinput8.dll` that hands every call to Windows' own and gives

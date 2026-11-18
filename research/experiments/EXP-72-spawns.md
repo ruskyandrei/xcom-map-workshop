@@ -217,3 +217,28 @@ RadarArrays=1` at 7.1 seconds, EXALT's operative and heavy loaded, then the same
 options aren't what this mission lacks on this path. Read from the logs instead: the covert operative's pawn is missing
 when the battle makes it (`Accessed None 'm_kPawn'` in `CreateDebugCovertOperative`, then a female operative loaded),
 where the starts that began made a male one without a warning (T-44).
+
+## Run 12: Police Station's Data recovery with a soldier first (T-44's fix)
+
+**Played 18 November 2026: the battle began; then the game crashed in Long War's reload (T-46).**
+
+Staged with the editor's Play in game after the fix: the squad in the order Iron Fist (a soldier), Tracks (the SHIV),
+Gren, Sky, Long; saving on. Out folder `<lab>\hidden-runs\sp9-police-soldier-first`. Windows had no mouse or keyboard
+at the time, so the stand-in mouse was used (`input.log`); the keyboard was Windows' own. No `Accessed None 'm_kPawn'`
+and no content of id 0; `JIT Loading Soldier_MaleCovertOps` with Iron Fist's head and hair; the loading movie stopped
+at 8.3 seconds, `--- SAVING CHECKPOINT ---` at 15.0, "Mission Started" at 16.4. Long War's reload began at 33.3
+seconds (`LoadingFromShell=1`) and the game ended with an access violation about 1.4 seconds later.
+
+## Run 13: the same with six soldiers and no SHIV
+
+**Played 18 November 2026: the same.** The default six soldiers (`<lab>\hidden-runs\sp9-police-six-soldiers`): the
+operative took Tom Alpha's looks, the battle began ("Mission Started" at 16.0 seconds), and the game crashed 1.4
+seconds into Long War's reload. So the SHIV wasn't the reload's crash.
+
+## Run 14: URB_Bar, a quicksave loaded, with the stand-in mouse
+
+**Played 18 November 2026: the load crashed too (T-46).** `<lab>\hidden-runs\standin-bar-reload`: the quicksave was
+written (F10, `--- SAVING CHECKPOINT ---`), the Load Game menu showed it first, and the game crashed 1.4 seconds
+after its `LoadMap ... LoadingFromShell=1`. A rerun with the stand-in's trace on (`standin-reload-trace`) showed only
+the per-frame polls of the stand-in mouse up to the crash. Every load that worked before had a real mouse, so run 5's
+moved wave places wait for a run with the mouse there.

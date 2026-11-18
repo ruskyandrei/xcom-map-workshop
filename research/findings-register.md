@@ -12,9 +12,8 @@ Statuses:
 
 ## Open now
 
-- T-44: Police Station's Data recovery never begins on the Play in game path (EXP-72 runs 5, 10 and 11): the loading
-  movie stays and the covert operative's pawn is missing; not the mission's options (run 11). Run 5's moved wave
-  places not checked (18 November).
+- T-46: in a hidden run with no mouse in Windows every load of a save crashes (Long War's EXALT reload included), so
+  EXP-72 run 5's moved wave places wait for a run with the mouse there (18 November).
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -2706,32 +2705,41 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   CreateDevice fails, the stand-in is given).
 - A player's own game has a mouse, so this only stops unattended runs.
 
-### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative isn't made
-**Open** (18 November 2026, EXP-72 runs 5, 10 and 11; the mission's options ruled out by run 11).
-- **What**: `tools/lab/hidden_game.py --saving` (main menu, log in, the editor's Enable saving key) on URB_PoliceStation's
-  Data recovery (EXALT, `eMission_CaptureAndHold`) loads the map, its streams and EXALT's content, logs `LWRVERSION
-  label added` at about 9 seconds, then repeats Long War Rebalance's `LWR Ach: loaded 531 definitions ...
-  why=PostLevelLoaded` and `LWR GetActor native lookup works` every 0.39 seconds. "Mission Started" never comes and
-  the console takes no command (no shot, no exec, keys change nothing). The same on the editor's variant (three starts)
-  and on the map as the install has it (two starts), so it isn't the variant.
-- **Saving was on**: every start opened at the main menu, logged in and opened the battle by F5, as the editor's
-  Enable saving does, and as an EXALT mission needs under Long War (F-109).
-- **Not the mission's options**: run 11 opened the map with `?CapturePoints=1?RadarArrays=1`, as the two data
-  recovery starts that began on 15 November did (EXP-57 runs 2 and 4, on URB_OfficePaper_EWI and a Demolition
-  variant), and hung the same way (613 repeats in 240 seconds, no save). An editor change that put the options in
-  (d8213cc) was taken out again.
-- **Where it stops (read from the logs)**: the loading movie (`1080_XEW_ShieldLogo.bk2`) never stops. The starts that
-  began stop it about a second after it starts, just before Long War's bomb mutator rebuilds the world data
-  (`XComBombMutator: DoWorldDataRebuild`); here neither comes, nor the intro's `m_bTacticalIntroDone`, nor Long War's
-  save. Every Police Station start has `Accessed None 'm_kPawn'` in `XGBattle_SPCovertOpsExtraction:
-  CreateDebugCovertOperative`, then loads a female covert operative (`JIT Loading Soldier_FemaleCovertOps`); the two
-  starts that began made a male one with no such warning. So the covert operative's pawn is missing when the battle
-  makes it, likely because its content is loaded only on first use on this path (`bAllowJITLoad`). Not confirmed.
-- **Effect**: EXP-72 run 5 (a wave's moved places, SP9) is unclear; the moved places were never reached. The editor's
-  Play in game of this data recovery likely hangs the same way on the user's screen; other data recovery maps began.
-- **What would settle it**: the same start on the user's screen, to see the loading screen stay; a data recovery on
-  another map (URB_OfficePaper_EWI began on 15 November) to check SP9's moved wave places there; reading
-  `CreateDebugCovertOperative` to see what makes the pawn and when.
+### T-46: In a hidden run with no mouse in Windows, every load of a save crashes
+**Open** (18 November 2026, EXP-72 runs 12 to 14 and a traced run; no EXP file for the last).
+- **What**: with the mouse and keyboard away from Windows (the stand-in mouse in use, T-45), the game crashes about
+  1.4 seconds after a save's `LoadMap ... LoadingFromShell=1`, with an access violation and no dump: Long War's reload
+  of Police Station's data recovery (runs 12 and 13, with and without a SHIV) and a quicksave loaded from the pause
+  menu on URB_Bar (run 14). The battles themselves start and play; only the load crashes.
+- **Not seen in the stand-in's calls**: a run with its trace on (`XCOM_STAND_IN_INPUT_TRACE=1`) showed the game
+  polling the stand-in mouse every frame and nothing else at the load: no release, no new device, no other call.
+- **Cause**: not known. Every load that worked had a real mouse (EXP-57, EXP-70, EXP-71, the 17 November save
+  checks). So it is either the stand-in, or the missing mouse somewhere outside DirectInput.
+- **What would settle it**: the same load with the mouse there, once with the stand-in forced (`--stand-in-input`)
+  and once without it.
+
+### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative copies a SHIV
+**Fixed** (18 November 2026: EXP-72 runs 12 and 13 began; runs 5, 10 and 11 had not).
+- **What**: on URB_PoliceStation's Data recovery (EXALT, `eMission_CaptureAndHold`) the loading movie never stopped.
+  Long War never saved and "Mission Started" never came: `why=PostLevelLoaded` repeated every 0.39 seconds for four
+  minutes. The same on the editor's variant and on the map as installed, with saving on (as an EXALT mission needs
+  under Long War, F-109), and with the mission's open-line options too (run 11).
+- **Cause** (read from the game's script and the logs): with no campaign behind the battle,
+  `XGBattle_SPCovertOpsExtraction.SpawnCovertOperative` makes the stand-in operative with `CreateDebugCovertOperative
+  (squad member 0)`, which copies that unit's looks (`XComHumanPawn(kTemplate.GetPawn()).m_kAppearance`). The editor's
+  test squad had "Tracks", a SHIV (`iType=3`), first. A SHIV's pawn is no human pawn, so the copy read nothing
+  (`Accessed None 'm_kPawn'`), and the operative asked for a body, head, hair and voice of id 0
+  (`CacheRequiredArchetype: Requested missing ... content: Id=0`), which don't exist. The battle waited for them on
+  its loading screen. A MEC trooper's pawn is a human pawn (`XComMecPawn extends XComHumanPawn`), so only a SHIV does
+  this. Data recovery's battle class inherits covert extraction's, so both kinds have it. The two starts that began
+  on 15 November had a soldier first.
+- **Fix** (play.py, missions.py, squadrecords.py): a play of a kind with a covert operative (data recovery, covert
+  extraction) lands the squad's first soldier or MEC trooper first, and the play's notes say who and why. With only
+  SHIVs the play goes ahead and says the battle will stay on its loading screen.
+- **Verified**: run 12 (the editor's squad with Iron Fist first): no `m_kPawn` warning and no content of id 0; the male
+  operative took Iron Fist's head and hair; the loading movie stopped at 8.3 seconds, Long War saved at 15.0, and
+  "Mission Started" came at 16.4. Run 13 (six soldiers) the same. Both then crashed in Long War's reload, a separate
+  matter of the hidden runs without a mouse (T-46).
 
 ### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
 **Verified** (17 November 2026, the lab copy, five starts; no EXP file).

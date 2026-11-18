@@ -55,4 +55,11 @@ setKindOptions(withFlares, [steam, glare, glare, crate]);
 assert.equal(withFlares.options.find(o => o.value === 'flares')?.text, 'Lens flares (2)');
 assert.equal(withFlares.options.find(o => o.value === 'effects')?.text, 'Effects (1)');
 assert.equal(s.options.some(o => o.value === 'flares'), false);
+// the Spawn points kind (new pods and Meld points from the Add panel): a menu line of its own only where there are some
+const newPod = { spawnAdd: 'pod', kind: 'Spawn points' }, newMeld = { spawnAdd: 'meld', kind: 'Spawn points' };
+assert.deepEqual([steam, newPod, crate, newMeld].filter(e => inKind(e, 'spawns')), [newPod, newMeld]);
+const withSpawns = select();
+setKindOptions(withSpawns, [newPod, newMeld, crate]);
+assert.equal(withSpawns.options.find(o => o.value === 'spawns')?.text, 'Spawn points (2)');
+assert.equal(s.options.some(o => o.value === 'spawns'), false);
 console.log('piece_categories: ok');

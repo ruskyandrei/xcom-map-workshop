@@ -537,6 +537,18 @@ def squad_text(records):
     return '(' + ','.join(unit_text(rec) for rec in records) + ')'
 
 
+def soldier_first(resolved):
+    """A playable squad with its first soldier or MEC trooper moved to the front, for a battle whose covert operative
+    takes the first unit's looks (a SHIV has none: missions.LEAD_NOTE). Returns (text, the name of the unit moved, or
+    None when one already led), or (None, None) when the squad has only SHIVs."""
+    records = [u.record for u in resolved.units]
+    lead = next((i for i, r in enumerate(records) if r['kind'] != 'shiv'), None)
+    if lead is None: return None, None
+    if lead == 0: return resolved.text, None
+    order = [records[lead]] + records[:lead] + records[lead + 1:]
+    return squad_text(order), unit_name(resolved.units[lead].unit)
+
+
 # ---- the default squad, and a new unit of each kind ----
 
 DEFAULT_NAME = 'Test squad'

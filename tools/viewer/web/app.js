@@ -20,8 +20,8 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, addFacingPointer, baseEditWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
-         copyTemplateWhy, editCopy, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnEditable,
+import { FAMILIES, KINDS, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, copyEntry, copyEntryOf, copyMarkerRecord, copyRecord,
+         copyTemplateWhy, editCopy, editSpawn, familyOf, identityLines, makeSpawnMarker, paintSpawnMarker, shownEntries, spawnEditable, SPAWN_MARKER_SIZE,
          spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf } from './spawns_view.js';
 import { consumerWords, fromWords, useLines } from './spawn_rules.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
@@ -2020,8 +2020,9 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
 function chooseEntry(entry) {
   chooseToken++;
-  if (!entry) { stopPlacing(); stopZonePlacing(); return; }
-  if (entry.zone) { stopPlacing(); startZonePlacing(); return; }      // the Landing zones kind
+  if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); return; }
+  if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
+  if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
   if (entry.light) {    // the Lights kind's Point Light and Spot Light
     const clip = lightClip(entry.light);
     if (!clip) return;
@@ -3685,7 +3686,27 @@ function zoneEntries() {
             sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
             text: 'landing zone lz drop zone skyranger squad start spawn evac' }];
 }
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries()];
+// The piece list's Spawn points kind (the user, 18 November 2026: new spawns from the Add panel too): a Pod and a Meld
+// point, each placed with a click as a copy of the map's first plain pod or first Meld point (SP7's copies: the Build
+// clones the template, a pod with a pod index of its own), where the spawn family builds
+function spawnAddEntries() {
+  if (!spawnsAvailable() || !spawnFamilyBuilds()) return [];
+  const out = [];
+  for (const kind of SPAWN_COPY_KINDS) {
+    const template = addTemplate(data.spawns, kind);
+    if (!template) continue;
+    const name = KINDS[kind].label, of = short(template.actor);
+    out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points', pkg: `a copy of ${of}`,
+               detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : 'Placed on a tile, with its values',
+               count: (data.spawns ?? []).filter(o => o.kind === kind && !o.landing).length, builds: true,
+               title: `A new ${name.toLowerCase()}: click the tile it is to stand on. It is a copy of ${of}, with its values and the way it faces; `
+                 + 'move, turn, copy, delete and give it values in the Spawns view',
+               sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
+               text: `${name} spawn point ${kind === 'pod' ? 'pod aliens enemies' : 'meld canister'}`.toLowerCase() });
+  }
+  return out;
+}
+const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
 // source to copy: { source, values }, or null for a kind or version this page doesn't know.
 // A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
@@ -6729,6 +6750,44 @@ function copySpawn(key) {
   flashHint(`Copied ${short(o.actor)} a tile east · drag its arrows to place it`);
   return k;
 }
+// A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
+// and the next click places a copy of the kind's template (spawns_view.js addTemplate) on the tile under it
+let spawnPlacing = null;
+function startSpawnPlacing(kind) {
+  const template = addTemplate(data?.spawns, kind);
+  if (!template || !spawnFamilyBuilds()) return;
+  setSpawnsShown(true);
+  const family = KINDS[kind].family;
+  if (spawnFilters[family] === false) {
+    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters(); refreshSpawnMarkers();
+  }
+  spawnPlacing = kind; renderer.domElement.style.cursor = 'crosshair';
+  flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand on · Esc cancels`);
+}
+function stopSpawnPlacing() {
+  if (!spawnPlacing) return;
+  spawnPlacing = null; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
+}
+// One undo step: the copy placed where the click falls (on a piece, else on the ground grid's plane), on the tile under
+// it by whole tiles from its template, at the template's height above its own floor; then picked
+function placeSpawn(clientX, clientY) {
+  const kind = spawnPlacing, template = addTemplate(data?.spawns, kind);
+  stopSpawnPlacing();
+  if (!template) return null;
+  const hit = pick(clientX, clientY)?.point
+    ?? rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundHeight()), new THREE.Vector3());
+  if (!hit) return null;
+  const [tx, ty, tz] = template.location;
+  const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
+  const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
+  const actor = `${template.actor}_copy${++copySerial}`, k = spawnKey('copy', actor);
+  const entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
+  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
+  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
+  setPickedSpawn(k);
+  flashHint(`Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it, [ and ] turn it`);
+  return k;
+}
 // One undo step: a base pod, Meld point or drop-in point deleted (its moves and values go with it), or a copy taken
 // away (SP7).
 function deleteSpawn(key) {
@@ -6782,7 +6841,8 @@ function copyEntries() {
 }
 const spawnDeleted = e => e?.layer === 'base' && Boolean(missionMoves.get(e.key)?.deleted);
 function refreshSpawnMarkers() {
-  for (const child of [...spawnLayer.children]) { child.traverse(o => o.geometry?.dispose()); spawnLayer.remove(child); }
+  // (a halo's geometry is three.js's one for every sprite: only its material is the marker's own)
+  for (const child of [...spawnLayer.children]) { child.traverse(o => (o.isSprite ? o.material.dispose() : o.geometry?.dispose())); spawnLayer.remove(child); }
   spawnEntriesNow = spawnsAvailable() ? [...spawnRecords(data, streamSet, spawnDonor()), ...copyEntries()] : [];
   const shown = shownEntries(spawnEntriesNow, spawnFilters);
   if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) pickedSpawn = null;      // another mission's, or a family hidden
@@ -7024,7 +7084,7 @@ function cancelMissionGizmo() {
 function pickSpawnMarker(clientX, clientY) {
   if (!spawnLayer.visible || !spawnLayer.children.length) return null;
   const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  let best = null, bestD = 12;
+  let best = null, bestD = 18;          // (about the halo's size on screen)
   for (const marker of spawnLayer.children) {
     marker.updateWorldMatrix(true, false);
     p.setFromMatrixPosition(marker.matrixWorld).project(camera);
@@ -7077,7 +7137,7 @@ function showSpawn(actor, stream = null) {
 }
 function scaleSpawnMarkers() {
   if (!spawnLayer.visible) return;
-  for (const marker of spawnLayer.children) scaleMarker(marker, camera, marker.position);
+  for (const marker of spawnLayer.children) { scaleMarker(marker, camera, marker.position); marker.scale.multiplyScalar(SPAWN_MARKER_SIZE); }
 }
 // The Spawns view on or off (Shift+U, the rail's button): the other views step aside, the selection goes, and the
 // landing zones show (a click on one describes it)
@@ -7094,6 +7154,7 @@ function setSpawnsShown(on) {
     landingLayer.visible = true;
   } else {
     spawnZonePick = null;
+    stopSpawnPlacing();     // a spawn point asked for from the Add panel and not placed yet goes with its view
     if (!spawnLandingBefore) landingLayer.visible = false;
   }
   spawnsOn = on;
@@ -9924,6 +9985,10 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     missionMoves: () => [...missionMoves.values()], moveMissionGroup,
     // (a base spawn point: turned, given values, back as the map has it; SP6)
     editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden, copySpawn, deleteSpawn, editSpawnCopy,
+    spawnAddEntries, startSpawnPlacing, placeSpawn, spawnPlacing: () => spawnPlacing,
+    // where a game point is drawn in the view's canvas (client pixels), for clicks at a tile
+    clientAt: ([x, y, z]) => { const p = gameToView([x, y, z]).project(camera), r = renderer.domElement.getBoundingClientRect();
+                               return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; },
     // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
     setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
     pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
@@ -10161,6 +10226,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (volumesOn) { if (e.button === 0) volumeClick(e); return; }
   if (assigning) { const target = pick(e.clientX, e.clientY); if (target) assignOwner(target); else flashHint('Click the glowing piece'); return; }
   if (zonePlacing) { if (e.button === 0) placeZone(e.clientX, e.clientY); return; }
+  if (spawnPlacing) { if (e.button === 0) placeSpawn(e.clientX, e.clientY); return; }
   // the Landing zones view: only zones are picked; a click beside them lets the picked one go
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
   // the Effects view: only its markers are picked; a click beside them lets the picked one go
@@ -10543,6 +10609,7 @@ document.addEventListener('keydown', e => {
   if (gridDrag) { if (key === 'escape') endGridDrag(false); e.preventDefault(); return; }
   if (gridTool && key === 'escape' && !pickedZone && !selected && !placing) { setGridTool(false); e.preventDefault(); return; }
   if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
+  if (spawnPlacing && key === 'escape') { stopSpawnPlacing(); e.preventDefault(); return; }
   // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
   // go (Ctrl+Z undoes as for anything)
   if (pickedZone && !selected && !e.altKey) {
