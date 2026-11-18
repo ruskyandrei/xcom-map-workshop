@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-78 prepared: the farm's earth mounds replaced by made ground, and a hole half covered** (custom geometry plan,
+  M6, run F's second part; branch `fracturing-wall-poc`).
+  - [EXP-78](research/experiments/EXP-78-farm-ground.md) and its project
+    [exp78_project.py](tools/editor/examples/exp78_project.py), on CsmallScout_Farm. It deletes the crash site's
+    mounds (`XComLevelActor_28`, the ten-hull TornEarth piece) and puts a Dirt block and ramp in part of their place,
+    from the crater floor up to the field. It also deletes the ground plane `XComLevelActor_145`, covering half its
+    hole with a Grass patch.
+  - The run checks four things: units walk up and down the made ramp; nothing of the old mounds' floor is left;
+    units can stand on the patch; and the uncovered half behaves as F-46 says.
+  - Built baked on a test server (97 components relit; the made pieces lit from nothing). Not played yet.
+
 - **A Build on the farm map finds its DefaultMaps.ini records** (found preparing EXP-78; a fix for main as well).
   - [build.py](tools/editor/build.py) `base_records` and `config_lines` match the base map's name whatever its case,
     as the game does, in its DefaultMaps.ini records, landing-zone lines and mini-mod rules. The farm's file is
