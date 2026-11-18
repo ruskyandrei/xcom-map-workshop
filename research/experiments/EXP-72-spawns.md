@@ -83,3 +83,50 @@ What the run showed (the hidden game, out folder `<lab>\hidden-runs\sp4-added-bo
 Side observations, not followed: one pod stood at z 457 on this cleared map (Long War's pod mutator places pods
 on the game's floor tiles); the mutator's lines appear twice in the log, a second pass 0.8 seconds after the first
 with the same places.
+
+## Run 3: scripted drop-ins as Long War plays them (SP8, the baseline)
+
+**Played 18 November 2026: passed, after one console change that let a drop-in fire at all.**
+
+The project `EXP-72 Pier A drop-ins as Long War` on URB_PierA (variant `URB_PierA_X72L`, Council rescue: "Escort
+Sgt. Carlock to the Skyranger"), with no spawn rule; its one edit (an emitter deleted) only makes it a build. The
+question: where does a scripted drop-in (a `SeqAct_SpawnAlien` of `URB_PierA_Stream`) land under Long War's drop-in
+mutator?
+
+What the run showed (out folder `<lab>\hidden-runs\sp8-dropins-lw`):
+- Four turns ended and four trigger volumes walked into: no drop-in. Read offline (`tools/upk/kismet_links.py`): each
+  of the stream's six `SeqAct_SpawnAlien` runs at the end of the alien turn while the VIP isn't saved and a pod flag
+  is set; a trigger volume sets its flag only while the Kismet's AlienCap (the roaming-alien count less 2) is at least
+  1. This start read AlienCap -2, so no drop-in could be armed. Whether a real campaign's Council rescue gives the
+  map roaming aliens wasn't looked at.
+- Second take: AlienCap set to 5 by console (`set URB_PierA_Stream.TheWorld:PersistentLevel.Main_Sequence.SeqVar_Int_32
+  IntValue 5`), a soldier walked into `TriggerVolume_4` at (552, 1176). At the end of the alien turn the log reads
+  `XComSpawnAlienMutator: found obj SeqAct_SpawnAlien_12`, "Found good unit" for four soldiers, 55 "Found good cover
+  point" lines and `SpawnLoc = -427.56,431.44,0.00`. The new unit `XGUnit_18` stands at (-433, 431, 58): 14 and 16
+  tiles from the action's own two points, (523, 1681) and (-530, 1778), 11 tiles from the nearest soldier. The shot
+  (`dropin_unit18.png`) shows Sectoids by the containers there.
+
+So Long War's mutator puts a scripted drop-in at a cover point of its own choosing near the squad, not at the
+action's points: what the rule is for.
+
+## Run 4: scripted drop-ins land where placed (SP8)
+
+**Played 18 November 2026: passed.**
+
+The project `EXP-72 Pier A drop-ins placed` (variant `URB_PierA_X72P`), the same map and mission with
+`spawnRules: {"dropIns": "placed"}`. Play in game wrote its line into the lab copy's `DefaultRandomSpawns.ini`,
+section `[XComLZMutator.XComSpawnAlienMutator]`: `ExcludeMaps = "URB_PierA_X72P"`, under a comment line of the
+editor's. Run 3's steps were repeated (AlienCap 5, a soldier into `TriggerVolume_4`, end of turn).
+
+What the run showed (out folder `<lab>\hidden-runs\sp8-dropins-placed`):
+- The game rewrote its generated `XComRandomSpawns.ini` with the new ExcludeMaps entry at the start: the Default
+  file alone is enough.
+- At the end of the alien turn, for `SeqAct_SpawnAlien_12` and for `SeqAct_SpawnAlien_61` (another drop-in AlienCap
+  armed), the log reads `XComSpawnAlienMutator: current map(URB_PierA_X72P) found in ExcludeMaps list, skipping to
+  defaults.`, with no "Found good unit", cover point or SpawnLoc line. (The mutator writes "found obj …" before it
+  reads the list, so that line shows on an excluded map too.)
+- The new units stand on their actions' own points: `XGUnit_17` at (523, 1681, 67) on `SeqAct_SpawnAlien_12`'s
+  (523, 1681), `XGUnit_18` at (-1198, 3316, 67) on `SeqAct_SpawnAlien_61`'s, 4.4 tiles from a soldier (the mutator
+  never drops closer than 7). The shot (`dropin_unit17.png`) shows a Thin Man by a crate there.
+
+So the rule's line is read by Long War and the drop-ins land where the map (or the project) placed them.
