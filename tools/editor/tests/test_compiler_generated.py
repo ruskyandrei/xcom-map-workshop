@@ -191,6 +191,26 @@ class GeneratedTests(unittest.TestCase):
         self.assertEqual(w.get('record'), 'added[0]')
         self.assertEqual(run([(-16.0, 192.0), (192.0, 384.0), (384.0, 576.0)]), [])
 
+    def test_a_slab_under_a_cursor_floor_break_is_warned(self):
+        # (F-128, EXP-76 run E) URB_Bar's cursor floors break at 210 and 402: a made floor whose top is at 194 is 16
+        # under the break, so floor 0's cursor lands on it; one whose top is on the break is not warned
+        floor = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[], look='floor'))
+
+        def run(z):
+            doc = document((), [made(floor, at=(0, 1212, z))], schemaVersion=4)
+            s = scene()
+            s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
+            s['exporterVersion'] = max(20, s.get('exporterVersion') or 0)
+            s['cursorVolumes'] = [dict(floor=n + 1, box=dict(min=[-5000.0, -5000.0, lo], max=[5000.0, 5000.0, hi]))
+                                  for n, (lo, hi) in enumerate([(0.0, 210.0), (210.0, 402.0), (402.0, 594.0)])]
+            _, report = compile_project(doc, s)
+            self.assertTrue(report['ok'], refused(report))
+            return [w for w in report['warnings'] if w['code'] == 'slab-under-cursor-break']
+
+        (w,) = run(0.0)
+        self.assertIn('16 under', w['message'])
+        self.assertEqual(run(16.0), [])
+
     def test_a_ground_shape_copies_a_plain_piece_in_its_own_box(self):
         # (M6) a block, a ramp and a patch on XComLevelActor_1's copies: their boxes their own (a patch under the ground
         # it lies on), their height free; noted; a ramp over 10 degrees noted sloped, one over 45 warned; on a fracturing

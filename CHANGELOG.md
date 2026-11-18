@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A warning for a made floor or roof under a cursor floor's break** (custom geometry plan, M5; F-128; branch
+  `fracturing-wall-poc`).
+  - [compiler.py](tools/editor/compiler.py) made_slabs_on_cursor_floors: a made slab whose top is under one of the
+    map's cursor floor breaks (within half a storey, more than 2 units off) is warned (`slab-under-cursor-break`).
+    The cursor of the floor below lands on it, and a room under it isn't cut away on the floor above, as EXP-76's
+    room on URB_Bar's lot showed (its floor's top at 194, the bar's breaks at 210 and 402).
+  - Checked: [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py)
+    test_a_slab_under_a_cursor_floor_break_is_warned (194 under 210 warned, 210 not); the editor suite.
+  - The fix itself (slabs kept to the breaks, or cursor floors of the room's own) is not chosen yet (F-128).
+
 - **The editor's look picker and eyedropper** (custom geometry plan, M4c; branch `fracturing-wall-poc`).
   - The server lists each kind's looks (`/looks/walls.json`, `slabs.json`, `ground.json`, from looks.listing:
     [viewer.py](tools/viewer/viewer.py)). The page reads them once ([looks.js](tools/viewer/web/looks.js)), and a

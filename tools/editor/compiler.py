@@ -324,6 +324,7 @@ SCENERY_LOW = 32.0
 # The cursor's floors (the export's cursorVolumes, export 20): a building's floor should start within CURSOR_NEAR of
 # where one starts. A map with none gets CURSOR_STOREYS even storeys of CURSOR_STOREY from the Build (shell.py).
 CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
+CURSOR_BREAK_SLACK = 2.0    # a made slab's top this near a cursor floor's break is on it (made_slabs_on_cursor_floors)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1491,6 +1492,32 @@ class Compiler:
                               'piece to another only as high as the blast reached)'
                               % (upper['label'], lower['label'], lower['label']), **where)
                     break
+
+    def made_slabs_on_cursor_floors(self):
+        """A warning for each floor or roof made from numbers whose top is not on a break of the map's cursor floors
+        (cursor_storeys) but under one (F-128, EXP-76 run E): the cursor of the floor below looks down from the break and
+        lands on it, and a room under it is not cut away on the floor above. The game's slabs stand on the breaks:
+        URB_Bar's upper floor's top is at 210, where its cursor floors break."""
+        storeys = self.cursor_storeys() if self.made_slabs else None
+        if not storeys:
+            return
+        for c, where in self.made_slabs:
+            box = c.get('box')
+            if not box:
+                continue
+            cx, cy, top = (box[0] + box[1]) / 2, (box[2] + box[3]) / 2, box[5]
+            over = [b for _, b in storeys if b[0] <= cx <= b[3] and b[1] <= cy <= b[4]]
+            breaks = sorted({b[2] for b in over} | {b[5] for b in over})
+            if not breaks or min(abs(z - top) for z in breaks) <= CURSOR_BREAK_SLACK:
+                continue
+            above = [z for z in breaks if z > top]
+            if not above or min(above) - top > CURSOR_STOREY / 2:
+                continue
+            z = min(above)
+            self.warn('slab-under-cursor-break', "%s's top, %g, is %g under the map's cursor floor break at %g: the cursor "
+                      'of the floor below it lands on it, and a room under it is not cut away on the floor above (the '
+                      "game's floors and roofs have their tops on the cursor floors' breaks)"
+                      % (c['label'], round(top, 2), round(z - top, 2), round(z, 2)), **where)
 
     def made_slabs_in_floors(self):
         """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
@@ -4924,6 +4951,7 @@ class Compiler:
             self.floor_headroom()
             self.buildings()
             self.made_slabs_in_floors()
+            self.made_slabs_on_cursor_floors()
             self.landing_zones()
             self.missions_check()
             self.stage_outside()
