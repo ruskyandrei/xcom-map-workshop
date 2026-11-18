@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-76 run E, second pass written; F-128** (custom geometry plan, M5; branch `fracturing-wall-poc`).
+  - [EXP-76](research/experiments/EXP-76-floors-and-roofs.md): with the room's floors at 192 and 384, floor 0 cuts
+    the room away from inside. A grenade broke the long made floor only near the blast, its east end standing, so the
+    first pass's whole-floor break was the blast's reach. Saving and loading kept the hole and the soldiers.
+    Floor 1 still draws the room whole, and the cursor takes the made floor on floor 0.
+  - [F-128](research/findings-register.md) (open): URB_Bar's map-wide cursor floors break at 210 and 402, matched to
+    the bar's own floors 16 up, so the cursor looks down from over the room's made floor. The fixes not yet chosen are
+    listed there.
+  - Checked against the run's pictures (the cursor's readings, the floor 1 view of the room, the long floor after the
+    break).
+
 - **Looks named by their donor: looks.py and the request versions** (custom geometry plan, M4a; branch
   `fracturing-wall-poc`).
   - [looks.py](tools/bake/looks.py) is new. It reads the catalogues (tools/bake/looks/walls.json, slabs.json,

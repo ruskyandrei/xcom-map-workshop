@@ -1,6 +1,6 @@
 # EXP-76: a made upper floor and roof over a room of made walls (custom geometry plan, M5, run E)
 
-Date: 18 November 2026. Status: **prepared**. Part of the custom geometry plan's stage M5 (branch
+Date: 18 November 2026. Status: **played, two passes**: the slabs load, look right, are walked on and break near the blast, and saving keeps them; the room is cut away from inside on floor 0 but not on floor 1, and the cursor takes the made floor on floor 0 ([F-128](../findings-register.md)). Part of the custom geometry plan's stage M5 (branch
 `fracturing-wall-poc`): floor and roof slabs made from numbers. Each is a copy of one of the game's fracturing slabs
 with its own mesh (tools/bake/frac_slab.py), columns by the slabs' rule, and the donor's floor flags. Played
 unattended in the lab copy (the hidden game, the game-test skill), checking only what is new.
@@ -83,6 +83,38 @@ the long floor added.
    they stood.
 
 ## Result
+
+### Run E, second pass (18 November 2026)
+
+Played unattended in the lab copy on the rebuilt map (the room's floors breaking at 192 and 384, a roof floor, the
+long floor). Pictures are in `<lab>\hidden-runs\exp76-runE2`.
+
+3. **Cut away: floor 0 passed, floor 1 failed.**
+   - Floor 0, a soldier on the ground in the room: neither the made floor nor the roof is drawn and the walls are cut
+     to their lower storey; the soldiers inside are drawn whole (in the first pass they showed as outlines under the
+     slabs). The fix of 0ef5535 took.
+   - Floor 1, the view raised one floor with the soldier still inside: the room is drawn whole, its walls full height
+     and the gravel roof over it (the top-down picture shows the roof, no hole). Expected: the made floor drawn, the
+     roof not. Floor 2 looks the same.
+5. **The cursor inside: failed, as in the first pass.** On floor 0 the cursor reads 258 on the room's tiles (the made
+   floor's top, 194, and a unit's 64) from inside the room and from outside it; on floors 1 and 2 it reads 450 (the
+   roof). A soldier put there with TeleportToCursor on floor 0 stood on the made floor; walk orders with the cursor at
+   258 still walked soldiers on the ground.
+   - Cause, as far as known: URB_Bar's cursor floors are four map-wide volumes breaking at 210, 402 and 594 (the
+     export's cursorVolumes), 16 over the room's floors, because the bar's own floors stand 16 up (its upper floor's
+     top is at 210). Floor 0's cursor looks down from 210 and meets the made floor at 194 first; floor 1's from 402
+     meets the roof at 386. The camera's floor then puts the cursor in the room's floor 2, so nothing is cut on floor
+     1. The room's building has floor volumes of its own at 192 and 384 (buildings.py makes one for each floor box),
+     and the cursor does not follow them. [F-128](../findings-register.md).
+6. **How far a grenade breaks a made floor: passed, only near the blast.** A soldier stood on the long floor at
+   (-1009, -1297), z 264. A grenade on its west end burst at (-1647, -1302). Afterwards the three west tiles had no
+   floor (-1681 and -1585 read 128, -1489 the ground at 64; their centres up to 158 from the blast) and every tile
+   from -1393 east was still floor (258; 254 from the blast and beyond). The soldier stayed on the slab, and the side
+   picture shows the slab ending short of its west end. So the room's whole floor going in the first pass was the
+   blast's reach covering the whole room, as the game's rule has it.
+   - Not looked into: the two west tiles read 128, a surface 64 over the ground, after the break.
+7. **Save and load: passed.** A quicksave after the break and its load: every soldier stood where he had, and the
+   long floor read the same tile by tile.
 
 ### Run E, first pass (18 November 2026)
 

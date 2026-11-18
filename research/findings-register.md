@@ -294,6 +294,21 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-128: The cursor takes a room's made floor on floor 0, and the room isn't cut away on floor 1, where the map's cursor floors break higher than the room's
+**Open** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass).
+- **Seen.** In a room of made walls with a made floor (top 194) and roof (top 386) on URB_Bar's lot, the cursor on
+  floor 0 lands on the made floor and on floors 1 and 2 on the roof, from inside the room or outside it. With a
+  soldier on the ground inside, floor 0 cuts the room away as it should; floor 1 draws it whole, roof and all.
+- **Why, as far as known.** The cursor's floors on URB_Bar are four map-wide floor volumes breaking at 210, 402 and
+  594 (the export's cursorVolumes), matched to the bar's own floors, which stand 16 up (its upper floor's top at 210).
+  The room stands on the lot at 0, so its floors break at 192 and 384: floor 0's cursor, looking down from 210, meets
+  the made floor first. The room's building has floor volumes of its own at its floors (buildings.py), and the cursor
+  does not follow them.
+- **What could fix it** (not chosen): the room tool and the made slabs keep to the map's cursor floors (the made
+  floor's top on a break, as the game's slabs are), or the room brings cursor floors of its own over its footprint,
+  if the game takes them over the map-wide ones (to be tried). Meanwhile the compiler could warn of a made slab whose
+  top is not on a cursor floor's break.
+
 ### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
 **Explained: the game's own walls do the same** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B; [EXP-75](experiments/EXP-75-joined-walls.md) run C).
 - **Seen.** A grenade by a 16-tile made wall took its lower storey out over about four tiles; its upper storey still
