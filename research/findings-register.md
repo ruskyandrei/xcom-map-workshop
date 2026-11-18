@@ -421,6 +421,16 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 
 ## Damage and glass
 
+### T-47: Grounded units have a post-destruction landing event
+
+**Open** for fractured floor tiles. The installed pawn script waits for the tile rebuild, skips units in flight,
+snaps down to a collision surface and refreshes the tactical position. A destructible prop's mesh-swap action
+dispatches the event for pawns based on it. A fragment disappearing from a floor has yet to demonstrate that
+dispatch, a valid landing or a tactical HP loss. A fractured column can damage linked props and pass a hit to
+one neighbouring column per link. A multi-storey support rule needs additional logic.
+See the [floor collapse audit](experiments/EXP-28-floor-collapse-audit.md) for the donors, native caller,
+Kismet options and gameplay controls.
+
 ### F-07: Explosions treat our cars exactly like the map's
 **Verified** (EXP-05 runs 3 and 7). A reference fact, not a defect.
 - Damage = the projectile's `WorldDamage` (35) × random 0.75–1.25 × distance falloff 0.5–1.

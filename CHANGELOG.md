@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Research on destructible floors, falling units and structural support
+
+The [floor collapse audit](research/experiments/EXP-28-floor-collapse-audit.md) and
+[finding T-47](research/findings-register.md#t-47-grounded-units-have-a-post-destruction-landing-event)
+trace EW's existing landing event to a destructible prop's mesh swap and distinguish it from a fractured slab
+losing a tile. The audit covers furniture, map-authored support thresholds and cascades shared across maps.
+Checked the custom geometry branch's slab survey against 175 actors in the installed LWR maps, inspected the
+game scripts and native caller, and ran the repo suite. Landing on a lower floor after a generated slab breaks,
+fall damage and an authored support threshold still need gameplay checks.
+
 ### A ground patch stands a unit over the ground
 
 - [ground.py](tools/bake/ground.py) (`PATCH_LIFT`), [compiler.py](tools/editor/compiler.py) `ground_box` and
