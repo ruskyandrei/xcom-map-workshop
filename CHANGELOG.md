@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The editor draws made pieces in looks named by their donor** (custom geometry plan, M4a; branch
+  `fracturing-wall-poc`).
+  - [generated.py](tools/viewer/generated.py): the made-piece meshes take a look `{mesh, measure}` (a ground look's
+    also its material), checked and kept in one spelling.
+  - Each is built in the recipe the catalogue holds for it, with as many sections as its donor has (the recipe's
+    `sections`) in place of the fixed 6, 2 and 1.
+  - A donor look no catalogue holds isn't drawn; the answer says the Build measures it.
+  - Checked: [test_generated.py](tools/viewer/tests/test_generated.py) DonorLooks (one spelling, bad looks refused,
+    an uncatalogued one not drawn); the generated tests pass.
+
 - **The compiler takes looks named by their donor** (custom geometry plan, M4a; branch `fracturing-wall-poc`).
   - [compiler.py](tools/editor/compiler.py): a wall's request version 3 and a slab's or ground shape's version 2 are
     well formed with a look `{mesh, measure}` (a ground look's also `material`). Older versions keep their look ids.

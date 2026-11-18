@@ -157,5 +157,27 @@ class Ground(unittest.TestCase):
                 generated.Meshes().ground(text)
 
 
+class DonorLooks(unittest.TestCase):
+    """Looks named by their donor (custom geometry plan, M4): checked and kept in one spelling; one no catalogue holds
+    can't be drawn here (the Build measures it)."""
+
+    def test_a_donor_look_is_kept_in_one_spelling(self):
+        look = {'mesh': 'Pkg.Meshes.WallB_FRACTURED', 'measure': 1, 'extra': 'dropped'}
+        wall = generated.wall_numbers(json.dumps(dict(x0=0, x1=384, look=look)))
+        self.assertEqual(wall['look'], {'mesh': 'Pkg.Meshes.WallB_FRACTURED', 'measure': 1})
+        for bad in ({'mesh': 'NoDot', 'measure': 1}, {'mesh': 'Pkg.Meshes.WallB', 'measure': 0}, 'marble'):
+            with self.assertRaises(generated.GeneratedError):
+                generated.wall_numbers(json.dumps(dict(x0=0, x1=384, look=bad)))
+        with self.assertRaises(generated.GeneratedError):        # a ground look names its material too
+            generated.ground_numbers(json.dumps(dict(shape='patch', x0=0, x1=96, y0=0, y1=96,
+                                                     look={'mesh': 'Pkg.Meshes.Plane', 'measure': 1})))
+
+    def test_a_donor_look_no_catalogue_holds_is_not_drawn(self):
+        look = {'mesh': 'Nowhere.Meshes.WallZ_FRACTURED', 'measure': 1}
+        with self.assertRaises(generated.GeneratedError) as caught:
+            generated.Meshes().fracwall(json.dumps(dict(x0=0, x1=384, look=look)))
+        self.assertIn('measures it', str(caught.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

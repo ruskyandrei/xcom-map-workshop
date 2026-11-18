@@ -11,7 +11,11 @@ alone, so no map is read. Meshes are kept by their numbers while the server runs
 A floor or roof slab made from numbers (kind 'fracSlab': tools/bake/frac_slab.py, custom geometry plan M5) is drawn
 the same way: GET /generated/fracslab.glb?slab=<its numbers as JSON>, its two sections (the top with the edges, the
 underside) in slot order. A ground shape (kind 'ground': tools/bake/ground.py, M6): GET /generated/ground.glb?ground=
-<numbers>, its one section."""
+<numbers>, its one section.
+
+A piece whose look is named by its donor (custom geometry plan, M4: `look: {mesh, measure}`, a ground look's also its
+material; tools/bake/looks.py) is drawn in the recipe the catalogue holds for it, with as many sections as its donor
+has (the recipe's `sections`); a donor look no catalogue holds can't be drawn here (the Build measures it)."""
 from collections import OrderedDict
 import json
 import math
@@ -26,6 +30,7 @@ if str(HERE.parent / 'bake') not in sys.path:
 import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
 import ground as ground_shapes  # noqa: E402
+import looks  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
 CACHE_SIZE = 32
@@ -41,6 +46,29 @@ MAX_HOLES = 32
 
 class GeneratedError(ValueError):
     pass
+
+
+def donor_look(kind, look):
+    """A look named by its donor, checked and in one spelling ({mesh, measure}, a ground look's also its material);
+    GeneratedError when malformed."""
+    try:
+        looks.check_look(kind, look)
+    except looks.LookError as error:
+        raise GeneratedError(str(error))
+    return {k: look[k] for k in ('mesh', 'material', 'measure') if k in look}
+
+
+def with_recipe(kind, numbers):
+    """The numbers with their donor look's recipe put in (looks.resolve, from the catalogues), and how many sections
+    the piece has: (numbers, sections or None for a look id's). GeneratedError for a donor look no catalogue holds."""
+    look = numbers.get('look')
+    if not isinstance(look, dict):
+        return numbers, None
+    try:
+        resolved = looks.resolve(kind, look)
+    except looks.LookError as error:
+        raise GeneratedError('%s (the Build measures it from its donor)' % error)
+    return dict(numbers, look=resolved), int(resolved['recipe'].get('sections') or 0) or None
 
 
 def wall_numbers(text):
@@ -76,10 +104,12 @@ def wall_numbers(text):
     ends = wall.get('ends', ['free', 'free'])
     if not isinstance(ends, list) or len(ends) != 2 or any(e not in frac_wall.END_INSETS for e in ends):
         raise GeneratedError("a wall's ends are each %s" % ', '.join(frac_wall.END_INSETS))
-    # its look (M4 item 1): the default left out
+    # its look (M4 item 1): the default left out; or named by its donor (M4)
     look = wall.get('look', frac_wall.DEFAULT_LOOK)
-    if look not in frac_wall.LOOKS:
-        raise GeneratedError('a wall\'s look is one of %s' % ', '.join(frac_wall.LOOKS))
+    if isinstance(look, dict):
+        look = donor_look('wall', look)
+    elif look not in frac_wall.LOOKS:
+        raise GeneratedError('a wall\'s look is one of %s, or its donor {mesh, measure}' % ', '.join(frac_wall.LOOKS))
     return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}),
                 **({'ends': list(ends)} if ends != ['free', 'free'] else {}),
                 **({'look': look} if look != frac_wall.DEFAULT_LOOK else {}))
@@ -106,10 +136,12 @@ def slab_numbers(text):
     out = dict(x0=float(slab['x0']), x1=float(slab['x1']), y0=float(slab['y0']), y1=float(slab['y1']),
                holes=[{k: float(h[k]) for k in ('x0', 'x1', 'y0', 'y1')} for h in holes], seed=slab.get('seed', 1))
     look = slab.get('look', frac_slab.DEFAULT_LOOK)
-    if look != frac_slab.DEFAULT_LOOK:
+    if isinstance(look, dict):
+        out['look'] = donor_look('slab', look)
+    elif look != frac_slab.DEFAULT_LOOK:
         out['look'] = look
     try:
-        frac_slab.check(out)
+        frac_slab.check(with_recipe('slab', out)[0])
     except ValueError as error:
         raise GeneratedError(str(error))
     return out
@@ -124,8 +156,10 @@ def ground_numbers(text):
         raise GeneratedError('a ground shape is its numbers as JSON')
     if not isinstance(g, dict):
         raise GeneratedError('a ground shape is its numbers as JSON')
+    if isinstance(g.get('look'), dict):
+        g = dict(g, look=donor_look('ground', g['look']))
     try:
-        ground_shapes.check(g)
+        ground_shapes.check(with_recipe('ground', g)[0])
     except (ValueError, TypeError) as error:
         raise GeneratedError(str(error))
     out = dict(shape=g['shape'], **{k: float(g[k]) for k in ('x0', 'x1', 'y0', 'y1')})
@@ -197,7 +231,8 @@ class Meshes:
             if key in self.kept:
                 self.kept.move_to_end(key)
                 return self.kept[key]
-        return self.made(key, lambda: frac_wall.build(wall), SLOTS, 'wall')
+        built, sections = with_recipe('wall', wall)
+        return self.made(key, lambda: frac_wall.build(built), sections or SLOTS, 'wall')
 
     def fracslab(self, text):
         """The GLB of the slab whose numbers are the JSON `text`."""
@@ -207,7 +242,8 @@ class Meshes:
             if key in self.kept:
                 self.kept.move_to_end(key)
                 return self.kept[key]
-        return self.made(key, lambda: frac_slab.build(slab), SLAB_SLOTS, 'slab')
+        built, sections = with_recipe('slab', slab)
+        return self.made(key, lambda: frac_slab.build(built), sections or SLAB_SLOTS, 'slab')
 
     def ground(self, text):
         """The GLB of the ground shape whose numbers are the JSON `text`."""
@@ -217,7 +253,8 @@ class Meshes:
             if key in self.kept:
                 self.kept.move_to_end(key)
                 return self.kept[key]
-        return self.made(key, lambda: ground_shapes.build(shape), GROUND_SLOTS, 'ground shape')
+        built, sections = with_recipe('ground', shape)
+        return self.made(key, lambda: ground_shapes.build(built), sections or GROUND_SLOTS, 'ground shape')
 
     def made(self, key, build, slots, what):
         mesh = viewer_mesh(build())
