@@ -250,6 +250,24 @@ class HeldFiles(unittest.TestCase):
             self.assertTrue(hidden_game.remove_held(path))           # (already gone)
 
 
+class DxvkSettings(unittest.TestCase):
+    def test_the_run_turns_dxvks_texture_budget_off(self):
+        with tempfile.TemporaryDirectory() as work:
+            path = hidden_game.dxvk_config(work)
+            self.assertEqual(path, Path(work) / 'dxvk.conf')
+            self.assertEqual(path.read_bytes(), b'd3d9.textureMemory = 0\n')
+
+
+class CrashLogPlan(unittest.TestCase):
+    def test_the_crash_log_puts_the_dll_beside_the_game_with_both_devices_there(self):
+        dll = Path('dinput8.dll')
+        got, note = hidden_game.input_plan((1, 1), dll, crash_log=True)
+        self.assertEqual(got, dll)
+        self.assertIn('crash log', note)
+        self.assertEqual(hidden_game.input_plan((0, 1), dll, crash_log=True)[0], dll)
+        with self.assertRaises(hidden_game.RunError): hidden_game.input_plan((1, 1), None, crash_log=True)
+
+
 class StandInDll(unittest.TestCase):
     """The built stand-in (<lab>\\bin\\dinput8.dll, build_stand_in_input.py) in a 32-bit process outside the game: the
     calls the game makes on the system mouse and keyboard answer as a still device (StandInInputCheck.cs)."""
@@ -276,6 +294,17 @@ class StandInDll(unittest.TestCase):
             self.assertIn('ok   mouse GetDeviceState: all zero', done.stdout)
             self.assertEqual(log.read_text().splitlines(), ['system mouse: the stand-in (asked for)',
                                                             'system keyboard: the stand-in (asked for)'])
+            # the crash log (T-46): a fault on another thread is named, with its module, what it read and the stack
+            log.unlink()
+            env = dict(os.environ, XCOM_STAND_IN_INPUT_LOG=str(log), XCOM_STAND_IN_CRASH_LOG='1',
+                       XCOM_STAND_IN_CHECK_FAULT='1')
+            subprocess.run([str(exe), str(dll)], capture_output=True, text=True, env=env)
+            lines = log.read_text().splitlines()
+            self.assertEqual(lines[0], 'crash log: on')
+            fault = next(line for line in lines if line.startswith('crash: thread'))
+            self.assertRegex(fault, r'^crash: thread \d+ \(another\) code 0xc0000005 at \S+\+0x[0-9a-f]+ reading 0x10$')
+            self.assertTrue(any(line.startswith('crash: edi=') for line in lines), lines)
+            self.assertTrue(any(line.startswith('crash: stack ') for line in lines), lines)
 
 
 class Arguments(unittest.TestCase):

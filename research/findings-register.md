@@ -12,8 +12,6 @@ Statuses:
 
 ## Open now
 
-- T-46: in a hidden run with no mouse in Windows every load of a save crashes (Long War's EXALT reload included), so
-  EXP-72 run 5's moved wave places wait for a run with the mouse there (18 November).
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -2705,18 +2703,34 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   CreateDevice fails, the stand-in is given).
 - A player's own game has a mouse, so this only stops unattended runs.
 
-### T-46: In a hidden run with no mouse in Windows, every load of a save crashes
-**Open** (18 November 2026, EXP-72 runs 12 to 14 and a traced run; no EXP file for the last).
-- **What**: with the mouse and keyboard away from Windows (the stand-in mouse in use, T-45), the game crashes about
-  1.4 seconds after a save's `LoadMap ... LoadingFromShell=1`, with an access violation and no dump: Long War's reload
-  of Police Station's data recovery (runs 12 and 13, with and without a SHIV) and a quicksave loaded from the pause
-  menu on URB_Bar (run 14). The battles themselves start and play; only the load crashes.
-- **Not seen in the stand-in's calls**: a run with its trace on (`XCOM_STAND_IN_INPUT_TRACE=1`) showed the game
-  polling the stand-in mouse every frame and nothing else at the load: no release, no new device, no other call.
-- **Cause**: not known. Every load that worked had a real mouse (EXP-57, EXP-70, EXP-71, the 17 November save
-  checks). So it is either the stand-in, or the missing mouse somewhere outside DirectInput.
-- **What would settle it**: the same load with the mouse there, once with the stand-in forced (`--stand-in-input`)
-  and once without it.
+### T-46: In a hidden run, every load of a save with aliens in the battle crashes: DXVK's texture budget
+**Fixed** (18 November 2026, EXP-72 runs 12 to 16; the mouse was a wrong lead).
+- **What**: in a hidden run the game crashed about 1.4 seconds after a save's `LoadMap ... LoadingFromShell=1`, just
+  after `XGBattle_SP.PostLoadSaveGame`, with an access violation, nothing in `Launch.log` and no dump: Long War's
+  reload of Police Station's data recovery (runs 12 and 13) and a quicksave loaded from the pause menu on URB_Bar
+  (run 14, a traced rerun, and a rerun with the mouse and keyboard there and no stand-in). The battles started and
+  played; only the loads crashed.
+- **Not the mouse**: the first runs had no mouse in Windows (the stand-in, T-45), and every load that had worked
+  before had a real mouse, which pointed there. But the load crashed with the real mouse too, and the same load of a
+  battle **without aliens** went through (run 15). Every load that had worked (EXP-70, EXP-71, the 17 November save
+  checks) was of a battle without aliens; every one that crashed had aliens, and Long War's pod mutator's own pods.
+  In a visible game Long War's reload of a data recovery with aliens had gone through (EXP-57 runs 2 and 4).
+- **Where**: the stand-in DLL's crash log (`--crash-log`, below) named it: a thread of the game's own (not the one
+  that made DirectInput) read address 0x61300001 at `XComEW.exe+0xf1331`, from code at `+0x222ee6` and `+0x300639`
+  under the thread's start at `+0xed9ed8`; `edx` held 0x61300000, a block of memory no longer there.
+- **Cause** [inferred from the fix]: DXVK, which the hidden runs need (T-43), keeps only so much texture memory
+  mapped in a 32-bit game (`d3d9.textureMemory`, 100 MB by default) and unmaps the rest; a load of a battle with
+  aliens brings in many textures at once, and a thread of the game's then read one DXVK had unmapped. Which texture
+  and which thread is not read.
+- **Fix** ([hidden_game.py](../tools/lab/hidden_game.py) `dxvk_config`): every hidden run gives DXVK its own
+  `<out>\dxvk.conf` (`DXVK_CONFIG_FILE`) with `d3d9.textureMemory = 0`, the budget off. Also `--crash-log`: the
+  stand-in DLL stands beside the game in any case and logs the run's first faults to `<out>\input.log` (thread,
+  code, module and offset, what it touched, registers, the module addresses on that thread's stack).
+- **Verified**: run 16, the same Bar quicksave and load with aliens, went through twice, once with the setting given
+  from outside and once through the tool's own file (`Found config file: <out>\dxvk.conf` in DXVK's log; 18 units
+  read back after the load). Before it every load with aliens had crashed (six of six).
+- **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
+  session might run out of it. Not seen in runs of a few minutes.
 
 ### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative copies a SHIV
 **Fixed** (18 November 2026: EXP-72 runs 12 and 13 began; runs 5, 10 and 11 had not).
@@ -2739,7 +2753,7 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Verified**: run 12 (the editor's squad with Iron Fist first): no `m_kPawn` warning and no content of id 0; the male
   operative took Iron Fist's head and hair; the loading movie stopped at 8.3 seconds, Long War saved at 15.0, and
   "Mission Started" came at 16.4. Run 13 (six soldiers) the same. Both then crashed in Long War's reload, a separate
-  matter of the hidden runs without a mouse (T-46).
+  matter of the hidden runs (T-46, fixed: DXVK's texture budget).
 
 ### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
 **Verified** (17 November 2026, the lab copy, five starts; no EXP file).

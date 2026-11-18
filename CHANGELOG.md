@@ -8,6 +8,24 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Hidden game runs: loads of a battle with aliens no longer crash (T-46); a crash log
+
+- [hidden_game.py](tools/lab/hidden_game.py) `dxvk_config`: every run gives DXVK its own `<out>\dxvk.conf`
+  (`DXVK_CONFIG_FILE`) with `d3d9.textureMemory = 0`. With DXVK's texture budget on, every load of a save with aliens
+  in the battle crashed on a thread of the game's own reading memory that was gone, Long War's reload of EXALT's
+  missions among them ([findings register](research/findings-register.md) T-46: not the mouse, as first thought).
+- [StandInInput.c](tools/lab/StandInInput.c), [build_stand_in_input.py](tools/lab/build_stand_in_input.py),
+  hidden_game.py `--crash-log`: the stand-in DLL stands beside the game in any case and, with
+  `XCOM_STAND_IN_CRASH_LOG=1`, logs the run's first faults to `<out>\input.log` (thread, code, module and offset,
+  what it touched, registers, the module addresses on that thread's stack); the run prints them at its end.
+- [game-test skill](.claude/skills/game-test/SKILL.md): a run that ends by itself with nothing in the log gets a rerun
+  with `--crash-log`.
+- Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (the settings file, the crash log's plan, a fault
+  on a thread of its own named by the built DLL in [StandInInputCheck.cs](tools/lab/tests/StandInInputCheck.cs)), the
+  lab suite; in the game, [EXP-72](research/experiments/EXP-72-spawns.md) runs 15 and 16: a Bar quicksave with aliens
+  loaded twice with the setting, after six crashes of six without it. Known gap: with the budget off a long session
+  could run out of the game's 32-bit address space (not seen).
+
 ### Play in game: a covert operative's mission lands a soldier first (T-44)
 
 - [play.py](tools/viewer/play.py), [missions.py](tools/viewer/missions.py) (`operative`, `LEAD_NOTE`,
@@ -18,8 +36,8 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   T-44). With only SHIVs the play goes ahead and its missing list says what will happen.
 - Checked: [test_squad_play.py](tools/viewer/tests/test_squad_play.py) (a SHIV-first squad on a data recovery and on
   an abduction, and a squad of only SHIVs), the viewer suite; in the game, [EXP-72](research/experiments/EXP-72-spawns.md)
-  runs 12 and 13: Police Station's data recovery began. Known gap: in hidden runs without a mouse the load that Long
-  War makes next crashes (T-46).
+  runs 12 and 13: Police Station's data recovery began. Known gap: in hidden runs the load that Long War makes next
+  crashed (T-46, fixed below).
 
 ### Hidden game runs: the put-back waits for a crashed game's DLLs; the stand-in's trace (T-46)
 
@@ -28,7 +46,7 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   for up to 20 seconds, copies `Launch.log` whatever happens, and names any DLL still left.
 - [StandInInput.c](tools/lab/StandInInput.c): with `XCOM_STAND_IN_INPUT_TRACE=1` every call the game makes on a
   stand-in goes to `<out>\input.log` (the per-frame ones now and then), and so do the other devices it creates. It
-  showed nothing at the load that crashes in runs without a mouse (T-46).
+  showed nothing at the load that crashed (T-46, which turned out not to be the mouse).
 - Checked: [test_hidden_game.py](tools/lab/tests/test_hidden_game.py) (a held file let go, one kept held), the lab
   suite, a traced run.
 

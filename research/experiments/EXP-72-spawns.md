@@ -220,7 +220,7 @@ where the starts that began made a male one without a warning (T-44).
 
 ## Run 12: Police Station's Data recovery with a soldier first (T-44's fix)
 
-**Played 18 November 2026: the battle began; then the game crashed in Long War's reload (T-46).**
+**Played 18 November 2026: the battle began; then the game crashed in Long War's reload (T-46, since fixed).**
 
 Staged with the editor's Play in game after the fix: the squad in the order Iron Fist (a soldier), Tracks (the SHIV),
 Gren, Sky, Long; saving on. Out folder `<lab>\hidden-runs\sp9-police-soldier-first`. Windows had no mouse or keyboard
@@ -240,5 +240,25 @@ seconds into Long War's reload. So the SHIV wasn't the reload's crash.
 **Played 18 November 2026: the load crashed too (T-46).** `<lab>\hidden-runs\standin-bar-reload`: the quicksave was
 written (F10, `--- SAVING CHECKPOINT ---`), the Load Game menu showed it first, and the game crashed 1.4 seconds
 after its `LoadMap ... LoadingFromShell=1`. A rerun with the stand-in's trace on (`standin-reload-trace`) showed only
-the per-frame polls of the stand-in mouse up to the crash. Every load that worked before had a real mouse, so run 5's
-moved wave places wait for a run with the mouse there.
+the per-frame polls of the stand-in mouse up to the crash. Every load that worked before had a real mouse, which
+pointed at the mouse; runs 15 and 16 showed otherwise.
+
+## Run 15: the same load with the mouse there, and without aliens (T-46)
+
+**Played 18 November 2026: the mouse was not it; aliens were.**
+
+- With the mouse and keyboard in Windows and no stand-in (`<lab>\hidden-runs\reload-real-mouse`): the load crashed
+  as in run 14, 1.3 seconds after `LoadingFromShell=1`.
+- The 17 November loads that went through were all of battles without aliens (EXP-71: "no aliens"); every one that
+  crashed had aliens, and Long War's pod mutator's four pods (`XComPodSpawnMutator: NumPods = 4`, which it logs only
+  when the battle lists pods). The same Bar quicksave and load with `--no-aliens` (`reload-no-aliens`) went through:
+  the squad stood on the Bar 30 seconds after the load.
+- With `--crash-log` (`reload-crash-log`) the stand-in DLL logged the fault: a thread of the game's own read
+  0x61300001 at `XComEW.exe+0xf1331`, a block of memory no longer there.
+
+## Run 16: DXVK's texture budget off (T-46's fix)
+
+**Played 18 November 2026: passed.** The run 15 load with aliens, with DXVK's `d3d9.textureMemory = 0`: given from
+outside (`reload-notexmem`), the load went through and the shot showed the squad on the Bar with a Meld canister
+beside them; then through hidden_game.py's own `<out>\dxvk.conf` (`reload-fixed`), the same, with 18 units read back
+after the load. Run 5 can now be played.

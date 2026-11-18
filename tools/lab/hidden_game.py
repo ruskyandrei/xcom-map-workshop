@@ -17,6 +17,8 @@ the game there and does the steps (its header lists them: wait, waitlog, console
   dinput8.dll (StandInInput.c, built into <lab>\\bin by build_stand_in_input.py) stands beside the game for the run:
   Windows' own devices where it has them, a still mouse or keyboard for the missing one. It writes what the game asked
   for and got to <out>\\input.log. Without it, no mouse stops the run. --stand-in-input gives the stand-ins anyway.
+  --crash-log puts it there in any case for its crash log (T-46): a crash on a thread of the game's own leaves no
+  word in Launch.log, and the DLL's log names the module, offset, registers and the stack's module addresses.
 - Started as XComEW.exe -FROMLAUNCHER itself, with SteamAppId and SteamGameId set (F-84), -nohomedir (settings, saves
   and logs stay inside the copy), -windowed at --res, and -EXEC of a commands file when a map is asked for:
   --map writes Play in game's commands (gamelaunch.play_text; --squad <file> for the squad, without it the game's
@@ -24,7 +26,8 @@ the game there and does the steps (its header lists them: wait, waitlog, console
   --play-file takes a commands file as it is. With neither the game stops at its main menu.
 - DXVK: unpack a release of github.com/doitsujin/dxvk into <lab>\\dxvk (so that <lab>\\dxvk\\<version>\\x32\\d3d9.dll
   exists); the newest one there is used. A d3d9.dll already beside the game is left alone when it is that one, and
-  stops the run when it is another.
+  stops the run when it is another. Its settings are the run's <out>\\dxvk.conf (DXVK_CONFIG_FILE): the texture
+  memory budget is off (T-46: with it, every load of a save with aliens in the battle crashed).
 - What the game writes is put back: every .ini of XEW\\XComGame\\Config that the run changed or made (`set` saves the
   class's config, F-73), the commands files, the DLL.
 - A session: --serve <idle seconds> keeps the game running after the steps and takes more from `send`, which hands
@@ -112,6 +115,20 @@ def dxvk_dll(lab):
         raise RunError(f'No DXVK under {Path(lab) / "dxvk"}: unpack a release of github.com/doitsujin/dxvk there, '
                        'so that <version>\\x32\\d3d9.dll exists')
     return found[-1]
+
+
+# DXVK's settings for a run (written to <out>\dxvk.conf, DXVK_CONFIG_FILE). In a 32-bit game DXVK keeps only so much
+# texture memory mapped (d3d9.textureMemory, 100 MB by default) and unmaps the rest; with it, every load of a save
+# with aliens in the battle crashed on a thread of the game's own reading memory that was gone (T-46), and with it
+# off the loads went through.
+DXVK_CONF = 'd3d9.textureMemory = 0\n'
+
+
+def dxvk_config(out):
+    """Writes the run's DXVK settings into the out folder; returns the file."""
+    path = Path(out) / 'dxvk.conf'
+    path.write_text(DXVK_CONF, encoding='ascii', newline='\n')
+    return path
 
 
 def win32(game):
@@ -236,16 +253,18 @@ def stand_in_dll(lab):
     return path if path.is_file() else None
 
 
-def input_plan(devices, stand_in, force=False):
+def input_plan(devices, stand_in, force=False, crash_log=False):
     """What a run does about the mouse and keyboard: (the stand-in DLL to put beside the game or None, a note or
     None). The game asks DirectInput for the system mouse as it starts, and with none in Windows it crashed about 3
     seconds in (T-45). With a device missing the stand-in DLL goes beside the game (StandInInput.c: Windows' own
     devices where it has them, a stand-in for the missing one); without the DLL, no mouse stops the run and no keyboard
-    is a note. `force`: the stand-ins whatever Windows has (to check them)."""
+    is a note. `force`: the stand-ins whatever Windows has (to check them). `crash_log`: the DLL goes beside the game
+    in any case, for its crash log (T-46)."""
     missing = [] if devices is None else [name for name, n in zip(('mouse', 'keyboard'), devices) if not n]
-    if force:
-        if not stand_in: raise RunError(f'No stand-in input DLL in <lab>\\bin: build it with {BUILD_STAND_IN}')
-        return stand_in, 'the game gets the stand-in mouse and keyboard (asked for)'
+    if (force or crash_log) and not stand_in:
+        raise RunError(f'No stand-in input DLL in <lab>\\bin: build it with {BUILD_STAND_IN}')
+    if force: return stand_in, 'the game gets the stand-in mouse and keyboard (asked for)'
+    if crash_log and not missing: return stand_in, f'{STAND_IN} beside the game for its crash log (Windows\' own mouse and keyboard)'
     if not missing: return None, None
     gone = ' and no '.join(missing)
     if stand_in: return stand_in, f'Windows sees no {gone}: the game gets a stand-in ({STAND_IN} beside it, T-45)'
@@ -279,13 +298,14 @@ SAVING_STEPS = ('waitlog 120 Obtained steam user stats', 'wait 3', f'key {gamela
 
 
 def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, echo=print, saving=False,
-        stand_in_input=False):
+        stand_in_input=False, crash_log=False):
     """One hidden run; returns (exit code, the config files put back). Raises RunError when it can't start.
-    stand_in_input: the stand-in mouse and keyboard even where Windows has them (input_plan)."""
+    stand_in_input: the stand-in mouse and keyboard even where Windows has them (input_plan). crash_log: the stand-in
+    DLL logs the run's first faults to <out>\\input.log (module, offset, registers, the stack's module addresses)."""
     steps = check_steps((list(SAVING_STEPS) if saving else []) + list(steps))
     if not running('steam.exe'): raise RunError('Steam is not running: the game ends at once without it')
     if running('XComEW.exe'): raise RunError('The game is running: close it first')
-    stand_in, note = input_plan(input_devices(), stand_in_dll(lab), stand_in_input)
+    stand_in, note = input_plan(input_devices(), stand_in_dll(lab), stand_in_input, crash_log)
     if note: echo(f'note: {note}')
     hidden_run, remote = helper(lab, 'HiddenRun.exe'), helper(lab, 'GameRemote.exe')
     out = Path(out)
@@ -298,11 +318,13 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
         cmd = [str(hidden_run), '--desktop', DESKTOP, '--timeout', str(timeout), '--', str(remote),
                str(win32(game) / 'XComEW.exe'), str(steps_file), str(out), str(log),
                *game_arguments(res, prepared.exec_file)]
-        env = dict(os.environ, SteamAppId=gamelaunch.APP_ID, SteamGameId=gamelaunch.APP_ID, DXVK_LOG_PATH=str(out))
-        env.pop('XCOM_STAND_IN_INPUT', None)
+        env = dict(os.environ, SteamAppId=gamelaunch.APP_ID, SteamGameId=gamelaunch.APP_ID, DXVK_LOG_PATH=str(out),
+                   DXVK_CONFIG_FILE=str(dxvk_config(out)))
+        for name in ('XCOM_STAND_IN_INPUT', 'XCOM_STAND_IN_CRASH_LOG'): env.pop(name, None)
         if stand_in:        # the stand-in writes what the game asked for and got to <out>\input.log
             env['XCOM_STAND_IN_INPUT_LOG'] = str(out / 'input.log')
             if stand_in_input: env['XCOM_STAND_IN_INPUT'] = 'always'
+            if crash_log: env['XCOM_STAND_IN_CRASH_LOG'] = '1'
         lines = []
         with subprocess.Popen(cmd, cwd=win32(game), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, encoding='utf-8', errors='replace') as proc:
@@ -317,6 +339,10 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
         try: changed = prepared.restore()
         finally:
             if log.is_file(): shutil.copyfile(log, out / 'Launch.log')
+    crashes = out / 'input.log'
+    if crash_log and crashes.is_file():
+        for line in crashes.read_text(encoding='ascii', errors='replace').splitlines():
+            if line.startswith('crash: '): echo(line)
     if prepared.left:
         echo(f'FAIL: the game still holds {", ".join(prepared.left)} in {win32(game)}: take {"it" if len(prepared.left) == 1 else "them"} '
              'away before the next run')
@@ -552,6 +578,9 @@ def main(argv=None):
     ap.add_argument('--no-aliens', action='store_true', help='with --map: a battle without aliens')
     ap.add_argument('--stand-in-input', action='store_true', help='give the game the stand-in mouse and keyboard even '
                     'where Windows has them, to check the stand-in (it is given by itself when Windows has none; T-45)')
+    ap.add_argument('--crash-log', action='store_true', help='put the stand-in DLL beside the game to log the run\'s '
+                    'first faults to <out>\\input.log, printed at the end: the module and offset, the registers and the '
+                    'stack\'s module addresses (a crash on a thread of the game\'s own leaves no word in its log; T-46)')
     ap.add_argument('--play-file', type=Path, help='a commands file to start with, as it is, instead of --map')
     ap.add_argument('--step', action='append', default=[], help='a step (GameRemote.cs lists them); may be repeated')
     ap.add_argument('--steps', type=Path, help='a file of steps, one a line, done before any --step')
@@ -576,7 +605,7 @@ def main(argv=None):
         game = args.game or labpaths.active_game()
         out = args.out or Path(lab) / 'hidden-runs' / datetime.now().strftime('%Y%m%d-%H%M%S')
         code, changed = run(game, lab, lines, out, play, (int(size[1]), int(size[2])), args.timeout, saving=args.saving,
-                            stand_in_input=args.stand_in_input)
+                            stand_in_input=args.stand_in_input, crash_log=args.crash_log)
     except (RunError, gamelaunch.LaunchError, ValueError, OSError) as error:
         print(f'FAIL: {error}')
         return 2

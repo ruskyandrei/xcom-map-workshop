@@ -162,6 +162,14 @@ Places are world units; a tile is 96 wide and tile centres sit 96 apart (read re
   for the user's own next play: say so in the report; the next run that ends by itself takes the mute off.
 - This is the engine's own list, not a recording: it says a sound plays and how loud, not how it sounds.
 
+## When the game crashes
+
+A run that ends by itself (exit code -1073741819, an access violation) with nothing in `Launch.log` crashed on a
+thread of the game's own. Run it again with `--crash-log`: the stand-in DLL then logs the fault to `<out>\input.log`
+(module and offset, what it touched, registers, the module addresses on that thread's stack) and the run prints it.
+DXVK's settings for every run are in `<out>\dxvk.conf`; its texture budget is off because loads of battles with
+aliens crashed with it (T-46).
+
 ## What it cannot do
 
 - No real mouse: no clicking on the interface, no dragging. Controller mode stops the game at a reconnect box.

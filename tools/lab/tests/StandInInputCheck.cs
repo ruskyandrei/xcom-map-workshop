@@ -93,6 +93,18 @@ static class StandInInputCheck
         bool standIn = Environment.GetEnvironmentVariable("XCOM_STAND_IN_INPUT") == "always";
         Device(input, SysMouse, "mouse", standIn);
         Device(input, SysKeyboard, "keyboard", standIn);
+        if (Environment.GetEnvironmentVariable("XCOM_STAND_IN_CHECK_FAULT") == "1")
+        {
+            // a read of address 0x10 on a thread of its own, as a game's sound or streaming thread might crash: the
+            // crash log (XCOM_STAND_IN_CRASH_LOG=1) should name it; the process may end here
+            var thread = new System.Threading.Thread(() =>
+            {
+                try { Marshal.ReadInt32(new IntPtr(0x10)); } catch (Exception) { }
+            });
+            thread.Start();
+            thread.Join();
+            Console.WriteLine("ok   fault made");
+        }
         return failures == 0 ? 0 : 1;
     }
 }

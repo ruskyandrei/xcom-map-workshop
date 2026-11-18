@@ -12,6 +12,8 @@
      XCOM_STAND_IN_INPUT=always     stand-ins for the mouse and keyboard even where Windows has them (to test this)
      XCOM_STAND_IN_INPUT_LOG=<file> a line appended for each device the game asks for and what it got
      XCOM_STAND_IN_INPUT_TRACE=1    every call on a stand-in in that log too (to see what the game asks of it)
+     XCOM_STAND_IN_CRASH_LOG=1      the run's first faults in that log too: thread, code, module and offset,
+                                    registers, the module addresses on that thread's stack (T-46)
 
    Built by tools/lab/build_stand_in_input.py with clang-cl and lld-link: 32-bit, no C runtime, no Windows SDK (the
    few kernel32 functions it needs are declared here and imported through a library made from a .def). */
@@ -36,6 +38,10 @@ __declspec(dllimport) HANDLE WINAPI CreateFileW(const WCHAR *name, DWORD access,
                                                 DWORD disposition, DWORD flags, HANDLE templ);
 __declspec(dllimport) BOOL WINAPI WriteFile(HANDLE file, const void *data, DWORD size, DWORD *written, void *overlapped);
 __declspec(dllimport) BOOL WINAPI CloseHandle(HANDLE file);
+__declspec(dllimport) void *WINAPI AddVectoredExceptionHandler(UINT first, void *handler);
+__declspec(dllimport) BOOL WINAPI GetModuleHandleExW(DWORD flags, const WCHAR *name, HMODULE *module);
+__declspec(dllimport) DWORD WINAPI GetModuleFileNameA(HMODULE module, char *name, DWORD size);
+__declspec(dllimport) DWORD WINAPI GetCurrentThreadId(void);
 
 #pragma comment(linker, "/EXPORT:DirectInput8Create=_DirectInput8Create@20")
 #pragma comment(linker, "/EXPORT:DllCanUnloadNow=_DllCanUnloadNow@0,PRIVATE")
@@ -151,6 +157,115 @@ static void trace(StandIn *self, int method, unsigned long value)
     append_number(line, &at, value, 16);
     line[at] = 0;
     log_line(line);
+}
+
+/* ------------------------------------------------------------------ the crash log (XCOM_STAND_IN_CRASH_LOG=1)
+
+   A game that crashes on a thread of its own (sound, streaming, the renderer's) ends with no word in its log and no
+   dump (T-46). With this set, the first faults of the run go to the log, each as it happens (before the game's own
+   handlers, so a fault the game then handles shows too): the thread, the code, the module and offset where it
+   happened and what it touched, the registers, and the module addresses found on that thread's stack (the calls that
+   led there, among stale ones). */
+
+typedef struct FaultRecord { DWORD code, flags; void *next; void *address; DWORD count; DWORD info[15]; } FaultRecord;
+typedef struct FaultPointers { FaultRecord *record; DWORD *context; } FaultPointers;
+
+static DWORD direct_input_thread;
+static long faults_logged;
+
+static int module_of(DWORD address, char *name, DWORD *base)
+{
+    HMODULE module;
+    char path[260];
+    DWORD n, i, start = 0;
+    if (!GetModuleHandleExW(0x4 | 0x2 /* FROM_ADDRESS, UNCHANGED_REFCOUNT */, (const WCHAR *)address, &module))
+        return 0;
+    n = GetModuleFileNameA(module, path, 260);
+    for (i = 0; i < n; i++) if (path[i] == '\\' || path[i] == '/') start = i + 1;
+    for (i = 0; start + i < n && i < 40; i++) name[i] = path[start + i];
+    name[i] = 0;
+    *base = (DWORD)module;
+    return 1;
+}
+
+static void append_place(char *line, int *at, DWORD address)
+{
+    char name[48];
+    DWORD base;
+    if (module_of(address, name, &base)) {
+        append_text(line, at, name);
+        append_text(line, at, "+0x");
+        append_number(line, at, address - base, 16);
+    } else {
+        append_text(line, at, "0x");
+        append_number(line, at, address, 16);
+    }
+}
+
+static DWORD stack_base(void)
+{
+    DWORD base;
+    __asm__ volatile("movl %%fs:4, %0" : "=r"(base));      /* the thread's NT_TIB StackBase */
+    return base;
+}
+
+static long WINAPI on_fault(FaultPointers *fault)
+{
+    static const char *REGISTERS[8] = {"edi", "esi", "ebx", "edx", "ecx", "eax", "ebp", "esp"};
+    static const int AT[8] = {39, 40, 41, 42, 43, 44, 45, 49};      /* x86 CONTEXT, in DWORDs */
+    FaultRecord *record = fault->record;
+    DWORD *context = fault->context, esp, top, *p, value, base;
+    char line[240], name[48];
+    int at = 0, i, found = 0;
+    if ((record->code & 0xF0000000) != 0xC0000000) return 0;        /* errors only (not C++ throws, breakpoints) */
+    if (__sync_fetch_and_add(&faults_logged, 1) >= 8) return 0;
+    append_text(line, &at, "crash: thread ");
+    append_number(line, &at, GetCurrentThreadId(), 10);
+    append_text(line, &at, GetCurrentThreadId() == direct_input_thread ? " (the game's) code 0x" : " (another) code 0x");
+    append_number(line, &at, record->code, 16);
+    append_text(line, &at, " at ");
+    append_place(line, &at, (DWORD)record->address);
+    if (record->code == 0xC0000005 && record->count >= 2) {
+        append_text(line, &at, record->info[0] == 1 ? " writing 0x" : record->info[0] == 8 ? " running 0x" : " reading 0x");
+        append_number(line, &at, record->info[1], 16);
+    }
+    line[at] = 0;
+    log_line(line);
+    at = 0;
+    append_text(line, &at, "crash: ");
+    for (i = 0; i < 8; i++) {
+        append_text(line, &at, REGISTERS[i]);
+        append_text(line, &at, "=");
+        append_number(line, &at, context[AT[i]], 16);
+        append_text(line, &at, " ");
+    }
+    line[at] = 0;
+    log_line(line);
+    esp = context[49];
+    top = stack_base();
+    if (top > esp + 8192) top = esp + 8192;
+    at = 0;
+    append_text(line, &at, "crash: stack");
+    for (p = (DWORD *)esp; (DWORD)p + 4 <= top && found < 48; p++) {
+        value = *p;
+        if (value < 0x10000 || !module_of(value, name, &base)) continue;
+        found++;
+        append_text(line, &at, " ");
+        append_text(line, &at, name);
+        append_text(line, &at, "+0x");
+        append_number(line, &at, value - base, 16);
+        if (at > 150) {
+            line[at] = 0;
+            log_line(line);
+            at = 0;
+            append_text(line, &at, "crash: stack");
+        }
+    }
+    if (at > 12) {
+        line[at] = 0;
+        log_line(line);
+    }
+    return 0;                                                        /* EXCEPTION_CONTINUE_SEARCH */
 }
 
 /* ------------------------------------------------------------------ the stand-in device */
@@ -351,6 +466,10 @@ HRESULT WINAPI DirectInput8Create(HMODULE instance, DWORD version, const GUID *i
     if (!create) {
         log_line("Windows' dinput8.dll not found");
         return E_FAIL;
+    }
+    if (!direct_input_thread && env_is(L"XCOM_STAND_IN_CRASH_LOG", L"1")) {
+        direct_input_thread = GetCurrentThreadId();
+        log_line(AddVectoredExceptionHandler(1, (void *)on_fault) ? "crash log: on" : "crash log: could not start");
     }
     result = create(instance, version, iid, out, outer);
     if (trace_on()) log_line("trace: DirectInput8Create");

@@ -23,7 +23,8 @@ import labpaths  # noqa: E402
 SOURCE = HERE / 'StandInInput.c'
 NAME = 'dinput8.dll'
 KERNEL32 = ('LoadLibraryW@4', 'GetProcAddress@8', 'GetSystemDirectoryW@8', 'VirtualProtect@16',
-            'GetEnvironmentVariableW@12', 'CreateFileW@28', 'WriteFile@20', 'CloseHandle@4')
+            'GetEnvironmentVariableW@12', 'CreateFileW@28', 'WriteFile@20', 'CloseHandle@4',
+            'AddVectoredExceptionHandler@8', 'GetModuleHandleExW@12', 'GetModuleFileNameA@12', 'GetCurrentThreadId@0')
 EXPORTS = ('DirectInput8Create', 'DllCanUnloadNow', 'DllGetClassObject', 'DllRegisterServer', 'DllUnregisterServer')
 
 
