@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns: the spawn family builds (SP6 and SP7 played)
+
+- [compiler.py](tools/editor/compiler.py) `FAMILIES['spawn']` builds: the base map's pods, Meld points and drop-in
+  points are moved, turned, given values, copied and deleted in every editor, not only on a server started with
+  `--family spawn`. The tests that check the gate now turn it off themselves
+  ([test_compiler.py](tools/editor/tests/test_compiler.py), [test_families.py](tools/viewer/tests/test_families.py)).
+- Checked in game, EXP-72 runs 6 to 8 ([the note](research/experiments/EXP-72-spawns.md)): URB_Bar with Long War's pod
+  and Meld mutators out of the lab loader. The game read the moved and turned pod, the commander flag, the Meld
+  values, the copies with their own pod indices and the deleted pod as the Build wrote them, and deployed aliens at
+  the moved pod and at both copies. Run 9 played the copies' build under Long War as installed.
+
 ### Spawns, stage SP7: the base map's pods and Meld points copied, its spawn points deleted
 
 - **The page** ([app.js](tools/viewer/web/app.js), [spawns_view.js](tools/viewer/web/spawns_view.js)): where the

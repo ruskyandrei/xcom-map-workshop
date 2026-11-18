@@ -166,9 +166,9 @@ FAMILIES = {
     # family builds (families.json)
     'flare': dict(builds=True, milestone=None, grid=False, what='a lens flare',
                   note='Lens flares are moved, copied and deleted where the flare family builds.'),
-    # the base map's pods, Meld points and drop-in points moved and their values changed (the editor spawns plan,
-    # SP6): off until its game check passes; an experiment's build lifts it with --family spawn
-    'spawn': dict(builds=False, milestone=None, grid=False, what='a spawn point',
+    # the base map's pods, Meld points and drop-in points moved, turned, given values, copied and deleted (the editor
+    # spawns plan, SP6 and SP7): builds since EXP-72 runs 6 to 8 passed (18 November 2026)
+    'spawn': dict(builds=True, milestone=None, grid=False, what='a spawn point',
                   note='Spawn points are moved and their values changed where the spawn family builds.'),
 }
 # the spawn points an edit may change (the export's `spawns` kinds), each kind's values, and what a value may be

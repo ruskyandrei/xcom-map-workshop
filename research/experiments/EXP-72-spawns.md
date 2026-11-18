@@ -130,3 +130,73 @@ What the run showed (out folder `<lab>\hidden-runs\sp8-dropins-placed`):
   never drops closer than 7). The shot (`dropin_unit17.png`) shows a Thin Man by a crate there.
 
 So the rule's line is read by Long War and the drop-ins land where the map (or the project) placed them.
+
+## Run 5: a wave's places moved (SP9)
+
+**Played 18 November 2026: unclear; the battle never started.**
+
+The project `EXP-72 Police Station wave moved` on URB_PoliceStation (variant `URB_PoliceS_X72W`, Data recovery,
+EXALT's capture and hold), started with saving on (Long War saves EXALT missions as they start): the nine destination
+points of `XComWaveSystem_0`'s set 1, wave 1, group 1 in `URB_PoliceStation_CNH`, moved 7 tiles east together.
+
+What the run showed (out folder `<lab>\hidden-runs\sp9-wave`, three starts): the map and the variant's copy of the
+stream load, Long War's landing mutator stands aside for the mission type, the units and EXALT's content load and
+`LWRVERSION label added` comes about 9 seconds in. Then the log repeats two lines of Long War Rebalance's (an
+achievement loader with `why=PostLevelLoaded`, a native lookup) every 0.39 seconds, "Mission Started" never comes,
+and the game takes no console command (no shot, no exec). The same on all three starts, the third with RETURN and
+ESCAPE pressed by key at 52 and 57 seconds. Read offline, the stream's Kismet only listens for the wave system's own
+events; set 1 comes by turns and set 2 takes over when the transmitter is captured, so ending turns would have been
+enough.
+
+Run 10 started the plain URB_PoliceStation's Data recovery the same way and hung the same way: the hang is the hidden
+game's saving start on this mission, not the variant (T-44). The moved wave places are not checked in game.
+
+## Runs 6 to 8: the base map's pods and Meld points edited, copied and deleted (SP6, SP7)
+
+**Played 18 November 2026: passed.**
+
+URB_Bar's Abduction, with Long War's pod and Meld mutators (`XComPodSpawnMutator`, `XComMeldSpawnMutator`) commented
+out of the lab copy's `DefaultMutatorLoader.ini` for these three runs, so the map's own points play as plain Enemy
+Within plays them (the loader put back byte for byte afterwards). No mutator line of either in any run's log. Each
+run read the points in the game (`getall XComAlienPod_Abduction Location`, `PodIndex`, `bCommanderPod`, `getall
+XComMeldContainerSpawnPoint m_eDifficulty`, `m_iDestroyedOnTurn`, `m_iSpawnGroup`, the canisters
+`XComMeldContainerActor` with `m_iTurnsUntilDestroyed`) and the units at turn 1.
+
+The game moves every pod onto a tile when the battle starts: the readbacks are those settled places (the map's pod 0
+at (1599, 1642) stood at (1615, 1679)), and some pods' yaws change from game to game.
+
+- **Run 6, the map as it is** (out folder `<lab>\hidden-runs\sp6-bar-base`): pods 0 to 4 with indices 0 to 4, no
+  commander; the Meld points as the map has them (0 and 1 hard, turn 8; 2 and 3 easy, turn 4; all group 0); one
+  canister on point 0, countdown 8. Aliens stood by pods 1, 2 and 3 (within 1.3 tiles) and 5.5 to 6 tiles from pod 0.
+- **Run 7, the SP6 build** (`URB_Bar_X72S`, `sp6-bar-edited`): pod 0 at (1679, 1679) facing yaw 0 (moved a tile
+  and turned a quarter in the project; settled 64 east of run 6's place); pod 1 `bCommanderPod = True`; Meld point 2
+  hard, destroyed on turn 6; Meld point 3 in spawn group 1; every other point as in run 6. Three aliens stood within
+  1.1 tiles of pod 0's new place; one canister, on point 1.
+- **Run 8, the SP7 build** (`URB_Bar_X72C`, `sp7-bar-copies`): the game has pods 0, 1, 2, 3, 5 and 6 and no pod 4;
+  pod 5 at (-1105, 239) with index 5 and pod 6 at (-1585, 719) with index 6 (the copies' places, settled); Meld
+  point 4 at (912, 720, 17), hard, destroyed on turn 4. Three aliens deployed at each copy; none stood within 5 tiles
+  of pod 4's old place. Two canisters, on points 0 and 3.
+
+So the game reads the edited points, their values, the copies with their own indices and the delete as the Build
+wrote them, and deploys aliens at the moved pod and the copies.
+
+## Run 9: the copies' build under Long War as installed (SP7)
+
+**Played 18 November 2026: passed.**
+
+`URB_Bar_X72C` (run 8's build: two pod copies, a Meld copy, a pod deleted) with the lab loader put back as installed
+(out folder `<lab>\hidden-runs\sp7-bar-lw`). "Mission Started" at 24 seconds, Long War's mutators' lines
+(`XComMeldSpawnMutator: NumContainers = 3`, `XComPodSpawnMutator: NumPods = 4`, `Found 5 random locations`), turn 1
+with no error, one turn ended and the alien turn passed. Long War replaced every pod and Meld point of the map with
+its own, the copies among them (no pod of index 5 or 6, no Meld point 4 left), as the panel says it does when it finds
+enough places; the aliens stood by its four pods.
+
+## Run 10: plain Police Station's Data recovery with saving on (run 5's question)
+
+**Played 18 November 2026: the same hang as run 5.**
+
+URB_PoliceStation as the install has it, Data recovery, started as run 5 (`--saving`), out folder
+`<lab>\hidden-runs\sp9-police-plain`: `LoadMap: URB_PoliceStation`, the landing mutator standing aside for
+`eMission_CaptureAndHold`, `LWRVERSION label added` at 9 seconds, then 613 lines of `LWR Ach: loaded 531 definitions
+... why=PostLevelLoaded` with no "Mission Started" in 240 seconds. So run 5's hang is the hidden game's start of this
+mission, not the variant's moved wave places (T-44).

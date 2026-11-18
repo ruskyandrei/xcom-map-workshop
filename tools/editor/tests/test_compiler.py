@@ -397,10 +397,12 @@ class CompilerTests(unittest.TestCase):
                  dict(target=target('XComAlienPod_1'), spawn=dict(commander=True)),
                  dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(difficulty='Hard', destroyedOnTurn=6, spawnGroup=0)),
                  dict(target=target('XComSpawnPoint_Alien_3'), location=at(7, 5), rotation=[0, -16384, 0])]
-        _, report = compile_project(document(edits), s)
+        # (the family builds since EXP-72 runs 6 to 8; its gate still refuses where it is off)
+        with mock.patch.dict(compiler.FAMILIES['spawn'], builds=False):
+            _, report = compile_project(document(edits), s)
         self.assertEqual(sorted(set(codes(report))), ['family'])
         self.assertEqual(len(codes(report)), 4)
-        spec, report = compile_project(document(edits), s, enable=['spawn'])
+        spec, report = compile_project(document(edits), s)
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(report['counts']['spawns'], dict(moved=2, valued=2, added=0, deleted=0))
         patch, native = native_split(spec)
@@ -451,9 +453,10 @@ class CompilerTests(unittest.TestCase):
                  copy(3, 'XComMeldContainerSpawnPoint_1', 'meld', at(26, 6, 17.0), spawn=dict(difficulty='Hard', spawnGroup=0))]
         gone = [dict(target=target('XComAlienPod_2'), deleted=True), dict(target=target('XComAlienPod_1'), deleted=True),
                 dict(target=target('XComSpawnPoint_Alien_3'), deleted=True)]
-        _, report = compile_project(document(gone, added=added), s)
+        with mock.patch.dict(compiler.FAMILIES['spawn'], builds=False):
+            _, report = compile_project(document(gone, added=added), s)
         self.assertEqual(sorted(set(codes(report))), ['family'])
-        spec, report = compile_project(document(gone, added=added), s, enable=['spawn'])
+        spec, report = compile_project(document(gone, added=added), s)
         self.assertTrue(report['ok'], refused(report))
         lane = native_split(spec)[1]['spawns']
         # above the stream's pod 9 (the map's are 0 to 2, an event names 7): 10 and 11, in the document's order
@@ -2145,7 +2148,7 @@ class FamilyTests(unittest.TestCase):
     def test_the_families_table(self):
         self.assertEqual(sorted(f for f, v in compiler.FAMILIES.items() if v['builds']),
                          ['building', 'car', 'collectible', 'destructible', 'door', 'effect', 'effect-values', 'flare', 'fracturing',
-                          'frameless-door', 'ladder', 'light', 'physics', 'scenery', 'sound', 'sound-values', 'van'])
+                          'frameless-door', 'ladder', 'light', 'physics', 'scenery', 'sound', 'sound-values', 'spawn', 'van'])
         self.assertTrue(all(compiler.FAMILIES[compiler.CLASS_FAMILY[c]]['builds'] for c in compiler.M1_CLASSES))
         # every class with a family builds (fracturing pieces and physics props since 9 November), in the map itself
         # or as part of an assembly

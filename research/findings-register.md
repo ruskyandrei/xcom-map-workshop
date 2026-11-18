@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- T-44: the hidden game's saving start hangs on Police Station's Data recovery (EXALT), the map as installed too:
+  EXP-72 run 5's moved wave places weren't reached (18 November).
 - F-119: a moved landing leaves the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; the
   editor shows it there too (found offline, 17 November, while preparing EXP-68). Under Long War the mutator
   destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -2676,6 +2678,22 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   before `switch` comments out every one. The Replace warnings name the missions left to the original (and say when
   the original plays the first mission); the project manager works them out from the last build's records. The Game
   maps window marks only the replaced records.
+
+### T-44: The hidden game's saving start hangs on Police Station's Data recovery
+**Open** (18 November 2026, EXP-72 runs 5 and 10).
+- **What**: `tools/lab/hidden_game.py --saving` (main menu, log in, the editor's Enable saving key) on URB_PoliceStation's
+  Data recovery (EXALT, `eMission_CaptureAndHold`) loads the map, its streams and EXALT's content, logs `LWRVERSION
+  label added` at about 9 seconds, then repeats Long War Rebalance's `LWR Ach: loaded 531 definitions ...
+  why=PostLevelLoaded` and `LWR GetActor native lookup works` every 0.39 seconds; "Mission Started" never comes and
+  the console takes no command (no shot, no exec, keys change nothing). The same on the editor's variant (three starts)
+  and on the map as the install has it (one start), so it isn't the variant.
+- **Not the same elsewhere**: Pier A's Council rescue with `--saving` (runs 3 and 4) starts at 10 seconds and never
+  logs `why=PostLevelLoaded`; the Bar's Abduction without `--saving` starts at 24 seconds.
+- **Cause**: not known. Long War saves EXALT missions as they start, so the start may wait on a save or a box the
+  hidden desktop never shows. EXP-55 played the same mission by hand.
+- **Effect**: EXP-72 run 5 (a wave's moved places, SP9) is unclear; the moved places were never reached.
+- **What would settle it**: the same start on the user's screen (not hidden), or another EXALT mission with
+  `--saving` to see whether it is EXALT's start or this map's.
 
 ### T-43: The game runs on a hidden desktop only through DXVK; there it draws, takes console commands by window messages and saves its own shots
 **Verified** (17 November 2026, the lab copy, five starts; no EXP file).
