@@ -705,7 +705,10 @@ class Build:
         # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
         # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept. Lens flares
         # (stage FX6b) are the same: a glare drawn over the picture, no baked light
-        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in EFFECT_LANES
+        # the base map's spawn points moved or given values (the editor spawns plan, SP6) are the same: settings and
+        # places the game reads, no light, so they go with the effects (made by native_copy.py, lighting kept)
+        self.spawn_edits = {op: len((self.native.get('spawns') or {}).get(op) or []) for op in ('moves', 'values', 'copies', 'deletes')}
+        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',)
                                 for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
@@ -734,7 +737,7 @@ class Build:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
-            raise BuildError('the project changes nothing in the map: no piece, effect, sound or lens flare is moved, deleted or '
+            raise BuildError('the project changes nothing in the map: no piece, effect, sound, lens flare or spawn point is moved, deleted or '
                              'added, no light or flag is changed, no building is made, the map keeps its size and no '
                              'spawn rule is set')
         self.spec = self.work / ('%s.json' % self.patch)
@@ -1333,6 +1336,9 @@ class Build:
                  families=list(self.enable),
                  nativeCopies=len(self.natives), nativeHides=len(self.native['hides']), coverBlocks=len(self.covers),
                  **({'pieceFlags': len(self.piece_flags)} if self.piece_flags else {}),
+                 **({'spawnEdits': dict(moved=self.spawn_edits['moves'], valued=self.spawn_edits['values'],
+                                        added=self.spawn_edits['copies'], deleted=self.spawn_edits['deletes'])}
+                    if any(self.spawn_edits.values()) else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
                  foreignEffects=sum(d.get('effects', 0) for d in self.donors),

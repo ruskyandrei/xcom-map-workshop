@@ -164,6 +164,91 @@ class BarMovedBaked(unittest.TestCase):
             self.assertTrue(native_copy.has_mesh(p, p.by_name['TheWorld.PersistentLevel.' + name]), name)
 
 
+class SpawnValueBytes(unittest.TestCase):
+    """The spawns lane's values as bytes (the editor spawns plan, SP6): a bool one byte, a whole number four, the Meld
+    difficulty its enum value's name and number 0."""
+    def test_bytes(self):
+        class Names:
+            def name(self, text):
+                return {'eMeldContainerDifficulty_Hard': 7}[text]
+        g = Names()
+        self.assertEqual(native_spawns.value_bytes(g, 'commander', True), ('bCommanderPod', 'BoolProperty', None, b'\x01'))
+        self.assertEqual(native_spawns.value_bytes(g, 'use', False)[3], b'\x00')
+        self.assertEqual(native_spawns.value_bytes(g, 'destroyedOnTurn', -1), ('m_iDestroyedOnTurn', 'IntProperty', None, b'\xff' * 4))
+        self.assertEqual(native_spawns.value_bytes(g, 'difficulty', 'Hard'),
+                         ('m_eDifficulty', 'ByteProperty', 'EMeldContainerDifficulty', b'\x07\x00\x00\x00\x00\x00\x00\x00'))
+        self.assertEqual(native_spawns.spawn_kind('XComAlienPod_Abduction'), 'pod')
+        self.assertIsNone(native_spawns.spawn_kind('XComSpawnPoint'))
+        self.assertEqual(native_spawns.apply_lane(None, None, dict(moves=[], values=[])), ([], set(), []))
+        with self.assertRaises(ValueError):
+            native_spawns.apply_lane(None, None, dict(deletes=[dict(name='XComAlienPod_0')]))
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class BarSpawnEdits(unittest.TestCase):
+    """URB_Bar's own spawn points edited in place (SP6): pod 0 moved a tile and turned a quarter, pod 1 the commander's,
+    Meld point 2 hard and destroyed on turn 6, Meld point 3 in spawn group 1; written, read back, and the rest of the
+    map as it was."""
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(BAR)
+        pod = cls.p.by_name[native_spawns.PL + 'XComAlienPod_Abduction_0']
+        cls.before = [float(v) for v in cls.p.own(pod, 'Location')], [int(v) for v in cls.p.own(pod, 'Rotation', [0, 0, 0])]
+        cls.moved = ([cls.before[0][0] + 96] + cls.before[0][1:], [0, cls.before[1][1] + 16384, 0])
+        g = package_grow.Grower(str(BAR))
+        cls.ops = dict(moves=[dict(name='XComAlienPod_Abduction_0', location=cls.moved[0], rotation=cls.moved[1])],
+                       values=[dict(name='XComAlienPod_Abduction_1', spawn=dict(commander=True)),
+                               dict(name='XComMeldContainerSpawnPoint_2', spawn=dict(difficulty='Hard', destroyedOnTurn=6)),
+                               dict(name='XComMeldContainerSpawnPoint_3', spawn=dict(spawnGroup=1))])
+        clones, gone, cls.record = native_spawns.apply_lane(g, cls.p, cls.ops)
+        assert (clones, gone) == ([], set())
+        out = Path(cls.tmp.name) / Path(BAR).name
+        g.write(str(out))
+        cls.q = Package(out)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_point_reads_back_as_edited_under_its_own_name(self):
+        native_spawns.verify(self.q, self.record)
+        self.assertEqual([(r['actor'], r['how']) for r in self.record],
+                         [('XComAlienPod_Abduction_0', 'moved'), ('XComAlienPod_Abduction_1', 'valued'),
+                          ('XComMeldContainerSpawnPoint_2', 'valued'), ('XComMeldContainerSpawnPoint_3', 'valued')])
+        at = lambda name: self.q.by_name[native_spawns.PL + name]  # noqa: E731
+        self.assertEqual([round(v, 3) for v in self.q.own(at('XComAlienPod_Abduction_0'), 'Location')], [round(v, 3) for v in self.moved[0]])
+        self.assertEqual(native_spawns.read_value(self.q, at('XComAlienPod_Abduction_1'), 'commander'), True)
+        self.assertEqual(native_spawns.read_value(self.q, at('XComMeldContainerSpawnPoint_2'), 'difficulty'), 'Hard')
+        self.assertEqual(native_spawns.read_value(self.q, at('XComMeldContainerSpawnPoint_2'), 'destroyedOnTurn'), 6)
+        self.assertEqual(native_spawns.read_value(self.q, at('XComMeldContainerSpawnPoint_3'), 'spawnGroup'), 1)
+        # (what the edit left alone: pod 1's own place, pod 0's values)
+        self.assertEqual(self.q.own(at('XComAlienPod_Abduction_1'), 'Location'),
+                         self.p.own(self.p.by_name[native_spawns.PL + 'XComAlienPod_Abduction_1'], 'Location'))
+        self.assertIsNone(native_spawns.read_value(self.q, at('XComAlienPod_Abduction_0'), 'commander'))
+
+    def test_the_rest_of_the_map_is_as_it_was(self):
+        self.assertEqual(len(self.q.exports), len(self.p.exports))
+        edited = {r['export'] for r in self.record}
+        for i in range(1, len(self.p.exports) + 1):
+            self.assertEqual(self.q.exports[i - 1]['name'], self.p.exports[i - 1]['name'])
+            if i in edited or self.p.cls(i) in ('Level', 'Package'):
+                continue
+            a, b = self.p.exports[i - 1], self.q.exports[i - 1]
+            if self.p.cls(i).startswith('XCom') and self.p.name(i).startswith(('XComAlienPod', 'XComMeld', 'XComSpawnPoint')):
+                self.assertEqual(self.q.data[b['off']:b['off'] + b['size']], self.p.data[a['off']:a['off'] + a['size']], self.p.name(i))
+        self.assertEqual(set(native_copy.level_actors(self.q)), set(native_copy.level_actors(self.p)))
+
+    def test_refusals(self):
+        g = package_grow.Grower(str(BAR))
+        for ops in (dict(moves=[dict(name='XComSpawnPoint_18', location=[0, 0, 0], rotation=[0, 0, 0])]),
+                    dict(moves=[dict(name='XComAlienPod_Abduction_99', location=[0, 0, 0], rotation=[0, 0, 0])]),
+                    dict(values=[dict(name='XComAlienPod_Abduction_0', spawn=dict(difficulty='Hard'))]),
+                    dict(moves=[dict(name='XComAlienPod_Abduction_0', location=[0, 0, 0], rotation=[0, 0, 0])] * 2)):
+            with self.assertRaises(ValueError, msg=ops):
+                native_spawns.apply_lane(g, self.p, ops)
+
+
 class FramelessPlan(unittest.TestCase):
     """A landing with no frame (the tutorial's): nothing moves while its zone is the fitted one; moved, its actors go
     to the zone's offsets from the fitted frame, and no frame is written."""

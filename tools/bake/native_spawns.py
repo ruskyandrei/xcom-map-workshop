@@ -167,6 +167,152 @@ def apply(g, p, zones, gone=()):
     return report, volumes
 
 
+# ---------------------------------------------------------------- the base map's spawn points (editor spawns plan, SP6)
+# The native edit's `spawns` lane: {moves: [{name, location, rotation}], values: [{name, spawn}], deletes, copies}
+# (copies and deletes are stage SP7's). A point keeps its export, name, archetype and everything that names it: a move
+# sets its Location (and its Rotation where it saves one or turns), a based point's RelativeLocation from its base's
+# final place; a value sets one property on the actor itself, adding the tag where the actor saves none.
+# A value's property, its type and, for a byte, its enum (Bar's hard Meld points save m_eDifficulty as an
+# EMeldContainerDifficulty name; pods save none of their flags, which then take a bool tag as other writers' do)
+SPAWN_VALUES = {
+    'commander': ('bCommanderPod', 'BoolProperty', None),
+    'secondary': ('bSecondaryPod', 'BoolProperty', None),
+    'use': ('bUse', 'BoolProperty', None),
+    'difficulty': ('m_eDifficulty', 'ByteProperty', 'EMeldContainerDifficulty'),
+    'destroyedOnTurn': ('m_iDestroyedOnTurn', 'IntProperty', None),
+    'spawnGroup': ('m_iSpawnGroup', 'IntProperty', None),
+}
+VALUE_KINDS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
+               'dropIn': ()}
+DIFFICULTY_PREFIX = 'eMeldContainerDifficulty_'
+PL = 'TheWorld.PersistentLevel.'
+
+
+def spawn_kind(cls):
+    """'pod', 'meld' or 'dropIn' for the classes the lane edits (scene_metadata.spawn_family's), else None."""
+    if cls.startswith('XComAlienPod'): return 'pod'
+    if cls == 'XComMeldContainerSpawnPoint': return 'meld'
+    if cls == 'XComSpawnPoint_Alien': return 'dropIn'
+    return None
+
+
+def lane_actor(p, name, listed):
+    """The export of spawn point `name` (a short name): a pod, Meld point or drop-in point in the level's actor list;
+    ValueError for anything else (the compiler checks the same against the export)."""
+    i = p.by_name.get(PL + str(name))
+    if i is None:
+        raise ValueError('the map has no actor %s (a spawn point)' % name)
+    if spawn_kind(p.cls(i)) is None:
+        raise ValueError('%s is %s, not a pod, Meld point or drop-in point' % (name, p.cls(i)))
+    if i not in listed:
+        raise ValueError('%s is not in the level\'s actor list' % name)
+    return i
+
+
+def value_bytes(g, key, value):
+    """(property, type, enum, value bytes) of a spawn value: a bool as one byte, a whole number as 4, the Meld
+    difficulty ('Easy' or 'Hard') as its enum value's name in `g`'s name table."""
+    prop, kind, sub = SPAWN_VALUES[key]
+    if kind == 'BoolProperty':
+        return prop, kind, sub, bytes([1 if value else 0])
+    if kind == 'IntProperty':
+        return prop, kind, sub, struct.pack('<i', int(value))
+    return prop, kind, sub, struct.pack('<ii', g.name(DIFFICULTY_PREFIX + str(value)), 0)
+
+
+def set_values(g, p, index, values, walker):
+    """A spawn point's values ({commander, secondary, use} for a pod, {difficulty, destroyedOnTurn, spawnGroup} for a
+    Meld point) written on actor `index` of `g`, the grower of `p`. Returns what was written."""
+    import native_lights
+    kind = spawn_kind(p.cls(index))
+    wrong = sorted(set(values) - set(VALUE_KINDS.get(kind) or ()))
+    if wrong:
+        raise ValueError('%s (%s) has no value %s' % (p.name(index), p.cls(index), ', '.join(wrong)))
+    e = p.exports[index - 1]
+    data = bytearray(g.export_data(index))
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    written = {}
+    for key in sorted(values):
+        prop, ptype, sub, raw = value_bytes(g, key, values[key])
+        data = native_lights.set_property(walker, g, data, start, prop, ptype, sub, raw)
+        written[key] = values[key]
+    g.relocate(index, bytes(data))
+    return written
+
+
+def apply_lane(g, p, ops):
+    """The `spawns` lane made in `g`, the grower of `p`: returns (the clones to add to the level's list, the actors to
+    take out of it, the record: [dict(actor, how: moved | valued, export, cls, location?, rotation?, before?,
+    relative?, values?)]), as native_effects.apply returns its own."""
+    if not ops or not any(ops.get(k) for k in ('moves', 'values', 'deletes', 'copies')):
+        return [], set(), []
+    if ops.get('copies') or ops.get('deletes'):
+        raise ValueError('spawn points copied or deleted: this writer moves them and sets their values only')
+    import buildings
+    import native_copy
+    walker = buildings.grown_walker(p, g)
+    listed = set(native_copy.level_actors(p))
+    record, moved = [], {}
+    for m in ops.get('moves') or []:
+        i = lane_actor(p, m['name'], listed)
+        if i in moved:
+            raise ValueError('%s is moved twice' % m['name'])
+        loc, rot = [float(v) for v in m['location']], [int(v) for v in m['rotation']]
+        before = ([float(v) for v in p.own(i, 'Location', [0.0, 0.0, 0.0])], [int(v) for v in p.own(i, 'Rotation', [0, 0, 0])])
+        moved[i] = (loc, rot)
+        record.append(dict(actor=m['name'], how='moved', export=i, cls=p.cls(i), location=loc, rotation=rot,
+                           before=dict(location=before[0], rotation=before[1])))
+    for r in record:
+        i, (loc, rot) = r['export'], moved[r['export']]
+        rotation = rot if (p.own(i, 'Rotation') is not None or rot != r['before']['rotation']) else None
+        relative = None
+        base = p.own(i, 'Base', 0)
+        if isinstance(base, int) and base > 0 and p.own(i, 'RelativeLocation') is not None:
+            # worked from where its base stands after the edit (a base this lane moves too: its new place)
+            b_loc, b_rot = moved.get(base) or (p.own(base, 'Location', [0.0, 0.0, 0.0]), p.own(base, 'Rotation') or [0, 0, 0])
+            relative = spawns.turn([loc[j] - b_loc[j] for j in range(3)], -b_rot[1])
+            r['relative'] = [round(v, 4) for v in relative]
+        _set(walker, g, p, i, loc, rotation, relative)
+    for v in ops.get('values') or []:
+        i = lane_actor(p, v['name'], listed)
+        written = set_values(g, p, i, v.get('spawn') or {}, walker)
+        record.append(dict(actor=v['name'], how='valued', export=i, cls=p.cls(i), values=written))
+    return [], set(), record
+
+
+def read_value(q, i, key):
+    """A spawn value as the written map `q` (package.Package) has it on actor `i`, or None where it saves none."""
+    prop = SPAWN_VALUES[key][0]
+    value = q.own(i, prop)
+    if key == 'difficulty' and value is not None:
+        value = str(value)
+        return value[len(DIFFICULTY_PREFIX):] if value.startswith(DIFFICULTY_PREFIX) else value
+    if SPAWN_VALUES[key][1] == 'BoolProperty' and value is not None:
+        return bool(value)
+    return value
+
+
+def verify(q, record):
+    """The lane read back from the written map `q`: a moved point at its pose and still listed, a valued one with each
+    value it was given. Raises ValueError at the first thing that isn't so."""
+    import native_copy
+    listed = set(native_copy.level_actors(q))
+    for r in record:
+        i = r['export']
+        if i not in listed:
+            raise ValueError('%s is off the level\'s list after the edit' % r['actor'])
+        if r['how'] == 'moved':
+            loc = [float(v) for v in q.own(i, 'Location', [0.0, 0.0, 0.0])]
+            rot = [int(v) for v in q.own(i, 'Rotation', [0, 0, 0])]
+            if any(abs(a - b) > 1e-3 for a, b in zip(loc, r['location'])) or rot != list(r['rotation']):
+                raise ValueError('%s reads back at %s %s, not %s %s' % (r['actor'], loc, rot, r['location'], r['rotation']))
+        elif r['how'] == 'valued':
+            for key, want in r['values'].items():
+                got = read_value(q, i, key)
+                if got != want:
+                    raise ValueError('%s reads back %s = %r, not %r' % (r['actor'], key, got, want))
+
+
 def main(argv=None):
     import package_grow
     from package import Package

@@ -56,9 +56,11 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(got['map'], 'URB_Bar')
         self.assertEqual(set(got['families']), {'scenery', 'destructible', 'collectible', 'ladder', 'door', 'frameless-door',
                                                 'car', 'van', 'fracturing', 'physics', 'other', 'light', 'building',
-                                                'effect', 'sound', 'effect-values', 'sound-values', 'flare'})
+                                                'effect', 'sound', 'effect-values', 'sound-values', 'flare', 'spawn'})
         # effects and sounds (the effects and sounds plan, FX3) build since EXP-68 passed; their values (FX5) and
-        # lens flares (FX6b) have a gate of their own, on since EXP-71
+        # lens flares (FX6b) have a gate of their own, on since EXP-71; base spawn points (the editor spawns plan, SP6)
+        # wait for their game check
+        self.assertFalse(got['families']['spawn']['builds'])
         self.assertEqual({f: got['families'][f]['builds'] for f in ('effect', 'sound', 'effect-values', 'sound-values', 'flare')},
                          {'effect': True, 'sound': True, 'effect-values': True, 'sound-values': True, 'flare': True})
         self.assertTrue(got['families']['ladder']['grid'])

@@ -383,6 +383,58 @@ class CompilerTests(unittest.TestCase):
         _, report = compile_project(document(edit), s, (), library)
         self.assertEqual(noted(report, 'dropins'), [])
 
+    def test_base_spawn_points_moved_and_given_values_where_the_spawn_family_builds(self):
+        # spawns plan SP6: a base pod, Meld point or drop-in point moves, turns and takes the values of its kind, in
+        # place (the native `spawns` lane, with no patch); off while the spawn family doesn't build
+        s, at = self.spawn_scene()
+        s['spawns'][0]['links'] = [dict(property='PathNode', actor=PL + 'XComAlienPathNode_4')]
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_Alien_3', actorClass='XComSpawnPoint_Alien', kind='dropIn',
+                                location=at(5, 5), rotation=[0, 0, 0], values={}))
+        s['spawns'].append(dict(actor=PL + 'XComSpawnPoint_18', actorClass='XComSpawnPoint', kind='soldier',
+                                location=at(6, 6), rotation=[0, 0, 0], values={}))
+        pod = s['spawns'][0]
+        edits = [dict(target=target('XComAlienPod_0'), location=[pod['location'][0] + 96, *pod['location'][1:]], rotation=[0, 16384, 0]),
+                 dict(target=target('XComAlienPod_1'), spawn=dict(commander=True)),
+                 dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(difficulty='Hard', destroyedOnTurn=6, spawnGroup=0)),
+                 dict(target=target('XComSpawnPoint_Alien_3'), location=at(7, 5), rotation=[0, -16384, 0])]
+        _, report = compile_project(document(edits), s)
+        self.assertEqual(sorted(set(codes(report))), ['family'])
+        self.assertEqual(len(codes(report)), 4)
+        spec, report = compile_project(document(edits), s, enable=['spawn'])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(report['counts']['spawns'], dict(moved=2, valued=2, added=0, deleted=0))
+        patch, native = native_split(spec)
+        self.assertFalse(any(o.get('type') == 'spawns' for o in patch['objects']))
+        lane = native['spawns']
+        self.assertEqual([m['name'] for m in lane['moves']], ['XComAlienPod_0', 'XComSpawnPoint_Alien_3'])
+        self.assertEqual(lane['moves'][0]['rotation'], [0, 16384, 0])
+        self.assertEqual(lane['moves'][0]['before']['location'], pod['location'])
+        # a value the map already has builds nothing (the Meld point's spawn group)
+        self.assertEqual([(v['name'], v['spawn']) for v in lane['values']],
+                         [('XComAlienPod_1', dict(commander=True)), ('XComMeldContainerSpawnPoint_1', dict(destroyedOnTurn=6, difficulty='Hard'))])
+        self.assertEqual((lane['copies'], lane['deletes']), ([], []))
+        # the pod's link to its path node stays where the map has it: a note says so
+        self.assertIn('its PathNode XComAlienPathNode_4', next(n for n in report['notes'] if n['code'] == 'spawn-links')['message'])
+        # refused: another kind's value, a value out of range, a kind the editor shows only, an actor the level
+        # doesn't list, one whose values weren't read, a delete (SP7)
+        s['spawns'][2]['listed'] = False
+        s['spawns'][3]['unread'] = 'bad bytes'
+        for rec, code in [(dict(target=target('XComAlienPod_1'), spawn=dict(difficulty='Hard')), 'spawn-values'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(destroyedOnTurn=100)), 'spawn-values'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_1'), spawn=dict(difficulty='Medium')), 'spawn-values'),
+                          (dict(target=target('XComAlienPod_0'), spawn=dict(use=1)), 'spawn-values'),
+                          (dict(target=target('XComSpawnPoint_18'), location=at(9, 9), rotation=[0, 0, 0]), 'spawn-view-only'),
+                          (dict(target=target('XComAlienPod_2'), spawn=dict(commander=True)), 'spawn-unlisted'),
+                          (dict(target=target('XComMeldContainerSpawnPoint_0'), spawn=dict(spawnGroup=1)), 'spawn-unread'),
+                          (dict(target=target('XComAlienPod_0'), deleted=True), 'spawn-delete')]:
+            _, report = compile_project(document([rec]), s, enable=['spawn'])
+            self.assertEqual(codes(report), [code], rec)
+        # a value of no kind is noted and carried; a spawn point as the map has it builds nothing
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), spawn=dict(colour='red'))]), s, enable=['spawn'])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'un'), ['unchanged', 'unknown-field'])
+        self.assertEqual(report['counts']['spawns'], dict(moved=0, valued=0, added=0, deleted=0))
+
     def test_pod_places_and_meld_groups_are_counted_against_the_edit(self):
         # spawns plan SP5: a pod or Meld point's place is usable in the grid, over floor that stays or is added, and in
         # no solid piece of the project; fewer pod places, or a Meld group without its hard points or any point, is

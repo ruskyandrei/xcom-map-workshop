@@ -2,7 +2,8 @@
 // for a base map, a mission's streams, an added bomb's donor and an LWR patch; one marker an objective; the families;
 // the panel's lines. Run: node tools/viewer/tests/spawns_view_test.mjs
 import assert from 'node:assert/strict';
-import { FAMILIES, KINDS, describe, familyOf, groupOf, identityLines, marked, shownEntries, spawnKey, spawnRecords, titleOf } from '../web/spawns_view.js';
+import { FAMILIES, KINDS, SPAWN_VALUE_KEYS, describe, editSpawn, familyOf, groupOf, identityLines, marked, shownEntries, spawnEditable,
+         spawnEntryOf, spawnKey, spawnMoveWords, spawnOverride, spawnPosed, spawnRecords, titleOf } from '../web/spawns_view.js';
 import { fromWords } from '../web/spawn_rules.js';
 
 const L = 'TheWorld.PersistentLevel.';
@@ -86,4 +87,48 @@ const d = describe(entries.find(e => e.record.kind === 'meld'), entries, null);
 assert.equal(d.title, 'Meld point');
 assert.equal(d.lines.at(-1), 'Nothing in the map lists it by name.');
 assert.ok(Object.values(KINDS).every(k => FAMILIES.some(f => f.id === k.family)));
+
+// ---- base spawn point edits (SP6): a pod, a Meld point or a drop-in point moves alone, turns by quarters and takes
+// the values of its kind; back where and as the map has it, it is no edit
+const P = { ...pod(2), rotation: [0, -16384, 0], savesRotation: true, values: { ...pod(2).values, commander: { value: false, from: 'class' } } };
+const M = data.spawns[2];
+assert.ok(spawnEditable(P) && spawnEditable(M) && spawnEditable({ kind: 'dropIn', location: [0, 0, 0] }));
+for (const o of [{ ...P, listed: false }, { ...P, unread: 'bad' }, { kind: 'soldier' }, { kind: 'noSpawn' }, null]) assert.ok(!spawnEditable(o));
+assert.deepEqual(SPAWN_VALUE_KEYS.pod, ['commander', 'secondary', 'use']);
+let edit = editSpawn(P, null, { delta: [96, 0, 0] });
+assert.deepEqual(edit, { stream: null, actor: P.actor, location: [288, 0, 0], rotation: [0, -16384, 0], spawn: {} });
+assert.ok(spawnPosed(edit, P));
+assert.equal(editSpawn(P, edit, { delta: [-96, 0, 0] }), null);
+// quarter turns: four bring it back; the yaw stays within half a turn of the map's
+edit = editSpawn(P, null, { turn: 16384 });
+assert.deepEqual(edit.rotation, [0, 0, 0]);
+assert.equal(spawnMoveWords(P, edit), 'Turned a quarter right from where the map has it.');
+edit = editSpawn(P, edit, { turn: 16384 }); edit = editSpawn(P, edit, { turn: 16384 });
+assert.deepEqual(edit.rotation, [0, -32768, 0]);
+assert.equal(editSpawn(P, edit, { turn: 16384 }), null);
+edit = editSpawn(P, editSpawn(P, null, { delta: [192, 0, 64] }), { turn: -16384 });
+assert.equal(spawnMoveWords(P, edit), 'Moved 2 tiles across, 1 level up and turned a quarter left from where the map has it.');
+// values: one set to the map's goes; one of another value stays; undefined puts it back
+edit = editSpawn(P, null, { spawn: { commander: true } });
+assert.deepEqual(edit.spawn, { commander: true });
+assert.equal(spawnMoveWords(P, edit), '');
+assert.equal(editSpawn(P, edit, { spawn: { commander: false } }), null);
+assert.equal(editSpawn(P, edit, { spawn: { commander: undefined } }), null);
+assert.deepEqual(editSpawn(M, null, { spawn: { difficulty: 'Hard', destroyedOnTurn: 6 } }).spawn, { destroyedOnTurn: 6 });
+// the override: the pose only when it moved or turned, the values when it has any
+assert.deepEqual(spawnOverride('URB_Test', P, editSpawn(P, null, { spawn: { commander: true } })),
+                 { target: { package: 'URB_Test', level: 'base', actor: P.actor }, spawn: { commander: true } });
+assert.deepEqual(spawnOverride('URB_Test', P, editSpawn(P, null, { delta: [0, 96, 0] })),
+                 { target: { package: 'URB_Test', level: 'base', actor: P.actor }, location: [192, 96, 0], rotation: [0, -16384, 0] });
+// a saved override read back: whole pose, values or both, only its kind's keys; else carried (null)
+const T = { package: 'URB_Test', level: 'base', actor: P.actor };
+assert.deepEqual(spawnEntryOf(P, { target: T, spawn: { use: false } }),
+                 { stream: null, actor: P.actor, location: [192, 0, 0], rotation: [0, -16384, 0], spawn: { use: false } });
+assert.deepEqual(spawnEntryOf(P, { target: T, location: [0, 0, 0], rotation: [0, 0, 0] }).spawn, {});
+for (const r of [{ target: T }, { target: T, deleted: true }, { target: T, location: [0, 0, 0] }, { target: T, spawn: { difficulty: 'Hard' } },
+                 { target: T, spawn: [] }, { target: T, spawn: { use: false }, flags: {} }]) assert.equal(spawnEntryOf(P, r), null, JSON.stringify(r));
+assert.equal(spawnEntryOf({ ...P, kind: 'soldier' }, { target: T, spawn: {} }), null);
+// the panel's values show the project's own as such
+lines = identityLines({ layer: 'base', record: { ...M, values: { ...M.values, destroyedOnTurn: { value: 6, from: 'project' } } } }, [], fromWords);
+assert.ok(lines[1].text.includes('destroyed on turn 6 (the project\'s)'), lines[1].text);
 console.log('spawns view: ok');

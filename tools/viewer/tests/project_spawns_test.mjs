@@ -3,7 +3,7 @@
 // and a malformed one is carried as it is for the compiler to refuse.
 // Run: node tools/viewer/tests/project_spawns_test.mjs
 import assert from 'node:assert/strict';
-import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validSpawnRules } from '../web/project.js';
+import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validOverride, validSpawnRules } from '../web/project.js';
 
 assert.equal(SCHEMA_VERSION, 4);
 assert.deepEqual(READ_VERSIONS, [1, 2, 3, 4]);
@@ -22,4 +22,13 @@ assert.deepEqual(sortState({ ...base, spawnRules: { dropIns: 'somewhere' } }).sp
 const off = stateKey(sortState(base)), on = stateKey(sortState({ ...base, spawnRules: { dropIns: 'placed' } }));
 assert.notEqual(off, on);
 assert.equal(stateKey(sortState({ ...base, spawnRules: null })), off);
+
+// a base spawn point's override (SP6): a pose, values or both; values never with a light's, an effect's or flags
+const T = { package: 'URB_Test', level: 'base', actor: 'TheWorld.PersistentLevel.XComAlienPod_0' };
+assert.ok(validOverride({ target: T, spawn: { commander: true } }));
+assert.ok(validOverride({ target: T, spawn: { difficulty: 'Hard', destroyedOnTurn: 6 }, location: [0, 0, 0], rotation: [0, 0, 0] }));
+assert.ok(validOverride({ target: T, location: [0, 0, 0], rotation: [0, 16384, 0] }));
+for (const bad of [{ target: T, spawn: [] }, { target: T, spawn: null }, { target: T, spawn: { destroyedOnTurn: 1.5 } }, { target: T, spawn: { use: {} } },
+                   { target: T, spawn: { use: true }, location: [0, 0, 0] }, { target: T, spawn: { use: true }, flags: {} },
+                   { target: T, spawn: { use: true }, effect: {} }]) assert.ok(!validOverride(bad), JSON.stringify(bad));
 console.log('project_spawns_test: ok');

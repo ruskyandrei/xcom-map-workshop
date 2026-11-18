@@ -8,6 +8,49 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Spawns, stage SP6: the base map's pods, Meld points and drop-in points moved, turned and given values
+
+- **The family** `spawn` ([compiler.py](tools/editor/compiler.py) `FAMILIES`): off until its game check passes (a
+  test server's `--family spawn` turns it on).
+- **The page** ([app.js](tools/viewer/web/app.js), [spawns_view.js](tools/viewer/web/spawns_view.js),
+  [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css)): where the family builds, a
+  picked base pod, Meld point or drop-in point gets the Spawns view's arrows (whole tiles across, whole levels up,
+  alone), Turn left and Turn right (a quarter; the picked pod or drop-in point shows the way it faces), and its
+  values: a pod's Commander's place, Secondary and Use ticks, a Meld point's Difficulty, Destroyed on turn and Spawn
+  group. A value back at the map's, or a point back where and as the map has it, is no edit; "As the map has it" puts
+  it back. Each change is one undo step; Reset all, recovery and the header's count ("4 spawn point edits") take
+  them. The panel names the project's values "(the project's)" ([spawn_rules.js](tools/viewer/web/spawn_rules.js))
+  and says what the move keeps: its name, so what uses it still does; its links stay where the map has them.
+- **The document**: `overrides[]` of `target {package, level: "base", actor}` with a whole pose (only where it moved
+  or turned) and `spawn`, the sparse values; [project.js](tools/viewer/web/project.js) `validOverride` takes them,
+  and a record the page doesn't take (a delete, another kind's key) is carried and saved back unchanged.
+- **The compiler**: `spawn_of`, `spawn_values` and `spawn_override`: refuses a kind it only shows
+  (`spawn-view-only`), an actor the level doesn't list (`spawn-unlisted`), one whose values weren't read
+  (`spawn-unread`), another kind's or an out-of-range value (`spawn-values`), and a delete (`spawn-delete`, SP7's);
+  notes a value of no kind (carried), a point as the map has it, and the links that stay (`spawn-links`); the moves and
+  values go to the native edit's `spawns` lane; SP5's place counts read the moved places; the report counts
+  `spawns {moved, valued, added, deleted}`.
+- **The writer** ([native_spawns.py](tools/bake/native_spawns.py) `apply_lane`, `set_values`, `verify`;
+  [native_copy.py](tools/bake/native_copy.py)): each point edited in place under its own name (a based one's
+  relative place from its base's final place), each value written as a tagged property (a flag the pod saves none of
+  grows its export; the Meld difficulty as its `EMeldContainerDifficulty` name), read back after the write.
+- **The Build** ([build.py](tools/editor/build.py)): spawn edits are work of their own, with no relight and the
+  lighting kept; the manifest counts them (`spawnEdits`).
+- **Example** [exp72_sp6_project.py](tools/editor/examples/exp72_sp6_project.py): URB_Bar's pod 0 moved a tile and
+  turned a quarter, pod 1 the commander's, Meld point 2 hard and destroyed on turn 6, Meld point 3 in spawn group 1;
+  `--again` builds twice, `--cleared` and `--grid` on the cleared and the resized Bar.
+- **Checked** offline on URB_Bar: built twice byte for byte the same; read back with the package reader on its own:
+  the same 32 actors, export indices, names and children, every point the edit didn't touch byte for byte, each
+  edited point as asked; the cleared and the resized Bar build and read back the same way. Tests: compiler (the
+  family off, the lane, each refusal), bake (`test_native_spawns.py`: the value bytes; Bar edited, read back, the
+  rest as it was, the refusals), build (a spawn-only project in both kinds of build), node (`spawns_view_test.mjs`:
+  the edit rules, the override, a saved record read back; `project_spawns_test.mjs`: `validOverride`), the families
+  table; the page tried on a test server with the family on (the project's four edits opened as saved, turned, valued,
+  undone back to saved).
+- **Gaps**: the plan had these points as roots of the main gizmo, with box select and free moves with snap off; they
+  are moved in the Spawns view by its own arrows, one at a time, by whole tiles and levels. The game check
+  (the lab copy with the pod and Meld mutators out) is still to come.
+
 ### Spawns, stage SP8: scripted drop-ins land where placed (project schema 4)
 
 - **Project schema 4** ([projects.py](tools/viewer/projects.py), [project.js](tools/viewer/web/project.js),

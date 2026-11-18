@@ -682,6 +682,27 @@ class Builds(unittest.TestCase):
         self.assertEqual(self.tool('transplant.py'), [])
         self.assertEqual(len(self.tool('native_copy.py')), 1)
 
+    def test_base_spawn_points_alone_build_in_the_map_with_the_lighting_kept(self):
+        """The spawns lane (the editor spawns plan, SP6), the project's only change: a pod moved and a Meld point given
+        values are made by native_copy.py in both kinds of build, with nothing staged, no relight and the lighting kept;
+        the manifest counts them."""
+        move = dict(name='XComAlienPod_Abduction_0', actorClass='XComAlienPod_Abduction', kind='pod',
+                    location=[1694.8, 1642.2, 1.5], rotation=[0, 0, 0], before=dict(location=[1598.8, 1642.2, 1.5], rotation=[0, -16384, 0]))
+        value = dict(name='XComMeldContainerSpawnPoint_2', actorClass='XComMeldContainerSpawnPoint', kind='meld',
+                     spawn=dict(difficulty='Hard', destroyedOnTurn=6))
+        self.spec['objects'] = [dict(type='spawns', moves=[move], values=[value], deletes=[], copies=[])]
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            self.assertEqual(self.tool('transplant.py'), [])
+            light, = self.tool('native_copy.py')
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual((edit['spawns']['moves'], edit['spawns']['values']), ([move], [value]))
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+            self.assertEqual(m['spawnEdits'], dict(moved=1, valued=1, added=0, deleted=0))
+
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]
         m = self.make(quick=True).run()

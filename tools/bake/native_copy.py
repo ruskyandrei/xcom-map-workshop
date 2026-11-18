@@ -2047,7 +2047,7 @@ def by_assembly(copies):
 def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
           edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
           building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None):
+          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None, spawns=None):
     """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
     <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
@@ -2104,6 +2104,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
     flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
     and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
+
+    `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
+    and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
+    says what was done, read back (native_spawns.verify).
 
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
     theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
@@ -2267,8 +2271,11 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     sound_clones, sound_gone, lane_sounds = native_sounds.apply(g, p, sounds)
     import native_flares
     flare_clones, flare_gone, lane_flares = native_flares.apply(g, p, flares)
-    effect_gone = set(effect_gone) | lane_gone | sound_gone | flare_gone
-    effect_clones = list(effect_clones) + lane_clones + sound_clones + flare_clones
+    # the base map's spawn points the project moves or gives values (the editor spawns plan, SP6)
+    import native_spawns
+    spawn_clones, spawn_gone, lane_spawns = native_spawns.apply_lane(g, p, spawns)
+    effect_gone = set(effect_gone) | lane_gone | sound_gone | flare_gone | spawn_gone
+    effect_clones = list(effect_clones) + lane_clones + sound_clones + flare_clones + spawn_clones
     if effect_gone:
         empty_slots(g, p, effect_gone)
     effect_moved = ({p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
@@ -2384,12 +2391,13 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     if state:
         native_lights.verify(q, state, light_result)
     # the effects' and sounds' lanes and the floors' effect lists read back
-    if lane_effects or lane_sounds or lane_flares or floor_emitters:
+    if lane_effects or lane_sounds or lane_flares or floor_emitters or lane_spawns:
         from package import Package as Reader
         r = Reader(dst)
         native_effects.verify(r, lane_effects, floor_emitters)
         native_sounds.verify(r, lane_sounds)
         native_flares.verify(r, lane_flares)
+        native_spawns.verify(r, lane_spawns)
     # the flags read back with a fresh reader: an edit not in the map is an error, never a success
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
@@ -2431,7 +2439,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                     'exports': {p.name(o): q.name(n) for o, n in r['mapping'].items()}}
                                    if r['how'] == 'copied' else {}))
                            for r in lane]
-                     for key, lane in (('effects', lane_effects), ('sounds', lane_sounds), ('flares', lane_flares))
+                     for key, lane in (('effects', lane_effects), ('sounds', lane_sounds), ('flares', lane_flares),
+                                       ('spawns', lane_spawns))
                      if lane},
                   **({'floorEmitters': [dict(effect=q.name(f['effect']).split('.')[-1],
                                              building=q.name(f['building']).split('.')[-1], floor=f['floor'],
@@ -2550,7 +2559,7 @@ def main():
     a.add_argument('--base', metavar='SHA', help='with --piece-cache: the SHA-256 of the map before any of the edit')
     args = a.parse_args()
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
-    cleared = landing_zones = carried_effects = effects = sounds = flares = None
+    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
     stream_tiles, piece_flags, flag_ladders = [], [], []
     if args.copies:
         doc = json.loads(args.copies.read_text(encoding='utf-8'))
@@ -2564,6 +2573,7 @@ def main():
             landing_zones = doc.get('landingZones')
             carried_effects = doc.get('carriedEffects')
             effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
+            spawns = doc.get('spawns')
             stream_tiles = doc.get('streamTiles') or []
             piece_flags = doc.get('pieceFlags') or []
             flag_ladders = doc.get('pieceFlagLadders') or []
@@ -2590,7 +2600,7 @@ def main():
     import native_lights
     if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
             and not stream_tiles and not piece_flags and native_lights.is_empty(lights) and not effects and not sounds \
-            and not flares:
+            and not flares and not spawns:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
@@ -2599,7 +2609,7 @@ def main():
               assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
               cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
               piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
-              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares)
+              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares, spawns=spawns)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']
@@ -2627,7 +2637,7 @@ def main():
               + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}" if h['volume']
                  else 'outside the map\'s tiles, no rebuild volume')
               + (f", unlinked from {', '.join(h['unlinkedFrom'])}" if h['unlinkedFrom'] else ''))
-    for key in ('effects', 'sounds', 'flares'):
+    for key in ('effects', 'sounds', 'flares', 'spawns'):
         for r in m['nativeCopies'].get(key) or []:
             print(f"{key[:-1]} {r['actor']} {r['how']}" + (f" from {r['source']} -> {r['copy']}" if r['how'] == 'copied' else '')
                   + (f" at {[round(v, 1) for v in r['location']]} {r['rotation']}" if 'location' in r else '')

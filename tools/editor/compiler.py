@@ -166,7 +166,16 @@ FAMILIES = {
     # family builds (families.json)
     'flare': dict(builds=True, milestone=None, grid=False, what='a lens flare',
                   note='Lens flares are moved, copied and deleted where the flare family builds.'),
+    # the base map's pods, Meld points and drop-in points moved and their values changed (the editor spawns plan,
+    # SP6): off until its game check passes; an experiment's build lifts it with --family spawn
+    'spawn': dict(builds=False, milestone=None, grid=False, what='a spawn point',
+                  note='Spawn points are moved and their values changed where the spawn family builds.'),
 }
+# the spawn points an edit may change (the export's `spawns` kinds), each kind's values, and what a value may be
+SPAWN_EDIT_KINDS = ('pod', 'meld', 'dropIn')
+SPAWN_VALUE_KEYS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
+                    'dropIn': ()}
+SPAWN_WORDS = {'pod': 'a pod', 'meld': 'a Meld point', 'dropIn': 'a drop-in point'}
 CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
                 'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
                 'XComCollectible': 'collectible', 'XComLadder': 'ladder', 'XComInteractiveLevelActor': 'door',
@@ -803,6 +812,8 @@ class Compiler:
         # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
         # project's own takes from the piece that carries them (they leave carriedEffects)
         self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
+        # the base map's spawn points moved or given values (the editor spawns plan, SP6): the spec's `spawns` object
+        self.spawn_ops = dict(moves=[], deletes=[], copies=[], values=[])
         self.effect_members = set()
         self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
@@ -919,6 +930,8 @@ class Compiler:
             layers = [self.scene.get(key) or []] + [(s or {}).get(key) or [] for s in (self.scene.get('streams') or {}).values()]
             for rec in (r for layer in layers for r in layer):
                 self.effect_actors.setdefault((rec.get('sourcePackage'), rec.get('layer'), rec.get('actor')), dict(rec, kind=kind))
+        # the base map's spawn points by actor path (export 33's `spawns`)
+        self.spawn_actors = {r['actor']: r for r in self.scene.get('spawns') or [] if isinstance(r, dict) and r.get('actor')}
         self.building_names = {b.get('id'): b.get('name') for b in self.scene.get('buildings') or []}
         self.object_boxes = None
         # the map's meshes, and those of the pieces of other maps as they are looked up (foreign_piece)
@@ -1409,6 +1422,109 @@ class Compiler:
         return ['%s.%s' % (h['stream'], short(h['actor'])) for h in found]
 
     # ---------------------------------------------------------------- records
+    def spawn_of(self, target):
+        """The base map's spawn point a target {package, level: base, actor} names (export 33's `spawns` record), or
+        None."""
+        if not isinstance(target, dict) or target.get('level') != 'base' or not isinstance(target.get('actor'), str):
+            return None
+        if str(target.get('package')).casefold() not in (str(self.map).casefold(), str(getattr(self, 'package', '')).casefold()):
+            return None
+        return self.spawn_actors.get(target['actor'])
+
+    def spawn_values(self, rec, record, name, where):
+        """An override's `spawn` values checked against the point's kind: (values that differ from the map's, ok). A
+        pod's `commander`, `secondary` and `use` are true or false; a Meld point's `difficulty` is Easy or Hard, its
+        `destroyedOnTurn` a whole number from -1 (never) to 99 and its `spawnGroup` one from 0 to 99. A key of another
+        kind is an error; one of no kind is noted and carried. A value the map has already builds nothing."""
+        values = rec.get('spawn')
+        if values is None:
+            return {}, True
+        if not isinstance(values, dict):
+            self.error('malformed', 'the spawn values of %s must be an object' % name, **where)
+            return {}, False
+        kind = record['kind']
+        allowed = SPAWN_VALUE_KEYS.get(kind, ())
+        known = {k for keys in SPAWN_VALUE_KEYS.values() for k in keys}
+        out, ok = {}, True
+        for key, value in sorted(values.items()):
+            if key not in known:
+                self.note('unknown-field', 'spawn value %r of %s is not one this editor knows; it is carried and not '
+                          'built' % (key, name), **where)
+                continue
+            if key not in allowed:
+                self.error('spawn-values', '%s is %s, which has no %s' % (name, SPAWN_WORDS.get(kind, kind), key), **where)
+                ok = False
+                continue
+            good = (isinstance(value, bool) if key in ('commander', 'secondary', 'use') else
+                    value in ('Easy', 'Hard') if key == 'difficulty' else
+                    isinstance(value, int) and not isinstance(value, bool) and (-1 <= value <= 99 if key == 'destroyedOnTurn'
+                                                                                else 0 <= value <= 99))
+            if not good:
+                self.error('spawn-values', '%s: %s %r is not a value it can have (%s)' % (name, key, value, dict(
+                    commander='true or false', secondary='true or false', use='true or false', difficulty='Easy or Hard',
+                    destroyedOnTurn='a whole number from -1, never, to 99', spawnGroup='a whole number from 0 to 99')[key]),
+                    **where)
+                ok = False
+                continue
+            have = ((record.get('values') or {}).get(key) or {}).get('value')
+            if have != value:
+                out[key] = value
+        return out, ok
+
+    def spawn_override(self, target, rec, where, record):
+        """A base pod, Meld point or drop-in point moved, turned or given values (the editor spawns plan, SP6), in
+        place: the Build keeps its actor, so what names it (Kismet, wave groups, pod events by index) still does."""
+        kind, name = record.get('kind'), short(target['actor'])
+        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'spawn'}):
+            self.note('unknown-field', 'field %r is not part of the override of a spawn point and is ignored' % f, **where)
+        if kind not in SPAWN_EDIT_KINDS:
+            self.error('spawn-view-only', '%s is %s, which the editor shows but doesn\'t change' % (
+                name, missions.object_words(record) if kind else 'a spawn record'), **where)
+            return
+        if not self.builds('spawn'):
+            self.error('family', '%s is %s edit. %s' % (name, SPAWN_WORDS[kind], FAMILIES['spawn']['note']),
+                       family='spawn', **where)
+            return
+        if record.get('listed') is False:
+            self.error('spawn-unlisted', '%s is not in the level\'s actor list, so the game never has it: there is '
+                       'nothing to move' % name, **where)
+            return
+        if record.get('unread'):
+            self.error('spawn-unread', '%s: the export could not read its values (%s), so the Build leaves it as it is'
+                       % (name, record['unread']), **where)
+            return
+        if rec.get('deleted') is True:
+            self.error('spawn-delete', '%s: deleting a spawn point is not built yet' % name, **where)
+            return
+        values, ok = self.spawn_values(rec, record, name, where)
+        if not ok:
+            return
+        moved = False
+        if 'location' in rec or 'rotation' in rec:
+            p = self.pose(dict(location=rec.get('location', record['location']),
+                               rotation=rec.get('rotation', record['rotation'])), where)
+            if not p:
+                return
+            loc, rot, rounding = p
+            moved = not (all(abs(a - b) < EPS_LOCATION for a, b in zip(loc, record['location']))
+                         and rot == [int(v) for v in record['rotation']])
+            if moved:
+                if record.get('links'):
+                    self.note('spawn-links', '%s moves; %s stay where the map has them' % (name, ', '.join(sorted(
+                        {'its %s %s' % (lk.get('property'), short(str(lk.get('actor') or ''))) for lk in record['links']}))[:240]),
+                        **where)
+                self.spawn_ops['moves'].append(dict(name=name, actorClass=record['actorClass'], kind=kind, location=loc,
+                                                    rotation=rot, before=dict(location=list(record['location']),
+                                                                              rotation=list(record['rotation']))))
+                self.entities.append(dict(kind='spawn', op='move', target=target['actor'], actorClass=record['actorClass'],
+                                          location=loc, rotation=rot, rotationRounding=tidy(rounding, 6)))
+        if values:
+            self.spawn_ops['values'].append(dict(name=name, actorClass=record['actorClass'], kind=kind, spawn=values))
+            self.entities.append(dict(kind='spawn', op='values', target=target['actor'], actorClass=record['actorClass'],
+                                      spawn=values))
+        if not moved and not values:
+            self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
+
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""
         if not isinstance(target, dict):
@@ -1434,11 +1550,19 @@ class Compiler:
             if light is not None:
                 self.light_override(target, rec, where, light)
                 continue
+            spawn = self.spawn_of(target)
+            if spawn is not None:
+                self.spawn_override(target, rec, where, spawn)
+                continue
             if isinstance(target, dict) and target.get('level') == 'stream':
                 self.stream_override(target, rec, where)
                 continue
             if 'light' in rec:
                 self.error('malformed', '%s is not a light of the export, so it has no light values' % short(
+                    str((target or {}).get('actor'))), **where)
+                continue
+            if 'spawn' in rec:
+                self.error('malformed', '%s is no spawn point of the base map, so it has no spawn values' % short(
                     str((target or {}).get('actor'))), **where)
                 continue
             if 'effect' in rec or 'sound' in rec or 'flare' in rec:
@@ -3060,6 +3184,13 @@ class Compiler:
                                     deletes=sorted(ops['deletes'], key=lambda d: d['name']),
                                     copies=sorted(ops['copies'], key=lambda d: d['name']),
                                     values=sorted(ops['values'], key=lambda d: d['name'])))
+        if any(self.spawn_ops.values()):
+            # the base map's spawn points moved or given values (the editor spawns plan, SP6): made in the map by the
+            # Build's writer (native_split moves them there; tools/bake/native_spawns.py)
+            objects.append(dict(type='spawns', moves=sorted(self.spawn_ops['moves'], key=lambda d: d['name']),
+                                values=sorted(self.spawn_ops['values'], key=lambda d: d['name']),
+                                deletes=sorted(self.spawn_ops['deletes'], key=lambda d: d['name']),
+                                copies=sorted(self.spawn_ops['copies'], key=lambda d: d['name'])))
         if self.flag_edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
@@ -3797,7 +3928,8 @@ class Compiler:
         location)], a point a delete record takes out left out. Spawns plan, SP5; the base point edits (SP6, SP7) move,
         copy and delete them here."""
         gone = {e['target'] for e in self.entities if e['kind'] == 'delete'}
-        return [(r, r['location']) for r in self.scene.get('spawns') or []
+        moved = {e['target']: e['location'] for e in self.entities if e['kind'] == 'spawn' and e['op'] == 'move'}
+        return [(r, moved.get(r['actor'], r['location'])) for r in self.scene.get('spawns') or []
                 if isinstance(r, dict) and isinstance(r.get('location'), list) and r.get('actor') not in gone]
 
     def spawn_places(self):
@@ -4021,6 +4153,8 @@ class Compiler:
                                                valued=len(self.effect_ops[kind]['values'])
                                                + sum(1 for c in self.effect_ops[kind]['copies'] if c.get('values')))
                                      for kind, key in EFFECT_LANES},
+                                  spawns=dict(moved=len(self.spawn_ops['moves']), valued=len(self.spawn_ops['values']),
+                                              added=len(self.spawn_ops['copies']), deleted=len(self.spawn_ops['deletes'])),
                                   flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=getattr(self, 'stage_grid', None),
@@ -4309,7 +4443,7 @@ def native_split(spec):
         if obj.get('type') == 'lights':
             lights = {k: obj[k] for k in ('deletes', 'changes', 'adds', 'area')}
             continue
-        if obj.get('type') in ('effects', 'sounds', 'flares'):
+        if obj.get('type') in ('effects', 'sounds', 'flares', 'spawns'):
             effect_lanes[obj['type']] = {k: obj.get(k) or [] for k in ('moves', 'deletes', 'copies', 'values')}
             continue
         if obj.get('type') == 'hide' and obj.get('exact'):

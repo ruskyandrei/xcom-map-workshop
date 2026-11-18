@@ -180,14 +180,21 @@ const validLight = v => v === undefined || (v && typeof v === 'object' && !Array
 export const EFFECT_VALUE_KEYS = { effect: ['scale', 'startsOn', 'parameters', 'follow'], sound: ['radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn'] };
 const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.keys(v).every(k => EFFECT_VALUE_KEYS[kind].includes(k)) && (v.follow === undefined || ['none', 'auto'].includes(v.follow)));
+// A base spawn point's values (the editor spawns plan, SP6): `spawn` {commander?, secondary?, use?} of a pod or
+// {difficulty?, destroyedOnTurn?, spawnGroup?} of a Meld point, each a boolean, a string or a whole number; which kind's
+// keys a point takes is the compiler's to check.
+const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
+  && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
-// map has it; an effect's may be its values alone)
+// map has it; an effect's may be its values alone, and a spawn point's too)
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
   && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
+  && validSpawnValues(r.spawn) && !(r.spawn !== undefined && (r.effect !== undefined || r.sound !== undefined || r.light !== undefined || r.flags !== undefined))
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
       || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
       || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
-          && r.light === undefined && r.flags === undefined));
+          && r.light === undefined && r.flags === undefined)
+      || (r.spawn !== undefined && r.location === undefined && r.rotation === undefined));
 // An added actor: a copy of a source actor's components (`from`, `components`), a light made from a built-in recipe
 // (`template`: { kind, version }, editor lights plan 3.5), or a cover block or invisible floor (`template` { kind: 'cover',
 // version } and `cover` { type, size, heights } in units, an invisible floor's { type, size }, an older record's

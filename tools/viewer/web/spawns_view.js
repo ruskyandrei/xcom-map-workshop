@@ -8,8 +8,9 @@
 //   unless a stream of the mission is the donor itself;
 // - an LWR patch's spawn points (streams[<name>].spawns), read only, with the layer's name.
 // One marker an actor: a bomb's button, floor marker, emitters and helper point stay in the inspector. A click on a
-// marker opens the inspector (app.js); the stream objects' group gizmo moves them (Part E), the base map's are view
-// only until stage SP6. Pure but for the marker shapes, which take three.js as an argument so the node tests load this.
+// marker opens the inspector (app.js); the stream objects' group gizmo moves them (Part E), and the base map's pods,
+// Meld points and drop-in points move, turn and take values where the spawn family builds (SP6: editSpawn). Pure but
+// for the marker shapes, which take three.js as an argument so the node tests load this.
 
 // kind -> what it is called, its colour, its marker's shape and the flyout family it shows under
 export const KINDS = {
@@ -127,8 +128,76 @@ export function describe(entry, entries, missionLabel) {
   return { title: titleOf(entry, entries, missionLabel), lines };
 }
 
-/** Where the edit of a base record will come from (SP3: view only until stage SP6). */
-export const baseEditWords = 'The Build keeps it where the map has it: base spawn points are edited from a later stage.';
+/** What the panel says of a base record the project can't edit: one of a kind the editor shows only, or a pod, Meld
+ * point or drop-in point where the spawn family doesn't build (SP6). */
+export const baseEditWords = 'The Build keeps it where the map has it.';
+
+// ---------------------------------------------------------------- base spawn point edits (SP6)
+
+/** The kinds of base spawn point a project moves, turns and gives values (compiler.SPAWN_EDIT_KINDS), and the values
+ * of each (compiler.SPAWN_VALUE_KEYS). */
+export const SPAWN_EDIT_KINDS = ['pod', 'meld', 'dropIn'];
+export const SPAWN_VALUE_KEYS = { pod: ['commander', 'secondary', 'use'], meld: ['difficulty', 'destroyedOnTurn', 'spawnGroup'], dropIn: [] };
+/** Whether a base record is one the Build can edit: its kind, in the level's actor list, its values read. */
+export const spawnEditable = o => SPAWN_EDIT_KINDS.includes(o?.kind) && o.listed !== false && !o.unread;
+// a yaw (rotation units, 65536 a turn) within half a turn of another
+const yawNear = (yaw, base) => { let d = ((yaw - base) % 65536 + 65536) % 65536; if (d > 32768) d -= 65536; return base + d; };
+const rotationOf = o => (o.rotation ?? [0, 0, 0]).map(v => Math.round(v));
+/** Whether an edit stands or faces otherwise than its record. */
+export const spawnPosed = (entry, o) => !(entry.location.every((v, i) => Math.abs(v - o.location[i]) < 1e-3)
+  && entry.rotation.every((v, i) => v === rotationOf(o)[i]));
+/** A base spawn point's edit after a change: moved by `delta` (game units), turned by `turn` (rotation units; its yaw
+ * kept within half a turn of the map's, so four quarter turns bring it back), `spawn` values merged (a key set to
+ * undefined, or to the map's value, goes back to the map's). entry: its edit before ({stream: null, actor, location,
+ * rotation, spawn}) or null. Returns the edit, or null when it is back where and as the map has it. */
+export function editSpawn(o, entry, { delta = [0, 0, 0], turn = 0, spawn = null } = {}) {
+  const was = entry ?? { location: [...o.location], rotation: rotationOf(o), spawn: {} };
+  const location = was.location.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000);
+  const rotation = [was.rotation[0], yawNear(was.rotation[1] + turn, rotationOf(o)[1]), was.rotation[2]];
+  const values = { ...(was.spawn ?? {}) };
+  for (const [key, v] of Object.entries(spawn ?? {})) {
+    if (v === undefined || v === o.values?.[key]?.value) delete values[key]; else values[key] = v;
+  }
+  const next = { stream: null, actor: o.actor, location, rotation, spawn: values };
+  return spawnPosed(next, o) || Object.keys(values).length ? next : null;
+}
+/** A base spawn point's override (the project's `overrides` record, compiler.spawn_override): its pose only where it
+ * moved or turned, its values where it has any. pkg: the map's package (the export's name). */
+export function spawnOverride(pkg, o, entry) {
+  const out = { target: { package: pkg, level: 'base', actor: entry.actor } };
+  if (!o || spawnPosed(entry, o)) Object.assign(out, { location: [...entry.location], rotation: [...entry.rotation] });
+  if (Object.keys(entry.spawn ?? {}).length) out.spawn = { ...entry.spawn };
+  return out;
+}
+/** A saved override's edit of base record `o`, or null when the page doesn't take it (it is then carried and saved
+ * back unchanged): a record of a kind it edits, not deleted, with a whole pose or values or both, and only the values
+ * of its kind. */
+export function spawnEntryOf(o, record) {
+  if (!spawnEditable(o) || Object.keys(record).some(k => !['target', 'location', 'rotation', 'spawn'].includes(k))) return null;
+  const posed = Array.isArray(record.location) && record.location.length === 3 && record.location.every(Number.isFinite)
+    && Array.isArray(record.rotation) && record.rotation.length === 3 && record.rotation.every(Number.isFinite);
+  if (!posed && (record.location !== undefined || record.rotation !== undefined)) return null;
+  const values = record.spawn;
+  if (values !== undefined && (!values || typeof values !== 'object' || Array.isArray(values)
+    || Object.keys(values).some(k => !SPAWN_VALUE_KEYS[o.kind].includes(k)))) return null;
+  if (!posed && !values) return null;
+  return { stream: null, actor: o.actor, location: posed ? [...record.location] : [...o.location],
+           rotation: posed ? record.rotation.map(v => Math.round(v)) : rotationOf(o), spawn: { ...(values ?? {}) } };
+}
+/** The panel's words for an edit's move and turn ("" when it stands as the map has it). */
+export function spawnMoveWords(o, entry) {
+  if (!entry || !spawnPosed(entry, o)) return '';
+  const d = entry.location.map((v, i) => v - o.location[i]), levels = Math.abs(Math.round(d[2] / 64));
+  const tiles = Math.round(Math.hypot(d[0], d[1]) / 96), quarters = Math.round((entry.rotation[1] - rotationOf(o)[1]) / 16384);
+  const parts = [];
+  if (tiles) parts.push(`moved ${tiles} ${tiles === 1 ? 'tile' : 'tiles'} across`);
+  if (levels) parts.push(`${parts.length ? '' : 'moved '}${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}`);
+  if (quarters) parts.push(`turned ${Math.abs(quarters) === 2 ? 'half a turn' : `a quarter ${quarters > 0 ? 'right' : 'left'}`}`);
+  else if (entry.rotation[1] !== rotationOf(o)[1]) parts.push('turned');
+  if (!parts.length) parts.push('moved less than a tile');
+  const text = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
+  return `${text[0].toUpperCase()}${text.slice(1)} from where the map has it.`;
+}
 
 // ---------------------------------------------------------------- markers (three.js passed in)
 
@@ -156,6 +225,18 @@ export function makeSpawnMarker(THREE, kind, readOnly = false) {
   for (const m of [front, behind]) { m.raycast = () => {}; marker.add(m); }
   marker.userData = { front, behind, solid, ghost, colour };
   return marker;
+}
+
+/** A pointer on a marker showing the way its point faces (yaw in rotation units: 0 along the game's x, a quarter turn
+ * along its y), in the marker's colours. */
+export function addFacingPointer(THREE, marker, yaw) {
+  const a = yaw / 65536 * Math.PI * 2;
+  // (the view's basis is x, up, y: the game's direction (cos a, sin a) is the view's (cos a, 0, sin a))
+  const geometry = new THREE.ConeGeometry(0.26, 0.9, 10).rotateZ(-Math.PI / 2).translate(1.15, 0, 0).rotateY(-a);
+  const { solid, ghost } = marker.userData;
+  const front = new THREE.Mesh(geometry, solid), behind = new THREE.Mesh(geometry, ghost);
+  behind.renderOrder = 6;
+  for (const m of [front, behind]) { m.raycast = () => {}; marker.add(m); }
 }
 
 /** A marker brighter while its record is picked. */

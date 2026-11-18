@@ -178,6 +178,15 @@ canvas { display: block; width: 100%; height: 100%; }
 #spawnPanel { display: grid; gap: 8px; }
 .spawninfo p { margin: 0 0 4px; }
 .spawninfo strong { color: var(--text, #ddd); font-weight: 600; }
+/* a base spawn point's turns and values (spawns plan SP6) */
+.spawnedit { display: grid; gap: 5px; font-size: 12px; margin-top: 4px; }
+.spawnedit[hidden] { display: none; }
+.spawnedit .check { margin-top: 0; }
+.spawnedit .valueline, .spawnedit .valuepair { display: flex; align-items: center; gap: 6px; color: #c7d9e2; }
+.spawnedit .valuepair label { display: flex; align-items: center; gap: 6px; flex: 1 1 0; }
+.spawnedit input[type=number] { width: 64px; }
+.spawnedit .edited, .spawnedit .edited label { color: #ffd27a; }
+.spawnedit button { padding: 1px 6px; }
 /* The Effects view's panel (effects and sounds plan, FX1): chips, lines and the particle parameters an effect saves. */
 #effectPanel { display: grid; gap: 8px; }
 #effectPanel[hidden] { display: none; }
