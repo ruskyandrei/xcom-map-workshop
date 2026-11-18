@@ -8,6 +8,39 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The ground measurer, ground shapes in any look, and scaled donors at scale 1** (custom geometry plan, M4 work
+  order B step 3 and M4b item 5; branch off `fracturing-wall-poc`).
+  - [ground_measure.py](tools/bake/ground_measure.py) (`VERSION` 1), grown from research/evidence/ground-audit.py:
+    `measure(package, what, material=None)` takes a plain piece placed in a map (its actor or its mesh path) and the
+    material it draws (left out: its top's) and gives `{recipe, warnings, facts}`:
+    - the material, its slot and the donor's section count; the top's planar texture map in world units (the
+      placing's scale applied, so a donor placed at 2 gives the repeat its placing draws); a patch's thickness; the
+      commonest colour the placing draws the slot with; the lightmap's density (at least 0.05, a backdrop plane's
+      being coarser than play-area ground's);
+    - facts: the material record (blend mode, root, lighting, texture channels), setting, size, scale, top shape,
+      painted or not, and `leftOut`: why the material makes no ground look (D14: translucent and masked overlays draw
+      holes; decals, unlit, modulated, a third texture channel, distant scenery, no texture lightmap, a placing the
+      Build doesn't copy);
+    - warnings: a painted material made in its commonest colour, showing one layer (D14); a texture laid out piece
+      by piece; a top that isn't flat; a masked material on a general root.
+    - `twin(recipe, template)`: a patch at the donor's size, measured again (slot, sections, texture map, colour,
+      thickness, lightmap density).
+  - [ground.py](tools/bake/ground.py) takes a look given whole (`{mesh, material, measure, recipe}`): the top's own
+    planar map, the sides at its repeats, the faces in the donor's slot among its sections, and the recipe's colour
+    unless the Build gives one. A given look's mesh name follows the look, not its recipe's spelling.
+  - [frac_walls.py](tools/bake/frac_walls.py): a ground shape's copy of a scaled donor stands at scale 1 (the clone's
+    DrawScale, DrawScale3D, Scale and Scale3D set to 1 where they aren't; its box and lightmap from the unscaled
+    pose); a given look's colour is the recipe's, not the donor's whole paint. Copies of unscaled donors and named
+    looks are untouched.
+  - Checked by: [test_ground_measure.py](tools/bake/tests/test_ground_measure.py) (a shape made in a recipe and
+    measured again; the sides' repeats; the twin; the seven looks' donors measure as their looks were written; the
+    bar's asphalt made in its commonest colour; URB_PierA_Terror's masked rubble left out and its road plane at
+    scale 2 giving twice the mesh's repeat, its copy at scale 1 in a Build); the scratch comparison of today's builds
+    (the seven ground looks, four shapes each, default template, donor's mesh and a given colour: the same bytes);
+    the bake tests matching "round" (35) and "frac_wall" (70).
+  - Known gaps: the page drawing a scaled donor's copy at scale 1 is the main session's (generated.py, ground.js);
+    a rock or cliff donor gives flat-faced pieces in its material.
+
 - **The slab measurer: a recipe from any of the game's floors and roofs** (custom geometry plan, M4 work order B
   step 1; branch off `fracturing-wall-poc`).
   - [slab_measure.py](tools/bake/slab_measure.py) (`VERSION` 1), grown from research/evidence/slab-audit.py:
