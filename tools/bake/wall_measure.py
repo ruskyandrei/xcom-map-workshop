@@ -1302,11 +1302,16 @@ def recipe_of(raw, state, g):
     return lowered_by(recipe, made, lift) if lift else (recipe, made)
 
 
+# a donor this far over its pivot or less is not moved down (lift_of)
+LIFT_SLACK = 8.0
+
+
 def lift_of(bottom):
     """How far a made wall is moved down from its donor's frame: for a donor whose bottom is above its pivot (an upper
     storey's wall placed from the ground, a wall on a raised floor), whole levels (64) until its bottom is in (-64, 0],
-    so it stands on the floor it is drawn on (64 -> 0, 192 -> 0, 48 -> -16); 0 for a donor at or under its pivot."""
-    return LEVEL * math.ceil(bottom / LEVEL) if bottom > 0 else 0.0
+    so it stands on the floor it is drawn on (64 -> 0, 192 -> 0, 48 -> -16); 0 for a donor at or under its pivot, or
+    over it by LIFT_SLACK or less (a supply ship crate's walls at 1.793 stay, not a level under the floor)."""
+    return LEVEL * math.ceil((bottom - LIFT_SLACK) / LEVEL) if bottom > LIFT_SLACK else 0.0
 
 
 def lowered_by(recipe, made, lift):

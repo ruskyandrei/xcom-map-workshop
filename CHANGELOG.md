@@ -8,6 +8,14 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A wall donor barely over its pivot is not lowered** (custom geometry plan, M4; branch `fracturing-wall-poc`).
+  - [wall_measure.py](tools/bake/wall_measure.py) lift_of: a donor whose bottom is 8 or less over its pivot keeps its
+    heights (LIFT_SLACK). The supply ship crate's walls, 1.793 over theirs, had been lowered a whole level to -62.2,
+    almost a level under the floor they are drawn on. [walls.json](tools/bake/looks/walls.json) rebuilt: 67 looks
+    lowered, 326 of 344 twins ok as before.
+  - Checked: [test_wall_measure.py](tools/bake/tests/test_wall_measure.py) (1.793, 8 and 72 added to the rule's
+    cases); test_frac_walls, test_looks; wall_catalogue.py check (the same bytes).
+
 - **A look's plain ends alone don't mark it Simpler in the picker** (custom geometry plan, M4c; branch
   `fracturing-wall-poc`).
   - [looks.js](tools/viewer/web/looks.js) lookTags: the walls catalogue warns of plain ends ("the detail at its ends

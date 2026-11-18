@@ -181,9 +181,10 @@ class GeneralPath(unittest.TestCase):
         self.assertEqual(frac_wall.mesh_name(wall), frac_wall.mesh_name(dict(wall)))
 
     def test_a_donor_over_its_pivot_is_moved_down_by_whole_levels(self):
-        # its bottom ends in (-64, 0]: 64 -> 0, 192 -> 0, 48 -> -16, 320 -> 0; at or under its pivot, not moved
-        self.assertEqual([wall_measure.lift_of(b) for b in (64.0, 192.0, 48.0, 320.0, 0.0, -16.0)],
-                         [64.0, 192.0, 64.0, 320.0, 0.0, 0.0])
+        # its bottom ends in (-64, 0]: 64 -> 0, 192 -> 0, 48 -> -16, 320 -> 0; at or under its pivot, or over it by 8 or
+        # less (the supply ship crate's walls at 1.793), not moved; 72 -> 8
+        self.assertEqual([wall_measure.lift_of(b) for b in (64.0, 192.0, 48.0, 320.0, 0.0, -16.0, 1.793, 8.0, 72.0)],
+                         [64.0, 192.0, 64.0, 320.0, 0.0, 0.0, 0.0, 0.0, 64.0])
         high, made = wall_measure.lowered_by(dict(RECIPE, frame=dict(RECIPE['frame'])), {'A': [[100.0, 120.0]]}, 64.0)
         self.assertEqual((high['bottom'], high['top'], high['frame']['lowered'], made), (-80.0, 320.0, 64.0, {'A': [[36.0, 56.0]]}))
         self.assertEqual(high['profile']['A'][0], [11.0, -80.0])
