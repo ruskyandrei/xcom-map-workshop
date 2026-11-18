@@ -8,6 +8,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+### Custom geometry, stage M6 (item 3): the hull writer moved into the tools; EXP-76 prepared
+
+- [hulls.py](tools/bake/hulls.py) (new) is the general convex hull writer (`hull_element`, `wedge`) and the cooker's
+  rules it rests on, moved out of [hull-audit.py](research/evidence/hull-audit.py). The audit imports it back. The
+  ramps and blocks of the ground tool will use it.
+- [test_hulls.py](tools/bake/tests/test_hulls.py) (new):
+  - the cover blocks' recipe box is cover_blocks' own, field for field, from its face loops and from its corners;
+  - a ramp's wedge is closed and bounded;
+  - flat corners are refused.
+- [EXP-76](research/experiments/EXP-76-floors-and-roofs.md) and its project,
+  [exp76_project.py](tools/editor/examples/exp76_project.py), on URB_Bar's parking lot:
+  - a room of four made walls, with a made upper floor holed for a ladder and a made roof;
+  - the building the Room with a roof tool makes;
+  - a lone roof with nothing under it.
+  - Seven checks for run E.
+
+Checked: the audit's self-check passes with the moved writer, including the farm's ten ramp hulls field for field.
+The new tests pass. EXP-76's map builds with the lighting baked. Its log lists the floor and roof with the walls
+round them, and the floor lists the roof over it (130 listings, none back). The bar's own upstairs floor does the
+same with the bar's roof (42 listings, none back).
+
 ### Custom geometry, stage M5: floors and roofs made from numbers
 
 - [frac_slab.py](tools/bake/frac_slab.py) (new) makes a fracturing slab from its numbers, from the slab audit's rules:
