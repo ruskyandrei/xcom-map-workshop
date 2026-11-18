@@ -1241,6 +1241,16 @@ class Launch(unittest.TestCase):
         self.assertEqual(dep.unquoted(new, 'MissionType'), 'eMission_Crash')
         self.assertEqual(installs.TEST_MISSION, 'eMission_Abduction')
 
+    def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
+        # the farm's file is CsmallScout_Farm.upk and its records name CSmallScout_Farm: the game matches names whatever
+        # their case, and so does Play in game (EXP-78 run F stopped with no record for CsmallScout_Farm)
+        lines = [b'[XComGame.XComMapManager]', record('bar'), record('templeship'), b'']
+        self.assertEqual([i for i, _ in installs.base_records(lines, 'templeSHIP')], [2])
+        self.assertEqual(installs._after_base(lines, {}, 'TEMPLESHIP'), 3)
+        _, (_, new) = installs.plan_record(lines, 'templeship', 'templeship_Remix_0f8b', note='a test')
+        self.assertEqual(dep.field(new, 'Name'), 'templeship_Remix_0f8b')
+        self.assertEqual(installs.base_records(lines, 'TempleShipX'), [])
+
     def test_the_kinds_of_mission_and_their_commands(self):
         self.assertEqual([missions.kind_key(r) for r in (record('bar'), bomb_record(), record('templeship'), record('gangplank'))],
                          ['Abduction', 'Special/Bomb', 'Final', 'LandedUFO'])

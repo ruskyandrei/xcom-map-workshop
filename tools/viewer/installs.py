@@ -415,18 +415,24 @@ def _now(now):
     return now, now.strftime('%Y%m%d-%H%M%S')
 
 
+def same_map(name, base):
+    """Whether a record's map name is the base map's, whatever the case, as the game matches them: the farm's file is
+    CsmallScout_Farm.upk, its records name CSmallScout_Farm."""
+    return name is not None and name.lower() == base.lower()
+
+
 def base_records(lines, base):
     """[(index, record)] of the base map's records in DefaultMaps.ini's lines (bytes): its live records, or, for a map
     whose records are commented out that the editor takes (maplist.SWITCHED_OFF: Act1_IntroLevel), those records
-    without the ';'."""
+    without the ';'. The name matches whatever its case (same_map)."""
     import deploy_fixture as dep
     import maplist
-    live = [(i, l) for i, l in enumerate(lines) if dep.is_record(l) and dep.field(l, 'Name') == base]
-    if live or base not in maplist.SWITCHED_OFF: return live
+    live = [(i, l) for i, l in enumerate(lines) if dep.is_record(l) and same_map(dep.field(l, 'Name'), base)]
+    if live or not any(same_map(m, base) for m in maplist.SWITCHED_OFF): return live
     found = []
     for i, l in enumerate(lines):
         record = maplist.switched_off(l.decode('latin-1'), ())
-        if record and maplist.field(record, 'Name') == base: found.append((i, record.encode('latin-1')))
+        if record and same_map(maplist.field(record, 'Name'), base): found.append((i, record.encode('latin-1')))
     return found
 
 
@@ -436,7 +442,7 @@ def _after_base(lines, ledger, base):
     takes (maplist.SWITCHED_OFF), those. None when it has none."""
     import deploy_fixture as dep
     off = {c['written'].encode('latin-1') for c in ledger.get('linesOff') or [] if c.get('base') == base}
-    at = [i for i, l in enumerate(lines) if (dep.is_record(l) and dep.field(l, 'Name') == base) or l in off]
+    at = [i for i, l in enumerate(lines) if (dep.is_record(l) and same_map(dep.field(l, 'Name'), base)) or l in off]
     if not at: at = [i for i, _ in base_records(lines, base)]
     return max(at) + 1 if at else None
 
@@ -1087,12 +1093,12 @@ def install_map_record(game, name, mission=None, now=None):
     index = mission or 0
     if not isinstance(index, int) or not 0 <= index < len(found): raise InstallError(f'{name} has no such mission')
     target = found[index][1]
-    switched = not any(dep.is_record(l) and dep.field(l, 'Name') == name for l in pristine)
+    switched = not any(dep.is_record(l) and same_map(dep.field(l, 'Name'), name) for l in pristine)
     new_maps = list(maps)
     old = [b for b in ledger.get('records') or [] if b['variant'] == name]
     for b in old:
         if not _take_out(new_maps, b): raise InstallError(f'the record the editor wrote for {name} has changed; take it out by hand')
-    live = [i for i, l in enumerate(new_maps) if dep.is_record(l) and dep.field(l, 'Name') == name]
+    live = [i for i, l in enumerate(new_maps) if dep.is_record(l) and same_map(dep.field(l, 'Name'), name)]
     if live and new_maps[live[0]] == target:
         if old:     # an earlier play's copy, no longer needed
             _check_ready(game)
