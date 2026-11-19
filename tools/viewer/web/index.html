@@ -605,8 +605,15 @@
             <button id="managerInstall" class="primary" type="button">Install in the game</button>
           </div>
           <div class="pmexport">
+            <div class="pmpack">
+              <label class="pmfield" title="A saved pack is exported again with the same folder and card number, as its next version; choosing one selects its maps"><span>Pack</span><select id="managerPackChoice"><option value="">New pack</option></select></label>
+              <label class="pmfield" id="managerPackNameRow"><span>Name</span><input id="managerPackName" type="text" maxlength="60" placeholder="The pack's name" autocomplete="off" spellcheck="false"></label>
+              <label class="pmfield" title="Written into the pack's card and READMEs; leave it empty for none"><span>By</span><input id="managerPackAuthor" type="text" maxlength="60" placeholder="Author (optional)" autocomplete="off" spellcheck="false"></label>
+              <div id="managerPackInfo" class="pmpackinfo" hidden></div>
+              <button id="managerPackForget" class="link" type="button" hidden title="The editor forgets this pack; its zips stay in the Map packs folder">Forget pack</button>
+            </div>
             <label title="Each map's saved project file goes into the pack's projects folder, to open in the XCOM Map Workshop"><input id="managerProjectFiles" type="checkbox"> <span>Include editor project files<small>So others can open and edit the maps</small></span></label>
-            <button id="managerPack" type="button" title="One zip in the builds folder (Map packs) with the selected builds' files laid out as the game folder is, Install.cmd and Uninstall.cmd to put them into a game and take them out again, and a README">Export map pack</button>
+            <button id="managerPack" type="button" title="One zip in the builds folder (Map packs): the pack's folder with the selected builds' maps and a map pack card, which Long War Rebalance 3 reads once the folder is copied into CookedPCConsole; Install.cmd and Uninstall.cmd, which put the pack into any game and take it out again; and a README">Export map pack</button>
           </div>
         </aside>
       </div>

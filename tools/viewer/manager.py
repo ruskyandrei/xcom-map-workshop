@@ -20,15 +20,32 @@ have been played in the game with a variant. All of that is said as warnings, ne
   POST /manager/install   {"projects": [id...], "mode": "additional" | "replace", "modes": {id: mode} optional}: each
                           project's last build installed its own way (modes), or else the request's (mode)
                           for campaigns; one that can't be is reported and the others go on
-  POST /manager/pack      {"projects": [id...], "mode": ..., "modes": optional, "name": optional, "projectFiles":
-                          optional}: one zip in <builds>/Map packs with every build's files laid out as the game
-                          folder is, Install.cmd and Uninstall.cmd (which put the pack into a game folder and take it
-                          out again: pack_scripts.py), a README, each build's own manifest and README, and pack.json,
-                          which the scripts read; with "projectFiles": true, each packed map's saved editor project
-                          too, under projects/ (the file as it is in the projects folder), for others to open and edit
+  POST /manager/pack      {"projects": [id...], "mode": ..., "modes": optional, "name": optional (a new pack's),
+                          "pack": optional (a saved pack's folder: exported again as its next version, packs.py),
+                          "author": optional, "projectFiles": optional}: one zip in <builds>/Map packs, named
+                          <Folder> v<n>.zip (LWR map packs plan, section 6):
+                            CookedPCConsole/<Folder>/    the pack: every build's maps, a map pack card
+                                                         (LWRMapPack_<nnnn>.upk, tools/upk/pack_card.py) and a README.
+                                                         Copied into a game's CookedPCConsole it is installed on
+                                                         Long War Rebalance 3.00.00 beta 15 or later
+                            CookedPCConsole/*.tfc        the builds' lighting caches, which the game finds only in
+                                                         CookedPCConsole itself (F-140): copied beside the folder
+                            Install.cmd, Uninstall.cmd   put the pack into any game folder and take it out again
+                                                         (pack_scripts.py): the folder where the game reads cards,
+                                                         else the files and the lines in DefaultMaps.ini
+                            README.txt, pack.json (schema 2: the pack's record, the card's lines as text, the classic
+                            lines per map, the files with their SHA-256), packages/<variant>/ (each build's manifest
+                            and README), and with "projectFiles": true each packed map's saved editor project under
+                            projects/ (the file as it is in the projects folder, its map picture beside it)
+                          The card: each map's records (installs.rotation_plan, cards=True: a map that replaces its
+                          original takes the original records' display names, which is how LWR swaps a line in), a
+                          Pictures line lending the base map's picture to a map without one of its own, and the
+                          landing zones.
+  GET  /manager/packs.json     the saved packs, and those found only as zips in <builds>/Map packs
+  DELETE /manager/packs/<folder>   a saved pack forgotten (its zips stay)
 
-The pack's config lines are worked out from the game install the editor reads (the same lines install_rotation would
-add there); the README says so, since another install's records may differ.
+The pack's lines, the card's and the classic ones, are worked out from the game install the editor reads (the same
+lines install_rotation would add there); the README says so, since another install's records may differ.
 
 Install and the pack read packages while the build queue may be building (build queue plan, 9.4): they lease the
 projects' packages (builds.py lease), so a project being built, or about to be, is left out with the reason and the
@@ -40,9 +57,11 @@ import datetime
 import json
 from pathlib import Path
 import re
+import sys
 import zipfile
 
 import installs
+import packs
 import spawnrules
 import pack_scripts
 import pictures
@@ -234,36 +253,77 @@ def _safe(name):
 
 
 def pack_readme(pack, parts):
-    """The map pack's README: what is in it and how it goes into a game by hand. parts: one per build, dict(name,
-    variant, base, mode, files, records (text lines), switch (the base map's display names to comment out), keep
-    (those of its records to leave in use: the build has no record for their missions), landingZones (text lines or None), warnings, quick)."""
+    """The map pack's README: what is in it, how it goes into a game with cards (LWR 3: copy the folder) and into any
+    other (Install.cmd, or by hand). parts: one per build, dict(name, variant, base, mode, files, records (text lines),
+    switch (the base map's display names to comment out), keep (those of its records to leave in use: the build has
+    no record for their missions), landingZones (text lines or None), warnings, quick)."""
     replace = any(p['mode'] == 'replace' for p in parts)
     mixed = pack['mode'] == 'mixed'
+    folder, caches = pack['folder'], pack.get('cacheFiles') or []
+    card = pack['card']
     lines = [
-        '%s: %d map%s made with the XCOM Map Workshop %s, %s.' % (pack['name'], len(parts), '' if len(parts) == 1 else 's',
+        '%s: %d map%s made with the XCOM Map Workshop %s, %s.' % (pack['pack']['name'] + ' v%d' % pack['pack']['version'],
+                                                              len(parts), '' if len(parts) == 1 else 's',
                                                               pack['editorVersion'], MODE_WORDS[pack['mode']]),
         'Made on %s from %s.' % (pack['madeAt'], pack['game'] or 'a game install'),
-        '',
-        'Maps:',
     ]
+    if pack['pack'].get('author'): lines += ['By %s.' % pack['pack']['author']]
+    lines += ['', 'Maps:']
     for p in parts:
         lines += ['  %s: %s, a variant of %s%s%s' % (p['variant'], p['name'], p['base'],
                                                    (', replacing it' if p['mode'] == 'replace' else ', beside it') if mixed else '',
                                                    ' (QUICK BUILD: its lighting is not baked)' if p['quick'] else '')]
     lines += [
         '',
-        'To install (with XCOM closed): unzip the whole pack, then double-click Install.cmd. It asks for the game folder',
-        '(the one with the XEW folder in it; it offers the Steam install it finds), keeps a copy of DefaultMaps.ini as it',
-        'is, copies the files and adds the lines below. Uninstall.cmd takes the pack out again: the lines it added go, the',
-        'lines it commented out come back and its files are deleted, and it says whether DefaultMaps.ini is then exactly',
-        'as it was. Both can be given the game folder instead: Install.cmd "D:\\Steam\\steamapps\\common\\XCom-Enemy-Unknown".',
+        'LONG WAR REBALANCE 3.00.00 beta 15 or later (with XCOM closed): open the CookedPCConsole folder of this zip and copy',
+        'what is in it into the game\'s ...\\XCom-Enemy-Unknown\\XEW\\XComGame\\CookedPCConsole:',
+        '     the folder %s' % folder,
+    ]
+    lines += ['     %s' % c for c in caches]
+    if caches:
+        lines += ['The .tfc files hold the maps\' baked lighting and must lie in CookedPCConsole itself, beside the folder: inside',
+                  'the folder the game does not find them.']
+    lines += [
+        'Nothing else is needed: no file of the game is changed. Install.cmd does the same copying for you.',
+        'To take the pack out, delete the folder%s. To check it, type' % (' and those .tfc files' if caches else ''),
+        '   Mutate LWRMapTest Packs',
+        'in the game\'s console: it lists the pack\'s card (number %04d, "%s") and each map line as used or not.' % (card['number'], card['packName']),
+        'If another pack has a card with the same number, rename one of the two files, keeping LWRMapPack_ and four digits.',
+        'A new version of this pack goes over the old one: delete the old folder first.',
+    ]
+    excluded = [p for p in parts if p.get('dropInExclusion')]
+    if excluded:
+        lines += ['', 'One thing a card cannot carry: %s scripted drop-ins where placed, which needs a line in'
+                  % ('these maps leave' if len(excluded) > 1 else '%s leaves' % excluded[0]['variant']),
+                  'XEW\\XComGame\\Config\\DefaultRandomSpawns.ini, in its [%s] section, after its' % spawnrules.DROP_IN_SECTION,
+                  'ExcludeMaps lines (Install.cmd adds it). Without it Long War\'s drop-in mutator handles the map as any other.']
+        for p in excluded:
+            lines += ['   %s' % l for l in p['dropInExclusion']]
+    borrowed = [p for p in parts if p.get('pictureFrom')]
+    none = [p for p in parts if not p.get('ownPicture') and not p.get('pictureFrom')]
+    own = [p for p in parts if p.get('ownPicture')]
+    lines += ['', 'Pictures on the mission screens:']
+    lines += ['  %s: its own' % p['variant'] for p in own]
+    lines += ['  %s: %s\'s (%s)' % (p['variant'], p['base'], p['pictureFrom']) for p in borrowed]
+    lines += ['  %s: none ("No satellite imagery"): the game has no picture of %s' % (p['variant'], p['base']) for p in none]
+    lines += [
+        '',
+        'Landing zones: once a map has landing lines in a pack, its built-in landing zone is no longer used, and some kinds',
+        'of mission never move the landing zone.',
+        '',
+        'ANY OTHER INSTALL (plain Enemy Within, Long War, Long War Rebalance 2.x), with XCOM closed: unzip the whole pack,',
+        'then double-click Install.cmd. It asks for the game folder (the one with the XEW folder in it; it offers the Steam',
+        'install it finds). On an install without map pack cards it keeps a copy of DefaultMaps.ini as it is, copies the',
+        'maps\' files and adds the lines below. Uninstall.cmd takes the pack out again: the lines it added go, the lines it',
+        'commented out come back and its files are deleted, and it says whether DefaultMaps.ini is then exactly as it was.',
+        'Both can be given the game folder instead: Install.cmd "D:\\Steam\\steamapps\\common\\XCom-Enemy-Unknown".',
         'What the scripts did is written down in <game>\\XCOM Map Workshop\\packs, with the copies of the files from before.',
         'A map whose base map this game has no record for is left out, and so is one the game already has a record for.',
         '',
-        'By hand instead (what Install.cmd does):',
+        'By hand instead (what Install.cmd does there):',
         '',
-        '1. Files. Copy the XEW folder of this zip over the XEW folder of the game (...\\XCom-Enemy-Unknown\\XEW). It adds',
-        '   these files to XEW\\XComGame\\CookedPCConsole and replaces none of the game\'s own:',
+        '1. Files. Copy these files into the game\'s XEW\\XComGame\\CookedPCConsole itself (not in a folder; the card,',
+        '   LWRMapPack_%04d.upk, is not needed). They replace none of the game\'s own:' % card['number'],
     ]
     lines += ['     %s' % f for p in parts for f in p['files']]
     lines += [
@@ -293,7 +353,6 @@ def pack_readme(pack, parts):
                   '   map\'s lines beside its base map\'s.']
         for p in zones:
             lines += ['', '   %s (beside %s\'s):' % (p['variant'], p['base'])] + p['landingZones']
-    excluded = [p for p in parts if p.get('dropInExclusion')]
     if excluded:
         lines += ['', '%d. XEW\\XComGame\\Config\\DefaultRandomSpawns.ini (Long War\'s drop-in settings; skip this without Long War):'
                   % (4 if zones else 3),
@@ -306,7 +365,8 @@ def pack_readme(pack, parts):
         lines += ['', 'Editor projects. The projects folder has the XCOM Map Workshop project of %s, to open and change in the'
                   % ('this map' if len(shared) == 1 else 'these maps'),
                   'editor: copy the .json file into the editor\'s projects folder (by default <editor folder>\\projects), then open',
-                  'it with Load in the Project menu. The editor reads the base map from your own game install.']
+                  'it with Load in the Project menu. A .picture.png beside a project is its map picture: copy it along. The',
+                  'editor reads the base map from your own game install.']
         for s in shared:
             later = s['revision'] != s['buildRevision'] and s['buildRevision'] is not None
             lines += ['  projects\\%s%s' % (s['file'], ' (saved after this build: the project is at revision %s, the map is of revision %s)'
@@ -318,10 +378,10 @@ def pack_readme(pack, parts):
             lines += ['  %s: %s' % (p['variant'], ' '.join(p['warnings']))]
     lines += [
         '',
-        'The lines above copy the records of the install this pack was made from. A game with other records for these maps',
-        '(another Long War version, plain Enemy Within) may want its own: copy the base map\'s lines there, change Name to',
-        'the new map\'s name and DisplayName to anything of your own, and keep the streamed maps this pack adds (the',
-        'StreamingMaps entries the lines above have and the base map\'s don\'t). The packages folder has each map\'s own',
+        'The lines above, and the card\'s, copy the records of the install this pack was made from. A game with other records',
+        'for these maps (another Long War version, plain Enemy Within) may want its own: copy the base map\'s lines there,',
+        'change Name to the new map\'s name and DisplayName to anything of your own, and keep the streamed maps this pack adds',
+        '(the StreamingMaps entries the lines above have and the base map\'s don\'t). The packages folder has each map\'s own',
         'README and manifest, with every detail.',
         '',
         'Start a new mission afterwards: a tactical save from before does not use the new maps.',
@@ -329,6 +389,22 @@ def pack_readme(pack, parts):
         'listed above.',
         '',
     ]
+    return EOL.join(lines)
+
+
+def folder_readme(pack, parts):
+    """The README inside the pack's folder: what the folder is, for whoever finds it in CookedPCConsole."""
+    record, caches = pack['pack'], pack.get('cacheFiles') or []
+    lines = ['%s v%d: a map pack for Long War Rebalance 3.00.00 beta 15 or later, made with the XCOM Map Workshop %s.'
+             % (record['name'], record['version'], pack['editorVersion'])]
+    if record.get('author'): lines += ['By %s.' % record['author']]
+    lines += ['', 'This folder lies in ...\\XEW\\XComGame\\CookedPCConsole. Its card is %s.' % pack['card']['file'], '', 'Maps:']
+    lines += ['  %s: %s, a variant of %s (%s)' % (p['variant'], p['name'], p['base'],
+                                                'in its place' if p['mode'] == 'replace' else 'beside it') for p in parts]
+    lines += ['', 'Files of this folder:'] + ['  %s' % n for n in pack['folderFiles']]
+    if caches:
+        lines += ['', 'Beside this folder, in CookedPCConsole itself (the maps\' baked lighting):'] + ['  %s' % n for n in caches]
+    lines += ['', 'To take the pack out, delete this folder%s.' % (' and those .tfc files' if caches else ''), '']
     return EOL.join(lines)
 
 
@@ -348,9 +424,39 @@ def pack(projects, builds, player, request, now=None):
             raise ProjectError(409, f'Not made: {error}')
 
 
+def _pack_record(projects, builds, request, parts, game, now, rng=None):
+    """The pack's record for this export (packs.py): a saved pack's (request "pack": its folder), with its folder and
+    card number kept and its version raised, or a new one (request "name"), with a folder made from the name and a
+    card number no other record and no card of the install has."""
+    zips = builds.output / PACKS
+    asked = request.get('pack')
+    author = request.get('author')
+    cooked = installs.cooked(game) if game is not None else None
+    if asked is not None:
+        record = packs.resolve(projects.root, zips, asked) if isinstance(asked, str) else None
+        if record is None: raise ProjectError(404, f'Not made: there is no saved pack {asked!r}.')
+        record = dict(record)
+    else:
+        name = _safe(request.get('name') if isinstance(request.get('name'), str) else '') or (
+            _safe(parts[0]['name']) if len(parts) == 1 else f'Map pack of {len(parts)}') or 'Map pack'
+        record = dict(schema=packs.SCHEMA, schemaVersion=1, name=name, folder=packs.new_folder(projects.root, zips, name),
+                      card=None, version=0, author='')
+    if record.get('card') is None:
+        taken = {r['card'] for r in packs.records(projects.root) if r.get('card') is not None} | set(packs.installed_cards(cooked))
+        record['card'] = packs.draw_number(taken, rng or packs.random)
+    if isinstance(author, str): record['author'] = _safe(author)
+    record.update(version=int(record.get('version') or 0) + 1, projectFiles=request.get('projectFiles') is True,
+                  maps=[dict(project=p['id'], name=p['name'], variant=p['variant'], mode=p['mode']) for p in parts],
+                  exportedAt=now.isoformat(timespec='seconds'))
+    record['zip'] = f'{record["folder"]} v{record["version"]}.zip'
+    return record
+
+
 def _pack(projects, builds, player, request, chosen, mode, now):
     import deploy_fixture as dep
     from settings import game_kind
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
+    import pack_card
     _, _, read = _targets(player)
     game = read if read is not None else _targets(player)[0]
     lines = _lines(game)
@@ -358,10 +464,12 @@ def _pack(projects, builds, player, request, chosen, mode, now):
     lz_path = installs.config(game, installs.LZ)
     try: lz = dep.lines_of(lz_path.read_bytes()) if lz_path.is_file() else None
     except (OSError, ValueError): lz = None
+    cooked = installs.cooked(game)
     now = now or datetime.datetime.now()
     stamp = now.strftime('%Y%m%d-%H%M%S')
     note = f'{installs.RECORD_NOTE}, {stamp[:8]}'
     parts, skipped, files = [], [], {}
+    card_maps, card_pictures, card_zones = [], [], []
     for project_id, name, m, folder, why, its in chosen:
         if m is None:
             skipped.append(dict(id=project_id, name=name, error=why))
@@ -369,6 +477,7 @@ def _pack(projects, builds, player, request, chosen, mode, now):
         try:
             m, package_files = installs.read_package(folder)
             plan = installs.rotation_plan(lines, m, note, its)
+            on_card = installs.rotation_plan(lines, m, note, its, cards=True)
             base, variant = m['source']['map'], m['variant']
             for src, _, digest in package_files:
                 if files.get(src.name, (src, digest))[1] != digest:
@@ -385,23 +494,45 @@ def _pack(projects, builds, player, request, chosen, mode, now):
             # target install has Long War's drop-in section
             exclusion = ([l.decode('latin-1') for l in spawnrules.exclusion_block(variant, installs.exclusion_note(note, m))]
                          if (m.get('config') or {}).get('dropInExclusion') else None)
+            warnings = (['Its lighting is not baked (a quick build).'] if m.get('quick') else []) \
+                + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr', kept=plan['kept'])
+            # the picture on the mission screens (plan 4.6): the map's own, else the base map's borrowed by a card
+            # line, else none
+            own = bool(m.get('picture'))
+            library = None if own else pictures.base_library(cooked, base)
+            ending = packs.picture_ending(variant)
+            if own and ending:
+                warnings.append(f'Its own picture will not show under LWR: the game drops "{ending}" from a map\'s name before it '
+                                'looks for the picture.')
+            if m.get('pictureNote'): warnings.append(str(m['pictureNote']))
+            if exclusion:
+                warnings.append('A card can\'t carry its drop-in exclusion: on LWR 3 Install.cmd adds the line to '
+                                'DefaultRandomSpawns.ini, and by hand the README gives it.')
+            for src, _, _ in package_files:
+                if src.suffix.lower() == '.upk' and packs.package_guid(src) == bytes(16):
+                    warnings.append(f'{src.name} has an all-zero GUID: LWR takes such a map file as missing and skips its lines.')
+            mine = [l.decode('latin-1') for l in on_card['block'] if pack_card.parse_record(l) is not None]
+            card_maps += mine
+            card_zones += [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
+            if library: card_pictures.append(f'Pictures=(Map="{variant}", Picture="{library}.{base}")')
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
+                              cardLines=mine, ownPicture=own, pictureFrom=f'{library}.{base}' if library else None,
                               landingZones=[l.decode('latin-1') for l in zones] or None,
                               **({'dropInExclusion': exclusion} if exclusion else {}),
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
                               donors=[{k: d.get(k) for k in ('map', 'sha256', 'pieces')} for d in m.get('donors') or []],
-                              warnings=(['Its lighting is not baked (a quick build).'] if m.get('quick') else [])
-                              + installs.mission_warnings(plan['missions'], base, its, lwr=game_kind(game) == 'lwr', kept=plan['kept'])))
+                              warnings=warnings))
         except (OSError, ValueError, KeyError, installs.InstallError) as error:
             skipped.append(dict(id=project_id, name=name, error=str(error)))
     if not parts:
         raise ProjectError(409, 'Not made: none of the chosen projects has a build to pack. '
                            + ' '.join(f'{s["name"]}: {s["error"]}' for s in skipped), skipped=skipped)
-    # the packed maps' editor projects, when asked for: each saved file as it is on disk, under projects/
+    # the packed maps' editor projects, when asked for: each saved file as it is on disk, under projects/, and its map
+    # picture beside it
     shared, project_data = [], {}
     if request.get('projectFiles') is True:
         for p in parts:
@@ -410,24 +541,51 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                 p['warnings'].append(f'Its editor project is not in the pack: {error.message}')
                 continue
             project_data[path.name] = data
-            shared.append(dict(id=p['id'], name=p['name'], file=path.name, revision=document.get('revision'),
-                               buildRevision=p['revision'], sha256=digest))
+            entry = dict(id=p['id'], name=p['name'], file=path.name, revision=document.get('revision'),
+                         buildRevision=p['revision'], sha256=digest)
+            picture = pictures.project_picture(projects, document)
+            if picture is not None:
+                try:
+                    project_data[pictures.beside(path).name] = picture.read_bytes()
+                    entry['picture'] = pictures.beside(path).name
+                except OSError: pass
+            shared.append(entry)
     # the pack's mode: its maps' own, or "mixed" when some replace and some are added
     mode = parts[0]['mode'] if len({p['mode'] for p in parts}) == 1 else 'mixed'
-    name = _safe(request.get('name') if isinstance(request.get('name'), str) else '') or (
-        _safe(parts[0]['name']) if len(parts) == 1 else f'Map pack of {len(parts)}') or 'Map pack'
-    described = dict(schema=PACK_SCHEMA, schemaVersion=1, editorVersion=VERSION, name=name, mode=mode,
-                     id=re.sub(r'[^A-Za-z0-9_.-]+', '-', f'{name}-{stamp}'),
+    try: record = _pack_record(projects, builds, request, parts, game, now)
+    except packs.PackError as error: raise ProjectError(409, f'Not made: {error}')
+    name, pack_folder = record['name'], record['folder']
+    pack_name = '%s v%d%s' % (name, record['version'], ' by %s' % record['author'] if record.get('author') else '')
+    card_lines = card_maps + card_pictures + card_zones
+    card_data, card_notes = pack_card.from_lines(pack_name, card_lines)
+    card_file = pack_card.file_name(record['card'])
+    # a display name two lines of the pack share: LWR uses the later line alone
+    seen, shared_names = {}, []
+    for line in card_maps:
+        display = pack_card.parse_record(line).fields.get('DisplayName', '')
+        if display.lower() in seen and display not in shared_names: shared_names.append(display)
+        seen[display.lower()] = True
+    notes = card_notes + [f'Two lines of the pack have the display name "{d}": LWR uses the later one alone.' for d in shared_names]
+    other = packs.installed_cards(cooked).get(record['card'])
+    if other is not None and other.parent.name.lower() != pack_folder.lower():
+        notes.append(f'The install the editor reads has another card numbered {record["card"]:04d}, in the folder {other.parent.name}.')
+    caches = sorted(n for n in files if n.lower().endswith('.tfc'))
+    in_folder = sorted([n for n in files if n not in caches] + [card_file, 'README.txt'], key=str.lower)
+    described = dict(schema=PACK_SCHEMA, schemaVersion=2, editorVersion=VERSION, name=name, mode=mode,
+                     id=pack_folder, folder=pack_folder, pack=record,
+                     card=dict(file=card_file, number=record['card'], packName=pack_name, lines=card_lines),
                      madeAt=now.isoformat(timespec='seconds'), game=kind_label(game) if game is not None else None,
                      maps=[{**{k: p[k] for k in ('id', 'name', 'variant', 'base', 'mode', 'quick', 'revision', 'buildId', 'files',
-                                              'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings')},
+                                              'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings', 'cardLines',
+                                              'ownPicture', 'pictureFrom')},
                            **({'ownZones': True} if p.get('ownZones') else {}),
                            **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
+                     folderFiles=in_folder, cacheFiles=caches, notes=notes,
                      **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / f'{name} {stamp}.zip'
+    target = folder / record['zip']
     temp = target.with_suffix('.zip.tmp')
     with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:
         z.writestr('README.txt', pack_readme(described, parts).encode('latin-1', 'replace'))
@@ -435,14 +593,34 @@ def _pack(projects, builds, player, request, chosen, mode, now):
         z.writestr('Install.cmd', pack_scripts.INSTALL_CMD)
         z.writestr('Uninstall.cmd', pack_scripts.UNINSTALL_CMD)
         z.writestr('pack-tools/pack.ps1', pack_scripts.PS1)
+        z.writestr(f'CookedPCConsole/{pack_folder}/{card_file}', card_data)
+        z.writestr(f'CookedPCConsole/{pack_folder}/README.txt', folder_readme(described, parts).encode('latin-1', 'replace'))
         for n, (src, _) in sorted(files.items()):
-            z.write(src, f'XEW/XComGame/CookedPCConsole/{n}')
+            z.write(src, f'CookedPCConsole/{n}' if n in caches else f'CookedPCConsole/{pack_folder}/{n}')
         for p in parts:
             for n in ('README.txt', 'manifest.json'):
                 if (p['folder'] / n).is_file(): z.write(p['folder'] / n, f'packages/{p["variant"]}/{n}')
         for n, data in sorted(project_data.items()):
             z.writestr(f'projects/{n}', data)
     temp.replace(target)
-    return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size,
+    packs.save(projects.root, record)
+    return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size, folder=pack_folder, card=record['card'],
+                version=record['version'], notes=notes,
                 packed=[dict(id=p['id'], name=p['name'], variant=p['variant'], mode=p['mode'], warnings=p['warnings']) for p in parts],
                 skipped=skipped, projects=[s['file'] for s in shared])
+
+
+def pack_list(projects, builds):
+    """GET /manager/packs.json: the saved packs and those found only as zips (packs.listing), each map marked
+    `missing` when its project is no longer in the projects folder."""
+    known = {s.get('id') for s in projects.list() if not s.get('error')}
+    out = []
+    for record in packs.listing(projects.root, builds.output / PACKS):
+        out.append(dict(record, maps=[dict(m, missing=m.get('project') not in known) for m in record['maps']]))
+    return dict(packs=out, folder=str(builds.output / PACKS))
+
+
+def pack_forget(projects, builds, folder):
+    """DELETE /manager/packs/<folder>: the pack's record removed (its zips stay)."""
+    if not packs.forget(projects.root, folder): raise ProjectError(404, 'There is no saved pack of that name.')
+    return pack_list(projects, builds)

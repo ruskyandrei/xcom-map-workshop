@@ -1157,7 +1157,7 @@ def _first_mission(line):
     return (dep.field(line, 'DisplayName') or '') in FIRST_MISSION
 
 
-def rotation_plan(lines, m, note='', mode='additional'):
+def rotation_plan(lines, m, note='', mode='additional', cards=False):
     """A package's records for campaigns, from the install's own lines (pristine_lines) and the package's manifest:
     one record per record of the base map (its missions), each under the variant's name, in or out of rotation as the
     base map's record is, streaming the package's patch (if any) in a free slot and its own copies of the intros in
@@ -1171,7 +1171,11 @@ def rotation_plan(lines, m, note='', mode='additional'):
     whose record is in rotation (FIRST_MISSION, F-117). To replace the map, the variant's record for such a mission
     keeps the base map's DisplayName, whose own record is commented out (install_rotation). Every other record gets a
     name of its own: <variant> (<project>[, <mission>]). Replacing comments out only the records in standsFor: a base
-    record the build has no record for (its project is for other missions) stays in use (F-118)."""
+    record the build has no record for (its project is for other missions) stays in use (F-118).
+
+    cards: the records as a map pack card holds them (LWR map packs plan, 6.2). A card can't comment a record out;
+    LWR puts a pack line in the place of the game's record with the same DisplayName. So in replace mode every record
+    that stands for a base map record takes that record's DisplayName, in rotation or not."""
     import deploy_fixture as dep
     import maplist
     import missions as missions_module
@@ -1180,7 +1184,7 @@ def rotation_plan(lines, m, note='', mode='additional'):
     if not found: raise ValueError(f'no record for {base}')
     c = m.get('config') or {}
     if c.get('maps') and isinstance(c.get('recordMissions'), list) and len(c['recordMissions']) == len(c['maps']):
-        return _rotation_from_build(found, m, note, mode)
+        return _rotation_from_build(found, m, note, mode, cards)
     name = re.sub(r'[^\x20-\x7E]|"|\|', '', (m.get('project') or {}).get('name') or '').strip()[:80] or 'variant'
     records, missions, seen = [], [], {}
     for _, line in found:
@@ -1190,7 +1194,7 @@ def rotation_plan(lines, m, note='', mode='additional'):
         in_rotation, first = _in_rotation(line), _first_mission(line)
         by_name = not in_rotation or first
         new = dep.set_field(line, 'Name', variant)
-        if not (by_name and mode == 'replace'):
+        if not ((by_name or cards) and mode == 'replace'):
             display = dep.field(line, 'DisplayName') or ''
             ending = re.search(r' \|\d+$', display)
             new = dep.set_field(new, 'DisplayName', missions_module.display_name(
@@ -1218,7 +1222,7 @@ def _base_mission(line):
                 bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {}))
 
 
-def _rotation_from_build(found, m, note, mode):
+def _rotation_from_build(found, m, note, mode, cards=False):
     """rotation_plan for a package whose manifest names the base map record (or added kind) each of its records stands
     for (config.recordMissions): the Build's own records (the project's missions only, mission types plan D4), each in
     or out of rotation as the base map's record is (an added kind as ADDED_KINDS says: a bomb out, the rest in), and
@@ -1243,7 +1247,7 @@ def _rotation_from_build(found, m, note, mode):
         by_name = not in_rotation or first
         if dep.unquoted(new, 'bInRotation') is not None:
             new = dep.set_field(new, 'bInRotation', 'True' if in_rotation else 'False', quoted=False)
-        if by_name and mode == 'replace' and base_line is not None:
+        if (by_name or cards) and mode == 'replace' and base_line is not None:
             new = dep.set_field(new, 'DisplayName', dep.field(base_line, 'DisplayName') or '')
         if new in records: continue
         records.append(new)

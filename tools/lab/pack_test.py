@@ -9,8 +9,9 @@ nothing else changed, a card that makes a new campaign's first mission play a pa
 Long War Rebalance 3.00.00 beta 15 and later read map packs from cards (tools/upk/pack_card.py): a folder with a card
 and its maps, copied into XEW\\XComGame\\CookedPCConsole, is installed.
 
-- put: copies the pack's folder (the one holding LWRMapPack_NNNN.upk; from a zip, the folder in it that does) into
-  CookedPCConsole and does nothing else. Before the first put it notes what the copy's Config and CookedPCConsole
+- put: copies the pack's folder (the one holding LWRMapPack_NNNN.upk; from a zip or a folder above it, the folder in
+  it that does) into CookedPCConsole, and the .tfc files that lie beside that folder (an exported pack's lighting
+  caches, which the game finds only in CookedPCConsole itself: F-140) beside it, and does nothing else. Before the first put it notes what the copy's Config and CookedPCConsole
   hold (Config by SHA-256; CookedPCConsole by size and time, --hash for SHA-256 there too, which takes minutes) in
   <lab copy>\\XComLab-pack-test.json. A folder of the same name is replaced, as copying a newer version over does not:
   give --over to copy over what is there instead.
@@ -111,6 +112,7 @@ def pack_folder(source):
     if not source.is_dir(): raise TestError(f'{source} is not a folder')
     def has_card(folder): return any(pack_card.number_of(p.name) is not None for p in folder.iterdir() if p.is_file())
     if has_card(source): return source
+    if (source / 'CookedPCConsole').is_dir(): source = source / 'CookedPCConsole'      # an exported pack, unzipped
     found = [p for p in sorted(source.iterdir()) if p.is_dir() and has_card(p)]
     if len(found) != 1:
         raise TestError(f'{source}: {len(found)} folders with a card (LWRMapPack_NNNN.upk) in it; one is wanted')
@@ -137,6 +139,15 @@ def put(source, game, over=False, hashed=False, echo=print):
         if target.exists() and not over: shutil.rmtree(target)
         shutil.copytree(folder, target, dirs_exist_ok=True)
         if folder.name not in note['folders']: note['folders'].append(folder.name)
+        # the caches beside the folder in an exported pack go beside it in the game
+        note.setdefault('caches', [])
+        for cache in sorted(folder.parent.glob('*.tfc')) if folder.parent.name == 'CookedPCConsole' else []:
+            there = cooked(game) / cache.name
+            if there.exists() and cache.name not in note['caches']:
+                raise TestError(f'{there} is there already and this test did not put it')
+            shutil.copyfile(cache, there)
+            if cache.name not in note['caches']: note['caches'].append(cache.name)
+            echo(f'put {there}')
         write_note(game, note)
         files = sorted(p.name for p in target.iterdir())
         echo(f'put {target}: {len(files)} file(s)')
@@ -205,6 +216,10 @@ def take(game, echo=print):
         if target.exists():
             shutil.rmtree(target)
             echo(f'deleted {target}')
+    for name in note.get('caches') or []:
+        if (cooked(game) / name).is_file():
+            (cooked(game) / name).unlink()
+            echo(f'deleted {cooked(game) / name}')
     different = differences(note['before'], survey(game, hashed=note.get('hashed', False)))
     if different:
         echo(f'the copy differs from before the test in {len(different)} place(s):')

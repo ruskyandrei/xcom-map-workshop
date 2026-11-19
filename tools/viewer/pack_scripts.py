@@ -2,14 +2,23 @@
 and takes it out again the same way, without the editor: Install.cmd and Uninstall.cmd, which run pack-tools\\pack.ps1
 with Windows' own PowerShell (5.1 or later).
 
-Install asks for the game folder (or takes it as its argument; it offers the Steam installs it finds), refuses while
-XCOM runs, keeps copies of DefaultMaps.ini and DefaultLZMutator.ini as they are, copies the pack's files, adds each
+Install asks for the game folder (or takes it as its argument; it offers the Steam installs it finds) and refuses
+while XCOM runs. Then one of two ways (a third argument, cards or classic, forces one):
+
+- The game's script reads map pack cards (its XComMutator.u holds the name LWRMapPackCard: Long War Rebalance 3.00.00
+  beta 15 or later): the pack's folder is copied into CookedPCConsole, its lighting caches beside the folder, and the
+  drop-in exclusion lines added where a map asks for them (a card can't carry them). No other file of the game is
+  touched. It names another pack's card of the same number and a file of the same name elsewhere under
+  CookedPCConsole. Uninstall deletes the files it copied (the folder too, once empty) and those lines.
+- Any other install, the classic way: it keeps copies of DefaultMaps.ini and DefaultLZMutator.ini as they are, copies the pack's files, adds each
 map's records after its base map's (and, for a map made to replace its original, comments out the base map's own
 records it has records for, by their DisplayName in pack.json's switch, leaving the others in use (F-118): each map
 says which way in pack.json, so one pack can hold both kinds), adds its landing zones where the install has Long War's file,
 adds its drop-in exclusion lines (a project that leaves scripted drop-ins where placed) where the install has Long War's
 DefaultRandomSpawns.ini and its drop-in section, and writes down what it did in
-<game>\\XCOM Map Workshop\\packs\\<pack id>.json. Uninstall undoes exactly that: the lines it added go, the lines it
+<game>\\XCOM Map Workshop\\packs\\<pack id>.json (the pack id is the pack's folder name, the same at every version,
+so a newer version installed over an older one takes the older out first, whichever way that one went in). Uninstall
+undoes exactly that: the lines it added go, the lines it
 commented out come back, the files it copied are deleted if unchanged; it says whether DefaultMaps.ini is then byte
 for byte as it was before the pack (it is, unless something else changed the file meanwhile, whose changes stay).
 
@@ -30,9 +39,13 @@ INSTALL_CMD = CMD.format(what='Installs', name='Install', action='install').repl
 UNINSTALL_CMD = CMD.format(what='Takes out', name='Uninstall', action='uninstall').replace('\n', '\r\n')
 
 PS1 = r'''# Installs a map pack made with the XCOM Map Workshop into a game folder, or takes it out again.
-#   pack.ps1 install [<game folder>]      pack.ps1 uninstall [<game folder>]
+#   pack.ps1 install [<game folder> [cards|classic]]      pack.ps1 uninstall [<game folder>]
 # Run by Install.cmd and Uninstall.cmd beside the pack's README. What it does is in the README.
-param([Parameter(Position = 0)][string]$Action = 'install', [Parameter(Position = 1)][string]$Game = '')
+# An install whose script reads map pack cards (Long War Rebalance 3.00.00 beta 15 or later) gets the pack's folder
+# copied into CookedPCConsole and its lighting caches beside it; any other gets the maps' files and their lines in
+# DefaultMaps.ini. The third argument forces one way.
+param([Parameter(Position = 0)][string]$Action = 'install', [Parameter(Position = 1)][string]$Game = '',
+      [Parameter(Position = 2)][string]$Route = '')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $latin = [Text.Encoding]::GetEncoding(28591)
@@ -102,11 +115,77 @@ $cooked = Join-Path $Game 'XEW\XComGame\CookedPCConsole'
 $stateFolder = Join-Path $Game 'XCOM Map Workshop\packs'
 $statePath = Join-Path $stateFolder "$($pack.id).json"
 $backup = Join-Path $stateFolder "$($pack.id)-before"
+$packFolder = $pack.folder
+$sourceRoot = Join-Path $root 'CookedPCConsole'
+$sourceFolder = Join-Path $sourceRoot $packFolder
+$caches = [string[]]@($pack.cacheFiles)
+
+# Where a file of the pack lies in the unzipped pack: in the pack's folder, or (a lighting cache) beside it.
+function Source-Of([string]$name) {
+    $inFolder = Join-Path $sourceFolder $name
+    if (Test-Path -LiteralPath $inFolder) { return $inFolder }
+    return Join-Path $sourceRoot $name
+}
+# Whether the game's script reads map pack cards: its XComMutator.u has the card's class.
+function Test-Cards {
+    $script = Join-Path $cooked 'XComMutator.u'
+    if (-not (Test-Path -LiteralPath $script)) { return $false }
+    return $latin.GetString([IO.File]::ReadAllBytes($script)).Contains('LWRMapPackCard')
+}
+# A map's drop-in exclusion lines put into the lines of DefaultRandomSpawns.ini: after the last ExcludeMaps line of
+# the drop-in section (live or commented), else at the section's end. Returns the lines added, or $null where a live
+# line for the map is there already or the file has no such section.
+function Add-Exclusion($rs, $map) {
+    $start = -1; $end = $rs.Count; $last = -1; $there = $false
+    for ($i = 0; $i -lt $rs.Count; $i++) {
+        $t = $rs[$i].Trim()
+        if ($t.StartsWith('[')) { if ($start -ge 0 -and $end -eq $rs.Count -and $i -gt $start) { $end = $i }; if ($t -eq $dropInSection -and $start -lt 0) { $start = $i }; continue }
+        if ($start -lt 0 -or $i -ge $end) { continue }
+        if ($t -match '^;*\s*[+.!]?ExcludeMaps\s*=') { $last = $i }
+        if ($t -match ('^[+.!]?ExcludeMaps\s*=\s*"?' + [regex]::Escape($map.variant) + '"?\s*$')) { $there = $true }
+    }
+    if ($start -lt 0 -or $there) { return $null }
+    $at = $last + 1
+    if ($last -lt 0) { $at = $end; while ($at - 1 -gt $start -and $rs[$at - 1].Trim() -eq '') { $at-- } }
+    $lines = [string[]]@($map.dropInExclusion)
+    $rs.InsertRange($at, $lines)
+    return ,$lines
+}
+function Remove-Exclusions($state, [ref]$left) {
+    if (-not (@($state.exclusions).Count -and (Test-Path -LiteralPath $rsPath))) { return }
+    $rs = Read-Lines $rsPath
+    foreach ($block in @($state.exclusions)) {
+        $run = [string[]]@($block.lines)
+        $at = Find-Run $rs $run
+        if ($at -lt 0) { $left.Value += "the drop-in exclusion of $($block.variant) has changed: take it out by hand"; continue }
+        $rs.RemoveRange($at, $run.Count)
+    }
+    Write-Lines $rsPath $rs
+}
 
 function Uninstall-Pack {
     if (-not (Test-Path -LiteralPath $statePath)) { return $false }
     $state = Get-Content -Raw -Encoding UTF8 -LiteralPath $statePath | ConvertFrom-Json
     $left = @()
+    if ($state.route -eq 'cards') {
+        # the folder's files and the caches beside it, each deleted if unchanged; the folder goes once empty
+        $gone = 0
+        foreach ($file in @($state.files)) {
+            $path = Join-Path $cooked $file.name
+            if (-not (Test-Path -LiteralPath $path)) { continue }
+            if ((Sha $path) -ne $file.sha256) { $left += "$($file.name) has changed since: it stays"; continue }
+            Remove-Item -LiteralPath $path
+            $gone++
+        }
+        $there = Join-Path $cooked $state.folder
+        if ((Test-Path -LiteralPath $there) -and -not @(Get-ChildItem -LiteralPath $there -Force).Count) { Remove-Item -LiteralPath $there }
+        Remove-Exclusions $state ([ref]$left)
+        Remove-Item -LiteralPath $statePath
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse }
+        Write-Host "Taken out: the pack's folder $($state.folder), $gone file(s)."
+        foreach ($note in $left) { Write-Host "  Left: $note" -ForegroundColor Yellow }
+        return $true
+    }
     $maps = Read-Lines $mapsPath
     foreach ($block in @($state.added)) {
         $run = [string[]]@($block.lines)
@@ -130,16 +209,7 @@ function Uninstall-Pack {
         }
         Write-Lines $lzPath $lz
     }
-    if (@($state.exclusions).Count -and (Test-Path -LiteralPath $rsPath)) {
-        $rs = Read-Lines $rsPath
-        foreach ($block in @($state.exclusions)) {
-            $run = [string[]]@($block.lines)
-            $at = Find-Run $rs $run
-            if ($at -lt 0) { $left += "the drop-in exclusion of $($block.variant) has changed: take it out by hand"; continue }
-            $rs.RemoveRange($at, $run.Count)
-        }
-        Write-Lines $rsPath $rs
-    }
+    Remove-Exclusions $state ([ref]$left)
     $gone = 0
     foreach ($file in @($state.files)) {
         $path = Join-Path $cooked $file.name
@@ -174,16 +244,78 @@ if (Test-Path -LiteralPath $statePath) {
     Write-Host 'This pack is installed already: taking the earlier install out first.'
     [void](Uninstall-Pack)
 }
-$source = Join-Path $root 'XEW\XComGame\CookedPCConsole'
+$useCards = Test-Cards
+if ($Route -eq 'classic') { $useCards = $false } elseif ($Route -eq 'cards') { $useCards = $true } elseif ($Route) { Fail "Unknown way '$Route': cards or classic." }
 $names = @($pack.files.PSObject.Properties | ForEach-Object { $_.Name })
 foreach ($name in $names) {
-    $from = Join-Path $source $name
+    $from = Source-Of $name
     if (-not (Test-Path -LiteralPath $from)) { Fail "$name is missing from the pack: unzip the whole pack first." }
     if ((Sha $from) -ne $pack.files.$name) { Fail "$name in the pack is damaged (its checksum differs)." }
+    # in CookedPCConsole itself go every file the classic way, and the lighting caches either way
+    if ($useCards -and $caches -notcontains $name) { continue }
     $to = Join-Path $cooked $name
     if ((Test-Path -LiteralPath $to) -and (Sha $to) -ne $pack.files.$name) {
         Fail "The game already has another $name. Nothing was changed; take that file's owner out first."
     }
+}
+if ($useCards) {
+    # ---- an install that reads map pack cards: the folder copied, the caches beside it, nothing else
+    $cardPath = Join-Path $sourceFolder $pack.card.file
+    if (-not (Test-Path -LiteralPath $cardPath)) { Fail "$($pack.card.file) is missing from the pack: unzip the whole pack first." }
+    $target = Join-Path $cooked $packFolder
+    $notes = @()
+    # another pack's card of the same number, or a file of the same name elsewhere: the game finds one of the two
+    $mine = @(Get-ChildItem -LiteralPath $sourceFolder -File | ForEach-Object { $_.Name })
+    $lower = @($mine | ForEach-Object { $_.ToLower() })
+    foreach ($other in @(Get-ChildItem -LiteralPath $cooked -Recurse -File | Where-Object { $_.Extension -eq '.upk' -and $lower -contains $_.Name.ToLower() -and $_.DirectoryName -ne $target })) {
+        $where = $other.DirectoryName.Substring($cooked.Length).TrimStart('\')
+        if (-not $where) { $where = 'CookedPCConsole itself' }
+        if ($other.Name -ieq $pack.card.file) { $notes += "another pack's card has the same number ($($other.Name), in $where): rename one of the two, keeping LWRMapPack_ and four digits, or one pack is not read" }
+        else { $notes += "$($other.Name) is also in $where`: the game uses only one of the two files" }
+    }
+    $rs = $null
+    if (Test-Path -LiteralPath $rsPath) { $rs = Read-Lines $rsPath }
+    $exclusions = @()
+    if ($null -ne $rs) {
+        foreach ($map in @($pack.maps)) {
+            if (-not $map.dropInExclusion) { continue }
+            $lines = Add-Exclusion $rs $map
+            if ($null -ne $lines) { $exclusions += @{ variant = $map.variant; lines = $lines } }
+        }
+    }
+    New-Item -ItemType Directory -Force -Path $stateFolder | Out-Null
+    if ($exclusions.Count) {
+        New-Item -ItemType Directory -Force -Path $backup | Out-Null
+        Copy-Item -LiteralPath $rsPath -Destination (Join-Path $backup 'DefaultRandomSpawns.ini') -Force
+    }
+    New-Item -ItemType Directory -Force -Path $target | Out-Null
+    $copied = @()
+    foreach ($name in $mine) {
+        $to = Join-Path $target $name
+        Copy-Item -LiteralPath (Join-Path $sourceFolder $name) -Destination $to -Force
+        $copied += @{ name = "$packFolder\$name"; sha256 = (Sha $to) }
+    }
+    foreach ($name in $caches) {
+        $to = Join-Path $cooked $name
+        if (Test-Path -LiteralPath $to) { continue }        # there already, the same file: it is not this pack's to delete
+        Copy-Item -LiteralPath (Source-Of $name) -Destination $to
+        $copied += @{ name = $name; sha256 = $pack.files.$name }
+    }
+    $state = @{ pack = $pack.id; name = $pack.name; mode = $pack.mode; route = 'cards'; folder = $packFolder;
+                installedAt = (Get-Date).ToString('s'); exclusions = $exclusions; files = $copied }
+    ConvertTo-Json $state -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $statePath
+    if ($exclusions.Count) { Write-Lines $rsPath $rs }
+    Write-Host "Installed $(@($pack.maps).Count) map(s) in $Game as the map pack folder $packFolder (card $($pack.card.file))." -ForegroundColor Green
+    foreach ($map in @($pack.maps)) {
+        $how = 'beside it in the rotation'
+        if ($map.mode -eq 'replace' -or (-not $map.mode -and $pack.mode -eq 'replace')) { $how = 'in its place' }
+        Write-Host "  $($map.variant): $($map.name), a variant of $($map.base), $how"
+    }
+    if ($caches.Count) { Write-Host "$($caches.Count) lighting cache file(s) lie beside the folder, in CookedPCConsole itself." }
+    if ($exclusions.Count) { Write-Host "$($exclusions.Count) drop-in exclusion(s) were added to DefaultRandomSpawns.ini (a card can't carry them)." }
+    foreach ($note in $notes) { Write-Host "  Note: $note" -ForegroundColor Yellow }
+    Write-Host 'No file of the game was changed. In the game''s console, Mutate LWRMapTest Packs lists the pack. Uninstall.cmd takes it out again.'
+    exit 0
 }
 $maps = Read-Lines $mapsPath
 $lz = $null
@@ -242,23 +374,8 @@ foreach ($map in @($pack.maps)) {
         }
     }
     if ($hasRs -and $map.dropInExclusion) {
-        # after the last ExcludeMaps line of the drop-in section (live or commented), else at the section's end;
-        # nothing where a live line for the map is there already, or the file has no such section
-        $start = -1; $end = $rs.Count; $last = -1; $there = $false
-        for ($i = 0; $i -lt $rs.Count; $i++) {
-            $t = $rs[$i].Trim()
-            if ($t.StartsWith('[')) { if ($start -ge 0 -and $end -eq $rs.Count -and $i -gt $start) { $end = $i }; if ($t -eq $dropInSection -and $start -lt 0) { $start = $i }; continue }
-            if ($start -lt 0 -or $i -ge $end) { continue }
-            if ($t -match '^;*\s*[+.!]?ExcludeMaps\s*=') { $last = $i }
-            if ($t -match ('^[+.!]?ExcludeMaps\s*=\s*"?' + [regex]::Escape($map.variant) + '"?\s*$')) { $there = $true }
-        }
-        if ($start -ge 0 -and -not $there) {
-            $at = $last + 1
-            if ($last -lt 0) { $at = $end; while ($at - 1 -gt $start -and $rs[$at - 1].Trim() -eq '') { $at-- } }
-            $lines = [string[]]@($map.dropInExclusion)
-            $rs.InsertRange($at, $lines)
-            $exclusions += @{ variant = $map.variant; lines = $lines }
-        }
+        $lines = Add-Exclusion $rs $map
+        if ($null -ne $lines) { $exclusions += @{ variant = $map.variant; lines = $lines } }
     }
     $done += $map
 }
@@ -277,10 +394,10 @@ foreach ($name in $names) {
     if ($wanted -notcontains $name) { continue }
     $to = Join-Path $cooked $name
     if (Test-Path -LiteralPath $to) { continue }        # there already, the same file: it is not this pack's to delete
-    Copy-Item -LiteralPath (Join-Path $source $name) -Destination $to
+    Copy-Item -LiteralPath (Source-Of $name) -Destination $to
     $copied += @{ name = $name; sha256 = $pack.files.$name }
 }
-$state = @{ pack = $pack.id; name = $pack.name; mode = $pack.mode; installedAt = (Get-Date).ToString('s'); added = $added;
+$state = @{ pack = $pack.id; name = $pack.name; mode = $pack.mode; route = 'classic'; installedAt = (Get-Date).ToString('s'); added = $added;
             commented = $commented; zones = $zones; exclusions = $exclusions; files = $copied }
 New-Item -ItemType Directory -Force -Path $stateFolder | Out-Null
 ConvertTo-Json $state -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $statePath

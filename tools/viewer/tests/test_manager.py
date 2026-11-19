@@ -23,6 +23,8 @@ import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import gamemaps  # noqa: E402
 import manager  # noqa: E402
+sys.path.insert(0, str(HERE.parents[1] / 'upk'))
+import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
 import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
@@ -287,10 +289,33 @@ class Manager(unittest.TestCase):
             names = set(z.namelist())
             readme = z.read('README.txt').decode('latin-1')
             described = json.loads(z.read('pack.json'))
-            self.assertEqual(z.read(f'XEW/XComGame/CookedPCConsole/{OTHER}.upk'), b'second map')
-        self.assertLessEqual({'README.txt', 'pack.json', f'XEW/XComGame/CookedPCConsole/{VARIANT}.upk',
-                              f'XEW/XComGame/CookedPCConsole/CIN_DropshipIntros_{VARIANT}.upk',
+            self.assertEqual(z.read(f'CookedPCConsole/My_pack/{OTHER}.upk'), b'second map')
+            held = pack_card.read(z.read(f'CookedPCConsole/My_pack/{described["card"]["file"]}'))
+            inside = z.read('CookedPCConsole/My_pack/README.txt').decode('latin-1')
+        # the pack is one folder: the maps, the card, a README (LWR map packs plan, 6.1)
+        self.assertLessEqual({'README.txt', 'pack.json', f'CookedPCConsole/My_pack/{VARIANT}.upk',
+                              f'CookedPCConsole/My_pack/CIN_DropshipIntros_{VARIANT}.upk',
                               f'packages/{VARIANT}/manifest.json', f'packages/{OTHER}/manifest.json'}, names)
+        self.assertFalse(any(n.startswith('XEW/') for n in names))
+        self.assertEqual((described['schemaVersion'], described['folder'], described['id'], target.name),
+                         (2, 'My_pack', 'My_pack', 'My_pack v1.zip'))
+        self.assertEqual((r['folder'], r['version'], r['card']), ('My_pack', 1, described['card']['number']))
+        self.assertEqual(described['card']['file'], 'LWRMapPack_%04d.upk' % r['card'])
+        self.assertIn(described['card']['file'], inside)
+        # the card: every record of both maps, each under the display name of the base record it replaces (a card
+        # comments nothing out: LWR swaps a line in by its display name), then each map's landing zones
+        self.assertEqual((held['PackName'], held['Format']), ('My pack v1', 1))
+        self.assertEqual([(m['Name'], m['DisplayName']) for m in held['Maps']],
+                         [(v, d) for v in (VARIANT, OTHER)
+                          for d in (dep.field(record('bar'), 'DisplayName'), 'URB_Bar_Terror (Terror) |0', 'URB_Bar_Bomb (Bomb) |0')])
+        self.assertEqual([m['bInRotation'] for m in held['Maps']], [True, True, False] * 2)
+        self.assertTrue(all(f'CIN_DropshipIntros_{VARIANT}' in [x['MapName'] for x in m['StreamingMaps']] for m in held['Maps'][:3]))
+        self.assertEqual({z_['MapName'] for z_ in held['LZArray']}, {VARIANT, OTHER})
+        self.assertEqual(held['Pictures'], [])                           # the made-up install has no map pictures
+        self.assertEqual(described['card']['lines'][0], described['maps'][0]['cardLines'][0])
+        self.assertTrue(any('have the display name' in n for n in r['notes']))    # two maps replacing one: the later line wins
+        self.assertIn('LONG WAR REBALANCE 3.00.00 beta 15', readme)
+        self.assertIn('     the folder My_pack', readme)
         self.assertEqual((described['schema'], described['mode'], [m['variant'] for m in described['maps']]),
                          (manager.PACK_SCHEMA, 'replace', [VARIANT, OTHER]))
         self.assertEqual([m['donors'] for m in described['maps']], [[], []])      # no piece of another map in either
@@ -335,6 +360,183 @@ class Manager(unittest.TestCase):
         r = manager.pack(self.store, self.builds, self.player(), dict(projects=[OTHER_ID], mode='additional', projectFiles=True))
         with zipfile.ZipFile(r['zip']) as z: readme = z.read('README.txt').decode('latin-1')
         self.assertIn('saved after this build', readme)
+
+    def test_a_pack_beside_the_maps_keeps_names_of_its_own_and_borrows_pictures(self):
+        self.more_missions(self.lwr)
+        self.package()
+        (self.output / VARIANT / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'cache')
+        m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
+        m['files'][f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'cache').hexdigest()
+        (self.output / VARIANT / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        import pictures
+        with mock.patch.object(pictures, 'base_library', lambda cooked, name: 'UILibrary_MapImages' if name == 'URB_Bar' else None):
+            r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID], mode='additional', name='Beside', author='A. N. Author'))
+        with zipfile.ZipFile(r['zip']) as z:
+            names = set(z.namelist())
+            described = json.loads(z.read('pack.json'))
+            held = pack_card.read(z.read(f'CookedPCConsole/Beside/{described["card"]["file"]}'))
+            readme = z.read('README.txt').decode('latin-1')
+        # the lighting cache lies beside the folder: inside it the game does not find it (F-140)
+        self.assertIn(f'CookedPCConsole/{VARIANT}_Lighting.tfc', names)
+        self.assertNotIn(f'CookedPCConsole/Beside/{VARIANT}_Lighting.tfc', names)
+        self.assertIn(f'{VARIANT}_Lighting.tfc', described['cacheFiles'])
+        self.assertTrue(all(n.endswith('.tfc') for n in described['cacheFiles']))
+        self.assertNotIn(f'{VARIANT}_Lighting.tfc', described['folderFiles'])
+        self.assertIn(f'     {VARIANT}_Lighting.tfc', readme)
+        self.assertEqual(held['PackName'], 'Beside v1 by A. N. Author')
+        self.assertIn('By A. N. Author.', readme)
+        # beside the base map: no record has a name of the game's own
+        own = {dep.field(record('bar'), 'DisplayName'), 'URB_Bar_Terror (Terror) |0', 'URB_Bar_Bomb (Bomb) |0'}
+        self.assertEqual(len(held['Maps']), 3)
+        self.assertFalse(own & {m['DisplayName'] for m in held['Maps']})
+        self.assertEqual(held['Pictures'], [dict(Map=VARIANT, Picture='UILibrary_MapImages.URB_Bar')])
+        self.assertEqual(described['maps'][0]['pictureFrom'], 'UILibrary_MapImages.URB_Bar')
+        self.assertEqual(r['notes'], [])
+
+    def test_a_saved_pack_keeps_its_folder_and_number_and_counts_its_versions(self):
+        self.package()
+        self.second()
+        player = self.player()
+        cards = self.lwr / 'XEW/XComGame/CookedPCConsole/Someone'
+        cards.mkdir()
+        taken = [n for n in range(10000) if n not in (7, 4242)]
+        for n in (0, 9999): (cards / ('LWRMapPack_%04d.upk' % n)).write_bytes(b'')
+        import packs
+        # every number but two is another record's or an installed card's: the draw takes one of the two
+        packs.save(self.store.root, dict(schema=packs.SCHEMA, schemaVersion=1, name='Other', folder='Other', card=7, version=3, maps=[]))
+        with mock.patch.object(packs, 'installed_cards', lambda cooked: {n: cards for n in taken}):
+            r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', name='Night maps vol. 2'))
+        self.assertEqual((r['folder'], r['card'], r['version'], Path(r['zip']).name), ('Night_maps_vol_2', 4242, 1, 'Night_maps_vol_2 v1.zip'))
+        saved = packs.load(self.store.root, 'Night_maps_vol_2')
+        self.assertEqual((saved['name'], saved['card'], saved['version'], saved['maps']),
+                         ('Night maps vol. 2', 4242, 1, [dict(project=ID, name='Bar remix', variant=VARIANT, mode='additional')]))
+        # exported again as that pack, with another selection: the folder and number stay, the version counts on
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', modes={OTHER_ID: 'replace'},
+                                                                pack='Night_maps_vol_2', projectFiles=True))
+        self.assertEqual((r['folder'], r['card'], r['version'], r['name']), ('Night_maps_vol_2', 4242, 2, 'Night maps vol. 2'))
+        saved = packs.load(self.store.root, 'Night_maps_vol_2')
+        self.assertEqual(([m['mode'] for m in saved['maps']], saved['projectFiles'], saved['zip']),
+                         (['additional', 'replace'], True, 'Night_maps_vol_2 v2.zip'))
+        with zipfile.ZipFile(r['zip']) as z:
+            described = json.loads(z.read('pack.json'))
+            self.assertEqual(pack_card.read(z.read(f'CookedPCConsole/Night_maps_vol_2/LWRMapPack_4242.upk'))['PackName'], 'Night maps vol. 2 v2')
+        self.assertEqual(described['pack'], saved)
+        # a new pack of the same name gets a folder of its own
+        r2 = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', name='Night maps vol. 2'))
+        self.assertEqual(r2['folder'], 'Night_maps_vol_2_2')
+        # the list: the saved packs, a project that is gone named; a pack whose record is gone comes from its zip
+        self.store.delete(OTHER_ID) if hasattr(self.store, 'delete') else self.store.path(OTHER_ID).unlink()
+        listed = {p['folder']: p for p in manager.pack_list(self.store, self.builds)['packs']}
+        self.assertEqual([m['missing'] for m in listed['Night_maps_vol_2']['maps']], [False, True])
+        self.assertEqual(listed['Night_maps_vol_2']['source'], 'record')
+        manager.pack_forget(self.store, self.builds, 'Night_maps_vol_2')
+        self.assertTrue(Path(r['zip']).is_file())                        # no zip is deleted
+        listed = {p['folder']: p for p in manager.pack_list(self.store, self.builds)['packs']}
+        self.assertEqual((listed['Night_maps_vol_2']['source'], listed['Night_maps_vol_2']['version'], listed['Night_maps_vol_2']['card']),
+                         ('zip', 2, 4242))
+        with self.assertRaises(ProjectError): manager.pack_forget(self.store, self.builds, 'Night_maps_vol_2')
+        # chosen from its zip: the record is made again, the number kept
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', pack='Night_maps_vol_2'))
+        self.assertEqual((r['card'], r['version']), (4242, 3))
+        with self.assertRaises(ProjectError) as error:
+            manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', pack='Nothing'))
+        self.assertEqual(error.exception.status, 404)
+
+    def test_a_pack_from_before_cards_is_offered_from_its_zip(self):
+        import packs
+        folder = self.output / manager.PACKS
+        folder.mkdir(parents=True)
+        with zipfile.ZipFile(folder / 'Old pack 20261110-120000.zip', 'w') as z:
+            z.writestr('pack.json', json.dumps(dict(schema=manager.PACK_SCHEMA, schemaVersion=1, name='Old pack', mode='mixed',
+                                                    madeAt='2026-11-10T12:00:00',
+                                                    maps=[dict(id=ID, name='Bar remix', variant=VARIANT, mode='replace'),
+                                                          dict(id='gone-1', name='Gone', variant='Gone_1')])))
+        with zipfile.ZipFile(folder / 'not a pack.zip', 'w') as z: z.writestr('x.txt', 'x')
+        listed, = manager.pack_list(self.store, self.builds)['packs']
+        self.assertEqual((listed['source'], listed['name'], listed['folder'], listed['card'], listed['version']),
+                         ('zip', 'Old pack', 'Old_pack', None, 0))
+        self.assertEqual([(m['project'], m['mode'], m['missing']) for m in listed['maps']],
+                         [(ID, 'replace', False), ('gone-1', 'additional', True)])
+        self.package()
+        r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID], mode='replace', pack='Old_pack'))
+        self.assertEqual((r['folder'], r['version'], r['name']), ('Old_pack', 1, 'Old pack'))
+        self.assertEqual(packs.load(self.store.root, 'Old_pack')['card'], r['card'])
+
+    def card_game(self, game):
+        """The made-up game given a script that reads map pack cards, as LWR 3.00.00 beta 15's does."""
+        (game / 'XEW/XComGame/CookedPCConsole/XComMutator.u').write_bytes(b'\0names\0LWRMapPackCard\0more')
+
+    @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_packs_scripts_copy_the_folder_where_the_game_reads_cards(self):
+        real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
+        if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
+        self.more_missions(self.copy)
+        self.card_game(self.copy)
+        cooked = self.copy / 'XEW/XComGame/CookedPCConsole'
+        (cooked / 'Other pack').mkdir()
+        before = self.files(self.copy)
+        held = sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*'))
+        self.package()
+        self.second()
+        (self.output / VARIANT / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'cache')
+        m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
+        m['files'][f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'cache').hexdigest()
+        (self.output / VARIANT / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        player = self.player()
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', name='Card pack'))
+        folder = Path(self.temp.name) / 'unzipped cards'
+        with zipfile.ZipFile(r['zip']) as z: z.extractall(folder)
+        card = 'LWRMapPack_%04d.upk' % r['card']
+        out = self.run_script(folder, 'Install.cmd', self.copy)
+        self.assertIn('as the map pack folder Card_pack', out)
+        self.assertIn('No file of the game was changed', out)
+        self.assertEqual(self.files(self.copy), before)                  # no config file is touched
+        there = cooked / 'Card_pack'
+        self.assertEqual(sorted(p.name for p in there.iterdir()),
+                         sorted([card, 'README.txt', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk', f'{OTHER}.upk']
+                                + [n for n in m['files'] if False]))
+        self.assertEqual((cooked / f'{VARIANT}_Lighting.tfc').read_bytes(), b'cache')      # beside the folder (F-140)
+        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertEqual((there / card).read_bytes(), (folder / 'CookedPCConsole' / 'Card_pack' / card).read_bytes())
+        # a newer version over it: the earlier one's files go first, the folder is the new version's
+        (there / 'Stray.upk').write_bytes(b'someone else\'s')
+        r2 = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', pack='Card_pack'))
+        newer = Path(self.temp.name) / 'unzipped cards 2'
+        with zipfile.ZipFile(r2['zip']) as z: z.extractall(newer)
+        self.run_script(newer, 'Install.cmd', self.copy)
+        self.assertFalse((there / f'{OTHER}.upk').exists())
+        self.assertTrue((there / 'Stray.upk').is_file())                 # not the pack's: it stays
+        self.assertEqual(pack_card.read((there / card).read_bytes())['PackName'], 'Card pack v2')
+        # another pack with a card of the same number, and a map of the same name elsewhere, are named
+        (cooked / 'Other pack' / card).write_bytes(b'x')
+        (cooked / 'Other pack' / f'{VARIANT}.upk').write_bytes(b'x')
+        out = self.run_script(newer, 'Install.cmd', self.copy)
+        self.assertIn('card has the same number', out)
+        self.assertIn(f'{VARIANT}.upk is also in Other pack', out)
+        (cooked / 'Other pack' / card).unlink()
+        (cooked / 'Other pack' / f'{VARIANT}.upk').unlink()
+        (there / 'Stray.upk').unlink()
+        # taken out: the folder and the cache gone, everything else as it was
+        out = self.run_script(newer, 'Uninstall.cmd', self.copy)
+        self.assertIn('Taken out', out)
+        self.assertEqual(sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*')), held)
+        self.assertEqual(self.files(self.copy), before)
+        self.assertEqual(list((self.copy / 'XCOM Map Workshop/packs').iterdir()), [])
+        # the classic way asked for on that install, then the cards way over it: the lines come out again
+        self.run_script_with(newer, 'Install.cmd', self.copy, 'classic')
+        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
+        self.assertEqual(len(self.records(self.copy, VARIANT)), 1)
+        self.run_script(newer, 'Install.cmd', self.copy)
+        self.assertEqual(self.files(self.copy), before)
+        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertTrue((there / f'{VARIANT}.upk').is_file())
+        self.run_script(newer, 'Uninstall.cmd', self.copy)
+        self.assertEqual(sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*')), held)
+
+    def run_script_with(self, folder, name, game, *more):
+        done = subprocess.run(['cmd', '/c', str(folder / name), str(game), *more], capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        return done.stdout
 
     def run_script(self, folder, name, game):
         """A pack's Install.cmd or Uninstall.cmd run on a game folder: its output."""
@@ -381,7 +583,7 @@ class Manager(unittest.TestCase):
                 self.assertIn(f'a variant of URB_Bar, beside it', readme)
             self.assertEqual((cooked / f'{OTHER}.upk').read_bytes(), b'second map')
             packs = self.copy / 'XCOM Map Workshop/packs'
-            self.assertEqual((packs / f'Two-bars-{mode}-{Path(r["zip"]).stem[-15:]}-before' / 'DefaultMaps.ini').read_bytes(), before['DefaultMaps.ini'])
+            self.assertEqual((packs / f'{r["folder"]}-before' / 'DefaultMaps.ini').read_bytes(), before['DefaultMaps.ini'])
             # installed again over itself: no second set of records
             self.run_script(folder, 'Install.cmd', self.copy)
             self.assertEqual(self.files(self.copy), self.files(self.lwr))
@@ -704,6 +906,16 @@ class Manager(unittest.TestCase):
             self.assertEqual((status, r['results'][0]['ok'], len(self.records(self.lwr, VARIANT))), (200, True, 1))
             status, r = call('POST', '/manager/pack', dict(projects=[ID], mode='additional'))
             self.assertEqual((status, Path(r['zip']).is_file()), (200, True))
+            # the saved packs: listed, exported again by their folder, forgotten only by the viewer itself
+            status, saved = call('GET', '/manager/packs.json')
+            self.assertEqual((status, [(x['folder'], x['version'], x['source']) for x in saved['packs']]), (200, [(r['folder'], 1, 'record')]))
+            status, again = call('POST', '/manager/pack', dict(projects=[ID], mode='additional', pack=r['folder']))
+            self.assertEqual((status, again['version'], again['card']), (200, 2, r['card']))
+            self.assertEqual(call('POST', '/manager/packs.json', dict())[0], 405)
+            self.assertEqual(call('DELETE', f'/manager/packs/{r["folder"]}', origin='http://evil.example')[0], 403)
+            self.assertEqual(call('DELETE', '/manager/packs/Nothing')[0], 404)
+            status, saved = call('DELETE', f'/manager/packs/{r["folder"]}')
+            self.assertEqual((status, [x['source'] for x in saved['packs']]), (200, ['zip']))
             status, listed = call('GET', '/gamemaps.json')
             bar = next(m for m in listed['maps'] if m['name'] == 'URB_Bar')
             self.assertEqual((status, [x['kind'] for x in bar['records']]), (200, ['own', 'rotation']))

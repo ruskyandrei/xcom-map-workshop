@@ -8,6 +8,47 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Export map pack makes a drop-in pack for LWR 3, and the editor remembers its packs** (LWR map packs, stages C6
+  and C7; branch `lwr-map-packs`).
+  - **The zip** ([manager.py](tools/viewer/manager.py) `_pack`), now `<Folder> v<n>.zip`:
+    - `CookedPCConsole\<Folder>\` is the pack: every build's maps, a card `LWRMapPack_<nnnn>.upk`
+      ([pack_card.py](tools/upk/pack_card.py)) and a README. Copied into a game's `CookedPCConsole`, LWR 3.00.00
+      beta 15 or later reads it; deleted, it is gone. No file of the game changes.
+    - `CookedPCConsole\*.tfc`: the builds' lighting caches lie beside the folder and are copied beside it, because
+      the game finds a cache only in `CookedPCConsole` itself ([F-140](research/findings-register.md)).
+    - The card's lines: each map's records, a `Pictures` line lending the base map's picture to a map without one of
+      its own (the install's map-image packages are looked up), and the landing zones. A map that replaces its
+      original takes the original records' display names, in rotation or not: a card comments nothing out, LWR swaps
+      a line in by its display name ([installs.py](tools/viewer/installs.py) `rotation_plan(cards=True)`).
+    - `pack.json` is schema 2: the pack's record, the card's lines as text, the classic lines per map as before.
+    - Notes at the export: two lines of the pack with one display name, another card of the same number in the
+      install the editor reads, an own picture on a map whose name the game cuts before it looks, a drop-in exclusion
+      (a card can't carry it), an all-zero GUID.
+    - `Install.cmd` and `Uninstall.cmd` ([pack_scripts.py](tools/viewer/pack_scripts.py)) go two ways: where the
+      game's `XComMutator.u` has the card's class they copy the folder and the caches and add only the drop-in
+      exclusion lines; anywhere else they install as before (files flat, lines in `DefaultMaps.ini`). The pack's id
+      in a game's ledger is its folder name, so a newer version takes the older out first, whichever way that went in.
+  - **Saved packs** ([packs.py](tools/viewer/packs.py), new): each export writes `<projects>\packs\<Folder>.json`
+    (name, folder, card number, version, author, maps and each one's way). The card number is drawn once, from the
+    numbers no other record and no card in the install has, and kept; the version counts up. A pack whose record is
+    gone is offered from its zip in the Map packs folder, one from before cards too.
+  - **The project manager** ([manager.js](tools/viewer/web/manager.js), [index.html](tools/viewer/web/index.html)): a
+    Pack list (New pack and every saved pack), a name and an author field. Choosing a saved pack selects its maps,
+    each its way, and says its card, folder and next version, and which of its projects are gone. Forget pack removes
+    the record, never a zip. Routes: `GET /manager/packs.json`, `DELETE /manager/packs/<folder>`, and `pack` and
+    `author` on `POST /manager/pack` ([viewer.py](tools/viewer/viewer.py)).
+  - With Include editor project files a project's map picture goes along as `<file>.picture.png`.
+  - [pack_test.py](tools/lab/pack_test.py) `put` takes an exported pack and puts its caches beside the folder.
+  - A second record of one mission keeps its own words when its name already differs
+    ([build.py](tools/editor/build.py)).
+  - Checked: `viewer` (562 tests; [test_manager.py](tools/viewer/tests/test_manager.py) has the zip's layout, the
+    card read back for both ways, borrowed pictures, saved packs, a pack from an old zip, the routes, and the scripts
+    run on made-up game folders both ways, a newer version over an older, the classic way turned into the cards way,
+    and back to the files as they were), `editor` (334), `node`, `lab`; in the browser on a test server: three
+    projects exported as a new pack, the pack chosen again from the list. In the game: EXP-85.
+  - Gaps: the names check across other packs' folders in the install is the scripts' alone (the export warns only
+    of a card number); the guide has no section yet.
+
 - **A variant's records keep the base record's own words** (LWR map packs, stage C1). A record's display name is now
   `<variant> (<the base record's words>) |n`, with the base record's ending, where it was
   `<variant> (<project>[, <mission>]) |0` ([build.py](tools/editor/build.py) `config_lines`,

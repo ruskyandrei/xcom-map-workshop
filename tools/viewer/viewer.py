@@ -663,12 +663,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     # The project manager (manager.py): GET /manager.json lists every project with its last build and what is in the
     # game of it; POST /manager/install and /manager/pack act on {"projects": [id...], "mode": ...}.
+    # GET /manager/packs.json lists the saved map packs (packs.py) and DELETE /manager/packs/<folder> forgets one.
     # The Game maps window (gamemaps.py): GET /gamemaps.json lists the install's map records and what the editor
     # changed of them; POST /gamemaps/use {records, use} switches the install's own records on or off and
     # POST /gamemaps/undo {variants} takes builds out.
     def handle_manager(self, method):
         path = urlsplit(self.path).path
-        if path not in ('/manager.json', '/manager/install', '/manager/pack', '/gamemaps.json', '/gamemaps/use', '/gamemaps/undo'): return False
+        saved_pack = path[len('/manager/packs/'):] if path.startswith('/manager/packs/') else None
+        if saved_pack is None and path not in ('/manager.json', '/manager/install', '/manager/pack', '/manager/packs.json',
+                                               '/gamemaps.json', '/gamemaps/use', '/gamemaps/undo'): return False
         self.body_read = False
         try:
             if self.projects is None or self.builds is None: raise ProjectError(404, 'This server does not build.')
@@ -680,6 +683,13 @@ class Handler(SimpleHTTPRequestHandler):
                 else: raise ProjectError(405, 'Not allowed.')
             elif path == '/manager.json' and method == 'GET':
                 self.send_json(200, manager.listing(self.projects, self.builds, self.player))
+            elif path == '/manager/packs.json' and method == 'GET':
+                self.send_json(200, manager.pack_list(self.projects, self.builds))
+            elif saved_pack is not None and method == 'DELETE':
+                # DELETE /manager/packs/<folder>: the saved pack forgotten (its zips stay)
+                if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
+                self.send_json(200, manager.pack_forget(self.projects, self.builds, unquote(saved_pack)))
+            elif saved_pack is not None or path == '/manager/packs.json': raise ProjectError(405, 'Not allowed.')
             elif path != '/manager.json' and method == 'POST':
                 if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
                 act = dict(install=manager.install, pack=manager.pack)[path.rsplit('/', 1)[1]]
@@ -885,7 +895,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
 
     def do_DELETE(self):
-        if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_project)): self.send_error(405)
+        if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_manager, self.handle_project)): self.send_error(405)
 
     def do_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)

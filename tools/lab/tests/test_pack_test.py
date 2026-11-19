@@ -74,6 +74,19 @@ class PutAndTake(unittest.TestCase):
         pack_test.put(archive, self.game, echo=quiet)
         self.assertTrue((pack_test.cooked(self.game) / 'TestPack' / 'LWRMapPack_0042.upk').is_file())
 
+    def test_an_exported_packs_caches_go_beside_the_folder(self):
+        folder = make_pack(self.temp.name)
+        unzipped = Path(self.temp.name) / 'unzipped' / 'CookedPCConsole'
+        unzipped.mkdir(parents=True)
+        folder.rename(unzipped / 'TestPack')
+        (unzipped / 'Pinkbar_Lighting.tfc').write_bytes(b'cache')
+        before = pack_test.survey(self.game, hashed=True)
+        pack_test.put(unzipped.parent, self.game, echo=quiet)
+        self.assertEqual((pack_test.cooked(self.game) / 'Pinkbar_Lighting.tfc').read_bytes(), b'cache')
+        self.assertFalse((pack_test.cooked(self.game) / 'TestPack' / 'Pinkbar_Lighting.tfc').exists())
+        self.assertTrue(pack_test.take(self.game, echo=quiet))
+        self.assertEqual(pack_test.survey(self.game, hashed=True), before)
+
     def test_a_newer_version_replaces_or_goes_over(self):
         pack_test.put(make_pack(self.temp.name), self.game, echo=quiet)
         (pack_test.cooked(self.game) / 'TestPack' / 'Old.upk').write_bytes(b'old')

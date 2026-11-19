@@ -465,9 +465,10 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
         # two records of one mission that differ (a landed transport and a landed terror ship) get display names of
         # their own: the game streams by display name (mission types plan 2.1)
         seen[mission] = seen.get(mission, 0) + 1
-        if seen[mission] > 1:
-            mission = '%s %d' % (mission, seen[mission])
-            text = named(mission, again=True)
+        again = seen[mission] > 1
+        if again: mission = '%s %d' % (mission, seen[mission])
+        if again and own is None:
+            text = named(mission)
             record = set_field(record, 'DisplayName', text)
         elif own is not None and any('DisplayName="%s"' % text in r for r in records):
             text = named(mission, again=True)

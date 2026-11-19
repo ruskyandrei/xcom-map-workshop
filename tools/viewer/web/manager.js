@@ -25,7 +25,11 @@ async function call(method, url, body) {
 export const managerApi = {
   list: () => call('GET', '/manager.json'),
   install: (projects, mode, modes) => call('POST', '/manager/install', { projects, mode, modes }),
-  pack: (projects, mode, modes, name, projectFiles = false) => call('POST', '/manager/pack', { projects, mode, modes, name, projectFiles }),
+  // pack: a saved pack's folder (exported again as its next version); name: a new pack's name
+  pack: (projects, mode, modes, name, projectFiles = false, pack = undefined, author = undefined) =>
+    call('POST', '/manager/pack', { projects, mode, modes, name, projectFiles, pack, author }),
+  packs: () => call('GET', '/manager/packs.json'),
+  forgetPack: folder => call('DELETE', `/manager/packs/${encodeURIComponent(folder)}`),
 };
 
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
@@ -102,6 +106,55 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
   const chosen = () => projects.filter(p => picked.has(p.id)).sort(sorter);
   const warningsOf = p => [...(p.warnings ?? []), ...(p.modeWarnings?.[modeOf(p)] ?? [])];
   els.projectFiles.checked = remembered();
+  // The saved packs (packs.py): choosing one selects its maps, each its way, and the export goes out as its next
+  // version under the same folder and card number. "New pack" takes a name.
+  let packs = [];
+  const packOf = () => packs.find(p => p.folder === els.packChoice?.value) ?? null;
+  function renderPacks(keep = els.packChoice?.value ?? '') {
+    if (!els.packChoice) return;
+    els.packChoice.replaceChildren(el('option', { value: '', textContent: 'New pack' }),
+      ...packs.map(p => el('option', { value: p.folder, textContent: `${p.name}${p.source === 'zip' ? ' (from its zip)' : ''}` })));
+    els.packChoice.value = packs.some(p => p.folder === keep) ? keep : '';
+    packInfo();
+  }
+  function packInfo() {
+    if (!els.packChoice) return;
+    const p = packOf();
+    els.packNameRow.hidden = Boolean(p);
+    els.packForget.hidden = !p || p.source !== 'record';
+    els.packInfo.hidden = !p;
+    if (!p) return;
+    const gone = p.maps.filter(m => m.missing).map(m => m.name ?? m.variant ?? m.project);
+    const lines = [el('div', { textContent: `${p.card == null ? 'Its card number is drawn at the export' : `Card ${String(p.card).padStart(4, '0')}`} · folder ${p.folder} · the export is version ${(p.version ?? 0) + 1}` })];
+    if (gone.length) lines.push(el('div', { className: 'warn', textContent: `Not in the projects folder, left out: ${gone.join(', ')}` }));
+    els.packInfo.replaceChildren(...lines);
+  }
+  async function loadPacks(keep) {
+    if (!els.packChoice || !api.packs) return;
+    try { packs = (await api.packs()).packs ?? []; } catch { packs = []; }
+    renderPacks(keep);
+  }
+  if (els.packChoice) {
+    els.packChoice.onchange = () => {
+      const p = packOf();
+      if (p) {
+        // its maps ticked, each its way; a map whose project is gone is named and left out
+        picked = new Set(p.maps.filter(m => !m.missing && projects.some(x => x.id === m.project && !x.error)).map(m => m.project));
+        for (const m of p.maps) if (m.mode === 'replace' || m.mode === 'additional') own.set(m.project, m.mode);
+        els.projectFiles.checked = Boolean(p.projectFiles);
+        els.packAuthor.value = p.author ?? '';
+        anchor = null;
+        render();
+      }
+      packInfo();
+    };
+    els.packForget.onclick = async () => {
+      const p = packOf();
+      if (!p || busy) return;
+      try { packs = (await api.forgetPack(p.folder)).packs ?? []; renderPacks(''); say(`${p.name} is forgotten; its zips stay in the Map packs folder.`); }
+      catch (e) { say(e.message, true); }
+    };
+  }
 
   function say(content, warn = false) {
     els.message.replaceChildren(...(content == null ? [] : [].concat(content)));
@@ -312,6 +365,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
   }
   async function refresh(keep = false) {
     if (!keep) els.list.replaceChildren(el('div', { className: 'empty', textContent: 'Reading the projects and their builds…' }));
+    loadPacks();
     try { take(await api.list()); }
     catch (e) {
       projects = []; listed = null;
@@ -363,13 +417,17 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     say(lines.map(text => el('div', { textContent: text })), Boolean(bad.length));
   });
   els.pack.onclick = () => act('Exporting…', async () => {
-    const r = await api.pack(ids(), 'additional', modes(ids()), undefined, els.projectFiles.checked);
+    const saved = packOf();
+    const r = await api.pack(ids(), 'additional', modes(ids()), saved ? undefined : (els.packName?.value.trim() || undefined),
+      els.projectFiles.checked, saved?.folder, els.packAuthor ? els.packAuthor.value.trim() : undefined);
+    await loadPacks(r.folder);
     const show = el('button', { type: 'button', className: 'link', textContent: 'Show it in its folder' });
     show.onclick = () => reveal(r.zip).catch(e => say(e.message, true));
     const n = r.projects?.length ?? 0;
     const shared = !n ? '' : n === r.packed.length ? `${n === 1 ? 'Its editor project is' : 'Their editor projects are'} in its projects folder. `
       : `${plural(n, 'editor project')} ${n === 1 ? 'is' : 'are'} in its projects folder. `;
-    const lines = [el('div', {}, `Exported ${plural(r.packed.length, 'map')} into ${r.zip} (${(r.size / 1048576).toFixed(1)} MB), with Install.cmd and Uninstall.cmd ${r.mode === 'mixed' ? `to put them into a game (${r.packed.filter(x => x.mode === 'replace').length} replacing their originals, ${r.packed.filter(x => x.mode !== 'replace').length} added to the rotation)` : r.mode === 'replace' ? 'to replace the original maps in a game' : 'to add them to a game\'s rotation'} and undo it. ${shared}`, show)];
+    const lines = [el('div', {}, `Exported ${r.name} version ${r.version}: ${plural(r.packed.length, 'map')} into ${r.zip} (${(r.size / 1048576).toFixed(1)} MB). Its folder ${r.folder} with card ${String(r.card).padStart(4, '0')} is the pack for Long War Rebalance 3; Install.cmd and Uninstall.cmd ${r.mode === 'mixed' ? `put them into any game (${r.packed.filter(x => x.mode === 'replace').length} replacing their originals, ${r.packed.filter(x => x.mode !== 'replace').length} added to the rotation)` : r.mode === 'replace' ? 'put them into any game in place of the original maps' : 'add them to any game\'s rotation'} and undo it. ${shared}`, show)];
+    for (const note of r.notes ?? []) lines.push(el('div', { textContent: note }));
     if (r.skipped.length) lines.push(el('div', { textContent: `Left out: ${r.skipped.map(s => `${s.name}: ${s.error}`).join(' ')}` }));
     say(lines, Boolean(r.skipped.length));
   });
