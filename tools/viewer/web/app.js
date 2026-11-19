@@ -9518,6 +9518,7 @@ async function openLookPicker(kind, { onChoose = null, title = null } = {}) {
   const used = usedLookMeshes(kind);
   library.setLookMode({
     kind, title: title ?? LOOK_TITLES[kind], tags: lookTags, first: e => used.has(e.mesh) || e.mesh === storedLook(kind)?.mesh,
+    verb: onChoose ? 'click to give the piece this look' : 'click to draw in this look',
     match: e => rowLook(kind, e),
     choose: (e, cat) => { const look = lookFromEntry(kind, cat, { package: e.source.package, actor: e.source.actor }); closeLookPicker(); (onChoose ?? (l => lookChosen(kind, l)))(look); },
     pick: () => startLookPick(kind, onChoose),
@@ -9531,10 +9532,11 @@ let lookPicking = null;     // { kind, onChoose }
 function startLookPick(kind, onChoose = null) {
   closeLookPicker(); stopWallDrawing(); stopPlacing();
   lookPicking = { kind, onChoose };
+  gizmo.hold(true);
   renderer.domElement.style.cursor = 'crosshair';
   flashHint(`Click a piece in the view to draw ${LOOK_NOUNS[kind] === 'ground' ? 'ground' : `${LOOK_NOUNS[kind]}s`} in its look (this map's, a copy, or one from another map) · Esc cancels`);
 }
-function stopLookPick() { lookPicking = null; renderer.domElement.style.cursor = ''; }
+function stopLookPick() { if (lookPicking) gizmo.hold(false); lookPicking = null; renderer.domElement.style.cursor = ''; }
 /** The look of a piece in the view: { kind, cat, source } (its catalogue entry and donor placing), or { why }. A made
  *  piece gives the look it is in. */
 function pieceLook(src) {
@@ -12190,7 +12192,9 @@ document.addEventListener('keydown', e => {
   if (library?.lookMode && key === 'escape') { closeLookPicker(); e.preventDefault(); return; }
   // I: the eyedropper, while the look picker is open or a wall, slab or ground tool draws (M4c)
   if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && (library?.lookMode || wallDrawing)) {
-    startLookPick(library?.lookMode?.kind ?? (wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall'));
+    // (a picker a piece's Choose… opened gives that piece the look picked, as its Pick from the view does)
+    if (library?.lookMode?.pick) library.lookMode.pick();
+    else startLookPick(library?.lookMode?.kind ?? (wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall'));
     e.preventDefault(); return;
   }
   // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it

@@ -27,6 +27,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The look picker opened from a piece's Choose… gives that piece the look, by I too, and its gizmo no longer takes
+  the eyedropper's clicks** (custom geometry editing plan, after E2; branch `fracturing-wall-poc`; found by the
+  browser smoke tests).
+  - [app.js](tools/viewer/web/app.js):
+    - while the eyedropper picks, the selection's gizmo is held (`gizmo.hold`), so a click on the piece under it is
+      the pick, not the start of a move (before, it only said "Moving 1 piece");
+    - I in a picker opened by a piece's Choose… goes through the picker's Pick from the view, so that piece gets
+      the look (before, it started a drawing in it);
+    - the picker's rows say "click to give the piece this look" when a click remakes a piece.
+  - [library.js](tools/viewer/web/library.js): a row's title takes the picker's `verb`.
+  - Checked in a test server's browser:
+    - a wall's Choose… listed rows with the new words;
+    - I started a pick of the wall kind with no drawing started, the gizmo held while picking;
+    - Esc gave the gizmo back.
+
 - **The browser smoke tests for walls and looks follow the gaps, the Build menu and plain pieces** (custom geometry
   editing plan, after E1 and E2; branch `fracturing-wall-poc`).
   - [browser_walls.py](tools/viewer/tests/browser_walls.py):

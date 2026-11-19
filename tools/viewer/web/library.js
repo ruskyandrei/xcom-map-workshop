@@ -245,7 +245,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       };
       item.onclick = choose;
       item.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
-      if (look) item.title = `${look.name}${look.setting ? ` (${look.setting})` : ''}: click to draw in this look\n${item.title}`
+      if (look) item.title = `${look.name}${look.setting ? ` (${look.setting})` : ''}: ${lookMode.verb ?? 'click to draw in this look'}\n${item.title}`
         + (look.warnings?.length ? `\nMade simpler than its donor: ${look.warnings.join('; ')}` : '');
     }
     item.thumb = thumb; item.star = star;
