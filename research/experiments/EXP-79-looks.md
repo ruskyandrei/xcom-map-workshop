@@ -184,3 +184,19 @@ plane's rebuild volume, F-131). Pictures are in `<lab>\hidden-runs\exp78-runF2`.
   rebuilt. The block's four tiles lost the crater's and the mound's baked floors and have floor on level 2, the
   block's top.
 - [F-130](../findings-register.md) and [F-131](../findings-register.md) are verified.
+
+### The re-check of run D's fixes (19 November 2026)
+
+Played on `EXP79FloorsAndGround` built again with F-132, F-133 and F-134's fixes. Pictures are in
+`<lab>\hidden-runs\exp79-runD2-floors`.
+
+- **Load: passed.**
+- **The ground, lit: passed.** Nothing is drawn black. The asphalt, grass, snow, concrete, sidewalk and sandstone
+  blocks and patches stand in their donors' look. The painted dirt's block and patch are lit, but in the blue-grey of
+  the plane's edge where the plane is mostly dirt brown. The red stone's block is lit in its donor's stone; its
+  patch was seen in neither view (nor in run D).
+- **Standing: passed.** The cursor reads the grass block's top (132), and a soldier walked onto it from beside it and
+  stands on it at 135. A soldier beside the asphalt block was sent onto it and stands on it at 135.
+- **The thick roof: passed.** The made subway roof shows the donor's grey tread and dark middle stripe across its
+  whole top; the white side panels are gone.
+- [F-132](../findings-register.md), [F-133](../findings-register.md) and [F-134](../findings-register.md) are verified.

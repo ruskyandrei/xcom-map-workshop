@@ -27,6 +27,32 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **EXP-80 runs G and H played: made floors' own cursor floors work in a building; out of buildings the game's mouse
+  takes a walkable top on every storey, and the compiler warns of it (`slab-outdoors`)** (custom geometry plan,
+  M5b; F-128, F-135; branch `fracturing-wall-poc`).
+  - [EXP-80-made-cursor-floors.md](research/experiments/EXP-80-made-cursor-floors.md):
+    - in the room, storeys 0, 1 and 2 read the ground, the made floor and the roof in both runs;
+    - on storey 1 with the cursor in the room the roof is cut away; whether the made floor is drawn then couldn't be
+      seen in the hidden game's straight-down pictures, and the game's rule says it is;
+    - the long floor, in no building, is picked on storey 0 as on storey 1, with its floors breaking at its top (run
+      G) and 2 under it (run H);
+    - the lone roof is never picked;
+    - the bar's upper floor strip reads 274 on the build and on plain URB_Bar alike.
+  - [F-135](research/findings-register.md), read from the decompiled `XComTacticalHUD.GetMousePickActor`: along the
+    mouse's ray the first walkable hit outside every building wins at once, whatever the storey; the storey rule
+    (the cursor volumes) decides only inside buildings. Over 33 maps' exports, 6,214 of 24,809 walkable tiles over
+    another floor are outside buildings: overpasses, the truck stop's canopy, forest ledges.
+  - F-128 is verified in a building. Its played results are recorded, among them why the room shows whole on storey
+    1 with the cursor elsewhere: every building is cut by the cursor volume at the cursor's place, and the room's
+    roof storey starts within the game's 16 of the map's break. F-132, F-133 and F-134 are verified by the EXP-79
+    re-check.
+  - [compiler.py](tools/editor/compiler.py) `made_slabs_in_floors` warns `slab-outdoors` of a made floor or roof in
+    no building over the map's floor 150 or more under it, naming those tiles. It works tile by tile, since URB_Bar's
+    van building covers the long floor's west end.
+  - Checked: the editor suite (`test_made_slabs_bring_cursor_floors_of_their_own`: warned in no building, not in one,
+    not when too low or over no floor). EXP-76 compiles with the warning on the long floor (26 tiles) and the lone
+    roof (4); the room is not warned.
+
 - **Made floors' and roofs' cursor floors break 2 under the slab's underside, not at its top** (custom geometry
   plan, M5b; F-128; branch `fracturing-wall-poc`). In EXP-80 run G the cursor was right in the room, but on the long
   floor, with no building to cut it away, floor 0's cursor looked down from the slab's top and landed on it (258, not

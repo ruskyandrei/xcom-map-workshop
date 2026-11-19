@@ -294,8 +294,29 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-135: The mouse picks a walkable top outside every building on every storey
+**Explained: the game's own rule** (19 November 2026, [EXP-80](experiments/EXP-80-made-cursor-floors.md) run H).
+- **Seen.** EXP-76's long floor (a made floor 10 by 3 tiles, its top at 194, in no building, the ground under it) is
+  picked on floor 0 as on floor 1 (the readout 258), in run G with its cursor floors breaking at its top and in run H
+  with them 2 under its underside. The lone roof (2 by 2 tiles in the air, its top at 386) is never picked: floors 1
+  and 2 both read the ground under it (64).
+- **Why.** The mouse picks in `XComTacticalHUD.GetMousePickActor`. Along the mouse's ray, nearest first, the first
+  hit on a walkable tile (`IsPositionOnFloorAndValidDestination`) outside every `XComBuildingVolume` wins at once,
+  whatever the storey. Only otherwise does the storey rule apply: a later hit takes the best one's place when the
+  best's cursor floor (`WorldZToCursorFloor`, from the cursor volumes) is above the storey asked and the hit's is
+  lower. So the cursor volumes decide only inside buildings. The game's maps have the same: in the exports of 33 maps,
+  6,214 of the 24,809 walkable tiles over another floor are outside every building's floor volumes (URB_StreetOverpass's
+  deck, the canopy of URB_TruckStop_EWI, a fracturing slab as ours are, the forest maps' ledges).
+- **The lone roof.** The cursor's height is the floor of the tile it is on (`GetFloorZForPosition`), and on the lone
+  roof's tile it read the ground's, so its top is not a walkable floor, where the room's roof (the same look, inside
+  its building) reads 450. Why not is not known; it stands in the air with nothing under or round it.
+- **What the editor does.** The compiler warns `slab-outdoors` of a made floor or roof in no building over the map's
+  floor 150 or more under it, naming the tiles. In a building (the Room with a roof tool, or a building drawn round
+  the slab) the storeys are picked one at a time.
+
 ### F-132: Pieces of other maps and made ground on the blank map were drawn black
-**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+**Verified** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D; fixed the same day; the re-check of 19
+November drew every ground look lit).
 - **Seen.** On the floors map (the blank map `CB2_MP_Blank`, built with the lighting baked) every made ground block
   and patch was black, and so was every copy of another map's ground plane but the two StaticMeshActors. The made
   walls and slabs were lit.
@@ -310,7 +331,8 @@ behaviour for these proposed edits still need direct observation.
   sideways), so the copies' tops match the stage's.
 
 ### F-133: Ground shapes on donors saved without world geometry or stepping up
-**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+**Verified** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D; fixed the same day; in the re-check of 19
+November the cursor read the grass block's top and soldiers stood on both blocks at 135).
 - **Seen.** A made block on URB_Demolition_EWI's grass plane (`XComLevelActor_13`) could be walked into, a soldier
   standing sunk inside it, and the cursor read the ground on its top. A made block on URB_CommercialAlley's asphalt
   (`StaticMeshActor_50`, made an XComLevelActor by F-130's fix) had its top picked by the cursor, and gave cover beside
@@ -321,7 +343,8 @@ behaviour for these proposed edits still need direct observation.
   GroundOnStaticMeshActor).
 
 ### F-134: A made slab read its donor's texture from its own corner
-**Fixed offline, to be played** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D).
+**Verified** (18 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D; fixed the same day; in the re-check of 19
+November the made subway roof showed the donor's tread across its top).
 - **Seen.** The made twin of the subway car roof (`SubwayCarRoof_FRACTURED`) showed the car's white side panel over
   half its top, where the donor shows its tread.
 - **Why.** A slab look's texture maps are measured in the donor mesh's frame, whose origin is the donor's pivot (the
@@ -375,7 +398,7 @@ climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComL
   have to be taller than a storey (not tried).
 
 ### F-128: The cursor takes a room's made floor on floor 0, and the room isn't cut away on floor 1, where the map's cursor floors break higher than the room's
-**Fixed offline, to be played** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass; the fix the same night, custom geometry plan M5b).
+**Verified in a building** (18 November 2026, [EXP-76](experiments/EXP-76-floors-and-roofs.md) run E, second pass; the fix the same night, custom geometry plan M5b; played in [EXP-80](experiments/EXP-80-made-cursor-floors.md) runs G and H, 18 and 19 November). Out of buildings the mouse's own rule decides (F-135).
 - **Seen.** In a room of made walls with a made floor (top 194) and roof (top 386) on URB_Bar's lot, the cursor on
   floor 0 lands on the made floor and on floors 1 and 2 on the roof, from inside the room or outside it. With a
   soldier on the ground inside, floor 0 cuts the room away as it should; floor 1 draws it whole, roof and all.
@@ -396,8 +419,19 @@ climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComL
   break under the undersides now. On URB_Bar with EXP-76's room the cursor floors over the room break at 190 and
   380, and round it at 210 and 402 as before. The compiler's
   `slab-under-cursor-break` is gone: `slab-headroom` warns of a made slab less than 150 over the map's floor tiles
-  under it (F-71), `slab-cursor-volume` of a made slab over a stair's cursor volume, which stays as it is. Whether
-  the cutaway on floor 1 follows the room's own floors is the run's question.
+  under it (F-71), `slab-cursor-volume` of a made slab over a stair's cursor volume, which stays as it is.
+- **Played** (EXP-80: run G with the floors breaking at the slabs' tops, run H with them 2 under the undersides).
+  - In the room, at both tiles, floors 0, 1 and 2 read 64, 258 and 450 (the ground, the made floor, the roof), in both
+    runs.
+  - On floor 1 with the cursor held in the room the roof is cut away (run G). Whether the made floor is drawn then
+    could not be told from the hidden game's straight-down pictures. By the game's rule it is: the cursor's floor-1
+    volume there ends at 380, so the building shows its floors 0 and 1 ([building-cutaway.md](native/building-cutaway.md)).
+  - With the cursor elsewhere on floor 1 the room is drawn whole, roof and all. In mouse mode every building is cut by
+    the cursor's volume at the cursor's place, which there is the map's (its top 402), and a building shows each floor
+    that starts no higher than 16 under that top. The room's roof floor starts at 384, within it; the bar's own start
+    at 400.
+  - The bar's upper floor strip reads 274 on floor 1 on the build and on plain URB_Bar alike (run G's 80 was aimed
+    from too far).
 
 ### F-127: A made wall's upper storey stays over a hole broken through the storey under it; a wall on another stays when that one goes
 **Explained: the game's own walls do the same** (18 November 2026, [EXP-74](experiments/EXP-74-wall-light.md) run B; [EXP-75](experiments/EXP-75-joined-walls.md) run C).

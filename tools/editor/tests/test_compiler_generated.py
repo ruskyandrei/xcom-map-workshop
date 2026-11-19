@@ -240,6 +240,14 @@ class GeneratedTests(unittest.TestCase):
         (w,) = [d for d in run(-40.0, tiles=tiles)['warnings'] if d['code'] == 'slab-headroom']
         self.assertIn('at 4 tiles', w['message'])
         self.assertNotIn('slab-headroom', warned(run(106.0, tiles=tiles)))
+        # (EXP-80 run H, F-135) in no building, with the map's floor under it, the mouse takes its top on every storey;
+        # in a building, or too low to stand under, not warned
+        (w,) = [d for d in run(106.0, tiles=tiles)['warnings'] if d['code'] == 'slab-outdoors']
+        self.assertIn('over 4 tiles', w['message'])
+        self.assertEqual(w.get('record'), 'added[0]')
+        self.assertNotIn('slab-outdoors', warned(run(106.0, building_bottom=300.0, tiles=tiles)))
+        self.assertNotIn('slab-outdoors', warned(run(-40.0, tiles=tiles)))
+        self.assertNotIn('slab-outdoors', warned(run(106.0)))
 
     def test_a_made_piece_on_a_scaled_donor_stands_in_its_box_at_scale_1(self):
         # (M4b item 5) the Build makes a piece from numbers at scale 1 whatever its donor's (frac_walls.unscale): its box

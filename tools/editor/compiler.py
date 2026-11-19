@@ -1560,7 +1560,9 @@ class Compiler:
         floors by the game editor's rule (tools/bake/buildings.py, F-87): a piece is listed in a floor only when it
         touches one of the floor's boxes (within 2) with its bottom more than 20 under that box's top. Such a slab is
         never cut away with its building, and the cursor lands on it (EXP-76 run E). The game's buildings have a floor
-        start at each slab: URB_Bar's upstairs floor is the bottom of its floor 1, its roof of its floor 2."""
+        start at each slab: URB_Bar's upstairs floor is the bottom of its floor 1, its roof of its floor 2.
+        And slab-outdoors for one in no building with the map's floor at least HEADROOM under it: there the mouse
+        takes its top on every storey (F-135)."""
         slabs = [(c, where) for c, where in self.made_slabs if c.get('box')]
         if not slabs:
             return
@@ -1574,6 +1576,7 @@ class Compiler:
             floors = [[[*v['min'], *v['max']] for v in f.get('boxes') or [] if isinstance(v, dict)] for f in b.get('floors') or []]
             if any(floors):
                 houses.append((b.get('actor') or 'a building of the map\'s', floors))
+        ground = [f for f in self.floor_records_now() if len(f.get('location') or ()) == 3]
         for c, where in slabs:
             box = c['box']
             for name, floors in houses:
@@ -1591,6 +1594,21 @@ class Compiler:
                               'as the Room with a roof tool and the game\'s buildings do' % (c['label'], name),
                               **where)
                 break
+            # (EXP-80 run H) out of every building the mouse takes the first walkable hit at once, whatever the storey
+            # (XComTacticalHUD.GetMousePickActor), as on the game's overpasses and canopies: the tiles with the map's
+            # floor standing room under the slab where its top is in no building's floor box
+            boxes = [v for _, floors in houses for f in floors for v in f if len(v) == 6]
+            under = sorted(list(f['tile']) for f in ground
+                           if box[0] < f['location'][0] < box[1] and box[2] < f['location'][1] < box[3]
+                           and box[4] - f['location'][2] >= HEADROOM
+                           and not any(v[0] <= f['location'][0] <= v[3] and v[1] <= f['location'][1] <= v[4]
+                                       and v[2] - 1 <= box[5] <= v[5] + 16 for v in boxes))
+            if under:
+                self.warn('slab-outdoors', "%s is in no building over %d %s of the map's floor under it: where soldiers "
+                          "can stand on its top, the mouse picks it there on every storey, as it does the game's overpasses "
+                          'and canopies, and the floor under it only from beside it. In a building (the Room with a roof '
+                          'tool, or a building drawn round it) the storeys are picked one at a time and cut away' % (
+                              c['label'], len(under), 'tile' if len(under) == 1 else 'tiles'), tiles=under[:12], **where)
 
     def made_wall_openings(self):
         """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
