@@ -660,7 +660,8 @@ class Handler(SimpleHTTPRequestHandler):
     # GET /library/piece.json?package=&actor= is one piece as a template, exported on first request (its files under
     # /cache-library/); POST /library/pieces {sources: [{package, level, actor}]} exports many at once, each map opened
     # once (a prefab's first use), and answers {errors: [null or why]}; POST /library/pieces.json {sources} (at most 200)
-    # answers the records themselves, {pieces: [{record} or {error}]}; GET and PUT /library/thumbs/<key>.png keep the thumbnails the page draws; GET and PUT
+    # answers the records themselves, {pieces: [{record} or {error}]}; GET and PUT /library/thumbs/<key>.png keep the thumbnails the page draws,
+    # and /library/pictures/<key>.png the look picker's larger pictures (GET /library/pictures.json: their keys); GET and PUT
     # /library/state.json ({expectedRevision, document}) are the user's favourites and recently used pieces.
     # GET /library/effect.json?package=&actor= is one effect or ambient sound of another map as a template (library.effect:
     # its export 28 record, its particle system or waves), POST /library/effects.json {sources} (at most 200) many,
@@ -717,14 +718,17 @@ class Handler(SimpleHTTPRequestHandler):
                 request = self.body_json()
                 if not isinstance(request, dict): raise ProjectError(400, 'Send {expectedRevision, document}.')
                 self.send_json(200, self.library.save_state(request.get('document'), request.get('expectedRevision')))
-            elif len(parts) == 3 and parts[:2] == ['library', 'thumbs'] and parts[2].endswith('.png') and method in ('GET', 'PUT'):
-                path = self.library.thumb(parts[2][:-4])
+            elif parts == ['library', 'pictures.json'] and method == 'GET':
+                self.send_json(200, dict(pictures=self.library.thumbs('pictures')))
+            elif len(parts) == 3 and parts[:2] in (['library', 'thumbs'], ['library', 'pictures']) and parts[2].endswith('.png') and method in ('GET', 'PUT'):
+                folder = parts[1]
+                path = self.library.thumb(parts[2][:-4], folder)
                 if method == 'PUT':
                     length = int(self.headers.get('Content-Length') or 0)
-                    if length > 1 << 20: raise ProjectError(413, 'Too large.')
+                    if length > (4 << 20 if folder == 'pictures' else 1 << 20): raise ProjectError(413, 'Too large.')
                     self.body_read = True
-                    self.send_json(200, self.library.save_thumb(parts[2][:-4], self.rfile.read(length)))
-                elif not path.is_file(): raise ProjectError(404, 'No thumbnail is kept for that piece.')
+                    self.send_json(200, self.library.save_thumb(parts[2][:-4], self.rfile.read(length), folder))
+                elif not path.is_file(): raise ProjectError(404, 'No picture is kept for that.')
                 else:
                     payload = path.read_bytes()
                     self.send_response(200)

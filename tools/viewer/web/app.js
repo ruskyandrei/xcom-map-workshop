@@ -49,11 +49,12 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverM
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook,
+         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
          steppedStoreys,
          SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
-import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
+import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, lookKey, DONOR_VERSION } from './looks.js';
+import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
          resizedGround, slopeOf, slopeWords, toolGround, turnedGround } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
@@ -9516,18 +9517,54 @@ function storedLook(kind) {
 const rememberLook = (kind, look) => remember(CURRENT_LOOK[kind], look.donor ? JSON.stringify(look) : look.id);
 const LOOK_TITLES = { wall: 'Choose a wall look', slab: 'Choose a floor or roof look', ground: 'Choose a ground look' };
 const LOOK_NOUNS = { wall: 'wall', slab: 'floor or roof', ground: 'ground' };
-// The meshes of the looks the project's made pieces of a kind are in (the picker lists them first).
-function usedLookMeshes(kind) {
+// The keys of the looks the project's made pieces of a kind are in (the picker lists them first).
+function usedLookKeys(kind) {
   const key = { wall: 'fracWall', slab: 'fracSlab', ground: 'ground' }[kind], out = new Set();
   for (const r of roots.values()) {
-    const g = r.userData.source?.added?.generated;
-    if (g?.kind === key && !r.userData.deleted) out.add(g[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[key]]?.look?.mesh);
+    const g = r.userData.source?.added?.generated, look = g?.[kind]?.look;
+    if (g?.kind === key && !r.userData.deleted && look && typeof look === 'object') out.add(lookKey(kind, look.mesh, look.material));
   }
   return out;
 }
-// The library row's piece as a look of `kind`: its catalogue entry by its mesh (a ground piece's by its mesh and first
-// material), or null.
-const rowLook = (kind, e) => entryForPiece(kind, e.mesh, kind === 'ground' ? e.recipe?.parts?.[0]?.materials?.[0] : null);
+// A made piece's look key (its donor look's), or null.
+function madeLookKey(root, kind) {
+  const look = root?.userData.source?.added?.generated?.[kind]?.look;
+  return look && typeof look === 'object' ? lookKey(kind, look.mesh, look.material) : null;
+}
+// ---- the look picker's samples (look picker plan, L1): what the tool makes in a look, drawn large for its card
+const SAMPLE_GROUND = {
+  patch: { shape: 'patch', x0: 0, x1: 192, y0: 0, y1: 192 },
+  block: { shape: 'block', x0: 0, x1: 192, y0: 0, y1: 192, height: 64 },
+  ramp: { shape: 'ramp', x0: 0, x1: 192, y0: 0, y1: 96, height: 48 },
+  rock: { shape: 'rock', x0: 0, x1: 192, y0: 0, y1: 192, height: 128, seed: 7 },
+};
+function sampleRequest(kind, look, sample) {
+  if (kind === 'wall') return madeRequest('fracWall', look, { x0: 0, x1: 288, openings: [], seed: 1 });
+  if (kind === 'slab') return madeRequest('fracSlab', look, { x0: 0, x1: 288, y0: 0, y1: 288, holes: [], seed: 1 });
+  return madeRequest('ground', look, { ...(SAMPLE_GROUND[sample] ?? SAMPLE_GROUND.patch) });
+}
+/** A look's sample, ready to draw: its donor read (as a placed piece's), the made mesh asked of the server, its
+ *  materials loaded; { paint(canvas) } for the picker, or null when it can't be made. */
+async function prepareSample(kind, entry, sample) {
+  const look = lookFromEntry(kind, entry);
+  const template = await wallTemplate(look);
+  const generated = sampleRequest(kind, look, sample);
+  const shape = madeShape(template, generated);
+  if (!shape.mesh) return null;
+  const source = { ...template, ...shape, id: `sample:${kind}:${entry.mesh}`, matrix: new THREE.Matrix4().toArray(), hidden: false,
+                   added: { from: fromOf(template), generated } };
+  track(geometryCache, source.mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[source.mesh].url)));
+  await geometryCache.get(source.mesh);     // (one the server can't make throws: no picture, not its donor's)
+  for (const m of source.materials) {
+    const [key, tint] = materialKey(source, m);
+    track(materialCache, key, () => material(m, tint));
+    await materialCache.get(key);
+  }
+  const frame = new THREE.Matrix4(), box = boundsOf([source], frame);
+  if (box.isEmpty()) return null;
+  return { paint: canvas => pieces.paintPicture(previewGroup([{ source, matrix: new THREE.Matrix4() }], null, frame), box, canvas) };
+}
+let lookPicker = null;      // made with the piece browser (it paints)
 // What choosing a look does when nothing else was asked: it becomes the tool's look and a wall or slab is drawn in it at
 // once; a ground look goes back to the Ground kind, whose shapes are then drawn in it.
 function lookChosen(kind, look) {
@@ -9537,25 +9574,25 @@ function lookChosen(kind, look) {
   if (pieces.open) showPieces(true);
   flashHint(`Ground in ${look.name.toLowerCase()}: pick a shape in the Ground kind, then drag it out`);
 }
-/** Open the look picker of `kind` ('wall', 'slab', 'ground'): All maps listing only the pieces that are looks of that
- *  kind, a click choosing one (onChoose(look), else lookChosen), "Pick from the view" for the eyedropper. */
-async function openLookPicker(kind, { onChoose = null, title = null } = {}) {
-  await loadLooks(kind);
+/** Open the look picker of `kind` ('wall', 'slab', 'ground'; look picker plan, L1): a panel of its own over the view,
+ *  each of the kind's looks a card with a large picture of a sample made in it (`sample`: a ground look's shape, the
+ *  piece's or the tool's), a click choosing one (onChoose(look), else lookChosen), "Pick from the view" (I) for the
+ *  eyedropper. `current`: the look key of the piece being given a look (its card ringed and first). */
+async function openLookPicker(kind, { onChoose = null, title = null, sample = null, current = null } = {}) {
+  const list = await loadLooks(kind);
   stopWallDrawing(); stopPlacing();
-  if (!pieces.open) showPieces(true);
-  if (libraryScope !== 'all') setLibraryScope('all');
-  const used = usedLookMeshes(kind);
-  library.setLookMode({
-    kind, title: title ?? LOOK_TITLES[kind], tags: lookTags, first: e => used.has(e.mesh) || e.mesh === storedLook(kind)?.mesh,
+  const stored = storedLook(kind)?.donor;
+  const used = usedLookKeys(kind);
+  if (stored) used.add(lookKey(kind, stored.mesh, stored.material));
+  lookPicker.open({
+    kind, title: title ?? LOOK_TITLES[kind], entries: list.looks, used, current,
+    sample: kind === 'ground' ? (sample ?? 'patch') : kind,
     verb: onChoose ? 'click to give the piece this look' : 'click to draw in this look',
-    match: e => rowLook(kind, e),
-    choose: (e, cat) => { const look = lookFromEntry(kind, cat, { package: e.source.package, actor: e.source.actor }); closeLookPicker(); (onChoose ?? (l => lookChosen(kind, l)))(look); },
-    pick: () => startLookPick(kind, onChoose),
-    cancel: () => closeLookPicker(),
+    onChoose: entry => (onChoose ?? (l => lookChosen(kind, l)))(lookFromEntry(kind, entry)),
+    onPick: () => startLookPick(kind, onChoose),
   });
-  flashHint(`${LOOK_TITLES[kind]}: click one (★ keeps a favourite; the ones this project uses come first), or Pick from the view (I) · Esc goes back`);
 }
-function closeLookPicker() { if (library?.lookMode) library.setLookMode(null); }
+function closeLookPicker() { lookPicker?.close(); }
 // The eyedropper: the next click in the view takes the look of the piece under it.
 let lookPicking = null;     // { kind, onChoose }
 function startLookPick(kind, onChoose = null) {
@@ -10514,16 +10551,7 @@ function groundPanel(root) {
     b.disabled = !tool;
     b.onclick = () => setGroundLook(root, l);
     return b;
-  }), (() => {
-    // (a donor look's name, chosen, then any of the game's from the picker)
-    const other = !plain && typeof g.look === 'object' && look ? look.name : null;
-    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: other ? `${other}…` : 'Other…',
-      title: 'Any of the game\'s ground materials, from the list of every map\'s or picked in the view (I)' });
-    b.classList.toggle('on', Boolean(other));
-    b.disabled = !tool;
-    b.onclick = () => openLookPicker('ground', { onChoose: l => setMadeLook(root, 'ground', l) });
-    return b;
-  })());
+  }));
   $('groundTurn').hidden = g.shape !== 'ramp';
   $('groundTurn').disabled = !tool;
   $('groundAnother').hidden = g.shape !== 'rock';
@@ -10589,7 +10617,8 @@ async function setMadeLook(root, kind, look) {
     if (kind === 'wall') {
       // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
       // under its face's top)
-      const { storeys: _, ...rest } = numbers;
+      // (and on its bottom: openingsInLook)
+      const { storeys: _, ...rest } = openingsInLook(gen[kind], numbers);
       numbers = withStoreys(rest, storeysInLook(gen[kind], rest)).wall;
     }
     return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, l, numbers, Boolean(look.plain)) } },
@@ -10695,8 +10724,13 @@ function lookRow(kind, g, name, tool) {
 }
 for (const kind of ['wall', 'slab', 'ground'])
   $(`${kind}LookPlain`).onclick = () => { const root = madeRoot(selected); if (root) setMadeLook(root, kind, plainLook(kind, root.userData.source.added.generated[kind])); };
-$('wallLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('wall', { onChoose: look => setMadeLook(root, 'wall', look) }); };
-$('slabLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('slab', { onChoose: look => setMadeLook(root, 'slab', look) }); };
+$('wallLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('wall', { onChoose: look => setMadeLook(root, 'wall', look), current: madeLookKey(root, 'wall') }); };
+$('slabLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('slab', { onChoose: look => setMadeLook(root, 'slab', look), current: madeLookKey(root, 'slab') }); };
+$('groundLookChange').onclick = () => {
+  const root = madeRoot(selected);
+  if (root) openLookPicker('ground', { onChoose: look => setMadeLook(root, 'ground', look), current: madeLookKey(root, 'ground'),
+                                       sample: root.userData.source.added.generated.ground?.shape ?? 'patch' });
+};
 // The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
 function doorBoxes(except) {
   const out = [];
@@ -11770,7 +11804,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
-    lookMode: () => library?.lookMode?.kind ?? null, setMadeLook: (id, kind, look) => setMadeLook(roots.get(id), kind, look),
+    lookMode: () => (lookPicker?.isOpen ? lookPicker.state().kind : null), lookPickerState: () => lookPicker?.state() ?? null,
+    setMadeLook: (id, kind, look) => setMadeLook(roots.get(id), kind, look),
     catalogued, lookFromEntry, storedLook,
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
@@ -11954,7 +11989,7 @@ poseInputs.forEach((input, i) => {
   });
 });
 function showMapBrowser() {
-  if (!mapBrowser || mapBrowser.open || fileDialog.open || projectManager.open || gameMaps.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (!mapBrowser || mapBrowser.open || lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
   showPop(null);
   if (placing) stopPlacing();
   mapBrowser.show();
@@ -12135,6 +12170,7 @@ library = createLibraryBrowser({
     try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
   },
 });
+lookPicker = createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint });
 prefabTab = createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
          file: $('prefabFile'), importButton: $('prefabImport') },
@@ -12413,7 +12449,7 @@ window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
 // nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
-  if (fileDialog.open || projectManager.open || gameMaps.open || mapBrowser?.open || setupDialog.open || buildOptions.open) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
+  if (lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || mapBrowser?.open || setupDialog.open || buildOptions.open) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'f') { e.preventDefault(); search.focus(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
@@ -12446,12 +12482,9 @@ document.addEventListener('keydown', e => {
     if (breaking) stopBreak(); else startBreak();
     e.preventDefault(); return;
   }
-  if (library?.lookMode && key === 'escape') { closeLookPicker(); e.preventDefault(); return; }
-  // I: the eyedropper, while the look picker is open or a wall, slab or ground tool draws (M4c)
-  if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && (library?.lookMode || wallDrawing)) {
-    // (a picker a piece's Choose… opened gives that piece the look picked, as its Pick from the view does)
-    if (library?.lookMode?.pick) library.lookMode.pick();
-    else startLookPick(library?.lookMode?.kind ?? (wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall'));
+  // I: the eyedropper, while a wall, slab or ground tool draws (M4c; the look picker's own I is its panel's)
+  if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && wallDrawing) {
+    startLookPick(wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall');
     e.preventDefault(); return;
   }
   // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
@@ -12577,6 +12610,7 @@ renderer.setAnimationLoop(() => {
   updateTileGrid();
   pieces.drawThumbs();
   library.drawThumbs();
+  lookPicker.drawFrame();
   drawPrefabPictures();
   if (now < shadowsUntil || now - shadowBeat > 1000) {
     renderer.shadowMap.needsUpdate = true; shadowBeat = now;

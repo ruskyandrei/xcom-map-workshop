@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
 import { endInsetsOf, faceTopOf, raisedWall, storeysOf, topMostOf, wallSpec, wallTop, wallWords, withOpening, toolWall,
-         openingEdges, storeysInLook, storeyWords } from '../web/walls.js';
+         openingEdges, storeysInLook, storeyWords, openingsInLook } from '../web/walls.js';
 
 const ONE = { mesh: 'Shop.Meshes.ShopWall_FRACTURED', map: 'URB_Shop', actor: 'XComFracLevelActor_12', maps: { URB_Shop: 3 },
               name: 'Shop wall', setting: 'shop interior', lwrOnly: false, warnings: [], twin: 'ok',
@@ -83,6 +83,18 @@ const door = withOpening(tall, 'doorway').wall.openings[0];
 assert.deepEqual([door.z0, openingEdges(tall, door).bottom], [8, false]);
 assert.ok(openingEdges(tall, { ...door, z0: -16 }).bottom);
 assert.equal(withOpening(one, 'doorway').wall.openings[0].z0, 8);
+// a look of another bottom: a gap cut to the old bottom is cut to the new one, none starts below it, the rest stay
+// (the user, 19 November 2026: a doorway from a look whose bottom is -16 kept it in one whose bottom is 0)
+const gaps = { ...tall, openings: [{ x0: 0, x1: 96, z0: -16, z1: 160 }, { x0: 192, x1: 288, z0: 64, z1: 160 }] };
+const moved = openingsInLook(gaps, { ...gaps, look: one.look });
+assert.deepEqual(moved.openings.map(o => o.z0), [0, 64]);
+assert.deepEqual(openingsInLook(moved, { ...moved, look: tall.look }).openings.map(o => o.z0), [-16, 64]);
+assert.deepEqual(openingsInLook(gaps, { ...gaps, look: one.look, openings: [{ x0: 0, x1: 96, z0: -8, z1: 160 }] }).openings[0].z0, 0);
+assert.equal(openingsInLook(one, one), one);
+// a gap starting below its wall's bottom (a wall saved before that) is still the tool's: cut to the floor
+const below = { ...one, x1: 2784, seed: 903191, openings: [{ x0: 1344, x1: 1440, z0: -16, z1: 160 }] };
+assert.ok(toolWall(below) && openingEdges(below, below.openings[0]).bottom);
+assert.ok(!toolWall({ ...below, openings: [{ x0: 1344, x1: 1440, z0: -40, z1: -20 }] }));
 assert.ok(toolWall(withOpening(one, 'doorway').wall));
 // a donor look whose catalogue holds nothing is drawn as the Bar's
 const unknown = { ...one, look: { mesh: 'Nowhere.Meshes.Wall', measure: 1 } };

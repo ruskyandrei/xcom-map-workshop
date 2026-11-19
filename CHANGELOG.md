@@ -8,6 +8,45 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A wall whose doorway started below its look's bottom had no handles or buttons** (reported by the user: Add
+  doorway and Add window disabled on a long wall; branch `fracturing-wall-poc`).
+  - Cause: a look change brought the gaps under the new look's top but not onto its bottom. A doorway cut to the floor
+    of a look whose bottom is -16 kept z0 -16 in one whose bottom is 0 (here Melt Tut Int B), and the page's check
+    (`toolWall`) refused a gap below the bottom, so the wall read as numbers made elsewhere.
+  - [walls.js](tools/viewer/web/walls.js): `openingsInLook` puts a look-changed wall's gaps on the new bottom (a gap cut
+    to the old bottom is cut to the new one; none starts below it); `toolWall` takes a gap that starts below the bottom
+    (it is cut to the floor, as `openingEdges` and the Build already had it), so walls saved that way get their handles
+    back. [app.js](tools/viewer/web/app.js) `setMadeLook` uses it.
+  - Checked: [looks_test.mjs](tools/viewer/tests/looks_test.mjs) (a gap moved to the new bottom and back, the user's
+    numbers taken); the user's project opened on a test server: the wall's handles and every button on, a window added
+    and undone.
+- **The look picker is a panel of its own** (look picker plan, stages P0 to P2; branch `fracturing-wall-poc`).
+  - [look_picker.js](tools/viewer/web/look_picker.js) (new): a panel over the view, 92% of the window's width and 88%
+    of its height. Its head has the find box (name, setting, maps, donor), a setting filter, Favourites only, Full only
+    (no looks the Build makes simpler), a picture size (small, medium, large) and Pick from the view (I). Each look is a
+    card with a large picture of a sample made in it (a wall three tiles long, a floor three by three, the ground shape
+    being given the look: a rock's cards are rocks), its name, setting and home map, its tags and a star. The piece's
+    own look comes first and is ringed, then those the project uses, the favourites, then by name. Arrows and Enter
+    move and choose; Esc clears the find box, then closes.
+  - The pictures are drawn in the page from the server's sample meshes in the donor's materials, one at a time (the
+    cards in view first, then the rest while the panel is open), and kept by the server, so they show at once the next
+    time. [library.py](tools/viewer/library.py) and [viewer.py](tools/viewer/viewer.py): `/library/pictures/<key>.png`
+    (GET and PUT, up to 2 MB) and `/library/pictures.json`, a folder of their own beside the thumbnails.
+    [pieces.js](tools/viewer/web/pieces.js) `paintPicture` draws one at any size, its shape kept.
+  - [app.js](tools/viewer/web/app.js): every look choice opens it (the wall, floor and roof panels' Choose..., the
+    room's, the Add panel's "Choose a ... look" entries); `prepareSample` makes a look's sample. The ground panel has
+    Choose... in its look row, as walls and floors do ([index.html](tools/viewer/web/index.html)); its Other... is gone.
+  - [library.js](tools/viewer/web/library.js): the Add panel's look mode and its banner are gone; the Add panel lists
+    pieces only.
+  - Checked: viewer suite (a test of the pictures' store in [test_library.py](tools/viewer/tests/test_library.py));
+    node suite ([look_picker_test.mjs](tools/viewer/tests/look_picker_test.mjs), new: picture keys, finding, filters,
+    order); the `looks` browser check rewritten for the panel ([browser_looks.py](tools/viewer/tests/browser_looks.py):
+    344 wall cards, pictures drawn and shown again from the server, a choice, another and Plain each one undo step,
+    Pick from the view, the eyedropper, a rock given a material from 193 ground cards of rocks), passed on a test
+    server; the `walls` check's ground Look row now has Choose... ([browser_walls.py](tools/viewer/tests/browser_walls.py)).
+  - Known gaps: all of a kind's pictures take a few minutes to draw the first time (then they are kept); a few ground
+    materials draw unlit in their pictures as they do in the view.
+
 - **Broken roofs and floors stay whole in battle, as the game keeps them; Breaks further in battle for the other way;
   EXP-83 prepared** ([F-139](research/findings-register.md); branch `fracturing-wall-poc`).
   - [made_blasts.py](tools/bake/made_blasts.py) `cut` and `cut_name`: a fracturing mesh with the fragments out cut

@@ -82,7 +82,7 @@ def start_build(page, key):
 
 
 def look_row(page, kind):
-    """A made piece's Look row (E2): the look's words, and whether Choose... (none on ground) and Plain can be used."""
+    """A made piece's Look row (E2): the look's words, and whether Choose... and Plain can be used."""
     change = page.locator(f'#{kind}LookChange')
     return dict(name=page.locator(f'#{kind}LookName').text_content(), plain=page.locator(f'#{kind}LookPlain').is_enabled(),
                 choose=change.is_enabled() if change.count() else None)
@@ -404,7 +404,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert s['rotation'] == [0, 0, 0] and s['generated']['ground']['x1'] == 288 and s['generated']['ground']['height'] == 96, s
     assert s['generated']['version'] == PLAIN['ground'] and 'look' not in s['generated']['ground'], s
     assert 'no cover' in page.evaluate('viewer.groundPanelText()'), page.evaluate('viewer.groundPanelText()')
-    assert look_row(page, 'ground') == dict(name='Look: none chosen', plain=False, choose=None), look_row(page, 'ground')
+    assert look_row(page, 'ground') == dict(name='Look: none chosen', plain=False, choose=True), look_row(page, 'ground')
     assert page.locator('#groundSwatches button.on').count() == 0, page.locator('#groundSwatches').inner_html()
     h = page.evaluate('viewer.wallHandles(40)')
     assert {'side:x0', 'side:x1', 'side:y0', 'side:y1', 'end:top'} <= set(h), sorted(h)

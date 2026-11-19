@@ -135,8 +135,6 @@ canvas { display: block; width: 100%; height: 100%; }
 #library { left: 66px; top: 12px; width: 330px; max-height: calc(100% - 80px); display: flex; flex-direction: column; padding-top: 8px; box-shadow: 0 8px 24px #0006; }
 .libhead { display: flex; align-items: center; padding: 0 6px 0 14px; }
 /* the look picker's head (library.js setLookMode): what it chooses, the eyedropper and the way back */
-.lookbanner { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid #2a3640; border-bottom: 1px solid #2a3640; }
-.lookbanner strong { flex: 1; color: #d6e2ea; font-size: 12px; }
 .libhead h3 { flex: 1; margin: 0; color: #9fb0bb; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .libhead .icon { width: 26px; height: 26px; }
 .libhead .icon .i { width: 15px; height: 15px; }
@@ -876,3 +874,35 @@ canvas { display: block; width: 100%; height: 100%; }
 .grid-warning > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .grid-warning > button { flex: none; }
 #leaveDialog { z-index: 100; }
+
+/* The look picker (look picker plan, L1): most of the window over the view, a grid of large pictures of samples made
+   in each look; the card of the piece's look ringed. */
+.lookpicker { z-index: 60; }
+.lookpanel { position: relative; width: 92vw; height: 88vh; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; box-shadow: 0 16px 48px #000a; }
+.lookhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lookhead h2 { margin: 0 6px 0 0; font-size: 15px; font-weight: 600; color: #eef3f6; white-space: nowrap; }
+.lookhead input[type=search] { flex: 1 1 220px; min-width: 160px; background: var(--field); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 6px 9px; font: inherit; outline: none; }
+.lookhead input[type=search]:focus { border-color: #68b6ba; }
+.lookhead select { background: var(--field); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 5px 6px; font: inherit; }
+.lookhead .check { margin-top: 0; white-space: nowrap; }
+.lookhead button:not(.icon) { border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; padding: 5px 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.lookhead button:not(.icon):hover { background: #31434d; }
+.lookhead .icon { margin-left: auto; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px; display: flex; }
+.lookhead .icon:hover { color: #eef3f6; }
+.lookstatus { font-size: 11px; color: var(--muted); }
+.lookgrid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--lookw, 280px), 1fr)); gap: 12px; align-content: start; padding: 2px 4px 2px 2px; }
+.lookcard { display: flex; flex-direction: column; gap: 4px; min-width: 0; text-align: left; padding: 6px; background: var(--field); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: inherit; font: inherit; }
+.lookcard:hover, .lookcard:focus-visible { border-color: var(--accent); outline: none; background: var(--accent-bg); }
+.lookcard.current { border-color: var(--group); box-shadow: 0 0 0 1px var(--group); }
+.lookpic { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; background: #0d1318; border-radius: 4px; overflow: hidden; }
+.lookpic img, .lookpic canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.lookwait { font-size: 11px; color: var(--muted); padding: 0 10px; text-align: center; }
+.lookwait.busy { color: var(--accent-text); }
+.lookline { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.lookline strong { flex: 1; min-width: 0; font-weight: 600; font-size: 12px; color: #e6eef2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lookstar { color: #5d6f7a; cursor: pointer; font-size: 15px; line-height: 1; }
+.lookstar:hover { color: #c9d6dc; }
+.lookstar.on { color: var(--group); }
+.lookcard small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.looktags { display: flex; gap: 4px; flex-wrap: wrap; min-height: 0; }
+.lookempty { color: var(--muted); padding: 20px; }

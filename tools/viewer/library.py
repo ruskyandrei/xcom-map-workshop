@@ -101,6 +101,7 @@ EFFECT_FIELDS = ('system', 'emitters', 'lit', 'startsOn', 'scripted', 'waves', '
                  'colour')
 EFFECTS_VERSION = 1     # a donor's effects record (effect_records)
 THUMB_LIMIT = 512 << 10
+PICTURE_LIMIT = 2 << 20     # a look picker's picture (the look picker plan, P0): a PNG of up to 512 by 384
 PNG = b'\x89PNG\r\n\x1a\n'
 
 
@@ -1359,20 +1360,21 @@ class LibraryRunner:
             game, shared = self.install(), {}
             return recover_sources(document, index, lambda source: piece(self.cache, game, source, shared))
 
-    def thumb(self, key):
+    def thumb(self, key, folder='thumbs'):
         if not KEY.fullmatch(key):
             raise ProjectError(400, 'Not a piece\'s key.')
-        return self.cache / 'library' / 'thumbs' / (key + '.png')
+        return self.cache / 'library' / folder / (key + '.png')
 
-    def thumbs(self):
-        """The keys of the pieces whose thumbnail is kept."""
-        folder = self.cache / 'library' / 'thumbs'
+    def thumbs(self, folder='thumbs'):
+        """The keys of the pieces whose thumbnail is kept (`folder` 'pictures': the look picker's pictures)."""
+        folder = self.cache / 'library' / folder
         return sorted(p.stem for p in folder.glob('*.png')) if folder.is_dir() else []
 
-    def save_thumb(self, key, data):
-        if not data.startswith(PNG) or len(data) > THUMB_LIMIT:
-            raise ProjectError(400, 'A thumbnail is a PNG of at most %d KB.' % (THUMB_LIMIT >> 10))
-        path = self.thumb(key)
+    def save_thumb(self, key, data, folder='thumbs'):
+        limit = PICTURE_LIMIT if folder == 'pictures' else THUMB_LIMIT
+        if not data.startswith(PNG) or len(data) > limit:
+            raise ProjectError(400, 'A picture is a PNG of at most %d KB.' % (limit >> 10))
+        path = self.thumb(key, folder)
         path.parent.mkdir(parents=True, exist_ok=True)
         part = path.with_suffix('.png.part')
         part.write_bytes(data)

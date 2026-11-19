@@ -127,6 +127,14 @@ export function steppedStoreys(wall, step) {
 /** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
  *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
  *  the new look takes. */
+/** A wall changed from look `old` to the look in `numbers`, its gaps on the new look's bottom: one cut to the old
+ *  bottom (a doorway to the floor) is cut to the new one, and none starts below it (a door added before a look whose
+ *  bottom is higher had kept the old bottom, and the wall then had no handles: the user, 19 November 2026). */
+export function openingsInLook(old, numbers) {
+  const was = wallSpec(old).bottom, bottom = wallSpec(numbers).bottom;
+  if (!(numbers.openings ?? []).length) return numbers;
+  return { ...numbers, openings: numbers.openings.map(o => (o.z0 !== bottom && (o.z0 <= was + 1e-6 || o.z0 < bottom) ? { ...o, z0: bottom } : o)) };
+}
 export function storeysInLook(old, numbers) {
   const n = storeysOf(old), spec = wallSpec(numbers);
   if (n === 1 && spec.lower) return 1;
@@ -136,7 +144,8 @@ export function storeysInLook(old, numbers) {
 }
 
 /** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), 1 to
- *  WALL.maxStoreys storeys, gaps inside it and apart, none taking the whole wall, a whole-number seed. */
+ *  WALL.maxStoreys storeys, gaps inside it and apart, none taking the whole wall, a whole-number seed. A gap may start
+ *  below the wall's bottom: it is cut to the floor, as one at the bottom is (openingEdges; the Build cuts it so too). */
 export function toolWall(wall) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1)
@@ -145,7 +154,7 @@ export function toolWall(wall) {
   if (!Number.isInteger(tiles) || tiles < WALL.minTiles || tiles > WALL.maxTiles) return false;
   const list = sortedOpenings(wall.openings ?? []);
   return list.every((o, i) => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o[k])) && o.x0 >= 0 && o.x1 <= wall.x1 && o.x1 > o.x0
-    && o.z1 > o.z0 && o.z0 >= wallSpec(wall).bottom && o.z1 <= wallTop(wall) && !takesWhole(wall, o) && (i === 0 || list[i - 1].x1 <= o.x0));
+    && o.z1 > o.z0 && o.z1 > wallSpec(wall).bottom && o.z1 <= wallTop(wall) && !takesWhole(wall, o) && (i === 0 || list[i - 1].x1 <= o.x0));
 }
 export const sortedOpenings = list => [...list].sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
 /** Which of the wall's edges a gap reaches: { bottom (cut to the wall's bottom, through the floor), top (cut through

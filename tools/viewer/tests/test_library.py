@@ -410,6 +410,18 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.call('PUT', '/library/thumbs/nokey.png', raw=PNG)[0], 400)
         self.assertEqual(self.call('PUT', f'/library/thumbs/{KEY}.png', raw=PNG + bytes(library.THUMB_LIMIT))[0], 400)
 
+    def test_the_look_pickers_pictures_are_kept_by_key_and_listed(self):
+        # (the look picker plan, P0) larger pictures, a folder of their own, listed for the picker
+        self.assertEqual(self.call('GET', '/library/pictures.json'), (200, dict(pictures=[])))
+        self.assertEqual(self.call('GET', f'/library/pictures/{KEY}.png')[0], 404)
+        big = PNG + bytes(library.THUMB_LIMIT)          # (more than a thumbnail takes)
+        self.assertEqual(self.call('PUT', f'/library/pictures/{KEY}.png', raw=big), (200, dict(ok=True)))
+        self.assertEqual(self.call('GET', f'/library/pictures/{KEY}.png'), (200, big))
+        self.assertEqual(self.call('GET', '/library/pictures.json'), (200, dict(pictures=[KEY])))
+        self.assertEqual(self.runner.thumbs(), [])     # (not the Add panel's thumbnails)
+        self.assertEqual(self.call('PUT', f'/library/pictures/{KEY}.png', raw=PNG + bytes(library.PICTURE_LIMIT))[0], 400)
+        self.assertEqual(self.call('PUT', '/library/pictures/nokey.png', raw=PNG)[0], 400)
+
     def test_changes_come_from_the_page_only_and_files_from_the_pieces_folder_only(self):
         elsewhere = {'Origin': 'http://example.invalid'}
         self.assertEqual(self.call('PUT', '/library/state.json', dict(expectedRevision=0, document={}), elsewhere)[0], 403)

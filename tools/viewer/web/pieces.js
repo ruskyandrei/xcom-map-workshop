@@ -437,6 +437,35 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     renderer.setScissorTest(false); renderer.setViewport(0, 0, size.x, size.y);
     return true;
   }
+  /** Draw one larger picture (the look picker's, look picker plan P0): `object` framed by `box` into `canvas` at its
+   *  own size and shape, lit and seen as the list's pictures are; only while a frame is drawn, before the view. False
+   *  when the view is too small to draw in. */
+  function paintPicture(object, box, canvas) {
+    const size = renderer.getSize(new THREE.Vector2()), target = renderer.domElement, ratio = renderer.getPixelRatio();
+    // (the canvas's shape kept: a view smaller than it draws smaller, scaled up)
+    const fit = Math.min(1, size.x * ratio / canvas.width, size.y * ratio / canvas.height);
+    const w = Math.round(canvas.width / ratio * fit), h = Math.round(canvas.height / ratio * fit);
+    if (w < 64 || h < 48) return false;
+    const aspect = w / h, fov = camera.fov;
+    renderer.setScissorTest(true);
+    renderer.setViewport(0, 0, w, h); renderer.setScissor(0, 0, w, h);
+    withoutLocalLights(() => {
+      const sphere = box.getBoundingSphere(new THREE.Sphere()), r = Math.max(sphere.radius, 1);
+      // (the sphere fits the narrower of the two angles)
+      const half = Math.min(THREE.MathUtils.degToRad(fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(fov / 2)) * aspect));
+      const distance = r / Math.sin(half) * 1.02;
+      camera.aspect = aspect;
+      camera.position.copy(sphere.center).addScaledVector(view, distance);
+      camera.near = Math.max(0.1, distance - r * 1.5); camera.far = distance + r * 1.5;
+      camera.lookAt(sphere.center); camera.updateProjectionMatrix();
+      scene.add(object); renderer.render(scene, camera); scene.remove(object);
+      const pw = Math.round(w * ratio), ph = Math.round(h * ratio);
+      canvas.getContext('2d').drawImage(target, 0, target.height - ph, pw, ph, 0, 0, canvas.width, canvas.height);
+      camera.aspect = 1; camera.updateProjectionMatrix();
+    });
+    renderer.setScissorTest(false); renderer.setViewport(0, 0, size.x, size.y);
+    return true;
+  }
   // Called each frame before the view is drawn.
   function drawThumbs() {
     if (!queue.length || els.panel.hidden) return;
@@ -470,6 +499,6 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
       for (const [k, b] of rows) b.classList.toggle('on', k === entry?.key);
     },
     entries: () => entries ?? [],
-    drawThumbs, paintThumbs,
+    drawThumbs, paintThumbs, paintPicture,
   };
 }
