@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The game's map pictures read field by field** (LWR map packs plan, stage C0 for the map picture; branch
+  `lwr-map-picture`). [map_frame.py](tools/bake/map_frame.py), new: the recipe of a map picture (a `Texture2D`,
+  512 x 256, DXT1, one mip in the package) and `describe`, which reads one. Read from the install's four map-image
+  packages, 105 pictures:
+  - 99 are alike: object flags `0x000F000400000000`, nine properties (SizeX, SizeY, OriginalSizeX, OriginalSizeY,
+    Format `PF_DXT1`, MipTailBaseIdx, SRGB False, NeverStream True, LODGroup `TEXTUREGROUP_UI`), an empty source-art
+    record, one mip of 65,536 bytes, the size, a cache GUID, then int32 0, 1, 0;
+  - MipTailBaseIdx is 9, not the 0 the plan listed; the recipe follows the game;
+  - the six DLC pictures save CompressionNoAlpha too; the recipe leaves it out, as the 99 do.
+  - Checked: [test_map_frame.py](tools/bake/tests/test_map_frame.py), new, compares every picture of the install with
+    the recipe (skipped without the game); `bake -k map_frame`. Nothing writes a picture yet.
+
 - **EXP-84 run A played: every check passed** (the short game run before the custom geometry branch goes into main).
   [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):
   - flags on made pieces: a made wall with Gives cover off gives none and one with Blocks sight off is seen through,
