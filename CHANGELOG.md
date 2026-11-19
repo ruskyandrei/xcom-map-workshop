@@ -27,6 +27,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A made wall's doorways and windows are one kind of gap, whose handles reach the wall's edges and move smoothly**
+  (custom geometry plan; branch `fracturing-wall-poc`; the user's asks of 19 November 2026).
+  - [walls.js](tools/viewer/web/walls.js):
+    - every gap has all five handles: its middle, both sides, its top and its bottom;
+    - a side dragged to the wall's end cuts the wall away to that end;
+    - the bottom dragged to the floor cuts down to the wall's bottom (its handle then stands on the floor);
+    - the top dragged past the highest point under the cornice cuts through the wall's top;
+    - a gap never takes the whole wall: the last edge it would reach stops short;
+    - "Add doorway" now leaves a threshold 8 over the floor, so no gap shows under its door;
+    - `openingEdges` says which edges a gap reaches, `openingWords` names them ("Gap, 1 tile wide, from 8 over the
+      floor to 160"), and `openingKind` is gone;
+    - a gap cut through the top stays cut through when the wall changes storeys;
+    - `toolWall` takes tops up to the wall's top.
+  - [app.js](tools/viewer/web/app.js):
+    - gap handles follow the snap setting: steps of 1 unit with snap off, 24 at 24, whole tiles along the wall (24 up)
+      at 96; Alt gives steps of 8;
+    - doors, the door warning and "Put a door in it" follow how a gap plays: units walk through it and it gives no
+      cover;
+    - the handles' titles and the drag hint say so.
+  - [index.html](tools/viewer/web/index.html): the two add buttons describe the shapes they start from.
+  - [compiler.py](tools/editor/compiler.py) `made_wall_openings` warns by how a gap plays, not by its kind:
+    - `wall-doorway-no-door` for a gap walked through with no cover;
+    - `wall-window-walked` for one walked through over a wall that gives cover;
+    - `wall-doorway-low` for one starting under the cover line that is too low to walk through;
+    - `wall-window-blind` for one starting over the cover line that sight doesn't cross;
+    - `wall-window-no-cover` is gone: a gap like that is now a doorway.
+  - [frac_wall.py](tools/bake/frac_wall.py) `seeds`: when every fragment seed falls in a gap (a gap the whole wall
+    long, leaving a strip under or over it), each seed moves into the nearest strip. Before, the Build failed on such a
+    wall. A gap that takes the whole wall stops the Build with "the wall's openings leave none of it". Walls with a
+    seed left are made as before.
+  - Tests:
+    - walls_test.mjs and looks_test.mjs: smooth, stepped and tile moves, each edge cut, the whole-wall guard, the
+      words, storeys;
+    - test_compiler_generated: the warnings by play;
+    - test_frac_wall `Gaps`: the threshold, strips the whole wall long, the whole wall refused.
+  - Checked in a test server's browser on a Bar wall:
+    - smooth drags gave a sill of 90 and a threshold of 11, and with snap at 24 a threshold of 24;
+    - the window's top dragged past the wall's top cut through it ("to its top");
+    - its side dragged past the end cut the wall away to its start;
+    - the doorway's bottom dragged down cut to the wall's bottom again;
+    - from above, the threshold showed under the doorway.
+  - The node, viewer and editor suites pass, and the bake suite's frac_wall tests pass.
+  - Not checked in the game: a threshold under a game door, a gap cut through the top, a strip the whole wall long.
+
 - **A room's look changed from the piece panel changes all its walls, not one** (custom geometry plan, M4; branch
   `fracturing-wall-poc`; the user's report of 19 November 2026). A wall of a room moves with the room's other walls,
   so they were picked with it. Look… made one wall again in the new look and deleted the rest: the room became one

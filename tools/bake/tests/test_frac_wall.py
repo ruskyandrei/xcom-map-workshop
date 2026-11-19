@@ -397,6 +397,32 @@ class OneStorey(unittest.TestCase):
         self.assertNotEqual(frac_wall.mesh_name(self.WALL), frac_wall.mesh_name(dict(self.WALL, storeys=2)))
 
 
+class Gaps(unittest.TestCase):
+    """One kind of gap (19 November 2026): a threshold kept under a doorway, a gap along the whole wall leaving a strip
+    of wall under or over it (its seeds all in the gap, each moved into the strip), one taking the whole wall
+    refused."""
+
+    def test_a_threshold_is_kept_under_a_doorway(self):
+        door = dict(DOOR, z0=8.0)
+        mesh = built(dict(CUSTOM, openings=[door]))['mesh']
+        inside = [sum(p[2] for p in tri) / 3 for _, _, tri, _ in triangles(mesh)
+                  if door['x0'] + 0.5 < sum(p[0] for p in tri) / 3 < door['x1'] - 0.5]
+        self.assertTrue(any(z < door['z0'] for z in inside))
+        self.assertFalse(any(door['z0'] + 0.5 < z < door['z1'] - 0.5 for z in inside))
+
+    def test_a_gap_along_the_whole_wall_leaves_its_strip(self):
+        for gap in (dict(x0=0.0, x1=384.0, z0=8.0, z1=384.0), dict(x0=0.0, x1=384.0, z0=-16.0, z1=300.0)):
+            out = frac_wall.build(dict(CUSTOM, openings=[gap]))
+            self.assertTrue(out['fragments'], gap)
+            zs = [p[2] for _, _, tri, _ in triangles(out['mesh']) for p in tri]
+            self.assertTrue(zs, gap)
+            self.assertTrue(all(z <= gap['z0'] + 1e-3 or z >= gap['z1'] - 1e-3 for z in zs), gap)
+
+    def test_a_gap_taking_the_whole_wall_is_refused(self):
+        with self.assertRaisesRegex(ValueError, 'leave none'):
+            frac_wall.build(dict(CUSTOM, openings=[dict(x0=0.0, x1=384.0, z0=-16.0, z1=384.0)]))
+
+
 class Donor(unittest.TestCase):
     """The recipe and the default template against the donor itself."""
 

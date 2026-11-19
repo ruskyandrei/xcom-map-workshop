@@ -20,14 +20,17 @@ export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
 export const STOREY_TOPS = { 1: 192, 2: 384 };
-// An opening's limits: its top under the cornice, a window's sill over the floor, the smallest sizes, the fine step
-// (D3: sides on tile edges, with Alt in steps of 8)
-export const OPENING = { topMost: 360, sillLeast: 8, width: 16, height: 24, fine: 8 };
+// A gap's limits: the highest its top goes under the cornice (past it, the gap is cut through to the wall's top), the
+// smallest sizes, the Alt step, and the threshold a doorway starts with: the strip of wall kept under it, so no gap is
+// left under its door (the user, 19 November 2026; under the game's cover line, so it gives no cover and units walk
+// over it). One kind of gap since 19 November 2026 (the user: doorways and windows merged, every handle reaching the
+// wall's edges).
+export const OPENING = { topMost: 360, width: 16, height: 24, fine: 8, sill: 8 };
 // The presets, as the game's are (the plan, M1: a doorway one tile wide and 176 tall with its sides on tile edges, 242
 // openings in seven URB maps; the game's windows run 64 to 170 over the floor, one or two tiles wide
 // (research/evidence/wall-openings.py). Ours starts at 72, so the walking sweep at 64 meets the wall under it as it
 // meets the game's glass: units see through it, not climb through.
-export const PRESETS = { doorway: { width: TILE, z0: WALL.bottom, z1: 160 }, window: { width: TILE, z0: 72, z1: 168 } };
+export const PRESETS = { doorway: { width: TILE, z0: OPENING.sill, z1: 160 }, window: { width: TILE, z0: 72, z1: 168 } };
 // The game's sweeps over a tile's floor, along the line between two tiles' centres (research/native/cover-build.md,
 // line-of-sight.md): cover 44 to 60, high or low cover 88 to 104, walking 64 (half a unit thick), sight from the eye
 // tile, 96 over the floor's level.
@@ -70,20 +73,21 @@ export const wallTop = wall => {
 };
 export const faceTopOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - (spec.top - spec.faceTop); };
 export const topMostOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - Math.max(WALL.top - OPENING.topMost, spec.top - spec.faceTop); };
-/** The wall at `storeys` (1, or its donor's, which leaves the number out). An opening the lower wall can't hold has its top brought
- *  down to the highest an opening goes; one left smaller than OPENING.height (a window in the upper storey) goes.
- *  Gives { wall, cut (openings brought down), removed (openings gone) }. */
+/** The wall at `storeys` (1, or its donor's, which leaves the number out). A gap cut through the wall's top stays cut
+ *  through the new top; another the lower wall can't hold has its top brought down to the highest a top goes under the
+ *  cornice; one left smaller than OPENING.height (a window in the upper storey) goes. Gives { wall, cut (gaps brought
+ *  down), removed (gaps gone) }. */
 export function withStoreys(wall, storeys) {
   const { storeys: _, ...rest } = wall;
   const out = storeys === 1 ? { ...rest, storeys: 1 } : rest;
-  const top = topMostOf(out);
+  const top = wallTop(out), most = topMostOf(out), through = wallTop(wall);
   let cut = 0, removed = 0;
   const openings = [];
   for (const o of wall.openings ?? []) {
-    if (o.z1 <= top + 1e-6) { openings.push(o); continue; }
-    if (top - Math.max(0, o.z0) < OPENING.height - 1e-6) { removed++; continue; }
-    cut++;
-    openings.push({ ...o, z1: top });
+    const z1 = o.z1 >= through - 1e-6 ? top : o.z1 <= most + 1e-6 ? o.z1 : most;
+    if (z1 - Math.max(0, o.z0) < OPENING.height - 1e-6) { removed++; continue; }
+    if (z1 !== o.z1 && o.z1 < through - 1e-6) cut++;
+    openings.push(z1 === o.z1 ? o : { ...o, z1 });
   }
   return { wall: { ...out, openings }, cut, removed };
 }
@@ -101,7 +105,7 @@ export function raisedWall(wall, delta) {
 export const storeysInLook = (old, numbers) => (storeysOf(old) === 1 && wallSpec(numbers).lower ? 1 : wallSpec(numbers).storeys);
 
 /** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), one or two
- *  storeys, openings inside it and under its face's top and apart, a whole-number seed. */
+ *  storeys, gaps inside it and apart, none taking the whole wall, a whole-number seed. */
 export function toolWall(wall) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1) || ![undefined, 1, 2].includes(wall.storeys)) return false;
@@ -109,12 +113,16 @@ export function toolWall(wall) {
   if (!Number.isInteger(tiles) || tiles < WALL.minTiles || tiles > WALL.maxTiles) return false;
   const list = sortedOpenings(wall.openings ?? []);
   return list.every((o, i) => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o[k])) && o.x0 >= 0 && o.x1 <= wall.x1 && o.x1 > o.x0
-    && o.z1 > o.z0 && o.z0 >= wallSpec(wall).bottom && o.z1 <= faceTopOf(wall) && (i === 0 || list[i - 1].x1 <= o.x0));
+    && o.z1 > o.z0 && o.z0 >= wallSpec(wall).bottom && o.z1 <= wallTop(wall) && !takesWhole(wall, o) && (i === 0 || list[i - 1].x1 <= o.x0));
 }
 export const sortedOpenings = list => [...list].sort((a, b) => a.x0 - b.x0 || a.z0 - b.z0);
-/** A doorway reaches the wall's bottom, which is at or under the floor (z 0) in every look; anything else is a window
- *  (a window's sill is OPENING.sillLeast or more over the floor). */
-export const openingKind = o => (o.z0 <= 1e-6 ? 'doorway' : 'window');
+/** Which of the wall's edges a gap reaches: { bottom (cut to the wall's bottom, through the floor), top (cut through
+ *  the wall's top), start, end (cut away to that end) }. */
+export function openingEdges(wall, o) {
+  return { bottom: o.z0 <= wallSpec(wall).bottom + 1e-6, top: o.z1 >= wallTop(wall) - 1e-6, start: o.x0 <= 1e-6, end: o.x1 >= wall.x1 - 1e-6 };
+}
+/** Whether a gap would take the whole wall away (every edge reached). */
+const takesWhole = (wall, o) => Object.values(openingEdges(wall, o)).every(Boolean);
 export const tilesOf = wall => Math.round(wall.x1 / TILE);
 
 // ---- drawing: the pose and numbers of a wall dragged out on the ground
@@ -227,7 +235,7 @@ export function withOpening(wall, kind) {
   const middle = wall.x1 / 2;
   const order = [...Array(tiles).keys()].filter(free).sort((a, b) => Math.abs((a + 0.5) * TILE - middle) - Math.abs((b + 0.5) * TILE - middle) || a - b);
   if (!order.length) return null;
-  const k = order[0], o = { x0: k * TILE, x1: k * TILE + preset.width, z0: kind === 'doorway' ? wallSpec(wall).bottom : preset.z0, z1: preset.z1 };
+  const k = order[0], o = { x0: k * TILE, x1: k * TILE + preset.width, z0: preset.z0, z1: preset.z1 };
   const openings = sortedOpenings([...list, o]);
   return { wall: { ...wall, openings }, index: openings.indexOf(o) };
 }
@@ -235,17 +243,21 @@ export function withOpening(wall, kind) {
 export function withoutOpening(wall, index) {
   return { ...wall, openings: sortedOpenings(wall.openings ?? []).filter((_, i) => i !== index) };
 }
-/** An opening's handles: its middle (slides it along the wall), its two sides, its top, and a window's sill. */
-export const openingParts = o => (openingKind(o) === 'doorway' ? ['middle', 'x0', 'x1', 'z1'] : ['middle', 'x0', 'x1', 'z1', 'z0']);
-/** The wall with one part of opening `index` moved `delta` units (along the wall for the middle and sides, up for the
- *  top and sill): sides and the middle in whole tiles, or with `fine` in steps of OPENING.fine; the top and sill in
- *  steps of OPENING.fine. The opening stays inside the wall, off its neighbours, under topMostOf(wall), a window's sill
- *  at OPENING.sillLeast or more, and at least OPENING.width wide and OPENING.height tall. Gives the wall. */
-export function movedOpening(wall, index, part, delta, { fine = false } = {}) {
-  const list = sortedOpenings(wall.openings ?? []), o = { ...list[index] };
-  if (!o) return wall;
+/** A gap's handles: its middle (slides it along the wall), its two sides, its top and its bottom. */
+export const openingParts = () => ['middle', 'x0', 'x1', 'z1', 'z0'];
+/** The wall with one part of gap `index` moved `delta` units (along the wall for the middle and sides, up for the top
+ *  and bottom), in steps of `along` and `up` (the editor's snap: 1 when it is off, so the handles move smoothly). The
+ *  gap stays off its neighbours, at least OPENING.width wide (a tile when it moves by whole tiles) and OPENING.height
+ *  tall, and reaches the wall's edges: a side to the wall's end, the bottom at or under the floor to the wall's bottom
+ *  (its handle stands on the floor), the top past topMostOf(wall) through the wall's top. One part moved to the last
+ *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, OPENING.width in): a gap never takes the whole
+ *  wall. Gives the wall. */
+export function movedOpening(wall, index, part, delta, { along = TILE, up = OPENING.fine } = {}) {
+  const list = sortedOpenings(wall.openings ?? []);
+  if (!list[index]) return wall;
+  const o = { ...list[index] };
   const before = index > 0 ? list[index - 1].x1 : 0, after = index < list.length - 1 ? list[index + 1].x0 : wall.x1;
-  const along = fine ? OPENING.fine : TILE, least = fine ? OPENING.width : TILE;
+  const least = along >= TILE ? TILE : OPENING.width, bottom = wallSpec(wall).bottom, top = wallTop(wall);
   const at = v => round(v, along);
   if (part === 'middle') {
     const width = o.x1 - o.x0;
@@ -257,10 +269,18 @@ export function movedOpening(wall, index, part, delta, { fine = false } = {}) {
   } else if (part === 'x1') {
     o.x1 = tidy(Math.min(after, Math.max(o.x0 + least, at(o.x1 + delta))));
   } else if (part === 'z1') {
-    const floor = openingKind(o) === 'doorway' ? 0 : o.z0;
-    o.z1 = tidy(Math.min(topMostOf(wall), Math.max(floor + OPENING.height, round(o.z1 + delta, OPENING.fine))));
-  } else if (part === 'z0' && openingKind(o) === 'window') {
-    o.z0 = tidy(Math.max(OPENING.sillLeast, Math.min(o.z1 - OPENING.height, round(o.z0 + delta, OPENING.fine))));
+    const v = Math.max(Math.max(0, o.z0) + OPENING.height, round(o.z1 + delta, up));
+    o.z1 = v > topMostOf(wall) + 1e-6 ? top : tidy(v);
+  } else if (part === 'z0') {
+    const v = Math.min(o.z1 - OPENING.height, round(Math.max(0, o.z0) + delta, up));
+    o.z0 = v <= 1e-6 ? bottom : tidy(v);
+  }
+  if (takesWhole(wall, o)) {
+    if (part === 'z1') o.z1 = topMostOf(wall);
+    else if (part === 'z0') o.z0 = OPENING.sill;
+    else if (part === 'x0') o.x0 = least;
+    else if (part === 'x1') o.x1 = tidy(wall.x1 - least);
+    else return wall;
   }
   const openings = list.map((p, i) => (i === index ? o : p));
   return { ...wall, openings };
@@ -283,12 +303,12 @@ export function openingPlay(wall, o) {
   return { tiles, walk, climb: !walk && cover === 'low', sight: spans(SWEEP.sight - SWEEP.half, SWEEP.sight + SWEEP.half), cover };
 }
 const size = v => (v % TILE === 0 ? `${plural(v / TILE, 'tile')} wide` : `${Math.round(v)} wide`);
-/** An opening in words, for the piece panel's list: "Doorway, 1 tile wide, 176 tall" or "Window, 1 tile wide, 96 tall,
- *  its sill 72 over the floor". */
-export function openingWords(o) {
-  const tall = Math.round(o.z1 - Math.max(0, o.z0));
-  return openingKind(o) === 'doorway' ? `Doorway, ${size(o.x1 - o.x0)}, ${tall} tall`
-    : `Window, ${size(o.x1 - o.x0)}, ${tall} tall, its sill ${Math.round(o.z0)} over the floor`;
+/** A gap in words, for the piece panel's list: "Gap, 1 tile wide, from 8 over the floor to 160", "Gap, 1 tile wide,
+ *  from the wall's bottom to its top, at its end". */
+export function openingWords(o, wall) {
+  const e = openingEdges(wall, o), ends = [e.start && 'its start', e.end && 'its end'].filter(Boolean);
+  const from = e.bottom ? 'from the wall\'s bottom' : `from ${Math.round(o.z0)} over the floor`;
+  return `Gap, ${size(o.x1 - o.x0)}, ${from} to ${e.top ? 'its top' : Math.round(o.z1)}${ends.length ? `, at ${ends.join(' and ')}` : ''}`;
 }
 /** What the game does there, in a sentence or two (`door`: a door stands in it). */
 export function playWords(wall, o, { door = false } = {}) {
@@ -299,7 +319,7 @@ export function playWords(wall, o, { door = false } = {}) {
   out.push(p.sight ? 'see and shoot through it' : 'don\'t see through it');
   const cover = { none: 'it gives no cover', low: 'the wall under it gives low cover', high: 'the wall under it gives high cover' }[p.cover];
   let words = `${out.join(', ')}; ${cover}.`;
-  if (openingKind(o) === 'doorway' && p.walk && !door) words += ' A unit in a doorway with no door has cover toward its sides: put a door in it, as the game\'s doorways have.';
+  if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it, as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
 /** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */

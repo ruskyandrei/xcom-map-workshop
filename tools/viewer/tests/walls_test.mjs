@@ -3,7 +3,7 @@
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
+import { drawnWall, flippedWall, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          withOpening, withoutOpening, WALL, WALL_LOOKS,
@@ -37,34 +37,59 @@ assert.ok(toolWall(d.wall));
 assert.ok(!toolWall({ x0: 0, x1: 100, openings: [], seed: 1 }));
 assert.ok(!toolWall({ x0: 96, x1: 192, openings: [], seed: 1 }));
 
-// ---- openings
+// ---- gaps (one kind since 19 November 2026: every handle reaches the wall's edges)
 let wall = { x0: 0, x1: 384, openings: [], seed: 2 };
 let r = withOpening(wall, 'doorway');
-assert.deepEqual(r.wall.openings, [{ x0: 96, x1: 192, z0: -16, z1: 160 }]);   // the tile nearest the middle, the lower
+// the tile nearest the middle, the lower; a threshold of 8 under it
+assert.deepEqual(r.wall.openings, [{ x0: 96, x1: 192, z0: 8, z1: 160 }]);
 r = withOpening(r.wall, 'window');
 assert.deepEqual(r.wall.openings[1], { x0: 192, x1: 288, z0: 72, z1: 168 });
 assert.equal(r.index, 1);
 wall = r.wall;
-assert.equal(openingKind(wall.openings[0]), 'doorway');
-assert.deepEqual(openingParts(wall.openings[0]), ['middle', 'x0', 'x1', 'z1']);
-assert.deepEqual(openingParts(wall.openings[1]), ['middle', 'x0', 'x1', 'z1', 'z0']);
+assert.deepEqual(openingParts(), ['middle', 'x0', 'x1', 'z1', 'z0']);
 // a full wall: none
 const full = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 96, z0: -16, z1: 160 }], seed: 1 };
 assert.equal(withOpening(full, 'window'), null);
-// sides in whole tiles, kept off the neighbour; with fine, in eights
-assert.deepEqual(movedOpening(wall, 0, 'x1', 100).openings[0], { x0: 96, x1: 192, z0: -16, z1: 160 });   // the window is there
-assert.deepEqual(movedOpening(wall, 0, 'x0', -100).openings[0], { x0: 0, x1: 192, z0: -16, z1: 160 });
-assert.deepEqual(movedOpening(wall, 0, 'x0', 70, { fine: true }).openings[0], { x0: 168, x1: 192, z0: -16, z1: 160 });
-assert.deepEqual(movedOpening(wall, 0, 'x0', 500, { fine: true }).openings[0].x0, 176);       // at least 16 wide
-// the middle slides the opening along, never past its neighbours or the ends
-assert.deepEqual(movedOpening(wall, 0, 'middle', -500).openings[0], { x0: 0, x1: 96, z0: -16, z1: 160 });
+// sides: by whole tiles (the default step), kept off the neighbour, to the wall's end; in eights; smoothly
+assert.deepEqual(movedOpening(wall, 0, 'x1', 100).openings[0], { x0: 96, x1: 192, z0: 8, z1: 160 });   // the window is there
+assert.deepEqual(movedOpening(wall, 0, 'x0', -100).openings[0], { x0: 0, x1: 192, z0: 8, z1: 160 });
+assert.deepEqual(movedOpening(wall, 0, 'x0', 70, { along: 8 }).openings[0], { x0: 168, x1: 192, z0: 8, z1: 160 });
+assert.equal(movedOpening(wall, 0, 'x0', 500, { along: 8 }).openings[0].x0, 176);       // at least 16 wide
+assert.equal(movedOpening(wall, 0, 'x0', 13.4, { along: 1 }).openings[0].x0, 109);
+assert.equal(movedOpening(wall, 1, 'x1', 41, { along: 1 }).openings[1].x1, 329);
+assert.equal(movedOpening(wall, 1, 'x1', 1000, { along: 1 }).openings[1].x1, 384);
+// the middle slides the gap along, never past its neighbours or the ends
+assert.deepEqual(movedOpening(wall, 0, 'middle', -500).openings[0], { x0: 0, x1: 96, z0: 8, z1: 160 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 500).openings[1], { x0: 288, x1: 384, z0: 72, z1: 168 });
-// the top under the cornice, a window's sill over the floor, each at least 24 from the other
-assert.equal(movedOpening(wall, 0, 'z1', 1000).openings[0].z1, 360);
-assert.equal(movedOpening(wall, 0, 'z1', -1000).openings[0].z1, 24);
-assert.equal(movedOpening(wall, 1, 'z0', -1000).openings[1].z0, 8);
+assert.deepEqual(movedOpening(wall, 1, 'middle', 7, { along: 1 }).openings[1], { x0: 199, x1: 295, z0: 72, z1: 168 });
+// the top: under the cornice, or past it cut through the wall's top; the bottom: over the floor, or at it cut to the
+// wall's bottom; each at least 24 from the other
+assert.equal(movedOpening(wall, 0, 'z1', 200).openings[0].z1, 360);
+assert.equal(movedOpening(wall, 0, 'z1', 201, { up: 1 }).openings[0].z1, 384);
+assert.equal(movedOpening(wall, 0, 'z1', 1000).openings[0].z1, 384);
+assert.equal(movedOpening(wall, 0, 'z1', -1000).openings[0].z1, 32);
+assert.equal(movedOpening(wall, 0, 'z0', -8).openings[0].z0, -16);
+assert.equal(movedOpening(wall, 0, 'z0', -5, { up: 1 }).openings[0].z0, 3);
+assert.equal(movedOpening(wall, 1, 'z0', -1000).openings[1].z0, -16);
 assert.equal(movedOpening(wall, 1, 'z0', 1000).openings[1].z0, 144);
-assert.equal(movedOpening(wall, 0, 'z0', -50).openings[0].z0, -16);        // a doorway has no sill
+// a gap cut to the wall's bottom has its bottom handle on the floor: it moves from there
+{
+  const cut = movedOpening(wall, 0, 'z0', -100);
+  assert.equal(movedOpening(cut, 0, 'z0', 5, { up: 1 }).openings[0].z0, 5);
+  assert.deepEqual(openingEdges(cut, cut.openings[0]), { bottom: true, top: false, start: false, end: false });
+  assert.ok(toolWall(cut));
+}
+// a gap never takes the whole wall: the last edge it would reach stays short of it
+{
+  const slot = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 96, z0: -16, z1: 160 }], seed: 1 };
+  assert.equal(movedOpening(slot, 0, 'z1', 1000).openings[0].z1, 360);
+  const strip = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 96, z0: 8, z1: 384 }], seed: 1 };
+  assert.equal(movedOpening(strip, 0, 'z0', -100).openings[0].z0, 8);
+  const half = { x0: 0, x1: 192, openings: [{ x0: 0, x1: 96, z0: -16, z1: 384 }], seed: 1 };
+  assert.equal(movedOpening(half, 0, 'x1', 1000, { along: 1 }).openings[0].x1, 176);
+  assert.ok(toolWall(half));
+  assert.ok(!toolWall({ ...half, openings: [{ x0: 0, x1: 192, z0: -16, z1: 384 }] }));
+}
 assert.deepEqual(withoutOpening(wall, 0).openings, [wall.openings[1]]);
 
 // ---- the ends: openings stay where they are in the world; shortening past one drops it
@@ -76,7 +101,7 @@ assert.deepEqual([r.wall.x1, r.removed], [192, 1]);
 assert.deepEqual(r.wall.openings, [wall.openings[0]]);
 r = resizedWall(wall, 'x0', 100);
 assert.deepEqual([r.wall.x1, r.shift, r.removed], [288, 96, 0]);
-assert.deepEqual(r.wall.openings, [{ x0: 0, x1: 96, z0: -16, z1: 160 }, { x0: 96, x1: 192, z0: 72, z1: 168 }]);
+assert.deepEqual(r.wall.openings, [{ x0: 0, x1: 96, z0: 8, z1: 160 }, { x0: 96, x1: 192, z0: 72, z1: 168 }]);
 r = resizedWall(wall, 'x0', -192);
 assert.deepEqual([r.wall.x1, r.shift], [576, -192]);
 assert.equal(r.wall.openings[0].x0, 288);
@@ -89,7 +114,7 @@ assert.deepEqual(shiftedLocation([-192, -192, 16], [0, 16384, 0], 96), [-192, -9
 const f = flippedWall(wall, [-192, -192, 16], [0, 0, 0]);
 assert.deepEqual(f.location, [192, -192, 16]);
 assert.deepEqual(f.rotation, [0, 32768, 0]);
-assert.deepEqual(f.wall.openings, [{ x0: 96, x1: 192, z0: 72, z1: 168 }, { x0: 192, x1: 288, z0: -16, z1: 160 }]);
+assert.deepEqual(f.wall.openings, [{ x0: 96, x1: 192, z0: 72, z1: 168 }, { x0: 192, x1: 288, z0: 8, z1: 160 }]);
 assert.deepEqual(flippedWall(f.wall, f.location, f.rotation).wall, wall);
 assert.equal(reshuffled(wall, 0.5).seed, 500000);
 assert.notEqual(reshuffled({ ...wall, seed: 1 }, 0).seed, 1);
@@ -102,9 +127,13 @@ assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 112, z1: 200 }), { tiles
 assert.deepEqual(openingPlay(wall, { x0: 0, x1: 96, z0: 40, z1: 200 }), { tiles: 1, walk: true, climb: false, sight: true, cover: 'none' });
 // an opening between two tiles' centre lines: nothing passes
 assert.deepEqual(openingPlay(wall, { x0: 56, x1: 136, z0: -16, z1: 160 }), { tiles: 0, walk: false, climb: false, sight: false, cover: 'whole' });
-assert.equal(openingWords(wall.openings[0]), 'Doorway, 1 tile wide, 160 tall');
-assert.equal(openingWords(wall.openings[1]), 'Window, 1 tile wide, 96 tall, its sill 72 over the floor');
-assert.match(playWords(wall, wall.openings[0]), /^Units walk through it, see and shoot through it; it gives no cover\. A unit in a doorway/);
+assert.equal(openingWords(wall.openings[0], wall), 'Gap, 1 tile wide, from 8 over the floor to 160');
+assert.equal(openingWords(wall.openings[1], wall), 'Gap, 1 tile wide, from 72 over the floor to 168');
+assert.equal(openingWords({ x0: 0, x1: 100, z0: -16, z1: 384 }, wall), 'Gap, 100 wide, from the wall\'s bottom to its top, at its start');
+assert.equal(openingWords({ x0: 0, x1: 384, z0: 8, z1: 384 }, wall), 'Gap, 4 tiles wide, from 8 over the floor to its top, at its start and its end');
+assert.match(playWords(wall, wall.openings[0]), /^Units walk through it, see and shoot through it; it gives no cover\. A unit in a gap/);
+// walked through over a wall that gives cover: no door asked for
+assert.doesNotMatch(playWords(wall, { x0: 0, x1: 96, z0: 50, z1: 200 }), /put a door/);
 assert.doesNotMatch(playWords(wall, wall.openings[0], { door: true }), /put a door/);
 assert.equal(playWords(wall, wall.openings[1]), 'Units climb through it, see and shoot through it; the wall under it gives low cover.');
 assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
@@ -115,34 +144,39 @@ assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
     { x0: 0, x1: 96, z0: -16, z1: 160 },        // a doorway: stays
     { x0: 96, x1: 192, z0: 72, z1: 300 },       // a tall window: brought down to 168
     { x0: 192, x1: 288, z0: 200, z1: 300 },     // in the upper storey: goes
+    { x0: 288, x1: 384, z0: 8, z1: 384 },       // cut through the top: stays so
   ] };
   assert.equal(storeysOf(tall), 2);
   assert.equal(wallTop(tall), 384);
   const low = withStoreys(tall, 1);
   assert.deepEqual([low.cut, low.removed], [1, 1]);
   assert.equal(low.wall.storeys, 1);
-  assert.deepEqual(low.wall.openings.map(o => o.z1), [160, 168]);
+  assert.deepEqual(low.wall.openings.map(o => o.z1), [160, 168, 192]);
   assert.equal(wallTop(low.wall), 192);
   assert.equal(topMostOf(low.wall), 168);
   assert.equal(wallWords(low.wall), '4 tiles long, one storey (208 tall)');
   assert.ok(toolWall(low.wall));
-  assert.ok(!toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 182 }] }));      // over its face
+  assert.ok(toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 192 }] }));      // through its top
+  assert.ok(!toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 200 }] }));     // over it
   assert.ok(!toolWall({ ...low.wall, storeys: 3 }));
   // two leaves the number out (the meshes of M1's walls keep their names)
   const back = withStoreys(low.wall, 2);
   assert.ok(!('storeys' in back.wall));
   assert.equal(storeysOf(back.wall), 2);
+  assert.deepEqual(back.wall.openings.map(o => o.z1), [160, 168, 384]);
   // the top handle: less than half a storey changes nothing; past it, the other height
   assert.equal(raisedWall(tall, -90).wall, tall);
   assert.equal(raisedWall(tall, -100).wall.storeys, 1);
   assert.equal(raisedWall(low.wall, 50).wall, low.wall);
   assert.ok(!('storeys' in raisedWall(low.wall, 100).wall));
   assert.equal(raisedWall(low.wall, -300).wall, low.wall);
-  // an opening's top stops 24 under the wall's top
-  assert.equal(movedOpening(low.wall, 1, 'z1', 200).openings[1].z1, 168);
-  assert.equal(movedOpening(tall, 1, 'z1', 200).openings[1].z1, 360);
+  // a gap's top stops 24 under the wall's top, or past that is cut through it
+  assert.equal(movedOpening(low.wall, 1, 'z1', -8).openings[1].z1, 160);
+  assert.equal(movedOpening(low.wall, 1, 'z1', 200).openings[1].z1, 192);
+  assert.equal(movedOpening(tall, 1, 'z1', 60).openings[1].z1, 360);
+  assert.equal(movedOpening(tall, 1, 'z1', 200).openings[1].z1, 384);
 }
-assert.equal(PRESETS.doorway.z1 - 0, 160);
+assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
 
 // ---- joints (M3 item 2): the same cases as test_compiler_generated.test_the_join_rule (compiler.wall_joins is the twin)
 {
@@ -179,7 +213,7 @@ assert.equal(PRESETS.doorway.z1 - 0, 160);
   assert.deepEqual(room.walls.map(w => [w.location, w.rotation[1], w.wall.x1]),
                    [[[-192, -192, 16], 0, 384], [[192, -192, 16], 16384, 288], [[192, 96, 16], 32768, 384], [[-192, 96, 16], 49152, 288]]);
   assert.equal(room.door, 0);                       // the south side faces the camera
-  assert.deepEqual(room.walls[0].wall.openings, [{ x0: 96, x1: 192, z0: -16, z1: 160 }]);
+  assert.deepEqual(room.walls[0].wall.openings, [{ x0: 96, x1: 192, z0: 8, z1: 160 }]);
   assert.ok(room.walls.slice(1).every(w => !w.wall.openings.length));
   assert.deepEqual(room.walls.map(w => w.wall.seed), [5, 6, 7, 8]);
   // drawn from the far corner the other way round: the same rectangle

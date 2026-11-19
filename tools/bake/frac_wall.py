@@ -304,14 +304,30 @@ def seeds(wall):
     nx = max(1, round((x1 - x0) / R['cell'][0]))
     nz = max(1, round((zt - zb) / R['cell'][1]))
     dx, dz = (x1 - x0) / nx, (zt - zb) / nz
-    out = []
+    out, skipped = [], []
     for k in range(nz):
         for i in range(nx):
             jx, jz = rng.uniform(-1, 1) * R['jitter'], rng.uniform(-1, 1) * R['jitter']
             s = (x0 + (i + 0.5 + jx) * dx, zb + (k + 0.5 + jz) * dz)
             if any(o['x0'] - 1 < s[0] < o['x1'] + 1 and o['z0'] - 1 < s[1] < o['z1'] + 1 for o in wall.get('openings', ())):
+                skipped.append(s)
                 continue
             out.append(s)
+    # every seed in a gap (a gap along the whole wall, a strip of wall left under or over it): each moved into the
+    # strip nearest it, so the strip has fragments (walls with any seed left are as before)
+    if not out:
+        inside = lambda p: any(o['x0'] - 1 < p[0] < o['x1'] + 1 and o['z0'] - 1 < p[1] < o['z1'] + 1
+                               for o in wall.get('openings', ()))
+        for s in skipped:
+            o = next(o for o in wall['openings'] if o['x0'] - 1 < s[0] < o['x1'] + 1 and o['z0'] - 1 < s[1] < o['z1'] + 1)
+            spots = [(s[0], (zb + o['z0']) / 2), (s[0], (o['z1'] + zt) / 2), ((x0 + o['x0']) / 2, s[1]), ((o['x1'] + x1) / 2, s[1])]
+            spots = [p for p in spots if not inside(p) and x0 < p[0] < x1 and zb < p[1] < zt]
+            if spots:
+                p = min(spots, key=lambda p: (p[0] - s[0]) ** 2 + (p[1] - s[1]) ** 2)
+                if p not in out:
+                    out.append(p)
+        if not out:
+            raise ValueError("the wall's openings leave none of it")
     return out
 
 

@@ -354,7 +354,7 @@ def wall(*openings, x1=384.0):
     return dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=x1, openings=list(openings), seed=2))
 
 
-DOORWAY = dict(x0=96.0, x1=192.0, z0=-16.0, z1=160.0)
+DOORWAY = dict(x0=96.0, x1=192.0, z0=8.0, z1=160.0)
 WINDOW = dict(x0=192.0, x1=288.0, z0=72.0, z1=168.0)
 
 
@@ -391,7 +391,12 @@ class OpeningTests(unittest.TestCase):
     def test_openings_that_change_play(self):
         self.assertEqual(self.warned(wall(dict(DOORWAY, x0=56.0, x1=136.0))), ['wall-opening-between-tiles'])
         self.assertEqual(self.warned(wall(dict(DOORWAY, z1=40.0))), ['wall-doorway-low'])
-        self.assertEqual(self.warned(wall(dict(WINDOW, z0=40.0))), ['wall-window-walked'])
+        self.assertEqual(self.warned(wall(dict(DOORWAY, z0=-16.0, z1=40.0))), ['wall-doorway-low'])
+        # (one kind of gap: a window's shape low enough to walk through with no cover is a doorway)
+        self.assertEqual(self.warned(wall(dict(WINDOW, z0=40.0))), ['wall-doorway-no-door'])
+        self.assertEqual(self.warned(wall(dict(WINDOW, z0=50.0))), ['wall-window-walked'])
+        # cut to the wall's bottom, or through its top: as any doorway
+        self.assertEqual(self.warned(wall(dict(DOORWAY, z0=-16.0, z1=384.0))), ['wall-doorway-no-door'])
         self.assertEqual(self.warned(wall(dict(WINDOW, z0=48.0, z1=60.5))), ['wall-window-blind'])
         self.assertEqual(self.warned(wall(dict(WINDOW, z0=112.0, z1=200.0))), ['wall-window-blind'])
 

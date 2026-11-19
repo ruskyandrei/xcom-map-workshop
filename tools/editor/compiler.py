@@ -1614,12 +1614,13 @@ class Compiler:
                               c['label'], len(under), 'tile' if len(under) == 1 else 'tiles'), tiles=under[:12], **where)
 
     def made_wall_openings(self):
-        """Warnings for what a made wall's openings do in the game that may surprise (custom geometry plan, M1 item
-        4), by opening_play: a doorway units walk through with no door in it (a unit in it has cover toward its sides,
-        as the game gives a tile between two pieces of wall; the game's doorways hold doors); a doorway no tile's
-        walking line passes through; a window low enough to be walked through or to give no cover, or too high to
-        be seen through. A door stands in an opening when a door's box (a copy's, or one of the map's own the project
-        leaves where it is) overlaps the opening's box by more than 8 along the wall and up."""
+        """Warnings for what a made wall's gaps do in the game that may surprise (custom geometry plan, M1 item 4),
+        by opening_play (one kind of gap since 19 November 2026, its play read from its shape): a gap units walk
+        through with no wall under it to give cover and no door in it (a unit in it has cover toward its sides, as the
+        game gives a tile between two pieces of wall; the game's doorways hold doors); one they walk through over a
+        wall that gives cover; one starting under the cover line too low to walk through; one starting over it that
+        doesn't reach across the sight line. A door stands in a gap when a door's box (a copy's, or one of the map's
+        own the project leaves where it is) overlaps the gap's box by more than 8 along the wall and up."""
         if not self.made_walls:
             return
         hidden = {short(h['name']) for h in self.hides}
@@ -1633,30 +1634,26 @@ class Compiler:
             name = copy['label']
             for o in wall.get('openings') or []:
                 play = opening_play(wall, o)
-                doorway = o['z0'] <= wall_heights(wall)[0] + 1e-6
-                what = "%s's %s at %g to %g along it" % (name, 'doorway' if doorway else 'window', o['x0'], o['x1'])
+                low = o['z0'] < WALL_SWEEPS['cover'][0]
+                what = "%s's gap at %g to %g along it" % (name, o['x0'], o['x1'])
                 if not play['tiles']:
                     self.warn('wall-opening-between-tiles', "%s: units can't walk or see through it, and the wall gives "
                               "cover there as if whole: no tile's centre line passes through it (the game walks, sees "
                               "and takes cover along the lines between tiles' centres)" % what, **where)
                     continue
-                if doorway and not play['walk']:
-                    self.warn('wall-doorway-low', "%s: units can't walk through it: it is lower than the game's "
-                              'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
-                elif doorway:
+                if play['walk'] and play['cover'] != 'none':
+                    self.warn('wall-window-walked', "%s: its bottom, %g over the floor, is under the game's walking "
+                              'line, %g: units walk through it, over the wall under it, which gives %s cover there' % (
+                                  what, o['z0'], WALL_SWEEPS['walk'], play['cover']), **where)
+                elif play['walk']:
                     box = opening_box(copy['location'], copy['rotation'], o)
                     if not any(overlaps_by(box, d, 8.0) for d in doors):
-                        self.warn('wall-doorway-no-door', '%s: a unit in this doorway has cover toward its sides: put a '
+                        self.warn('wall-doorway-no-door', '%s: a unit in this gap has cover toward its sides: put a '
                                   "door in it, as the game's doorways have" % what, **where)
-                elif play['walk']:
-                    self.warn('wall-window-walked', "%s: its sill is under the game's walking line, %g over the floor: "
-                              'units walk through it as through a doorway%s' % (
-                                  what, WALL_SWEEPS['walk'], ', and the wall gives no cover there'
-                                  if play['cover'] == 'none' else ''), **where)
-                elif play['cover'] == 'none':
-                    self.warn('wall-window-no-cover', "%s: its sill is under the game's cover line, %g over the floor: "
-                              'the wall gives no cover there' % (what, WALL_SWEEPS['cover'][0]), **where)
-                if not doorway and not play['sight']:
+                elif low:
+                    self.warn('wall-doorway-low', "%s: units can't walk through it: its top is under the game's "
+                              'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
+                if not low and not play['walk'] and not play['sight']:
                     self.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
                               "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
 

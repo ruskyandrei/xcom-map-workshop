@@ -47,7 +47,7 @@ import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
 import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
-import { WALL, WALL_LOOKS, drawnWall, flippedWall, movedOpening, openingKind, openingParts, openingPlay, openingWords, playWords,
+import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook,
          SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
@@ -9531,7 +9531,7 @@ function wallEntries() {
   const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
   return [storedLook('wall') ?? WALL_LOOKS[0]].flatMap(look => [{ key: `wall:${look.id ?? look.mesh}`, id: `wall-${look.id ?? look.mesh}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
     pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
-    wallLook: look, size: [96, 24, WALL.top - WALL.bottom], detail: 'Drawn by dragging; any length, doorways and windows',
+    wallLook: look, size: [96, 24, WALL.top - WALL.bottom], detail: 'Drawn by dragging; any length, with gaps for doors and windows',
     text: `wall walls ${look.name} ${look.package} ${look.words} fracturing breaks doorway window`.toLowerCase(),
     title: `${look.name}: ${look.words}. Press on the ground at one end, drag along a tile line and let go: the wall runs from tile `
       + `edge to tile edge, up to ${WALL.maxTiles} tiles. It breaks as the game's walls do (it is made like ${look.package}'s own). `
@@ -9877,8 +9877,14 @@ const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute
                                          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
 wallStems.renderOrder = 8; wallStems.raycast = () => {}; wallStems.frustumCulled = false; wallHandleLayer.add(wallStems);
 let wallDrag = null, wallHover = null, wallFocus = null;   // wallFocus: { id, index }: the opening whose handle was last touched
-const WALL_PART_WORDS = { middle: 'Opening: drag to slide it along the wall', x0: 'Opening\'s side', x1: 'Opening\'s side',
-                          z1: 'Opening\'s top', z0: 'Window\'s sill' };
+const WALL_PART_WORDS = { middle: 'Gap: drag to slide it along the wall', x0: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
+                          x1: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
+                          z1: 'Gap\'s top: drag it up to the wall\'s top to cut through it',
+                          z0: 'Gap\'s bottom: drag it down to the floor to cut to the wall\'s bottom' };
+// A gap's handles move by the snap setting (the user, 19 November 2026: smoothly unless the snap is on), [along the
+// wall, up]; Alt: steps of GAP.fine
+const OPENING_STEPS = { off: [1, 1], fine: [24, 24], tile: [TILE, 24] };
+const OPENING_STEP_WORDS = { off: 'steps of 1 unit', fine: 'steps of 24', tile: 'whole tiles along the wall, steps of 24 up' };
 function handleWall() {
   const root = madeRoot(selected);
   if (!root || root.userData.deleted || !root.visible || placing || wallDrawing || volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn
@@ -9941,9 +9947,10 @@ function wallHandlesNow(root) {
   // the top: up or down a storey (M2)
   out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(w.x1 / 2, 0, wallTop(w)), dir: axis(0, 0, 1) });
   sortedOpenings(w.openings ?? []).forEach((o, index) => {
+    // (a gap cut to the wall's bottom has its bottom handle on the floor)
     const cx = (o.x0 + o.x1) / 2, bottom = Math.max(0, o.z0), cz = (bottom + o.z1) / 2;
-    const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, o.z0] };
-    for (const part of openingParts(o))
+    const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, bottom] };
+    for (const part of openingParts())
       out.push({ key: `open:${index}:${part}`, kind: 'opening', part, index, at: toView(at[part][0], side, at[part][1]),
                  dir: part === 'z0' || part === 'z1' ? axis(0, 0, 1) : axis(1, 0, 0) });
   });
@@ -9995,7 +10002,7 @@ function hoverWallHandle(h) {
     : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
     : h.part === 'top' ? topHandleWords(handleWall()?.userData.source.added.generated.wall)
     : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
-    : `${WALL_PART_WORDS[h.part]}${h.part === 'x0' || h.part === 'x1' || h.part === 'middle' ? ' (whole tiles; Alt: steps of 8)' : ' (steps of 8)'}`;
+    : `${WALL_PART_WORDS[h.part]} (${OPENING_STEP_WORDS[snapMode]}, as the snap setting; Alt: steps of ${GAP.fine})`;
 }
 // What the wall's top handle does: makes it one storey, or its donor's storeys again; nothing in a look that can't be
 // made one storey.
@@ -10093,8 +10100,9 @@ function moveWallDrag(e) {
     wall = r.wall; location = shiftedLocation(b.location, b.rotation, r.shift);
     words = `${wallWords(wall)}${r.removed ? ` · ${plural(r.removed, 'opening')} past the end will go` : ''}`;
   } else {
-    wall = movedOpening(w, h.index, h.part, delta, { fine: e.altKey });
-    words = openingWords(sortedOpenings(wall.openings)[h.index]);
+    const [along, up] = e.altKey ? [GAP.fine, GAP.fine] : OPENING_STEPS[snapMode];
+    wall = movedOpening(w, h.index, h.part, delta, { along, up });
+    words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
   }
   const key = JSON.stringify([wall, location]);
   if (key === d.shown) return;
@@ -10132,16 +10140,18 @@ function wallPanel(root) {
     const row = document.createElement('div');
     row.className = 'wallopening';
     row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
-    const play = openingPlay(w, p), door = openingKind(p) === 'doorway' && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
+    // (a gap units walk through, with no wall under it to give cover, is a doorway: it wants a door; one they walk
+    // through over a wall that gives cover, or one they neither walk through nor see through, plays oddly)
+    const play = openingPlay(w, p), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
     const words = playWords(w, p, { door });
-    const warn = !play.tiles || (openingKind(p) === 'doorway' ? !play.walk || !door : play.walk || play.cover === 'none' || !play.sight);
-    row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p) }),
+    const warn = !play.tiles || (play.walk ? play.cover !== 'none' || !door : play.cover === 'none' || !play.sight);
+    row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p, w) }),
                Object.assign(document.createElement('small'), { textContent: words, className: warn ? 'warn' : '' }));
-    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Remove', title: 'Take this opening out of the wall' });
+    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Remove', title: 'Take this gap out of the wall' });
     remove.disabled = !tool;
     remove.onclick = () => { wallFocus = null; changeWall(s => ({ ...s, generated: { ...s.generated, wall: withoutOpening(s.generated.wall, index) } })); };
     row.append(remove);
-    if (openingKind(p) === 'doorway' && !door && tool && play.walk) {
+    if (!door && tool && play.walk && play.cover === 'none') {
       const put = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Put a door in it',
         className: 'walldoorput', title: 'Choose a door that fits this doorway: it is placed in it, turned with the wall and grouped with it' });
       const list = Object.assign(document.createElement('div'), { className: 'walldoors', hidden: true });
@@ -10415,7 +10425,7 @@ function addWallOpening(kind) {
   if (!r) { flashHint('Every tile of the wall has an opening'); return; }
   wallFocus = { id: root.userData.source.id, index: r.index };
   changeWall(s => ({ ...s, generated: { ...s.generated, wall: r.wall } }));
-  flashHint(`Added a ${kind} · its blue handles move and size it`);
+  flashHint(`Added a gap shaped as a ${kind} · its blue handles move and size it, and cut the wall to its edges`);
 }
 $('wallFlip').onclick = () => changeWall(s => {
   const f = flippedWall(s.generated.wall, s.location, s.rotation);

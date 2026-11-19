@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
 import { endInsetsOf, faceTopOf, raisedWall, storeysOf, topMostOf, wallSpec, wallTop, wallWords, withOpening, toolWall,
-         openingKind, storeysInLook, storeyWords } from '../web/walls.js';
+         openingEdges, storeysInLook, storeyWords } from '../web/walls.js';
 
 const ONE = { mesh: 'Shop.Meshes.ShopWall_FRACTURED', map: 'URB_Shop', actor: 'XComFracLevelActor_12', maps: { URB_Shop: 3 },
               name: 'Shop wall', setting: 'shop interior', lwrOnly: false, warnings: [], twin: 'ok',
@@ -77,10 +77,11 @@ assert.equal(raisedWall(gable, -300).wall, gable);
 assert.equal(storeysInLook(low, gable), 2);
 assert.equal(storeysInLook(low, three), 1);
 assert.equal(storeysInLook(tall, three), 3);
-// a doorway reaches the look's bottom
+// a doorway starts with its threshold; cut to the floor, it reaches the look's bottom
 const door = withOpening(tall, 'doorway').wall.openings[0];
-assert.deepEqual([door.z0, openingKind(door)], [-16, 'doorway']);
-assert.equal(withOpening(one, 'doorway').wall.openings[0].z0, 0);
+assert.deepEqual([door.z0, openingEdges(tall, door).bottom], [8, false]);
+assert.ok(openingEdges(tall, { ...door, z0: -16 }).bottom);
+assert.equal(withOpening(one, 'doorway').wall.openings[0].z0, 8);
 assert.ok(toolWall(withOpening(one, 'doorway').wall));
 // a donor look whose catalogue holds nothing is drawn as the Bar's
 const unknown = { ...one, look: { mesh: 'Nowhere.Meshes.Wall', measure: 1 } };
