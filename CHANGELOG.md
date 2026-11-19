@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The walls and map browser checks run again** ([browser_walls.py](tools/viewer/tests/browser_walls.py),
+  [browser_maps_smoke.py](tools/viewer/tests/browser_maps_smoke.py); checks run by hand on a test server).
+  - Walls: a wall's place is compared to a thousandth (it comes back through the piece's matrix in single
+    precision, -1343.9998 for -1344). The check is for URB_PoliceStation: on the Bar its build step names no piece
+    of another map.
+  - Map browser: the browser's Prefabs group is no mission type and is set aside in the counts; the patch preview
+    part runs only where the cache has the Bar's `preview-1.json` (the lab's tools make it), asked for outside the
+    page so no console error is logged.
+  - Checked on a test server with scratch folders: `browser_smoke.py --projects --only walls` on
+    URB_PoliceStation and `browser_maps_smoke.py`, both whole. `--only prefabs` on Basic Training still stops at
+    its placing, as its entry of this day says.
+
 - **The guide's four unchecked statements checked against the code and the played runs; the look picker's picture
   retaken with its pictures drawn; the viewer README's map packs as they are made now** (the gaps the entry below
   names).

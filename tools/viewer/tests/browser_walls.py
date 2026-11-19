@@ -62,7 +62,11 @@ def mesh_ready(page, wall):
 
 
 def state(page, wall):
-    return page.evaluate('id => viewer.wallState(id)', wall)
+    """The wall's record and place; the place to a thousandth, since it comes back through the piece's matrix
+    (single precision: -1343.9998 for -1344)."""
+    s = page.evaluate('id => viewer.wallState(id)', wall)
+    if s and s.get('location'): s['location'] = [round(v, 3) + 0.0 for v in s['location']]
+    return s
 
 
 def build_menu(page, key):

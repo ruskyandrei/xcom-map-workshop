@@ -66,7 +66,8 @@ def main():
         assert page.locator('#mapSearch').evaluate('e=>e===document.activeElement')
         sections=page.locator('#mapList .mapgroup').all_text_contents()
         groups={g for m in maps.values() for g in m['groups']}
-        assert len(sections)==len(groups),(sections,groups)
+        # (a section of the prefab library's own comes first where there are prefabs: it is no mission type)
+        assert len([t for t in sections if not t.startswith('Prefabs')])==len(groups),(sections,groups)
         several=next((m for m in maps.values() if len(m['groups'])>1),None)
         if several:assert page.locator(f'#mapList .maprow[data-id="{several["id"]}"]').count()==len(several['groups'])
         assert page.locator('#mapList .maprow[data-id="URB_Bar"].on').count()>=1   # starts on the open map
@@ -82,7 +83,7 @@ def main():
             assert shown=={m['id'] for m in maps.values() if group in m['groups']},group
         page.locator('#mapGroups [data-group="all"]').click()
         page.locator('#mapPrepared').check()
-        assert {r.get_attribute('data-id') for r in rows(page).all()}=={m['id'] for m in maps.values() if m['ready']}
+        assert {r.get_attribute('data-id') for r in rows(page).all()}&set(maps)=={m['id'] for m in maps.values() if m['ready']}   # (prefabs' rows aside)
         page.locator('#mapPrepared').uncheck()
         page.screenshot(path=str(args.screenshot.with_stem(args.screenshot.stem+'-browser')))
         page.keyboard.press('Escape')
@@ -105,12 +106,15 @@ def main():
         assert 'scene=' not in page.url
         assert all(path.startswith('/cache/URB_Bar/') for path in requests if path.startswith('/cache/'))
         page.screenshot(path=str(args.screenshot))
-        page.goto(base+'?map=URB_Bar&scene=preview-1.json');ready(page,'URB_Bar',True)   # previews open by address only
-        assert 'map=URB_Bar' in page.url and 'scene=preview-1.json' in page.url
-        page.go_back(wait_until='load');ready(page,'URB_Bar')
-        page.go_forward(wait_until='load');ready(page,'URB_Bar',True)
-        pick(page,'TempleShip');ready(page,'TempleShip')
-        page.go_back(wait_until='load');ready(page,'URB_Bar',True)
+        # a patch preview, where this cache has the Bar's (made by the lab's tools: most caches have none)
+        preview=page.request.head(base+'cache/URB_Bar/preview-1.json').ok   # (asked outside the page: no console error)
+        if preview:
+            page.goto(base+'?map=URB_Bar&scene=preview-1.json');ready(page,'URB_Bar',True)   # previews open by address only
+            assert 'map=URB_Bar' in page.url and 'scene=preview-1.json' in page.url
+            page.go_back(wait_until='load');ready(page,'URB_Bar')
+            page.go_forward(wait_until='load');ready(page,'URB_Bar',True)
+            pick(page,'TempleShip');ready(page,'TempleShip')
+            page.go_back(wait_until='load');ready(page,'URB_Bar',True)
         page.set_viewport_size(dict(width=1000,height=800))
         assert page.evaluate("""() => ['mapButton'].every(id=>{
           const r=document.getElementById(id).getBoundingClientRect();return r.width>70 && r.left>=0 && r.right<=innerWidth;
