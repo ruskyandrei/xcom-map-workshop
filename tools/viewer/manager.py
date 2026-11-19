@@ -30,7 +30,9 @@ have been played in the game with a variant. All of that is said as warnings, ne
                                                          Long War Rebalance 3.00.00 beta 15 or later
                                                          Each map holds its build's baked lighting inside it
                                                          (tools/bake/inline_lighting.py): the game finds a .tfc only
-                                                         in CookedPCConsole itself, never in a folder (F-140)
+                                                         in CookedPCConsole itself, never in a folder (F-140). A build
+                                                         since 19 November 2026 has it inside already; an older one's
+                                                         cache is put inside here
                                                          One copy of each landing intro for all the maps,
                                                          <Intro>_<Folder>_<card number>.upk (intro_copy.py pack_copy,
                                                          F-142), in place of each build's own; a map whose flight
@@ -446,7 +448,8 @@ def _scratch(builds):
 
 def _inline_lighting(parts, files, work):
     """Each build's own lighting cache put inside its maps (tools/bake/inline_lighting.py): the game finds a .tfc only
-    in CookedPCConsole itself, never in a pack's folder (F-140). A build's map (the relight writes into the cache for
+    in CookedPCConsole itself, never in a pack's folder (F-140). A build since 19 November 2026 ships its map with the
+    lightmaps inside already and no cache, so this is for builds made before (or a map its build couldn't do). A build's map (the relight writes into the cache for
     the map alone) is written into `work` with each mip of that cache inside it (and NeverStream: loaded whole with
     the map) and takes the built map's place in `files` ({name: (source, SHA-256)}); the cache then leaves `files` and
     the part's file list, and the part records it (lightingInside). A map that can't take it in goes as it is, with

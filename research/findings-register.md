@@ -2964,7 +2964,7 @@ word; not looked at in the game).
   (F-120), and the hidden game has not played plain Enemy Within.
 
 ### F-140: A lighting cache in a folder under CookedPCConsole is not found
-**Worked around: a pack's maps hold their lighting inside them** (19 November 2026, [EXP-85](experiments/EXP-85-map-pack-cards.md)
+**Worked around: every baked build's map holds its lighting inside it** (19 November 2026, [EXP-85](experiments/EXP-85-map-pack-cards.md)
 and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15).
 - **Seen.** A built map, its intro copy and its patch load from a folder under `CookedPCConsole` (a map pack's
   folder). With the map's `<Map>_Lighting.tfc` in that folder the made floor is not drawn and the baked light is
@@ -2981,6 +2981,10 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   name), so a pack is one folder. EXP-86: drawn the same on beta 15 and on LWR 2.x; about 0.15 s more loading for a
   135 MB cache, and the build's lightmaps resident for the battle (up to the cache's size in texture memory). A map
   that can't take its cache in still goes with the cache beside the folder, with a warning.
+- **Since then (the same day).** The Build itself puts the relight's lightmaps inside the map
+  ([build.py](../tools/editor/build.py) `lighting_inside`), so no new package has a `.tfc`, for Play in game, the
+  manager's install and packs alike; the pack's own step is left for builds made before. EXP-86 run B: a map built
+  that way, installed by the manager, drawn with its baked light.
 
 ### F-141: A variant's display name dropped the words LWR reads a UFO's size from
 **Fixed** (19 November 2026; not seen in a campaign yet).

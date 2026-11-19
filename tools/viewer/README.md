@@ -889,7 +889,9 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     The lighting is wrong, though: copies keep their originals' lighting and cast no shadows, and deleted or moved
     pieces leave their shadows behind. It is for checking a layout in the game before the minutes of baking.
   - **With baking**, the copies get their own lighting and the pieces near the edit are relit, which takes minutes. The
-    package then also has the map's texture cache. The panel says how long the project's last build of each kind took.
+    new lightmaps go inside the map file (`tools/bake/inline_lighting.py`), so the package has no texture cache to go
+    beside it (a package built before 19 November 2026 has its `.tfc`, and so does a map that can't take its lightmaps
+    in, its build says why). The panel says how long the project's last build of each kind took.
   - A package replaces the project's last one either way. The build window, the Project menu and the Installs section
     say when a package's lighting is not baked, and its manifest (`quick`) and README say so too.
   - The server runs one build at a time in the background ([`builds.py`](builds.py)): `POST

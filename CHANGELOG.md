@@ -8,6 +8,26 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A baked build's lightmaps go inside its map: no build ships a .tfc** (branch `lwr-map-packs`;
+  [EXP-86](research/experiments/EXP-86-lighting-inside-the-map.md), F-140).
+  - The Build ([build.py](tools/editor/build.py) `lighting_inside`, the package's last change to the map, after the
+    seeds and the map picture): the relight still bakes into `<Variant>_Lighting.tfc` in the work folder, and every
+    texture that names it then holds all its mips inline, NeverStream (inline_lighting.py). The package has the map
+    and no cache; the manifest says `lightingInside` (cache, textures, mips, bytes) with `cache` None, the stage
+    `inside` the same, and the README that the lightmaps are inside the map. A map that can't take them in ships its
+    cache beside it as before, with a note (stage, log, README), not a warning: it plays as builds did before.
+  - Everything after the Build takes the package's files as they are, so Play in game, the manager's install for
+    campaigns and Export map pack install or pack no cache for a new build; the pack still puts an older build's
+    cache inside its map (its notes say so). Quick builds and builds whose lighting is unchanged had no cache before
+    and have none now.
+  - Docs: the build's module notes (stages 5 and 6), [the viewer README](tools/viewer/README.md) on baked builds,
+    the guide's Save paragraph (a project's lighting is in its map file now), [manager.py](tools/viewer/manager.py)
+    notes.
+  - Checked: `test_build` (the package without a cache and its map marked as holding it, in every build test that
+    reads the map; the picture before the lightmaps; a package from before with `Lighting_<n>.tfc` rebuilt without
+    any; the fallback with its cache and note); the editor, viewer, repo and release suites. In the game: a full build
+    of a bar project made by the Build, installed by the manager into the LWR 2.x lab copy and played (EXP-86 run B).
+
 - **A map pack carries one copy of each landing intro for all its maps** (LWR map packs; branch `lwr-map-packs`;
   [EXP-87](research/experiments/EXP-87-landing-intros-in-a-pack.md), F-142).
   - [intro_copy.py](tools/bake/intro_copy.py) `pack_copy`: the game's intro with, in each Switch String that has a

@@ -5,7 +5,7 @@ lighting cache is moved inside the map file
 ([inline_lighting.py](../../tools/bake/inline_lighting.py)) is drawn exactly as with its cache, on LWR 3.00.00 beta
 15 from a pack's folder and on LWR 2.x installed the classic way. It costs a little load time and keeps the build's
 lightmaps in texture memory for the whole battle. Export map pack now writes every packed map this way, so a pack
-has no `.tfc` beside its folder.
+has no `.tfc` beside its folder, and since run B every baked build does it itself.
 
 Played unattended (`hidden_game.py`; the beta 15 copy where it stands, `--game`; the LWR 2.x lab copy switched in),
 with the game's private memory logged every 2 s and `ListTextures` at the end of each run.
@@ -79,9 +79,27 @@ and URB_Bar's own record commented out for the Replace map.
 - The cost is a fraction of a second of loading and the build's lightmaps resident (up to the cache's size in
   texture memory, 132 MB on the largest build there is), with no change in private memory.
 
+## Run B: a map the Build itself made
+
+Since the runs above the Build puts the lightmaps inside the map as its package's last change
+([build.py](../../tools/editor/build.py) `lighting_inside`), so no new package has a `.tfc`. `pinkbar` (URB_Bar with
+one light changed) was built in full with that code into a scratch builds folder (20 s; stage `inside`: 2 textures,
+8 mips, 1.4 MB from `Pinkbar_Lighting.tfc`); the package held `Pinkbar.upk` (20,832,346 bytes, the size Export map
+pack made of the same edit's earlier build) and its intro copy, no cache. A test server's manager installed it for
+campaigns into the LWR 2.x lab copy (the map and the intro copy flat in `CookedPCConsole`, its record added: no
+`.tfc`), and it was played with the four fixed camera places above; then the project's earlier build (its
+`Pinkbar_Lighting.tfc` beside the map) was installed the same way and played the same.
+
+| Run | Bring-up | The two moved lightmaps | Pictures against the other run |
+| --- | --- | --- | --- |
+| B1 inside | 0.20 s | `NormalizedAverageColor0_4`, `DirectionalMaxComponent0_4`: 1024, resident (NO) | centre 0.02%, east 0.51%, west 0.00%, close 0.00% of pixels differ by more than 16 |
+| B2 cache beside | 0.20 s | streamed from the cache | |
+
+Drawn the same: the build's own map with its lighting inside is the map EXP-86 played.
+
 Left in the beta 15 copy (no restore after experiments): the folders `Workshop_test_pack` (the inline `Pinkbar` and
 `URB_Bar_X62`) and `Workshop_hover_pack` (the inline large map, card 9327); no build's cache is in its
 `CookedPCConsole`.
 
 Shots (in `private/shots/EXP-86`): the bar's centre and close-up, ref and inline; the large map's centre and north
-east, ref and inline; on LWR 2.x, v1 and v2's centre, east and close-up.
+east, ref and inline; on LWR 2.x, v1 and v2's centre, east and close-up; run B's four places, inside and cache beside.

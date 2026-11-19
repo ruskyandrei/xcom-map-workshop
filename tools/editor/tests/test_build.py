@@ -350,6 +350,18 @@ class Builds(unittest.TestCase):
                          objects=[COPY, DOOR, HIDE])
         self.report = dict(errors=[], warnings=[], counts=dict(moved=0, deleted=0, added=1, errors=0, warnings=0))
         compiler.compile_project = lambda doc, scene, enable=(), library=None, foreign=(): (self.spec, dict(self.report))
+        # the lightmaps put inside the map (inline_lighting.py, tested on real maps in the bake suite): here the made-up
+        # map is marked, and inside_fails makes it fail as a map that can't take them would
+        self.inside_fails = None
+        self.addCleanup(setattr, build, 'inline_map', build.inline_map)
+        build.inline_map = self.inline_map
+
+    def inline_map(self, src, dst, cache, tfc):
+        if self.inside_fails: raise ValueError(self.inside_fails)
+        data = b'inside ' + Path(src).read_bytes() + b' with ' + Path(tfc).read_bytes()
+        Path(dst).parent.mkdir(parents=True, exist_ok=True)
+        Path(dst).write_bytes(data)
+        return dict(cache=cache, textures=2, mips=8, bytes=len(Path(tfc).read_bytes()), sha256=hashlib.sha256(data).hexdigest())
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -878,8 +890,10 @@ class Builds(unittest.TestCase):
         pkg = self.output / VARIANT
         cache = build.cache_name(VARIANT)
         self.assertEqual(sorted(m['files']), sorted('CookedPCConsole/%s' % n for n in
-                                                    ('%s.upk' % VARIANT, '%s.upk' % PATCH, '%s.tfc' % cache,
-                                                     '%s.upk' % INTRO)))
+                                                    ('%s.upk' % VARIANT, '%s.upk' % PATCH, '%s.upk' % INTRO)))
+        # its lightmaps inside the map (inline_lighting.py): no texture cache goes with it
+        self.assertEqual((m['cache'], m['lightingInside']), (None, dict(cache=cache, textures=2, mips=8, bytes=9)))
+        self.assertIn('tools/bake/inline_lighting.py', m['tools'])
         # the variant's own landing intro, streamed in place of CIN_DropshipIntros
         self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % INTRO)).read_bytes(), b'intro copy of the landing intros')
         self.assertEqual((m['intros'], m['replaceStreams']), ([dict(stream='CIN_DropshipIntros', copy=INTRO)],
@@ -891,7 +905,7 @@ class Builds(unittest.TestCase):
                                                str(pkg.parent / '.work' / ('%s-20261107-110000' % VARIANT) / 'package' /
                                                    'CookedPCConsole' / ('%s.upk' % INTRO)), 'URB_Bar', VARIANT])
         self.assertIn('tools/bake/intro_copy.py', m['tools'])
-        self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'inside relit map 1 seeded with lightmaps')
         self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % PATCH)).read_bytes(), b'cooked patch')
         for rel, digest in m['files'].items():
             self.assertEqual(build.sha256(pkg / rel), digest)
@@ -902,9 +916,11 @@ class Builds(unittest.TestCase):
         self.assertEqual(m['streams'], [PATCH])
         self.assertEqual((m['project']['id'], m['project']['revision']), ('0000-test', 3))
         self.assertEqual(m['source']['sha256'], hashlib.sha256(BASE).hexdigest())
-        self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds'])
+        self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds', 'inside'])
         self.assertIn('DisplayName="%s (Beta/Functionality Complete Urban Bar) |0"' % VARIANT, m['config']['maps'][0])
         readme = (pkg / 'README.txt').read_bytes().decode('latin-1')
+        self.assertIn('its lightmaps inside the map (no texture cache goes with it)', readme)
+        self.assertNotIn('.tfc', readme)
         self.assertIn(m['config']['maps'][0], readme)
         self.assertIn('LZArray=(MapName="%s"' % VARIANT, readme)
         self.assertIn('its copies made as pieces of the map', readme)
@@ -1003,8 +1019,8 @@ class Builds(unittest.TestCase):
         self.assertEqual(m['stages'][2]['stage'], 'patch')
         self.assertIn('skipped', m['stages'][2])
         cache = build.cache_name(VARIANT)
-        self.assertEqual(sorted(m['files']), sorted('CookedPCConsole/%s' % n for n in ('%s.upk' % VARIANT, '%s.tfc' % cache,
-                                                                                    '%s.upk' % INTRO)))
+        self.assertEqual(sorted(m['files']), sorted('CookedPCConsole/%s' % n for n in ('%s.upk' % VARIANT, '%s.upk' % INTRO)))
+        self.assertEqual(m['lightingInside']['cache'], cache)
         self.assertEqual((m['patch'], m['streams'], m['config']['streamSlots']), (None, [], [None]))
         self.assertEqual(m['config']['maps'][0].count('StreamingMaps['), record('bar').count('StreamingMaps['))
         light, = self.tool('native_copy.py')
@@ -1013,7 +1029,7 @@ class Builds(unittest.TestCase):
         self.assertIn('(out of rotation; streams %s in place of CIN_DropshipIntros):' % INTRO, readme)
         self.assertNotIn(PATCH, readme)
         # no seed plan without a patch: native_copy.py seeds the copies' tiles itself
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1')
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'inside relit map 1 with lightmaps')
 
     def test_hides_alone_are_made_in_the_map_with_no_patch(self):
         self.spec['objects'] = [HIDE]
@@ -1097,8 +1113,8 @@ class Builds(unittest.TestCase):
         self.assertEqual((work / 'named' / 'tfc-folder.txt').read_text(encoding='utf-8').strip(),
                          str((self.lwr / 'XEW/XComGame/CookedPCConsole').resolve()))
         self.assertEqual((self.lwr / 'XEW/XComGame/CookedPCConsole/URB_Bar.upk').read_bytes(), BASE)
-        self.assertEqual(m['cache'], VARIANT + '_Lighting')
-        self.assertIn('CookedPCConsole/%s_Lighting.tfc' % VARIANT, m['files'])
+        self.assertEqual((m['cache'], m['lightingInside']['cache']), (None, VARIANT + '_Lighting'))
+        self.assertNotIn('CookedPCConsole/%s_Lighting.tfc' % VARIANT, m['files'])
 
     def test_a_collectibles_copy_is_made_in_the_map(self):
         collectible = dict(COPY, labels=['XComCollectible_10_copy2'], classes=['XComCollectible'],
@@ -1119,17 +1135,17 @@ class Builds(unittest.TestCase):
                         run=self.run_tool, seed=self.seed, echo=lambda *_: None)
         self.assertEqual(b.patch_work, self.output / '.work' / 'patchtool')
 
-    def test_a_project_with_a_map_picture_builds_it_into_the_map_last(self):
+    def test_a_project_with_a_map_picture_builds_it_into_the_map(self):
         digest = self.with_picture()
         m = self.make().run()
         pkg = self.output / VARIANT
         self.assertEqual(m['picture'], dict(sha256=digest, format='DXT1'))
         self.assertNotIn('pictureNote', m)
-        # written after the seeds, into the package's map, from the project's kept file
-        self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds', 'picture'])
-        self.assertEqual(m['stages'][-1], dict(m['stages'][-1], written=True, export=7, how='added', sha256=digest, format='DXT1'))
+        # written after the seeds, into the package's map, from the project's kept file; the lightmaps go in last
+        self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds', 'picture', 'inside'])
+        self.assertEqual(m['stages'][-2], dict(m['stages'][-2], written=True, export=7, how='added', sha256=digest, format='DXT1'))
         built = pkg / 'CookedPCConsole' / ('%s.upk' % VARIANT)
-        self.assertEqual(built.read_bytes(), b'relit map 1 seeded +picture ' + digest.encode())
+        self.assertEqual(built.read_bytes(), b'inside relit map 1 seeded +picture ' + digest.encode() + b' with lightmaps')
         (src, dst, png), = self.pictured
         self.assertEqual(Path(png), self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.png')
         self.assertTrue(src.endswith('%s.upk' % VARIANT) and 'package' in src and 'pictured' in dst)
@@ -1152,7 +1168,8 @@ class Builds(unittest.TestCase):
         self.assertNotIn('picture', [s['stage'] for s in m['stages']])
         self.assertFalse(getattr(self, 'pictured', None))
         self.assertNotIn('map picture', (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1'))
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 1 seeded with lightmaps')
 
     def test_a_picture_whose_file_is_missing_is_a_note_and_the_map_builds_without_it(self):
         digest = self.with_picture(keep=False)
@@ -1160,11 +1177,13 @@ class Builds(unittest.TestCase):
         self.assertNotIn('picture', m)
         self.assertIn('not on this computer', m['pictureNote'])
         self.assertIn(digest[:12], m['pictureNote'])
-        self.assertEqual(m['stages'][-1], dict(m['stages'][-1], stage='picture', written=False))
+        picture, = [s for s in m['stages'] if s['stage'] == 'picture']
+        self.assertFalse(picture['written'])
         self.assertFalse(getattr(self, 'pictured', None))
         self.assertTrue(any(line.startswith('note: ') and 'map picture' in line for line in self.said))
         self.assertFalse(any(line.startswith('warning: ') for line in self.said))
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 1 seeded with lightmaps')
         self.assertIn('No map picture: the project names a map picture whose file is not on this computer',
                       (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1'))
         # a malformed record is the same: a note, never a refusal
@@ -1181,7 +1200,7 @@ class Builds(unittest.TestCase):
         m = self.make('111500').run()
         self.assertEqual(m['picture']['sha256'], second)
         self.assertEqual(len(self.tool('native_copy.py')), 2)       # the edit made and lit again, no shortcut
-        self.assertTrue((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes().endswith(second.encode()))
+        self.assertIn(b'+picture ' + second.encode(), (self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes())
 
     def test_the_picture_s_own_writer_adds_the_texture_to_a_real_map(self):
         sys.path.insert(0, str(HERE.parents[1] / 'lab'))
@@ -1206,7 +1225,8 @@ class Builds(unittest.TestCase):
         (self.output / ('%s.zip' % VARIANT)).write_bytes(b'an earlier version\'s zip of the folder')
         self.relit = 2
         m = self.make('111500').run()
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 2 seeded')
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 2 seeded with lightmaps')
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], m['buildId'])
         self.assertEqual([p.name for p in self.output.iterdir() if not p.name.startswith('.')], [VARIANT])
 
@@ -1355,9 +1375,10 @@ class Builds(unittest.TestCase):
         with self.assertRaises(SystemExit):
             build.main([str(self.project), '--attempt', 'not-a-uuid'])
 
-    def test_a_package_of_before_rebuilds_with_the_named_cache_and_quick_builds_have_none(self):
+    def test_a_package_of_before_rebuilds_with_its_lightmaps_inside_and_quick_builds_have_none(self):
         """Output names plan 4: a project's package built with Lighting_<n> (before 16 November 2026) is replaced by
-        one with <Variant>_Lighting.tfc; a quick build in between has no cache; the next full build has it again."""
+        one whose relight writes <Variant>_Lighting, whose lightmaps then go inside the map (19 November 2026): no
+        .tfc in the package; a quick build in between has none to put in; the next full build has them inside again."""
         self.spec['objects'] = [COPY, HIDE]
         old = self.foreign_build(VARIANT, self.doc['id'], files=['%s.upk' % VARIANT, 'Lighting_4242.tfc'])
         m = json.loads((old / 'manifest.json').read_text(encoding='utf-8'))
@@ -1365,11 +1386,30 @@ class Builds(unittest.TestCase):
         caches = []
         for stamp, quick in (('110000', False), ('111000', True), ('112000', False)):
             m = self.make(stamp, quick=quick).run()
-            caches.append((m['cache'], sorted(Path(f).name for f in m['files'] if f.endswith('.tfc'))))
+            caches.append((m['cache'], sorted(Path(f).name for f in m['files'] if f.endswith('.tfc')),
+                           (m.get('lightingInside') or {}).get('cache')))
         named = VARIANT + '_Lighting'
-        self.assertEqual(caches, [(named, [named + '.tfc']), (None, []), (named, [named + '.tfc'])])
+        self.assertEqual(caches, [(None, [], named), (None, [], None), (None, [], named)])
         self.assertFalse((self.output / VARIANT / 'CookedPCConsole' / 'Lighting_4242.tfc').exists())
-        self.assertIn('lightmaps are in %s.tfc' % named, (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
+        self.assertFalse(list((self.output / VARIANT).rglob('*.tfc')))
+        self.assertIn('its lightmaps inside the map', (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
+
+    def test_a_map_that_cannot_take_its_lightmaps_in_ships_its_cache_beside_it(self):
+        """The fallback: the map as the relight made it, its <Variant>_Lighting.tfc in the package as before, and a
+        note (not a warning: the map plays as builds did before) in the stage, the log and the README."""
+        self.inside_fails = 'not a package'
+        m = self.make().run()
+        named = VARIANT + '_Lighting'
+        self.assertIn('CookedPCConsole/%s.tfc' % named, m['files'])
+        self.assertEqual(m['cache'], named)
+        self.assertNotIn('lightingInside', m)
+        inside, = [s for s in m['stages'] if s['stage'] == 'inside']
+        self.assertIn('could not be put inside the map (not a package)', inside['note'])
+        self.assertTrue(any(line.startswith('note: ') and named + '.tfc' in line for line in self.said))
+        self.assertFalse(any(line.startswith('warning: ') for line in self.said))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertIn('its lightmaps are in %s.tfc, which goes in CookedPCConsole itself' % named,
+                      (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
 
     def test_a_package_that_cannot_be_put_in_place_leaves_the_last_one(self):
         """Output names plan 3.4: the swap is undone when the new folder can't take the old one's place."""
@@ -1502,7 +1542,8 @@ class Builds(unittest.TestCase):
                 (self.work / PATCH / 'seed-plan-built.tsv').unlink()
         b.run_tool = no_plan
         m = b.run()
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1')
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 1 with lightmaps')
         self.assertIsNone(m['stages'][2]['seedPlan'])
 
     def lights_split(self):
