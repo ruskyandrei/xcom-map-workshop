@@ -30,6 +30,13 @@ Given the map (`--map`), the copy gives such an action its landing's grounded Sk
 intro places of the other maps stand (F-97: the median distance from them is under two units, the yaw the same).
 A landing the project moves then moves that place with it, as any other.
 
+A map pack carries one copy of each intro for all its maps (`pack_copy`, written by Export map pack; EXP-87, F-142):
+the game's intro with, in each Switch String that has a case for a map's base map, one more case right after it, the
+map's own name, whose output link is the base case's (the same actions). The base map's own case stays. Maps of one
+base share its flight places, so each map's moved or filled places (its build's report names the actions; their values
+are read from the build's own copy) go into the pack's copy, and a map whose places differ from another's there keeps
+its own copy.
+
   python -B tools/bake/intro_copy.py <intro.upk> <copy.upk> <base map> <variant> [--report report.json]
                                      [--landing-moves moves.json] [--map <map.upk>]
 """
@@ -258,6 +265,189 @@ def make(src, dst, base, variant, moves=None, map_path=None):
         g.write(str(dst))
         report['copy'] = str(dst)
     return report
+
+
+def _elements(w, data, at, size):
+    """[(start, end)] of the struct elements of the array whose value is data[at:at + size]."""
+    count, o, out = struct.unpack_from('<i', data, at)[0], at + 4, []
+    for _ in range(count):
+        gen = w.walk(bytes(data), o, at + size)
+        try:
+            while True:
+                next(gen)
+        except StopIteration as done:
+            out.append((o, done.value))
+            o = done.value
+    if o != at + size:
+        raise ValueError('an array ends where its elements do not')
+    return out
+
+
+def _array(w, data, start, name):
+    """(value offset, size) of the export data's array property `name`."""
+    for prop, kind, _, at, size in w.walk(bytes(data), start, len(data)):
+        if prop == name + '[0]' and kind == 'ArrayProperty':
+            return at, size
+    raise ValueError('no %s' % name)
+
+
+def _insert(w, data, at, size, index, element):
+    """The array at data[at:at + size] with `element` put in at `index`; its count and its tag's size follow."""
+    parts = _elements(w, data, at, size)
+    cut = parts[index][0] if index < len(parts) else at + size
+    data[cut:cut] = element
+    struct.pack_into('<i', data, at, len(parts) + 1)
+    struct.pack_into('<i', data, at - 8, size + len(element))
+
+
+def _case_names(w, data, at, size):
+    names = []
+    for a, b in _elements(w, data, at, size):
+        text = None
+        for prop, kind, _, v, _ in w.walk(bytes(data), a, b):
+            if prop == 'StringName[0]' and kind == 'StrProperty':
+                text = read_fstring(data, v)[0]
+        names.append(text)
+    return names
+
+
+def add_cases(g, p, pairs):
+    """In package `p` (grower `g`), each Switch String with a case for a pair's base map gets one more case, the pair's
+    variant, right after the base's, whose output link is a copy of the base case's: {variant: [switch]}."""
+    w = native_copy.Walker(p)
+    added = {variant: [] for _, variant in pairs}
+    for i, data, _, _, _ in switches(p, g.export_data):
+        e = p.exports[i - 1]
+        start = legacy_props.props_start(p.data, e, p.names) - e['off']
+        data = bytearray(data)
+        changed, later = False, {}               # the cases added after each base's so far: the next goes after them
+        for base, variant in pairs:
+            s_at, s_size = _array(w, data, start, 'StringArray')
+            names = _case_names(w, data, s_at, s_size)
+            hits = [k for k, t in enumerate(names) if same_map(t, base)]
+            if not hits:
+                continue
+            h = hits[0]
+            at = h + 1 + later.get(base.casefold(), 0)
+            o_at, o_size = _array(w, data, start, 'OutputLinks')
+            outputs = _elements(w, data, o_at, o_size)
+            if len(outputs) != len(names):
+                raise ValueError('%s: %d cases, %d outputs' % (p.name(i), len(names), len(outputs)))
+            cases = _elements(w, data, s_at, s_size)
+            output = bytes(data[outputs[h][0]:outputs[h][1]])
+            case = renamed_entry(w, bytes(data[cases[h][0]:cases[h][1]]), base, variant)
+            _insert(w, data, o_at, o_size, at, output)         # the later array first: the earlier one's offsets hold
+            _insert(w, data, s_at, s_size, at, case)
+            later[base.casefold()] = later.get(base.casefold(), 0) + 1
+            added[variant].append(p.name(i))
+            changed = True
+        if changed:
+            g.relocate(i, bytes(data))
+    return added
+
+
+def flight_places(copy, actions):
+    """{action: (location, rotation)} of the named Set Location actions in a build's own intro copy (the places its
+    report says it moved or filled)."""
+    p = lighting.Package(copy)
+    ops = {name.split('.')[-1]: i for name, i in p.by_name.items() if '.Main_Sequence.' in name}
+    out = {}
+    for a in actions:
+        if a not in ops:
+            raise ValueError('%s has no %s' % (Path(copy).name, a))
+        location, rotation = p.own(ops[a], 'LocationValue'), p.own(ops[a], 'RotationValue')
+        if location is None or rotation is None:
+            raise ValueError('%s: %s saves no place' % (Path(copy).name, a))
+        out[a] = ([float(v) for v in location], [int(v) for v in rotation])
+    return out
+
+
+def pack_copy(src, dst, maps):
+    """A map pack's one copy of the intro `src` for several maps (see the module notes). `maps`: [dict(base, variant,
+    places={action: (location, rotation)})] in order. A map is left out (it keeps its own copy) when no case names its
+    base, when an action of its places is not in the intro, or when its base's flight places would differ from a map's
+    already in. Returns dict(copy (None when no map is in), cases=[{variant, base, switches}], places=[{action,
+    location, rotation, variants}], left=[{variant, base, why}]). The copy is read back before it is kept."""
+    src, dst = Path(src), Path(dst)
+    if dst.stem.lower() == src.stem.lower():
+        raise ValueError('the copy needs a name of its own')
+    p = lighting.Package(src)
+    ops = {name.split('.')[-1]: i for name, i in p.by_name.items() if '.Main_Sequence.' in name}
+    named = [t for *_, entries in switches(p) for _, t in entries]
+    report = dict(source=str(src), copy=None, cases=[], places=[], left=[])
+    taken, flown = [], {}                        # the maps in, and each action's place there (None: the intro's own)
+    for m in maps:
+        base, variant, places = m['base'], m['variant'], m.get('places') or {}
+        if not any(same_map(t, base) for t in named):
+            report['left'].append(dict(variant=variant, base=base, why='the intro has no case for %s' % base))
+            continue
+        missing = [a for a in places if a not in ops]
+        if missing:
+            report['left'].append(dict(variant=variant, base=base, why='the intro has no %s' % ', '.join(missing)))
+            continue
+        flight = {a['action']: None for a in anchors(p, base)}
+        flight.update({ops[a]: (list(v[0]), list(v[1])) for a, v in places.items()})
+        clash = next((t for t in taken if any(i in t['flight'] and t['flight'][i] != v for i, v in flight.items())), None)
+        if clash is not None:
+            report['left'].append(dict(variant=variant, base=base, why='its landing flies otherwise than %s\'s'
+                                       % clash['variant']))
+            continue
+        taken.append(dict(base=base, variant=variant, flight=flight))
+        for i, v in flight.items():
+            flown.setdefault(i, (v, []))[1].append(variant)
+    if not taken:
+        return report
+    g = package_grow.Grower(str(src))
+    added = add_cases(g, p, [(t['base'], t['variant']) for t in taken])
+    w = native_copy.Walker(p)
+    for i, (v, variants) in sorted(flown.items()):
+        if v is None:
+            continue
+        set_place(g, p, w, i, v[0], v[1])
+        report['places'].append(dict(action=p.name(i).split('.')[-1], location=v[0], rotation=v[1], variants=variants))
+    report['cases'] = [dict(variant=t['variant'], base=t['base'], switches=[s.split('.')[-1] for s in added[t['variant']]])
+                       for t in taken]
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    g.write(str(dst))
+    try:
+        check_pack_copy(dst, p, report)
+    except Exception:
+        dst.unlink()                             # no copy that failed its check is left behind
+        raise
+    report['copy'] = str(dst)
+    return report
+
+
+def check_pack_copy(dst, source, report):
+    """The written copy read back: every switch's cases and outputs as many; each map's case in exactly the switches
+    that have its base's case, right after it, with the base case's output; each place written; as many objects as the
+    intro has."""
+    q = lighting.Package(dst)
+    if len(q.exports) != len(source.exports):
+        raise ValueError('the copy has %d objects, the intro %d' % (len(q.exports), len(source.exports)))
+    w = native_copy.Walker(q)
+    for i, data, _, _, entries in switches(q):
+        e = q.exports[i - 1]
+        start = legacy_props.props_start(q.data, e, q.names) - e['off']
+        names = [t for _, t in entries]
+        o_at, o_size = _array(w, data, start, 'OutputLinks')
+        outputs = [bytes(data[a:b]) for a, b in _elements(w, data, o_at, o_size)]
+        if len(outputs) != len(names):
+            raise ValueError('%s: %d cases, %d outputs' % (q.name(i), len(names), len(outputs)))
+        for c in report['cases']:
+            here = [k for k, t in enumerate(names) if t == c['variant']]
+            bases = [k for k, t in enumerate(names) if same_map(t, c['base'])]
+            if bool(here) != bool(bases) or bool(here) != (q.name(i).split('.')[-1] in c['switches']):
+                raise ValueError('%s: %s is not where %s is' % (q.name(i), c['variant'], c['base']))
+            if here and outputs[here[0]] != outputs[bases[0]]:
+                raise ValueError('%s: %s leads elsewhere than %s' % (q.name(i), c['variant'], c['base']))
+    ops = {name.split('.')[-1]: k for name, k in q.by_name.items() if '.Main_Sequence.' in name}
+    for place in report['places']:
+        k = ops[place['action']]
+        if [float(v) for v in q.own(k, 'LocationValue')] != place['location'] \
+                or [int(v) for v in q.own(k, 'RotationValue')] != place['rotation']:
+            raise ValueError('%s: its place is not the one written' % place['action'])
+    return True
 
 
 def main(argv=None):

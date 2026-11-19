@@ -140,6 +140,62 @@ class IntroCopy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
             intro_copy.make(INTRO, Path(d) / 'CIN_DropshipIntros.upk', 'URB_Bar', 'URB_Bar_X')
 
+    def test_a_packs_copy_adds_each_maps_case_after_its_bases(self):
+        """F-142: one copy for a pack's maps. Two of URB_Bar and one of the farm get cases after their bases', with the
+        base's output; the farm's moved place is written; a third of URB_Bar flying elsewhere and a map the intro has
+        no case for are left out (they keep their own copies)."""
+        p = intro_copy.lighting.Package(INTRO)
+        before = {p.name(i).split('.')[-1]: [t for _, t in e] for i, _, _, _, e in intro_copy.switches(p)}
+        farm = ([-286.02734375, 6877.921875, 0.0], [0, -32764, 0])
+        maps = [dict(base='URB_Bar', variant='URB_Bar_One_1'), dict(base='URB_Bar', variant='Pinkbar'),
+                dict(base='CSmallScout_Farm', variant='CSmallScout__Farm_x', places={'SeqAct_SetLocation_58': farm}),
+                dict(base='URB_Bar', variant='URB_Bar_Moved', places={'SeqAct_SetLocation_84': ([1.0, 2.0, 0.0], [0, 0, 0])}),
+                dict(base='URB_Nowhere', variant='URB_Nowhere_X')]
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / 'CIN_DropshipIntros_My_pack_0042.upk'
+            report = intro_copy.pack_copy(INTRO, dst, maps)
+            q = intro_copy.lighting.Package(dst)
+            after = {q.name(i).split('.')[-1]: [t for _, t in e] for i, _, _, _, e in intro_copy.switches(q)}
+            farm_after = {a['group']: a for a in intro_copy.anchors(q, 'CSmallScout__Farm_x')}
+            farm_before = {a['group']: a for a in intro_copy.anchors(p, 'CsmallScout_Farm')}
+            self.assertEqual(len(q.exports), len(p.exports))
+        self.assertEqual(report['copy'], str(dst))
+        self.assertEqual([(c['variant'], c['switches']) for c in report['cases']],
+                         [('URB_Bar_One_1', ['SeqCond_SwitchString_8']), ('Pinkbar', ['SeqCond_SwitchString_8']),
+                          ('CSmallScout__Farm_x', ['SeqCond_SwitchString_6'])])
+        self.assertEqual([(l['variant'], l['why']) for l in report['left']],
+                         [('URB_Bar_Moved', 'its landing flies otherwise than URB_Bar_One_1\'s'),
+                          ('URB_Nowhere_X', 'the intro has no case for URB_Nowhere')])
+        # each new case right after its base's, every case of the intro kept
+        bar = before['SeqCond_SwitchString_8'].index('URB_Bar')
+        self.assertEqual(after['SeqCond_SwitchString_8'], before['SeqCond_SwitchString_8'][:bar + 1] + ['URB_Bar_One_1', 'Pinkbar']
+                         + before['SeqCond_SwitchString_8'][bar + 1:])
+        self.assertEqual(len(after['SeqCond_SwitchString_6']), len(before['SeqCond_SwitchString_6']) + 1)
+        self.assertEqual((after['SeqCond_SwitchString_1'], after['SeqCond_SwitchString_5']),
+                         (before['SeqCond_SwitchString_1'], before['SeqCond_SwitchString_5']))
+        # the farm flies to its moved place (its landing 0), its other landings as they were
+        self.assertEqual([p_['action'] for p_ in report['places']], ['SeqAct_SetLocation_58'])
+        self.assertEqual((farm_after[0]['location'], farm_after[0]['rotation']), (farm[0], farm[1]))
+        for g in (1, 2):
+            self.assertEqual(farm_after[g]['location'], farm_before[g]['location'])
+
+    def test_a_packs_copy_takes_a_place_from_the_builds_own_copy(self):
+        move = dict(index=0, frame=dict(old=[[720.0, -1680.0, 0.0], 0], new=[[1103.0, -1681.0, 0.0], 16384]))
+        with tempfile.TemporaryDirectory() as d:
+            own = Path(d) / 'CIN_DropshipIntros_URB_Bar_Test_1234.upk'
+            report = intro_copy.make(INTRO, own, 'URB_Bar', 'URB_Bar_Test_1234', [move])
+            action = report['moved'][0]['action']
+            places = intro_copy.flight_places(own, [action])
+            want, = intro_copy.anchors(intro_copy.lighting.Package(own), 'URB_Bar_Test_1234')
+            dst = Path(d) / 'CIN_DropshipIntros_Pack_0001.upk'
+            intro_copy.pack_copy(INTRO, dst, [dict(base='URB_Bar', variant='URB_Bar_Test_1234', places=places)])
+            got, = intro_copy.anchors(intro_copy.lighting.Package(dst), 'URB_Bar_Test_1234')
+            with self.assertRaises(ValueError): intro_copy.flight_places(own, ['SeqAct_Nothing_1'])
+        self.assertEqual((got['location'], got['rotation']), (want['location'], want['rotation']))
+        with tempfile.TemporaryDirectory() as d:          # no map in: no file
+            report = intro_copy.pack_copy(INTRO, Path(d) / 'CIN_DropshipIntros_P_1.upk', [dict(base='URB_Nowhere', variant='X')])
+            self.assertEqual((report['copy'], list(Path(d).iterdir())), (None, []))
+
     def test_strings_round_trip(self):
         for text in ('URB_Bar', '', 'Caf\u00e9', 'Mapa \u0434'):
             self.assertEqual(intro_copy.read_fstring(intro_copy.fstring(text), 0),
@@ -168,6 +224,17 @@ class EntranceCopy(unittest.TestCase):
         self.assertEqual([(r['switch'].split('.')[-1], r['entries'], r['of']) for r in report['renamed']],
                          [('SeqCond_SwitchString_1', [0], 3)])
         self.assertEqual(after, [['AlienBase01_Test_1234', 'AlienBase02', 'Default']])
+
+    def test_a_packs_copy_of_the_entrance_has_a_case_for_each_alien_base(self):
+        with tempfile.TemporaryDirectory() as d:
+            dst = Path(d) / 'CIN_TP05A_EnteringAlienBase_My_pack_0042.upk'
+            report = intro_copy.pack_copy(ENTRANCE, dst, [dict(base='AlienBase01', variant='AlienBase01_One_1'),
+                                                          dict(base='AlienBase02', variant='AlienBase02_Two_2'),
+                                                          dict(base='AlienBase01', variant='AlienBase01_Three_3')])
+            after = [[t for _, t in e] for *_, e in intro_copy.switches(intro_copy.lighting.Package(dst))]
+        self.assertEqual(report['left'], [])
+        self.assertEqual(after, [['AlienBase01', 'AlienBase01_One_1', 'AlienBase01_Three_3', 'AlienBase02', 'AlienBase02_Two_2',
+                                  'Default']])
 
 
 if __name__ == '__main__':

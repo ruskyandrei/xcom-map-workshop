@@ -31,7 +31,11 @@ have been played in the game with a variant. All of that is said as warnings, ne
                                                          Each map holds its build's baked lighting inside it
                                                          (tools/bake/inline_lighting.py): the game finds a .tfc only
                                                          in CookedPCConsole itself, never in a folder (F-140)
-                            CookedPCConsole/*.tfc        only for a map whose lighting could not be put inside it
+                                                         One copy of each landing intro for all the maps,
+                                                         <Intro>_<Folder>_<card number>.upk (intro_copy.py pack_copy,
+                                                         F-142), in place of each build's own; a map whose flight
+                                                         differs from another's of its base keeps its own
+                            CookedPCConsole/*.tfc       only for a map whose lighting could not be put inside it
                                                          (a warning says so): its build's cache, beside the folder
                             Install.cmd, Uninstall.cmd   put the pack into any game folder and take it out again
                                                          (pack_scripts.py): the folder where the game reads cards,
@@ -277,6 +281,8 @@ def pack_readme(pack, parts):
         lines += ['  %s: %s, a variant of %s%s%s' % (p['variant'], p['name'], p['base'],
                                                    (', replacing it' if p['mode'] == 'replace' else ', beside it') if mixed else '',
                                                    ' (QUICK BUILD: its lighting is not baked)' if p['quick'] else '')]
+    for file, intro in (pack.get('introFiles') or {}).items():
+        lines += ['  %s: the landing intro (%s) of %s, each landing as in its base map' % (file, intro['stream'], ', '.join(intro['maps']))]
     lines += [
         '',
         'LONG WAR REBALANCE 3.00.00 beta 15 or later (with XCOM closed): open the CookedPCConsole folder of this zip and copy',
@@ -329,7 +335,7 @@ def pack_readme(pack, parts):
         '1. Files. Copy these files into the game\'s XEW\\XComGame\\CookedPCConsole itself (not in a folder; the card,',
         '   LWRMapPack_%04d.upk, is not needed). They replace none of the game\'s own:' % card['number'],
     ]
-    lines += ['     %s' % f for p in parts for f in p['files']]
+    lines += ['     %s' % f for f in dict.fromkeys(f for p in parts for f in p['files'])]
     lines += [
         '',
         '2. XEW\\XComGame\\Config\\DefaultMaps.ini (keep a copy of the file first). For each map below, add its lines to the',
@@ -405,6 +411,8 @@ def folder_readme(pack, parts):
     lines += ['', 'This folder lies in ...\\XEW\\XComGame\\CookedPCConsole. Its card is %s.' % pack['card']['file'], '', 'Maps:']
     lines += ['  %s: %s, a variant of %s (%s)' % (p['variant'], p['name'], p['base'],
                                                 'in its place' if p['mode'] == 'replace' else 'beside it') for p in parts]
+    lines += ['  %s: the landing intro (%s) of %s' % (file, intro['stream'], ', '.join(intro['maps']))
+              for file, intro in (pack.get('introFiles') or {}).items()]
     lines += ['', 'Files of this folder:'] + ['  %s' % n for n in pack['folderFiles']]
     if caches:
         lines += ['', 'Beside this folder, in CookedPCConsole itself (the maps\' baked lighting):'] + ['  %s' % n for n in caches]
@@ -459,6 +467,85 @@ def _inline_lighting(parts, files, work):
         files.pop(tfc)
         p['files'] = [f for f in p['files'] if f != tfc]
         p['lightingInside'] = {k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}
+
+
+def _intro_actions(m):
+    """{intro stream: [the flight actions its build moved or filled in its own copy]}, from the build's report."""
+    out = {}
+    for s in m.get('stages') or []:
+        if not isinstance(s, dict) or s.get('stage') != 'intro': continue
+        names = [r.get('action') for r in s.get('filled') or [] if isinstance(r, dict) and 'left' not in r] \
+            + [r.get('action') for r in s.get('moved') or [] if isinstance(r, dict)]
+        out.setdefault(s.get('stream'), []).extend(n for n in names if isinstance(n, str))
+    return out
+
+
+def _intros_of(m):
+    """[(intro stream, the build's own copy)]: the manifest's intros, or for a manifest without them its replaceStreams'
+    intros."""
+    import outputnames
+    listed = [(i.get('stream'), i.get('copy')) for i in m.get('intros') or [] if isinstance(i, dict)]
+    if not listed:
+        listed = [(s, c) for s, c in (m.get('replaceStreams') or {}).items() if s in outputnames.INTROS]
+    return [(s, c) for s, c in listed if isinstance(s, str) and isinstance(c, str)]
+
+
+def intro_file(stream, record):
+    """The pack's one copy of an intro: <stream>_<folder>_<card number>, a name no build's own copy
+    (<stream>_<variant>) takes even when the folder is a project's name."""
+    return f'{stream}_{record["folder"]}_{int(record["card"]):04d}'
+
+
+def _shared_intros(parts, files, work, record, cooked):
+    """One copy of each landing intro for all the pack's maps (tools/bake/intro_copy.py pack_copy; EXP-87, F-142): the
+    game's intro (the install the editor reads) with each map's case added after its base map's, and each map's moved
+    flight from its build's own copy. It takes the maps' own copies' place in `files`, in their file lists and in their
+    lines (card and classic). A map it can't take (its flight differs from another's of its base, or the copy can't be
+    written) keeps its own copy: the pack then works as before, and the map's introOwn says why. Returns
+    {file: {stream, maps}}."""
+    import hashlib
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
+    import intro_copy
+    groups = {}
+    for p in parts:
+        for stream, copy in p['intros']:
+            if f'{copy}.upk' in p['files'] and f'{copy}.upk' in files:
+                groups.setdefault(stream, []).append((p, copy))
+    out = {}
+    for stream, members in groups.items():
+        name = intro_file(stream, record)
+        maps, why = [], {}
+        for p, copy in members:
+            try:
+                places = intro_copy.flight_places(files[f'{copy}.upk'][0], p['introActions'].get(stream) or [])
+                maps.append(dict(base=p['base'], variant=p['variant'], places=places))
+            except Exception as error:                    # its own copy can't be read: it goes as it is
+                why[p['variant']] = f'its own copy can\'t be read ({error})'
+        report = dict(cases=[], left=[])
+        src = cooked / f'{stream}.upk' if cooked is not None else None
+        try:
+            if src is None or not src.is_file(): raise ValueError(f'the game install has no {stream}.upk')
+            if maps: report = intro_copy.pack_copy(src, work / f'{name}.upk', maps)
+        except Exception as error:
+            report = dict(cases=[], left=[])
+            for m in maps: why[m['variant']] = f'the pack\'s copy could not be written ({error})'
+        why.update({l['variant']: l['why'] for l in report['left']})
+        inside = {c['variant'] for c in report['cases']}
+        if inside:
+            path = work / f'{name}.upk'
+            files[f'{name}.upk'] = (path, hashlib.sha256(path.read_bytes()).hexdigest())
+            out[f'{name}.upk'] = dict(stream=stream, maps=[c['variant'] for c in report['cases']])
+        for p, copy in members:
+            if p['variant'] not in inside:
+                p.setdefault('introOwn', []).append(dict(stream=stream, file=f'{copy}.upk', why=why.get(p['variant'], '')))
+                continue
+            files.pop(f'{copy}.upk', None)
+            p['files'] = sorted({f for f in p['files'] if f != f'{copy}.upk'} | {f'{name}.upk'})
+            swap = lambda line: line.replace(f'MapName="{copy}"', f'MapName="{name}"')  # noqa: E731
+            p['records'] = [swap(l) for l in p['records']]
+            p['cardLines'] = [swap(l) for l in p['cardLines']]
+            p.setdefault('introShared', []).append(dict(stream=stream, file=f'{name}.upk', instead=f'{copy}.upk'))
+    return out
 
 
 def _pack_record(projects, builds, request, parts, game, now, rng=None):
@@ -553,7 +640,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             card_zones += [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
             if library: card_pictures.append(f'Pictures=(Map="{variant}", Picture="{library}.{base}")')
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
-                              cache=m.get('cache'),
+                              cache=m.get('cache'), intros=_intros_of(m), introActions=_intro_actions(m),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
@@ -594,6 +681,9 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     except packs.PackError as error: raise ProjectError(409, f'Not made: {error}')
     name, pack_folder = record['name'], record['folder']
     pack_name = '%s v%d%s' % (name, record['version'], ' by %s' % record['author'] if record.get('author') else '')
+    # one copy of each landing intro for all the maps, in place of each build's own (F-142); the lines then stream it
+    intro_files = _shared_intros(parts, files, work, record, cooked)
+    card_maps = [l for p in parts for l in p['cardLines']]
     card_lines = card_maps + card_pictures + card_zones
     card_data, card_notes = pack_card.from_lines(pack_name, card_lines)
     card_file = pack_card.file_name(record['card'])
@@ -619,9 +709,11 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                                               'ownPicture', 'pictureFrom')},
                            **({'ownZones': True} if p.get('ownZones') else {}),
                            **({'lightingInside': p['lightingInside']} if p.get('lightingInside') else {}),
+                           **({'introShared': p['introShared']} if p.get('introShared') else {}),
+                           **({'introOwn': p['introOwn']} if p.get('introOwn') else {}),
                            **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
-                     folderFiles=in_folder, cacheFiles=caches, notes=notes,
+                     folderFiles=in_folder, cacheFiles=caches, introFiles=intro_files, notes=notes,
                      **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
     target = folder / record['zip']

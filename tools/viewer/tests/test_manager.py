@@ -38,6 +38,8 @@ import labpaths  # noqa: E402
 VARIANT = test_play.VARIANT
 # URB_Bar as shipped, for the pack whose map holds its lighting inside: without it that test skips
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
+# the game's landing intro, for the pack's one copy of it: without it that test skips
+INTRO, NO_INTRO = labpaths.test_file('XCOM_INTRO_UPK', labpaths.lwr_cooked('CIN_DropshipIntros.upk'), 'CIN_DropshipIntros.upk')
 OTHER_ID, OTHER = '1a2b3c4d-1d2a-4b6c-8e9f-123456789abc', 'URB_Bar_Second_1a2b'
 UNBUILT_ID, MISSING_ID = '2b3c4d5e-1d2a-4b6c-8e9f-123456789abc', '3c4d5e6f-1d2a-4b6c-8e9f-123456789abc'
 
@@ -445,6 +447,83 @@ class Manager(unittest.TestCase):
         self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), built)
         self.assertTrue((cooked / 'Lighting_7006.tfc').is_file())
         self.assertEqual([p.name for p in (self.output / manager.PACKS).iterdir()], [Path(r['zip']).name])
+
+    def real_intro(self, variant, moves=None):
+        """The build's own copy of the landing intro made for real (intro_copy.make on the game's), in its manifest
+        (files, intros, replaceStreams) with its report when the project moves the landing (`moves`)."""
+        import intro_copy
+        folder = self.output / variant
+        copy = f'CIN_DropshipIntros_{variant}'
+        report = intro_copy.make(INTRO, folder / 'CookedPCConsole' / f'{copy}.upk', 'URB_Bar', variant, moves)
+        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        m['files'][f'CookedPCConsole/{copy}.upk'] = hashlib.sha256((folder / 'CookedPCConsole' / f'{copy}.upk').read_bytes()).hexdigest()
+        m.update(intros=[dict(stream='CIN_DropshipIntros', copy=copy)], replaceStreams={'CIN_DropshipIntros': copy})
+        if moves: m['stages'] = [dict(stage='intro', stream='CIN_DropshipIntros', moved=report['moved'])]
+        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        return folder / 'CookedPCConsole' / f'{copy}.upk'
+
+    @unittest.skipUnless(INTRO and INTRO.exists(), NO_INTRO)
+    def test_a_packs_maps_share_one_copy_of_the_landing_intro(self):
+        """F-142: one copy of the intro for all the pack's maps, each map's case after its base map's, in place of each
+        build's own; a map whose landing flies otherwise than another's of its base keeps its own copy; a moved flight
+        goes into the pack's copy."""
+        import intro_copy
+        shutil.copyfile(INTRO, self.lwr / 'XEW/XComGame/CookedPCConsole/CIN_DropshipIntros.upk')
+        self.package()
+        self.second()
+        self.real_intro(VARIANT)
+        self.real_intro(OTHER)
+        player = self.player()
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', name='Intro pack'))
+        shared = f'CIN_DropshipIntros_Intro_pack_{r["card"]:04d}'
+        with zipfile.ZipFile(r['zip']) as z:
+            names = set(z.namelist())
+            described = json.loads(z.read('pack.json'))
+            held = pack_card.read(z.read(f'CookedPCConsole/Intro_pack/{described["card"]["file"]}'))
+            readme = z.read('README.txt').decode('latin-1')
+            copy = Path(self.temp.name) / f'{shared}.upk'
+            copy.write_bytes(z.read(f'CookedPCConsole/Intro_pack/{shared}.upk'))
+        self.assertFalse([n for n in names if f'CIN_DropshipIntros_{VARIANT}' in n or f'CIN_DropshipIntros_{OTHER}' in n])
+        self.assertEqual(described['introFiles'], {f'{shared}.upk': dict(stream='CIN_DropshipIntros', maps=[VARIANT, OTHER])})
+        for m in held['Maps']:
+            self.assertIn(shared, [s['MapName'] for s in m['StreamingMaps']])
+        for m in described['maps']:
+            self.assertIn(f'{shared}.upk', m['files'])
+            self.assertNotIn(f'CIN_DropshipIntros_{m["variant"]}.upk', m['files'])
+            self.assertEqual(m['introShared'], [dict(stream='CIN_DropshipIntros', file=f'{shared}.upk',
+                                                     instead=f'CIN_DropshipIntros_{m["variant"]}.upk')])
+            self.assertTrue(all(f'MapName="{shared}"' in l for l in m['records'] + m['cardLines'] if 'MapName="CIN_' in l))
+        self.assertEqual(readme.count(f'     {shared}.upk'), 1)        # in the files to copy once, for both maps
+        self.assertIn(f'{shared}.upk: the landing intro', readme)
+        q = intro_copy.lighting.Package(copy)
+        cases = {q.name(i).split('.')[-1]: [t for _, t in e] for i, _, _, _, e in intro_copy.switches(q)}
+        at = cases['SeqCond_SwitchString_8'].index('URB_Bar')
+        self.assertEqual(cases['SeqCond_SwitchString_8'][at:at + 3], ['URB_Bar', VARIANT, OTHER])
+        self.assertFalse(r['packed'][0]['warnings'] or r['packed'][1]['warnings'])
+        # the second bar's landing moved: its flight differs from the first's, so it keeps its own copy
+        move = dict(index=0, frame=dict(old=[[720.0, -1680.0, 0.0], 0], new=[[1103.0, -1681.0, 0.0], 16384]))
+        own = self.real_intro(OTHER, [move])
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', name='Intro pack 2'))
+        with zipfile.ZipFile(r['zip']) as z:
+            names = set(z.namelist())
+            described = json.loads(z.read('pack.json'))
+        folder = described['folder']
+        self.assertIn(f'CookedPCConsole/{folder}/CIN_DropshipIntros_{OTHER}.upk', names)
+        first, second = described['maps']
+        self.assertIn('introShared', first)
+        self.assertEqual(second['introOwn'][0]['file'], f'CIN_DropshipIntros_{OTHER}.upk')
+        self.assertIn(f'otherwise than {VARIANT}', second['introOwn'][0]['why'])
+        self.assertTrue(any(f'MapName="CIN_DropshipIntros_{OTHER}"' in l for l in second['cardLines']))
+        # alone, its moved flight goes into the pack's copy, the place its own copy has
+        r = manager.pack(self.store, self.builds, player, dict(projects=[OTHER_ID], mode='additional', name='Moved'))
+        with zipfile.ZipFile(r['zip']) as z:
+            described = json.loads(z.read('pack.json'))
+            (file, intro), = described['introFiles'].items()
+            copy.write_bytes(z.read(f'CookedPCConsole/Moved/{file}'))
+        self.assertEqual(intro['maps'], [OTHER])
+        mine = intro_copy.anchors(intro_copy.lighting.Package(copy), OTHER)
+        theirs = intro_copy.anchors(intro_copy.lighting.Package(own), OTHER)
+        self.assertEqual([(a['location'], a['rotation']) for a in mine], [(a['location'], a['rotation']) for a in theirs])
 
     def test_a_saved_pack_keeps_its_folder_and_number_and_counts_its_versions(self):
         self.package()

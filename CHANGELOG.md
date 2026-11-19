@@ -8,6 +8,30 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A map pack carries one copy of each landing intro for all its maps** (LWR map packs; branch `lwr-map-packs`;
+  [EXP-87](research/experiments/EXP-87-landing-intros-in-a-pack.md), F-142).
+  - [intro_copy.py](tools/bake/intro_copy.py) `pack_copy`: the game's intro with, in each Switch String that has a
+    case for a map's base map, one more case right after it (the map's name, in pack order), whose output link is
+    the base case's; the base's own case stays. Each map's moved or filled flight places (its build's report names
+    the actions, `flight_places` reads their values from the build's own copy) are written in. A map is left out
+    when its base's places would differ from those of a map already in (two maps of one base flying differently),
+    when an action is not in the intro, or when the intro has no case for its base. The copy is read back before it
+    is kept (`check_pack_copy`).
+  - Export map pack ([manager.py](tools/viewer/manager.py) `_shared_intros`): one file per intro the pack's maps
+    stream, `<Intro>_<Folder>_<card number>.upk` (no build's own copy, `<Intro>_<variant>`, can have that name, even
+    when a one-map pack's folder is its project's name), made from the intro of the install the editor reads. It
+    replaces the maps' own copies in the zip, in their file lists (the classic route copies it once, for any of its
+    maps) and in their card and classic lines; pack.json says which maps share it (`introFiles`, `introShared`) and
+    why a map kept its own copy (`introOwn`, no warning: the pack works either way). The READMEs list it once and
+    say whose landing it holds. An intro that picks nothing by map name (the temple ship's `CIN_TP12A_ArriveTempleShip`)
+    has no copy and none is made.
+  - Checked: `test_intro_copy` (two maps of URB_Bar and the farm with its moved place in one copy, the clashing and
+    the caseless map left out, the place read from a build's own copy, an empty pack writes nothing; the alien bases'
+    entrance with three maps of two bases); `test_manager` (two builds of URB_Bar sharing one copy in the zip, the
+    card, the lines and the README; one with a moved landing keeping its own; that one alone with its flight in the
+    pack's copy); the viewer suite. In the game (EXP-87, unattended on LWR 3 beta 15): an exported pack of two bar
+    maps, the farm, an alien base and a temple ship map.
+
 - **EXP-87 and F-142: why each packed map carries an intro copy, and one copy for a whole pack** (LWR map packs;
   branch `lwr-map-packs`; notes only, no tool changed).
   - [EXP-87](research/experiments/EXP-87-landing-intros-in-a-pack.md): read from beta 15's decompiled scripts, the

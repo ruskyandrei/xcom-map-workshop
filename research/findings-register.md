@@ -12,9 +12,6 @@ Statuses:
 
 ## Open now
 
-- F-142 (EXP-87, 19 November): a pack map can't stream the game's own landing intro (no landing, the grounded
-  Skyranger hidden all battle), so each build's 6 MB intro copy goes into the pack; one copy for the whole pack
-  played in the game, but Export map pack doesn't write one yet.
 - T-47 (a new case, EXP-83 run A, 19 November): a soldier whose tile on a map roof broke away under her (the roof
   let break further) stayed at roof height through the aliens' turn, with no log line about her, and went down only
   when ordered to move. On a made floor (EXP-76 run E) the game had put the soldier on the ground at once.
@@ -3000,7 +2997,7 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
 - **Left.** Builds made before keep their names until built again. Play in game's own record is as before.
 
 ### F-142: A pack map that streams the game's own intro gets no landing and loses its grounded Skyranger
-**Open: one intro copy per pack works, not yet written by Export map pack** (19 November 2026,
+**Worked around: a pack carries one copy of each intro for all its maps** (19 November 2026,
 [EXP-87](experiments/EXP-87-landing-intros-in-a-pack.md), LWR 3.00.00 beta 15).
 - **Why a pack carries intros.** The game fires the landing intro with the loaded map file's name, and the intro's
   Switch String nodes pick each map's flight by that exact name (F-45, F-76). Each build therefore has
@@ -3014,9 +3011,14 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
 - **Seen with one copy for a pack.** A copy of the game's intro with each pack map's name added as one more case
   right after its base map's, its output link the base case's: `URB_Bar_X62` and `Pinkbar` (both of URB_Bar) each
   landed as with its own copy (18.2 s), and the farm crash site landed too.
-- **Left.** Export map pack still packs each build's own copy. A pack-wide copy has to carry each map's moved flight
-  (F-97, F-106) and keep a map's own copy where two maps of one base fly differently. Without any copy on LWR 3,
-  LWR's code would have to fall back to the line's `MapFamily` when a map's name has no case.
+- **Now.** Export map pack writes `<Intro>_<Folder>_<card number>.upk` for each intro its maps stream
+  ([intro_copy.py](../tools/bake/intro_copy.py) `pack_copy`, [manager.py](../tools/viewer/manager.py)
+  `_shared_intros`), with each map's moved or filled flight (F-97, F-106) read from its build's own copy; a map whose
+  flight differs from another's of its base keeps its own copy. A pack has one file per kind of intro its maps use
+  (the Skyranger's, the fast rope's, the alien bases' entrance); the temple ship's intro picks nothing by map name
+  and needs none.
+- **Left.** Without any copy on LWR 3, LWR's code would have to fall back to the line's `MapFamily` when a map's name
+  has no case.
 
 ## Toolchain
 

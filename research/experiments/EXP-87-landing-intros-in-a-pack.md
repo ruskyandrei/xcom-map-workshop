@@ -3,7 +3,8 @@
 Date: 19 November 2026. Status: **passed** (LWR map packs; [F-45](../findings-register.md),
 [F-142](../findings-register.md)). A map pack's maps can't stream the game's own intro: a map whose name the intro
 does not know gets no landing, and the grounded Skyranger stays hidden for the whole battle. One intro copy for the
-whole pack works: each map's name added as one more case of its base map's switch.
+whole pack works: each map's name added as one more case of its base map's switch. Export map pack now writes one
+such copy for each kind of intro its maps use (runs E).
 
 Played unattended on the parked LWR 3.00.00 beta 15 lab copy where it stands (`hidden_game.py --game`), with
 `Workshop_test_pack` (`Pinkbar` and `URB_Bar_X62`, both variants of URB_Bar, and `CSmallScout__Farm_ec8f`) and its
@@ -54,12 +55,40 @@ show where it set down. S3 settles that the crash sites' switch takes an added c
 - One copy can serve every map of a pack: a case per map, its output the base map's. Maps of the same base share the
   base's flight, so they can share a copy only when they fly it alike (no landing moved, or moved the same way).
 
-- Not done here: Export map pack still puts each build's own copy in the pack. A pack-wide copy would also have to
-  carry each map's moved flight (the build's report names the actions it moved) and fall back to a map's own copy
-  where two maps of the same base fly differently.
+## Runs E: a pack made by Export map pack
 
-Left in the beta 15 copy (no restore after experiments): `Workshop_test_pack` streams the lab's pack-wide copy; the
-three per-map copies are in `XEW\XComGame\held-intro-copies`, outside `CookedPCConsole`.
+Since these runs Export map pack writes the pack-wide copies itself ([manager.py](../../tools/viewer/manager.py)
+`_shared_intros`, [intro_copy.py](../../tools/bake/intro_copy.py) `pack_copy`). `Intro test pack` was exported on a
+test server from five builds: `Pinkbar` and `URB_Bar_X62` (URB_Bar), the farm (its landing moved), an alien base
+(`AlienBase01_AlienBa_680d`) and a temple ship map (`TempleShip_TempleIm_2001`). It holds two intro files where the
+builds had four copies (16.8 MB for 28.7 MB):
+
+| File | Size | Maps |
+| --- | --- | --- |
+| `CIN_DropshipIntros_Intro_test_pack_6615.upk` | 6.06 MB | `Pinkbar`, `URB_Bar_X62`, the farm (with its moved `SeqAct_SetLocation_58`) |
+| `CIN_TP05A_EnteringAlienBase_Intro_test_pack_6615.upk` | 10.76 MB | the alien base |
+| none | | the temple ship: its records stream the game's `CIN_TP12A_ArriveTempleShip`, which no build copies |
+
+`pack.ps1 install` put it into the beta 15 copy the card way (the earlier test folder taken out first: it held maps
+of the same names). Each map opened with Play in game's commands and the test squad: the bars and the farm without
+aliens, the alien base and the temple ship with them (missions of those kinds may wait for their aliens).
+
+| Run | Intro done after the map is up | Seen |
+| --- | --- | --- |
+| E1 `Pinkbar` | 18.2 s | The Skyranger lands; it stands at the landing after. |
+| E2 `URB_Bar_X62` | 18.1 s | As E1. |
+| E3 the farm | 9.2 s | The crash site's landing, by trees and fire, then the squad at its landing. The intro's streaming point (`SMEDIS`, the flight's rig) is at (-902.6, 7580.5), against (-1881.6, 5021.5) in S3, whose copy did not move the flight: 979 and 2559 units off, exactly the build's move of the flight from (-1265, 4319) to (-286, 6878). |
+| E4 the alien base | 24.1 s | The entrance: the squad comes down the ropes into the base; then the battle starts, the squad at the ropes. (A variant the entrance does not name never starts its battle: F-76.) |
+| E5 the temple ship | 26.1 s | The game's own arrival: the Skyranger's ramp inside the ship, the squad on the walkway, "Temple Content Loading" while `TempleShip_Stream` comes in; then the battle ("End the alien invasion"). |
+
+- One pack file per kind of intro its maps stream: the Skyranger's landings for the bars and the farm, the
+  entrance for the alien base; the temple ship needs none. A pack with a fast-rope map would have a third (the same
+  switches, not played here).
+- A moved flight goes into the pack's copy and is flown (E3).
+
+Left in the beta 15 copy (no restore after experiments): the pack folder `Intro_test_pack`; the lab's pack-wide copy
+of S1-S3 with its three maps is in `<lab>\pack-test\exp87`, the per-map copies of runs N and R in
+`XEW\XComGame\held-intro-copies`, both outside `CookedPCConsole`.
 
 Shots (in `private/shots/EXP-87`): for each run, 3 and 6 s into the intro, 4 s after it, and URB_Bar's landing
 place.
