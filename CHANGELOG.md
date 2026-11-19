@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-85: an exported pack played on LWR 3 beta 15** (LWR map packs, stage C9). Unattended runs, the parked copy
+  where it stands. [EXP-85](research/experiments/EXP-85-map-pack-cards.md):
+  - a pack made by Export map pack (three maps: own picture, Replace, a crashed UFO map) copied in as a player would:
+    every line used, the Replace line in the game's record's place, the landing lines added, the baked light drawn
+    with the caches beside the folder;
+  - a new campaign's first mission on a pack map, won, and the campaign went on;
+  - at the base LWR moved an abduction to a pack map and found the map's own picture in it (`Peek`: Texture2D, map
+    not loaded).
+  - Left: the picture on the Geoscape's mission alert and squad select (Mission Control needs a mouse click), a UFO
+    map's own mission, folder changes between runs. No tool changed.
+
 - **Export map pack makes a drop-in pack for LWR 3, and the editor remembers its packs** (LWR map packs, stages C6
   and C7; branch `lwr-map-packs`).
   - **The zip** ([manager.py](tools/viewer/manager.py) `_pack`), now `<Folder> v<n>.zip`:
