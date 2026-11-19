@@ -8,6 +8,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The Build writes the project's map picture into the map** (LWR map packs plan, stage C5; branch
+  `lwr-map-picture`). [build.py](tools/editor/build.py):
+  - `Build.picture`, the step after the seeds in `Build.package`, in quick and full builds alike: the picture file
+    the project names (kept by [pictures.py](tools/viewer/pictures.py)) is written into the package's map as its
+    `MapPicture` by [map_frame.py](tools/bake/map_frame.py), before the files are hashed. The seeder wants the world
+    data last in the map it reads; the picture is written after it has run, by a writer that appends, so nothing of
+    the seeds moves.
+  - The manifest gets `picture: {sha256, format}` (absent when the map has none) and the stage `picture`; the README
+    names the picture; map_frame.py is among the manifest's tools.
+  - A project that names a picture whose file is not on the computer builds without one: a note (`note:` in the log,
+    the manifest's `pictureNote`, a README line), never a refusal or a warning.
+  - A changed picture is an ordinary rebuild. No picture-only shortcut was built: a build does not record which of
+    its inputs still hold (the install's config, the donors, the tools), so "only the picture changed" can't be told
+    safely from the last package.
+  - Checked: [test_build.py](tools/editor/tests/test_build.py), five tests (with a picture: the stage after the
+    seeds, the map's bytes, the manifest entry and hash, the README, a quick build too; without: none of it; a
+    missing file and a malformed record: the note; a changed picture builds again; the real writer on
+    URB_TruckStop_Stream, skipped without the game). The `editor` and `repo` suites, `viewer -k build`. A real quick
+    build of a scratch project on URB_Bar (one piece deleted, a picture) from the command line into a scratch builds
+    folder: the built map's last export is `MapPicture` with the next net index, read back whole by `native_fields`,
+    its pixels the kept file's.
+  - Not checked: the game showing the picture (no game was started).
+
 - **Map picture…: a picture uploaded, cropped and kept with the project** (LWR map packs plan, stage C4; branch
   `lwr-map-picture`). Nothing builds it into a map yet.
   - [pictures.py](tools/viewer/pictures.py), new: a project's picture is `<projects>\.workshop\<id>\picture.png`, an

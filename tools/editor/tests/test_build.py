@@ -15,6 +15,7 @@ import compiler  # noqa: E402
 RECORDS = HERE.parents[1] / 'patch' / 'tests' / 'defaultmaps-records.txt'
 BASE = b'pristine bar'
 VARIANT, PATCH = 'URB_Bar_Test_1234', 'patch_urb_bar_test_1234'
+PICTURE_PROJECT = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'       # a project with a map picture has a real id (pictures.py)
 INTRO = 'CIN_DropshipIntros_%s' % VARIANT      # the variant's own landing intro (intro_copy.py, F-45)
 # a compiled spec's objects (test_compiler covers the compiler): a copy the Build makes in the map, and a hide
 COPY = dict(type='copy', location=[1, 2, 0], poses=[dict(location=[1, 2, 0], rotation=[0, 16384, 0])],
@@ -295,6 +296,7 @@ class Builds(unittest.TestCase):
         self.project = root / 'project.json'
         self.project.write_text(json.dumps(self.doc), encoding='utf-8')
         self.ran = []
+        self.said = []
         self.relit = 1
         self.failing = None
         self.unchanged_lighting = False
@@ -421,8 +423,31 @@ class Builds(unittest.TestCase):
         import datetime
         now = datetime.datetime(2026, 11, 7, int(stamp[:2]), int(stamp[2:4]), int(stamp[4:]))
         return build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk if udk else None,
-                           patch_work=self.work, now=now, run=self.run_tool, seed=self.seed, echo=lambda *_: None,
-                           quick=quick, named=self.name_copy)
+                           patch_work=self.work, now=now, run=self.run_tool, seed=self.seed, echo=self.said.append,
+                           quick=quick, named=self.name_copy, picture=self.picture_copy)
+
+    def picture_copy(self, src, dst, png):
+        """The map picture's writer (Build._picture), as a stand-in: the map's bytes and the picture file's hash."""
+        self.pictured = getattr(self, 'pictured', []) + [(str(src), str(dst), str(png))]
+        Path(dst).write_bytes(Path(src).read_bytes() + b' +picture ' + hashlib.sha256(Path(png).read_bytes()).hexdigest().encode())
+        return dict(export=7, how='added')
+
+    def with_picture(self, colour=(30, 60, 90), keep=True):
+        """The project given a map picture (pictures.py keeps the file beside it, by the project's id); returns its
+        SHA-256. `keep` False: the project names it and the file is not there."""
+        import io
+        from PIL import Image
+        import pictures
+        out = io.BytesIO()
+        Image.new('RGB', (512, 256), colour).save(out, 'PNG')
+        self.doc['id'] = PICTURE_PROJECT
+        digest = pictures.save_picture(self.project.parent, PICTURE_PROJECT, out.getvalue())['sha256']
+        if not keep:
+            pictures.remove_picture(self.project.parent, PICTURE_PROJECT)
+            (self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.prev.png').unlink()
+        self.doc['picture'] = dict(sha256=digest)
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        return digest
 
     def name_copy(self, src, dst, text):
         """The named copy's growing write (Build.named_base), as a stand-in: the map's bytes and the name added."""
@@ -1054,6 +1079,88 @@ class Builds(unittest.TestCase):
         b = build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk, now=datetime.datetime(2026, 11, 7),
                         run=self.run_tool, seed=self.seed, echo=lambda *_: None)
         self.assertEqual(b.patch_work, self.output / '.work' / 'patchtool')
+
+    def test_a_project_with_a_map_picture_builds_it_into_the_map_last(self):
+        digest = self.with_picture()
+        m = self.make().run()
+        pkg = self.output / VARIANT
+        self.assertEqual(m['picture'], dict(sha256=digest, format='DXT1'))
+        self.assertNotIn('pictureNote', m)
+        # written after the seeds, into the package's map, from the project's kept file
+        self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds', 'picture'])
+        self.assertEqual(m['stages'][-1], dict(m['stages'][-1], written=True, export=7, how='added', sha256=digest, format='DXT1'))
+        built = pkg / 'CookedPCConsole' / ('%s.upk' % VARIANT)
+        self.assertEqual(built.read_bytes(), b'relit map 1 seeded +picture ' + digest.encode())
+        (src, dst, png), = self.pictured
+        self.assertEqual(Path(png), self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.png')
+        self.assertTrue(src.endswith('%s.upk' % VARIANT) and 'package' in src and 'pictured' in dst)
+        self.assertFalse(Path(dst).exists())            # moved into the package
+        # the manifest's hash is the map's with its picture, and the tool is named
+        self.assertEqual(m['files']['CookedPCConsole/%s.upk' % VARIANT], build.sha256(built))
+        self.assertIn('tools/bake/map_frame.py', m['tools'])
+        readme = (pkg / 'README.txt').read_bytes().decode('latin-1')
+        self.assertIn('%s.upk holds the project\'s map picture (MapPicture, 512 x 256, DXT1)' % VARIANT, readme)
+        self.assertEqual(json.loads((pkg / 'manifest.json').read_text(encoding='utf-8'))['picture'], m['picture'])
+        # a quick build has it too
+        q = self.make('111000', quick=True).run()
+        self.assertEqual((q['picture'], q['stages'][-1]['stage']), (dict(sha256=digest, format='DXT1'), 'picture'))
+        self.assertTrue(built.read_bytes().endswith(b' +picture ' + digest.encode()))
+
+    def test_a_project_without_a_map_picture_builds_none(self):
+        m = self.make().run()
+        self.assertNotIn('picture', m)
+        self.assertNotIn('pictureNote', m)
+        self.assertNotIn('picture', [s['stage'] for s in m['stages']])
+        self.assertFalse(getattr(self, 'pictured', None))
+        self.assertNotIn('map picture', (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1'))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+
+    def test_a_picture_whose_file_is_missing_is_a_note_and_the_map_builds_without_it(self):
+        digest = self.with_picture(keep=False)
+        m = self.make().run()
+        self.assertNotIn('picture', m)
+        self.assertIn('not on this computer', m['pictureNote'])
+        self.assertIn(digest[:12], m['pictureNote'])
+        self.assertEqual(m['stages'][-1], dict(m['stages'][-1], stage='picture', written=False))
+        self.assertFalse(getattr(self, 'pictured', None))
+        self.assertTrue(any(line.startswith('note: ') and 'map picture' in line for line in self.said))
+        self.assertFalse(any(line.startswith('warning: ') for line in self.said))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertIn('No map picture: the project names a map picture whose file is not on this computer',
+                      (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1'))
+        # a malformed record is the same: a note, never a refusal
+        self.doc['picture'] = dict(sha256='nope')
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        m = self.make('111000').run()
+        self.assertIn('malformed', m['pictureNote'])
+
+    def test_a_changed_picture_is_an_ordinary_rebuild(self):
+        first = self.with_picture()
+        self.make().run()
+        second = self.with_picture(colour=(200, 10, 10))
+        self.assertNotEqual(first, second)
+        m = self.make('111500').run()
+        self.assertEqual(m['picture']['sha256'], second)
+        self.assertEqual(len(self.tool('native_copy.py')), 2)       # the edit made and lit again, no shortcut
+        self.assertTrue((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes().endswith(second.encode()))
+
+    def test_the_picture_s_own_writer_adds_the_texture_to_a_real_map(self):
+        sys.path.insert(0, str(HERE.parents[1] / 'lab'))
+        sys.path.insert(0, str(HERE.parents[1] / 'bake'))
+        import labpaths
+        import map_frame
+        stream, why = labpaths.test_file('XCOM_TRUCKSTOP_STREAM_UPK', labpaths.lwr_cooked('URB_TruckStop_Stream.upk'),
+                                         'URB_TruckStop_Stream.upk')
+        if not (stream and stream.exists()):
+            self.skipTest(why)
+        self.with_picture()
+        png = self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.png'
+        out = Path(self.tmp.name) / 'pictured.upk'
+        report = build.Build._picture(stream, out, png)
+        self.assertEqual(report['how'], 'added')
+        pixels = map_frame.read_picture(out)
+        self.assertEqual(pixels, map_frame.encode_file(png))
+        self.assertIsNone(map_frame.read_picture(stream))
 
     def test_a_rebuild_replaces_the_package(self):
         self.make('110000').run()
