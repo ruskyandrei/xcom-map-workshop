@@ -148,6 +148,13 @@ class Tris:
     def verts(self, sel):
         return np.unique(self.tris[sel]) if sel.any() else np.zeros(0, np.int64)
 
+    def vertex_areas(self, sel):
+        """Each vertex's share of the area of the triangles `sel`: a third of each one it is a corner of."""
+        w = np.zeros(len(self.pos))
+        for k in range(3):
+            np.add.at(w, self.tris[sel][:, k], self.area[sel] / 3)
+        return w
+
     def commonest_colour(self, sel):
         """The commonest colour (hex) on the vertices of the triangles `sel`, or None."""
         if self.colours is None or not sel.any():
@@ -161,6 +168,30 @@ class Tris:
         t = self.uvlm[self.tris]
         return float(0.5 * np.abs((t[:, 1, 0] - t[:, 0, 0]) * (t[:, 2, 1] - t[:, 0, 1])
                                   - (t[:, 2, 0] - t[:, 0, 0]) * (t[:, 1, 1] - t[:, 0, 1])).sum())
+
+
+def main_colour(colours, weights):
+    """The colour a painted placing mostly draws with, as hex, or None for none (D14; EXP-79 run D2): one value as it
+    is; with several, the values are grouped by the layer of the blend each leans to (each byte that varies taken as
+    under or over 128), the group with the most weight (`weights`, the vertices' areas; ties to the smallest) is the
+    main layer, and the colour is its values' mean by weight. The commonest exact value can be a small part's: on
+    URB_GasStation_EWI's dirt-and-asphalt plane 94 values paint 121 vertices, its edges' 000000ff (asphalt) the
+    commonest, where the values leaning to ffffffff (dirt) hold nearly half the area."""
+    if not colours:
+        return None
+    values = [bytes(c) for c in colours]
+    if len(set(values)) == 1:
+        return values[0].hex()
+    varies = [len({v[k] for v in values}) > 1 for k in range(len(values[0]))]
+    groups = {}
+    for v, w in zip(values, weights):
+        key = bytes((255 if b >= 128 else 0) if varies[k] else b for k, b in enumerate(v))
+        groups.setdefault(key, []).append((v, float(w)))
+    key, members = min(groups.items(), key=lambda kv: (-sum(w for _, w in kv[1]), kv[0]))
+    total = sum(w for _, w in members)
+    if total <= 0:
+        return key.hex()
+    return bytes(int(round(sum(v[k] * w for v, w in members) / total)) for k in range(len(key))).hex()
 
 
 def commonest(colours):

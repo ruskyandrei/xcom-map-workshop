@@ -34,8 +34,8 @@ slope_words() say so.
 A measured recipe (it has `uv`, ground_measure's) gives the top its own planar map (u = a x + b y + c, v = d x + e y +
 f, in the piece's frame, offsets modulo 1: turned, mirrored or of two repeats) and the sides the same repeats (u along
 each side, v down it); its faces go in the donor's slot of its material, among the donor's sections (the others
-empty), and its vertices take its colour (the commonest its donor draws the material with) unless the Build gives
-one."""
+empty), and its vertices take its colour (the one its donor mostly draws the material with,
+measure_common.main_colour) unless the Build gives one."""
 import hashlib
 import json
 import math
@@ -45,6 +45,7 @@ import random
 import frac_slab
 import frac_wall
 import hulls
+import measure_common
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'ground_looks.json'
 SHAPES = ('patch', 'block', 'ramp', 'rock')
@@ -254,14 +255,18 @@ def default_template():
     return t
 
 
-def dominant_colour(colours):
-    """The commonest of `colours` (4 bytes each), or None for none."""
+def dominant_colour(colours, template=None):
+    """The colour `colours` (4 bytes each, one a vertex of `template`'s LOD 0) mostly paint, as 4 bytes, or None for
+    none: measure_common.main_colour, each vertex weighed by its share of the mesh's area (by count without a
+    template)."""
     if not colours:
         return None
-    counts = {}
-    for c in colours:
-        counts[bytes(c)] = counts.get(bytes(c), 0) + 1
-    return max(counts.items(), key=lambda kv: kv[1])[0]
+    weights = [1.0] * len(colours)
+    if template is not None:
+        T = measure_common.Tris(template)
+        if len(T.pos) <= len(colours) and len(T.tris):
+            weights = list(T.vertex_areas(T.slot == T.slot)) + [0.0] * (len(colours) - len(T.pos))
+    return bytes.fromhex(measure_common.main_colour(colours, weights))
 
 
 def build(shape, template=None, colour=None):
@@ -272,7 +277,7 @@ def build(shape, template=None, colour=None):
     R = look_of(shape)
     if not isinstance(shape.get('look'), dict):
         # (a look given whole carries its colour, measured on its donor's placing)
-        colour = colour or dominant_colour((template or {}).get('lods', [{}])[0].get('colours'))
+        colour = colour or dominant_colour((template or {}).get('lods', [{}])[0].get('colours'), template)
     if colour:
         R = dict(R, colours=dict(outside=bytes(colour).hex(), interior=bytes(colour).hex()))
     check(shape)

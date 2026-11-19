@@ -294,6 +294,19 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-136: A painted ground look was made in a small part's layer
+**Verified** (19 November 2026, [EXP-79](experiments/EXP-79-looks.md) re-check; fixed the same day, played in run D3).
+- **Seen.** The made block and patch on URB_GasStation_EWI's dirt-and-asphalt plane were the asphalt grey of the
+  plane's edge, where the plane is mostly dirt brown. (A painted look is made in one colour, D14.)
+- **Why.** The colour was the commonest exact painted value. A painted plane has many: 94 values on this one's 121
+  vertices, and the commonest (000000ff, 14 vertices) is its edges'. Grouped by the layer each leans to, the values
+  leaning to ffffffff hold 47% of its top and 000000ff's 19%.
+- **Fix.** measure_common.main_colour: the values are grouped by the layer each leans to (each byte that varies taken
+  as under or over 128), the group with the most area wins, and the colour is its values' mean by area. The ground
+  catalogue was built again: 64 of its 110 painted looks changed colour, most by a few steps. In run D3 the dirt's
+  block and patch are dirt brown like the plane. The concrete look's colour moved to another layer by these numbers
+  (48% against 39%) and looks exactly as before.
+
 ### F-135: The mouse picks a walkable top outside every building on every storey
 **Explained: the game's own rule** (19 November 2026, [EXP-80](experiments/EXP-80-made-cursor-floors.md) run H).
 - **Seen.** EXP-76's long floor (a made floor 10 by 3 tiles, its top at 194, in no building, the ground under it) is

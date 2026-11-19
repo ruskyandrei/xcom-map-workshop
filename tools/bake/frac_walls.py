@@ -1045,10 +1045,11 @@ def add_walls(g, p, items, grid, bake=True):
             continue
         template = gen_mesh.read(p, donor_mesh)
         if gen['kind'] == 'ground':
-            # (its vertices take the donor's commonest painted colour: the ground's blend materials read them)
+            # (its vertices take the colour the donor's paint mostly gives, by area: the ground's blend materials
+            # read them)
             # (a look given whole carries the colour measured on its donor's placing)
             paint = None if isinstance(gen['ground'].get('look'), dict) else donor_paint(p, comp_old, template)
-            out = ground.build(gen['ground'], template, colour=ground.dominant_colour(paint['colours']) if paint else None)
+            out = ground.build(gen['ground'], template, colour=ground.dominant_colour(paint['colours'], template) if paint else None)
             built.append((item, comp_old, donor_mesh, template, out, ground.mesh_name(gen['ground'])))
             continue
         if gen['kind'] == 'fracSlab':

@@ -1,6 +1,6 @@
 """Ground looks from any donor (ground_measure.py, ground.py; custom geometry plan, M4 work order B step 3): a shape made
 in a measured recipe and measured again gives the recipe back, and the twin check; on the install, today's seven looks'
-donors measure as their looks were written, a painted donor is made in its commonest colour (D14), a masked overlay
+donors measure as their looks were written, a painted donor is made in its main colour (D14), a masked overlay
 is left out (D14), and a donor placed at scale 2 gives the repeat its placing draws, its copy standing at scale 1 in a
 Build."""
 import json
@@ -100,15 +100,37 @@ class TodaysDonors(unittest.TestCase):
         if not seen:
             self.skipTest('no map of the seven looks in the install')
 
-    def test_a_painted_donor_is_made_in_its_commonest_colour(self):
+    def test_a_painted_donor_is_made_in_its_main_colour(self):
         from package import Package
         path, why = labpaths.install_map('URB_Bar')
         if not (path and path.exists()):
             self.skipTest(why)
         entry = ground_measure.measure(Package(path), 'XComLevelActor_131')
         self.assertTrue(entry['facts']['painted'])
-        self.assertEqual(entry['recipe']['colours']['outside'], 'ffffffff')      # (34 of the plane's 121)
-        self.assertTrue(any('painted colours' in w and 'ffffffff' in w for w in entry['warnings']), entry['warnings'])
+        self.assertEqual(entry['recipe']['colours']['outside'], 'ecf4f8f6')
+        self.assertTrue(any('painted colours' in w and 'ecf4f8f6' in w for w in entry['warnings']), entry['warnings'])
+
+    def test_a_painted_blend_is_made_in_the_layer_with_the_most_area(self):
+        # (EXP-79 run D2) URB_GasStation_EWI's dirt-and-asphalt plane: 94 values paint its 121 vertices, its edges'
+        # 000000ff (asphalt) the commonest; the values leaning to ffffffff (dirt) hold nearly half its area, and the
+        # made block showed asphalt where the plane shows dirt. Made in their mean
+        from package import Package
+        path, why = labpaths.install_map('URB_GasStation_EWI')
+        if not (path and path.exists()):
+            self.skipTest(why)
+        entry = ground_measure.measure(Package(path), 'XComLevelActor_10')
+        self.assertEqual(entry['recipe']['colours']['outside'], 'f0c1f0ce')
+
+    def test_the_main_colour_by_area(self):
+        import measure_common as mc
+        one = bytes.fromhex('80402010')
+        self.assertEqual(mc.main_colour([one, one], [1.0, 5.0]), one.hex())
+        self.assertIsNone(mc.main_colour([], []))
+        # the commonest exact value loses to the layer with more area, made in its values' mean by area; a byte that
+        # never varies is kept
+        edge, a, b = bytes.fromhex('000000ff'), bytes.fromhex('f0e0f010'), bytes.fromhex('c0a0d010')
+        self.assertEqual(mc.main_colour([edge, edge, edge, a, b], [1.0, 1.0, 1.0, 2.0, 2.0]), 'd8c0e010')
+        self.assertEqual(mc.main_colour([bytes.fromhex('00000010'), bytes.fromhex('ff000010')], [1.0, 3.0]), 'ff000010')
 
 
 class StaticMeshActorDonor(unittest.TestCase):

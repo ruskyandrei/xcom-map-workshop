@@ -21,8 +21,9 @@ draws, M4b item 5):
                 each side and v down it (ground.py)
   repeat        the u repeat (world units), as today's looks name theirs
   thickness     a patch's: the donor's own height where it is a slab (MIN_PATCH to MAX_PATCH), else DEFAULT_PATCH
-  colours       outside and interior: the commonest colour the placing draws the slot with (its painted colours, else
-                its mesh's colour stream, else white): painted materials are made in it (D14)
+  colours       outside and interior: the colour the placing mostly draws the slot with (its painted colours, else
+                its mesh's colour stream, else white; measure_common.main_colour: by area, each varying byte taken
+                as 0 or 255): painted materials are made in it (D14)
   lightmap      density: texels a unit as the placing's lightmap has it (measure_common.density), at least
                 MIN_DENSITY (a backdrop plane's is coarser than play-area ground's), else DEFAULT_DENSITY; margin 2,
                 interiorDensity 1, block 4 (as today's looks)
@@ -262,12 +263,13 @@ def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name=
     # the colour it draws the slot with: its painted colours, else its mesh's stream, else white
     sel = T.slot == slot
     verts = T.verts(sel)
+    weights = T.vertex_areas(sel)[verts]
     painted_rule = (light or {}).get('painted')
     if colours and len(colours) >= len(T.pos):
-        colour = mc.commonest([colours[v] for v in verts])
+        colour = mc.main_colour([colours[v] for v in verts], weights)
         values = {bytes(colours[v]) for v in verts}
     elif T.colours:
-        colour = mc.commonest([T.colours[v] for v in verts])
+        colour = mc.main_colour([T.colours[v] for v in verts], weights)
         values = {T.colours[v] for v in verts}
     else:
         colour, values = None, set()
@@ -276,7 +278,7 @@ def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name=
     signs = paint_signs(record or {}, name, painted_rule, stream_varies)
     painted = bool(signs) or len(values) > 1
     if signs:
-        warnings.append('its material blends layers by painted colours (%s): made in its commonest colour (%s), so it '
+        warnings.append('its material blends layers by painted colours (%s): made in its main colour (%s), so it '
                         'shows one layer' % ('; '.join(signs), colour))
     thickness = size[2] if MIN_PATCH <= size[2] <= MAX_PATCH else DEFAULT_PATCH
     rect = (light or {}).get('rect')

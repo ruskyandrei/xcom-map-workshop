@@ -831,12 +831,12 @@ class GroundShapes(unittest.TestCase):
             self.assertIs(q.effective(comp, 'CollideActors', None), True)
             self.assertIs(q.effective(comp, 'BlockRigidBody', None), True)
 
-    def test_its_vertices_take_the_donors_commonest_painted_colour(self):
+    def test_its_vertices_take_the_donors_main_painted_colour(self):
         import gen_mesh
         q = self.q
         mesh = q.own(q.own(self.sec['Block'], 'StaticMeshComponent'), 'StaticMesh')
         colours = {bytes(c) for c in gen_mesh.read(q, mesh)['lods'][0]['colours']}
-        self.assertEqual(colours, {bytes.fromhex('ffffffff')})      # the asphalt's commonest painted colour (34 of 121)
+        self.assertEqual(colours, {bytes.fromhex('ecf4f8f6')})      # the asphalt's main painted colour (ground_measure's too)
 
 
 class StagedDoorInMadeWall(unittest.TestCase):

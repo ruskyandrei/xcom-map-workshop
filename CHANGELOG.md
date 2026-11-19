@@ -27,6 +27,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A painted ground look is made in the layer of its blend with the most area, not the commonest exact vertex
+  colour** (custom geometry plan, M4/M6, D14; F-136; branch `fracturing-wall-poc`). The EXP-79 re-check drew the
+  painted dirt's block and patch in the asphalt grey of URB_GasStation_EWI's plane edge, where the plane is mostly dirt
+  brown. 94 values paint the plane's 121 vertices, and the commonest (000000ff, 14 vertices) is the edges'.
+  - [measure_common.py](tools/bake/measure_common.py): `Tris.vertex_areas` and `main_colour`. The values are grouped
+    by the layer each leans to (each byte that varies taken as under or over 128); the group with the most area wins,
+    and the colour is its values' mean by area. One value is kept as it is.
+  - Callers:
+    - [ground_measure.py](tools/bake/ground_measure.py) measures the catalogue's looks with it;
+    - [ground.py](tools/bake/ground.py) `dominant_colour` (a donor measured in the Build) uses it with the
+      template's areas;
+    - [frac_walls.py](tools/bake/frac_walls.py) passes the template.
+  - [ground.json](tools/bake/looks/ground.json) built again: 64 of its 110 painted looks changed colour, most by a few
+    steps; the twin check is ok for all 193.
+  - Tests ([test_ground_measure.py](tools/bake/tests/test_ground_measure.py)):
+    - `main_colour` on its own;
+    - the gas station's plane made in f0c1f0ce;
+    - URB_Bar's asphalt made in ecf4f8f6 (was ffffffff), and the Build's block in test_frac_walls the same.
+  - Checked: the bake ground tests, GroundShapes and the ground measure tests; the editor, node and viewer suites.
+    EXP-79's floors map was built again and played (run D3): the dirt's block and patch are now dirt brown like the
+    plane. The concrete look's colour moved to another layer by these numbers (48% of its area against 39%), and it
+    looks exactly as before.
+
 - **EXP-80 runs G and H played: made floors' own cursor floors work in a building; out of buildings the game's mouse
   takes a walkable top on every storey, and the compiler warns of it (`slab-outdoors`)** (custom geometry plan,
   M5b; F-128, F-135; branch `fracturing-wall-poc`).

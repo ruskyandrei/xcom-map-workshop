@@ -193,10 +193,19 @@ Played on `EXP79FloorsAndGround` built again with F-132, F-133 and F-134's fixes
 - **Load: passed.**
 - **The ground, lit: passed.** Nothing is drawn black. The asphalt, grass, snow, concrete, sidewalk and sandstone
   blocks and patches stand in their donors' look. The painted dirt's block and patch are lit, but in the blue-grey of
-  the plane's edge where the plane is mostly dirt brown. The red stone's block is lit in its donor's stone; its
+  the plane's edge where the plane is mostly dirt brown (F-136). The red stone's block is lit in its donor's stone; its
   patch was seen in neither view (nor in run D).
 - **Standing: passed.** The cursor reads the grass block's top (132), and a soldier walked onto it from beside it and
   stands on it at 135. A soldier beside the asphalt block was sent onto it and stands on it at 135.
 - **The thick roof: passed.** The made subway roof shows the donor's grey tread and dark middle stripe across its
   whole top; the white side panels are gone.
 - [F-132](../findings-register.md), [F-133](../findings-register.md) and [F-134](../findings-register.md) are verified.
+
+### Run D3: the painted colour, and the red stone's patch (19 November 2026)
+
+Played on `EXP79FloorsAndGround` built again with F-136's fix. Pictures are in `<lab>\hidden-runs\exp79-runD3-colours`.
+
+- **The painted dirt: passed.** Its block and patch are dirt brown like the plane (their mean colour in the picture
+  103, 85, 53 against the plane's 102, 82, 53; run D2's 62, 67, 69). [F-136](../findings-register.md) is verified.
+- **The concrete: as before.** Its colour moved to another layer by the new rule, and its block and patch look exactly
+  as in run D2, plain grey like the plane.
