@@ -60,6 +60,9 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
 - Only the lab copy: the folder Steam runs must hold `XComLab-copy.txt` (`tools/lab/switch_install.ps1 lab`). The tool
   refuses anything else. Steam must be running; the game must not be (ask the user before closing a game they have
   open).
+- A third copy, `XCom-Enemy-Unknown.LWR3` (LWR v3.00.00 beta 15; its marker has `copy=lwr3`), is for checks on the
+  LWR v3 beta. It is switched in with `switch_install.ps1 lwr3` only when the user asks; `hidden_game.py --game`
+  can name it parked.
 - DXVK unpacked at `<lab>\dxvk\<version>\x32\d3d9.dll`. The tool puts the DLL beside the game for the run and takes
   it out after, and puts back every config file the run changed.
 - The map must be in the lab copy: a game map as it is, or the project's map staged there the way its experiment

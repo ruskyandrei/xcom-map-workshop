@@ -6,6 +6,25 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 19 November 2026
+
+- **A third game copy for LWR v3.00.00 beta 15, and `switch_install.ps1` knows it.** The lab copy (LWR 2.x) stays the
+  active install; the new copy is parked beside it as `<Steam common>\XCom-Enemy-Unknown.LWR3`, made from a copy of
+  the live LWR install with beta 15's `Config`, `CookedPCConsole`, `Localization` and `Movies` laid over its
+  `XEW\XComGame` (beta 15 only adds files to LWR 2.x's set, so nothing was left over). It has the console
+  `Engine.upk` (the zip's `.renamethistoenableconsole` one, as the lab copy has), the lab copy's game-written
+  `XComEngine.ini` (2560x1440 borderless; the same `DefaultEngine.ini`, so the game keeps it) and the marker
+  `XComLab-copy.txt` with `copy=lwr3` and `args=-forcelogflush`, so the wrapper runs it with `-nohomedir` and its
+  settings and saves stay inside it. A manifest of it as made is `<lab>\snapshots\runtime-lwr3-beta15-2026-11-19.sha256`.
+  - [switch_install.ps1](tools/lab/switch_install.ps1): a third target, `lwr3`; a folder's kind comes from its
+    marker's `copy=` line (none: the lab copy), and the active folder is parked under its own kind's name.
+  - [game-test skill](.claude/skills/game-test/SKILL.md): names the third copy.
+  - Checked: the copy matched the LWR baseline before beta 15 went in (bar the stand-in launcher), and every beta 15
+    file is in it byte for byte (Engine.upk being the console one); the editor's settings still take
+    `XCom-Enemy-Unknown.LWR` as the game install. `switch_install.ps1` was run through every switch on three fake
+    folders in a scratch folder (lab, lwr3, lwr back and forth, already active, a mislabelled folder refused); on the
+    real folders only `status` was run. The game was not started on the copy and it was not switched in.
+
 ## 18 November 2026
 
 - **Made floors' and roofs' cursor floors break 2 under the slab's underside, not at its top** (custom geometry
