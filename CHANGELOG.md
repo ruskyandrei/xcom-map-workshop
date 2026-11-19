@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-87 and F-142: why each packed map carries an intro copy, and one copy for a whole pack** (LWR map packs;
+  branch `lwr-map-packs`; notes only, no tool changed).
+  - [EXP-87](research/experiments/EXP-87-landing-intros-in-a-pack.md): read from beta 15's decompiled scripts, the
+    landing intro still picks each map's flight by the loaded file's name; played unattended on the beta 15 copy, a
+    pack map streaming the game's own intro got no landing and no grounded Skyranger, and a lab-made copy holding
+    three pack maps' cases (each after its base map's, with the base's output) landed all three.
+  - [Findings register](research/findings-register.md): F-142, open (Export map pack still packs a copy per map).
+  - Checked: the `repo` suite.
+
 - **A map pack's maps hold their baked lighting inside them: no .tfc beside the folder** (LWR map packs; branch
   `lwr-map-packs`; [EXP-86](research/experiments/EXP-86-lighting-inside-the-map.md), F-140).
   - New [inline_lighting.py](tools/bake/inline_lighting.py): a copy of a built map in which every texture naming the

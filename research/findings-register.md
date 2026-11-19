@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-142 (EXP-87, 19 November): a pack map can't stream the game's own landing intro (no landing, the grounded
+  Skyranger hidden all battle), so each build's 6 MB intro copy goes into the pack; one copy for the whole pack
+  played in the game, but Export map pack doesn't write one yet.
 - T-47 (a new case, EXP-83 run A, 19 November): a soldier whose tile on a map roof broke away under her (the roof
   let break further) stayed at roof height through the aliens' turn, with no log line about her, and went down only
   when ordered to move. On a made floor (EXP-76 run E) the game had put the soldier on the ground at once.
@@ -2995,6 +2998,25 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   An added UFO mission says its ship after the template's words in the words LWR reads (`Crashed Abductor UFO`). Two
   records that would get one name: the later says its mission too.
 - **Left.** Builds made before keep their names until built again. Play in game's own record is as before.
+
+### F-142: A pack map that streams the game's own intro gets no landing and loses its grounded Skyranger
+**Open: one intro copy per pack works, not yet written by Export map pack** (19 November 2026,
+[EXP-87](experiments/EXP-87-landing-intros-in-a-pack.md), LWR 3.00.00 beta 15).
+- **Why a pack carries intros.** The game fires the landing intro with the loaded map file's name, and the intro's
+  Switch String nodes pick each map's flight by that exact name (F-45, F-76). Each build therefore has
+  `<Intro>_<Map>.upk`, the whole intro (about 6 MB; 10.7 MB for an alien base) with the base map's case renamed.
+  Beta 15 changes none of that: its mod code leaves the intro's cases alone and reads a card line's `MapFamily` for
+  nothing of the intro.
+- **Seen without a copy.** `URB_Bar_X62` streaming the game's `CIN_DropshipIntros`: the intro ends 0.9 s after the
+  map is up, with no landing, and the grounded Skyranger is not drawn for the whole battle, only its baked shadow.
+  URB_Bar's Kismet hides it for the intro and shows it when the intro finishes, and an unknown name falls through to
+  `CIN_DS_Stop`, which never says so. (An alien base never starts its battle at all: F-76.)
+- **Seen with one copy for a pack.** A copy of the game's intro with each pack map's name added as one more case
+  right after its base map's, its output link the base case's: `URB_Bar_X62` and `Pinkbar` (both of URB_Bar) each
+  landed as with its own copy (18.2 s), and the farm crash site landed too.
+- **Left.** Export map pack still packs each build's own copy. A pack-wide copy has to carry each map's moved flight
+  (F-97, F-106) and keep a map's own copy where two maps of one base fly differently. Without any copy on LWR 3,
+  LWR's code would have to fall back to the line's `MapFamily` when a map's name has no case.
 
 ## Toolchain
 
