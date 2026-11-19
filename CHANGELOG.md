@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A lab script for the map pack game test** (LWR map packs, stage C2b; branch `lwr-map-packs`).
+  [pack_test.py](tools/lab/pack_test.py):
+  - `put` copies a pack's folder into a lab copy's `CookedPCConsole`, as a player would, after noting what the copy's
+    `Config` and `CookedPCConsole` hold; `take` deletes it and says whether the copy is as it was;
+  - `first-mission <map>` writes a card numbered 9999 that gives the first mission's display name to a pack map, so a
+    new campaign starts on it (a lab tool; `--off` takes it away);
+  - `read` sorts a Launch.log's map pack lines (cards found, lines skipped, mission starts, pictures, landing lines)
+    and, given the pack's card, says per map whether it was found and used.
+  - Only folders with the lab copy's marker are written to.
+  - Checked: [test_pack_test.py](tools/lab/tests/test_pack_test.py) (19 tests) on a made-up game folder and a made-up
+    log whose lines follow beta 15's script. `CookedPCConsole` is noted by size and time unless `--hash` is given
+    (hashing it takes minutes).
+
 - **Map pack cards: a writer and a reader** (LWR map packs, stage C2; branch `lwr-map-packs`). LWR 3.00.00 beta 15
   reads map packs from card files, `LWRMapPack_0000.upk` to `LWRMapPack_9999.upk`, found in any folder under
   `CookedPCConsole`. [pack_card.py](tools/upk/pack_card.py) writes one from map, picture and landing lines and reads
