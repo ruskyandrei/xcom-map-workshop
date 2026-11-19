@@ -966,7 +966,7 @@ def check_groups(page):
         page.locator('#groupBreak').check()
         assert page.evaluate(groups)[0]['breakTogether']
     else:
-        assert page.locator('#groupBreak').is_disabled() and page.locator('#groupNote').is_visible()
+        assert page.locator('#groupBreak').is_disabled() and page.locator('#groupNote').text_content().startswith('Breaking together needs')
     # A copied group pastes as a new group of the copies, with the same lock and options; undo takes both away.
     page.keyboard.press('Control+c')
     box = page.locator('#viewport > canvas').bounding_box()
@@ -2299,7 +2299,7 @@ def check_effect_values(browser, url):
     row('Chunk_Color').locator('input[type=color]').evaluate("e => { e.value = '#ff0000'; e.dispatchEvent(new Event('change')); }")
     page.wait_for_function("id => viewer.effectState(id).values?.parameters?.Chunk_Color?.[0] === 1", arg=fx)
     assert 'edited' in row('Chunk_Brightness').get_attribute('class')
-    assert 'Starts off (as set here)' in page.locator('#effectInfo').inner_text()
+    assert 'Starts off (as set here)' in page.locator('#effectInfo').text_content()
     # the size handle: dragged out, the box and the panel follow; one undo step puts it back
     page.evaluate('document.activeElement?.blur()')
     page.keyboard.press('f')
@@ -3518,7 +3518,7 @@ def check_flares(page):
     page.evaluate('id => viewer.pickEffect(id)', fx)
     assert page.evaluate('viewer.pickedEffect()') == fx
     assert page.locator('#effectTitle').text_content() == 'Lens flare: ' + flare['template'].split('.')[-1]
-    assert 'Shows ' + flare['template'] in page.locator('#effectInfo').inner_text()
+    assert 'Shows ' + flare['template'] in page.locator('#effectInfo').text_content()
     assert page.locator('#effectValues').is_hidden() and page.locator('#effectWaves').is_hidden()
     blur()
     done = lambda: (page.evaluate('s => { viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false); viewer.gizmo.setSnap(s); }', snap),
@@ -3527,10 +3527,10 @@ def check_flares(page):
         assert not page.evaluate('viewer.families().families.flare.builds')
         page.keyboard.press('Delete')
         assert not state(fx)['deleted'] and 'lens flares are shown, not changed' in page.locator('#dragHint').inner_text()
-        assert 'The gizmo' not in page.locator('#effectInfo').inner_text()
+        assert 'The gizmo' not in page.locator('#effectInfo').text_content()
         done(); return
     assert page.evaluate('viewer.families().families.flare.builds')
-    assert 'The gizmo moves and turns it, Ctrl+C and Ctrl+V copy it, Delete deletes it' in page.locator('#effectInfo').inner_text()
+    assert 'The gizmo moves and turns it, Ctrl+C and Ctrl+V copy it, Delete deletes it' in page.locator('#effectInfo').text_content()
     depth = page.evaluate('viewer.gizmo.undoDepth()')
     # a move: an override with a pose and nothing else; undone
     start = state(fx)['at']
@@ -3539,7 +3539,7 @@ def check_flares(page):
     assert moved['moved'] and abs(moved['at'][0] - start[0] - 96) < 0.01, (start, moved)
     override, = page.evaluate('a => viewer.editState().overrides.filter(o => o.target.actor === a)', flare['actor'])
     assert sorted(override) == ['location', 'rotation', 'target'], override
-    assert page.locator('#effectInfo').inner_text().startswith('Moved')
+    assert page.locator('#effectInfo').text_content().startswith('Moved')
     blur(); page.keyboard.press('Control+z')
     assert not state(fx)['moved'] and state(fx)['at'] == start
     # Delete, undone
@@ -3567,7 +3567,7 @@ def check_flares(page):
     assert sorted(added) == ['actor', 'from', 'id', 'kind', 'location', 'rotation'] and added['kind'] == 'flare', added
     assert added['from']['actor'] == flare['actor'] and added['actor'].startswith(flare['actor'] + '_copy')
     assert page.locator('#effectTitle').text_content().startswith('Lens flare: ')
-    assert page.locator('#effectInfo').inner_text().startswith('A copy of ' + flare['actor'].split('.')[-1])
+    assert page.locator('#effectInfo').text_content().startswith('A copy of ' + flare['actor'].split('.')[-1])
     assert page.locator('#effectValues').is_hidden()
     # a prefab of the copy and its original holds two flare pieces, each where it stands
     page.evaluate('([a, b]) => { viewer.pickEffect(a); viewer.pickEffect(b, true); }', [fx, copy])

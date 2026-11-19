@@ -356,6 +356,16 @@ async function copyText(button, value) {
   setTimeout(() => { button.textContent = label; }, 1500);
 }
 // Settings kept per browser (stats line, source details open). Storage can be missing or blocked.
+// a panel section's text with its how-to notes shown (the test hooks read it)
+function sectionText(id) {
+  const box = $(id);
+  if (box.hidden) return null;
+  const had = box.classList.contains('showhow');
+  box.classList.add('showhow');
+  const words = box.innerText;
+  box.classList.toggle('showhow', had);
+  return words;
+}
 const recall = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const remember = (key, value) => { try { localStorage.setItem(key, value); } catch { /* not kept */ } };
 // The selection's group as a chip beside its name; groupPanel keeps it up to date.
@@ -592,8 +602,10 @@ function flagsPanel() {
     if (why) blocked.set(why, (blocked.get(why) ?? 0) + 1); else usable.push(t);
   }
   const views = new Map(usable.map(t => [t.key, flagView(t)]));
-  const rows = $('flagsRows');
+  const rows = $('flagsRows'), whyLine = $('flagsWhy');
   rows.replaceChildren();
+  const showWhy = label => { whyLine.textContent = label?.dataset.why ? `${label.dataset.name}: ${label.dataset.why}` : whyLine.dataset.rest; };
+  rows.onmouseleave = () => showWhy(null);
   // a limit that holds for several rows of one piece (a prop's gate) is said once, under the rows
   const one = usable.length === 1 ? views.get(usable[0].key) : null, seen = new Map();
   for (const role of FLAG_ROLES) for (const k of one?.roles[role].limits ?? []) seen.set(k, (seen.get(k) ?? 0) + 1);
@@ -608,7 +620,7 @@ function flagsPanel() {
     label.append(input);
     const name = text(label, 'span', c?.labels[role] ?? role, 'flagname');
     const state = text(name, 'span', '', 'flagstate');
-    const why = text(label, 'span', '', 'flagwhy');
+    const why = { textContent: '' };
     const same = states.length > 0 && states.every(x => x === states[0]);
     input.checked = states.length > 0 && states.every(x => x === 'on');
     input.indeterminate = states.length > 0 && (!same || states.some(x => x === 'partial' || x === 'unknown'));
@@ -627,9 +639,24 @@ function flagsPanel() {
     }
     input.title = `${c?.labels[role] ?? role}: click to turn it ${states.length && states.every(x => x === 'on') ? 'off' : 'on'} for ${eligible.length === 1 ? 'this piece' : `these ${eligible.length} pieces`}`;
     input.onchange = () => flagClick(role);
+    // what limits the row, or why it is greyed: said in the one line under the rows while the pointer or the focus is on it
+    label.dataset.name = c?.labels[role] ?? role;
+    label.dataset.why = why.textContent;
+    if (why.textContent) {
+      label.classList.add('haswhy');
+      label.title = why.textContent;
+      label.insertAdjacentHTML('beforeend', '<svg class="i whymark" aria-hidden="true"><use href="#i-info"/></svg>');
+    }
+    label.onmouseenter = () => showWhy(label);
+    input.onfocus = () => showWhy(label);
     rows.append(label);
   }
-  $('flagsCount').textContent = all.length > 1 ? plural(usable.length, 'piece') : '';
+  whyLine.dataset.rest = rows.querySelector('.haswhy') ? 'Point at a marked flag for what limits it.' : '';
+  showWhy(null);
+  const changedRoles = rows.querySelectorAll('.changed').length;
+  $('flagsCount').textContent = [changedRoles ? `${changedRoles} changed` : usable.length ? 'as the map has them' : 'not available',
+    all.length > 1 ? plural(usable.length, 'piece') : ''].filter(Boolean).join(' · ');
+  $('flagsCount').classList.toggle('changed', changedRoles > 0);
   const lines = [...shared.map(k => c.limits[k]), ...[...blocked].map(([why, n]) => `${all.length > 1 ? `${plural(n, 'piece')}: ` : ''}${why}`)];
   if (usable.some(t => t.roots.length > 1)) lines.push('a piece of several parts (a mesh and its glass) has one setting for all of them');
   const targeted = new Set(all.flatMap(t => t.roots));
@@ -686,6 +713,7 @@ function askFlags(targets, change, resolve, conflicts) {
   cancel.type = 'button';
   cancel.onclick = () => { closeFlagAsk(); flagsPanel(); };
   box.hidden = false;
+  $('flagsBox').open = true;
   row.querySelector('button')?.focus();
 }
 // The actors' new requests (null: none) as one undo step; nothing when none changes.
@@ -764,20 +792,22 @@ function kindButton() {
   const button = $('editKind'), seeds = data ? kindSeeds() : new Map();
   // the effect panel's own button (a picked effect's or sound's panel stands in the piece panel's place)
   const twin = $('effectKind'), mirror = () => { twin.hidden = !seeds.size || ![...seeds.keys()].some(k => /^(system|waves|flare):/.test(k));
-    twin.textContent = button.textContent; twin.title = button.title; twin.disabled = button.disabled; };
+    twin.textContent = kindText; twin.title = button.title; twin.disabled = button.disabled; };
+  let kindText = 'Select all';
   if (!seeds.size) {
     mirror();
-    button.disabled = true; button.textContent = 'Select all';
+    button.disabled = true; $('editKindCount').textContent = '';
     button.title = 'Select every piece with the same mesh as the one selected, or every effect of the same particle system, every sound of the same wave, every lens flare of the same template (a light, a cover block, a hidden or streamed piece has none to match)';
     return;
   }
   const found = kindMatches(seeds), picked = new Set(gizmo.picks().ids);
   const what = seeds.size === 1 ? [...seeds.values()][0] : `of these ${seeds.size} kinds`;
-  button.textContent = `Select all ${what}${found.box ? ' in box' : ''} (${found.actors})`;
+  kindText = `Select all${found.box ? ' in box' : ''} (${found.actors})`;
+  $('editKindCount').textContent = String(found.actors);
   button.disabled = !found.roots.length || (found.roots.every(r => picked.has(r.userData.source.id)) && found.roots.length === picked.size);
   button.title = found.effects && found.effects === found.roots.length
-    ? `Select every drawn effect of the same particle system, every sound of the same wave and every lens flare of the same template ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
-    : `Select every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
+    ? `Select all ${what}: every drawn effect of the same particle system, every sound of the same wave and every lens flare of the same template ${found.box ? 'inside the box' : 'in the map'}: ${kindCount(found)} (${[...seeds.values()].join(', ')}). Shift+click adds them to the selection.`
+    : `Select all ${what}: every drawn piece ${seeds.size === 1 ? 'with this mesh' : 'with one of these meshes'} ${found.box ? 'whose middle is inside the box' : 'in the map'}: `
     + `${plural(found.actors, 'piece')} (${[...seeds.keys()].join(', ')}). Shift+click adds them to the selection. Hidden, deleted and streamed pieces `
     + 'are left out. The Flags group then sets them all; moving, copying and deleting still take each one\'s linked pieces with it.';
   mirror();
@@ -965,6 +995,9 @@ function editChangedNow() {
     const at = pickedRoot.userData.light ? lightPose(pickedRoot) : pickedSource;
     [...at.location, ...at.rotation.map(r => r * 360 / 65536)].forEach((v, i) => { poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2); });
   }
+  { const n = i => Math.round(Number(poseInputs[i].value) || 0);
+    $('poseSum').textContent = `${n(0)}, ${n(1)}, ${n(2)} · ${n(4)}°`;
+    $('sourceSum').textContent = pickedSource?.actorClass ?? ''; }
   poseInputs.forEach((input, i) => { input.disabled = fixedPick || (i >= 3 && pickedRoot?.userData.light && pickedSource.kind === 'point'); });
   $('editDelete').disabled = fixedPick;
   // (in the builder every piece is the prefab's own, so only whether it is saved is said)
@@ -2931,6 +2964,7 @@ function selectionGroup() {
   return { kind: units.size >= 2 ? 'new' : null, count: units.size, groups: [...units].filter(u => u.startsWith('group|')).length };
 }
 // The group section of the piece panel, the group chip and the colour of the selection box (gold for a group).
+const BREAK_TOGETHER_TITLE = $('groupBreakRow').title;
 function groupPanel() {
   const box = $('groupBox'), { kind, group: g, count, groups: wholeGroups } = selectionGroup();
   box.hidden = !kind;
@@ -2969,6 +3003,8 @@ function groupPanel() {
   const note = $('groupNote');
   const own = ownKeys(g).length, stay = own - breakable - blocks - (can ? walls : 0);
   note.hidden = !(!can || (g.breakTogether && (stay > 0 || blocks || walls || inner)));
+  note.classList.toggle('how', !can);
+  $('groupBreakRow').title = !can ? 'Needs two breakable pieces (props) of the group\'s own, or one and a cover block or a made wall' : BREAK_TOGETHER_TITLE;
   note.textContent = !can
     ? `Breaking together needs two breakable pieces (props) of the group's own, or one and a cover block or a made wall: this group has ${breakable}${blocks ? ` and ${plural(blocks, 'cover block')}` : ''}${walls ? ` and ${plural(walls, 'made wall')}` : ''}. The map's walls and scenery move with a group but don't break with it${inner ? ', and the groups inside it have the option for themselves' : ''}.`
     : [walls ? `Its props and cover blocks go when the part of ${walls === 1 ? 'its made wall' : 'a made wall of it'} they stand by breaks.` : '',
@@ -7236,7 +7272,9 @@ function spawnPanel() {
   $('spawnEdit').hidden = true;
   const info = $('spawnInfo');
   info.replaceChildren();
-  const line = (head, value) => { const p = document.createElement('p'); if (head) text(p, 'strong', `${head}: `); p.append(value); info.append(p); };
+  const line = (head, value) => { const p = document.createElement('p'); if (head) text(p, 'strong', `${head}: `); p.append(value); info.append(p); return p; };
+  // (the About fold's one line: the first thing said of it)
+  queueMicrotask(() => { $('spawnAboutSum').textContent = $('spawnAboutSum').title = info.firstElementChild?.textContent ?? ''; });
   if (k >= 0) {
     const z = zones.zones[k], ewSlot = zones.slots.has(k);
     $('spawnTitle').textContent = `Landing zone ${k + 1} of ${zones.zones.length}`;
@@ -7298,10 +7336,10 @@ function spawnPanel() {
     const using = streamMissions(e.stream);
     if (using.length > 1) line('', `The Build moves it for every mission of the variant that streams ${e.stream}: ${using.join(', ')}.`);
   }
-  if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`);
+  if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`).className = 'how';
   if (['base', 'copy'].includes(e.layer) && projectsAvailable() && spawnMovable(e)) {
     const below = [TURNED_KINDS.includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && (volume ? 'set what it keeps out' : 'set its values')].filter(Boolean);
-    line('', `Drag the arrows to move it by whole tiles and levels${volume ? ', its white handles to stretch a side to the tile lines and levels (Alt: steps of 8)' : ''}${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`);
+    line('', `Drag the arrows to move it by whole tiles and levels${volume ? ', its white handles to stretch a side to the tile lines and levels (Alt: steps of 8)' : ''}${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`).className = 'how';
     spawnEditControls(e, baseEdit);
   } else if (spawnDeleted(e) && projectsAvailable()) spawnEditControls(e, baseEdit);
 }
@@ -8045,6 +8083,8 @@ function effectPanel() {
     else if (named.length) lines.push(`Drawn here without ${named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0]}.`);
   }
   setParagraphs($('effectInfo'), lines.join('\n'));
+  $('effectAboutSum').textContent = lines[0] ?? '';      // (the fold's one line: what was done to it, else what it is)
+  $('effectAboutSum').title = lines[0] ?? '';
   // a sound's waves, each with its Play button
   const waves = r.kind === 'sound' ? [...new Set(r.waves ?? [])] : [], box = $('effectWaves');
   box.replaceChildren();
@@ -10422,6 +10462,7 @@ function wallPanel(root) {
   const lookName = look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers');
   $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
   lookRow('wall', g, lookName, tool);
+  $('wallState').textContent = tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
   $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top adds or takes storeys.${wallPiecesWords(w)}`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
   root.userData.joinsShown = root.userData.joins?.joins ?? [];
@@ -10440,7 +10481,10 @@ function wallPanel(root) {
     const warn = !play.tiles || (play.walk ? play.cover !== 'none' || !door : play.cover === 'none' || !play.sight);
     row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p, w) }),
                Object.assign(document.createElement('small'), { textContent: words, className: warn ? 'warn' : '' }));
-    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Remove', title: 'Take this gap out of the wall' });
+    row.title = words;
+    if (warn) row.insertAdjacentHTML('beforeend', '<svg class="i warnmark" role="img" aria-label="Plays oddly"><use href="#i-warn"/></svg>');
+    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: '\u00d7', title: 'Remove: take this gap out of the wall' });
+    remove.setAttribute('aria-label', 'Remove this gap');
     remove.disabled = !tool;
     remove.onclick = () => { wallFocus = null; changeWall(s => ({ ...s, generated: { ...s.generated, wall: withoutOpening(s.generated.wall, index) } })); };
     row.append(remove);
@@ -10674,6 +10718,7 @@ function slabPanel(root) {
   const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
     ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
   breakRow('slab', o.added.generated, o.keepsPieces);
+  $('slabState').textContent = tool ? slabWords(s) : 'Made elsewhere: no handles here';
   $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
@@ -10683,7 +10728,9 @@ function slabPanel(root) {
     row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
     row.append(Object.assign(document.createElement('strong'), { textContent: holeWords(h) }),
                Object.assign(document.createElement('small'), { textContent: 'Open: units fall through it only as the game lets them (they don\'t); a ladder or stairs of the game\'s go in it' }));
-    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Remove', title: 'Fill this hole' });
+    row.title = row.querySelector('small').textContent;
+    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: '\u00d7', title: 'Remove: fill this hole' });
+    remove.setAttribute('aria-label', 'Remove this hole');
     remove.disabled = !tool;
     remove.onclick = () => { wallFocus = null; changeWall(st => ({ ...st, generated: { ...st.generated, slab: withoutHole(st.generated.slab, index) } })); };
     row.append(remove);
@@ -10713,6 +10760,7 @@ function groundPanel(root) {
   const plain = isPlain(o.added.generated);
   $('groundHead').textContent = `Ground · ${plain ? 'plain' : look?.name ?? 'made from numbers'}`;
   lookRow('ground', o.added.generated, look?.name ?? 'made from numbers', tool);
+  $('groundState').textContent = tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
   $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const words = slopeWords(g);
@@ -10848,6 +10896,7 @@ function roomPanel() {
   const w = room.walls[0].userData.source.added.generated.wall, names = new Set(room.walls.map(madeLookName));
   const tool = room.walls.every(r => toolWall(r.userData.source.added.generated.wall));
   $('roomHead').textContent = `Room · ${tiles[0]} by ${tiles[1]} tiles`;
+  $('roomState').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''} · picked as one`;
   $('roomSize').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''}. Picked as one: it moves, turns and copies whole. Ungroup it to edit its walls one by one: their gaps, doors and own looks.`;
   const wallWord = names.size > 1 ? 'Walls: mixed looks' : names.has(null) ? 'Walls: no look chosen' : `Walls: ${[...names][0]}`;
   $('roomWallsLook').textContent = wallWord;
@@ -11007,12 +11056,13 @@ function volumePanel() {
   const shown = volumesOn || (volumeRoots.has(selected) && pickedVolumes().length > 0) || (Boolean(ownPicked) && !selected);
   volumeUi.root.hidden = !shown;
   if (!shown) return;
-  for (const part of [$('volumeIntro'), $('volumeOwn'), $('volumeNew').parentElement]) part.style.display = volumesOn ? '' : 'none';
+  for (const part of [$('volumeIntro').parentElement, $('volumeOwn'), $('volumeNew').parentElement]) part.style.display = volumesOn ? '' : 'none';
   $('volumeHead').replaceChildren(volumesOn ? 'Buildings view ' : 'Building ');
   text($('volumeHead'), 'span', volumesOn ? 'pieces are locked' : 'picked whole');
   const targets = pickedVolumes(), one = targets.length === 1 ? targets[0] : null, grid = volumeGrid();
   const live = liveVolumes().length, ownCount = (data?.buildings ?? []).filter(b => !mapEditable(b) && b.floors?.length).length;
-  $('volumeIntro').textContent = live ? `${boxCount(live)} in ${plural(buildings.length, 'building')}. Click a box to select it; the gizmo moves it, the white dots stretch it.`
+  $('volumeHow').textContent = live && volumesOn ? 'Click a box to select it; the gizmo moves it, the white dots stretch it.' : '';
+  $('volumeIntro').textContent = live ? `${boxCount(live)} in ${plural(buildings.length, 'building')}${ownCount ? `, ${ownCount} of the map's as it has ${ownCount === 1 ? 'it' : 'them'}` : ''}.`
     : 'A building is boxes laid over its floors: the game hides the pieces in the upper boxes when a soldier is inside, and cuts the walls down. Draw one with New box.';
   $('volumeOwn').textContent = ownCount ? `${ownCount === 1 ? 'One building of the map stays' : `${ownCount} buildings of the map stay`} as the map has `
     + `${ownCount === 1 ? 'it' : 'them'}, in grey: a van's goes with its van${data.exporterVersion >= 21 ? '' : ' (this export predates editing the map\'s buildings: prepare the map again)'}. `
@@ -11899,7 +11949,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     groupOf: id => { const r = roots.get(id), g = r && groupIndex.get(memberOf(r.userData.source));
                      return g ? { id: g.id, locked: g.locked, keys: liveKeys(g) } : null; },
     roomPicked: () => { const r = roomOfSelection(); return r && { walls: r.walls.map(w => w.userData.source.id), roof: r.roof?.userData.source.id ?? null }; },
-    groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
+    groundPanelText: () => sectionText('groundBox'),
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
     lookMode: () => (lookPicker?.isOpen ? lookPicker.state().kind : null), lookPickerState: () => lookPicker?.state() ?? null,
@@ -11916,12 +11966,12 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     rockPoint: () => (rockPoint ? { ...rockPoint, gizmo: pointGizmo.enabled, up: pointGizmo.showY } : null),
     rockCorners: () => [...rockCorners.entries()].map(([k, v]) => [k, v?.then ? 'asking' : v]),
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
-    slabPanelText: () => $('slabBox').hidden ? null : $('slabBox').innerText,
+    slabPanelText: () => sectionText('slabBox'),
     buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
     // the map's surface below a point (game x, y, from z down), as the wall tool and the Add panel find the floor
     groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
     wallMeshReady: id => { const r = madeRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
-    addWallOpening, wallPanelText: () => $('wallBox').hidden ? null : $('wallBox').innerText,
+    addWallOpening, wallPanelText: () => sectionText('wallBox'),
     streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
     missionMoves: () => [...missionMoves.values()], moveMissionGroup,
     // (a base spawn point: turned, given values, back as the map has it; SP6)
@@ -12075,6 +12125,21 @@ $('statsToggle').checked = recall('viewer.stats') === '1';
 $('statsLine').hidden = !$('statsToggle').checked;
 $('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('viewer.stats', e.target.checked ? '1' : '0'); };
 $('sourceDetails').open = recall('viewer.sourceDetails') === '1';
+// The piece panel's folding sections (Group, Align, Flags, Place) keep how they were left; a section's info button
+// shows or hides its how-to text (the .how notes), which is out of sight until asked for.
+for (const fold of document.querySelectorAll('details[data-fold]')) {
+  const key = `viewer.fold.${fold.dataset.fold}`, kept = recall(key);
+  if (kept) fold.open = kept === '1';
+  fold.addEventListener('toggle', () => remember(key, fold.open ? '1' : '0'));
+}
+for (const button of document.querySelectorAll('.howbutton')) {
+  button.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    const box = button.closest('.lightbox, .fold, .panel'), on = box.classList.toggle('showhow');
+    button.setAttribute('aria-expanded', String(on));
+    if (on && box.tagName === 'DETAILS') box.open = true;
+  };
+}
 $('sourceDetails').ontoggle = e => remember('viewer.sourceDetails', e.target.open ? '1' : '0');
 // Typed pose: a changed field moves the selection there (one undo step); Escape puts the field back.
 poseInputs.forEach((input, i) => {

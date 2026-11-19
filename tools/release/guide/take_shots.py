@@ -304,13 +304,13 @@ class Shots:
         page = self.page
         page.evaluate('id => { viewer.select(null); viewer.select(id); }', self.copy)
         page.keyboard.press('v')
-        page.evaluate("document.getElementById('sourceDetails').open = true")
+        page.evaluate("for (const id of ['sourceDetails', 'flagsBox', 'poseBox']) document.getElementById(id).open = true")
         page.set_viewport_size(dict(width=WIDTH, height=TALL))      # the panel with its flags is taller than the window
         page.wait_for_timeout(800)
         rows = [(1, '#details'), (2, '#editCopy'), (3, '#flagsBox .posehead'), (4, '#posX'), (5, '#rotP'), (6, '#editReset'),
                 (7, '#sourceDetails summary'), (8, '#copyPaths')]
         self.shot('piece-panel', self.panel_rows('#inspector', rows), clip=self.around('#inspector', pad=(40, 8, 8, 8)))
-        page.evaluate("document.getElementById('sourceDetails').open = false")
+        page.evaluate("for (const id of ['sourceDetails', 'flagsBox']) document.getElementById(id).open = false")
         page.set_viewport_size(dict(width=WIDTH, height=HEIGHT))
         page.wait_for_timeout(500)
 
@@ -323,6 +323,7 @@ class Shots:
         self.select(DUMPSTER)
         page.locator('#editKind').click()
         page.wait_for_function('viewer.gizmo.selection().length > 1')
+        page.evaluate("document.getElementById('flagsBox').open = true")
         page.locator('#flagsRows .flagrow').nth(2).locator('input').click()
         page.wait_for_function("document.getElementById('flagsReset').disabled === false")
         page.wait_for_timeout(500)
@@ -658,6 +659,7 @@ class Shots:
         """An alien vapour pod's smoke picked: its likeness, its size handle and its panel with its values."""
         page = self.page
         handles = self.open_effects(POD_SMOKE, SMOKE_VIEW)
+        page.evaluate("document.getElementById('effectAbout').open = true")      # (its sentences, folded by default)
         s = handles['size']
         marks = [dict(n=1, rect=self.marker(POD_SMOKE), side='top', gap=150, dx=70, inset=3),
                  dict(n=2, rect=[s[0] - 6, s[1] - 6, 12, 12], side='bottom', gap=60, inset=3)]

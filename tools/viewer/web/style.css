@@ -255,9 +255,10 @@ canvas { display: block; width: 100%; height: 100%; }
 #volumePanel button.on { outline: 1px solid var(--accent); }
 #volumePanel .lightfields select, #volumePanel .lightfields input { width: 100%; min-width: 0; }
 .lightnote.warn { color: #e0a060; }
-#details h2 { margin: 0; font-size: 16px; font-weight: 500; color: #eef3f6; overflow-wrap: anywhere; }
+#details h2 { margin: 0; font-size: 15px; font-weight: 500; color: #eef3f6; overflow-wrap: anywhere; }
 #details .sub { color: var(--muted); font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
-#details .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+#details .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+#details .chip { padding: 2px 8px; }
 #details .chips:empty { display: none; }
 /* Groups: a locked group is drawn in gold (its chip, this box and the selection box in the view). */
 .chip.group { border-color: #6b5a2c; color: var(--group); background: #2a2518; }
@@ -337,8 +338,86 @@ canvas { display: block; width: 100%; height: 100%; }
 .row button, .dock > button, #layout { border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; padding: 5px 10px; cursor: pointer; font-size: 12px; }
 .row button:hover:not(:disabled), .dock > button:hover { background: #31434d; }
 .row button:disabled { opacity: .4; cursor: default; }
-#sourceDetails { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 9px; }
-#sourceDetails summary { cursor: pointer; color: #9fb0bb; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+/* The piece panel, streamlined: one row of icon buttons under the name, the picked piece's own section, then sections
+   that fold to one line saying what they hold (Group, Align, Flags, Place, Source). How-to text (.how) stays out of
+   sight until a section's info button asks for it; what a thing is, and warnings, stay in sight. */
+#inspector { scrollbar-gutter: stable; scrollbar-width: thin; padding-right: 6px; overflow-x: hidden; }
+#inspector .row { flex-wrap: wrap; }
+#inspector .row button { min-height: 26px; padding: 3px 10px; white-space: nowrap; }
+#inspector .row select { min-height: 26px; }
+#inspector .lightbox { margin-top: 10px; padding-top: 9px; gap: 5px; }
+#inspector .lightbox .row { margin-top: 2px; }
+#inspector .posehead { align-items: center; gap: 6px; margin: 0; min-height: 18px; }
+.posehead .headname { margin: 0; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; color: #9fb0bb; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; align-items: center; gap: 4px; margin-top: 9px; }
+.actions button { height: 28px; min-width: 28px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; cursor: pointer; font-size: 12px; }
+.actions button .i { width: 16px; height: 16px; }
+.actions button:hover:not(:disabled) { background: #31434d; }
+.actions button:disabled { opacity: .4; cursor: default; }
+.actions #editKindCount:empty { display: none; }
+.howbutton { margin-left: auto; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 4px; background: none; color: #7f95a1; cursor: pointer; flex: none; }
+.foldval + .howbutton { margin-left: 0; }
+.howbutton .i { width: 15px; height: 15px; }
+.howbutton:hover, .showhow > .posehead .howbutton, .showhow > summary .howbutton { color: var(--accent); }
+.panel .how { display: none; }
+.panel .showhow .how:not([hidden]):not(:empty), .panel.showhow .how:not([hidden]):not(:empty) { display: block; }
+.panel.showhow > .posehead .howbutton, .panel.showhow > .introrow .howbutton { color: var(--accent); }
+#inspector .showhow .wallopening small { display: block; }
+.fold { border-top: 1px solid var(--line); margin-top: 0; padding: 0; }
+#inspector > .lightbox + .fold, #inspector > .actions + .fold { margin-top: 10px; }
+.fold > summary { display: flex; align-items: center; gap: 6px; min-height: 30px; margin: 0; cursor: pointer; list-style: none; color: #9fb0bb; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: ''; width: 5px; height: 5px; border-right: 1.5px solid #7f95a1; border-bottom: 1.5px solid #7f95a1; transform: rotate(-45deg); margin: 0 3px 0 2px; flex: none; transition: transform .12s; }
+.fold[open] > summary::before { transform: rotate(45deg); }
+.fold > summary:hover .headname { color: #d3e2e8; }
+.fold .foldval { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-size: 11px; color: #7f95a1; }
+.fold .foldval.changed { color: var(--accent); }
+.fold[open] #poseSum, .fold[open] #spawnAboutSum, .fold[open] #effectAboutSum { display: none; }
+.fold[open] { padding-bottom: 10px; }
+.fold[open] > :not(summary):not([hidden]) + :not([hidden]) { margin-top: 6px; }
+.fold .row { margin-top: 6px; }
+.fold.groupbox, .fold.alignbox, .fold.pose { margin-top: 0; padding-top: 0; }
+.fold.groupbox .grouphead .i { color: inherit; }
+.fold.groupbox.locked > summary .headname { color: var(--group); }
+.fold .grouptext, .fold .groupnote { margin-top: 0; }
+.fold .aligntarget { margin-bottom: 0; }
+.fold .check { margin-top: 0; }
+.pose .xyz { grid-template-columns: 26px repeat(3, 1fr); align-items: center; }
+.pose .xyzname { font-size: 11px; color: #7f95a1; }
+.flagrow { grid-template-columns: auto 1fr auto; min-height: 22px; }
+.flagrow .whymark { width: 14px; height: 14px; color: #7f95a1; }
+.flagrow.off { opacity: 1; }
+.flagrow.off .flagname, .flagrow.off input { opacity: .5; }
+.flagswhy { font-size: 11px; color: var(--muted); line-height: 1.35; min-height: 30px; padding: 5px 7px; border-radius: 4px; background: #151d24; }
+.flagswhy:empty { display: none; }
+.wallopening { grid-template-columns: 1fr auto auto; align-items: center; min-height: 24px; }
+.wallopening strong { font-weight: 500; min-width: 0; }
+.wallopening small { display: none; grid-column: 1 / -1; grid-row: 2; }
+.wallopening .warnmark { width: 15px; height: 15px; color: #e0a060; grid-row: 1; grid-column: 2; }
+.wallopening button { grid-row: 1; grid-column: 3; width: 22px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: #1b252e; color: #d3e2e8; cursor: pointer; font-size: 14px; line-height: 1; }
+.wallopening button:hover:not(:disabled) { background: #31434d; }
+.wallopening button:disabled { opacity: .4; cursor: default; }
+#sourceDetails[open] > #sourceFields { margin-top: 0; }
+/* The effect panel the same way: its controls first, the sentences about it folded under About; value rows on one
+   grid (name, slider, number), so a slider's field and a colour's three fields line up. */
+#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel { scrollbar-gutter: stable; scrollbar-width: thin; padding-right: 6px; gap: 7px; overflow-x: hidden; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row { margin: 0; flex-wrap: wrap; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row:not(:has(> :not([hidden]))) { display: none; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row button { min-height: 26px; padding: 3px 10px; white-space: nowrap; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .posehead { align-items: center; gap: 6px; margin: 2px 0 0; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .fold > summary.posehead { margin: 0; }
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .check { margin-top: 0; }
+:is(#effectPanel, #spawnPanel) .fold { padding-bottom: 0; }
+.posehead .headname.wrap { white-space: normal; overflow: visible; }
+.introrow { display: flex; align-items: flex-start; gap: 6px; }
+.introrow .lightnote { flex: 1; min-width: 0; }
+#volumePanel .lightbox { margin-top: 2px; }
+.spawnedit .row button { padding: 3px 10px; }
+#effectValues .effectvalue .name, #effectValues .valuepair .name { flex: 0 0 34%; }
+#effectValues input[type=number] { font: 11px Consolas, monospace; padding: 3px 4px; background: var(--field); color: #e3eaef; border: 1px solid var(--border); border-radius: 3px; -moz-appearance: textfield; }
+#effectValues input[type=number]::-webkit-inner-spin-button, #effectValues input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#effectValues input[type=range] + label { flex: 0 0 56px; }
+#effectValues input[type=range] { accent-color: var(--accent); height: 16px; }
 #sourceFields { margin: 4px 0 0; display: grid; grid-template-columns: 84px 1fr; gap: 5px 8px; font-size: 11px; }
 #sourceFields dt { color: var(--muted); }
 #sourceFields dd { margin: 0; color: #c7d9e2; overflow-wrap: anywhere; white-space: pre-line; }

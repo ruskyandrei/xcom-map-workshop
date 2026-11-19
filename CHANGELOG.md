@@ -8,6 +8,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The piece panel and the effect panel, streamlined** (the user: busy, irregular buttons, a horizontal scrollbar,
+  large blocks of text; branch `fracturing-wall-poc`). A made wall with two gaps was 1,463 pixels tall and is about
+  380; a plain piece was about 560 and is 250; an effect with seven sliders was 656 and is 483.
+  - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css),
+    [app.js](tools/viewer/web/app.js):
+    - **One row of icon buttons** under the name: Copy, Delete, Select all of a kind (its count beside the icon, the
+      kind's name in the tooltip), and at the right Reset piece and Save as prefab. The horizontal scrollbar came from
+      the Select all button carrying the piece's name; the panel also keeps its scrollbar's room
+      (`scrollbar-gutter`).
+    - **The picked piece's own section first** (Wall, Floor, Ground, Room, Damage, Light, Cover block), then
+      **sections that fold to one line** saying what they hold: Group, Align, Flags ("as the map has them",
+      "2 changed"), Place (the position and yaw) and Source (the class). Each keeps how it was left
+      (`viewer.fold.<name>`); Flags and Source start folded, the others open. Position and rotation are one row each.
+    - **How-to text is out of sight until asked for**: a section's info button shows its `.how` notes (the handles,
+      "made from numbers", what a group does, why Break together is greyed, the Flags note). What a thing is stays in
+      sight on one line (`wallState`, `slabState`, `groundState`, `roomState`), and so do warnings.
+    - **Flags**: one reason line under the rows for the row under the pointer or the focus (rows that have one are
+      marked), where every row carried its own sentence.
+    - **Gaps and holes**: one line each with a warning mark where it plays oddly and a small remove button; its
+      sentence is the row's tooltip and shows with the section's info. Add gap, Flip sides and Reshuffle share a row.
+    - **The effect panel**: Select all and the values first on one grid (name, slider, number; a colour's three
+      fields no longer clipped), its sentences folded under About, whose line says the first of them.
+    - **The Spawns panel**: its buttons and ticks first, its sentences under About (open until folded); the "drag
+      the arrows" lines are how-to, behind the title's info button.
+    - **The Buildings, Landing zone and Map grid panels**: the same button sizes and scrollbar room; their how-to
+      lines (click a box, the gizmo, drag a handle, the map's own grey buildings) behind an info button, the counts
+      and what a thing is in sight.
+    - The test hooks `wallPanelText`, `slabPanelText` and `groundPanelText` read a section with its how-to shown
+      (`sectionText`).
+  - Checked: live on the main server (a piece, a room, a wall with two gaps, a light, the tallest effect, a building
+    box, a drop-in point and a landing zone of Basic Training: no horizontal overflow, no console errors); on a test
+    server `browser_smoke.py --only <check>` passed for groups, box-select, floor-boxes, map-buildings, clear-map,
+    lights, cover, flares, effect-values, spawns, streams, builder, library and walls (the effect panel's sentences
+    and the greyed group note are now read with `text_content`); the `repo` and `node` suites.
+    - Failing with and without this change, on Basic Training with fresh scratch folders, so not the panel's:
+      `--only effects` (`check_effects_box`: the picked effect is not among the box's hits; it passed once),
+      `--only prefabs` (`check_prefabs`: the saved building's corner is 5 tiles from the origin, the check wants
+      under 3) and `--only squad` (HTTP 409 from `squad.json`).
+    - The whole `browser_smoke.py` in one run stopped in `check_cover` (`coverHandles` right after F frames the
+      block: a handle off the view); `--only cover` passes with and without this change.
+  - Gaps: the guide's text and pictures of the panels are as before
+    ([take_shots.py](tools/release/guide/take_shots.py) opens the folds it marks, not run). The Light and Cover
+    block sections keep their notes in sight.
+
 - **Flags on made walls, floors and ground** (the user: the Flags group was greyed on them; branch
   `fracturing-wall-poc`).
   - Why: a made piece takes its flags from its donor's record, and pieces of other maps (the library's export,
