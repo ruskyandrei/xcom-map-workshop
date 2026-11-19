@@ -44,6 +44,7 @@ import made_split  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
 CACHE_SIZE = 32
+PIECES_KEPT = 96      # the made pieces kept (Meshes.piece)
 # the longest wall drawn (its tile edges' distance), the widest slab and the most storeys: the compiler's bounds
 # (MADE_MAX_TILES, MADE_MAX_STOREYS); the Build cuts them into pieces the game takes (made_split)
 MAX_TILES = 128
@@ -296,16 +297,32 @@ class Meshes:
     def __init__(self, size=CACHE_SIZE):
         self.size = size
         self.kept = OrderedDict()
+        self.piece_kept = OrderedDict()     # (maker, a piece's numbers) -> its build (piece)
         self.lock = threading.Lock()
 
-    @staticmethod
-    def pieces(build, cut, blasts=(), slab=False):
+    def piece(self, build, numbers):
+        """build(numbers), kept (PIECES_KEPT): a long or tall made wall is cut into pieces, and the page asks for the
+        whole wall at each step of a handle's drag; a gap moved changes only the pieces it is in, so the rest are not
+        made again (the user, 19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow)."""
+        key = (build.__module__, build.__name__, json.dumps(numbers, sort_keys=True))
+        with self.lock:
+            if key in self.piece_kept:
+                self.piece_kept.move_to_end(key)
+                return self.piece_kept[key]
+        built = build(numbers)
+        with self.lock:
+            self.piece_kept[key] = built
+            while len(self.piece_kept) > PIECES_KEPT:
+                self.piece_kept.popitem(last=False)
+        return built
+
+    def pieces(self, build, cut, blasts=(), slab=False):
         """A build of each piece the Build cuts a piece into (`cut`: [(dx, dy, dz, numbers)]), as one mesh; with the
         fragments `blasts` knock out (each piece's in its frame) left out."""
         def made():
             out = []
             for dx, dy, dz, numbers in cut:
-                built = build(numbers)
+                built = self.piece(build, numbers)
                 span = [(0.0, numbers['x1'] - numbers['x0'])] + ([(0.0, numbers['y1'] - numbers['y0'])] if slab else [None])
                 mine = made_blasts.for_piece(blasts, (dx, dy, dz), span) if blasts else []
                 out.append((built, (dx, dy, dz), made_blasts.hidden(built, mine)))

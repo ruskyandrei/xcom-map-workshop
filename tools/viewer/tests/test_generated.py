@@ -121,6 +121,19 @@ class Pieces(unittest.TestCase):
         self.assertGreaterEqual(got, want)
         self.assertLessEqual(got, want + 6 * generated.SLOTS)    # (a slot empty in a piece is a triangle of no area)
 
+    def test_a_gap_moved_makes_only_its_pieces_again(self):
+        # (the user, 19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow) the pieces are kept by
+        # their numbers: the wall drawn again with one gap moved makes only the pieces that gap is in; the answer is the
+        # same as one made from nothing
+        wall = dict(x0=0, x1=96 * 29, seed=2, storeys=4, openings=[dict(x0=96, x1=192, z0=72, z1=168)])
+        meshes = generated.Meshes()
+        meshes.fracwall(json.dumps(wall))
+        first = len(meshes.piece_kept)
+        moved = dict(wall, openings=[dict(x0=96, x1=192, z0=80, z1=168)])
+        glb = meshes.fracwall(json.dumps(moved))
+        self.assertEqual(len(meshes.piece_kept) - first, 1)
+        self.assertEqual(glb, generated.Meshes().fracwall(json.dumps(moved)))
+
     def test_a_large_slab_is_its_pieces_joined(self):
         doc = gltf(generated.Meshes().fracslab(json.dumps(dict(x0=0, x1=96 * 30, y0=0, y1=96 * 20, holes=[], seed=1))))
         lo, hi = self.box(doc)

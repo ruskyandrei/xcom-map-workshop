@@ -63,6 +63,15 @@ assert.equal(movedOpening(wall, 1, 'x1', 1000, { along: 1 }).openings[1].x1, 384
 assert.deepEqual(movedOpening(wall, 0, 'middle', -500).openings[0], { x0: 0, x1: 96, z0: 8, z1: 160 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 500).openings[1], { x0: 288, x1: 384, z0: 72, z1: 168 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 7, { along: 1 }).openings[1], { x0: 199, x1: 295, z0: 72, z1: 168 });
+// (the user, 19 November 2026) and up and down, [along, up], its height kept: up to the highest a gap's top goes under
+// the cornice; down to the floor, where it is cut to the wall's bottom (a doorway); one cut through the top stays put
+assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 100], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: 168, z1: 264 });
+assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 1000], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: 264, z1: 360 });
+assert.deepEqual(movedOpening(wall, 1, 'middle', [0, -1000], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: -16, z1: 96 });
+assert.deepEqual(movedOpening(wall, 1, 'middle', [96, 24], { along: 96, up: 24 }).openings[1], { x0: 288, x1: 384, z0: 96, z1: 192 });
+assert.deepEqual(movedOpening(wall, 0, 'middle', [0, 48], { along: 96, up: 24 }).openings[0], { x0: 96, x1: 192, z0: 48, z1: 200 });
+const through = { ...wall, openings: [{ x0: 96, x1: 192, z0: 100, z1: 384 }] };
+assert.deepEqual(movedOpening(through, 0, 'middle', [96, 50], { along: 96, up: 24 }).openings[0], { x0: 192, x1: 288, z0: 100, z1: 384 });
 // the top: under the cornice, or past it cut through the wall's top; the bottom: over the floor, or at it cut to the
 // wall's bottom; each at least 24 from the other
 assert.equal(movedOpening(wall, 0, 'z1', 200).openings[0].z1, 360);

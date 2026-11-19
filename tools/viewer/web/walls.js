@@ -301,10 +301,21 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
   const least = along >= TILE ? TILE : OPENING.width, bottom = wallSpec(wall).bottom, top = wallTop(wall);
   const at = v => round(v, along);
   if (part === 'middle') {
+    // (`delta` [along, up]: the middle handle drags in the wall's plane, the user, 19 November 2026; a number: along)
+    const [dx, dz] = Array.isArray(delta) ? delta : [delta, 0];
     const width = o.x1 - o.x0;
-    let x0 = o.x0 + round(delta, along);
+    let x0 = o.x0 + round(dx, along);
     x0 = Math.max(before, Math.min(after - width, x0));
     o.x0 = tidy(x0); o.x1 = tidy(x0 + width);
+    // up and down its height kept, from the floor (a doorway's bottom is the floor) to the highest a gap's top goes
+    // under the wall's top; at the floor it is cut to the wall's bottom (a doorway), off it a window. One cut through
+    // the wall's top stays where it is up and down.
+    const lo = Math.max(0, o.z0), height = o.z1 - lo, most = topMostOf(wall);
+    if (dz && o.z1 < top - 1e-6 && height <= most + 1e-6) {
+      const z0 = Math.max(0, Math.min(most - height, round(lo + dz, up)));
+      o.z0 = z0 <= 1e-6 ? bottom : tidy(z0);
+      o.z1 = tidy(z0 + height);
+    }
   } else if (part === 'x0') {
     o.x0 = tidy(Math.max(before, Math.min(o.x1 - least, at(o.x0 + delta))));
   } else if (part === 'x1') {

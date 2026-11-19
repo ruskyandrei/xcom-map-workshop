@@ -8,6 +8,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A gap's middle handle moves it up and down too; gap edits keep up with their handles** (reported by the user on a
+  wall of 29 tiles and six storeys; branch `fracturing-wall-poc`).
+  - [walls.js](tools/viewer/web/walls.js) `movedOpening`: the middle takes [along, up], the gap's height kept, from
+    the floor (where it is cut to the wall's bottom, a doorway) up to under the cornice; one cut through the wall's top
+    stays put up and down. [app.js](tools/viewer/web/app.js): the middle handle drags in the wall's plane (`onPlane`).
+  - Why the gaps lagged: each step of a handle's drag asked the server for the whole wall (0.6 s and 2.3 MB for that
+    wall), and the answers queued behind each other, so the drawn wall fell further behind the longer the drag went.
+    - [app.js](tools/viewer/web/app.js) `applyWallSoon`: during a drag (gaps, ends, tops, a slab's and a ground
+      shape's handles, a rock's points) the numbers and pose change at once, so the handles follow the pointer, and
+      one mesh at a time is asked for, the latest; a made mesh no piece draws any more leaves the page's cache.
+    - [generated.py](tools/viewer/generated.py) `Meshes.piece`: the pieces a long or tall wall or a large slab is cut
+      into are kept by their numbers, so a gap moved makes only the pieces it is in (0.08 s for that wall).
+  - Checked: node tests ([walls_test.mjs](tools/viewer/tests/walls_test.mjs): up, down to a doorway, along and up
+    together, through the top); viewer tests ([test_generated.py](tools/viewer/tests/test_generated.py): one gap moved
+    makes one piece again, the same answer as from nothing); on a test server, the user's wall in Concrete Wall Armory
+    A: a window's middle dragged up across the storey seam (72 to 168 became 158 to 254), drawn where its handles
+    are; a long side drag made 2 mesh requests and the wall caught up 0.45 s after it ended; the `walls` browser check
+    passed.
+  - Not reproduced: a gap drawn away from its handles for good. It came from the same lag (and the main editor was
+    restarted twice that morning, which loses the answers asked for meanwhile).
+
 - **Rocks shaped by their points: blue points on a rock's corners and the move gizmo** (look picker plan, stages R1 to
   R3; branch `fracturing-wall-poc`).
   - [ground.py](tools/bake/ground.py): a rock's numbers can carry `points`, its 24 points in its frame, which it is

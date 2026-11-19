@@ -9927,7 +9927,7 @@ async function applyWall(root, state) {
   state = { ...state, generated: versionedGround(state.generated) };
   const o = root.userData.source;
   o.added = { ...o.added, generated: structuredClone(state.generated) };
-  const key = madeMesh(o, state.generated, root.userData.joins?.ends);
+  const key = madeMesh(o, state.generated, root.userData.joins?.ends), was = root.userData.drawnMesh ?? o.mesh;
   o.mesh = key;
   gizmo.applyMatrices([root], [movedMatrix(o, state.location, state.rotation)]);
   root.updateMatrixWorld(true);
@@ -9947,6 +9947,11 @@ async function applyWall(root, state) {
   root.clear();
   for (const child of [...fresh.children]) root.add(child);
   root.userData.parts = parts;
+  // (the made mesh it drew before leaves the cache when no piece draws it: a drag passes through many, each a whole
+  // wall's; undo asks the server again, which keeps its recent answers)
+  root.userData.drawnMesh = key;
+  if (was && was !== key && was.startsWith('made:') && ![...roots.values()].some(r => r.userData.source.mesh === was || r.userData.drawnMesh === was))
+    geometryCache.delete(was);
   const gone = new Set(old);
   pickables.splice(0, pickables.length, ...pickables.filter(p => !gone.has(p)), ...(roots.get(o.id) === root ? parts : []));
   root.updateMatrixWorld(true);
@@ -9974,7 +9979,7 @@ const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute
                                          new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
 wallStems.renderOrder = 8; wallStems.raycast = () => {}; wallStems.frustumCulled = false; wallHandleLayer.add(wallStems);
 let wallDrag = null, wallHover = null, wallFocus = null;   // wallFocus: { id, index }: the opening whose handle was last touched
-const WALL_PART_WORDS = { middle: 'Gap: drag to slide it along the wall', x0: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
+const WALL_PART_WORDS = { middle: 'Gap: drag to move it along the wall or up and down (down to the floor it is a doorway)', x0: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
                           x1: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
                           z1: 'Gap\'s top: drag it up to the wall\'s top to cut through it',
                           z0: 'Gap\'s bottom: drag it down to the floor to cut to the wall\'s bottom' };
@@ -10095,13 +10100,14 @@ pointGizmo.addEventListener('objectChange', () => {
   if (key === d.shown) return;
   d.shown = key;
   d.after = { generated: { ...b.generated, ground: r.ground }, location, rotation: b.rotation };
-  applyWall(d.root, d.after);
+  applyWallSoon(d.root, d.after);
   const grown = r.ground.x1 !== b.generated.ground.x1 || r.ground.y1 !== b.generated.ground.y1;
   volumeHint(`Corner at ${r.ground.points[d.index].map(Math.round).join(', ')} in the rock's frame${grown ? ` · grown to ${groundShapeWords(r.ground).toLowerCase()}` : ''}`);
 });
 pointGizmo.addEventListener('mouseUp', () => {
   const d = pointDrag;
   pointDrag = null;
+  dropQueuedWall(d?.root);
   if (d?.after && !d.cancelled) setWall(d.root, d.after, d.before);
   restingHint(); editChanged();
   setTimeout(placePointGizmo, 0);       // (the controls end their drag after this event)
@@ -10110,6 +10116,7 @@ function cancelPointDrag() {
   const d = pointDrag;
   if (!d) return false;
   d.cancelled = true; pointGizmo.reset?.();
+  dropQueuedWall(d.root);
   applyWall(d.root, d.before);
   return true;
 }
@@ -10154,9 +10161,11 @@ function wallHandlesNow(root) {
     // (a gap cut to the wall's bottom has its bottom handle on the floor)
     const cx = (o.x0 + o.x1) / 2, bottom = Math.max(0, o.z0), cz = (bottom + o.z1) / 2;
     const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, bottom] };
+    // (the middle drags in the wall's plane: `plane` its normal; the sides and ends along their axis)
     for (const part of openingParts())
       out.push({ key: `open:${index}:${part}`, kind: 'opening', part, index, at: toView(at[part][0], side, at[part][1]),
-                 dir: part === 'z0' || part === 'z1' ? axis(0, 0, 1) : axis(1, 0, 0) });
+                 dir: part === 'middle' ? null : part === 'z0' || part === 'z1' ? axis(0, 0, 1) : axis(1, 0, 0),
+                 plane: part === 'middle' ? axis(0, 1, 0) : null, along: part === 'middle' ? axis(1, 0, 0) : null });
   });
   return out;
 }
@@ -10237,9 +10246,12 @@ function startWallDrag(e) {
   if (h?.kind === 'point') { pickRockPoint(handleWall(), h.index); return true; }
   if (rockPoint) releaseRockPoint();
   if (!h) return false;
-  const root = handleWall(), from = h.dir ? alongLine(e.clientX, e.clientY, h.at, h.dir) : onLevel(e.clientX, e.clientY, h.at.y);
+  const root = handleWall(), from = h.dir ? alongLine(e.clientX, e.clientY, h.at, h.dir)
+    : h.plane ? onPlane(e.clientX, e.clientY, h.at, h.plane) : onLevel(e.clientX, e.clientY, h.at.y);
   if (from == null) return false;
-  wallDrag = { root, key: h.key, handle: h, from, pointerId: e.pointerId, before: wallState(root), after: null, shown: null };
+  root.updateMatrixWorld(true);
+  wallDrag = { root, key: h.key, handle: h, from, pointerId: e.pointerId, before: wallState(root), after: null, shown: null,
+               inverse: root.matrixWorld.clone().invert() };
   if (h.kind === 'opening') { wallFocus = { id: root.userData.source.id, index: h.index }; wallPanel(root); }
   if (h.kind === 'hole') { wallFocus = { id: root.userData.source.id, index: h.index }; slabPanel(root); }
   showPop(null);
@@ -10251,6 +10263,28 @@ function startWallDrag(e) {
 function onLevel(clientX, clientY, y) {
   return rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -y), new THREE.Vector3());
 }
+// The point where the pointer's ray meets the plane through `at` square to `normal` (null when it runs along it).
+function onPlane(clientX, clientY, at, normal) {
+  return rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(normal, at), new THREE.Vector3());
+}
+// A handle's drag asks the server for one made mesh at a time, the latest state, while the numbers and pose change at
+// once (so the handles follow the pointer): each answer for a long or tall wall takes a while, and asking for every
+// step had piled them up behind each other (the user, 19 November 2026: the gaps lagged far behind their handles).
+function applyWallSoon(root, state) {
+  const o = root.userData.source;
+  o.added = { ...o.added, generated: structuredClone(versionedGround(state.generated)) };
+  gizmo.applyMatrices([root], [movedMatrix(o, state.location, state.rotation)]);
+  root.updateMatrixWorld(true);
+  const q = root.userData.applyQueue ??= { busy: false, next: null };
+  q.next = state;
+  if (q.busy) return;
+  q.busy = true;
+  (async () => {
+    try { while (q.next) { const s = q.next; q.next = null; await applyWall(root, s); } } finally { q.busy = false; }
+  })();
+}
+// The drag's queued states dropped (its last state is then applied by setWall, or the one before it put back).
+function dropQueuedWall(root) { if (root?.userData.applyQueue) root.userData.applyQueue.next = null; }
 function moveSlabDrag(e) {
   const d = wallDrag, h = d.handle, b = d.before, s = b.generated.slab;
   let slab = s, location = b.location, words;
@@ -10281,7 +10315,7 @@ function moveSlabDrag(e) {
   if (key === d.shown) return;
   d.shown = key;
   d.after = { generated: { ...b.generated, slab }, location, rotation: b.rotation };
-  applyWall(d.root, d.after);
+  applyWallSoon(d.root, d.after);
   volumeHint(words);
 }
 function moveGroundDrag(e) {
@@ -10301,17 +10335,28 @@ function moveGroundDrag(e) {
   if (key === d.shown) return;
   d.shown = key;
   d.after = { generated: { ...b.generated, ground: g }, location, rotation: b.rotation };
-  applyWall(d.root, d.after);
+  applyWallSoon(d.root, d.after);
   volumeHint(`${groundShapeWords(g)}${g.shape === 'ramp' ? ` · ${slopeWords(g)}` : ''}`);
 }
 function moveWallDrag(e) {
   if (isMadeGround(wallDrag.root.userData.source)) { moveGroundDrag(e); return; }
   if (isMadeSlab(wallDrag.root.userData.source)) { moveSlabDrag(e); return; }
-  const d = wallDrag, t = alongLine(e.clientX, e.clientY, d.handle.at, d.handle.dir);
-  if (t == null) return;
-  const delta = t - d.from, b = d.before, w = b.generated.wall, h = d.handle;
-  let wall = w, location = b.location, words;
-  if (h.part === 'top') {
+  const d = wallDrag, h = d.handle, b = d.before, w = b.generated.wall;
+  let wall = w, location = b.location, words, delta = 0;
+  if (h.plane) {
+    // (the gap's middle: the pointer's move in the wall's plane, in its frame: along it and up)
+    const at = onPlane(e.clientX, e.clientY, h.at, h.plane);
+    if (!at) return;
+    const a = d.from.clone().applyMatrix4(d.inverse), c = at.clone().applyMatrix4(d.inverse);
+    const [along, up] = e.altKey ? [GAP.fine, GAP.fine] : OPENING_STEPS[snapMode];
+    wall = movedOpening(w, h.index, 'middle', [c.x - a.x, c.y - a.y], { along, up });
+    words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
+  } else {
+    const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
+    if (t == null) return;
+    delta = t - d.from;
+  }
+  if (h.plane) { /* moved above */ } else if (h.part === 'top') {
     const r = raisedWall(w, delta);
     wall = r.wall;
     words = `${wallWords(wall)}${r.cut ? ` · ${plural(r.cut, 'opening')} brought under the top` : ''}${r.removed ? ` · ${plural(r.removed, 'opening')} in the upper storey will go` : ''}`;
@@ -10329,13 +10374,14 @@ function moveWallDrag(e) {
   if (key === d.shown) return;
   d.shown = key;
   d.after = { generated: { ...b.generated, wall }, location, rotation: b.rotation };
-  applyWall(d.root, d.after);
+  applyWallSoon(d.root, d.after);
   volumeHint(words);
 }
 function endWallDrag(keep) {
   const d = wallDrag;
   if (!d) return false;
   wallDrag = null;
+  dropQueuedWall(d.root);
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* released */ }
   renderer.domElement.style.cursor = '';
   if (keep && d.after) setWall(d.root, d.after, d.before);
@@ -11939,7 +11985,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
-        return [h.key, [...project(p), ...project(h.dir ? p.clone().addScaledVector(h.dir, units) : p)]]; })) : {}; },
+        const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
+        return [h.key, [...project(p), ...project(way ? p.clone().addScaledVector(way, units) : p)]]; })) : {}; },
     rockPoint: () => (rockPoint ? { ...rockPoint, gizmo: pointGizmo.enabled, up: pointGizmo.showY } : null),
     rockCorners: () => [...rockCorners.entries()].map(([k, v]) => [k, v?.then ? 'asking' : v]),
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
