@@ -1,6 +1,6 @@
 // The game install and the editor's checks (tools/viewer/gamesetup.py): on a first run, before anything else, the page
 // asks which XCOM: Enemy Within install to read (with Long War Rebalance, or plain), offering the installs found in
-// Steam's libraries, a folder typed in, or a Windows folder dialog; the Project menu's "Game install and checks"
+// Steam's libraries, a folder typed in, or a Windows folder dialog; the Settings menu's "Game install and checks"
 // opens the same dialog later. Choosing an install saves the game setting; the server then lists that install's maps,
 // and the page reloads.
 

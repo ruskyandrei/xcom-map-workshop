@@ -1,7 +1,7 @@
 // Play in game (tools/viewer/play.py, installs.py, gamelaunch.py; taking it out again is the Game maps window's, gamemaps.js): the game started straight in
 // a battle on the open map, or on the open project's build, in the game install the settings name (the install
 // setting, else the game install the editor reads: LWR or plain Enemy Within), and everything the editor installed for
-// that taken back out. The Project menu also shows the installs the editor works with: the game install it reads, the
+// that taken back out. The Game menu (the arrow beside Play) also shows the installs the editor works with: the game install it reads, the
 // install it plays in, how the game is started there, and what the editor has installed in it.
 
 async function call(method, url, body) {
@@ -34,7 +34,7 @@ export function inGame(game, mapLabel) {
   return parts.length ? parts.join('; ') : 'Nothing of the editor\'s';
 }
 
-/** The Installs section of the Project menu, from /play.json (or {error, unavailable}). */
+/** The Installs section of the Game menu, from /play.json (or {error, unavailable}). */
 export function renderInstalls(el, status, mapLabel) {
   el.replaceChildren();
   const row = (term, value, title, warn = false) => {
@@ -50,7 +50,7 @@ export function renderInstalls(el, status, mapLabel) {
   const { lwr, install, launch, game } = status;
   row('Game', lwr.folder ? `${lwr.folder}${lwr.kind ? ` (${lwr.kind})` : ''}` : lwr.note,
       lwr.folder ? `The game install the editor reads maps and their records from: LWR or plain Enemy Within (the game setting: ${lwr.setting})`
-                 : 'Choose it with Game install in the Project menu',
+                 : 'Choose it with Game install and checks in Settings (the gear)',
       !lwr.folder);
   const where = install.sameAsLwr ? 'The game install' : install.folder ?? install.note;
   row('Plays in', install.ready ? where : `${where} · ${install.why}`,
@@ -62,5 +62,5 @@ export function renderInstalls(el, status, mapLabel) {
         : launch.how === 'direct' ? 'The game folder is in no Steam library, so its XComEW.exe is started with the map to open' : '',
       !launch.how);
   row('In the game', inGame(game, mapLabel) ?? (status.gameError ? `Not known: ${status.gameError}` : 'Not known'),
-      game ? `What the editor has installed there: a project's build is installed under its own name, with a map record of its own that no campaign draws. A map of the game's needs nothing installed, but for one whose records the game comments out (the tutorial's map), which gets a copy of one. Game maps (Project menu) shows it and takes any of it out${game.configKept ? '. The game\'s XComContent.ini is kept aside for a play and goes back once the game has closed' : ''}` : '');
+      game ? `What the editor has installed there: a project's build is installed under its own name, with a map record of its own that no campaign draws. A map of the game's needs nothing installed, but for one whose records the game comments out (the tutorial's map), which gets a copy of one. Game maps (the arrow beside Play) shows it and takes any of it out${game.configKept ? '. The game\'s XComContent.ini is kept aside for a play and goes back once the game has closed' : ''}` : '');
 }

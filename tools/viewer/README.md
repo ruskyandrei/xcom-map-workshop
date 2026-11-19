@@ -215,10 +215,13 @@ has been established by this first check; draw-call reduction and loading optimi
 
 The 3D view fills the window. The rest appears when it is needed, so the screen is not covered in text:
 
-- **Header:** the **Project** menu first after the name (see Projects), the map and mission (see What the
-  missions stream, below), then **Find a piece** (Ctrl+F). The results list appears only while the search box
-  holds text. It shows each piece's name, its actor and how many linked pieces move with it. Arrow keys choose,
-  Enter (or a click) selects the piece and frames it, Ctrl/Shift adds it to the selection, Esc clears.
+- **Header:** the **Project** menu first after the name (Save, Save as, Open, Close project, the recent projects and
+  Manage projects: see Projects), then the **Map** menu (Change map, and on a whole map Missions, Map picture, Map
+  grid and Clear map; where it would hold Change map alone, the button opens the map browser), then the mission (see
+  What the missions stream, below).
+- On the right, before the icons: **Build** and **Play**, and on the arrow joined to Play the **Game** menu (Test
+  squad setup, Game maps and the Installs). **Settings** (the gear) holds Game install and checks and Cache
+  everything. The header has no find box (Ctrl+F is the browser's own).
 - On the right of the header: once something has changed, a chip counting what was moved, added and deleted, and
   whether it is saved ("not saved" without a project, then "unsaved" or "saved"), with Undo, Redo and **Reset all**; then **Import notes** (with their count), **View options** and
   **Controls and shortcuts**. An experimental layout shows
@@ -278,7 +281,7 @@ Build edits the map's own pieces. So an edit that moves a piece LWR's patch cove
 hidden cover where it was: untick Hide patch helpers to see it. A mission's own objects (export 24's
 `missionObjects`, markers on View options' Mission objects) are the exception: a picked one's arrows move it with its
 group, saved as overrides of `level: "stream"`, and the Build moves them in place in its copy of that mission's stream
-(`tools/bake/stream_copy.py --moves`), which that mission's records alone stream. **Missions…** (Project menu,
+(`tools/bake/stream_copy.py --moves`), which that mission's records alone stream. **Missions…** (Map menu,
 `missions_panel.js`) sets the project's `missions`: the base map's records and kinds a record alone gives it.
 Streamed pieces show whatever the floor cutaway (they carry no floors). Exports before 13 show none of this:
 re-export, or delete the map's export folder and open it again.
@@ -548,7 +551,7 @@ so one bad wave never fails the map. Every wave of the 97 LWR maps' packages (7,
 
 The plan; the guide's "Clear map and landing zones".
 
-- **Clear map…** (Project menu, on a whole map) opens a window. It counts what goes (pieces, lights, the pieces the
+- **Clear map…** (Map menu, on a whole map) opens a window. It counts what goes (pieces, lights, the pieces the
   mission's script names) and what stays (the landing's pieces, one landing zone, the sun or moon and the sky
   light). It keeps the grid's size (the rail's Map grid changes it). The clear is one undo step:
   - every piece is deleted but the landing's;
@@ -564,7 +567,7 @@ The plan; the guide's "Clear map and landing zones".
   `clearKeepsOutside`, and the Build's `clear_level` leaves the lights, emitters, decals and lens flares placed
   outside it (the compiler's `outside_box`, passed as `cleared.keepOutside`). On Bar: 219 pieces and 29 lights stay,
   and in the Build 5 decals and 8 emitters too.
-- **Map grid** (the rail's button, or the Project menu) replaces the Map size window. It shows the play area with a
+- **Map grid** (the rail's button, or the Map menu) replaces the Map size window. It shows the play area with a
   handle on each side that can move (`placeGridHandles`).
   - The red handle is the far X side, the blue one the far Y side, and the green one the top.
   - A drag follows its axis (`alongLine`) by whole tiles (96) or levels (64), within `gridRule`.
@@ -816,10 +819,10 @@ A project saves the edits on one base map, to reopen and, later, to build (first
 rules are in [the editor contracts](../../research/editor-contracts.md).
 
 - **Project**, first in the header, opens a classic menu: the open project (name, revision, when saved, the variant
-  name it will build as), then **Save** (Ctrl+S), **Save as…**, **Load…** (Ctrl+O) and **Close project**. Under them,
+  name it will build as), then **Save** (Ctrl+S), **Save as…**, **Open…** (Ctrl+O) and **Close project**. Under them,
   **Recent** lists the three projects last opened or saved in this browser (or else saved most recently), the open
   one aside; a click opens one.
-- **Save as…** and **Load…** open a file picker over the projects folder (shown as "Look in"). It lists the projects
+- **Save as…** and **Open…** open a file picker over the projects folder (shown as "Look in"). It lists the projects
   with their map, revision and when they were saved; the column heads sort it. Arrow keys move through the list,
   Enter or a double-click picks, Esc cancels. Projects with changes kept for recovery are marked, unreadable ones are
   listed greyed out.
@@ -836,7 +839,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     open project or one replaced, its own name, fixed when it was first saved. Save waits for the answer for what is
     typed; a name taken between the answer and the save is refused, and the dialog stays open with the next one. The
     server refuses a save that changes a saved project's names: Save as under a new name makes a new project instead.
-  - **Load** lists every map's projects ("Show" narrows it to this map) and starts on the open project. Typing finds
+  - **Open** lists every map's projects ("Show" narrows it to this map) and starts on the open project. Typing finds
     the first name that starts with the text. Opening a project of another map switches to that map.
 - **Ctrl+S** saves the next revision; without a project open it opens the Save dialog. The address carries
   `?map=…&project=<id>`, so a reload reopens it. Saving under another project drops the changes kept for recovery of
@@ -872,7 +875,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a
     scratch folder).
-- **Build…** (Ctrl+B, in the Project menu) opens a small panel ([`build_options.js`](web/build_options.js)) with one
+- **Build…** (Ctrl+B, or Build in the header) opens a small panel ([`build_options.js`](web/build_options.js)) with one
   choice, **Bake the lighting**, off each time it opens. Build (or Enter) then saves the project if it has unsaved
   changes and builds the saved revision into a variant package in the builds folder
   ([`tools/editor/build.py`](../editor/build.py)). The package has:
@@ -907,7 +910,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     - the time so far, with a bar against the project's last build of the same kind (full or quick) when there is
       one.
   - The window ends with the package's folder (Copy the folder path) or why the build failed, and closes with Close
-    or Esc. Once built, its **Play in game** installs that build and starts the game on it, as the Project menu's
+    or Esc. Once built, its **Play in game** installs that build and starts the game on it, as the header's
     Play last build does (asking the server first, so a closed install or an open XCOM says why in the window); the
     outcome shows in the window, and a build Build and play started can be played again from there. The folder's path, and a bug report's zip once saved, are links: a click shows it in Windows Explorer
     (`POST /builds/reveal`: a folder opened, a file selected, never run; only paths in the builds folder). A reload picks a running build up again, and the Project menu shows the last build. If the server stops
@@ -929,7 +932,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - **A restarted server proves the old one's builds gone** before anything builds: each running attempt has a
     record in `<builds>\.work\writers` (its process and creation time, and the folder it writes). One still running,
     or one whose state can't be known, keeps the build slot busy with the reason.
-- **Play in game** (Project menu) starts the game straight in a battle on what is open, for testing in the game: no
+- **Play** (in the header) starts the game straight in a battle on what is open, for testing in the game: no
   campaign to start, and no line the game had is changed ([`play.py`](play.py), [`gamelaunch.py`](gamelaunch.py),
   [`installs.py`](installs.py); how it was found and played: `research/experiments/EXP-29-direct-map-launch.md`).
   - **How the game is started.** With `-EXEC=<file>` the game runs a file of console commands as it starts, and the
@@ -1011,7 +1014,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   `deployed.txt` and `seeded.txt`: `installs.lab_deploys`) is an earlier test of the project. It doesn't stop the
   Build, and an install replaces it if it still has the bytes the lab gave it, keeping it in that change's
   `backups` folder (`labFiles` in the ledger) and putting it back when the editor's file comes out.
-- **Installs**, at the bottom of the Project menu: the game install the editor reads (the **game** setting, resolved
+- **Installs**, in the Game menu (the arrow beside Play): the game install the editor reads (the **game** setting, resolved
   to its game folder, with its kind: Long War Rebalance or Enemy Within), the install it plays in and whether that
   can be played now, how the game is started there, and what the editor has installed in it.
   - The server's routes ([`play.py`](play.py)): `GET /play.json`, `POST /play/start` (`{"project": id}` or
@@ -1118,7 +1121,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
       covers the queue with a stand-in build, [`build_queue_test.mjs`](tests/build_queue_test.mjs) the page's
       wording and polling, and `research/experiments/EXP-65-build-queue-real-builds.md` real builds, a Stop, a
       server killed mid-build and a result lost after its package went in.
-- **Game maps…** (Project menu, where Remove from game was) opens the Game maps window
+- **Game maps…** (the Game menu, on the arrow beside Play) opens the Game maps window
   ([`gamemaps.js`](web/gamemaps.js), [`gamemaps.py`](gamemaps.py)): every map record of the install's
   `DefaultMaps.ini` as the game reads it now, by map, with its mission, whether it is in rotation or asked for by
   name, and what the editor did to it.
@@ -1148,7 +1151,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - the doctor's checks.
 - **Use this install** saves the **game** setting, the server lists that install's maps with no restart, and the page
   reloads on the map browser.
-- The Project menu's **Game install and checks…** opens the same dialog later.
+- **Game install and checks…**, in Settings (the gear), opens the same dialog later.
 - Routes: `GET /setup.json` (`?checks=0` leaves the doctor out), `POST /setup/game` `{"folder": ...}`, and
   `POST /setup/browse`. The two POSTs take changes from the viewer itself only.
 

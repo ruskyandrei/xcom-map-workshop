@@ -1,4 +1,4 @@
-// The Cache everything window (the Project menu; the server's precache.py): every piece of the game's maps, and, as
+// The Cache everything window (the Settings menu; the server's precache.py): every piece of the game's maps, and, as
 // an option of its own, every map, read from the game now instead of the first time each is used. It shows what
 // there is to do, a bar while the job runs, and Cancel at any moment; what is cached so far stays. Closing the window
 // leaves a running job running: opening it again shows where it is.

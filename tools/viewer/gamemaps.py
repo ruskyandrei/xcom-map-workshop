@@ -1,4 +1,4 @@
-"""The Game maps window (Project menu): the map records of the game install's DefaultMaps.ini as the game reads them
+"""The Game maps window (the Game menu, on the arrow beside Play): the map records of the game install's DefaultMaps.ini as the game reads them
 now, what the editor changed of them, and undoing that.
 
 One row per record. The install's own records say whether they are in use: live; commented out because a project's

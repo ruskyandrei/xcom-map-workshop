@@ -151,13 +151,12 @@ def check_arrow_pan(page):
     check_tool_keys(page)
     check_camera_speeds(page)
     # Typing in a field keeps the keys.
-    page.locator('#search').focus()
+    page.locator('#libFilter').evaluate('e => e.focus()')
     before = page.evaluate(state)
     for key in ('ArrowUp', 'w', 'q', 'e'):
         page.keyboard.down(key); page.wait_for_timeout(200); page.keyboard.up(key)
     after = page.evaluate(state)
     assert camera_delta(before, after) < 1e-3, (before, after)
-    page.locator('#search').fill('')
     page.evaluate('document.activeElement.blur()')
 
 
@@ -953,9 +952,6 @@ def check_groups(page):
     type_pose(page, 'posX', 96)
     assert len(page.evaluate('viewer.editState().overrides')) == 2
     page.locator('#editLinked').click()
-    page.locator('#search').fill(page.evaluate('id => viewer.roots.get(id).userData.source.actor.split(".").at(-1)', a))
-    assert page.locator('#objects .tag.group').count() >= 1 and page.locator('#objects .tag.group').first.inner_text() == 'group'
-    page.locator('#search').fill('')
     # No unlocking: Ctrl+G on a group leaves it as it is.
     page.evaluate('id => viewer.select(id)', b)
     page.keyboard.press('Control+g')
@@ -4129,7 +4125,8 @@ def check_spawn_edits(page):
 
 
 def check_project_menu(page):
-    """The Project menu, first after the name, and the Save and Load dialogs opened and cancelled (nothing saved)."""
+    """The header's menus (Project first after the name, then Map; Build, Play and the Game menu; Settings) and the
+    Save and Open dialogs opened and cancelled (nothing saved)."""
     assert page.evaluate("document.querySelector('header .brand').nextElementSibling.id") == 'projectButton'
     kept = page.evaluate('viewer.gizmo.active')
     page.evaluate('id => viewer.select(id)', kept or page.evaluate('[...viewer.roots.keys()][0]'))
@@ -4137,21 +4134,48 @@ def check_project_menu(page):
     page.locator('#projectButton').click()
     assert page.locator('#projectMenu').is_visible()
     labels = [t.strip() for t in page.locator('#projectMenu .menuitems button:visible span').all_inner_texts()]
-    # Map grid and Clear map… on a whole map (Clear map plan)
-    assert labels[:9] == ['Save', 'Save as…', 'Build…', 'Play in game', 'Game maps…', 'Map grid', 'Clear map…', 'Load…', 'Manage projects…'], labels
+    project = page.evaluate('Boolean(viewer.project())')
+    assert labels == ['Save', 'Save as…', 'Open…'] + (['Close project'] if project else []) + ['Manage projects…'], labels
     page.wait_for_function("document.querySelector('#projectRecent').childElementCount > 0")
-    # Installs: the game install, the install plays go to, how the game is started and what the editor has in it
-    # (or why they are not known)
-    page.wait_for_function("document.querySelectorAll('#installInfo dd').length === 4")
-    assert page.locator('#installInfo dt').all_inner_texts() == ['Game', 'Plays in', 'Started', 'In the game']
     assert page.locator('#projectRecent .projectitem').count() <= 3
     page.keyboard.press('Escape')
     assert page.locator('#projectMenu').is_hidden()
-    # Ctrl+O: the Load dialog over every map's projects; Escape closes it and leaves the selection alone.
+    # the Map menu, next: Change map and, on a whole map, its missions, picture, grid and Clear map (elsewhere the
+    # button opens the map browser itself)
+    assert page.evaluate("document.querySelector('#projectButton').nextElementSibling.id") == 'mapButton'
+    page.locator('#mapButton').click()
+    if page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'):
+        assert page.locator('#mapMenu').is_visible() and page.locator('#mapDialog').is_hidden()
+        labels = [t.strip() for t in page.locator('#mapMenu .menuitems button:visible span').all_inner_texts()]
+        assert labels == ['Change map…', 'Missions…', 'Map picture…', 'Map grid', 'Clear map…'], labels
+        page.locator('#mapChange').click()
+        assert page.locator('#mapMenu').is_hidden()
+    page.wait_for_selector('#mapDialog:not([hidden])')
+    page.keyboard.press('Escape')
+    assert page.locator('#mapDialog').is_hidden()
+    # Build and Play in the header, the Game menu on Play's arrow. Its Installs: the game install, the install plays
+    # go to, how the game is started and what the editor has in it (or why they are not known)
+    assert page.locator('#projectBuild').is_visible() and page.locator('#projectBuild').is_disabled() != project
+    assert page.evaluate("document.querySelector('#playGroup').nextElementSibling.id") == 'settingsButton'
+    page.locator('#playButton').click()
+    assert page.locator('#playMenu').is_visible()
+    labels = [t.strip() for t in page.locator('#playMenu .menuitems button:visible span').all_inner_texts()]
+    assert labels == ['Test squad setup…', 'Game maps…'], labels
+    page.wait_for_function("document.querySelectorAll('#installInfo dd').length === 4")
+    assert page.locator('#installInfo dt').all_inner_texts() == ['Game', 'Plays in', 'Started', 'In the game']
+    page.keyboard.press('Escape')
+    assert page.locator('#playMenu').is_hidden()
+    page.locator('#settingsButton').click()
+    labels = [t.strip() for t in page.locator('#settingsMenu .menuitems button span').all_inner_texts()]
+    assert labels == ['Game install and checks…', 'Cache everything…'], labels
+    page.keyboard.press('Escape')
+    # Ctrl+F is the browser's own now: the header has no find box
+    assert page.locator('#search').count() == 0
+    # Ctrl+O: the Open dialog over every map's projects; Escape closes it and leaves the selection alone.
     page.evaluate('document.activeElement && document.activeElement.blur()')
     page.keyboard.press('Control+o')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    assert page.locator('#fileTitle').inner_text() == 'Load project' and page.locator('#fileOk').inner_text() == 'Open'
+    assert page.locator('#fileTitle').inner_text() == 'Open project' and page.locator('#fileOk').inner_text() == 'Open'
     assert page.locator('#fileShow').input_value() == 'all' and not page.locator('#fileShow').is_disabled()
     page.wait_for_function("!document.querySelector('#fileList').textContent.includes('Reading')")
     assert page.locator('#fileFolder').inner_text()
@@ -4170,14 +4194,14 @@ def check_project_menu(page):
 
 
 def check_squad(page, saves=False):
-    """Settings, just before Import notes, and Test squad setup (squad.js): the panel's list and unit editor, a kind
+    """The Game menu (Play's arrow), just before Settings, and its Test squad setup (squad.js): the panel's list and unit editor, a kind
     change and what it cleared, an error for a name the game can't take, Escape and Cancel leaving the saved squad as
     it was, and the play dialog's squad line opening the panel over it. saves: the server's --squad is a scratch file,
     so the check also saves, sees a save from elsewhere refused with the draft kept, and puts the squad back."""
     assert page.evaluate("document.querySelector('#settingsButton').nextElementSibling.id") == 'notesButton'
-    page.locator('#settingsButton').click()
-    assert page.locator('#settingsMenu').is_visible()
-    labels = [t.strip() for t in page.locator('#settingsMenu .menuitems button span').all_inner_texts()]
+    page.locator('#playButton').click()
+    assert page.locator('#playMenu').is_visible()
+    labels = [t.strip() for t in page.locator('#playMenu .menuitems button span').all_inner_texts()]
     assert labels[0] == 'Test squad setup…', labels
     page.wait_for_function("document.querySelector('#settingsSquadLine').textContent.startsWith('Squad')")
     page.locator('#settingsSquad').click()
@@ -4209,14 +4233,14 @@ def check_squad(page, saves=False):
     assert page.locator('#squadDialog').is_hidden()
     assert page.evaluate("fetch('/squad.json').then(r => r.json())")['revision'] == saved['revision']
     if saves:
-        page.locator('#settingsButton').click(); page.locator('#settingsSquad').click()
+        page.locator('#playButton').click(); page.locator('#settingsSquad').click()
         page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0")
         page.fill('#squadName', 'Smoke squad')
         page.locator('#squadSave').click()
         page.wait_for_selector('#squadDialog', state='hidden')
         mine = page.evaluate("fetch('/squad.json').then(r => r.json())")
         assert mine['document']['name'] == 'Smoke squad' and mine['revision'] != saved['revision']
-        page.locator('#settingsButton').click(); page.locator('#settingsSquad').click()
+        page.locator('#playButton').click(); page.locator('#settingsSquad').click()
         page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0")
         page.evaluate("""async revision => { const s = await (await fetch('/squad.json')).json();
           await fetch('/squad.json', {method: 'PUT', headers: {'Content-Type': 'application/json'},
@@ -4231,7 +4255,7 @@ def check_squad(page, saves=False):
         page.evaluate("""([revision, document]) => fetch('/squad.json', {method: 'PUT', headers: {'Content-Type': 'application/json'},
                          body: JSON.stringify({expectedRevision: revision, document})})""", [restore['revision'], saved['document']])
     if page.evaluate("!document.querySelector('#projectPlay').hidden && !document.querySelector('#projectPlay').disabled"):
-        page.locator('#projectButton').click(); page.locator('#projectPlay').click()
+        page.locator('#projectPlay').click()
         page.wait_for_selector('#buildOptions:not([hidden])')
         if page.locator('#buildSquadRow').is_visible():
             assert page.locator('#buildSquad').inner_text().startswith('Squad')
@@ -4536,7 +4560,7 @@ def check_prepare(browser, url, project_id=None):
 
 
 def check_play(browser, url, project_id=None, screenshot=None):
-    """Play in game in the Project menu, Game maps' Undo everything, and the menu's Installs section. Only against a test server
+    """Play in the header, the Game menu's Game maps and its Undo everything, and the menu's Installs section. Only against a test server
     started with --install <a scratch game folder> --dry-play (it refuses any other): it changes that install, and a
     server without --dry-play would start the game. The open map plays unedited, with nothing installed; with
     project_id, that project (its build must be of its saved revision, so that nothing builds) is installed and
@@ -4550,11 +4574,11 @@ def check_play(browser, url, project_id=None, screenshot=None):
     assert first['install']['ready'], first['install']
 
     def menu():
-        if page.locator('#projectMenu').is_hidden(): page.locator('#projectButton').click()
+        if page.locator('#playMenu').is_hidden(): page.locator('#playButton').click()
         page.wait_for_function("document.querySelectorAll('#installInfo dd').length === 4")
 
     def undo_everything():
-        """Game maps (Project menu), Undo everything: what it says it took out."""
+        """Game maps (the Game menu), Undo everything: what it says it took out."""
         menu()
         page.locator('#projectMaps').click()
         page.wait_for_function("document.querySelector('#gameMapsCount').textContent !== ''")
@@ -4577,7 +4601,7 @@ def check_play(browser, url, project_id=None, screenshot=None):
     # the game install's row: its folder and kind ("... (Long War Rebalance)"), or why it isn't known
     game = f"{first['lwr']['folder']} ({first['lwr']['kind']})" if first['lwr']['folder'] else first['lwr']['note']
     assert rows[0] == game and rows[1] == first['install']['folder'], rows
-    if screenshot: page.locator('#projectMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-menu')))
+    if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-menu')))
     if page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && !viewer.project()'):
         page.locator('#projectPlay').click()
         if page.evaluate('(viewer.data.missions || []).length > 1'):
@@ -4597,7 +4621,7 @@ def check_play(browser, url, project_id=None, screenshot=None):
     assert status()['game']['anything'] is False
     menu()
     page.wait_for_function("document.querySelectorAll('#installInfo dd')[3].textContent.startsWith(\"Nothing of the editor's\")")
-    # Game maps (Project menu): with nothing of the editor's in the game, Undo everything is greyed out
+    # Game maps (the Game menu): with nothing of the editor's in the game, Undo everything is greyed out
     page.locator('#projectMaps').click()
     page.wait_for_function("document.querySelector('#gameMapsCount').textContent.includes('nothing changed by the editor')")
     assert page.locator('#gameMapsUndoAll').is_disabled()
@@ -4628,7 +4652,7 @@ def check_play(browser, url, project_id=None, screenshot=None):
         menu()   # shown at once from the play's answer
         row = page.locator('#installInfo dd').nth(3).inner_text()
         assert row.endswith(f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else '')), row
-        if screenshot: page.locator('#projectMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-project')))
+        if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-project')))
         assert '1 map record' in undo_everything()
         # a finished build's window offers Play in game: a quick build (Ctrl+B, Bake the lighting off), then played
         # from the window, the outcome shown in it
@@ -5277,19 +5301,15 @@ def main():
                 page.wait_for_timeout(300)
                 page.screenshot(path=str(args.screenshot.with_stem(args.screenshot.stem+'-light-'+mode)))
             assert page.evaluate("viewer.sun.intensity > 0 && viewer.hemisphere.intensity > 0")
-        # The search list shows only while there is text; a result selects the piece and opens its panel.
+        # A picked piece opens its panel.
         page.keyboard.press('Escape')
         assert page.locator('#viewOptions').is_hidden()
         page.evaluate('viewer.select(null)')
-        assert page.locator('#objects').is_hidden() and page.locator('#inspector').is_hidden()
+        assert page.locator('#inspector').is_hidden() and page.locator('#finder').count() == 0
         term = 'Dumpster_A' if is_bar else page.evaluate("viewer.data.meshes[viewer.data.objects.find(o=>!o.hidden && !o.environment).mesh].name.split('.').at(-1)")
-        page.locator("#search").fill(term)
-        assert page.locator('#objects').is_visible() and page.locator(".piece").count() > 0
-        page.locator(".piece").first.click()
-        assert page.locator('#objects').is_hidden()
+        page.evaluate("term => viewer.select([...viewer.roots].find(([, r]) => !r.userData.source.hidden && !r.userData.source.environment"
+                      " && viewer.data.meshes[r.userData.source.mesh].name.endsWith(term))[0])", term)
         assert page.locator('#inspector').is_visible() and page.locator("#details h2").inner_text()
-        page.locator("#search").fill("")
-        assert page.locator('#objects').is_hidden()
         # A typed position moves the selection without turning it, as one undo step; so does a typed yaw.
         start = page.evaluate('viewer.gizmo.pose()')
         page.locator('#posX').fill(f"{start['location'][0] + 48:.2f}"); page.locator('#posX').press('Enter')

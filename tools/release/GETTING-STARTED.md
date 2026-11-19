@@ -52,7 +52,7 @@ connection and no Unreal tools.
 - Unpack it anywhere and run **XCOM Map Workshop.cmd**.
 - On its first start the editor asks for the game folder in the browser (the same choice as Setup's page).
 
-To change the game folder later: Project menu → **Game install and checks…**. That dialog also lists the editor's
+To change the game folder later: Settings (the gear) → **Game install and checks…**. That dialog also lists the editor's
 checks, if something seems wrong.
 
 ## New in this version
@@ -70,7 +70,7 @@ New in 0.5.3:
 
 New in 0.5.2:
 - **Play in game plays the mission you pick** (the header's Mission picker), not always an abduction, and says how
-  far that kind is known to work. **Missions…** (Project menu) chooses a project's missions and can add some.
+  far that kind is known to work. **Missions…** (Map menu) chooses a project's missions and can add some.
 - **A mission's objects** are marked in the view (View options, Mission objects), move with their group, and the
   Build warns when an edit takes the floor from under one.
 - **Enable saving:** a test battle you can save and load; XCOM opens at its main menu and F5 starts the battle.
@@ -79,7 +79,7 @@ New in 0.5.2:
 - **Camera speed sliders** in View options and a **Pivot** button (C) for the selection's centre.
 
 New in 0.5.1:
-- **Cache everything…** (Project menu) reads every piece of the game's maps ahead of use, and every map if asked,
+- **Cache everything…** (Settings, the gear) reads every piece of the game's maps ahead of use, and every map if asked,
   with a progress bar and Cancel.
 - **30 levels:** maps, prefabs and the prefab test's stage go up to 30 levels high (18 before).
 - **More is built:** a piece the Build can't make is left out and listed, and the rest is built; pieces of a kind
@@ -92,7 +92,7 @@ New in 0.5.0:
 - **Prefabs:** a set of pieces, or a whole building, saved to place in any map and to pass on as a file.
 - **Buildings:** the Buildings view (Shift+B) draws the floor boxes that make a roof hide and walls cut down in the
   game, for houses you put together and for the map's own.
-- **Clear map** (Project menu) takes every piece off a map, to build a new one on its light and landing.
+- **Clear map** (Map menu) takes every piece off a map, to build a new one on its light and landing.
 - **Map grid** (tool strip) resizes the play area with handles: larger and taller on any map, any size once cleared.
 - **Landing zones** (Shift+Z): where the squad lands, moved, turned, added and deleted. **Land here** plays one.
 - **Box select** (T), groups inside groups, and groups that hold lights and buildings.
@@ -139,7 +139,7 @@ recipes in your install and warns about any it can't load. After scanning **All 
 
 Close XCOM first. Then:
 
-- **Play in game** (Project menu) starts XCOM **straight in a battle** on the open project's latest build: pick
+- **Play** (in the header) starts XCOM **straight in a battle** on the open project's latest build: pick
   Enemy Within in the game's launcher (if yours still shows it), and the battle starts by itself with the test squad (below). There is no campaign
   to start, and nothing of the game's own is changed.
   - It opens the same panel as Build: **Build and play** builds first (Bake the lighting off by default), and
@@ -169,7 +169,7 @@ with something odd. **Export…** and **Import…** share a squad as a `.xcomsqu
 Long War without Rebalance the squad holds soldiers only, six at most. The squad is kept in
 `Documents\XCOM Map Workshop\test-squad.json`.
 
-**Missions…** (Project menu) sets the missions a project is for: the base map's, and kinds a record alone can give
+**Missions…** (Map menu) sets the missions a project is for: the base map's, and kinds a record alone can give
 it (an abduction, a terror site, a bomb mission under Long War, a crashed or landed UFO with a UFO prefab placed). The
 Build writes a record for each. A cleared map is asked **What is this map for?** when it is cleared.
 

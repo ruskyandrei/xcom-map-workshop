@@ -1,4 +1,4 @@
-// The Missions panel (Project menu; private/plans/done/mission-types-plan.md, D2): the missions the project is for.
+// The Missions panel (Map menu; private/plans/done/mission-types-plan.md, D2): the missions the project is for.
 // Each row is one of the base map's missions (ticked: the Build writes its record) or a kind a record alone gives the
 // map (an added kind: abduction, terror, a council bomb under LWR, a crashed or landed UFO with a UFO building), with
 // what is known of it played and what it needs. A cleared map is asked "What is this map for?" when Clear map runs.

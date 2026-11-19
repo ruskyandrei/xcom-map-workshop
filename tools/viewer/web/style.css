@@ -34,12 +34,6 @@ header { height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: 
 .projectpick.unsaved span::after { content: " \2022"; color: var(--warn); }
 .projectpick[aria-expanded=true], .projectpick:hover:not(:disabled) { border-color: #68b6ba; }
 .projectpick:disabled { opacity: .45; cursor: default; }
-.search { position: relative; flex: 0 1 300px; min-width: 150px; display: flex; align-items: center; gap: 7px; margin-left: 8px; padding: 0 8px; background: var(--field); border: 1px solid var(--border); border-radius: 4px; color: #8fa3ae; }
-.search:focus-within { border-color: #68b6ba; }
-.search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #e3eaef; font: inherit; padding: 6px 0; }
-.search input::-webkit-search-cancel-button { filter: invert(.7); }
-.search kbd { border: 1px solid #3a4a55; border-radius: 3px; padding: 0 4px; white-space: nowrap; }
-.results { position: absolute; left: -1px; right: -1px; top: calc(100% + 5px); max-height: min(60vh, 460px); overflow: auto; background: #192129f8; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px #0008; }
 .piece { width: 100%; display: flex; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid #26323b; background: none; text-align: left; padding: 7px 10px; color: #e3eaef; cursor: pointer; }
 .piece:hover, .piece.hl { background: #222e37; }
 .piece.active { box-shadow: inset 3px 0 0 var(--accent); }
@@ -47,7 +41,6 @@ header { height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: 
 .piece strong { display: block; font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .piece small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag { font-size: 10px; border: 1px solid #3d4d58; border-radius: 3px; padding: 0 5px; color: #a9bcc6; white-space: nowrap; }
-.resultsfoot { padding: 6px 10px; color: #7f95a1; font-size: 11px; }
 .chip { border-radius: 12px; padding: 3px 10px; font-size: 11px; border: 1px solid #3a4a55; color: #c8d7df; background: #1b252e; white-space: nowrap; }
 .chip.warn { border-color: #6f5a35; color: var(--warn); background: #2b2519; }
 .spacer { flex: 1; }
@@ -55,7 +48,19 @@ header { height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: 
 .icon:hover:not(:disabled), .icon[aria-expanded=true] { background: #25313a; }
 .icon:disabled { opacity: .4; cursor: default; }
 .textbutton { border: 1px solid var(--border); border-radius: 4px; background: none; color: #c8d7df; padding: 4px 9px; font-size: 11px; cursor: pointer; white-space: nowrap; }
-.textbutton:hover { background: #25313a; }
+.textbutton:hover:not(:disabled) { background: #25313a; }
+/* The header's Build and Play: Play with the Game menu's arrow joined to it. */
+.barbutton { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; font-size: 12px; color: #dbe7ec; background: #1d2730; }
+.barbutton:disabled { opacity: .45; cursor: default; }
+.barbutton .i { width: 14px; height: 14px; }
+.barbutton.play { border-color: #3f7f83; color: #dff3f4; }
+.barbutton.play .i { fill: currentColor; stroke-width: 1; }
+.playsplit { display: inline-flex; }
+.playsplit .play:not([hidden]) { border-radius: 4px 0 0 4px; }
+.playsplit .playmore { padding: 0 5px; border-radius: 0 4px 4px 0; margin-left: -1px; }
+.playsplit.alone .playmore { border-radius: 4px; margin-left: 0; }
+.playsplit .playmore[aria-expanded=true] { border-color: #68b6ba; }
+.projectpick[data-pop]::after { content: ""; width: 5px; height: 5px; margin: 0 9px 3px -3px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); flex-shrink: 0; }
 .count { position: absolute; top: -2px; right: -5px; background: #3b4f5a; color: #dbe7ec; border-radius: 8px; font-size: 9px; line-height: 1; padding: 2px 4px; }
 .count:empty { display: none; }
 .count.warn { background: #6f5a35; }
@@ -107,7 +112,6 @@ canvas { display: block; width: 100%; height: 100%; }
 .lookrow .lookname.warn { color: var(--warn-text, #e7c27d); }
 .buildfly .bi { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linejoin: round; flex: none; }
 /* the find box's build tools, ahead of the pieces found */
-.results .piece.build strong::before { content: 'Build · '; color: var(--accent-text); font-weight: 400; }
 .hint { left: 50%; transform: translateX(-50%); top: 12px; padding: 6px 12px; font-size: 12px; color: #c7d9e2; pointer-events: none; white-space: nowrap; }
 /* Box select's bar, under the hint: how many pieces the box holds, and what to do with them */
 .boxbar { left: 50%; transform: translateX(-50%); top: 48px; padding: 6px 10px; font-size: 12px; color: #c7d9e2; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
@@ -445,6 +449,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .projectinfo strong { display: block; color: #eef3f6; font-weight: 500; font-size: 14px; }
 /* The project menu: Save, Save as, Load and Close as a classic menu, the recent projects under it. */
 .pop.projectmenu { width: 300px; }
+.pop.mapmenu { width: 230px; }
+.pop.playmenu { width: 320px; }
+.menuitems hr { border: 0; border-top: 1px solid #26323b; margin: 5px 8px; }
+.menuitems hr:has(+ hr), .menuitems hr:not(:has(~ button:not([hidden]))) { display: none; }
+.menuitems kbd { color: var(--muted); font-size: 11px; }
+.menufoot { margin-top: 6px; }
 .menuitems { display: flex; flex-direction: column; margin: 9px -8px 0; }
 .menuitems button { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; border-radius: 3px; background: none; color: #e3eaef; padding: 6px 8px; text-align: left; cursor: pointer; font-size: 12px; }
 .menuitems button:hover:not(:disabled), .menuitems button:focus-visible { background: #25313a; outline: none; }
@@ -914,8 +924,8 @@ canvas { display: block; width: 100%; height: 100%; }
 
 @media (max-width: 1100px) { .brandname { display: none; } .pick select { max-width: 150px; } #statsLine { display: none; }
   /* The preview chip gives way before the map and layout menus do; its title keeps the whole text. */
-  #previewChip { min-width: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; } .search { flex-basis: 200px; } }
-@media (max-width: 800px) { .pick small, .search kbd { display: none; } #inspector { width: 250px; } }
+  #previewChip { min-width: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; } }
+@media (max-width: 800px) { .pick small { display: none; } #inspector { width: 250px; } }
 
 /* The map browser: every map LWR plays, in sections by mission type (a map is listed under each type it serves). */
 .mappick span { max-width: 220px; }
@@ -958,6 +968,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .prefab-builder #projectBuild, .prefab-builder #projectPlay, .prefab-builder #projectMaps,
 .prefab-builder #projectManage, .prefab-builder #projectClose, .prefab-builder #projectSize,
 .prefab-builder #projectRecent, .prefab-builder #installInfo, .prefab-builder #projectMenu > h3:not(:first-child),
+.prefab-builder #playMenu > h3:not(:first-child),
 .prefab-builder #notesButton, .prefab-builder #editResetAll, .prefab-builder #sceneryGroup,
 .prefab-builder #lighting, .prefab-builder #playAreaRow, .prefab-builder label:has(#floorTiles),
 .prefab-builder #libScope [data-value="map"], .prefab-builder label:has(#libAllElsewhere),

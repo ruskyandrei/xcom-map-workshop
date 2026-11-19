@@ -1,4 +1,4 @@
-// The Map picture dialog (Project menu; LWR map packs plan, 4.2): the picture the game shows for the map on its
+// The Map picture dialog (Map menu; LWR map packs plan, 4.2): the picture the game shows for the map on its
 // mission screens, 512 x 256. An image is chosen, dropped on the dialog or taken from the 3D view; a 2:1 frame over
 // it is dragged, resized by its corners or zoomed with the wheel (map_picture_crop.js has the arithmetic); beside it
 // is the result as the game will show it, after DXT1 (the server sends that back). Use this picture sends the cropped

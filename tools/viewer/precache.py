@@ -2,7 +2,7 @@
 
 The editor caches as it goes: a piece of another map is exported the first time it is placed or a prefab with it is
 opened (library.piece), a map the first time it is opened (exports.py). This does it all at once, in the background,
-for the page's Project menu ("Cache everything..."): one job at a time, which can be cancelled at any moment. What is
+for the page's Settings menu ("Cache everything..."): one job at a time, which can be cancelled at any moment. What is
 already in the cache is left; what the cache holds for another file of a map or from an older exporter is made again.
 
   GET  /precache.json           the job's state (below); with ?plan=1 also what there is to do: {pieces: {ready,

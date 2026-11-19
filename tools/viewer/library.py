@@ -1025,7 +1025,7 @@ def read_effects(cache, game, sources):
 
 
 # ---------------------------------------------------------------------------------------------------- every piece ahead
-# The cache filled ahead of use (precache.py, the page's Project menu): every piece the index lists, exported as
+# The cache filled ahead of use (precache.py, the page's Settings menu): every piece the index lists, exported as
 # piece() exports one on first use, a donor map to a worker.
 _RECORD_HEAD = re.compile(rb'\{"version": (\d+)')
 _QUEUE = None

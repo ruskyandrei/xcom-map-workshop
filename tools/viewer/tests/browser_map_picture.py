@@ -55,7 +55,7 @@ def result_pixels(page):
 
 
 def open_dialog(page):
-    page.locator('#projectButton').click()
+    page.locator('#mapButton').click()
     page.locator('#projectPicture').click()
     page.wait_for_selector('#mapPictureDialog:not([hidden])')
 
@@ -70,7 +70,7 @@ def check(page, base, map_id, shots, errors):
     page.goto(f'{base}/?map={map_id}', wait_until='load')
     page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=180000)
     # no project: the item is there and asks for a save
-    page.locator('#projectButton').click()
+    page.locator('#mapButton').click()
     assert page.locator('#projectPicture').is_visible()
     page.locator('#projectPicture').click()
     assert page.locator('#mapPictureDialog').is_hidden()

@@ -1,4 +1,4 @@
-// The Game maps window (Project menu; tools/viewer/gamemaps.py): the map records of the game install's DefaultMaps.ini
+// The Game maps window (the Game menu, on the arrow beside Play; tools/viewer/gamemaps.py): the map records of the game install's DefaultMaps.ini
 // as the game reads them now, by map. The install's own records have a tick: in use, or switched off (commented out,
 // here by hand or because a project's build replaces the map). The records the editor added sit under their base map,
 // each with an Undo that takes that build out. Group by turns the list round: each kind of mission with the maps the
@@ -52,7 +52,7 @@ export function removedText(d) {
 
 /**
  * els: the dialog's elements (root, form, close, search, show, group, column, list, count, offShown, onShown, message, undoAll, done,
- * where). onChanged(): the install's contents changed (the Project menu's Installs section follows).
+ * where). onChanged(): the install's contents changed (the Game menu's Installs section follows).
  */
 export function createGameMaps({ els, api = gameMapsApi, onChanged }) {
   let listed = null, busy = false, lastFocus = null;

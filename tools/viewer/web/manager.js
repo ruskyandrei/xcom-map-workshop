@@ -80,7 +80,7 @@ export function buildStatus(p, editorVersion) {
  * els: the dialog's elements (root, form, close, search, show (the chips' group), sort, all, shownLabel, list, count,
  * pickNone, allModes, picked (the selected projects' list), message, pack, projectFiles, install, where).
  * mapLabel(id): a map's display name. onOpen(summary): open that project. reveal(path): show a file in Explorer.
- * onChanged(): the game install's contents changed (the Project menu's Installs section follows).
+ * onChanged(): the game install's contents changed (the Game menu's Installs section follows).
  * queue: the page's build queue controller (build_queue.js createQueueController), or none; its elements: build,
  * queueBox, queueTitle, queueClock, queueStep, queueStage, queueBar, queueNote, queueFailures, queueLive, queueStop,
  * queueResume, queueClear, queueReset. ensureSaved(ids): saves the open project first when it is among `ids` and has
@@ -358,7 +358,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       els.build.title = cant ? `Not now: ${cant}` : `Full builds with baked lighting of the selected projects, one after another, each of the project as saved when its turn comes${hidden ? ` (${hidden} selected not shown by the filter)` : ''}. The open project's unsaved changes are saved first. The manager can be closed meanwhile`;
     }
     els.install.title = !listed?.install?.folder ? (listed?.install?.why ?? '') : !ready ? `Not now: ${listed.install.why}`
-      : `Install the selected projects' last builds in ${listed.install.folder} for campaigns, each as it says above. Game maps (Project menu) shows what the game then uses, and undoes it`;
+      : `Install the selected projects' last builds in ${listed.install.folder} for campaigns, each as it says above. Game maps (the arrow beside Play) shows what the game then uses, and undoes it`;
     els.where.textContent = listed?.install?.folder ? `Installs into ${listed.install.folder}${listed.install.kind ? ` (${listed.install.kind})` : ''}${ready ? '' : ` · ${listed.install.why}`}`
       : (listed?.install?.why ?? '');
     els.where.classList.toggle('warn', Boolean(listed) && !ready);
@@ -412,7 +412,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
     if (replaced.length) lines.push(`Installed in place of the original${replaced.length === 1 ? '' : 's'}: ${replaced.map(x => x.name).join(', ')}.`
       + (off ? ` ${plural(off, 'record')} of the original map${replaced.length === 1 ? '' : 's'} commented out.` : ''));
     if (beside.length) lines.push(`Installed as additional map${beside.length === 1 ? '' : 's'} in the rotation: ${beside.map(x => x.name).join(', ')}.`);
-    if (ok.length) lines.push('A campaign uses them from its next new mission on; Game maps (Project menu) shows it and undoes it.');
+    if (ok.length) lines.push('A campaign uses them from its next new mission on; Game maps (the arrow beside Play) shows it and undoes it.');
     if (bad.length) lines.push(`Not installed: ${bad.join(' ')}`);
     say(lines.map(text => el('div', { textContent: text })), Boolean(bad.length));
   });

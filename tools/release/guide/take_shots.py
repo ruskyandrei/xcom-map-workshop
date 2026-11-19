@@ -238,13 +238,14 @@ class Shots:
         ], resize=0.75)
 
     def header(self):
-        controls = ('#projectButton', '#mapButton', '#finder', '#editCount', '#editUndo', '#editRedo', '#editResetAll',
-                    '#settingsButton', '#notesButton', '#viewButton', '#helpButton')
+        controls = ('#projectButton', '#mapButton', '#editCount', '#editUndo', '#editRedo', '#editResetAll', '#projectBuild',
+                    '#projectPlay', '#playButton', '#settingsButton', '#notesButton', '#viewButton', '#helpButton')
         marks = [dict(n=k + 1, sel=s, side='bottom', gap=17) for k, s in enumerate(controls)]
         # in two halves, the empty middle left out, so that both show at their full size in the guide
         h = self.rect('header')[3] + 32
-        finder, count = self.rect('#finder'), self.rect('#editCount')
-        self.shot('header-left', marks, clip=dict(x=0, y=0, width=finder[0] + finder[2] + 16, height=h))
+        last = self.rect('#missionPick') if self.page.locator('#missionPick').is_visible() else self.rect('#mapButton')
+        count = self.rect('#editCount')
+        self.shot('header-left', marks, clip=dict(x=0, y=0, width=last[0] + last[2] + 16, height=h))
         self.shot('header-right', marks, clip=dict(x=count[0] - 16, y=0, width=WIDTH - count[0] + 16, height=h))
 
     def rail(self):
@@ -276,17 +277,29 @@ class Shots:
         page.locator('#projectButton').click()
         page.wait_for_selector('#projectRecent > *')
         page.wait_for_timeout(600)
-        rows = [(1, '#projectInfo'), (2, '#projectSave'), (3, '#projectSaveAs'), (4, '#projectBuild'), (5, '#projectPlay'),
-                (6, '#projectMaps'), (7, '#projectSize'), (8, '#projectMissions'), (9, '#projectClear'), (10, '#projectLoad'),
-                (11, '#projectManage'), (12, '#projectClose'), (13, '#projectCache'), (14, '#projectSetup'),
-                (15, '#projectRecent'), (16, '#installInfo')]
+        rows = [(1, '#projectInfo'), (2, '#projectSave'), (3, '#projectSaveAs'), (4, '#projectLoad'), (5, '#projectClose'),
+                (6, '#projectRecent'), (7, '#projectManage')]
         self.shot('project-menu', self.panel_rows('#projectMenu', rows, side='right'),
                   clip=self.around('#projectButton', '#projectMenu', pad=(10, 6, 44, 12)))
+        self.close_pops()
+        page.locator('#mapButton').click()
+        page.wait_for_timeout(300)
+        rows = [(1, '#mapChange'), (2, '#projectMissions'), (3, '#projectPicture'), (4, '#projectSize'), (5, '#projectClear')]
+        self.shot('map-menu', self.panel_rows('#mapMenu', rows, side='right'),
+                  clip=self.around('#mapButton', '#mapMenu', pad=(10, 6, 44, 12)))
+        self.close_pops()
+        page.locator('#playButton').click()
+        page.wait_for_function("document.querySelectorAll('#installInfo dd').length === 4")
+        page.wait_for_timeout(300)
+        rows = [(1, '#settingsSquad'), (2, '#projectMaps'), (3, '#installInfo')]
+        self.shot('game-menu', self.panel_rows('#playMenu', rows, side='left'),
+                  clip=self.around('#playButton', '#playMenu', pad=(44, 6, 10, 12)))
         self.close_pops()
 
     def map_browser(self):
         page = self.page
         page.locator('#mapButton').click()
+        page.locator('#mapChange').click()
         page.wait_for_selector('#mapList .maprow')
         page.wait_for_timeout(500)
         x, y, w, h = self.rect('#mapList .maprow.on')
@@ -1063,7 +1076,6 @@ def prefab_test_shot(browser, server, out):
     page.goto(server.split('?')[0] + '?prefab=new')
     page.wait_for_function("window.viewer && document.querySelector('#loading').hidden")
     page.evaluate('viewer.addVolumes([{box:[-192,0,0,0,192,176],floor:0}])')
-    page.locator('#projectButton').click()
     page.locator('#prefabTest').click()
     png = page.locator('#buildForm').screenshot()
     image = Image.open(io.BytesIO(png)).convert('RGB')

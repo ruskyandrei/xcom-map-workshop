@@ -1005,7 +1005,7 @@ def main():
                                  progress=lambda done, total, name: print(f"progress: scanning the maps {done}/{total}", flush=True))
             print(json.dumps(library.summary(index), indent=2))
         elif args.action == "precache":
-            # every piece the library lists, written to the cache ahead of use (the page's Project menu: precache.py);
+            # every piece the library lists, written to the cache ahead of use (the page's Settings menu: precache.py);
             # the library is read first when it is not there or the install's maps changed since
             index = library.load_index(cache)
             if index is None or any(library.stale(index, game)):

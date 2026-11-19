@@ -377,7 +377,7 @@ def pack_readme(pack, parts):
         lines += ['', 'Editor projects. The projects folder has the XCOM Map Workshop project of %s, to open and change in the'
                   % ('this map' if len(shared) == 1 else 'these maps'),
                   'editor: copy the .json file into the editor\'s projects folder (by default <editor folder>\\projects), then open',
-                  'it with Load in the Project menu. A .picture.png beside a project is its map picture: copy it along. The',
+                  'it with Open in the Project menu. A .picture.png beside a project is its map picture: copy it along. The',
                   'editor reads the base map from your own game install.']
         for s in shared:
             later = s['revision'] != s['buildRevision'] and s['buildRevision'] is not None

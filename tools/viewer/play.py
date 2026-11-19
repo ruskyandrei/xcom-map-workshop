@@ -1,4 +1,4 @@
-"""Play in game and Remove from game, from the editor's Project menu, and which installs the editor works with.
+"""Play in game and Remove from game, from the editor's header, and which installs the editor works with.
 
 Play in game starts the game straight in a battle on the open map, with no campaign to start and nothing of the
 game's own changed (gamelaunch.py, EXP-29). The work on the install is installs.py's, on the game install the settings

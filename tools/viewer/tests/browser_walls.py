@@ -109,12 +109,6 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.evaluate('document.activeElement.blur()')
     page.keyboard.press('p')
     assert not page.locator('#libMap').is_visible()
-    # the find box names the tools its words name, ahead of the pieces
-    page.locator('#search').fill('roof')
-    page.wait_for_selector('#objects:not([hidden]) .build')
-    found = page.evaluate("[...document.querySelectorAll('#objects .build')].map(b => b.dataset.build)")
-    assert found == ['roomroof', 'roof'], found
-    page.locator('#search').press('Escape'); page.locator('#search').press('Escape')
     # the Build menu's Wall, from hovering Add: drawn by dragging, one wall, then it stops (Shift keeps drawing)
     look_at(page, list(at))
     build_menu(page, 'wall')

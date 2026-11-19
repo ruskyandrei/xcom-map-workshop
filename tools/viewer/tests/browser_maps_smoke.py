@@ -29,7 +29,9 @@ def rows(page):
 
 def pick(page,map_id):
     """Open the map browser, choose the map, and open it."""
-    if page.locator('#mapDialog').is_hidden():page.locator('#mapButton').click()
+    if page.locator('#mapDialog').is_hidden():
+        page.locator('#mapButton').click()     # the Map menu, or the browser itself where the menu would hold one item
+        if page.locator('#mapMenu').is_visible():page.locator('#mapChange').click()
     page.locator('#mapSearch').fill('')
     page.locator('#mapGroups [data-group="all"]').click()
     page.locator(f'#mapList .maprow[data-id="{map_id}"]').first.click()
@@ -86,14 +88,13 @@ def main():
         page.keyboard.press('Escape')
         assert page.locator('#mapDialog').is_hidden()
 
-        page.locator('#search').fill('CarCompact')
         if page.locator('#viewOptions').is_hidden():page.locator('#viewButton').click()   # Wireframe is in View options
         page.locator('#wire').check()
         requests.clear();pick(page,'TempleShip');ready(page,'TempleShip')
         assert 'scene=' not in page.url
         assert not page.evaluate('Boolean(viewer.data.preview)')
         assert page.evaluate("document.getElementById('scenery').value")=='interior'
-        assert page.locator('#search').input_value()=='' and not page.locator('#wire').is_checked()
+        assert not page.locator('#wire').is_checked()
         assert page.locator('#helpersRow').is_hidden()   # Temple has no inherited patch helpers
         assert all(path.startswith('/cache/TempleShip/') for path in requests if path.startswith('/cache/'))
         page.screenshot(path=str(args.screenshot.with_stem(args.screenshot.stem+'-temple')))

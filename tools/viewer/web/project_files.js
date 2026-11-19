@@ -243,7 +243,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   function show(which, given) {
     mode = which; context = given; chosen = null;
     const saving = mode === 'save';
-    els.title.textContent = saving ? 'Save project' : 'Load project';
+    els.title.textContent = saving ? 'Save project' : 'Open project';
     els.ok.textContent = saving ? 'Save' : 'Open';
     els.show.value = saving ? 'map' : 'all';
     els.show.disabled = saving;

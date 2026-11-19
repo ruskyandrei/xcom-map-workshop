@@ -8,6 +8,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The header's menus sorted out: Project and Map menus, Build and Play on the bar, no find box** (branch
+  `lwr-map-packs`; [index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js),
+  [style.css](tools/viewer/web/style.css)). The Project menu held fifteen items of three kinds in one list; now:
+  - **Project** holds the project's own: Save, Save as, Open… (was Load…; its window is "Open project"), Close
+    project, the recent projects and Manage projects.
+  - **Map** is a menu too: Change map… (M), Missions…, Map picture…, Map grid and Clear map…. Where it would hold
+    Change map alone (a prefab, a patch preview) the button opens the map browser as before.
+  - **Build** and **Play** are buttons at the right of the header, kept up to date as the project, its edits and its
+    build change (the installs are asked once the map opens, not when a menu does). The arrow joined to Play opens
+    the **Game** menu: Test squad setup, Game maps and the Installs. A prefab's Test in game… stands where Play does.
+  - **Settings** (the gear) holds Game install and checks and Cache everything.
+  - **Find a piece** and its Ctrl+F are gone (`catalogue`, `buildToolsFound` and their styles with them); Ctrl+F is
+    the browser's own in the main view. The windows with a search of their own keep theirs.
+  - Messages, the help panel, [README.md](tools/viewer/README.md) and
+    [GETTING-STARTED.md](tools/release/GETTING-STARTED.md) name the new places. The guide still shows the old
+    header: [take_shots.py](tools/release/guide/take_shots.py) is brought in line (a Map menu and a Game menu shot
+    added), its pictures and text are not yet retaken.
+  - Checked on a test server: `browser_smoke.py` on the tutorial map through the header's menus and the squad check
+    (it then stops in the prefab check's placing on that map), `browser_map_picture.py` whole, `--only walls,squad`
+    on the Bar (the walls check fails at a drawn wall's place, -1343.9998 for -1344, as it does without this
+    change); the `viewer`, `release`, `repo` and `node` suites. `browser_maps_smoke.py` stops earlier than anything
+    touched here, at its count of the map browser's groups (the Prefabs group).
+
 - **EXP-85 runs D: the pack maps' own pictures on the Geoscape's screens** (notes only;
   [EXP-85](research/experiments/EXP-85-map-pack-cards.md), status now passed; findings register T-48). Played by
   hand on the beta 15 copy with `Intro test pack` v2 (its bar and its farm crash site built again with pictures of

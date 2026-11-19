@@ -394,7 +394,6 @@ function select(id, add = false, keep = false) {
   selected = id;
   { const was = pickedEffect; pickedEffect = effectRoots.has(id) ? id : null; if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
   const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id);
-  for (const button of $('objects').querySelectorAll('.piece')) button.classList.toggle('active', button.dataset.id === id);
   $('inspector').hidden = !root || Boolean(root.userData.volume);
   $('rail').classList.toggle('idle', !root);
   $('lightBox').hidden = !root?.userData.light;
@@ -1232,7 +1231,7 @@ const boxMatrix = b => new THREE.Matrix4().makeScale(b[3] - b[0], b[5] - b[2], b
 const UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
 // (and back: the box a clip's volume covers, in game units)
 const matrixBox = matrix => { const b = UNIT_BOX.clone().applyMatrix4(matrix); return [b.min.x, b.min.z, b.min.y, b.max.x, b.max.z, b.max.y]; };
-function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); catalogue(); refreshGroundGrid(false); refreshJoins(); }
+function sceneChanged() { touchShadows(); liveCache = null; effectsDirty = true; cutaway(); refreshGroundGrid(false); refreshJoins(); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
 function actorPose(source, matrix) {
@@ -4861,7 +4860,7 @@ async function openProject(id) {
   askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
   touchRecent(id);
   // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
-  projectApi.buildStatus(id).then(s => { lastBuild = s; if (s.state === 'running') followBuild(s); }, () => {});
+  projectApi.buildStatus(id).then(s => { lastBuild = s; renderPlayItems(); if (s.state === 'running') followBuild(s); }, () => {});
   $('loading').hidden = true;
   const kept = carried.overrides.length + carried.added.length + carried.groups.length + carried.areaLightBindings.length
     + carried.buildings.filter(validBuilding).length;
@@ -4907,6 +4906,7 @@ function projectChanged() {
     return;
   }
   $('projectTitle').textContent = project ? project.doc.name : 'None';
+  renderPlayItems();
   if (!project) return;
   $('projectButton').classList.toggle('unsaved', dirty());
   clearTimeout(recoveryTimer);
@@ -5015,7 +5015,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     return false;
   } finally { saving = false; editChanged(); }
 }
-// Build (Ctrl+B, Project menu): a panel first asks whether to bake the lighting (build_options.js; off by default),
+// Build (Ctrl+B, the header's Build): a panel first asks whether to bake the lighting (build_options.js; off by default),
 // then the open project is saved if it has unsaved changes (Save itself never builds) and the server builds the saved
 // revision (tools/viewer/builds.py runs tools/editor/build.py, with --quick when not baking): the variant package in the
 // builds folder. Nothing is installed. While it runs, a window covers the editor, since the build takes
@@ -5086,7 +5086,7 @@ function followBuild(status) {
     playAfterBuild = null;
     if (status.state === 'built') playBuilt(job.project);
   }
-  renderBuild();
+  renderBuild(); renderPlayItems();
   if (!buildView.ended) buildTimer = setTimeout(pollBuild, 2000);
   else {
     clearInterval(buildTicker); $('buildClose').focus();
@@ -5320,7 +5320,7 @@ $('buildCopy').onclick = () => {
 };
 $('buildClose').onclick = closeBuildWindow;
 // Play in game from a finished build's window: that build installed and the game started on it (playBuilt), the
-// outcome shown in the window. It asks the server first, as the Project menu's Play in game does (XCOM may be open).
+// outcome shown in the window. It asks the server first, as the header's Play does (XCOM may be open).
 async function playFinished() {
   const id = buildView.status.job.project;
   playZone = null;                                  // the window's own Play: no landing zone of a Land here
@@ -5362,6 +5362,7 @@ window.addEventListener('keydown', e => {
   else if ((e.ctrlKey || e.metaKey) && !['c', 'r'].includes(e.key.toLowerCase())) e.preventDefault();
 }, true);
 const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
+const BUILD_TITLE = $('projectBuild').title;
 async function renderProjectMenu() {
   const info = $('projectInfo');
   info.replaceChildren();
@@ -5384,12 +5385,8 @@ async function renderProjectMenu() {
   } else if (projectsAvailable()) text(info, 'div', 'No project open: edits are a trial until you save them.');
   else text(info, 'div', 'This is a patch preview: projects edit a map\'s original layout. Open the map from the map browser (M) to save one; Load opens a project on its map.');
   for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = !projectsAvailable();
-  $('projectBuild').disabled = !projectsAvailable() || !project || lastBuild?.state === 'running';
   $('projectClose').hidden = !project;
-  // the installs as last known (an install or reset here answers with them), then asked again
-  if (playStatus) renderInstalls($('installInfo'), playStatus, mapLabel);
   renderPlayItems();
-  refreshInstalls();
   // Recent: the three last opened or saved here (or else saved anywhere), the open one aside.
   const list = $('projectRecent');
   try {
@@ -5411,7 +5408,7 @@ async function renderProjectMenu() {
 // Play in game and Remove from game (play.js, tools/viewer/play.py): the game started straight in a battle on the open
 // map, in the game install the settings name (the install setting, else the game install the editor reads). With a
 // project open it plays the project's build, building first when the last build isn't of what is on screen; with a map
-// alone, the original map (no edits). The menu's Installs section says what the editor works with.
+// alone, the original map (no edits). The Game menu's Installs section says what the editor works with.
 // playAfterBuild: { project, attempt } once Build and play has asked for a build (its attempt once the server took it)
 let playStatus = null, playAfterBuild = null;
 // Land here (Clear map plan, section 4): the landing zone, by id, the next play of the project lands at, else null
@@ -5459,12 +5456,21 @@ async function refreshInstalls() {
 }
 // Why the game can't be played now, going by the server's play status (null: it can, or it isn't known yet).
 const playBlocked = s => !s ? null : s.error ?? (!s.install?.ready ? s.install?.why ?? 'asking the server' : s.launch && !s.launch.how ? s.launch.why : null);
+// The header's Build and Play buttons and the Game menu's Game maps: what each can do now, and why not.
 function renderPlayItems() {
-  const s = playStatus, play = $('projectPlay'), maps = $('projectMaps');
+  const s = playStatus, play = $('projectPlay'), maps = $('projectMaps'), build = $('projectBuild');
+  if (!builderMode) {
+    build.disabled = !projectsAvailable() || !project || lastBuild?.state === 'running';
+    build.title = !projectsAvailable() ? 'Build makes a project\'s map for the game: open the map from the map browser (M) and save a project on it'
+      : !project ? 'Build makes the project\'s map for the game: save the edits as a project first (Ctrl+S)'
+      : lastBuild?.state === 'running' ? 'The project is being built'
+      : BUILD_TITLE;
+  }
   play.hidden = maps.hidden = Boolean(s?.unavailable);
+  $('playGroup').classList.toggle('alone', play.hidden && $('prefabTest').hidden);
   const ready = Boolean(s?.install?.ready), why = s?.install?.why ?? s?.error;
   const cantStart = ready && s?.launch && !s.launch.how ? s.launch.why : null;
-  const where = s?.install?.sameAsLwr ? 'the game install' : 'the install under Installs';
+  const where = s?.install?.sameAsLwr ? 'the game install' : 'the install the Game menu names under Installs';
   play.disabled = !projectsAvailable() || !ready || Boolean(cantStart) || lastBuild?.state === 'running';
   play.title = !projectsAvailable() ? 'Play in game starts the game on a map\'s original layout or a project on it: open the map from the map browser (M)'
     : !ready ? `Not now: ${why ?? 'asking the server'}`
@@ -6095,67 +6101,6 @@ function placeObjects() {
   content.updateMatrixWorld(true);
   if (selected) select(selected, false, true);
 }
-// Search results: only while the search box has focus and holds text. Pieces hidden in the current view are left out.
-const MAX_RESULTS = 60;
-let resultIndex = -1;
-function catalogue() {
-  const search = $('search'), list = $('objects');
-  const filter = search.value.trim().toLowerCase();
-  list.replaceChildren(); resultIndex = -1;
-  list.hidden = !filter || document.activeElement !== search;
-  if (!filter || !data) return;
-  for (const [key, tool] of buildToolsFound(filter)) {
-    const button = text(list, 'button', '', 'piece build');
-    Object.assign(button, { type: 'button', title: `${tool.name}: drawn by dragging in the view (the Build menu on the Add button)` });
-    button.dataset.build = key; button.setAttribute('role', 'option');
-    const label = text(button, 'span', '');
-    text(label, 'strong', tool.name); text(label, 'small', 'press, drag, let go in the view');
-    button.onclick = () => { $('search').blur(); startBuild(key); };
-  }
-  const matches = [];
-  for (const [id, root] of roots) {
-    const obj = root.userData.source, name = data.meshes[obj.mesh].name;
-    if (isStream(obj) && !streamSet.has(obj.stream)) continue;
-    if (obj.environment || obj.hidden && !((obj.layer === 'inherited' || isStream(obj)) && obj.hiddenBy == null && !$('hideHelpers').checked)) continue;
-    if (root.userData.tacticalExcluded || root.userData.deleted) continue;
-    if (`${name} ${obj.actor}`.toLowerCase().includes(filter)) matches.push([id, obj, name]);
-  }
-  for (const [id, obj, name] of matches.slice(0, MAX_RESULTS)) {
-    const button = text(list, 'button', '', 'piece');
-    Object.assign(button, { type: 'button', title: `${name}\n${obj.actor}` });
-    button.dataset.id = id; button.setAttribute('role', 'option');
-    button.classList.toggle('active', id === selected);
-    const label = text(button, 'span', '');
-    text(label, 'strong', short(name)); text(label, 'small', short(obj.actor));
-    const others = gizmo.linkedCount(id), group = liveGroup(memberOf(obj));
-    if (group) text(button, 'span', 'group', 'tag group').title = `In a group of ${plural(liveKeys(group).length, 'piece')}`;
-    if (isStream(obj)) text(button, 'span', data.streams?.[obj.stream]?.kind === 'lwr' ? 'LWR patch' : 'mission', 'tag').title = `From ${obj.stream}: not editable`;
-    else if (obj.hidden) text(button, 'span', 'hidden helper', 'tag');
-    else if (obj.cover) text(button, 'span', isFloor(obj.cover) ? 'invisible floor' : isBlocker(obj.cover) ? 'blocker' : 'cover block', 'tag').title = isFloor(obj.cover)
-      ? 'An invisible floor units can stand on' : isBlocker(obj.cover) ? 'An invisible block units can\'t walk into, with no cover' : 'An invisible block that gives cover';
-    else if (obj.added) text(button, 'span', others ? `added · +${others}` : 'added', 'tag').title = `A copy of ${short(obj.added.from.actor)}`;
-    else if (others) text(button, 'span', `+${others} linked`, 'tag').title = `Moves with ${plural(others, 'other piece')}`;
-    button.onclick = e => choose(id, e.ctrlKey || e.shiftKey || e.metaKey);
-  }
-  text(list, 'div', matches.length
-    ? `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}${matches.length > MAX_RESULTS ? `, first ${MAX_RESULTS} shown` : ''} · ↑↓ to choose · Enter selects and frames · Esc clears`
-    : list.querySelector('.build') ? '↑↓ to choose · Enter starts drawing · Esc clears' : 'No visible piece matches', 'resultsfoot');
-  highlightResult(0);
-}
-function highlightResult(index) {
-  const items = [...$('objects').querySelectorAll('.piece')];
-  if (!items.length) return;
-  resultIndex = (index + items.length) % items.length;
-  items.forEach((b, i) => b.classList.toggle('hl', i === resultIndex));
-  items[resultIndex].scrollIntoView({ block: 'nearest' });
-}
-// Picking a result selects the piece and frames it; Ctrl/Shift adds it to the selection and keeps the list open.
-function choose(id, add) {
-  select(id, add);
-  if (add) { catalogue(); return; }
-  if (roots.get(id)) frame(roots.get(id));
-  $('search').blur();
-}
 // A row of buttons used like a select: .value, buttons with data-value, onChange after a click.
 function segmented(el, onChange) {
   Object.defineProperty(el, 'value', {
@@ -6364,7 +6309,7 @@ function setPlayArea(on) {
   remember(PLAY_AREA_SHOWN, playArea.visible ? '1' : '0');
 }
 $('playAreaToggle').checked = playArea.visible;
-// The map's size as the project sets it (Project menu, Map size…; prefab plan 5.11). The Build makes the map's tile
+// The map's size as the project sets it (Map menu, Map grid; prefab plan 5.11). The Build makes the map's tile
 // grid that many tiles from its own corner, so it grows along +X and +Y. Here the scene's grid and play area take the
 // size, so everything that reads them (the play area's box, the tile grid, Interior) follows, and the new area is
 // drawn as a faint sheet at the grid's bottom: green where the Build is to lay the map's ground, grey where the
@@ -6861,7 +6806,7 @@ function clearedMissions() {
 async function showMissions(asked = false) {
   showPop(null);
   if (!projectsAvailable() || !data || data.preview) return;
-  if (!playStatus) await refreshInstalls();     // what is known of each kind played (the Project menu asks it too)
+  if (!playStatus) await refreshInstalls();     // what is known of each kind played (the page asks at its start too)
   const missions = data.missions ?? [], labels = missionLabels(missions), kinds = playStatus?.missionKinds ?? {};
   const listed = Array.isArray(projectMissions) ? projectMissions : missions.map((_, i) => ({ record: i }));
   const has = entry => listed.some(e => (entry.record !== undefined ? e.record === entry.record : e.kind === entry.kind));
@@ -6881,7 +6826,7 @@ async function showMissions(asked = false) {
   }
   missionsPanel.show({
     title: asked ? 'What is this map for?' : `Missions${project ? ` of ${project.doc.name}` : ''}`,
-    note: asked ? 'The cleared map is played as the missions ticked here; the Build writes a record for each. The Missions item in the Project menu changes them later.'
+    note: asked ? 'The cleared map is played as the missions ticked here; the Build writes a record for each. Missions in the Map menu changes them later.'
       : 'The Build writes a record for each mission ticked, and Play in game plays one of them. An added kind is made from the base map\'s abduction record.',
     rows, onOk: entries => setMissions(entries),
   });
@@ -9808,12 +9753,6 @@ function markBuildTool(key) {
 for (const b of $('buildFlyout').querySelectorAll('button[data-build]')) {
   b.onclick = () => { startBuild(b.dataset.build); b.blur(); };
 }
-// The build tools a find box's words name (all its words in the tool's name or words).
-function buildToolsFound(filter) {
-  const words = filter.split(/\s+/).filter(Boolean);
-  if (!words.length || !data || data.preview || builderMode) return [];
-  return Object.entries(BUILD_TOOLS).filter(([, t]) => words.every(w => `${t.name} ${t.words}`.toLowerCase().includes(w)));
-}
 // The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
 function wallTopsRound(rect, floor) {
   let top = null;
@@ -11796,7 +11735,7 @@ function refreshMissionPicker() {
   $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
   if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
   $('mission').value = missionPickValue;
-  if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); catalogue(); }
+  if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); }
 }
 const missionName = m => m.label;
 function missionLabels(missions) {
@@ -11945,7 +11884,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     return `${p.name} · ${p.components} source helpers${removed ? ` (${removed} removed by layout)` : ''} · ${p.records.filter(r=>r.actorClass==='XComRebuildWorldDataVolume').length} rebuild volumes`;
   }), ...(data.preview ? [] : Object.entries(data.streams || {}).map(([name, s]) =>
     `${name} · ${s.error ? `not shown: ${s.error}` : `${s.objects.length} pieces (${s.hiddenComponents} hidden in game), ${s.rebuildVolumes} rebuild volumes`}`))].join(' / ');
-  placeObjects(); floorOptions(); catalogue(); frame();
+  placeObjects(); floorOptions(); frame();
   applyLighting = () => {
     // the lights as edited (lightRecords), when they changed since
     if (lightsDirty && data.scope === 'map' && !data.preview) {
@@ -11976,7 +11915,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     $('editLinked').classList.remove('on');
     $('editLinked').title = 'Linked pieces need a re-export: this export has no prefab/partner links. Re-export the map (export version 12) and restart the viewer server.';
   }
-  if (!projectsAvailable()) $('projectButton').title = 'Project: load one (Ctrl+O). Saving needs the map\'s original layout: open the map from the map browser (M)';
+  void refreshInstalls();     // the header's Play button goes by them
+  if (!projectsAvailable()) $('projectButton').title = 'Project: open one (Ctrl+O). Saving needs the map\'s original layout: open the map from the map browser (M)';
   // An export older than what lights and Builds need (export 18 and its glowing pieces): prepare it again.
   // An export older than the server's exporter (the catalogue's outdated: an update since the map was prepared) is
   // prepared again at once, so the update's fixes reach it (its dialog says so; a failure leaves the offer in a banner).
@@ -11994,7 +11934,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     $('prefabTest').hidden = false;
     $('projectButton').querySelector('small').textContent = 'Prefab';
     $('projectMenu').querySelector('h3').textContent = 'Prefab';
-    $('projectButton').title = 'Prefab: Save, Open and Test in game';
+    $('projectButton').title = 'Prefab: Save and Open';
     $('mapButton').querySelector('small').textContent = 'Prefab';
     $('mapButton').title = 'Open a map or prefab (M)';
     $('projectLoad').querySelector('span').textContent = 'Open…';
@@ -12163,22 +12103,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     project: () => project && { id: project.doc.id, name: project.doc.name, revision: project.revision, dirty: dirty(), carried: project.carried, doc: project.doc }};
 }
 
-const search = $('search');
-search.addEventListener('input', catalogue);
-search.addEventListener('focus', () => { search.select(); catalogue(); });
-search.addEventListener('blur', () => { $('objects').hidden = true; });
-search.addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') highlightResult(resultIndex + (e.key === 'ArrowDown' ? 1 : -1));
-  else if (e.key === 'Enter') {
-    const item = $('objects').querySelectorAll('.piece')[Math.max(0, resultIndex)];
-    if (item?.dataset.build) { search.blur(); startBuild(item.dataset.build); }
-    else if (item) choose(item.dataset.id, e.ctrlKey || e.shiftKey || e.metaKey);
-  } else if (e.key === 'Escape') { if (search.value) { search.value = ''; catalogue(); } else search.blur(); }
-  else return;
-  e.preventDefault();
-});
-// Pressing in the list must not take focus from the search box (that would close the list before the click lands).
-$('objects').addEventListener('mousedown', e => e.preventDefault());
 // Header menus: one open at a time; a press elsewhere or Escape closes it.
 function showPop(id) {
   for (const button of document.querySelectorAll('[data-pop]')) {
@@ -12188,7 +12112,7 @@ function showPop(id) {
     if (on && pop.classList.contains('left')) pop.style.left = `${button.getBoundingClientRect().left - viewport.getBoundingClientRect().left}px`;
   }
   if (id === 'projectMenu') renderProjectMenu();
-  if (id === 'settingsMenu') refreshSquadLine();
+  if (id === 'playMenu') { refreshSquadLine(); refreshInstalls(); }
 }
 for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });
@@ -12231,7 +12155,13 @@ function showMapBrowser() {
   if (placing) stopPlacing();
   mapBrowser.show();
 }
-$('mapButton').onclick = showMapBrowser;
+// The Map menu: Change map and the map's own things (missions, picture, grid, Clear map). Where it would hold Change
+// map alone (a prefab, a patch preview), the button opens the map browser itself.
+$('mapButton').onclick = () => {
+  if (builderMode || !projectsAvailable()) { showMapBrowser(); return; }
+  showPop($('mapMenu').hidden ? 'mapMenu' : null);
+};
+$('mapChange').onclick = showMapBrowser;
 $('mission').onchange = e => {
   chooseMission(e.target.value);
   const parameters = new URLSearchParams(location.search);
@@ -12242,11 +12172,11 @@ $('mission').onchange = e => {
   refreshLightVisibility();
   refreshSpawnMarkers(); placeMissionGizmo();     // (a marker of the mission before goes, with its gizmo)
   effectsDirty = true;     // (the Effects view shows the streams of the mission picked)
-  cutaway(); catalogue();
+  cutaway();
 };
 segmented($('floor'), () => { cutaway(); ghostDirty = true; restingHint(); });
-$('hideHelpers').onchange = () => {cutaway();catalogue();};
-segmented($('scenery'), () => {cutaway();catalogue();frame();refreshLightVisibility();effectsDirty = true;});
+$('hideHelpers').onchange = () => cutaway();
+segmented($('scenery'), () => {cutaway();frame();refreshLightVisibility();effectsDirty = true;});
 $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; tileKey = null; };
@@ -12679,17 +12609,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Shift') panFast = tru
 window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
 // V select, T box select, G move, R rotate (while placing, R turns the piece), P the piece list, X world/local, C the
 // pivot (origin or centre), F frame, arrow keys and
-// WASD move the camera and Q and E turn it, O solos the selected lights, B shows or hides the play area, Ctrl+F find,
+// WASD move the camera and Q and E turn it, O solos the selected lights, B shows or hides the play area,
 // Escape cancels a drag,
 // stops placing, closes a menu or, when there is none of those, clears the selection,
 // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste pieces, Ctrl+G groups the
 // selection and Ctrl+Shift+G ungroups the selected group, Delete deletes, Ctrl+S saves, Ctrl+B saves
-// and builds, and Ctrl+O loads a project. Typing in a field never triggers them (Ctrl+F, S and O aside), and Ctrl+C with
+// and builds, and Ctrl+O loads a project. Typing in a field never triggers them (Ctrl+S, B and O aside), and Ctrl+C with
 // nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   if (lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || mapBrowser?.open || setupDialog.open || buildOptions.open) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
-  if ((e.ctrlKey || e.metaKey) && key === 'f') { e.preventDefault(); search.focus(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'b') { e.preventDefault(); if (!e.repeat) openBuild(); return; }

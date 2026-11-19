@@ -43,7 +43,6 @@ def check_prefab_test(browser, url, screenshot=None):
         page.wait_for_function('window.viewer && document.querySelector("#loading").hidden')
 
     def options():
-        page.locator('#projectButton').click()
         page.locator('#prefabTest').click()
         page.locator('#buildOptions').wait_for(state='visible')
         assert not page.locator('#buildBake').is_checked()      # off by default: a quicker test

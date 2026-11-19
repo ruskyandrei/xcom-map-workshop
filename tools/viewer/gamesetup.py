@@ -1,5 +1,5 @@
 """The game install chosen in the page, and the doctor's checks shown there (preview checklist item 3): on a first run
-the page asks for the install before anything else, and the Project menu's "Game install and checks" opens the same
+the page asks for the install before anything else, and the Settings menu's "Game install and checks" opens the same
 dialog later.
 
   GET  /setup.json         the settings, the game install (folder, kind, what was found), the installs found on this
