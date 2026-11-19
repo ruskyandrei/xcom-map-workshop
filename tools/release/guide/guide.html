@@ -1132,9 +1132,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     through it. A gap never takes the whole wall.</li>
   <li><b>The steps follow Snap:</b> to the unit with snap off, 24 at 24, and at 96 whole tiles along the wall and 24
     up. <kbd>Alt</kbd> gives steps of 8. <kbd>Del</kbd> with a gap's handle touched last takes out that gap only.</li>
-  <li><b>What a gap does in the game</b> goes by its shape: units walk through one that reaches the floor and is tall
-    enough, climb through a window, and see and shoot through both. The Build warns of a gap that plays oddly: a
-    doorway with no door, a gap too low to walk through, a window that sight doesn't cross.</li>
+  <li><b>What a gap does in the game</b> goes by its heights, and its line in the panel says it. Units walk through a
+    gap that is open at 64 over the floor (a doorway, over its threshold). They climb through one that starts higher
+    and leaves low cover under it (a window), as through the game's windows. They see and shoot through one that is
+    open at 96 over the floor: a doorway and a window both. All of it holds at the tiles whose middle the gap spans;
+    a gap that spans no tile's middle does nothing. The Build warns of a gap that plays oddly: a doorway with no door
+    (a unit in it has cover toward its sides), a gap walked through over a wall that gives cover, a gap too low to
+    walk through, a window that sight doesn't cross.</li>
   <li><b>A door</b> comes from the <a href="#add">piece list</a>: place one of the game's doors in the doorway. Its
     line in the panel says when a doorway has none.</li>
   <li><b>Walls that meet are joined,</b> at a corner or end to end, as the game's walls are: the panel says so, and a
@@ -1166,8 +1170,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Add hole</b> cuts a hole one tile square in the free tile nearest the middle, for a ladder or stairs. Its
     blue handles move and size it; a hole past the edge goes.</li>
   <li><b>Reshuffle</b> gives another break pattern.</li>
-  <li><b>A floor is walked on, and the mouse wheel stops on it:</b> the Build gives a made floor or roof a cursor floor
-    of its own (<a href="#cursor-floors">the cursor's floors</a>).</li>
+  <li><b>A floor is walked on.</b> The Build gives each made floor and roof cursor floors of its own over its
+    footprint, starting just under it (<a href="#cursor-floors">the cursor's floors</a>). In a building (a room with a
+    roof, or <a href="#buildings">floor boxes</a> drawn round it) the mouse wheel then stops on the ground, on the
+    floor and on the roof in turn. A floor in no building is picked by the mouse on every storey, as the game's
+    overpasses and canopies are, and the ground under it only from beside it: the Build warns of one.</li>
   <li><b>A roof</b> is cut away with its building's top floor when the cursor is inside, and takes no clicks in the
     game. Draw a box for it if it isn't a room's: <a href="#buildings">Buildings</a>.</li>
 </ul>
@@ -2469,10 +2476,18 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     game's <code>CookedPCConsole</code>, is read by the game as it starts, and deleting the folder takes the maps out
     again. No file of the game changes. The folder holds the maps and a <b>map pack card</b>, a small file that tells
     Long War Rebalance which maps the pack has and what each is for.</li>
-  <li><b>For any other install</b> (Long War Rebalance 2, plain Enemy Within) <b>Install.cmd</b> puts the maps into
-    the game the classic way, copying the files and adding the lines to the game's config, and
-    <b>Uninstall.cmd</b> takes them out again. It asks for the game folder and keeps a copy of the config first. On
-    Long War Rebalance 3 the same scripts copy the folder instead.</li>
+  <li><b>Install.cmd</b> asks for the game folder (it offers the Steam install it finds), stops if XCOM is running,
+    and looks whether that game reads map pack cards. <b>On Long War Rebalance 3</b> it does the copying for you: the
+    pack's folder goes into <code>CookedPCConsole</code> and no config file is touched, but for one case: a map whose
+    project leaves scripted drop-ins where placed gets its line in <code>DefaultRandomSpawns.ini</code>, which a card
+    can't carry. <b>On any other install</b> (Long War Rebalance 2, Long War, plain Enemy Within) it goes the classic
+    way: it keeps a copy of the config files as they are, copies the maps' files into <code>CookedPCConsole</code>
+    itself and adds their lines to <code>DefaultMaps.ini</code> (commenting out the original's lines for a map that
+    replaces it), with the landing zones where the install has Long War's file. A map whose base map that game has no
+    line for is left out.</li>
+  <li><b>Uninstall.cmd</b> takes out what Install.cmd put in, either way: the files it copied and the lines it added
+    go, and the lines it commented out come back. After the classic way it says whether
+    <code>DefaultMaps.ini</code> is exactly as it was before the pack.</li>
   <li><b>Each map goes in as Additional or Replace,</b> as you set it for its project: one pack can replace some maps
     and add others.</li>
   <li><b>A map's picture</b> goes with it. A map without <a href="#map-picture">a picture of its own</a> borrows its
@@ -2487,8 +2502,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     named and left out.</li>
   <li><b>Name</b> and <b>By:</b> the new pack's name, and its author if you like; both are written into the card and
     the READMEs.</li>
-  <li><b>A pack exported again is its next version,</b> under the same folder and card number, so installing it takes
-    the older version out first.</li>
+  <li><b>A pack exported again is its next version,</b> under the same folder and card number. Its Install.cmd takes
+    out the version an Install.cmd put in before, then installs the new one. Whoever copies the folder by hand
+    deletes the old folder first: the file of a map the new version no longer has would otherwise stay in it.</li>
   <li><b>Forget pack</b> makes the editor forget a saved pack. Its zips stay in the Map packs folder, and a pack is
     offered again from its zip.</li>
 </ul>

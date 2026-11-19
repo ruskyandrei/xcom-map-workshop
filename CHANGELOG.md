@@ -8,6 +8,54 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The guide's four unchecked statements checked against the code and the played runs; the look picker's picture
+  retaken with its pictures drawn; the viewer README's map packs as they are made now** (the gaps the entry below
+  names).
+  - [guide.html](tools/release/guide/guide.html), each statement against its source:
+    - *What a made wall's gaps do* (`#made-walls`): confirmed, and tightened to the rule. `openingPlay` in
+      [walls.js](tools/viewer/web/walls.js) and `opening_play` in [compiler.py](tools/editor/compiler.py) go by the
+      game's lines at the tiles whose middle the gap spans: walked through when open at 64 over the floor, climbed
+      through when it starts higher over low cover, seen and shot through when open at 96. Played in
+      [EXP-73](research/experiments/EXP-73-wall-tool.md) run A (the doorway walked, the window climbed, a Sectoid
+      shot through it; F-126) and [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md) run A (a door over
+      the threshold, a notch and a wall-long gap crossed). The guide said "reaches the floor and is tall enough";
+      it now gives the two heights, says the panel's line tells each gap's play, and lists the Build's four
+      warnings (it had three).
+    - *A made floor's cursor floor* (`#made-floors`): half right, corrected. The Build does give each made floor
+      and roof cursor floors of its own ([made_cursors.py](tools/bake/made_cursors.py)), but "the mouse wheel stops
+      on it" holds only in a building: [EXP-80](research/experiments/EXP-80-made-cursor-floors.md) run H read the
+      ground, the made floor and the roof on storeys 0, 1 and 2 in the room, and found the floor in no building
+      picked on every storey (F-135, the game's own rule; the compiler's `slab-outdoors` warning). The guide now
+      says both.
+    - *Install.cmd on Long War Rebalance 3 and elsewhere* (`#map-packs`): confirmed, with one thing added.
+      [pack_scripts.py](tools/viewer/pack_scripts.py) picks the way by the game's `XComMutator.u` holding
+      `LWRMapPackCard`: there the folder is copied and no config file touched, except the drop-in exclusion lines
+      of a map that asks for them, which the guide did not say; anywhere else the files, the lines in
+      `DefaultMaps.ini` and copies of the config files first. `test_manager` runs the scripts both ways on made-up
+      game folders; in the game the classic way on LWR 2.x is
+      [EXP-86](research/experiments/EXP-86-lighting-inside-the-map.md) and the cards way on beta 15
+      [EXP-87](research/experiments/EXP-87-landing-intros-in-a-pack.md). The one bullet is now two (Install.cmd,
+      Uninstall.cmd), with what is left out and what Uninstall says.
+    - *A pack exported again takes the older version out* (`#map-packs`): true of Install.cmd only, corrected. The
+      pack's id in a game's ledger is its folder name, so its Install.cmd takes the earlier install out first,
+      whichever way it went in (pack_scripts.py; `test_a_packs_scripts_copy_the_folder_where_the_game_reads_cards`
+      installs v2 over v1). A folder copied by hand replaces nothing: the pack's README says to delete the old
+      folder first, and now the guide does.
+  - [look-picker.webp](tools/release/guide/shots/look-picker.webp) retaken with every wall look's picture drawn: its
+    line reads the count of looks alone. [take_shots.py](tools/release/guide/take_shots.py) `made_walls` now waits
+    for the picker's "Drawing pictures" count to go before the shot (up to an hour on a cache with none drawn; the
+    pictures are kept in the cache library, so the next run doesn't wait).
+  - [The viewer README](tools/viewer/README.md), Export map pack: it described the zip of before cards (files
+    under `XEW\XComGame\CookedPCConsole`, `<name> <time>.zip`). Now: `<Folder> v<n>.zip`, the pack's folder as a
+    drop-in for Long War Rebalance 3, its card and what the card holds, the map's own picture inside the map
+    (`MapPicture`) and the borrowed one by a `Pictures` line, one copy of each landing intro, no `.tfc` (and when
+    one still goes beside the folder), the scripts' two ways with the classic one for other installs, saved packs,
+    the map picture beside a shared project, the pack's warnings and its routes. A replacing map on a card is said
+    beside `switch` and `keep`.
+  - Checked: each statement read against the code and notes named above; the new picture looked at (no count of
+    pictures, the six marks on their controls, no folder or name in it); `viewer -k guide`, `release` and `repo`.
+    Nothing was run in the game for this.
+
 - **The user guide gone over whole and put in a new order; sections for drawn walls and ground, the map picture and
   map packs** (the user's ask; done on `main`, where the header's change is).
   - [guide.html](tools/release/guide/guide.html), the order: What it does, Getting started, Typical tasks, then the

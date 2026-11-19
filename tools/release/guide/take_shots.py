@@ -19,7 +19,8 @@ the installed Edge) and Pillow. The whole run takes about five minutes, most of 
 
 Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu), and
 made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
-first run on a cache without them waits for the first dozen.
+first run on a cache without them waits until every wall look's picture is drawn (some hundreds: minutes), and the
+picture shows the picker without its "Drawing pictures" count.
 
 The server's answers that would name a folder of this computer are replaced by a usual install's (typical()).
 """
@@ -998,6 +999,8 @@ class Shots:
         page.locator('#wallLookChange').click()
         page.wait_for_function("document.querySelectorAll('.lookpicker .lookcard').length > 8", timeout=60000)
         page.wait_for_function("[...document.querySelectorAll('.lookpicker .lookcard')].slice(0, 12).every(c => !c.querySelector('.lookwait'))", timeout=600000)
+        # every look's picture drawn and kept (or given up on): the picker's line no longer counts them
+        page.wait_for_function("!document.querySelector('.lookpicker .lookstatus').textContent.includes('Drawing pictures')", timeout=3600000)
         page.mouse.move(8, 8)
         page.wait_for_timeout(800)
         head = '.lookpicker .lookhead '

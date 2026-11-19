@@ -1055,35 +1055,89 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     variant's record for it keeps that display name and stays in rotation, so the variant plays the first mission;
     with a name of its own the first mission found no map (F-117). Beside the original, the original keeps it, as it
     does when the variant's build has no abduction record (F-118).
-  - **Map packs** say which records each replacing map comments out: `pack.json`'s `switch` (their display names,
-    which `Install.cmd` goes by) and `keep` (the base map's records left in use); the README lists both. A pack
-    from before `switch` comments out every record of the base map.
+  - **Map packs** say which records each replacing map comments out the classic way: `pack.json`'s `switch` (their
+    display names, which `Install.cmd` goes by) and `keep` (the base map's records left in use); the README lists
+    both. A pack from before `switch` comments out every record of the base map. On a card nothing is commented
+    out: a replacing map's lines take the original records' display names, and Long War Rebalance 3 swaps a line in
+    by its display name (`installs.rotation_plan(cards=True)`).
   - **Install in the game** does that in the install Play in game uses (`installs.install_rotation`): files copied,
     landing zones added, the records added after the base map's (after Play in game's own record, which stays first
     and separate). The Game maps window undoes it. The map list, the exporter and Build still read the install
     without any of it (`installs.maps_text`).
-  - **Export map pack** writes `<builds>\Map packs\<name> <time>.zip`: the builds' files under
-    `XEW\XComGame\CookedPCConsole` (to copy over the game folder), `README.txt` with the config lines for the chosen
-    way (worked out from the game install the editor reads), each build's own README and manifest under `packages\`,
-    and `pack.json`. It also carries **`Install.cmd`** and **`Uninstall.cmd`** ([`pack_scripts.py`](pack_scripts.py);
-    they run `pack-tools\pack.ps1` with Windows' own PowerShell), so whoever gets the pack needs no editor.
-    `Install.cmd` asks for the game folder (it offers the Steam install it finds, or takes the folder as its
-    argument), refuses while XCOM runs, keeps `DefaultMaps.ini` and `DefaultLZMutator.ini` as they are in
-    `<game>\XCOM Map Workshop\packs\<pack id>-before`, copies the files and adds the lines (commenting the base
-    maps' records out in a pack made to replace them), and writes down what it did beside the copies.
-    `Uninstall.cmd` undoes exactly that and says whether `DefaultMaps.ini` is then as it was before the pack. A map
-    whose base map the game has no record for is left out, as is one the game already has a record for. The lines
-    are the ones worked out from the install the pack was made from; the README still lists them, to add by hand.
+  - **Export map pack** ([`manager.py`](manager.py) `_pack`) writes `<builds>\Map packs\<Folder> v<n>.zip`, a pack
+    that is a drop-in for Long War Rebalance 3 (3.00.00 beta 15 or later) and installs the classic way anywhere
+    else. In the zip:
+    - **`CookedPCConsole\<Folder>\`, the pack itself.** Copied into `<LWR install>\XEW\XComGame\CookedPCConsole` it
+      is installed: the game reads it as it starts, no file of the game changes, and deleting the folder takes the
+      maps out. It holds every build's maps, the landing intro copies, the pack's card and a `README.txt` saying
+      what the folder is. `<Folder>` is the pack's name made one word (letters, digits and `_`, 24 characters at
+      most), fixed at the first export.
+    - **The card**, `LWRMapPack_<nnnn>.upk` in that folder ([`tools/upk/pack_card.py`](../upk/pack_card.py)), is
+      what Long War Rebalance 3 reads the pack from: the pack's name with its version and author, each map's
+      records, a `Pictures` line for each map without a picture of its own that lends it its base map's (found in
+      the install's map-image packages), and the landing zones. The number is drawn once, from those no saved pack
+      and no card in the install the editor reads has, and kept.
+    - **A map's picture** for the mission screens is inside the map: the Build writes the project's picture into it
+      as its top-level texture `MapPicture` ([`pictures.py`](pictures.py)), so the pack needs no picture file. A
+      map whose name has `_Bomb`, `_Rescue`, `_Extraction` or `_Assault` in it gets a warning: the game drops that
+      ending before it looks for the picture.
+    - **One copy of each landing intro** for all the pack's maps, `<Intro>_<Folder>_<card number>.upk`
+      (`_shared_intros`, [`tools/bake/intro_copy.py`](../bake/intro_copy.py) `pack_copy`; F-142): the intro of the
+      install the editor reads with a case for each map after its base map's, and each map's moved landing. It
+      takes the place of the builds' own copies in the folder and in the maps' lines. A map whose flight differs
+      from another's of the same base map keeps its own copy (`introOwn` in `pack.json` says why).
+    - **No `.tfc`.** A baked build's lightmaps are inside its map; a build from before 19 November 2026 has its
+      cache put inside the map as it is packed (`_inline_lighting`,
+      [`tools/bake/inline_lighting.py`](../bake/inline_lighting.py)), the build itself left as it is. Only a map
+      that can't take its lighting in ships its cache, as `CookedPCConsole\<cache>.tfc` beside the folder, with a
+      warning: the game finds a `.tfc` only in `CookedPCConsole` itself, never in a folder under it (F-140).
+    - `README.txt` (both ways of installing, the classic lines to add by hand, the pictures, the notes),
+      `pack.json` (schema 2: the pack's record, the card's lines as text, each map's classic lines, `switch`,
+      `keep`, landing zones and warnings, every file's SHA-256, `folderFiles`, `cacheFiles`, `introFiles`), and
+      each build's own README and manifest under `packages\<variant>\`.
+    - **`Install.cmd`** and **`Uninstall.cmd`** ([`pack_scripts.py`](pack_scripts.py); they run
+      `pack-tools\pack.ps1` with Windows' own PowerShell), so whoever gets the pack needs no editor. `Install.cmd`
+      asks for the game folder (it offers the Steam install it finds, or takes the folder as its argument), refuses
+      while XCOM runs, checks every file's SHA-256, and goes one of two ways (a third argument, `cards` or
+      `classic`, forces one):
+      - *Cards*, where the game's `XComMutator.u` holds the name `LWRMapPackCard` (Long War Rebalance 3): the folder
+        is copied into `CookedPCConsole`, a cache beside it if the pack has one, and nothing else changes, but for
+        the drop-in exclusion lines of a map whose project leaves scripted drop-ins where placed, which go into
+        `DefaultRandomSpawns.ini` (a card can't carry them). It names another pack's card of the same number and a
+        map file of the same name elsewhere under `CookedPCConsole`.
+      - *Classic*, on any other install (Long War Rebalance 2, Long War, plain Enemy Within): it keeps
+        `DefaultMaps.ini`, `DefaultLZMutator.ini` and `DefaultRandomSpawns.ini` as they are in
+        `<game>\XCOM Map Workshop\packs\<pack id>-before`, copies the maps' files into `CookedPCConsole` itself
+        (the card is not needed), adds each map's records after its base map's (commenting out the base map's
+        records named in `switch` for a map that replaces it), and adds the landing zones and drop-in exclusions
+        where the install has Long War's files. A map whose base map the game has no record for is left out, as is
+        one the game already has a record for. The lines are the ones worked out from the install the pack was made
+        from; the README lists them, to add by hand.
+
+      Either way it writes down what it did in `<game>\XCOM Map Workshop\packs\<pack id>.json`. The pack id is the
+      folder's name, the same at every version, so a newer version's `Install.cmd` takes the older one out first,
+      whichever way that went in. `Uninstall.cmd` undoes exactly what was written down (files deleted if unchanged,
+      added lines gone, commented lines back) and, after the classic way, says whether `DefaultMaps.ini` is then
+      as it was before the pack.
+  - **Saved packs** ([`packs.py`](packs.py)): each export writes `<projects>\packs\<Folder>.json` (name, folder,
+    card number, version, author, the maps and each one's way). The manager's **Pack** list offers New pack and
+    every saved pack; one chosen is exported again as its next version with its folder and card number kept. A pack
+    whose record is gone is offered from its zip in `Map packs` (one from before cards too: it gets a number when
+    exported). **Forget pack** removes the record, never a zip.
   - **Include editor project files** (above Export map pack; the browser remembers it) adds each packed map's saved
     project under `projects\` in the zip, byte for byte as it is in the projects folder, so whoever gets the pack
     can open and change the maps in the editor. `pack.json` lists them under `projects` (file, revision, the
     build's revision, SHA-256), and the README says where to copy them and which were saved again after their
-    build. The request carries it as `"projectFiles": true`.
-  - Warnings never stop it: a quick build (lighting not baked), a build of an older revision, missions other than
-    abductions (variants have been played on abductions only), and what each way does for the missions asked for
-    by name.
+    build. A project's map picture goes along beside it, as `<file>.picture.png`. The request carries it as
+    `"projectFiles": true`.
+  - Warnings never stop it: a quick build (lighting not baked), a build of an older revision, what each way does for
+    the missions asked for by name, an own picture the game won't find by the map's name, a drop-in exclusion (a
+    card can't carry it), a map file with an all-zero GUID (Long War Rebalance 3 takes it as missing), a lighting
+    cache that goes beside the folder; and for the pack as a whole, two lines with one display name and another
+    card of the same number in the install the editor reads.
   - Routes: `GET /manager.json`, `POST /manager/install` and `/manager/pack` (`{"projects": [id...], "mode":
-    "additional" | "replace", "modes": {id: mode}}`, and for the pack `"projectFiles"`). [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
+    "additional" | "replace", "modes": {id: mode}}`, and for the pack `"name"` (a new pack's), `"pack"` (a saved pack's
+    folder), `"author"` and `"projectFiles"`), `GET /manager/packs.json` and `DELETE /manager/packs/<folder>`. [`test_manager.py`](tests/test_manager.py) covers them on temporary installs.
     Install and pack take a lease on each package they read (`builds.lease`): a project the build queue is building,
     or about to, is refused with the reason.
   - **Build** puts the ticked projects (in the list's order, those the filter hides included) in the **build queue**
