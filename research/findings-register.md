@@ -12,13 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-139: a broken roof or floor the game keeps whole broke further in battle once F-138's fix turned its
-  `bPreventChunkRemoval` off, which the game's own never do. Fixed offline (19 November): it keeps the setting and
-  draws a copy of its mesh with the hole cut in; Breaks further in battle turns the setting off instead. To play in
-  EXP-83.
-- F-138: a roof whose component keeps its fragments (`bPreventChunkRemoval`) drew its painted-out ones (EXP-81 run A,
-  19 November). Fixed: a piece built broken has the setting turned off; verified in EXP-82 run A on the bar's own roof
-  and a made roof. Open: such a roof now breaks further in the battle (not played).
+- T-47 (a new case, EXP-83 run A, 19 November): a soldier whose tile on a map roof broke away under her (the roof
+  let break further) stayed at roof height through the aliens' turn, with no log line about her, and went down only
+  when ordered to move. On a made floor (EXP-76 run E) the game had put the soldier on the ground at once.
 - F-119: a moved landing left the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; fixed
   offline in export 35 (18 November: the dust is the Skyranger's `dust` and moves with it); not looked at in the
   game. Under Long War the mutator destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -600,7 +596,7 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 ## Damage and glass
 
 ### F-139: A broken roof the game keeps whole broke further in battle
-**Open** (19 November 2026; fixed offline the same day, to play in [EXP-83](experiments/EXP-83-kept-roofs.md)).
+**Verified** (19 November 2026: fixed the same day, played in [EXP-83](experiments/EXP-83-kept-roofs.md) run A).
 - **What.** F-138's fix turned `bPreventChunkRemoval` off on a broken piece that keeps its fragments, so its saved hole
   is drawn. The setting is all that keeps the game's roofs and floors whole: URB_Bar's roof mesh marks every one of
   its 81 fragments destroyable, as its walls' do, and 61 of the 63 slab components of the slab audit save the setting
@@ -621,6 +617,11 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
   collision tree again from the kept triangles. The painted array and DestroyedChunks are still saved. The editor's
   Breaks further in battle (the record's `breaksFurther`) asks for F-138's way instead; the export says which pieces
   keep their fragments (`keepsPieces`, export 36), so the tick shows only on them and on copies made from them.
+- **Played** (EXP-83 run A). The bar's roof built broken and kept whole loaded with the cut mesh and no log line about
+  it; its hole drawn as in EXP-82, the tiles over it the bar's floor, the roof's tiles beside it walked. A grenade on
+  that roof made no new hole. The roof's other piece, let break further, broke under a grenade into a hole about seven
+  or eight tiles across, the tiles under it worked out again; the air-conditioning units on it stayed in place, drawn
+  without their grilles. The soldier who threw from inside that hole stayed at roof height until her next move (T-47).
 - **Not covered.** The simple collision boxes of a made roof still cover its hole (the game's tiles and lines of sight
   go by the triangles: EXP-81's made wall was walked and shot through such a hole).
 
@@ -643,7 +644,8 @@ played in [EXP-82](experiments/EXP-82-map-breaks.md) run A).
   `allow_chunk_removal`); the Build's log says so. Such a piece then breaks further in the battle, as walls do.
 - **Played.** In EXP-82 run A the bar's own roof, broken where it stands, showed one jagged hole with the bar's inside
   seen through it, and a made roof of the same look showed a five-sided hole at its middle, both with the setting
-  turned off. Not played: how such a roof breaks further in the battle.
+  turned off. How such a roof breaks further in the battle: F-139 (EXP-83 run A), where a piece keeps the setting
+  unless Breaks further in battle is ticked.
 
 ### T-47: Grounded units have a post-destruction landing event
 
@@ -658,6 +660,13 @@ Kismet options and gameplay controls.
   broke it. The game logged "Extended Base tile is not a floor tile" and "Debugged invalid location" for him and put
   him on the ground below; on the next turn he was in play with his moves. Whether he took fall damage was not read
   (invincibility was on).
+- **EXP-83 run A** ([EXP-83](experiments/EXP-83-kept-roofs.md), 19 November): a soldier threw a grenade from her tile
+  on the bar's roof piece `XComFracLevelActor_7`, let break further, and the hole it made took her tile. She stayed
+  at roof height (z 468, her marker drawn over the room below) through the aliens' turn and into turn 2, with no log
+  line about her: no "invalid location", no fall, no damage. Ordered to a bar-floor tile on turn 2, she moved four
+  tiles and ended on the bar's floor, not on the tile ordered. So the landing event is not sent for every unit whose
+  tile goes: here, a thrower standing on a map roof. Open: whether a unit other than the thrower drops, and what
+  decides it (the thrower's own action still running, the map piece against a made one).
 
 ### F-07: Explosions treat our cars exactly like the map's
 **Verified** (EXP-05 runs 3 and 7). A reference fact, not a defect.

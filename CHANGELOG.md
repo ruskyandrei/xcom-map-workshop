@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-83 run A played: broken roofs stay whole in battle; F-139 verified** (branch `fracturing-wall-poc`).
+  - [EXP-83](research/experiments/EXP-83-kept-roofs.md) run A, unattended in the lab copy; every check passed:
+    - the map loads with the bar's roof drawing its cut mesh (our package `XComMapEdCut`), its hole drawn and the tiles
+      over it the bar's floor;
+    - a grenade on that roof makes no new hole: [F-139](research/findings-register.md) is verified;
+    - the roof's other piece, with Breaks further in battle, breaks under a grenade into a hole several tiles across.
+  - Seen on the side ([T-47](research/findings-register.md)): the soldier who threw from inside that hole stayed at
+    roof height through the aliens' turn and came down only when ordered to move.
+
 - **A wall whose doorway started below its look's bottom had no handles or buttons** (reported by the user: Add
   doorway and Add window disabled on a long wall; branch `fracturing-wall-poc`).
   - Cause: a look change brought the gaps under the new look's top but not onto its bottom. A doorway cut to the floor
