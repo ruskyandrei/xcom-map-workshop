@@ -3851,7 +3851,8 @@ function spawnAddEntries() {
   }
   return out;
 }
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...wallEntries(), ...slabEntries(), ...groundEntries(), ...zoneEntries(), ...spawnAddEntries()];
+// (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
+const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
 // source to copy: { source, values }, or null for a kind or version this page doesn't know.
 // A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
@@ -5932,6 +5933,14 @@ function catalogue() {
   list.replaceChildren(); resultIndex = -1;
   list.hidden = !filter || document.activeElement !== search;
   if (!filter || !data) return;
+  for (const [key, tool] of buildToolsFound(filter)) {
+    const button = text(list, 'button', '', 'piece build');
+    Object.assign(button, { type: 'button', title: `${tool.name}: drawn by dragging in the view (the Build menu on the Add button)` });
+    button.dataset.build = key; button.setAttribute('role', 'option');
+    const label = text(button, 'span', '');
+    text(label, 'strong', tool.name); text(label, 'small', 'press, drag, let go in the view');
+    button.onclick = () => { $('search').blur(); startBuild(key); };
+  }
   const matches = [];
   for (const [id, root] of roots) {
     const obj = root.userData.source, name = data.meshes[obj.mesh].name;
@@ -5959,7 +5968,7 @@ function catalogue() {
   }
   text(list, 'div', matches.length
     ? `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}${matches.length > MAX_RESULTS ? `, first ${MAX_RESULTS} shown` : ''} · ↑↓ to choose · Enter selects and frames · Esc clears`
-    : 'No visible piece matches', 'resultsfoot');
+    : list.querySelector('.build') ? '↑↓ to choose · Enter starts drawing · Esc clears' : 'No visible piece matches', 'resultsfoot');
   highlightResult(0);
 }
 function highlightResult(index) {
@@ -9515,80 +9524,46 @@ async function lookPickAt(x, y) {
   }
   (want.onChoose ?? (l => lookChosen(want.kind, l)))(look);
 }
-// The Add panel's "Choose a look" entry of a kind: opens the picker.
-const lookPickerEntry = (kind, kindName, words) => ({ key: `looks:${kind}`, id: `looks-${kind}`, name: LOOK_TITLES[kind], mesh: LOOK_TITLES[kind],
-  kind: kindName, pkg: 'every map\'s', role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1, lookPicker: kind,
-  size: [96, 96, 96], detail: 'Any of the game\'s, or picked in the view',
-  text: `${LOOK_TITLES[kind]} look looks style material texture eyedropper pick ${words}`.toLowerCase(),
-  title: `${LOOK_TITLES[kind]}: lists every ${LOOK_NOUNS[kind]} piece of every map of the game install, with its picture; click one to draw `
-    + `in its look. Pick from the view (I) takes the look of a piece you click in the 3D view. The made piece is a copy of the one chosen, `
-    + 'its shape made from numbers.' });
-
-// The Add panel's Walls kind: the current look's entries (a wall and a room), a recipe in both scopes, and the picker.
-const WALLS_KIND = 'Walls';
-function wallEntries() {
-  if (!data || data.preview || builderMode) return [];
-  const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
-  return [storedLook('wall') ?? WALL_LOOKS[0]].flatMap(look => [{ key: `wall:${look.id ?? look.mesh}`, id: `wall-${look.id ?? look.mesh}`, name: look.name, mesh: look.name, kind: WALLS_KIND,
-    pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
-    wallLook: look, size: [96, 24, WALL.top - WALL.bottom], detail: 'Drawn by dragging; any length, with gaps for doors and windows',
-    text: `wall walls ${look.name} ${look.package} ${look.words} fracturing breaks doorway window`.toLowerCase(),
-    title: `${look.name}: ${look.words}. Press on the ground at one end, drag along a tile line and let go: the wall runs from tile `
-      + `edge to tile edge, up to ${WALL.maxTiles} tiles. It breaks as the game's walls do (it is made like ${look.package}'s own). `
-      + `Add doorways and windows in the piece panel; its handles lengthen it and move them. ${install(look)}` },
-    // a room (M3 item 6, D6): four walls of the look round a rectangle
-    { key: `room:${look.id ?? look.mesh}`, id: `room-${look.id ?? look.mesh}`, name: `Room of ${look.name.toLowerCase()}s`, mesh: look.name, kind: WALLS_KIND,
-      pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
-      wallLook: look, room: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'A rectangle dragged out: four joined walls, a doorway',
-      text: `room rooms walls ${look.name} ${look.package} ${look.words} rectangle box doorway`.toLowerCase(),
-      title: `A room of ${look.name.toLowerCase()}s: press on the ground at one corner, drag to the other and let go. Four walls run `
-        + `round the rectangle on its tile lines (up to ${WALL.maxTiles} tiles a side), joined at the corners, each with the same face in, `
-        + `with a doorway in the side nearest you. Afterwards they are four walls, each edited as any. ${install(look)}` }])
-    .concat(lookPickerEntry('wall', WALLS_KIND, 'wall walls'));
-}
-// The Add panel's Floors and roofs kind: one entry for each slab look; the Walls kind's rooms with a roof.
-const SLABS_KIND = 'Floors and roofs';
-function slabEntries() {
-  if (!data || data.preview || builderMode) return [];
-  const install = look => `The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}`;
-  return [...[...SLAB_LOOKS, ...(storedLook('slab') ? [storedLook('slab')] : [])].map(look => ({ key: `slab:${look.id ?? look.mesh}`, id: `slab-${look.id ?? look.mesh}`, name: look.name, mesh: look.name, kind: SLABS_KIND,
-    pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
-    wallLook: look, slab: true, size: [96, 96, 4], detail: 'A rectangle dragged out; up to 16 tiles each way, holes',
-    text: `floor floors roof roofs slab ${look.name} ${look.package} ${look.words} fracturing breaks hole storey`.toLowerCase(),
-    title: `${look.name}: ${look.words}. Press at one corner, drag to the other and let go: it covers the tiles between, up to `
-      + `${SLAB.maxTiles} each way, ${look.role === 'roof' ? 'on the tops of the made walls round it (two storeys over the ground where there are none)'
-        : 'a storey over the floor you press on'}. It breaks a piece at a time as the game's do; units walk on it. `
-      + `Add holes in the piece panel; its handles grow it and move them. ${install(look)}` })),
-    lookPickerEntry('slab', SLABS_KIND, 'floor floors roof roofs slab'),
-    ...[storedLook('wall') ?? WALL_LOOKS[0]].map(look => ({ key: `roomroof:${look.id ?? look.mesh}`, id: `roomroof-${look.id ?? look.mesh}`, name: `Room of ${look.name.toLowerCase()}s with a roof`, mesh: look.name,
-      kind: WALLS_KIND, pkg: `from ${look.package}`, role: 'interior', sources: [], pivotIndex: 0, count: 0, materials: [], milestone: 1,
-      wallLook: look, room: true, roof: true, size: [96, 96, WALL.top - WALL.bottom], detail: 'Four joined walls, a doorway, a roof and its building',
-      text: `room rooms walls roof building ${look.name} ${look.package} rectangle doorway cutaway`.toLowerCase(),
-      title: `A room of ${look.name.toLowerCase()}s with a roof: press at one corner, drag to the other and let go. Four walls run round `
-        + `the rectangle, a doorway in the side nearest you, a roof on their tops, and a building round it, so the roof is cut away `
-        + `when the cursor is inside, as the game's buildings are. Afterwards each is edited as any. ${install(look)}` }))];
-}
-// The Add panel's Ground kind (M6): a patch, a block, a ramp and a rock, drawn in the material last picked (the piece
-// panel's swatches pick it; remembered in this browser).
-const GROUND_KIND = 'Ground', GROUND_LOOK = 'workshop.groundLook';
+// The ground's look: the one last picked (the piece panel's swatches pick it; remembered in this browser).
+const GROUND_LOOK = 'workshop.groundLook';
 const groundLookNow = () => storedLook('ground') ?? GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
-function groundEntries() {
-  if (!data || data.preview || builderMode) return [];
-  const look = groundLookNow();
-  const words = { patch: 'a flat patch over the ground, its top level with it: covers holes and paints the ground',
-                  block: `a raised block, ${GROUND.block} high when drawn: its top handle raises or lowers it`,
-                  ramp: `a ramp rising toward where the drag ends, ${GROUND.ramp} at its high edge: its top handle sets the rise`,
-                  rock: `a rock in the rectangle, ${GROUND.rock} high when drawn: its top handle raises or lowers it, Another rock gives it another shape` };
-  const does = { rock: 'It stands in the way and gives cover by its height, as the game\'s rocks do; it doesn\'t break' };
-  return ['patch', 'block', 'ramp', 'rock'].map(shape => ({ key: `ground:${shape}`, id: `ground-${shape}`, name: shape[0].toUpperCase() + shape.slice(1),
-    mesh: look.name, kind: GROUND_KIND, pkg: `in ${look.name.toLowerCase()}, from ${look.package}`, role: 'exterior', sources: [], pivotIndex: 0,
-    count: 0, materials: [], milestone: 1, wallLook: look, ground: shape, size: [96, 96, shape === 'patch' ? 8 : GROUND[shape]],
-    detail: shape === 'ramp' ? 'Dragged out; rises toward the drag\'s end' : 'A rectangle dragged out on the ground',
-    text: `ground ${shape} ${look.name} ${look.package} ${look.words} terrain floor platform slope${shape === 'rock' ? ' boulder stone' : ''}`.toLowerCase(),
-    title: `${shape[0].toUpperCase() + shape.slice(1)}: ${words[shape]}. Press on the ground at one corner, drag to the other and let go `
-      + `(up to ${GROUND.maxTiles} tiles each way). Drawn in ${look.name.toLowerCase()} (${look.words}); the piece panel's swatches change it. `
-      + `${does[shape] ?? 'Units walk on it; it doesn\'t break'}. The Build makes it on any install${look.lwrOnly ? ' of Long War Rebalance' : ', plain Enemy Within included'}` }))
-    .concat(lookPickerEntry('ground', GROUND_KIND, 'ground terrain grass dirt'));
+// ---- the Build menu (custom geometry editing plan, B1, 19 November 2026): the Add button's flyout starts drawing a made
+// piece at once; the find box finds the same tools by their words
+const wallLookNow = () => storedLook('wall') ?? WALL_LOOKS[0];
+function slabLookNow(role) {
+  const stored = storedLook('slab');
+  return stored && (stored.role ?? stored.facts?.role) === role ? stored : SLAB_LOOKS.find(l => l.role === role);
+}
+const BUILD_TOOLS = {
+  wall: { name: 'Wall', words: 'wall walls fracturing', start: () => startWallDrawing(wallLookNow()) },
+  room: { name: 'Room', words: 'room rooms walls box', start: () => startWallDrawing(wallLookNow(), { room: true }) },
+  roomroof: { name: 'Room with a roof', words: 'room rooms roof building walls', start: () => startWallDrawing(wallLookNow(), { room: true, roof: true }) },
+  floor: { name: 'Floor', words: 'floor floors storey slab upstairs', start: () => startWallDrawing(slabLookNow('floor'), { slab: true }) },
+  roof: { name: 'Roof', words: 'roof roofs slab ceiling', start: () => startWallDrawing(slabLookNow('roof'), { slab: true }) },
+  ...Object.fromEntries(['patch', 'block', 'ramp', 'rock'].map(shape => [shape, {
+    name: `Ground ${shape}`, words: `ground terrain ${shape}${shape === 'rock' ? ' boulder stone' : shape === 'ramp' ? ' slope' : ' platform'}`,
+    start: () => startWallDrawing(groundLookNow(), { ground: shape }) }])),
+};
+let buildTool = null;     // the Build menu's tool being drawn (its button is lit)
+function startBuild(key) {
+  const tool = BUILD_TOOLS[key];
+  if (!tool || !data || data.preview || builderMode) return;
+  if (pieces.open) showPieces(false);
+  tool.start();
+  markBuildTool(key);
+}
+function markBuildTool(key) {
+  buildTool = key;
+  for (const b of $('buildFlyout').querySelectorAll('button[data-build]')) b.classList.toggle('on', b.dataset.build === key);
+}
+for (const b of $('buildFlyout').querySelectorAll('button[data-build]')) {
+  b.onclick = () => { startBuild(b.dataset.build); b.blur(); };
+}
+// The build tools a find box's words name (all its words in the tool's name or words).
+function buildToolsFound(filter) {
+  const words = filter.split(/\s+/).filter(Boolean);
+  if (!words.length || !data || data.preview || builderMode) return [];
+  return Object.entries(BUILD_TOOLS).filter(([, t]) => words.every(w => `${t.name} ${t.words}`.toLowerCase().includes(w)));
 }
 // The tops of the made walls along a rectangle's sides ([x0, x1, y0, y1], standing on about `floor`): the highest, or null.
 function wallTopsRound(rect, floor) {
@@ -9616,9 +9591,7 @@ async function startWallDrawing(look, { room = false, slab = false, roof = false
   stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing();
   const drawing = wallDrawing = { look, room, slab, roof, ground, template: null, start: null };
   renderer.domElement.style.cursor = 'crosshair';
-  pieces.setChosen(ground ? groundEntries().find(e => e.ground === ground) ?? null
-    : [...wallEntries(), ...slabEntries()].find(e => e.wallLook === look && Boolean(e.room) === room
-                                                 && Boolean(e.slab) === slab && Boolean(e.roof) === roof) ?? null);
+  pieces.setChosen(null);
   const done = busyStart(`Reading ${look.name}…`);
   try {
     const template = await wallTemplate(look);
@@ -9648,7 +9621,7 @@ function stopWallDrawing() {
   if (!wallDrawing) return;
   if (wallDrawing.pointerId != null) try { renderer.domElement.releasePointerCapture(wallDrawing.pointerId); } catch { /* released */ }
   wallDrawing = null; wallGhost.visible = false; renderer.domElement.style.cursor = '';
-  pieces.setChosen(null); library.setChosen(null); restingHint();
+  pieces.setChosen(null); library.setChosen(null); markBuildTool(null); restingHint();
 }
 // The point of the ground (or a piece) under the pointer, in game units; and the floor under it.
 function wallGround(clientX, clientY) {
@@ -11383,9 +11356,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       return r ? Object.fromEntries(coverFacesNow(r).map(f => { const p = coverHandlePoint(f);
         return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, 96 * tiles))]]; })) : {}; },
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
-    // made walls (custom geometry plan, M1): the Walls entries, drawing, a game point on the screen, the picked wall's
-    // handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
-    wallEntries, slabEntries, groundEntries, startWallDrawing, stopWallDrawing,
+    // made walls (custom geometry plan, M1): the Build menu's tools (B1), drawing, a game point on the screen, the picked
+    // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
+    buildTools: () => Object.keys(BUILD_TOOLS), startBuild, buildTool: () => buildTool, startWallDrawing, stopWallDrawing,
     groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
@@ -11533,7 +11506,8 @@ search.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') highlightResult(resultIndex + (e.key === 'ArrowDown' ? 1 : -1));
   else if (e.key === 'Enter') {
     const item = $('objects').querySelectorAll('.piece')[Math.max(0, resultIndex)];
-    if (item) choose(item.dataset.id, e.ctrlKey || e.shiftKey || e.metaKey);
+    if (item?.dataset.build) { search.blur(); startBuild(item.dataset.build); }
+    else if (item) choose(item.dataset.id, e.ctrlKey || e.shiftKey || e.metaKey);
   } else if (e.key === 'Escape') { if (search.value) { search.value = ''; catalogue(); } else search.blur(); }
   else return;
   e.preventDefault();

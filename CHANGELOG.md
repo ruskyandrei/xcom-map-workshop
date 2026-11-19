@@ -27,6 +27,27 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A Build menu on the Add button: walls, rooms, floors, roofs and ground drawn from it** (custom geometry editing
+  plan, stage E1; branch `fracturing-wall-poc`; the user's ask of 19 November 2026).
+  - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css):
+    - hovering the left bar's Add button opens a menu after a moment; a click on Add still opens the Add panel;
+    - the menu lists Wall, Room, Room with a roof, Floor, Roof, and the ground's Patch, Block, Ramp and Rock.
+  - [app.js](tools/viewer/web/app.js):
+    - `BUILD_TOOLS` and `startBuild`: picking one starts drawing at once (the Add panel closes), and its button stays
+      lit while it draws;
+    - the made recipes and the "Choose a … look" entries are out of the Add panel (`wallEntries`, `slabEntries`,
+      `groundEntries` gone), which now lists the game's pieces, lights, cover, zones and spawn points;
+    - the find box (Ctrl+F) lists the tools its words name ahead of the pieces found ("roof": Room with a roof,
+      Roof); Enter or a click starts drawing;
+    - page scripts get `viewer.buildTools()`, `viewer.startBuild(key)` and `viewer.buildTool()` in place of the
+      entries.
+  - Checked in a test server's browser on URB_PoliceStation:
+    - the menu showed on hover; Wall started a drawing (the template read, the button lit);
+    - the find box's "roof" listed both roof tools;
+    - the Add panel's kind lists had no Walls kind.
+  - The node and viewer suites pass. Known gap: the browser smoke tests for walls and looks (browser_walls.py,
+    browser_looks.py, run by hand on a test server) still call the old entries; stage E2 brings them up to date.
+
 - **A made wall's doorways and windows are one kind of gap, whose handles reach the wall's edges and move smoothly**
   (custom geometry plan; branch `fracturing-wall-poc`; the user's asks of 19 November 2026).
   - [walls.js](tools/viewer/web/walls.js):

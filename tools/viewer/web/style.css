@@ -87,6 +87,18 @@ canvas { display: block; width: 100%; height: 100%; }
 .flyout .flyhead kbd { position: static; font-size: 10px; color: #a9bcc6; }
 .flyout .flytext { margin-top: 4px; color: #a9bcc6; }
 .rail hr { border: 0; border-top: 1px solid var(--line); margin: 3px 2px; }
+/* The Add button's Build menu (custom geometry editing plan, B1): shown a moment after the pointer comes over the button,
+   kept while it is over the menu; a click on Add still opens the Add panel */
+.rail .flyout.buildfly { display: block; visibility: hidden; padding: 8px 6px 6px; transition: visibility 0s linear .15s; }
+.railfly:hover .flyout.buildfly, .railfly:focus-within .flyout.buildfly { visibility: visible; transition-delay: .3s; }
+.buildfly .flyhead { padding: 0 8px 4px; }
+.buildfly .flysub { font-weight: 400; color: var(--muted); font-size: 11px; }
+.rail .buildfly button { width: 100%; height: 28px; display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 0 10px 0 8px; font: inherit; font-size: 12px; }
+.rail .buildfly hr { margin: 4px 6px; }
+.buildfly .flygroup { padding: 2px 8px 2px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.buildfly .bi { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linejoin: round; flex: none; }
+/* the find box's build tools, ahead of the pieces found */
+.results .piece.build strong::before { content: 'Build · '; color: var(--accent-text); font-weight: 400; }
 .hint { left: 50%; transform: translateX(-50%); top: 12px; padding: 6px 12px; font-size: 12px; color: #c7d9e2; pointer-events: none; white-space: nowrap; }
 /* Box select's bar, under the hint: how many pieces the box holds, and what to do with them */
 .boxbar { left: 50%; transform: translateX(-50%); top: 48px; padding: 6px 10px; font-size: 12px; color: #c7d9e2; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
