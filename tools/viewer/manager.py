@@ -28,8 +28,11 @@ have been played in the game with a variant. All of that is said as warnings, ne
                                                          (LWRMapPack_<nnnn>.upk, tools/upk/pack_card.py) and a README.
                                                          Copied into a game's CookedPCConsole it is installed on
                                                          Long War Rebalance 3.00.00 beta 15 or later
-                            CookedPCConsole/*.tfc        the builds' lighting caches, which the game finds only in
-                                                         CookedPCConsole itself (F-140): copied beside the folder
+                                                         Each map holds its build's baked lighting inside it
+                                                         (tools/bake/inline_lighting.py): the game finds a .tfc only
+                                                         in CookedPCConsole itself, never in a folder (F-140)
+                            CookedPCConsole/*.tfc        only for a map whose lighting could not be put inside it
+                                                         (a warning says so): its build's cache, beside the folder
                             Install.cmd, Uninstall.cmd   put the pack into any game folder and take it out again
                                                          (pack_scripts.py): the folder where the game reads cards,
                                                          else the files and the lines in DefaultMaps.ini
@@ -58,6 +61,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import tempfile
 import zipfile
 
 import installs
@@ -417,11 +421,44 @@ def pack(projects, builds, player, request, now=None):
         variants = [folder.name for _, _, m, folder, _, _ in chosen if m is not None]
         try:
             # every package's guard at once, in one order, while they are read and zipped (their manifests read again
-            # once held: _pack's read_package)
-            with publication.guards(builds.output, variants):
-                return _pack(projects, builds, player, request, chosen, mode, now)
+            # once held: _pack's read_package); the maps with their lighting put inside are written to a scratch
+            # folder, deleted once the zip is made
+            with publication.guards(builds.output, variants), _scratch(builds) as work:
+                return _pack(projects, builds, player, request, chosen, mode, now, Path(work))
         except publication.Busy as error:
             raise ProjectError(409, f'Not made: {error}')
+
+
+def _scratch(builds):
+    """A folder beside the zips for the pack's maps with their lighting put inside, deleted with all in it."""
+    folder = builds.output / PACKS
+    folder.mkdir(parents=True, exist_ok=True)
+    return tempfile.TemporaryDirectory(prefix='.inline-', dir=folder)
+
+
+def _inline_lighting(parts, files, work):
+    """Each build's own lighting cache put inside its maps (tools/bake/inline_lighting.py): the game finds a .tfc only
+    in CookedPCConsole itself, never in a pack's folder (F-140). A build's map (the relight writes into the cache for
+    the map alone) is written into `work` with each mip of that cache inside it (and NeverStream: loaded whole with
+    the map) and takes the built map's place in `files` ({name: (source, SHA-256)}); the cache then leaves `files` and
+    the part's file list, and the part records it (lightingInside). A map that can't take it in goes as it is, with
+    its cache beside the folder, and a warning says why."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
+    import inline_lighting
+    for p in parts:
+        cache, n = p.get('cache'), f'{p["variant"]}.upk'
+        tfc = f'{cache}.tfc' if cache else None
+        if tfc not in p['files'] or n not in p['files']: continue
+        try: done = inline_lighting.inline(files[n][0], work / n, cache, files[tfc][0], echo=lambda *_: None)
+        except inline_lighting.NotNamed: continue           # the cache is not the map's: nothing to move
+        except Exception as error:                          # any failure: the map as it is, its cache beside
+            p['warnings'].append(f'Its baked lighting could not be put inside the map ({error}): its {tfc} goes beside the '
+                                 'pack\'s folder, in CookedPCConsole itself, where the game finds it.')
+            continue
+        files[n] = (work / n, done['sha256'])
+        files.pop(tfc)
+        p['files'] = [f for f in p['files'] if f != tfc]
+        p['lightingInside'] = {k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}
 
 
 def _pack_record(projects, builds, request, parts, game, now, rng=None):
@@ -452,7 +489,7 @@ def _pack_record(projects, builds, request, parts, game, now, rng=None):
     return record
 
 
-def _pack(projects, builds, player, request, chosen, mode, now):
+def _pack(projects, builds, player, request, chosen, mode, now, work):
     import deploy_fixture as dep
     from settings import game_kind
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
@@ -516,6 +553,7 @@ def _pack(projects, builds, player, request, chosen, mode, now):
             card_zones += [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
             if library: card_pictures.append(f'Pictures=(Map="{variant}", Picture="{library}.{base}")')
             parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
+                              cache=m.get('cache'),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
@@ -569,6 +607,7 @@ def _pack(projects, builds, player, request, chosen, mode, now):
     other = packs.installed_cards(cooked).get(record['card'])
     if other is not None and other.parent.name.lower() != pack_folder.lower():
         notes.append(f'The install the editor reads has another card numbered {record["card"]:04d}, in the folder {other.parent.name}.')
+    _inline_lighting(parts, files, work)
     caches = sorted(n for n in files if n.lower().endswith('.tfc'))
     in_folder = sorted([n for n in files if n not in caches] + [card_file, 'README.txt'], key=str.lower)
     described = dict(schema=PACK_SCHEMA, schemaVersion=2, editorVersion=VERSION, name=name, mode=mode,
@@ -579,12 +618,12 @@ def _pack(projects, builds, player, request, chosen, mode, now):
                                               'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings', 'cardLines',
                                               'ownPicture', 'pictureFrom')},
                            **({'ownZones': True} if p.get('ownZones') else {}),
+                           **({'lightingInside': p['lightingInside']} if p.get('lightingInside') else {}),
                            **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
                      folderFiles=in_folder, cacheFiles=caches, notes=notes,
                      **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
-    folder.mkdir(parents=True, exist_ok=True)
     target = folder / record['zip']
     temp = target.with_suffix('.zip.tmp')
     with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:

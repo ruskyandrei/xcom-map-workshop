@@ -10,8 +10,9 @@ Long War Rebalance 3.00.00 beta 15 and later read map packs from cards (tools/up
 and its maps, copied into XEW\\XComGame\\CookedPCConsole, is installed.
 
 - put: copies the pack's folder (the one holding LWRMapPack_NNNN.upk; from a zip or a folder above it, the folder in
-  it that does) into CookedPCConsole, and the .tfc files that lie beside that folder (an exported pack's lighting
-  caches, which the game finds only in CookedPCConsole itself: F-140) beside it, and does nothing else. Before the first put it notes what the copy's Config and CookedPCConsole
+  it that does) into CookedPCConsole, and the .tfc files that lie beside that folder (in an exported pack, the
+  lighting cache of a map that could not take it in, which the game finds only in CookedPCConsole itself: F-140)
+  beside it, and does nothing else. Before the first put it notes what the copy's Config and CookedPCConsole
   hold (Config by SHA-256; CookedPCConsole by size and time, --hash for SHA-256 there too, which takes minutes) in
   <lab copy>\\XComLab-pack-test.json. A folder of the same name is replaced, as copying a newer version over does not:
   give --over to copy over what is there instead.

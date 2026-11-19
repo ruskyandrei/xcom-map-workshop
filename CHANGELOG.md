@@ -8,6 +8,29 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A map pack's maps hold their baked lighting inside them: no .tfc beside the folder** (LWR map packs; branch
+  `lwr-map-packs`; [EXP-86](research/experiments/EXP-86-lighting-inside-the-map.md), F-140).
+  - New [inline_lighting.py](tools/bake/inline_lighting.py): a copy of a built map in which every texture naming the
+    build's own cache (`<Map>_Lighting`, or an older build's `Lighting_<n>`) holds all its mips inline and
+    uncompressed, with NeverStream True and no cache name, as the game's own URB_StreetOverpass keeps one shadow map.
+    The new data goes after the package's end (package_grow), and the copy is read back: every mip equal to the
+    build's, size, format and mip tail unchanged. The textures of the game's shared `Lighting.tfc` stay as they are.
+  - Export map pack ([manager.py](tools/viewer/manager.py) `_inline_lighting`) writes each build's map that way into
+    a scratch folder beside the zips (deleted afterwards) and packs it in the build's map's place, with its own SHA-256
+    in pack.json and `lightingInside` (cache, textures, mips, bytes) on the map. The pack then has no `.tfc`: on LWR 3
+    it is one folder, and the classic route copies no cache either. A map that can't take its lighting in goes as it
+    is, its cache beside the folder as before, with a warning that says why. The build itself is untouched; Play in
+    game and the manager's install still use the cache.
+  - Docs: [pack_scripts.py](tools/viewer/pack_scripts.py), [pack_test.py](tools/lab/pack_test.py) notes.
+  - Checked: new `test_inline_lighting` (bake: URB_Bar relit into a cache of its own, then inlined; mips equal, the
+    other exports byte for byte, a map already inside refused, a short cache refused, the command line);
+    `test_manager` (a real relit map packed with no `.tfc`, its lighting inside, the build as it was, no scratch
+    left; the fallback with its warning); the viewer suite. In the game (EXP-86, unattended): drawn as with the cache
+    on LWR 3 beta 15 from a pack's folder (three builds, up to the 135 MB cache of the largest) and on LWR 2.x
+    installed the classic way from an exported pack; loading 0.03 s longer for a 30 MB cache, about 0.15 s for
+    135 MB; the build's lightmaps stay resident (24 MB more in textures than the streamed layout at the end of a
+    camera tour of the largest map), private memory unchanged. Known gap: a map file grows by its cache's size.
+
 - **EXP-85: an exported pack played on LWR 3 beta 15** (LWR map packs, stage C9). Unattended runs, the parked copy
   where it stands. [EXP-85](research/experiments/EXP-85-map-pack-cards.md):
   - a pack made by Export map pack (three maps: own picture, Replace, a crashed UFO map) copied in as a player would:

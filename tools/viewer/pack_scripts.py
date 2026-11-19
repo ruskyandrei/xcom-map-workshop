@@ -6,7 +6,8 @@ Install asks for the game folder (or takes it as its argument; it offers the Ste
 while XCOM runs. Then one of two ways (a third argument, cards or classic, forces one):
 
 - The game's script reads map pack cards (its XComMutator.u holds the name LWRMapPackCard: Long War Rebalance 3.00.00
-  beta 15 or later): the pack's folder is copied into CookedPCConsole, its lighting caches beside the folder, and the
+  beta 15 or later): the pack's folder is copied into CookedPCConsole (any lighting cache a map could not take in
+  beside the folder: the game finds a .tfc only there, F-140), and the
   drop-in exclusion lines added where a map asks for them (a card can't carry them). No other file of the game is
   touched. It names another pack's card of the same number and a file of the same name elsewhere under
   CookedPCConsole. Uninstall deletes the files it copied (the folder too, once empty) and those lines.

@@ -2964,7 +2964,8 @@ word; not looked at in the game).
   (F-120), and the hidden game has not played plain Enemy Within.
 
 ### F-140: A lighting cache in a folder under CookedPCConsole is not found
-**Open: worked around by where the cache is put** (19 November 2026, [EXP-85](experiments/EXP-85-map-pack-cards.md), LWR 3.00.00 beta 15).
+**Worked around: a pack's maps hold their lighting inside them** (19 November 2026, [EXP-85](experiments/EXP-85-map-pack-cards.md)
+and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15).
 - **Seen.** A built map, its intro copy and its patch load from a folder under `CookedPCConsole` (a map pack's
   folder). With the map's `<Map>_Lighting.tfc` in that folder the made floor is not drawn and the baked light is
   missing: the pictures equal those taken with no cache at all. With the cache in `CookedPCConsole` itself both are
@@ -2974,9 +2975,12 @@ word; not looked at in the game).
 - **Why, as far as known.** The engine finds packages through its file cache, which walks sub-folders. A texture
   cache is opened by a path made from the cooked folder and the cache's name; nothing looks for it elsewhere. The
   game ships every `.tfc` in `CookedPCConsole` itself.
-- **Now.** A map pack is its folder and its cache files beside the folder, both copied into `CookedPCConsole`.
-- **Could be.** The mips kept inside the map file, so a pack is one folder. Not tried: a mip read must not cross a
-  chunk of the compressed package (T-14).
+- **First.** A map pack was its folder and its cache files beside the folder, both copied into `CookedPCConsole`.
+- **Now.** Export map pack writes each map with its build's cache moved inside it
+  ([inline_lighting.py](../tools/bake/inline_lighting.py): every mip inline and uncompressed, NeverStream, no cache
+  name), so a pack is one folder. EXP-86: drawn the same on beta 15 and on LWR 2.x; about 0.15 s more loading for a
+  135 MB cache, and the build's lightmaps resident for the battle (up to the cache's size in texture memory). A map
+  that can't take its cache in still goes with the cache beside the folder, with a warning.
 
 ### F-141: A variant's display name dropped the words LWR reads a UFO's size from
 **Fixed** (19 November 2026; not seen in a campaign yet).

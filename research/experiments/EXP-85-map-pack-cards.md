@@ -5,7 +5,7 @@ hand** (LWR map packs, stages C2b and C9). The game reads a card written by
 [pack_card.py](../../tools/upk/pack_card.py), finds the maps in the pack's folder, plays one as a new campaign's first
 mission, and finds a map's own picture in it. A pack made by Export map pack did the same (runs C below). **A
 lighting cache inside the pack's folder is not found** ([F-140](../findings-register.md)); exported packs put it
-beside the folder.
+beside the folder, and since [EXP-86](EXP-86-lighting-inside-the-map.md) carry it inside each map instead.
 
 Played unattended on the parked beta 15 lab copy, run where it stands (`hidden_game.py --game <beta 15 copy>`; the
 copy was not switched in), with [pack_test.py](../../tools/lab/pack_test.py) putting the pack in and reading the log.
