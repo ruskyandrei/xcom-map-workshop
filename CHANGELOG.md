@@ -8,6 +8,16 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-85: a card of ours read by LWR 3.00.00 beta 15** (LWR map packs, stage C2b). Unattended runs on the parked
+  beta 15 copy, where it stands. [EXP-85](research/experiments/EXP-85-map-pack-cards.md):
+  - the game reads the card, finds the maps, intro copies and patches in the pack's folder, adds the landing lines
+    and starts a battle on a pack map;
+  - a card with the first mission's display name makes a new campaign start on a pack map (the campaign started from
+    the console, no mouse);
+  - a lighting cache in the pack's folder is not found: the made floor is not drawn. In `CookedPCConsole` itself it
+    is ([F-140](research/findings-register.md)). A pack is its folder and its cache files beside it.
+  - No tool changed. Pictures, the Geoscape's own choice and an exported pack are still to run.
+
 - **A lab script for the map pack game test** (LWR map packs, stage C2b; branch `lwr-map-packs`).
   [pack_test.py](tools/lab/pack_test.py):
   - `put` copies a pack's folder into a lab copy's `CookedPCConsole`, as a player would, after noting what the copy's

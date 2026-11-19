@@ -2963,6 +2963,21 @@ word; not looked at in the game).
   place (15 actors moved). Not looked at in the game: under Long War the mutator destroys it on every load anyway
   (F-120), and the hidden game has not played plain Enemy Within.
 
+### F-140: A lighting cache in a folder under CookedPCConsole is not found
+**Open: worked around by where the cache is put** (19 November 2026, [EXP-85](experiments/EXP-85-map-pack-cards.md), LWR 3.00.00 beta 15).
+- **Seen.** A built map, its intro copy and its patch load from a folder under `CookedPCConsole` (a map pack's
+  folder). With the map's `<Map>_Lighting.tfc` in that folder the made floor is not drawn and the baked light is
+  missing: the pictures equal those taken with no cache at all. With the cache in `CookedPCConsole` itself both are
+  drawn.
+- **Tried.** The cache's name in the map's textures written with the folder in front (`<Folder>\<Map>_Lighting`):
+  no better.
+- **Why, as far as known.** The engine finds packages through its file cache, which walks sub-folders. A texture
+  cache is opened by a path made from the cooked folder and the cache's name; nothing looks for it elsewhere. The
+  game ships every `.tfc` in `CookedPCConsole` itself.
+- **Now.** A map pack is its folder and its cache files beside the folder, both copied into `CookedPCConsole`.
+- **Could be.** The mips kept inside the map file, so a pack is one folder. Not tried: a mip read must not cross a
+  chunk of the compressed package (T-14).
+
 ## Toolchain
 
 ### F-117: A variant replacing Commercial Alley Redux left a new campaign's first mission with no map
