@@ -8,6 +8,11 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The game-test skill's setup guide** ([SETUP.md](.claude/skills/game-test/SETUP.md)): everything an agent needs to
+  make hidden game runs work on a new computer (the pieces, one run start to end, the one-time setup, a first run,
+  staging a map, the test protocol, rules, what each failure has meant, and the same techniques for other games).
+  Added as it was written; folders are placeholders. Checked: the `repo` suite.
+
 - **A baked build's lightmaps go inside its map: no build ships a .tfc** (branch `lwr-map-packs`;
   [EXP-86](research/experiments/EXP-86-lighting-inside-the-map.md), F-140).
   - The Build ([build.py](tools/editor/build.py) `lighting_inside`, the package's last change to the map, after the
