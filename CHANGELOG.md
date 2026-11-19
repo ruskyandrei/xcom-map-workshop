@@ -8,6 +8,22 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+### Whole-editor review and cleanup plan
+
+Recorded 25 prioritized findings in the private plans folder. The first fixes cover campaign-save restoration,
+interrupted campaign installs, recovery shared between tabs, stale replacement confirmations and legacy migration.
+The plan gives the evidence and an acceptance check for each item.
+
+- Checked [project persistence](tools/viewer/projects.py), [prefab and project editing](tools/viewer/web/app.js),
+  [game installation](tools/viewer/installs.py), [save restoration](tools/viewer/playsaves.py),
+  [cache pruning](tools/viewer/prune.py), [Build](tools/editor/build.py) and [pack export](tools/viewer/manager.py)
+  with isolated fixtures, browser checks, a cold map export, quick and baked Bar builds, and a pack read-back.
+- The [release smoke](tools/release/smoke_release.py) passed all ten steps. The
+  [suite runner](tools/run_tests.py) covered the viewer, editor, package tools, baker, lab, release, repository
+  and browser logic. Six pack-script checks failed with the inherited shell module path. All 564 viewer tests
+  passed when Windows PowerShell could locate its system modules.
+- Scope was review and planning. Gameplay and cross-browser coverage remain open.
+
 ### Release 0.6.0 published
 
 On the user's word ("Ok go ahead and publish it"), after the notes were shown in full.
