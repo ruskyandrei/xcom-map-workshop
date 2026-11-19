@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+### Release 0.6.0 published
+
+On the user's word ("Ok go ahead and publish it"), after the notes were shown in full.
+
+- Main pushed (`9ad4c52`, the commit the release was built from), then the release created on it:
+  <https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.6.0>, marked latest.
+- Checked: both files' sizes and SHA-256 digests on GitHub equal the local ones (68,411,125 and 107,069,522 bytes);
+  `releases/latest` names `v0.6.0`; both `releases/latest/download/` links answer (206 to a one-byte range request);
+  the published notes equal [0.6.0.md](tools/release/notes/0.6.0.md); the tag is on `9ad4c52`.
+- The guide page was republished by the push (the guide workflow passed) and equals the local page byte for byte.
+
 ### Release 0.6.0: drawn walls, floors and ground, effects and sounds, spawn points, map pictures and LWR 3 map packs
 
 At the user's ask ("sort out the loose ends, then prepare release 0.6.0": a minor step). Made on main, 195 commits
