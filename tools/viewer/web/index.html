@@ -306,6 +306,18 @@
         <div id="flagsNote" class="lightnote">Flags change how the game uses the piece. Its appearance, collision and destruction settings stay the same.</div>
         <div class="row"><button id="flagsReset" type="button" title="Back to the flags the map saves for it (one undo step); where it stands is not changed">Reset flags</button></div>
       </div>
+      <div id="pieceBreakBox" class="lightbox" hidden>
+        <div class="posehead">Damage</div>
+        <div class="row breakrow">
+          <button id="pieceBreak" type="button" title="Break it: each click on it sets off a blast that knocks out the fragments within its reach, as the game's maps keep pieces broken (B; Esc stops). Ctrl+Z takes a blast back">Break</button>
+          <select id="pieceBlastSize" title="How far a blast reaches">
+            <option value="1">1 tile</option><option value="2">2 tiles</option><option value="3">3 tiles</option>
+          </select>
+          <button id="pieceRepair" type="button" title="Mend it as the map has it: every blast taken back">Repair</button>
+          <span id="pieceBroken" class="lightnote"></span>
+        </div>
+        <div class="lightnote">The fragments a blast reaches are saved painted out, with those the map already paints out, as the game's maps keep pieces broken. The rest still breaks in the battle.</div>
+      </div>
       <div id="lightBox" class="lightbox" hidden>
         <div class="posehead">Light <span id="lightKind"></span></div>
         <div class="lightcolour">

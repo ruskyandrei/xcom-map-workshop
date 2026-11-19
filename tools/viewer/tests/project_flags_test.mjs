@@ -31,8 +31,25 @@ assert.ok(!validAdded({ ...cover, flags: { walking: false } }), 'a cover block\'
 const spot = { id: 'e3', actor: 'TheWorld.PersistentLevel.SpotLight_copy3', template: { kind: 'spot', version: 1 }, light: { brightness: 1 }, ...pose };
 assert.ok(!validAdded({ ...spot, flags: { mouse: false } }));
 
+// blasts (custom geometry editing plan, E6): one of the map's fracturing pieces broken where it stands (blasts alone,
+// or with flags), moved, or an added copy of one; never on a light, a cover block, a made piece or with a half pose
+const blasts = [{ at: [0, 0, 60], radius: 96 }];
+assert.ok(validOverride({ target, blasts }));
+assert.ok(validOverride({ target, blasts, flags: { cover: false } }));
+assert.ok(validOverride({ target, ...pose, blasts }));
+for (const bad of [[], [{ at: [0, 0], radius: 96 }], [{ at: [0, 0, 0] }], [{ at: [0, 0, 0], radius: 96, more: 1 }], 'x', null])
+  assert.ok(!validOverride({ target, blasts: bad }), JSON.stringify(bad));
+assert.ok(!validOverride({ target, location: [1, 2, 3], blasts }), 'half a pose');
+assert.ok(!validOverride({ target, blasts, light: { brightness: 2 } }), 'a light has no blasts');
+assert.ok(validAdded({ ...copy, blasts }));
+assert.ok(!validAdded({ ...copy, blasts: [] }));
+assert.ok(!validAdded({ ...cover, blasts }), 'a cover block does not break so');
+assert.ok(!validAdded({ ...copy, generated: { kind: 'fracWall', version: 1, wall: {} }, blasts }), 'a made piece keeps its blasts in its request');
+assert.notEqual(stateKey(sortState(base0())), stateKey(sortState({ overrides: [{ target, blasts }], added: [] })));
+
 // sorted and keyed: flags alone change the project's content
-const base = { overrides: [], added: [] };
+function base0() { return { overrides: [], added: [] }; }
+const base = base0();
 const flagged = { overrides: [{ target, flags: { walking: false } }], added: [] };
 assert.notEqual(stateKey(sortState(base)), stateKey(sortState(flagged)));
 assert.deepEqual(sortState(flagged).overrides, flagged.overrides);

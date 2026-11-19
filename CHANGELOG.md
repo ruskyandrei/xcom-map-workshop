@@ -8,24 +8,60 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
-- **A third game copy for LWR v3.00.00 beta 15, and `switch_install.ps1` knows it.** The lab copy (LWR 2.x) stays the
-  active install; the new copy is parked beside it as `<Steam common>\XCom-Enemy-Unknown.LWR3`, made from a copy of
-  the live LWR install with beta 15's `Config`, `CookedPCConsole`, `Localization` and `Movies` laid over its
-  `XEW\XComGame` (beta 15 only adds files to LWR 2.x's set, so nothing was left over). It has the console
-  `Engine.upk` (the zip's `.renamethistoenableconsole` one, as the lab copy has), the lab copy's game-written
-  `XComEngine.ini` (2560x1440 borderless; the same `DefaultEngine.ini`, so the game keeps it) and the marker
-  `XComLab-copy.txt` with `copy=lwr3` and `args=-forcelogflush`, so the wrapper runs it with `-nohomedir` and its
-  settings and saves stay inside it. A manifest of it as made is `<lab>\snapshots\runtime-lwr3-beta15-2026-11-19.sha256`.
-  - [switch_install.ps1](tools/lab/switch_install.ps1): a third target, `lwr3`; a folder's kind comes from its
-    marker's `copy=` line (none: the lab copy), and the active folder is parked under its own kind's name.
-  - [game-test skill](.claude/skills/game-test/SKILL.md): names the third copy.
-  - Checked: the copy matched the LWR baseline before beta 15 went in (bar the stand-in launcher), and every beta 15
-    file is in it byte for byte (Engine.upk being the console one); the editor's settings still take
-    `XCom-Enemy-Unknown.LWR` as the game install. `switch_install.ps1` was run through every switch on three fake
-    folders in a scratch folder (lab, lwr3, lwr back and forth, already active, a mislabelled folder refused); on the
-    real folders only `status` was run. The game was not started on the copy and it was not switched in.
-
-## 18 November 2026
+- **E6: Break and Repair on the map's own fracturing pieces** (custom geometry editing plan, decision D-5 at its
+  default: yes, after made pieces; branch `fracturing-wall-poc`). The same blasts as E5 on any of the map's
+  fracturing pieces (`XComFracLevelActor`, `XComDecoFracLevelActor`), where it stands, moved, or on an added copy of
+  one.
+  - Saved on the piece's record as `blasts` ([{at, radius}] in its mesh's frame): an override's (blasts alone, with no
+    pose, or with flags or a move) or an added copy's.
+  - [made_blasts.py](tools/bake/made_blasts.py):
+    - a fragment of a map's mesh goes when the middle of its vertices' box is within a blast's reach
+      (`fragment_centres`, `hidden_at`), which the editor works out the same way from the mesh it draws;
+    - the fragments the map already paints out stay out (`shown_of` reads the map's array: one 4-byte value a
+      fragment, non-zero shown, T-22);
+    - `DestroyedChunks` takes each hidden fragment's bounds from the mesh (`chunks_of_bounds`).
+  - The Build:
+    - [native_copy.py](tools/bake/native_copy.py) `break_component` writes both arrays on the piece's component;
+    - `blasts_in_place` handles the compiler's `pieceBlasts` (pieces broken where they stand), after every copy is
+      made, and works their tiles out again as a flag change's are;
+    - a moved piece's or added copy's blasts are written on its clone;
+    - the manifest's `pieceBlasts` section and the log list each piece, its fragments knocked out and how many are
+      out in all;
+    - [frac_walls.py](tools/bake/frac_walls.py) `painted_arrays` is shared with E5's made pieces;
+    - [build.py](tools/editor/build.py) runs the writer for pieces broken in place alone.
+  - [compiler.py](tools/editor/compiler.py):
+    - checks the blasts (a fracturing piece only, as E5's checks);
+    - a piece broken where it stands goes to the spec's `pieceBlasts`, and a moved or added one's copy, made in the
+      map, carries its blasts;
+    - a deleted piece's blasts are not built (`blasts-deleted` note);
+    - a `map-broken` note for each broken piece;
+    - the broken notes say "its blast" for one (E5's said "its 1 blasts").
+  - The editor:
+    - [index.html](tools/viewer/web/index.html) and [app.js](tools/viewer/web/app.js): a Damage row (Break, the blast
+      size, Repair) in a fracturing piece's panel. Break (or B) makes each click on the piece a blast; Repair mends it
+      as the map has it; Ctrl+Z takes back each blast. The piece is drawn without the fragments its blasts knock out.
+    - Copy and paste carry a piece's blasts. The edit count says how many pieces are broken where they stand.
+    - [project.js](tools/viewer/web/project.js) takes an override of blasts alone, and an added copy's blasts.
+  - Tests:
+    - [test_made_blasts.py](tools/bake/tests/test_made_blasts.py) `MapTests`;
+    - [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) `MapBroken`: URB_Bar's `XComFracLevelActor_5`, which
+      paints one of its 29 fragments out, broken where it stands and on a moved copy, both saving the blast's
+      fragments with that one; a piece that doesn't break, or that the map hasn't, is an error;
+    - [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) `MapBlastTests`;
+    - [project_flags_test.mjs](tools/viewer/tests/project_flags_test.mjs): the records.
+  - Checked in a test server's browser on URB_Bar:
+    - a click on the bar's inside wall (`XComDecoFracLevelActor_17`) drew a hole and saved an override of blasts
+      alone; undo, redo and Repair worked;
+    - the fragments the page left out (6, 7, 11, 12) were those the Build's helpers pick, triangle for triangle in
+      every section;
+    - a scratch project with that wall, `XComFracLevelActor_5` moved a tile and an added copy of it (a blast of two
+      tiles each) loaded as saved, with the pieces drawn broken, and its quick build wrote them: 4 of 30 fragments
+      out in place, 18 of 29 on each copy (17 knocked out, and the one the map paints out).
+  - Correction: E5's entry and two tests' notes said URB_Bar's roof `XComFracLevelActor_3` paints 27 of its
+    fragments out. It shows all 81: its array's values are 1 and 16843009 (four set bytes). The notes are corrected.
+  - Not played in the game yet.
+  - The ledger's entries from EXP-80 runs G and H to E5, all written after midnight, were filed under 18 November; they
+    are moved under 19 November.
 
 - **E5: Break and Repair on made walls, floors and roofs; the Build saves the fragments knocked out as the game's maps
   save painted-out pieces** (custom geometry editing plan, B5, decision D-4 at its default: saved as blasts; branch
@@ -379,6 +415,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
   - Checked: the editor suite (`test_made_slabs_bring_cursor_floors_of_their_own`: warned in no building, not in one,
     not when too low or over no floor). EXP-76 compiles with the warning on the long floor (26 tiles) and the lone
     roof (4); the room is not warned.
+
+- **A third game copy for LWR v3.00.00 beta 15, and `switch_install.ps1` knows it.** The lab copy (LWR 2.x) stays the
+  active install; the new copy is parked beside it as `<Steam common>\XCom-Enemy-Unknown.LWR3`, made from a copy of
+  the live LWR install with beta 15's `Config`, `CookedPCConsole`, `Localization` and `Movies` laid over its
+  `XEW\XComGame` (beta 15 only adds files to LWR 2.x's set, so nothing was left over). It has the console
+  `Engine.upk` (the zip's `.renamethistoenableconsole` one, as the lab copy has), the lab copy's game-written
+  `XComEngine.ini` (2560x1440 borderless; the same `DefaultEngine.ini`, so the game keeps it) and the marker
+  `XComLab-copy.txt` with `copy=lwr3` and `args=-forcelogflush`, so the wrapper runs it with `-nohomedir` and its
+  settings and saves stay inside it. A manifest of it as made is `<lab>\snapshots\runtime-lwr3-beta15-2026-11-19.sha256`.
+  - [switch_install.ps1](tools/lab/switch_install.ps1): a third target, `lwr3`; a folder's kind comes from its
+    marker's `copy=` line (none: the lab copy), and the active folder is parked under its own kind's name.
+  - [game-test skill](.claude/skills/game-test/SKILL.md): names the third copy.
+  - Checked: the copy matched the LWR baseline before beta 15 went in (bar the stand-in launcher), and every beta 15
+    file is in it byte for byte (Engine.upk being the console one); the editor's settings still take
+    `XCom-Enemy-Unknown.LWR` as the game install. `switch_install.ps1` was run through every switch on three fake
+    folders in a scratch folder (lab, lwr3, lwr back and forth, already active, a mislabelled folder refused); on the
+    real folders only `status` was run. The game was not started on the copy and it was not switched in.
+
+## 18 November 2026
 
 - **Made floors' and roofs' cursor floors break 2 under the slab's underside, not at its top** (custom geometry
   plan, M5b; F-128; branch `fracturing-wall-poc`). In EXP-80 run G the cursor was right in the room, but on the long

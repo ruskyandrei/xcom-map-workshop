@@ -702,7 +702,9 @@ class Build:
         # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand, written in the map
         # by native_copy.py (a copy's flags go with the copy); flags alone change no light
         self.piece_flags = self.native.get('pieceFlags') or []
-        self.flags_edit = bool(self.piece_flags)
+        # (the map's own pieces broken where they stand go with the flags' step: E6)
+        self.piece_blasts = self.native.get('pieceBlasts') or []
+        self.flags_edit = bool(self.piece_flags or self.piece_blasts)
         # effects and ambient sounds moved, copied or deleted (the effects and sounds plan, Part D): made in the map by
         # native_copy.py in both kinds of build; on their own they change no baked light (an effect and a sound are
         # dynamic), so a full build makes them as cover blocks are made, with the map's lighting kept. Lens flares

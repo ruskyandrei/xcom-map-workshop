@@ -189,13 +189,20 @@ const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && 
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
 // map has it; an effect's may be its values alone, and a spawn point's too; a no-spawn volume's is its box, its values
 // or both, never a pose)
+// (blasts: one of the map's fracturing pieces broken, custom geometry editing plan E6: [{ at, radius }] in its mesh's
+// frame; an override may be blasts alone, or with flags, the piece where the map has it; the compiler checks the
+// numbers, tools/bake/made_blasts.py)
+const validBlasts = b => Array.isArray(b) && b.length > 0
+  && b.every(x => x && typeof x === 'object' && finite3(x.at) && Number.isFinite(x.radius) && Object.keys(x).length === 2);
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
+  && (r.blasts === undefined || (validBlasts(r.blasts) && r.light === undefined && r.effect === undefined && r.sound === undefined
+      && r.spawn === undefined && r.box === undefined))
   && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
   && validSpawnValues(r.spawn) && !(r.spawn !== undefined && (r.effect !== undefined || r.sound !== undefined || r.light !== undefined || r.flags !== undefined))
   && (r.box === undefined || (validBox(r.box) && r.location === undefined && r.rotation === undefined && r.light === undefined
       && r.flags === undefined && r.effect === undefined && r.sound === undefined))
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
-      || (r.flags !== undefined && r.location === undefined && r.rotation === undefined && r.light === undefined)
+      || ((r.flags !== undefined || r.blasts !== undefined) && r.location === undefined && r.rotation === undefined && r.light === undefined)
       || ((r.effect !== undefined || r.sound !== undefined) && r.location === undefined && r.rotation === undefined
           && r.light === undefined && r.flags === undefined)
       || (r.spawn !== undefined && r.location === undefined && r.rotation === undefined)
@@ -231,6 +238,7 @@ export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === '
   && (e.kind === 'noSpawn' ? validAddedVolume(e) : finite3(e.location) && finite3(e.rotation)
   && (['pod', 'meld'].includes(e.kind) ? validAddedSpawn(e) : e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
+  && (e.blasts === undefined || (e.template === undefined && e.generated === undefined && validBlasts(e.blasts)))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')
       && e.cover === undefined

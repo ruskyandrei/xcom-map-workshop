@@ -388,6 +388,7 @@ function select(id, add = false, keep = false) {
   $('wallBox').hidden = !isMadeWall(root?.userData.source);
   $('slabBox').hidden = !isMadeSlab(root?.userData.source);
   $('groundBox').hidden = !isMadeGround(root?.userData.source);
+  $('pieceBreakBox').hidden = !mapBreakable(root?.userData.source);
   if (wallFocus && wallFocus.id !== id) wallFocus = null;
   if (!root || root.userData.volume || root.userData.effect) {
     highlight.visible = false; ladderMarks.visible = false;
@@ -403,6 +404,7 @@ function select(id, add = false, keep = false) {
   if (isMadeWall(obj)) wallPanel(root);
   if (isMadeSlab(obj)) slabPanel(root);
   if (isMadeGround(obj)) groundPanel(root);
+  if (mapBreakable(obj)) breakRow('piece', { blasts: root.userData.blasts });
   text(details, 'h2', short(mesh.name));
   text(details, 'div', `${obj.actorClass} · ${obj.sourcePackage || data.source.file.split(/[\\/]/).at(-1)}`, 'sub');
   const chips = text(details, 'div', '', 'chips');
@@ -896,12 +898,13 @@ const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
 // project's size (stage) and the project's own landing zones count once each.
 function changes() {
   let moved = 0, added = 0, deleted = 0, lights = 0;
-  const flagged = new Set();
+  const flagged = new Set(), broken = new Set();     // (broken: the map's pieces broken where they stand, E6)
   for (const root of roots.values()) {
     if (root.userData.source.added) added++;
     else if (root.userData.deleted) deleted++;
     else if (root.userData.edit) moved++;
     if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
+    if (!root.userData.source.added && !root.userData.deleted && !root.userData.edit && root.userData.blasts?.length) broken.add(sourceKey(root.userData.source));
   }
   for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
   let effects = 0;
@@ -911,8 +914,8 @@ function changes() {
   const built = data ? savedBuildings().length : 0;
   // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
   const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
-  return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size,
-           total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size };
+  return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
+           total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
 }
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
@@ -963,7 +966,7 @@ function editChangedNow() {
     count.effects && plural(count.effects, 'effect or sound edit'),
     count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
     count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
-    count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`,
+    count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
     saveState()].filter(Boolean).join(' · ');
   $('editCount').classList.toggle('warn', saveState() !== 'saved');
   $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
@@ -1172,7 +1175,8 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
                                      ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
-                                     ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}) })),
+                                     ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}),
+                                     ...(r.userData.blasts?.length ? { blasts: cloneBlasts(r.userData.blasts) } : {}) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
            // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
@@ -1323,12 +1327,14 @@ function unscaled(matrix) {
   matrix.decompose(p, q, s);
   return new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1));
 }
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null }) {
+function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null }) {
   if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
   return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
     // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
     // template's settings (pieceFlags) stay its baseline
     initialFlags: flags ? { ...flags } : null,
+    // a copy of one of the map's fracturing pieces broken (E6): its blasts, a paste's its original's
+    initialBlasts: blasts?.length && !generated ? cloneBlasts(blasts) : null,
     // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
@@ -1805,7 +1811,7 @@ async function pasteSnapshot(clip, delta, step = null) {
       prefab: linkTag(e),
       partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
       tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null,
-      generated: source.added?.generated ?? null });
+      generated: source.added?.generated ?? null, blasts: e.blasts ?? null });
   });
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
@@ -4470,17 +4476,19 @@ function editStateNow() {
         if (o.added.tinted) entity.tinted = true;
         if (o.added.generated) entity.generated = o.added.generated;
         if (root.userData.flags) entity.flags = { ...root.userData.flags };
+        if (root.userData.blasts?.length && !o.added.generated) entity.blasts = cloneBlasts(root.userData.blasts);
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
           entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
         added.set(o.actor, entity);
       }
       entity.components.push(o.component);
-    } else if ((root.userData.deleted || root.userData.edit || root.userData.flags) && !overrides.has(sourceKey(o))) {
-      // (flags alone: an override with no pose, the piece where the map has it; a deleted piece has no flags)
+    } else if ((root.userData.deleted || root.userData.edit || root.userData.flags || root.userData.blasts?.length) && !overrides.has(sourceKey(o))) {
+      // (flags or blasts alone: an override with no pose, the piece where the map has it; a deleted piece has neither)
       const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
       overrides.set(sourceKey(o), root.userData.deleted ? { target, deleted: true }
-        : { target, ...(root.userData.edit ? actorPose(o, root.matrix) : {}), ...(root.userData.flags ? { flags: { ...root.userData.flags } } : {}) });
+        : { target, ...(root.userData.edit ? actorPose(o, root.matrix) : {}), ...(root.userData.flags ? { flags: { ...root.userData.flags } } : {}),
+            ...(root.userData.blasts?.length ? { blasts: cloneBlasts(root.userData.blasts) } : {}) });
     }
   }
   for (const entity of added.values()) entity.components?.sort();
@@ -4507,7 +4515,7 @@ function clearEdits() {
   removeRoots(all.filter(r => r.userData.source.added));
   const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
   gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of all) { r.userData.deleted = false; r.userData.flags = null; }
+  for (const r of all) { r.userData.deleted = false; r.userData.flags = null; if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); } }
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
   clearEffectEdits();
@@ -4572,6 +4580,7 @@ async function applyState(state, progress = null) {
     else {
       if (record.location !== undefined) gizmo.applyMatrices(list, list.map(r => movedMatrix(r.userData.source, record.location, record.rotation)));
       if (record.flags) for (const r of list) r.userData.flags = { ...record.flags };
+      if (record.blasts) for (const r of list) if (mapBreakable(r.userData.source)) { r.userData.blasts = cloneBlasts(record.blasts); drawBroken(r); }
     }
   }
   const objs = [], lights = [], effects = [];
@@ -4616,7 +4625,7 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null }));
+        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null, blasts: entity.blasts ?? null }));
     }
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
@@ -5936,6 +5945,8 @@ async function buildRoot(obj) {
     parts[i].userData.objectId = obj.id;
   }
   root.userData.parts = parts;
+  root.userData.blasts = obj.initialBlasts ? cloneBlasts(obj.initialBlasts) : null;     // (E6) drawn without what they knock out
+  if (root.userData.blasts) drawBroken(root);
   root.matrix.fromArray(obj.matrix); root.matrixAutoUpdate = false; root.matrixWorldNeedsUpdate = true;
   return root;
 }
@@ -10223,6 +10234,7 @@ function wallPanel(root) {
 // out the fragments within its reach as the Build does (tools/bake/made_blasts.py), saved on the piece as blasts (D-4)
 // so they stay where they are when it is made longer, taller or in another look.
 const MAX_BLASTS = 64;
+const BREAK_ROWS = ['wall', 'slab', 'piece'];     // the panels with a Break row: made walls, made slabs, the map's pieces (E6)
 let breaking = null;      // { id }: the piece Break is on
 let blastTiles = 1;
 try { blastTiles = Math.min(3, Math.max(1, Math.round(Number(localStorage.getItem('workshop.blastTiles')) || 1))); } catch { /* none kept */ }
@@ -10238,14 +10250,16 @@ function breakRow(kind, g) {
   $(`${kind}Broken`).textContent = n ? `Broken by ${plural(n, 'blast')}` : '';
 }
 function startBreak() {
-  const root = madeRoot(selected), o = root?.userData.source;
-  if (!root || !(isMadeWall(o) || isMadeSlab(o))) { flashHint('Pick a made wall, floor or roof to break it'); return; }
+  const root = madeRoot(selected) ?? roots.get(selected), o = root?.userData.source;
+  if (!root || !(isMadeWall(o) || isMadeSlab(o) || mapBreakable(o))) {
+    flashHint('Pick a wall, floor or roof to break it: a made one, or one of the map\'s fracturing pieces'); return;
+  }
   stopLookPick(); stopWallDrawing(); stopPlacing();
   breaking = { id: o.id };
   gizmo.hold(true);
   renderer.domElement.style.cursor = 'crosshair';
-  for (const k of ['wall', 'slab']) $(`${k}Break`).classList.add('on');
-  flashHint(`Click the ${isMadeSlab(o) ? 'floor' : 'wall'} where a blast goes off: it knocks out the fragments within ${plural(blastTiles, 'tile')} · Esc stops`);
+  for (const k of BREAK_ROWS) $(`${k}Break`).classList.add('on');
+  flashHint(`Click the ${isMadeSlab(o) ? 'floor' : isMadeWall(o) ? 'wall' : 'piece'} where a blast goes off: it knocks out the fragments within ${plural(blastTiles, 'tile')} · Esc stops`);
 }
 function stopBreak() {
   if (!breaking) return;
@@ -10253,7 +10267,7 @@ function stopBreak() {
   gizmo.hold(false);
   renderer.domElement.style.cursor = '';
   blastMarker.visible = false;
-  for (const k of ['wall', 'slab']) $(`${k}Break`).classList.remove('on');
+  for (const k of BREAK_ROWS) $(`${k}Break`).classList.remove('on');
 }
 // Where a blast at the pointer goes off on the piece being broken: { point (the view's), at (its frame's: x, y, z) }.
 function blastAt(x, y) {
@@ -10268,6 +10282,15 @@ function breakAt(x, y) {
   if (selected !== breaking.id) { stopBreak(); return; }
   const b = blastAt(x, y);
   if (!b) { flashHint('Click on the piece itself · Esc stops'); return; }
+  const piece = roots.get(breaking.id);
+  if (mapBreakable(piece?.userData.source)) {
+    changeBlasts(piece, blasts => {
+      if (blasts.length < MAX_BLASTS) return [...blasts, { at: b.at, radius: blastTiles * TILE }];
+      flashHint(`It has the most blasts a piece takes (${MAX_BLASTS}): Repair mends it as the map has it`);
+      return undefined;
+    });
+    return;
+  }
   changeWall(s => {
     const blasts = s.generated.blasts ?? [];
     if (blasts.length >= MAX_BLASTS) { flashHint(`It has the most blasts a piece takes (${MAX_BLASTS}): Repair mends it whole`); return null; }
@@ -10280,18 +10303,111 @@ renderer.domElement.addEventListener('pointermove', e => {
   blastMarker.visible = Boolean(b);
   if (b) { blastMarker.position.copy(world.worldToLocal(b.point.clone())); blastMarker.scale.setScalar(blastTiles * TILE); }
 });
-for (const k of ['wall', 'slab']) {
+for (const k of BREAK_ROWS) {
   $(`${k}Break`).onclick = () => (breaking ? stopBreak() : startBreak());
   $(`${k}BlastSize`).onchange = e => {
     blastTiles = Number(e.target.value) || 1;
     try { localStorage.setItem('workshop.blastTiles', String(blastTiles)); } catch { /* not kept */ }
-    for (const j of ['wall', 'slab']) $(`${j}BlastSize`).value = String(blastTiles);
+    for (const j of BREAK_ROWS) $(`${j}BlastSize`).value = String(blastTiles);
   };
+  if (k === 'piece') {
+    $('pieceRepair').onclick = () => { const r = roots.get(selected); if (mapBreakable(r?.userData.source)) changeBlasts(r, () => null); };
+    continue;
+  }
   $(`${k}Repair`).onclick = () => changeWall(s => {
     if (!s.generated.blasts) return null;
     const { blasts: _, ...generated } = s.generated;
     return { ...s, generated };
   });
+}
+// ---- Break on the map's own fracturing pieces (custom geometry editing plan, E6, decision D-5): the same blasts on
+// any of the map's fracturing pieces or a copy of one, saved on its record (an override's or added copy's `blasts`,
+// in its mesh's frame). The Build paints out the fragments whose middle (that of their vertices' box) a blast
+// reaches, with those the map paints out (tools/bake/made_blasts.py fragment_centres, hidden_at); the page works the
+// middles out the same way from the mesh it draws and draws the piece without those fragments.
+const FRACTURING_CLASSES = new Set(['XComFracLevelActor', 'XComDecoFracLevelActor']);
+function mapBreakable(o) {
+  return Boolean(o && !o.cover && !o.added?.generated && FRACTURING_CLASSES.has(o.actorClass)
+    && data?.meshes[o.mesh]?.sections?.some(s => s.fragments?.length));
+}
+function cloneBlasts(blasts) { return blasts.map(b => ({ at: [...b.at], radius: b.radius })); }
+// A root's parts with the sections they draw: [{ section, part }] (the glb has a primitive for each section with
+// triangles, in order); none when they don't match.
+function sectionParts(root) {
+  const parts = root.userData.parts ?? [], sections = (data.meshes[root.userData.source.mesh].sections ?? []).filter(s => s.count);
+  return sections.length === parts.length ? sections.map((section, k) => ({ section, part: parts[k] })) : [];
+}
+// Where each fragment's triangles lie in a section's primitive: [start, count] in its indices (null: none drawn), as
+// the export wrote them (its fragments' ranges, packed in order where the map paints fragments out: export.py).
+function fragmentSpans(mesh, section) {
+  const mask = mesh.fragmentMask;
+  let packed = 0;
+  return section.fragments.map(([first, triangles], i) => {
+    if (!mask) return triangles ? [first - section.first, 3 * triangles] : null;
+    if (!mask[i]) return null;
+    const at = packed;
+    packed += 3 * triangles;
+    return triangles ? [at, 3 * triangles] : null;
+  });
+}
+const fragmentMiddles = new Map();     // mesh key -> [[x, y, z] | null]: each fragment's middle in its mesh's frame
+function middlesOf(root) {
+  const key = root.userData.source.mesh, mesh = data.meshes[key];
+  if (fragmentMiddles.has(key)) return fragmentMiddles.get(key);
+  const lo = [], hi = [];
+  for (const { section, part } of sectionParts(root)) {
+    const g = part.userData.baseGeometry ?? part.geometry, idx = g.index.array, pos = g.attributes.position;
+    fragmentSpans(mesh, section).forEach((span, i) => {
+      if (!span) return;
+      for (let k = span[0]; k < span[0] + span[1]; ++k) {
+        const v = idx[k], p = [pos.getX(v), pos.getZ(v), pos.getY(v)];     // (the mesh's frame: z up)
+        if (!lo[i]) { lo[i] = [...p]; hi[i] = [...p]; continue; }
+        for (let a = 0; a < 3; ++a) { lo[i][a] = Math.min(lo[i][a], p[a]); hi[i][a] = Math.max(hi[i][a], p[a]); }
+      }
+    });
+  }
+  const n = Math.max(0, ...(mesh.sections ?? []).map(s => s.fragments?.length ?? 0));
+  const out = Array.from({ length: n }, (_, i) => (lo[i] ? lo[i].map((v, a) => (v + hi[i][a]) / 2) : null));
+  fragmentMiddles.set(key, out);
+  return out;
+}
+// The fragments a root's blasts knock out (made_blasts.hidden_at), in order.
+function knockedOut(root) {
+  const blasts = root.userData.blasts ?? [];
+  if (!blasts.length) return [];
+  return middlesOf(root).flatMap((c, i) => (c && blasts.some(b => Math.hypot(c[0] - b.at[0], c[1] - b.at[1], c[2] - b.at[2]) <= b.radius) ? [i] : []));
+}
+// A root drawn without the fragments its blasts knock out (each part a geometry of its own then, with the mesh's
+// attributes and the kept triangles), or with its mesh's own again. (The old geometry isn't disposed: it shares the
+// mesh's attributes, which other pieces draw.)
+function drawBroken(root) {
+  const mesh = data.meshes[root.userData.source.mesh], gone = new Set(knockedOut(root));
+  for (const { section, part } of sectionParts(root)) {
+    const base = part.userData.baseGeometry ?? part.geometry;
+    if (!gone.size) { part.geometry = base; delete part.userData.baseGeometry; continue; }
+    part.userData.baseGeometry = base;
+    const idx = base.index.array, kept = [];
+    fragmentSpans(mesh, section).forEach((span, i) => {
+      if (span && !gone.has(i)) for (let k = span[0]; k < span[0] + span[1]; ++k) kept.push(idx[k]);
+    });
+    const g = new THREE.BufferGeometry();
+    for (const [name, attribute] of Object.entries(base.attributes)) g.setAttribute(name, attribute);
+    g.setIndex(kept);
+    g.boundingBox = base.boundingBox?.clone() ?? null;
+    g.boundingSphere = base.boundingSphere?.clone() ?? null;
+    part.geometry = g;
+  }
+}
+// One of the map's pieces given other blasts (`change` from its blasts to the new ones; null mends it, undefined
+// changes nothing), as one undo step.
+function changeBlasts(root, change) {
+  const before = root.userData.blasts ?? null, next = change(before ? cloneBlasts(before) : []);
+  if (next === undefined) return;
+  const after = next?.length ? next : null;
+  if (JSON.stringify(after) === JSON.stringify(before)) return;
+  const id = root.userData.source.id;
+  const set = v => { root.userData.blasts = v ? cloneBlasts(v) : null; drawBroken(root); select(id, false, true); };
+  gizmo.record({ redo: () => set(after), undo: () => set(before) });
 }
 // The Lower and Taller buttons of the wall or room panel (`kind`) for the wall `w` (null: neither).
 function storeyButtons(kind, w) {
@@ -12290,7 +12406,8 @@ document.addEventListener('keydown', e => {
   if (breaking && key === 'escape') { stopBreak(); e.preventDefault(); return; }
   // B: Break on the picked made wall, floor or roof, or off again (B5)
   if (key === 'b' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat
-      && (breaking || isMadeWall(madeRoot(selected)?.userData.source) || isMadeSlab(madeRoot(selected)?.userData.source))) {
+      && (breaking || isMadeWall(madeRoot(selected)?.userData.source) || isMadeSlab(madeRoot(selected)?.userData.source)
+          || mapBreakable(roots.get(selected)?.userData.source))) {
     if (breaking) stopBreak(); else startBreak();
     e.preventDefault(); return;
   }

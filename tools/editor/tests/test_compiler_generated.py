@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 import compiler  # noqa: E402
 from compiler import compile_project  # noqa: E402
-from test_compiler import add, codes, document, noted, refused, scene, warned  # noqa: E402
+from test_compiler import PL, add, codes, document, noted, refused, scene, target, warned  # noqa: E402
 
 WALL = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[dict(x0=96, x1=192, z0=0, z1=60)], seed=2))
 RELIT = dict(kind='relit', version=1)
@@ -453,7 +453,7 @@ class BlastTests(unittest.TestCase):
         (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
         self.assertEqual(op['generated'][0]['blasts'], blasts)
         self.assertEqual(noted(report, 'made-broken'), ['made-broken'])
-        self.assertIn('%s is built broken: its 1 blasts' % self.NAME,
+        self.assertIn('%s is built broken: its blast (Break' % self.NAME,
                       next(d['message'] for d in report['notes'] if d['code'] == 'made-broken'))
 
     def test_a_cut_wall_gives_each_piece_the_blasts_that_reach_it(self):
@@ -619,6 +619,56 @@ class DonorLookTests(unittest.TestCase):
                     dict(kind='ground', version=2, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0, look=donor))):
             spec, report = compiled([made(bad)])
             self.assertIn('malformed', codes(report), bad)
+
+
+class MapBlastTests(unittest.TestCase):
+    """(custom geometry editing plan, E6) The map's own fracturing pieces broken: where it stands, the override's blasts
+    go to the Build's writer as the spec's pieceBlasts; a moved one's, or an added copy's, on its copy, made in the map;
+    a note says it is built broken; blasts on a piece that doesn't break, or bad ones, are errors; a deleted piece's are
+    not built."""
+    NAME = 'XComFracLevelActor_11'
+    BLASTS = [dict(at=[0.0, 0.0, 60.0], radius=96.0)]
+
+    def compile(self, overrides=(), added=()):
+        return compile_project(document(overrides, added, schemaVersion=2), scene())
+
+    def test_a_piece_broken_where_it_stands(self):
+        spec, report = self.compile([dict(target=target(self.NAME), blasts=self.BLASTS)])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual([o for o in spec['objects'] if o['type'] == 'pieceBlasts'],
+                         [dict(type='pieceBlasts', pieces=[dict(name=self.NAME, target=PL + self.NAME, blasts=self.BLASTS)])])
+        self.assertFalse([o for o in spec['objects'] if o['type'] == 'copy'])
+        self.assertEqual(noted(report, 'map-broken'), ['map-broken'])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(native['pieceBlasts'], [dict(name=self.NAME, blasts=self.BLASTS)])
+
+    def test_a_moved_piece_and_an_added_copy_carry_their_blasts(self):
+        added = dict(add(self.NAME, 1, (0, 600, 0)), blasts=self.BLASTS)
+        spec, report = self.compile([dict(target=target(self.NAME), location=[96.0, -900.0, 0.0], rotation=[0, 0, 0],
+                                          blasts=self.BLASTS)], [added])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertFalse([o for o in spec['objects'] if o['type'] == 'pieceBlasts'])
+        self.assertEqual(noted(report, 'map-broken'), ['map-broken', 'map-broken'])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(sorted(c['label'] for c in native['copies'] if c.get('blasts') == self.BLASTS),
+                         sorted(c['label'] for c in native['copies']))
+        self.assertEqual(len(native['copies']), 2)
+        self.assertNotIn('pieceBlasts', native)
+
+    def test_blasts_on_a_piece_that_does_not_break_or_bad_ones_are_errors(self):
+        for name, blasts in (('XComLevelActor_1', self.BLASTS), (self.NAME, [dict(at=[0, 0], radius=96)]),
+                             (self.NAME, [dict(at=[0, 0, 0], radius=1000)])):
+            spec, report = self.compile([dict(target=target(name), blasts=blasts)])
+            self.assertIn('malformed', codes(report), (name, blasts))
+            self.assertFalse([o for o in spec['objects'] if o['type'] == 'pieceBlasts'])
+        _, report = self.compile((), [dict(add('XComLevelActor_1', 1, (0, 600, 0)), blasts=self.BLASTS)])
+        self.assertIn('malformed', codes(report))
+
+    def test_a_deleted_piece_s_blasts_are_not_built(self):
+        spec, report = self.compile([dict(target=target(self.NAME), deleted=True, blasts=self.BLASTS)])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertFalse([o for o in spec['objects'] if o['type'] == 'pieceBlasts'])
+        self.assertEqual(noted(report, 'blasts-deleted'), ['blasts-deleted'])
 
 
 if __name__ == '__main__':

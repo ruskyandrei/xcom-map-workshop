@@ -751,21 +751,29 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
     if shadow and shadow['export'] is not None:
         data = add_shadow_ref(data, end_props, shadow['export'])
     # the donor's painted-out fragments and their boxes (lists of the donor's own) say nothing of the made mesh's:
-    # dropped
+    # dropped; the made piece's own written (custom geometry editing plan, B5)
+    if not gone:
+        return painted_arrays(g, walker, data, start)
+    return painted_arrays(g, walker, data, start, made_blasts.visible_value(len(built['mesh']['fractured']['fragments']), gone),
+                          made_blasts.chunks_value(built, gone))
+
+
+def painted_arrays(g, walker, data, start, visible=None, chunks=None):
+    """A component's bytes `data` (its tagged properties from `start`) with its EditorPaintedVisibleFragments and
+    DestroyedChunks taken out and, when given, `visible` and `chunks` (their values: made_blasts) put in before its
+    properties' None."""
     import native_copy
+    data = bytes(data)
     for name in ('EditorPaintedVisibleFragments[0]', 'DestroyedChunks[0]'):
         found = native_copy.find_prop(walker, data, start, len(data), name)
         if found is not None:
             _, tag, at, size = found
             data = data[:tag] + data[at + size:]
-    if gone:
-        # the made piece's own, before the properties' None (custom geometry editing plan, B5)
-        end = native_props_end(walker, data, start) - 8
-        visible = made_blasts.visible_value(len(built['mesh']['fractured']['fragments']), gone)
-        chunks = made_blasts.chunks_value(built, gone)
-        data = (data[:end] + _tag(g, 'EditorPaintedVisibleFragments', 'ArrayProperty', len(visible)) + visible
-                + _tag(g, 'DestroyedChunks', 'ArrayProperty', len(chunks)) + chunks + data[end:])
-    return data
+    if visible is None:
+        return data
+    end = native_props_end(walker, data, start) - 8
+    return (data[:end] + _tag(g, 'EditorPaintedVisibleFragments', 'ArrayProperty', len(visible)) + visible
+            + _tag(g, 'DestroyedChunks', 'ArrayProperty', len(chunks)) + chunks + data[end:])
 
 
 def native_props_end(walker, data, start):

@@ -2102,6 +2102,55 @@ def flag_tiles(g, p, boxes, volumes=True, max_regions=FLAG_REGIONS):
     return record, made
 
 
+def break_component(g, p, actor, mapping, blasts, label=None):
+    """The fracturing piece `actor` of the map (its component cloned as `mapping` says, or itself) broken by `blasts`
+    (custom geometry editing plan, E6; made_blasts): the fragments they reach saved painted out on its component with
+    those its map paints out. Returns its record: label, fragments, knocked (those newly out), hidden (all out)."""
+    import frac_walls
+    import gen_mesh
+    import made_blasts
+    comp = p.own(actor, 'FracturedStaticMeshComponent')
+    if not comp:
+        raise ValueError('%s is no fracturing piece: only one breaks' % (label or p.name(actor)))
+    mesh = gen_mesh.read(p, p.effective(comp, 'StaticMesh'))
+    frags = mesh['fractured']['fragments']
+    shown = made_blasts.shown_of(p.effective(comp, 'EditorPaintedVisibleFragments'), len(frags))
+    hit = made_blasts.hidden_at(made_blasts.fragment_centres(mesh['lods'][0], len(frags)), blasts)
+    before = {i for i, s in enumerate(shown) if not s}
+    out = sorted(before | set(hit))
+    e = p.exports[comp - 1]
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    target = mapping.get(comp, comp) if mapping else comp
+    walker = Walker(p)
+    walker.names = g.names
+    g.relocate(target, frac_walls.painted_arrays(g, walker, g.export_data(target), start,
+                                                  made_blasts.visible_value(len(frags), out),
+                                                  made_blasts.chunks_of_bounds(frags, out)))
+    return dict(label=label or p.name(actor).split('.')[-1], fragments=len(frags), knocked=len(set(hit) - before),
+                hidden=len(out))
+
+
+def blasts_in_place(g, p, pieces, gone=(), tiles=True, volumes=True):
+    """The map's own fracturing pieces broken where they stand (the compiler's `pieceBlasts`: name, blasts; E6): each
+    one's component written by break_component, and its tiles worked out again as a flag change's are (flag_tiles). A
+    piece the edit takes out of the level, or that the map hasn't, is an error. Returns (record, the volumes made)."""
+    level = p.by_name['TheWorld.PersistentLevel']
+    gone = set(gone)
+    records, boxes = [], []
+    for e in pieces:
+        index = p.by_name.get(PL + e['name'])
+        if index is None or p.exports[index - 1]['outer'] != level:
+            raise ValueError(f"{e['name']}'s blasts: the map has no such actor in its persistent level")
+        if index in gone:
+            raise ValueError(f"{e['name']}'s blasts: the edit takes the piece out of the level")
+        records.append(break_component(g, p, index, None, e['blasts'], label=e['name']))
+        if tiles and has_mesh(p, index):
+            boxes.append((e['name'], piece_box(p, index, p.own(index, 'Location', [0.0, 0.0, 0.0]),
+                                               p.own(index, 'Rotation', [0, 0, 0]))))
+    tile_record, made = flag_tiles(g, p, boxes, volumes) if boxes else (None, [])
+    return dict(pieces=records, tiles=tile_record), made
+
+
 def flags_in_place(g, p, pieces, ladders=(), gone=(), tiles=True, volumes=True):
     """The map's own pieces whose flags change where they stand (the compiler's `pieceFlags`: name, flags): each
     written on the actor (set_roles), after the copies are made from the map's pieces, so a copy never takes a flag
@@ -2171,7 +2220,8 @@ def by_assembly(copies):
 def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
           edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
           building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None, spawns=None):
+          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None, spawns=None,
+          piece_blasts=()):
     """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
     <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
@@ -2241,7 +2291,12 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
     made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
     Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
-    read back."""
+    read back.
+
+    Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
+    clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
+    the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
+    blast reaches saved painted out with those the map paints out. The manifest's `pieceBlasts` section lists them."""
     import cover_blocks
     import native_lights
     src, out = Path(src), Path(out)
@@ -2262,6 +2317,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     meshes = {}
     made, actors, firsts, ladders, vans = [], [], [], [], []
     flag_copies, flag_record = [], None
+    blast_copies, blast_record = [], None
     scenery_grid = None     # the tile grid, read when a copy of low scenery needs it (F-100)
     for assembly, group in by_assembly(copies):
         members = []
@@ -2345,6 +2401,10 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                 flag_copies.append(set_roles(g, p, ai, info['actor'], c['flags'],
                                              known={'bPathColliding': True} if ai in walked else None,
                                              label=c.get('label') or c['actor']))
+        # a moved piece of the map's broken by blasts: on its clone (E6)
+        for (c, ai, *_), info in zip(members, infos):
+            if c.get('blasts') and not c.get('generated'):
+                blast_copies.append(break_component(g, p, ai, info['mapping'], c['blasts'], label=c.get('label') or c['actor']))
         # (a piece that collides with nothing, a sky dome 127,000 units across, changes no tile: seeding the whole
         # grid under it only made the game re-check every tile, F-93)
         box = None
@@ -2584,6 +2644,14 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         hide_volumes = hide_volumes + flag_volumes
         firsts += flag_firsts
         ladders += flag_ladder_records
+    # the map's own fracturing pieces broken where they stand (E6): after every copy is made from them
+    if piece_blasts:
+        gone_now = ({h['export'] for h in hidden} | set(edit_slots) | set((light_result or {}).get('gone') or ())
+                    | effect_gone)
+        if cleared_record:
+            gone_now |= {p.by_name[PL + n] for n in cleared_record['taken'] if PL + n in p.by_name}
+        blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not cleared)
+        hide_volumes = hide_volumes + blast_volumes
     # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
     # baked tiles rebuilt where each stood, and seeded and rebuilt where it stands now, as a moved landing's are
     stream_record = []
@@ -2738,6 +2806,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                       written=sum(len(r['written']) for r in flag_copies + ((flag_record or {}).get('pieces') or [])),
                       refused=[r['actor'] for r in flag_copies + ((flag_record or {}).get('pieces') or []) if r.get('refused')])}
                      if flag_copies or flag_record else {}),
+                  **({'pieceBlasts': dict(onCopies=blast_copies, inPlace=(blast_record or {}).get('pieces') or [],
+                                          tiles=(blast_record or {}).get('tiles'))}
+                     if blast_copies or blast_record else {}),
                   vans=[dict(v, building=dict(v['building'], copy=q.name(v['building']['export'])),
                              floorVolumes=[dict(f, copy=q.name(f['export'])) for f in v['floorVolumes']]) for v in vans])
     if not bake:
@@ -2837,7 +2908,7 @@ def main():
     args = a.parse_args()
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
-    stream_tiles, piece_flags, flag_ladders = [], [], []
+    stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if args.copies:
         doc = json.loads(args.copies.read_text(encoding='utf-8'))
         if isinstance(doc, dict):
@@ -2854,6 +2925,7 @@ def main():
             stream_tiles = doc.get('streamTiles') or []
             piece_flags = doc.get('pieceFlags') or []
             flag_ladders = doc.get('pieceFlagLadders') or []
+            piece_blasts = doc.get('pieceBlasts') or []
             doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
         for c in doc:
             copies.append(dict(actor=c['actor'], label=c.get('label'), location=[float(v) for v in c['location']],
@@ -2863,6 +2935,8 @@ def main():
                                **({'ladder': c['ladder']} if c.get('ladder') else {}),
                                # its flags (piece flags plan), written on its clone
                                **({'flags': c['flags']} if c.get('flags') else {}),
+                               # a moved piece of the map's broken by blasts (E6), written on its clone
+                               **({'blasts': c['blasts']} if c.get('blasts') else {}),
                                # a fracturing wall made from numbers on its materials (frac_walls.py)
                                **({'generated': c['generated']} if c.get('generated') else {}),
                                # a piece of another map, staged in the map by transplant.py
@@ -2879,7 +2953,7 @@ def main():
     import native_lights
     if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
             and not stream_tiles and not piece_flags and native_lights.is_empty(lights) and not effects and not sounds \
-            and not flares and not spawns:
+            and not flares and not spawns and not piece_blasts:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
@@ -2888,7 +2962,8 @@ def main():
               assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
               cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
               piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
-              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares, spawns=spawns)
+              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares, spawns=spawns,
+              piece_blasts=piece_blasts)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']
@@ -2935,6 +3010,17 @@ def main():
     if flagged and flagged.get('tiles'):
         t = flagged['tiles']
         print(f"flags' tiles: {len(t['regions'])} region{'s' if len(t['regions']) != 1 else ''}"
+              + (' (joined)' if t['joined'] else '') + f", {t['seeded']} seeded, {t['alreadyMarked']} already marked"
+              + (f", outside the map's tiles: {', '.join(t['outside'])}" if t['outside'] else '')
+              + f"; rebuild volumes: {t['volumes']}")
+    broken = m['nativeCopies'].get('pieceBlasts')
+    for how, rec in [('copy', r) for r in (broken or {}).get('onCopies') or []] + [
+            ('in place', r) for r in (broken or {}).get('inPlace') or []]:
+        print(f"broken ({how}) {rec['label']}: {rec['knocked']} of its {rec['fragments']} fragments knocked out by its blasts, "
+              f"{rec['hidden']} painted out in all")
+    if broken and broken.get('tiles'):
+        t = broken['tiles']
+        print(f"broken pieces' tiles: {len(t['regions'])} region{'s' if len(t['regions']) != 1 else ''}"
               + (' (joined)' if t['joined'] else '') + f", {t['seeded']} seeded, {t['alreadyMarked']} already marked"
               + (f", outside the map's tiles: {', '.join(t['outside'])}" if t['outside'] else '')
               + f"; rebuild volumes: {t['volumes']}")

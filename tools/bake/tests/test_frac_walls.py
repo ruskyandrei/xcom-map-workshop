@@ -585,8 +585,7 @@ class MadeWallInBuilding(unittest.TestCase):
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
 class MadeSlabs(unittest.TestCase):
-    """(M5) Slabs made from numbers in URB_Bar: a roof on a copy of the bar's roof (XComFracLevelActor_3, which paints
-    27 of its fragments out) over a made wall, and an upper floor on a copy of the bar's upstairs strip
+    """(M5) Slabs made from numbers in URB_Bar: a roof on a copy of the bar's roof (XComFracLevelActor_3) over a made wall, and an upper floor on a copy of the bar's upstairs strip
     (XComFracLevelActor_17, turned a half turn)."""
     ROOF, FLOOR = 'XComFracLevelActor_3', 'XComFracLevelActor_17'
 
@@ -958,8 +957,8 @@ class StagedDonor(unittest.TestCase):
 class Broken(unittest.TestCase):
     """(custom geometry editing plan, B5) A made wall and roof built broken by their blasts in URB_Bar: their components
     save EditorPaintedVisibleFragments (one int a fragment, 0 for those the blasts knock out) and DestroyedChunks (the
-    hidden fragments' boxes), as the game's maps save painted-out pieces; a whole copy of the bar's roof, which paints
-    27 of its own fragments out, saves neither (the donor's say nothing of the made mesh's)."""
+    hidden fragments' boxes), as the game's maps save painted-out pieces; a whole copy of the bar's roof, which saves
+    its own array (all 81 shown), saves neither (the donor's say nothing of the made mesh's)."""
     ROOF = 'XComFracLevelActor_3'
     WALL = dict(x0=0.0, x1=384.0, openings=[], seed=6)
     SLAB = dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[])
@@ -1024,6 +1023,90 @@ class Broken(unittest.TestCase):
         visible = q.effective(comp, 'EditorPaintedVisibleFragments')
         self.assertEqual(struct.unpack_from('<i', visible)[0], len(mesh['fractured']['fragments']))
         self.assertEqual(len(visible), 4 + 4 * len(mesh['fractured']['fragments']))
+
+
+class MapBroken(unittest.TestCase):
+    """(custom geometry editing plan, E6) URB_Bar's XComFracLevelActor_5 (which paints one of its 29 fragments out)
+    broken by a blast where it stands and on a moved copy: each component saves the fragments the blast reaches
+    painted out with that one, and DestroyedChunks the hidden fragments' bounds; the piece's tiles are rebuilt; a
+    piece that doesn't break, or that the map hasn't, is an error."""
+    ROOF = 'XComFracLevelActor_5'
+
+    @classmethod
+    def setUpClass(cls):
+        import made_blasts
+        import native_copy
+        from package import Package
+        p = Package(BAR)
+        roof = p.by_name[native_copy.PL + cls.ROOF]
+        comp = p.own(roof, 'FracturedStaticMeshComponent')
+        mesh = gen_mesh.read(p, p.effective(comp, 'StaticMesh'))
+        cls.frags = mesh['fractured']['fragments']
+        shown = made_blasts.shown_of(p.effective(comp, 'EditorPaintedVisibleFragments'), len(cls.frags))
+        cls.before = {i for i, s in enumerate(shown) if not s}
+        centres = made_blasts.fragment_centres(mesh['lods'][0], len(cls.frags))
+        # a blast on the middle of the first fragment the map shows
+        first = next(i for i, s in enumerate(shown) if s and centres[i] is not None)
+        cls.blasts = [dict(at=[round(v, 3) for v in centres[first]], radius=64.0)]
+        cls.knocked = set(made_blasts.hidden_at(centres, cls.blasts)) - cls.before
+        cls.want = sorted(cls.before | cls.knocked)
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        copies = [dict(actor=cls.ROOF, label='Moved', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                       blasts=cls.blasts)]
+        cls.m = native_copy.build(BAR, out, 'FracMapBroken', copies,
+                                  piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts)])
+        cls.q = Package(out / 'FracMapBroken.upk')
+        cls.moved = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}['Moved']
+        cls.roof = cls.q.by_name[native_copy.PL + cls.ROOF]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def check(self, actor):
+        q = self.q
+        comp = q.own(actor, 'FracturedStaticMeshComponent')
+        visible, chunks = q.own(comp, 'EditorPaintedVisibleFragments'), q.own(comp, 'DestroyedChunks')
+        n = len(self.frags)
+        count, *values = struct.unpack('<%di' % (n + 1), visible)
+        self.assertEqual(count, n)
+        self.assertEqual([k for k, v in enumerate(values) if v == 0], self.want)
+        self.assertEqual(struct.unpack_from('<i', chunks)[0], len(self.want))
+        self.assertEqual(len(chunks), 4 + 25 * len(self.want))
+        for k, i in enumerate(self.want):
+            got = struct.unpack_from('<6f', chunks, 4 + 25 * k)
+            b = self.frags[i]['bounds']
+            for j in range(3):
+                self.assertAlmostEqual(got[j], b[j] - b[j + 3], places=2)
+                self.assertAlmostEqual(got[j + 3], b[j] + b[j + 3], places=2)
+
+    def test_the_blast_knocks_out_fragments_the_map_shows(self):
+        self.assertEqual(len(self.before), 1)
+        self.assertTrue(self.knocked)
+
+    def test_the_roof_is_broken_where_it_stands(self):
+        self.check(self.roof)
+        rec = self.m['nativeCopies']['pieceBlasts']
+        (piece,) = rec['inPlace']
+        self.assertEqual((piece['label'], piece['knocked'], piece['hidden']), (self.ROOF, len(self.knocked), len(self.want)))
+        self.assertTrue(rec['tiles'])
+
+    def test_the_moved_copy_is_broken(self):
+        self.check(self.moved)
+        (piece,) = self.m['nativeCopies']['pieceBlasts']['onCopies']
+        self.assertEqual((piece['label'], piece['knocked']), ('Moved', len(self.knocked)))
+
+    def test_a_piece_that_does_not_break_is_an_error(self):
+        import native_copy
+        from package import Package
+        p = Package(BAR)
+        plain = next(p.name(i).split('.')[-1] for i in range(1, len(p.exports) + 1)
+                     if p.cls(i) == 'StaticMeshActor' and p.name(i).startswith(native_copy.PL))
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in (plain, 'XComFracLevelActor_99999'):
+                with self.assertRaises(ValueError, msg=name):
+                    native_copy.build(BAR, Path(tmp), 'FracMapBad', [], piece_blasts=[dict(name=name, blasts=self.blasts)])
 
 
 if __name__ == '__main__':
