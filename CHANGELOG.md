@@ -8,6 +8,14 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-82 prepared: E6's game run on URB_Bar** (custom geometry editing plan, E6; branch `fracturing-wall-poc`).
+  [exp82_project.py](tools/editor/examples/exp82_project.py) and
+  [EXP-82](research/experiments/EXP-82-map-breaks.md):
+  - the bar's inside wall is broken where it stands by a blast at its foot (a hole a soldier can walk through);
+  - a corner column is moved a tile and broken, and an added copy of it is broken the same way.
+  - Its quick build in a test store wrote 2 of the wall's 30 fragments out, and 17 of each column copy's 29 knocked
+    out (18 out in all).
+
 - **E6: Break and Repair on the map's own fracturing pieces** (custom geometry editing plan, decision D-5 at its
   default: yes, after made pieces; branch `fracturing-wall-poc`). The same blasts as E5 on any of the map's
   fracturing pieces (`XComFracLevelActor`, `XComDecoFracLevelActor`), where it stands, moved, or on an added copy of
