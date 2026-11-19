@@ -65,8 +65,8 @@ class FracWall(unittest.TestCase):
         for text in ('not json', '[]', json.dumps(dict(x0=0)), json.dumps(dict(x0=0, x1=39)),
                      json.dumps(dict(x0=0, x1=generated.MAX_LENGTH + 1)), json.dumps(dict(x0=0, x1=96, seed=1.5)),
                      json.dumps(dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
-                     json.dumps(dict(x0=0, x1=96, openings=[dict(x0=0, x1=10, z0=0, z1=10)] * 17)),
-                     json.dumps(dict(x0=0, x1=96, storeys=3)), json.dumps(dict(x0=0, x1=96, storeys=True)),
+                     json.dumps(dict(x0=0, x1=96, openings=[dict(x0=0, x1=10, z0=0, z1=10)] * (generated.MAX_OPENINGS + 1))),
+                     json.dumps(dict(x0=0, x1=96, storeys=13)), json.dumps(dict(x0=0, x1=96, storeys=True)),
                      json.dumps(dict(x0=0, x1=96, ends=['free'])), json.dumps(dict(x0=0, x1=96, ends=['free', 'mitre'])),
                      '{"x0": 0, "x1": NaN}'):
             with self.assertRaises(generated.GeneratedError, msg=text):
@@ -95,6 +95,38 @@ class FracWall(unittest.TestCase):
         self.assertEqual(len(mesh['sections']), generated.SLOTS)
 
 
+class Pieces(unittest.TestCase):
+    """(custom geometry editing plan, B4) a wall longer or taller than the game's and a slab larger are drawn as the
+    Build makes them, its pieces (made_split) joined into one mesh with the same sections."""
+
+    def box(self, doc):
+        prims = doc['meshes'][0]['primitives']
+        pos = [doc['accessors'][p['attributes']['POSITION']] for p in prims]
+        return [min(a['min'][k] for a in pos) for k in range(3)], [max(a['max'][k] for a in pos) for k in range(3)]
+
+    def test_a_long_tall_wall_is_its_pieces_joined(self):
+        import frac_wall
+        wall = dict(x0=0, x1=96 * 40, openings=[], seed=2, storeys=4)
+        doc = gltf(generated.Meshes().fracwall(json.dumps(wall)))
+        prims = doc['meshes'][0]['primitives']
+        self.assertEqual([p['extras']['materialSlot'] for p in prims], list(range(generated.SLOTS)))
+        # (the page's axes: x, up, y) 8 in from its ends, -16 to the top of two two-storey pieces stacked (784)
+        lo, hi = self.box(doc)
+        self.assertEqual((lo[0], hi[0], lo[1], hi[1]), (8.0, 3832.0, -16.0, 784.0))
+        # as many triangles as its six pieces have
+        pieces = generated.made_split.wall_pieces(wall, generated.wall_look_storeys, generated.wall_heights, ends=True)
+        self.assertEqual(len(pieces), 6)
+        want = sum(s['triangles'] for _, _, n in pieces for s in frac_wall.build(n)['mesh']['lods'][0]['sections'])
+        got = sum(doc['accessors'][p['indices']]['count'] for p in prims) // 3
+        self.assertGreaterEqual(got, want)
+        self.assertLessEqual(got, want + 6 * generated.SLOTS)    # (a slot empty in a piece is a triangle of no area)
+
+    def test_a_large_slab_is_its_pieces_joined(self):
+        doc = gltf(generated.Meshes().fracslab(json.dumps(dict(x0=0, x1=96 * 30, y0=0, y1=96 * 20, holes=[], seed=1))))
+        lo, hi = self.box(doc)
+        self.assertEqual((lo[0], hi[0], lo[2], hi[2]), (0.0, 2880.0, 0.0, 1920.0))
+
+
 class FracSlab(unittest.TestCase):
     """(M5) a floor or roof slab's mesh file from its numbers."""
     SLAB = dict(x0=0, x1=384, y0=0, y1=288, holes=[dict(x0=96, x1=192, y0=96, y1=192)], seed=4)
@@ -119,7 +151,8 @@ class FracSlab(unittest.TestCase):
                       meshes.fracslab(json.dumps(dict(self.SLAB, x1=384.0, look='roof'))))
         for text in ('', '[]', json.dumps(dict(self.SLAB, x1=380)), json.dumps(dict(self.SLAB, look='marble')),
                      json.dumps(dict(self.SLAB, holes=[dict(x0=0, x1=96, y0=0, y1=480)])),
-                     json.dumps(dict(self.SLAB, holes=[dict(x0=0, x1=96, y0=0, y1=96)] * 33)),
+                     json.dumps(dict(self.SLAB, holes=[dict(x0=0, x1=96, y0=0, y1=96)] * (generated.MAX_HOLES + 1))),
+                     json.dumps(dict(self.SLAB, x1=96 * 129)),
                      json.dumps(dict(self.SLAB, x0=True)), '{"x0": 0, "x1": NaN, "y0": 0, "y1": 96}'):
             with self.assertRaises(generated.GeneratedError, msg=text):
                 generated.Meshes().fracslab(text)

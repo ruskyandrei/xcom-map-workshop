@@ -165,7 +165,14 @@ def shaped(wall):
     """The wall's look's recipe (look_of) for its height: as it is for two storeys (the donor's); for one, its top, the
     face's top and the section's corners above the face a storey lower. A measured look's: as it is at its donor's
     storeys (`storeys`, when left out); one storey, its `storey` (192) taken out of it for each storey less (storey_cut,
-    lowered), its top that much lower."""
+    lowered), its top that much lower. A piece cut from a longer wall (made_split: `whole` [where it starts, the
+    wall's length]) has `uvShift`, its start, so its texture goes on from the piece before it."""
+    R = _shaped(wall)
+    whole = (wall or {}).get('whole')
+    return dict(R, uvShift=float(whole[0])) if whole else R
+
+
+def _shaped(wall):
     base = look_of(wall)
     if general(base):
         own = int(base['storeys'])
@@ -431,6 +438,7 @@ def fragment_faces(wall, faces, f, poly):
     h = R['half']
     sa, sb, trim, inner = R['slots']['sideA'], R['slots']['sideB'], R['slots']['trim'], R['slots']['interior']
     rep, trep = R['faceRepeat'], R['trimRepeat']
+    ux = R.get('uvShift', 0.0)          # (a piece of a longer wall: where it starts in it, made_split)
     faces.chart('A', length, hi_face - lo_face)
     faces.chart('B', length, hi_face - lo_face)
     # both faces, split at the storey
@@ -440,10 +448,10 @@ def fragment_faces(wall, faces, f, poly):
             continue
         pts = [p for p, _ in part]
         faces.add([(x, h, z) for x, z in pts], (0, 1, 0), sa[k], f,
-                  [(x / rep + R['faceU'], R['faceV'][0] - z / rep) for x, z in pts], 'A',
+                  [((x + ux) / rep + R['faceU'], R['faceV'][0] - z / rep) for x, z in pts], 'A',
                   [(x - x0, z - lo_face) for x, z in pts])
         faces.add([(x, -h, z) for x, z in pts], (0, -1, 0), sb[k], f,
-                  [(-x / rep + R['faceU'], R['faceV'][1] - z / rep) for x, z in pts], 'B',
+                  [(-(x + ux) / rep + R['faceU'], R['faceV'][1] - z / rep) for x, z in pts], 'B',
                   [(x1 - x, z - lo_face) for x, z in pts])
     # the trim strips: each sloping or upright stretch of the section, on both sides, outside the face
     sec = R['section']
@@ -462,7 +470,7 @@ def fragment_faces(wall, faces, f, poly):
             normal = (0.0, side * (zb - za) / seg, -(yb - ya) / seg)
             chart = faces.chart(('trim', k, side), length, seg)
             faces.add([p[:3] for p in pts], normal, trim, f,
-                      [(side * -(p[0] / trep) - side * R['trimU'], va + p[3] * (vb - va)) for p in pts], chart,
+                      [(side * -((p[0] + ux) / trep) - side * R['trimU'], va + p[3] * (vb - va)) for p in pts], chart,
                       [(p[0] - x0, p[3] * seg) for p in pts])
     # its edges: the top and bottom, the wall's ends, the openings' sides, and the edges inside
     inside, outside = [], 0
@@ -488,7 +496,7 @@ def fragment_faces(wall, faces, f, poly):
             coef = R['topV'] if top else R['bottomV']
             chart = faces.chart(('cap', kind), length, 2 * w)
             faces.add(quad, (0, 0, 1 if top else -1), trim, f,
-                      [(-x / trep, coef[0] + coef[1] * y) for x, y, _ in quad], chart,
+                      [(-(x + ux) / trep, coef[0] + coef[1] * y) for x, y, _ in quad], chart,
                       [(x - x0, y + w) for x, y, _ in quad])
             continue
         if kind == 'in':
@@ -521,7 +529,7 @@ def fragment_faces(wall, faces, f, poly):
             face_zone = lo_face - 1e-6 <= z <= hi_face + 1e-6
             slot = (sa[0] if z < R['storey'] else sa[1]) if face_zone else trim
             chart = faces.chart(('flat', kind[1], round(z, 3), round(a, 3)), b - a, 2 * w)
-            faces.add(quad, (0, 0, nz), slot, f, [(x / rep + R['faceU'], y / rep) for x, y, _ in quad], chart,
+            faces.add(quad, (0, 0, nz), slot, f, [((x + ux) / rep + R['faceU'], y / rep) for x, y, _ in quad], chart,
                       [(x - a, y + w) for x, y, _ in quad])
     return inside, outside
 
@@ -607,6 +615,7 @@ class Profile:
 
     def __init__(self, R):
         self.R = R
+        self.ux = float(R.get('uvShift', 0.0))      # (a piece of a longer wall: where it starts in it, made_split)
         self.sides = {X: [(float(y), float(z)) for y, z in R['profile'][X]] for X in 'AB'}
         zs = {z for X in 'AB' for _, z in self.sides[X]} | {float(R['bottom']), float(R['top'])}
         zs |= {float(s) for X in 'AB' for s in R['splits'][X]}
@@ -642,6 +651,12 @@ class Profile:
 
     def surface(self, X, k, z):
         """(slot, texture (x, z, t) -> (u, v)) of side X's segment k at height z (t up the segment)."""
+        slot, tex = self._surface(X, k, z)
+        if not self.ux:
+            return slot, tex
+        return slot, lambda x, z, t: tex(x + self.ux, z, t)
+
+    def _surface(self, X, k, z):
         R = self.R
         st = R['strips'][X][k]
         if st.get('face'):
@@ -681,11 +696,12 @@ class Profile:
         """(slot, texture (x, y) -> (u, v)) of the top or the bottom (`caps`; where none was measured, side A's
         segment there and its texture)."""
         cap = (self.R.get('caps') or {}).get('top' if top else 'bottom')
+        ux = self.ux
         if cap and cap.get('slot') is not None:
             uv = cap.get('uv')
             if uv:
-                return cap['slot'], lambda x, y: (uv[0][0] * x + uv[0][1] * y + uv[0][2], uv[1][0] * x + uv[1][1] * y + uv[1][2])
-            return cap['slot'], lambda x, y: (x / STOREY_HEIGHT, y / STOREY_HEIGHT)
+                return cap['slot'], lambda x, y: (uv[0][0] * (x + ux) + uv[0][1] * y + uv[0][2], uv[1][0] * (x + ux) + uv[1][1] * y + uv[1][2])
+            return cap['slot'], lambda x, y: ((x + ux) / STOREY_HEIGHT, y / STOREY_HEIGHT)
         z = self.R['top'] if top else self.R['bottom']
         slot, tex, _ = self.at('A', z)
         return slot, lambda x, y: tex(x, z)
@@ -1085,7 +1101,7 @@ def build(wall, template=None):
         rec['centre'] = (rec['seed'][0], 0.0, rec['seed'][1])
     guid = hashlib.md5(('frac_wall|%r' % (sorted(wall.items(), key=str),)).encode()).digest()
     out = assemble(faces, records, template, R, guid, slots=sections_of(R), what='a wall')
-    return dict(out, solids=solids(wall))
+    return dict(out, solids=solids(wall), **({'whole': list(wall['whole'])} if wall.get('whole') else {}))
 
 
 def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):

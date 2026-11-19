@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { drawnWall, flippedWall, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
+         levelsOf, storeyCounts, steppedStoreys,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          withOpening, withoutOpening, WALL, WALL_LOOKS,
          SLAB, SLAB_LOOKS, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, toolSlab, slabWords, holeWords, roomRoof } from '../web/walls.js';
@@ -27,7 +28,7 @@ assert.equal(d.wall.x1, 288);
 assert.deepEqual(wallDirection(d.rotation[1]), [0, -1]);
 // a click with no drag: one tile; a drag past the longest: the longest
 assert.equal(drawnWall([5, 5], [6, 6], { origin, template, floor: 16 }).wall.x1, 96);
-assert.equal(drawnWall([0, 0], [5000, 0], { origin, template, floor: 16 }).wall.x1, 96 * WALL.maxTiles);
+assert.equal(drawnWall([0, 0], [20000, 0], { origin, template, floor: 16 }).wall.x1, 96 * WALL.maxTiles);
 // the z: the floor under the start (a made wall's height is free of the donor's storeys)
 assert.equal(drawnWall([5, 5], [200, 6], { origin, template, floor: 14.5 }).location[2], 14.5);
 // quarter turns from the donor's yaw
@@ -158,7 +159,8 @@ assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
   assert.ok(toolWall(low.wall));
   assert.ok(toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 192 }] }));      // through its top
   assert.ok(!toolWall({ ...low.wall, openings: [{ x0: 0, x1: 96, z0: 72, z1: 200 }] }));     // over it
-  assert.ok(!toolWall({ ...low.wall, storeys: 3 }));
+  assert.ok(toolWall({ ...low.wall, storeys: 3 }));
+  assert.ok(!toolWall({ ...low.wall, storeys: 13 }));
   // two leaves the number out (the meshes of M1's walls keep their names)
   const back = withStoreys(low.wall, 2);
   assert.ok(!('storeys' in back.wall));
@@ -225,7 +227,30 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   assert.deepEqual(Object.values(found).map(v => v.ends), [['through', 'through'], ['free', 'free'], ['through', 'through'], ['free', 'free']]);
   // a click: one tile each way; a long drag: the longest
   assert.deepEqual(drawnRoom([5, 5], [6, 6], { origin, template, floor: 0 }).tiles, [1, 1]);
-  assert.deepEqual(drawnRoom([0, 0], [5000, 300], { origin, template, floor: 0 }).tiles, [WALL.maxTiles, 3]);
+  assert.deepEqual(drawnRoom([0, 0], [20000, 300], { origin, template, floor: 0 }).tiles, [WALL.maxTiles, 3]);
+}
+// ---- any length and height (custom geometry editing plan, B4): the Build cuts it (made_split), the page draws it whole
+{
+  const w = { x0: 0, x1: 96 * 40, seed: 1, openings: [] };
+  assert.ok(toolWall(w));
+  assert.ok(!toolWall({ ...w, x1: 96 * 129 }));
+  // its storeys as pieces of its look's, stacked (made_split.levels)
+  assert.deepEqual([levelsOf(4, 2, true), levelsOf(3, 2, true), levelsOf(2, 3, true), levelsOf(5, 3, false), levelsOf(1, 2, true)],
+                   [[2, 2], [2, 1], [1, 1], [3, 3], [1]]);
+  // each stands on the top of the one under it: the Bar's two storeys are 400 tall, one 208
+  const four = withStoreys(w, 4).wall, three = withStoreys(w, 3).wall;
+  assert.equal(four.storeys, 4);
+  assert.deepEqual([wallTop(four), wallTop(three)], [784, 592]);
+  assert.equal(wallWords(four), '40 tiles long, four storeys (800 tall)');
+  assert.ok(!('storeys' in withStoreys(four, 2).wall));
+  // Lower and Taller go a storey at a time, one to twelve, in a look that can be made one storey
+  assert.deepEqual(storeyCounts(w), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  assert.deepEqual([steppedStoreys(w, 1).wall.storeys, storeysOf(steppedStoreys(w, -1).wall)], [3, 1]);
+  assert.equal(steppedStoreys({ ...w, storeys: 12 }, 1), null);
+  assert.equal(steppedStoreys({ ...w, storeys: 1 }, -1), null);
+  // the top handle goes as far as it is dragged: 400 up from two storeys is four
+  assert.equal(raisedWall(w, 400).wall.storeys, 4);
+  assert.equal(raisedWall(four, -190).wall.storeys, 3);
 }
 // ---- looks (M4 item 1): the page's list is wall_looks.json's, look for look
 {
@@ -249,7 +274,8 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   // backwards, a click, the largest; an upper floor names its look
   assert.deepEqual(drawnSlab([210, 130], [-180, -200], { origin, template, z: 0 }).location.slice(0, 2), [-192, -192]);
   assert.deepEqual(drawnSlab([5, 5], [6, 6], { origin, template, z: 0 }).tiles, [1, 1]);
-  assert.deepEqual(drawnSlab([0, 0], [5000, -5000], { origin, template, z: 0 }).tiles, [SLAB.maxTiles, SLAB.maxTiles]);
+  assert.deepEqual(drawnSlab([0, 0], [20000, -20000], { origin, template, z: 0 }).tiles, [SLAB.maxTiles, SLAB.maxTiles]);
+  assert.deepEqual(drawnSlab([0, 0], [96 * 30, 96 * 20], { origin, template, z: 0 }).tiles, [30, 20]);
   assert.equal(drawnSlab([0, 0], [100, 100], { origin, template, z: 0, look: SLAB_LOOKS[1] }).slab.look, 'floor');
   assert.ok(toolSlab(s.slab));
   assert.ok(!toolSlab({ ...s.slab, x0: 96 }));
@@ -277,7 +303,7 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   r = resizedSlab(slab, 'x1', -96 * 2);
   assert.deepEqual([r.slab.x1, r.removed, r.slab.holes], [192, 1, []]);
   assert.equal(resizedSlab(slab, 'x0', -5000).slab.x1, 96);
-  assert.equal(resizedSlab(slab, 'y1', 5000).slab.y1, 96 * SLAB.maxTiles);
+  assert.equal(resizedSlab(slab, 'y1', 20000).slab.y1, 96 * SLAB.maxTiles);
   assert.equal(slabWords(h.slab), '4 by 3 tiles, 2 holes');
   // a room's roof: its rectangle, on its walls' tops
   const room = drawnRoom([-180, -200], [210, 130], { origin, template, floor: 16 });

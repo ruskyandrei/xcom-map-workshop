@@ -27,6 +27,52 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **E4: made walls of any length and storeys, floors and roofs of any size; the Build cuts them into pieces the game
+  takes** (custom geometry editing plan, B4, decision D-3 at its default; branch `fracturing-wall-poc`).
+  - [made_split.py](tools/bake/made_split.py) (new), shared by the compiler and the editor's mesh server:
+    - walls are cut into lengths of at most 16 tiles, at tile edges outside their gaps where one is near;
+    - a wall taller than its look is its look's storeys stacked, then one-storey pieces where the look can be made one
+      storey, each piece on the top of the one under it;
+    - floors and roofs are cut into slabs of at most 16 by 16 tiles;
+    - each piece carries `whole`, its place in the whole, so its texture and paint go on across the cuts
+      ([frac_wall.py](tools/bake/frac_wall.py), [frac_slab.py](tools/bake/frac_slab.py),
+      [frac_walls.py](tools/bake/frac_walls.py) `in_frame`).
+  - [compiler.py](tools/editor/compiler.py):
+    - a wall takes up to 128 tiles and 12 storeys, a slab up to 128 by 128 tiles, ground up to 64 tiles (not cut);
+    - `add` cuts a made wall or slab past the game's sizes into copies of their own (`<actor>_part<k>`), at their
+      places in the whole's frame;
+    - the pieces are one member of the project's groups: a group that breaks together lists its props in every
+      piece's columns;
+    - joined end to end, the pieces get `line` ends from the wall joins, so a break passes between them;
+    - one `made-split` note says what the wall or floor is made as; the wall and slab notes, the gap warnings and
+      the slab checks name the whole, once;
+    - no wall-on-wall note between pieces of one wall.
+  - [generated.py](tools/viewer/generated.py): the page's mesh server builds each piece and joins them into one mesh,
+    so the page draws what the Build makes.
+  - The page ([walls.js](tools/viewer/web/walls.js), [ground.js](tools/viewer/web/ground.js),
+    [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html)):
+    - the handles go up to those sizes;
+    - the wall's top handle adds or takes storeys, as far as it is dragged;
+    - Lower and Taller in the wall panel and the room panel replace One storey (a room with a roof keeps its height);
+    - the wall and floor panels say when the Build makes the piece as several, and how.
+  - Tests:
+    - [test_made_split.py](tools/bake/tests/test_made_split.py) (new): the cuts, the stacking, gaps and holes cut to
+      the pieces, and the texture going on across a cut (a Bar wall's face, a measured look's profile, a slab's top);
+    - [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) `SplitTests`: a 40-tile wall as
+      three joined walls cut at its gap's edge, four and three storeys stacked, a 30 by 20 floor as four slabs, a
+      cut wall in a group that breaks together;
+    - [test_generated.py](tools/viewer/tests/test_generated.py) `Pieces`: a 40-tile, four-storey wall and a 30 by 20
+      floor drawn as their pieces joined, in one mesh with the same sections;
+    - [walls_test.mjs](tools/viewer/tests/walls_test.mjs) and [looks_test.mjs](tools/viewer/tests/looks_test.mjs):
+      the new heights and steps; [test_ground.py](tools/bake/tests/test_ground.py) the new bound.
+  - The editor, viewer, node, bake and repo suites pass.
+  - Checked in a test server's browser:
+    - a 56-tile wall drawn by the Build menu's Wall;
+    - Taller twice made it four storeys, 800 tall, and Lower three, the panel naming how the Build makes it;
+    - in the Bar's look, the diamond tiles run on across the cut at tile 16;
+    - a 30 by 20 floor drawn, its panel saying it is made as slabs side by side.
+  - Not yet played in the game: a long wall and a big floor breaking across their joins (the plan's E4 game run).
+
 - **The look picker opened from a piece's Choose… gives that piece the look, by I too, and its gizmo no longer takes
   the eyedropper's clicks** (custom geometry editing plan, after E2; branch `fracturing-wall-poc`; found by the
   browser smoke tests).

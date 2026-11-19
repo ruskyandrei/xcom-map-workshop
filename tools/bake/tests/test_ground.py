@@ -85,7 +85,7 @@ class Ground(unittest.TestCase):
         self.assertNotEqual(ground.mesh_name(ROCK), ground.mesh_name(dict(ROCK, seed=8)))
 
     def test_bad_numbers_are_refused(self):
-        for bad in (dict(PATCH, shape='dome'), dict(PATCH, x1=100.0), dict(PATCH, x1=96.0 * 17), dict(BLOCK, height=0),
+        for bad in (dict(PATCH, shape='dome'), dict(PATCH, x1=100.0), dict(PATCH, x1=96.0 * (ground.MAX_TILES + 1)), dict(BLOCK, height=0),
                     dict(BLOCK, height=500.0), dict(RAMP, height=True), dict(PATCH, look='marble'), None,
                     dict(ROCK, seed=None), dict(ROCK, seed=-1), dict(ROCK, seed=2 ** 31), dict(ROCK, seed=1.5),
                     dict(ROCK, seed=True)):

@@ -50,7 +50,8 @@ import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook,
-         SLAB_LOOKS, SLAB, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
+         steppedStoreys,
+         SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof } from './walls.js';
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
@@ -1198,7 +1199,7 @@ const movedMatrix = (source, location, rotation) => actorMatrix(location, rotati
 // server builds from the numbers as the Build does (generated.py), on its template's materials by slot (the made mesh's
 // sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
 // (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
-const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: 3072 };
+const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
 // top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
@@ -1233,10 +1234,10 @@ function plainLook(kind, numbers = null) {
   const role = slabLookOf(numbers ?? {})?.role ?? 'roof';
   return { ...(SLAB_LOOKS.find(l => l.role === role) ?? SLAB_LOOKS[0]), plain: true };
 }
-// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out),
+// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: its look's own storeys left out),
 // with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
 const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
-                                seed: w.seed ?? 1, ...(w.storeys === 1 ? { storeys: 1 } : {}),
+                                seed: w.seed ?? 1, ...(w.storeys !== undefined && w.storeys !== wallSpec(w).storeys ? { storeys: w.storeys } : {}),
                                 ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
                                 ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
 // A made slab (custom geometry plan, M5): drawn from /generated/fracslab.glb (generated.py), its two sections (the top
@@ -1296,7 +1297,8 @@ function madeShapeOf(template, generated) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
     || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
-      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1) || ![undefined, 1, 2].includes(w.storeys)
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)
+    || !(w.storeys === undefined || (Number.isInteger(w.storeys) && w.storeys >= 1 && w.storeys <= WALL.maxStoreys))
     || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
   const wall = madeWallNumbers(w);
   const key = `made:fracwall:${JSON.stringify(wall)}`;
@@ -10030,12 +10032,18 @@ function hoverWallHandle(h) {
     : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
     : `${WALL_PART_WORDS[h.part]} (${OPENING_STEP_WORDS[snapMode]}, as the snap setting; Alt: steps of ${GAP.fine})`;
 }
-// What the wall's top handle does: makes it one storey, or its donor's storeys again; nothing in a look that can't be
-// made one storey.
+// What the wall's top handle does: adds or takes storeys (B4), its look's storeys at a time where it can't be made
+// one storey.
 function topHandleWords(w) {
   const spec = wallSpec(w);
-  if (!spec.lower) return `The wall's top: its look is made ${storeyWords(spec.storeys)} tall only`;
-  return `The wall's top: drag ${storeysOf(w) === 1 ? `up to make it ${storeyWords(spec.storeys)}` : 'down to make it one storey'}`;
+  return `The wall's top: drag up or down to add or take storeys${spec.lower ? '' : ` (${storeyWords(spec.storeys)} at a time: its look is made that tall only)`}`;
+}
+// What the Build makes of a wall longer or taller than the game's (B4, D-3: made_split), in words; '' for one piece.
+function wallPiecesWords(w) {
+  const spec = wallSpec(w), long = Math.round((w.x1 - w.x0) / TILE) > WALL.pieceTiles, tall = storeysOf(w) > spec.storeys;
+  if (!long && !tall) return '';
+  return ` The Build makes it as walls of at most ${WALL.pieceTiles} tiles and ${storeyWords(spec.storeys)} (its look's), `
+    + `${long && tall ? 'joined end to end and stacked' : long ? 'joined end to end' : 'stacked'}: they break as one wall.`;
 }
 function startWallDrag(e) {
   if (wallDrawing) return startWallDraw(e);
@@ -10154,9 +10162,7 @@ function wallPanel(root) {
   const lookName = look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers');
   $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
   lookRow('wall', g, lookName, tool);
-  const spec = wallSpec(w);
-  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles${spec.lower
-    ? `; the one on top makes it ${storeysOf(w) === 1 ? storeyWords(spec.storeys) : 'one storey'}` : ''}.`
+  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top adds or takes storeys.${wallPiecesWords(w)}`
     : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
   root.userData.joinsShown = root.userData.joins?.joins ?? [];
   const joined = joinWords(root.userData.joinsShown);
@@ -10202,23 +10208,31 @@ function wallPanel(root) {
   const free = tool && withOpening(w, 'window');
   $('wallDoor').disabled = $('wallWindow').disabled = !free;
   $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
-  // (a look made at one height only has no storeys button)
-  $('wallStoreys').hidden = !spec.lower;
-  $('wallStoreys').disabled = !tool || !spec.lower;
-  const taller = storeysOf(w) === 1, words = storeyWords(spec.storeys);
-  $('wallStoreys').textContent = taller ? words[0].toUpperCase() + words.slice(1) : 'One storey';
-  $('wallStoreys').title = taller ? `Make the wall ${words} tall (${Math.round(spec.top - spec.bottom)})`
-    : `Make the wall one storey tall (${Math.round(spec.top - spec.storey * (spec.storeys - 1) - spec.bottom)}): openings over its first storey go`;
+  // Lower and Taller: a storey (its look's storeys where it can't be made one) less or more (B4)
+  storeyButtons('wall', tool ? w : null);
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
     + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
+}
+// The Lower and Taller buttons of the wall or room panel (`kind`) for the wall `w` (null: neither).
+function storeyButtons(kind, w) {
+  const down = w && steppedStoreys(w, -1), up = w && steppedStoreys(w, 1), spec = w ? wallSpec(w) : null;
+  const tall = x => `${storeyWords(storeysOf(x.wall))} (${Math.round(wallTop(x.wall) - spec.bottom)} tall)`;
+  $(`${kind}Shorter`).disabled = !down;
+  $(`${kind}Storeys`).disabled = !up;
+  $(`${kind}Shorter`).title = down ? `Lower: ${tall(down)}${down.removed ? '; openings over its top go' : ''}`
+    : w ? 'As low as its look is made' : '';
+  $(`${kind}Storeys`).title = up ? `Taller: ${tall(up)}${storeysOf(up.wall) > spec.storeys ? `; the Build stacks walls of its look's ${storeyWords(spec.storeys)}` : ''}`
+    : w ? `As tall as a wall is drawn here (${storeyWords(WALL.maxStoreys)})` : '';
 }
 // ---- the piece panel's Floor section (made slabs)
 function slabPanel(root) {
   const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
   $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : look?.name ?? 'made from numbers'}`;
   lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
-  $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.`
+  const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
+    ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
+  $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
   $('slabHoles').replaceChildren(...holes.map((h, index) => {
@@ -10417,24 +10431,27 @@ function roomPanel() {
     $('roomRoofLook').classList.toggle('warn', !name);
     $('roomRoofPlain').disabled = !name;
   }
-  const spec = wallSpec(w);
-  $('roomStoreys').hidden = !spec.lower || Boolean(room.roof);
-  $('roomStoreys').textContent = storeysOf(w) === 1 ? storeyWords(spec.storeys)[0].toUpperCase() + storeyWords(spec.storeys).slice(1) : 'One storey';
+  // (a room with a roof keeps its height: its roof and building stand on its walls' tops)
+  $('roomStoreysRow').hidden = Boolean(room.roof);
+  storeyButtons('room', tool && !room.roof ? w : null);
 }
 $('roomWallsChoose').onclick = () => { const r = roomShown; if (r) openLookPicker('wall', { onChoose: look => setMadeLook(r.walls[0], 'wall', look) }); };
 $('roomWallsPlain').onclick = () => { const r = roomShown; if (r) setMadeLook(r.walls[0], 'wall', plainLook('wall')); };
 $('roomRoofChoose').onclick = () => { const r = roomShown; if (r?.roof) openLookPicker('slab', { onChoose: look => setMadeLook(r.roof, 'slab', look) }); };
 $('roomRoofPlain').onclick = () => { const r = roomShown; if (r?.roof) setMadeLook(r.roof, 'slab', plainLook('slab', r.roof.userData.source.added.generated.slab)); };
-// (a room with no roof: its walls one storey or their look's storeys, in one undo step)
-$('roomStoreys').onclick = () => {
+// (a room with no roof: its walls a storey lower or taller, in one undo step)
+function roomStoreys(step) {
   const r = roomShown;
   if (!r) return;
-  const w = r.walls[0].userData.source.added.generated.wall, next = storeysOf(w) === 1 ? wallSpec(w).storeys : 1;
-  const before = r.walls.map(wallState);
+  const stepped = steppedStoreys(r.walls[0].userData.source.added.generated.wall, step);
+  if (!stepped) return;
+  const next = storeysOf(stepped.wall), before = r.walls.map(wallState);
   r.walls.forEach((root, k) => setWall(root, { ...before[k], generated: { ...before[k].generated, wall: withStoreys(before[k].generated.wall, next).wall } }, before[k]));
   gizmo.joinLast(r.walls.length);
   flashHint(`Its walls now ${storeyWords(next)} · Ctrl+Z puts them back`);
-};
+}
+$('roomStoreys').onclick = () => roomStoreys(1);
+$('roomShorter').onclick = () => roomStoreys(-1);
 // A made piece's Look row (B2): the look it is in, or none chosen (drawn plain; the Build makes it in its kind's default
 // look and says so), Choose… and Plain.
 function lookRow(kind, g, name, tool) {
@@ -10560,8 +10577,8 @@ $('wallFlip').onclick = () => changeWall(s => {
   return { generated: { ...s.generated, wall: f.wall }, location: f.location, rotation: f.rotation };
 });
 $('wallShuffle').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: reshuffled(s.generated.wall) } }));
-$('wallStoreys').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated,
-  wall: withStoreys(s.generated.wall, storeysOf(s.generated.wall) === 1 ? wallSpec(s.generated.wall).storeys : 1).wall } }));
+$('wallStoreys').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: steppedStoreys(s.generated.wall, 1)?.wall ?? s.generated.wall } }));
+$('wallShorter').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: steppedStoreys(s.generated.wall, -1)?.wall ?? s.generated.wall } }));
 // Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
 function deleteWallOpening() {
   const slabRoot = madeRoot(selected);

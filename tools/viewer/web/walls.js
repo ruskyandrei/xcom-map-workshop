@@ -3,8 +3,10 @@
 // `generated: { kind: 'fracWall', version: 1, wall }`, the wall's numbers in the donor mesh's frame
 // (tools/bake/frac_wall.py): `x0` and `x1` its tile edges along the wall (the tool always writes x0 0 and puts the
 // piece at the wall's start), `openings` [{ x0, x1, z0, z1 }] (rectangles through it; z 0 is the floor the wall
-// stands on, its bottom WALL.bottom), `seed` (the break pattern), `storeys` (1, or left out for 2: stage M2). Its solid
-// stops WALL.endInset short of each end.
+// stands on, its bottom WALL.bottom), `seed` (the break pattern), `storeys` (1 to WALL.maxStoreys, left out for its
+// look's own: stage M2; custom geometry editing plan B4). Its solid stops WALL.endInset short of each end. A wall
+// longer than WALL.pieceTiles or taller than its look's storeys is drawn whole and made by the Build as pieces of
+// those sizes, joined end to end and stacked (tools/bake/made_split.py; the editing plan's D-3).
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './poserule.js';
 import { catalogued } from './looks.js';
@@ -15,8 +17,10 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
   mesh: 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED', lwrOnly: false,
   words: 'one or two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice' }];
 // The one look of M1, the Bar's inside wall (frac_wall.RECIPE): its heights over the floor (a two-storey wall's top and
-// face), and the tool's limits.
-export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 16 };
+// face), and the tool's limits: any length and height up to these (the compiler's MADE_MAX_TILES, MADE_MAX_STOREYS),
+// the Build cutting it into pieces of at most pieceTiles and its look's storeys.
+export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
+                      maxStoreys: 12, pieceTiles: 16 };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
 export const STOREY_TOPS = { 1: 192, 2: 384 };
@@ -60,26 +64,41 @@ export function wallSpec(wall) {
            half: thickness ? thickness / 2 : r.half + 4, through: r.half, sections: r.sections ?? 6, storeys,
            lower: storeys > 1 && own.includes(1) };
 }
-/** A wall's storeys: 1, or its donor's (left out: two for the Bar's, up to four for a donor's look). */
-export const storeysOf = wall => (wall?.storeys === 1 ? 1 : wallSpec(wall).storeys);
+/** A wall's storeys: its own (`storeys`), or its look's when left out (two for the Bar's, up to four for a donor's). */
+export const storeysOf = wall => wall?.storeys ?? wallSpec(wall).storeys;
 /** How many storeys, in words. */
-export const storeyWords = n => `${['no', 'one', 'two', 'three', 'four', 'five'][n] ?? n} ${n === 1 ? 'storey' : 'storeys'}`;
+export const storeyWords = n => `${['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven',
+  'twelve'][n] ?? n} ${n === 1 ? 'storey' : 'storeys'}`;
+/** The storeys of each piece the Build stacks for a wall `storeys` tall in a look made `own` storeys tall (and one
+ *  storey where `lower`), from the bottom (made_split.levels). */
+export function levelsOf(storeys, own, lower) {
+  if (storeys === own || (storeys === 1 && lower)) return [storeys];
+  const out = Array(Math.floor(storeys / own)).fill(own), rest = storeys - own * out.length;
+  return rest ? [...out, ...(lower ? Array(rest).fill(1) : [own])] : out;
+}
+/** The storey counts a wall can be in its look: any up to WALL.maxStoreys where it can be made one storey, else its
+ *  look's own and their multiples. */
+export function storeyCounts(wall) {
+  const spec = wallSpec(wall);
+  return Array.from({ length: WALL.maxStoreys }, (_, k) => k + 1).filter(n => spec.lower || n % spec.storeys === 0);
+}
 /** The wall's top over the floor (its bottom wallSpec's), its face's top, and the highest an opening's top goes. A wall
- *  one storey tall in a taller donor's look loses the storeys over its first off its top (frac_wall.shaped). */
+ *  one storey tall in a taller donor's look loses the storeys over its first off its top (frac_wall.shaped); a taller
+ *  one is its look's pieces stacked, each on the top of the one under it (levelsOf). */
 export const wallTop = wall => {
   const spec = wallSpec(wall);
-  return spec === BAR_SPEC ? STOREY_TOPS[storeysOf(wall)]
-    : storeysOf(wall) < spec.storeys ? spec.top - spec.storey * (spec.storeys - 1) : spec.top;
+  const pieceTop = n => (n === spec.storeys ? spec.top : spec.top - spec.storey * (spec.storeys - 1));
+  return levelsOf(storeysOf(wall), spec.storeys, spec.lower).reduce((top, n) => top + pieceTop(n) - spec.bottom, spec.bottom);
 };
 export const faceTopOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - (spec.top - spec.faceTop); };
 export const topMostOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - Math.max(WALL.top - OPENING.topMost, spec.top - spec.faceTop); };
-/** The wall at `storeys` (1, or its donor's, which leaves the number out). A gap cut through the wall's top stays cut
- *  through the new top; another the lower wall can't hold has its top brought down to the highest a top goes under the
- *  cornice; one left smaller than OPENING.height (a window in the upper storey) goes. Gives { wall, cut (gaps brought
- *  down), removed (gaps gone) }. */
+/** The wall at `storeys` (its look's own leaves the number out). A gap cut through the wall's top stays cut through the
+ *  new top; another the lower wall can't hold has its top brought down to the highest a top goes under the cornice;
+ *  one left smaller than OPENING.height (a window in the upper storey) goes. Gives { wall, cut (gaps brought down),
+ *  removed (gaps gone) }. */
 export function withStoreys(wall, storeys) {
   const { storeys: _, ...rest } = wall;
-  const out = storeys === 1 ? { ...rest, storeys: 1 } : rest;
+  const out = storeys === wallSpec(rest).storeys ? rest : { ...rest, storeys };
   const top = wallTop(out), most = topMostOf(out), through = wallTop(wall);
   let cut = 0, removed = 0;
   const openings = [];
@@ -91,24 +110,37 @@ export function withStoreys(wall, storeys) {
   }
   return { wall: { ...out, openings }, cut, removed };
 }
-/** The wall after its top handle moved `delta` units up: past half the height it would lose down, a wall of its
- *  donor's storeys becomes one storey; past half that up, a one-storey wall its donor's storeys again. Gives
- *  withStoreys' { wall, cut, removed }. */
+/** The wall after its top handle moved `delta` units up: the storey count (storeyCounts) whose top is nearest the
+ *  handle (custom geometry editing plan, B4: as many storeys as the user drags up). Gives withStoreys' { wall, cut,
+ *  removed }. */
 export function raisedWall(wall, delta) {
-  const spec = wallSpec(wall), now = storeysOf(wall), half = spec.storey * (spec.storeys - 1) / 2;
-  // (a wall in a look that can't be made one storey keeps its height)
-  const next = !spec.lower ? now : now === spec.storeys && delta < -half ? 1 : now === 1 && delta > half ? spec.storeys : now;
+  const now = storeysOf(wall), want = wallTop(wall) + delta;
+  const next = storeyCounts(wall).map(n => [Math.abs(wallTop({ ...wall, storeys: n }) - want), n]).sort((a, b) => a[0] - b[0])[0]?.[1] ?? now;
   return next === now ? { wall, cut: 0, removed: 0 } : withStoreys(wall, next);
 }
-/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so, else
- *  the new look's own. */
-export const storeysInLook = (old, numbers) => (storeysOf(old) === 1 && wallSpec(numbers).lower ? 1 : wallSpec(numbers).storeys);
+/** The wall a storey taller (`step` 1) or lower (-1), in the counts its look takes (storeyCounts); null past the ends. */
+export function steppedStoreys(wall, step) {
+  const counts = storeyCounts(wall), now = storeysOf(wall);
+  const next = step > 0 ? counts.find(n => n > now) : [...counts].reverse().find(n => n < now);
+  return next === undefined ? null : withStoreys(wall, next);
+}
+/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
+ *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
+ *  the new look takes. */
+export function storeysInLook(old, numbers) {
+  const n = storeysOf(old), spec = wallSpec(numbers);
+  if (n === 1 && spec.lower) return 1;
+  if (n === wallSpec(old).storeys) return spec.storeys;
+  if (spec.lower) return n;
+  return Math.min(Math.floor(WALL.maxStoreys / spec.storeys) * spec.storeys, Math.max(spec.storeys, Math.round(n / spec.storeys) * spec.storeys));
+}
 
-/** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), one or two
- *  storeys, gaps inside it and apart, none taking the whole wall, a whole-number seed. */
+/** Whether `wall` is numbers this tool makes: tile edges 0 and a whole number of tiles (1 to WALL.maxTiles), 1 to
+ *  WALL.maxStoreys storeys, gaps inside it and apart, none taking the whole wall, a whole-number seed. */
 export function toolWall(wall) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
-  if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1) || ![undefined, 1, 2].includes(wall.storeys)) return false;
+  if (!wall || wall.x0 !== 0 || !finite(wall.x1) || !Number.isInteger(wall.seed ?? 1)
+    || !(wall.storeys === undefined || (Number.isInteger(wall.storeys) && wall.storeys >= 1 && wall.storeys <= WALL.maxStoreys))) return false;
   const tiles = wall.x1 / TILE;
   if (!Number.isInteger(tiles) || tiles < WALL.minTiles || tiles > WALL.maxTiles) return false;
   const list = sortedOpenings(wall.openings ?? []);
@@ -416,7 +448,8 @@ export const SLAB_LOOKS = [
   { id: 'floor', name: 'Upper floor', role: 'floor', package: 'URB_Bar', actor: 'XComFracLevelActor_17',
     mesh: 'ComKit_Meshes.Cores.Core_384FloorB_FRACTURED', lwrOnly: false, bottom: 192, top: 194,
     words: "a storey floor: dark brown floor tiles on top, butcher's tiles under it" }];
-export const SLAB = { maxTiles: 16, maxHoles: 32 };
+// (any size up to maxTiles each way: the Build cuts it into slabs of at most pieceTiles, made_split)
+export const SLAB = { maxTiles: 128, maxHoles: 256, pieceTiles: 16 };
 /** A slab's look: one of SLAB_LOOKS by its id, or a donor look (M4: { mesh, measure }) as the catalogue has it, with
  *  its heights and role (null when no catalogue read holds it). */
 export function slabLookOf(slab) {

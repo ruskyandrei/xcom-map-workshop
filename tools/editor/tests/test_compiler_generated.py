@@ -140,7 +140,8 @@ class GeneratedTests(unittest.TestCase):
                dict(WALL, wall=dict(x0=0, x1=12)), dict(WALL, wall=dict(x0=0, x1=39)),
                dict(WALL, wall=dict(x0=0, x1=96, openings=[dict(x0=80, x1=120, z0=0, z1=10)])),
                dict(WALL, wall=dict(x0=0, x1=96, seed='one')),
-               dict(WALL, wall=dict(x0=0, x1=96, storeys=3)), dict(WALL, wall=dict(x0=0, x1=96, storeys=True)),
+               dict(WALL, wall=dict(x0=0, x1=96, storeys=13)), dict(WALL, wall=dict(x0=0, x1=96, storeys=True)),
+               dict(WALL, wall=dict(x0=0, x1=96 * 129)), dict(WALL, wall=dict(x0=0, x1=96, whole=[0, 192])),
                dict(WALL, wall=dict(x0=0, x1=float('nan')))]
         for g in bad:
             spec, report = compiled([made(g)])
@@ -162,7 +163,7 @@ class GeneratedTests(unittest.TestCase):
         self.assertEqual(roof, [0.0, 384.0, 636.0, 924.0, 12.5, 16.5])
         self.assertEqual(up, [0.0, 384.0, 1212.0, 1500.0, 192.0, 194.0])
         for bad in (dict(slab, version=2), dict(slab, slab=dict(slab['slab'], x1=380.0)),
-                    dict(slab, slab=dict(slab['slab'], x1=96.0 * 17)), dict(slab, slab=dict(slab['slab'], look='marble')),
+                    dict(slab, slab=dict(slab['slab'], x1=96.0 * 129)), dict(slab, slab=dict(slab['slab'], look='marble')),
                     dict(slab, slab=dict(slab['slab'], holes=[dict(x0=0.0, x1=50.0, y0=0.0, y1=96.0)])),
                     dict(slab, slab=dict(slab['slab'], holes=[dict(x0=0.0, x1=96.0, y0=0.0, y1=480.0)])),
                     dict(slab, slab=dict(slab['slab'], seed=True)), dict(slab, slab=None)):
@@ -348,6 +349,94 @@ class GeneratedTests(unittest.TestCase):
         spec, report = compiled([dict(add('XComLevelActor_1', 1, (0, 600, 0)), generated=WALL)])
         self.assertIn('malformed', codes(report))
         self.assertIn('only a fracturing piece', ' '.join(d['message'] for d in refused(report)))
+
+
+class SplitTests(unittest.TestCase):
+    """A made wall or floor past the sizes the game is known to take (custom geometry editing plan, B4, D-3): the
+    compiler cuts it into pieces (tools/bake/made_split.py), each a copy of its own at its place, joined end to end
+    or stacked, one member of the project's groups; the notes and checks name the whole."""
+    NAME = 'XComFracLevelActor_11_copy1'
+
+    def copies(self, spec):
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        return op
+
+    def test_a_long_wall_is_three_joined_walls_cut_outside_its_gap(self):
+        # 40 tiles with a gap over tiles 15 and 16: cut at 15 (16 would fall in the gap) and 31
+        gap = dict(x0=96.0 * 15, x1=96.0 * 17, z0=8.0, z1=160.0)
+        g = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=96.0 * 40, openings=[gap], seed=5))
+        spec, report = compiled([made(g, at=(0, 600, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        op = self.copies(spec)
+        self.assertEqual(op['labels'], [self.NAME + '_part%d' % k for k in (1, 2, 3)])
+        walls = [r['wall'] for r in op['generated']]
+        self.assertEqual([(w['x0'], w['x1']) for w in walls], [(0.0, 1440.0), (0.0, 1536.0), (0.0, 864.0)])
+        self.assertEqual([w['whole'] for w in walls], [[0.0, 3840.0], [1440.0, 3840.0], [2976.0, 3840.0]])
+        self.assertEqual([w['openings'] for w in walls], [[], [dict(x0=0.0, x1=192.0, z0=8.0, z1=160.0)], []])
+        self.assertEqual(len({w['seed'] for w in walls}), 3)
+        self.assertEqual([p['location'] for p in op['poses']], [[0.0, 600.0, 0.0], [1440.0, 600.0, 0.0], [2976.0, 600.0, 0.0]])
+        # joined end to end: the joints' ends reach the line (version 2), the wall's own ends stay free
+        self.assertEqual([r['version'] for r in op['generated']], [2, 2, 2])
+        self.assertEqual([w['ends'] for w in walls], [['free', 'line'], ['line', 'line'], ['line', 'free']])
+        self.assertEqual([b[:2] for b in op['boxes']], [[8.0, 1440.0], [1440.0, 2976.0], [2976.0, 3832.0]])
+        # said once, for the whole; its gap is checked on the whole
+        self.assertEqual(noted(report, 'generated'), ['generated-wall'])
+        self.assertEqual(noted(report, 'made-split'), ['made-split'])
+        split = next(d['message'] for d in report['notes'] if d['code'] == 'made-split')
+        self.assertIn('%s, 40 tiles long and 2 storeys, is made as 3 walls joined end to end' % self.NAME, split)
+        door = [d['message'] for d in report['warnings'] if d['code'] == 'wall-doorway-no-door']
+        self.assertEqual(door, ["%s's gap at 1440 to 1632 along it: a unit in this gap has cover toward its sides: put a "
+                                "door in it, as the game's doorways have" % self.NAME])
+        self.assertNotIn('wall-on-wall', noted(report))
+
+    def test_a_tall_wall_is_walls_of_its_looks_storeys_stacked(self):
+        # the Bar's inside wall is two storeys, -16 to 384: four storeys are two of it, the upper on the lower's top
+        # (400 up); three are two and one
+        for storeys, pieces in ((4, [None, None]), (3, [None, 1])):
+            g = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=5, storeys=storeys))
+            spec, report = compiled([made(g, at=(0, 600, 14.5))])
+            self.assertTrue(report['ok'], refused(report))
+            op = self.copies(spec)
+            self.assertEqual([r['wall'].get('storeys') for r in op['generated']], pieces)
+            self.assertEqual([p['location'] for p in op['poses']], [[0.0, 600.0, 14.5], [0.0, 600.0, 414.5]])
+            self.assertNotIn('whole', op['generated'][0]['wall'])
+            self.assertNotIn('wall-on-wall', noted(report))
+            self.assertIn('joined end to end and stacked',
+                          next(d['message'] for d in report['notes'] if d['code'] == 'made-split'))
+
+    def test_a_large_floor_is_slabs_side_by_side(self):
+        # 30 by 20 tiles with a hole across the first cut: four slabs, 16 and 14 by 16 and 4
+        hole = dict(x0=96.0 * 15, x1=96.0 * 17, y0=0.0, y1=96.0)
+        g = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=96.0 * 30, y0=0.0, y1=96.0 * 20, holes=[hole], seed=4))
+        spec, report = compiled([made(g, at=(0, 636, 14.5))])
+        self.assertTrue(report['ok'], refused(report))
+        op = self.copies(spec)
+        slabs = [r['slab'] for r in op['generated']]
+        self.assertEqual([(s['x1'], s['y1']) for s in slabs], [(1440.0, 1536.0), (1440.0, 1536.0), (1440.0, 384.0),
+                                                              (1440.0, 384.0)])
+        self.assertEqual([s['whole'] for s in slabs], [[0.0, 0.0, 2880.0, 1920.0], [1440.0, 0.0, 2880.0, 1920.0],
+                                                       [0.0, 1536.0, 2880.0, 1920.0], [1440.0, 1536.0, 2880.0, 1920.0]])
+        self.assertEqual([s['holes'] for s in slabs], [[], [dict(x0=0.0, x1=192.0, y0=0.0, y1=96.0)], [], []])
+        self.assertEqual([p['location'] for p in op['poses']], [[0.0, 636.0, 14.5], [1440.0, 636.0, 14.5],
+                                                                [0.0, 2172.0, 14.5], [1440.0, 2172.0, 14.5]])
+        self.assertEqual(noted(report, 'generated'), ['generated-slab'])
+        self.assertIn('%s, 30 by 20 tiles, is made as 4 slabs side by side' % self.NAME,
+                      next(d['message'] for d in report['notes'] if d['code'] == 'made-split'))
+
+    def test_a_cut_walls_pieces_break_with_its_group(self):
+        # a group that breaks together names the wall once: each piece lists the group's prop
+        PL = 'TheWorld.PersistentLevel.'
+        g = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=96.0 * 20, openings=[], seed=5))
+        group = dict(id='g', breakTogether=True, members=[{'added': PL + self.NAME},
+                                                          {'added': PL + 'XComDestructibleActor_4_copy2'}])
+        doc = document((), [made(g, at=(0, 636, 14.5)), add('XComDestructibleActor_4', 2, (144, 660, 14.5))],
+                       schemaVersion=2, groups=[group])
+        spec, report = compiler.compile_project(doc, scene())
+        self.assertTrue(report['ok'], refused(report))
+        op = self.copies(spec)
+        by = dict(zip(op['labels'], op['wallGroups']))
+        self.assertEqual(by, {self.NAME + '_part1': 1, self.NAME + '_part2': 1, 'XComDestructibleActor_4_copy2': 0})
+        self.assertEqual(report['groups'][0]['walls'], [self.NAME])
 
 
 def wall(*openings, x1=384.0):

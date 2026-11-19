@@ -107,6 +107,7 @@ if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
 import looks  # noqa: E402
 import made_cursors  # noqa: E402
+import made_split  # noqa: E402
 import spawns  # noqa: E402
 
 COMPILER_VERSION = 3
@@ -127,6 +128,10 @@ FRAC_SLAB_LOOKS = {look['id']: (look['recipe']['bottom'], look['recipe']['top'])
 FRAC_SLAB_DEFAULT_LOOK = 'roof'
 FRAC_SLAB_MAX_TILES = 16
 MADE_KINDS = ('fracWall', 'fracSlab')    # made from numbers: their own mesh, columns and box
+# a made wall or floor of any size (custom geometry editing plan, B4, D-3, 19 November 2026): the Build cuts it into
+# pieces of at most FRAC_SLAB_MAX_TILES tiles and its look's storeys (made_split); these bound the numbers only
+MADE_MAX_TILES = 128
+MADE_MAX_STOREYS = made_split.MAX_STOREYS
 
 
 def _ground_looks():
@@ -148,6 +153,7 @@ GROUND_SHAPES = ('patch', 'block', 'ramp', 'rock')
 GROUND_ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to this less one (ground.py ROCK_SEEDS)
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
 GROUND_MAX_HEIGHT = 384.0
+GROUND_MAX_TILES = 64       # (one plain piece, not cut: B4; ground.MAX_TILES)
 GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 
 
@@ -176,7 +182,27 @@ def donor_shape(kind, numbers):
     if kind != 'wall':
         return resolved['recipe']
     import frac_wall
-    return frac_wall.shaped(dict(numbers, look=resolved))
+    try:
+        return frac_wall.shaped(dict(numbers, look=resolved))
+    except ValueError:
+        # (a wall taller than its look is made: the Build stacks pieces of it, made_split)
+        return frac_wall.shaped(dict({k: v for k, v in numbers.items() if k != 'storeys'}, look=resolved))
+
+
+def wall_look_storeys(wall):
+    """(its look's own storeys, whether a wall one storey tall can be made in it) of a made wall (frac_wall.storeys_of):
+    the Bar's inside wall's, (2, yes), for a look id; for a donor look no catalogue holds, its storeys as asked, uncut
+    (the Build measures it)."""
+    look = wall.get('look')
+    if not isinstance(look, dict):
+        return 2, True
+    try:
+        resolved = looks.resolve('wall', look)
+    except looks.LookError:
+        return int(wall.get('storeys') or 2), False
+    import frac_wall
+    own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
+    return max(own), max(own) > 1 and 1 in own
 
 
 def wall_heights(wall):
@@ -1106,6 +1132,7 @@ class Compiler:
         self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
         self.made_parts = {}        # a made wall's label: its template's parts (join_made_walls makes its box again)
         self.made_slabs = []        # (copy, where) of each floor or roof made from numbers (made_slabs_in_floors)
+        self.made_wholes = []       # (copy, where) of each made wall as drawn: its copy, or its pieces' whole (split_made)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
@@ -1422,11 +1449,11 @@ class Compiler:
         elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
-                  and 'ends' not in w
+                  and w['x1'] - w['x0'] <= MADE_MAX_TILES * TILE + 1e-6 and 'ends' not in w and 'whole' not in w
                   and (('look' not in w and version < 3) or (version >= 2 and look_valid(
                       'fracWall', w.get('look'), version, DONOR_LOOK_SINCE['fracWall'], FRAC_WALL_LOOKS)))
-                  and isinstance(w.get('seed', 1), int) and w.get('storeys', 2) in (1, 2)
-                  and not isinstance(w.get('storeys'), bool)
+                  and isinstance(w.get('seed', 1), int) and isinstance(w.get('storeys', 2), int)
+                  and 1 <= w.get('storeys', 2) <= MADE_MAX_STOREYS and not isinstance(w.get('storeys'), bool)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
                           for o in w.get('openings') or []))
@@ -1446,15 +1473,17 @@ class Compiler:
                                               numbers['look']['mesh']), **where)
             return True
         self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
-                   '{x0, x1, openings, seed, storeys}}, version 2 with its look: one of %s, or version 3 with its look '
-                   'named by its donor: {mesh, measure}), a slab\'s ({kind: '
+                   '{x0, x1, openings, seed, storeys}}: up to %d tiles long and %d storeys, version 2 with its look: '
+                   'one of %s, or version 3 with its look named by its donor: {mesh, measure}), a slab\'s ({kind: '
                    'fracSlab, version: 1, slab: {x0, x1, y0, y1, holes, seed, look}}: whole tiles, 1 to %d each way, '
                    'its holes whole tiles inside it, its look one of %s), a ground shape\'s ({kind: ground, version: 1, '
-                   'ground: {shape (patch, block or ramp), x0, x1, y0, y1, height, look}}: whole tiles, a height of 1 to %g, '
-                   'its look one of %s; version 2 for a slab or ground shape names its look by its donor: {mesh, '
-                   'measure}, a ground look\'s also its material) or {kind: relit, version: 1} (it has %r)'
-                   % (', '.join(FRAC_WALL_LOOKS), FRAC_SLAB_MAX_TILES, ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_HEIGHT,
-                      ', '.join(GROUND_LOOKS), g), **where)
+                   'ground: {shape (patch, block or ramp), x0, x1, y0, y1, height, look}}: whole tiles, 1 to %d each '
+                   'way, a height of 1 to %g, its look one of %s; version 2 for a slab or ground shape names its look '
+                   'by its donor: {mesh, measure}, a ground look\'s also its material) or {kind: relit, version: 1} '
+                   '(it has %r)'
+                   % (MADE_MAX_TILES, MADE_MAX_STOREYS, ', '.join(FRAC_WALL_LOOKS), MADE_MAX_TILES,
+                      ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_TILES, GROUND_MAX_HEIGHT, ', '.join(GROUND_LOOKS), g),
+                   **where)
         return False
 
     @staticmethod
@@ -1463,7 +1492,7 @@ class Compiler:
         if not (isinstance(s, dict) and s.get('shape') in GROUND_SHAPES and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
             return False
         whole = all(abs((s[b] - s[a]) / 96.0 - round((s[b] - s[a]) / 96.0)) < 1e-4
-                    and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
+                    and 1 <= round((s[b] - s[a]) / 96.0) <= GROUND_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
         height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)
         seed = s['shape'] != 'rock' or (isinstance(s.get('seed'), int) and not isinstance(s.get('seed'), bool)
                                         and 0 <= s['seed'] < GROUND_ROCK_SEEDS)
@@ -1477,8 +1506,8 @@ class Compiler:
             return abs((v - base) / 96.0 - round((v - base) / 96.0)) < 1e-4
         if not (isinstance(s, dict) and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
             return False
-        if not all(whole(s[b], s[a]) and 1 <= round((s[b] - s[a]) / 96.0) <= FRAC_SLAB_MAX_TILES
-                   for a, b in (('x0', 'x1'), ('y0', 'y1'))):
+        if not all(whole(s[b], s[a]) and 1 <= round((s[b] - s[a]) / 96.0) <= MADE_MAX_TILES
+                   for a, b in (('x0', 'x1'), ('y0', 'y1'))) or 'whole' in s:
             return False
         if not look_valid('fracSlab', s.get('look'), version, DONOR_LOOK_SINCE['fracSlab'], FRAC_SLAB_LOOKS) \
                 or not isinstance(s.get('seed', 1), int) \
@@ -1519,7 +1548,7 @@ class Compiler:
                 continue
             for lower, _ in self.made_walls:
                 b = lower.get('box')
-                if lower is upper or not b or abs(a[4] - b[5]) > WALL_STACK_GAP:
+                if lower is upper or not b or abs(a[4] - b[5]) > WALL_STACK_GAP or lower['member'] == upper['member']:
                     continue
                 along = 0 if a[1] - a[0] >= a[3] - a[2] else 1
                 over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(2)]
@@ -1527,8 +1556,26 @@ class Compiler:
                     self.note('wall-on-wall', "%s stands on %s: when %s breaks under it, it stays standing, as the "
                               "game's walls keep their upper part over a hole broken under it (a break passes from one "
                               'piece to another only as high as the blast reached)'
-                              % (upper['label'], lower['label'], lower['label']), **where)
+                              % (upper.get('whole') or upper['label'], lower.get('whole') or lower['label'],
+                                 lower.get('whole') or lower['label']), **where)
                     break
+
+    def made_slab_wholes(self):
+        """The made floors and roofs as they were drawn, for the checks: [(copy, where)], a slab the Build cuts into
+        pieces (made_split) one entry, its label the whole's and its box the pieces' together."""
+        out, at = [], {}
+        for c, where in self.made_slabs:
+            if not c.get('box'):
+                continue
+            name = c.get('whole')
+            if not name:
+                out.append((c, where))
+            elif name in at:
+                at[name]['box'] = union([at[name]['box'], c['box']])
+            else:
+                at[name] = dict(label=name, box=list(c['box']))
+                out.append((at[name], where))
+        return out
 
     def made_slab_boxes(self):
         """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)]."""
@@ -1551,18 +1598,19 @@ class Compiler:
                             stair=bool(v.get('stair')))
                        for k, v in enumerate(self.scene.get('cursorVolumes') or []) if v.get('box')]
             crossed = {}
+            whole = {c['label']: c.get('whole') or c['label'] for c, _ in self.made_slabs}
             for c in made_cursors.split(volumes, slabs)['crossed']:
-                crossed.setdefault(c['slab'], set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))
+                crossed.setdefault(whole.get(c['slab'], c['slab']), set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))
             for label, names in sorted(crossed.items()):
-                where = next((w for c, w in self.made_slabs if c['label'] == label), {})
+                where = next((w for c, w in self.made_slabs if (c.get('whole') or c['label']) == label), {})
                 self.warn('slab-cursor-volume', "%s is over the map's cursor %s %s, which the Build leaves as %s over it: "
                           "the cursor may keep to %s floor there rather than the made floor's" % (
                               label, 'volume' if len(names) == 1 else 'volumes', ', '.join(sorted(names)),
                               'it is' if len(names) == 1 else 'they are', 'its' if len(names) == 1 else 'their'), **where)
         # (the floor tiles' saved places: a tile's floor is where the map's own piece has it)
         floors = [f for f in self.floor_records_now() if len(f.get('location') or ()) == 3]
-        for (c, where), s in zip([(c, w) for c, w in self.made_slabs if c.get('box')], slabs):
-            b, under = s['box'], c['box'][4]
+        for c, where in self.made_slab_wholes():
+            b, under = [c['box'][k] for k in (0, 2, 4, 1, 3, 5)], c['box'][4]
             tiles = sorted(list(f['tile']) for f in floors
                            if b[0] < f['location'][0] < b[3] and b[1] < f['location'][1] < b[4]
                            and 8.0 < under - f['location'][2] < HEADROOM)
@@ -1580,7 +1628,7 @@ class Compiler:
         start at each slab: URB_Bar's upstairs floor is the bottom of its floor 1, its roof of its floor 2.
         And slab-outdoors for one in no building with the map's floor at least HEADROOM under it: there the mouse
         takes its top on every storey (F-135)."""
-        slabs = [(c, where) for c, where in self.made_slabs if c.get('box')]
+        slabs = self.made_slab_wholes()
         if not slabs:
             return
         houses = [(b['name'] or 'a new building', [[x for x in f['boxes']] for f in b['floors']]) for b in self.new_buildings]
@@ -1635,7 +1683,7 @@ class Compiler:
         wall that gives cover; one starting under the cover line too low to walk through; one starting over it that
         doesn't reach across the sight line. A door stands in a gap when a door's box (a copy's, or one of the map's
         own the project leaves where it is) overlaps the gap's box by more than 8 along the wall and up."""
-        if not self.made_walls:
+        if not self.made_wholes:
             return
         hidden = {short(h['name']) for h in self.hides}
         doors = [c['box'] for c in self.copies if c.get('actorClass') == 'XComInteractiveLevelActor' and c.get('box')]
@@ -1643,7 +1691,7 @@ class Compiler:
             if (obj.get('layer') == 'base' and obj.get('actorClass') == 'XComInteractiveLevelActor'
                     and short(obj['actor']) not in hidden and obj.get('mesh') in self.meshes):
                 doors.append(world_box(obj, self.meshes, obj['location'], obj['rotation']))
-        for copy, where in self.made_walls:
+        for copy, where in self.made_wholes:
             wall = copy['generated']['wall']
             name = copy['label']
             for o in wall.get('openings') or []:
@@ -2813,8 +2861,11 @@ class Compiler:
             self.assembly_added(assembly, items)
 
     def add(self, rec, where, parts, pose, extra=None):
-        """A copy of a template at its pose."""
-        extra = extra or {}
+        """A copy of a template at its pose. A made wall or floor past the sizes the game is known to take is cut
+        into pieces (split_made), each added here as a copy of its own (`piece` its number, `member` and `whole` the
+        whole's)."""
+        extra = dict(extra or {})
+        piece, member, whole = extra.pop('piece', None), extra.pop('member', None), extra.pop('whole', None)
         out = rec['actor']
         loc, rot, rounding = pose
         src = parts[0]
@@ -2827,16 +2878,23 @@ class Compiler:
             self.error('malformed', "%s copies a %s: only a fracturing piece's copy is made from numbers"
                        % (short(out), src['actorClass']), **where)
             return
-        self.loot(src, short(out), 'add', where)
+        if not piece:
+            self.loot(src, short(out), 'add', where)
         # (a made wall's height is free: its columns are made for where it stands, so only its tiles and quarter turns
         # follow its template's)
         ruled = [loc[0], loc[1], src['location'][2]] if made and made['kind'] in MADE_KINDS else loc
         # (a ground shape keeps to the map's tiles by its numbers, not to its donor's place: the game's ground planes
         # stand off the tile grid, scaled, and are no rule for it)
-        if made and made['kind'] == 'ground':
+        # (a piece of a made wall or floor stands where the whole's place puts it)
+        if (made and made['kind'] == 'ground') or piece:
             pass
         elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
+        if made and made['kind'] in MADE_KINDS and not piece:
+            pieces = self.made_pieces(made)
+            if len(pieces) > 1:
+                self.split_made(rec, where, parts, pose, extra, pieces)
+                return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
         along = made_wall_along(made['wall']) if made and made['kind'] == 'fracWall' else None
         if made and made['kind'] == 'fracSlab':
@@ -2875,23 +2933,36 @@ class Compiler:
                     move = rigid_move(src.get('floorLocation', src['location']), src['rotation'], loc, rot)
                     for light in area['lights']:
                         self.copy_area_light(light, rec['from']['actor'], out, move, donor)
-        else:
+        elif not piece or piece == 1:
+            # (a made piece's pieces: once, for the whole)
             if not (made and made['kind'] == 'ground'):
                 # (a ground shape is listed in the building it stands in by its own box, as a made wall is)
-                self.floor_note(short(out), src, new, where, self.boxes(parts, src['location'], src['rotation']))
+                self.floor_note(whole or short(out), src, new, where, self.boxes(parts, src['location'], src['rotation']))
             self.owner_edits.append(('copy', rec['from']['actor'], out,
                                      rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(1, out), source=name, label=short(out), location=loc, rotation=rot, box=new,
-                                member='added|' + out, actorClass=src['actorClass'], ladder=None, **extra))
-        if rec.get('generated'):
+                                member=member or 'added|' + out, actorClass=src['actorClass'], ladder=None, **extra))
+        if whole:
+            self.copies[-1]['whole'] = whole
+        if rec.get('generated') and piece and piece > 1:
+            # (the notes are the whole's, said with its first piece)
+            self.copies[-1]['generated'] = rec['generated']
+            if rec['generated']['kind'] == 'fracWall':
+                self.made_walls.append((self.copies[-1], dict(where)))
+                self.made_parts[short(out)] = drawn
+            else:
+                self.made_slabs.append((self.copies[-1], dict(where)))
+        elif rec.get('generated'):
             # a fracturing wall made from numbers on the template's materials (custom geometry plan, section 0)
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
                 self.made_walls.append((self.copies[-1], dict(where)))
                 self.made_parts[short(out)] = drawn
+                if not piece:
+                    self.made_wholes.append((self.copies[-1], dict(where)))
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
                           'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
-                          "the game's walls pass theirs on" % (short(out), name), **where)
+                          "the game's walls pass theirs on" % (whole or short(out), name), **where)
             elif rec['generated']['kind'] == 'ground':
                 gd, slope = rec['generated']['ground'], ground_slope(rec['generated']['ground'])
                 self.note('generated-ground', "%s is a ground %s made from numbers on %s's material: %s; it doesn't break"
@@ -2908,15 +2979,64 @@ class Compiler:
                 self.made_slabs.append((self.copies[-1], dict(where)))
                 self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
-                          'to it' % (short(out), name), **where)
+                          'to it' % (whole or short(out), name), **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
             self.ladder_jobs.append((self.copies[-1], short(out), src, loc, rot, where))
         self.floor_sources[short(out)] = src
+        if piece:
+            return      # (the whole's entity is split_made's)
         self.entities.append(dict(kind='add', entity=out, id=rec.get('id'), template=rec['from']['actor'],
                                   actorClass=src['actorClass'], location=loc, rotation=rot,
                                   rotationRounding=tidy(rounding, 6), newBox=[tidy(v, 3) for v in new], **extra))
+
+    def made_pieces(self, made):
+        """[(its place in the whole's frame (x, y, z), its numbers)] of a made wall or slab (made_split): one, the
+        numbers as they are, when no cut is needed."""
+        if made['kind'] == 'fracWall':
+            w = made['wall']
+            return [((float(w['x0']) + dx, 0.0, dz), n) for dx, dz, n in made_split.wall_pieces(
+                w, wall_look_storeys, lambda n: wall_heights(n)[:2])]
+        s = made['slab']
+        return [((float(s['x0']) + dx, float(s['y0']) + dy, 0.0), n) for dx, dy, n in made_split.slab_pieces(s)]
+
+    def split_made(self, rec, where, parts, pose, extra, pieces):
+        """A made wall or floor cut into pieces the game is known to take (custom geometry editing plan, B4, D-3;
+        made_split): each a copy of its own (`<actor>_part<k>`) at its place in the whole's frame, all of them one
+        member of the project's groups (the whole's); the notes and checks name the whole."""
+        out, made = rec['actor'], rec['generated']
+        loc, rot, rounding = pose
+        key = 'wall' if made['kind'] == 'fracWall' else 'slab'
+        m = transform(loc, rot, [1, 1, 1])
+        first = len(self.copies)
+        for k, (at, numbers) in enumerate(pieces, 1):
+            place = [m[i][0] * at[0] + m[i][1] * at[1] + m[i][2] * at[2] + m[i][3] for i in range(3)]
+            self.add(dict(rec, actor='%s_part%d' % (out, k), generated=dict(made, **{key: numbers})), where, parts,
+                     (place, rot, rounding), extra=dict(extra, piece=k, member='added|' + out, whole=short(out)))
+        made_copies = self.copies[first:]
+        if not made_copies:
+            return
+        numbers = made[key]
+        if key == 'wall':
+            self.made_wholes.append((dict(label=short(out), location=loc, rotation=rot, generated=made), dict(where)))
+            tiles = round((float(numbers['x1']) - float(numbers['x0'])) / TILE)
+            self.note('made-split', '%s, %d tiles long and %d storeys, is made as %d walls joined end to end%s (each at '
+                      "most %d tiles long and its look's storeys tall, as the game's walls are): a break passes between "
+                      "them as between the game's joined walls" % (
+                          short(out), tiles, numbers.get('storeys') or wall_look_storeys(numbers)[0], len(made_copies),
+                          ' and stacked' if any(abs(c['location'][2] - loc[2]) > 1 for c in made_copies) else '',
+                          FRAC_SLAB_MAX_TILES), **where)
+        else:
+            nx, ny = (round((float(numbers[b]) - float(numbers[a])) / TILE) for a, b in (('x0', 'x1'), ('y0', 'y1')))
+            self.note('made-split', '%s, %d by %d tiles, is made as %d slabs side by side (each at most %d by %d '
+                      'tiles): they list each other\'s fragments where they meet, as the game\'s touching pieces do, '
+                      'so a break passes between them' % (short(out), nx, ny, len(made_copies), FRAC_SLAB_MAX_TILES,
+                                                         FRAC_SLAB_MAX_TILES), **where)
+        self.entities.append(dict(kind='add', entity=out, id=rec.get('id'), template=rec['from']['actor'],
+                                  actorClass=parts[0]['actorClass'], location=loc, rotation=rot,
+                                  rotationRounding=tidy(rounding, 6), pieces=len(made_copies),
+                                  newBox=[tidy(v, 3) for v in union([c['box'] for c in made_copies])], **extra))
 
     def assembly_added(self, assembly, items):
         """The copies of one assembly's pieces, sorted into copies of the whole by their moves: each copy names every
@@ -3937,7 +4057,7 @@ class Compiler:
                     if c['actorClass'] in BREAKABLE:
                         links.append(('copy', key, c['label']))
                     elif (c.get('generated') or {}).get('kind') in MADE_KINDS:
-                        walls.append((key, c['label']))
+                        walls.append((key, c.get('whole') or c['label']))
                     else:
                         entry['notBreakable'].append(c['label'])
                     continue

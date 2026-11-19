@@ -432,7 +432,7 @@ def painted(donor, built):
             slot_of[v] = s['slot']
     dpos, dslot = donor['positions'], donor['slots']
     if donor.get('frame'):
-        dpos, pos = in_frame(dpos, pos, donor['frame'])
+        dpos, pos = in_frame(dpos, pos, donor['frame'], built.get('whole'))
     for k in range(len(pos)):
         same = dslot == slot_of[k]
         cand = np.flatnonzero(same) if same.any() else np.arange(len(dpos))
@@ -441,13 +441,14 @@ def painted(donor, built):
     return out
 
 
-def in_frame(dpos, pos, frame):
+def in_frame(dpos, pos, frame, whole=None):
     """(donor positions, made positions) for painting a measured look's wall (custom geometry plan, M4): the donor's
     turned along x, centred across and moved down as its measurer had them (wall_measure's `frame`: turned, centre,
     lowered (a donor over its pivot), its x range),
     and each made vertex's x put on the donor's length: by its distance from the made wall's nearer end, from the
     donor's same end, up to half the donor's length; past that to and fro over its middle half, so a longer wall
-    repeats its donor's paint and keeps the ends' paint at its ends."""
+    repeats its donor's paint and keeps the ends' paint at its ends. A piece cut from a longer wall (made_split:
+    `whole` [where it starts, the wall's length]) is put on it as part of the whole wall: no end's paint at a cut."""
     d = np.array(dpos, float)
     if frame.get('turned'):
         d = np.c_[d[:, 1], -d[:, 0], d[:, 2]]
@@ -457,7 +458,7 @@ def in_frame(dpos, pos, frame):
     p = np.array(pos, float)
     dlo, dhi = (float(v) for v in frame.get('x', (d[:, 0].min(), d[:, 0].max())))
     half = max((dhi - dlo) / 2, 1e-6)
-    mlo, mhi = p[:, 0].min(), p[:, 0].max()
+    mlo, mhi = (p[:, 0].min(), p[:, 0].max()) if not whole else (-float(whole[0]), float(whole[1]) - float(whole[0]))
     a, b = p[:, 0] - mlo, mhi - p[:, 0]
 
     def fold(t):

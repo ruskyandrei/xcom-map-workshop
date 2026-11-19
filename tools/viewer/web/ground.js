@@ -31,7 +31,7 @@ export const GROUND_SHAPES = ['patch', 'block', 'ramp', 'rock'];
 export const ROCK_SEEDS = 2 ** 31;     // a rock's seed is 0 to ROCK_SEEDS - 1 (ground.py)
 // the tool's limits; a block's, a ramp's and a rock's height when drawn; a floor tile steeper than about 10 degrees is
 // sloped (no cover on it, F-81) and past 45 no floor (ground.py SLOPED, STEEP)
-export const GROUND = { maxTiles: 16, maxHeight: 384, minHeight: 8, step: 8, block: 64, ramp: 96, rock: 96,
+export const GROUND = { maxTiles: 64, maxHeight: 384, minHeight: 8, step: 8, block: 64, ramp: 96, rock: 96,
                         sloped: Math.acos(0.9848) * 180 / Math.PI, steep: 45 };
 const round = (v, step) => step * Math.round(v / step);
 const sign = v => (v < 0 ? -1 : 1);

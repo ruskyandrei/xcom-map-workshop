@@ -6,7 +6,8 @@ A shape's numbers are in its piece's frame (the tool puts the piece at the shape
   shape     'patch' (a flat slab whose top is the ground's level), 'block' (a box standing on the ground),
             'ramp' (a wedge rising along +x: its low edge at x0 on the ground, its high edge at x1) or 'rock' (an
             irregular convex piece within its footprint and height, from its seed: M6 item 6)
-  x0, x1    its footprint along x, whole tiles (1 to MAX_TILES)
+  x0, x1    its footprint along x, whole tiles (1 to MAX_TILES: one plain piece of any size the map holds, not cut as
+            made walls and floors are, custom geometry editing plan B4)
   y0, y1    its footprint along y, whole tiles
   height    a block's top, a ramp's high edge or a rock's top over its bottom (1 to MAX_HEIGHT); a patch's is its
             look's thickness
@@ -51,7 +52,7 @@ import measure_common
 LOOKS_FILE = Path(__file__).resolve().parent / 'ground_looks.json'
 SHAPES = ('patch', 'block', 'ramp', 'rock')
 TILE = 96.0
-MAX_TILES = 16
+MAX_TILES = 64
 MAX_HEIGHT = 384.0
 SLOPED = math.degrees(math.acos(0.9848))     # about 10: a steeper floor tile is sloped (F-81: no cover on it)
 STEEP = 45.0                                 # past this it is no floor

@@ -49,10 +49,10 @@ const ends = "the detail at its ends (a corner or a jamb) isn't made: its ends a
 assert.deepEqual(lookTags({ ...ONE, warnings: [ends] }), []);
 assert.match(lookTags({ ...TALL, warnings: [ends, ...TALL.warnings] })[0][1], /plain; its window frames/);
 
-// a wall's heights by its look: a one-storey donor stands at its own height, which its top handle doesn't change
+// a wall's heights by its look: a one-storey donor stands at its own height; its top handle stacks it (B4)
 const one = { x0: 0, x1: 384, openings: [], seed: 1, look: { mesh: ONE.mesh, measure: 1 } };
 assert.deepEqual([storeysOf(one), wallTop(one), faceTopOf(one), topMostOf(one)], [1, 192, 180, 168]);
-assert.equal(raisedWall(one, 400).wall, one);
+assert.deepEqual([storeysOf(raisedWall(one, 400).wall), wallTop(raisedWall(one, 400).wall)], [3, 576]);
 assert.deepEqual(endInsetsOf(one), { free: 4, line: 0, through: -6 });
 assert.equal(wallSpec(one).half, 7);
 // a two-storey donor: one storey lower loses its storey off the top
@@ -61,13 +61,14 @@ assert.deepEqual([storeysOf(tall), wallTop(tall), faceTopOf(tall)], [2, 400, 380
 const low = raisedWall(tall, -150).wall;
 assert.deepEqual([storeysOf(low), wallTop(low), faceTopOf(low)], [1, 200, 180]);
 assert.equal(wallWords(low), '4 tiles long, one storey (216 tall)');
-// a three-storey donor: one storey loses both storeys over its first; its top handle and button go between 1 and 3
+// a three-storey donor: one storey loses both storeys over its first; two are two one-storey pieces stacked (B4)
 const three = { ...one, look: { mesh: THREE.mesh, measure: 1 } };
 assert.deepEqual([storeysOf(three), wallTop(three), wallSpec(three).lower], [3, 576, true]);
-const low3 = raisedWall(three, -200).wall;
+const low3 = raisedWall(three, -390).wall;
 assert.deepEqual([storeysOf(low3), wallTop(low3)], [1, 192]);
-assert.equal(raisedWall(three, -100).wall, three);          // (under half the 384 it would lose)
-assert.ok(!('storeys' in raisedWall(low3, 200).wall));
+assert.equal(raisedWall(three, -80).wall, three);           // (under half a storey)
+assert.deepEqual([storeysOf(raisedWall(three, -200).wall), wallTop(raisedWall(three, -200).wall)], [2, 400]);
+assert.ok(!('storeys' in raisedWall(low3, 390).wall));
 assert.equal(wallWords(three), '4 tiles long, three storeys (592 tall)');
 assert.equal(storeyWords(1), 'one storey');
 // a look made at its donor's height only: no lower wall, and a one-storey wall changed to it takes its storeys

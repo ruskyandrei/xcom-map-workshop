@@ -259,8 +259,13 @@ def build(slab, template=None):
     # (EXP-79 run D: the subway car roof's top texture is a window of its atlas, its side panels beside it, and a made
     # slab read from its own corner showed half a side panel); a recipe without one reads them from the slab's frame
     centre = (R.get('measured') or {}).get('centre') if measured else None
-    shift = ((centre[0] - (slab['x0'] + slab['x1']) / 2, centre[1] - (slab['y0'] + slab['y1']) / 2) if centre
-             else (0.0, 0.0))
+    # (a piece of a larger slab, made_split: `whole` [its place in it, x and y; the whole's width and depth], read as
+    # the whole slab is, so its texture and paint go on across the cuts)
+    whole = slab.get('whole')
+    ux, uy = (float(whole[0]), float(whole[1])) if whole else (0.0, 0.0)
+    mid = ((float(whole[2]) / 2 - ux, float(whole[3]) / 2 - uy) if whole
+           else ((slab['x0'] + slab['x1']) / 2, (slab['y0'] + slab['y1']) / 2))
+    shift = (centre[0] - mid[0], centre[1] - mid[1]) if centre else (ux, uy)
     default = bytes.fromhex(R['colours']['outside'])
     outlines = fragments(slab)
     # every edge's owners: an edge two fragments share is inside (no face: the game's slabs have none, but for a look
@@ -281,15 +286,15 @@ def build(slab, template=None):
     for f, poly in enumerate(outlines):
         top = [(x, y, zt) for x, y in poly]
         uv = ([_map(top_map, x + shift[0], y + shift[1]) for x, y, _ in top] if measured
-              else [(su * x / rep + du, sv * y / rep + dv) for x, y, _ in top])
+              else [(su * (x + ux) / rep + du, sv * (y + uy) / rep + dv) for x, y, _ in top])
         faces.add(top, (0, 0, 1), top_slot, f, uv, 'top', [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
-        faces.polys[-1]['colours'] = [paint.colour('top', x, y, default) for x, y, _ in top]
+        faces.polys[-1]['colours'] = [paint.colour('top', x + ux, y + uy, default) for x, y, _ in top]
         under = [(x, y, zb) for x, y in reversed(poly)]
         uv = ([_map(under_map, x + shift[0], y + shift[1]) for x, y, _ in under] if measured
-              else [(bu * x / rep + eu, bv * y / rep + ev) for x, y, _ in under])
+              else [(bu * (x + ux) / rep + eu, bv * (y + uy) / rep + ev) for x, y, _ in under])
         faces.add(under, (0, 0, -1), under_slot, f, uv, 'underside',
                   [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])
-        faces.polys[-1]['colours'] = [paint.colour('underside', x, y, default) for x, y, _ in under]
+        faces.polys[-1]['colours'] = [paint.colour('underside', x + ux, y + uy, default) for x, y, _ in under]
         outside, across = 0, []
         for k in range(len(poly)):
             p, q = poly[k], poly[(k + 1) % len(poly)]
@@ -315,9 +320,9 @@ def build(slab, template=None):
             start = (slab['x0'], slab['y0'])[along]
             quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
             uv = ([_map(edge_map['xy'[along]], pt[along] + shift[along], pt[2]) for pt in quad] if measured
-                  else [(pt[along] / rep, pt[2] / rep) for pt in quad])
+                  else [((pt[along] + (ux, uy)[along]) / rep, pt[2] / rep) for pt in quad])
             faces.add(quad, n, edge_slot, f, uv, chart, [(pt[along] - start, pt[2] - zb) for pt in quad])
-            faces.polys[-1]['colours'] = [paint.colour('edge', pt[0], pt[1], default) for pt in quad]
+            faces.polys[-1]['colours'] = [paint.colour('edge', pt[0] + ux, pt[1] + uy, default) for pt in quad]
         cx = sum(x for x, _ in poly) / len(poly)
         cy = sum(y for _, y in poly) / len(poly)
         nb = [-1] * (2 + outside) + sorted(set(across))

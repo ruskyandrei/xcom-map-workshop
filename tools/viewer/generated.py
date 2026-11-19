@@ -15,7 +15,12 @@ underside) in slot order. A ground shape (kind 'ground': tools/bake/ground.py, M
 
 A piece whose look is named by its donor (custom geometry plan, M4: `look: {mesh, measure}`, a ground look's also its
 material; tools/bake/looks.py) is drawn in the recipe the catalogue holds for it, with as many sections as its donor
-has (the recipe's `sections`); a donor look no catalogue holds can't be drawn here (the Build measures it)."""
+has (the recipe's `sections`); a donor look no catalogue holds can't be drawn here (the Build measures it).
+
+A wall of any length and storeys and a slab of any size (custom geometry editing plan, B4, D-3) are drawn as the Build
+makes them: cut into pieces the game is known to take (tools/bake/made_split.py: walls at most 16 tiles long and
+their look's storeys tall, joined end to end and stacked; slabs at most 16 by 16 tiles), each built on its own and
+put at its place, joined into one mesh with the same sections."""
 from collections import OrderedDict
 import json
 import math
@@ -31,17 +36,21 @@ import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
 import ground as ground_shapes  # noqa: E402
 import looks  # noqa: E402
+import made_split  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
 CACHE_SIZE = 32
-# the longest wall drawn (its tile edges' distance): 32 tiles; the Build makes any length
-MAX_LENGTH = 3072.0
-MAX_OPENINGS = 16
+# the longest wall drawn (its tile edges' distance), the widest slab and the most storeys: the compiler's bounds
+# (MADE_MAX_TILES, MADE_MAX_STOREYS); the Build cuts them into pieces the game takes (made_split)
+MAX_TILES = 128
+MAX_LENGTH = MAX_TILES * 96.0
+MAX_STOREYS = made_split.MAX_STOREYS
+MAX_OPENINGS = 64
 MIN_LENGTH = 24 + 2 * frac_wall.RECIPE['endInset']
 SLOTS = 6
 SLAB_SLOTS = 2
 GROUND_SLOTS = 1
-MAX_HOLES = 32
+MAX_HOLES = 256
 
 
 class GeneratedError(ValueError):
@@ -73,8 +82,8 @@ def with_recipe(kind, numbers):
 
 def wall_numbers(text):
     """The wall's numbers from the request's JSON, checked, in one spelling (the cache's key): dict(x0, x1, openings,
-    seed), storeys when it is 1 (frac_wall.shaped: 2, the donor's, is left out) and ends when one is joined (two free
-    ends are left out). GeneratedError when malformed."""
+    seed), storeys when given (1 to MAX_STOREYS; a look id's 2, the default, is left out) and ends when one is joined
+    (two free ends are left out). GeneratedError when malformed."""
     try:
         wall = json.loads(text)
     except (TypeError, ValueError):
@@ -97,9 +106,10 @@ def wall_numbers(text):
                 and x0 <= o['x0'] < o['x1'] <= x1 and o['z0'] < o['z1']):
             raise GeneratedError('an opening outside its wall or of no size')
         out.append({k: float(o[k]) for k in ('x0', 'x1', 'z0', 'z1')})
-    storeys = wall.get('storeys', 2)
-    if storeys not in frac_wall.STOREYS or isinstance(storeys, bool):
-        raise GeneratedError('a wall has 1 or 2 storeys')
+    storeys = wall.get('storeys')
+    if storeys is not None and (not isinstance(storeys, int) or isinstance(storeys, bool)
+                                or not 1 <= storeys <= MAX_STOREYS):
+        raise GeneratedError('a wall has 1 to %d storeys' % MAX_STOREYS)
     # its end styles where it is joined to another made wall (custom geometry plan, M3 item 2): two free ends left out
     ends = wall.get('ends', ['free', 'free'])
     if not isinstance(ends, list) or len(ends) != 2 or any(e not in frac_wall.END_INSETS for e in ends):
@@ -110,15 +120,17 @@ def wall_numbers(text):
         look = donor_look('wall', look)
     elif look not in frac_wall.LOOKS:
         raise GeneratedError('a wall\'s look is one of %s, or its donor {mesh, measure}' % ', '.join(frac_wall.LOOKS))
-    return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': 1} if storeys == 1 else {}),
+    if storeys == 2 and not isinstance(look, dict):
+        storeys = None
+    return dict(x0=x0, x1=x1, openings=out, seed=seed, **({'storeys': storeys} if storeys is not None else {}),
                 **({'ends': list(ends)} if ends != ['free', 'free'] else {}),
                 **({'look': look} if look != frac_wall.DEFAULT_LOOK else {}))
 
 
 def slab_numbers(text):
-    """A slab's numbers from the JSON `text`, checked (frac_slab.check: whole tiles, 1 to 16 each way, holes of whole
-    tiles inside it; at most MAX_HOLES holes), in the form frac_slab.build takes: x0, x1, y0, y1, holes, seed, and its
-    look when it is not the first."""
+    """A slab's numbers from the JSON `text`, checked (whole tiles, 1 to MAX_TILES each way, and each piece the Build
+    cuts it into by frac_slab.check: holes of whole tiles inside it; at most MAX_HOLES holes), in the form frac_slab.build
+    takes: x0, x1, y0, y1, holes, seed, and its look when it is not the first."""
     try:
         slab = json.loads(text)
     except (TypeError, ValueError):
@@ -140,11 +152,50 @@ def slab_numbers(text):
         out['look'] = donor_look('slab', look)
     elif look != frac_slab.DEFAULT_LOOK:
         out['look'] = look
+    if not all(1 <= round((out[b] - out[a]) / 96.0) <= MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1'))):
+        raise GeneratedError('a slab drawn here is 1 to %d tiles each way' % MAX_TILES)
     try:
-        frac_slab.check(with_recipe('slab', out)[0])
+        for _, _, piece in made_split.slab_pieces(with_recipe('slab', out)[0]):
+            frac_slab.check(piece)
     except ValueError as error:
         raise GeneratedError(str(error))
     return out
+
+
+def joined(parts):
+    """viewer_mesh's meshes [(mesh, (dx, dy, dz): its place in game axes)] as one mesh, each slot's triangles in one
+    section, in slot order."""
+    if len(parts) == 1 and not any(parts[0][1]):
+        return parts[0][0]
+    out = dict(positions=[], normals=[], tangents=[], uvs=[[], []], colors=[], indices=[], sections=[])
+    by_slot = {}
+    for mesh, (dx, dy, dz) in parts:
+        base = len(out['positions']) // 3
+        p = mesh['positions']
+        for i in range(0, len(p), 3):
+            out['positions'].extend((p[i] + dx, p[i + 1] + dz, p[i + 2] + dy))     # (the page's axes: x z y)
+        for key in ('normals', 'tangents', 'colors'):
+            out[key].extend(mesh[key])
+        for channel in range(2):
+            out['uvs'][channel].extend(mesh['uvs'][channel])
+        for s in mesh['sections']:
+            by_slot.setdefault(s['slot'], []).extend(v + base for v in mesh['indices'][s['first']:s['first'] + s['count']])
+    for slot in sorted(by_slot):
+        out['sections'].append(dict(slot=slot, first=len(out['indices']), count=len(by_slot[slot])))
+        out['indices'].extend(by_slot[slot])
+    return out
+
+
+def wall_look_storeys(numbers):
+    """(its look's own storeys, whether a wall one storey tall can be made in it) of a wall whose look is resolved."""
+    own = frac_wall.storeys_of(frac_wall.look_of(numbers))
+    return max(own), max(own) > 1 and 1 in own
+
+
+def wall_heights(numbers):
+    """A wall's bottom and top in its frame, its look resolved (frac_wall.shaped)."""
+    R = frac_wall.shaped(numbers)
+    return float(R['bottom']), float(R['top'])
 
 
 def ground_numbers(text):
@@ -223,6 +274,11 @@ class Meshes:
         self.kept = OrderedDict()
         self.lock = threading.Lock()
 
+    @staticmethod
+    def pieces(build, cut):
+        """A build of each piece the Build cuts a piece into (`cut`: [(dx, dy, dz, numbers)]), as one mesh."""
+        return lambda: [(build(numbers), (dx, dy, dz)) for dx, dy, dz, numbers in cut]
+
     def fracwall(self, text):
         """The GLB of the wall whose numbers are the JSON `text`."""
         wall = wall_numbers(text)
@@ -232,7 +288,13 @@ class Meshes:
                 self.kept.move_to_end(key)
                 return self.kept[key]
         built, sections = with_recipe('wall', wall)
-        return self.made(key, lambda: frac_wall.build(built), sections or SLOTS, 'wall')
+        try:
+            cut = made_split.wall_pieces(built, wall_look_storeys, wall_heights, ends=True)
+        except ValueError as error:
+            raise GeneratedError('the wall could not be made: %s' % error)
+        # (a piece of a cut wall is in its own frame, from 0: put at its start in the wall's)
+        cut = [(0.0, 0.0, 0.0, built)] if len(cut) == 1 else [(built['x0'] + dx, 0.0, dz, n) for dx, dz, n in cut]
+        return self.made(key, self.pieces(frac_wall.build, cut), sections or SLOTS, 'wall')
 
     def fracslab(self, text):
         """The GLB of the slab whose numbers are the JSON `text`."""
@@ -243,7 +305,10 @@ class Meshes:
                 self.kept.move_to_end(key)
                 return self.kept[key]
         built, sections = with_recipe('slab', slab)
-        return self.made(key, lambda: frac_slab.build(built), sections or SLAB_SLOTS, 'slab')
+        cut = made_split.slab_pieces(built)
+        cut = ([(0.0, 0.0, 0.0, built)] if len(cut) == 1
+               else [(built['x0'] + dx, built['y0'] + dy, 0.0, n) for dx, dy, n in cut])
+        return self.made(key, self.pieces(frac_slab.build, cut), sections or SLAB_SLOTS, 'slab')
 
     def ground(self, text):
         """The GLB of the ground shape whose numbers are the JSON `text`."""
@@ -254,7 +319,8 @@ class Meshes:
                 self.kept.move_to_end(key)
                 return self.kept[key]
         built, sections = with_recipe('ground', shape)
-        return self.made(key, lambda: ground_shapes.build(built), sections or GROUND_SLOTS, 'ground shape')
+        return self.made(key, lambda: [(ground_shapes.build(built), (0.0, 0.0, 0.0))], sections or GROUND_SLOTS,
+                         'ground shape')
 
     def made(self, key, build, slots, what):
         try:
@@ -263,7 +329,7 @@ class Meshes:
             raise
         except Exception as error:      # (a recipe the generator can't make: said, not a dropped answer)
             raise GeneratedError('the %s could not be made: %s' % (what, error))
-        mesh = viewer_mesh(built)
+        mesh = joined([(viewer_mesh(b), at) for b, at in built])
         if len(mesh['sections']) != slots:
             # the page binds the parts to the materials in slot order
             raise GeneratedError('the %s has %d slots, not %d' % (what, len(mesh['sections']), slots))
