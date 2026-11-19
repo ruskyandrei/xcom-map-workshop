@@ -223,6 +223,33 @@ class FlagsOnCopiesTests(unittest.TestCase):
         self.assertIn('malformed', [d['code'] for d in refused(report)])
 
 
+class FlagsOnMadePiecesTests(unittest.TestCase):
+    def test_a_ground_shape_on_a_static_mesh_actor_takes_a_level_pieces_flags(self):
+        # (19 November 2026) a block made on a static mesh actor is built a level piece that collides: walking and cover
+        # are its settings, planned on what the Build makes (piece_flags.made); on a plain copy they are no setting
+        block = dict(kind='ground', version=1, ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))
+        s = flagged(scene(), collides=False, body=False)
+        request = dict(walking=False, cover=False)
+        spec, report = compiled([], [dict(add('StaticMeshActor_3', 1, (0, 600, 0)), generated=block, flags=request)], s=s)
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertEqual(op['flags'], [request])
+        self.assertEqual(noted(report, 'flags'), [])
+        self.assertEqual(warned(report, 'flags'), [])
+        spec, report = compiled([], [dict(add('StaticMeshActor_3', 1, (0, 600, 0)), flags=request)], s=s)
+        self.assertEqual(noted(report, 'flags-unsupported'), ['flags-unsupported', 'flags-unsupported'])
+
+    def test_a_made_walls_flags_are_not_limited_by_its_donors_mesh(self):
+        # its own collision: no note that the donor's mesh has no simple collision
+        wall = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=2))
+        s = flagged(scene(), body=False)
+        spec, report = compiled([], [dict(add('XComFracLevelActor_11', 1, (0, 600, 0)), generated=wall, flags=dict(sight=False))], s=s)
+        self.assertEqual(noted(report, 'flags-limited'), [])
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertEqual(op['flags'], [dict(sight=False)])
+        _, report = compiled([dict(target=target('XComFracLevelActor_11'), flags=dict(sight=False))], s=s)
+        self.assertEqual(noted(report, 'flags-limited'), ['flags-limited'])
+
+
 class FlagsAndFloorTests(unittest.TestCase):
     def test_a_piece_made_no_floor_takes_its_saved_floor_and_says_so(self):
         s = flagged(scene())

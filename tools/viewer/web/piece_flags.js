@@ -176,6 +176,41 @@ export function rawOf(record) {
   return { raw, assumed };
 }
 
+/** [class, raw, source] of a piece made from numbers (generated kind `kind`) on a donor of class `cls` with these
+ * settings, as the Build makes it: piece_flags.made_settings' twin (contract.madeGround, contract.classDefaults). */
+export function madeSettings(contract, cls, raw, source, kind) {
+  const g = contract.madeGround;
+  if (kind !== 'ground' || !g) return [cls, { ...raw }, { ...source }];
+  const next = g.retyped[cls] ?? cls, family = contract.classes[next];
+  if (!family) return [next, {}, {}];
+  const table = contract.classDefaults?.[next] ?? {}, outRaw = {}, outSource = {};
+  for (const prop of contract.familyProps[family]) {
+    if (prop in raw && (next === cls || ['actor', 'archetype'].includes(source[prop]))) { outRaw[prop] = raw[prop]; outSource[prop] = source[prop] ?? 'class'; }
+    else { outRaw[prop] = table[prop] ?? false; outSource[prop] = source[prop] === 'assumed' ? 'assumed' : 'table'; }
+  }
+  for (const [prop, w] of Object.entries(g.always))
+    if (w.classes.includes(cls) && prop in outRaw) { outRaw[prop] = w.value; outSource[prop] = 'build'; }
+  for (const [prop, value] of Object.entries(g.saved))
+    if (outSource[prop] === 'actor') { outRaw[prop] = value; outSource[prop] = 'build'; }
+  return [next, outRaw, outSource];
+}
+
+/** [class, record] of a piece made from numbers on a donor whose export record is `record`: piece_flags.made's twin
+ * (its settings as the Build makes them, simple collision of its own, and a ground shape collides). */
+export function made(contract, cls, record, kind) {
+  const raw = {}, source = {};
+  for (const [k, [v, s]] of Object.entries(record?.raw ?? {})) { raw[k] = v; source[k] = s; }
+  const [next, r, s] = madeSettings(contract, cls, raw, source, kind);
+  const collides = kind === 'ground' ? true : record?.collides;
+  const out = { ...record, family: contract.classes[next] ?? null, raw: Object.fromEntries(Object.keys(r).map(k => [k, [r[k], s[k]]])),
+                collides, bodySetup: true };
+  if (contract.classes[next]) {
+    const facts = { collides, bodySetup: true, assumed: Object.keys(s).filter(k => s[k] === 'assumed') };
+    out.roles = Object.fromEntries(Object.entries(roles(contract, next, r, facts)).map(([k, v]) => [k, v.state]));
+  }
+  return [next, out];
+}
+
 /** A project record's flags: an object of known roles, each strictly boolean (project.js validFlags is the twin). */
 export const validFlags = f => f !== null && typeof f === 'object' && !Array.isArray(f)
   && Object.keys(f).length > 0 && Object.entries(f).every(([k, v]) => ROLES.includes(k) && typeof v === 'boolean');

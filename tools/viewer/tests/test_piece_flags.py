@@ -37,9 +37,25 @@ def code(states):
     return ''.join(CODES[states[r]] for r in pf.ROLES)
 
 
+def made_cases():
+    """Pieces made from numbers on donors of each class (piece_flags.made): [cls, record, kind, [class, record]]."""
+    rng = random.Random(19112026)
+    out = []
+    for cls in CLASSES:
+        family = pf.family_of(cls)
+        props = pf.FAMILY_PROPS.get(family, ())
+        for _ in range(3):
+            raw = {k: [rng.choice((True, False)), rng.choice(('actor', 'archetype', 'class', 'assumed'))] for k in props}
+            record = dict(family=family, raw=raw, roles={}, collides=rng.choice((True, False)), bodySetup=rng.choice((True, False, None)))
+            for kind in ('fracWall', 'fracSlab', 'ground'):
+                out.append([cls, record, kind, list(pf.made(cls, record, kind))])
+    return out
+
+
 def make_cases():
     """Deterministic cases: each class's defaults and a handful of mixed settings (a few unknown), every request,
-    grouped by settings: [cls, raw, assumed, collides, facts, roles, [[request, plan, normalized or None]]]."""
+    grouped by settings: [cls, raw, assumed, collides, facts, roles, [[request, plan, normalized or None]]]; and the
+    made pieces' (made_cases)."""
     rng = random.Random(16112026)
     groups = []
     for cls in CLASSES:
@@ -65,7 +81,7 @@ def make_cases():
                                         sorted(p['unmet']), p['tiles']],
                               pf.normalize(cls, raw, request, assumed, facts['collides']) if plain else None])
             groups.append([cls, raw, assumed, facts['collides'], facts, pf.roles(cls, raw, facts), plans])
-    return dict(contract=pf.contract(), groups=groups)
+    return dict(contract=pf.contract(), groups=groups, made=made_cases())
 
 
 class Roles(unittest.TestCase):
@@ -271,6 +287,11 @@ class Install(unittest.TestCase):
             self.assertEqual(set(record['roles']), set(pf.ROLES))
             mesh = next(i for i, _ in enumerate(p.paths, 1) if p.cls(i) == 'StaticMesh')
             self.assertEqual(set(e.mesh_collision(mesh)), {'bodySetup', 'simpleLine', 'simpleBox'})
+            # a piece of another map's (the library's export: an added piece, a made wall's or ground's donor) carries
+            # them too; a streamed or inherited package's doesn't (19 November 2026: the library's had none)
+            self.assertEqual(Exporter(p, Path(folder), namespace='lib-URB_Bar').piece_flags(props[0]), record)
+            for namespace in ('stream-URB_Bar', 'inherited-URB_Bar'):
+                self.assertIsNone(Exporter(p, Path(folder), namespace=namespace).piece_flags(props[0]), namespace)
 
     def test_the_export_says_which_pieces_the_game_keeps_whole(self):
         # (export 36, F-139) the bar's roof and upper floor keep their fragments (bPreventChunkRemoval); its corner
@@ -286,6 +307,62 @@ class Install(unittest.TestCase):
                 actor = p.by_name['TheWorld.PersistentLevel.' + name]
                 record = e.component(actor, p.own(actor, 'FracturedStaticMeshComponent'))
                 self.assertEqual(record.get('keepsPieces'), keeps, name)
+
+
+class MadePieces(unittest.TestCase):
+    """A wall, floor or ground made from numbers: its flags planned on what the Build makes of its donor (the user,
+    19 November 2026: the flags were greyed on made pieces)."""
+
+    def record(self, cls, **own):
+        family = pf.family_of(cls)
+        raw = {k: [own.get(k, pf.CLASS_DEFAULTS[cls].get(k, False)), 'actor' if k in own else 'class'] for k in pf.FAMILY_PROPS[family]}
+        return dict(family=family, raw=raw, roles={}, collides=False, bodySetup=False)
+
+    def test_a_ground_shape_on_a_static_mesh_actor_is_a_level_piece_that_collides(self):
+        cls, record = pf.made('StaticMeshActor', self.record('StaticMeshActor', bPathColliding=True, bCanStepUpOn=False), 'ground')
+        self.assertEqual((cls, record['family'], record['collides'], record['bodySetup']), ('XComLevelActor', 'level', True, True))
+        # its own bPathColliding kept; bCanStepUpOn saved off is written on; the rest are the level piece's defaults
+        self.assertEqual(record['raw']['bPathColliding'], [True, 'actor'])
+        _, unsaved = pf.made('StaticMeshActor', self.record('StaticMeshActor', bPathColliding=False), 'ground')
+        self.assertEqual((unsaved['raw']['bPathColliding'], unsaved['raw']['bCanStepUpOn']), ([False, 'actor'], [True, 'table']))
+        _, plain = pf.made('StaticMeshActor', self.record('StaticMeshActor'), 'ground')
+        self.assertEqual(plain['raw']['bPathColliding'], [True, 'table'])      # (a static mesh actor's default is off)
+        self.assertEqual(record['raw']['bCanStepUpOn'], [True, 'build'])
+        self.assertEqual(record['raw']['bAlwaysConsiderForCover'], [True, 'table'])
+        self.assertEqual(record['raw']['bIgnoreForCover'], [False, 'table'])
+        self.assertEqual(record['roles'], dict(walking='on', cover='on', sight='on', floor='on', mouse='on'))
+        p = pf.plan(cls, pf.raw_of(record)[0], dict(walking=False, cover=False))
+        self.assertEqual((p['unsupported'], p['writes']), ({}, [('bAlwaysConsiderForCover', False), ('bIgnoreForCover', True)]))
+
+    def test_a_ground_shape_on_a_level_piece_has_the_builds_writes(self):
+        cls, record = pf.made('XComLevelActor', self.record('XComLevelActor', bPathColliding=False, bIgnoreForCover=True,
+                                                            bIsValidDestination=False, bAlwaysConsiderForCover=False), 'ground')
+        self.assertEqual(cls, 'XComLevelActor')
+        self.assertEqual({k: record['raw'][k] for k in ('bPathColliding', 'bIgnoreForCover', 'bIsValidDestination', 'bAlwaysConsiderForCover')},
+                         dict(bPathColliding=[True, 'build'], bIgnoreForCover=[False, 'build'], bIsValidDestination=[True, 'build'],
+                              bAlwaysConsiderForCover=[False, 'actor']))
+        # a value from the class, not saved by the donor, is not written by the Build (written only where saved)
+        _, record = pf.made('XComOpacityFadeLevelActor', self.record('XComOpacityFadeLevelActor'), 'ground')
+        self.assertEqual(record['raw']['bPathColliding'], [True, 'class'])
+
+    def test_a_wall_or_floor_keeps_its_donors_settings_with_collision_of_its_own(self):
+        donor = self.record('XComFracLevelActor', bCanStepUpOn=True)
+        for kind in ('fracWall', 'fracSlab'):
+            cls, record = pf.made('XComFracLevelActor', donor, kind)
+            self.assertEqual((cls, record['raw'], record['collides'], record['bodySetup']), ('XComFracLevelActor', donor['raw'], False, True))
+
+    def test_the_rule_is_the_builds(self):
+        sys.path.insert(0, str(HERE.parents[1] / 'bake'))
+        import frac_walls
+        import native_copy
+        self.assertEqual(pf.MADE_GROUND['retyped'], frac_walls.RETYPED)
+        self.assertEqual(pf.MADE_GROUND['always'], {native_copy.GROUND_ON[1]: dict(value=True, classes=list(native_copy.SCENERY_CLASSES))})
+        saved = {k: v == b'\x01' for k, v in native_copy.GROUND_SAVED}
+        self.assertEqual(pf.MADE_GROUND['saved'], {k: v for k, v in saved.items() if k in pf.PROPS})
+
+    def test_the_contract_carries_it(self):
+        c = pf.contract()
+        self.assertEqual((c['madeGround'], c['classDefaults']), (pf.MADE_GROUND, pf.CLASS_DEFAULTS))
 
 
 class Parity(unittest.TestCase):

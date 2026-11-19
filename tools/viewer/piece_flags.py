@@ -88,6 +88,17 @@ CLASS_DEFAULTS = {
 }
 SCRIPT_PACKAGES = ('XComGame', 'Engine', 'Core')
 
+# What the Build does to a ground shape made from numbers (custom geometry plan, M6), as flags read it: a copy of a
+# StaticMeshActor is made an XComLevelActor (frac_walls.RETYPED: the mouse never picks a static mesh actor, F-130),
+# bPathColliding is written on a donor of these classes (native_copy.ground_collision, with bCollideActors on every
+# donor: it collides), and the settings backdrop saves on itself are set as the game's ground saves them, where the
+# donor saves them (written only where saved). A made wall, floor or ground has simple collision of its own whatever
+# its donor's mesh has (frac_walls gives each made mesh its own BodySetup). test_piece_flags checks these against the
+# Build's own.
+MADE_GROUND = dict(retyped={'StaticMeshActor': 'XComLevelActor'},
+                   always={'bPathColliding': dict(value=True, classes=['XComLevelActor'])},
+                   saved={'bIgnoreForCover': False, 'bCanStepUpOn': True, 'bIsValidDestination': True})
+
 # Why a role is not a setting of a class (the panel greys the row with it)
 NOT_READ = {
     ('plain', 'walking'): 'the game never counts a %s for walking: its tile build reads only XCOM\'s level pieces',
@@ -576,6 +587,51 @@ def raw_of(record):
     return raw, assumed
 
 
+def made_settings(cls, raw, source, kind):
+    """(class, raw, source) of a piece made from numbers (generated kind `kind`: fracWall, fracSlab, ground) on a donor of
+    class `cls` with the settings `raw` and where each came from (`source`, resolve's), as the Build makes it. A wall's
+    or floor's are its donor's. A ground shape takes the class MADE_GROUND gives it: retyped, what the donor saves
+    itself (or an archetype of the map gives) keeps its value and the rest is the new class's default (a cooked map's
+    static mesh actors have no archetype, so the class's default object gives the rest: bPathColliding on); then the
+    Build's writes (source 'build'). web/piece_flags.js madeSettings is the twin."""
+    raw, source = dict(raw), dict(source)
+    if kind != 'ground':
+        return cls, raw, source
+    new = MADE_GROUND['retyped'].get(cls, cls)
+    family = family_of(new)
+    if family is None:
+        return new, {}, {}
+    table = CLASS_DEFAULTS.get(new, {})
+    out_raw, out_source = {}, {}
+    for prop in FAMILY_PROPS[family]:
+        if prop in raw and (new == cls or source.get(prop) in ('actor', 'archetype')):
+            out_raw[prop], out_source[prop] = raw[prop], source.get(prop, 'class')
+        else:
+            out_raw[prop], out_source[prop] = table.get(prop, False), 'assumed' if source.get(prop) == 'assumed' else 'table'
+    for prop, w in MADE_GROUND['always'].items():
+        if cls in w['classes'] and prop in out_raw:
+            out_raw[prop], out_source[prop] = w['value'], 'build'
+    for prop, value in MADE_GROUND['saved'].items():
+        if out_source.get(prop) == 'actor':
+            out_raw[prop], out_source[prop] = value, 'build'
+    return new, out_raw, out_source
+
+
+def made(cls, record, kind):
+    """(class, record) of a piece made from numbers on a donor whose export record (describe's) is `record`:
+    made_settings' class and settings, its roles from them, simple collision of its own, and a ground shape collides.
+    web/piece_flags.js made is the twin."""
+    raw = {k: v[0] for k, v in (record.get('raw') or {}).items()}
+    source = {k: v[1] for k, v in (record.get('raw') or {}).items()}
+    new, raw, source = made_settings(cls, raw, source, kind)
+    collides_ = True if kind == 'ground' else record.get('collides')
+    facts = dict(collides=collides_, bodySetup=True, assumed=[k for k, v in source.items() if v == 'assumed'])
+    out = dict(record, family=family_of(new), raw={k: [raw[k], source[k]] for k in raw}, collides=collides_, bodySetup=True)
+    if family_of(new) is not None:
+        out['roles'] = {k: v['state'] for k, v in roles(new, raw, facts).items()}
+    return new, out
+
+
 def contract():
     """What the editor page needs to read and plan flags as this module does (web/piece_flags.js)."""
     return dict(version=CONTRACT_VERSION, roles=list(ROLES), tileRoles=list(TILE_ROLES), labels=LABELS,
@@ -583,7 +639,7 @@ def contract():
                 notRead={'%s|%s' % k: v for k, v in NOT_READ.items()}, limits=LIMITS,
                 roleInputs={k: list(v) for k, v in ROLE_INPUTS.items()}, props=list(PROPS),
                 kindWords={'StaticMeshActor': 'static mesh actor', 'KAsset': 'physics prop (KAsset)'},
-                level=LEVEL, stopsFrom=STOPS_FROM)
+                level=LEVEL, stopsFrom=STOPS_FROM, classDefaults=CLASS_DEFAULTS, madeGround=MADE_GROUND)
 
 
 CONTRACT_VERSION = 1

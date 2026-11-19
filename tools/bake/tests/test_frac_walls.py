@@ -729,6 +729,29 @@ class GroundOnStaticMeshActor(unittest.TestCase):
             self.assertIs(q.effective(actor, 'bCanStepUpOn', None), True)
             self.assertIs(q.effective(actor, 'bCollideActors', None), True)
 
+    def test_its_flags_are_a_level_pieces(self):
+        # (19 November 2026) walking and cover off on such a block: planned on the level piece it is made
+        # (piece_flags.made_settings), written on its clone before frac_walls retypes it, read back as written
+        import native_copy
+        import piece_flags
+        from package import Package
+        p = Package(ALLEY)
+        donor = p.by_name[PL + self.DONOR]
+        with tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(ALLEY, Path(d), 'GroundFlags', [dict(
+                actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
+                rotation=[0, 0, 0], flags=dict(walking=False, cover=False), generated=dict(kind='ground', version=1, ground=dict(
+                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
+            (rec,) = m['nativeCopies']['pieceFlags']['onCopies']
+            self.assertEqual((rec['actorClass'], rec['applied'], rec.get('unsupported'), rec.get('refused')),
+                             ('XComLevelActor', dict(walking=False, cover=False), None, None))
+            self.assertEqual((rec['before']['walking'], rec['after']['walking'], rec['after']['cover'], rec['after']['floor']),
+                             ('on', 'off', 'off', 'on'))
+            q = Package(Path(d) / 'GroundFlags.upk')
+            r = piece_flags.resolve(q, rec['export'])
+            self.assertEqual((r['cls'], r['raw']['bAlwaysConsiderForCover'], r['raw']['bIgnoreForCover'], r['raw']['bPathColliding']),
+                             ('XComLevelActor', False, True, True))
+
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
 class GroundShapes(unittest.TestCase):

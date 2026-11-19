@@ -7,7 +7,7 @@ import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKe
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
-import { ROLES as FLAG_ROLES, lowPiece, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
+import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
@@ -541,19 +541,26 @@ function flagTargets(ids = gizmo.picks().ids) {
   if (out.size) for (const r of roots.values()) out.get(flagKey(r.userData.source))?.roots.push(r);
   return [...out.values()];
 }
+// [class, flags record] a piece's flags are planned on: its own, or for a wall, floor or ground made from numbers what
+// the Build makes of its donor's (piece_flags.js made: collision of its own; a ground shape on a static mesh actor is
+// made a level piece that collides, the user, 19 November 2026: flags on made pieces).
+function flagSource(o) {
+  const kind = o.added?.generated?.kind;
+  return kind && o.pieceFlags ? madeFlags(flagContract(), o.actorClass, o.pieceFlags, kind) : [o.actorClass, o.pieceFlags];
+}
 // One actor's flags as the project has them: its settings, its request, what the request does, and each role after it
 // with its limits (a low piece's from what is drawn of it where it stands: piece_flags.js lowPiece).
 function flagView(t) {
-  const c = flagContract(), pf = t.source.pieceFlags, { raw, assumed } = flagRaw(pf);
+  const c = flagContract(), [cls, pf] = flagSource(t.source), { raw, assumed } = flagRaw(pf);
   const request = t.roots[0]?.userData.flags ?? {};
-  const plan = planFlags(c, t.source.actorClass, raw, request, assumed);
+  const plan = planFlags(c, cls, raw, request, assumed);
   const written = new Set(plan.writes.map(([k]) => k));
   const boxes = t.roots.map(r => boxOf(r)).filter(Boolean);
   const box = boxes.length ? boxes.reduce((a, b) => a.map((v, k) => (k % 2 ? Math.max(v, b[k]) : Math.min(v, b[k])))) : null;
-  const roles = flagRoles(c, t.source.actorClass, { ...raw, ...Object.fromEntries(plan.writes) },
+  const roles = flagRoles(c, cls, { ...raw, ...Object.fromEntries(plan.writes) },
                           { collides: pf.collides, bodySetup: pf.bodySetup, assumed: assumed.filter(k => !written.has(k)),
                             low: lowPiece(c, box, tileCorner()?.[2]) });
-  return { raw, assumed, request, plan, roles };
+  return { cls, collides: pf.collides, raw, assumed, request, plan, roles };
 }
 // The Flags chip: a piece with a setting off (or half on), or whose flags the project changes.
 function flagChip(chips, root) {
@@ -614,7 +621,7 @@ function flagsPanel() {
     } else {
       const notes = eligible.length === 1 ? (views.get(eligible[0].key).roles[role].limits ?? []).filter(k => !shared.includes(k)).map(k => c.limits[k]) : [];
       const without = usable.length - eligible.length;
-      if (without) notes.push(`${eligible.length} of ${usable.length} pieces: ${plural(without, 'piece')} ${without === 1 ? 'has' : 'have'} no such setting (${[...new Set(usable.filter(t => !eligible.includes(t)).map(t => t.source.actorClass))].join(', ')})`);
+      if (without) notes.push(`${eligible.length} of ${usable.length} pieces: ${plural(without, 'piece')} ${without === 1 ? 'has' : 'have'} no such setting (${[...new Set(usable.filter(t => !eligible.includes(t)).map(t => views.get(t.key).cls))].join(', ')})`);
       if (eligible.length > 1 && states.includes('partial')) notes.push('partly on: a prop\'s pathing gate passes it by in the sweeps, not in the occupancy step');
       why.textContent = flagSentences(notes);
     }
@@ -645,10 +652,10 @@ function applyFlags(targets, change, resolve = new Map()) {
   const c = flagContract(), next = new Map(), conflicts = new Map();
   for (const t of targets) {
     const v = flagView(t), request = { ...v.request, ...change, ...(resolve.get(t.key) ?? {}) };
-    const p = planFlags(c, t.source.actorClass, v.raw, request, v.assumed);
+    const p = planFlags(c, v.cls, v.raw, request, v.assumed);
     const open = Object.keys(p.conflicts);
     if (open.length) { conflicts.set(t.key, open); continue; }
-    const n = normalizeFlags(c, t.source.actorClass, v.raw, request, v.assumed, t.source.pieceFlags.collides);
+    const n = normalizeFlags(c, v.cls, v.raw, request, v.assumed, v.collides);
     next.set(t.key, Object.keys(n).length ? n : null);
   }
   if (conflicts.size) { askFlags(targets, change, resolve, conflicts); return; }

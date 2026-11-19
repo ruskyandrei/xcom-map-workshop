@@ -3,9 +3,9 @@
 // Run: node tools/viewer/tests/piece_flags_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ROLES, normalize, plan, roles, validFlags } from '../web/piece_flags.js';
+import { ROLES, made, normalize, plan, roles, validFlags } from '../web/piece_flags.js';
 
-const { contract, groups } = JSON.parse(readFileSync(new URL('./piece_flag_cases.json', import.meta.url), 'utf8'));
+const { contract, groups, made: madeCases } = JSON.parse(readFileSync(new URL('./piece_flag_cases.json', import.meta.url), 'utf8'));
 const CODES = { on: 'o', off: 'x', partial: 'p', unknown: 'u', 'n/a': '-' };
 const code = states => ROLES.map(r => CODES[states[r]]).join('');
 let planned = 0, described = 0;
@@ -23,7 +23,11 @@ for (const [cls, raw, assumed, collides, facts, expected, plans] of groups) {
 }
 assert.ok(planned > 500 && described > 30, `${planned} plans, ${described} descriptions`);
 
+// pieces made from numbers: their flags planned on what the Build makes of their donor (piece_flags.made)
+for (const [cls, record, kind, want] of madeCases) assert.deepEqual(made(contract, cls, record, kind), want, `${cls} ${kind} ${JSON.stringify(record)}`);
+assert.ok(madeCases.length >= 60, `${madeCases.length} made cases`);
+
 // a project's flags: known roles, strictly boolean, never empty
 assert.ok(validFlags({ walking: false, mouse: true }));
 for (const bad of [null, [], {}, { walking: 0 }, { walking: 'false' }, { ethereal: true }, { cover: null }]) assert.ok(!validFlags(bad), JSON.stringify(bad));
-console.log(`piece flags: ${planned} plans and ${described} descriptions agree with piece_flags.py`);
+console.log(`piece flags: ${planned} plans, ${described} descriptions and ${madeCases.length} made pieces agree with piece_flags.py`);

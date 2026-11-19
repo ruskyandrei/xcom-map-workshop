@@ -1788,12 +1788,14 @@ class Compiler:
                    % (f,), **where)
         return False
 
-    def flag_plan(self, src, flags, name, where, box=None):
+    def flag_plan(self, src, flags, name, where, box=None, made=None):
         """(the request applied, piece_flags.plan) of a piece's flags against its settings as the export has them, or
         (None, None) with a warning when they can't be checked (the piece is built without them). Roles the class
         doesn't have are noted and dropped; a request a prop's gate makes ambiguous (a hand-edited file: the page
         asks) is a warning and nothing of it is built. box: the piece's world box where it ends up (a copy's), else
-        the one where it stands."""
+        the one where it stands. made: the generated kind of a wall, floor or ground made from numbers, whose flags
+        are planned on what the Build makes of its donor (piece_flags.made: simple collision of its own; a ground
+        shape's class and settings as native_copy.ground_collision leaves them)."""
         self.flag_counts['requested'] += 1
         record = src.get('pieceFlags')
         cls = src.get('actorClass')
@@ -1805,6 +1807,8 @@ class Compiler:
             self.warn('flags-unavailable', '%s\'s flags are not built: %s' % (name, why), **where)
             self.flag_counts['leftOut'] += 1
             return None, None
+        if made:
+            cls, record = piece_flags.made(cls, record, made)
         raw, assumed = piece_flags.raw_of(record)
         plan = piece_flags.plan(cls, raw, flags, assumed)
         for role, why in sorted(plan['unsupported'].items()):
@@ -1895,11 +1899,13 @@ class Compiler:
     def copy_flags(self, copy, src, flags, name, where):
         """A copy's flags (a moved original's, an added piece's): its request goes with the copy, which the Build
         writes once it is made."""
-        applied, plan = self.flag_plan(src, flags, name, where, copy.get('box'))
+        kind = (copy.get('generated') or {}).get('kind')
+        applied, plan = self.flag_plan(src, flags, name, where, copy.get('box'), made=kind)
         if applied is None:
             return
         copy['flags'] = applied
-        copy['floorAfter'] = plan['after']['floor'] if src.get('pieceFlags', {}).get('collides') is not False else None
+        collides = kind == 'ground' or src.get('pieceFlags', {}).get('collides') is not False
+        copy['floorAfter'] = plan['after']['floor'] if collides else None
         copy['flagPlan'] = dict(before=plan['before'], after=plan['after'], companions=plan['companions'],
                                 writes=[list(w) for w in plan['writes']])
 

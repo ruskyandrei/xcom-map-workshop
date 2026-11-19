@@ -214,9 +214,10 @@ class Exporter:
         self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
 
     def piece_flags(self, actor):
-        """The actor's flags as the export carries them, or None (a class they don't apply to, a streamed package's
-        piece: the editor doesn't edit those)."""
-        if self.prefix:
+        """The actor's flags as the export carries them, or None (a class they don't apply to, a streamed or inherited
+        package's piece: the editor doesn't edit those). A piece of another map's (the library's `lib-` export) carries
+        them: an added piece, a made wall's or ground's donor, takes them from its record."""
+        if self.prefix.startswith(('stream-', 'inherited-')):
             return None
         if actor not in self.flags:
             try:

@@ -1066,6 +1066,13 @@ def make_walkable(g, p, actor, mapping=None):
         g.relocate(index, bytes(data))
 
 
+# what ground_collision writes on a ground shape's clone: always (on a donor of SCENERY_CLASSES the second too), and
+# where the donor saves them (piece_flags.MADE_GROUND says the flags' part of it to the page and the compiler)
+GROUND_ON = ('bCollideActors', 'bPathColliding')
+GROUND_SAVED = (('bIgnoreForCover', b'\x00'), ('bCanClimbOnto', b'\x01'), ('bIsValidDestination', b'\x01'),
+                ('bWorldGeometry', b'\x01'), ('bCanStepUpOn', b'\x01'))
+
+
 def ground_collision(g, p, actor, mapping):
     """A ground shape's copy (custom geometry plan, M6) collides, whatever its donor saves: many of the game's ground
     planes are backdrop saved with their collision off and some ignore cover (research/evidence/ground-audit.py). The
@@ -1080,9 +1087,8 @@ def ground_collision(g, p, actor, mapping):
     walker = Walker(p)
     walker.names = g.names
     changed = []
-    on = ('bCollideActors', 'bPathColliding') if p.cls(actor) in SCENERY_CLASSES else ('bCollideActors',)
-    parts = [(actor, on, (('bIgnoreForCover', b'\x00'), ('bCanClimbOnto', b'\x01'), ('bIsValidDestination', b'\x01'),
-                          ('bWorldGeometry', b'\x01'), ('bCanStepUpOn', b'\x01')))]
+    on = GROUND_ON if p.cls(actor) in SCENERY_CLASSES else GROUND_ON[:1]
+    parts = [(actor, on, GROUND_SAVED)]
     parts += [(ci, ('CollideActors', 'BlockRigidBody'), ()) for ci in subtree(p, actor) if static_mesh(p, ci) > 0]
     for source, names, saved_only in parts:
         index = mapping.get(source, source)
@@ -1976,7 +1982,7 @@ def set_struct_bool(walker, g, data, start, outer, struct_name, field, value):
     return data, 'struct added'
 
 
-def set_roles(g, p, source, index, request, known=None, label=None):
+def set_roles(g, p, source, index, request, known=None, label=None, made=None):
     """A piece's flags (piece flags plan, 3.2) written on the export `index` of the map being built: the source actor
     `source` (the same export for a piece of the map left where it stands, the original for a copy) has its settings
     resolved from the package (piece_flags.resolve: the actor, its archetypes in the map, the class default), with
@@ -1984,12 +1990,14 @@ def set_roles(g, p, source, index, request, known=None, label=None):
     the request {role: bool} planned against them (piece_flags.plan). Each planned write goes on the actor itself:
     a bool in place or added, VisibilityBlockingData's field patched in its struct (set_struct_bool); nothing on an
     archetype or a component, and the bytes after the properties (the actor's native tail) stay as they were. A
-    request that a prop's gate makes ambiguous here is refused (nothing written). Returns the manifest's record."""
+    request that a prop's gate makes ambiguous here is refused (nothing written). made: the generated kind of a piece
+    made from numbers, planned on what the Build makes of its donor (piece_flags.made_settings: a ground shape's
+    class, retyped later by frac_walls, and ground_collision's writes). Returns the manifest's record."""
     import native_lights
     import piece_flags
     r = piece_flags.resolve(p, source)
-    cls = r['cls']
-    raw, sources = dict(r['raw']), dict(r['source'])
+    cls, raw, sources = piece_flags.made_settings(r['cls'], r['raw'], r['source'], made) if made else \
+        (r['cls'], dict(r['raw']), dict(r['source']))
     for k, v in (known or {}).items():
         if k in raw:
             raw[k], sources[k] = v, 'build'
@@ -2411,12 +2419,14 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                 if changed:
                     print('    %s: a ground shape on %s, which saves its collision or cover off: on for the shape (%s)'
                           % (c.get('label') or c['actor'], p.name(ai).split('.')[-1], ', '.join(changed)))
-        # the copies' flags, on their clones (the bPathColliding make_walkable wrote counts as theirs)
+        # the copies' flags, on their clones (the bPathColliding make_walkable wrote counts as theirs; a ground
+        # shape's writes are made_settings')
         for (c, ai, *_), info in zip(members, infos):
             if c.get('flags'):
+                kind = (c.get('generated') or {}).get('kind')
                 flag_copies.append(set_roles(g, p, ai, info['actor'], c['flags'],
-                                             known={'bPathColliding': True} if ai in walked else None,
-                                             label=c.get('label') or c['actor']))
+                                             known={'bPathColliding': True} if ai in walked and kind != 'ground' else None,
+                                             label=c.get('label') or c['actor'], made=kind))
         # a moved piece of the map's broken by blasts: on its clone (E6)
         for (c, ai, *_), info in zip(members, infos):
             if c.get('blasts') and not c.get('generated'):

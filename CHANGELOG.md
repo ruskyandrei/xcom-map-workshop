@@ -8,6 +8,39 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Flags on made walls, floors and ground** (the user: the Flags group was greyed on them; branch
+  `fracturing-wall-poc`).
+  - Why: a made piece takes its flags from its donor's record, and pieces of other maps (the library's export,
+    namespace `lib-`) carried none. [export.py](tools/viewer/export.py) `piece_flags` left them out of every prefixed
+    export, though the library's were meant to have them since piece version 9. Now only streamed and inherited
+    packages' pieces go without. [library.py](tools/viewer/library.py) `PIECE_VERSION` 10: old piece records are made
+    again on first use.
+  - [piece_flags.py](tools/viewer/piece_flags.py) `made_settings`, `made`, `MADE_GROUND` (in the contract with the
+    class defaults; [piece_flags.js](tools/viewer/web/piece_flags.js) `madeSettings`, `made` are the twins): a made
+    piece's flags are planned on what the Build makes of its donor.
+    - Every made piece has simple collision of its own: no note that the donor's mesh has none.
+    - A ground shape collides. On a static mesh actor it is an XComLevelActor (frac_walls' retype), so walking, cover,
+      sight and the mouse are its settings too: what the donor saves keeps its value, the rest is the level piece's
+      default (cooked maps' static mesh actors have no archetype), then `ground_collision`'s writes.
+  - Where it is used:
+    - the page's Flags group and chip ([app.js](tools/viewer/web/app.js) `flagSource`);
+    - the compiler's `flag_plan` and `copy_flags` ([compiler.py](tools/editor/compiler.py));
+    - the Build's `set_roles` ([native_copy.py](tools/bake/native_copy.py)). Its ground writes are now the constants
+      `GROUND_ON` and `GROUND_SAVED`, and a ground copy no longer claims a bPathColliding it wasn't given.
+  - Checked:
+    - new tests: `MadePieces` in [test_piece_flags.py](tools/viewer/tests/test_piece_flags.py) (the rule against
+      frac_walls' and native_copy's own constants, the contract); the exporter's namespaces (install); 81 made cases
+      in [piece_flag_cases.json](tools/viewer/tests/piece_flag_cases.json), which the page's twin meets
+      ([piece_flags_test.mjs](tools/viewer/tests/piece_flags_test.mjs));
+    - the compiler on a block made on a static mesh actor and on a made wall
+      ([test_compiler_flags.py](tools/editor/tests/test_compiler_flags.py));
+    - the Build on URB_CommercialAlley's asphalt with walking and cover off: written before the retype, read back as
+      an XComLevelActor's ([test_frac_walls.py](tools/bake/tests/test_frac_walls.py));
+    - the viewer, editor and node suites, and the Build's native flags and made-wall tests;
+    - on a test server: the five rows enabled on a made floor, a ground block on a static mesh actor and a made wall;
+      Blocks sight turned off on the wall; a quick Build of that project.
+  - Not played in the game.
+
 - **Add to group** (asked by the user; branch `fracturing-wall-poc`).
   - [app.js](tools/viewer/web/app.js) `groupToAddTo`, `addToGroup`; [index.html](tools/viewer/web/index.html): with one
     whole group and pieces (lights, buildings) that are in no group selected, the group panel shows Add to group beside
