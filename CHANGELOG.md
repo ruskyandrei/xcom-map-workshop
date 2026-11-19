@@ -8,6 +8,42 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Map picture…: a picture uploaded, cropped and kept with the project** (LWR map packs plan, stage C4; branch
+  `lwr-map-picture`). Nothing builds it into a map yet.
+  - [pictures.py](tools/viewer/pictures.py), new: a project's picture is `<projects>\.workshop\<id>\picture.png`, an
+    opaque 512 x 256 PNG of up to 1 MB written again from its pixels (no text, no profile), named by its SHA-256.
+    The one before it stays as `picture.prev.png`, and the picture the saved revision names is never the one lost,
+    so a change that is never saved leaves the saved project its picture. `picture_file`, `project_picture`,
+    `beside`, `adopt_picture`, `adopt_beside` (a `<project file's name>.picture.png` beside a project's file is
+    taken in when its SHA-256 is the one the project names), `status` (own, base or none), and the game's own
+    picture of a map read from its four map-image packages by the map's name (`base_library`, `base_png`).
+  - [viewer.py](tools/viewer/viewer.py): `PUT`, `GET` (`?sha256=`, `?as=game`: after DXT1) and `DELETE`
+    `/projects/<id>/picture.png`; `POST /projects/picture-preview` (a crop as the game will show it, nothing kept);
+    `GET /map-pictures/<map>.png` (the game's picture of a map). Changes only from the page itself. Opening a
+    project takes in a picture lying beside its file.
+  - [projects.py](tools/viewer/projects.py): a project's document takes `picture: {sha256}` and nothing else there.
+    The schema version stays 4: the field is optional.
+  - [map_picture.js](tools/viewer/web/map_picture.js), [map_picture_crop.js](tools/viewer/web/map_picture_crop.js),
+    new; [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css),
+    [app.js](tools/viewer/web/app.js), [project.js](tools/viewer/web/project.js): Project menu, **Map picture…**.
+    Choose image or drop a file; a 2:1 frame over it, dragged, resized by its corners, the wheel or the keyboard,
+    starting as the largest around the middle; under it the result at 512 x 256 after DXT1. With no picture of its
+    own the dialog shows the base map's and says a map pack borrows it. Use this picture sends only the cropped PNG
+    (halved in steps, then one smooth step) and marks the project changed; the next save names it. Remove picture
+    takes it away. Save as copies the picture to the new project. No undo step.
+  - [manager.py](tools/viewer/manager.py), [manager.js](tools/viewer/web/manager.js): each project's row ends with
+    "own picture", "base map's picture" or "no picture".
+  - Checked: [test_pictures.py](tools/viewer/tests/test_pictures.py), new (13 tests: only an opaque 512 x 256 PNG
+    from the page itself, the clean file and its hash, the saved revision's picture through unsaved changes,
+    adoption, the routes, the game's pictures by map name on the install);
+    [test_manager.py](tools/viewer/tests/test_manager.py); [map_picture_test.mjs](tools/viewer/tests/map_picture_test.mjs),
+    new (the frame kept inside the image through made-up drags, the stepped sizes, the picture in a project's
+    state); the `viewer`, `node` and `repo` suites (five pack-script tests skipped: XCOM was running).
+    [browser_map_picture.py](tools/viewer/tests/browser_map_picture.py), new, on a test server with URB_Bar: the
+    dialog from the menu, the base map's picture, a chosen and a dropped file, the frame moved, resized and zoomed,
+    the result drawn, Use, the save, the manager's words, Remove; the pictures of it looked at.
+  - Gaps: the guide has no section for it; Take from the view comes with stage C8.
+
 - **A map picture written into a map package** (LWR map packs plan, stage C3; branch `lwr-map-picture`).
   [map_frame.py](tools/bake/map_frame.py):
   - `encode` and `decode`: a 512 x 256 picture to DXT1 and back ([dxt1.py](tools/bake/dxt1.py)), 65,536 bytes;

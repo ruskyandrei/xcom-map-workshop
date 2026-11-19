@@ -173,6 +173,7 @@
         <button id="projectMaps" type="button" role="menuitem"><span>Game maps…</span></button>
         <button id="projectSize" type="button" hidden role="menuitem" title="The map's tile grid, made larger (or, once the map is cleared, smaller) by dragging the play area's handles: the rail's Map grid"><span>Map grid</span></button>
         <button id="projectMissions" type="button" hidden role="menuitem" title="The missions the project is for: the base map's missions the Build writes a record for, and the kinds a record alone can give the map (abduction, terror, a bomb mission under Long War, a UFO mission with a UFO building)">Missions…</button>
+        <button id="projectPicture" type="button" hidden role="menuitem" title="The picture the game shows for the map on its mission screens: choose an image, set its frame, and the Build writes it into the map. Long War Rebalance 3 shows a map's own picture">Map picture…</button>
         <button id="projectClear" type="button" hidden role="menuitem" title="Take every piece off the map, the ground too, keeping its landing zones and its sun, moon and sky light, and set the grid's size: the start of a new map with this map's light and landing. One undo step"><span>Clear map…</span></button>
         <button id="projectLoad" type="button" role="menuitem" title="Choose a saved project to open"><span>Load…</span><kbd>Ctrl+O</kbd></button>
         <button id="projectManage" type="button" role="menuitem" title="Every project with its last build: select several and install them in the game for campaigns (as additional maps, or replacing the originals), or zip them into one map pack"><span>Manage projects…</span></button>
@@ -684,6 +685,31 @@
       <div id="missionsList" class="missionslist"></div>
       <p id="missionsWarn" class="optionsnote warn" hidden></p>
       <div class="buildoptionsfoot"><span class="buildestimate"></span><button id="missionsCancel" type="button">Cancel</button><button id="missionsOk" class="primary" type="submit">OK</button></div>
+    </form>
+  </div>
+  <div id="mapPictureDialog" class="modal" hidden>
+    <form id="mapPictureForm" class="panel filedialog mappicture" role="dialog" aria-modal="true" aria-labelledby="mapPictureTitle" aria-describedby="mapPictureNote" novalidate>
+      <div class="dialoghead"><h2 id="mapPictureTitle">Map picture</h2><button id="mapPictureClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <p id="mapPictureNote" class="optionsnote"></p>
+      <div class="mappicturebody">
+        <div class="mappictureside">
+          <div id="mapPictureDrop" class="mappicturedrop">
+            <canvas id="mapPictureCanvas" tabindex="0" aria-label="The image, with the frame the picture is cut from: drag it, drag a corner, or use the arrow keys and + and -" hidden></canvas>
+            <span id="mapPictureEmpty">Drop an image here, or choose one.</span>
+          </div>
+          <div class="mappicturebuttons">
+            <button id="mapPictureChoose" type="button" title="An image file: .png, .jpg, .bmp or .webp. Only the cropped picture is kept">Choose image…</button>
+            <button id="mapPictureTake" type="button" title="The 3D view as it is now, without the editor's helpers, as the image to crop" hidden>Take from the view</button>
+            <input id="mapPictureFile" type="file" accept="image/*" hidden>
+          </div>
+        </div>
+        <div class="mappictureside">
+          <canvas id="mapPictureResult" class="mappictureresult" width="512" height="256" aria-label="The picture as the game shows it"></canvas>
+          <small id="mapPictureResultNote" class="mappicturenote"></small>
+        </div>
+      </div>
+      <p id="mapPictureStatus" class="optionsnote" role="status" hidden></p>
+      <div class="buildoptionsfoot"><span class="buildestimate"></span><button id="mapPictureRemove" type="button" title="Take the project's own picture away: the map shows the base map's again">Remove picture</button><button id="mapPictureUse" class="primary" type="submit">Use this picture</button></div>
     </form>
   </div>
   <div id="clearMap" class="modal" hidden>

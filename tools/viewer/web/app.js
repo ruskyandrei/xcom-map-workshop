@@ -6,7 +6,7 @@ import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
-         BUILDING_SAME, validLandingZone, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
+         BUILDING_SAME, validLandingZone, validPicture, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, place as zonePlace, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -20,6 +20,7 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
+import { createMapPicture, pictureApi } from './map_picture.js';
 import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
          copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
          recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
@@ -235,6 +236,8 @@ let clearKeepsOutside = false;
 // The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
 // {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
 let projectMissions = null;
+// The project's map picture (LWR map packs plan, 4.3): null, or { sha256 } of the picture the server keeps with it
+let projectPicture = null;
 // the project's spawn rules (spawns plan, SP8): null, or { dropIns: 'placed' } (a malformed one is carried as saved)
 let projectSpawnRules = null;
 // The buildings drawn as boxes and edited (project.js validBuilding; setBuildings, further down, draws them): the
@@ -4592,7 +4595,7 @@ function editStateNow() {
                                                              ...(g.prefab ? { prefab: g.prefab } : {}) }));
   return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
                     buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
-                    spawnRules: projectSpawnRules });
+                    spawnRules: projectSpawnRules, picture: projectPicture });
 }
 const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
 const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
@@ -4612,6 +4615,7 @@ function clearEdits() {
   clearLightEdits();
   clearEffectEdits();
   cleared = false; clearKeepsOutside = false; landingZones = null; mergedBuildings = null; projectMissions = null;
+  projectPicture = null;
   projectSpawnRules = null; syncSpawnRule();
   setMissionMoves(new Map());
   setStage(null);
@@ -4636,6 +4640,7 @@ async function applyState(state, progress = null) {
   cleared = state.cleared === true; clearKeepsOutside = cleared && state.clearKeepsOutside === true; mergedBuildings = null;
   landingZones = Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null;
   projectMissions = Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null;
+  projectPicture = validPicture(state.picture) ? { sha256: state.picture.sha256 } : null;
   projectSpawnRules = state.spawnRules ?? null; syncSpawnRule();
   setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
   clearedChanged();
@@ -4839,7 +4844,7 @@ async function openProject(id) {
                                      cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
                                      landingZones: Array.isArray(doc.landingZones) ? doc.landingZones : null,
                                      missions: Array.isArray(doc.missions) ? doc.missions : null,
-                                     spawnRules: doc.spawnRules ?? null,
+                                     spawnRules: doc.spawnRules ?? null, picture: doc.picture ?? null,
                                      nextSerial: doc.nextSerial }, openingProgress(doc.name));
   // a building this page can't read is kept and saved back unchanged, and so is one of the map's it can't edit
   carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
@@ -4878,7 +4883,7 @@ async function openProject(id) {
                     cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
                     landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
                     missions: Array.isArray(recovery.missions) ? recovery.missions : null,
-                    spawnRules: recovery.spawnRules ?? null,
+                    spawnRules: recovery.spawnRules ?? null, picture: recovery.picture ?? null,
                     nextSerial: recovery.nextSerial };
     if (stateKey(sortState(state)) !== project.savedKey) {
       const when = new Date(recovery.savedAt).toLocaleString();
@@ -4969,7 +4974,8 @@ async function saveProject({ name = null, replace = null, rename = null, output 
                                                areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
                                                stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
                                                cleared: state.cleared, clearKeepsOutside: state.clearKeepsOutside,
-                                               landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules }),
+                                               landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules,
+                                               picture: state.picture }),
                        nextSerial: copySerial, view: { camera: camera.position.toArray(), target: controls.target.toArray() } };
     if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
     if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
@@ -4978,11 +4984,17 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     if (!document.clearKeepsOutside) delete document.clearKeepsOutside;
     if (document.landingZones == null) delete document.landingZones;     // the map's own landings and lines
     if (document.missions == null) delete document.missions;     // every mission of the base map
+    if (document.picture == null) delete document.picture;       // no picture of its own
     delete document.revision; delete document.savedAt;
     if (fresh) delete document.created;
     const result = await projectApi.save(document.id, document, expected);
     // Saved under another project: the changes kept for recovery of the one open before are in it now.
     if (previous && previous !== document.id && recoveryKept) projectApi.dropRecovery(previous).catch(() => {});
+    // saved as another project: its map picture is kept by project, so the new one gets its own copy of the file
+    if (previous && previous !== document.id && document.picture) {
+      pictureApi.copy(previous, document.id, document.picture.sha256)
+        .catch(error => banner(`The map picture was not copied to ${document.name}: ${error.message}. Choose it again in Map picture.`));
+    }
     project = { doc: { ...document, ...result }, revision: result.revision, carried, savedKey: stateKey(state) };
     recoveryKept = false;
     touchRecent(document.id);
@@ -6886,6 +6898,23 @@ function setMissions(entries) {
   });
 }
 $('projectMissions').onclick = () => showMissions(false);
+// The Map picture dialog (map_picture.js; LWR map packs plan, 4.2): the picture is kept by the server with the project
+// and named in the project by its SHA-256, so the project's next save carries it (no undo step: the file is kept
+// outside the edit history).
+const mapPicture = createMapPicture({
+  els: { root: $('mapPictureDialog'), form: $('mapPictureForm'), title: $('mapPictureTitle'), note: $('mapPictureNote'), drop: $('mapPictureDrop'),
+         canvas: $('mapPictureCanvas'), empty: $('mapPictureEmpty'), file: $('mapPictureFile'), choose: $('mapPictureChoose'), take: $('mapPictureTake'),
+         result: $('mapPictureResult'), resultNote: $('mapPictureResultNote'), status: $('mapPictureStatus'), use: $('mapPictureUse'),
+         remove: $('mapPictureRemove'), close: $('mapPictureClose') },
+  onUse: result => { projectPicture = { sha256: result.sha256 }; projectChanged(); flashHint('The map picture is set: save the project to keep it'); },
+  onRemove: () => { projectPicture = null; projectChanged(); flashHint('The map picture is removed: save the project to keep it so'); },
+});
+$('projectPicture').onclick = () => {
+  showPop(null);
+  // the picture is kept with a saved project (by its id)
+  if (!project) { banner('Save the project first: its map picture is kept with it.'); return; }
+  mapPicture.show({ project: { id: project.doc.id, name: project.doc.name }, map: project.doc.source?.map ?? activeMapId, own: projectPicture?.sha256 ?? null });
+};
 let lastClearMs = null;
 
 // The ground grid (Clear map plan, section 3): a faint grid on the ground's plane (groundHeight: the landing zones'),
@@ -8870,6 +8899,7 @@ function clearedChanged() {
   $('projectSize').hidden = !projectsAvailable();
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();
+  $('projectPicture').hidden = !projectsAvailable();
   mergedBuildings = null;
   refreshMissionPicker();     // a project's missions, or none
   refreshLightVisibility();
@@ -11834,6 +11864,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('projectSize').hidden = !projectsAvailable();     // Map grid: any whole map
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();
+  $('projectPicture').hidden = !projectsAvailable();
   ownGrid = null; startingCache = null; landingLines = { kind: null, lines: [] };
   // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones
   if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
@@ -11950,7 +11981,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     await openPrefabDocument(prefabParameter);
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
-  window.viewer = {data, mapId:activeMapId, gizmo, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
+  window.viewer = {data, mapId:activeMapId, mapPicture, gizmo, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
     // the selected cover piece's handles on the screen ({ key: [x, y] }, none when they don't show), and a record put on a
     // cover piece as one undo step (for scripts: the guide's shots, the checks)
     // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)

@@ -99,6 +99,14 @@ class Manager(unittest.TestCase):
         row = self.row(manager.listing(self.store, self.builds, player))
         self.assertTrue(row['build']['stale'])
         self.assertTrue(any('revision 1' in w for w in row['warnings']))
+        # whose picture the map shows (pictures.py): none here (the made-up install has no map pictures), its own once
+        # the project names one that is kept
+        self.assertEqual(row['picture'], 'none')
+        import pictures
+        from test_pictures import png
+        digest = pictures.save_picture(self.store, ID, png())['sha256']
+        self.store.save(ID, dict(self.store.load(ID), picture=dict(sha256=digest)), 2)
+        self.assertEqual(self.row(manager.listing(self.store, self.builds, player))['picture'], 'own')
 
     def test_a_campaign_install_follows_the_builds_records_for_the_projects_missions(self):
         # mission types plan, D4: the Build's own records, in rotation as the base map's (an added terror in, a bomb out)

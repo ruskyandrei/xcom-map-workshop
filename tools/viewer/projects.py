@@ -102,6 +102,11 @@ def validate(document, project_id):
     listed = document.get('missions', [])
     if not isinstance(listed, list) or not all(isinstance(item, dict) for item in listed):
         raise ProjectError(422, '"missions" must be a list of records.')
+    # Its map picture (LWR map packs plan, 4.3; pictures.py keeps the file): optional, named by the file's SHA-256.
+    picture = document.get('picture')
+    if picture is not None and not (isinstance(picture, dict) and set(picture) == {'sha256'}
+                                    and SHA256.fullmatch(str(picture['sha256']))):
+        raise ProjectError(422, '"picture" must be {sha256}: the SHA-256 of its map picture.')
     # Its output names (output names plan): package names, when it has them; who holds them is checked as it saves
     # (ProjectStore.check_output)
     if 'output' in document and not valid_output(document['output']):

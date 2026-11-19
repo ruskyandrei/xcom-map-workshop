@@ -32,6 +32,8 @@ const el = (tag, props = {}, ...children) => { const e = Object.assign(document.
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const byName = (a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' });
 const lighting = b => b.quick ? 'not baked' : b.lightingUnchanged ? 'baked (lighting unchanged)' : 'baked';
+// whose picture the map shows on the game's mission screens (pictures.py status)
+const PICTURE_WORDS = { own: 'own picture', base: 'base map\'s picture', none: 'no picture' };
 const inGameText = g => !g ? '' : [g.rotation === 'replace' ? 'Replaces the map' : g.rotation === 'additional' ? 'In rotation' : null,
                                    g.play && !g.rotation ? 'For Play in game' : null].filter(Boolean).join(', ') + (g.current ? '' : ' (an older build)');
 const MODE_TITLES = {
@@ -204,7 +206,7 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       const title = el('span', { className: 'pmtitle' }, el('span', { className: 'fname', textContent: p.error ? p.id : (p.name ?? p.id) }));
       if (p.inGame) title.append(el('small', { className: `pmgame${p.inGame.current ? '' : ' warn'}`, textContent: inGameText(p.inGame),
         title: `In ${listed?.install?.folder ?? 'the game'}${p.inGame.current ? '' : ': an older build than the last one'}` }));
-      const meta = el('small', { className: 'pmmeta', textContent: p.error ? 'Unreadable' : `${p.mapLabel} · saved ${savedWhen(p.savedAt)}`,
+      const meta = el('small', { className: 'pmmeta', textContent: p.error ? 'Unreadable' : `${p.mapLabel} · saved ${savedWhen(p.savedAt)}${PICTURE_WORDS[p.picture] ? ` · ${PICTURE_WORDS[p.picture]}` : ''}`,
         title: p.error ? '' : `${p.map} · revision ${p.revision}${p.missions?.length ? ` · ${p.missions.map(m => m.label + (m.inRotation ? '' : ' (out of rotation)')).join(', ')}` : ''}` });
       const row = el('div', { className: 'mrow', tabIndex: p.error ? -1 : 0 }, box, el('span', { className: 'pmname' }, title, meta),
         p.error ? el('span') : buildCell(p));
