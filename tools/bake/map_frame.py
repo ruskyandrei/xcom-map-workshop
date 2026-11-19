@@ -45,6 +45,8 @@ import sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE))
+if str(HERE.parent / 'viewer') not in sys.path:
+    sys.path.append(str(HERE.parent / 'viewer'))       # package.py, the reader
 
 NAME = 'MapPicture'
 WIDTH, HEIGHT = 512, 256
@@ -128,3 +130,156 @@ def describe(p, index):
     return dict(flags=e['flags'], netIndex=struct.unpack_from('<i', p.data, e['off'])[0], bytes=e['size'],
                 properties=tags, propertyBytes=mips and source['after'] - 16 - start, sourceArt=source, mips=mips,
                 pixels=bytes(pixels) if pixels is not None else None, guid=guid, tail=tail)
+
+
+# ---------------------------------------------------------------- pixels
+def encode(image):
+    """The DXT1 pixels (PIXEL_BYTES) of a picture: a Pillow image of WIDTH x HEIGHT; its alpha, if any, is dropped."""
+    import numpy as np
+    import dxt1
+    if image.size != (WIDTH, HEIGHT):
+        raise ValueError('a map picture is %d x %d, not %d x %d' % ((WIDTH, HEIGHT) + tuple(image.size)))
+    rgb = np.asarray(image.convert('RGB'), np.float64) / 255.0
+    pixels = dxt1.encode_blocks(dxt1.image_blocks(rgb).reshape(-1, 16, 3))
+    if len(pixels) != PIXEL_BYTES:
+        raise ValueError('the encoder gave %d bytes' % len(pixels))
+    return pixels
+
+
+def decode(pixels):
+    """The picture the game shows for these DXT1 pixels, a Pillow RGB image."""
+    import numpy as np
+    from PIL import Image
+    import dxt1
+    if len(pixels) != PIXEL_BYTES:
+        raise ValueError('a map picture has %d bytes of pixels, not %d' % (PIXEL_BYTES, len(pixels)))
+    rgb = dxt1.decode_image(pixels, WIDTH, HEIGHT)
+    return Image.fromarray(np.clip(np.rint(rgb * 255.0), 0, 255).astype(np.uint8), 'RGB')
+
+
+def encode_file(path):
+    """The DXT1 pixels of the picture file `path` (a WIDTH x HEIGHT image Pillow opens)."""
+    from PIL import Image
+    with Image.open(path) as image:
+        return encode(image)
+
+
+def cache_guid(pixels):
+    """The picture's texture cache GUID: from its pixels, so the same picture builds the same bytes."""
+    import hashlib
+    return hashlib.sha256(b'XComMapEd MapPicture|' + bytes(pixels)).digest()[:16]
+
+
+# ---------------------------------------------------------------- the export
+def _property(g, name, kind, value):
+    """One tagged property with the destination's names: 'int' (an IntProperty), 'enum' ([enum, value]: a
+    ByteProperty saving a name) and 'bool'."""
+    def tag(property_type, size):
+        return struct.pack('<iiiiii', g.name(name), 0, g.name(property_type), 0, size, 0)
+    if kind == 'int':
+        return tag('IntProperty', 4) + struct.pack('<i', value)
+    if kind == 'enum':
+        return tag('ByteProperty', 8) + struct.pack('<ii', g.name(value[0]), 0) + struct.pack('<ii', g.name(value[1]), 0)
+    if kind == 'bool':
+        return tag('BoolProperty', 0) + bytes([1 if value else 0])
+    raise ValueError(f'unknown property kind {kind!r}')
+
+
+def picture_data(g, pixels, net, at):
+    """A picture export's data, for a place at the logical offset `at` (its two bulk records save their own
+    positions): the net index, the recipe's properties, the native data."""
+    pixels = bytes(pixels)
+    if len(pixels) != PIXEL_BYTES:
+        raise ValueError('a map picture has %d bytes of pixels, not %d' % (PIXEL_BYTES, len(pixels)))
+    out = bytearray(struct.pack('<i', net))
+    for name, kind, value in RECIPE['properties']:
+        out += _property(g, name, kind, value)
+    out += struct.pack('<ii', g.name('None'), 0)
+    out += struct.pack('<iiii', 0, 0, 0, at + len(out) + 16)                       # the source art: none
+    out += struct.pack('<i', 1)
+    out += struct.pack('<iiii', 0, PIXEL_BYTES, PIXEL_BYTES, at + len(out) + 16)   # the one mip, in the package
+    out += pixels + struct.pack('<ii', WIDTH, HEIGHT)
+    out += cache_guid(pixels) + struct.pack('<%di' % len(RECIPE['tail']), *RECIPE['tail'])
+    return bytes(out)
+
+
+def find(g):
+    """The export index of the package's own picture in the package being grown (`g`): a top-level Texture2D named
+    NAME, or None."""
+    import light_factory
+    for index, e in enumerate(g.entries, 1):
+        if e.outer == 0 and g.name_of(e.name_index, e.name_number) == NAME \
+                and light_factory._class_name(g, e.cls) == 'Texture2D':
+            return index
+    return None
+
+
+def add_picture(g, pixels):
+    """The picture made in the map being grown (`g`, a package_grow.Grower): a new top-level export, with the names
+    and the `Engine.Texture2D` class import the map lacks; a map that has a picture already (a base map with its own)
+    gets its export's data anew, at the end, under the net index it had. Returns (export index, 'added' or
+    'replaced')."""
+    import cover_blocks
+    index = find(g)
+    if index is not None:
+        net = struct.unpack_from('<i', g.export_data(index), 0)[0]
+        g.relocate(index, picture_data(g, pixels, net, g.next_offset()))
+        return index, 'replaced'
+    found, _made = cover_blocks._imports(g, RECIPE)
+    cls = found[RECIPE['class']]
+    if cls >= 0:
+        raise ValueError('the map holds Engine as a package of its own; no Texture2D class to import')
+    net = g.next_net_index(0)
+    data = picture_data(g, pixels, net, g.next_offset())
+    return g.new_export(cls, 0, NAME, data, flags=RECIPE['flags'], number=0), 'added'
+
+
+# ---------------------------------------------------------------- whole files
+def locate(p):
+    """The map's own picture in the package `p` (tools/viewer/package.py Package): None, or dict(export, swap: the
+    logical offsets of its pixels and of its cache GUID when it is laid out as the recipe's (one WIDTH x HEIGHT DXT1
+    mip in the package), else None, pixels: that mip's bytes or None)."""
+    index = next((i for i, e in enumerate(p.exports, 1)
+                  if e['outer'] == 0 and p.name(i) == NAME and p.cls(i) == 'Texture2D'), None)
+    if index is None:
+        return None
+    try:
+        d = describe(p, index)
+    except (ValueError, struct.error):      # a picture laid out another way: replaced whole, never read as ours
+        return dict(export=index, swap=None, pixels=None)
+    mips = d['mips']
+    ours = (len(mips) == 1 and (mips[0]['flags'], mips[0]['size']) == (0, PIXEL_BYTES)
+            and (mips[0]['width'], mips[0]['height']) == (WIDTH, HEIGHT)
+            and ['Format', 'ByteProperty', 'EPixelFormat', 8, 'PF_DXT1'] in d['properties'])
+    if not ours:
+        return dict(export=index, swap=None, pixels=None)
+    at = mips[0]['after']
+    return dict(export=index, swap=(at, at + PIXEL_BYTES + 8), pixels=d['pixels'])
+
+
+def read_picture(path):
+    """The DXT1 pixels of the map package's own picture, or None when it has none (or one laid out another way)."""
+    import package as viewer_package
+    found = locate(viewer_package.Package(path))
+    return found['pixels'] if found else None
+
+
+def write_picture(src, dst, pixels):
+    """`dst`: the map package `src` with the picture `pixels` (DXT1, encode) as its own. A map that has one laid out
+    as ours gets the pixels and the cache GUID written over the old, every offset kept (package_edit.write_edited); any
+    other map is grown (add_picture). Returns dict(export, how: 'swapped', 'added' or 'replaced')."""
+    import package as viewer_package
+    import package_edit
+    import package_grow
+    pixels = bytes(pixels)
+    if len(pixels) != PIXEL_BYTES:
+        raise ValueError('a map picture has %d bytes of pixels, not %d' % (PIXEL_BYTES, len(pixels)))
+    found = locate(viewer_package.Package(src))
+    if found and found['swap']:
+        at, guid_at = found['swap']
+        package_edit.write_edited(str(src), str(dst), [(at, pixels), (guid_at, cache_guid(pixels))])
+        return dict(export=found['export'], how='swapped')
+    g = package_grow.Grower(str(src))
+    index, how = add_picture(g, pixels)
+    g.write(str(dst))
+    return dict(export=index, how=how)

@@ -8,6 +8,24 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A map picture written into a map package** (LWR map packs plan, stage C3; branch `lwr-map-picture`).
+  [map_frame.py](tools/bake/map_frame.py):
+  - `encode` and `decode`: a 512 x 256 picture to DXT1 and back ([dxt1.py](tools/bake/dxt1.py)), 65,536 bytes;
+  - `add_picture(g, pixels)`: the top-level `Texture2D` named `MapPicture` made in a map being grown, with the names
+    and the `Engine.Texture2D` class import the map lacks, a net index of its own and the two bulk records' offsets
+    from `next_offset()`; a map that has a picture already gets its export's data anew;
+  - `write_picture(src, dst, pixels)`: a whole file. A map with a picture laid out as ours gets the pixels and the
+    cache GUID written over the old, every offset kept ([package_edit.py](tools/upk/package_edit.py)); any other map
+    is grown;
+  - `read_picture(path)` and `locate(package)` find a map's own picture.
+  - Checked: [test_map_frame.py](tools/bake/tests/test_map_frame.py) writes a known picture into
+    URB_TruckStop_Stream (no texture, no Texture2D import) and reads it back with `native_fields` (nothing left over)
+    and the editor's texture reader (pixels within DXT1's error); its flags, property tags and size equal a game
+    picture's; a second picture swapped in place changes bytes only inside the export, and the first again gives the
+    first file back; a package grown twice keeps one picture; URB_Bar takes one under its own Texture2D import.
+    `bake -k map_frame` (11 tests), `upk -k native_fields`. The map-backed tests skip without the game.
+  - Not checked: the game showing it. Nothing calls the writer yet.
+
 - **The game's map pictures read field by field** (LWR map packs plan, stage C0 for the map picture; branch
   `lwr-map-picture`). [map_frame.py](tools/bake/map_frame.py), new: the recipe of a map picture (a `Texture2D`,
   512 x 256, DXT1, one mip in the package) and `describe`, which reads one. Read from the install's four map-image
