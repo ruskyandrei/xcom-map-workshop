@@ -61,7 +61,10 @@ FOLDERS = ('viewer', 'editor', 'bake', 'upk', 'lab')
 ENTRIES = ('viewer/viewer.py', 'viewer/gamesetup.py', 'viewer/setup_vendor.py', 'editor/build.py', 'bake/native_copy.py',
            'bake/relight.py', 'bake/intro_copy.py', 'bake/stream_copy.py')
 # run by path as subprocesses, which reading imports doesn't find
-EXTRAS = ('upk/map_inventory.py', 'viewer/requirements.txt', 'viewer/version.py')
+# and the data the modules read from beside themselves: the looks of made walls, floors and ground
+EXTRAS = ('upk/map_inventory.py', 'viewer/requirements.txt', 'viewer/version.py',
+          'bake/wall_looks.json', 'bake/slab_looks.json', 'bake/ground_looks.json',
+          'bake/looks/walls.json', 'bake/looks/slabs.json', 'bake/looks/ground.json')
 TEMPLATES = {'XCOM Map Workshop.cmd': 'XCOM Map Workshop.cmd', 'README.md': 'GETTING-STARTED.md'}
 INSTALLER = HERE / 'installer.iss'
 ISCC_PLACES = ('Inno Setup 7', 'Inno Setup 6')

@@ -59,6 +59,16 @@ checks, if something seems wrong.
 
 Each of these has its own section in the user guide, with pictures.
 
+New in 0.6.0:
+- **Walls, rooms, floors, roofs and ground of your own**, drawn from the Build menu on the Add button. The **look
+  picker** gives them the look of any of the game's, and **Break** and **Repair** start the battle with damage.
+- **Effects and sounds** (the Effects view) and **spawn points** (the Spawns view) are edited, and effects and
+  sounds of other maps can be added.
+- **Map picture…** (Map menu) sets the picture the game shows for your map.
+- **Export map pack** makes a drop-in pack for Long War Rebalance 3: one folder, no file of the game changed.
+- **The header's menus are sorted out:** Project and Map menus, Build and Play as buttons, the Game menu on Play's
+  arrow, setup under Settings (the gear).
+
 New in 0.5.3:
 - **Piece flags** in the piece panel: Blocks walking, Gives cover, Blocks sight, Floor and Mouse picks it.
   **Select all of a kind** picks every piece with the same mesh.

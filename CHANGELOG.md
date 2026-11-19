@@ -8,6 +8,44 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+### Release 0.6.0: drawn walls, floors and ground, effects and sounds, spawn points, map pictures and LWR 3 map packs
+
+At the user's ask ("sort out the loose ends, then prepare release 0.6.0": a minor step). Made on main, 195 commits
+ahead of `origin/main`; nothing pushed.
+
+- [version.py](tools/viewer/version.py) 0.6.0.
+- **The release left the looks' data out, and drawn pieces would not have built**
+  ([make_release.py](tools/release/make_release.py) `EXTRAS`): it copies the modules the entries import, and the six
+  files those read from beside themselves (`bake/wall_looks.json`, `slab_looks.json`, `ground_looks.json`,
+  `bake/looks/walls.json`, `slabs.json`, `ground.json`) are no modules. The build's own check found it (the bundled
+  Python importing `build`: "No such file ... wall_looks.json"). They are listed now.
+- Release notes: [tools/release/notes/0.6.0.md](tools/release/notes/0.6.0.md), drawn from the entries since 0.5.3.
+  - **Upgrading:** every map is read again on its first open (export 36, 0.5.3 had 27). A project saved in 0.6.0
+    can't be opened in 0.5.3 (schema 4, 0.5.3 reads 1 and 2), nor a prefab with effects, sounds or drawn pieces.
+    The header changed.
+  - **New features:** the Build menu (walls, rooms, floors, roofs, ground, rocks), the look picker, Break and
+    Repair, effects and sounds, spawn points, Map picture, drop-in map packs for LWR 3, Add to group.
+  - **Changes:** the header's menus, the streamlined piece panel, lighting inside the map (no .tfc), what Clear map
+    takes, the guide's new order.
+  - **Bugs fixed:** the farm map's name in another case (Build and Play), a SHIV first on a covert operative's
+    mission (T-44). Bugs of features new in this version are left out.
+  - **Known limits, four:** a broken roof or floor takes no more damage unless Breaks further is ticked (F-139), the
+    look picker's pictures drawn on first use, drop-in packs need LWR 3.00.00 beta 15, tested mainly with Long War
+    Rebalance.
+- The guide's New in this version ([guide.html](tools/release/guide/guide.html)) gains a New in 0.6.0 table above
+  0.5.3's. The testers' README ([GETTING-STARTED.md](tools/release/GETTING-STARTED.md)) gains the same list.
+- Made in `dist/release`:
+  - `XCOM-Map-Workshop-0.6.0-Setup.exe`, 68,411,125 bytes, SHA-256
+    `78b39cd9035973d9130e3a01a7d335d168fc84654a391638c1002f5028276e67`;
+  - `XCOM-Map-Workshop-0.6.0.zip`, 107,069,522 bytes, SHA-256
+    `ce9baa24f5d3414056846cc1de5bc01240de12849f49d6f5162e548753318b96`.
+- Checked: every suite on main before the version was raised (viewer 678, editor 335, upk 48, bake 564 with one
+  skipped, lab 147, release 6, repo 3, node 21 files); `release` and `viewer -k guide` after; `smoke_release.py`, 10
+  of 10 steps (the files, the zip read back, the release started with its own Python, the Bar opened in headless
+  Edge, the help's version, `browser_smoke.py --only light-grid,text-select`).
+- Not published (ask first). Not checked: the installer was not run; no drawn piece was built by the release's own
+  Python (its import check reads the looks' files); nothing of this version was played from the release itself.
+
 - **The walls and map browser checks run again** ([browser_walls.py](tools/viewer/tests/browser_walls.py),
   [browser_maps_smoke.py](tools/viewer/tests/browser_maps_smoke.py); checks run by hand on a test server).
   - Walls: a wall's place is compared to a thousandth (it comes back through the piece's matrix in single
