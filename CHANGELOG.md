@@ -27,6 +27,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A room's walls are four pieces again, not one actor: the quick Build no longer leaves the room out** (custom
+  geometry plan; branch `fracturing-wall-poc`; the user's quick Build of 19 November 2026 on a cleared URB_Bar left a
+  room out: "names components [FracturedStaticMeshComponent_3 four times] but its template now has …").
+  - Cause:
+    - `pasteSnapshot` makes one copy per source actor, so the parts of one actor stay one actor;
+    - a room's walls, and the pieces a look change makes again, all come from one donor actor, so they became one
+      actor with four components;
+    - saved, that is one record naming the donor's component four times, with the numbers and place of one wall
+      only, and the Build refuses it.
+  - [app.js](tools/viewer/web/app.js) `pasteSnapshot`: a made piece (a wall, slab or ground shape) is a copy of its
+    own unless its entry names its unit.
+  - Checked in a test server's browser on URB_PoliceStation:
+    - before the fix, a room drawn from the Build menu gave its four walls one actor (`…_copy9` four times);
+    - after it, a room with a roof gave four walls and a roof, each its own actor and record;
+    - saved with a 6 by 3 tile floor beside it, a quick Build left nothing out (7 copies made, 9 warnings, the plain
+      pieces' `made-no-look` among them).
+  - Known gap: a project saved with such a room keeps the one record, and the other walls' numbers are not in it.
+    Delete that wall and draw the room again.
+
 - **Walls, floors, roofs and ground are drawn plain, and their look is chosen afterwards in the piece panel** (custom
   geometry editing plan, stage E2, decision D-1 at its default; branch `fracturing-wall-poc`; the user's ask of
   19 November 2026).

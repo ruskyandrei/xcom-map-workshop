@@ -1216,6 +1216,8 @@ const spelledLook = look => (typeof look === 'object' && look
 // its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
 // that default look and says so (compiler made-no-look).
 const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
+// the kinds of made piece (one piece each, made from numbers)
+const MADE_KINDS = new Set(['fracWall', 'fracSlab', 'ground']);
 const isPlain = g => Boolean(g) && g.version === PLAIN_VERSION[g.kind];
 const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
@@ -1753,7 +1755,11 @@ function groupTree(copied, chainOf) {
 const mapChain = key => groupChain(groupIndex.get(key));
 async function pasteSnapshot(clip, delta, step = null) {
   const serial = copySerial + 1;   // the paste's own number, for its prefab groups
-  const copies = new Map(), unitOf = e => e.unit ?? e.source.actor, keyOf = e => e.key ?? memberOf(e.source);
+  // (the parts of one actor are pasted as one copy; a made piece is one piece on its own, though a room's walls or a
+  // look change's pieces share a donor actor: the user's quick Build of 19 November 2026 refused a room saved as one
+  // actor naming its donor's component four times, its other walls' numbers lost)
+  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(e.source.added?.generated?.kind) ? e : e.source.actor);
+  const keyOf = e => e.key ?? memberOf(e.source);
   const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
   clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
   for (const e of clip.entries)
