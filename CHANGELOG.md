@@ -27,6 +27,33 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **The browser smoke tests for walls and looks follow the gaps, the Build menu and plain pieces** (custom geometry
+  editing plan, after E1 and E2; branch `fracturing-wall-poc`).
+  - [browser_walls.py](tools/viewer/tests/browser_walls.py):
+    - Build menu:
+      - the Build menu's nine tools; the Add panel holds no made recipe;
+      - the find box names the roof tools;
+      - the first wall is drawn from the menu's button (hovered, clicked, lit), the rest by `viewer.startBuild`;
+    - plain pieces:
+      - each drawn piece is at its plain version on the plain material, with the Look row "none chosen";
+      - the Bar's look gives version 1, Plain version 4 again, each one undo step;
+      - a ramp's swatch gives its look;
+    - gaps:
+      - the doorway's threshold (z0 8) and the gaps' new words and play;
+      - all five handles;
+      - a gap's middle slid a tile with the snap at whole tiles, its top moved smoothly with the snap off;
+      - after Put a door in it, the door advice goes;
+    - the docstring says the server's URL must name URB_PoliceStation, whose ground the points are on.
+  - [browser_looks.py](tools/viewer/tests/browser_looks.py):
+    - a plain wall's Choose… opens the picker; a row remakes it (version 3, its numbers, place and turn kept), and
+      the look chosen is listed first next time;
+    - another row is one undo step;
+    - Plain gives version 4 in the look's shape;
+    - Pick from the view gives a second wall the first one's look;
+    - I while the Build menu's Wall draws starts drawing in the clicked look.
+  - Run on a test server: `browser_smoke.py --url "http://127.0.0.1:<port>/?map=URB_PoliceStation" --only walls,looks
+    --projects`. Both passed, with no page errors.
+
 - **A drawn room is one locked group with a Room section in the panel** (custom geometry editing plan, stage E3,
   decision D-2 at its default; branch `fracturing-wall-poc`).
   - [app.js](tools/viewer/web/app.js):
