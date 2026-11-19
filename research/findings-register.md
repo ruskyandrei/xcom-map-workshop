@@ -480,6 +480,10 @@ climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComL
   - With the listings, W1a went along its whole length and W1b still stayed in the air. The listing passes damage
     only up to the height the blast reached ([frac-neighbours.md](native/frac-neighbours.md)), and W1b's fragments
     start above it.
+- **[EXP-84](experiments/EXP-84-made-flags-rocks-gaps.md) run A** (19 November 2026): a two-storey made wall with one
+  gap the whole wall long, from 72 to 168. An HE grenade at the floor beside it took the strip under the gap out
+  along its whole length; the strip over it (12 fragments of its own, from 168 up) stood whole over the open gap. Its
+  fragments' bottoms are above the height the blast reached, as an upper storey's are.
 - **Fix.** None to make: the made walls break as the game's own do. The compiler notes a made wall standing on
   another (`wall-on-wall`): it stays standing when the one under it breaks.
 

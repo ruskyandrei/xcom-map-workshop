@@ -1,6 +1,6 @@
 # EXP-84: flags on made pieces, a rock shaped by its points, and three gap cases
 
-Date: 19 November 2026. Status: **prepared** (run A not played yet). The short game run before the custom geometry
+Date: 19 November 2026. Status: **run A played: every check passed**; the strip over a gap the whole wall long stood after a grenade at the floor, as a made wall's upper storey does ([F-127](../findings-register.md)). The short game run before the custom geometry
 branch (`fracturing-wall-poc`) goes into main, asked by the user: what the branch built since its last runs and never
 played. Played unattended in the lab copy (the game-test skill): only what is new.
 
@@ -58,3 +58,35 @@ y -1873 + 96 j.
 8. **A gap the whole wall long**: a shot of W shows the strip under and the strip over; a soldier on (719, -433) goes
    to (719, -337) through it; then a grenade at (815, -433), against the wall. Passed if both strips are drawn, he
    climbs through, and the grenade breaks the strips near it with no crash.
+
+## Result
+
+Run A, 19 November 2026, unattended in the lab copy (LWR), one pass of each check and one second take (check 8); the
+out folder's report and the shots were read against each other. Invincibility was on and the fog lifted.
+
+1. **Load: passed.** The battle started on `EXP84MadeFlagsRocksGaps`; no error names a made piece (the log's only
+   lines about them are the usual notes as the game cooks the made walls' collision).
+2. **Cover off on a made wall: passed.** South of N a soldier reads `m_bInCover` True, cover value 50 (high), the
+   shield drawn; south of C, False, 0, no shield.
+3. **Sight off on a made wall: passed.** From two tiles south of S, the shot view offers the Sectoid behind it (drawn
+   as an outline through the wall, 69%, its high cover shield). From two tiles south of N, the Sectoid behind it is
+   not offered; the soldier's targets are the Sectoids by S, 14 tiles away.
+4. **Cover off on a made block on a static mesh actor: passed.** South of G0, in cover, value 30 (low), the half
+   shield drawn; south of G, not in cover, 0.
+5. **The rock's moved points: passed.** The rock is drawn as a low mound with a lobe reaching east (very dark under
+   the quick build's even light: seen on a brightened copy of the shot). A soldier on (-625, -721), east of the arm,
+   is in low cover (30); without the moved points the rock's edge would be a tile and a half from him. Read on the
+   side: a soldier sent onto (-721, -721) climbed onto the arm and stands on its top, 78 over the lot.
+6. **A door over a threshold: passed.** The soldier went through D's doorway in one tile, the door opening; in a low
+   shot before, the shut door stands on the threshold strip with no gap under it.
+7. **A notch: passed.** T is drawn with the notch one tile wide from about 72 through its top; the soldier crossed
+   through it in one tile, in low cover on both sides (the notch's sill).
+8. **A gap the whole wall long: passed for what it asked, the upper strip standing.** Both strips are drawn and the
+   soldier crossed through. An HE grenade at (815, -433) broke the lower strip along its whole length, with no
+   crash. The strip over the gap stood whole, fire on its top, over the open gap (a second, closer shot the same).
+   W's numbers give 4 fragments under the gap and 12 over it (offline, `frac_wall.cells`), so the upper strip can
+   break; the burst at the floor left it as it leaves a made wall's upper storey over a hole it breaks
+   ([F-127](../findings-register.md): the game's own walls do the same). A burst at the strip's height was not played.
+
+Side notes, not checks: the map's two pod Sectoids ended on one spot against S's south face after the first drop; a
+car by the Skyranger and one at the lot's west edge stand outside the deleted part of the car park.

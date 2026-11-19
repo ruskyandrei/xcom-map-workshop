@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-84 run A played: every check passed** (the short game run before the custom geometry branch goes into main).
+  [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):
+  - flags on made pieces: a made wall with Gives cover off gives none and one with Blocks sight off is seen through,
+    beside one as made that gives high cover and hides; a block made on a static mesh actor with Gives cover off
+    gives none beside one that gives low cover;
+  - a rock whose points grow it a tile gives cover beside its arm;
+  - a door over a doorway's threshold opens and is walked through, with no gap under it;
+  - a notch and a gap the whole wall long are climbed through;
+  - a grenade broke the strip under the long gap; the strip over it stood, as an upper storey does
+    ([F-127](research/findings-register.md), a line added).
+  - No tool changed.
+
 - **The custom geometry plans are filed as built** (tidying before the branch goes into main). The plan, its progress
   ledger and the M4 work orders moved from `private/plans/todo` to `private/plans/done` (with FX6b's stale resume
   file); the docstrings that named their old place now name the new one ([frac_wall.py](tools/bake/frac_wall.py),
