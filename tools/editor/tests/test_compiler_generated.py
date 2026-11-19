@@ -358,6 +358,35 @@ DOORWAY = dict(x0=96.0, x1=192.0, z0=8.0, z1=160.0)
 WINDOW = dict(x0=192.0, x1=288.0, z0=72.0, z1=168.0)
 
 
+class PlainTests(unittest.TestCase):
+    """A made piece with no look chosen (custom geometry editing plan, B2): drawn plain in the editor at its kind's
+    plain version, its numbers its default look's as version 1 has them; the Build makes it in that look, as version 1,
+    and a warning names it (D-1)."""
+
+    def test_a_plain_piece_is_built_in_its_kind_s_default_look_and_named(self):
+        wall = dict(WALL, version=4)
+        floor = dict(kind='fracSlab', version=3, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[], look='floor'))
+        block = dict(kind='ground', version=3, ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0))
+        spec, report = compiled([made(wall), made(floor, serial=2, at=(0, 1212, 0)),
+                                 made(block, name='XComLevelActor_1', serial=3, at=(0, 2400, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        got = [w for w in report['warnings'] if w['code'] == 'made-no-look']
+        self.assertEqual(len(got), 3)
+        self.assertIn("the Bar's inside wall", got[0]['message'])
+        self.assertIn("the Bar's upper floor", got[1]['message'])
+        self.assertIn('asphalt', got[2]['message'])
+        _, native = compiler.native_split(spec)
+        made_ones = [c['generated'] for c in native['copies'] if c.get('generated')]
+        self.assertEqual([g['version'] for g in made_ones], [1, 1, 1])
+        self.assertEqual(made_ones[1]['slab']['look'], 'floor')
+
+    def test_a_plain_piece_names_no_donor_look(self):
+        # (its numbers are version 1's: a donor look in them is malformed)
+        wall = dict(WALL, version=4, wall=dict(WALL['wall'], look={'mesh': 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED', 'measure': 1}))
+        _, report = compiled([made(wall)])
+        self.assertIn('malformed', codes(report))
+
+
 class OpeningTests(unittest.TestCase):
     def warned(self, generated, *more):
         _, report = compiled([made(generated)] + list(more))

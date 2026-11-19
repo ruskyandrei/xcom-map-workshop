@@ -344,6 +344,9 @@
       </div>
       <div id="wallBox" class="lightbox" hidden>
         <div class="posehead" id="wallHead">Wall</div>
+        <div class="row lookrow"><span id="wallLookName" class="lookname"></span>
+          <button id="wallLookChange" type="button" title="A look: any of the game's walls, from the list of every map's or picked in the view (I). The wall is made again in it where it stands, and so are the walls joined to it (a room's four), or every wall picked; Ctrl+Z puts the old ones back">Choose…</button>
+          <button id="wallLookPlain" type="button" title="Back to no look: drawn plain, and the Build makes it in its kind's default look (and says so) until a look is chosen">Plain</button></div>
         <div id="wallSize" class="lightnote" title="Drag the white handles at its ends to lengthen or shorten it by whole tiles: its gaps stay where they are, and one the wall no longer holds goes"></div>
         <div id="wallOpenings" class="wallopenings"></div>
         <div class="row">
@@ -355,27 +358,28 @@
           <button id="wallShuffle" type="button" title="Another break pattern: the wall's fragments cut afresh (a new seed). It looks the same until it breaks">Reshuffle</button>
           <button id="wallStoreys" type="button" title="Make the wall one storey tall">One storey</button>
         </div>
-        <div class="row">
-          <button id="wallLookChange" type="button" title="Another look: any of the game's walls, from the list of every map's or picked in the view (I). The wall is made again in it where it stands, and so are the walls joined to it (a room's four), or every wall picked; Ctrl+Z puts the old ones back">Look…</button>
-        </div>
         <div id="wallNote" class="lightnote"></div>
       </div>
       <div id="slabBox" class="lightbox" hidden>
         <div class="posehead" id="slabHead">Floor</div>
+        <div class="row lookrow"><span id="slabLookName" class="lookname"></span>
+          <button id="slabLookChange" type="button" title="A look: any of the game's floors and roofs, from the list of every map's or picked in the view (I). It is made again in it where it stands; Ctrl+Z puts the old one back">Choose…</button>
+          <button id="slabLookPlain" type="button" title="Back to no look: drawn plain, and the Build makes it in its kind's default look (and says so) until a look is chosen">Plain</button></div>
         <div id="slabSize" class="lightnote" title="Drag the white handles on its edges to grow or shrink it by whole tiles: its holes stay where they are, and one past the edge goes"></div>
         <div id="slabHoles" class="wallopenings"></div>
         <div class="row">
           <button id="slabHole" type="button" title="A hole one tile square in the free tile nearest the middle, for a ladder or stairs of the game's. Its handles (in blue) move and size it">Add hole</button>
           <button id="slabShuffle" type="button" title="Another break pattern: its pieces cut afresh (a new seed). It looks the same until it breaks">Reshuffle</button>
-          <button id="slabLookChange" type="button" title="Another look: any of the game's floors and roofs, from the list of every map's or picked in the view (I). It is made again in it where it stands; Ctrl+Z puts the old one back">Look…</button>
         </div>
         <div id="slabNote" class="lightnote"></div>
       </div>
       <div id="groundBox" class="lightbox" hidden>
         <div class="posehead" id="groundHead">Ground</div>
+        <div class="row lookrow"><span id="groundLookName" class="lookname"></span>
+          <button id="groundLookPlain" type="button" title="Back to no look: drawn plain, and the Build makes it in its kind's default look (and says so) until a look is chosen">Plain</button></div>
         <div id="groundSize" class="lightnote" title="Drag the white handles on its edges to size it by whole tiles, the one on top to raise or lower it"></div>
         <div id="groundSlope" class="lightnote" hidden></div>
-        <div class="row groundswatches" id="groundSwatches" title="The material it is drawn in: the next ground drawn takes the one picked too"></div>
+        <div class="row groundswatches" id="groundSwatches" title="Its look: the material it is made in"></div>
         <div class="row">
           <button id="groundTurn" type="button" title="Turn the ramp a quarter turn on its footprint: it rises the next way round">Turn</button>
           <button id="groundAnother" type="button" title="Another rock in the same footprint and height">Another rock</button>

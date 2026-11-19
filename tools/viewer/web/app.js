@@ -1212,10 +1212,24 @@ const spelledLook = look => (typeof look === 'object' && look
   ? { mesh: look.mesh, ...(look.material ? { material: look.material } : {}), measure: look.measure } : look);
 // A made piece's request (custom geometry plan, M4): a donor look's at its kind's DONOR_VERSION with the look in its
 // numbers, a look id's (or none) at version 1 as before.
-const madeRequest = (kind, look, numbers) => {
+// A made piece drawn plain (custom geometry editing plan, B2, 19 November 2026): its kind's default look's numbers at
+// its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
+// that default look and says so (compiler made-no-look).
+const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
+const isPlain = g => Boolean(g) && g.version === PLAIN_VERSION[g.kind];
+const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
+  if (plain) return { kind, version: PLAIN_VERSION[kind], [key]: numbers };
   return look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers };
 };
+// The default look a plain piece of `kind` is made in: the Bar's inside wall, the Bar's floor or roof by the slab's
+// role, asphalt (a look marked `plain`, which setMadeLook makes a plain request of).
+function plainLook(kind, numbers = null) {
+  if (kind === 'wall') return { ...WALL_LOOKS[0], plain: true };
+  if (kind === 'ground') return { ...GROUND_LOOKS[0], plain: true };
+  const role = slabLookOf(numbers ?? {})?.role ?? 'roof';
+  return { ...(SLAB_LOOKS.find(l => l.role === role) ?? SLAB_LOOKS[0]), plain: true };
+}
 // A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: two storeys left out),
 // with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
 const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
@@ -1266,7 +1280,13 @@ function madeGroundShape(template, g) {
   }
   return { mesh: key, materials: [template.materials[0]] };
 }
+// A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces.
 function madeShape(template, generated) {
+  const shape = madeShapeOf(template, generated);
+  return isPlain(generated) && shape.materials
+    ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
+}
+function madeShapeOf(template, generated) {
   if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab);
   if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground);
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
@@ -5753,7 +5773,26 @@ async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
   })());
   return texturePromises.get(key);
 }
+// The plain material of a made piece with no look (B2): light grey, shaded by the lights, the floor's tile lines
+// drawn on it (every 96 units from the tile grid's corner, both ways across the ground).
+const PLAIN_MATERIAL = 'plain:made';
+function plainMaterial() {
+  const mat = withLocalLights(new THREE.MeshPhongMaterial({ color: 0xc3cbd0, specular: 0x161616, shininess: 8 }));
+  const local = mat.onBeforeCompile, origin = gridOrigin() ?? [0, 0];
+  mat.onBeforeCompile = (shader, r) => {
+    local?.(shader, r);
+    shader.uniforms.plainTileOrigin = { value: new THREE.Vector2(origin[0], origin[1]) };
+    shader.fragmentShader = `uniform vec2 plainTileOrigin;\n${shader.fragmentShader}`.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+      vec2 plainTile = (vLocalWorld.xz - plainTileOrigin) / 96.0;
+      vec2 plainDist = abs(fract(plainTile + 0.5) - 0.5) * 96.0;
+      float plainWidth = max(0.6, length(fwidth(vLocalWorld.xz)) * 0.8);
+      gl_FragColor.rgb *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, plainWidth, min(plainDist.x, plainDist.y)));`);
+  };
+  mat.customProgramCacheKey = () => 'plain-made';
+  return mat;
+}
 async function material(id,overrideTint=null) {
+  if (id === PLAIN_MATERIAL) return plainMaterial();
   const info = data.materials[id];
   if (!info) return withLocalLights(new THREE.MeshPhongMaterial({color: 0xbc628f, side: THREE.DoubleSide}));
   // A fractured mesh's inside faces, which the game draws only where a fragment has broken off (export 14)
@@ -9470,7 +9509,7 @@ async function openLookPicker(kind, { onChoose = null, title = null } = {}) {
   if (libraryScope !== 'all') setLibraryScope('all');
   const used = usedLookMeshes(kind);
   library.setLookMode({
-    kind, title: title ?? LOOK_TITLES[kind], tags: lookTags, first: e => used.has(e.mesh),
+    kind, title: title ?? LOOK_TITLES[kind], tags: lookTags, first: e => used.has(e.mesh) || e.mesh === storedLook(kind)?.mesh,
     match: e => rowLook(kind, e),
     choose: (e, cat) => { const look = lookFromEntry(kind, cat, { package: e.source.package, actor: e.source.actor }); closeLookPicker(); (onChoose ?? (l => lookChosen(kind, l)))(look); },
     pick: () => startLookPick(kind, onChoose),
@@ -9529,20 +9568,16 @@ const GROUND_LOOK = 'workshop.groundLook';
 const groundLookNow = () => storedLook('ground') ?? GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
 // ---- the Build menu (custom geometry editing plan, B1, 19 November 2026): the Add button's flyout starts drawing a made
 // piece at once; the find box finds the same tools by their words
-const wallLookNow = () => storedLook('wall') ?? WALL_LOOKS[0];
-function slabLookNow(role) {
-  const stored = storedLook('slab');
-  return stored && (stored.role ?? stored.facts?.role) === role ? stored : SLAB_LOOKS.find(l => l.role === role);
-}
+// (drawn plain, B2: in its kind's default look's shape, the look chosen afterwards in the piece panel)
 const BUILD_TOOLS = {
-  wall: { name: 'Wall', words: 'wall walls fracturing', start: () => startWallDrawing(wallLookNow()) },
-  room: { name: 'Room', words: 'room rooms walls box', start: () => startWallDrawing(wallLookNow(), { room: true }) },
-  roomroof: { name: 'Room with a roof', words: 'room rooms roof building walls', start: () => startWallDrawing(wallLookNow(), { room: true, roof: true }) },
-  floor: { name: 'Floor', words: 'floor floors storey slab upstairs', start: () => startWallDrawing(slabLookNow('floor'), { slab: true }) },
-  roof: { name: 'Roof', words: 'roof roofs slab ceiling', start: () => startWallDrawing(slabLookNow('roof'), { slab: true }) },
+  wall: { name: 'Wall', words: 'wall walls fracturing', start: () => startWallDrawing(plainLook('wall'), { plain: true }) },
+  room: { name: 'Room', words: 'room rooms walls box', start: () => startWallDrawing(plainLook('wall'), { room: true, plain: true }) },
+  roomroof: { name: 'Room with a roof', words: 'room rooms roof building walls', start: () => startWallDrawing(plainLook('wall'), { room: true, roof: true, plain: true }) },
+  floor: { name: 'Floor', words: 'floor floors storey slab upstairs', start: () => startWallDrawing(plainLook('slab', { look: 'floor' }), { slab: true, plain: true }) },
+  roof: { name: 'Roof', words: 'roof roofs slab ceiling', start: () => startWallDrawing(plainLook('slab', { look: 'roof' }), { slab: true, plain: true }) },
   ...Object.fromEntries(['patch', 'block', 'ramp', 'rock'].map(shape => [shape, {
     name: `Ground ${shape}`, words: `ground terrain ${shape}${shape === 'rock' ? ' boulder stone' : shape === 'ramp' ? ' slope' : ' platform'}`,
-    start: () => startWallDrawing(groundLookNow(), { ground: shape }) }])),
+    start: () => startWallDrawing(plainLook('ground'), { ground: shape, plain: true }) }])),
 };
 let buildTool = null;     // the Build menu's tool being drawn (its button is lit)
 function startBuild(key) {
@@ -9587,9 +9622,9 @@ const wallGhosts = [0, 1, 2, 3, 4].map(() => {
   return ghost;
 });
 const wallGhost = { set visible(on) { for (const g of wallGhosts) g.visible = on; } };
-async function startWallDrawing(look, { room = false, slab = false, roof = false, ground = null } = {}) {
+async function startWallDrawing(look, { room = false, slab = false, roof = false, ground = null, plain = false } = {}) {
   stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing();
-  const drawing = wallDrawing = { look, room, slab, roof, ground, template: null, start: null };
+  const drawing = wallDrawing = { look, room, slab, roof, ground, plain, template: null, start: null };
   renderer.domElement.style.cursor = 'crosshair';
   pieces.setChosen(null);
   const done = busyStart(`Reading ${look.name}…`);
@@ -9608,13 +9643,15 @@ function wallHint(words = null) {
   clearTimeout(hintTimer);
   const hint = $('dragHint');
   hint.hidden = false;
-  hint.replaceChildren(words ?? (wallDrawing.ground
-    ? `Drawing a ${wallDrawing.ground} of ${wallDrawing.look.name.toLowerCase()}: press on the ground at one corner, drag to the other${wallDrawing.ground === 'ramp' ? ' (it rises toward the end)' : ''}, let go · Shift keeps drawing · `
-    : wallDrawing.slab
-    ? `Drawing a ${wallDrawing.look.name.toLowerCase()}: press at one corner, drag to the other, let go · Shift keeps drawing · `
-    : wallDrawing.room
-    ? `Drawing a room of ${wallDrawing.look.name.toLowerCase()}s${wallDrawing.roof ? ' with a roof' : ''}: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
-    : `Drawing a ${wallDrawing.look.name}: press on the ground at one end, drag along a tile line, let go · Shift keeps drawing · `));
+  // (a plain piece is named by its kind; its look is chosen afterwards in the piece panel)
+  const d = wallDrawing, of = d.plain ? '' : ` of ${d.look.name.toLowerCase()}`;
+  hint.replaceChildren(words ?? (d.ground
+    ? `Drawing a ${d.ground}${of}: press on the ground at one corner, drag to the other${d.ground === 'ramp' ? ' (it rises toward the end)' : ''}, let go · Shift keeps drawing · `
+    : d.slab
+    ? `Drawing a ${d.plain ? (d.look.role === 'roof' ? 'roof' : 'floor') : d.look.name.toLowerCase()}: press at one corner, drag to the other, let go · Shift keeps drawing · `
+    : d.room
+    ? `Drawing a room${d.plain ? '' : `${of}s`}${d.roof ? ' with a roof' : ''}: press on the ground at one corner, drag to the other, let go · Shift keeps drawing · `
+    : `Drawing a ${d.plain ? 'wall' : d.look.name}: press on the ground at one end, drag along a tile line, let go · Shift keeps drawing · `));
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
 function stopWallDrawing() {
@@ -9711,28 +9748,29 @@ async function endWallDraw(keep) {
   const d = wallDrawing;
   if (!d?.start) return;
   try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* released */ }
-  const made = d.last, template = d.template, look = d.look, room = d.room, roofTemplate = d.roofTemplate, floor = d.floor;
+  const made = d.last, template = d.template, look = d.look, room = d.room, roofTemplate = d.roofTemplate, floor = d.floor, plain = d.plain;
+  const chooseWords = plain ? ' · choose its look in the piece panel' : '';
   d.start = null; d.pointerId = null; wallGhost.visible = false;
   if (!keep) stopWallDrawing(); else wallHint();
   if (made.ground) {
-    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('ground', look, made.ground) } },
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('ground', look, made.ground, plain) } },
                                       matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
-    flashHint(`Made a ${groundShapeWords(made.ground).toLowerCase()} of ${look.name.toLowerCase()} · its white handles size it${made.ground.shape === 'patch' ? '' : ', the top one raises it'}`);
+    flashHint(`Made a ${groundShapeWords(made.ground).toLowerCase()}${plain ? '' : ` of ${look.name.toLowerCase()}`} · its white handles size it${made.ground.shape === 'patch' ? '' : ', the top one raises it'}${chooseWords}`);
     return;
   }
   if (made.slab) {
-    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracSlab', look, made.slab) } },
+    await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracSlab', look, made.slab, plain) } },
                                       matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
-    flashHint(`Made a ${look.name.toLowerCase()}, ${made.tiles[0]} by ${made.tiles[1]} tiles · its white handles grow it; Add hole is in the piece panel`);
+    flashHint(`Made a ${plain ? (look.role === 'roof' ? 'roof' : 'floor') : look.name.toLowerCase()}, ${made.tiles[0]} by ${made.tiles[1]} tiles · its white handles grow it; Add hole is in the piece panel${chooseWords}`);
     return;
   }
   const entries = (made.walls ?? [made]).map(w => ({
-    source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracWall', look, w.wall) } },
+    source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracWall', look, w.wall, plain) } },
     matrix: movedMatrix(template, w.location, w.rotation) }));
   if (made.roof)
-    entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: { kind: 'fracSlab', version: 1, slab: made.roof.slab } } },
+    entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: madeRequest('fracSlab', SLAB_LOOKS[0], made.roof.slab, plain) } },
                    matrix: movedMatrix(roofTemplate, made.roof.location, made.roof.rotation) });
-  await pasteSnapshot({ entries, pivotIndex: 0, name: room ? `room of ${look.name.toLowerCase()}s` : look.name }, new THREE.Matrix4());
+  await pasteSnapshot({ entries, pivotIndex: 0, name: room ? (plain ? 'room' : `room of ${look.name.toLowerCase()}s`) : plain ? 'wall' : look.name }, new THREE.Matrix4());
   if (made.roof) {
     // its building: the room's rectangle, a floor for each storey, breaking at the storeys' heights, and one over them
     // for the roof, as the game's are: URB_Bar's lists its walls on floor 0 cut down at floor 2, its upstairs floor
@@ -10098,8 +10136,9 @@ function endWallDrag(keep) {
 // ---- the piece panel's Wall section
 function wallPanel(root) {
   const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
-  $('wallHead').textContent = `Wall · ${look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers')}`;
-  $('wallLookChange').disabled = !tool;
+  const lookName = look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers');
+  $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
+  lookRow('wall', g, lookName, tool);
   const spec = wallSpec(w);
   $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles${spec.lower
     ? `; the one on top makes it ${storeysOf(w) === 1 ? storeyWords(spec.storeys) : 'one storey'}` : ''}.`
@@ -10162,8 +10201,8 @@ function wallPanel(root) {
 // ---- the piece panel's Floor section (made slabs)
 function slabPanel(root) {
   const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
-  $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${look?.name ?? 'made from numbers'}`;
-  $('slabLookChange').disabled = !tool;
+  $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : look?.name ?? 'made from numbers'}`;
+  lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
   $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
@@ -10200,7 +10239,9 @@ $('slabShuffle').onclick = () => changeWall(st => ({ ...st, generated: { ...st.g
 // ---- the piece panel's Ground section (M6)
 function groundPanel(root) {
   const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), tool = toolGround(g);
-  $('groundHead').textContent = `Ground · ${look?.name ?? 'made from numbers'}`;
+  const plain = isPlain(o.added.generated);
+  $('groundHead').textContent = `Ground · ${plain ? 'plain' : look?.name ?? 'made from numbers'}`;
+  lookRow('ground', o.added.generated, look?.name ?? 'made from numbers', tool);
   $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const words = slopeWords(g);
@@ -10209,13 +10250,13 @@ function groundPanel(root) {
   $('groundSlope').classList.toggle('warn', slopeOf(g) > GROUND.sloped);
   $('groundSwatches').replaceChildren(...GROUND_LOOKS.map(l => {
     const b = Object.assign(document.createElement('button'), { type: 'button', textContent: l.name, title: `${l.name}: ${l.words} (from ${l.package})` });
-    b.classList.toggle('on', l.id === look?.id);
+    b.classList.toggle('on', !plain && l.id === look?.id);
     b.disabled = !tool;
     b.onclick = () => setGroundLook(root, l);
     return b;
   }), (() => {
     // (a donor look's name, chosen, then any of the game's from the picker)
-    const other = typeof g.look === 'object' && look ? look.name : null;
+    const other = !plain && typeof g.look === 'object' && look ? look.name : null;
     const b = Object.assign(document.createElement('button'), { type: 'button', textContent: other ? `${other}…` : 'Other…',
       title: 'Any of the game\'s ground materials, from the list of every map\'s or picked in the view (I)' });
     b.classList.toggle('on', Boolean(other));
@@ -10259,29 +10300,39 @@ function lookTargets(root, kind) {
   return [...seen].map(id => id === root.userData.source.id ? root : walls.get(id));
 }
 async function setMadeLook(root, kind, look) {
-  rememberLook(kind, look);
+  if (!look.plain) rememberLook(kind, look);
   const defaults = { wall: WALL_LOOKS[0].id, slab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
   const hasLook = r => {
     const o = r.userData.source, now = o.added.generated[kind]?.look;
+    // (a plain piece has no look, whatever its numbers' shape; a plain look is had by plain pieces only)
+    if (look.plain || isPlain(o.added.generated)) return Boolean(look.plain) && isPlain(o.added.generated);
     return look.donor ? typeof now === 'object' && now?.mesh === look.donor.mesh && now?.material === look.donor.material
       && short(o.added.from?.actor ?? '') === look.actor : (now ?? defaults[kind]) === look.id;
   };
   const targets = lookTargets(root, kind).filter(r => !hasLook(r));
   if (!targets.length) return;
-  let template;
-  try { template = await wallTemplate(look); } catch (error) { flashHint(`${look.name} can't be used: ${error.message}`); return; }
+  // (plain: each in its kind's default look's shape, a slab by its own role)
+  const lookOf = r => (look.plain ? plainLook(kind, r.userData.source.added.generated[kind]) : look);
+  const templates = new Map();
+  try {
+    for (const r of targets) {
+      const l = lookOf(r), k = l.donor ? JSON.stringify(l.donor) : l.id;
+      if (!templates.has(k)) templates.set(k, await wallTemplate(l));
+    }
+  } catch (error) { flashHint(`${look.name} can't be used: ${error.message}`); return; }
   // each made again in the look where it stands, with its own numbers: one undo step for them all
   const entries = targets.map(r => {
-    const gen = r.userData.source.added.generated, state = wallState(r);
+    const gen = r.userData.source.added.generated, state = wallState(r), l = lookOf(r);
+    const template = templates.get(l.donor ? JSON.stringify(l.donor) : l.id);
     let numbers = { ...gen[kind] };
-    if (look.donor) numbers.look = { ...look.donor }; else if (look.id === defaults[kind]) delete numbers.look; else numbers.look = look.id;
+    if (l.donor) numbers.look = { ...l.donor }; else if (l.id === defaults[kind]) delete numbers.look; else numbers.look = l.id;
     if (kind === 'wall') {
       // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
       // under its face's top)
       const { storeys: _, ...rest } = numbers;
       numbers = withStoreys(rest, storeysInLook(gen[kind], rest)).wall;
     }
-    return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, look, numbers) } },
+    return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, l, numbers, Boolean(look.plain)) } },
              matrix: movedMatrix(template, state.location, state.rotation) };
   });
   gizmo.setSelection(targets.map(r => r.userData.source.id));
@@ -10289,9 +10340,21 @@ async function setMadeLook(root, kind, look) {
   await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4());
   gizmo.joinLast(2);
   const many = { wall: 'walls', slab: 'floors and roofs', ground: 'ground pieces' }[kind];
-  flashHint(`${targets.length > 1 ? `${targets.length} ${many} now` : 'Now'} ${look.name.toLowerCase()} · the next ${LOOK_NOUNS[kind]} you `
-    + `draw is too · Ctrl+Z puts the old ${targets.length > 1 ? 'ones' : 'one'} back`);
+  flashHint(`${targets.length > 1 ? `${targets.length} ${many} now` : 'Now'} ${look.plain ? 'plain: the Build makes them in their kind\'s default look until one is chosen'
+    : look.name.toLowerCase()} · Ctrl+Z puts the old ${targets.length > 1 ? 'ones' : 'one'} back`);
 }
+// A made piece's Look row (B2): the look it is in, or none chosen (drawn plain; the Build makes it in its kind's default
+// look and says so), Choose… and Plain.
+function lookRow(kind, g, name, tool) {
+  const plain = isPlain(g), el = $(`${kind}LookName`);
+  el.textContent = plain ? 'Look: none chosen' : `Look: ${name}`;
+  el.title = plain ? `Drawn plain until a look is chosen; the Build makes it in ${name}, its kind's default look, and says so` : name;
+  el.classList.toggle('warn', plain);
+  if ($(`${kind}LookChange`)) $(`${kind}LookChange`).disabled = !tool;
+  $(`${kind}LookPlain`).disabled = !tool || plain;
+}
+for (const kind of ['wall', 'slab', 'ground'])
+  $(`${kind}LookPlain`).onclick = () => { const root = madeRoot(selected); if (root) setMadeLook(root, kind, plainLook(kind, root.userData.source.added.generated[kind])); };
 $('wallLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('wall', { onChoose: look => setMadeLook(root, 'wall', look) }); };
 $('slabLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('slab', { onChoose: look => setMadeLook(root, 'slab', look) }); };
 // The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
@@ -11359,6 +11422,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // made walls (custom geometry plan, M1): the Build menu's tools (B1), drawing, a game point on the screen, the picked
     // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
     buildTools: () => Object.keys(BUILD_TOOLS), startBuild, buildTool: () => buildTool, startWallDrawing, stopWallDrawing,
+    plainLook, isPlain: id => isPlain(roots.get(id)?.userData.source.added?.generated),
     groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },

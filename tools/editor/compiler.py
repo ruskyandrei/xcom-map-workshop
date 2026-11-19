@@ -154,8 +154,12 @@ GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 # the generated request versions each kind takes (tools/bake/frac_walls.py VERSIONS, OTHER_VERSIONS); a look named by
 # its donor (custom geometry plan, M4: {mesh, measure}, looks.py) comes with a wall's version 3 and a slab's or ground
 # shape's version 2, which always name one
-GENERATED_VERSIONS = {'fracWall': (1, 2, 3), 'fracSlab': (1, 2), 'ground': (1, 2), 'relit': (1,)}
+GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4), 'fracSlab': (1, 2, 3), 'ground': (1, 2, 3), 'relit': (1,)}
 DONOR_LOOK_SINCE = {'fracWall': 3, 'fracSlab': 2, 'ground': 2}
+# a made piece with no look chosen (custom geometry editing plan, B2, 19 November 2026): drawn plain in the editor, its
+# numbers its kind's default look's as version 1 has them; the Build makes it in that look (D-1) and warns made-no-look,
+# and the copy goes on as version 1
+PLAIN_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 
 
 def donor_shape(kind, numbers):
@@ -1408,21 +1412,31 @@ class Compiler:
         # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet; a wall's
         # version 3 and a slab's or ground shape's version 2 name the look by its donor)
         ok = isinstance(g, dict) and g.get('kind') in GENERATED_VERSIONS and g.get('version') in GENERATED_VERSIONS[g['kind']]
+        # (a plain piece's numbers are checked as version 1's)
+        plain = ok and g['version'] == PLAIN_VERSION.get(g['kind'])
+        version = 1 if plain else g['version'] if ok else None
         if ok and g['kind'] == 'fracSlab':
-            ok = self.slab_valid(g.get('slab'), num, g['version'])
+            ok = self.slab_valid(g.get('slab'), num, version)
         elif ok and g['kind'] == 'ground':
-            ok = self.ground_valid(g.get('ground'), num, g['version'])
+            ok = self.ground_valid(g.get('ground'), num, version)
         elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
                   and 'ends' not in w
-                  and (('look' not in w and g['version'] < 3) or (g['version'] >= 2 and look_valid(
-                      'fracWall', w.get('look'), g['version'], DONOR_LOOK_SINCE['fracWall'], FRAC_WALL_LOOKS)))
+                  and (('look' not in w and version < 3) or (version >= 2 and look_valid(
+                      'fracWall', w.get('look'), version, DONOR_LOOK_SINCE['fracWall'], FRAC_WALL_LOOKS)))
                   and isinstance(w.get('seed', 1), int) and w.get('storeys', 2) in (1, 2)
                   and not isinstance(w.get('storeys'), bool)
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
                           for o in w.get('openings') or []))
+        if ok and plain:
+            name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
+            default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
+                       else "the Bar's upper floor" if g['slab'].get('look') == 'floor' else "the Bar's roof")
+            self.warn('made-no-look', "%s has no look chosen (drawn plain in the editor): the Build makes it in %s, its "
+                      "kind's default look; choose its look in its piece panel" % (name, default), **where)
+            g = rec['generated'] = dict(g, version=1)
         if ok:
             kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}.get(g['kind'])
             numbers = g.get(kind) if kind else None

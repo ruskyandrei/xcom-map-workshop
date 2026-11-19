@@ -27,6 +27,36 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **Walls, floors, roofs and ground are drawn plain, and their look is chosen afterwards in the piece panel** (custom
+  geometry editing plan, stage E2, decision D-1 at its default; branch `fracturing-wall-poc`; the user's ask of
+  19 November 2026).
+  - [app.js](tools/viewer/web/app.js):
+    - the Build menu's tools draw in their kind's default look's shape, plain:
+      - the request carries its kind's `PLAIN_VERSION` (a wall 4, a slab or ground shape 3), its numbers as version 1
+        has them;
+      - `madeShape` puts it on `PLAIN_MATERIAL`: light grey, shaded, the floor's tile lines drawn every 96 from the
+        grid's corner, the hidden inside faces kept hidden;
+    - each made piece's panel opens with a Look row: "Look: none chosen" (in amber) or its look, **Choose…** (the
+      picker) and **Plain**;
+    - `setMadeLook` takes a plain look (`plainLook`: the Bar's inside wall, the Bar's floor or roof by the slab's
+      role, asphalt), and a plain piece never counts as having a look already;
+    - the picker lists the look last chosen first, with the project's; what is drawn no longer follows it;
+    - a room's roof is plain with its walls;
+    - hints and the panel heads say "plain".
+  - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the Look rows; the wall's and
+    slab's Look… buttons moved into them.
+  - [compiler.py](tools/editor/compiler.py): `PLAIN_VERSION`; a plain piece's numbers are checked as version 1's,
+    warned `made-no-look` (naming the piece and the default look it is built in), and passed on as version 1.
+  - Tests: test_compiler_generated `PlainTests` (each kind built as version 1 with its warning; a donor look in a plain
+    request is malformed).
+  - Checked in a test server's browser on URB_PoliceStation:
+    - a wall drawn from the Build menu came out as version 4 on the plain material, its panel reading "WALL · PLAIN"
+      and "Look: none chosen", with Plain greyed out;
+    - choosing the Bar's look gave version 1 on the Bar's materials ("Look: Bar inside wall"); Plain gave version 4
+      again.
+  - The node, viewer and editor suites pass. The browser smoke tests for walls and looks are brought up to date
+    separately.
+
 - **A Build menu on the Add button: walls, rooms, floors, roofs and ground drawn from it** (custom geometry editing
   plan, stage E1; branch `fracturing-wall-poc`; the user's ask of 19 November 2026).
   - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css):
