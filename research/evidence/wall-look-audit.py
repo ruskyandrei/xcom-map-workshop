@@ -1,5 +1,5 @@
 """Read-only audit of which of the game's fracturing walls a generator that sweeps a cross-section along the wall
-(tools/bake/frac_wall.py) can make (private/plans/todo/custom-geometry-implementation-plan.md, stage M4 item 3).
+(tools/bake/frac_wall.py) can make (private/plans/done/custom-geometry-implementation-plan.md, stage M4 item 3).
 
 Over every map the install lists (tools/viewer/library.py donors), or the maps named with --maps, it finds each
 placed fracturing piece (XComDecoFracLevelActor, XComFracLevelActor) of the persistent level whose mesh is a wall:

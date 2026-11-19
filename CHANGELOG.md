@@ -8,6 +8,12 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The custom geometry plans are filed as built** (tidying before the branch goes into main). The plan, its progress
+  ledger and the M4 work orders moved from `private/plans/todo` to `private/plans/done` (with FX6b's stale resume
+  file); the docstrings that named their old place now name the new one ([frac_wall.py](tools/bake/frac_wall.py),
+  [frac_walls.py](tools/bake/frac_walls.py), [gen_mesh.py](tools/bake/gen_mesh.py), [looks.py](tools/bake/looks.py),
+  [walls.js](tools/viewer/web/walls.js) and six scripts in [research/evidence](research/evidence)). Comments only.
+
 - **EXP-84 prepared; compiling leaves the project as it was** (the short game run before the custom geometry branch
   goes into main; branch `fracturing-wall-poc`).
   - [exp84_project.py](tools/editor/examples/exp84_project.py), [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):

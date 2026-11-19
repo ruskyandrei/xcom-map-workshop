@@ -1,5 +1,5 @@
 """The looks a made wall, slab or ground shape can take: any of the game's own pieces of that kind, named by their
-donor (custom geometry plan, stage M4; private/plans/todo/custom-geometry-m4-workorders.md holds the contract).
+donor (custom geometry plan, stage M4; private/plans/done/custom-geometry-m4-workorders.md holds the contract).
 
 A made piece is a copy of its donor actor, so the copy's own source (its map and actor) is the placing the Build
 clones. Its request names the look as `look: {mesh, measure}` (a ground shape's also `material`): the donor's mesh

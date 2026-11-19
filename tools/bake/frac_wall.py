@@ -1,5 +1,5 @@
 """A fracturing wall made from numbers, built the way one of the game's inside walls is
-(private/plans/todo/custom-geometry-implementation-plan.md, section 0, stage F2).
+(private/plans/done/custom-geometry-implementation-plan.md, section 0, stage F2).
 
 A wall is made in a look (custom geometry plan, M4): one of the game's fracturing walls and the recipe measured on
 it. A wall's numbers name their look (`look`): an id of wall_looks.json (LOOKS; left out, DEFAULT_LOOK), built by the

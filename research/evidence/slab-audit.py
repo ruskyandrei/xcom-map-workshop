@@ -1,5 +1,5 @@
 """Read-only audit of the game's fracturing floors and roofs (slabs), for floors and roofs made from numbers
-(private/plans/todo/custom-geometry-implementation-plan.md, stage M5, item 1, and what items 2 and 3 need).
+(private/plans/done/custom-geometry-implementation-plan.md, stage M5, item 1, and what items 2 and 3 need).
 
 Over every map the install lists (tools/viewer/library.py donors), or the maps named with --maps, it reads each placed
 fracturing piece (XComFracLevelActor, XComDecoFracLevelActor) of the persistent level and its mesh. A slab is a mesh

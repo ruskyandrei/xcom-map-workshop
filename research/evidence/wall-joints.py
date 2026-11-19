@@ -1,5 +1,5 @@
 """Read-only audit of how the game's fracturing walls meet, and of what their fragment columns list of each other,
-for joined made walls (private/plans/todo/custom-geometry-implementation-plan.md, stage M3, item 1; F-69, F-116).
+for joined made walls (private/plans/done/custom-geometry-implementation-plan.md, stage M3, item 1; F-69, F-116).
 
 Over every map the install lists (tools/viewer/library.py donors), or the maps named with --maps, it reads each placed
 fracturing piece (XComDecoFracLevelActor, XComFracLevelActor) of the persistent level: its mesh's fragments in world

@@ -1,5 +1,5 @@
 """Read-only audit of the game's ground and rock materials as donors for ground made from numbers
-(private/plans/todo/custom-geometry-implementation-plan.md, stage M6, item 2).
+(private/plans/done/custom-geometry-implementation-plan.md, stage M6, item 2).
 
 A made ground shape (a flat patch, a raised block, a ramp) is to be a copy of a donor: one of the game's own plain
 (not fracturing) static mesh pieces placed in a map, its StaticMesh replaced by ours on the donor's material, lit

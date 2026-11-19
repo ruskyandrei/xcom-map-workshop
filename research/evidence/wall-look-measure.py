@@ -1,5 +1,5 @@
 """A fracturing wall's look measured from a donor, in the shape of tools/bake/frac_wall.py's RECIPE
-(private/plans/todo/custom-geometry-implementation-plan.md, stage M4 item 2: "measured, not typed").
+(private/plans/done/custom-geometry-implementation-plan.md, stage M4 item 2: "measured, not typed").
 
 The measuring is tools/bake/wall_measure.py's (moved there in M4, work order A; its docstring says how it measures):
 this script is a wrapper of it with the same output. It reads one FracturedStaticMesh of a map of the install (by the

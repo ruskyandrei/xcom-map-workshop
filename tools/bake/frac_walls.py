@@ -1,4 +1,4 @@
-"""Generated fracturing walls in the variant map (private/plans/todo/custom-geometry-implementation-plan.md, section 0,
+"""Generated fracturing walls in the variant map (private/plans/done/custom-geometry-implementation-plan.md, section 0,
 stage F3): a copy of one of the map's fracturing walls (the donor) whose mesh and fragment columns are made from
 numbers (frac_wall.py), everything else the donor's.
 

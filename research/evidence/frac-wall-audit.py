@@ -1,5 +1,5 @@
 """Read-only audit of the game's fracturing building walls, for a fracturing wall made from numbers
-(private/plans/todo/custom-geometry-implementation-plan.md, section 0, stage F0; findings register T-42).
+(private/plans/done/custom-geometry-implementation-plan.md, section 0, stage F0; findings register T-42).
 
 Over every map the install lists (tools/viewer/library.py donors), or the maps named with --maps, it reads each placed
 fracturing piece (XComDecoFracLevelActor, XComFracLevelActor) whose mesh's name holds "wall", and every fracturing

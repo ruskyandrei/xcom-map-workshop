@@ -1,5 +1,5 @@
 """A cooked StaticMesh's or FracturedStaticMesh's native data as numbers, and the same numbers written back
-(private/plans/todo/custom-geometry-implementation-plan.md, section 0, stage F1).
+(private/plans/done/custom-geometry-implementation-plan.md, section 0, stage F1).
 
 read(p, index) gives the native data after the tagged properties as a dict of plain values; write(mesh, at) gives
 its bytes again, `at` being the logical offset its first byte will have (the raw triangles' empty inline bulk record

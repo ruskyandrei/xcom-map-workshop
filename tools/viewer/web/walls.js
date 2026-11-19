@@ -1,4 +1,4 @@
-// Made walls on the page (private/plans/todo/custom-geometry-implementation-plan.md, stage M1): what is pure about the
+// Made walls on the page (private/plans/done/custom-geometry-implementation-plan.md, stage M1): what is pure about the
 // wall tool. A made wall is an added copy of its look's donor (a fracturing wall of the game's) that carries
 // `generated: { kind: 'fracWall', version: 1, wall }`, the wall's numbers in the donor mesh's frame
 // (tools/bake/frac_wall.py): `x0` and `x1` its tile edges along the wall (the tool always writes x0 0 and puts the
