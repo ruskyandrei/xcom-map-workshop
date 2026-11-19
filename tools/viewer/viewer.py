@@ -29,6 +29,7 @@ from precache import PrecacheRunner
 import guide
 import gamemaps
 import manager
+import pictures
 from maplist import lwr_maps
 from settings import KEYS, doctor, load_settings, resolve_game, save_settings, settings_path
 
@@ -172,7 +173,26 @@ class Handler(SimpleHTTPRequestHandler):
             return (parts[2].split('.')[0] + ('-status' if parts[2] == 'build.json' else ''), parts[1])
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] in ('build', 'build-cancel', 'report'): return (parts[2], parts[1])
         if parts == ['builds', 'reveal']: return ('reveal', None)
+        # the project's map picture (pictures.py), and the game's own picture of a map
+        if len(parts) == 3 and parts[0] == 'projects' and parts[2] == 'picture.png': return ('picture', parts[1])
+        if parts == ['projects', 'picture-preview']: return ('picture-preview', None)
+        if len(parts) == 2 and parts[0] == 'map-pictures' and parts[1].endswith('.png'): return ('base-picture', unquote(parts[1][:-4]))
         return None
+
+    def send_png(self, payload):
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/png')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def game_cooked(self):
+        """The CookedPCConsole of the game install the editor reads, or None."""
+        from settings import lwr_game
+        try: game, _ = lwr_game(self.player.settings) if self.player is not None else (None, None)
+        except (OSError, ValueError): game = None
+        return None if game is None else game / 'XEW' / 'XComGame' / 'CookedPCConsole'
 
     def same_origin(self):
         # A page elsewhere (or a DNS-rebound name) must not reach these routes: the Host must be this server's
@@ -221,7 +241,43 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.projects.names is None: raise ProjectError(404, 'This server does not name projects.')
                 self.send_json(200, self.projects.names.preview(request.get('name'), request.get('map'), request.get('target')))
             elif kind == 'project' and method == 'GET':
-                self.send_json(200, self.projects.load(project_id))
+                document = self.projects.load(project_id)
+                # a picture sent beside the project's file is taken in the first time the project opens
+                pictures.adopt_beside(self.projects, self.projects.path(project_id), document)
+                self.send_json(200, document)
+            # The map picture (pictures.py): PUT /projects/<id>/picture.png keeps an opaque 512 x 256 PNG of up to
+            # 1 MB, written again clean, and answers {sha256}; GET serves the kept one (?sha256=<hash>: the kept file
+            # with that hash, the current one or the one before it; ?as=game: as the game shows it, after DXT1);
+            # DELETE takes it away. GET /map-pictures/<map>.png is the game's own picture of a map (404: it has none).
+            elif kind == 'picture' and method == 'PUT':
+                try: length = int(self.headers.get('Content-Length') or 0)
+                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
+                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                if length <= 0: raise ProjectError(400, 'Send the picture.')
+                saved = pictures.named(self.projects.load(project_id))
+                self.body_read = True
+                self.send_json(200, pictures.save_picture(self.projects, project_id, self.rfile.read(length), saved))
+            elif kind == 'picture-preview' and method == 'POST':
+                # a cropped picture as the game will show it (after DXT1), for the dialog; nothing is kept
+                try: length = int(self.headers.get('Content-Length') or 0)
+                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
+                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                if length <= 0: raise ProjectError(400, 'Send the picture.')
+                self.body_read = True
+                self.send_png(pictures.shown_png(self.rfile.read(length)))
+            elif kind == 'picture' and method == 'GET':
+                query = parse_qs(urlsplit(self.path).query)
+                wanted = (query.get('sha256') or [None])[0]
+                path = pictures.picture_file(self.projects, self.projects.check_id(project_id), wanted)
+                if path is None: raise ProjectError(404, 'No picture is kept for that project.')
+                self.send_png(pictures.game_png(path) if query.get('as') == ['game'] else path.read_bytes())
+            elif kind == 'picture' and method == 'DELETE':
+                saved = pictures.named(self.projects.load(project_id))
+                self.send_json(200, pictures.remove_picture(self.projects, project_id, saved))
+            elif kind == 'base-picture' and method == 'GET':
+                payload = pictures.base_png(self.game_cooked(), project_id)
+                if payload is None: raise ProjectError(404, 'The game has no picture of that map.')
+                self.send_png(payload)
             elif kind == 'project' and method == 'PUT':
                 request = self.body_json()
                 if not isinstance(request, dict): raise ProjectError(400, 'Send {expectedRevision, document}.')

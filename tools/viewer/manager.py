@@ -45,6 +45,7 @@ import zipfile
 import installs
 import spawnrules
 import pack_scripts
+import pictures
 import publication
 from projects import ProjectError
 from settings import kind_label, lwr_game
@@ -151,8 +152,11 @@ def listing(projects, builds, player):
             in_game = dict(play=variant in played, rotation=entry['mode'] if entry else None,
                            buildId=(entry or played[variant]).get('buildId'),
                            current=bool(build) and (entry or played[variant]).get('buildId') == build['buildId'])
+        # its map picture: one sent beside the project's file is taken in, then whose the map shows (pictures.py)
+        pictures.adopt_beside(projects, projects.path(summary['id']), document)
+        picture = pictures.status(projects, document, installs.cooked(read) if read is not None else None)
         rows.append(dict(summary, variant=variant, build=build, missions=missions, warnings=warnings,
-                         modeWarnings=by_mode, inGame=in_game,
+                         modeWarnings=by_mode, inGame=in_game, picture=picture,
                          building=summary['id'] in building))
     return dict(projects=rows, folder=str(projects.root), output=str(builds.output), editorVersion=VERSION,
                 install=dict(folder=None if game is None else str(game), ready=game is not None and why is None, why=why,

@@ -54,9 +54,17 @@ patch needs) and the main viewer cache. Stages, each logged in the build's work 
    no texture cache.
 5. Seeds: the patch's seed plan (patchtool's seed-plan-built.tsv) is applied to the relit map
    (tools/upk/seed_map.py apply), so the copier's copies block and give cover on tiles the map left empty (F-29).
+   Then the project's map picture, if it has one (tools/viewer/pictures.py keeps the file, 512 x 256), is written
+   into the map as its top-level Texture2D `MapPicture` (tools/bake/map_frame.py: DXT1, as the game's own map
+   pictures), the last change to the map, in quick and full builds alike. Long War Rebalance 3 shows it on the
+   mission screens; plain Enemy Within and earlier Long War versions look for no such object. A project that names
+   a picture whose file is not on this computer builds without one and says so (a note: the stage, the manifest's
+   pictureNote and the README). A changed picture is a change of the project like any other: the build is an
+   ordinary one, with no shortcut that redoes the picture alone (which inputs of the last build still hold is not
+   recorded, so "only the picture changed" can't be told safely).
 6. Package: <output>/<Variant>/, as the plan's variant package:
      CookedPCConsole/<Variant>.upk          the base map with the edit's copies, relit and seeded, under the
-                                            variant's name
+                                            variant's name, with the project's map picture
      CookedPCConsole/<Variant>_Lighting.tfc its texture cache (none in a quick build, nor when the lighting is
                                             unchanged)
      CookedPCConsole/<EditPatch>.upk        the cooked edit patch (hides, the copier's copies), if there is one
@@ -112,6 +120,7 @@ import installs  # noqa: E402
 import maplist  # noqa: E402
 import missions as mission_kinds  # noqa: E402
 import outputnames  # noqa: E402
+import pictures  # noqa: E402
 import publication  # noqa: E402
 import spawnrules  # noqa: E402
 import spawns  # noqa: E402
@@ -144,6 +153,10 @@ QUICK_LIGHTS = ('Its light edits are made in the map but not baked, and what the
                 'follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays baked '
                 'where it was and the new place gets none.')
 INTRO_COPY = TOOLS / 'bake' / 'intro_copy.py'
+MAP_FRAME = TOOLS / 'bake' / 'map_frame.py'
+PICTURE_FORMAT = 'DXT1'
+PICTURE_MISSING = ('the project names a map picture whose file is not on this computer (%s): the map is built '
+                   'without a picture of its own. Choose the picture again in Map picture, save and build again')
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
@@ -505,6 +518,12 @@ def readme(m):
             '%s.upk is %s with the edit made in it: %sits lighting baked; its lightmaps are in %s.tfc.'
             % (m['variant'], m['source']['map'], made, m['cache']),
         ]
+    if m.get('picture'):
+        lines += ['%s.upk holds the project\'s map picture (MapPicture, 512 x 256, %s): Long War Rebalance 3 shows it '
+                  'on the mission screens; plain Enemy Within and earlier Long War versions don\'t look for it.'
+                  % (m['variant'], m['picture'].get('format'))]
+    elif m.get('pictureNote'):
+        lines += ['No map picture: %s.' % m['pictureNote']]
     counts = m.get('lights') or {}
     if lit and not m.get('quick') and (counts.get('added') or counts.get('changed') or counts.get('moved')):
         lines += ['Each added, moved or changed light is baked into the lightmaps of the pieces it reaches and listed '
@@ -577,7 +596,7 @@ def readme(m):
 class Build:
     def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
                  seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=(), named=None,
-                 attempt=None, saved_file=None, boundary=None):
+                 attempt=None, saved_file=None, boundary=None, picture=None):
         self.project_path = Path(project)
         # the server's launch this build is (builds.py: a UUID), carried into the manifest so the server knows its own
         # package, and into the build's id so two builds in one second are told apart; the project's own file when
@@ -602,6 +621,8 @@ class Build:
         self.run_tool = run or self._run
         self.seed_tool = seed or self._seed
         self.name_tool = named or self._name_copy     # named_base's growing write (tests give a stand-in)
+        self.picture_tool = picture or self._picture  # the map picture's writer (tests give a stand-in)
+        self.pictured = self.picture_note = None
         self.echo = echo
         self.stages = []
         self.started = self.stage_started = time.monotonic()
@@ -1156,6 +1177,40 @@ class Build:
                            if self.natives or self.covers else 'no seed plan: the edit puts nothing on new tiles')
         self.stage('seeds', report=self.seeded)
 
+    @staticmethod
+    def _picture(src, dst, png):
+        """The map `src` written to `dst` with the picture file `png` (512 x 256) as its MapPicture
+        (tools/bake/map_frame.py): dict(export, how)."""
+        sys.path.insert(0, str(TOOLS / 'bake')) if str(TOOLS / 'bake') not in sys.path else None
+        import map_frame
+        return map_frame.write_picture(src, dst, map_frame.encode_file(png))
+
+    def picture(self, cooked_dir):
+        """The project's map picture written into the variant map, the last change made to it (after the seeds, which
+        want nothing written after the world data before them; the picture's writer appends, as the edit's own writer
+        does). The picture is the file the project's document names by its SHA-256, kept with the project
+        (pictures.py); one that is missing is a note, and the map is built without a picture of its own."""
+        self.pictured = self.picture_note = None
+        if self.doc.get('picture') is None:
+            return
+        named = pictures.named(self.doc)
+        png = pictures.picture_file(self.projects, self.doc.get('id'), named) if named else None
+        if png is None:
+            self.picture_note = PICTURE_MISSING % (named[:12] if named else 'its record is malformed')
+            self.echo('note: %s' % self.picture_note)
+            self.stage('picture', written=False, note=self.picture_note)
+            return
+        built = cooked_dir / ('%s.upk' % self.variant)
+        out = self.work / 'pictured' / built.name
+        out.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            report = self.picture_tool(built, out, png) or {}
+        except (OSError, ValueError, KeyError, struct.error) as error:
+            raise BuildError('the map picture could not be written into %s: %s' % (built.name, error))
+        os.replace(out, built)
+        self.pictured = dict(sha256=named, format=PICTURE_FORMAT)
+        self.stage('picture', written=True, export=report.get('export'), how=report.get('how'), **self.pictured)
+
     def intro_copies(self, cooked_dir, records):
         """The variant's own intros (F-45, F-76), one per intro its base records stream: {stream: copy}."""
         copies = {}
@@ -1277,6 +1332,7 @@ class Build:
         cooked_dir = staging / 'CookedPCConsole'
         cooked_dir.mkdir(parents=True)
         self.seed(cooked_dir)
+        self.picture(cooked_dir)
         if self.cache_name:     # a quick build has none
             tfc = self.lit / ('%s.tfc' % self.cache_name)
             if tfc.is_file():
@@ -1318,7 +1374,8 @@ class Build:
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
                            TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
                            TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
-                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py') if p.is_file()}
+                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py', MAP_FRAME)
+                 if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
@@ -1348,6 +1405,9 @@ class Build:
                  foreignEffects=sum(d.get('effects', 0) for d in self.donors),
                  lights=self.lights,
                  lightingUnchanged=self.unchanged,
+                 # the map's own picture (its file's SHA-256, as the project names it); absent: the map has none
+                 **({'picture': self.pictured} if self.pictured else {}),
+                 **({'pictureNote': self.picture_note} if self.picture_note else {}),
                  stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)
         (staging / 'manifest.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
         (staging / 'README.txt').write_bytes(readme(m).encode('latin-1', 'replace'))

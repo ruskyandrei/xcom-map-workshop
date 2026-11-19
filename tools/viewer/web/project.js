@@ -54,7 +54,11 @@ export const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakToge
 export const stateKey = state => JSON.stringify([state.overrides, state.added, state.groups ?? [], state.areaLightBindings ?? [], state.stage ?? null,
                                                  state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
                                                  state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
-                                                 state.spawnRules ?? null]);
+                                                 state.spawnRules ?? null, state.picture?.sha256 ?? null]);
+// The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
+// server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
+export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1
+  && typeof p.sha256 === 'string' && /^[0-9a-f]{64}$/.test(p.sha256);
 // The project's spawn rules (spawns plan, SP8): null (the install's behaviour) or { dropIns: 'placed' } (Long War's
 // scripted drop-ins land where placed: the Build excludes the variant from its drop-in mutator). Nothing else is read.
 export const validSpawnRules = r => r && typeof r === 'object' && !Array.isArray(r) && Object.keys(r).length === 1 && r.dropIns === 'placed';
@@ -163,7 +167,9 @@ export function sortState(state) {
            // the missions the variant serves (mission types plan, D1): null, every mission of the base map
            missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null,
            // the spawn rules (SP8): a malformed one is carried as it is, for the compiler to refuse
-           spawnRules: validSpawnRules(state.spawnRules) ? { dropIns: 'placed' } : (state.spawnRules ?? null) };
+           spawnRules: validSpawnRules(state.spawnRules) ? { dropIns: 'placed' } : (state.spawnRules ?? null),
+           // the map picture: a malformed one is dropped (the server would refuse the save)
+           picture: validPicture(state.picture) ? { sha256: state.picture.sha256 } : null };
 }
 
 // A record the browser can apply: a known shape with finite numbers (the server checks only the document's frame).

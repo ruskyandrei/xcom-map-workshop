@@ -37,6 +37,108 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
     its enum values found in the game's script, and both ways against the LWR team's reference writer (a private
     copy; those tests skip without it).
   - Not yet read by the game: that is the next stage's run on the beta 15 copy.
+- **Map picture…: Take from the view** (LWR map packs plan, stage C8; branch `lwr-map-picture`).
+  [app.js](tools/viewer/web/app.js) `grabView`: the 3D view as it is now becomes the image to crop. The renderer
+  keeps no drawing buffer, so one frame is drawn and copied onto a canvas at once, with the editor's helpers hidden
+  for that frame: everything in the world but the map's pieces, its lights and its effects' likenesses (grids,
+  gizmos, handles, markers, the play area, the selection's outline), and cover blocks and invisible floors, which
+  the game never draws. The dialog's button shows where the page gives it a view
+  ([map_picture.js](tools/viewer/web/map_picture.js)).
+  - Checked: [browser_map_picture.py](tools/viewer/tests/browser_map_picture.py) on a test server with URB_Bar:
+    the image taken is the view's size, its frame is sound, the result is drawn, and what shows in the view is as
+    before afterwards; the picture of the dialog looked at (the map, no grid or handles). The `node` and `repo`
+    suites.
+  - Gaps: no pixel comparison of the taken frame against the view with its helpers; the taken image is the view at
+    the window's size, so a small window gives a soft picture.
+
+- **The Build writes the project's map picture into the map** (LWR map packs plan, stage C5; branch
+  `lwr-map-picture`). [build.py](tools/editor/build.py):
+  - `Build.picture`, the step after the seeds in `Build.package`, in quick and full builds alike: the picture file
+    the project names (kept by [pictures.py](tools/viewer/pictures.py)) is written into the package's map as its
+    `MapPicture` by [map_frame.py](tools/bake/map_frame.py), before the files are hashed. The seeder wants the world
+    data last in the map it reads; the picture is written after it has run, by a writer that appends, so nothing of
+    the seeds moves.
+  - The manifest gets `picture: {sha256, format}` (absent when the map has none) and the stage `picture`; the README
+    names the picture; map_frame.py is among the manifest's tools.
+  - A project that names a picture whose file is not on the computer builds without one: a note (`note:` in the log,
+    the manifest's `pictureNote`, a README line), never a refusal or a warning.
+  - A changed picture is an ordinary rebuild. No picture-only shortcut was built: a build does not record which of
+    its inputs still hold (the install's config, the donors, the tools), so "only the picture changed" can't be told
+    safely from the last package.
+  - Checked: [test_build.py](tools/editor/tests/test_build.py), five tests (with a picture: the stage after the
+    seeds, the map's bytes, the manifest entry and hash, the README, a quick build too; without: none of it; a
+    missing file and a malformed record: the note; a changed picture builds again; the real writer on
+    URB_TruckStop_Stream, skipped without the game). The `editor` and `repo` suites, `viewer -k build`. A real quick
+    build of a scratch project on URB_Bar (one piece deleted, a picture) from the command line into a scratch builds
+    folder: the built map's last export is `MapPicture` with the next net index, read back whole by `native_fields`,
+    its pixels the kept file's.
+  - Not checked: the game showing the picture (no game was started).
+
+- **Map picture…: a picture uploaded, cropped and kept with the project** (LWR map packs plan, stage C4; branch
+  `lwr-map-picture`). Nothing builds it into a map yet.
+  - [pictures.py](tools/viewer/pictures.py), new: a project's picture is `<projects>\.workshop\<id>\picture.png`, an
+    opaque 512 x 256 PNG of up to 1 MB written again from its pixels (no text, no profile), named by its SHA-256.
+    The one before it stays as `picture.prev.png`, and the picture the saved revision names is never the one lost,
+    so a change that is never saved leaves the saved project its picture. `picture_file`, `project_picture`,
+    `beside`, `adopt_picture`, `adopt_beside` (a `<project file's name>.picture.png` beside a project's file is
+    taken in when its SHA-256 is the one the project names), `status` (own, base or none), and the game's own
+    picture of a map read from its four map-image packages by the map's name (`base_library`, `base_png`).
+  - [viewer.py](tools/viewer/viewer.py): `PUT`, `GET` (`?sha256=`, `?as=game`: after DXT1) and `DELETE`
+    `/projects/<id>/picture.png`; `POST /projects/picture-preview` (a crop as the game will show it, nothing kept);
+    `GET /map-pictures/<map>.png` (the game's picture of a map). Changes only from the page itself. Opening a
+    project takes in a picture lying beside its file.
+  - [projects.py](tools/viewer/projects.py): a project's document takes `picture: {sha256}` and nothing else there.
+    The schema version stays 4: the field is optional.
+  - [map_picture.js](tools/viewer/web/map_picture.js), [map_picture_crop.js](tools/viewer/web/map_picture_crop.js),
+    new; [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css),
+    [app.js](tools/viewer/web/app.js), [project.js](tools/viewer/web/project.js): Project menu, **Map picture…**.
+    Choose image or drop a file; a 2:1 frame over it, dragged, resized by its corners, the wheel or the keyboard,
+    starting as the largest around the middle; under it the result at 512 x 256 after DXT1. With no picture of its
+    own the dialog shows the base map's and says a map pack borrows it. Use this picture sends only the cropped PNG
+    (halved in steps, then one smooth step) and marks the project changed; the next save names it. Remove picture
+    takes it away. Save as copies the picture to the new project. No undo step.
+  - [manager.py](tools/viewer/manager.py), [manager.js](tools/viewer/web/manager.js): each project's row ends with
+    "own picture", "base map's picture" or "no picture".
+  - Checked: [test_pictures.py](tools/viewer/tests/test_pictures.py), new (13 tests: only an opaque 512 x 256 PNG
+    from the page itself, the clean file and its hash, the saved revision's picture through unsaved changes,
+    adoption, the routes, the game's pictures by map name on the install);
+    [test_manager.py](tools/viewer/tests/test_manager.py); [map_picture_test.mjs](tools/viewer/tests/map_picture_test.mjs),
+    new (the frame kept inside the image through made-up drags, the stepped sizes, the picture in a project's
+    state); the `viewer`, `node` and `repo` suites (five pack-script tests skipped: XCOM was running).
+    [browser_map_picture.py](tools/viewer/tests/browser_map_picture.py), new, on a test server with URB_Bar: the
+    dialog from the menu, the base map's picture, a chosen and a dropped file, the frame moved, resized and zoomed,
+    the result drawn, Use, the save, the manager's words, Remove; the pictures of it looked at.
+  - Gaps: the guide has no section for it; Take from the view comes with stage C8.
+
+- **A map picture written into a map package** (LWR map packs plan, stage C3; branch `lwr-map-picture`).
+  [map_frame.py](tools/bake/map_frame.py):
+  - `encode` and `decode`: a 512 x 256 picture to DXT1 and back ([dxt1.py](tools/bake/dxt1.py)), 65,536 bytes;
+  - `add_picture(g, pixels)`: the top-level `Texture2D` named `MapPicture` made in a map being grown, with the names
+    and the `Engine.Texture2D` class import the map lacks, a net index of its own and the two bulk records' offsets
+    from `next_offset()`; a map that has a picture already gets its export's data anew;
+  - `write_picture(src, dst, pixels)`: a whole file. A map with a picture laid out as ours gets the pixels and the
+    cache GUID written over the old, every offset kept ([package_edit.py](tools/upk/package_edit.py)); any other map
+    is grown;
+  - `read_picture(path)` and `locate(package)` find a map's own picture.
+  - Checked: [test_map_frame.py](tools/bake/tests/test_map_frame.py) writes a known picture into
+    URB_TruckStop_Stream (no texture, no Texture2D import) and reads it back with `native_fields` (nothing left over)
+    and the editor's texture reader (pixels within DXT1's error); its flags, property tags and size equal a game
+    picture's; a second picture swapped in place changes bytes only inside the export, and the first again gives the
+    first file back; a package grown twice keeps one picture; URB_Bar takes one under its own Texture2D import.
+    `bake -k map_frame` (11 tests), `upk -k native_fields`. The map-backed tests skip without the game.
+  - Not checked: the game showing it. Nothing calls the writer yet.
+
+- **The game's map pictures read field by field** (LWR map packs plan, stage C0 for the map picture; branch
+  `lwr-map-picture`). [map_frame.py](tools/bake/map_frame.py), new: the recipe of a map picture (a `Texture2D`,
+  512 x 256, DXT1, one mip in the package) and `describe`, which reads one. Read from the install's four map-image
+  packages, 105 pictures:
+  - 99 are alike: object flags `0x000F000400000000`, nine properties (SizeX, SizeY, OriginalSizeX, OriginalSizeY,
+    Format `PF_DXT1`, MipTailBaseIdx, SRGB False, NeverStream True, LODGroup `TEXTUREGROUP_UI`), an empty source-art
+    record, one mip of 65,536 bytes, the size, a cache GUID, then int32 0, 1, 0;
+  - MipTailBaseIdx is 9, not the 0 the plan listed; the recipe follows the game;
+  - the six DLC pictures save CompressionNoAlpha too; the recipe leaves it out, as the 99 do.
+  - Checked: [test_map_frame.py](tools/bake/tests/test_map_frame.py), new, compares every picture of the install with
+    the recipe (skipped without the game); `bake -k map_frame`. Nothing writes a picture yet.
 
 - **EXP-84 run A played: every check passed** (the short game run before the custom geometry branch goes into main).
   [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):
