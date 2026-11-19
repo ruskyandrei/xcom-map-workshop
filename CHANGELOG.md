@@ -8,6 +8,25 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The guide follows the streamlined panels** (the user; branch `fracturing-wall-poc`, so the published page is as
+  before until main has it).
+  - [guide.html](tools/release/guide/guide.html): the piece panel's legend is the new one (the row of buttons with
+    Save as prefab at its right, Flags folded to a line, Place, Source), with three lines on folding sections, the ⓘ
+    that shows a section's explanations, and a piece's own section standing first. Flags: folded until clicked, the
+    reason for the row under the pointer in one line. Select all of a kind is the button with four squares and a
+    count. The effect panel's and the Spawns panel's sentences are "About". Align's words show with its ⓘ. Saving a
+    prefab counts the pieces copied.
+  - Pictures retaken, 17 ([shots/](tools/release/guide/shots)): piece-panel, flags, group, align (new sizes),
+    window, box-select, cover-blocks, lights, effects, effect-values, buildings-draw, buildings-view, map-grid,
+    landing-zones, spawns, spawns-volume, mission-objects. The others are kept.
+  - [take_shots.py](tools/release/guide/take_shots.py): the piece panel as a first visit has it (Flags folded, Source
+    unfolded), its seven marks; the Flags shot opens the fold; the Align shot shows its words; the effect shot opens
+    About.
+  - [app.js](tools/viewer/web/app.js): the Buildings view's count line reads "12 boxes in 3 buildings; 4 more of
+    the map's own, in grey."
+  - Checked: every shot in one run on a fresh test server, the retaken ones looked at (marks on their controls,
+    nothing personal); `viewer -k guide`, `release` and `repo`. The last release's zip has the earlier guide.
+
 - **Save as prefab in sight, with its progress; the browser checks the panel work left failing** (the user; branch
   `fracturing-wall-poc`).
   - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the piece panel's

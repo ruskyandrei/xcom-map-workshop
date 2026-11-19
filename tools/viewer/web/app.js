@@ -11079,7 +11079,7 @@ function volumePanel() {
   const targets = pickedVolumes(), one = targets.length === 1 ? targets[0] : null, grid = volumeGrid();
   const live = liveVolumes().length, ownCount = (data?.buildings ?? []).filter(b => !mapEditable(b) && b.floors?.length).length;
   $('volumeHow').textContent = live && volumesOn ? 'Click a box to select it; the gizmo moves it, the white dots stretch it.' : '';
-  $('volumeIntro').textContent = live ? `${boxCount(live)} in ${plural(buildings.length, 'building')}${ownCount ? `, ${ownCount} of the map's as it has ${ownCount === 1 ? 'it' : 'them'}` : ''}.`
+  $('volumeIntro').textContent = live ? `${boxCount(live)} in ${plural(buildings.length, 'building')}${ownCount ? `; ${ownCount} more of the map's own, in grey` : ''}.`
     : 'A building is boxes laid over its floors: the game hides the pieces in the upper boxes when a soldier is inside, and cuts the walls down. Draw one with New box.';
   $('volumeOwn').textContent = ownCount ? `${ownCount === 1 ? 'One building of the map stays' : `${ownCount} buildings of the map stay`} as the map has `
     + `${ownCount === 1 ? 'it' : 'them'}, in grey: a van's goes with its van${data.exporterVersion >= 21 ? '' : ' (this export predates editing the map\'s buildings: prepare the map again)'}. `

@@ -304,13 +304,13 @@ class Shots:
         page = self.page
         page.evaluate('id => { viewer.select(null); viewer.select(id); }', self.copy)
         page.keyboard.press('v')
-        page.evaluate("for (const id of ['sourceDetails', 'flagsBox', 'poseBox']) document.getElementById(id).open = true")
-        page.set_viewport_size(dict(width=WIDTH, height=TALL))      # the panel with its flags is taller than the window
+        # (the folds as a first visit has them, Flags folded and Place open; Source unfolded for its fields)
+        page.evaluate("document.getElementById('sourceDetails').open = true; document.getElementById('poseBox').open = true; document.getElementById('flagsBox').open = false")
+        page.set_viewport_size(dict(width=WIDTH, height=TALL))      # the panel with its source fields is taller than the window
         page.wait_for_timeout(800)
-        rows = [(1, '#details'), (2, '#editCopy'), (3, '#flagsBox .posehead'), (4, '#posX'), (5, '#rotP'), (6, '#editReset'),
-                (7, '#sourceDetails summary'), (8, '#copyPaths')]
+        rows = [(1, '#details'), (2, '#editCopy'), (3, '#flagsBox summary'), (4, '#posX'), (5, '#rotP'), (6, '#sourceDetails summary'), (7, '#copyPaths')]
         self.shot('piece-panel', self.panel_rows('#inspector', rows), clip=self.around('#inspector', pad=(40, 8, 8, 8)))
-        page.evaluate("for (const id of ['sourceDetails', 'flagsBox']) document.getElementById(id).open = false")
+        page.evaluate("document.getElementById('sourceDetails').open = false")
         page.set_viewport_size(dict(width=WIDTH, height=HEIGHT))
         page.wait_for_timeout(500)
 
@@ -391,9 +391,11 @@ class Shots:
         self.shot('group', self.panel_rows('#inspector', rows), clip=self.around('#groupBox', pad=(56, 14, 24, 12)))
         page.evaluate('([id]) => viewer.select(id, true)', [self.id(KEG_C)])
         page.locator('#alignX').check()
+        page.evaluate("document.getElementById('alignBox').classList.add('showhow')")      # (its words, as its info button shows them)
         page.wait_for_timeout(400)
         rows = [(1, '#alignTarget'), (2, '#alignGo'), (3, '#alignText')]
         self.shot('align', self.panel_rows('#inspector', rows), clip=self.around('#alignBox', pad=(56, 14, 24, 12)))
+        page.evaluate("document.getElementById('alignBox').classList.remove('showhow')")
         page.locator('#alignX').uncheck()
         self.select(KEG_A)
         page.keyboard.press('Control+Shift+G')

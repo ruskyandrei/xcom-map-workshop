@@ -546,29 +546,37 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="piece">Piece panel</h3>
 <p>The panel on the right appears when something is selected.</p>
 <div class="split">
-  <figure><img src="shots/piece-panel.webp" width="348" height="939" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
+  <figure><img src="shots/piece-panel.webp" width="348" height="574" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>What it is:</b> the piece's name, its kind and its map, then chips with what you should know
       about it (listed below).</li>
-    <li data-n="2"><b>Copy</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>) and <b>Delete</b> (<kbd>Del</kbd>). After Copy,
-      <kbd>Ctrl</kbd>+<kbd>V</kbd> shows the copy at the cursor and a click places it. Beside them,
-      <b><a href="#select-kind">Select all of a kind</a></b>.</li>
+    <li data-n="2"><b>The buttons</b>, each named when the pointer rests on it: <b>Copy</b>
+      (<kbd>Ctrl</kbd>+<kbd>C</kbd>; <kbd>Ctrl</kbd>+<kbd>V</kbd> then shows the copy at the cursor and a click places
+      it), <b>Delete</b> (<kbd>Del</kbd>), <b><a href="#select-kind">Select all of a kind</a></b> with its count, and
+      <b>Reset piece</b>, which puts the selected pieces back where the map has them. At the right,
+      <b>Save as prefab…</b> saves what is selected as a <a href="#prefabs">prefab</a>.</li>
     <li data-n="3"><b><a href="#flags">Flags</a>:</b> what the game does with the piece (walking, cover, sight,
-      floor, the mouse), to change.</li>
-    <li data-n="4"><b>Position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
-    <li data-n="5"><b>Rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
-    <li data-n="6"><b>Reset piece</b> puts the selected pieces back where the map has them. <b>Save as prefab…</b>
-      saves what is selected as a <a href="#prefabs">prefab</a>.</li>
-    <li data-n="7"><b>Source details</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
+      floor, the mouse), to change. Folded, its line says whether they are as the map has them.</li>
+    <li data-n="4"><b>Place: its position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
+    <li data-n="5"><b>Its rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
+    <li data-n="6"><b>Source</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
       and its health, which building floor it belongs to, and what moves with it.</li>
-    <li data-n="8"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
+    <li data-n="7"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
   </ol>
 </div>
+<ul>
+  <li><b>Sections fold.</b> A click on a section's name (Group, Align, Flags, Place, Source) folds it to one line that
+    says what it holds, or opens it again. The panel remembers how you left each.</li>
+  <li><b>The ⓘ beside a section's name</b> shows or hides its explanations: how its handles work, what an option
+    does, why something is greyed. What a thing is, and warnings, are always shown.</li>
+  <li><b>A piece with settings of its own</b> (a made wall, floor or ground, a room, a light, a cover block, a piece
+    that can be broken) has its section first, above the others.</li>
+</ul>
 <h4>The chips</h4>
 <table class="wrapfirst">
   <tr><th>Chip</th><th>What it means</th></tr>
   <tr><td>Moves with 2 other pieces</td><td>Linked pieces: they were placed together and move together (a car's body and glass).</td></tr>
-  <tr><td>Added copy</td><td>A piece you added. Source details names the piece it copies.</td></tr>
+  <tr><td>Added copy</td><td>A piece you added. Source names the piece it copies.</td></tr>
   <tr><td>Recipe snap</td><td>It moves only by whole tiles and quarter turns. <a href="#rules">Why</a></td></tr>
   <tr><td>Group of 2</td><td>It is in a <a href="#groups">group</a>.</td></tr>
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
@@ -581,15 +589,16 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </table>
 
 <h4 id="flags">Flags</h4>
-<p>The <b class="ui">Flags</b> group says what the game does with the piece, and lets you change it: a wall that units
-  walk and see through, a sign the mouse never picks, a fence that gives no cover.</p>
+<p>The <b class="ui">Flags</b> section says what the game does with the piece, and lets you change it: a wall that units
+  walk and see through, a sign the mouse never picks, a fence that gives no cover. It is folded until you click its
+  name; its line says <i>as the map has them</i>, or how many you changed.</p>
 <div class="split">
-  <figure><img src="shots/flags.webp" width="353" height="393" alt="The Flags group for the Bar's six dumpsters, Blocks sight turned off for all of them"></figure>
+  <figure><img src="shots/flags.webp" width="353" height="486" alt="The Flags group for the Bar's six dumpsters, Blocks sight turned off for all of them"></figure>
   <ol class="legend">
     <li data-n="1"><b>The Flags chip:</b> one of the piece's flags is off, or <i>changed</i> by you.</li>
     <li data-n="2"><b>Select all of a kind</b> picked every dumpster of the map: six.</li>
-    <li data-n="3"><b>The five flags,</b> each with its state for the pieces picked (here 6 pieces), and under it
-      what limits it.</li>
+    <li data-n="3"><b>The five flags,</b> each with its state for the pieces picked (here 6 pieces). A flag marked ⓘ
+      has something that limits it: point at it and the line under the rows says what.</li>
     <li data-n="4"><b>A flag you changed</b> has a dot after its state: Blocks sight turned off for all six, so units
       see over them.</li>
     <li data-n="5"><b>Reset flags</b> puts the map's back.</li>
@@ -611,7 +620,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     step, and the edit count says how many pieces have flags changed. <b class="ui">Reset flags</b> puts the map's
     back.</li>
   <li><b>What a row says.</b> Each row shows on, off, partly on or mixed (picked pieces that differ), and what limits
-    it. A row is greyed, with the reason, where the game never reads that flag for such a piece: a plain static mesh
+    it (in the line under the rows, for the row the pointer is on). A row is greyed, with the reason there, where the game never reads that flag for such a piece: a plain static mesh
     has only Floor, a door's mouse is its own, a ladder gives no cover by the game's usual test.</li>
   <li><b>Partly on</b> is a prop the map set to be skipped by the pathing sweep: its tiles are still blocked where it
     stands, but walking and sight through it are not tested. Turning Gives cover or Blocks sight on opens that, and
@@ -629,8 +638,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 
 <h4 id="select-kind">Select all of a kind</h4>
-<p><b class="ui">Select all TV_BarRow (5)</b>, beside Copy and Delete, selects every piece drawn with the same mesh as
-  the picked one, so you can change all of a kind at once, their flags for one. <kbd>Shift</kbd>+click adds them to
+<p>The <b class="ui">Select all</b> button, beside Copy and Delete (four squares and a count; its tooltip names the
+  kind, as in <i>Select all TV_BarRow</i>), selects every piece drawn with the same mesh as the picked one, so you can change all of a kind at once, their flags for one. <kbd>Shift</kbd>+click adds them to
   the selection. With a <a href="#boxselect">box</a> drawn, it takes only those whose middle is inside the box.
   Hidden and deleted pieces, a mission's or Long War Rebalance's pieces, cover blocks, lights and floor boxes are left
   out. Selecting changes nothing in the project and is not an undo step. A picked effect or sound has a Select all of
@@ -678,7 +687,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="groups">Groups and Align</h3>
 <p>With two or more pieces selected, the piece panel gains two sections.</p>
 <div class="split">
-  <figure><img src="shots/group.webp" width="350" height="164" alt="The group section of the piece panel, for a group of two kegs"></figure>
+  <figure><img src="shots/group.webp" width="348" height="121" alt="The group section of the piece panel, for a group of two kegs"></figure>
   <ol class="legend">
     <li data-n="1"><b>The group.</b> <b class="ui">Group</b> (<kbd>Ctrl</kbd>+<kbd>G</kbd>) joins the selected
       pieces. A group selects and moves as one: picking any of its pieces picks them all. It shows in gold.</li>
@@ -727,13 +736,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     wall is left. One breakable piece is enough, and nothing else destroys the block. An invisible floor stays.</li>
 </ul>
 <div class="split">
-  <figure><img src="shots/align.webp" width="350" height="165" alt="The Align section of the piece panel"></figure>
+  <figure><img src="shots/align.webp" width="348" height="164" alt="The Align section of the piece panel"></figure>
   <ol class="legend">
     <li data-n="1"><b>Target:</b> the piece or group the others line up with. It is the last one you picked unless you
       choose another here. A white box marks it in the view.</li>
     <li data-n="2"><b>Axes and edge:</b> tick any of X, Y (across the floor) and Z (up), choose what lines up (centres,
       low edges or high edges), then <b class="ui">Align</b>. The others move; nothing turns. It is one undo step.</li>
-    <li data-n="3"><b>What will happen</b>, in words.</li>
+    <li data-n="3"><b>What will happen</b>, in words: shown by the section's ⓘ.</li>
   </ol>
 </div>
 
@@ -899,10 +908,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="8"><b>How many</b> prefabs the library holds. Hover it to see the folder they are kept in.</li>
   </ol>
 </div>
-<p><b>To save one:</b> select what should be in it, then press <b class="ui">Save as prefab…</b> in the piece panel
+<p><b>To save one:</b> select what should be in it, then press <b class="ui">Save as prefab…</b> at the top of the piece panel
   (or <b class="ui">Save selection…</b> here) and give it a name. <a href="#boxselect">Box select</a> takes a whole
   building at once; with the Normal button's <a href="#normal-view">switches</a> on it takes the lights and the
-  building's floor boxes too. The window says what goes in, and lists anything that can't.</p>
+  building's floor boxes too. The window says what goes in, and lists anything that can't. While it saves, a
+  bar counts the pieces copied to the library (the first save of a map's pieces takes a while).</p>
 <ul>
   <li><b>What goes in:</b> the map's own pieces and the ones you added (pieces from other maps too), cover blocks and
     invisible floors, lights, effects, sounds and lens flares (with their values), the groups among them, and
@@ -1102,7 +1112,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="2"><b>The size handle:</b> drag it to make the effect larger or smaller, from 1/64 to 64 times its size
     in the map. The box and the drawing follow.</li>
   <li data-n="3"><b>Its chips</b>, here <b>Placed by a prefab</b>.</li>
-  <li data-n="4"><b>What it plays:</b> its particle system and emitters, how it starts, its size and its box.</li>
+  <li data-n="4"><b>About:</b> what it plays (its particle system and emitters), how it starts, its size and its
+    box. Folded, the line says the first of these.</li>
   <li data-n="5"><b>Select all</b> of its particle system: 21 of these on the Bar.</li>
   <li data-n="6"><b>Starts with the mission:</b> unticked, the effect is in the map but switched off until the map's
     script turns it on.</li>
@@ -1554,8 +1565,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="2"><b>The picked pod</b> with its arrows: drag them to move it by whole tiles and levels.</li>
   <li data-n="3"><b>A pod</b> (an orange ring): a place the game can deploy a group of aliens at.</li>
   <li data-n="4"><b>A Meld point</b> (a green dot): a place a Meld canister can stand.</li>
-  <li data-n="5"><b>What it is:</b> its values, what uses it (the map's script, a wave, or nothing found), what the
-    game does with it, and whether it stands where the map has it.</li>
+  <li data-n="5"><b>About:</b> its values, what uses it (the map's script, a wave, or nothing found), what the
+    game does with it, and whether it stands where the map has it. A click on About folds it.</li>
   <li data-n="6"><b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
     (<kbd>Delete</kbd>).</li>
   <li data-n="7"><b>Its values:</b> a pod's <b class="ui">Commander's place</b>, <b class="ui">Secondary</b> and
