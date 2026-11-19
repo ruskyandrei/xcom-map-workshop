@@ -10259,29 +10259,55 @@ const setGroundLook = (root, look) => setMadeLook(root, 'ground', look);
 /** A made piece in another look (M4c: a look id, or a donor look from the picker or the eyedropper): made again on that
  *  look's donor where it stands, its numbers kept (a wall's openings brought under its new face's top), in one undo
  *  step; the tool's next pieces take the look too. */
+// The pieces a look change takes: the made pieces of its kind picked now; a lone wall picked takes the walls joined to
+// it, end to end or at corners, so a room or a run changes whole (the user, 19 November 2026: a room's look changed
+// from the piece panel had come out as one wall of it in the new look).
+const MADE_OF_KIND = { wall: isMadeWall, slab: isMadeSlab, ground: isMadeGround };
+function lookTargets(root, kind) {
+  const picked = gizmo.selection().filter(r => !r.userData.deleted && MADE_OF_KIND[kind](r.userData.source));
+  if (picked.length > 1) return picked.includes(root) ? picked : [root, ...picked];
+  if (kind !== 'wall') return [root];
+  const walls = new Map([...roots.values()].filter(r => !r.userData.deleted && isMadeWall(r.userData.source))
+    .map(r => [r.userData.source.id, r]));
+  const seen = new Set([root.userData.source.id]), queue = [root];
+  while (queue.length)
+    for (const j of queue.pop().userData.joins?.joins ?? [])
+      if (!seen.has(j.other) && walls.has(j.other)) { seen.add(j.other); queue.push(walls.get(j.other)); }
+  return [...seen].map(id => id === root.userData.source.id ? root : walls.get(id));
+}
 async function setMadeLook(root, kind, look) {
   rememberLook(kind, look);
-  const o = root.userData.source, gen = o.added.generated, key = kind;
-  const now = gen[key]?.look, defaults = { wall: WALL_LOOKS[0].id, slab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
-  if (look.donor ? typeof now === 'object' && now?.mesh === look.donor.mesh && now?.material === look.donor.material
-        && short(o.added.from?.actor ?? '') === look.actor : (now ?? defaults[kind]) === look.id) return;
+  const defaults = { wall: WALL_LOOKS[0].id, slab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
+  const hasLook = r => {
+    const o = r.userData.source, now = o.added.generated[kind]?.look;
+    return look.donor ? typeof now === 'object' && now?.mesh === look.donor.mesh && now?.material === look.donor.material
+      && short(o.added.from?.actor ?? '') === look.actor : (now ?? defaults[kind]) === look.id;
+  };
+  const targets = lookTargets(root, kind).filter(r => !hasLook(r));
+  if (!targets.length) return;
   let template;
   try { template = await wallTemplate(look); } catch (error) { flashHint(`${look.name} can't be used: ${error.message}`); return; }
-  const state = wallState(root);
-  let numbers = { ...gen[key] };
-  if (look.donor) numbers.look = { ...look.donor }; else if (look.id === defaults[kind]) delete numbers.look; else numbers.look = look.id;
-  if (kind === 'wall') {
-    // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
-    // under its face's top)
-    const { storeys: _, ...rest } = numbers;
-    numbers = withStoreys(rest, storeysInLook(gen[key], rest)).wall;
-  }
-  gizmo.setSelection([o.id]);
+  // each made again in the look where it stands, with its own numbers: one undo step for them all
+  const entries = targets.map(r => {
+    const gen = r.userData.source.added.generated, state = wallState(r);
+    let numbers = { ...gen[kind] };
+    if (look.donor) numbers.look = { ...look.donor }; else if (look.id === defaults[kind]) delete numbers.look; else numbers.look = look.id;
+    if (kind === 'wall') {
+      // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
+      // under its face's top)
+      const { storeys: _, ...rest } = numbers;
+      numbers = withStoreys(rest, storeysInLook(gen[kind], rest)).wall;
+    }
+    return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, look, numbers) } },
+             matrix: movedMatrix(template, state.location, state.rotation) };
+  });
+  gizmo.setSelection(targets.map(r => r.userData.source.id));
   deleteNow(true);
-  await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, look, numbers) } },
-                                    matrix: movedMatrix(template, state.location, state.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
+  await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4());
   gizmo.joinLast(2);
-  flashHint(`Now ${look.name.toLowerCase()} · the next ${LOOK_NOUNS[kind] === 'ground' ? 'ground' : LOOK_NOUNS[kind]} you draw is too · Ctrl+Z puts the old one back`);
+  const many = { wall: 'walls', slab: 'floors and roofs', ground: 'ground pieces' }[kind];
+  flashHint(`${targets.length > 1 ? `${targets.length} ${many} now` : 'Now'} ${look.name.toLowerCase()} · the next ${LOOK_NOUNS[kind]} you `
+    + `draw is too · Ctrl+Z puts the old ${targets.length > 1 ? 'ones' : 'one'} back`);
 }
 $('wallLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('wall', { onChoose: look => setMadeLook(root, 'wall', look) }); };
 $('slabLookChange').onclick = () => { const root = madeRoot(selected); if (root) openLookPicker('slab', { onChoose: look => setMadeLook(root, 'slab', look) }); };

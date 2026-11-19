@@ -27,6 +27,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A room's look changed from the piece panel changes all its walls, not one** (custom geometry plan, M4; branch
+  `fracturing-wall-poc`; the user's report of 19 November 2026). A wall of a room moves with the room's other walls,
+  so they were picked with it. Look… made one wall again in the new look and deleted the rest: the room became one
+  wall.
+  - [app.js](tools/viewer/web/app.js) `lookTargets` and `setMadeLook`:
+    - the look goes to every made piece of its kind that is picked, or, for one wall picked, to the walls joined to
+      it end to end or at corners (a room's four, a run);
+    - each is made again with its own numbers and pose, in one undo step;
+    - a room's roof keeps its own look.
+  - [index.html](tools/viewer/web/index.html): the Look… button's title says so.
+  - Checked in a test server's browser on URB_Bar: in a room with a roof, one wall clicked, Look… to Melt Tut Int A
+    gave "4 walls now melt tut int a" and still 5 added pieces and a building; one Ctrl+Z put the four bar walls
+    back. The node and viewer suites pass.
+
 - **A made ground patch's top stands 3 over the ground it lies on, not 1** (custom geometry plan, M6; F-137; branch
   `fracturing-wall-poc`). In EXP-79 run D3 the red stone's patch on the blank map was not drawn, though the cursor
   read its top (65 against the ground's 64). The blank map's floor planes (`CFloor_864`) are drawn from 0 to 2 while
