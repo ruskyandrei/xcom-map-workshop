@@ -311,9 +311,9 @@
         <button id="editCopy" type="button" aria-label="Copy" title="Copy (Ctrl+C); Ctrl+V then shows it at the cursor, and a click places it"><svg class="i"><use href="#i-copy"/></svg></button>
         <button id="editDelete" type="button" aria-label="Delete" title="Delete (Del); Ctrl+Z brings it back"><svg class="i"><use href="#i-trash"/></svg></button>
         <button id="editKind" type="button" aria-label="Select all of this kind"><svg class="i"><use href="#i-kind"/></svg><span id="editKindCount"></span></button>
-        <span class="spacer"></span>
         <button id="editReset" type="button" aria-label="Reset piece" title="Reset piece: put the selected pieces back where the map has them"><svg class="i"><use href="#i-reset"/></svg></button>
-        <button id="selectionPrefab" type="button" aria-label="Save as prefab" title="Save as prefab…: what is selected (its pieces, lights, groups and buildings) saved to place in any map as one thing (the Add panel's Prefabs tab lists them)"><svg class="i"><use href="#i-prefab"/></svg></button>
+        <span class="spacer"></span>
+        <button id="selectionPrefab" class="labelled" type="button" title="What is selected (its pieces, lights, groups and buildings) saved as a prefab, to place in any map as one thing (the Add panel's Prefabs tab lists them)"><svg class="i"><use href="#i-prefab"/></svg><span>Save as prefab…</span></button>
       </div>
       <div id="pieceBreakBox" class="lightbox" hidden>
         <div class="posehead">Damage <button class="howbutton" type="button" aria-label="About this section" title="What this does"><svg class="i"><use href="#i-info"/></svg></button></div>
@@ -715,6 +715,7 @@
       <label class="prefabname" for="prefabName">Name<input id="prefabName" type="text" maxlength="120" autocomplete="off" spellcheck="false"></label>
       <div id="prefabLeft" class="prefablist" hidden></div>
       <div id="prefabOff" class="prefablist" hidden></div>
+      <div id="prefabProgress" class="prefabprogress" hidden><span class="busyring"></span><span id="prefabProgressBar" class="loadbar" hidden><span></span></span><span id="prefabProgressCount"></span></div>
       <div class="buildoptionsfoot"><span id="prefabStatus" class="buildestimate" role="status"></span><button id="prefabCancel" type="button">Cancel</button><button id="prefabOk" class="primary" type="submit">Save</button></div>
     </form>
   </div>

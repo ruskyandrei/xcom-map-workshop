@@ -8,6 +8,30 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Save as prefab in sight, with its progress; the browser checks the panel work left failing** (the user; branch
+  `fracturing-wall-poc`).
+  - [index.html](tools/viewer/web/index.html), [style.css](tools/viewer/web/style.css): the piece panel's
+    **Save as prefab…** is a labelled button in the accent colour at the right of the icon row (it was an icon among
+    the others); Reset piece sits with Copy and Delete. The Light section's fields are three to a row.
+  - [app.js](tools/viewer/web/app.js) `prefabProgress`: while a prefab saves, the dialog shows **a ring, and a bar
+    with "40 of 88"** while the pieces are copied to the library (the status line says what it is doing); the name
+    field is locked meanwhile. The view's own busy mark runs too, so a dialog closed during the save still shows it.
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py), the checks' own faults, not the page's:
+    - `--only squad --squad`: the 409 its refused save logs on purpose was counted as an error.
+    - `check_effects_box`: the box's hits were read before the markers were drawn (`effectMarkers` first now).
+    - `check_cover`: the handles were read while the view was still coming to the block (it waits for all six).
+    - `check_flares`: it looked for the flare template's name on the effect panel's Select all, which now carries
+      the count alone (the name is in its tooltip, where the check reads it).
+    - `check_prefabs`: the building's corner had to be under 3 tiles from the prefab's origin, which holds only
+      where the map's nearest lights are that near (the Bar); now inside the prefab's tiles.
+  - Checked: on a test server with fresh scratch folders, `--only` effects, squad and cover on Basic Training, and
+    effects, squad and prefabs on the Bar; the whole `browser_smoke.py --projects --squad` on the Bar; the button
+    and the dialog's progress row by eye on the main server; a pod, a Meld point and a no-spawn volume of the Bar by
+    eye (no overflow; 495, 443 and 397 pixels tall).
+  - Gaps: `--only prefabs` on Basic Training still stops later, at "No visible placement fits the destination map":
+    its prefab is large there (the nearest lights are far) and the map is crowded. The Light and Cover block
+    sections' sentences stay in sight: they say what the game does with it where it stands, not how to work it.
+
 - **The piece panel and the effect panel, streamlined** (the user: busy, irregular buttons, a horizontal scrollbar,
   large blocks of text; branch `fracturing-wall-poc`). A made wall with two gaps was 1,463 pixels tall and is about
   380; a plain piece was about 560 and is 250; an effect with seven sliders was 656 and is 483.

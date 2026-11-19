@@ -2457,6 +2457,8 @@ def check_cover(page):
           return [g.max.x - g.min.x, g.max.z - g.min.z, g.min.y, g.max.y]; }""")
     # its six handles; each drag one undo step, by the snap setting's steps (the block framed, so a tile is many pixels)
     page.keyboard.press('f')
+    # (once the view has come to it: a handle behind the camera has no place on the screen)
+    page.wait_for_function("(() => { try { return Object.keys(viewer.coverHandles()).length === 6; } catch { return false; } })()")
     assert sorted(page.evaluate('viewer.coverHandles()')) == ['+x', '+y', '+z', '-x', '-y', '-z']
     set_snap(page, 'tile')
     start = page.evaluate('viewer.gizmo.pose()')['location']
@@ -3452,8 +3454,8 @@ def check_effects_box(page):
     page.evaluate('viewer.setNormalEffects(false)')
     page.evaluate('box => viewer.setPickBox(box)', wide)
     assert fx['id'] not in page.evaluate('viewer.pickHits()')
-    # switch on: the effect is inside, and the bar counts it
-    page.evaluate('viewer.setNormalEffects(true)')
+    # switch on: the effect is inside, and the bar counts it (the markers drawn first: a frame draws them otherwise)
+    page.evaluate('viewer.setNormalEffects(true); viewer.effectMarkers()')
     page.evaluate('box => viewer.setPickBox(box)', wide)
     hits = page.evaluate('viewer.pickHits()')
     assert fx['id'] in hits, hits
@@ -3578,7 +3580,7 @@ def check_flares(page):
     # Select all of a kind: the flares of its template (the copy among them)
     page.evaluate('id => { viewer.select(null); viewer.pickEffect(id); }', fx)
     button = page.locator('#effectKind')
-    assert button.is_visible() and f"({flare['same'] + 1})" in button.inner_text() and flare['template'].split('.')[-1] in button.inner_text(), button.inner_text()
+    assert button.is_visible() and f"({flare['same'] + 1})" in button.inner_text() and flare['template'].split('.')[-1] in button.get_attribute('title'), button.inner_text()      # (the kind's name is in its tooltip)
     button.click()
     assert len(page.evaluate('viewer.gizmo.picks().ids')) == flare['same'] + 1
     assert 'lens flare' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
@@ -4708,7 +4710,9 @@ def check_prefabs(browser, url):
     assert records['left'] == [] and [d['package'] for d in records['donors']] == [here] and len(records['donors'][0]['sha256']) == 64
     # in a space of its own: whole tiles from the origin, a tile corner at the building's ground; the floors as they were
     (low,), (high,) = (f['boxes'] for f in records['buildings'][0]['floors'])
-    assert low[0] >= 0 and low[1] >= 0 and low[0] % 96 == 0 and low[1] % 96 == 0 and min(low[0], low[1]) < 96 * 3, records['buildings']
+    # (how far in depends on how near the map's nearest lights are: inside the prefab's tiles, on any map)
+    assert low[0] >= 0 and low[1] >= 0 and low[0] % 96 == 0 and low[1] % 96 == 0, records['buildings']
+    assert low[3] <= records['tiles'][0] * 96 and low[4] <= records['tiles'][1] * 96, (records['buildings'], records['tiles'])
     # W's physical envelope includes geometry below the boxes; selection saves normalize
     # from the lowest physical content, so both floors may stand above prefab ground.
     assert [low[3] - low[0], low[4] - low[1], low[5] - low[2]] == [384, 384, 192] and low[2] >= 0
@@ -5177,7 +5181,10 @@ def main():
             if 'text-select' in only: check_text_select(page)
             if 'play-area' in only: check_play_area(page); check_interior_whole(page)
             if 'light-grid' in only: check_light_grid(page)
-            if 'squad' in only: check_squad(page, saves=args.squad)
+            if 'squad' in only:
+                check_squad(page, saves=args.squad)
+                # (with --squad its save from elsewhere is refused on purpose: the 409 the page logs is the check's own)
+                if args.squad: errors -= {e for e in errors if '409' in e and ('/squad.json' in e or e.startswith('Failed to load resource'))}
             if 'walls' in only:
                 # (saves a project and builds it: --projects, on a test server with scratch folders)
                 assert args.projects, 'the walls check saves and builds a project: give --projects, on a test server'

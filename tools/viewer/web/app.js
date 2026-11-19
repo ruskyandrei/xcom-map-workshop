@@ -2669,7 +2669,15 @@ function prefabNameCheck() {
   $('prefabStatus').textContent = here ? `The library has “${here.name}” (revision ${here.revision}): Replace saves over it. What is placed in maps stays as it is.` : '';
   if (self) $('prefabStatus').textContent = 'Use Save to update the prefab being edited, or choose another name for Save as.';
 }
-function hidePrefabDialog(saved = false) { prefabDialog.root.hidden = true; prefabDialog.records = null; prefabDialog.resolve?.(saved === true); prefabDialog.resolve = null; }
+// The dialog's progress row: a ring while it saves, and a bar with a count while the pieces are copied to the library.
+function prefabProgress(on, done = 0, total = 0) {
+  $('prefabProgress').hidden = !on;
+  $('prefabProgressBar').hidden = !(on && total > 0);
+  $('prefabProgressBar').firstElementChild.style.width = total > 0 ? `${Math.round(100 * Math.min(1, done / total))}%` : '0';
+  $('prefabProgressCount').textContent = on && total > 0 ? `${Math.min(done, total)} of ${total}` : '';
+  $('prefabName').disabled = on;
+}
+function hidePrefabDialog(saved = false) { prefabProgress(false); prefabDialog.root.hidden = true; prefabDialog.records = null; prefabDialog.resolve?.(saved === true); prefabDialog.resolve = null; }
 $('prefabName').oninput = () => { prefabDialog.confirmed = null; prefabNameCheck(); };
 $('prefabForm').onsubmit = async e => {
   e.preventDefault();
@@ -2682,6 +2690,9 @@ $('prefabForm').onsubmit = async e => {
     $('prefabOk').textContent = 'Confirm replacement'; return;
   }
   $('prefabOk').disabled = true; $('prefabStatus').textContent = 'Saving…';
+  prefabProgress(true);
+  // (closed while it saves, the view's own mark says it is still going)
+  const endBusy = busyStart(`Saving the prefab ${name}…`);
   try {
     if (prefabDialog.builder) {
       const saved = await saveBuilder({ name, replace });
@@ -2692,8 +2703,11 @@ $('prefabForm').onsubmit = async e => {
     // Closing the dialog while the pieces are exported stops there; once the save is sent it finishes and says so.
     const open = () => prefabDialog.records === records;
     const step = (done, total) => {
-      if (open() && total >= PREFAB_EXPORT_CHUNK)
-        $('prefabStatus').textContent = done < total ? `Saving: copying the pieces to the library, ${done} of ${total} (the first save of a map's pieces takes a while)…` : 'Saving…';
+      endBusy.job.done = done; endBusy.job.total = done < total ? total : null; busyPaint();
+      if (!open()) return;
+      prefabProgress(true, done, done < total ? total : 0);
+      if (total >= PREFAB_EXPORT_CHUNK)
+        $('prefabStatus').textContent = done < total ? 'Copying the pieces to the library (the first save of a map\'s pieces takes a while)…' : 'Saving…';
     };
     const saved = await savePrefab(name, records, replace, { step, going: open });
     if (!saved) return;
@@ -2702,6 +2716,9 @@ $('prefabForm').onsubmit = async e => {
   } catch (error) {
     if (prefabDialog.records !== records) { flashHint(`The prefab ${name} was not saved: ${error.message}`); return; }
     $('prefabOk').disabled = false; $('prefabStatus').textContent = `Not saved: ${error.message}`;
+  } finally {
+    endBusy();
+    if (prefabDialog.records === records || !prefabDialog.records) prefabProgress(false);
   }
 };
 $('prefabClose').onclick = $('prefabCancel').onclick = hidePrefabDialog;
