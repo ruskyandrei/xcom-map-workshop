@@ -127,6 +127,33 @@ class Pieces(unittest.TestCase):
         self.assertEqual((lo[0], hi[0], lo[2], hi[2]), (0.0, 2880.0, 0.0, 1920.0))
 
 
+class Broken(unittest.TestCase):
+    """(custom geometry editing plan, B5) a made wall or slab built broken is drawn without the fragments its blasts
+    knock out (made_blasts); its blasts are part of its file's key; bad blasts are refused."""
+
+    def triangles(self, payload):
+        doc = gltf(payload)
+        return sum(doc['accessors'][p['indices']]['count'] for p in doc['meshes'][0]['primitives']) // 3
+
+    def test_a_broken_wall_and_slab_are_drawn_without_their_knocked_out_fragments(self):
+        meshes = generated.Meshes()
+        blasts = json.dumps([dict(at=[192, 12, 100], radius=96)])
+        whole, broken = meshes.fracwall(json.dumps(CUSTOM)), meshes.fracwall(json.dumps(CUSTOM), blasts)
+        self.assertLess(self.triangles(broken), self.triangles(whole))
+        self.assertIs(meshes.fracwall(json.dumps(CUSTOM), blasts), broken)
+        self.assertIs(meshes.fracwall(json.dumps(CUSTOM), ''), whole)
+        slab = json.dumps(dict(x0=0, x1=384, y0=0, y1=288, holes=[], seed=4))
+        self.assertLess(self.triangles(meshes.fracslab(slab, json.dumps([dict(at=[192, 144, 0], radius=96)]))),
+                        self.triangles(meshes.fracslab(slab)))
+        # a long wall's blast at its second piece breaks that piece, in its frame
+        long = json.dumps(dict(x0=0, x1=96 * 40, openings=[], seed=2))
+        self.assertLess(self.triangles(meshes.fracwall(long, json.dumps([dict(at=[1700, 0, 100], radius=96)]))),
+                        self.triangles(meshes.fracwall(long)))
+        for bad in ('x', json.dumps([dict(at=[0, 0], radius=96)]), json.dumps([dict(at=[0, 0, 0], radius=1)])):
+            with self.assertRaises(generated.GeneratedError, msg=bad):
+                meshes.fracwall(json.dumps(CUSTOM), bad)
+
+
 class FracSlab(unittest.TestCase):
     """(M5) a floor or roof slab's mesh file from its numbers."""
     SLAB = dict(x0=0, x1=384, y0=0, y1=288, holes=[dict(x0=96, x1=192, y0=96, y1=192)], seed=4)

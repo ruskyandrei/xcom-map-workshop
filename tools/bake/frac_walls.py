@@ -81,7 +81,8 @@ sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
 import cover_blocks  # noqa: E402
-import frac_slab  # noqa: E402
+import frac_slab
+import made_blasts  # noqa: E402
 import frac_wall  # noqa: E402
 import ground  # noqa: E402
 import gen_mesh  # noqa: E402
@@ -710,12 +711,14 @@ def add_shadow_ref(data, at, index):
         data[at + 8 + 4 * n:]
 
 
-def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None, plain=False):
+def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None, plain=False,
+                   gone=()):
     """The clone component's bytes with the generated mesh: StaticMesh, FragmentBoundsMinZ and MaxZ,
     NumResourceIndices, LOD 0's painted colours one for each new vertex (or none, when the donor paints none), and
     its texture lightmap as `light` says (set_light); `shadow` dict(guid, export (a ShadowMap2D made for it, or None))
     gives it that shadow map of the dominant light and takes the light off its IrrelevantLights, or with no export
-    lists it there."""
+    lists it there. `gone`: the fragments its blasts knock out (made_blasts.hidden), saved as the game's maps save
+    painted-out fragments: EditorPaintedVisibleFragments and DestroyedChunks."""
     e = p.exports[old - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     data = bytearray(g.export_data(new))
@@ -747,12 +750,21 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
     data = bytes(data[:flag] + block + data[end:])
     if shadow and shadow['export'] is not None:
         data = add_shadow_ref(data, end_props, shadow['export'])
-    # the donor's painted-out fragments (a list of the donor's own) say nothing of the made mesh's: dropped
+    # the donor's painted-out fragments and their boxes (lists of the donor's own) say nothing of the made mesh's:
+    # dropped
     import native_copy
-    found = native_copy.find_prop(walker, data, start, len(data), 'EditorPaintedVisibleFragments[0]')
-    if found is not None:
-        _, tag, at, size = found
-        data = data[:tag] + data[at + size:]
+    for name in ('EditorPaintedVisibleFragments[0]', 'DestroyedChunks[0]'):
+        found = native_copy.find_prop(walker, data, start, len(data), name)
+        if found is not None:
+            _, tag, at, size = found
+            data = data[:tag] + data[at + size:]
+    if gone:
+        # the made piece's own, before the properties' None (custom geometry editing plan, B5)
+        end = native_props_end(walker, data, start) - 8
+        visible = made_blasts.visible_value(len(built['mesh']['fractured']['fragments']), gone)
+        chunks = made_blasts.chunks_value(built, gone)
+        data = (data[:end] + _tag(g, 'EditorPaintedVisibleFragments', 'ArrayProperty', len(visible)) + visible
+                + _tag(g, 'DestroyedChunks', 'ArrayProperty', len(chunks)) + chunks + data[end:])
     return data
 
 
@@ -1116,8 +1128,9 @@ def add_walls(g, p, items, grid, bake=True):
                 sm = piece_shadow(p, light['piece'], dominant['guid'], light)
         if dominant:
             shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
+        gone = [] if plain else made_blasts.hidden(out, item['generated'].get('blasts'))
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
-                                            shadow, plain=plain))
+                                            shadow, plain=plain, gone=gone))
         if plain:
             records.append(dict(kind='ground', copy=info['actor'], original=item['original'], openings=[], group=0, retyped=retyped,
                                 label=item.get('label'), mesh=made[name], meshName=name, bodySetup=made[name] + 1,
@@ -1154,7 +1167,7 @@ def add_walls(g, p, items, grid, bake=True):
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                             solids=len(out['solids']), columns=len(cols), painted=paint is not None,
-                            box=wall_box, lightmapRect=out['lightmapRect'],
+                            broken=len(gone), box=wall_box, lightmapRect=out['lightmapRect'],
                             light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
                                    else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
                             shadowMap=(None if shadow is None else

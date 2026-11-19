@@ -106,6 +106,7 @@ import piece_flags  # noqa: E402
 if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
 import looks  # noqa: E402
+import made_blasts  # noqa: E402
 import made_cursors  # noqa: E402
 import made_split  # noqa: E402
 import spawns  # noqa: E402
@@ -1133,6 +1134,7 @@ class Compiler:
         self.made_parts = {}        # a made wall's label: its template's parts (join_made_walls makes its box again)
         self.made_slabs = []        # (copy, where) of each floor or roof made from numbers (made_slabs_in_floors)
         self.made_wholes = []       # (copy, where) of each made wall as drawn: its copy, or its pieces' whole (split_made)
+        self.broken_wholes = {}     # a cut piece's member key: how many blasts it was given (split_made)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
@@ -1457,6 +1459,16 @@ class Compiler:
                   and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
                           and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
                           for o in w.get('openings') or []))
+        if ok and 'blasts' in g:
+            # (a made wall, floor or roof built broken: custom geometry editing plan, B5)
+            try:
+                if g['kind'] not in MADE_KINDS:
+                    raise ValueError('only a made wall, floor or roof breaks')
+                made_blasts.check(g['blasts'])
+            except ValueError as error:
+                self.error('malformed', '%s: its blasts are not ones the Build makes: %s'
+                           % (rec.get('label') or short(rec.get('from', {}).get('actor', '?')), error), **where)
+                return False
         if ok and plain:
             name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
             default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
@@ -2980,6 +2992,11 @@ class Compiler:
                 self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
                           'to it' % (whole or short(out), name), **where)
+            if (rec.get('generated') or {}).get('blasts') or (piece == 1 and member and self.broken_wholes.get(member)):
+                self.note('made-broken', '%s is built broken: its %d blasts (Break in its panel) knock out the fragments '
+                          "they reach, saved as the game's maps save the pieces their designers painted out" % (
+                              whole or short(out), self.broken_wholes.get(member) or len(rec['generated']['blasts'])),
+                          **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if extra.get('family') == 'ladder':
@@ -3010,9 +3027,18 @@ class Compiler:
         key = 'wall' if made['kind'] == 'fracWall' else 'slab'
         m = transform(loc, rot, [1, 1, 1])
         first = len(self.copies)
+        if made.get('blasts'):
+            self.broken_wholes['added|' + out] = len(made['blasts'])
         for k, (at, numbers) in enumerate(pieces, 1):
             place = [m[i][0] * at[0] + m[i][1] * at[1] + m[i][2] * at[2] + m[i][3] for i in range(3)]
-            self.add(dict(rec, actor='%s_part%d' % (out, k), generated=dict(made, **{key: numbers})), where, parts,
+            gen = dict(made, **{key: numbers})
+            if made.get('blasts'):
+                # (each piece the blasts that reach it, in its frame)
+                span = [(0.0, float(numbers['x1']))] + ([(0.0, float(numbers['y1']))] if key == 'slab' else [None])
+                gen['blasts'] = made_blasts.for_piece(made['blasts'], at, span)
+                if not gen['blasts']:
+                    del gen['blasts']
+            self.add(dict(rec, actor='%s_part%d' % (out, k), generated=gen), where, parts,
                      (place, rot, rounding), extra=dict(extra, piece=k, member='added|' + out, whole=short(out)))
         made_copies = self.copies[first:]
         if not made_copies:
@@ -3021,11 +3047,13 @@ class Compiler:
         if key == 'wall':
             self.made_wholes.append((dict(label=short(out), location=loc, rotation=rot, generated=made), dict(where)))
             tiles = round((float(numbers['x1']) - float(numbers['x0'])) / TILE)
-            self.note('made-split', '%s, %d tiles long and %d storeys, is made as %d walls joined end to end%s (each at '
-                      "most %d tiles long and its look's storeys tall, as the game's walls are): a break passes between "
-                      "them as between the game's joined walls" % (
+            joined = len({round(at[0], 3) for at, _ in pieces}) > 1
+            stacked = len({round(at[2], 3) for at, _ in pieces}) > 1
+            self.note('made-split', '%s, %d tiles long and %d storeys, is made as %d walls %s (each at most %d tiles long '
+                      "and its look's storeys tall, as the game's walls are): a break passes between them as between "
+                      "the game's joined walls" % (
                           short(out), tiles, numbers.get('storeys') or wall_look_storeys(numbers)[0], len(made_copies),
-                          ' and stacked' if any(abs(c['location'][2] - loc[2]) > 1 for c in made_copies) else '',
+                          ' and '.join(w for w, on in (('joined end to end', joined), ('stacked', stacked)) if on),
                           FRAC_SLAB_MAX_TILES), **where)
         else:
             nx, ny = (round((float(numbers[b]) - float(numbers[a])) / TILE) for a, b in (('x0', 'x1'), ('y0', 'y1')))

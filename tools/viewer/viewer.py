@@ -537,8 +537,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(405, dict(error='Not allowed.'))
             return True
         what, maker = kinds[split.path]
+        query = parse_qs(split.query)
         try:
-            payload = getattr(self.generated_meshes, maker)((parse_qs(split.query).get(what) or [''])[0])
+            # (a made wall, floor or roof built broken: its blasts beside its numbers, custom geometry editing plan B5)
+            more = ((query.get('blasts') or [''])[0],) if what != 'ground' else ()
+            payload = getattr(self.generated_meshes, maker)((query.get(what) or [''])[0], *more)
         except (GeneratedError, ValueError) as error:
             self.send_json(400, dict(error=f"The {what} can't be drawn: {error}"))
             return True

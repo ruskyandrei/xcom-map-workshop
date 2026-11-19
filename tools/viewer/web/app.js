@@ -1250,15 +1250,17 @@ function slabBounds(s) {
   const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
   return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
 }
-function madeSlabShape(template, s) {
+// A made piece's blasts (B5) in its mesh's key and request (generated.py: ?blasts=), none when it has none.
+const blastQuery = blasts => (blasts?.length ? { key: `|${JSON.stringify(blasts)}`, query: { blasts: JSON.stringify(blasts) } } : { key: '', query: {} });
+function madeSlabShape(template, s, blasts = null) {
   const finite = v => typeof v === 'number' && Number.isFinite(v);
   if (!s || !['x0', 'x1', 'y0', 'y1'].every(k => finite(s[k])) || !slabLookOf(s) || !Number.isInteger(s.seed ?? 1)
     || (s.holes ?? []).length > SLAB.maxHoles) return {};
-  const numbers = madeSlabNumbers(s), key = `made:fracslab:${JSON.stringify(numbers)}`;
+  const numbers = madeSlabNumbers(s), broken = blastQuery(blasts), key = `made:fracslab:${JSON.stringify(numbers)}${broken.key}`;
   if (!data.meshes[key]) {
     data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a slab'}, made from numbers`, kind: 'static', made: true,
       look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
-      url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`,
+      url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers), ...broken.query })}`,
       sections: Array.from({ length: slabLookOf(numbers).sections ?? FRAC_SLAB.slots }, (_, slot) => ({ slot, count: 1 })), bounds: slabBounds(numbers) };
   }
   const slots = (data.meshes[template.mesh]?.sections ?? []).filter(x => x.count).map(x => x.slot);
@@ -1291,7 +1293,7 @@ function madeShape(template, generated) {
     ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
 }
 function madeShapeOf(template, generated) {
-  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab);
+  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts);
   if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground);
   const w = generated?.kind === 'fracWall' ? generated.wall : null;
   const finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -1300,13 +1302,13 @@ function madeShapeOf(template, generated) {
       && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)
     || !(w.storeys === undefined || (Number.isInteger(w.storeys) && w.storeys >= 1 && w.storeys <= WALL.maxStoreys))
     || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
-  const wall = madeWallNumbers(w);
-  const key = `made:fracwall:${JSON.stringify(wall)}`;
+  const wall = madeWallNumbers(w), broken = blastQuery(generated.blasts);
+  const key = `made:fracwall:${JSON.stringify(wall)}${broken.key}`;
   if (!data.meshes[key]) {
     // (`look`: the template's mesh, which Select all of a kind counts it as)
     data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a wall'}, made from numbers`, kind: 'static', made: true,
       look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
-      url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall) })}`,
+      url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall), ...broken.query })}`,
       sections: Array.from({ length: wallSpec(wall).sections }, (_, slot) => ({ slot, count: 1 })), bounds: madeBounds(wall) };
   }
   const slots = (data.meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
@@ -9818,18 +9820,20 @@ function madeMesh(o, generated, ends = null) {
       data.meshes[key] = { ...data.meshes[o.mesh], url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`, bounds: groundBounds(numbers) };
     return key;
   }
-  if (generated.kind !== 'fracSlab') return madeWallMesh(o, generated.wall, ends);
-  const numbers = madeSlabNumbers(generated.slab), key = `made:fracslab:${JSON.stringify(numbers)}`;
+  if (generated.kind !== 'fracSlab') return madeWallMesh(o, generated.wall, ends, generated.blasts);
+  // (its blasts, B5, in its key and request)
+  const numbers = madeSlabNumbers(generated.slab), broken = blastQuery(generated.blasts);
+  const key = `made:fracslab:${JSON.stringify(numbers)}${broken.key}`;
   if (!data.meshes[key])
-    data.meshes[key] = { ...data.meshes[o.mesh], url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers) })}`, bounds: slabBounds(numbers) };
+    data.meshes[key] = { ...data.meshes[o.mesh], url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers), ...broken.query })}`, bounds: slabBounds(numbers) };
   return key;
 }
-function madeWallMesh(o, wall, ends = null) {
-  const numbers = madeWallNumbers(wall, ends);
-  const key = `made:fracwall:${JSON.stringify(numbers)}`;
+function madeWallMesh(o, wall, ends = null, blasts = null) {
+  const numbers = madeWallNumbers(wall, ends), broken = blastQuery(blasts);
+  const key = `made:fracwall:${JSON.stringify(numbers)}${broken.key}`;
   if (!data.meshes[key]) {
     const was = data.meshes[o.mesh];
-    data.meshes[key] = { ...was, url: `/generated/fracwall.glb?${new URLSearchParams({ wall: key.slice('made:fracwall:'.length) })}`,
+    data.meshes[key] = { ...was, url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(numbers), ...broken.query })}`,
       bounds: madeBounds(numbers) };
   }
   return key;
@@ -10210,9 +10214,84 @@ function wallPanel(root) {
   $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
   // Lower and Taller: a storey (its look's storeys where it can't be made one) less or more (B4)
   storeyButtons('wall', tool ? w : null);
+  breakRow('wall', g);
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
     + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
+}
+// ---- Break and Repair (custom geometry editing plan, B5): blasts set off on a made wall, floor or roof, each knocking
+// out the fragments within its reach as the Build does (tools/bake/made_blasts.py), saved on the piece as blasts (D-4)
+// so they stay where they are when it is made longer, taller or in another look.
+const MAX_BLASTS = 64;
+let breaking = null;      // { id }: the piece Break is on
+let blastTiles = 1;
+try { blastTiles = Math.min(3, Math.max(1, Math.round(Number(localStorage.getItem('workshop.blastTiles')) || 1))); } catch { /* none kept */ }
+const blastMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
+  new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.25, depthTest: false, depthWrite: false }));
+blastMarker.renderOrder = 9; blastMarker.visible = false; blastMarker.raycast = () => {}; world.add(blastMarker);
+// The Break row of the wall or floor panel (`kind`) for the made piece's request `g`.
+function breakRow(kind, g) {
+  const n = g.blasts?.length ?? 0;
+  $(`${kind}Break`).classList.toggle('on', Boolean(breaking));
+  $(`${kind}BlastSize`).value = String(blastTiles);
+  $(`${kind}Repair`).disabled = !n;
+  $(`${kind}Broken`).textContent = n ? `Broken by ${plural(n, 'blast')}` : '';
+}
+function startBreak() {
+  const root = madeRoot(selected), o = root?.userData.source;
+  if (!root || !(isMadeWall(o) || isMadeSlab(o))) { flashHint('Pick a made wall, floor or roof to break it'); return; }
+  stopLookPick(); stopWallDrawing(); stopPlacing();
+  breaking = { id: o.id };
+  gizmo.hold(true);
+  renderer.domElement.style.cursor = 'crosshair';
+  for (const k of ['wall', 'slab']) $(`${k}Break`).classList.add('on');
+  flashHint(`Click the ${isMadeSlab(o) ? 'floor' : 'wall'} where a blast goes off: it knocks out the fragments within ${plural(blastTiles, 'tile')} · Esc stops`);
+}
+function stopBreak() {
+  if (!breaking) return;
+  breaking = null;
+  gizmo.hold(false);
+  renderer.domElement.style.cursor = '';
+  blastMarker.visible = false;
+  for (const k of ['wall', 'slab']) $(`${k}Break`).classList.remove('on');
+}
+// Where a blast at the pointer goes off on the piece being broken: { point (the view's), at (its frame's: x, y, z) }.
+function blastAt(x, y) {
+  const root = breaking && roots.get(breaking.id), hit = root ? pick(x, y) : null;
+  if (!hit || roots.get(hit.object.userData.objectId) !== root) return null;
+  // (in its mesh's frame, the made numbers' frame: x along, y across, z up)
+  hit.object.updateMatrixWorld();
+  const p = hit.object.worldToLocal(hit.point.clone());
+  return { point: hit.point, at: [p.x, p.z, p.y].map(v => Math.round(v * 10) / 10) };
+}
+function breakAt(x, y) {
+  if (selected !== breaking.id) { stopBreak(); return; }
+  const b = blastAt(x, y);
+  if (!b) { flashHint('Click on the piece itself · Esc stops'); return; }
+  changeWall(s => {
+    const blasts = s.generated.blasts ?? [];
+    if (blasts.length >= MAX_BLASTS) { flashHint(`It has the most blasts a piece takes (${MAX_BLASTS}): Repair mends it whole`); return null; }
+    return { ...s, generated: { ...s.generated, blasts: [...blasts, { at: b.at, radius: blastTiles * TILE }] } };
+  });
+}
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!breaking) return;
+  const b = blastAt(e.clientX, e.clientY);
+  blastMarker.visible = Boolean(b);
+  if (b) { blastMarker.position.copy(world.worldToLocal(b.point.clone())); blastMarker.scale.setScalar(blastTiles * TILE); }
+});
+for (const k of ['wall', 'slab']) {
+  $(`${k}Break`).onclick = () => (breaking ? stopBreak() : startBreak());
+  $(`${k}BlastSize`).onchange = e => {
+    blastTiles = Number(e.target.value) || 1;
+    try { localStorage.setItem('workshop.blastTiles', String(blastTiles)); } catch { /* not kept */ }
+    for (const j of ['wall', 'slab']) $(`${j}BlastSize`).value = String(blastTiles);
+  };
+  $(`${k}Repair`).onclick = () => changeWall(s => {
+    if (!s.generated.blasts) return null;
+    const { blasts: _, ...generated } = s.generated;
+    return { ...s, generated };
+  });
 }
 // The Lower and Taller buttons of the wall or room panel (`kind`) for the wall `w` (null: neither).
 function storeyButtons(kind, w) {
@@ -10232,6 +10311,7 @@ function slabPanel(root) {
   lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
   const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
     ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
+  breakRow('slab', o.added.generated);
   $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
@@ -11814,6 +11894,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (assigning) { const target = pick(e.clientX, e.clientY); if (target) assignOwner(target); else flashHint('Click the glowing piece'); return; }
   if (zonePlacing) { if (e.button === 0) placeZone(e.clientX, e.clientY); return; }
   if (spawnPlacing) { if (e.button === 0) placeSpawn(e.clientX, e.clientY); return; }
+  if (breaking) { if (e.button === 0) breakAt(e.clientX, e.clientY); return; }
   if (lookPicking) { if (e.button === 0) lookPickAt(e.clientX, e.clientY); return; }
   // the Landing zones view: only zones are picked; a click beside them lets the picked one go
   if (zonesOn) { if (e.button === 0) { const z = zoneHit(e.clientX, e.clientY); pickZone(z ? z.id : null); } return; }
@@ -12206,6 +12287,13 @@ document.addEventListener('keydown', e => {
   if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
   if (spawnPlacing && key === 'escape') { stopSpawnPlacing(); e.preventDefault(); return; }
   if (lookPicking && key === 'escape') { stopLookPick(); e.preventDefault(); return; }
+  if (breaking && key === 'escape') { stopBreak(); e.preventDefault(); return; }
+  // B: Break on the picked made wall, floor or roof, or off again (B5)
+  if (key === 'b' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat
+      && (breaking || isMadeWall(madeRoot(selected)?.userData.source) || isMadeSlab(madeRoot(selected)?.userData.source))) {
+    if (breaking) stopBreak(); else startBreak();
+    e.preventDefault(); return;
+  }
   if (library?.lookMode && key === 'escape') { closeLookPicker(); e.preventDefault(); return; }
   // I: the eyedropper, while the look picker is open or a wall, slab or ground tool draws (M4c)
   if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && (library?.lookMode || wallDrawing)) {

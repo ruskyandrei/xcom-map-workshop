@@ -27,6 +27,50 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **E5: Break and Repair on made walls, floors and roofs; the Build saves the fragments knocked out as the game's maps
+  save painted-out pieces** (custom geometry editing plan, B5, decision D-4 at its default: saved as blasts; branch
+  `fracturing-wall-poc`).
+  - [made_blasts.py](tools/bake/made_blasts.py) (new):
+    - a made piece's request carries `blasts`, [{at, radius}] in its mesh's frame;
+    - a fragment goes when its centre is within a blast's radius;
+    - the arrays are as the game's maps save them: `EditorPaintedVisibleFragments` (1 shown, 0 hidden) and
+      `DestroyedChunks` (each hidden fragment's box);
+    - a piece the Build cuts into several gives each the blasts that reach it, in its frame.
+  - The Build ([frac_walls.py](tools/bake/frac_walls.py) `component_data`, `add_walls`):
+    - writes both arrays on a broken copy's component;
+    - drops the donor's `DestroyedChunks` along with its painted fragments (they name the donor's mesh);
+    - the Build's log says how many fragments each piece's blasts knocked out
+      ([native_copy.py](tools/bake/native_copy.py)).
+  - [compiler.py](tools/editor/compiler.py):
+    - checks the blasts (a made wall, floor or roof only; at most 64; a radius of 24 to 384);
+    - gives each piece of a cut wall or floor its own blasts;
+    - one `made-broken` note for each broken piece.
+  - The editor:
+    - [generated.py](tools/viewer/generated.py) and [viewer.py](tools/viewer/viewer.py) take `?blasts=` and leave the
+      knocked-out fragments' triangles out, so the page draws what the Build makes;
+    - [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html) and
+      [style.css](tools/viewer/web/style.css): a Break row in the wall and floor panels. Break (or B) makes each click
+      on the piece a blast, with a sphere at the pointer showing its reach; the blast size is 1, 2 or 3 tiles; Repair
+      mends the piece whole; Ctrl+Z takes back each blast.
+  - Tests:
+    - [test_made_blasts.py](tools/bake/tests/test_made_blasts.py) (new): the checks, the blasts moved into a piece,
+      the fragments knocked out, the arrays read back, the mesh without them;
+    - [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) `Broken`: a made wall and roof built broken in URB_Bar
+      save both arrays, matching the blasts; a whole copy of the bar's roof (which paints 27 of its own fragments out)
+      saves neither;
+    - [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) `BlastTests`;
+    - [test_generated.py](tools/viewer/tests/test_generated.py) `Broken`.
+  - The editor, viewer, node, bake and repo suites pass.
+  - Checked in a test server's browser:
+    - a wall's Break (B) showed the sphere and a click saved a blast;
+    - the wall was drawn with a hole through its lower middle, "Broken by 1 blast" in its panel;
+    - Repair mended it, and Ctrl+Z gave the blast back;
+    - a floor's blast drew a hole two tiles across.
+  - [exp81_project.py](tools/editor/examples/exp81_project.py) and
+    [EXP-81](research/experiments/EXP-81-sizes-and-breaks.md), run A prepared: E4's and E5's game run on URB_Bar's car
+    park. In its quick build, the long wall's and floor's pieces list each other's columns, and 4 and 3 fragments are
+    knocked out.
+
 - **E4: made walls of any length and storeys, floors and roofs of any size; the Build cuts them into pieces the game
   takes** (custom geometry editing plan, B4, decision D-3 at its default; branch `fracturing-wall-poc`).
   - [made_split.py](tools/bake/made_split.py) (new), shared by the compiler and the editor's mesh server:

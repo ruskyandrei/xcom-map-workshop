@@ -20,7 +20,10 @@ has (the recipe's `sections`); a donor look no catalogue holds can't be drawn he
 A wall of any length and storeys and a slab of any size (custom geometry editing plan, B4, D-3) are drawn as the Build
 makes them: cut into pieces the game is known to take (tools/bake/made_split.py: walls at most 16 tiles long and
 their look's storeys tall, joined end to end and stacked; slabs at most 16 by 16 tiles), each built on its own and
-put at its place, joined into one mesh with the same sections."""
+put at its place, joined into one mesh with the same sections.
+
+A made wall, floor or roof built broken (B5: its blasts, made_blasts) is drawn with the fragments its blasts knock out
+left out: ?blasts=<its blasts as JSON> beside its numbers."""
 from collections import OrderedDict
 import json
 import math
@@ -36,6 +39,7 @@ import frac_slab  # noqa: E402
 import frac_wall  # noqa: E402
 import ground as ground_shapes  # noqa: E402
 import looks  # noqa: E402
+import made_blasts  # noqa: E402
 import made_split  # noqa: E402
 from mesh import write_glb  # noqa: E402
 
@@ -186,6 +190,16 @@ def joined(parts):
     return out
 
 
+def blasts_of(text):
+    """A piece's blasts from the JSON `text` ('' for none), checked (made_blasts.check)."""
+    if not text:
+        return []
+    try:
+        return made_blasts.check(json.loads(text))
+    except (TypeError, ValueError) as error:
+        raise GeneratedError('its blasts: %s' % error)
+
+
 def wall_look_storeys(numbers):
     """(its look's own storeys, whether a wall one storey tall can be made in it) of a wall whose look is resolved."""
     own = frac_wall.storeys_of(frac_wall.look_of(numbers))
@@ -223,12 +237,20 @@ def ground_numbers(text):
     return out
 
 
-def viewer_mesh(built):
+def viewer_mesh(built, gone=()):
     """frac_wall.build's mesh in the form mesh.write_glb writes (mesh.read_mesh's: the page's axes, x z y), every slot
-    with triangles: an empty one gets a triangle of no area at the middle of the wall's box (inside it)."""
+    with triangles: an empty one gets a triangle of no area at the middle of the wall's box (inside it). `gone`: the
+    fragments left out (made_blasts.hidden)."""
     lod = built['mesh']['lods'][0]
-    out = dict(positions=[], normals=[], tangents=[], uvs=[[], []], colors=[], indices=list(lod['indices'][1]),
-               sections=[dict(slot=s['slot'], first=s['first'], count=3 * s['triangles']) for s in lod['sections']])
+    if gone:
+        indices, sections = [], []
+        for slot, kept in made_blasts.kept_indices(lod, gone):
+            sections.append(dict(slot=slot, first=len(indices), count=len(kept)))
+            indices.extend(kept)
+    else:
+        indices = list(lod['indices'][1])
+        sections = [dict(slot=s['slot'], first=s['first'], count=3 * s['triangles']) for s in lod['sections']]
+    out = dict(positions=[], normals=[], tangents=[], uvs=[[], []], colors=[], indices=indices, sections=sections)
     empty = [s for s in out['sections'] if not s['count']]
     for (x, y, z), (tangent, normal, uvs), colour in zip(lod['positions'], lod['vertices'], lod['colours']):
         t = [(v - 127.5) / 127.5 for v in tangent]
@@ -275,14 +297,24 @@ class Meshes:
         self.lock = threading.Lock()
 
     @staticmethod
-    def pieces(build, cut):
-        """A build of each piece the Build cuts a piece into (`cut`: [(dx, dy, dz, numbers)]), as one mesh."""
-        return lambda: [(build(numbers), (dx, dy, dz)) for dx, dy, dz, numbers in cut]
+    def pieces(build, cut, blasts=(), slab=False):
+        """A build of each piece the Build cuts a piece into (`cut`: [(dx, dy, dz, numbers)]), as one mesh; with the
+        fragments `blasts` knock out (each piece's in its frame) left out."""
+        def made():
+            out = []
+            for dx, dy, dz, numbers in cut:
+                built = build(numbers)
+                span = [(0.0, numbers['x1'] - numbers['x0'])] + ([(0.0, numbers['y1'] - numbers['y0'])] if slab else [None])
+                mine = made_blasts.for_piece(blasts, (dx, dy, dz), span) if blasts else []
+                out.append((built, (dx, dy, dz), made_blasts.hidden(built, mine)))
+            return out
+        return made
 
-    def fracwall(self, text):
-        """The GLB of the wall whose numbers are the JSON `text`."""
+    def fracwall(self, text, blasts=''):
+        """The GLB of the wall whose numbers are the JSON `text`, broken by `blasts` (JSON, '' for none)."""
         wall = wall_numbers(text)
-        key = json.dumps(wall, sort_keys=True)
+        blasts = blasts_of(blasts)
+        key = json.dumps(wall, sort_keys=True) + ('|' + json.dumps(blasts) if blasts else '')
         with self.lock:
             if key in self.kept:
                 self.kept.move_to_end(key)
@@ -294,12 +326,13 @@ class Meshes:
             raise GeneratedError('the wall could not be made: %s' % error)
         # (a piece of a cut wall is in its own frame, from 0: put at its start in the wall's)
         cut = [(0.0, 0.0, 0.0, built)] if len(cut) == 1 else [(built['x0'] + dx, 0.0, dz, n) for dx, dz, n in cut]
-        return self.made(key, self.pieces(frac_wall.build, cut), sections or SLOTS, 'wall')
+        return self.made(key, self.pieces(frac_wall.build, cut, blasts), sections or SLOTS, 'wall')
 
-    def fracslab(self, text):
-        """The GLB of the slab whose numbers are the JSON `text`."""
+    def fracslab(self, text, blasts=''):
+        """The GLB of the slab whose numbers are the JSON `text`, broken by `blasts` (JSON, '' for none)."""
         slab = slab_numbers(text)
-        key = 'slab:' + json.dumps(slab, sort_keys=True)
+        blasts = blasts_of(blasts)
+        key = 'slab:' + json.dumps(slab, sort_keys=True) + ('|' + json.dumps(blasts) if blasts else '')
         with self.lock:
             if key in self.kept:
                 self.kept.move_to_end(key)
@@ -308,7 +341,7 @@ class Meshes:
         cut = made_split.slab_pieces(built)
         cut = ([(0.0, 0.0, 0.0, built)] if len(cut) == 1
                else [(built['x0'] + dx, built['y0'] + dy, 0.0, n) for dx, dy, n in cut])
-        return self.made(key, self.pieces(frac_slab.build, cut), sections or SLAB_SLOTS, 'slab')
+        return self.made(key, self.pieces(frac_slab.build, cut, blasts, slab=True), sections or SLAB_SLOTS, 'slab')
 
     def ground(self, text):
         """The GLB of the ground shape whose numbers are the JSON `text`."""
@@ -319,7 +352,7 @@ class Meshes:
                 self.kept.move_to_end(key)
                 return self.kept[key]
         built, sections = with_recipe('ground', shape)
-        return self.made(key, lambda: [(ground_shapes.build(built), (0.0, 0.0, 0.0))], sections or GROUND_SLOTS,
+        return self.made(key, lambda: [(ground_shapes.build(built), (0.0, 0.0, 0.0), [])], sections or GROUND_SLOTS,
                          'ground shape')
 
     def made(self, key, build, slots, what):
@@ -329,7 +362,7 @@ class Meshes:
             raise
         except Exception as error:      # (a recipe the generator can't make: said, not a dropped answer)
             raise GeneratedError('the %s could not be made: %s' % (what, error))
-        mesh = joined([(viewer_mesh(b), at) for b, at in built])
+        mesh = joined([(viewer_mesh(b, gone), at) for b, at, gone in built])
         if len(mesh['sections']) != slots:
             # the page binds the parts to the materials in slot order
             raise GeneratedError('the %s has %d slots, not %d' % (what, len(mesh['sections']), slots))

@@ -401,7 +401,7 @@ class SplitTests(unittest.TestCase):
             self.assertEqual([p['location'] for p in op['poses']], [[0.0, 600.0, 14.5], [0.0, 600.0, 414.5]])
             self.assertNotIn('whole', op['generated'][0]['wall'])
             self.assertNotIn('wall-on-wall', noted(report))
-            self.assertIn('joined end to end and stacked',
+            self.assertIn('is made as 2 walls stacked (',
                           next(d['message'] for d in report['notes'] if d['code'] == 'made-split'))
 
     def test_a_large_floor_is_slabs_side_by_side(self):
@@ -437,6 +437,43 @@ class SplitTests(unittest.TestCase):
         by = dict(zip(op['labels'], op['wallGroups']))
         self.assertEqual(by, {self.NAME + '_part1': 1, self.NAME + '_part2': 1, 'XComDestructibleActor_4_copy2': 0})
         self.assertEqual(report['groups'][0]['walls'], [self.NAME])
+
+
+class BlastTests(unittest.TestCase):
+    """A made wall, floor or roof built broken (custom geometry editing plan, B5): its blasts go to the Build with its
+    numbers, each piece of a cut one the blasts that reach it in its frame; a note says it is built broken; bad blasts,
+    or blasts on ground, leave the record out."""
+    NAME = 'XComFracLevelActor_11_copy1'
+
+    def test_a_broken_wall_takes_its_blasts_to_the_build(self):
+        blasts = [dict(at=[192.0, 12.0, 100.0], radius=96.0)]
+        g = dict(WALL, blasts=blasts)
+        spec, report = compiled([made(g)])
+        self.assertTrue(report['ok'], refused(report))
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertEqual(op['generated'][0]['blasts'], blasts)
+        self.assertEqual(noted(report, 'made-broken'), ['made-broken'])
+        self.assertIn('%s is built broken: its 1 blasts' % self.NAME,
+                      next(d['message'] for d in report['notes'] if d['code'] == 'made-broken'))
+
+    def test_a_cut_wall_gives_each_piece_the_blasts_that_reach_it(self):
+        # 40 tiles cut at 16 and 32: a blast 100 along reaches the first piece only; one at 1700 the second, 164 in
+        blasts = [dict(at=[100.0, 0.0, 50.0], radius=96.0), dict(at=[1700.0, 0.0, 50.0], radius=96.0)]
+        g = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=96.0 * 40, openings=[], seed=5), blasts=blasts)
+        spec, report = compiled([made(g)])
+        self.assertTrue(report['ok'], refused(report))
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertEqual([r.get('blasts') for r in op['generated']],
+                         [[blasts[0]], [dict(at=[164.0, 0.0, 50.0], radius=96.0)], None])
+        self.assertEqual(noted(report, 'made-broken'), ['made-broken'])
+
+    def test_bad_blasts_leave_the_record_out(self):
+        ground = dict(kind='ground', version=1, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))
+        for g in (dict(WALL, blasts='x'), dict(WALL, blasts=[dict(at=[0, 0], radius=96)]),
+                  dict(WALL, blasts=[dict(at=[0, 0, 0], radius=1)]),
+                  dict(ground, blasts=[dict(at=[0, 0, 0], radius=96)])):
+            spec, report = compiled([made(g) if g['kind'] != 'ground' else dict(add('XComLevelActor_1', 1, (0, 600, 0)), generated=g)])
+            self.assertIn('malformed', codes(report), g)
 
 
 def wall(*openings, x1=384.0):

@@ -2410,9 +2410,11 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                    else 'one even light, from %s' % light['piece'].split('.')[-2] if light.get('kind') == 'even'
                    else 'as its donor\'s')
             if r['kind'] in frac_walls.MADE:
-                print('    %s: made from numbers as %s, %d fragments, %d triangles, %d collision boxes; its columns '
+                print('    %s: made from numbers as %s, %d fragments%s, %d triangles, %d collision boxes; its columns '
                       'are its own (%d); its lightmap %s' % (
-                          r['label'], r['meshName'], r['fragments'], r['triangles'], r['solids'], r['columns'], lit))
+                          r['label'], r['meshName'], r['fragments'],
+                          ' (%d knocked out by its blasts)' % r['broken'] if r.get('broken') else '',
+                          r['triangles'], r['solids'], r['columns'], lit))
             elif r['kind'] == 'ground':
                 print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
                       % (r['label'], r['meshName'], r['triangles'], lit))

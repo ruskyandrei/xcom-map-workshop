@@ -359,6 +359,14 @@
           <button id="wallShorter" type="button" title="A storey lower">Lower</button>
           <button id="wallStoreys" type="button" title="A storey taller">Taller</button>
         </div>
+        <div class="row breakrow">
+          <button id="wallBreak" type="button" title="Break it: each click on it sets off a blast that knocks out the fragments within its reach, as the game's maps keep pieces broken (B; Esc stops). Ctrl+Z takes a blast back">Break</button>
+          <select id="wallBlastSize" title="How far a blast reaches">
+            <option value="1">1 tile</option><option value="2">2 tiles</option><option value="3">3 tiles</option>
+          </select>
+          <button id="wallRepair" type="button" title="Mend it whole: every blast taken back">Repair</button>
+          <span id="wallBroken" class="lightnote"></span>
+        </div>
         <div id="wallNote" class="lightnote"></div>
       </div>
       <div id="slabBox" class="lightbox" hidden>
@@ -371,6 +379,14 @@
         <div class="row">
           <button id="slabHole" type="button" title="A hole one tile square in the free tile nearest the middle, for a ladder or stairs of the game's. Its handles (in blue) move and size it">Add hole</button>
           <button id="slabShuffle" type="button" title="Another break pattern: its pieces cut afresh (a new seed). It looks the same until it breaks">Reshuffle</button>
+        </div>
+        <div class="row breakrow">
+          <button id="slabBreak" type="button" title="Break it: each click on it sets off a blast that knocks out the fragments within its reach, as the game's maps keep pieces broken (B; Esc stops). Ctrl+Z takes a blast back">Break</button>
+          <select id="slabBlastSize" title="How far a blast reaches">
+            <option value="1">1 tile</option><option value="2">2 tiles</option><option value="3">3 tiles</option>
+          </select>
+          <button id="slabRepair" type="button" title="Mend it whole: every blast taken back">Repair</button>
+          <span id="slabBroken" class="lightnote"></span>
         </div>
         <div id="slabNote" class="lightnote"></div>
       </div>

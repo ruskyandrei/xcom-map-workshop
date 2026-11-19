@@ -953,5 +953,78 @@ class StagedDonor(unittest.TestCase):
                 self.assertLess(hi[1 - along] - lo[1 - along], 30)                   # the wall's thickness across
 
 
+
+@unittest.skipUnless(BAR.exists(), NO_BAR)
+class Broken(unittest.TestCase):
+    """(custom geometry editing plan, B5) A made wall and roof built broken by their blasts in URB_Bar: their components
+    save EditorPaintedVisibleFragments (one int a fragment, 0 for those the blasts knock out) and DestroyedChunks (the
+    hidden fragments' boxes), as the game's maps save painted-out pieces; a whole copy of the bar's roof, which paints
+    27 of its own fragments out, saves neither (the donor's say nothing of the made mesh's)."""
+    ROOF = 'XComFracLevelActor_3'
+    WALL = dict(x0=0.0, x1=384.0, openings=[], seed=6)
+    SLAB = dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[])
+    BLAST = [dict(at=[192.0, 12.0, 100.0], radius=96.0)]
+    ROOF_BLAST = [dict(at=[192.0, 144.0, 0.0], radius=96.0)]
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        from package import Package
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name)
+        copies = [dict(actor=DONOR, label='Wall', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracWall', version=1, wall=cls.WALL, blasts=cls.BLAST)),
+                  dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST)),
+                  dict(actor=cls.ROOF, label='Whole', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracSlab', version=1, slab=dict(cls.SLAB, seed=5)))]
+        cls.m = native_copy.build(BAR, out, 'FracBroken', copies)
+        cls.q = Package(out / 'FracBroken.upk')
+        cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
+        cls.rec = {r['label']: r for r in cls.m['nativeCopies']['generatedWalls']}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def arrays(self, label):
+        q = self.q
+        comp = q.own(self.sec[label], 'FracturedStaticMeshComponent')
+        return q.own(comp, 'EditorPaintedVisibleFragments'), q.own(comp, 'DestroyedChunks')
+
+    def test_the_broken_pieces_save_their_painted_fragments(self):
+        import made_blasts
+        for label, built, blasts in (('Wall', frac_wall.build(self.WALL), self.BLAST),
+                                     ('Roof', __import__('frac_slab').build(self.SLAB), self.ROOF_BLAST)):
+            visible, chunks = self.arrays(label)
+            n = self.rec[label]['fragments']
+            count, *values = struct.unpack('<%di' % (n + 1), visible)
+            gone = [k for k, v in enumerate(values) if v == 0]
+            self.assertEqual(count, n, label)
+            self.assertEqual(gone, made_blasts.hidden(built, blasts), label)
+            self.assertEqual(self.rec[label]['broken'], len(gone))
+            self.assertTrue(0 < len(gone) < n, label)
+            self.assertEqual(struct.unpack_from('<i', chunks)[0], len(gone))
+            self.assertEqual(len(chunks), 4 + 25 * len(gone))
+            for k, i in enumerate(gone):
+                box = struct.unpack_from('<6f', chunks, 4 + 25 * k)
+                want = built['fragments'][i]['box']
+                for got, w in zip((box[0], box[3], box[1], box[4], box[2], box[5]), want):
+                    self.assertAlmostEqual(got, w, places=2)
+
+    def test_a_whole_copy_saves_neither(self):
+        self.assertEqual(self.arrays('Whole'), (None, None))
+        self.assertFalse(self.rec['Whole'].get('broken'))
+
+    def test_the_export_reads_the_mask(self):
+        # the viewer's export (export.py component) draws a component with the array saved: its count the mesh's
+        q = self.q
+        comp = q.own(self.sec['Wall'], 'FracturedStaticMeshComponent')
+        mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
+        visible = q.effective(comp, 'EditorPaintedVisibleFragments')
+        self.assertEqual(struct.unpack_from('<i', visible)[0], len(mesh['fractured']['fragments']))
+        self.assertEqual(len(visible), 4 + 4 * len(mesh['fractured']['fragments']))
+
+
 if __name__ == '__main__':
     unittest.main()
