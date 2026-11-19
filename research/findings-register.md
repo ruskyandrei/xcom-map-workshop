@@ -3118,6 +3118,18 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
 
+### T-48: A parked game copy started from its own folder is scaled by Windows
+**Worked around** (19 November 2026, EXP-85 runs D).
+- **What**: on a screen with display scaling above 100%, the beta 15 copy started on the desktop from its own folder
+  (`XComEW.exe -FROMLAUNCHER -nohomedir`, as `hidden_game.py` starts it, but visible) came up the wrong size, and the
+  game saved the size Windows gave its window (`ResY=1317` instead of 1440) into the copy's `XComEngine.ini`.
+- **Cause**: the copy Steam starts has the exe's compatibility setting "high DPI aware" (`HIGHDPIAWARE`), which
+  Windows keeps by the exe's full path; the same exe in a parked copy's folder has none, so Windows scales the game
+  as a program that knows nothing of scaling. Hidden runs don't show it (their own desktop, their own size).
+- **Fix**: start the parked copy with `__COMPAT_LAYER=HIGHDPIAWARE` in the game's environment: the same layer for
+  that process only, with no setting of Windows changed. A copy the scaled start already ran has the wrong size in
+  its `XComEngine.ini` until it is set back.
+
 ### T-44: Police Station's Data recovery never begins on the Play in game path: its covert operative copies a SHIV
 **Fixed** (18 November 2026: EXP-72 runs 12 and 13 began; runs 5, 10 and 11 had not).
 - **What**: on URB_PoliceStation's Data recovery (EXALT, `eMission_CaptureAndHold`) the loading movie never stopped.

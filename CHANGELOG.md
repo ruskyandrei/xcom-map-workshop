@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-85 runs D: the pack maps' own pictures on the Geoscape's screens** (notes only;
+  [EXP-85](research/experiments/EXP-85-map-pack-cards.md), status now passed; findings register T-48). Played by
+  hand on the beta 15 copy with `Intro test pack` v2 (its bar and its farm crash site built again with pictures of
+  their own): LWR drew each map's own picture on the abduction alert, on the crash site's alert and in squad select
+  (the log's `MAPFRAME ... image 512x256`), and the crash site, put on the farm with `Mutate LWRVariant Trap` and
+  `Mutate LWRMapTest`, started its battle there with the pack's one intro copy. T-48: a parked copy started from its
+  own folder is scaled by Windows (no high DPI setting for its exe's path); `__COMPAT_LAYER=HIGHDPIAWARE` for the
+  game process mends it. Checked: the `repo` suite. Left: the borrowed picture, the UFO size read from the name.
+
 - **The game-test skill's setup guide** ([SETUP.md](.claude/skills/game-test/SETUP.md)): everything an agent needs to
   make hidden game runs work on a new computer (the pieces, one run start to end, the one-time setup, a first run,
   staging a map, the test protocol, rules, what each failure has meant, and the same techniques for other games).
