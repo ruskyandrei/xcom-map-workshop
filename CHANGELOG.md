@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-84 prepared; compiling leaves the project as it was** (the short game run before the custom geometry branch
+  goes into main; branch `fracturing-wall-poc`).
+  - [exp84_project.py](tools/editor/examples/exp84_project.py), [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):
+    on URB_Bar's car park, made walls with Gives cover and Blocks sight off beside one as made, blocks on a static mesh
+    actor's asphalt with and without cover, a rock whose points grow it a tile, a doorway with a threshold and the
+    bar's door in it, a notch through a wall's top and a gap the whole wall long. Quick-built and staged in the lab copy.
+  - Found preparing it: [compiler.py](tools/editor/compiler.py) `compile_project` wrote the Build's request versions
+    into the document it was given (a rock with moved points became version 2, a plain piece version 1). The script
+    compiled, then saved the same document, and the Build left the rock out as malformed. The editor saves before it
+    compiles, so its projects were not hit. The compiler now works on a copy.
+  - Checked: [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py) compiles a rock with points
+    twice and finds the document unchanged; the editor suite; the rebuilt map has the rock.
+
 - **The guide follows the streamlined panels** (the user; branch `fracturing-wall-poc`, so the published page is as
   before until main has it).
   - [guide.html](tools/release/guide/guide.html): the piece panel's legend is the new one (the row of buttons with

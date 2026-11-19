@@ -3,6 +3,7 @@ fracturing piece carries its `generated` request to the Build's writer (tools/ba
 made wall's box, and a malformed request, or one on any other piece, leaves the record out. What its openings do in
 the game that may surprise is warned of (M1 item 4): a doorway with no door, one no tile's walking line passes
 through, a window walked through, giving no cover, or not seen through."""
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -318,6 +319,13 @@ class GeneratedTests(unittest.TestCase):
         gens = [c['generated'] for c in native['copies']]
         self.assertEqual([(g['version'], g['ground']['points'], g['ground'].get('look')) for g in gens],
                          [(1, points, None), (1, points, 'rock')])
+        # (EXP-84) compiling leaves the document as it was: compiled again, or saved after, it is still version 4
+        doc = document((), [made(plain, name='XComLevelActor_1', at=(0, 768, 0))], schemaVersion=2)
+        kept = json.loads(json.dumps(doc))
+        for _ in range(2):
+            spec, report = compile_project(doc, scene())
+            self.assertTrue(report['ok'] and not report['leftOut'], refused(report))
+        self.assertEqual(doc, kept)
         far = [list(p) for p in points]
         far[9] = [200.0, 10.0, 10.0]
         for bad in (dict(kind='ground', version=1, ground=dict(numbers, points=points)), dict(kind='ground', version=4, ground=numbers),

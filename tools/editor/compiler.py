@@ -89,6 +89,7 @@ report gives each pose's rounding. Each copy's world box (its mesh bounds, turne
 in the spec for seed planning; each target's box before the edit is in the report.
 """
 import argparse
+import copy
 import json
 import math
 import re
@@ -5550,8 +5551,11 @@ def scripted_users(record):
 def compile_project(doc, scene, enable=(), library=None, foreign=()):
     """(spec or None, report) for a project document and the export of its source map. `enable`: families to build
     although FAMILIES doesn't yet (an experiment's build). `library` (a Library): where pieces of other maps come
-    from; `foreign`: families whose pieces from other maps build although FOREIGN_FAMILIES doesn't list them."""
-    return Compiler(doc, scene, enable, library, foreign).run()
+    from; `foreign`: families whose pieces from other maps build although FOREIGN_FAMILIES doesn't list them. The document
+    is left as it was: the compiler works on a copy (it writes the Build's request versions into its records: a rock's
+    moved points and a plain piece; a caller that compiled and then saved the same document saved those, which the
+    compiler refuses, EXP-84)."""
+    return Compiler(copy.deepcopy(doc), scene, enable, library, foreign).run()
 
 
 def stream_only(spec):
