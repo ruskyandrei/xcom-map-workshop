@@ -983,6 +983,26 @@ def check_groups(page):
     assert page.evaluate(groups) == [] and page.evaluate(actors) == [a]
     page.keyboard.press('Control+z')
     assert len(page.evaluate(groups)) == 1
+    # Add to group (the user, 19 November 2026): the group and a piece in no group selected: Add to group beside Group
+    # puts the piece in the group (no new group), one undo step; two loose pieces, or the group alone, have no Add to group
+    loose = [k for k in page.evaluate(free.replace('.slice(0, 2)', '.slice(0, 6)'), None) if k not in pair]
+    if len(loose) >= 2:
+        third, fourth = loose[:2]
+        [kept] = page.evaluate(groups)
+        page.evaluate('([a, c]) => { viewer.select(a); viewer.select(c, true); }', [a, third])
+        assert page.locator('#groupMake').is_visible() and page.locator('#groupAdd').is_visible()
+        assert 'Add to group puts the 1 piece in the group instead' in page.locator('#groupText').text_content()
+        page.locator('#groupAdd').click()
+        [added] = page.evaluate(groups)
+        assert added['id'] == g['id'] and len(added['members']) == 3 and added['breakTogether'] == kept['breakTogether'], added
+        page.evaluate('id => viewer.select(id)', third)
+        assert page.evaluate(actors) == sorted([a, b, third]) and page.locator('#groupTitle').text_content() == 'Group · 3 pieces'
+        assert page.locator('#groupAdd').is_hidden()
+        page.keyboard.press('Control+z')
+        [back] = page.evaluate(groups)
+        assert len(back['members']) == 2, back
+        page.evaluate('([c, d]) => { viewer.select(c); viewer.select(d, true); }', [third, fourth])
+        assert page.locator('#groupAdd').is_hidden()
     page.locator('#editResetAll').click()
     assert page.evaluate(groups) == [] and page.evaluate('viewer.changes().total') == 0
     # Groups nest (prefab plan 5.4): two groups grouped; a piece picks the outermost group; ungrouping peels one
@@ -5092,7 +5112,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness, walls), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, groups, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness, walls), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -5153,6 +5173,7 @@ def main():
             if 'pan' in only: check_arrow_pan(page)
             if 'speeds' in only: check_camera_speeds(page)
             if 'pivot' in only: check_pivot(page)
+            if 'groups' in only: check_groups(page)
             if 'text-select' in only: check_text_select(page)
             if 'play-area' in only: check_play_area(page); check_interior_whole(page)
             if 'light-grid' in only: check_light_grid(page)

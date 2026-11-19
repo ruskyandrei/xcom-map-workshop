@@ -8,6 +8,15 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Add to group** (asked by the user; branch `fracturing-wall-poc`).
+  - [app.js](tools/viewer/web/app.js) `groupToAddTo`, `addToGroup`; [index.html](tools/viewer/web/index.html): with one
+    whole group and pieces (lights, buildings) that are in no group selected, the group panel shows Add to group beside
+    Group. It puts those pieces in that group, which keeps its options, instead of making a new group of them all; one
+    undo step. The panel's words say what each button does.
+  - [browser_smoke.py](tools/viewer/tests/browser_smoke.py) `check_groups`: the button shows for a group and a loose
+    piece (not for two loose pieces, nor once the piece is in), adds the piece to the same group with its options,
+    undo takes it out; `--only groups` runs the check alone. Passed on URB_Bar on a test server; the panel looked at.
+
 - **Fewer buttons on the wall and ground panels** (asked by the user; branch `fracturing-wall-poc`).
   - [index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js):
     - the ground panel's look swatches (Asphalt, Plain asphalt, Sidewalk, Concrete) are gone: its Choose... opens the

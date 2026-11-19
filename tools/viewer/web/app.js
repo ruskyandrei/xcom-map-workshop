@@ -2933,12 +2933,15 @@ function groupPanel() {
   const n = g ? liveKeys(g).length : count;
   box.classList.toggle('locked', Boolean(g));
   $('groupMake').hidden = kind !== 'new';
+  const adding = kind === 'new' ? groupToAddTo() : null;
+  $('groupAdd').hidden = !adding;
   $('groupDissolve').hidden = $('groupBreakRow').hidden = !g;
   if (!g) {
     $('groupTitle').textContent = 'Not grouped';
     $('groupText').textContent = wholeGroups
       ? `Group these ${n} (${plural(wholeGroups, 'group')}${n > wholeGroups ? ` and ${plural(n - wholeGroups, 'piece')}` : ''}) to select and move them as one. The groups stay as they are inside the new one.`
       : `Group these ${n} pieces to select and move them as one, and to give them group options.`;
+    if (adding) $('groupText').textContent += ` Add to group puts the ${keyWords(adding.loose)} in the group instead, which keeps its options.`;
     $('groupNote').hidden = true;
     return;
   }
@@ -2998,6 +3001,23 @@ function lockAsGroup() {
     pruneGroups(next);
   }, `Grouped ${inner ? `${plural(inner, 'group')}${units.size > inner ? ` and ${plural(units.size - inner, 'piece')}` : ''}` : plural(units.size, 'piece')}`
      + `${within ? ' inside its group' : ''} · they select and move as one`);
+}
+// Add to group (the user, 19 November 2026): a selection of one whole group and pieces (lights, buildings) that are in
+// no group puts those in that group, which keeps its options, rather than making a new group of them all. Gives
+// { group, loose (their member keys), records } when the selection is so, else null.
+function groupToAddTo() {
+  const records = new Map(groupables().map(r => [memberOf(r.userData.source), memberRecord(r.userData.source)]));
+  const units = [...selectionUnits(new Set(records.keys()))];
+  const whole = units.filter(u => u.startsWith('group|')), loose = units.filter(u => !u.startsWith('group|'));
+  const group = whole.length === 1 ? groups.get(whole[0].slice(6)) : null;
+  return group && loose.length && loose.every(k => !groupIndex.get(k)) ? { group, loose, records } : null;
+}
+function addToGroup() {
+  const add = groupToAddTo();
+  if (!add) { flashHint('Select one group and pieces that are in no group to add them to it'); return; }
+  const words = keyWords(add.loose);
+  changeGroups(next => { const g = next.get(add.group.id); for (const k of add.loose) g.members.set(k, add.records.get(k)); },
+    `Added ${words} to the group · ${add.loose.length === 1 ? 'it selects and moves' : 'they select and move'} with it`);
 }
 // Ungroup: the group ends; its pieces and the groups inside it stay, in the group it was in if it was in one.
 function ungroup(g) {
@@ -12294,6 +12314,7 @@ for (const id of ['alignX', 'alignY', 'alignZ', 'alignBy']) $(id).onchange = e =
 $('alignGo').onclick = () => align();
 $('alignTarget').onchange = e => { alignTarget = e.target.value; e.target.blur(); alignPanel(); };
 $('groupMake').onclick = () => lockAsGroup();
+$('groupAdd').onclick = () => addToGroup();
 $('groupDissolve').onclick = () => { const { group } = selectionGroup(); if (group) ungroup(group); };
 $('groupBreak').onchange = e => {
   const { group } = selectionGroup(), on = e.target.checked;
