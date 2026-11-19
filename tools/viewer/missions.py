@@ -301,6 +301,48 @@ def display_name(base_display, variant, inner, tail=''):
     return f'{variant}{markers(base_display, variant)} ({inner}){tail}'
 
 
+_WORDS = re.compile(r'\s*\S+\s*\((.*)\)\s*(\|\d+)?\s*')
+_TAIL = re.compile(r'\s*(\|\d+)\s*$')
+# what an added UFO mission's display name says of its ship: the words LWR reads a UFO's size from (its script looks
+# for 'Small Scout', ' Crashed Destroyer ', ' Abductor ', ' Supply Ship ', ' Crashed Overseer ', ' BATTLESHIP' in the
+# mission's map display name), spelt as the game's own records spell them
+SHIP_WORDS = {'eShip_UFOSmallScout': 'Small Scout', 'eShip_UFOLargeScout': 'Large Scout', 'eShip_UFOAbductor': 'Abductor',
+              'eShip_UFOSupply': 'Supply Ship', 'eShip_UFOBattle': 'Battleship', 'eShip_UFOEthereal': 'Overseer Ship'}
+CRASHED_WORDS = dict(SHIP_WORDS, eShip_UFOLargeScout='Destroyer Ship')
+
+
+def record_words(display):
+    """(the words a record's display name has in brackets, its ' |n' ending or ''): 'CSmallScout_Farm (Crashed Small
+    Scout - A Farm) |6' gives ('Crashed Small Scout - A Farm', ' |6'). A display name without brackets gives all of it
+    but the ending."""
+    display = display or ''
+    m = _WORDS.fullmatch(display)
+    if m: return m.group(1).strip(), f' {m.group(2)}' if m.group(2) else ''
+    tail = _TAIL.search(display)
+    return (display[:tail.start()] if tail else display).strip(), f' {tail.group(1)}' if tail else ''
+
+
+def added_words(entry):
+    """What an added mission kind's display name says after the base record's words: the kind, and for a UFO its
+    ship in the words LWR reads the size from ('Crashed Abductor UFO')."""
+    kind = entry['kind']
+    if ADDED_KINDS.get(kind, {}).get('ufo'):
+        words = (CRASHED_WORDS if kind == 'Crash' else SHIP_WORDS).get(entry.get('ship'), 'UFO')
+        return '%s %s UFO' % ('Crashed' if kind == 'Crash' else 'Landed', words)
+    return label(kind)
+
+
+def variant_display(base_display, variant, added=None, tail=''):
+    """A variant record's display name (LWR map packs plan, section 3): '<variant><markers> (<the base record's own
+    words>) |n'. The words are kept whole, so what the game's script reads in them stays (LWR reads a UFO's size
+    there), and nothing of the project's name is in it, so the name is the same at every export. `added`: the words
+    of an added mission kind (added_words), put after the base record's. `tail`: the ending for a record that has
+    none (the install's: LWR's records end ' |n', plain EW's don't)."""
+    words, ending = record_words(base_display)
+    if added: words = f'{words}, {added}' if words else added
+    return f'{variant}{markers(base_display, variant)} ({words}){ending or tail}'
+
+
 def matched(display):
     """What the game's script does by the record's display name: [(marker, what depends on it)]."""
     return [(marker, why) for marker, why in DISPLAY_MARKERS if marker in (display or '')]

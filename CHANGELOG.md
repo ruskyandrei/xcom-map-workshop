@@ -8,6 +8,19 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **A variant's records keep the base record's own words** (LWR map packs, stage C1). A record's display name is now
+  `<variant> (<the base record's words>) |n`, with the base record's ending, where it was
+  `<variant> (<project>[, <mission>]) |0` ([build.py](tools/editor/build.py) `config_lines`,
+  [missions.py](tools/viewer/missions.py) `variant_display`, `record_words`, `added_words`):
+  - LWR reads a UFO's size from words in that name (bounty, experience, scuttle timer), and a variant's had none
+    ([F-141](research/findings-register.md));
+  - the name no longer changes when the project is renamed, so missions on the globe and saves keep finding the map;
+  - an added UFO mission says its ship after the template's words (`Crashed Abductor UFO`); two records that would
+    get one name: the later says its mission.
+  - Checked: `editor` (334) and `viewer` (558) suites; three new tests in
+    [test_build.py](tools/editor/tests/test_build.py). Builds made before keep their names until built again; Play
+    in game's own record is unchanged. Not seen in a campaign.
+
 - **EXP-85: a card of ours read by LWR 3.00.00 beta 15** (LWR map packs, stage C2b). Unattended runs on the parked
   beta 15 copy, where it stands. [EXP-85](research/experiments/EXP-85-map-pack-cards.md):
   - the game reads the card, finds the maps, intro copies and patches in the pack's folder, adds the landing lines

@@ -407,7 +407,10 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
     the base map (its missions), each under the variant's name and out of rotation, streaming `patch` unless it is
     None and the variant's own intro copies in place of the originals (`intros`, {original: copy}); landing zones and
     MiniMods rules (`lz` and `minimods` None where the install has no such file: plain EW; then they are None too).
-    `display` is the records' display name, or display(mission label) for each record's; either keeps, after the
+    `display` None or {'tail': ' |0'}: each record's display name is '<variant> (<its base record's own words>) |n'
+    (missions.variant_display; tail: the ending for a base record without one), a second record that would get the
+    same name saying its mission too. Else `display` is the records' display name, or display(mission label) for
+    each record's (the tests'); either keeps, after the
     variant's name, the text the game's script matches in the base record's display name (missions.markers: '_Bomb',
     so Long War still throttles a bomb mission's reinforcements; mission types plan, Part B), and `matchedNames` lists
     the records that carry some ({record, marker, why}). `zones` (the project's
@@ -432,8 +435,21 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
             mission = mission_kinds.label(entry['kind'])
             base_display = '_Bomb' if entry['kind'] == 'Special/Bomb' else ''     # what the game matches for the kind
         marks = mission_kinds.markers(base_display, variant)
+        # the record's own words (LWR map packs plan, section 3): the base record's, an added kind's after its
+        # template's; the same at every build, whatever the project is called
+        own = None
+        if display is None or isinstance(display, dict):
+            tail = (display or {}).get('tail', '')
+            if 'record' in entry: own = mission_kinds.variant_display(base_display, variant, tail=tail)
+            else:
+                shown = (field_re('DisplayName').search(template) or [''])[0][len('DisplayName="'):-1]
+                words, ending = mission_kinds.record_words(shown)
+                own = '%s%s (%s)%s' % (variant, marks, ', '.join(w for w in (words, mission_kinds.added_words(entry)) if w),
+                                       ending or tail)
 
-        def named(label):
+        def named(label, again=False):
+            if own is not None:       # a second record that would get the same name says its mission too
+                return own if not again else re.sub(r'\)( \|\d+)?$', lambda m: ', %s)%s' % (label, m.group(1) or ''), own, count=1)
             text = display(label) if callable(display) else display
             return variant + marks + text[len(variant):] if marks and text.startswith(variant) and not text.startswith(variant + marks) else text
         text = named(mission)
@@ -451,7 +467,10 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
         seen[mission] = seen.get(mission, 0) + 1
         if seen[mission] > 1:
             mission = '%s %d' % (mission, seen[mission])
-            text = named(mission)
+            text = named(mission, again=True)
+            record = set_field(record, 'DisplayName', text)
+        elif own is not None and any('DisplayName="%s"' % text in r for r in records):
+            text = named(mission, again=True)
             record = set_field(record, 'DisplayName', text)
         records.append(record)
         missions.append(mission)
@@ -1352,13 +1371,11 @@ class Build:
         replace = dict(intros, **streams)
         files = {'CookedPCConsole/%s' % f.name: sha256(f) for f in sorted(cooked_dir.iterdir())}
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
-        # one record: the project's name; several: each with its mission, so the game's lists tell them apart. LWR's
-        # display names end in " |<n>", plain EW's don't: the variant's follow the install's
+        # LWR's display names end in " |<n>", plain EW's don't: a record without an ending follows the install's
         tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
         listed = self.doc.get('missions') if isinstance(self.doc.get('missions'), list) else None
         count = len(mission_entries(records, listed))
-        display = ('%s (%s)%s' % (self.variant, name[:80], tail) if count == 1 else
-                   lambda mission: '%s (%s, %s)%s' % (self.variant, name[:80], re.sub(r'[^\x20-\x7E]|"|\|', '', mission), tail))
+        display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,
                              zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None)

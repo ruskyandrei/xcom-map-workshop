@@ -190,6 +190,45 @@ class ConfigLines(unittest.TestCase):
         c = build.config_lines([bomb], [], [], 'URB_Bar', 'URB_Bar_Bomb_x', None, 'URB_Bar_Bomb_x (Test) |0')
         self.assertIn('DisplayName="URB_Bar_Bomb_x (Test) |0"', c['maps'][0])
 
+    def test_a_record_keeps_its_base_records_own_words(self):
+        # LWR map packs plan, section 3: LWR reads a UFO's size from words in the display name, and missions on the
+        # globe find a map by it, so it holds the base record's words and nothing of the project's name
+        farm = build.set_field(build.set_field(record('bar'), 'Name', 'CSmallScout_Farm'), 'DisplayName',
+                               'CSmallScout_Farm (Crashed Small Scout - Franklin\'s Fancy Farm) |6')
+        c = build.config_lines([farm], [], [], 'CSmallScout_Farm', VARIANT, PATCH, None)
+        self.assertIn('DisplayName="%s (Crashed Small Scout - Franklin\'s Fancy Farm) |6"' % VARIANT, c['maps'][0])
+        # a record without an ending takes the install's; a bomb's keeps what Long War matches
+        plain = build.set_field(record('bar'), 'DisplayName', 'URB_Bar (Urban Bar)')
+        c = build.config_lines([plain], [], [], 'URB_Bar', VARIANT, PATCH, dict(tail=' |0'))
+        self.assertIn('DisplayName="%s (Urban Bar) |0"' % VARIANT, c['maps'][0])
+        bomb = build.set_field(record('bar'), 'DisplayName', 'URB_Bar_Bomb (Bomb Defusal Bar) |0')
+        c = build.config_lines([bomb], [], [], 'URB_Bar', VARIANT, PATCH, None)
+        self.assertIn('DisplayName="%s_Bomb (Bomb Defusal Bar) |0"' % VARIANT, c['maps'][0])
+
+    def test_two_records_with_the_same_words_say_their_missions(self):
+        bar = record('bar')
+        terror = build.set_field(build.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False),
+                                 'DisplayName', 'URB_Bar_T (Beta/Functionality Complete Urban Bar) |0')
+        c = build.config_lines([bar, terror], [], [], 'URB_Bar', VARIANT, PATCH, None)
+        names = [build.field_re('DisplayName').search(line).group(0) for line in c['maps']]
+        self.assertEqual(names, ['DisplayName="%s (Beta/Functionality Complete Urban Bar) |0"' % VARIANT,
+                                 'DisplayName="%s (Beta/Functionality Complete Urban Bar, Terror) |0"' % VARIANT])
+
+    def test_an_added_ufo_missions_name_says_its_ship_as_lwr_reads_it(self):
+        bar = record('bar')
+        listed = [dict(record=0), dict(kind='Crash', ship='eShip_UFOAbductor'), dict(kind='LandedUFO', ship='eShip_UFOSupply')]
+        c = build.config_lines([bar], [], [], 'URB_Bar', VARIANT, PATCH, None, missions_list=listed)
+        names = [build.field_re('DisplayName').search(line).group(0)[len('DisplayName="'):-1] for line in c['maps']]
+        self.assertEqual(names[0], '%s (Beta/Functionality Complete Urban Bar) |0' % VARIANT)
+        self.assertIn(' Abductor ', names[1])
+        self.assertTrue(names[1].endswith('Urban Bar, Crashed Abductor UFO) |0'), names[1])
+        self.assertIn(' Supply Ship ', names[2])
+        self.assertEqual(len(set(names)), 3)
+        import missions
+        self.assertIn(' Crashed Overseer ', ', ' + missions.added_words(dict(kind='Crash', ship='eShip_UFOEthereal')))
+        self.assertIn(' Crashed Destroyer ', ', ' + missions.added_words(dict(kind='Crash', ship='eShip_UFOLargeScout')))
+        self.assertEqual(missions.added_words(dict(kind='TerrorSite')), 'Terror')
+
     def test_the_projects_landing_zones_are_the_variants_lines(self):
         """Clear map plan, step C7: zones without lwr: false, in order, in place of the base map's lines."""
         zones = [dict(id='a', location=[719, -1681, 64], direction='north', kind='normal'),
@@ -864,7 +903,7 @@ class Builds(unittest.TestCase):
         self.assertEqual((m['project']['id'], m['project']['revision']), ('0000-test', 3))
         self.assertEqual(m['source']['sha256'], hashlib.sha256(BASE).hexdigest())
         self.assertEqual([s['stage'] for s in m['stages']], ['snapshot', 'compile', 'patch', 'light', 'seeds'])
-        self.assertIn('DisplayName="%s (Test build  one) |0"' % VARIANT, m['config']['maps'][0])
+        self.assertIn('DisplayName="%s (Beta/Functionality Complete Urban Bar) |0"' % VARIANT, m['config']['maps'][0])
         readme = (pkg / 'README.txt').read_bytes().decode('latin-1')
         self.assertIn(m['config']['maps'][0], readme)
         self.assertIn('LZArray=(MapName="%s"' % VARIANT, readme)
@@ -926,7 +965,7 @@ class Builds(unittest.TestCase):
         self.assertEqual(len(self.tool('intro_copy.py')), 2)
         self.assertIn('CookedPCConsole/%s.upk' % fastrope, m['files'])
         self.assertEqual(m['config']['missions'], ['Abduction', 'Terror'])
-        self.assertIn('DisplayName="%s (Test build  one, Terror) |0"' % VARIANT, m['config']['maps'][1])
+        self.assertIn('DisplayName="%s (Beta/Functionality Complete Urban Bar, Terror) |0"' % VARIANT, m['config']['maps'][1])
         self.assertIn('MapName="%s"' % fastrope, m['config']['maps'][1])
         readme = (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1')
         self.assertIn('one record for each mission URB_Bar serves (Abduction, Terror)', readme)

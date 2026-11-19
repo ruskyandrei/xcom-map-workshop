@@ -2978,6 +2978,20 @@ word; not looked at in the game).
 - **Could be.** The mips kept inside the map file, so a pack is one folder. Not tried: a mip read must not cross a
   chunk of the compressed package (T-14).
 
+### F-141: A variant's display name dropped the words LWR reads a UFO's size from
+**Fixed** (19 November 2026; not seen in a campaign yet).
+- **Seen in the files.** A variant of a crashed small scout's map was recorded as `<variant> (<project>, Crashed UFO) |0`
+  where the base record reads `CSmallScout_Farm (Crashed Small Scout - ...) |6`. LWR's script looks for words in the
+  mission's map display name (`Small Scout`, ` Crashed Destroyer `, ` Abductor `, ` Supply Ship `, ` Crashed Overseer `,
+  ` BATTLESHIP` and others) for the shot-down UFO's bounty, squad experience and the scuttle timer; a name with none
+  counts as no ship. The project's name in it also changed the name whenever the project was renamed, and missions on
+  the globe and saves find a map by that name.
+- **Fix.** The Build writes `<variant> (<the base record's own words>) |n`, the base record's ending kept
+  ([build.py](../tools/editor/build.py) `config_lines`, [missions.py](../tools/viewer/missions.py) `variant_display`).
+  An added UFO mission says its ship after the template's words in the words LWR reads (`Crashed Abductor UFO`). Two
+  records that would get one name: the later says its mission too.
+- **Left.** Builds made before keep their names until built again. Play in game's own record is as before.
+
 ## Toolchain
 
 ### F-117: A variant replacing Commercial Alley Redux left a new campaign's first mission with no map
