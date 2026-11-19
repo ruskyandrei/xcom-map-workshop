@@ -215,12 +215,16 @@ def check(page, base, map_id, shots, errors):
 
         # Take from the view: the 3D view as the image (stage C8), where the dialog offers it
         if page.locator('#mapPictureTake').is_visible():
+            # (the helpers are hidden only for the frame taken: what shows in the view is as before afterwards)
+            shown = "viewer.world.children.map(c => c.visible).join()"
+            before = page.evaluate(shown)
             page.locator('#mapPictureTake').click()
             page.wait_for_function("viewer.mapPicture.state() && viewer.mapPicture.state().width !== 1600")
             taken = state(page)
             sound(taken)
             view = page.evaluate('[viewer.renderer.domElement.width, viewer.renderer.domElement.height]')
             assert [taken['width'], taken['height']] == view, (taken, view)
+            assert page.evaluate(shown) == before
             page.wait_for_timeout(900)
             assert result_pixels(page)['drawn']
             out['taken'] = [taken['width'], taken['height']]

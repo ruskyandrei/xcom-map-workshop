@@ -8,6 +8,20 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Map picture…: Take from the view** (LWR map packs plan, stage C8; branch `lwr-map-picture`).
+  [app.js](tools/viewer/web/app.js) `grabView`: the 3D view as it is now becomes the image to crop. The renderer
+  keeps no drawing buffer, so one frame is drawn and copied onto a canvas at once, with the editor's helpers hidden
+  for that frame: everything in the world but the map's pieces, its lights and its effects' likenesses (grids,
+  gizmos, handles, markers, the play area, the selection's outline), and cover blocks and invisible floors, which
+  the game never draws. The dialog's button shows where the page gives it a view
+  ([map_picture.js](tools/viewer/web/map_picture.js)).
+  - Checked: [browser_map_picture.py](tools/viewer/tests/browser_map_picture.py) on a test server with URB_Bar:
+    the image taken is the view's size, its frame is sound, the result is drawn, and what shows in the view is as
+    before afterwards; the picture of the dialog looked at (the map, no grid or handles). The `node` and `repo`
+    suites.
+  - Gaps: no pixel comparison of the taken frame against the view with its helpers; the taken image is the view at
+    the window's size, so a small window gives a soft picture.
+
 - **The Build writes the project's map picture into the map** (LWR map packs plan, stage C5; branch
   `lwr-map-picture`). [build.py](tools/editor/build.py):
   - `Build.picture`, the step after the seeds in `Build.package`, in quick and full builds alike: the picture file

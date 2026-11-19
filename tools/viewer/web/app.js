@@ -6908,7 +6908,29 @@ const mapPicture = createMapPicture({
          remove: $('mapPictureRemove'), close: $('mapPictureClose') },
   onUse: result => { projectPicture = { sha256: result.sha256 }; projectChanged(); flashHint('The map picture is set: save the project to keep it'); },
   onRemove: () => { projectPicture = null; projectChanged(); flashHint('The map picture is removed: save the project to keep it so'); },
+  grabView,
 });
+// Take from the view (LWR map packs plan, 4.5): the 3D view as it is now, on a canvas of its own. The renderer keeps no
+// drawing buffer, so a frame is drawn here and copied at once (as pieces.paintThumbs copies its pictures), with the
+// editor's helpers hidden for that frame: everything in the world but the map's pieces, its lights and its effects'
+// likenesses (the grids, the gizmos, the handles, the markers, the play area, the selection's outline), and the pieces
+// the game never draws (cover blocks and invisible floors). The next frame draws them again.
+function grabView() {
+  const keep = new Set([content, hemisphere, sun, sun.target, likenessLayer]), hidden = [];
+  const hide = object => { if (object.visible) { object.visible = false; hidden.push(object); } };
+  for (const child of world.children) if (!keep.has(child) && !child.isLight) hide(child);
+  for (const root of roots.values()) if (root.userData.source.added?.template?.kind === COVER_KIND) hide(root);
+  try {
+    renderer.render(world, camera);
+    const source = renderer.domElement;
+    if (!source.width || !source.height) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width; canvas.height = source.height;
+    canvas.getContext('2d').drawImage(source, 0, 0);
+    return canvas;
+  } catch { return null; }
+  finally { for (const object of hidden) object.visible = true; }
+}
 $('projectPicture').onclick = () => {
   showPop(null);
   // the picture is kept with a saved project (by its id)
