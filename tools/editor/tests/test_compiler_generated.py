@@ -288,7 +288,7 @@ class GeneratedTests(unittest.TestCase):
         boxes = [c['box'] for c in native['copies']]
         self.assertEqual(boxes[0], [0.0, 192.0, 0.0, 96.0, 14.5, 78.5])
         self.assertEqual(boxes[1], [0.0, 288.0, 192.0, 288.0, 0.0, 96.0])
-        self.assertEqual(boxes[3][4:], [1.0 - compiler.GROUND_LOOKS[compiler.GROUND_DEFAULT_LOOK], 1.0])
+        self.assertEqual(boxes[3][4:], [3.0 - compiler.GROUND_LOOKS[compiler.GROUND_DEFAULT_LOOK], 3.0])     # (F-137: 3 over the ground)
         self.assertEqual(boxes[4], [0.0, 96.0, 768.0, 864.0, 0.0, 96.0])
         for bad in (dict(block, ground=dict(block['ground'], shape='dome')), dict(block, ground=dict(block['ground'], height=0)),
                     dict(block, ground=dict(block['ground'], x1=100.0)), dict(block, ground=dict(block['ground'], look='marble')),

@@ -209,3 +209,15 @@ Played on `EXP79FloorsAndGround` built again with F-136's fix. Pictures are in `
   103, 85, 53 against the plane's 102, 82, 53; run D2's 62, 67, 69). [F-136](../findings-register.md) is verified.
 - **The concrete: as before.** Its colour moved to another layer by the new rule, and its block and patch look exactly
   as in run D2, plain grey like the plane.
+- **The red stone's patch: not drawn, though the cursor reads its top** (65, the ground beside it 64). The blank map's
+  floor planes are drawn 2 over their collision, and the patch's top stood 1 over it ([F-137](../findings-register.md)).
+
+### Run D4: patches 3 over the ground (19 November 2026)
+
+Played on `EXP79FloorsAndGround` built again with F-137's fix. Pictures are in `<lab>\hidden-runs\exp79-runD4-patch`.
+
+- **The red stone's patch: passed.** It is drawn, lit red stone flat on the ground beside its block, and the cursor
+  reads 67 on it. [F-137](../findings-register.md) is verified.
+- **The painted dirt's and the sidewalk's patches: as before**, flush on their planes, their colours the same to the
+  unit. (The blank map's baked shadow squares came out with other outlines in this build's light; the pieces look
+  the same.)

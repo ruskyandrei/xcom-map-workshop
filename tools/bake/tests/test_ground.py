@@ -42,7 +42,8 @@ class Ground(unittest.TestCase):
                 self.assertAlmostEqual(uvs[0][1], p[1] / rep, 2)
 
     def test_heights_and_collision(self):
-        self.assertEqual(ground.local_box(PATCH)[4:], [1.0 - ground.look_of(PATCH)['thickness'], 1.0])
+        # (F-137) a patch's top 3 over the ground: the blank map's floor planes are drawn 2 over their collision
+        self.assertEqual(ground.local_box(PATCH)[4:], [3.0 - ground.look_of(PATCH)['thickness'], 3.0])
         self.assertEqual(ground.local_box(BLOCK)[4:], [0.0, 64.0])
         self.assertEqual(ground.solids(BLOCK), [((0.0, 0.0, 0.0), (96.0, 192.0, 64.0))])
         (wedge,) = ground.solids(RAMP)

@@ -27,6 +27,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A made ground patch's top stands 3 over the ground it lies on, not 1** (custom geometry plan, M6; F-137; branch
+  `fracturing-wall-poc`). In EXP-79 run D3 the red stone's patch on the blank map was not drawn, though the cursor
+  read its top (65 against the ground's 64). The blank map's floor planes (`CFloor_864`) are drawn from 0 to 2 while
+  their collision, which the game's floor and the editor's height go by, is at 0. So a patch whose top is a unit over
+  that floor lay under the drawn ground. The editor's own placing would have done the same, and so would snapping to
+  the storey.
+  - [ground.py](tools/bake/ground.py) `PATCH_LIFT` 3; the compiler's `ground_box` ([compiler.py](tools/editor/compiler.py))
+    and the page's `groundBox` ([ground.js](tools/viewer/web/ground.js), `PATCH_LIFT`) the same.
+  - Tests: [test_ground.py](tools/bake/tests/test_ground.py), `test_a_ground_shape_copies_a_plain_piece_in_its_own_box`
+    and [ground_test.mjs](tools/viewer/tests/ground_test.mjs).
+  - Checked: the editor, node and viewer suites, the bake ground, patch, farm and GroundShapes tests.
+  - [EXP-79-looks.md](research/experiments/EXP-79-looks.md) runs D3 and D4: the red stone's patch is drawn on the
+    blank map's ground now (the cursor reads 67 on it); the painted dirt's and the sidewalk's patches look as before.
+    F-137 in the [findings register](research/findings-register.md).
+
 - **A painted ground look is made in the layer of its blend with the most area, not the commonest exact vertex
   colour** (custom geometry plan, M4/M6, D14; F-136; branch `fracturing-wall-poc`). The EXP-79 re-check drew the
   painted dirt's block and patch in the asphalt grey of URB_GasStation_EWI's plane edge, where the plane is mostly dirt

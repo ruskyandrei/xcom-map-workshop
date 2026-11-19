@@ -49,10 +49,13 @@ export function groundLookOf(g) {
                  donor: { mesh: look.mesh, material: look.material, measure: look.measure } } : null;
 }
 export const groundTiles = g => [Math.round((g.x1 - g.x0) / TILE), Math.round((g.y1 - g.y0) / TILE)];
-/** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch's top a unit over the
+// a patch's top over the ground it lies on (ground.PATCH_LIFT): the blank map's floor planes are drawn 2 over their
+// collision (F-137)
+export const PATCH_LIFT = 3;
+/** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch's top PATCH_LIFT over the
  *  ground it lies on, its plate under it; a block or ramp on it. */
 export function groundBox(g) {
-  const z = g.shape === 'patch' ? [1 - (groundLookOf(g)?.thickness ?? 8), 1] : [0, g.height];     // (a patch a unit over the ground)
+  const z = g.shape === 'patch' ? [PATCH_LIFT - (groundLookOf(g)?.thickness ?? 8), PATCH_LIFT] : [0, g.height];
   return [g.x0, g.x1, g.y0, g.y1, ...z];
 }
 /** Whether the numbers are ones the tool edits (x0 and y0 0, whole tiles, a height in range, a listed look). */

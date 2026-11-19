@@ -214,6 +214,9 @@ def slab_heights(slab):
     return FRAC_SLAB_LOOKS[look if isinstance(look, str) else FRAC_SLAB_DEFAULT_LOOK]
 
 
+PATCH_LIFT = 3.0    # a patch's top over the ground it lies on (ground.PATCH_LIFT; F-137)
+
+
 def ground_thickness(g):
     """A ground patch's thickness: its look's."""
     R = donor_shape('ground', g)
@@ -238,7 +241,7 @@ def look_valid(kind, look, version, since, ids):
 def ground_box(g):
     """A ground shape's box in its mesh's frame (ground.local_box)."""
     if g['shape'] == 'patch':
-        z = (1.0 - ground_thickness(g), 1.0)     # (a unit over the ground it lies on)
+        z = (PATCH_LIFT - ground_thickness(g), PATCH_LIFT)     # (a little over the ground it lies on)
     else:
         z = (0.0, float(g['height']))
     return (float(g['x0']), float(g['x1']), float(g['y0']), float(g['y1'])) + z

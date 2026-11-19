@@ -17,7 +17,8 @@ A shape's numbers are in its piece's frame (the tool puts the piece at the shape
             on the donor: tools/bake/looks.py resolves it)}
 
 A shape stands on z 0 (its bottom), a patch with its top PATCH_LIFT over z 0 (it lies over the ground it covers, its
-plate under it, a unit over it so the two don't fight to be drawn). Its faces: the top (a ramp's slope), the sides (a ramp's two triangles and its high end); no bottom. Texture
+plate under it, a little over it so the two don't fight to be drawn: 3, since the construction kit's floor planes,
+the blank map's, are drawn 2 over their collision, which the editor and the game's floor go by, F-137). Its faces: the top (a ramp's slope), the sides (a ramp's two triangles and its high end); no bottom. Texture
 coordinates are world-planar, so the material repeats every `repeat` units on every face as on the donor's: on the
 top u = x / repeat, v = y / repeat; on a side u along it, v down it. The lightmap has a chart for each face, at the
 look's density. The collision is the shape's convex hull as the game's cooker saves it (hulls.py): a box for a patch
@@ -55,7 +56,7 @@ MAX_HEIGHT = 384.0
 SLOPED = math.degrees(math.acos(0.9848))     # about 10: a steeper floor tile is sloped (F-81: no cover on it)
 STEEP = 45.0                                 # past this it is no floor
 EPS = 1e-4
-PATCH_LIFT = 1.0     # a patch's top over the ground it lies on
+PATCH_LIFT = 3.0     # a patch's top over the ground it lies on (F-137)
 ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to ROCK_SEEDS - 1
 # the recipe a look without its own takes (ground_looks.json's looks name their own)
 DEFAULT_RECIPE = dict(repeat=256.0, slot=0, sections=1, thickness=8.0, colours=dict(outside='ffffffff', interior='ffffffff'),

@@ -294,6 +294,18 @@ The editor already writes the variant's landing lines. A per-variant scripted dr
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
 
+### F-137: A made patch on the blank map lay under its floor planes
+**Verified** (19 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D3; fixed the same night, played in run D4).
+- **Seen.** The red stone's made patch, on the blank map's ground beside its donor, was not drawn in runs D, D2 and
+  D3, though the cursor read its top (65 against the ground's 64).
+- **Why.** The blank map's floor planes (`CFloor_864`) are drawn from 0 to 2, and their collision, which the game's
+  floor and the editor's height go by, is at 0. A patch's top stood a unit over the floor it lies on, so it lay under
+  the drawn plane. The editor would have placed one drawn there the same way, and snapping to the storey too. The
+  other patches stood on copies of their donors' planes, whose drawn tops are their floors.
+- **Fix.** A patch's top stands 3 over the ground it lies on (`ground.PATCH_LIFT`; the compiler's and the page's
+  boxes the same). In run D4 the red stone's patch is drawn flat on the ground and the cursor reads 67 on it; the
+  painted dirt's and the sidewalk's patches look as before.
+
 ### F-136: A painted ground look was made in a small part's layer
 **Verified** (19 November 2026, [EXP-79](experiments/EXP-79-looks.md) re-check; fixed the same day, played in run D3).
 - **Seen.** The made block and patch on URB_GasStation_EWI's dirt-and-asphalt plane were the asphalt grey of the
