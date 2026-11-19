@@ -17,6 +17,10 @@ folder beside it (the prefabs shot saves two). It needs the Bar exported in the 
 shot opens URB_SlaughterhouseA, read from the game on its first open), Playwright (pip install playwright; it drives
 the installed Edge) and Pillow. The whole run takes about five minutes, most of it the manager's builds.
 
+Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu), and
+made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
+first run on a cache without them waits for the first dozen.
+
 The server's answers that would name a folder of this computer are replaced by a usual install's (typical()).
 """
 import argparse
@@ -105,11 +109,16 @@ def typical(page):
     own library, played there through Steam, with nothing of the editor's installed; and the projects folder in
     the editor's own (installed for this user)."""
     def play(route):
-        route.fulfill(json=dict(
+        # (the rest of the answer names no folder: the missions' kinds, the save key, the test squad in a few words)
+        answer = route.fetch()
+        body = answer.json()
+        body.update(
             lwr=dict(setting=GAME_FOLDER, folder=GAME_FOLDER, note=GAME_FOLDER, kind='Long War Rebalance'),
             install=dict(folder=GAME_FOLDER, note=GAME_FOLDER, source='the game install', sameAsLwr=True, ready=True, why=None),
             launch=dict(how='steam', why=None),
-            game=dict(installed=[], intro=None, playFile=False, configKept=False, lastPlay=None, anything=False)))
+            game=dict(installed=[], intro=None, playFile=False, configKept=False, lastPlay=None, anything=False))
+        body.pop('gameError', None)
+        route.fulfill(response=answer, json=body)
 
     def projects(route):
         answer = route.fetch()
@@ -348,6 +357,7 @@ class Shots:
                                                 (4, '#flagsRows .flagrow:nth-child(3)'), (5, '#flagsReset')])
         self.shot('flags', marks, clip=self.around('#details', '#flagsBox', pad=(56, 14, 50, 12)))
         while page.evaluate('viewer.gizmo.undoDepth()') > steps: page.keyboard.press('Control+z')
+        page.evaluate("document.getElementById('flagsBox').open = false")      # (folded again, as the later shots' panels have it)
         page.evaluate('viewer.select(null)')
         page.locator('#floor button[data-value="1"]').click()
 
@@ -418,6 +428,7 @@ class Shots:
         page = self.page
         page.evaluate('viewer.select(null)')
         page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('map')")
         page.wait_for_selector('#libList .libitem')
         page.wait_for_function("[...document.querySelectorAll('.libitem canvas')].slice(0, 12).every(c => c.dataset.drawn)", timeout=60000)
@@ -438,6 +449,7 @@ class Shots:
         page = self.page
         page.evaluate('viewer.select(null)')
         page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('all')")
         page.wait_for_function('viewer.library.ready()', timeout=120000)
         page.locator('#libAllFilter').fill('lamp')
@@ -466,6 +478,7 @@ class Shots:
         page.wait_for_function("viewer.prefabApi.list().then(a => a.prefabs.length === 2 && a.prefabs.every(p => p.picture))", timeout=30000)
         page.evaluate('viewer.select(null)')
         page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('prefabs')")
         page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 2")
         page.wait_for_timeout(1200)
@@ -691,6 +704,7 @@ class Shots:
         page = self.page
         page.evaluate('viewer.select(null)')
         page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('all')")
         page.wait_for_function('viewer.library.ready()', timeout=120000)
         kind, sort = page.locator('#libAllKind').input_value(), page.locator('#libAllSort').input_value()
@@ -844,6 +858,7 @@ class Shots:
         page.evaluate("viewer.setSnapMode('tile')")               # placed on the tiles
         self.settle(2500)
         page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('map')")
         page.locator('#libKind').select_option('Invisible')
         page.wait_for_selector('.libitem[data-id="cover-block"]')
@@ -882,6 +897,189 @@ class Shots:
         page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
         page.evaluate('mode => viewer.setSnapMode(mode)', snap)
 
+    # --- made pieces: the Add button's Build menu (walls, rooms, floors, roofs, ground)
+    def build_menu(self):
+        """The Add button hovered: its Build menu."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#editAdd').hover()
+        page.wait_for_selector('#buildFlyout', state='visible')
+        page.wait_for_timeout(500)
+        x, y, w, h = self.rect('#editAdd')
+        fx, fy, fw, fh = self.rect('#buildFlyout')
+        top = min(y, fy) - 10
+        self.shot('build-menu', clip=dict(x=x - 8, y=top, width=fx + fw - x + 18, height=max(y + h, fy + fh) + 10 - top))
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+
+    def draw(self, tool, a, b):
+        """One of the Build menu's tools dragged over the ground from game point a to b: the ids of what it made."""
+        page = self.page
+        before = page.evaluate('[...viewer.roots.keys()]')
+        page.evaluate('k => { viewer.startBuild(k); }', tool)
+        page.wait_for_function('k => viewer.buildTool() === k && viewer.wallDrawing()?.ready', arg=tool, timeout=90000)
+        p, q = (page.evaluate('p => viewer.screenOf(p)', at) for at in (a, b))
+        page.mouse.move(*p)
+        page.mouse.down()
+        page.mouse.move((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, steps=6)
+        page.mouse.move(*q, steps=6)
+        page.mouse.up()
+        page.wait_for_function('n => viewer.roots.size > n && !viewer.wallDrawing()', arg=len(before), timeout=60000)
+        made = [i for i in page.evaluate('[...viewer.roots.keys()]') if i not in before]
+        for i in made: page.wait_for_function('id => viewer.wallMeshReady(id)', arg=i, timeout=60000)
+        return made
+
+    def made_site(self):
+        """The open asphalt of the car park, north of the lorry, with every floor shown, for the made pieces' shots: its
+        south-east corner, at the ground's height (x runs west from there, y north)."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#scenery button[data-value="full"]').click()
+        page.locator('#floor button[data-value="all"]').click()
+        origin = page.evaluate('viewer.data.tileGrid.origin')
+        spot = [origin[0] + 96 * 7, origin[1] + 96 * 10]
+        spot.append(page.evaluate('([x, y]) => viewer.groundAt(x + 48, y + 48) ?? 0', spot))
+        self.zones = page.evaluate('viewer.landingLayer.visible')
+        page.evaluate('viewer.landingLayer.visible = false')     # the zones' numbers would be taken for the marks
+        self.snap = page.evaluate('viewer.gizmo.snap')
+        page.evaluate("viewer.setSnapMode('tile')")
+        return spot
+
+    def made_done(self, steps):
+        """The made pieces undone, and the view as the demo has it."""
+        page = self.page
+        page.keyboard.press('Escape')
+        while page.evaluate('viewer.gizmo.undoDepth()') > steps: page.keyboard.press('Control+z')
+        page.evaluate('viewer.select(null)')
+        page.evaluate('on => { viewer.landingLayer.visible = on; }', self.zones)
+        page.evaluate('mode => viewer.setSnapMode(mode)', self.snap)
+        page.locator('#scenery button[data-value="interior"]').click()
+        page.locator('#floor button[data-value="1"]').click()
+
+    def made_walls(self):
+        """A wall drawn from the Build menu on the car park, given the Bar's look and two gaps (a doorway and a
+        window), picked with its handles and its panel; beside it a plain room with a roof. Then the look picker,
+        opened from the wall's Choose… Undone after."""
+        page = self.page
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        x, y, z = self.made_site()
+        self.camera([x + 620, y + 130, z + 110], [260, 1150, 780])
+        self.settle(2000)
+        room = self.draw('roomroof', [x, y, z], [x + 288, y + 288, z])
+        (wall,) = self.draw('wall', [x + 384, y + 96, z], [x + 864, y + 96, z])
+        page.evaluate("id => { const { plain, ...look } = viewer.plainLook('wall'); return viewer.setMadeLook(id, 'wall', look); }", wall)
+        page.wait_for_function("old => viewer.gizmo.active && viewer.gizmo.active !== old && viewer.wallMeshReady(viewer.gizmo.active)", arg=wall, timeout=60000)
+        wall = page.evaluate('viewer.gizmo.active')
+        gaps = "id => viewer.wallState(id).generated.wall.openings.length"
+        page.locator('#wallGap').click()
+        page.wait_for_function('id => (%s)(id) === 1' % gaps, arg=wall)
+        page.evaluate("viewer.addWallOpening('window')")
+        page.wait_for_function('id => (%s)(id) === 2' % gaps, arg=wall)
+        page.wait_for_function('id => viewer.wallMeshReady(id)', arg=wall, timeout=60000)
+        page.evaluate("document.getElementById('flagsBox').open = false")
+        page.keyboard.press('v')
+        page.mouse.move(8, 8)
+        self.settle(2500)
+        h = page.evaluate('viewer.wallHandles()')
+        keys = sorted(h)
+        end = min((k for k in keys if k.startswith('end') and k != 'end:top'), key=lambda k: h[k][0])
+        middles = [k for k in keys if k.endswith('middle')]
+        if 'end:top' not in h or not middles: raise SystemExit('the made wall shows no top or gap handle: %s' % keys)
+        at = lambda k: [h[k][0] - 6, h[k][1] - 6, 12, 12]
+        roof = page.evaluate("ids => { const top = ids.map(id => viewer.pieceBox(id)).sort((a, b) => b[5] - a[5])[0];"
+                             " return viewer.screenOf([(top[0] + top[1]) / 2, (top[2] + top[3]) / 2, top[5]]); }", room)
+        marks = [dict(n=1, sel='#editAdd', side='right', gap=20),
+                 dict(n=2, rect=at(end), side='bottom', gap=34, inset=3),
+                 dict(n=3, rect=at('end:top'), side='top', gap=30, inset=3),
+                 dict(n=4, rect=at(middles[0]), side='bottom', gap=70, inset=3),
+                 dict(n=5, rect=[roof[0] - 6, roof[1] - 6, 12, 12], side='top', gap=34, inset=3)]
+        marks += self.panel_rows('#inspector', [(6, '#wallLookChange'), (7, '#wallOpenings'), (8, '#wallGap'), (9, '#wallBreak')])
+        self.shot('made-walls', marks, resize=0.75)
+        # the look picker, from the wall's Choose…
+        page.locator('#wallLookChange').click()
+        page.wait_for_function("document.querySelectorAll('.lookpicker .lookcard').length > 8", timeout=60000)
+        page.wait_for_function("[...document.querySelectorAll('.lookpicker .lookcard')].slice(0, 12).every(c => !c.querySelector('.lookwait'))", timeout=600000)
+        page.mouse.move(8, 8)
+        page.wait_for_timeout(800)
+        head = '.lookpicker .lookhead '
+        marks = [dict(n=1, sel=head + 'input[type=search]', side='bottom', gap=18, at=0.93),
+                 dict(n=2, sel=head + 'select', side='bottom', gap=18),
+                 dict(n=3, sel=head + 'label.check input', side='bottom', gap=20),
+                 dict(n=4, sel=head + 'button:not(.icon)', side='bottom', gap=18),
+                 dict(n=5, sel='.lookpicker .lookcard', side='on', at=0.08, aty=0.1),
+                 dict(n=6, sel='.lookpicker .lookcard:nth-child(2) .lookstar', side='bottom', gap=20)]
+        self.shot('look-picker', marks, clip=self.around('.lookpicker .lookpanel', pad=(8, 8, 8, 8)), resize=0.75)
+        page.evaluate('viewer.closeLookPicker()')
+        self.made_done(steps)
+
+    def made_ground(self):
+        """Ground drawn from the Build menu on the car park: a block, a ramp up to it, and a rock, the rock picked with
+        its blue points, its white handles and its panel. Undone after."""
+        page = self.page
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        x, y, z = self.made_site()
+        self.camera([x + 560, y + 130, z + 40], [220, 950, 700])
+        self.settle(2000)
+        (block,) = self.draw('block', [x, y, z], [x + 192, y + 192, z])
+        (ramp,) = self.draw('ramp', [x + 384, y, z], [x + 192, y + 192, z])
+        (rock,) = self.draw('rock', [x + 576, y, z], [x + 768, y + 192, z])
+        page.evaluate('id => viewer.select(id)', rock)
+        page.keyboard.press('v')
+        page.mouse.move(8, 8)
+        page.wait_for_function("viewer.rockCorners().some(([k, v]) => v && v !== 'asking')", timeout=60000)
+        self.settle(2500)
+        h = page.evaluate('viewer.wallHandles()')
+        side = next((k for k in sorted(h) if k.startswith('side')), None)
+        if not side or 'end:top' not in h: raise SystemExit('the rock shows no handles: %s' % sorted(h))
+        middle = "id => { const b = viewer.pieceBox(id); return viewer.screenOf([(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, b[5]]); }"
+        at = lambda p: [p[0] - 6, p[1] - 6, 12, 12]
+        marks = [dict(n=1, rect=at(page.evaluate(middle, block)), side='top', gap=40, inset=3),
+                 dict(n=2, rect=at(page.evaluate(middle.replace('b[5]]', '(b[4] + b[5]) / 2]'), ramp)), side='top', gap=40, inset=3),
+                 dict(n=3, rect=at(page.evaluate(middle, rock)), side='top', gap=60, inset=3),
+                 dict(n=4, rect=at(h[side]), side='bottom', gap=34, inset=3)]
+        marks += self.panel_rows('#inspector', [(5, '#groundLookChange'), (6, '#groundAnother')])
+        self.shot('made-ground', marks, resize=0.75)
+        self.made_done(steps)
+
+    def map_picture(self):
+        """The Map menu's Map picture…: the 3D view taken as the image, its frame, and the result. Closed without
+        using it: the project keeps no picture."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#floor button[data-value="all"]').click()
+        self.camera([150, 640, 20], [900, -1900, 1300])
+        self.settle(2500)
+        page.evaluate("document.getElementById('projectPicture').click()")
+        page.wait_for_selector('#mapPictureDialog:not([hidden])')
+        page.locator('#mapPictureTake').click()
+        page.wait_for_selector('#mapPictureCanvas:not([hidden])')
+        page.wait_for_function("document.getElementById('mapPictureResultNote').textContent.startsWith('As the game')", timeout=30000)
+        page.wait_for_timeout(600)
+        marks = [dict(n=1, sel='#mapPictureCanvas', side='on', at=0.06, aty=0.1),
+                 dict(n=2, sel='#mapPictureChoose', side='bottom', gap=18),
+                 dict(n=3, sel='#mapPictureTake', side='bottom', gap=18),
+                 dict(n=4, sel='#mapPictureResult', side='on', at=0.06, aty=0.12),
+                 dict(n=5, sel='#mapPictureRemove', side='bottom', gap=20),
+                 dict(n=6, sel='#mapPictureUse', side='bottom', gap=20)]
+        self.shot('map-picture', marks, clip=self.around('#mapPictureForm', pad=(12, 12, 12, 36)), resize=0.75)
+        page.locator('#mapPictureClose').click()
+        page.locator('#floor button[data-value="1"]').click()
+
+    def play(self):
+        """The header's Play with a project open: the play window (Build's panel with the squad's line, Enable saving
+        and Build and play). Cancelled: nothing is built or played."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#projectPlay').click()
+        page.wait_for_selector('#buildForm', state='visible')
+        page.wait_for_function("!document.getElementById('buildSquadRow').hidden", timeout=30000)
+        page.wait_for_timeout(500)
+        marks = [dict(n=1, sel='#buildSquad', side='left', gap=30),
+                 dict(n=2, sel='#buildBake', side='left', gap=30),
+                 dict(n=3, sel='#buildSaving', side='left', gap=30),
+                 dict(n=4, sel='#buildOptionsOk', side='bottom', gap=20)]
+        self.shot('play', marks, clip=self.around('#buildForm', pad=(40, 12, 12, 34)))
+        page.keyboard.press('Escape')
+
     def clear_map(self):
         """The Clear map window on the Bar, with its counts. Cancelled: nothing is cleared."""
         page = self.page
@@ -910,10 +1108,10 @@ class Shots:
         page.locator('#missionsCancel').click()
 
     def squad(self):
-        """Settings, Test squad setup: the default six, the first unit open. Cancelled: nothing is saved."""
+        """The Game menu's Test squad setup: the default six, the first unit open. Cancelled: nothing is saved."""
         page = self.page
         page.evaluate('viewer.select(null)')
-        page.locator('#settingsButton').click()
+        page.locator('#playButton').click()
         page.locator('#settingsSquad').click()
         page.wait_for_function("document.querySelectorAll('#squadUnits > *').length >= 6", timeout=60000)
         page.wait_for_timeout(800)
@@ -1004,7 +1202,9 @@ class Shots:
                  dict(n=6, sel='#managerPicked .pmseg', side='right', gap=22),
                  dict(n=7, sel='#managerQueue', side='left', gap=22, at=0.3),
                  dict(n=8, sel='#managerBuild', side='top', gap=20),
-                 dict(n=9, sel='#managerProjectFiles', side='left', gap=18)]
+                 dict(n=9, sel='.pmpack .pmfield', side='left', gap=26, inset=-8),
+                 dict(n=10, sel='#managerProjectFiles', side='left', gap=18),
+                 dict(n=11, sel='#managerPack', side='left', gap=18)]
         self.shot('manager', marks, clip=self.around('#managerForm', pad=(40, 30, 40, 40)), resize=0.75)
         page.locator('#managerQueueStop').click()
         page.wait_for_function("!document.getElementById('managerQueueClear').hidden && !document.getElementById('managerQueueClear').disabled",
@@ -1085,8 +1285,10 @@ def prefab_test_shot(browser, server, out):
 
 
 # the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
-ORDER = ('window', 'header', 'rail', 'normal-flyout', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'floors', 'buildings', 'cover-blocks', 'clear-map', 'missions', 'squad',
+# (project-menu also takes map-menu and game-menu; made-walls also takes look-picker)
+ORDER = ('window', 'header', 'rail', 'normal-flyout', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
+         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
+         'made-walls', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
          'manager', 'save-as', 'mission-objects')
 
 

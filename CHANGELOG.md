@@ -8,6 +8,57 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **The user guide gone over whole and put in a new order; sections for drawn walls and ground, the map picture and
+  map packs** (the user's ask; done on `main`, where the header's change is).
+  - [guide.html](tools/release/guide/guide.html), the order: What it does, Getting started, Typical tasks, then the
+    reference in four parts (**The window**, **Pieces**, **The map**, **Projects, building and playing**), How pieces
+    move and what builds, Keyboard and mouse, What it can't do yet with In the game: known limits after it, New in
+    this version, Where things are, Problems. Before: one part, "The window", of 23 sections, after two screens of
+    version tables and limits. Every `id` is kept; the contents list shows the parts with their sections, and each
+    part opens with a line saying what it holds.
+  - Stale, now as the editor is (the header of 8cb8120): the header's legend (Build, Play, Play's arrow, Settings;
+    no find box), a table of the four menus, the Map menu with a picture, the Project menu's seven items, Open… for
+    Load…, Build and Play on the header, Test squad setup and Game maps under a new **The Game menu**, Game install
+    and checks and Cache everything under a new **Settings**, the keys (no Ctrl+F; B also Break, I a look from the
+    view, Shift keeps drawing), the tasks, the prefab builder's Test in game…, and the "New in" tables' two lines and
+    three links that the header's change made wrong (no new version's table: that is the release's).
+  - New sections:
+    - **Walls, rooms, floors, roofs and ground you draw** (`#made`): the Add button's Build menu and its nine tools,
+      a wall with its handles and gaps, a room, floors and roofs with holes, ground (patch, block, ramp, rock and a
+      rock's points), the look picker, and Damage (Break, Repair, Breaks further in battle, on made pieces and the
+      map's own fracturing pieces);
+    - **Map picture** (`#map-picture`), **Play** (`#play`: the play window, Enable saving, what a test battle is and
+      what it changes, moved out of the limits and out of a task), **Map packs** (`#map-packs`: the drop-in pack for
+      Long War Rebalance 3, the classic way for any other install, the Pack fields and saved packs);
+    - Add to group; flags on made pieces; three tasks (a house of your own, raised ground and a rock, a map pack);
+      the limits on models, resizing and ground say what can be drawn.
+  - Split along the new menus: Missions and Manage projects are sections of their own (they were paragraphs of the
+    Project menu's), Save as… and Open… went from Other windows to the Project menu, which keeps banners and
+    preparing a map again.
+  - Pictures ([shots/](tools/release/guide/shots)):
+    - new, 8: build-menu, made-walls, made-ground, look-picker, map-menu, game-menu, map-picture, play;
+    - retaken, 19: header-left, header-right, window, project-menu, manager (the pack's fields, marks 9 to 11),
+      prefab-test (the
+      squad's line), view-options (the header's icons over it), and the whole-window pictures, whose header showed
+      the find box: box-select, cover-blocks, lights, effects, effect-values, buildings-draw, buildings-view,
+      map-grid, landing-zones, spawns, spawns-volume, mission-objects;
+    - kept, 21: the panels, flyouts and dialogs that are as they were (piece-panel, flags, group, align, rail,
+      normal-flyout, dock, floors, add, add-all, add-effects, prefabs, effects-flyout, spawns-flyout, map-browser,
+      build, clear-map, missions, squad, save-as).
+  - [take_shots.py](tools/release/guide/take_shots.py): the shots `build-menu`, `made-walls` (also `look-picker`),
+    `made-ground`, `map-picture` and `play`; the squad's setup opened from Play's arrow; `typical()` keeps the play
+    answer's squad, save key and mission kinds and replaces only what names a folder; the manager's marks on the
+    pack's fields; the pointer taken off the Add button after a click (its Build menu showed over the Prefabs list);
+    the Flags fold put back after its shot.
+  - Checked: every shot in one run on a fresh test server (8790), then `manager` and the made pieces again on fresh
+    folders after their marks were mended; every new and retaken picture looked at (marks on their controls, a usual
+    install's folders only); `guide_tools.py compare` and side-by-side sheets for the ones in doubt; the page as
+    published photographed at twelve sections (`guide_tools.py look`); `viewer -k guide`, `release` and `repo`.
+  - Gaps: the look picker's picture says "Drawing pictures: 53 of 344" (the first pictures of a cache). The guide's
+    lines on what a made wall's gaps, made floors' cursor floors and a pack's two ways do are written from this
+    ledger's entries and the panels' own words, not from a run made for the guide. The last release's zip has the
+    earlier guide, and the published page changes when main is pushed.
+
 - **The header's menus sorted out: Project and Map menus, Build and Play on the bar, no find box** (branch
   `lwr-map-packs`; [index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js),
   [style.css](tools/viewer/web/style.css)). The Project menu held fifteen items of three kinds in one list; now:
