@@ -27,6 +27,35 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 18 November 2026
 
+- **A drawn room is one locked group with a Room section in the panel** (custom geometry editing plan, stage E3,
+  decision D-2 at its default; branch `fracturing-wall-poc`).
+  - [app.js](tools/viewer/web/app.js):
+    - a room drawn from the Build menu is locked as one group, in the same undo step: its four walls, and for a room
+      with a roof the roof and its building's boxes;
+    - a click on any of it picks the room; the first wall is the active piece, so the panel is the room's, not its
+      building's;
+    - `roomPanel` / `roomOfSelection`: a picked group of three or more made walls, each joined at both ends to
+      another of them, with at most one made slab and its building, is a room. Its section replaces the walls' and
+      roof's own:
+      - "Room · 4 by 3 tiles", its walls and storeys;
+      - a Look row for its walls and one for its roof (Choose…, Plain);
+      - One storey for a room with no roof;
+    - its walls are edited one by one after Ungroup, as any group's;
+    - a look change deletes only the pieces it makes again: `deleteNow(quiet, only)`. Before, picking a grouped
+      wall picked its whole group, so the room's roof and building were deleted too. Pieces of one group take
+      their places in it, in the same undo step;
+    - page scripts get `viewer.groupOf(id)` and `viewer.roomPicked()`.
+  - [index.html](tools/viewer/web/index.html): the Room section.
+  - Checked in a test server's browser on URB_PoliceStation:
+    - a room with a roof drawn from the Build menu was one group, "5 pieces and 1 building";
+    - picked, it showed "Room · 3 by 1 tiles … Walls: no look chosen … Roof: no look chosen", with the wall and
+      slab sections hidden;
+    - its walls given the Bar's look stayed in the same group (six members), the panel reading "Walls: Bar inside
+      wall";
+    - one Ctrl+Z put the four plain walls back in it.
+  - The node and viewer suites pass. Not done from the plan's B3: sizing the room by handles on its rectangle
+    (Ungroup, then each wall's end handles, as before).
+
 - **A room's walls are four pieces again, not one actor: the quick Build no longer leaves the room out** (custom
   geometry plan; branch `fracturing-wall-poc`; the user's quick Build of 19 November 2026 on a cleared URB_Bar left a
   room out: "names components [FracturedStaticMeshComponent_3 four times] but its template now has …").

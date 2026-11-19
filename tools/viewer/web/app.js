@@ -973,6 +973,7 @@ function editChangedNow() {
   // (a building's box is in no group and is not aligned)
   if (volumeRoots.has(selected)) { $('groupBox').hidden = true; $('alignBox').hidden = true; targetHelper.visible = false; }
   else { groupPanel(); alignPanel(); }
+  roomPanel();
   for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
   snapButton();
   const world = gizmo.space === 'world';
@@ -2668,8 +2669,9 @@ function deleteSelection(quiet = false) {
   const count = copyable().length;
   heavy(`Deleting ${plural(count, 'piece')}…`, count, () => deleteNow(quiet));
 }
-function deleteNow(quiet = false) {
-  const targets = copyable(), boxes = selectedBoxes();
+// (`only`: those pieces, not the selection, whose locked groups bring their whole groups: a look change's)
+function deleteNow(quiet = false, only = null) {
+  const targets = only ?? copyable(), boxes = only ? [] : selectedBoxes();
   if (!targets.length && !boxes.length) {
     const fx = effectRoots.get(pickedEffect);
     if (ownSet.size) flashHint('The map\'s own building is not deleted: its boxes are the map\'s');
@@ -9777,6 +9779,8 @@ async function endWallDraw(keep) {
     entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: madeRequest('fracSlab', SLAB_LOOKS[0], made.roof.slab, plain) } },
                    matrix: movedMatrix(roofTemplate, made.roof.location, made.roof.rotation) });
   await pasteSnapshot({ entries, pivotIndex: 0, name: room ? (plain ? 'room' : `room of ${look.name.toLowerCase()}s`) : plain ? 'wall' : look.name }, new THREE.Matrix4());
+  // (a room is one locked group, its building with it when it has one: B3, D-2)
+  const pasted = gizmo.picks().ids;
   if (made.roof) {
     // its building: the room's rectangle, a floor for each storey, breaking at the storeys' heights, and one over them
     // for the roof, as the game's are: URB_Bar's lists its walls on floor 0 cut down at floor 2, its upstairs floor
@@ -9787,15 +9791,18 @@ async function endWallDraw(keep) {
     // (the look's: a wall's floors break at each of its storeys and at its top, a one-storey wall's at its top)
     const lw = lookWall(look), spec = wallSpec(lw), top = wallTop(lw);
     const breaks = [spec.bottom, ...Array.from({ length: storeysOf(lw) - 1 }, (_, k) => spec.storey * (k + 1)), top];
-    addVolumes([...breaks.slice(0, -1).map((b, k) => ({ box: [x0, y0, z + b, x1, y1, z + breaks[k + 1]], floor: k })),
-                { box: [x0, y0, z + top, x1, y1, z + top + WALL.storey], floor: breaks.length - 1 }], newBuilding());
-    gizmo.joinLast(2);
-    gizmo.setSelection([]);
-    flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: the roof is cut away when the cursor is inside · Ctrl+Z takes it out`);
+    const boxes = addVolumes([...breaks.slice(0, -1).map((b, k) => ({ box: [x0, y0, z + b, x1, y1, z + breaks[k + 1]], floor: k })),
+                              { box: [x0, y0, z + top, x1, y1, z + top + WALL.storey], floor: breaks.length - 1 }], newBuilding());
+    // (a wall the active piece, so the panel is the room's, not its building's)
+    gizmo.setSelection([...pasted, ...boxes.map(r => r.userData.source.id)], pasted[0]);
+    lockAsGroup();
+    gizmo.joinLast(3);
+    flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: picked as one (Ungroup edits its walls one by one); the roof is cut away when the cursor is inside${chooseWords} · Ctrl+Z takes it out`);
     return;
   }
-  flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four ${look.name.toLowerCase()}s joined at the corners, a doorway in the near side · click one wall to edit it`
-    : `Made a ${look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add doorway and Add window are in the piece panel`);
+  if (room) { gizmo.setSelection(pasted, pasted[0]); lockAsGroup(); gizmo.joinLast(2); }
+  flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four walls joined at the corners, a doorway in the near side, picked as one (Ungroup edits its walls one by one)${chooseWords}`
+    : `Made a ${plain ? 'wall' : look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add doorway and Add window are in the piece panel${chooseWords}`);
 }
 // ---- the wall as it is now, and changing it
 const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
@@ -10341,14 +10348,91 @@ async function setMadeLook(root, kind, look) {
     return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, l, numbers, Boolean(look.plain)) } },
              matrix: movedMatrix(template, state.location, state.rotation) };
   });
+  // (only the pieces made again are deleted, not the rest of their locked group; pieces of one group, a room's,
+  // take their places in it)
+  const keys = targets.map(r => memberOf(r.userData.source)), held = groupIndex.get(keys[0]);
+  const regroup = Boolean(held) && keys.every(k => groupIndex.get(k) === held);
   gizmo.setSelection(targets.map(r => r.userData.source.id));
-  deleteNow(true);
+  deleteNow(true, targets);
   await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4());
-  gizmo.joinLast(2);
+  if (regroup) {
+    const made = gizmo.picks().ids.map(id => roots.get(id)).filter(Boolean);
+    changeGroups(next => {
+      const g = next.get(held.id);
+      if (!g) return;
+      for (const k of keys) g.members.delete(k);
+      for (const r of made) g.members.set(memberOf(r.userData.source), memberRecord(r.userData.source));
+    });
+  }
+  gizmo.joinLast(regroup ? 3 : 2);
   const many = { wall: 'walls', slab: 'floors and roofs', ground: 'ground pieces' }[kind];
   flashHint(`${targets.length > 1 ? `${targets.length} ${many} now` : 'Now'} ${look.plain ? 'plain: the Build makes them in their kind\'s default look until one is chosen'
     : look.name.toLowerCase()} · Ctrl+Z puts the old ${targets.length > 1 ? 'ones' : 'one'} back`);
 }
+// ---- a room (custom geometry editing plan, B3): a drawn room is one locked group; picked whole, the panel is the
+// room's, its walls' and roof's own sections hidden (Ungroup edits them one by one)
+function madeLookName(root) {
+  const o = root.userData.source, g = o.added.generated;
+  if (isPlain(g)) return null;
+  if (g.kind === 'fracWall') return wallLookOf(o)?.name ?? catalogued('wall', g.wall?.look)?.name ?? 'made from numbers';
+  if (g.kind === 'fracSlab') return slabLookOf(g.slab)?.name ?? 'made from numbers';
+  return groundLookOf(g.ground)?.name ?? 'made from numbers';
+}
+// The picked group as a room: its made walls (three or more, each joined at both ends to another of them) and the
+// made slab on them (its roof), with nothing else but its building; or null.
+function roomOfSelection() {
+  const { kind, group: g } = selectionGroup();
+  if (kind !== 'whole' || !g) return null;
+  const keys = liveKeys(g), rs = keys.filter(k => !k.startsWith('building|')).map(k => liveMembers().get(k)?.[0]).filter(Boolean);
+  const walls = rs.filter(r => isMadeWall(r.userData.source)), slabs = rs.filter(r => isMadeSlab(r.userData.source));
+  if (walls.length < 3 || slabs.length > 1 || walls.length + slabs.length !== rs.length) return null;
+  const ids = new Set(walls.map(r => r.userData.source.id));
+  if (!walls.every(r => new Set((r.userData.joins?.joins ?? []).filter(j => ids.has(j.other)).map(j => j.end)).size === 2)) return null;
+  return { group: g, walls, roof: slabs[0] ?? null };
+}
+let roomShown = null;
+function roomPanel() {
+  const room = roomShown = volumeRoots.has(selected) ? null : roomOfSelection();
+  $('roomBox').hidden = !room;
+  if (!room) return;
+  $('wallBox').hidden = $('slabBox').hidden = true;
+  const box = new THREE.Box3();
+  for (const r of room.walls) box.expandByObject(r);
+  const tiles = [Math.round((box.max.x - box.min.x) / TILE), Math.round((box.max.z - box.min.z) / TILE)];
+  const w = room.walls[0].userData.source.added.generated.wall, names = new Set(room.walls.map(madeLookName));
+  const tool = room.walls.every(r => toolWall(r.userData.source.added.generated.wall));
+  $('roomHead').textContent = `Room · ${tiles[0]} by ${tiles[1]} tiles`;
+  $('roomSize').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''}. Picked as one: it moves, turns and copies whole. Ungroup it to edit its walls one by one: their gaps, doors and own looks.`;
+  const wallWord = names.size > 1 ? 'Walls: mixed looks' : names.has(null) ? 'Walls: no look chosen' : `Walls: ${[...names][0]}`;
+  $('roomWallsLook').textContent = wallWord;
+  $('roomWallsLook').classList.toggle('warn', names.has(null));
+  $('roomWallsChoose').disabled = !tool;
+  $('roomWallsPlain').disabled = !tool || (names.size === 1 && names.has(null));
+  $('roomRoofRow').hidden = !room.roof;
+  if (room.roof) {
+    const name = madeLookName(room.roof);
+    $('roomRoofLook').textContent = name ? `Roof: ${name}` : 'Roof: no look chosen';
+    $('roomRoofLook').classList.toggle('warn', !name);
+    $('roomRoofPlain').disabled = !name;
+  }
+  const spec = wallSpec(w);
+  $('roomStoreys').hidden = !spec.lower || Boolean(room.roof);
+  $('roomStoreys').textContent = storeysOf(w) === 1 ? storeyWords(spec.storeys)[0].toUpperCase() + storeyWords(spec.storeys).slice(1) : 'One storey';
+}
+$('roomWallsChoose').onclick = () => { const r = roomShown; if (r) openLookPicker('wall', { onChoose: look => setMadeLook(r.walls[0], 'wall', look) }); };
+$('roomWallsPlain').onclick = () => { const r = roomShown; if (r) setMadeLook(r.walls[0], 'wall', plainLook('wall')); };
+$('roomRoofChoose').onclick = () => { const r = roomShown; if (r?.roof) openLookPicker('slab', { onChoose: look => setMadeLook(r.roof, 'slab', look) }); };
+$('roomRoofPlain').onclick = () => { const r = roomShown; if (r?.roof) setMadeLook(r.roof, 'slab', plainLook('slab', r.roof.userData.source.added.generated.slab)); };
+// (a room with no roof: its walls one storey or their look's storeys, in one undo step)
+$('roomStoreys').onclick = () => {
+  const r = roomShown;
+  if (!r) return;
+  const w = r.walls[0].userData.source.added.generated.wall, next = storeysOf(w) === 1 ? wallSpec(w).storeys : 1;
+  const before = r.walls.map(wallState);
+  r.walls.forEach((root, k) => setWall(root, { ...before[k], generated: { ...before[k].generated, wall: withStoreys(before[k].generated.wall, next).wall } }, before[k]));
+  gizmo.joinLast(r.walls.length);
+  flashHint(`Its walls now ${storeyWords(next)} · Ctrl+Z puts them back`);
+};
 // A made piece's Look row (B2): the look it is in, or none chosen (drawn plain; the Build makes it in its kind's default
 // look and says so), Choose… and Plain.
 function lookRow(kind, g, name, tool) {
@@ -11429,6 +11513,10 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
     buildTools: () => Object.keys(BUILD_TOOLS), startBuild, buildTool: () => buildTool, startWallDrawing, stopWallDrawing,
     plainLook, isPlain: id => isPlain(roots.get(id)?.userData.source.added?.generated),
+    // the group a piece is in: { id, locked, keys (its pieces' and buildings' keys, inner groups' too) } or null
+    groupOf: id => { const r = roots.get(id), g = r && groupIndex.get(memberOf(r.userData.source));
+                     return g ? { id: g.id, locked: g.locked, keys: liveKeys(g) } : null; },
+    roomPicked: () => { const r = roomOfSelection(); return r && { walls: r.walls.map(w => w.userData.source.id), roof: r.roof?.userData.source.id ?? null }; },
     groundPanelText: () => $('groundBox').hidden ? null : $('groundBox').innerText,
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
