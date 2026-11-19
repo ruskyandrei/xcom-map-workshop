@@ -371,7 +371,7 @@ export function playWords(wall, o, { door = false } = {}) {
   out.push(p.sight ? 'see and shoot through it' : 'don\'t see through it');
   const cover = { none: 'it gives no cover', low: 'the wall under it gives low cover', high: 'the wall under it gives high cover' }[p.cover];
   let words = `${out.join(', ')}; ${cover}.`;
-  if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it, as the game\'s doorways have.';
+  if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it (a door from the Add panel), as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
 /** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */

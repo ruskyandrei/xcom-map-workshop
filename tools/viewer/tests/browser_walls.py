@@ -6,15 +6,15 @@ On the map open (one that hasn't the Bar's wall, so the plain wall's template is
 whose ground the points below are on, opened by a --url ending ?map=URB_PoliceStation): the Build menu's tools, none of the made recipes left in the Add panel, the find box naming the tools; the
 Build menu's Wall (shown on hovering Add) draws a wall by dragging along a tile line (tile edge to tile edge, along x),
 its numbers and pose; it is plain (its kind's plain version on the plain material, its panel's Look row saying none
-chosen), the Bar's look chosen makes it version 1 and Plain plain again, each one undo step; Add doorway and Add window
-put a gap shaped as each in a free tile (the doorway's with its threshold), their words and play in the panel, every gap
+chosen), the Bar's look chosen makes it version 1 and Plain plain again, each one undo step; Add gap puts
+a gap shaped as a doorway in a free tile (its threshold under it) and one shaped as a window is added beside it (the
+page's own call), their words and play in the panel, no Lower, Taller or Put a door in it buttons, every gap
 with all five handles; the end's handle drags the wall a tile longer at its start with the gaps left where they are in
 the world; with the snap at whole tiles a gap's middle slides it a tile; Flip sides swaps the faces with the gaps in
 place; undo and redo step through each change; with the snap off a gap's top moves smoothly, and Delete with its handle
-last touched takes only the gap out; the top's handle makes it one storey and the panel's button two again (M2);
-grouped with a prop, the group can break together, and Put a door in it puts the map's door in the doorway (M3); a
-second wall joined at a corner, a room, a roof with a hole, a room with a roof and its building, a ramp (its look then
-chosen by a swatch) and a rock, all drawn plain; saved and reopened, the wall is as it was; a quick Build makes it from
+last touched takes only the gap out; the top's handle makes it one storey and two again (M2); grouped with a prop,
+the group can break together (M3); a second wall joined at a corner, a room, a roof with a hole, a room with a roof and
+its building, a ramp (its look then chosen in the look picker, its cards ramps; no swatches) and a rock, all drawn plain; saved and reopened, the wall is as it was; a quick Build makes it from
 numbers, plain, in its kind's default look brought from URB_Bar."""
 import json
 
@@ -157,9 +157,11 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert made_ids(page, 'fracWall') == [wall] and state(page, wall) == s, (made_ids(page, 'fracWall'), state(page, wall), s)
     page.evaluate('id => viewer.select(id)', wall)
     out['looks'] = dict(chosen=g['generated']['version'], plain=s['generated']['version'])
-    # gaps from the panel: one shaped as a doorway (its threshold, 8, left under it) and one as a window
-    page.wait_for_selector('#wallBox:not([hidden]) #wallDoor')
-    page.locator('#wallDoor').click(); page.locator('#wallWindow').click()
+    # gaps: Add gap's, shaped as a doorway (its threshold, 8, left under it), and one shaped as a window (the page's
+    # own call: the panel has the one button since 19 November 2026); no Lower or Taller (the top handle does it)
+    page.wait_for_selector('#wallBox:not([hidden]) #wallGap')
+    assert page.locator('#wallStoreys, #wallShorter, #wallDoor, #wallWindow').count() == 0
+    page.locator('#wallGap').click(); page.evaluate("viewer.addWallOpening('window')")
     page.wait_for_function("id => viewer.wallState(id).generated.wall.openings.length === 2", arg=wall)
     openings = state(page, wall)['generated']['wall']['openings']
     # (the middle tiles tie: the lower one first)
@@ -169,7 +171,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # (how each plays: walked through with no cover, so it wants a door; the window's wall gives low cover)
     assert 'A unit in a gap with no door has cover toward its sides: put a door in it' in text, text
     assert 'the wall under it gives low cover' in text, text
-    assert page.locator('#wallBox .walldoorput').count() == 1, page.locator('#wallBox .walldoorput').count()
+    assert page.locator('#wallBox .walldoorput').count() == 0      # (no Put a door in it: a door from the Add panel)
     mesh_ready(page, wall)
     # every gap has all five handles; the start's handle a tile out: a tile longer, the gaps where they were in the world
     h = page.evaluate('viewer.wallHandles()')
@@ -212,8 +214,8 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.evaluate('viewer.gizmo.undo()')
     page.wait_for_function("id => viewer.wallState(id)?.generated.wall.openings.length === 2", arg=wall)
     kept = state(page, wall)
-    # (M2) the top's handle down past half a storey: one storey, its gaps under its top; the panel's button back to
-    # two; undo steps back through both
+    # (M2) the top's handle down past half a storey: one storey, its gaps under its top; up again, two; undo steps
+    # back through both
     mesh_ready(page, wall)
     h = page.evaluate('viewer.wallHandles(-150)')
     assert 'end:top' in h, sorted(h)
@@ -226,7 +228,8 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     mesh = page.evaluate("id => [...viewer.roots.values()].find(r => r.userData.source.id === id).userData.source.mesh", wall)
     assert '"storeys":1' in mesh, mesh
     out['oneStorey'] = low
-    page.locator('#wallStoreys').click()
+    h = page.evaluate('viewer.wallHandles(150)')
+    drag(page, h['end:top'][:2], h['end:top'][2:])
     assert 'storeys' not in state(page, wall)['generated']['wall'], state(page, wall)
     page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
     assert state(page, wall) == kept, (state(page, wall), kept)
@@ -245,29 +248,6 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
     page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
-    # (M3) Put a door in it: the station's own door (DoorSwingSingle, one tile) placed in the doorway, turned with the
-    # wall and grouped with it; the panel then sees a door there; two undos take it out
-    page.evaluate('id => viewer.select(id)', wall)
-    page.wait_for_selector('#wallBox:not([hidden]) .walldoorput')
-    page.locator('#wallBox .walldoorput').first.click()
-    page.wait_for_selector('#wallBox .walldoors button', timeout=60000)
-    choices = page.locator('#wallBox .walldoors button').all_inner_texts()
-    assert any('this map' in c for c in choices), choices
-    before_ids = set(page.evaluate('[...viewer.roots.keys()]'))
-    page.locator('#wallBox .walldoors button', has_text='this map').first.click()
-    page.wait_for_function('n => viewer.roots.size > n', arg=len(before_ids), timeout=60000)
-    page.wait_for_timeout(500)
-    door = page.evaluate("""before => [...viewer.roots.values()].filter(r => !before.includes(r.userData.source.id)
-      && r.userData.source.actorClass === 'XComInteractiveLevelActor').map(r => ({ id: r.userData.source.id, location: r.userData.source.location }))""",
-                         list(before_ids))
-    assert len(door) == 1, door
-    page.evaluate('id => viewer.select(id)', wall)
-    text = page.evaluate('viewer.wallPanelText()')
-    assert page.locator('#wallBox .walldoorput').count() == 0, text
-    assert 'A unit in a gap with no door' not in text, text
-    out['door'] = door[0]['location']
-    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
-    page.wait_for_function('n => viewer.roots.size === n', arg=len(before_ids), timeout=30000)
     page.evaluate('id => viewer.select(id)', wall)
     assert state(page, wall) == kept, (state(page, wall), kept)
     # (M3 item 2) a second wall drawn from the first one's far end, a quarter turn round (south, clear of the station):
@@ -405,7 +385,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert s['generated']['version'] == PLAIN['ground'] and 'look' not in s['generated']['ground'], s
     assert 'no cover' in page.evaluate('viewer.groundPanelText()'), page.evaluate('viewer.groundPanelText()')
     assert look_row(page, 'ground') == dict(name='Look: none chosen', plain=False, choose=True), look_row(page, 'ground')
-    assert page.locator('#groundSwatches button.on').count() == 0, page.locator('#groundSwatches').inner_html()
+    assert page.locator('#groundSwatches').count() == 0      # (no swatches: its Choose... opens the look picker)
     h = page.evaluate('viewer.wallHandles(40)')
     assert {'side:x0', 'side:x1', 'side:y0', 'side:y1', 'end:top'} <= set(h), sorted(h)
     drag(page, h['end:top'][:2], h['end:top'][2:])
@@ -414,16 +394,18 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.locator('#groundTurn').click()
     t = state(page, ramp)
     assert t['rotation'][1] == 16384 and t['generated']['ground']['x1'] == 96, t
-    swatch = page.locator('#groundSwatches button').nth(1)
-    swatch_name = swatch.text_content()
-    swatch.click()
+    page.locator('#groundLookChange').click()
+    page.wait_for_function("s => viewer.lookMode() === 'ground' && document.querySelectorAll(s).length > 1", arg='.lookpicker .lookcard', timeout=60000)
+    assert page.evaluate('viewer.lookPickerState().sample') == 'ramp'
+    card = page.locator('.lookpicker .lookcard').nth(1)
+    swatch_name = card.locator('strong').text_content()
+    card.click()
     page.wait_for_function("old => viewer.gizmo.active && viewer.gizmo.active !== old", arg=ramp, timeout=60000)
     (painted,) = made_ids(page, 'ground')
     p = state(page, painted)
-    assert p['generated']['version'] == 1 and isinstance(p['generated']['ground'].get('look'), str), p
+    assert p['generated']['version'] == 2 and isinstance(p['generated']['ground'].get('look'), dict), p
     assert {k: v for k, v in p['generated']['ground'].items() if k != 'look'} == t['generated']['ground'] and p['location'] == t['location'], (p, t)
     page.wait_for_function("n => document.getElementById('groundLookName').textContent === 'Look: ' + n", arg=swatch_name, timeout=30000)
-    assert page.locator('#groundSwatches button.on').all_text_contents() == [swatch_name]
     assert look_row(page, 'ground')['plain'], look_row(page, 'ground')
     for _ in range(4):
         page.evaluate('viewer.gizmo.undo()')

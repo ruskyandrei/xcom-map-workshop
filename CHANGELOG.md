@@ -8,6 +8,21 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Fewer buttons on the wall and ground panels** (asked by the user; branch `fracturing-wall-poc`).
+  - [index.html](tools/viewer/web/index.html), [app.js](tools/viewer/web/app.js):
+    - the ground panel's look swatches (Asphalt, Plain asphalt, Sidewalk, Concrete) are gone: its Choose... opens the
+      look picker, for every ground shape;
+    - the wall panel's Lower and Taller are gone (its top handle adds and takes storeys; a room's panel keeps them, as
+      a room has no top handle);
+    - Put a door in it is gone, with its door chooser (a door is placed from the Add panel; the panel still says when a
+      doorway has none);
+    - Add doorway and Add window are one Add gap: a gap shaped as the game's doorways, which its middle handle takes up
+      to make a window.
+  - [walls.js](tools/viewer/web/walls.js): the doorway note says the door comes from the Add panel.
+  - Checked: node and viewer suites; the `walls` browser check updated ([browser_walls.py](tools/viewer/tests/browser_walls.py):
+    Add gap and the page's own call for the window, the top handle for two storeys again, the ramp's look from the
+    picker, its cards ramps; the door chooser's part taken out) and passed; the panels looked at on a test server.
+
 - **A gap's middle handle moves it up and down too; gap edits keep up with their handles** (reported by the user on a
   wall of 29 tiles and six storeys; branch `fracturing-wall-poc`).
   - [walls.js](tools/viewer/web/walls.js) `movedOpening`: the middle takes [along, up], the gap's height kept, from

@@ -282,10 +282,6 @@ canvas { display: block; width: 100%; height: 100%; }
 .wallopening small { grid-column: 1; color: var(--muted); line-height: 1.35; }
 .wallopening small.warn { color: #e0a060; }
 .wallopening button { grid-row: 1 / span 2; grid-column: 2; }
-.wallopening button.walldoorput { grid-row: auto; grid-column: 1 / span 2; justify-self: start; }
-.walldoors { grid-column: 1 / span 2; display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow: auto; }
-.walldoors button { grid-row: auto; grid-column: auto; display: flex; justify-content: space-between; gap: 8px; text-align: left; }
-.walldoors button small { color: var(--muted); }
 .lightreach.warn { color: var(--warn); }
 .lightbox .row button.on { outline: 1px solid var(--accent); }
 /* Piece flags (piece flags plan): five rows, each a checkbox with its state and what limits it */
