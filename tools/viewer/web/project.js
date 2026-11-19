@@ -191,10 +191,12 @@ const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && 
 // or both, never a pose)
 // (blasts: one of the map's fracturing pieces broken, custom geometry editing plan E6: [{ at, radius }] in its mesh's
 // frame; an override may be blasts alone, or with flags, the piece where the map has it; the compiler checks the
-// numbers, tools/bake/made_blasts.py)
+// numbers, tools/bake/made_blasts.py; `breaksFurther: true` with them lets a roof or floor the game keeps whole break
+// further in battle, F-139)
 const validBlasts = b => Array.isArray(b) && b.length > 0
   && b.every(x => x && typeof x === 'object' && finite3(x.at) && Number.isFinite(x.radius) && Object.keys(x).length === 2);
 export const validOverride = r => isTarget(r?.target) && validLight(r.light) && (r.flags === undefined || validFlags(r.flags))
+  && (r.breaksFurther === undefined || (r.breaksFurther === true && r.blasts !== undefined))
   && (r.blasts === undefined || (validBlasts(r.blasts) && r.light === undefined && r.effect === undefined && r.sound === undefined
       && r.spawn === undefined && r.box === undefined))
   && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
@@ -239,6 +241,7 @@ export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === '
   && (['pod', 'meld'].includes(e.kind) ? validAddedSpawn(e) : e.kind !== undefined ? validAddedEffect(e) : e.effect === undefined && e.sound === undefined
   && validLight(e.light) && (e.flags === undefined || (e.template === undefined && validFlags(e.flags)))
   && (e.blasts === undefined || (e.template === undefined && e.generated === undefined && validBlasts(e.blasts)))
+  && (e.breaksFurther === undefined || (e.breaksFurther === true && e.blasts !== undefined))
   && (e.template === undefined
     ? isTarget(e.from) && Array.isArray(e.components) && e.components.length > 0 && e.components.every(c => typeof c === 'string')
       && e.cover === undefined

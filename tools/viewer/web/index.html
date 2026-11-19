@@ -316,7 +316,8 @@
           <button id="pieceRepair" type="button" title="Mend it as the map has it: every blast taken back">Repair</button>
           <span id="pieceBroken" class="lightnote"></span>
         </div>
-        <div class="lightnote">The fragments a blast reaches are saved painted out, with those the map already paints out, as the game's maps keep pieces broken. The rest still breaks in the battle.</div>
+        <label id="pieceFurtherRow" class="check" title="In the game this roof or floor stays as broken here, as the game keeps its own roofs and floors whole: the Build cuts the hole into a copy of its mesh. Ticked, explosions go on breaking it in battle, as walls break" hidden><input id="pieceFurther" type="checkbox"> Breaks further in battle</label>
+        <div class="lightnote">The fragments a blast reaches are saved painted out, with those the map already paints out, as the game's maps keep pieces broken. A wall's rest still breaks in the battle; a roof or floor the game keeps whole stays as broken here unless it breaks further.</div>
       </div>
       <div id="lightBox" class="lightbox" hidden>
         <div class="posehead">Light <span id="lightKind"></span></div>
@@ -379,6 +380,7 @@
           <button id="wallRepair" type="button" title="Mend it whole: every blast taken back">Repair</button>
           <span id="wallBroken" class="lightnote"></span>
         </div>
+        <label id="wallFurtherRow" class="check" title="In the game this roof or floor stays as broken here, as the game keeps its own roofs and floors whole: the Build cuts the hole into a copy of its mesh. Ticked, explosions go on breaking it in battle, as walls break" hidden><input id="wallFurther" type="checkbox"> Breaks further in battle</label>
         <div id="wallNote" class="lightnote"></div>
       </div>
       <div id="slabBox" class="lightbox" hidden>
@@ -400,6 +402,7 @@
           <button id="slabRepair" type="button" title="Mend it whole: every blast taken back">Repair</button>
           <span id="slabBroken" class="lightnote"></span>
         </div>
+        <label id="slabFurtherRow" class="check" title="In the game this roof or floor stays as broken here, as the game keeps its own roofs and floors whole: the Build cuts the hole into a copy of its mesh. Ticked, explosions go on breaking it in battle, as walls break" hidden><input id="slabFurther" type="checkbox"> Breaks further in battle</label>
         <div id="slabNote" class="lightnote"></div>
       </div>
       <div id="groundBox" class="lightbox" hidden>

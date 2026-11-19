@@ -467,6 +467,24 @@ class BlastTests(unittest.TestCase):
                          [[blasts[0]], [dict(at=[164.0, 0.0, 50.0], radius=96.0)], None])
         self.assertEqual(noted(report, 'made-broken'), ['made-broken'])
 
+    def test_breaks_further_goes_to_the_build_with_the_blasts_that_reach_each_piece(self):
+        # (F-139) a made piece asked to break further: each piece its blasts reach takes it; one they don't reach, none
+        blasts = [dict(at=[100.0, 0.0, 50.0], radius=96.0)]
+        g = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=96.0 * 40, openings=[], seed=5), blasts=blasts,
+                 breaksFurther=True)
+        spec, report = compiled([made(g)])
+        self.assertTrue(report['ok'], refused(report))
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertEqual([r.get('breaksFurther') for r in op['generated']], [True, None, None])
+        for bad in (dict(WALL, blasts=blasts, breaksFurther=False), dict(WALL, blasts=blasts, breaksFurther='yes')):
+            _, report = compiled([made(bad)])
+            self.assertIn('malformed', codes(report), bad)
+        spec, report = compiled([made(dict(WALL, breaksFurther=True))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'unknown-field'), ['unknown-field'])
+        (op,) = [o for o in spec['objects'] if o['type'] == 'copy']
+        self.assertNotIn('breaksFurther', op['generated'][0])
+
     def test_bad_blasts_leave_the_record_out(self):
         ground = dict(kind='ground', version=1, ground=dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))
         for g in (dict(WALL, blasts='x'), dict(WALL, blasts=[dict(at=[0, 0], radius=96)]),
@@ -669,6 +687,50 @@ class MapBlastTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         self.assertFalse([o for o in spec['objects'] if o['type'] == 'pieceBlasts'])
         self.assertEqual(noted(report, 'blasts-deleted'), ['blasts-deleted'])
+
+    def keeping(self):
+        """The scene with the piece one the game keeps whole (the export's keepsPieces: a roof or floor)."""
+        s = scene()
+        for o in s['objects']:
+            if o['id'] == self.NAME:
+                o['keepsPieces'] = True
+        return s
+
+    def test_a_roof_the_game_keeps_whole_stays_whole_unless_asked_to_break_further(self):
+        # (F-139) the note says what it does in battle; breaksFurther goes with the blasts to the Build, in place and
+        # on a moved piece's or an added copy's copy
+        notes = lambda report: [d['message'] for d in report['notes'] if d['code'] == 'map-broken']  # noqa: E731
+        spec, report = compile_project(document([dict(target=target(self.NAME), blasts=self.BLASTS)], (), schemaVersion=2),
+                                       self.keeping())
+        self.assertTrue(report['ok'], refused(report))
+        self.assertIn('stays whole in battle', notes(report)[0])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(native['pieceBlasts'], [dict(name=self.NAME, blasts=self.BLASTS)])
+        spec, report = compile_project(document([dict(target=target(self.NAME), blasts=self.BLASTS, breaksFurther=True)], (),
+                                                schemaVersion=2), self.keeping())
+        self.assertTrue(report['ok'], refused(report))
+        self.assertIn('breaks further in battle', notes(report)[0])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(native['pieceBlasts'], [dict(name=self.NAME, blasts=self.BLASTS, breaksFurther=True)])
+        added = dict(add(self.NAME, 1, (0, 600, 0)), blasts=self.BLASTS, breaksFurther=True)
+        spec, report = compile_project(document([dict(target=target(self.NAME), location=[96.0, -900.0, 0.0], rotation=[0, 0, 0],
+                                                      blasts=self.BLASTS)], [added], schemaVersion=2), self.keeping())
+        self.assertTrue(report['ok'], refused(report))
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertEqual(sorted(bool(c.get('breaksFurther')) for c in native['copies']), [False, True])
+        # a piece the game lets break (a wall) has nothing to say of it
+        _, report = self.compile([dict(target=target(self.NAME), blasts=self.BLASTS)])
+        self.assertNotIn('in battle', notes(report)[0])
+
+    def test_breaks_further_is_true_and_goes_with_blasts(self):
+        _, report = self.compile([dict(target=target(self.NAME), blasts=self.BLASTS, breaksFurther='yes')])
+        self.assertIn('malformed', codes(report))
+        spec, report = self.compile([dict(target=target(self.NAME), location=[96.0, -900.0, 0.0], rotation=[0, 0, 0],
+                                          breaksFurther=True)])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(noted(report, 'unknown-field'), ['unknown-field'])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertFalse(any(c.get('breaksFurther') for c in native['copies']))
 
 
 if __name__ == '__main__':

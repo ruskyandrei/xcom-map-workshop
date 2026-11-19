@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-139: a broken roof or floor the game keeps whole broke further in battle once F-138's fix turned its
+  `bPreventChunkRemoval` off, which the game's own never do. Fixed offline (19 November): it keeps the setting and
+  draws a copy of its mesh with the hole cut in; Breaks further in battle turns the setting off instead. To play in
+  EXP-83.
 - F-138: a roof whose component keeps its fragments (`bPreventChunkRemoval`) drew its painted-out ones (EXP-81 run A,
   19 November). Fixed: a piece built broken has the setting turned off; verified in EXP-82 run A on the bar's own roof
   and a made roof. Open: such a roof now breaks further in the battle (not played).
@@ -594,6 +598,31 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
   each piece, any class but a door (EXP-60 played it on the arches). `cursor_pick.py` is retired.
 
 ## Damage and glass
+
+### F-139: A broken roof the game keeps whole broke further in battle
+**Open** (19 November 2026; fixed offline the same day, to play in [EXP-83](experiments/EXP-83-kept-roofs.md)).
+- **What.** F-138's fix turned `bPreventChunkRemoval` off on a broken piece that keeps its fragments, so its saved hole
+  is drawn. The setting is all that keeps the game's roofs and floors whole: URB_Bar's roof mesh marks every one of
+  its 81 fragments destroyable, as its walls' do, and 61 of the 63 slab components of the slab audit save the setting
+  on. With it off, the roof breaks further under explosions, which the game's own roofs never do; the user asked for
+  broken roofs to behave as the game's.
+- **What breaking further does** (the game's scripts, 19 November). A unit that isn't flying is put down on the ground
+  below after destruction (`XComUnitPawnNativeBase.MoveToGroundAfterDestruction`; seen on a made floor in EXP-76 run
+  E, T-47). A fracturing piece's columns list the props that go with them (`DestructibleCache`: the bar's roof lists
+  its two air-conditioning units and three lamps), which then take the blast's damage; a made roof lists only its
+  break group's. A dying unit's body can knock pieces out of such a piece and fall through it (the death scripts
+  check the setting).
+- **Fix** (`made_blasts.cut`, `frac_walls.cut_copy`, `broken_made`; `native_copy.break_component`). A broken piece that
+  keeps its fragments keeps the setting and draws a mesh with the fragments out cut away: a made piece's own mesh made
+  so (its name `<mesh>_Cut_<digest>`), a map piece's a copy of its mesh in our forced-export package `XComMapEdCut`
+  (its vertices, so the lightmap still fits, its tagged properties, a copy of its body setup), one copy for each mesh
+  and hole. The cut keeps every fragment's record, each section's kept triangles in order, moves the inside faces of
+  the fragments beside the hole to a section of their own (drawn, as every fragment counts as shown), and makes the
+  collision tree again from the kept triangles. The painted array and DestroyedChunks are still saved. The editor's
+  Breaks further in battle (the record's `breaksFurther`) asks for F-138's way instead; the export says which pieces
+  keep their fragments (`keepsPieces`, export 36), so the tick shows only on them and on copies made from them.
+- **Not covered.** The simple collision boxes of a made roof still cover its hole (the game's tiles and lines of sight
+  go by the triangles: EXP-81's made wall was walked and shot through such a hole).
 
 ### F-138: A piece that keeps its fragments drew its painted-out ones
 **Verified** (19 November 2026: seen in [EXP-81](experiments/EXP-81-sizes-and-breaks.md) run A; fixed the same night,

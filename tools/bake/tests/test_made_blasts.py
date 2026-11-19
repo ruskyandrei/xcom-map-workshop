@@ -129,5 +129,83 @@ class MapTests(unittest.TestCase):
         self.assertEqual(made_blasts.chunks_of_bounds(fragments, []), struct.pack('<i', 0))
 
 
+class CutTests(unittest.TestCase):
+    """(F-139) A broken piece the game keeps whole gets its hole in its mesh: the fragments out have no triangles,
+    the rest keep theirs in order, the vertices stay, the inside faces of the fragments beside the hole are drawn in a
+    section of their own, and the collision tree holds the kept triangles; the mesh writes and reads back."""
+
+    @classmethod
+    def setUpClass(cls):
+        import gen_mesh
+        cls.gen_mesh = gen_mesh
+        cls.built = frac_wall.build(WALL)
+        cls.mesh = cls.built['mesh']
+        cls.gone = made_blasts.hidden(cls.built, [dict(at=[192.0, 12.0, 100.0], radius=96.0)])
+        cls.cut = made_blasts.cut(cls.mesh, cls.gone)
+
+    def triangles(self, lod, section, i):
+        first, n = section['fragments'][i]
+        return [tuple(lod['indices'][1][first + 3 * k:first + 3 * k + 3]) for k in range(n)]
+
+    def test_the_fragments_out_have_no_triangles_and_the_rest_keep_theirs(self):
+        f = self.mesh['fractured']
+        self.assertTrue(0 < len(self.gone) < len(f['fragments']))
+        edge = {i for i in range(len(f['fragments'])) if i not in self.gone and set(self.gone) & set(f['fragments'][i]['neighbours'])}
+        self.assertTrue(edge)
+        lod, cut = self.mesh['lods'][0], self.cut['lods'][0]
+        self.assertEqual(cut['positions'], lod['positions'])
+        self.assertEqual(cut['vertices'], lod['vertices'])
+        before = {(s['slot'], i): self.triangles(lod, s, i) for s in lod['sections'] for i in range(len(s['fragments']))}
+        after = {}
+        for s in cut['sections']:
+            at = s['first']
+            for i, (first, n) in enumerate(s['fragments']):
+                if n:
+                    self.assertEqual(first, at)        # each section's kept fragments in order, back to back
+                    at += 3 * n
+                else:
+                    self.assertEqual(first, 0)
+                after.setdefault((s['slot'], i), []).extend(self.triangles(cut, s, i))
+            self.assertEqual(at, s['first'] + 3 * s['triangles'])
+        for (slot, i), tris in before.items():
+            self.assertEqual(after.get((slot, i), []), [] if i in self.gone else tris, (slot, i))
+        self.assertEqual(len(cut['indices'][1]), sum(3 * s['triangles'] for s in cut['sections']))
+
+    def test_the_holes_sides_are_drawn_in_a_section_of_their_own(self):
+        f = self.mesh['fractured']
+        lod, cut = self.mesh['lods'][0], self.cut['lods'][0]
+        inside = [s for s in lod['sections'] if s['slot'] == f['interior']]
+        self.assertEqual(len(inside), 1)
+        self.assertEqual(len(cut['sections']), len(lod['sections']) + 1)
+        last = cut['sections'][-1]
+        self.assertEqual(last['slot'], f['interior'])
+        moved = {i for i, (_, n) in enumerate(last['fragments']) if n}
+        edge = {i for i in range(len(f['fragments'])) if i not in self.gone and set(self.gone) & set(f['fragments'][i]['neighbours'])}
+        self.assertEqual(moved, {i for i in edge if inside[0]['fragments'][i][1]})
+        kept = next(s for s in cut['sections'][:-1] if s['slot'] == f['interior'])
+        self.assertFalse(any(kept['fragments'][i][1] for i in moved))
+
+    def test_the_collision_holds_the_kept_triangles(self):
+        n = len(self.mesh['fractured']['fragments'])
+        want = [t for t in self.mesh['kdop']['triangles'] if t[3] % n not in self.gone]
+        self.assertEqual(self.cut['kdop']['triangles'], want)
+        self.assertLess(len(want), len(self.mesh['kdop']['triangles']))
+
+    def test_it_writes_and_reads_back(self):
+        raw = self.gen_mesh.write(self.cut, 0)
+        back = self.gen_mesh.read_native(raw, 0, len(raw), fractured=True)
+        self.assertEqual([dict(s, platform=0) for s in back['lods'][0]['sections']],
+                         [dict(s, platform=0, fragments=[tuple(r) for r in s['fragments']]) for s in self.cut['lods'][0]['sections']])
+        self.assertEqual(back['lods'][0]['indices'][1], self.cut['lods'][0]['indices'][1])
+        # (every fragment's record kept: the made mesh's numbers are doubles, written as floats)
+        self.assertEqual([f['neighbours'] for f in back['fractured']['fragments']],
+                         [f['neighbours'] for f in self.mesh['fractured']['fragments']])
+
+    def test_its_name_follows_its_hole(self):
+        self.assertEqual(made_blasts.cut_name('Roof', [3, 1]), made_blasts.cut_name('Roof', [1, 3]))
+        self.assertNotEqual(made_blasts.cut_name('Roof', [1]), made_blasts.cut_name('Roof', [1, 3]))
+        self.assertTrue(made_blasts.cut_name('Roof', [1]).startswith('Roof_Cut_'))
+
+
 if __name__ == '__main__':
     unittest.main()

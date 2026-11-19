@@ -73,7 +73,9 @@ import piece_flags
 #     volume edits
 # 35: a landing's Skyranger lists its dust (the ARC_Skyranger_Ground_Periphery emitter beside its prefab, role `dust`),
 #     so the view carries it with a moved zone as the Build does
-EXPORT_VERSION = 35   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
+# 36: a fracturing piece whose component keeps its fragments (bPreventChunkRemoval: most roofs and floors) says so
+#     (`keepsPieces`), so the editor offers Breaks further in battle on it and on copies made from it (F-139)
+EXPORT_VERSION = 36   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
                        #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
@@ -557,6 +559,9 @@ class Exporter:
                     destruction=destruction(p, actor),
                     environment=p.name(mi).startswith("Skybox."),
                     cutout=bool(p.effective(component,"bCutoutMask",False)),
+                    # a fracturing piece the game keeps whole (export 36)
+                    **({'keepsPieces': True} if p.cls(component) == "FracturedStaticMeshComponent"
+                       and p.effective(component, "bPreventChunkRemoval", False) else {}),
                     hidden=bool(p.effective(actor,"bHidden",False) or p.effective(component,"HiddenGame",False)),
                     # false when the actor collides with nothing, so touches no floor volume and no building lists it
                     # (F-87; the Build's native_copy.collides): left out otherwise, and in exports made before it

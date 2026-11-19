@@ -272,6 +272,21 @@ class Install(unittest.TestCase):
             mesh = next(i for i, _ in enumerate(p.paths, 1) if p.cls(i) == 'StaticMesh')
             self.assertEqual(set(e.mesh_collision(mesh)), {'bodySetup', 'simpleLine', 'simpleBox'})
 
+    def test_the_export_says_which_pieces_the_game_keeps_whole(self):
+        # (export 36, F-139) the bar's roof and upper floor keep their fragments (bPreventChunkRemoval); its corner
+        # column does not
+        import tempfile
+        from package import Package
+        from export import Exporter, EXPORT_VERSION
+        self.assertGreaterEqual(EXPORT_VERSION, 36)
+        p = Package(BAR)
+        with tempfile.TemporaryDirectory() as folder:
+            e = Exporter(p, Path(folder))
+            for name, keeps in (('XComFracLevelActor_3', True), ('XComFracLevelActor_7', True), ('XComFracLevelActor_5', None)):
+                actor = p.by_name['TheWorld.PersistentLevel.' + name]
+                record = e.component(actor, p.own(actor, 'FracturedStaticMeshComponent'))
+                self.assertEqual(record.get('keepsPieces'), keeps, name)
+
 
 class Parity(unittest.TestCase):
     def test_cases_are_current(self):

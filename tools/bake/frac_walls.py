@@ -91,6 +91,7 @@ import looks  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
+CUT_PACKAGE = 'XComMapEdCut'    # the map's own meshes copied with a broken piece's hole cut in (cut_copy, F-139)
 KINDS = ('fracWall', 'fracSlab', 'ground', 'relit')
 MADE = ('fracWall', 'fracSlab')     # the fracturing kinds made from numbers (their own mesh and columns)
 # the kinds whose copy stands at scale 1 whatever its donor's (their numbers and looks are in world units: the editor
@@ -772,6 +773,84 @@ def allow_chunk_removal(g, walker, data, start):
                                             None, b'\x00'))
 
 
+def broken_made(item, p, comp, out, name):
+    """A made piece's blasts (`item`'s generated): the fragments they knock out (item['gone']), and whether it stays
+    whole in battle (item['whole']): its donor's component keeps its fragments (keeps_chunks) and the request doesn't
+    ask it to break further (`breaksFurther`). Such a piece gets its hole in its mesh (made_blasts.cut), a mesh of its
+    own name. Returns (out, its mesh name), cut or as built."""
+    gone = made_blasts.hidden(out, item['generated'].get('blasts')) if item['generated']['kind'] in MADE else []
+    item['gone'] = gone
+    item['whole'] = bool(gone) and keeps_chunks(p, comp) and not item['generated'].get('breaksFurther')
+    if not item['whole']:
+        return out, name
+    mesh = made_blasts.cut(out['mesh'], gone)
+    return (dict(out, mesh=mesh, counts=dict(out['counts'], triangles=len(mesh['lods'][0]['indices'][1]) // 3)),
+            made_blasts.cut_name(name, gone))
+
+
+def cut_copy(g, p, mesh, gone):
+    """The map's fracturing mesh `mesh` (an export of `p`) with the fragments `gone` left out (made_blasts.cut): a
+    mesh of its own in our forced-export package CUT_PACKAGE (made with the first, its count of net objects and its
+    GUID kept up as more are added), its tagged properties the map mesh's, its body setup a copy of the map mesh's.
+    The same mesh cut the same way is made once. Returns dict(export, name, mesh: the cut mesh)."""
+    import native_copy
+    state = getattr(g, 'cut_meshes', None)
+    if state is None:
+        data = struct.pack('<i', -1) + _none(g)
+        package = g.add_export(cover_blocks._template(g, p, 'Package', outer=0), data, number=0,
+                               name_index=g.name(CUT_PACKAGE))
+        if g.entries[package - 1].get('<I', 44) != 1:
+            raise ValueError('the map\'s forced-export packages count net objects for more than one generation')
+        state = g.cut_meshes = dict(package=package, made={})
+    name = made_blasts.cut_name(p.name(mesh).split('.')[-1], gone)
+    if name in state['made']:
+        return state['made'][name]
+    m = gen_mesh.read(p, mesh)
+    cut = made_blasts.cut(m, gone)
+    body_old = p.own(mesh, 'BodySetup') or m['bodySetup']
+    net = 2 * len(state['made']) + 1
+    index = len(g.entries) + 1
+    e = p.exports[mesh - 1]
+    head = bytearray(p.data[e['off']:e['off'] + m['start']])
+    struct.pack_into('<i', head, 0, net)
+    at = native_copy.Walker(p).value(bytes(head), 4, len(head), 'BodySetup[0]')
+    body = index + 1 if body_old > 0 else 0
+    if at is not None:
+        struct.pack_into('<i', head, at, body)
+    data = bytes(head) + gen_mesh.write(dict(cut, bodySetup=body), g.next_offset() + len(head))
+    if g.add_export(mesh, data, number=0, name_index=g.name(name)) != index:
+        raise RuntimeError('the cut mesh did not get the planned index')
+    g.entries[index - 1].put('<i', 8, state['package'])
+    if body:
+        eb = p.exports[body_old - 1]
+        raw = struct.pack('<i', net + 1) + bytes(p.data[eb['off'] + 4:eb['off'] + eb['size']])
+        if g.add_export(body_old, raw) != index + 1:
+            raise RuntimeError("the cut mesh's body setup did not get the planned index")
+        g.entries[index].put('<i', 8, index)
+    state['made'][name] = rec = dict(export=index, name=name, mesh=cut)
+    entry = g.entries[state['package'] - 1]
+    entry.put('<I', 48, 2 * len(state['made']) + 1)
+    entry.data[52:68] = hashlib.md5(('%s|%s' % (CUT_PACKAGE, ','.join(sorted(state['made'])))).encode()).digest()
+    return rec
+
+
+def use_mesh(g, walker, data, start, index, mesh):
+    """A fracturing component's bytes `data` (its tagged properties from `start`) drawing mesh export `index` (`mesh`,
+    gen_mesh's form): its StaticMesh, written at the properties' start where it saves none (its archetype's), and its
+    NumResourceIndices where it saves one."""
+    data = bytearray(data)
+    at = walker.value(bytes(data), start, len(data), 'StaticMesh[0]')
+    if at is None:
+        data = bytearray(data[:start] + _tag(g, 'StaticMesh', 'ObjectProperty', 4) + struct.pack('<i', index)
+                         + data[start:])
+    else:
+        struct.pack_into('<i', data, at, index)
+    at = walker.value(bytes(data), start, len(data), 'NumResourceIndices[0]')
+    if at is not None:
+        struct.pack_into('<i', data, at, len(mesh['lods'][0]['indices'][1]))
+    return bytes(data)
+
+
 def painted_arrays(g, walker, data, start, visible=None, chunks=None):
     """A component's bytes `data` (its tagged properties from `start`) with its EditorPaintedVisibleFragments and
     DestroyedChunks taken out and, when given, `visible` and `chunks` (their values: made_blasts) put in before its
@@ -1088,11 +1167,10 @@ def add_walls(g, p, items, grid, bake=True):
             built.append((item, comp_old, donor_mesh, template, out, ground.mesh_name(gen['ground'])))
             continue
         if gen['kind'] == 'fracSlab':
-            out = frac_slab.build(gen['slab'], template)
-            built.append((item, comp_old, donor_mesh, template, out, frac_slab.mesh_name(gen['slab'])))
-            continue
-        out = frac_wall.build(gen['wall'], template)
-        built.append((item, comp_old, donor_mesh, template, out, frac_wall.mesh_name(gen['wall'])))
+            out, name = frac_slab.build(gen['slab'], template), frac_slab.mesh_name(gen['slab'])
+        else:
+            out, name = frac_wall.build(gen['wall'], template), frac_wall.mesh_name(gen['wall'])
+        built.append((item, comp_old, donor_mesh, template, *broken_made(item, p, comp_old, out, name)))
     if not built:
         return records
     dominant = dominant_shadow(p)
@@ -1150,11 +1228,12 @@ def add_walls(g, p, items, grid, bake=True):
                 sm = piece_shadow(p, light['piece'], dominant['guid'], light)
         if dominant:
             shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
-        gone = [] if plain else made_blasts.hidden(out, item['generated'].get('blasts'))
+        gone = item.get('gone') or []
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
                                             shadow, plain=plain, gone=gone))
-        # a broken piece whose donor keeps its fragments lets them go (F-138)
-        unkept = bool(gone) and keeps_chunks(p, comp_old)
+        # a broken piece whose donor keeps its fragments: kept whole, its hole in its mesh (broken_made), or, asked to
+        # break further, let go of them (F-138)
+        unkept = bool(gone) and keeps_chunks(p, comp_old) and not item.get('whole')
         if unkept:
             ec = p.exports[comp_old - 1]
             g.relocate(comp_new, allow_chunk_removal(g, walker, g.export_data(comp_new),
@@ -1195,7 +1274,8 @@ def add_walls(g, p, items, grid, bake=True):
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                             solids=len(out['solids']), columns=len(cols), painted=paint is not None,
-                            broken=len(gone), **({'chunksLet': True} if unkept else {}), box=wall_box,
+                            broken=len(gone), **({'chunksLet': True} if unkept else {}),
+                            **({'keptWhole': True} if item.get('whole') else {}), box=wall_box,
                             lightmapRect=out['lightmapRect'],
                             light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
                                    else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),

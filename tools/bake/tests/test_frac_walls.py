@@ -958,7 +958,9 @@ class Broken(unittest.TestCase):
     """(custom geometry editing plan, B5) A made wall and roof built broken by their blasts in URB_Bar: their components
     save EditorPaintedVisibleFragments (one int a fragment, 0 for those the blasts knock out) and DestroyedChunks (the
     hidden fragments' boxes), as the game's maps save painted-out pieces; a whole copy of the bar's roof, which saves
-    its own array (all 81 shown), saves neither (the donor's say nothing of the made mesh's)."""
+    its own array (all 81 shown), saves neither (the donor's say nothing of the made mesh's). The broken roof, whose
+    donor keeps its fragments, stays whole in battle with its hole cut into its mesh (F-139); one asked to break
+    further lets them go (F-138)."""
     ROOF = 'XComFracLevelActor_3'
     WALL = dict(x0=0.0, x1=384.0, openings=[], seed=6)
     SLAB = dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[])
@@ -976,7 +978,9 @@ class Broken(unittest.TestCase):
                   dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
                        generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST)),
                   dict(actor=cls.ROOF, label='Whole', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracSlab', version=1, slab=dict(cls.SLAB, seed=5)))]
+                       generated=dict(kind='fracSlab', version=1, slab=dict(cls.SLAB, seed=5))),
+                  dict(actor=cls.ROOF, label='Further', location=[-1344.0, -672.0, 400.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST, breaksFurther=True))]
         cls.m = native_copy.build(BAR, out, 'FracBroken', copies)
         cls.q = Package(out / 'FracBroken.upk')
         cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
@@ -1015,17 +1019,43 @@ class Broken(unittest.TestCase):
         self.assertEqual(self.arrays('Whole'), (None, None))
         self.assertFalse(self.rec['Whole'].get('broken'))
 
-    def test_a_broken_roof_lets_its_fragments_go(self):
-        # (F-138) the bar's roof keeps its fragments (bPreventChunkRemoval): the broken copy saves it off, the whole
-        # one keeps the donor's; the wall's donor has no such setting
+    def test_a_broken_roof_asked_to_break_further_lets_its_fragments_go(self):
+        # (F-138) the bar's roof keeps its fragments (bPreventChunkRemoval): the copy asked to break further saves it
+        # off; the whole one keeps the donor's; the wall's donor has no such setting
         q = self.q
         comp = lambda label: q.own(self.sec[label], 'FracturedStaticMeshComponent')
-        self.assertIs(q.own(comp('Roof'), 'bPreventChunkRemoval'), False)
-        self.assertTrue(self.rec['Roof'].get('chunksLet'))
+        self.assertIs(q.own(comp('Further'), 'bPreventChunkRemoval'), False)
+        self.assertTrue(self.rec['Further'].get('chunksLet'))
+        self.assertFalse(self.rec['Further'].get('keptWhole'))
         self.assertIs(q.own(comp('Whole'), 'bPreventChunkRemoval'), True)
-        self.assertFalse(self.rec['Whole'].get('chunksLet'))
+        self.assertFalse(self.rec['Whole'].get('chunksLet') or self.rec['Whole'].get('keptWhole'))
         self.assertIsNone(q.own(comp('Wall'), 'bPreventChunkRemoval'))
-        self.assertFalse(self.rec['Wall'].get('chunksLet'))
+        self.assertFalse(self.rec['Wall'].get('chunksLet') or self.rec['Wall'].get('keptWhole'))
+
+    def test_a_broken_roof_stays_whole_with_its_hole_in_its_mesh(self):
+        # (F-139) the broken roof keeps the setting and draws a mesh of its own without the fragments knocked out; the
+        # one that breaks further draws the mesh as made, all its fragments in it
+        import made_blasts
+        q = self.q
+        comp = q.own(self.sec['Roof'], 'FracturedStaticMeshComponent')
+        self.assertIs(q.own(comp, 'bPreventChunkRemoval'), True)
+        rec = self.rec['Roof']
+        self.assertTrue(rec.get('keptWhole'))
+        self.assertFalse(rec.get('chunksLet'))
+        self.assertIn('_Cut_', rec['meshName'])
+        built = __import__('frac_slab').build(self.SLAB)
+        gone = made_blasts.hidden(built, self.ROOF_BLAST)
+        mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
+        lod = mesh['lods'][0]
+        for s in lod['sections']:
+            self.assertFalse(any(s['fragments'][i][1] for i in gone))
+        whole = built['mesh']['lods'][0]
+        dropped = sum(s['fragments'][i][1] for s in whole['sections'] for i in gone)
+        self.assertEqual(len(lod['indices'][1]), len(whole['indices'][1]) - 3 * dropped)
+        self.assertEqual(q.own(comp, 'NumResourceIndices'), len(lod['indices'][1]))
+        self.assertEqual(rec['triangles'], len(lod['indices'][1]) // 3)
+        further = gen_mesh.read(q, q.own(q.own(self.sec['Further'], 'FracturedStaticMeshComponent'), 'StaticMesh'))
+        self.assertEqual(len(further['lods'][0]['indices'][1]), len(whole['indices'][1]))
 
     def test_the_export_reads_the_mask(self):
         # the viewer's export (export.py component) draws a component with the array saved: its count the mesh's
@@ -1041,7 +1071,9 @@ class MapBroken(unittest.TestCase):
     """(custom geometry editing plan, E6) URB_Bar's XComFracLevelActor_5 (which paints one of its 29 fragments out)
     broken by a blast where it stands and on a moved copy: each component saves the fragments the blast reaches
     painted out with that one, and DestroyedChunks the hidden fragments' bounds; the piece's tiles are rebuilt; a
-    piece that doesn't break, or that the map hasn't, is an error."""
+    piece that doesn't break, or that the map hasn't, is an error. The bar's roof, which keeps its fragments, broken
+    where it stands and on a copy, stays whole in battle drawing one copy of its mesh with the hole cut in (F-139);
+    its upper floor XComFracLevelActor_7, asked to break further, lets its fragments go (F-138)."""
     ROOF = 'XComFracLevelActor_5'
 
     @classmethod
@@ -1064,15 +1096,21 @@ class MapBroken(unittest.TestCase):
         cls.want = sorted(cls.before | cls.knocked)
         cls.tmp = tempfile.TemporaryDirectory()
         out = Path(cls.tmp.name)
-        copies = [dict(actor=cls.ROOF, label='Moved', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
-                       blasts=cls.blasts)]
-        # (and the bar's roof, which keeps its fragments, broken where it stands: F-138)
+        # (and the bar's roof, which keeps its fragments, broken where it stands and on a copy: F-139; its upper floor
+        # asked to break further: F-138)
         cls.roof3_blasts = [dict(at=[0.0, 0.0, 0.0], radius=200.0)]
+        copies = [dict(actor=cls.ROOF, label='Moved', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                       blasts=cls.blasts),
+                  dict(actor='XComFracLevelActor_3', label='Roof3Copy', location=[-1056.0, -576.0, 400.0],
+                       rotation=[0, 0, 0], blasts=cls.roof3_blasts)]
         cls.m = native_copy.build(BAR, out, 'FracMapBroken', copies,
                                   piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts),
-                                                dict(name='XComFracLevelActor_3', blasts=cls.roof3_blasts)])
+                                                dict(name='XComFracLevelActor_3', blasts=cls.roof3_blasts),
+                                                dict(name='XComFracLevelActor_7', blasts=cls.roof3_blasts,
+                                                     breaksFurther=True)])
         cls.q = Package(out / 'FracMapBroken.upk')
-        cls.moved = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}['Moved']
+        cls.copy = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
+        cls.moved = cls.copy['Moved']
         cls.roof = cls.q.by_name[native_copy.PL + cls.ROOF]
 
     @classmethod
@@ -1103,22 +1141,68 @@ class MapBroken(unittest.TestCase):
     def test_the_roof_is_broken_where_it_stands(self):
         self.check(self.roof)
         rec = self.m['nativeCopies']['pieceBlasts']
-        piece, roof3 = rec['inPlace']
+        piece, roof3, floor7 = rec['inPlace']
         self.assertEqual((piece['label'], piece['knocked'], piece['hidden']), (self.ROOF, len(self.knocked), len(self.want)))
         self.assertTrue(rec['tiles'])
-        # the bar's roof keeps its fragments: broken, it lets them go (F-138); XComFracLevelActor_5 has no such setting
-        import native_copy
+        # XComFracLevelActor_5 has no such setting: as it was, drawing its own mesh
         q = self.q
-        self.assertEqual(roof3['label'], 'XComFracLevelActor_3')
-        self.assertTrue(roof3['knocked'] > 0 and roof3.get('chunksLet'))
-        self.assertIs(q.own(q.own(q.by_name[native_copy.PL + 'XComFracLevelActor_3'], 'FracturedStaticMeshComponent'),
+        comp = q.own(self.roof, 'FracturedStaticMeshComponent')
+        self.assertFalse(piece.get('chunksLet') or piece.get('keptWhole'))
+        self.assertIsNone(q.own(comp, 'bPreventChunkRemoval'))
+        self.assertEqual(q.name(q.own(comp, 'StaticMesh')), 'CommercialColumn.Meshes.CommercialColumn_384Corner_FRACTURED')
+        # the bar's upper floor keeps its fragments and is asked to break further: it lets them go (F-138)
+        import native_copy
+        self.assertEqual(floor7['label'], 'XComFracLevelActor_7')
+        self.assertTrue(floor7['knocked'] > 0 and floor7.get('chunksLet') and not floor7.get('keptWhole'))
+        self.assertIs(q.own(q.own(q.by_name[native_copy.PL + 'XComFracLevelActor_7'], 'FracturedStaticMeshComponent'),
                             'bPreventChunkRemoval'), False)
-        self.assertFalse(piece.get('chunksLet'))
-        self.assertIsNone(q.own(q.own(self.roof, 'FracturedStaticMeshComponent'), 'bPreventChunkRemoval'))
+
+    def test_the_bars_roof_stays_whole_with_its_hole_in_a_copy_of_its_mesh(self):
+        # (F-139) the bar's roof broken where it stands and on its copy: the setting kept, both drawing one mesh of the
+        # cut package, the bar's roof mesh without the fragments out (the same vertices)
+        import made_blasts
+        import native_copy
+        from package import Package
+        q = self.q
+        rec = self.m['nativeCopies']['pieceBlasts']
+        roof3 = rec['inPlace'][1]
+        (copy3,) = [r for r in rec['onCopies'] if r['label'] == 'Roof3Copy']
+        self.assertEqual(roof3['label'], 'XComFracLevelActor_3')
+        self.assertTrue(roof3['knocked'] > 0 and roof3.get('keptWhole') and not roof3.get('chunksLet'))
+        self.assertEqual(copy3.get('keptWhole'), roof3['keptWhole'])
+        comps = [q.own(q.by_name[native_copy.PL + 'XComFracLevelActor_3'], 'FracturedStaticMeshComponent'),
+                 q.own(self.copy['Roof3Copy'], 'FracturedStaticMeshComponent')]
+        for comp in comps:
+            self.assertIs(q.own(comp, 'bPreventChunkRemoval'), True)
+        mesh_index = q.own(comps[0], 'StaticMesh')
+        self.assertEqual(q.own(comps[1], 'StaticMesh'), mesh_index)
+        self.assertEqual(q.name(mesh_index), 'XComMapEdCut.' + roof3['keptWhole'])
+        self.assertEqual(q.cls(mesh_index), 'FracturedStaticMesh')
+        cut = gen_mesh.read(q, mesh_index)
+        p = Package(BAR)
+        bar = gen_mesh.read(p, p.effective(p.own(p.by_name[native_copy.PL + 'XComFracLevelActor_3'], 'FracturedStaticMeshComponent'),
+                                           'StaticMesh'))
+        frags = bar['fractured']['fragments']
+        gone = made_blasts.hidden_at(made_blasts.fragment_centres(bar['lods'][0], len(frags)), self.roof3_blasts)
+        self.assertEqual(len(gone), roof3['hidden'])
+        self.assertEqual(cut['lods'][0]['positions'], bar['lods'][0]['positions'])
+        for s in cut['lods'][0]['sections']:
+            self.assertFalse(any(s['fragments'][i][1] for i in gone))
+        dropped = sum(s['fragments'][i][1] for s in bar['lods'][0]['sections'] for i in gone)
+        self.assertEqual(len(cut['lods'][0]['indices'][1]), len(bar['lods'][0]['indices'][1]) - 3 * dropped)
+        for comp in comps:
+            self.assertEqual(q.own(comp, 'NumResourceIndices'), len(cut['lods'][0]['indices'][1]))
+        # its own body setup, a copy of the bar mesh's, under it
+        body = q.own(mesh_index, 'BodySetup')
+        self.assertTrue(body > 0 and body != p.own(p.effective(p.own(p.by_name[native_copy.PL + 'XComFracLevelActor_3'],
+                                                                         'FracturedStaticMeshComponent'), 'StaticMesh'), 'BodySetup'))
+        self.assertEqual(cut['bodySetup'], body)
+        self.assertEqual(q.exports[body - 1]['outer'], mesh_index)
+        self.assertEqual(q.cls(body), 'RB_BodySetup')
 
     def test_the_moved_copy_is_broken(self):
         self.check(self.moved)
-        (piece,) = self.m['nativeCopies']['pieceBlasts']['onCopies']
+        piece = next(r for r in self.m['nativeCopies']['pieceBlasts']['onCopies'] if r['label'] == 'Moved')
         self.assertEqual((piece['label'], piece['knocked']), ('Moved', len(self.knocked)))
 
     def test_a_piece_that_does_not_break_is_an_error(self):

@@ -2102,10 +2102,14 @@ def flag_tiles(g, p, boxes, volumes=True, max_regions=FLAG_REGIONS):
     return record, made
 
 
-def break_component(g, p, actor, mapping, blasts, label=None):
+def break_component(g, p, actor, mapping, blasts, label=None, breaks_further=False):
     """The fracturing piece `actor` of the map (its component cloned as `mapping` says, or itself) broken by `blasts`
     (custom geometry editing plan, E6; made_blasts): the fragments they reach saved painted out on its component with
-    those its map paints out. Returns its record: label, fragments, knocked (those newly out), hidden (all out)."""
+    those its map paints out. A piece whose component keeps its fragments (bPreventChunkRemoval: most roofs and
+    floors) draws them all whatever is painted out (F-138): it stays whole in battle, as the game keeps it, its
+    component drawing a copy of its mesh with every fragment out cut away (frac_walls.cut_copy, F-139); with
+    `breaks_further` the setting is turned off instead and it breaks further, as a wall does. Returns its record:
+    label, fragments, knocked (those newly out), hidden (all out), chunksLet or keptWhole (the cut mesh's name)."""
     import frac_walls
     import gen_mesh
     import made_blasts
@@ -2125,13 +2129,18 @@ def break_component(g, p, actor, mapping, blasts, label=None):
     walker.names = g.names
     data = frac_walls.painted_arrays(g, walker, g.export_data(target), start, made_blasts.visible_value(len(frags), out),
                                      made_blasts.chunks_of_bounds(frags, out))
-    # a piece that keeps its fragments lets them go (F-138)
-    unkept = frac_walls.keeps_chunks(p, comp)
-    if unkept:
+    # a piece that keeps its fragments: kept whole, its hole cut into its own mesh (F-139), or, asked to break further,
+    # let go of them (F-138)
+    keeps = frac_walls.keeps_chunks(p, comp) and bool(out)
+    whole = None
+    if keeps and not breaks_further:
+        whole = frac_walls.cut_copy(g, p, p.effective(comp, 'StaticMesh'), out)
+        data = frac_walls.use_mesh(g, walker, data, start, whole['export'], whole['mesh'])
+    elif keeps:
         data = frac_walls.allow_chunk_removal(g, walker, data, start)
     g.relocate(target, data)
     return dict(label=label or p.name(actor).split('.')[-1], fragments=len(frags), knocked=len(set(hit) - before),
-                hidden=len(out), **({'chunksLet': True} if unkept else {}))
+                hidden=len(out), **({'keptWhole': whole['name']} if whole else {'chunksLet': True} if keeps else {}))
 
 
 def blasts_in_place(g, p, pieces, gone=(), tiles=True, volumes=True):
@@ -2147,7 +2156,8 @@ def blasts_in_place(g, p, pieces, gone=(), tiles=True, volumes=True):
             raise ValueError(f"{e['name']}'s blasts: the map has no such actor in its persistent level")
         if index in gone:
             raise ValueError(f"{e['name']}'s blasts: the edit takes the piece out of the level")
-        records.append(break_component(g, p, index, None, e['blasts'], label=e['name']))
+        records.append(break_component(g, p, index, None, e['blasts'], label=e['name'],
+                                       breaks_further=bool(e.get('breaksFurther'))))
         if tiles and has_mesh(p, index):
             boxes.append((e['name'], piece_box(p, index, p.own(index, 'Location', [0.0, 0.0, 0.0]),
                                                p.own(index, 'Rotation', [0, 0, 0]))))
@@ -2300,7 +2310,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
     clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
     the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
-    blast reaches saved painted out with those the map paints out. The manifest's `pieceBlasts` section lists them."""
+    blast reaches saved painted out with those the map paints out. A piece the game keeps whole (most roofs and floors)
+    draws a copy of its mesh with those fragments cut away and stays whole in battle, unless its `breaksFurther` asks
+    it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
     import cover_blocks
     import native_lights
     src, out = Path(src), Path(out)
@@ -2408,7 +2420,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         # a moved piece of the map's broken by blasts: on its clone (E6)
         for (c, ai, *_), info in zip(members, infos):
             if c.get('blasts') and not c.get('generated'):
-                blast_copies.append(break_component(g, p, ai, info['mapping'], c['blasts'], label=c.get('label') or c['actor']))
+                blast_copies.append(break_component(g, p, ai, info['mapping'], c['blasts'], label=c.get('label') or c['actor'],
+                                                    breaks_further=bool(c.get('breaksFurther'))))
         # (a piece that collides with nothing, a sky dome 127,000 units across, changes no tile: seeding the whole
         # grid under it only made the game re-check every tile, F-93)
         box = None
@@ -2478,7 +2491,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                       'are its own (%d); its lightmap %s' % (
                           r['label'], r['meshName'], r['fragments'],
                           (' (%d knocked out by its blasts%s)' % (r['broken'], '; bPreventChunkRemoval turned off'
-                                                                  if r.get('chunksLet') else '')) if r.get('broken') else '',
+                                                                  if r.get('chunksLet') else '; kept whole in battle, the '
+                                                                  'hole cut into its mesh' if r.get('keptWhole') else ''))
+                          if r.get('broken') else '',
                           r['triangles'], r['solids'], r['columns'], lit))
             elif r['kind'] == 'ground':
                 print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
@@ -2942,6 +2957,8 @@ def main():
                                **({'flags': c['flags']} if c.get('flags') else {}),
                                # a moved piece of the map's broken by blasts (E6), written on its clone
                                **({'blasts': c['blasts']} if c.get('blasts') else {}),
+                               # (and asked to break further in battle, a roof or floor the game keeps whole)
+                               **({'breaksFurther': True} if c.get('breaksFurther') else {}),
                                # a fracturing wall made from numbers on its materials (frac_walls.py)
                                **({'generated': c['generated']} if c.get('generated') else {}),
                                # a piece of another map, staged in the map by transplant.py
@@ -3022,7 +3039,9 @@ def main():
     for how, rec in [('copy', r) for r in (broken or {}).get('onCopies') or []] + [
             ('in place', r) for r in (broken or {}).get('inPlace') or []]:
         print(f"broken ({how}) {rec['label']}: {rec['knocked']} of its {rec['fragments']} fragments knocked out by its blasts, "
-              f"{rec['hidden']} painted out in all" + ('; bPreventChunkRemoval turned off' if rec.get('chunksLet') else ''))
+              f"{rec['hidden']} painted out in all" + ('; bPreventChunkRemoval turned off' if rec.get('chunksLet') else
+                                                       f"; kept whole in battle, drawing {rec['keptWhole']} (the hole cut "
+                                                       f"into a copy of its mesh)" if rec.get('keptWhole') else ''))
     if broken and broken.get('tiles'):
         t = broken['tiles']
         print(f"broken pieces' tiles: {len(t['regions'])} region{'s' if len(t['regions']) != 1 else ''}"

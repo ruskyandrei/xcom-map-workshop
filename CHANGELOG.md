@@ -8,6 +8,46 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Broken roofs and floors stay whole in battle, as the game keeps them; Breaks further in battle for the other way;
+  EXP-83 prepared** ([F-139](research/findings-register.md); branch `fracturing-wall-poc`).
+  - [made_blasts.py](tools/bake/made_blasts.py) `cut` and `cut_name`: a fracturing mesh with the fragments out cut
+    away. Its vertices stay; each section keeps its kept fragments' triangles in order, a fragment out an empty range at
+    0; the inside faces of the fragments beside the hole move to a section of their own; the collision tree is made
+    again from the kept triangles.
+  - [frac_walls.py](tools/bake/frac_walls.py):
+    - `broken_made`: a made piece whose donor keeps its fragments (`bPreventChunkRemoval`) gets the cut mesh under a
+      name of its own and keeps the setting, unless its request's `breaksFurther` asks for it off (F-138's way);
+    - `cut_copy`, `use_mesh`: a map mesh copied with a hole cut in, into our forced-export package `XComMapEdCut`
+      (one for each mesh and hole), and a component pointed at it.
+  - [native_copy.py](tools/bake/native_copy.py) `break_component`: the map's own pieces the same way, where they stand,
+    moved or copied; the records say `keptWhole` (the cut mesh's name) or `chunksLet`, and so does the Build's log.
+  - [compiler.py](tools/editor/compiler.py):
+    - `breaksFurther` (true, with blasts) on an override, an added copy and a made piece's request, carried to the
+      Build (pieceBlasts, the copies' list, each cut piece its blasts reach);
+    - the notes on broken pieces say what they do in battle (`battle_words`, from the export's `keepsPieces`);
+    - "its blast knocks out", no longer "its blast knock out".
+  - [export.py](tools/viewer/export.py): export 36, `keepsPieces` on a fracturing piece whose component keeps its
+    fragments.
+  - The editor ([app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html),
+    [project.js](tools/viewer/web/project.js)):
+    - the Damage rows of the piece, wall and floor panels have Breaks further in battle, shown on a broken piece that
+      keeps its fragments (a copy's and a made piece's from its donor);
+    - one undo step each; Repair takes it off with the blasts;
+    - saved, loaded, copied and pasted with the blasts.
+  - [exp83_project.py](tools/editor/examples/exp83_project.py) and
+    [EXP-83](research/experiments/EXP-83-kept-roofs.md): the bar's roof broken and kept whole, the roof's other
+    piece broken and let break further.
+  - Checked:
+    - tests: [test_made_blasts.py](tools/bake/tests/test_made_blasts.py) `CutTests`;
+      [test_frac_walls.py](tools/bake/tests/test_frac_walls.py) `Broken` and `MapBroken` (a made roof and the bar's
+      roof, where it stands and on a copy sharing one cut mesh, kept whole; one of each let break further);
+      [test_compiler_generated.py](tools/editor/tests/test_compiler_generated.py);
+      [project_flags_test.mjs](tools/viewer/tests/project_flags_test.mjs);
+      [test_piece_flags.py](tools/viewer/tests/test_piece_flags.py) (the export's `keepsPieces`);
+    - suites: editor, viewer, node, and the bake tests of frac_walls, native_copy and made_blasts;
+    - EXP-83's quick build: 7 of the roof's 81 fragments cut away and the setting kept, the other piece's setting off;
+    - on a test server: the tick on both roof pieces and not on a wall, ticking, Repair and undo; a made roof's tick.
+
 - **EXP-82 run A played: broken roofs and the map's own broken pieces drawn in the game; F-138 verified** (custom
   geometry editing plan, E5, E6; branch `fracturing-wall-poc`).
   - [EXP-82](research/experiments/EXP-82-map-breaks.md) run A, unattended in the lab copy:

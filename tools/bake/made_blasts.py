@@ -19,7 +19,11 @@ A piece the Build cuts into several (made_split) gives each its blasts moved int
 The map's own fracturing pieces take blasts too (E6, decision D-5): there a fragment goes when the middle of its
 vertices' box (fragment_centres) is within a blast's radius, which the editor works out the same way from the mesh it
 draws; the fragments the map already paints out stay out (shown_of), and DestroyedChunks takes each hidden fragment's
-bounds from the mesh (chunks_of_bounds)."""
+bounds from the mesh (chunks_of_bounds).
+
+A piece whose component keeps its fragments (`bPreventChunkRemoval`, most of the game's roofs and floors) draws every
+fragment whatever is painted out (F-138). Built broken, it either stays whole in battle as the game's do, its hole cut
+into a mesh of its own (cut: the default), or breaks further, the setting turned off (the record's `breaksFurther`)."""
 import math
 import struct
 
@@ -129,6 +133,65 @@ def chunks_of_bounds(fragments, gone):
         b = fragments[i]['bounds']
         out.append(struct.pack('<6fB', *[b[k] - b[k + 3] for k in range(3)], *[b[k] + b[k + 3] for k in range(3)], 1))
     return b''.join(out)
+
+
+def cut(mesh, gone):
+    """A fracturing mesh (gen_mesh.read's form, a map's or a made one) with the fragments `gone` left out of it: the
+    hole of a broken piece the game keeps whole (`bPreventChunkRemoval`: most roofs and floors), which draws every
+    fragment whatever its component paints out (F-138), made in the mesh itself (F-139).
+
+    Each LOD keeps its vertices, so the component's lightmap coordinates and painted colours still fit, and its
+    sections in order, each holding its kept fragments' triangles in fragment order; a fragment left out keeps its
+    record and has no triangles (a range at 0, as the game's meshes save an empty one). The kept fragments beside a
+    gone one have their inside faces (the interior section's) moved to a section of their own on the same material,
+    put last, so the hole's sides are drawn though every fragment counts as shown. The collision tree is made again
+    from the kept triangles. Returns a new dict; `mesh` is left as it is."""
+    import gen_mesh
+    gone = set(gone)
+    f = mesh['fractured']
+    frags = f['fragments']
+    count = len(frags)
+    edge = {i for i in range(count) if i not in gone and gone & set(frags[i]['neighbours'])}
+    lods = []
+    for lod in mesh['lods']:
+        idx = lod['indices'][1]
+        kept, sections, sides = [], [], []
+        for s in lod['sections']:
+            ranges = s.get('fragments') or []
+            inside = bool(ranges) and s['slot'] == f['interior']
+            first, out, moved = len(kept), [], []
+            for i, (a, n) in enumerate(ranges):
+                if not n or i in gone or (inside and i in edge):
+                    out.append((0, 0))
+                    if n and i not in gone:
+                        moved.append((i, idx[a:a + 3 * n]))
+                    continue
+                out.append((len(kept), n))
+                kept.extend(idx[a:a + 3 * n])
+            if not ranges:
+                kept.extend(idx[s['first']:s['first'] + 3 * s['triangles']])
+            sections.append(dict(s, first=first, triangles=(len(kept) - first) // 3, fragments=out))
+            if moved:
+                sides.append((s, moved))
+        for s, moved in sides:
+            first, out = len(kept), [(0, 0)] * len(s['fragments'])
+            for i, tri in moved:
+                out[i] = (len(kept), len(tri) // 3)
+                kept.extend(tri)
+            sections.append(dict(s, first=first, triangles=(len(kept) - first) // 3, fragments=out))
+        wire = lod['wireframe']
+        lods.append(dict(lod, sections=sections, indices=(lod['indices'][0], kept),
+                         wireframe=(wire[0], []) if wire[1] else wire))
+    tris = [t for t in mesh['kdop']['triangles'] if not count or t[3] % count not in gone]
+    kdop = (gen_mesh.kdop_tree(lods[0]['positions'], tris) if tris
+            else dict(mesh['kdop'], nodeStride=0, nodes=b'', triangleStride=0, triangles=[]))
+    return dict(mesh, lods=lods, kdop=kdop)
+
+
+def cut_name(base, gone):
+    """A cut mesh's name (cut): `base` and a digest of the fragments left out, so each hole is a mesh of its own."""
+    import hashlib
+    return '%s_Cut_%s' % (base, hashlib.sha256(repr(sorted(gone)).encode()).hexdigest()[:10])
 
 
 def kept_indices(lod, gone):

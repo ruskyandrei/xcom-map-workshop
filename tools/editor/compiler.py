@@ -593,8 +593,22 @@ def game_round(n):
 
 
 def blast_words(n):
-    """'its blast' or 'its N blasts', for the notes on broken pieces (custom geometry editing plan, E5 and E6)."""
-    return 'its blast' if n == 1 else 'its %d blasts' % n
+    """'its blast (Break in its panel) knocks out' or 'its N blasts (...) knock out', for the notes on broken pieces
+    (custom geometry editing plan, E5 and E6)."""
+    return ('its blast (Break in its panel) knocks out' if n == 1
+            else 'its %d blasts (Break in its panel) knock out' % n)
+
+
+def battle_words(keeps, further):
+    """What a broken piece does in battle, for its note: a piece the game keeps whole (`keepsPieces`, the export's:
+    most roofs and floors) stays whole, its hole cut into a copy of its mesh (F-139), unless its `breaksFurther` asks
+    it to break further (F-138); any other breaks further, as the game's walls do."""
+    if keeps and further:
+        return "; it breaks further in battle (Breaks further in battle), which the game's own roofs and floors don't"
+    if keeps:
+        return ("; it stays whole in battle, as the game keeps its roofs and floors: the Build cuts the hole into a copy "
+                "of its mesh (Breaks further in battle lets it break)")
+    return ''
 
 
 def short(path):
@@ -1471,10 +1485,16 @@ class Compiler:
                 if g['kind'] not in MADE_KINDS:
                     raise ValueError('only a made wall, floor or roof breaks')
                 made_blasts.check(g['blasts'])
+                if g.get('breaksFurther', True) is not True:
+                    raise ValueError('breaksFurther is true or left out')
             except ValueError as error:
                 self.error('malformed', '%s: its blasts are not ones the Build makes: %s'
                            % (rec.get('label') or short(rec.get('from', {}).get('actor', '?')), error), **where)
                 return False
+        if ok and 'breaksFurther' in g and 'blasts' not in g:
+            self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored'
+                      % (rec.get('label') or short(rec.get('from', {}).get('actor', '?'))), **where)
+            g = rec['generated'] = {k: v for k, v in g.items() if k != 'breaksFurther'}
         if ok and plain:
             name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
             default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
@@ -1822,6 +1842,8 @@ class Compiler:
             if parts[0]['actorClass'] not in ('XComFracLevelActor', 'XComDecoFracLevelActor'):
                 raise ValueError('it is a %s: only a fracturing piece breaks' % parts[0]['actorClass'])
             made_blasts.check(rec['blasts'])
+            if rec.get('breaksFurther', True) is not True:
+                raise ValueError('breaksFurther is true or left out')
         except ValueError as error:
             self.error('malformed', '%s: its blasts are not ones the Build makes: %s' % (
                 name or short(rec['target']['actor']), error), **where)
@@ -2416,7 +2438,7 @@ class Compiler:
         return self.lights.get((target.get('package'), target.get('level'), target.get('actor')))
 
     def overrides(self):
-        known = {'target', 'location', 'rotation', 'deleted', 'flags', 'blasts'}
+        known = {'target', 'location', 'rotation', 'deleted', 'flags', 'blasts', 'breaksFurther'}
         gated = {}      # an assembly's records: id -> (assembly, {actor: (target, record, where, parts)})
         for k, rec in enumerate(self.doc.get('overrides') or []):
             where = dict(record='overrides[%d]' % k)
@@ -2460,6 +2482,9 @@ class Compiler:
             parts = self.piece(target, where, deleting=rec.get('deleted') is True)
             if not parts:
                 continue
+            if 'breaksFurther' in rec and 'blasts' not in rec:
+                self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored'
+                          % short(target['actor']), **where)
             if 'blasts' in rec:
                 # one of the map's fracturing pieces broken (custom geometry editing plan, E6)
                 if not self.blasts_valid(rec, parts, where):
@@ -2467,10 +2492,12 @@ class Compiler:
                 if rec.get('deleted') is True:
                     self.note('blasts-deleted', '%s is deleted, so its blasts are not built' % short(target['actor']), **where)
                 elif not self.pose_moves(rec, parts[0]):
-                    self.blast_edits.append(dict(name=short(target['actor']), target=target['actor'], blasts=rec['blasts']))
-                    self.note('map-broken', "%s is built broken: %s (Break in its panel) knock out the fragments "
-                              "they reach, saved with those the map paints out, as the game's maps save them"
-                              % (short(target['actor']), blast_words(len(rec['blasts']))), **where)
+                    self.blast_edits.append(dict(name=short(target['actor']), target=target['actor'], blasts=rec['blasts'],
+                                                 **({'breaksFurther': True} if rec.get('breaksFurther') else {})))
+                    self.note('map-broken', "%s is built broken: %s the fragments "
+                              "they reach, saved with those the map paints out, as the game's maps save them%s"
+                              % (short(target['actor']), blast_words(len(rec['blasts'])),
+                                 battle_words(parts[0].get('keepsPieces'), rec.get('breaksFurther'))), **where)
                     if 'flags' not in rec:
                         continue
             if 'flags' in rec:
@@ -2653,9 +2680,12 @@ class Compiler:
         if rec.get('blasts'):
             # (a moved piece broken: its copy made in the map carries the blasts, in its own frame: E6)
             self.copies[-1]['blasts'] = rec['blasts']
-            self.note('map-broken', "%s is built broken: %s (Break in its panel) knock out the fragments they "
-                      "reach, saved with those the map paints out, as the game's maps save them"
-                      % (name, blast_words(len(rec['blasts']))), **where)
+            if rec.get('breaksFurther'):
+                self.copies[-1]['breaksFurther'] = True
+            self.note('map-broken', "%s is built broken: %s the fragments they "
+                      "reach, saved with those the map paints out, as the game's maps save them%s"
+                      % (name, blast_words(len(rec['blasts'])), battle_words(src.get('keepsPieces'), rec.get('breaksFurther'))),
+                      **where)
         if ladder:
             self.ladder_jobs.append((self.copies[-1], name, src, loc, rot, where))
         self.hides.append(dict(name=name, label='move:' + name, box=old))
@@ -3031,9 +3061,10 @@ class Compiler:
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
                           'to it' % (whole or short(out), name), **where)
             if (rec.get('generated') or {}).get('blasts') or (piece == 1 and member and self.broken_wholes.get(member)):
-                self.note('made-broken', '%s is built broken: %s (Break in its panel) knock out the fragments '
-                          "they reach, saved as the game's maps save the pieces their designers painted out" % (
-                              whole or short(out), blast_words(self.broken_wholes.get(member) or len(rec['generated']['blasts']))),
+                self.note('made-broken', '%s is built broken: %s the fragments '
+                          "they reach, saved as the game's maps save the pieces their designers painted out%s" % (
+                              whole or short(out), blast_words(self.broken_wholes.get(member) or len(rec['generated']['blasts'])),
+                              battle_words(src.get('keepsPieces'), rec['generated'].get('breaksFurther'))),
                           **where)
         if rec.get('flags'):
             self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
@@ -3041,9 +3072,12 @@ class Compiler:
             # a copy of one of the map's fracturing pieces broken (E6): its clone carries the blasts
             if self.blasts_valid(rec, [src], where, name=short(out)):
                 self.copies[-1]['blasts'] = rec['blasts']
-                self.note('map-broken', "%s is built broken: %s (Break in its panel) knock out the fragments "
-                          "they reach, saved with those the map paints out, as the game's maps save them"
-                          % (short(out), blast_words(len(rec['blasts']))), **where)
+                if rec.get('breaksFurther'):
+                    self.copies[-1]['breaksFurther'] = True
+                self.note('map-broken', "%s is built broken: %s the fragments "
+                          "they reach, saved with those the map paints out, as the game's maps save them%s"
+                          % (short(out), blast_words(len(rec['blasts'])), battle_words(src.get('keepsPieces'), rec.get('breaksFurther'))),
+                          **where)
         if extra.get('family') == 'ladder':
             self.ladder_jobs.append((self.copies[-1], short(out), src, loc, rot, where))
         self.floor_sources[short(out)] = src
@@ -3083,6 +3117,7 @@ class Compiler:
                 gen['blasts'] = made_blasts.for_piece(made['blasts'], at, span)
                 if not gen['blasts']:
                     del gen['blasts']
+                    gen.pop('breaksFurther', None)
             self.add(dict(rec, actor='%s_part%d' % (out, k), generated=gen), where, parts,
                      (place, rot, rounding), extra=dict(extra, piece=k, member='added|' + out, whole=short(out)))
         made_copies = self.copies[first:]
@@ -4222,6 +4257,9 @@ class Compiler:
             # A moved piece of the map's broken by blasts (E6): each copy's (None for one without), on its clone.
             if any(c.get('blasts') for c in copies):
                 copy['blasts'] = [c.get('blasts') for c in copies]
+            # (and those asked to break further in battle, roofs and floors the game keeps whole)
+            if any(c.get('breaksFurther') for c in copies):
+                copy['breaksFurther'] = [bool(c.get('breaksFurther')) for c in copies]
             # Ladders: each ladder copy's foot tile and linked top tile (None for other copies); the Build rebuilds the top
             # tile first, so the climb keeps both its links (plan section 5.2).
             if any(c.get('ladder') for c in copies):
@@ -5543,7 +5581,8 @@ def native_split(spec):
             flag_ladders += obj.get('ladders') or []
             continue
         if obj.get('type') == 'pieceBlasts':
-            piece_blasts += [dict(name=e['name'], blasts=e['blasts']) for e in obj['pieces']]
+            piece_blasts += [dict(name=e['name'], blasts=e['blasts'], **({'breaksFurther': True} if e.get('breaksFurther') else {}))
+                             for e in obj['pieces']]
             continue
         if obj.get('type') == 'breakOriginals':
             originals += obj['originals']
@@ -5574,6 +5613,7 @@ def native_split(spec):
         flags = obj.get('flags') or [None] * n
         generated = obj.get('generated') or [None] * n
         blasts = obj.get('blasts') or [None] * n
+        further = obj.get('breaksFurther') or [False] * n
         # a piece of another map is always made in the map: nothing else can bring what it needs; so is a copy of a
         # class the Build has not been tried on (the patch's copier has no recipe for it either)
         # (and a copy with flags: only the writer sets them)
@@ -5593,6 +5633,7 @@ def native_split(spec):
                                 **({'flags': flags[k]} if flags[k] else {}),
                                 **({'generated': generated[k]} if generated[k] else {}),
                                 **({'blasts': blasts[k]} if blasts[k] else {}),
+                                **({'breaksFurther': True} if further[k] else {}),
                                 **({'family': families[k], 'assembly': members[k]} if members[k] else {}),
                                 **({'ladder': obj['ladders'][k]} if (obj.get('ladders') or [None] * n)[k] else {})))
         made = {members[k] for k in native if members[k]}
@@ -5603,7 +5644,7 @@ def native_split(spec):
         if keep:
             rest = dict(obj)
             for f in ('from', 'poses', 'labels', 'boxes', 'classes', 'breakGroups', 'wallGroups', 'families', 'assemblies',
-                      'ladders', 'donors', 'untried', 'flags', 'generated', 'blasts'):
+                      'ladders', 'donors', 'untried', 'flags', 'generated', 'blasts', 'breaksFurther'):
                 if f in obj:
                     rest[f] = [obj[f][k] for k in keep]
             rest.pop('assemblyMoves', None)

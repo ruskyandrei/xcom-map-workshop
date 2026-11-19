@@ -46,6 +46,15 @@ assert.ok(!validAdded({ ...copy, blasts: [] }));
 assert.ok(!validAdded({ ...cover, blasts }), 'a cover block does not break so');
 assert.ok(!validAdded({ ...copy, generated: { kind: 'fracWall', version: 1, wall: {} }, blasts }), 'a made piece keeps its blasts in its request');
 assert.notEqual(stateKey(sortState(base0())), stateKey(sortState({ overrides: [{ target, blasts }], added: [] })));
+// breaksFurther (F-139): true, and only with blasts
+assert.ok(validOverride({ target, blasts, breaksFurther: true }));
+assert.ok(validAdded({ ...copy, blasts, breaksFurther: true }));
+for (const bad of [false, 'yes', 1]) {
+  assert.ok(!validOverride({ target, blasts, breaksFurther: bad }), JSON.stringify(bad));
+  assert.ok(!validAdded({ ...copy, blasts, breaksFurther: bad }), JSON.stringify(bad));
+}
+assert.ok(!validOverride({ target, ...pose, breaksFurther: true }), 'breaksFurther goes with blasts');
+assert.ok(!validAdded({ ...copy, breaksFurther: true }), 'breaksFurther goes with blasts');
 
 // sorted and keyed: flags alone change the project's content
 function base0() { return { overrides: [], added: [] }; }

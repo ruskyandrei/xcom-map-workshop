@@ -404,7 +404,7 @@ function select(id, add = false, keep = false) {
   if (isMadeWall(obj)) wallPanel(root);
   if (isMadeSlab(obj)) slabPanel(root);
   if (isMadeGround(obj)) groundPanel(root);
-  if (mapBreakable(obj)) breakRow('piece', { blasts: root.userData.blasts });
+  if (mapBreakable(obj)) breakRow('piece', { blasts: root.userData.blasts, breaksFurther: root.userData.breaksFurther }, obj.keepsPieces);
   text(details, 'h2', short(mesh.name));
   text(details, 'div', `${obj.actorClass} · ${obj.sourcePackage || data.source.file.split(/[\\/]/).at(-1)}`, 'sub');
   const chips = text(details, 'div', '', 'chips');
@@ -1176,7 +1176,8 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
                                      ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
                                      ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}),
-                                     ...(r.userData.blasts?.length ? { blasts: cloneBlasts(r.userData.blasts) } : {}) })),
+                                     ...(r.userData.blasts?.length ? { blasts: cloneBlasts(r.userData.blasts) } : {}),
+                                     ...(r.userData.blasts?.length && r.userData.breaksFurther ? { breaksFurther: true } : {}) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
            // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
@@ -1327,7 +1328,7 @@ function unscaled(matrix) {
   matrix.decompose(p, q, s);
   return new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1));
 }
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null }) {
+function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null, breaksFurther = false }) {
   if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
   return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
     // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
@@ -1335,6 +1336,8 @@ function addedObject(template, placed, { actor, entity, prefab, partner, locatio
     initialFlags: flags ? { ...flags } : null,
     // a copy of one of the map's fracturing pieces broken (E6): its blasts, a paste's its original's
     initialBlasts: blasts?.length && !generated ? cloneBlasts(blasts) : null,
+    // (and, a roof or floor the game keeps whole, asked to break further in battle: F-139)
+    initialBreaksFurther: Boolean(blasts?.length && !generated && breaksFurther),
     // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
@@ -1811,7 +1814,7 @@ async function pasteSnapshot(clip, delta, step = null) {
       prefab: linkTag(e),
       partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
       tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null,
-      generated: source.added?.generated ?? null, blasts: e.blasts ?? null });
+      generated: source.added?.generated ?? null, blasts: e.blasts ?? null, breaksFurther: Boolean(e.breaksFurther) });
   });
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
@@ -4476,7 +4479,10 @@ function editStateNow() {
         if (o.added.tinted) entity.tinted = true;
         if (o.added.generated) entity.generated = o.added.generated;
         if (root.userData.flags) entity.flags = { ...root.userData.flags };
-        if (root.userData.blasts?.length && !o.added.generated) entity.blasts = cloneBlasts(root.userData.blasts);
+        if (root.userData.blasts?.length && !o.added.generated) {
+          entity.blasts = cloneBlasts(root.userData.blasts);
+          if (root.userData.breaksFurther) entity.breaksFurther = true;
+        }
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
           entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
@@ -4488,7 +4494,8 @@ function editStateNow() {
       const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
       overrides.set(sourceKey(o), root.userData.deleted ? { target, deleted: true }
         : { target, ...(root.userData.edit ? actorPose(o, root.matrix) : {}), ...(root.userData.flags ? { flags: { ...root.userData.flags } } : {}),
-            ...(root.userData.blasts?.length ? { blasts: cloneBlasts(root.userData.blasts) } : {}) });
+            ...(root.userData.blasts?.length ? { blasts: cloneBlasts(root.userData.blasts) } : {}),
+            ...(root.userData.blasts?.length && root.userData.breaksFurther ? { breaksFurther: true } : {}) });
     }
   }
   for (const entity of added.values()) entity.components?.sort();
@@ -4515,7 +4522,10 @@ function clearEdits() {
   removeRoots(all.filter(r => r.userData.source.added));
   const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
   gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of all) { r.userData.deleted = false; r.userData.flags = null; if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); } }
+  for (const r of all) {
+    r.userData.deleted = false; r.userData.flags = null; r.userData.breaksFurther = false;
+    if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); }
+  }
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
   clearEffectEdits();
@@ -4580,7 +4590,9 @@ async function applyState(state, progress = null) {
     else {
       if (record.location !== undefined) gizmo.applyMatrices(list, list.map(r => movedMatrix(r.userData.source, record.location, record.rotation)));
       if (record.flags) for (const r of list) r.userData.flags = { ...record.flags };
-      if (record.blasts) for (const r of list) if (mapBreakable(r.userData.source)) { r.userData.blasts = cloneBlasts(record.blasts); drawBroken(r); }
+      if (record.blasts) for (const r of list) if (mapBreakable(r.userData.source)) {
+        r.userData.blasts = cloneBlasts(record.blasts); r.userData.breaksFurther = record.breaksFurther === true; drawBroken(r);
+      }
     }
   }
   const objs = [], lights = [], effects = [];
@@ -4625,7 +4637,8 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null, blasts: entity.blasts ?? null }));
+        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null, blasts: entity.blasts ?? null,
+        breaksFurther: entity.breaksFurther === true }));
     }
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
@@ -5946,6 +5959,7 @@ async function buildRoot(obj) {
   }
   root.userData.parts = parts;
   root.userData.blasts = obj.initialBlasts ? cloneBlasts(obj.initialBlasts) : null;     // (E6) drawn without what they knock out
+  root.userData.breaksFurther = Boolean(obj.initialBreaksFurther);
   if (root.userData.blasts) drawBroken(root);
   root.matrix.fromArray(obj.matrix); root.matrixAutoUpdate = false; root.matrixWorldNeedsUpdate = true;
   return root;
@@ -10225,7 +10239,7 @@ function wallPanel(root) {
   $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
   // Lower and Taller: a storey (its look's storeys where it can't be made one) less or more (B4)
   storeyButtons('wall', tool ? w : null);
-  breakRow('wall', g);
+  breakRow('wall', g, o.keepsPieces);
   $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
     + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
     + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
@@ -10241,13 +10255,17 @@ try { blastTiles = Math.min(3, Math.max(1, Math.round(Number(localStorage.getIte
 const blastMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
   new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.25, depthTest: false, depthWrite: false }));
 blastMarker.renderOrder = 9; blastMarker.visible = false; blastMarker.raycast = () => {}; world.add(blastMarker);
-// The Break row of the wall or floor panel (`kind`) for the made piece's request `g`.
-function breakRow(kind, g) {
+// The Break row of the wall, floor or piece panel (`kind`) for the piece's request `g` (its blasts, breaksFurther):
+// Breaks further in battle shows on a broken piece the game keeps whole (`keeps`: the export's keepsPieces, its
+// donor's for a copy or a made piece), most roofs and floors (F-139).
+function breakRow(kind, g, keeps) {
   const n = g.blasts?.length ?? 0;
   $(`${kind}Break`).classList.toggle('on', Boolean(breaking));
   $(`${kind}BlastSize`).value = String(blastTiles);
   $(`${kind}Repair`).disabled = !n;
   $(`${kind}Broken`).textContent = n ? `Broken by ${plural(n, 'blast')}` : '';
+  $(`${kind}FurtherRow`).hidden = !(keeps && n);
+  $(`${kind}Further`).checked = Boolean(g.breaksFurther);
 }
 function startBreak() {
   const root = madeRoot(selected) ?? roots.get(selected), o = root?.userData.source;
@@ -10312,12 +10330,21 @@ for (const k of BREAK_ROWS) {
   };
   if (k === 'piece') {
     $('pieceRepair').onclick = () => { const r = roots.get(selected); if (mapBreakable(r?.userData.source)) changeBlasts(r, () => null); };
+    $('pieceFurther').onchange = e => {
+      const r = roots.get(selected);
+      if (mapBreakable(r?.userData.source) && r.userData.blasts?.length) setBroken(r, { blasts: r.userData.blasts, further: e.target.checked });
+    };
     continue;
   }
   $(`${k}Repair`).onclick = () => changeWall(s => {
     if (!s.generated.blasts) return null;
-    const { blasts: _, ...generated } = s.generated;
+    const { blasts: _, breaksFurther: __, ...generated } = s.generated;
     return { ...s, generated };
+  });
+  $(`${k}Further`).onchange = e => changeWall(s => {
+    if (!s.generated.blasts) return null;
+    const { breaksFurther: _, ...generated } = s.generated;
+    return { ...s, generated: e.target.checked ? { ...generated, breaksFurther: true } : generated };
   });
 }
 // ---- Break on the map's own fracturing pieces (custom geometry editing plan, E6, decision D-5): the same blasts on
@@ -10398,15 +10425,23 @@ function drawBroken(root) {
     part.geometry = g;
   }
 }
-// One of the map's pieces given other blasts (`change` from its blasts to the new ones; null mends it, undefined
-// changes nothing), as one undo step.
+// One of the map's pieces given other blasts (`change` from its blasts to the new ones; null mends it, and takes
+// Breaks further in battle off with them; undefined changes nothing), as one undo step.
 function changeBlasts(root, change) {
   const before = root.userData.blasts ?? null, next = change(before ? cloneBlasts(before) : []);
   if (next === undefined) return;
   const after = next?.length ? next : null;
   if (JSON.stringify(after) === JSON.stringify(before)) return;
+  setBroken(root, { blasts: after, further: Boolean(after && root.userData.breaksFurther) });
+}
+// One of the map's pieces broken as `after` says ({ blasts, further: Breaks further in battle }), as one undo step.
+function setBroken(root, after) {
+  const before = { blasts: root.userData.blasts ?? null, further: Boolean(root.userData.breaksFurther) };
   const id = root.userData.source.id;
-  const set = v => { root.userData.blasts = v ? cloneBlasts(v) : null; drawBroken(root); select(id, false, true); };
+  const set = v => {
+    root.userData.blasts = v.blasts ? cloneBlasts(v.blasts) : null; root.userData.breaksFurther = v.further;
+    drawBroken(root); select(id, false, true);
+  };
   gizmo.record({ redo: () => set(after), undo: () => set(before) });
 }
 // The Lower and Taller buttons of the wall or room panel (`kind`) for the wall `w` (null: neither).
@@ -10427,7 +10462,7 @@ function slabPanel(root) {
   lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
   const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
     ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
-  breakRow('slab', o.added.generated);
+  breakRow('slab', o.added.generated, o.keepsPieces);
   $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
     : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
   const holes = s.holes ?? [];
