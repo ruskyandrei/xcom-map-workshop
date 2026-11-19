@@ -56,7 +56,7 @@ import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening,
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, lookKey, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
-         resizedGround, slopeOf, slopeWords, toolGround, turnedGround } from './ground.js';
+         resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
@@ -1226,11 +1226,12 @@ const spelledLook = look => (typeof look === 'object' && look
 const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
 // the kinds of made piece (one piece each, made from numbers)
 const MADE_KINDS = new Set(['fracWall', 'fracSlab', 'ground']);
-const isPlain = g => Boolean(g) && g.version === PLAIN_VERSION[g.kind];
+const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
 const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
-  if (plain) return { kind, version: PLAIN_VERSION[kind], [key]: numbers };
-  return look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers };
+  // (a rock with moved points: POINTS_VERSION whatever its look, versionedGround)
+  if (plain) return versionedGround({ kind, version: PLAIN_VERSION[kind], [key]: numbers });
+  return versionedGround(look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers });
 };
 // The default look a plain piece of `kind` is made in: the Bar's inside wall, the Bar's floor or roof by the slab's
 // role, asphalt (a look marked `plain`, which setMadeLook makes a plain request of).
@@ -1275,7 +1276,7 @@ function madeSlabShape(template, s, blasts = null) {
 }
 // A ground shape (custom geometry plan, M6): drawn from /generated/ground.glb, its one section on its template's material.
 const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
-                                  ...(g.shape === 'rock' ? { seed: g.seed } : {}),
+                                  ...(g.shape === 'rock' ? { seed: g.seed } : {}), ...(g.shape === 'rock' && g.points ? { points: g.points } : {}),
                                   ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: spelledLook(g.look) } : {}) });
 function groundBounds(g) {
   const b = groundShapeBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
@@ -9923,6 +9924,7 @@ function refreshJoins() {
 }
 // A state put on the wall's piece: its numbers, its pose, its mesh drawn anew once loaded (no undo step).
 async function applyWall(root, state) {
+  state = { ...state, generated: versionedGround(state.generated) };
   const o = root.userData.source;
   o.added = { ...o.added, generated: structuredClone(state.generated) };
   const key = madeMesh(o, state.generated, root.userData.joins?.ends);
@@ -9954,6 +9956,7 @@ async function applyWall(root, state) {
 // One undo step from `before` to `after` (states), the piece picked again each way.
 function setWall(root, after, before) {
   const id = root.userData.source.id;
+  after = { ...after, generated: versionedGround(after.generated) };
   if (JSON.stringify(after) === JSON.stringify(before)) { applyWall(root, before); return; }
   gizmo.record({ redo: () => { applyWall(root, after); select(id, false, true); },
                  undo: () => { applyWall(root, before); select(id, false, true); } });
@@ -10001,7 +10004,114 @@ function groundHandlesNow(root) {
     { key: 'side:y1', kind: 'side', part: 'y1', at: toView(cx, b[3], mid), dir: axis(0, 1) }];
   if (g.shape !== 'patch')
     out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(g.shape === 'ramp' ? b[1] : cx, cy, b[5]), dir: axis(0, 0, 1) });
+  // a rock's corners: a blue point on each (look picker and rock points plan, R3), from the server's answer
+  const c = g.shape === 'rock' && !pointGizmo.dragging ? rockCornersOf(g) : null;
+  for (const index of c?.corners ?? [])
+    out.push({ key: `point:${index}`, kind: 'point', part: 'point', index, at: toView(...c.points[index]), dir: null });
   return out;
+}
+// ---- a rock's corners (look picker and rock points plan, R2, R3): its points and which are corners, asked of the
+// server (Python's seeded random isn't the page's) for each rock's numbers; a point picked takes the move gizmo
+const rockCorners = new Map();      // the rock's numbers, look aside (JSON) -> { points, corners }, a promise, or { failed }
+function rockCornersOf(g) {
+  const { look: _, ...shape } = madeGroundNumbers(g), key = JSON.stringify(shape), known = rockCorners.get(key);
+  if (known && !known.then) return known.failed ? null : known;
+  if (!known) {
+    rockCorners.set(key, fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
+      .then(r => (r.ok ? r.json() : null)).catch(() => null)
+      .then(answer => {
+        rockCorners.set(key, answer?.points ? answer : { failed: true });
+        if (rockCorners.size > 300) rockCorners.delete(rockCorners.keys().next().value);
+      }));
+  }
+  return null;
+}
+let rockPoint = null, pointDrag = null;     // rockPoint: { id, index }, the rock's point the gizmo stands on
+let shiftHeld = false;
+window.addEventListener('keydown', e => { if (e.key === 'Shift') shiftHeld = true; });
+window.addEventListener('keyup', e => { if (e.key === 'Shift') shiftHeld = false; });
+window.addEventListener('blur', () => { shiftHeld = false; });
+const pointProxy = new THREE.Object3D(); world.add(pointProxy);
+const pointGizmo = new TransformControls(camera, renderer.domElement);
+pointGizmo.attach(pointProxy); pointGizmo.enabled = false; pointGizmo.setSpace('local'); pointGizmo.setMode('translate');
+const pointGizmoHelper = pointGizmo.getHelper(); pointGizmoHelper.visible = false; world.add(pointGizmoHelper);
+pointGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
+// The picked rock's points now: its moved ones, else its seed's from the server (null until they are known).
+function rockPointsOf(g) { return g.points ?? rockCornersOf(g)?.points ?? null; }
+function pickRockPoint(root, index) {
+  if (!rockPoint) gizmo.hold(true);
+  rockPoint = { id: root.userData.source.id, index };
+  placePointGizmo();
+  groundPanel(root);
+  flashHint(`A corner of the rock: drag its arrows to move it${index < ROCK.ring ? ' on the ground (it is of the rock\'s foot)' : ''}; Shift: steps of 8 · Esc lets it go`);
+}
+function releaseRockPoint() {
+  if (!rockPoint) return;
+  const root = roots.get(rockPoint.id);
+  rockPoint = null; pointDrag = null;
+  pointGizmo.enabled = pointGizmoHelper.visible = false;
+  gizmo.hold(false);
+  if (root && selected === root.userData.source.id && isMadeGround(root.userData.source)) groundPanel(root);
+}
+// Each frame: the gizmo on the picked point, or the point let go when its rock is no longer the one handled.
+function placePointGizmo() {
+  if (!rockPoint) return;
+  const root = roots.get(rockPoint.id);
+  if (!root || (handleWall() !== root && !pointDrag) || root.userData.source.added?.generated?.ground?.shape !== 'rock') { releaseRockPoint(); return; }
+  if (pointGizmo.dragging) return;
+  const p = rockPointsOf(root.userData.source.added.generated.ground)?.[rockPoint.index];
+  pointGizmo.enabled = pointGizmoHelper.visible = Boolean(p);
+  if (!p) return;
+  root.updateMatrixWorld(true);
+  pointProxy.position.copy(new THREE.Vector3(p[0], p[2], p[1]).applyMatrix4(root.matrixWorld));
+  pointProxy.quaternion.setFromRotationMatrix(new THREE.Matrix4().extractRotation(root.matrixWorld));
+  pointProxy.updateMatrixWorld(true);
+  // (a point of the rock's foot moves on the ground only: no up arrow, the view's y)
+  pointGizmo.showY = rockPoint.index >= ROCK.ring;
+}
+pointGizmo.addEventListener('mouseDown', () => {
+  const root = rockPoint && roots.get(rockPoint.id);
+  const points = root && rockPointsOf(root.userData.source.added.generated.ground);
+  if (!points) { pointDrag = null; return; }
+  root.updateMatrixWorld(true);
+  pointDrag = { root, index: rockPoint.index, points, before: wallState(root), frame: root.matrixWorld.clone(),
+                start: points[rockPoint.index], after: null, shown: '' };
+});
+pointGizmo.addEventListener('objectChange', () => {
+  const d = pointDrag;
+  if (!d) return;
+  // the proxy's place in the rock's frame as it was when the drag began (its corner may move as the footprint grows)
+  const local = pointProxy.position.clone().applyMatrix4(d.frame.clone().invert());
+  let to = [local.x, local.z, local.y];
+  if (shiftHeld) {
+    to = to.map((v, k) => d.start[k] + Math.round((v - d.start[k]) / 8) * 8);
+    pointProxy.position.copy(new THREE.Vector3(to[0], to[2], to[1]).applyMatrix4(d.frame));
+  }
+  const b = d.before, r = movedPoint(b.generated.ground, d.points, d.index, to);
+  const turned = new THREE.Vector3(r.shift[0], 0, r.shift[1]).transformDirection(new THREE.Matrix4().extractRotation(d.frame))
+    .multiplyScalar(Math.hypot(r.shift[0], r.shift[1]));
+  const location = [b.location[0] + turned.x, b.location[1] + turned.z, b.location[2]].map(v => Math.round(v * 1000) / 1000);
+  const key = JSON.stringify([r.ground, location]);
+  if (key === d.shown) return;
+  d.shown = key;
+  d.after = { generated: { ...b.generated, ground: r.ground }, location, rotation: b.rotation };
+  applyWall(d.root, d.after);
+  const grown = r.ground.x1 !== b.generated.ground.x1 || r.ground.y1 !== b.generated.ground.y1;
+  volumeHint(`Corner at ${r.ground.points[d.index].map(Math.round).join(', ')} in the rock's frame${grown ? ` · grown to ${groundShapeWords(r.ground).toLowerCase()}` : ''}`);
+});
+pointGizmo.addEventListener('mouseUp', () => {
+  const d = pointDrag;
+  pointDrag = null;
+  if (d?.after && !d.cancelled) setWall(d.root, d.after, d.before);
+  restingHint(); editChanged();
+  setTimeout(placePointGizmo, 0);       // (the controls end their drag after this event)
+});
+function cancelPointDrag() {
+  const d = pointDrag;
+  if (!d) return false;
+  d.cancelled = true; pointGizmo.reset?.();
+  applyWall(d.root, d.before);
+  return true;
 }
 // A slab's handles: a white one out of the middle of each edge ('side', its part the side), at its top; on each hole a
 // blue one at each side and one in its middle ('hole'; the middle slides it on the slab, `dir` null).
@@ -10053,7 +10163,7 @@ function wallHandlesNow(root) {
 const wallHandlePoint = h => (h.kind === 'end' || h.kind === 'side' ? h.at.clone().addScaledVector(h.dir, camera.position.distanceTo(h.at) * 0.06) : h.at);
 function updateWallHandles() {
   const root = wallDrag?.root ?? handleWall();
-  wallHandleLayer.visible = Boolean(root) && !gizmo.controls.dragging;
+  wallHandleLayer.visible = Boolean(root) && !gizmo.controls.dragging && !pointGizmo.dragging;
   if (!wallHandleLayer.visible) { if (wallHover) hoverWallHandle(null); return; }
   const handles = wallHandlesNow(root), lit = wallDrag?.key ?? wallHover;
   while (wallHandleMeshes.length < handles.length) {
@@ -10070,10 +10180,11 @@ function updateWallHandles() {
     if (!h) return;
     mesh.position.copy(wallHandlePoint(h));
     const white = h.kind === 'end' || h.kind === 'side';
-    const focused = !white && wallFocus?.id === root.userData.source.id && wallFocus.index === h.index;
-    mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : white ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
+    const focused = !white && h.kind !== 'point' && wallFocus?.id === root.userData.source.id && wallFocus.index === h.index;
+    const pickedPoint = h.kind === 'point' && rockPoint?.id === root.userData.source.id && rockPoint.index === h.index;
+    mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : white || pickedPoint ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
     scaleMarker(mesh, camera, mesh.position);
-    if (!white) mesh.scale.multiplyScalar(h.part === 'middle' ? 1 : 0.8);
+    if (!white) mesh.scale.multiplyScalar(h.part === 'middle' ? 1 : h.kind === 'point' ? 0.7 : 0.8);
     if (white && n < 8) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
   });
   for (; n < 8; n++) stems.setXYZ(n, 0, 0, 0);
@@ -10091,7 +10202,8 @@ function hoverWallHandle(h) {
   if (key === wallHover) return;
   wallHover = key;
   renderer.domElement.style.cursor = key ? 'grab' : wallDrawing ? 'crosshair' : '';
-  renderer.domElement.title = !h ? '' : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? 'The top: drag to raise or lower it (steps of 8)'
+  renderer.domElement.title = !h ? '' : h.kind === 'point' ? 'A corner of the rock: click it, then drag its arrows to move it (Shift: steps of 8)'
+    : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? 'The top: drag to raise or lower it (steps of 8)'
     : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
     : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
     : h.part === 'top' ? topHandleWords(handleWall()?.userData.source.added.generated.wall)
@@ -10114,7 +10226,16 @@ function wallPiecesWords(w) {
 function startWallDrag(e) {
   if (wallDrawing) return startWallDraw(e);
   if (e.button !== 0 || wallDrag || coverDrag || volumeDrag || gizmo.controls.dragging) return false;
+  // (a press on the point's gizmo is the gizmo's: it works out its arrow in its own press handler, after this one, so
+  // it is asked here first)
+  if (pointGizmo.enabled && !pointGizmo.dragging) {
+    const r = renderer.domElement.getBoundingClientRect();
+    pointGizmo.pointerHover({ x: (e.clientX - r.left) / r.width * 2 - 1, y: -(e.clientY - r.top) / r.height * 2 + 1, button: e.button });
+  }
+  if (pointGizmo.enabled && (pointGizmo.dragging || pointGizmo.axis !== null)) return false;
   const h = wallHandleNear(e.clientX, e.clientY);
+  if (h?.kind === 'point') { pickRockPoint(handleWall(), h.index); return true; }
+  if (rockPoint) releaseRockPoint();
   if (!h) return false;
   const root = handleWall(), from = h.dir ? alongLine(e.clientX, e.clientY, h.at, h.dir) : onLevel(e.clientX, e.clientY, h.at.y);
   if (from == null) return false;
@@ -10554,14 +10675,19 @@ function groundPanel(root) {
   }));
   $('groundTurn').hidden = g.shape !== 'ramp';
   $('groundTurn').disabled = !tool;
-  $('groundAnother').hidden = g.shape !== 'rock';
+  $('groundAnother').hidden = $('groundResetPoints').hidden = g.shape !== 'rock';
   $('groundAnother').disabled = !tool;
+  $('groundResetPoints').disabled = !tool || !g.points;
+  if (g.shape === 'rock' && tool)
+    $('groundSize').textContent += g.points ? ' Its corners have been moved: its blue points move them again (click one, then drag its arrows).'
+      : ' Its blue points are its corners: click one, then drag its arrows to move it.';
   $('groundNote').textContent = `Made from numbers on ${look ? `${look.package}'s ${look.name.toLowerCase()}` : 'its donor\'s material'}: `
     + (g.shape === 'rock' ? 'it stands in the way and gives cover by its height, as the game\'s rocks do, and it doesn\'t break.'
       : 'units walk on it and it doesn\'t break.')
     + (g.shape === 'patch' ? ' Its top lies level with the ground it covers, its plate under it.' : '');
 }
 $('groundAnother').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, ground: anotherRock(st.generated.ground) } }));
+$('groundResetPoints').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, ground: resetRock(st.generated.ground) } }));
 $('groundTurn').onclick = () => changeWall(st => {
   const t = turnedGround(st.generated.ground, st.location, st.rotation);
   return { generated: { ...st.generated, ground: t.ground }, location: t.location, rotation: t.rotation };
@@ -11813,7 +11939,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
-        return [h.key, [...project(p), ...project(p.clone().addScaledVector(h.dir, units))]]; })) : {}; },
+        return [h.key, [...project(p), ...project(h.dir ? p.clone().addScaledVector(h.dir, units) : p)]]; })) : {}; },
+    rockPoint: () => (rockPoint ? { ...rockPoint, gizmo: pointGizmo.enabled, up: pointGizmo.showY } : null),
+    rockCorners: () => [...rockCorners.entries()].map(([k, v]) => [k, v?.then ? 'asking' : v]),
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
     slabPanelText: () => $('slabBox').hidden ? null : $('slabBox').innerText,
     buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
@@ -12069,6 +12197,7 @@ renderer.domElement.addEventListener('pointercancel', () => endLightDrag(false))
 // A press on a gizmo handle never also picks the piece behind it.
 renderer.domElement.addEventListener('pointerdown', e => {
   pointerStart = gizmo.busy() || (zoneGizmo.enabled && (zoneGizmo.dragging || zoneGizmo.axis !== null))
+    || (pointGizmo.enabled && (pointGizmo.dragging || pointGizmo.axis !== null))
     || (missionGizmo.enabled && (missionGizmo.dragging || missionGizmo.axis !== null)) ? null : [e.clientX,e.clientY];
 });
 renderer.domElement.addEventListener('pointerup', e => {
@@ -12460,6 +12589,7 @@ document.addEventListener('keydown', e => {
   if (volumeDrag) { if (key === 'escape') endVolumeDrag(false); e.preventDefault(); return; }
   if (coverDrag) { if (key === 'escape') endCoverDrag(false); e.preventDefault(); return; }
   if (wallDrag) { if (key === 'escape') endWallDrag(false); e.preventDefault(); return; }
+  if (rockPoint && key === 'escape') { if (!cancelPointDrag()) releaseRockPoint(); e.preventDefault(); return; }
   if (wallDrawing && key === 'escape') {
     if (wallDrawing.start) { try { renderer.domElement.releasePointerCapture(wallDrawing.pointerId); } catch { /* released */ }
       wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
@@ -12598,6 +12728,7 @@ renderer.setAnimationLoop(() => {
   updateVolumeHandles();
   updateCoverHandles();
   updateWallHandles();
+  placePointGizmo();
   drawCursorRings();
   if (lightsDirty && !soloOn && $('lighting').value !== 'neutral' && now - lastLightSync > 120) applyLighting();
   if (placing && ghostDirty) moveGhost();

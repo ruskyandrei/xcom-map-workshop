@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { GROUND, GROUND_LOOKS, ROCK_SEEDS, anotherRock, drawnGround, groundBox, groundWords, raisedGround, resizedGround, slopeOf,
-         slopeWords, toolGround, turnedGround } from '../web/ground.js';
+         slopeWords, toolGround, turnedGround, ROCK, POINTS_VERSION, pointsValid, movedPoint, versionedGround, resetRock } from '../web/ground.js';
 import { wallDirection } from '../web/walls.js';
 
 const origin = [-2784, -1920];
@@ -80,4 +80,69 @@ assert.match(slopeWords({ shape: 'ramp', x0: 0, x1: 384, y0: 0, y1: 96, height: 
 assert.match(slopeWords({ shape: 'ramp', x0: 0, x1: 96, y0: 0, y1: 96, height: 192 }), /no floor/);
 assert.equal(Math.round(slopeOf({ shape: 'ramp', x0: 0, x1: 96, y0: 0, y1: 96, height: 96 })), 45);
 assert.equal(groundWords({ shape: 'ramp', x0: 0, x1: 384, y0: 0, y1: 96, height: 96 }), 'Ramp, 4 tiles long and 1 tile wide, rising 96');
+// ---- a rock's moved points (look picker and rock points plan, R1)
+{
+  // 24 points in a 2 by 2 footprint: a ground ring of 7, the rest up to its height
+  const ring = Array.from({ length: ROCK.points }, (_, i) => {
+    const t = 2 * Math.PI * i / (i < ROCK.ring ? ROCK.ring : ROCK.points - ROCK.ring);
+    const r = i < ROCK.ring ? 80 : 60, z = i < ROCK.ring ? 0 : 40 + (i % 5) * 20;
+    return [96 + r * Math.cos(t), 96 + r * Math.sin(t), z];
+  });
+  const rock = { shape: 'rock', x0: 0, x1: 192, y0: 0, y1: 192, height: 120, seed: 4, points: ring };
+  assert.ok(pointsValid(rock) && toolGround(rock));
+  for (const bad of [ring.slice(1), [[300, 10, 0], ...ring.slice(1)], [[100, 100, 10], ...ring.slice(1)],
+                     [...ring.slice(0, 9), [100, 100, 130], ...ring.slice(10)], [...ring.slice(0, 9), [100, 100, -4], ...ring.slice(10)]])
+    assert.ok(!toolGround({ ...rock, points: bad }), JSON.stringify(bad[0]));
+  assert.ok(!toolGround({ ...rock, shape: 'block', height: 64 }));
+  // a point moved inside: the footprint as it was, its height the highest point's
+  let m = movedPoint(rock, ring, 10, [100, 90, 150]);
+  assert.deepEqual([m.ground.x1, m.ground.y1, m.ground.height, m.shift], [192, 192, 150, [0, 0]]);
+  assert.deepEqual(m.ground.points[10], [100, 90, 150]);
+  // a point of the ground ring stays on it; none goes below the ground
+  assert.equal(movedPoint(rock, ring, 2, [100, 90, 50]).ground.points[2][2], 0);
+  assert.equal(movedPoint(rock, ring, 12, [100, 90, -30]).ground.points[12][2], 0);
+  // past +x: the footprint grows by whole tiles, its corner stays
+  m = movedPoint(rock, ring, 12, [250, 96, 60]);
+  assert.deepEqual([m.ground.x1, m.ground.y1, m.shift], [288, 192, [0, 0]]);
+  assert.ok(toolGround(m.ground));
+  // past -y by a tile and a bit: two tiles added that way, its corner back by them, every point shifted the same
+  // (nothing else moves in the world)
+  m = movedPoint(rock, ring, 12, [96, -100, 60]);
+  assert.deepEqual([m.ground.y1, m.shift], [384, [0, -192]]);
+  assert.deepEqual(m.ground.points[0], [ring[0][0], ring[0][1] + 192, 0].map(v => Math.round(v * 1e4) / 1e4));
+  assert.deepEqual(m.ground.points[12], [96, 92, 60]);
+  assert.ok(toolGround(m.ground));
+  // no more than the tool's tiles: a point past them is kept at the edge
+  m = movedPoint({ ...rock, x1: 96 * GROUND.maxTiles }, ring, 12, [96 * GROUND.maxTiles + 500, 96, 60]);
+  assert.deepEqual([m.ground.x1, m.ground.points[12][0]], [96 * GROUND.maxTiles, 96 * GROUND.maxTiles]);
+  // the white handles stretch the points: a side a tile out (either side), the top up
+  const wider = resizedGround(rock, 'x1', 96).ground, back = resizedGround(rock, 'x0', 96);
+  assert.equal(wider.x1, 288);
+  assert.ok(Math.abs(wider.points[5][0] - ring[5][0] * 1.5) < 1e-3 && wider.points[5][1] === ring[5][1]);
+  assert.deepEqual(back.shift, [-96, 0]);
+  // (from x0: the far side stays where it was in the world, the corner 96 back)
+  assert.ok(Math.abs(back.ground.points[5][0] - 96 - ring[5][0] - (back.ground.points[5][0] - ring[5][0] - 96)) < 1e-9);
+  assert.ok(Math.abs((192 - ring[5][0]) * 1.5 - (288 - back.ground.points[5][0])) < 1e-3);
+  assert.ok(pointsValid(wider) && pointsValid(back.ground));
+  const taller = raisedGround(rock, 40);
+  assert.equal(taller.height, 160);
+  assert.ok(Math.abs(taller.points[12][2] - ring[12][2] * 160 / 120) < 1e-3 && taller.points[0][2] === 0);
+  // turned a quarter: (x, y) to (y, w - x); Another rock and Reset points clear them
+  const turned = turnedGround({ ...rock, x1: 288 }, [0, 0, 0], [0, 0, 0]).ground;
+  assert.deepEqual(turned.points[0].slice(0, 2), [ring[0][1], Math.round((288 - ring[0][0]) * 1e4) / 1e4]);
+  assert.ok(!('points' in anotherRock(rock)) && !('points' in resetRock(rock)) && anotherRock(rock).seed === 5);
+  // its request: POINTS_VERSION whatever its look while it has points, its look written out; back once cleared
+  const req = (version, ground) => ({ kind: 'ground', version, ground });
+  const { points: _, ...seeded } = rock;
+  assert.deepEqual(versionedGround(req(1, rock)), req(POINTS_VERSION, { ...rock, look: GROUND_LOOKS[0].id }));
+  assert.deepEqual(versionedGround(req(3, rock)), req(POINTS_VERSION, rock));
+  const donor = { ...rock, look: { mesh: 'A.B', material: 'A.M', measure: 1 } };
+  assert.deepEqual(versionedGround(req(2, donor)), req(POINTS_VERSION, donor));
+  assert.deepEqual(versionedGround(req(POINTS_VERSION, seeded)), req(3, seeded));
+  assert.deepEqual(versionedGround(req(POINTS_VERSION, { ...seeded, look: 'rock' })).version, 1);
+  assert.deepEqual(versionedGround(req(POINTS_VERSION, { ...seeded, look: donor.look })).version, 2);
+  assert.deepEqual(versionedGround(req(2, { ...seeded, look: donor.look })), req(2, { ...seeded, look: donor.look }));
+  const wall = { kind: 'fracWall', version: 3, wall: {} };
+  assert.equal(versionedGround(wall), wall);
+}
 console.log('ground: ok');

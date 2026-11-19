@@ -12,6 +12,10 @@ A shape's numbers are in its piece's frame (the tool puts the piece at the shape
   height    a block's top, a ramp's high edge or a rock's top over its bottom (1 to MAX_HEIGHT); a patch's is its
             look's thickness
   seed      a rock's: 0 to ROCK_SEEDS - 1 (each seed another rock)
+  points    a rock's, once its corners have been moved in the editor (look picker and rock points plan, R1): its
+            ROCK_POINTS points [[x, y, z], ...] in the piece's frame, which it is then the hull of instead of the
+            seed's; each within the footprint and between 0 and its height, the first ROCK_RING (its ground ring) on
+            the ground, z 0
   look      the material it is drawn in: a name (ground_looks.json; left out, the first), or a look given whole, a
             dict {'mesh' (the donor's mesh path), 'material' (its material's), 'measure' (ground_measure's VERSION),
             'recipe' (what ground_measure.measure gives, from the catalogue tools/bake/looks/ground.json or measured
@@ -59,6 +63,8 @@ STEEP = 45.0                                 # past this it is no floor
 EPS = 1e-4
 PATCH_LIFT = 3.0     # a patch's top over the ground it lies on (F-137)
 ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to ROCK_SEEDS - 1
+ROCK_POINTS = 24     # rock_points' count: rings of 7 (on the ground), 8, 6 and 3
+ROCK_RING = 7        # the first ROCK_RING of them are its ground ring, on the ground (so the rock stands flat)
 # the recipe a look without its own takes (ground_looks.json's looks name their own)
 DEFAULT_RECIPE = dict(repeat=256.0, slot=0, sections=1, thickness=8.0, colours=dict(outside='ffffffff', interior='ffffffff'),
                       lightmap=dict(density=0.12, margin=2, interiorDensity=1.0, block=4))
@@ -120,12 +126,37 @@ def check(shape):
         seed = shape.get('seed')
         if not (isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < ROCK_SEEDS):
             raise ValueError("a rock's seed is a whole number, 0 to %d (it has %r)" % (ROCK_SEEDS - 1, seed))
+    if 'points' in shape:
+        if shape['shape'] != 'rock':
+            raise ValueError('only a rock has points')
+        check_points(shape)
     return int(round(nx)), int(round(ny))
 
 
+def check_points(shape):
+    """A rock's moved points checked (ValueError): ROCK_POINTS of them, each [x, y, z] within its footprint and between
+    0 and its height, the first ROCK_RING on the ground."""
+    pts = shape['points']
+    number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
+    if not (isinstance(pts, list) and len(pts) == ROCK_POINTS
+            and all(isinstance(p, (list, tuple)) and len(p) == 3 and all(number(v) for v in p) for p in pts)):
+        raise ValueError("a rock's points are %d of [x, y, z]" % ROCK_POINTS)
+    x0, x1, y0, y1, h = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1', 'height'))
+    slack = 1e-3
+    for i, (x, y, z) in enumerate(pts):
+        if not (x0 - slack <= x <= x1 + slack and y0 - slack <= y <= y1 + slack):
+            raise ValueError("a rock's point %d (%g, %g) is outside its footprint" % (i, x, y))
+        if not -slack <= z <= h + slack:
+            raise ValueError("a rock's point %d is %g up: 0 to its height, %g" % (i, z, h))
+        if i < ROCK_RING and abs(z) > slack:
+            raise ValueError("a rock's point %d is of its ground ring: it stays on the ground (it is %g up)" % (i, z))
+
+
 def rock_points(shape):
-    """The points a rock is the hull of, from its seed: rings round its footprint's middle, every point within the
-    footprint and between 0 and its height, the highest at its height."""
+    """The points a rock is the hull of: its moved `points` when it has them, else from its seed: rings round its
+    footprint's middle, every point within the footprint and between 0 and its height, the highest at its height."""
+    if shape.get('points') is not None:
+        return [tuple(float(v) for v in p) for p in shape['points']]
     rng = random.Random(int(shape['seed']))
     x0, x1, y0, y1 = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1'))
     cx, cy, ax, ay, h = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, float(shape['height'])
@@ -149,7 +180,8 @@ def _rock(shape):
     points = [tuple(float(v) for v in hulls.cooker_vertex(p)) for p in rock_points(shape)]
     order, loops = hulls.physx_hull(points)
     if order is None or loops is None:
-        raise ValueError('the rock\'s points make no convex solid (seed %r)' % shape['seed'])
+        raise ValueError('the rock\'s points make no convex solid (%s)'
+                         % ('its moved points' if shape.get('points') is not None else 'seed %r' % shape['seed']))
     c = [points[i] for i in order]
     mid = tuple(sum(p[k] for p in c) / len(c) for k in range(3))
     faces = []
@@ -162,6 +194,20 @@ def _rock(shape):
     bottom = min(range(len(faces)), key=lambda i: _normal([c[j] for j in faces[i]])[2])
     faces.append(faces.pop(bottom))
     return c, faces
+
+
+def rock_corners(shape):
+    """A rock's points (rock_points: [(x, y, z)], ROCK_POINTS of them) and the indices of those that are its hull's
+    corners (the cooker's), in order: what the editor puts its blue dots on (look picker and rock points plan, R2). A
+    point inside the others is no corner."""
+    check(shape)
+    if shape['shape'] != 'rock':
+        raise ValueError('only a rock has corners to move')
+    pts = rock_points(shape)
+    order, _ = hulls.physx_hull([tuple(float(v) for v in hulls.cooker_vertex(p)) for p in pts])
+    if order is None:
+        raise ValueError('the rock\'s points make no convex solid')
+    return pts, sorted(order)
 
 
 def corners_and_faces(shape):

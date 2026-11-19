@@ -84,6 +84,37 @@ class Ground(unittest.TestCase):
         self.assertTrue(min(tilts) < 45 < max(tilts))
         self.assertNotEqual(ground.mesh_name(ROCK), ground.mesh_name(dict(ROCK, seed=8)))
 
+    def test_a_rock_with_moved_points_is_their_hull(self):
+        # (look picker and rock points plan, R1, R2) its points as the seed gives them make the same rock; a corner moved
+        # makes another, its hull's corners the points that stick out; a point pushed inside the others is no corner
+        seeded, corners = ground.rock_corners(ROCK)
+        self.assertEqual(len(seeded), ground.ROCK_POINTS)
+        self.assertTrue(all(p[2] == 0.0 for p in seeded[:ground.ROCK_RING]))
+        given = dict(ROCK, points=[list(p) for p in seeded])
+        self.assertEqual(ground.corners_and_faces(given), ground.corners_and_faces(ROCK))
+        self.assertEqual(ground.rock_corners(given), (seeded, corners))
+        top = max(range(len(seeded)), key=lambda i: seeded[i][2])
+        self.assertIn(top, corners)
+        moved = [list(p) for p in seeded]
+        moved[top] = [10.0, 10.0, 96.0]
+        out, faces = ground.corners_and_faces(dict(ROCK, points=moved))
+        self.assertIn((10.0, 10.0, 96.0), [tuple(round(v, 3) for v in c) for c in out])
+        self.assertNotEqual(ground.mesh_name(dict(ROCK, points=moved)), ground.mesh_name(ROCK))
+        inside = [list(p) for p in seeded]
+        i = next(c for c in corners if c >= ground.ROCK_RING and c != top)
+        inside[i] = [96.0, 48.0, 30.0]        # (the middle of the rock)
+        self.assertNotIn(i, ground.rock_corners(dict(ROCK, points=inside))[1])
+        self.assertTrue(gen_mesh.write(ground.build(dict(ROCK, points=moved))['mesh'], 0))
+        # the rules: 24 points, inside the footprint and between 0 and the height, the ground ring on the ground
+        for bad in (moved[:-1], moved + [moved[0]], [p[:2] for p in moved],
+                    [[300.0, 10.0, 10.0]] + moved[1:], moved[:8] + [[50.0, 50.0, 120.0]] + moved[9:],
+                    [[50.0, 50.0, 10.0]] + moved[1:], moved[:8] + [[50.0, 50.0, -5.0]] + moved[9:],
+                    moved[:8] + [[50.0, True, 10.0]] + moved[9:]):
+            with self.assertRaises(ValueError):
+                ground.check(dict(ROCK, points=bad))
+        with self.assertRaises(ValueError):
+            ground.check(dict(BLOCK, points=moved))
+
     def test_bad_numbers_are_refused(self):
         for bad in (dict(PATCH, shape='dome'), dict(PATCH, x1=100.0), dict(PATCH, x1=96.0 * (ground.MAX_TILES + 1)), dict(BLOCK, height=0),
                     dict(BLOCK, height=500.0), dict(RAMP, height=True), dict(PATCH, look='marble'), None,

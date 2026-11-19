@@ -6,7 +6,8 @@
 // high edge over its low one, a rock's top), `seed` (a rock's: each seed another rock), `look` (left out, the first). A
 // ramp rises along its frame's +x; the piece stands level, square to the world's axes (its donor's own pitch, roll and
 // yaw don't matter: the mesh is ours), and turns by quarter turns. Locations are game units (x, y, z up), rotations
-// rotator units (pitch, yaw, roll).
+// rotator units (pitch, yaw, roll). A rock whose corners were moved (look picker and rock points plan, R1) carries
+// `points`, its ROCK.points points in its frame, and its request is POINTS_VERSION whatever its look (versionedGround).
 import { TILE } from './poserule.js';
 import { wallRotation, wallDirection } from './walls.js';
 import { catalogued } from './looks.js';
@@ -58,14 +59,16 @@ export function groundBox(g) {
   const z = g.shape === 'patch' ? [PATCH_LIFT - (groundLookOf(g)?.thickness ?? 8), PATCH_LIFT] : [0, g.height];
   return [g.x0, g.x1, g.y0, g.y1, ...z];
 }
-/** Whether the numbers are ones the tool edits (x0 and y0 0, whole tiles, a height in range, a listed look). */
+/** Whether the numbers are ones the tool edits (x0 and y0 0, whole tiles, a height in range, a listed look; a rock's
+ *  moved points as pointsValid). */
 export function toolGround(g) {
   const whole = v => Math.abs(v / TILE - Math.round(v / TILE)) < 1e-6;
   if (!g || !GROUND_SHAPES.includes(g.shape) || g.x0 !== 0 || g.y0 !== 0 || !whole(g.x1) || !whole(g.y1) || !groundLookOf(g)) return false;
   const [nx, ny] = groundTiles(g);
   return nx >= 1 && ny >= 1 && nx <= GROUND.maxTiles && ny <= GROUND.maxTiles
     && (g.shape === 'patch' || (g.height >= 1 && g.height <= GROUND.maxHeight))
-    && (g.shape !== 'rock' || (Number.isInteger(g.seed) && g.seed >= 0 && g.seed < ROCK_SEEDS));
+    && (g.shape !== 'rock' || (Number.isInteger(g.seed) && g.seed >= 0 && g.seed < ROCK_SEEDS))
+    && (g.points === undefined || (g.shape === 'rock' && pointsValid(g)));
 }
 /** The shape a drag from `start` to `end` ([x, y] on the ground) draws: the rectangle between the tile edges nearest
  *  them (a click: one tile; at most GROUND.maxTiles each way), on the ground at `z`. A ramp rises toward the drag's end
@@ -104,16 +107,79 @@ export function resizedGround(g, side, delta) {
   const step = Math.max(1 - n, Math.min(GROUND.maxTiles - n, Math.round(delta / TILE)));
   const shift = [0, 0];
   if (side[1] === '0') shift[axis] = -step * TILE;
-  return { ground: { ...g, [`${side[0]}1`]: (n + step) * TILE }, shift };
+  // (a rock's moved points stretch with it, from the side that stays: x * new / old either way, as the frame's 0 moves
+  // with the near side)
+  const points = g.points && g.points.map(p => p.map((v, k) => (k === axis ? tidy(v * (n + step) / n) : v)));
+  return { ground: { ...g, [`${side[0]}1`]: (n + step) * TILE, ...(points ? { points } : {}) }, shift };
 }
 /** The shape with its height (a block's top, a ramp's high edge) moved by `delta`, in steps of GROUND.step, kept to
  *  GROUND.minHeight..maxHeight; a patch is left as it is. */
 export function raisedGround(g, delta) {
   if (g.shape === 'patch') return g;
-  return { ...g, height: Math.max(GROUND.minHeight, Math.min(GROUND.maxHeight, round(g.height + delta, GROUND.step))) };
+  const height = Math.max(GROUND.minHeight, Math.min(GROUND.maxHeight, round(g.height + delta, GROUND.step)));
+  // (a rock's moved points stretch up with it)
+  const points = g.points && g.points.map(([x, y, z]) => [x, y, tidy(z * height / g.height)]);
+  return { ...g, height, ...(points ? { points } : {}) };
 }
-/** Another rock in the same footprint and height: the next seed. */
-export const anotherRock = g => ({ ...g, seed: ((g.seed ?? 0) + 1) % ROCK_SEEDS });
+/** Another rock in the same footprint and height: the next seed, its moved points cleared (D-6). */
+export const anotherRock = g => { const { points: _, ...rest } = g; return { ...rest, seed: ((g.seed ?? 0) + 1) % ROCK_SEEDS }; };
+/** The rock as its seed makes it: its moved points cleared ("Reset points"). */
+export const resetRock = g => { const { points: _, ...rest } = g; return rest; };
+
+// ---- a rock's moved points (look picker and rock points plan, R1)
+/** A rock's points (ground.py ROCK_POINTS: rings of 7, 8, 6 and 3), the first `ring` its ground ring, on the ground. */
+export const ROCK = { points: 24, ring: 7 };
+/** The request version of a rock with moved points, whatever its look (tools/editor/compiler.py POINTS_VERSION). */
+export const POINTS_VERSION = 4;
+const PLAIN_GROUND = 3, DONOR_GROUND = 2;
+/** Whether a rock's moved points are ones it can be made of (ground.py check_points): ROCK.points of [x, y, z], each
+ *  within its footprint and between 0 and its height, its ground ring on the ground. */
+export function pointsValid(g) {
+  const pts = g.points, slack = 1e-3;
+  return Array.isArray(pts) && pts.length === ROCK.points && pts.every((p, i) => Array.isArray(p) && p.length === 3
+    && p.every(v => typeof v === 'number' && Number.isFinite(v))
+    && p[0] >= g.x0 - slack && p[0] <= g.x1 + slack && p[1] >= g.y0 - slack && p[1] <= g.y1 + slack
+    && p[2] >= -slack && p[2] <= g.height + slack && (i >= ROCK.ring || Math.abs(p[2]) <= slack));
+}
+/** The rock with point `index` of `points` (its own, or its seed's from the server) moved to `to` ([x, y, z] in its
+ *  frame): a point of the ground ring stays on the ground, none goes below it; past the footprint the footprint grows
+ *  by whole tiles (D-4), toward -x or -y its corner moving back by the tiles added and every point shifted by as much,
+ *  so nothing else moves in the world; up to GROUND.maxTiles, a point past that kept at the edge. Its height is its
+ *  highest point's (at least GROUND.minHeight, at most GROUND.maxHeight). Gives { ground, shift: [dx, dy] } (how far
+ *  its corner moves, in its frame, as resizedGround's). */
+export function movedPoint(g, points, index, to) {
+  const pts = points.map(p => [...p]);
+  pts[index] = [to[0], to[1], index < ROCK.ring ? 0 : Math.max(0, Math.min(GROUND.maxHeight, to[2]))];
+  const out = { ...g }, shift = [0, 0];
+  for (const k of [0, 1]) {
+    let n = Math.round(g[k ? 'y1' : 'x1'] / TILE);
+    const lo = Math.min(...pts.map(p => p[k])), hi = Math.max(...pts.map(p => p[k]));
+    const below = Math.min(GROUND.maxTiles - n, lo < -1e-6 ? Math.ceil(-lo / TILE - 1e-9) : 0);
+    n += below;
+    if (below) { for (const p of pts) p[k] += below * TILE; shift[k] = -below * TILE; }
+    const above = Math.min(GROUND.maxTiles - n, hi + below * TILE > n * TILE + 1e-6 ? Math.ceil((hi + below * TILE - n * TILE) / TILE - 1e-9) : 0);
+    n += above;
+    for (const p of pts) p[k] = Math.max(0, Math.min(n * TILE, p[k]));
+    out[k ? 'y1' : 'x1'] = n * TILE;
+  }
+  out.height = tidy(Math.max(GROUND.minHeight, ...pts.map(p => p[2])));
+  out.points = pts.map(p => p.map(tidy));
+  return { ground: out, shift };
+}
+/** A made ground piece's request with the version its numbers need: POINTS_VERSION while a rock has moved points (its
+ *  look then written out: none for a plain one, the first look's id rather than left out), and back to its look's
+ *  (a look id 1, a donor look DONOR_GROUND, none: plain) once they are cleared. Other requests as they are. */
+export function versionedGround(generated) {
+  if (generated?.kind !== 'ground' || !generated.ground) return generated;
+  const g = generated.ground, look = g.look;
+  if (g.points) {
+    if (generated.version === POINTS_VERSION) return generated;
+    if (generated.version === PLAIN_GROUND) { const { look: _, ...rest } = g; return { ...generated, version: POINTS_VERSION, ground: rest }; }
+    return { ...generated, version: POINTS_VERSION, ground: look === undefined ? { ...g, look: GROUND_LOOKS[0].id } : g };
+  }
+  if (generated.version !== POINTS_VERSION) return generated;
+  return { ...generated, version: look === undefined ? PLAIN_GROUND : typeof look === 'object' ? DONOR_GROUND : 1 };
+}
 /** The shape turned a quarter turn anticlockwise about its footprint's middle: its frame's x and y swap ends, so a ramp
  *  rises the next way round. Gives { ground, location, rotation }. */
 export function turnedGround(g, location, rotation) {
@@ -125,7 +191,9 @@ export function turnedGround(g, location, rotation) {
   // the new frame's x runs the old y's length
   const nw = h, nh = w;
   const at = [mid[0] - ex * nw / 2 - qx * nh / 2, mid[1] - ey * nw / 2 - qy * nh / 2, location[2]];
-  return { ground: { ...g, x1: nw, y1: nh }, location: at.map(tidy), rotation: turned };
+  // (a rock's moved points turn with it: the old (x, y) is the new (y, w - x))
+  const points = g.points && g.points.map(([x, y, z]) => [y, tidy(w - x), z]);
+  return { ground: { ...g, x1: nw, y1: nh, ...(points ? { points } : {}) }, location: at.map(tidy), rotation: turned };
 }
 /** A ramp's slope in degrees (0 for a patch or block). */
 export const slopeOf = g => (g.shape === 'ramp' ? Math.atan2(g.height, g.x1 - g.x0) * 180 / Math.PI : 0);

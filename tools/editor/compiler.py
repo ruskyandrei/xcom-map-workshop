@@ -106,6 +106,7 @@ import piece_flags  # noqa: E402
 if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
 import looks  # noqa: E402
+import ground as ground_shapes  # noqa: E402
 import made_blasts  # noqa: E402
 import made_cursors  # noqa: E402
 import made_split  # noqa: E402
@@ -161,12 +162,16 @@ GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 # the generated request versions each kind takes (tools/bake/frac_walls.py VERSIONS, OTHER_VERSIONS); a look named by
 # its donor (custom geometry plan, M4: {mesh, measure}, looks.py) comes with a wall's version 3 and a slab's or ground
 # shape's version 2, which always name one
-GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4), 'fracSlab': (1, 2, 3), 'ground': (1, 2, 3), 'relit': (1,)}
+GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4), 'fracSlab': (1, 2, 3), 'ground': (1, 2, 3, 4), 'relit': (1,)}
 DONOR_LOOK_SINCE = {'fracWall': 3, 'fracSlab': 2, 'ground': 2}
 # a made piece with no look chosen (custom geometry editing plan, B2, 19 November 2026): drawn plain in the editor, its
 # numbers its kind's default look's as version 1 has them; the Build makes it in that look (D-1) and warns made-no-look,
 # and the copy goes on as version 1
 PLAIN_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
+# a rock whose corners were moved in the editor (look picker and rock points plan, R1): its numbers carry `points`, and
+# its request is this version whatever its look (a look id, one named by its donor, or none: plain), so an editor from
+# before refuses it rather than make the seed's rock; it goes on to the Build as the version its look gives
+POINTS_VERSION = {'ground': 4}
 
 
 def donor_shape(kind, numbers):
@@ -1461,13 +1466,15 @@ class Compiler:
         # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet; a wall's
         # version 3 and a slab's or ground shape's version 2 name the look by its donor)
         ok = isinstance(g, dict) and g.get('kind') in GENERATED_VERSIONS and g.get('version') in GENERATED_VERSIONS[g['kind']]
-        # (a plain piece's numbers are checked as version 1's)
-        plain = ok and g['version'] == PLAIN_VERSION.get(g['kind'])
-        version = 1 if plain else g['version'] if ok else None
+        # (a plain piece's numbers are checked as version 1's; a rock's with points as its look's version)
+        points = ok and g['version'] == POINTS_VERSION.get(g['kind'])
+        look = (g.get('ground') or {}).get('look') if points and isinstance(g.get('ground'), dict) else None
+        plain = ok and (g['version'] == PLAIN_VERSION.get(g['kind']) or (points and look is None))
+        version = 1 if plain else (2 if isinstance(look, dict) else 1) if points else g['version'] if ok else None
         if ok and g['kind'] == 'fracSlab':
             ok = self.slab_valid(g.get('slab'), num, version)
         elif ok and g['kind'] == 'ground':
-            ok = self.ground_valid(g.get('ground'), num, version)
+            ok = self.ground_valid(g.get('ground'), num, version, points)
         elif ok and g['kind'] == 'fracWall':
             w = g.get('wall')
             ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
@@ -1502,6 +1509,8 @@ class Compiler:
             self.warn('made-no-look', "%s has no look chosen (drawn plain in the editor): the Build makes it in %s, its "
                       "kind's default look; choose its look in its piece panel" % (name, default), **where)
             g = rec['generated'] = dict(g, version=1)
+        elif ok and points:
+            g = rec['generated'] = dict(g, version=version)
         if ok:
             kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}.get(g['kind'])
             numbers = g.get(kind) if kind else None
@@ -1525,10 +1534,20 @@ class Compiler:
         return False
 
     @staticmethod
-    def ground_valid(s, num, version=1):
-        """Whether a ground shape's numbers are well formed (tools/bake/ground.py check is the Build's)."""
+    def ground_valid(s, num, version=1, points=False):
+        """Whether a ground shape's numbers are well formed (tools/bake/ground.py check is the Build's); `points`: a
+        rock's request of POINTS_VERSION, which carries its moved points (and no other request does)."""
         if not (isinstance(s, dict) and s.get('shape') in GROUND_SHAPES and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
             return False
+        if ('points' in s) != bool(points) or (points and s['shape'] != 'rock'):
+            return False
+        if points:
+            try:
+                if not num(s.get('height')):
+                    return False
+                ground_shapes.check_points(s)
+            except (ValueError, TypeError, KeyError):
+                return False
         whole = all(abs((s[b] - s[a]) / 96.0 - round((s[b] - s[a]) / 96.0)) < 1e-4
                     and 1 <= round((s[b] - s[a]) / 96.0) <= GROUND_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
         height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)

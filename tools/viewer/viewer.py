@@ -527,9 +527,16 @@ class Handler(SimpleHTTPRequestHandler):
     # Pieces the Build makes from numbers, drawn as it makes them (generated.py): GET /generated/fracwall.glb?wall=<the
     # wall's numbers as JSON> is a fracturing wall's mesh (an added copy's `generated`, kind fracWall), in slot order;
     # GET /generated/fracslab.glb?slab=<numbers> a floor or roof slab's (kind fracSlab); /generated/ground.glb?ground=
-    # <numbers> a ground shape's (kind ground).
+    # <numbers> a ground shape's (kind ground); GET /generated/ground-corners.json?ground=<a rock's numbers> its points
+    # and which are its corners ({points, corners}: the editor's blue dots, look picker and rock points plan R2).
     def handle_generated(self, method):
         split = urlsplit(self.path)
+        if split.path == '/generated/ground-corners.json' and method == 'GET':
+            try:
+                self.send_json(200, self.generated_meshes.ground_corners((parse_qs(split.query).get('ground') or [''])[0]))
+            except (GeneratedError, ValueError) as error:
+                self.send_json(400, dict(error=f"The rock's corners can't be read: {error}"))
+            return True
         kinds = {'/generated/fracwall.glb': ('wall', 'fracwall'), '/generated/fracslab.glb': ('slab', 'fracslab'),
                  '/generated/ground.glb': ('ground', 'ground')}
         if split.path not in kinds: return False

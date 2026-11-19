@@ -300,6 +300,32 @@ class GeneratedTests(unittest.TestCase):
         spec, report = compiled([made(block)])          # on a fracturing piece
         self.assertIn('malformed', codes(report))
 
+    def test_a_rock_with_moved_points_goes_on_as_its_looks_version(self):
+        # (look picker and rock points plan, R1) a rock whose corners were moved: version 4 whatever its look, its
+        # points checked (ground.check_points); to the Build as its look's version, the points kept; plain (no look)
+        # warned as any plain piece; points in another version, or version 4 without them, or out of the footprint, left out
+        import ground as ground_shapes
+        numbers = dict(shape='rock', x0=0.0, x1=96.0, y0=0.0, y1=96.0, height=96.0, seed=3)
+        pts, _ = ground_shapes.rock_corners(numbers)
+        points = [list(p) for p in pts]
+        plain = dict(kind='ground', version=4, ground=dict(numbers, points=points))
+        named = dict(kind='ground', version=4, ground=dict(numbers, points=points, look='rock'))
+        spec, report = compiled([made(plain, name='XComLevelActor_1', at=(0, 768, 0)),
+                                 made(named, name='XComLevelActor_1', serial=2, at=(0, 960, 0))])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertIn('made-no-look', warned(report))
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        gens = [c['generated'] for c in native['copies']]
+        self.assertEqual([(g['version'], g['ground']['points'], g['ground'].get('look')) for g in gens],
+                         [(1, points, None), (1, points, 'rock')])
+        far = [list(p) for p in points]
+        far[9] = [200.0, 10.0, 10.0]
+        for bad in (dict(kind='ground', version=1, ground=dict(numbers, points=points)), dict(kind='ground', version=4, ground=numbers),
+                    dict(plain, ground=dict(numbers, points=far)), dict(plain, ground=dict(numbers, points=points[:-1])),
+                    dict(plain, ground=dict(numbers, shape='block', points=points))):
+            spec, report = compiled([made(bad, name='XComLevelActor_1')])
+            self.assertIn('malformed', codes(report), bad)
+
     def test_a_wall_on_a_wall_is_noted(self):
         # (F-127) a made wall whose bottom is at another's top, over it, is noted: it stays when the one under it
         # breaks. The test template is 100 tall about its pivot; the third wall stands 100 over the second's top

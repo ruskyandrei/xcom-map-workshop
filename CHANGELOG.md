@@ -8,6 +8,33 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Rocks shaped by their points: blue points on a rock's corners and the move gizmo** (look picker plan, stages R1 to
+  R3; branch `fracturing-wall-poc`).
+  - [ground.py](tools/bake/ground.py): a rock's numbers can carry `points`, its 24 points in its frame, which it is
+    then the hull of instead of its seed's (`check_points`: within its footprint and 0 to its height, its ground ring
+    of 7 on the ground); `rock_corners` gives its points and which are hull corners.
+  - [generated.py](tools/viewer/generated.py), [viewer.py](tools/viewer/viewer.py): the ground mesh takes the points;
+    `GET /generated/ground-corners.json?ground=` answers a rock's points and corners.
+  - [compiler.py](tools/editor/compiler.py): a rock with points is ground request version 4 whatever its look, so an
+    editor from before refuses it; it goes on to the Build as its look's version with the points.
+  - [ground.js](tools/viewer/web/ground.js): `movedPoint` (a point of the foot stays on the ground; past the footprint
+    the footprint grows by whole tiles, toward -x or -y its corner moving back so nothing else moves in the world; the
+    height follows the highest point), the white handles stretch the points, Turn turns them, Another rock and
+    Reset points clear them, `versionedGround` keeps the request's version right.
+  - [app.js](tools/viewer/web/app.js), [index.html](tools/viewer/web/index.html): a picked rock shows a blue point on
+    each corner; a click picks one (white) and the view's move gizmo stands on it (no up arrow for a point of the foot;
+    Shift: steps of 8; Esc lets it go); the rock is drawn again from the server as it is dragged, one undo step a drag;
+    the ground panel says what the points do and has Reset points.
+  - Checked: bake tests ([test_ground.py](tools/bake/tests/test_ground.py): the seed's points give the same rock, a
+    moved corner another, a point pushed inside is no corner, the rules); compiler tests (version 4 to the Build, bad
+    points left out); viewer tests (the corners answer); node tests ([ground_test.mjs](tools/viewer/tests/ground_test.mjs):
+    moves, growing with the corner shift, stretching, turning, versions); on a test server by hand, a rock of the
+    user's project: 23 dots, the top corner dragged up (version 4, the height following), a corner dragged far back
+    (5 tiles grown to 9, an untouched point in the same place in the world), each drag one undo step, Reset points,
+    Esc. The `walls` browser check passed again.
+  - Known gaps: the guide doesn't describe the look picker or the rock points yet; no game run (a rock with moved
+    points is made by the same hull, mesh and collision as a seeded one, played in EXP-77 and EXP-79).
+
 - **EXP-83 run A played: broken roofs stay whole in battle; F-139 verified** (branch `fracturing-wall-poc`).
   - [EXP-83](research/experiments/EXP-83-kept-roofs.md) run A, unattended in the lab copy; every check passed:
     - the map loads with the bar's roof drawing its cut mesh (our package `XComMapEdCut`), its hole drawn and the tiles

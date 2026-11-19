@@ -232,6 +232,8 @@ def ground_numbers(text):
         out['height'] = float(g['height'])
     if g['shape'] == 'rock':
         out['seed'] = int(g['seed'])
+        if g.get('points') is not None:
+            out['points'] = [[float(v) for v in p] for p in g['points']]
     if g.get('look', ground_shapes.DEFAULT_LOOK) != ground_shapes.DEFAULT_LOOK:
         out['look'] = g['look']
     return out
@@ -354,6 +356,16 @@ class Meshes:
         built, sections = with_recipe('ground', shape)
         return self.made(key, lambda: [(ground_shapes.build(built), (0.0, 0.0, 0.0), [])], sections or GROUND_SLOTS,
                          'ground shape')
+
+    def ground_corners(self, text):
+        """A rock's points and corners (ground.rock_corners) for the editor's blue dots: {points: [[x, y, z]],
+        corners: [index]}."""
+        shape = ground_numbers(text)
+        try:
+            points, corners = ground_shapes.rock_corners(with_recipe('ground', shape)[0])
+        except ValueError as error:
+            raise GeneratedError(str(error))
+        return dict(points=[[round(v, 4) for v in p] for p in points], corners=corners)
 
     def made(self, key, build, slots, what):
         try:

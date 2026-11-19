@@ -207,6 +207,33 @@ class Ground(unittest.TestCase):
         with self.assertRaises(generated.GeneratedError):
             generated.Meshes().ground(json.dumps(dict(numbers, seed='x')))
 
+    def test_a_rocks_corners_are_its_meshs_each_with_its_points_index(self):
+        # (look picker and rock points plan, R2) the points (the seed's, or moved ones), and which are hull corners: the
+        # mesh's corners are those points; a rock with points is drawn from them
+        numbers = dict(shape='rock', x0=0, x1=192, y0=0, y1=96, height=96, seed=5)
+        answer = generated.Meshes().ground_corners(json.dumps(numbers))
+        self.assertEqual(len(answer['points']), 24)
+        self.assertTrue(set(answer['corners']) <= set(range(24)) and len(answer['corners']) >= 8, answer['corners'])
+        doc = gltf(generated.Meshes().ground(json.dumps(numbers)))
+        pos = doc['accessors'][doc['meshes'][0]['primitives'][0]['attributes']['POSITION']]
+        corner = lambda p: [p[0], p[2], p[1]]       # (the file's axes: x, up, y)
+        tops = {tuple(round(v, 1) for v in answer['points'][i]) for i in answer['corners'] if answer['points'][i][2] > 0}
+        self.assertIn(tuple(round(v, 1) for v in corner(pos['max']))[2], {t[2] for t in tops})
+        moved = [list(p) for p in answer['points']]
+        top = max(range(24), key=lambda i: moved[i][2])
+        moved[top] = [20.0, 20.0, 90.0]
+        given = dict(numbers, points=moved)
+        self.assertEqual(generated.ground_numbers(json.dumps(given))['points'][top], [20.0, 20.0, 90.0])
+        again = generated.Meshes().ground_corners(json.dumps(given))
+        self.assertEqual(again['points'][top], [20.0, 20.0, 90.0])
+        self.assertIn(top, again['corners'])
+        doc = gltf(generated.Meshes().ground(json.dumps(given)))
+        pos = doc['accessors'][doc['meshes'][0]['primitives'][0]['attributes']['POSITION']]
+        self.assertLess(pos['max'][1], 96 - 1)              # (its top now the highest other point, under 96)
+        for bad in (dict(numbers, shape='block', height=64), dict(given, points=moved[:-1])):
+            with self.assertRaises(generated.GeneratedError):
+                generated.Meshes().ground_corners(json.dumps(bad))
+
     def test_the_numbers_are_kept_in_one_spelling_and_bad_ones_refused(self):
         self.assertEqual(generated.ground_numbers(json.dumps(dict(shape='patch', x0=0, x1=96, y0=0, y1=96, height=5))),
                          dict(shape='patch', x0=0.0, x1=96.0, y0=0.0, y1=96.0))
