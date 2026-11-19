@@ -8,6 +8,23 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **Map pack cards: a writer and a reader** (LWR map packs, stage C2; branch `lwr-map-packs`). LWR 3.00.00 beta 15
+  reads map packs from card files, `LWRMapPack_0000.upk` to `LWRMapPack_9999.upk`, found in any folder under
+  `CookedPCConsole`. [pack_card.py](tools/upk/pack_card.py) writes one from map, picture and landing lines and reads
+  one back:
+  - `parse_record` reads a `Maps=`, `Pictures=` or `LZArray=` ini line (keys without regard to capitals, nested
+    brackets, `key[n]`);
+  - `card` writes the package: every field of every line, a gap in a line's streamed maps filled with empty
+    elements, the ship type as a number, and names ending in `_<number>` stored as the engine keeps them (a base and
+    the number), so a map family such as `CSmallScout_Farm_2001` equals the name the game makes from text;
+  - the same lines give the same bytes (the package's GUID comes from its contents);
+  - `read` gives the lines back, and `enum_warnings` names enum values the game's script lacks.
+  - Checked: [test_pack_card.py](tools/upk/tests/test_pack_card.py) (26 tests): lines parsed, cards written and read
+    back, a fixed card's bytes, every map and landing line of the configured LWR install through a card and back with
+    its enum values found in the game's script, and both ways against the LWR team's reference writer (a private
+    copy; those tests skip without it).
+  - Not yet read by the game: that is the next stage's run on the beta 15 copy.
+
 - **EXP-84 run A played: every check passed** (the short game run before the custom geometry branch goes into main).
   [EXP-84](research/experiments/EXP-84-made-flags-rocks-gaps.md):
   - flags on made pieces: a made wall with Gives cover off gives none and one with Blocks sight off is seen through,
