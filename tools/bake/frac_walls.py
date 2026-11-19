@@ -758,6 +758,20 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
                           made_blasts.chunks_value(built, gone))
 
 
+def keeps_chunks(p, comp):
+    """Whether a fracturing component keeps its fragments (`bPreventChunkRemoval`, its own or its archetype's: the
+    bar's roof, most of the game's floors and roofs)."""
+    return bool(p.effective(comp, 'bPreventChunkRemoval', False))
+
+
+def allow_chunk_removal(g, walker, data, start):
+    """A broken piece's component bytes with `bPreventChunkRemoval` saved off (F-138: while it is on, the fragments
+    saved painted out are drawn in the game, and a blast takes none away)."""
+    import native_lights
+    return bytes(native_lights.set_property(walker, g, bytearray(data), start, 'bPreventChunkRemoval', 'BoolProperty',
+                                            None, b'\x00'))
+
+
 def painted_arrays(g, walker, data, start, visible=None, chunks=None):
     """A component's bytes `data` (its tagged properties from `start`) with its EditorPaintedVisibleFragments and
     DestroyedChunks taken out and, when given, `visible` and `chunks` (their values: made_blasts) put in before its
@@ -1139,6 +1153,12 @@ def add_walls(g, p, items, grid, bake=True):
         gone = [] if plain else made_blasts.hidden(out, item['generated'].get('blasts'))
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
                                             shadow, plain=plain, gone=gone))
+        # a broken piece whose donor keeps its fragments lets them go (F-138)
+        unkept = bool(gone) and keeps_chunks(p, comp_old)
+        if unkept:
+            ec = p.exports[comp_old - 1]
+            g.relocate(comp_new, allow_chunk_removal(g, walker, g.export_data(comp_new),
+                                                     legacy_props.props_start(p.data, ec, p.names) - ec['off']))
         if plain:
             records.append(dict(kind='ground', copy=info['actor'], original=item['original'], openings=[], group=0, retyped=retyped,
                                 label=item.get('label'), mesh=made[name], meshName=name, bodySetup=made[name] + 1,
@@ -1175,7 +1195,8 @@ def add_walls(g, p, items, grid, bake=True):
                             bodySetup=made[name] + 1, fragments=out['counts']['fragments'],
                             vertices=out['counts']['vertices'], triangles=out['counts']['triangles'],
                             solids=len(out['solids']), columns=len(cols), painted=paint is not None,
-                            broken=len(gone), box=wall_box, lightmapRect=out['lightmapRect'],
+                            broken=len(gone), **({'chunksLet': True} if unkept else {}), box=wall_box,
+                            lightmapRect=out['lightmapRect'],
                             light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
                                    else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
                             shadowMap=(None if shadow is None else

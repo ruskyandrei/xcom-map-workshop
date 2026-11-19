@@ -1015,6 +1015,18 @@ class Broken(unittest.TestCase):
         self.assertEqual(self.arrays('Whole'), (None, None))
         self.assertFalse(self.rec['Whole'].get('broken'))
 
+    def test_a_broken_roof_lets_its_fragments_go(self):
+        # (F-138) the bar's roof keeps its fragments (bPreventChunkRemoval): the broken copy saves it off, the whole
+        # one keeps the donor's; the wall's donor has no such setting
+        q = self.q
+        comp = lambda label: q.own(self.sec[label], 'FracturedStaticMeshComponent')
+        self.assertIs(q.own(comp('Roof'), 'bPreventChunkRemoval'), False)
+        self.assertTrue(self.rec['Roof'].get('chunksLet'))
+        self.assertIs(q.own(comp('Whole'), 'bPreventChunkRemoval'), True)
+        self.assertFalse(self.rec['Whole'].get('chunksLet'))
+        self.assertIsNone(q.own(comp('Wall'), 'bPreventChunkRemoval'))
+        self.assertFalse(self.rec['Wall'].get('chunksLet'))
+
     def test_the_export_reads_the_mask(self):
         # the viewer's export (export.py component) draws a component with the array saved: its count the mesh's
         q = self.q
@@ -1054,8 +1066,11 @@ class MapBroken(unittest.TestCase):
         out = Path(cls.tmp.name)
         copies = [dict(actor=cls.ROOF, label='Moved', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
                        blasts=cls.blasts)]
+        # (and the bar's roof, which keeps its fragments, broken where it stands: F-138)
+        cls.roof3_blasts = [dict(at=[0.0, 0.0, 0.0], radius=200.0)]
         cls.m = native_copy.build(BAR, out, 'FracMapBroken', copies,
-                                  piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts)])
+                                  piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts),
+                                                dict(name='XComFracLevelActor_3', blasts=cls.roof3_blasts)])
         cls.q = Package(out / 'FracMapBroken.upk')
         cls.moved = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}['Moved']
         cls.roof = cls.q.by_name[native_copy.PL + cls.ROOF]
@@ -1088,9 +1103,18 @@ class MapBroken(unittest.TestCase):
     def test_the_roof_is_broken_where_it_stands(self):
         self.check(self.roof)
         rec = self.m['nativeCopies']['pieceBlasts']
-        (piece,) = rec['inPlace']
+        piece, roof3 = rec['inPlace']
         self.assertEqual((piece['label'], piece['knocked'], piece['hidden']), (self.ROOF, len(self.knocked), len(self.want)))
         self.assertTrue(rec['tiles'])
+        # the bar's roof keeps its fragments: broken, it lets them go (F-138); XComFracLevelActor_5 has no such setting
+        import native_copy
+        q = self.q
+        self.assertEqual(roof3['label'], 'XComFracLevelActor_3')
+        self.assertTrue(roof3['knocked'] > 0 and roof3.get('chunksLet'))
+        self.assertIs(q.own(q.own(q.by_name[native_copy.PL + 'XComFracLevelActor_3'], 'FracturedStaticMeshComponent'),
+                            'bPreventChunkRemoval'), False)
+        self.assertFalse(piece.get('chunksLet'))
+        self.assertIsNone(q.own(q.own(self.roof, 'FracturedStaticMeshComponent'), 'bPreventChunkRemoval'))
 
     def test_the_moved_copy_is_broken(self):
         self.check(self.moved)

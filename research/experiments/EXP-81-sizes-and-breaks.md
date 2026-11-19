@@ -1,6 +1,7 @@
 # EXP-81: made walls and floors past the game's sizes, and made walls and roofs built broken (custom geometry editing plan, E4 and E5)
 
-Date: 19 November 2026. Status: **run A prepared**. The custom geometry editing plan's stages E4 (any size: the Build
+Date: 19 November 2026. Status: **run A played: five checks passed; the made roof's painted-out fragments are drawn
+in the game ([F-138](../findings-register.md)); a grenade on a made roof slab left it looking whole**. The custom geometry editing plan's stages E4 (any size: the Build
 cuts a made wall into walls of at most 16 tiles joined end to end and its look's storeys stacked, and a floor or roof
 into slabs of at most 16 by 16 side by side, tools/bake/made_split.py) and E5 (Break: blasts saved on a made piece,
 the Build writing the fragments they knock out as EditorPaintedVisibleFragments and DestroyedChunks, as the game's
@@ -55,4 +56,36 @@ map's corner (-2785, -1921, -1): tile centres at x -2737 + 96 i, y -1873 + 96 j.
 
 ## Result
 
-Not yet played.
+Run A, played unattended in the lab copy (the game-test skill), staged by the editor's Play in game on a dry-play
+test server: the Abduction mission, the squad "EXP-64 six", invincibility on, Sectoid pods (two of them in the room).
+Pictures are in `<lab>\hidden-runs\exp81-runA` with the agent's report; the shots below were checked against it.
+
+1. **Load: passed.** `LoadMap: EXP81SizesAndBreaks` and the intro with no crash. The Build's renamed pieces
+   (XComDecoFracLevelActor_18 to _26, XComFracLevelActor_206 to _208) appear only in the routine "Cooking Convex"
+   lines.
+2. **L's joint: passed.** From both sides, high and low, the joint can't be found: the tiled face's diamonds run on
+   in one even row and the grid lines without a break, and the brick-and-panelling face is one face, evenly lit.
+3. **A break across L's joint: passed.** A grenade by the joint took the lower storey away on both sides of x -384;
+   the upper storey stayed spanning the hole, as the game's walls do (EXP-75).
+4. **T: passed.** Four storeys stand, the joint a solid dark band at 400 up with nothing seen through it. A grenade
+   at its foot took nearly all the lowest storey away; the lower piece's upper storey and the whole upper piece stood
+   over the hole.
+5. **B's hole: passed.** Drawn from both sides as a jagged hole down to the ground, the lot seen through it. A soldier
+   walked through it (one tile, (-1393, -721) to (-1393, -625)); on the hole's tile he had no cover (cover value 0),
+   on the tile beside it high cover toward the wall (cover value 50); a shot through it from three tiles hit (100%).
+6. **The roof: its hole is not drawn (failed); a soldier on the roof: unclear; the doorway walk passed.** Seen from
+   above the building, close and from the north, the roof's paving runs on unbroken over its middle, where 3 of its
+   15 fragments are saved painted out; nothing of the room is seen through it. The cursor never picked the roof's top
+   (every readback on cursor floors 1 to 3 was the room's floor, 64), so no soldier was put on it. A soldier walked in
+   through the doorway.
+7. **A break across F's joint: unclear.** A soldier stood on F (264 up) and a grenade was thrown onto F's level by the
+   joint; afterwards both slabs looked whole from above and low, and he still stood there. Whether the grenade burst
+   on F was not settled.
+
+Findings:
+- [F-138](../findings-register.md): the made roof's painted-out fragments are drawn. Its component, a copy of the
+  bar's roof's, keeps its fragments (`bPreventChunkRemoval`); B's wall's donor has no such setting, and the copy of the
+  bar's upstairs floor (no such setting either) broke visibly in EXP-76. Check 7 fits the same reading. Fix
+  candidate: a piece built broken has the setting turned off; played in [EXP-82](EXP-82-map-breaks.md).
+- The cursor not picking a made roof that is a building's floor 1 at 194 (in EXP-76 and EXP-80 one at 194 was
+  picked, F-135): not looked into; a `--saving` run and save_tiles.py would tell whether its tiles are floor.

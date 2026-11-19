@@ -6,7 +6,13 @@
   worked out again (the spec's pieceBlasts);
 - the corner column XComFracLevelActor_5 (at (720, 48, 16)) moved a tile along x, to (816, 48, 16), and broken by a
   blast of two tiles at local (0, 0, 60): its copy carries the blasts;
-- an added copy of that column at (720, 432, 16), broken the same way.
+- an added copy of that column at (720, 432, 16), broken the same way;
+- the bar's roof XComFracLevelActor_3 (at (-1056, 576, 400); it keeps its fragments, bPreventChunkRemoval, F-138)
+  broken where it stands by a blast of two tiles at local (-288, 288, 0): 7 of its 81 fragments, a hole from x -1536
+  to -1152, y 672 to 1056;
+- a made roof (a copy of the bar's roof made from numbers, 4 by 3 tiles) at (-1920, -1440, 192) over the car park,
+  broken by a blast of one tile at its middle (the world's (-1728, -1296)): 5 of its 15 fragments.
+The Build turns bPreventChunkRemoval off on both roofs (F-138's fix candidate).
 Game tiles count from the map's corner (-2785, -1921, -1): tile centres at x -2737 + 96 i, y -1873 + 96 j.
 
 Usage: exp82_project.py --store <projects folder> --builds <builds folder> [--build] [--quick]
@@ -29,10 +35,13 @@ import projects  # noqa: E402
 import settings as settings_module  # noqa: E402
 
 MAP, PL = 'URB_Bar', 'TheWorld.PersistentLevel.'
-WALL, COLUMN = 'XComDecoFracLevelActor_17', 'XComFracLevelActor_5'
+WALL, COLUMN, ROOF = 'XComDecoFracLevelActor_17', 'XComFracLevelActor_5', 'XComFracLevelActor_3'
 PROJECT = ('00000000-0000-4000-8000-0000000e8200', 'EXP-82 map breaks')
 WALL_BLASTS = [dict(at=[-143.0, 0.0, 60.0], radius=96.0)]
 COLUMN_BLASTS = [dict(at=[0.0, 0.0, 60.0], radius=192.0)]
+ROOF_BLASTS = [dict(at=[-288.0, 288.0, 0.0], radius=192.0)]
+MADE_ROOF = dict(kind='fracSlab', version=1, slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, holes=[], seed=821),
+                 blasts=[dict(at=[192.0, 144.0, 0.0], radius=96.0)])
 
 
 def target(actor):
@@ -56,6 +65,7 @@ def main():
                                          minimum=build.EXPORT_MINIMUM)
     print('base map %s (SHA-256 %s), export %s' % (base.name, sha[:12], export.parent.name))
     column = next(o for o in scene['objects'] if o.get('layer') == 'base' and o['actor'] == PL + COLUMN)
+    roof = next(o for o in scene['objects'] if o.get('layer') == 'base' and o['actor'] == PL + ROOF)
     x, y, z = column['location']
     store = projects.ProjectStore(args.store)
     project_id, name = PROJECT
@@ -70,13 +80,17 @@ def main():
         output = outputnames.allocate(name, claims.taken, outputnames.base_streams(game, MAP))
         output.pop('reason', None)
     overrides = [dict(target=target(WALL), blasts=WALL_BLASTS),
-                 dict(target=target(COLUMN), location=[x + 96.0, y, z], rotation=list(column['rotation']), blasts=COLUMN_BLASTS)]
+                 dict(target=target(COLUMN), location=[x + 96.0, y, z], rotation=list(column['rotation']), blasts=COLUMN_BLASTS),
+                 dict(target=target(ROOF), blasts=ROOF_BLASTS)]
     added = [dict(id='00000000-0000-4000-8000-0000000e8201', actor=PL + COLUMN + '_copy1', **{'from': target(COLUMN)},
                   components=[column['component']], location=[x, y + 384.0, z], rotation=list(column['rotation']),
-                  prefab=None, partner=None, blasts=COLUMN_BLASTS)]
+                  prefab=None, partner=None, blasts=COLUMN_BLASTS),
+             dict(id='00000000-0000-4000-8000-0000000e8202', actor=PL + ROOF + '_copy2', **{'from': target(ROOF)},
+                  components=[roof['component']], location=[-1920.0, -1440.0, 192.0], rotation=[0, 0, 0],
+                  prefab=None, partner=None, generated=MADE_ROOF)]
     doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
-               output=output, overrides=overrides, added=added, groups=[], nextSerial=2,
+               output=output, overrides=overrides, added=added, groups=[], nextSerial=3,
                view=dict(camera=[-1400, 700, 1300], target=[-1056, 0, 1007]))
     if current and current.get('created'):
         doc['created'] = current['created']

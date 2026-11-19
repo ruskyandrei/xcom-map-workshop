@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-138: a made roof's painted-out fragments were drawn in the game (EXP-81 run A, 19 November), while a made wall's
+  were not; the roof's component keeps its fragments (`bPreventChunkRemoval`, copied from the bar's roof). Fixed
+  offline as a candidate (a piece built broken has it turned off); to play in EXP-82.
 - F-119: a moved landing left the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; fixed
   offline in export 35 (18 November: the dust is the Skyranger's `dust` and moves with it); not looked at in the
   game. Under Long War the mutator destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -591,6 +594,24 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
   each piece, any class but a door (EXP-60 played it on the arches). `cursor_pick.py` is retired.
 
 ## Damage and glass
+
+### F-138: A piece that keeps its fragments drew its painted-out ones
+**Open** (19 November 2026, [EXP-81](experiments/EXP-81-sizes-and-breaks.md) run A; fix candidate made offline the same
+night, to play in [EXP-82](experiments/EXP-82-map-breaks.md)).
+- **Seen.** A made roof (a copy of URB_Bar's roof `XComFracLevelActor_3` made from numbers) with 3 of its 15 fragments
+  saved painted out (`EditorPaintedVisibleFragments` 0, `DestroyedChunks` their boxes) was drawn whole in the game,
+  its paving running on over the middle. A made wall (a copy of the bar's inside wall) built broken the same way was
+  drawn with the hole, and units walked, had no cover and shot through it. A grenade thrown on a made roof slab of the
+  same look left it looking whole (not settled whether it burst on the slab).
+- **Why, as far as known.** The roof's component saves `bPreventChunkRemoval` on (its donor's; 61 of the 63 slab
+  components of the slab audit do); the wall's donor has no such setting, and a made floor from the bar's upstairs
+  floor, which has none either, broke where a grenade burst (EXP-76). The game's own scripts read the setting only to
+  skip such pieces when a dying unit falls on them; what the native code does with it is not known. The game draws
+  painted fragments by the array when the component attaches (its checkpoint code sets the array, reattaches and
+  clears it).
+- **Fix candidate.** A piece built broken (a made one's blasts, or one of the map's: E5, E6) has
+  `bPreventChunkRemoval` turned off where it is on, its own or its archetype's (`frac_walls.keeps_chunks`,
+  `allow_chunk_removal`); the Build's log says so. Such a piece then breaks further in the battle, as walls do.
 
 ### T-47: Grounded units have a post-destruction landing event
 

@@ -2123,11 +2123,15 @@ def break_component(g, p, actor, mapping, blasts, label=None):
     target = mapping.get(comp, comp) if mapping else comp
     walker = Walker(p)
     walker.names = g.names
-    g.relocate(target, frac_walls.painted_arrays(g, walker, g.export_data(target), start,
-                                                  made_blasts.visible_value(len(frags), out),
-                                                  made_blasts.chunks_of_bounds(frags, out)))
+    data = frac_walls.painted_arrays(g, walker, g.export_data(target), start, made_blasts.visible_value(len(frags), out),
+                                     made_blasts.chunks_of_bounds(frags, out))
+    # a piece that keeps its fragments lets them go (F-138)
+    unkept = frac_walls.keeps_chunks(p, comp)
+    if unkept:
+        data = frac_walls.allow_chunk_removal(g, walker, data, start)
+    g.relocate(target, data)
     return dict(label=label or p.name(actor).split('.')[-1], fragments=len(frags), knocked=len(set(hit) - before),
-                hidden=len(out))
+                hidden=len(out), **({'chunksLet': True} if unkept else {}))
 
 
 def blasts_in_place(g, p, pieces, gone=(), tiles=True, volumes=True):
@@ -2473,7 +2477,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                 print('    %s: made from numbers as %s, %d fragments%s, %d triangles, %d collision boxes; its columns '
                       'are its own (%d); its lightmap %s' % (
                           r['label'], r['meshName'], r['fragments'],
-                          ' (%d knocked out by its blasts)' % r['broken'] if r.get('broken') else '',
+                          (' (%d knocked out by its blasts%s)' % (r['broken'], '; bPreventChunkRemoval turned off'
+                                                                  if r.get('chunksLet') else '')) if r.get('broken') else '',
                           r['triangles'], r['solids'], r['columns'], lit))
             elif r['kind'] == 'ground':
                 print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
@@ -3017,7 +3022,7 @@ def main():
     for how, rec in [('copy', r) for r in (broken or {}).get('onCopies') or []] + [
             ('in place', r) for r in (broken or {}).get('inPlace') or []]:
         print(f"broken ({how}) {rec['label']}: {rec['knocked']} of its {rec['fragments']} fragments knocked out by its blasts, "
-              f"{rec['hidden']} painted out in all")
+              f"{rec['hidden']} painted out in all" + ('; bPreventChunkRemoval turned off' if rec.get('chunksLet') else ''))
     if broken and broken.get('tiles'):
         t = broken['tiles']
         print(f"broken pieces' tiles: {len(t['regions'])} region{'s' if len(t['regions']) != 1 else ''}"

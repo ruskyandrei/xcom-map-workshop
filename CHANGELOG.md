@@ -8,6 +8,31 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-81 run A played, and F-138's fix candidate: a piece built broken lets its fragments go** (custom geometry
+  editing plan, E4, E5; branch `fracturing-wall-poc`).
+  - [EXP-81](research/experiments/EXP-81-sizes-and-breaks.md) run A, unattended in the lab copy. Five checks passed:
+    - the map loads;
+    - a 24-tile wall's joint can't be found from either side;
+    - a grenade at the joint holed both pieces, the upper storey left spanning;
+    - a four-storey wall stands, and the grenade left its upper piece standing;
+    - a made wall's saved hole is drawn, walked through, gives no cover on its tile and is shot through.
+  - Check 6 failed: the made roof's painted-out fragments are drawn
+    ([F-138](research/findings-register.md)). Putting a soldier on the roof and a grenade across a made roof's joint
+    are unclear.
+  - The fix candidate, in [frac_walls.py](tools/bake/frac_walls.py) (`keeps_chunks`, `allow_chunk_removal`; made
+    pieces) and [native_copy.py](tools/bake/native_copy.py) `break_component` (the map's own):
+    - the roof's component keeps its fragments (`bPreventChunkRemoval`, its donor's); B's wall's has no such setting;
+    - a piece built broken has the setting turned off where it is on, its own or its archetype's;
+    - the record says so (`chunksLet`), and so does the Build's log.
+  - Tests: [test_frac_walls.py](tools/bake/tests/test_frac_walls.py):
+    - `Broken`: the broken made roof saves it off, the whole one keeps it, and the wall has none;
+    - `MapBroken`: the bar's roof broken where it stands saves it off, and `XComFracLevelActor_5` (none) is left
+      alone.
+  - [exp82_project.py](tools/editor/examples/exp82_project.py) and [EXP-82](research/experiments/EXP-82-map-breaks.md)
+    add the bar's roof broken where it stands and a made roof built broken. The quick build writes 7 of the bar
+    roof's 81 fragments and 5 of the made roof's 15, both with the setting off.
+  - Not played yet: whether this is the cause.
+
 - **EXP-82 prepared: E6's game run on URB_Bar** (custom geometry editing plan, E6; branch `fracturing-wall-poc`).
   [exp82_project.py](tools/editor/examples/exp82_project.py) and
   [EXP-82](research/experiments/EXP-82-map-breaks.md):
