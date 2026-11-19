@@ -1,6 +1,8 @@
 # EXP-82: the map's own fracturing pieces built broken (custom geometry editing plan, E6)
 
-Date: 19 November 2026. Status: **run A prepared**. The custom geometry editing plan's stage E6 (decision D-5): the
+Date: 19 November 2026. Status: **run A played: the broken roofs, the map's own and a made one, are drawn with
+their holes ([F-138](../findings-register.md) verified); the wall's hole is drawn and walked through; the cover and
+the line of sight through it were not settled (shelves stand behind it); a broken column copy is drawn broken**. The custom geometry editing plan's stage E6 (decision D-5): the
 blasts of E5 on the map's own fracturing pieces, the Build writing the fragments they reach as
 EditorPaintedVisibleFragments and DestroyedChunks on the piece's component, with those the map already paints out
 (tools/bake/made_blasts.py, native_copy.py `blasts_in_place`, `break_component`). Played unattended in the lab copy
@@ -54,4 +56,34 @@ turned off`, and the made roof `15 fragments (5 knocked out by its blasts; bPrev
 
 ## Result
 
-Not yet played.
+Run A, played unattended in the lab copy (the game-test skill), staged by the editor's Play in game on a dry-play
+test server: the squad of the play file, invincibility on, Sectoid pods. Pictures are in
+`<lab>\hidden-runs\exp82-runA` with the agent's report; the shots below were checked against it.
+
+- **Check 1, load: passed.** `LoadMap: EXP82MapBreaks` and the intro with no crash; no error names the broken pieces (the made
+  roof, renamed XComFracLevelActor_207, only in the routine "Cooking Convex" line).
+- **Check 6, the bar's roof: passed** (F-138). With the cursor's floor raised (the cutaway shows only a building's floor 1
+  while the cursor is on floor 0), the gravel roof has one jagged hole where it was broken, about 300 off its middle
+  as planned, and the bar's inside (its tiled wall, a fridge, the floor) is seen through it.
+- **Check 7, the made roof: passed** (F-138). It stands inside the car park's box truck, which hides most of it from above;
+  with the map's level actors hidden for the shot, the slab stands alone with a five-sided hole at its middle and the
+  rest whole.
+- **Check 2, the wall's hole: passed.** From inside the bar, close, from both sides: a hole at the wall's foot about a tile and
+  a third wide, the far room seen through it.
+- **Check 3, walk: passed; cover: not settled.** The tiles just past the hole (x -1009) are not floor: liquor shelves and menu
+  boards stand against the wall's other face (the cursor reads 148 to 209 there). A move to (-913, 1007) went
+  straight through the hole (the soldier stood behind the bar, the combat log one move). On the hole's tile the
+  soldier had high cover toward the wall (cover value 30), as on the tile beside it where the wall is whole: the
+  shelves behind the hole may give it.
+- **Check 4, line of sight: not settled.** From the hole's tile the shot view offered no target on a Sectoid at (-913, 1007)
+  behind the shelves; from the far side a soldier one tile from it could shoot it. A hole with nothing behind it
+  would settle it; EXP-81's made wall passed both, cover and sight, on open ground.
+- **Check 5, the columns: one copy seen broken.** A brick column copy is drawn with its lower part gone, a ragged slanting
+  edge in the air with the street under it, and its upper part stands as drawn (it does not fall). Which copy that
+  was, and the other one's look, were not settled in the time.
+
+Findings:
+- [F-138](../findings-register.md) verified: with `bPreventChunkRemoval` turned off, a roof's painted-out fragments
+  are drawn gone, on the map's own roof and on a made one.
+- Placement: the made roof was put where the car park's box truck stands; a later run puts such a piece clear of the
+  map's props.

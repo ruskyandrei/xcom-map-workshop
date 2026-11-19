@@ -8,6 +8,17 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 19 November 2026
 
+- **EXP-82 run A played: broken roofs and the map's own broken pieces drawn in the game; F-138 verified** (custom
+  geometry editing plan, E5, E6; branch `fracturing-wall-poc`).
+  - [EXP-82](research/experiments/EXP-82-map-breaks.md) run A, unattended in the lab copy:
+    - the map loads;
+    - the bar's own roof, broken where it stands, and a made roof of its look are drawn with their holes, both with
+      `bPreventChunkRemoval` turned off: [F-138](research/findings-register.md) is verified;
+    - the bar's inside wall, broken where it stands, is drawn with its hole, and a soldier walked through it;
+    - a broken copy of a corner column is drawn broken, its upper part standing in the air.
+  - Not settled: the cover and line of sight through the wall's hole (shelves stand against its far side), and the
+    second column copy's look.
+
 - **EXP-81 run A played, and F-138's fix candidate: a piece built broken lets its fragments go** (custom geometry
   editing plan, E4, E5; branch `fracturing-wall-poc`).
   - [EXP-81](research/experiments/EXP-81-sizes-and-breaks.md) run A, unattended in the lab copy. Five checks passed:

@@ -12,9 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-138: a made roof's painted-out fragments were drawn in the game (EXP-81 run A, 19 November), while a made wall's
-  were not; the roof's component keeps its fragments (`bPreventChunkRemoval`, copied from the bar's roof). Fixed
-  offline as a candidate (a piece built broken has it turned off); to play in EXP-82.
+- F-138: a roof whose component keeps its fragments (`bPreventChunkRemoval`) drew its painted-out ones (EXP-81 run A,
+  19 November). Fixed: a piece built broken has the setting turned off; verified in EXP-82 run A on the bar's own roof
+  and a made roof. Open: such a roof now breaks further in the battle (not played).
 - F-119: a moved landing left the grounded Skyranger's dust effect (Bar's `Emitter_0`) where the landing was; fixed
   offline in export 35 (18 November: the dust is the Skyranger's `dust` and moves with it); not looked at in the
   game. Under Long War the mutator destroys that dust on every load anyway (F-120), so this matters for plain EW.
@@ -596,8 +596,8 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 ## Damage and glass
 
 ### F-138: A piece that keeps its fragments drew its painted-out ones
-**Open** (19 November 2026, [EXP-81](experiments/EXP-81-sizes-and-breaks.md) run A; fix candidate made offline the same
-night, to play in [EXP-82](experiments/EXP-82-map-breaks.md)).
+**Verified** (19 November 2026: seen in [EXP-81](experiments/EXP-81-sizes-and-breaks.md) run A; fixed the same night,
+played in [EXP-82](experiments/EXP-82-map-breaks.md) run A).
 - **Seen.** A made roof (a copy of URB_Bar's roof `XComFracLevelActor_3` made from numbers) with 3 of its 15 fragments
   saved painted out (`EditorPaintedVisibleFragments` 0, `DestroyedChunks` their boxes) was drawn whole in the game,
   its paving running on over the middle. A made wall (a copy of the bar's inside wall) built broken the same way was
@@ -612,6 +612,9 @@ night, to play in [EXP-82](experiments/EXP-82-map-breaks.md)).
 - **Fix candidate.** A piece built broken (a made one's blasts, or one of the map's: E5, E6) has
   `bPreventChunkRemoval` turned off where it is on, its own or its archetype's (`frac_walls.keeps_chunks`,
   `allow_chunk_removal`); the Build's log says so. Such a piece then breaks further in the battle, as walls do.
+- **Played.** In EXP-82 run A the bar's own roof, broken where it stands, showed one jagged hole with the bar's inside
+  seen through it, and a made roof of the same look showed a five-sided hole at its middle, both with the setting
+  turned off. Not played: how such a roof breaks further in the battle.
 
 ### T-47: Grounded units have a post-destruction landing event
 
