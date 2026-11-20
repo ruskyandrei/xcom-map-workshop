@@ -17,6 +17,10 @@ takes the new generation, so the page can open it at once, with no restart.
 
 The package is found when the export starts (maplist.package_of in the install settings.resolve_game finds then), since
 switch_install renames the install's folder while the server runs.
+
+An export is a contained process tree, as a build is (procs.launch; review finding 48): Cancel ends it by its job,
+never by a process id that may have been reused, and a server that dies, however it dies, takes it with it, so no
+export goes on writing into the cache with no one following it.
 """
 import datetime
 import json
@@ -26,8 +30,9 @@ import sys
 import threading
 import time
 
-from builds import PROGRESS, stop_process
+from builds import PROGRESS
 from catalogue import generation, select
+import procs
 from maplist import package_of
 from projects import ProjectError
 from settings import resolve_game
@@ -90,13 +95,20 @@ class ExportRunner:
             job = dict(map=map_id, label=entry.get('label') or map_id, package=str(package), state='running',
                        startedAt=now(), started=time.monotonic(), seconds=0, lines=[], error=None, folder=None,
                        progress=None, owner=owner)
-            proc = subprocess.Popen(self.command(package), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                    encoding='utf-8', errors='replace', start_new_session=sys.platform != 'win32',
-                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-            job['pid'] = proc.pid
+            try:
+                tree = procs.launch(self.command(package), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    encoding='utf-8', errors='replace', creationflags=procs.CREATE_NO_WINDOW)
+            except OSError as error:
+                raise ProjectError(500, f'{job["label"]} could not be prepared: its export did not start ({error}).')
+            job['pid'], job['tree'] = tree.pid, tree
             self.job = job
-            threading.Thread(target=self._follow, args=(job, proc), daemon=True).start()
+            threading.Thread(target=self._follow, args=(job, tree), daemon=True).start()
             return self._status(map_id)
+
+    def running(self):
+        """The label of the map being exported, or None."""
+        with self.lock:
+            return self.job['label'] if self.job and self.job['state'] == 'running' else None
 
     def cancel_owned(self, owner):
         with self.lock:
@@ -104,10 +116,11 @@ class ExportRunner:
             if not job or job['state'] != 'running' or job['owner'] != owner:
                 return
             job['cancelled'] = True
-            pid = job['pid']
-        stop_process(pid)
+            tree = job['tree']
+        tree.terminate()
 
-    def _follow(self, job, proc):
+    def _follow(self, job, tree):
+        proc = tree.proc
         lines = []
         for raw in proc.stdout:
             line = raw.rstrip()
@@ -125,6 +138,8 @@ class ExportRunner:
             with self.lock: job['lines'] = (job['lines'] + [line])[-KEEP:]
         proc.stdout.close()
         code = proc.wait()
+        tree.drain(timeout=30, kill_after=5)        # anything it left running ends before the map takes its result
+        tree.close()
         error, fresh = None, None
         if code:
             error = next((l for l in reversed(lines) if l.strip()), f'the export stopped (exit {code})')

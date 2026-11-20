@@ -101,7 +101,8 @@ class GameSetup:
     def __init__(self, configure=None, load=load_settings, save=save_settings, find=find_installs, pick=browse, guard=None):
         """configure(settings): the server lists the new install's maps (viewer.py); load/save/find/pick: settings and
         the computer's installs (tests give their own); guard(): raises ProjectError when the install can't change now
-        (the build queue's, while it runs: buildqueue.py settings_guard), before anything is saved."""
+        (the build queue's, while it runs: buildqueue.py settings_guard; a map export, a library scan or the cache job:
+        viewer.py), before anything is saved. When configure fails, the setting is put back as it was."""
         self.configure, self.load, self.save, self.find, self.pick = configure, load, save, find, pick
         self.guard = guard
         self.lock = threading.Lock()
@@ -127,8 +128,17 @@ class GameSetup:
         if game is None: raise ProjectError(409, f'Not a game install: {note}.')
         with self.lock:
             if self.guard: self.guard()
+            before = game_setting(self.load())
             settings = self.save({'game': folder})
-            if self.configure: self.configure(settings)
+            if self.configure:
+                try:
+                    self.configure(settings)
+                except Exception as error:      # noqa: BLE001 (whatever failed, the setting goes back with the server)
+                    # the setting and the server agree (review finding 48): the server still reads the install before
+                    try: self.save({'game': before})
+                    except (OSError, ValueError): pass
+                    raise ProjectError(500, f'The game install {folder} could not be loaded ({error}); the editor goes on '
+                                            'with the one it had.')
         return self.status(checks=False)
 
     def browse(self):

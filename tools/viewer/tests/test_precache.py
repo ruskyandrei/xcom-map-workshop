@@ -242,7 +242,7 @@ class Jobs(unittest.TestCase):
         runner = self.runner(body, grace=60)
         runner.start(dict(pieces=True, maps=True))
         self.wait(runner, lambda s: s['total'] == 4 and s['done'] == 2)
-        with mock.patch('precache.stop_process', side_effect=AssertionError('killed')):
+        with mock.patch('procs.Contained.terminate', side_effect=AssertionError('killed')):
             runner.cancel()
             done = self.wait(runner)
         self.assertEqual((done['state'], done['pieces']['made'], self.exports.started), ('cancelled', 3, []))

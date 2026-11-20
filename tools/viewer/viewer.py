@@ -73,6 +73,21 @@ def install_catalogue(catalogue, cache_root, settings, prune=False):
         return catalogue, None
 
 
+def install_busy(live, precache):
+    """Another install is chosen only when nothing works on this one (review finding 48; the build queue has its own
+    guard): a map export, a library scan or the cache job would go on into the old install's catalogue, beside a new
+    runner that allows a second at once. ProjectError 409 saying what runs."""
+    busy = []
+    exporting = live.exports.running() if live.exports else None
+    if exporting: busy.append(f'{exporting} is being prepared')
+    if live.library and live.library.running(): busy.append('the library of pieces is being read')
+    if precache and precache.running(): busy.append('Cache everything is running')
+    if busy:
+        said = '; '.join(busy)
+        raise ProjectError(409, f'{said[:1].upper() + said[1:]}: wait for it, or cancel it, before choosing another game '
+                                'install.', code='install-busy')
+
+
 def landing_lines(map_id):
     """The game install's landing-zone lines for a map (DefaultLZMutator.ini; tools/viewer/spawns.py): dict(kind: the
     install's kind (settings.game_kind), file, lines: [zone without an id, in order]). A plain install, or none set,
@@ -1216,7 +1231,11 @@ def serve_cache(args, ap, server, exact):
                     cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
                     udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
     queue = BuildQueue(projects, builds, queue_context)
-    setup = GameSetup(configure, guard=queue.settings_guard)
+
+    def settings_guard():
+        queue.settings_guard()
+        install_busy(live, precache)
+    setup = GameSetup(configure, guard=settings_guard)
     server.RequestHandlerClass = partial(Handler, live=live, projects=projects, builds=builds, setup=setup,
                                          prefabs=prefabs, prefab_tests=prefab_tests, precache=precache, queue=queue)
     # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its

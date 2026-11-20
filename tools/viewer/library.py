@@ -42,6 +42,7 @@ The index (version 1):
 - The base maps' lens flares (LensFlareSource actors) are entries the same way since stage FX6b (index 10): `family`
   flare, `kind` effects_library.FLARE_KIND, `flare` its template's path and `colour` its colour; no system, no waves.
 """
+import contextlib
 import datetime
 import hashlib
 import json
@@ -616,7 +617,7 @@ def scan(game, cache, jobs=None, progress=None, only=None):
     index = build_index(results, round(time.monotonic() - started, 1))
     path = index_path(cache)
     path.parent.mkdir(parents=True, exist_ok=True)
-    part = path.with_suffix('.json.part')
+    part = part_of(path)        # (two scans, the server's and the cache job's, never share one)
     part.write_text(json.dumps(index, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
     os.replace(part, path)
     return index
@@ -788,6 +789,36 @@ def piece(cache, game, source, shared=None):
     generation = '%s-v%d' % (digest[:16], EXPORT_VERSION)
     folder = pieces_root(cache) / path.stem / generation
     record = folder / (actor + '.json')
+    kept = kept_piece(record)
+    if kept is not None:
+        return kept
+    # written under the donor's lock (another process, the cache job, may be writing the same files): read again once
+    # it is held, as it may have been written meanwhile
+    with donor_lock(cache, path.stem):
+        return kept_piece(record) or _make_piece(cache, actor, shared, path, digest, generation, folder, record)
+
+
+PIECE_WAIT = 120.0      # seconds a piece waits for another process writing the same donor's pieces
+
+
+@contextlib.contextmanager
+def donor_lock(cache, package, wait=PIECE_WAIT):
+    """The lock on a donor map's piece folders (<cache>/library/locks/<map>.lock, the operating system's: it holds
+    across the server and the cache job's processes; review finding 48). ProjectError 409 when another holds it for
+    longer than `wait` seconds."""
+    from publication import FileLock
+    lock = FileLock(Path(cache) / 'library' / 'locks' / ('%s.lock' % str(package).lower()))
+    if not lock.acquire(wait):
+        raise ProjectError(409, 'The pieces of %s are being written by another process (Cache everything); try again '
+                                'in a moment.' % package, code='piece-busy')
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+def kept_piece(record):
+    """The piece record kept at `record` when it is of this version, else None."""
     if record.is_file():
         try:
             kept = json.loads(record.read_text(encoding='utf-8'))
@@ -795,6 +826,18 @@ def piece(cache, game, source, shared=None):
                 return kept
         except ValueError:
             pass
+    return None
+
+
+def part_of(path):
+    """A temporary file beside `path`, of its own name (two writers never share one)."""
+    return path.with_name('%s.%s.part' % (path.name, uuid.uuid4().hex[:8]))
+
+
+def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
+    """piece()'s export of a piece not kept yet, with its donor's lock held."""
+    from export import EXPORT_VERSION, Exporter
+    from package import Package
     p = shared.setdefault('packages', {}).get(str(path))
     if p is None:
         p = shared['packages'][str(path)] = Package(path)
@@ -879,7 +922,7 @@ def piece(cache, game, source, shared=None):
                base='/cache-library/%s/%s/' % (path.stem, generation), objects=objects, meshes=exporter.meshes,
                materials=exporter.materials, textures={k: v for k, v in exporter.textures.items() if v},
                diagnostics=exporter.diagnostics, collision=collision, buildings=source_buildings, areaLights=area)
-    part = record.with_suffix('.json.part')
+    part = part_of(record)
     part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
     os.replace(part, record)
     return out
@@ -927,10 +970,11 @@ def effect_records(cache, game, package, shared=None):
         p = shared['packages'][str(path)] = Package(path)
     out = dict(version=EFFECTS_VERSION, metadata=effects_metadata.METADATA_VERSION,
                source=dict(kind='map', package=path.stem, level='base', sha256=digest), **effects_metadata.describe(p))
-    folder.mkdir(parents=True, exist_ok=True)
-    part = record.with_suffix('.json.part')
-    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
-    os.replace(part, record)
+    with donor_lock(cache, path.stem):
+        folder.mkdir(parents=True, exist_ok=True)
+        part = part_of(record)
+        part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
+        os.replace(part, record)
     known[str(record)] = out
     return out
 
@@ -962,19 +1006,20 @@ def effect_draw(cache, game, package, system, shared=None):
     p = shared.setdefault('packages', {}).get(str(path))
     if p is None:
         p = shared['packages'][str(path)] = Package(path)
-    folder.mkdir(parents=True, exist_ok=True)
-    exporter = Exporter(p, folder, namespace='lib-' + path.stem)
-    drawn = copy.deepcopy(system)
     defaults = shared.setdefault('effect_defaults', {}).get(str(path))
     if defaults is None:
         defaults = shared['effect_defaults'][str(path)] = effects_metadata.Defaults(p)
-    effects_draw.attach(p, defaults, {'one': drawn}, exporter, compiled_textures, effects_draw.RULES, exporter.warn)
-    out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),
-               meshes=exporter.meshes, materials=exporter.materials,
-               textures={k: v for k, v in exporter.textures.items() if v})
-    part = record.with_suffix('.json.part')
-    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
-    os.replace(part, record)
+    with donor_lock(cache, path.stem):      # its textures and meshes go into the donor's piece folder
+        folder.mkdir(parents=True, exist_ok=True)
+        exporter = Exporter(p, folder, namespace='lib-' + path.stem)
+        drawn = copy.deepcopy(system)
+        effects_draw.attach(p, defaults, {'one': drawn}, exporter, compiled_textures, effects_draw.RULES, exporter.warn)
+        out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),
+                   meshes=exporter.meshes, materials=exporter.materials,
+                   textures={k: v for k, v in exporter.textures.items() if v})
+        part = part_of(record)
+        part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
+        os.replace(part, record)
     return out
 
 
@@ -1311,15 +1356,26 @@ class LibraryRunner:
                 return self._job()
             job = dict(state='running', startedAt=now(), started=time.monotonic(), seconds=0, lines=[], error=None,
                        progress=None)
-            proc = subprocess.Popen(self.command(game), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                    encoding='utf-8', errors='replace',
-                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            # a contained process tree, as a build is (procs.py; review finding 48): the scan's workers end with it,
+            # and it ends with the server
+            import procs
+            try:
+                tree = procs.launch(self.command(game), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    encoding='utf-8', errors='replace', creationflags=procs.CREATE_NO_WINDOW)
+            except OSError as error:
+                raise ProjectError(500, 'The scan of the game\'s maps did not start (%s).' % error)
             self.job = job
-            threading.Thread(target=self._follow, args=(job, proc), daemon=True).start()
+            threading.Thread(target=self._follow, args=(job, tree), daemon=True).start()
             return self._job()
 
-    def _follow(self, job, proc):
+    def running(self):
+        """Whether a scan runs."""
+        with self.lock:
+            return bool(self.job and self.job['state'] == 'running')
+
+    def _follow(self, job, tree):
         from builds import PROGRESS
+        proc = tree.proc
         lines = []
         for raw in proc.stdout:
             line = raw.rstrip()
@@ -1335,6 +1391,8 @@ class LibraryRunner:
                 job['lines'] = (job['lines'] + [line])[-200:]
         proc.stdout.close()
         code = proc.wait()
+        tree.drain(timeout=30, kill_after=5)
+        tree.close()
         with self.lock:
             job['seconds'] = round(time.monotonic() - job['started'], 1)
             if code:
@@ -1398,7 +1456,7 @@ class LibraryRunner:
             raise ProjectError(400, 'A picture is a PNG of at most %d KB.' % (limit >> 10))
         path = self.thumb(key, folder)
         path.parent.mkdir(parents=True, exist_ok=True)
-        part = path.with_suffix('.png.part')
+        part = part_of(path)
         part.write_bytes(data)
         os.replace(part, path)
         return dict(ok=True)
