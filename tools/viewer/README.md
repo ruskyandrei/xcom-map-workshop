@@ -851,8 +851,9 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - The project names its pieces by package, level and actor, never by short name.
   - It binds to the map's SHA-256. A project made on a different package says so.
   - Edits naming pieces this export lacks are kept and saved back unchanged; the import notes count them.
-- **Unsaved changes** are kept on the server a second after each change (never half a drag). Reopening offers them
-  back: **Restore them** or **Discard them**.
+- **Unsaved changes** are kept on the server a second after each change (never half a drag), in a draft of the page's
+  own: two tabs keep one each, and each deletes only its own. Reopening offers back the newest: **Restore them** or
+  **Discard them** (which offers the next).
 - **A save based on an older revision** is refused, for example when another tab saved first. The banner offers to
   overwrite it or open the saved one.
 - **Leaving with unsaved changes:** the browser asks before leaving, and before switching map or layout or loading
@@ -868,9 +869,11 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     - Two files with one project id (a copy made beside it): the newest revision is the project. The other is listed
       greyed out as a copy.
   - What stays on this computer is kept by project id in the hidden `.workshop` folder beside them:
-    `.workshop\<id>\project.prev.json` (the revision before) and `recovery.json`.
+    `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
+    changes (`recovery.json` from before 20 November 2026).
   - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
-    first time the server reads the folder.
+    first time the server reads the folder. One of a project that a file here holds already never writes over it:
+    the newer revision is the project, and the other is kept beside it as `<name> (kept copy).json`.
   - Saves are atomic.
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a
@@ -987,7 +990,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   checked in the game). Nothing in it is specific to one computer.
 - **A play leaves nothing in the game.** Once the game has closed, the server's watch takes out what the play put
   in (`installs.clear_play`): the build's record, its landing zones and files, and the commands file. If the server
-  was stopped meanwhile, the next play, or the page's next look at the install, does it. What the project manager
+  was stopped meanwhile, the next play, or the next server as it starts, does it (a look at the install,
+  `GET /play.json`, changes nothing: 20 November 2026). What the project manager
   installed for campaigns stays. A tactical save made in a test battle on a build won't load afterwards. A server
   started with `--dry-play` starts no game, so it leaves a play's things in to be looked at.
 - **Two ledgers, in the install itself** (`<game>\XCOM Map Workshop`): `play.json` for what a play put in, and
@@ -1018,7 +1022,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   to its game folder, with its kind: Long War Rebalance or Enemy Within), the install it plays in and whether that
   can be played now, how the game is started there, and what the editor has installed in it.
   - The server's routes ([`play.py`](play.py)): `GET /play.json`, `POST /play/start` (`{"project": id}` or
-    `{"map": id}`) and `POST /play/remove`.
+    `{"map": id}`) and `POST /play/remove`. A project's play names the build the page means (`buildId`, or the
+    `attempt` that built it), checked under the package's guard: a package swapped in since starts nothing.
   - `serve --install <game folder>` points a test server at a scratch install, and `--dry-play` makes it do
     everything but start the game.
 - **Manage projects…** (Project menu) opens the project manager ([`manager.js`](web/manager.js),

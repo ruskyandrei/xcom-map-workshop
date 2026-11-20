@@ -35,13 +35,7 @@ export const pictureApi = {
     const response = await fetch(`${at(id)}?sha256=${encodeURIComponent(sha256)}&as=game`);
     return response.ok ? response.blob() : null;
   },
-  /** The kept picture of project `from` with that SHA-256 kept with project `to` as well (Save as): the file as it
-   *  is, so its SHA-256 stays the one the document names. */
-  async copy(from, to, sha256) {
-    const response = await fetch(`${at(from)}?sha256=${encodeURIComponent(sha256)}`);
-    if (!response.ok) throw await failure(response);
-    return this.save(to, await response.blob());
-  },
+  // (Save as copies the picture within the save itself: project.js api.save's pictureFrom, review finding 8)
   /** The game's own picture of a map, or null when it has none. */
   async base(map) {
     const response = await fetch(`/map-pictures/${encodeURIComponent(map)}.png`);

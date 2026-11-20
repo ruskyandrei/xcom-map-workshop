@@ -458,8 +458,10 @@ class PrefabStore(ProjectStore):
     schema, noun, prev = SCHEMA, 'prefab', 'prefab.prev.json'
 
     def save_recovery(self, prefab_id, state):
-        """Working coordinates, not a normalized library save; larger work can be recovered for repair."""
-        record(state, ('baseRevision', 'document', 'envelope', 'nextSerial'), (), 'recovery', True)
+        """Working coordinates, not a normalized library save; larger work can be recovered for repair. A page
+        session's own draft (`owner`), kept as projects keep theirs (ProjectStore.save_recovery): one based on an older
+        revision than the saved one is kept too, and answered as stale."""
+        record(state, ('baseRevision', 'document', 'envelope', 'nextSerial'), ('owner',), 'recovery', True)
         whole(state['baseRevision'], 0, 10 ** 9, 'recovery revision')
         whole(state['nextSerial'], 0, 10 ** 9, 'recovery serial')
         document = state['document']
@@ -470,14 +472,20 @@ class PrefabStore(ProjectStore):
             listed(envelope, 6, 'recovery envelope', 6)
             for value in envelope: number(value, 1e6, 'recovery envelope')
             if any(envelope[k] > envelope[k + 3] for k in range(3)): raise bad('recovery envelope is reversed.')
-        with self.lock:
-            here = self.load(prefab_id)
-            if state['baseRevision'] != here['revision']:
-                raise ProjectError(409, 'Recovery belongs to an older prefab revision.', revision=here['revision'])
-            return super().save_recovery(prefab_id, state)
+        return super().save_recovery(prefab_id, state)
 
     def check(self, document):
         check_schema(document)
+
+    def readable(self, document):
+        return True
+
+    def live(self, summary):
+        """A cached summary with whether the prefab's picture is kept brought up to date."""
+        return dict(summary, picture=self.picture_path(summary['id']).is_file())
+
+    def _pictures(self, prefab_id, document, current, current_path, picture_from):
+        return {}       # (a prefab's picture is the page's drawing: save_picture)
 
     def validate(self, document, prefab_id):
         """A save's check: the whole document, of the schema this editor writes."""
@@ -544,16 +552,21 @@ class PrefabStore(ProjectStore):
                 target = kept / f'{path.stem} {time.strftime("%Y-%m-%d %H%M%S")} ({n}){path.suffix}'
             os.replace(path, target)
             state = self.state(prefab_id)
-            for name in ('picture.png', self.prev, 'recovery.json'): (state / name).unlink(missing_ok=True)
+            for draft, _ in self._drafts(prefab_id): draft.unlink(missing_ok=True)
+            for name in ('picture.png', self.prev): (state / name).unlink(missing_ok=True)
             try: state.rmdir()
             except OSError: pass
             self.paths.pop(prefab_id, None)
             return dict(ok=True, kept=str(target))
 
-    def import_file(self, document, clash=None):
+    def import_file(self, document, clash=None, expected=None):
         """A prefab file from elsewhere, checked whole and stored. One whose id the library has already is refused
         (409, with `clash`: the one here) unless `clash` says what to do: 'replace' saves it over that one as its
-        next revision, 'copy' stores it as a new prefab with an id of its own."""
+        next revision, 'copy' stores it as a new prefab with an id of its own. A replace names the revision it
+        replaces (`expected`, the one the user was shown: review finding 4); one saved since is refused as a clash
+        again, with its revision now."""
+        if clash == 'replace' and (not isinstance(expected, int) or isinstance(expected, bool) or expected < 0):
+            raise ProjectError(400, 'Say which revision of the prefab the file replaces (expectedRevision).')
         if not isinstance(document, dict): raise ProjectError(422, 'This is not an XCOM Map Workshop prefab.')
         check_schema(document)
         prefab_id = document.get('id')
@@ -565,11 +578,16 @@ class PrefabStore(ProjectStore):
         with self.lock:
             path = self._find(prefab_id)
             here = self._read(path) if path else None
+            here_clash = dict(id=prefab_id, name=here.get('name'), revision=here.get('revision'), savedAt=here.get('savedAt')) \
+                if isinstance(here, dict) else None
             if here is None:
                 return dict(self.save(prefab_id, document, 0), id=prefab_id, name=document['name'])
             if clash == 'replace':
+                if here.get('revision', 0) != expected:
+                    raise ProjectError(409, f'The library\'s “{here.get("name")}” was saved again since (revision '
+                                            f'{here.get("revision")}).', clash=here_clash, changed=True)
                 document['created'] = here.get('created') or document.get('created')
-                return dict(self.save(prefab_id, document, here.get('revision', 0)), id=prefab_id, name=document['name'], replaced=True)
+                return dict(self.save(prefab_id, document, expected), id=prefab_id, name=document['name'], replaced=True)
             if clash == 'copy':
                 new_id = str(uuid.uuid4())
                 names = {str(p.get('name')).lower() for p in self.list()}
@@ -581,7 +599,7 @@ class PrefabStore(ProjectStore):
                 document.pop('created', None)
                 return dict(self.save(new_id, document, 0), id=new_id, name=name, copied=True)
             raise ProjectError(409, f'The library already has this prefab, as “{here.get("name")}” (revision {here.get("revision")}).',
-                               clash=dict(id=prefab_id, name=here.get('name'), revision=here.get('revision'), savedAt=here.get('savedAt')))
+                               clash=here_clash)
 
 
 __all__ = ['SCHEMA', 'SCHEMA_VERSION', 'PrefabStore', 'validate', 'file_stem']

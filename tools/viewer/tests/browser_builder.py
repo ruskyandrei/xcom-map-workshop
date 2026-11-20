@@ -67,7 +67,8 @@ def check_builder(browser, url, screenshot=None):
     missing['from'] = dict(package='UnavailableBuilderMap', level='base', actor='TheWorld.PersistentLevel.Missing')
     mixed['pieces'].append(missing); mixed['groups'][0]['members'].append(dict(added=missing['actor']))
     mixed['donors'].append(dict(package='UnavailableBuilderMap', sha256='a' * 64))
-    page.evaluate('doc => viewer.prefabApi.importFile(doc, "replace")', mixed)
+    # (a replace names the revision it replaces: review finding 4)
+    page.evaluate('doc => viewer.prefabApi.importFile(doc, "replace", doc.revision)', mixed)
     opened('?prefab=' + prefab_id)
     assert page.evaluate('viewer.builderRecords().size.unknown.length') == 1
     page.evaluate('viewer.addVolumes([{box:[-192,-96,0,-96,0,192],floor:0}])')

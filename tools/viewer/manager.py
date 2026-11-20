@@ -153,13 +153,10 @@ def listing(projects, builds, player):
     # being built now, or about to be (the build queue's next): the shared active-writer query
     building = builds.active_projects()
     rows = []
-    for summary in projects.list():
-        if summary.get('error'):
+    # each project read once, its summary from the very document read (review finding 20)
+    for summary, document in projects.listing():
+        if document is None:
             rows.append(summary)
-            continue
-        try: document = projects.load(summary['id'])
-        except ProjectError as error:
-            rows.append(dict(summary, error=error.message))
             continue
         variant = (document.get('output') or {}).get('shipAs')
         m, folder = _manifest(builds, summary['id'], variant)
@@ -181,8 +178,8 @@ def listing(projects, builds, player):
             in_game = dict(play=variant in played, rotation=entry['mode'] if entry else None,
                            buildId=(entry or played[variant]).get('buildId'),
                            current=bool(build) and (entry or played[variant]).get('buildId') == build['buildId'])
-        # its map picture: one sent beside the project's file is taken in, then whose the map shows (pictures.py)
-        pictures.adopt_beside(projects, projects.path(summary['id']), document)
+        # whose picture the map shows (pictures.py; one sent beside the project's file counts: a listing changes no
+        # file)
         picture = pictures.status(projects, document, installs.cooked(read) if read is not None else None)
         rows.append(dict(summary, variant=variant, build=build, missions=missions, warnings=warnings,
                          modeWarnings=by_mode, inGame=in_game, picture=picture,

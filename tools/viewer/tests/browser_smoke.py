@@ -5140,7 +5140,7 @@ def main():
                     "install, so only for a test server started with --install <a scratch game folder> --dry-play")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
-    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, groups, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness, walls), and stop: "
+    ap.add_argument("--only",help="Run only these checks once the map opens, comma-separated (floor-placing, floor-tiles, lights, library, library-all, library-effects, effect-values, library-assembly, prefabs, builder, prefab-test, cover, zoom, box-select, copy-drag, floor-boxes, pan, speeds, pivot, groups, text-select, play-area, map-buildings, clear-map, streams, spawns, light-grid, output-names, squad, effects, flares, library-flares, likeness, walls, documents), and stop: "
                     "for working on them")
     args = ap.parse_args()
     args.screenshot.parent.mkdir(parents=True,exist_ok=True)
@@ -5224,6 +5224,11 @@ def main():
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
                 errors.update(found)
+            if 'documents' in only:
+                # (saves projects and prefabs: --projects, on a test server with scratch folders)
+                assert args.projects, 'the documents check saves projects and prefabs: give --projects, on a test server'
+                import browser_documents as documents
+                print(json.dumps(dict(documents=documents.check_all(browser, page.url))))
             page.screenshot(path=str(args.screenshot))
             errors -= EXPECTED
             print(json.dumps(dict(only=sorted(only), errors=sorted(errors)), indent=2))

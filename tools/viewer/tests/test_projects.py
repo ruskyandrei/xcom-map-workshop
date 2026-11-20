@@ -18,6 +18,9 @@ from viewer import Handler, LocalServer
 
 ID = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'
 OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d'
+# page sessions (the id each page makes as it loads)
+PAGE_A, PAGE_B, PAGE_C = ('aaaaaaaa-0000-4000-8000-00000000000a', 'bbbbbbbb-0000-4000-8000-00000000000b',
+                          'cccccccc-0000-4000-8000-00000000000c')
 
 
 def document(project_id=ID, **changes):
@@ -121,8 +124,184 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in b.iterdir()), ['my notes.txt'])     # anything else in it stays
         self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
         self.assertEqual(json.loads((self.root / '.workshop' / ID / 'project.prev.json').read_text(encoding='utf8'))['note'], 'project.prev.json')
-        self.assertEqual(self.store.save(ID, document(), 2)['revision'], 3)
-        self.assertIsNone(self.store.recovery(ID))
+        self.assertEqual(self.store.save(ID, document(), 2, owner=PAGE_A)['revision'], 3)
+        # (an owner-less draft is no page's: it stays until a page shows it and the user restores or discards it)
+        self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
+
+    def _legacy(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix', **kept):
+        folder = self.root / ID; folder.mkdir(parents=True)
+        (folder / 'project.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='legacy')),
+                                             encoding='utf8', newline='\n')
+        for k, value in kept.items(): (folder / f'{k}.json').write_text(json.dumps(value), encoding='utf8', newline='\n')
+        return folder
+
+    def _current(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix'):
+        self.root.mkdir(parents=True, exist_ok=True)
+        (self.root / f'{name}.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='current')),
+                                                encoding='utf8', newline='\n')
+
+    def _listed(self):
+        return {p['file']: p for p in self.store.list()}
+
+    def test_an_old_layout_folder_never_writes_over_a_newer_project(self):
+        """Review finding 5: a restored backup of the old layout beside a current library is ranked against the file
+        that holds the project; the newer is the project and the other is kept as a copy beside it."""
+        self._current(2)
+        self._legacy(1)
+        listed = self._listed()
+        self.assertEqual(self.store.load(ID)['revision'], 2)
+        self.assertEqual(self.store.load(ID)['note'], 'current')
+        self.assertIn('A copy of the project', listed['Bar remix (kept copy).json']['error'])
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 1)
+        self.assertFalse((self.root / ID).exists())
+
+    def test_an_old_layout_folder_with_a_newer_revision_becomes_the_project(self):
+        self._current(2)
+        self._legacy(3)
+        self._listed()
+        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
+        kept = json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))
+        self.assertEqual((kept['revision'], kept['note']), (2, 'current'))
+
+    def test_equal_revisions_go_by_the_later_save_and_a_tie_keeps_the_file_here(self):
+        self._current(2, saved_at='2026-11-02T00:00:00Z')
+        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
+        self._listed()
+        self.assertEqual(self.store.load(ID)['note'], 'legacy')
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['note'], 'current')
+        # a tie: the file here stays the project; a second copy is numbered, never written over
+        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
+        (self.root / ID / 'project.json').write_text(json.dumps(document(revision=2, savedAt='2026-11-05T00:00:00Z', note='tie')),
+                                                     encoding='utf8', newline='\n')
+        self._listed()
+        self.assertEqual(self.store.load(ID)['note'], 'legacy')
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy) (2).json').read_text(encoding='utf8'))['note'], 'tie')
+        # the same bytes twice keep one
+        shutil_copy = (self.root / 'Bar remix.json').read_bytes()
+        (self.root / ID).mkdir(); (self.root / ID / 'project.json').write_bytes(shutil_copy)
+        before = sorted(p.name for p in self.root.iterdir())
+        self._listed()
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), [n for n in before if n != ID])
+
+    def test_old_layout_drafts_and_previous_revisions_are_kept_beside_those_here(self):
+        self.store.save(ID, document(), 0)
+        self.store.save(ID, document(), 1)
+        self.store.save_recovery(ID, dict(baseRevision=2, note='here'))
+        self._legacy(1, **{'project.prev': dict(note='old prev'), 'recovery': dict(baseRevision=1, note='old draft')})
+        self._listed()
+        state = self.root / '.workshop' / ID
+        notes = sorted(json.loads(p.read_text(encoding='utf8')).get('note') for p in state.glob('recovery*.json'))
+        self.assertEqual(notes, ['here', 'old draft'])
+        self.assertEqual(self.store.recovery(ID)['others'], 1)
+        self.assertEqual(json.loads((state / 'project.prev (2).json').read_text(encoding='utf8'))['note'], 'old prev')
+        self.assertEqual(self.store.load(ID)['revision'], 2)
+
+    def test_a_migration_stopped_halfway_finishes_at_the_next_listing(self):
+        self._current(2)
+        self._legacy(3)
+        real = os.replace
+        calls = []
+
+        def stop_on_second(source, target):
+            calls.append(Path(target).name)
+            if len(calls) == 2: raise OSError('stopped')
+            return real(source, target)
+        with mock.patch('projects.os.replace', stop_on_second):
+            with self.assertRaises(OSError): self.store.list()
+        # the file here was moved aside, the folder's not yet in: nothing is lost, and the next listing finishes
+        self.assertEqual(calls, ['Bar remix (kept copy).json', 'Bar remix.json'])
+        self.assertTrue((self.root / ID / 'project.json').is_file())
+        self._listed()
+        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 2)
+        self.assertFalse((self.root / ID).exists())
+
+    def test_a_malformed_shared_project_is_listed_with_its_reason_and_the_rest_open(self):
+        """Review finding 9: a file of the project schema whose shape the editor can't read (its base map a string,
+        its edits not lists, its revision not a number) is a row of its own with the reason; the others list, open
+        and capture as before, schema 1 among them."""
+        self.store.save(ID, document(), 0)
+        old = dict(document(OTHER, name='Old one', revision=3), schemaVersion=1)
+        (self.root / 'old.json').write_text(json.dumps(old), encoding='utf8', newline='\n')
+        bad = {'source string.json': dict(source='URB_Bar'), 'edits object.json': dict(overrides={'a': 1}),
+               'added numbers.json': dict(added=[1, 2]), 'revision text.json': dict(revision='3'),
+               'no hash.json': dict(source=dict(map='URB_Bar')), 'name list.json': dict(name=['x'])}
+        ids = {}
+        for k, (file, change) in enumerate(bad.items()):
+            ids[file] = f'00000000-0000-4000-8000-0000000000{k:02d}'
+            (self.root / file).write_text(json.dumps(document(ids[file], **change)), encoding='utf8', newline='\n')
+        listed = {p['file']: p for p in self.store.list()}
+        self.assertEqual((listed['Bar remix.json']['revision'], listed['old.json']['revision']), (1, 3))
+        for file in bad:
+            self.assertIn('can\'t be read', listed[file]['error'], file)
+            with self.assertRaises(ProjectError) as error: self.store.load(ids[file])
+            self.assertEqual(error.exception.status, 422)
+            with self.assertRaises(ProjectError): self.store.capture(ids[file])
+        self.assertIn('base map', listed['source string.json']['error'])
+        self.assertIn('"overrides"', listed['edits object.json']['error'])
+        self.assertEqual(self.store.load(OTHER)['schemaVersion'], 1)
+        self.assertEqual(self.store.capture(ID)[0]['revision'], 1)
+        # a copy that can be read is the project before a newer one that can't
+        (self.root / 'Bar remix - broken.json').write_text(json.dumps(document(revision=9, overrides='x')), encoding='utf8', newline='\n')
+        self.assertEqual(self.store.load(ID)['revision'], 1)
+        self.assertIn('copy', {p['file']: p for p in self.store.list()}['Bar remix - broken.json']['error'])
+
+    def test_each_project_file_is_read_once_until_it_changes(self):
+        """Review finding 20: a listing reads each project file once; the next reads only what changed; the polled
+        lookups (the build status, the queue view, the map names) read nothing new; the project manager's listing
+        reads each project once, its summary from the document it gives; a file renamed or changed outside the
+        editor is seen at the next listing."""
+        ids = [ID, OTHER, '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e']
+        for k, project_id in enumerate(ids):
+            self.store.save(project_id, document(project_id, name=f'Project {k}', output=dict(shipAs=f'Ship{k}', patch=f'patch_ship{k}')), 0)
+        store = ProjectStore(self.root)
+        store.list()
+        self.assertEqual(store.reads, 3)
+        store.list()
+        self.assertEqual(store.reads, 3)
+        for project_id in ids:
+            self.assertEqual(store.cached(project_id)['output']['shipAs'], f'Ship{ids.index(project_id)}')
+            store.path(project_id)
+        self.assertEqual(len(store.claimed()), 3)
+        self.assertEqual(store.reads, 3)
+        rows = store.listing()
+        self.assertEqual(store.reads, 6)
+        self.assertEqual({s['id']: (s['revision'], d['revision']) for s, d in rows}, {i: (1, 1) for i in ids})
+        store.load(ID)
+        self.assertEqual(store.reads, 7)
+        # renamed outside the editor: found under its new name at the next listing
+        (self.root / 'Project 1.json').rename(self.root / 'renamed by hand.json')
+        self.assertIn('renamed by hand.json', [p['file'] for p in store.list()])
+        self.assertEqual(store.path(OTHER).name, 'renamed by hand.json')
+        # changed outside the editor: that one read again, and its summary is the new one
+        path = self.root / 'Project 0.json'
+        changed = dict(json.loads(path.read_text(encoding='utf8')), revision=5, name='Project 0 by hand')
+        path.write_text(json.dumps(changed), encoding='utf8', newline='\n')
+        before = store.reads
+        listed = {p['id']: p for p in store.list()}
+        self.assertEqual((listed[ID]['revision'], listed[ID]['name'], store.reads - before), (5, 'Project 0 by hand', 1))
+        self.assertEqual(store.cached(ID)['revision'], 5)
+
+    def test_a_save_that_cant_be_written_says_why(self):
+        """Review finding 46: a full disk, a locked file or a read-only folder is a ProjectError with the reason, and
+        the revision before stays the project."""
+        import errno
+        self.store.save(ID, document(), 0)
+        full = OSError(errno.ENOSPC, 'No space left on device')
+        with mock.patch('projects.os.fsync', side_effect=full):
+            with self.assertRaises(ProjectError) as error: self.store.save(ID, document(name='Bar remix'), 1)
+        self.assertEqual(error.exception.status, 500)
+        self.assertIn('the disk is full', error.exception.message)
+        self.assertFalse(list(self.root.glob('*.tmp')))
+        locked = PermissionError(errno.EACCES, 'Access is denied')
+        with mock.patch('projects.shutil.copyfile', side_effect=locked):
+            with self.assertRaises(ProjectError) as error: self.store.save(ID, document(), 1)
+        self.assertIn('access was refused', error.exception.message)
+        self.assertEqual(self.store.load(ID)['revision'], 1)
+        with mock.patch('projects.os.replace', side_effect=locked):
+            with self.assertRaises(ProjectError) as error: self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1))
+        self.assertIn('could not be written', error.exception.message)
+        self.assertEqual(self.store.save(ID, document(), 1)['revision'], 2)
 
     def test_a_save_based_on_an_older_revision_is_a_conflict(self):
         self.store.save(ID, document(), 0)
@@ -214,14 +393,55 @@ class StoreTests(unittest.TestCase):
     def test_recovery_is_kept_until_the_next_save(self):
         with self.assertRaises(ProjectError): self.store.save_recovery(ID, dict(baseRevision=0))
         self.store.save(ID, document(), 0)
-        self.store.save_recovery(ID, dict(baseRevision=1, overrides=[], added=[]))
+        self.assertEqual(self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1, overrides=[], added=[])),
+                         dict(ok=True, revision=1, stale=False))
         self.assertEqual(self.store.recovery(ID)['baseRevision'], 1)
         self.assertTrue(self.store.list()[0]['recovery'])
-        self.store.save(ID, document(), 1)
+        self.store.save(ID, document(), 1, owner=PAGE_A)
         self.assertIsNone(self.store.recovery(ID))
-        self.store.save_recovery(ID, dict(baseRevision=2))
-        self.store.drop_recovery(ID)
+        self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=2))
+        self.store.drop_recovery(ID, PAGE_A)
         self.assertIsNone(self.store.recovery(ID))
+
+    def test_each_page_session_keeps_its_own_draft(self):
+        """Review finding 3: two pages editing one project keep a draft each; a save, a discard or a clean page's
+        leaving deletes its own draft only, and a draft the user was shown goes only while it is still that one."""
+        self.store.save(ID, document(), 0)
+        self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1, note='a'))
+        self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b'))
+        newest = self.store.recovery(ID)
+        self.assertEqual((newest['others'], newest['owner'] in (PAGE_A, PAGE_B)), (1, True))
+        # a third page, clean, leaves: nothing of the two goes
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_C), dict(dropped=False))
+        self.assertEqual(len(self.store._drafts(ID)), 2)
+        # A saves: its draft goes, B's stays (and is stale now: based on revision 1, the project at 2)
+        self.store.save(ID, document(), 1, owner=PAGE_A)
+        kept = self.store.recovery(ID)
+        self.assertEqual((kept['owner'], kept['note'], kept['others']), (PAGE_B, 'b', 0))
+        self.assertEqual(self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b2')),
+                         dict(ok=True, revision=2, stale=True))
+        # a draft based on a revision the project never had is refused
+        with self.assertRaises(ProjectError) as error: self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=7))
+        self.assertEqual((error.exception.status, error.exception.extra), (409, dict(revision=2)))
+        # the user discards B's draft from another page, as it was shown: refused once B kept it again since
+        shown = self.store.recovery(ID)
+        self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b3'))
+        with mock.patch('projects.now', lambda: 'later'):
+            self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b4'))
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_B, shown['savedAt']), dict(dropped=False))
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_B, 'later'), dict(dropped=True))
+        self.assertIsNone(self.store.recovery(ID))
+        # an older editor's owner-less draft is listed, and goes by its own name only
+        self.store.save_recovery(ID, dict(baseRevision=2, note='old'))
+        self.assertEqual(self.store.recovery(ID)['owner'], None)
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_A), dict(dropped=False))
+        self.assertEqual(self.store.drop_recovery(ID, None), dict(dropped=True))
+        # owners are page session ids: nothing else names a file
+        for bad in ('../x', 'ABC', 3):
+            with self.assertRaises(ProjectError): self.store.save_recovery(ID, dict(owner=bad, baseRevision=2))
+            with self.assertRaises(ProjectError): self.store.drop_recovery(ID, bad)
+        with self.assertRaises(ProjectError): self.store.save(ID, document(), 2, owner='../x')
+        self.assertEqual(self.store.load(ID)['revision'], 2)
 
 
 class RouteTests(unittest.TestCase):
@@ -253,10 +473,22 @@ class RouteTests(unittest.TestCase):
         status, conflict = self.call('PUT', f'/projects/{ID}/project.json', dict(expectedRevision=0, document=document()))
         self.assertEqual((status, conflict['revision']), (409, 1))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json'), (200, None))
-        self.assertEqual(self.call('PUT', f'/projects/{ID}/recovery.json', dict(baseRevision=1))[0], 200)
+        self.assertEqual(self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_A, baseRevision=1)),
+                         (200, dict(ok=True, revision=1, stale=False)))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json')[1]['baseRevision'], 1)
-        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json')[0], 200)
+        # a DELETE names whose draft (and, for one shown, its time): another page's goes with nothing of it
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json')[0], 400)
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_B}'), (200, dict(dropped=False)))
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_A}&savedAt=2000-01-01T00:00:00Z'),
+                         (200, dict(dropped=False)))
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_A}'), (200, dict(dropped=True)))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json'), (200, None))
+        # a save names the page saving: its draft goes, another page's stays
+        self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_A, baseRevision=1))
+        self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_B, baseRevision=1))
+        self.assertEqual(self.call('PUT', f'/projects/{ID}/project.json', dict(expectedRevision=1, document=document(), owner=PAGE_A))[0], 200)
+        self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json')[1]['owner'], PAGE_B)
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_B}'), (200, dict(dropped=True)))
         self.assertEqual(self.call('GET', f'/projects/{OTHER}/recovery.json')[0], 404)
         self.assertEqual(self.call('GET', '/projects.json')[1]['projects'][0]['id'], ID)
 

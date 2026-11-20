@@ -20,7 +20,7 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { createMapPicture, pictureApi } from './map_picture.js';
+import { createMapPicture } from './map_picture.js';
 import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
          copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
          recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
@@ -4389,14 +4389,16 @@ async function openPrefabDocument(id) {
   const recovery = await prefabApi.recovery(id).catch(() => null);
   const missing = builder.kept.length;
   if (recovery?.document) banner(`Unsaved changes to ${builder.doc.name} from ${savedWhen(recovery.savedAt)} were kept.` +
+    draftWords(recovery, builder.doc.revision) +
     (missing ? ` The saved version has ${plural(missing, 'missing piece')}. Choose which version to open before looking for sources.` : ''), [
     ['Restore them', async () => {
       builder.doc.donors = recovery.document.donors;
       await applyPrefabDocument(recovery.document, recovery);
+      adoptedDraft = { owner: recovery.owner, savedAt: recovery.savedAt };
       recoveryKept = true; projectChanged();
       await recoverOpenedPrefabSources();
     }],
-    ['Discard them', async () => { await clearDocumentRecovery(); await recoverOpenedPrefabSources(); }],
+    ['Discard them', async () => { await discardDraft(prefabApi, id, recovery); await recoverOpenedPrefabSources(); }],
   ]);
   else await recoverOpenedPrefabSources();
 }
@@ -4493,13 +4495,16 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     const doc = newPrefab(id, name ?? builder.doc.name, records);
     if (target?.created) doc.created = target.created;
     else if (replace) doc.created = (await prefabApi.load(id)).created;
-    const result = await prefabApi.save(id, doc, target?.revision ?? 0);
-    if (previous !== id) await prefabApi.dropRecovery(previous);
+    const result = await prefabApi.save(id, doc, target?.revision ?? 0, { owner: SESSION });
+    // (the server dropped this page's draft of `id`; saved as another prefab, its draft of the one open before goes,
+    // and a draft restored into it: what they held is saved now)
+    if (previous !== id) documentWrites.run(() => prefabApi.dropRecovery(previous, SESSION)).catch(() => {});
+    dropAdopted(prefabApi, previous);
     const withRecipes = list => list.map(p => result.recipes?.[p.actor] ? { ...p, recipe: result.recipes[p.actor] } : p);
     const baseline = JSON.parse(before);
     baseline.pieces = withRecipes(baseline.pieces);
     builder.doc = { ...doc, pieces: withRecipes(doc.pieces), revision: result.revision, created: result.created, savedAt: result.savedAt };
-    builder.savedKey = JSON.stringify(baseline); recoveryKept = false;
+    builder.savedKey = JSON.stringify(baseline); recoveryKept = false; recoveryTrouble = null;
     setTimeout(checkPrefab, 0);
     builder.metadata = new Map(withRecipes(records.pieces).map(p => [p.actor, structuredClone(p)]));
     history.replaceState(null, '', `?prefab=${encodeURIComponent(id)}`);
@@ -4508,19 +4513,57 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     flashHint(`Saved ${doc.name} · revision ${result.revision}${!result.size?.verified ? ' · size unverified: missing pieces kept' : ''}`);
     return true;
   } catch (error) {
-    if (error.status === 409 && Number.isInteger(error.detail?.revision) && !name) banner(`${builder.doc.name} was saved elsewhere (revision ${error.detail.revision}).`, [
-      ['Overwrite it with this', () => { builder.doc.revision = error.detail.revision; saveBuilder(); }],
-      ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
-    ]);
+    if (error.status === 409 && Number.isInteger(error.detail?.revision) && !name) {
+      recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
+      banner(`${builder.doc.name} was saved elsewhere (revision ${error.detail.revision}).`, [
+        ['Overwrite it with this', () => { builder.doc.revision = error.detail.revision; saveBuilder(); }],
+        ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
+      ]);
+    }
     else banner(`Not saved: ${error.message}`);
     return false;
   } finally { saving = false; projectChanged(); }
 }
+// Discarding the changes on screen: this page's own draft goes, and a draft it restored; other pages' stay.
 async function clearDocumentRecovery() {
   clearTimeout(recoveryTimer);
   const id = builderMode ? builder.doc?.id : project?.doc.id, api = builderMode ? prefabApi : projectApi;
-  await documentWrites.run(async () => { if (id) await api.dropRecovery(id); });
+  const adopted = adoptedDraft;
+  adoptedDraft = null;
+  await documentWrites.run(async () => {
+    if (!id) return;
+    await api.dropRecovery(id, SESSION);
+    if (adopted) await api.dropRecovery(id, adopted.owner, adopted.savedAt);
+  });
   recoveryKept = false;
+}
+// A draft the user restored, deleted once this page's own draft or a save holds its changes.
+function dropAdopted(api, id) {
+  const adopted = adoptedDraft;
+  if (!adopted || !id) return Promise.resolve();
+  adoptedDraft = null;
+  return documentWrites.run(() => api.dropRecovery(id, adopted.owner, adopted.savedAt)).catch(() => {});
+}
+// A draft the user was shown and discarded: that one alone, while it is still the one shown.
+function discardDraft(api, id, draft) {
+  return documentWrites.run(() => api.dropRecovery(id, draft.owner, draft.savedAt))
+    .catch(error => banner(`The kept changes could not be discarded: ${error.message}`));
+}
+// What a draft offered back says beside its time: based on an older revision (another page saved since), and how
+// many more are kept.
+function draftWords(draft, revision) {
+  const words = [];
+  if (Number.isInteger(draft.baseRevision) && draft.baseRevision !== revision)
+    words.push(` They were made on revision ${draft.baseRevision}; it has been saved since (revision ${revision}), so restoring them puts revision ${draft.baseRevision}'s state back with these changes, and saving that replaces what was saved since.`);
+  if (draft.others) words.push(` ${plural(draft.others, 'other set')} of unsaved changes ${draft.others === 1 ? 'is' : 'are'} kept too, from other windows or tabs.`);
+  return words.join('');
+}
+// A draft write that failed, or was kept against an older revision than the saved one: said once, until a write
+// goes through again.
+function recoveryProblem(kind, message) {
+  if (recoveryTrouble === kind) return;
+  recoveryTrouble = kind;
+  banner(message);
 }
 async function discardAndGo(change) {
   await clearDocumentRecovery(); leaving = true; navigate(change);
@@ -4539,6 +4582,12 @@ function askLeave() {
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
 let project = null;   // { doc, revision, carried: {overrides, added} kept as they were, savedKey }
 let templates = null, recoveryTimer = null, recoveryKept = false, saving = false;
+// Drafts for recovery belong to the page session that keeps them (review finding 3; projects.py): this page's id,
+// made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
+// user restored (`adoptedDraft`, { owner, savedAt }: deleted once this page's own draft or a save holds its changes)
+// or discarded. `recoveryTrouble`: the last draft write failed or was stale, and the user was told.
+const SESSION = uuid();
+let adoptedDraft = null, recoveryTrouble = null;
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // Projects edit a full map's original layout: not a piece study or a patch preview.
 const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
@@ -4832,12 +4881,20 @@ async function openProject(id) {
   catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
   await looksReady;
   if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
+  // (the server opens only a project it can read: projects.shape_problem. A document whose edits are not lists is
+  // refused here too, rather than opened without them and saved back so: review finding 9)
+  const listOrNone = value => value === undefined || Array.isArray(value);
+  if (!listOrNone(doc.overrides) || !listOrNone(doc.added) || typeof doc.source?.sha256 !== 'string') {
+    banner(`The project could not be opened: ${doc.name ?? id} is not a project this editor can read (its edits or its base map are not as a project has them).`);
+    return;
+  }
   $('loading').hidden = false; loadingState(`Opening ${doc.name}…`, 0);
+  const docOverrides = doc.overrides ?? [], docAdded = doc.added ?? [];
   const docGroups = Array.isArray(doc.groups) ? doc.groups : [];
   const docBindings = Array.isArray(doc.areaLightBindings) ? doc.areaLightBindings : [];
-  const malformed = { overrides: doc.overrides.filter(r => !validOverride(r)), added: doc.added.filter(e => !validAdded(e)),
+  const malformed = { overrides: docOverrides.filter(r => !validOverride(r)), added: docAdded.filter(e => !validAdded(e)),
                       groups: docGroups.filter(g => !validGroup(g)), areaLightBindings: docBindings.filter(b => !validBinding(b)) };
-  const carried = await applyState({ overrides: doc.overrides.filter(validOverride), added: doc.added.filter(validAdded),
+  const carried = await applyState({ overrides: docOverrides.filter(validOverride), added: docAdded.filter(validAdded),
                                      groups: docGroups.filter(validGroup), areaLightBindings: docBindings.filter(validBinding),
                                      stage: doc.stage, buildings: Array.isArray(doc.buildings) ? doc.buildings : [],
                                      cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
@@ -4860,7 +4917,7 @@ async function openProject(id) {
   askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
   touchRecent(id);
   // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
-  projectApi.buildStatus(id).then(s => { lastBuild = s; renderPlayItems(); if (s.state === 'running') followBuild(s); }, () => {});
+  projectApi.buildStatus(id).then(s => { if (!setLastBuild(id, s)) return; renderPlayItems(); if (s.state === 'running') followBuild(s, id); }, () => {});
   $('loading').hidden = true;
   const kept = carried.overrides.length + carried.added.length + carried.groups.length + carried.areaLightBindings.length
     + carried.buildings.filter(validBuilding).length;
@@ -4872,6 +4929,12 @@ async function openProject(id) {
   if (doc.view?.camera?.length === 3 && doc.view.target?.length === 3) {
     camera.position.fromArray(doc.view.camera); controls.target.fromArray(doc.view.target); controls.update();
   }
+  await offerProjectDraft(id, doc);
+  editChanged();
+}
+// The newest draft of the project another page session kept (a lost tab's, or another window's), offered back: one
+// that is the saved state already is spent, and goes (the next is offered then).
+async function offerProjectDraft(id, doc, tries = 4) {
   const recovery = await projectApi.recovery(id).catch(() => null);
   if (recovery && Array.isArray(recovery.overrides) && Array.isArray(recovery.added)) {
     const state = { overrides: recovery.overrides.filter(validOverride), added: recovery.added.filter(validAdded),
@@ -4886,14 +4949,22 @@ async function openProject(id) {
                     nextSerial: recovery.nextSerial };
     if (stateKey(sortState(state)) !== project.savedKey) {
       const when = new Date(recovery.savedAt).toLocaleString();
-      const since = recovery.baseRevision !== project.revision ? ` (based on revision ${recovery.baseRevision}; the project is now at ${project.revision})` : '';
-      banner(`Unsaved changes to ${doc.name} from ${when} were kept${since}.`, [
-        ['Restore them', async () => { await applyState(state); recoveryKept = true; projectChanged(); }],
-        ['Discard them', () => { clearDocumentRecovery().catch(error => banner(`Recovery could not be cleared: ${error.message}`)); }],
+      banner(`Unsaved changes to ${doc.name} from ${when} were kept.${draftWords(recovery, project.revision)}`, [
+        ['Restore them', async () => {
+          await applyState(state);
+          adoptedDraft = { owner: recovery.owner, savedAt: recovery.savedAt };
+          recoveryKept = true; projectChanged();
+        }],
+        ['Discard them', async () => {
+          await discardDraft(projectApi, id, recovery);
+          if (recovery.others && project?.doc.id === id) await offerProjectDraft(id, doc, tries - 1);
+        }],
       ]);
+    } else if (tries > 0) {
+      const { dropped } = await documentWrites.run(() => projectApi.dropRecovery(id, recovery.owner, recovery.savedAt)).catch(() => ({ dropped: false }));
+      if (dropped && recovery.others) await offerProjectDraft(id, doc, tries - 1);
     }
   }
-  editChanged();
 }
 // The project's own state in the header, and its unsaved state kept on the server against a lost tab.
 function projectChanged() {
@@ -4916,26 +4987,41 @@ async function keepRecovery() {
   if (builderMode) {
     if (!builder.doc?.revision || builder.loading || saving || navigating) return;
     if (gizmo.controls.dragging) { recoveryTimer = setTimeout(keepRecovery, 1000); return; }
-    const id = builder.doc.id, state = { baseRevision: builder.doc.revision, document: builderDocument(), envelope: builder.envelope, nextSerial: copySerial };
+    const id = builder.doc.id, state = { owner: SESSION, baseRevision: builder.doc.revision, document: builderDocument(), envelope: builder.envelope, nextSerial: copySerial };
     const changed = dirty();
     if (!changed && !recoveryKept) return;
     try {
-      await documentWrites.run(() => changed ? prefabApi.keepRecovery(id, state) : prefabApi.dropRecovery(id));
+      const kept = await documentWrites.run(() => changed ? prefabApi.keepRecovery(id, state) : prefabApi.dropRecovery(id, SESSION));
       recoveryKept = changed;
-    } catch (error) { if (error.status !== 409) banner(`Unsaved prefab changes could not be kept for recovery: ${error.message}`); }
+      if (changed) { keptDraft(kept, builder.doc.name); dropAdopted(prefabApi, id); }
+    } catch (error) {
+      recoveryProblem('failed', `Unsaved changes to ${builder.doc.name} could not be kept for recovery: ${error.message}. They are still on screen; save to keep them.`);
+    }
     return;
   }
   if (!project || saving || navigating) return;
   // A drag in progress is never kept half done.
   if (gizmo.controls.dragging) { recoveryTimer = setTimeout(keepRecovery, 1000); return; }
-  const state = editState();
+  const state = editState(), id = project.doc.id;
   try {
     if (stateKey(state) !== project.savedKey) {
-      const id = project.doc.id, snapshot = { baseRevision: project.revision, nextSerial: copySerial, ...state };
-      await documentWrites.run(() => projectApi.keepRecovery(id, snapshot));
+      const snapshot = { owner: SESSION, baseRevision: project.revision, nextSerial: copySerial, ...state };
+      const kept = await documentWrites.run(() => projectApi.keepRecovery(id, snapshot));
       recoveryKept = true;
-    } else if (recoveryKept) { const id = project.doc.id; await documentWrites.run(() => projectApi.dropRecovery(id)); recoveryKept = false; }
-  } catch (e) { console.warn('Unsaved changes could not be kept for recovery', e); }
+      keptDraft(kept, project.doc.name);
+      dropAdopted(projectApi, id);
+    } else if (recoveryKept) { await documentWrites.run(() => projectApi.dropRecovery(id, SESSION)); recoveryKept = false; }
+  } catch (error) {
+    // (said in the page, as a prefab's is: review finding 3)
+    recoveryProblem('failed', `Unsaved changes to ${project?.doc.name ?? 'the project'} could not be kept for recovery: ${error.message}. They are still on screen; save to keep them.`);
+  }
+}
+// A draft the server kept: one kept against an older revision than the saved one says so once (another window or tab
+// saved meanwhile; saving then asks whether to overwrite that).
+function keptDraft(kept, name) {
+  if (kept?.stale) recoveryProblem('stale', `${name} was saved elsewhere since this page opened it (revision ${kept.revision}). `
+    + 'These unsaved changes are kept for recovery; saving asks whether to overwrite that revision.');
+  else recoveryTrouble = null;
 }
 // Save (Ctrl+S): the open project's next revision; without one, the Save dialog asks for a name first.
 // The Save dialog calls it with { name, output } for a new project from what is on screen, with the map name it showed
@@ -4961,9 +5047,13 @@ async function saveProject({ name = null, replace = null, rename = null, output 
   let base = project?.doc, expected = project?.revision;
   try {
     if (replace) {
+      // the revision the dialog showed is the one replaced, and no other (review finding 4): one saved since is asked
+      // about again (the dialog shows its revision now)
       const target = await projectApi.load(replace.id);
       if (target.source?.map !== activeMapId) throw new Error(`${target.name} is a project of another map.`);
-      base = { ...target, name, source }; expected = target.revision;
+      if (target.revision !== replace.revision)
+        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, detail: { revision: target.revision } });
+      base = { ...target, name, source }; expected = replace.revision;
     } else if (fresh) {
       if (!output) throw new Error('the map name is still being worked out; save again in a moment');
       base = { ...newDocument(name, activeMapId, data, output), source }; expected = 0;
@@ -4987,15 +5077,26 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     if (document.picture == null) delete document.picture;       // no picture of its own
     delete document.revision; delete document.savedAt;
     if (fresh) delete document.created;
-    const result = await projectApi.save(document.id, document, expected);
-    // Saved under another project: the changes kept for recovery of the one open before are in it now.
-    if (previous && previous !== document.id && recoveryKept) projectApi.dropRecovery(previous).catch(() => {});
-    // saved as another project: its map picture is kept by project, so the new one gets its own copy of the file
-    if (previous && previous !== document.id && document.picture) {
-      pictureApi.copy(previous, document.id, document.picture.sha256)
-        .catch(error => banner(`The map picture was not copied to ${document.name}: ${error.message}. Choose it again in Map picture.`));
+    // saved as another project: its map picture is kept by project, so the server copies the file to the new one
+    // within the save, byte for byte, before the document is written (review finding 8)
+    const pictureFrom = previous && previous !== document.id && document.picture ? { pictureFrom: previous } : {};
+    const result = await projectApi.save(document.id, document, expected, { owner: SESSION, ...pictureFrom });
+    if (result.pictureMissing)
+      banner(`The map picture was not copied to ${document.name}: the project saved from keeps it no more. Choose it again in Map picture.`);
+    // Saved under another project: this page's draft of the one open before is in it now, and so is a draft restored
+    // (the server dropped this page's draft of the one saved).
+    if (previous && previous !== document.id) documentWrites.run(() => projectApi.dropRecovery(previous, SESSION)).catch(() => {});
+    dropAdopted(projectApi, previous);
+    recoveryTrouble = null;
+    const { pictureMissing, note, ...saved } = result;
+    if (note) banner(`Saved ${document.name}. ${note}`);      // (saved, with something left to say: projects.py)
+    project = { doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) };
+    if (previous !== document.id) {
+      // another project now (Save as, or Replace): its own build status, not the one saved from's (review finding 10)
+      lastBuild = null; clearTimeout(buildTimer);
+      const id = document.id;
+      projectApi.buildStatus(id).then(s => { if (setLastBuild(id, s)) { renderPlayItems(); if (s.state === 'running') followBuild(s, id); } }, () => {});
     }
-    project = { doc: { ...document, ...result }, revision: result.revision, carried, savedKey: stateKey(state) };
     recoveryKept = false;
     touchRecent(document.id);
     const parameters = new URLSearchParams(location.search);
@@ -5006,7 +5107,10 @@ async function saveProject({ name = null, replace = null, rename = null, output 
   } catch (e) {
     // the map name shown was taken meanwhile: the dialog shows the one it would get now, and nothing is lost
     if (fresh && e.status === 409 && e.detail?.proposal) throw e;
+    // the project replaced was saved again since the dialog showed it: the dialog asks again
+    if (replace && e.status === 409 && Number.isInteger(e.detail?.revision)) throw e;
     if (e.status === 409 && Number.isInteger(e.detail?.revision) && !name && !replace) {
+      recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
       banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.detail.revision}).`, [
         ['Overwrite it with this', () => { project.revision = e.detail.revision; saveProject(); }],
         ['Open the saved one', () => discardAndGo({ map: activeMapId, project: project.doc.id, scene: null })],
@@ -5053,19 +5157,27 @@ async function buildProject(quick = false) {
   if (!canBuild()) return;
   if (dirty() && !(await saveProject())) return;
   try {
-    const status = await projectApi.build(project.doc.id, quick);
+    const id = project.doc.id, status = await projectApi.build(id, quick);
     // Play in game asked for this very build: its attempt, so no other build of the project (the queue's) plays
     if (playAfterBuild && !playAfterBuild.attempt && status.job?.project === playAfterBuild.project) playAfterBuild.attempt = status.job.attempt;
-    followBuild(status);
+    followBuild(status, id);
   }
   catch (e) { banner(`Not built: ${e.message}`); }
 }
+// The build status of the open project (review finding 10): kept with the id it was asked for, and an answer for a
+// project no longer open (the page saved as another since) thrown away. False when it was.
+function setLastBuild(id, status) {
+  if (!project || project.doc.id !== id) return false;
+  lastBuild = { ...status, project: id };
+  return true;
+}
 // Each status from the server (every 2 s while the build runs). A build that ended before this page saw it running
 // opens no window: its package shows in the Project menu. A build of the build queue's (job.origin 'queue') opens no
-// window either: the editor stays usable, and the chip and the project manager follow it.
-function followBuild(status) {
+// window either: the editor stays usable, and the chip and the project manager follow it. `id`: the project it was
+// asked for (a late answer for another is dropped).
+function followBuild(status, id = project?.doc.id) {
   clearTimeout(buildTimer);
-  lastBuild = status;
+  if (!setLastBuild(id, status)) return;
   const job = status.job;
   if (!project || !job) return;
   if (job.origin === 'queue' && buildView?.attempt !== job.attempt) { renderPlayItems(); return; }
@@ -5084,7 +5196,7 @@ function followBuild(status) {
   // Play in game asked for this build: play it once built (this attempt alone).
   if (buildView.ended && job.attempt && playAfterBuild?.attempt === job.attempt) {
     playAfterBuild = null;
-    if (status.state === 'built') playBuilt(job.project);
+    if (status.state === 'built') playBuilt(job.project, job.attempt);
   }
   renderBuild(); renderPlayItems();
   if (!buildView.ended) buildTimer = setTimeout(pollBuild, 2000);
@@ -5096,7 +5208,8 @@ function followBuild(status) {
 }
 function pollBuild() {
   if (!project) return;
-  projectApi.buildStatus(project.doc.id).then(followBuild, () => {
+  const id = project.doc.id;
+  projectApi.buildStatus(id).then(status => followBuild(status, id), () => {
     buildView.failures++;
     renderBuild();
     buildTimer = setTimeout(pollBuild, 5000);
@@ -5343,14 +5456,14 @@ async function playFinished() {
   try { playStatus = await playApi.status(); why = playBlocked(playStatus); }
   catch (e) { why = e.message; }
   if (why) { buildView.install = { state: 'failed', message: `Not started: ${why}.` }; renderBuild(); return; }
-  playBuilt(id);
+  playBuilt(id, buildView.status.job.attempt);
 }
 $('buildPlay').onclick = playFinished;
 $('buildPrepare').onclick = () => { closeBuildWindow(); showPrepare('failed', true); };
 // Cancel stops the build and its tools (builds.py); the package swaps in only at the end, so the last good one stays.
 $('buildCancel').onclick = async () => {
   $('buildCancel').disabled = true;
-  try { followBuild(await projectApi.cancelBuild(buildView.status.job.project, buildView.status.job.attempt)); }
+  try { const id = buildView.status.job.project; followBuild(await projectApi.cancelBuild(id, buildView.status.job.attempt), id); }
   catch (e) { buildView.report = `Not cancelled: ${e.message}`; buildView.reportPath = null; renderBuild(); }
   finally { $('buildCancel').disabled = false; }
 };
@@ -5458,7 +5571,9 @@ function followPlayedMission(value) {
   $('mission').value = v;
   $('mission').onchange({ target: $('mission') });
 }
-const builtAsShown = () => Boolean(project) && !dirty() && lastBuild?.package?.revision === project.revision;
+// (the open project's own package, of what is on screen: the same project, not just the same revision number, review
+// finding 10)
+const builtAsShown = () => Boolean(project) && !dirty() && lastBuild?.project === project.doc.id && lastBuild?.package?.revision === project.revision;
 async function refreshInstalls() {
   try { playStatus = await playApi.status(); }
   catch (e) { playStatus = { error: e.message, unavailable: e.status === 404 }; }
@@ -5560,7 +5675,8 @@ async function playChosen(kind, mission = null, saving = false) {
   playMission = mission === null || mission === undefined ? missionPickValue : String(mission);
   playSaving = Boolean(saving);
   followPlayedMission(playMission);
-  if (kind === 'last') { if (builtAsShown()) sendPlay(withZone({ project: project.doc.id }), project.doc.name); return; }
+  // (the build shown, named: a package swapped in since starts nothing, play.py)
+  if (kind === 'last') { if (builtAsShown()) sendPlay(withZone({ project: project.doc.id, buildId: lastBuild.package.buildId }), project.doc.name); return; }
   // save and build it, and play it when that build ends (followBuild)
   playAfterBuild = { project: project.doc.id, attempt: null };
   await buildProject(kind === 'quick');
@@ -5588,10 +5704,11 @@ function landHere() {
 }
 const PLAYED_FOR = 12000;     // ms the "Starting XCOM …" message stays (a failure stays until dismissed)
 // After a build Play in game asked for: the outcome shows in the build window, or in a banner once it's closed.
-async function playBuilt(id) {
+// `attempt`: that build's, so the play starts that package and no other (play.py checks it under its guard).
+async function playBuilt(id, attempt = null) {
   buildView.install = { state: 'running' };
   try {
-    const r = await playApi.start(withZone({ project: id }));
+    const r = await playApi.start(withZone({ project: id, ...(attempt ? { attempt } : {}) }));
     playStatus = r;
     buildView.install = { state: 'done', message: playedMessage(r), saving: Boolean(r.played?.saving) };
   }
@@ -5774,7 +5891,7 @@ function followQueueForProject(state, info) {
   const building = Boolean(mine && (mine.state === 'starting' || mine.state === 'building'));
   const shown = lastBuild?.state === 'running' && lastBuild.job?.origin === 'queue';
   if (building !== shown || info?.ended?.some(i => i.project === id))
-    projectApi.buildStatus(id).then(s => { if (project?.doc.id === id) { lastBuild = s; renderPlayItems(); } }, () => {});
+    projectApi.buildStatus(id).then(s => { if (setLastBuild(id, s)) renderPlayItems(); }, () => {});
 }
 $('queueChip').onclick = () => showProjectManager();
 window.addEventListener('focus', () => buildQueue.refresh());
@@ -11786,14 +11903,22 @@ async function open() {
   }
   activeMapId=builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap;
   const activeMap=mapCatalogue.maps.find(map=>map.id===activeMapId);
+  // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
+  const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
   mapBrowser=createMapBrowser({ els: { root: $('mapDialog'), form: $('mapForm'), search: $('mapSearch'), prepared: $('mapPrepared'),
     groups: $('mapGroups'), list: $('mapList'), count: $('mapCount'), message: $('mapMessage'), bar: $('mapBar'), ok: $('mapOk'),
     // On a patch preview the open map counts as not open: choosing it opens its original layout.
     cancel: $('mapCancel'), close: $('mapClose') }, maps: mapCatalogue.maps,
     current: activeMap?.ready && !parameters.get('scene') ? activeMapId : null,
-    // The map asked for but not prepared yet opens as asked (its project too) once it is ready.
     prefabs: async () => (await prefabApi.list()).prefabs, onPrefab: id => goTo({ prefab: id }),
-    onOpen: id => { mapBrowser.close(); goTo({ map: id, scene: null, project: null, mission: null }); } });
+    // The map asked for but not prepared yet opens as asked once it is ready: the address as it was, its project,
+    // mission and layout too (review finding 7; nothing is open meanwhile). Any other map chosen is a switch of map,
+    // which opens it alone.
+    onOpen: id => {
+      mapBrowser.close();
+      if (id === askedUnprepared) { leaving = true; location.reload(); return; }
+      goTo({ map: id, scene: null, project: null, mission: null });
+    } });
   if (builderMode) {
     data = emptyPrefabScene();
     await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
@@ -12111,7 +12236,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     mapEdits: () => { const e = mapEdits(); return { changed: [...e.changed], gone: [...e.gone] }; },
     putVolume: (id, box) => { const r = volumeRoots.get(id); recordVolumes([r], () => setVolumeBox(r, box)); },
     listingsNow: id => roots.get(id) && listingsNow(roots.get(id)), floorTiles: () => floorTileLayer && floorTileLayer.userData.tiles.length,
-    project: () => project && { id: project.doc.id, name: project.doc.name, revision: project.revision, dirty: dirty(), carried: project.carried, doc: project.doc }};
+    project: () => project && { id: project.doc.id, name: project.doc.name, revision: project.revision, dirty: dirty(), carried: project.carried, doc: project.doc },
+    // this page's session (its drafts for recovery are kept under it) and its last build status (the document checks)
+    session: SESSION, lastBuild: () => lastBuild };
 }
 
 // Header menus: one open at a time; a press elsewhere or Escape closes it.

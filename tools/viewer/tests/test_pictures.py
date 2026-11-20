@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import unittest.mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -149,6 +150,81 @@ class Kept(unittest.TestCase):
         self.assertTrue(pictures.adopt_picture(self.root, OTHER, beside, sha(data), remove=False))
         self.assertTrue(beside.is_file())
         self.assertEqual(pictures.picture_file(self.root, OTHER, sha(data)).read_bytes(), data)
+
+    def test_a_picture_beside_a_project_file_is_found_by_reading_and_taken_in_by_a_save(self):
+        """Review finding 45: reading finds the picture lying beside the project's file and changes nothing; the next
+        save takes it in, so a rename keeps it."""
+        data = pictures.clean(png(colour=(10, 120, 60)))
+        self.store.save(ID, document(picture=dict(sha256=sha(data))), 0)
+        beside = pictures.beside(self.store.path(ID))
+        beside.write_bytes(data)
+        doc = self.store.load(ID)
+        self.assertEqual(pictures.project_picture(self.store, doc), beside)
+        self.assertEqual(pictures.project_picture(self.root, doc), beside)        # (the Build's way: the folder)
+        self.assertEqual(pictures.status(self.store, doc), 'own')
+        self.assertTrue(beside.is_file())
+        self.assertFalse((self.folder / 'picture.png').exists())
+        # saved under a new name: taken in first, so the renamed project keeps it
+        self.store.save(ID, dict(doc, name='Bar remix renamed'), 1)
+        self.assertFalse(beside.exists())
+        self.assertEqual((self.folder / 'picture.png').read_bytes(), data)
+        self.assertEqual(pictures.project_picture(self.store, self.store.load(ID)), self.folder / 'picture.png')
+
+    def test_save_as_copies_the_picture_with_the_save(self):
+        """Review finding 8: Save as from a project copies the picture its document names, byte for byte (a sidecar
+        sent with a project as well as one the editor kept), before the new document is written; a copy that fails
+        saves nothing; a picture the project saved from no longer keeps is said, and the document saved."""
+        sidecar = png(colour=(200, 10, 10))
+        with Image.open(io.BytesIO(sidecar)) as image:      # a valid picture, compressed another way than clean()
+            out = io.BytesIO(); image.save(out, 'PNG', compress_level=1); sidecar = out.getvalue()
+        self.assertNotEqual(pictures.clean(sidecar), sidecar)
+        self.store.save(ID, document(picture=dict(sha256=sha(sidecar))), 0)
+        pictures.beside(self.store.path(ID)).write_bytes(sidecar)
+        copied = self.store.save(OTHER, document(OTHER, name='Copy', picture=dict(sha256=sha(sidecar))), 0, picture_from=ID)
+        self.assertNotIn('pictureMissing', copied)
+        kept = self.root / '.workshop' / OTHER / 'picture.png'
+        self.assertEqual(kept.read_bytes(), sidecar)
+        self.assertEqual(pictures.project_picture(self.store, self.store.load(OTHER)), kept)
+        # an ordinary upload, then Save as over another project that has a picture of its own: that one is kept for
+        # its saved revision
+        mine = pictures.save_picture(self.store, ID, png(colour=(5, 5, 90)))['sha256']
+        third = '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e'
+        theirs = pictures.save_picture(self.store, third, png(colour=(90, 90, 5)))['sha256']
+        self.store.save(third, document(third, name='Theirs', picture=dict(sha256=theirs)), 0)
+        self.store.save(third, document(third, name='Theirs', picture=dict(sha256=mine)), 1, picture_from=ID)
+        folder = self.root / '.workshop' / third
+        self.assertEqual((sha((folder / 'picture.png').read_bytes()), sha((folder / 'picture.prev.png').read_bytes())), (mine, theirs))
+        # a copy that fails: nothing saved
+        fourth = '3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f'
+        with unittest.mock.patch('pictures._replace', side_effect=OSError('disk full')):
+            with self.assertRaises(ProjectError) as failed:
+                self.store.save(fourth, document(fourth, name='Fourth', picture=dict(sha256=mine)), 0, picture_from=ID)
+        self.assertEqual(failed.exception.status, 500)
+        self.assertIn('disk full', failed.exception.message)
+        with self.assertRaises(ProjectError): self.store.load(fourth)
+        # a picture the project saved from keeps no more: the document is saved naming it, and the answer says so
+        answer = self.store.save(fourth, document(fourth, name='Fourth', picture=dict(sha256='e' * 64)), 0, picture_from=ID)
+        self.assertTrue(answer['pictureMissing'])
+        self.assertEqual(self.store.load(fourth)['picture'], dict(sha256='e' * 64))
+
+    def test_a_kept_picture_is_hashed_once_while_unchanged(self):
+        """Review finding 50: the listing's look at a kept picture hashes it again only when its size or time changed."""
+        first = pictures.save_picture(self.store, ID, png())['sha256']
+        doc = document(picture=dict(sha256=first))
+        calls = []
+        real = pictures.sha256
+        with unittest.mock.patch('pictures.sha256', lambda data: calls.append(1) or real(data)):
+            for _ in range(5): self.assertIsNotNone(pictures.project_picture(self.store, doc))
+            self.assertLessEqual(len(calls), 1)
+            pictures._HASHES.clear()
+            self.assertIsNotNone(pictures.project_picture(self.store, doc))
+            self.assertEqual(len(calls), 2)
+        # changed on disk: hashed again
+        path = self.folder / 'picture.png'
+        other = pictures.clean(png(colour=(1, 1, 1)))
+        path.write_bytes(other)
+        self.assertEqual(pictures.file_sha256(path), sha(other))
+        self.assertIsNone(pictures.project_picture(self.store, doc))
 
     def test_a_project_s_document_takes_a_picture_record_and_nothing_else_there(self):
         self.store.save(ID, document(picture=dict(sha256='a' * 64)), 0)
@@ -295,15 +371,31 @@ class Routes(unittest.TestCase):
         self.call('DELETE', self.url)
         self.assertEqual(sha(self.call('GET', f'{self.url}?sha256={digest}')[1]), digest)
 
-    def test_opening_a_project_takes_in_the_picture_sent_beside_its_file(self):
+    def test_opening_a_project_reads_the_picture_sent_beside_its_file_and_its_save_takes_it_in(self):
+        # (review finding 45: a GET changes no file)
         data = pictures.clean(png())
         self.assertEqual(self.save(picture=dict(sha256=sha(data)))[0], 200)
         beside = pictures.beside(self.store.path(ID))
         beside.write_bytes(data)
-        self.assertEqual(self.call('GET', f'{self.url}?sha256={sha(data)}')[0], 404)
+        self.assertEqual(self.call('GET', f'{self.url}?sha256={sha(data)}'), (200, data))
         self.assertEqual(self.call('GET', f'/projects/{ID}/project.json')[0], 200)
+        self.assertTrue(beside.exists())
+        self.assertFalse((self.store.root / '.workshop' / ID / 'picture.png').exists())
+        self.assertEqual(self.save(1, picture=dict(sha256=sha(data)))[0], 200)
         self.assertFalse(beside.exists())
         self.assertEqual(self.call('GET', f'{self.url}?sha256={sha(data)}'), (200, data))
+
+    def test_save_as_names_the_project_its_picture_is_copied_from(self):
+        self.assertEqual(self.save()[0], 200)
+        digest = self.call('PUT', self.url, png())[1]['sha256']
+        body = json.dumps(dict(expectedRevision=0, document=document(OTHER, name='Copy', picture=dict(sha256=digest)),
+                               pictureFrom=ID)).encode()
+        status, saved = self.call('PUT', f'/projects/{OTHER}/project.json', body, {'Content-Type': 'application/json'})
+        self.assertEqual((status, saved['revision'], 'pictureMissing' in saved), (200, 1, False))
+        self.assertEqual(sha(self.call('GET', f'/projects/{OTHER}/picture.png?sha256={digest}')[1]), digest)
+        body = json.dumps(dict(expectedRevision=1, document=document(OTHER, name='Copy', picture=dict(sha256=digest)),
+                               pictureFrom='../x')).encode()
+        self.assertEqual(self.call('PUT', f'/projects/{OTHER}/project.json', body, {'Content-Type': 'application/json'})[0], 404)
 
     def test_the_game_s_picture_of_a_map_is_served_or_missing(self):
         # this server reads no game install: no map has a picture

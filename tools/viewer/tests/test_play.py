@@ -199,6 +199,29 @@ class Play(unittest.TestCase):
         self.assertFalse((self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).exists())
         self.assertFalse(player.status()['game']['anything'])
 
+    def test_a_play_names_the_build_it_means_and_another_build_is_not_started(self):
+        """Review finding 10: the play request names the build the page showed (buildId) or asked for (attempt),
+        checked under the package's guard; a package swapped in since starts nothing and says which build is there."""
+        player = self.player()
+        self.package(revision=1)
+        manifest = self.output / VARIANT / 'manifest.json'
+        m = json.loads(manifest.read_text(encoding='utf-8'))
+        manifest.write_text(json.dumps(dict(m, attempt='attempt-1')), encoding='utf-8')
+        # another build lands after the page showed revision 1's
+        self.package(revision=2)
+        for request in (dict(project=ID, buildId=f'{VARIANT}-1'), dict(project=ID, attempt='attempt-1')):
+            with self.assertRaises(ProjectError) as error: player.play(request)
+            self.assertEqual((error.exception.status, error.exception.extra['buildId']), (409, f'{VARIANT}-2'))
+            self.assertIn('another build now', error.exception.message)
+        self.assertEqual(self.started, [])
+        self.assertEqual(self.records(self.lwr, VARIANT), [])
+        for bad in (dict(project=ID, buildId=3), dict(map='URB_Bar', buildId='x')):
+            with self.assertRaises(ProjectError) as error: player.play(bad)
+            self.assertEqual(error.exception.status, 400)
+        r = player.play(dict(project=ID, buildId=f'{VARIANT}-2'))
+        self.assertEqual(r['played']['project']['revision'], 2)
+        self.settle(player)
+
     def test_a_project_gets_a_record_of_its_own_and_comes_out_byte_for_byte(self):
         before = self.files(self.lwr)
         player = self.player()
@@ -727,14 +750,19 @@ class Play(unittest.TestCase):
         player.play(dict(map='URB_Bar'))
         self.settle(player)
         self.assertFalse(local.exists())
-        # a server that went away during a play: the next one's first look puts the config back
+        # a server that went away during a play: the next one puts the config back as it starts (recover); a look at
+        # the install (GET /play.json) changes nothing (review finding 45)
         player.start = lambda argv, cwd=None: None
         installs.backup_config(self.lwr, gamelaunch.user_config(self.lwr, self.documents))
         self.content.write_bytes(b'changed by the game')
         fresh = self.player()
         self.assertTrue(fresh.status()['game']['configKept'])
+        self.assertIsNone(fresh.watching)
+        self.assertEqual(self.content.read_bytes(), b'changed by the game')
+        self.assertTrue(fresh.recover())
         self.settle(fresh)
         self.assertEqual(self.content.read_bytes(), own)
+        self.assertFalse(fresh.recover())       # nothing left: no watch
 
     def test_a_plays_saves_are_kept_apart_from_a_campaigns(self):
         """F-89: a battle started without the main menu's login writes its save to save1 whatever is there (EXP-53's
@@ -807,11 +835,12 @@ class Play(unittest.TestCase):
         self.assertEqual(last['kept'], [])
         self.assertEqual([m['name'] for m in last['keptAside']], ['save999'])
         self.assertEqual(list((self.lwr / 'XCOM Map Workshop' / 'play').iterdir()), [])
-        # a server that went away during a play: the next one's first look sorts the saves
+        # a server that went away during a play: the next one sorts the saves as it starts (recover)
         installs.keep_saves(self.lwr, [mine])
         (mine / 'save1').write_bytes(save(0, b'made while no server watched', broken=True))
         fresh = self.player()
         self.assertTrue(fresh.status()['game']['savesKept'])
+        self.assertTrue(fresh.recover())
         self.settle(fresh)
         self.assertEqual((mine / 'save1').read_bytes(), campaign1)
         self.assertEqual(len(list(aside.iterdir())), 4)
@@ -1163,9 +1192,11 @@ class Play(unittest.TestCase):
                    config=play['config'], files=play['playFiles'], landingZones=play['playZones'])
         (folder / 'installs.json').write_text(json.dumps(old), encoding='utf-8')
         (folder / 'play.json').unlink()
-        # the next look at the install (the page asks as it opens) clears it, the game being closed
+        # the next server's start clears it, the game being closed (a look at the install changes nothing)
         player = self.player(cleanup=True)
         self.assertTrue(player.status()['game']['play'])
+        self.assertIsNone(player.watching)
+        self.assertTrue(player.recover())
         self.settle(player)
         self.assertEqual(self.files(self.lwr), before)
         self.assertFalse(player.status()['game']['anything'])

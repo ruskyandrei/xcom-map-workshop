@@ -13,7 +13,7 @@ import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
 from export import export_map, stream_package, EXPORT_VERSION
 from catalogue import PackageDigests, load_catalogue, public_catalogue, with_install
-from projects import ProjectError, ProjectStore
+from projects import ProjectError, ProjectStore, draft_query
 from prefabs import MAX_PICTURE, PrefabStore
 from prefab_tests import PrefabTests
 from builds import BuildRunner
@@ -326,10 +326,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.projects.names is None: raise ProjectError(404, 'This server does not name projects.')
                 self.send_json(200, self.projects.names.preview(request.get('name'), request.get('map'), request.get('target')))
             elif kind == 'project' and method == 'GET':
-                document = self.projects.load(project_id)
-                # a picture sent beside the project's file is taken in the first time the project opens
-                pictures.adopt_beside(self.projects, self.projects.path(project_id), document)
-                self.send_json(200, document)
+                # (a picture sent beside the project's file is found there, and taken in by its next save: a read
+                # changes no file)
+                self.send_json(200, self.projects.load(project_id))
             # The map picture (pictures.py): PUT /projects/<id>/picture.png keeps an opaque 512 x 256 PNG of up to
             # 1 MB, written again clean, and answers {sha256}; GET serves the kept one (?sha256=<hash>: the kept file
             # with that hash, the current one or the one before it; ?as=game: as the game shows it, after DXT1);
@@ -362,15 +361,20 @@ class Handler(SimpleHTTPRequestHandler):
             elif kind == 'project' and method == 'PUT':
                 request = self.body_json()
                 if not isinstance(request, dict): raise ProjectError(400, 'Send {expectedRevision, document}.')
-                self.send_json(200, self.projects.save(project_id, request.get('document'), request.get('expectedRevision')))
+                # owner: the page session saving (its draft for recovery goes); pictureFrom: Save as from that project,
+                # whose map picture the document names (copied with the save)
+                self.send_json(200, self.projects.save(project_id, request.get('document'), request.get('expectedRevision'),
+                                                       owner=request.get('owner'), picture_from=request.get('pictureFrom')))
             elif kind == 'recovery' and method == 'GET':
                 # null when nothing is kept: asking is routine, not an error.
                 self.projects.load(project_id)
                 self.send_json(200, self.projects.recovery(project_id))
             elif kind == 'recovery' and method == 'PUT':
-                self.projects.save_recovery(project_id, self.body_json()); self.send_json(200, dict(ok=True))
+                self.send_json(200, self.projects.save_recovery(project_id, self.body_json()))
             elif kind == 'recovery' and method == 'DELETE':
-                self.projects.drop_recovery(project_id); self.send_json(200, dict(ok=True))
+                # ?owner=<page session>[&savedAt=<the draft shown>]: that draft alone
+                owner, saved_at = draft_query(parse_qs(urlsplit(self.path).query, keep_blank_values=True))
+                self.send_json(200, self.projects.drop_recovery(project_id, owner, saved_at))
             elif kind in ('build', 'build-status', 'build-cancel', 'report', 'reveal') and self.builds is None:
                 raise ProjectError(404, 'This server does not build.')
             elif kind == 'build' and method == 'POST':
@@ -413,7 +417,9 @@ class Handler(SimpleHTTPRequestHandler):
             elif parts == ['prefabs', 'import'] and method == 'POST':
                 request = self.body_json()
                 if not isinstance(request, dict): raise ProjectError(400, 'Send {document, clash}.')
-                self.send_json(200, self.prefabs.import_file(request.get('document'), request.get('clash')))
+                # (a replace names the revision it replaces: expectedRevision)
+                self.send_json(200, self.prefabs.import_file(request.get('document'), request.get('clash'),
+                                                             request.get('expectedRevision')))
             elif parts == ['prefabs', 'size'] and method == 'POST':
                 from prefab_bounds import measure
                 request = self.body_json()
@@ -429,9 +435,10 @@ class Handler(SimpleHTTPRequestHandler):
             elif len(parts) == 3 and parts[2] == 'recovery.json' and method == 'GET':
                 self.send_json(200, self.prefabs.recovery(parts[1]))
             elif len(parts) == 3 and parts[2] == 'recovery.json' and method == 'PUT':
-                self.prefabs.save_recovery(parts[1], self.body_json()); self.send_json(200, dict(ok=True))
+                self.send_json(200, self.prefabs.save_recovery(parts[1], self.body_json()))
             elif len(parts) == 3 and parts[2] == 'recovery.json' and method == 'DELETE':
-                self.prefabs.drop_recovery(parts[1]); self.send_json(200, dict(ok=True))
+                owner, saved_at = draft_query(parse_qs(urlsplit(self.path).query, keep_blank_values=True))
+                self.send_json(200, self.prefabs.drop_recovery(parts[1], owner, saved_at))
             elif len(parts) == 3 and parts[2] == 'prefab.json' and method == 'GET':
                 self.send_json(200, self.prefabs.load(parts[1]))
             elif len(parts) == 3 and parts[2] == 'prefab.json' and method == 'PUT':
@@ -447,7 +454,8 @@ class Handler(SimpleHTTPRequestHandler):
                     if piece['actor'] in recipes:
                         piece['recipe'] = recipes[piece['actor']]
                 if not document['pieces'] and not document.get('buildings'): raise ProjectError(422, 'A prefab is empty.')
-                self.send_json(200, dict(self.prefabs.save(parts[1], document, request.get('expectedRevision')),
+                self.send_json(200, dict(self.prefabs.save(parts[1], document, request.get('expectedRevision'),
+                                                           owner=request.get('owner')),
                                          size=size, recipes=recipes))
             elif len(parts) == 3 and parts[2] == 'prefab.json' and method == 'DELETE':
                 self.send_json(200, self.prefabs.delete(parts[1]))
@@ -1255,6 +1263,7 @@ def serve_cache(args, ap, server, exact):
     # package swaps settled before any request can build (builds.py recover); a server that could not bind has
     # started nothing
     builds.recover()
+    live.player.recover()       # (an earlier server's play left in the game: put back once it has closed)
     if not queue.activate(): print(queue.unavailable, flush=True)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)

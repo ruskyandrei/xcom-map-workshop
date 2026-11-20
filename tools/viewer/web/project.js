@@ -293,16 +293,24 @@ async function call(method, url, body) {
   return value;
 }
 const at = id => `/projects/${encodeURIComponent(id)}`;
+/** A draft's DELETE query: its owner (blank: the draft kept before drafts had owners) and, for one shown, its time. */
+export const draftQuery = (owner, savedAt = null) => new URLSearchParams({ owner: owner ?? '', ...(savedAt ? { savedAt } : {}) }).toString();
 export const api = {
   list: () => call('GET', '/projects.json'),
   // the map name saving under `name` gives: a new project's ({ fresh: true, output, reason }), or with `target` (a
   // project's id: the open one, or one replaced) that project's fixed one ({ fresh: false, output, conflicts })
   names: (name, map, target = null) => call('POST', '/projects/output-names', { name, map, target }),
   load: id => call('GET', `${at(id)}/project.json`),
-  save: (id, document, expectedRevision) => call('PUT', `${at(id)}/project.json`, { expectedRevision, document }),
-  recovery: id => call('GET', `${at(id)}/recovery.json`),   // null when nothing is kept
+  // extra: { owner } (the page session saving: its draft for recovery goes), { pictureFrom } (Save as: the project
+  // whose kept map picture the document names, copied with the save)
+  save: (id, document, expectedRevision, extra = {}) => call('PUT', `${at(id)}/project.json`, { expectedRevision, document, ...extra }),
+  // Drafts for recovery (review finding 3), one per page session (`owner`, the id a page makes when it loads):
+  // recovery() is the newest ({ owner, savedAt, baseRevision, others, ... }) or null; keepRecovery(id, { owner, ... })
+  // answers { revision, stale }; dropRecovery deletes that owner's draft alone (null: one kept before drafts had
+  // owners), and with savedAt only while it is still that one.
+  recovery: id => call('GET', `${at(id)}/recovery.json`),
   keepRecovery: (id, state) => call('PUT', `${at(id)}/recovery.json`, state),
-  dropRecovery: id => call('DELETE', `${at(id)}/recovery.json`),
+  dropRecovery: (id, owner, savedAt = null) => call('DELETE', `${at(id)}/recovery.json?${draftQuery(owner, savedAt)}`),
   // Build (tools/viewer/builds.py): the saved project into a variant package; build.json follows it. quick: the
   // edit made in the map without baking its lighting.
   build: (id, quick = false) => call('POST', `${at(id)}/build`, quick ? { quick: true } : {}),
