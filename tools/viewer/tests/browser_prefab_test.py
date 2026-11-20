@@ -15,7 +15,9 @@ def check_prefab_test(browser, url, screenshot=None):
     def stub(route):
         path = urlsplit(route.request.url).path
         if path == '/play.json':
-            route.fulfill(json=dict(install=dict(ready=True, folder='Scratch XCOM'), launch=dict(how='dry')))
+            # (the Game menu's Installs section reads the game install too: play.js renderInstalls)
+            route.fulfill(json=dict(lwr=dict(folder='Scratch XCOM', kind='Long War Rebalance', setting='game'),
+                                    install=dict(ready=True, folder='Scratch XCOM', source='a scratch install'), launch=dict(how='dry')))
             return
         if path == '/prefab-tests':
             body = route.request.post_data_json

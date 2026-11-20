@@ -11,16 +11,16 @@
 // view's star.
 // (The look picker, which was a mode of this list, is a panel of its own: look_picker.js.)
 
-import { pieceKind, inKind, setKindOptions, effectKind } from './piece_categories.js';
+import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
 import { drawEffectIcon } from './effects_view.js';
 
-// What the library only holds back (compiler.py FOREIGN_SOFT): hidden in its own map, linked to other pieces, of a
-// kind not brought before, waiting for a game test. Such a piece is placed as any other; what shows in the game is
-// tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the user, 16 November 2026).
-// One that needs something that can't be brought ('closure') can't be placed, nor an effect or sound the editor can't
-// bring ('unavailable': a landing's actor, one riding on another).
-export const SOFT = ['hidden', 'assembly', 'family', 'check'];
+// What the library only holds back (SOFT, piece_categories.js: compiler.py FOREIGN_SOFT): hidden in its own map,
+// linked to other pieces, of a kind not brought before, waiting for a game test. Such a piece is placed as any other;
+// what shows in the game is tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the
+// user, 16 November 2026). One that needs something that can't be brought ('closure') can't be placed, nor an effect or
+// sound the editor can't bring ('unavailable': a landing's actor, one riding on another).
+export { SOFT };
 const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not something to see.'],
                     assembly: ['Linked', 'Linked to other pieces in its own map (a car\'s body and its glass, a prop and what it turns into).'] };
 const ROW = 61;         // a row's height, CSS pixels (style.css .libitem.lib)
@@ -164,14 +164,18 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   }
 
   // -- favourites and recently used ----------------------------------------------------------------------------------
+  // (a failed read is not kept: the next star or placed piece asks again, and says why if it fails again; review
+  // finding 31)
+  let stateError = null;
   function loadState() {
-    stateLoad ??= json('/library/state.json').then(s => { state = s; render(); }).catch(() => { state = null; });
+    stateLoad ??= json('/library/state.json').then(s => { state = s; stateError = null; render(); })
+      .catch(error => { state = null; stateLoad = null; stateError = error.message; });
     return stateLoad;
   }
   const favourite = key => Boolean(state?.favourites.some(f => f.key === key));
   async function saveState(change, again = true) {
     if (!state) await loadState();
-    if (!state) { hint('The favourites file could not be read, so this is not kept'); return; }
+    if (!state) { hint(`The favourites file could not be read (${stateError ?? 'no answer'}), so this is not kept`); return; }
     const document = change({ favourites: [...state.favourites], recent: [...state.recent] });
     try {
       state = await json('/library/state.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' },

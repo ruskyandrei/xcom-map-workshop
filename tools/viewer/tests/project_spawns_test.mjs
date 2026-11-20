@@ -53,4 +53,13 @@ assert.ok(validAdded(volume));
 assert.ok(validAdded({ ...volume, from: V, spawn: { aliens: false } }));
 for (const bad of [{ ...volume, box: undefined }, { ...volume, location: [0, 0, 0], rotation: [0, 0, 0] }, { ...volume, from: 'x' }, { ...volume, components: ['x'] }])
   assert.ok(!validAdded(bad), JSON.stringify(bad));
+// one rule for a no-spawn box (review finding 34): each far side past the near one, as the Spawns view's validBox and
+// the compiler's spawn_box have it (a box under a unit thick is one, which a building box's rule refused)
+{
+  const { validBox } = await import('../web/spawns_view.js');
+  for (const b of [[0, 0, 0, 0.5, 96, 256], [0, 0, 0, 96, 96, 0.25], box, [0, 0, 0, 0, 96, 256], [0, 0, 0, 96, -1, 256], [0, 0, 0, 96, 96, Infinity]]) {
+    assert.equal(validOverride({ target: V, box: b }), validBox(b), JSON.stringify(b));
+    assert.equal(validAdded({ ...volume, box: b }), validBox(b), JSON.stringify(b));
+  }
+}
 console.log('project_spawns_test: ok');

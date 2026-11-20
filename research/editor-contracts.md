@@ -167,6 +167,13 @@ by its number ("A newer editor is needed to open it"). Since stage FX6b (17 Nove
 a map's lens flare, `{actor, kind: flare, from, location, rotation}`, never with a values object; the schema number
 stays 3, and an editor of stage FX6a refuses such a file by the piece ("of a kind this editor doesn't know"). The
 summary counts `effects`, `sounds` and `flares`.
+Prefab files are schema 4 since 20 November 2026 (review finding 6): a copied piece keeps what a project's added
+record keeps of it, a piece made from numbers (`generated`: a drawn wall, floor or roof, or ground shape, its own
+`blasts` inside it) and a broken copy of a map's fracturing piece (`blasts`, `breaksFurther`), so a selection saved as a
+prefab and placed again, and Test in game, make those pieces as the project has them, not as their donors. The page
+converts a piece's record one way everywhere (`tools/viewer/web/piece_records.js`: the clipboard, a project, a prefab
+saved and placed, the builder). The server reads prefab schema 1 to 4 and stores 4; it checks a made piece's numbers
+as data only (its kind, and numbers, words and short texts, bounded), and the compiler checks what they mean.
 
 ```json
 {

@@ -17,19 +17,27 @@ const lists = {}, pending = {};
 /** The key a look is listed under: its mesh, a ground look's mesh and material. */
 export const lookKey = (kind, mesh, material = null) => (kind === 'ground' ? `${mesh}|${material ?? ''}` : mesh);
 
-/** The kind's catalogue, read once: { kind, measure, looks: [entry], byKey: Map }. */
+const KIND_NOUNS = { wall: 'walls\'', slab: 'floors\' and roofs\'', ground: 'ground\'s' };
+/** The kind's catalogue, read once: { kind, measure, looks: [entry], byKey: Map }. A read that fails isn't kept
+ *  (review finding 31): its answer is an empty catalogue with `error` (the words to show), and the next call asks
+ *  again. */
 export function loadLooks(kind, fetcher = fetch) {
   if (lists[kind]) return Promise.resolve(lists[kind]);
   if (!pending[kind]) {
-    pending[kind] = fetcher(`/looks/${LOOK_FILES[kind]}.json`)
-      .then(r => (r.ok ? r.json() : { looks: [] }))
-      .catch(() => ({ looks: [] }))
+    pending[kind] = Promise.resolve()
+      .then(() => fetcher(`/looks/${LOOK_FILES[kind]}.json`))
+      .then(async r => {
+        if (!r.ok) throw new Error(`the editor's server answered ${r.status ?? 'with an error'}`);
+        return r.json();
+      })
       .then(answer => {
-        const byKey = new Map((answer.looks ?? []).map(e => [lookKey(kind, e.mesh, e.material), e]));
-        lists[kind] = { kind, measure: answer.measure ?? null, looks: answer.looks ?? [], byKey };
-        delete pending[kind];
+        const looks = Array.isArray(answer?.looks) ? answer.looks : [];
+        const byKey = new Map(looks.map(e => [lookKey(kind, e.mesh, e.material), e]));
+        lists[kind] = { kind, measure: answer?.measure ?? null, looks, byKey };
         return lists[kind];
-      });
+      }, error => ({ kind, measure: null, looks: [], byKey: new Map(),
+                     error: `The ${KIND_NOUNS[kind] ?? kind} looks couldn't be read (${error?.message ?? error})` }))
+      .finally(() => { delete pending[kind]; });
   }
   return pending[kind];
 }

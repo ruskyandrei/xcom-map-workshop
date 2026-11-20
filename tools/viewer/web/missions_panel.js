@@ -16,9 +16,11 @@ export function createMissionsPanel({ els }) {
   }
   function changed() {
     const none = ticked().length === 0;
-    els.ok.disabled = none;
-    els.warn.hidden = !none;
-    els.warn.textContent = none ? 'Tick at least one mission: the Build writes a record for each, and a package with none can\'t be played.' : '';
+    const unknown = rows.find(r => r.ship && r.box.checked && !r.box.disabled && !SHIPS.some(([value]) => value === r.ship.value));
+    els.ok.disabled = none || Boolean(unknown);
+    els.warn.hidden = !none && !unknown;
+    els.warn.textContent = none ? 'Tick at least one mission: the Build writes a record for each, and a package with none can\'t be played.'
+      : unknown ? `The UFO mission's ship type, ${unknown.ship.value}, isn't one of the game's ships: choose its ship.` : '';
     for (const r of rows) if (r.ship) r.ship.hidden = !r.box.checked;
   }
   /**
@@ -51,7 +53,11 @@ export function createMissionsPanel({ els }) {
         ship.className = 'missionship';
         ship.title = 'The UFO the mission is: its ship type goes in the record (Long War\'s pods read it)';
         ship.append(...SHIPS.map(([value, text]) => new Option(text, value)));
+        // (a ship type the editor doesn't know, from a file: shown as it is, to be chosen again; review finding 34)
+        const known = row.entry.ship === undefined || SHIPS.some(([value]) => value === row.entry.ship);
+        if (!known) ship.prepend(new Option(`${row.entry.ship} (unknown: choose a ship)`, String(row.entry.ship)));
         ship.value = row.entry.ship ?? SHIPS[0][0];
+        ship.onchange = changed;
         wrap.append(ship);
       }
       els.list.append(wrap);
@@ -60,7 +66,8 @@ export function createMissionsPanel({ els }) {
     });
     changed();
     els.root.hidden = false;
-    setTimeout(() => els.ok.focus(), 0);
+    // (OK when a row is ticked; with none, OK is off and can't take the focus: the first row's tick then)
+    setTimeout(() => (els.ok.disabled ? els.list.querySelector('input:not(:disabled)') ?? els.cancel : els.ok).focus(), 0);
   }
   els.form.onsubmit = e => {
     e.preventDefault();

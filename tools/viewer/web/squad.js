@@ -92,9 +92,12 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
       li.onclick = () => { select(u.id); };
       els.units.append(li);
     });
-    const max = choices()?.maxUnits ?? status?.limits?.units ?? 8;
-    els.count.textContent = `${plural(draft.units.length, 'unit')} of at most ${max}, landing in this order`;
-    els.add.disabled = els.copy.disabled = draft.units.length >= (status?.limits?.units ?? 8) || busy;
+    // (the count and Add go by the same limit, the squad's own; an install that lands fewer is named beside it, and its
+    // check says when the squad has more: review finding 34)
+    const keep = status?.limits?.units ?? 8, max = choices()?.maxUnits ?? keep;
+    els.count.textContent = `${plural(draft.units.length, 'unit')} of at most ${keep}, landing in this order`
+      + (max < keep ? `; ${choices().familyLabel ?? 'this install'} lands at most ${max}` : '');
+    els.add.disabled = els.copy.disabled = draft.units.length >= keep || busy;
     els.remove.disabled = draft.units.length <= 1 || busy;
     const at = draft.units.findIndex(u => u.id === selected);
     els.up.disabled = at <= 0 || busy;
@@ -105,6 +108,7 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
     renderList(); renderUnit();
   }
   els.units.addEventListener('keydown', e => {
+    if (!draft) return;
     const at = draft.units.findIndex(u => u.id === selected);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -113,31 +117,32 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
     }
   });
   els.add.onclick = () => {
+    if (!draft) return;
     const template = clone(choices()?.templates?.soldier ?? draft.units.at(-1));
     const unit = { ...template, id: newId(), first: 'New', last: `Soldier ${draft.units.length + 1}` };
     draft.units.push(unit); select(unit.id); changed();
   };
   els.copy.onclick = () => {
-    const at = draft.units.findIndex(u => u.id === selected);
+    const at = draft ? draft.units.findIndex(u => u.id === selected) : -1;
     if (at < 0) return;
     const copy = { ...clone(draft.units[at]), id: newId() };
     draft.units.splice(at + 1, 0, copy); select(copy.id); changed();
   };
   els.remove.onclick = () => {
-    const at = draft.units.findIndex(u => u.id === selected);
+    const at = draft ? draft.units.findIndex(u => u.id === selected) : -1;
     if (at < 0 || draft.units.length <= 1) return;
     draft.units.splice(at, 1);
     select(draft.units[Math.min(at, draft.units.length - 1)].id); changed();
   };
   const move = step => {
-    const at = draft.units.findIndex(u => u.id === selected), to = at + step;
+    const at = draft ? draft.units.findIndex(u => u.id === selected) : -1, to = at + step;
     if (at < 0 || to < 0 || to >= draft.units.length) return;
     const [unit] = draft.units.splice(at, 1);
     draft.units.splice(to, 0, unit); changed();
   };
   els.up.onclick = () => move(-1);
   els.down.onclick = () => move(1);
-  els.name.oninput = () => { draft.name = els.name.value; changed(); };
+  els.name.oninput = () => { if (draft) { draft.name = els.name.value; changed(); } };
 
   // ---- the selected unit ----
   const options = (select, list, value, { none = null, missing = 'not on this install' } = {}) => {
@@ -370,6 +375,7 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
     busy = true; conflict = false; dirty = false; kindNote = null;
     say('Reading the squad…');
     els.units.replaceChildren(); els.unit.replaceChildren(); els.issues.hidden = true;
+    els.importButton.disabled = els.reset.disabled = false;     // (off after a failed read; renderAll sets the rest)
     try {
       status = await api.get();
       draft = status.document ? clone(status.document) : null;
@@ -377,7 +383,13 @@ export function createSquadDialog({ els, api = squadApi, onSaved = () => {}, onC
       selected = draft?.units[0]?.id ?? null;
       busy = false;
       renderAll();
-    } catch (e) { busy = false; status = null; draft = null; say(`The squad could not be read: ${e.message}`, true); }
+    } catch (e) {
+      // (nothing to edit: every control that works on the squad is off until it is read, review finding 34)
+      busy = false; status = null; draft = null; check = null; selected = null;
+      els.name.value = '';
+      for (const c of [els.add, els.copy, els.remove, els.up, els.down, els.name, els.exportButton, els.importButton, els.reset, els.save]) c.disabled = true;
+      say(`The squad could not be read: ${e.message}. Close the panel and open it again to try again.`, true);
+    }
   }
   function hide() {
     clearTimeout(timer);

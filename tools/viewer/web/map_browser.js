@@ -2,6 +2,8 @@
 // search over names, packages and missions. A map that serves several mission types (an abduction map that is also a
 // terror site, say) is listed under each. A map not exported yet is prepared the first time it is opened: the server
 // exports it in the background (tools/viewer/exports.py, about half a minute), and the page then opens it.
+import { nextStop, tabOrder } from './modal.js';
+
 export const GROUPS = [['prefabs', 'Prefabs'], ['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
   ['exalt', 'EXALT'], ['story', 'Story'], ['other', 'Other']];
 
@@ -185,13 +187,10 @@ export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, o
     else if (key === 'Escape') { e.preventDefault(); close(); }
     else if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); move(key === 'ArrowDown' ? 1 : -1); }
     else if (key === 'Enter' && e.target.closest('.maprow')) { e.preventDefault(); submit(); }
-    else if (key === 'Tab') {
-      const items = [...els.root.querySelectorAll('button:not(:disabled), input')].filter(el => el.offsetParent && !el.classList.contains('maprow'));
-      const i = items.indexOf(document.activeElement), next = items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length];
-      if (next) { e.preventDefault(); next.focus(); }
-    }
     e.stopPropagation();
   });
+  // Tab (modal.js) goes round the dialog's controls but the map rows, which the arrow keys move between
+  tabOrder(els.root, (e, stops) => nextStop(e, stops.filter(el => !el.classList.contains('maprow'))));
 
   // show(id, message): open the browser on that map (the open one by default); prepare: start preparing it at once.
   function show(id = current, { message = null, prepare: start = false, prefabGroup = false } = {}) {

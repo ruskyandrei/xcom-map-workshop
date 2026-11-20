@@ -99,6 +99,20 @@ assert.equal(movedOpening(wall, 1, 'z0', 1000).openings[1].z0, 144);
   assert.equal(movedOpening(half, 0, 'x1', 1000, { along: 1 }).openings[0].x1, 176);
   assert.ok(toolWall(half));
   assert.ok(!toolWall({ ...half, openings: [{ x0: 0, x1: 192, z0: -16, z1: 384 }] }));
+  // (review finding 32: a one-tile wall's gap moved by whole tiles never closes up, and stays a gap the tool makes)
+  const narrow = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 48, z0: -16, z1: 384 }], seed: 1 };
+  for (const [index, part, delta] of [[0, 'x1', 100], [0, 'x1', 40]]) {
+    const moved = movedOpening(narrow, index, part, delta);
+    assert.deepEqual(moved.openings[0], narrow.openings[0]);
+    assert.ok(toolWall(moved));
+  }
+  const right = { x0: 0, x1: 96, openings: [{ x0: 48, x1: 96, z0: -16, z1: 384 }], seed: 1 };
+  assert.deepEqual(movedOpening(right, 0, 'x0', -100).openings[0], right.openings[0]);
+  // (a gap that reaches the end from the start: the fallback keeps it OPENING.width wide, never zero)
+  const whole = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 96, z0: -16, z1: 384 }], seed: 1 };
+  assert.deepEqual(['x0', 'x1'].map(part => { const o = movedOpening(whole, 0, part, part === 'x0' ? -10 : 10).openings[0]; return o.x1 - o.x0; }),
+                   [16, 16]);
+  assert.equal(movedOpening(half, 0, 'x1', 1000).openings[0].x1, 96);      // (whole tiles: a tile in, as before)
 }
 assert.deepEqual(withoutOpening(wall, 0).openings, [wall.openings[1]]);
 
@@ -128,6 +142,14 @@ assert.deepEqual(f.wall.openings, [{ x0: 96, x1: 192, z0: 72, z1: 168 }, { x0: 1
 assert.deepEqual(flippedWall(f.wall, f.location, f.rotation).wall, wall);
 assert.equal(reshuffled(wall, 0.5).seed, 500000);
 assert.notEqual(reshuffled({ ...wall, seed: 1 }, 0).seed, 1);
+// (a floor's Reshuffle never gives back its seed either: review finding 34)
+{
+  const { reshuffledSlab } = await import('../web/walls.js');
+  const slab = { x0: 0, x1: 192, y0: 0, y1: 192, holes: [], seed: 500000 };
+  assert.notEqual(reshuffledSlab(slab, 0.4999995).seed, 500000);
+  assert.notEqual(reshuffledSlab({ ...slab, seed: 1 }, 0).seed, 1);
+  assert.equal(reshuffledSlab(slab, 0.25).seed, 250000);
+}
 
 // ---- what the game does at an opening
 assert.deepEqual(openingPlay(wall, wall.openings[0]), { tiles: 1, walk: true, climb: false, sight: true, cover: 'none' });
@@ -189,30 +211,10 @@ assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
 }
 assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
 
-// ---- joints (M3 item 2): the same cases as test_compiler_generated.test_the_join_rule (compiler.wall_joins is the twin)
+// ---- joints (M3 item 2): their cases are tools/editor/tests/wall_join_cases.json, which shared_cases_test.mjs runs
+// through wallJoins and test_compiler_generated.py through compiler.wall_joins; END_INSETS is pinned in
+// twin_constants.json (review finding 55). Here: the words.
 {
-  const Q = 16384;
-  const wall = (key, at, yaw = 0, length = 384, storeys = 2) => ({ key, location: at, rotation: [0, yaw, 0],
-    wall: { x0: 0, x1: length, openings: [], seed: 1, ...(storeys === 1 ? { storeys: 1 } : {}) } });
-  const ends = walls => Object.fromEntries(Object.entries(wallJoins(walls)).map(([k, v]) => [k, v.ends]));
-  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 480), wall('b', [480, 0, 0], Q)]), { a: ['free', 'through'], b: ['free', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0], Q, 480)]), { a: ['free', 'free'], b: ['through', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 480, 1), wall('b', [480, 0, 0], Q)]), { a: ['free', 'free'], b: ['through', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [0, 384, 0], -Q)]), { a: ['through', 'free'], b: ['free', 'free'] });
-  let found = wallJoins([wall('a', [0, 0, 0], 0, 768), wall('b', [384, 0, 0], Q)]);
-  assert.deepEqual([found.a.ends, found.b.ends], [['free', 'free'], ['free', 'free']]);
-  assert.deepEqual(found.b.joins, [{ end: 0, how: 'stem', other: 'a' }]);
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0])]), { a: ['free', 'line'], b: ['line', 'free'] });
-  found = wallJoins([wall('a', [0, 0, 0]), wall('b', [384, 0, 0]), wall('c', [384, 0, 0], Q)]);
-  assert.deepEqual([found.a.ends, found.b.ends, found.c.ends], [['free', 'line'], ['line', 'free'], ['free', 'free']]);
-  assert.deepEqual(found.c.joins, [{ end: 0, how: 'stem', other: 'b' }]);
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [384, 0, 0]), wall('c', [384, 0, 0], Q), wall('d', [384, -384, 0], Q)]),
-                   { a: ['free', 'line'], b: ['line', 'free'], c: ['free', 'free'], d: ['free', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0], 0, 384, 1), wall('b', [384, 0, 192], Q)]), { a: ['free', 'free'], b: ['free', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [0, 0, 0])]), { a: ['free', 'free'], b: ['free', 'free'] });
-  assert.deepEqual(ends([wall('a', [0, 0, 0]), wall('b', [386, 0, 0], Q)]), { a: ['free', 'free'], b: ['free', 'free'] });
-  // the words, and the insets the Build uses (frac_wall.END_INSETS)
-  assert.deepEqual(END_INSETS, { free: 8, line: 0, through: -8 });
   assert.equal(joinWords([]), '');
   assert.equal(joinWords([{ end: 1, how: 'corner', other: 'b' }]),
                "Joined: its far end runs through at a corner. A break passes between joined walls, as between the game's.");

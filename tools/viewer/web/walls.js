@@ -21,6 +21,9 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
 // the Build cutting it into pieces of at most pieceTiles and its look's storeys.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
                       maxStoreys: 12, pieceTiles: 16 };
+// A made wall's mesh as the editor's server draws it (app.js madeShapeOf; generated.py's limits: minLength and
+// maxLength are its MIN_LENGTH and MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55)
+export const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
 export const STOREY_TOPS = { 1: 192, 2: 384 };
@@ -291,8 +294,8 @@ export const openingParts = () => ['middle', 'x0', 'x1', 'z1', 'z0'];
  *  gap stays off its neighbours, at least OPENING.width wide (a tile when it moves by whole tiles) and OPENING.height
  *  tall, and reaches the wall's edges: a side to the wall's end, the bottom at or under the floor to the wall's bottom
  *  (its handle stands on the floor), the top past topMostOf(wall) through the wall's top. One part moved to the last
- *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, OPENING.width in): a gap never takes the whole
- *  wall. Gives the wall. */
+ *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, a side a step in, the gap at least
+ *  OPENING.width wide): a gap never takes the whole wall. Gives the wall. */
 export function movedOpening(wall, index, part, delta, { along = TILE, up = OPENING.fine } = {}) {
   const list = sortedOpenings(wall.openings ?? []);
   if (!list[index]) return wall;
@@ -328,11 +331,18 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
     o.z0 = v <= 1e-6 ? bottom : tidy(v);
   }
   if (takesWhole(wall, o)) {
+    // (a side stops a step in, and the gap keeps at least OPENING.width: on a one-tile wall moved by whole tiles, the
+    // side stays where it was rather than the gap closing up; review finding 32)
+    const was = list[index];
     if (part === 'z1') o.z1 = topMostOf(wall);
     else if (part === 'z0') o.z0 = OPENING.sill;
-    else if (part === 'x0') o.x0 = least;
-    else if (part === 'x1') o.x1 = tidy(wall.x1 - least);
-    else return wall;
+    else if (part === 'x0') {
+      const most = Math.min(least, o.x1 - OPENING.width);
+      o.x0 = tidy(was.x0 > 0 ? Math.min(most, was.x0) : most);
+    } else if (part === 'x1') {
+      const least1 = Math.max(wall.x1 - least, o.x0 + OPENING.width);
+      o.x1 = tidy(was.x1 < wall.x1 ? Math.max(least1, was.x1) : least1);
+    } else return wall;
   }
   const openings = list.map((p, i) => (i === index ? o : p));
   return { ...wall, openings };
@@ -554,8 +564,8 @@ export function movedHole(slab, index, part, delta) {
   holes[index] = h;
   return { ...slab, holes };
 }
-/** Another break pattern: a new seed (`pick` in [0, 1)). */
-export const reshuffledSlab = (slab, pick = Math.random()) => ({ ...slab, seed: 1 + Math.floor(pick * 999999) });
+/** Another break pattern: a new seed (`pick` in [0, 1)), never the old one (as a wall's: review finding 34). */
+export const reshuffledSlab = (slab, pick = Math.random()) => ({ ...slab, seed: reshuffled(slab, pick).seed });
 const tileWords = (a, b) => `${a} by ${b} tile${a * b === 1 ? '' : 's'}`;
 export const holeWords = h => `Hole, ${tileWords(Math.round((h.x1 - h.x0) / TILE), Math.round((h.y1 - h.y0) / TILE))}`;
 export const slabWords = slab => {

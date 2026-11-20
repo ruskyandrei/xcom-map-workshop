@@ -13,11 +13,11 @@
 // A play also names the test squad it lands with (squad.js): a line under the mission that opens Test squad setup,
 // refreshed when the squad is saved there (setSquad).
 import { setParagraphs } from './missions.js';
+// (the queue's clock: whole seconds down, so 119.6 s is 1:59, not 1:60; review finding 34)
+import { clock } from './build_queue.js';
 
 export const savingHelp = key => `XCOM opens at its main menu: press ${key} there to start the battle.`;
 const SAVING_OFF = 'Off: the battle starts by itself and can\'t be saved.';
-
-const clock = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 /** els: root, form, title, note, bake (the checkbox), estimate, ok (the submit button), last, close, cancel, the
  *  mission row: missionRow, mission (the select), missionNote, the saving row: savingRow, saving (the checkbox),

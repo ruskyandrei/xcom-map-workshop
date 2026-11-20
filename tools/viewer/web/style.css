@@ -179,7 +179,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .libitem .star { border: 0; background: none; padding: 0 1px; font-size: 14px; line-height: 1; color: #46565f; cursor: pointer; }
 .libitem .star:hover { color: #a9bcc6; }
 .libitem .star.on { color: var(--group); }
-.optionsnote.warn { color: var(--muted); }
+.optionsnote.warn { color: var(--warn); }   /* (a warning outranks a note: review finding 34) */
 .libitem.prefab { height: auto; min-height: 61px; align-items: flex-start; }
 .libitem.prefab canvas { margin-top: 2px; }
 .prefabacts { display: flex !important; gap: 4px; margin-top: 4px !important; overflow: visible !important; }

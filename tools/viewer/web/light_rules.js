@@ -2,6 +2,9 @@
 // lights.effective_cone in tools/viewer/lights.py; both are tested against tests/cone_cases.json.
 
 const RAD = Math.PI / 180;
+/** The limits of a light's values an edit may set (compiler.py LIGHT_RANGES; pinned in tests/twin_constants.json,
+ *  review finding 55). */
+export const LIGHT_LIMITS = { brightness: [0, 100], radius: [1, 16384], falloffExponent: [0.1, 64], innerConeAngle: [0, 89], outerConeAngle: [0, 89.99] };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
 /** A spot light's effective inner and outer cone half-angles in radians, from its stored degrees: UE3 clamps the

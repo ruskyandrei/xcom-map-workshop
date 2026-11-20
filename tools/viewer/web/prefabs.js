@@ -4,10 +4,11 @@
 // This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; app.js makes a prefab of
 // a selection and a clip to place of a prefab.
 // 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`: effects and
-// sounds plan, stage FX6a; a lens flare is one more kind since FX6b). A prefab of schema 1 or 2 opens, and saves as 3.
+// sounds plan, stage FX6a; a lens flare is one more kind since FX6b). 4: a piece made from numbers (`generated`) and a
+// broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
 import { draftQuery } from './project.js';
 
-export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 3;
+export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 4;
 export const TILE = 96, STOREY = 64;
 
 async function call(method, url, body) {

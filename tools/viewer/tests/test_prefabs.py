@@ -153,7 +153,7 @@ class StoreTests(unittest.TestCase):
     def test_other_schemas_and_versions_are_refused(self):
         for doc, status, words in ((None, 422, 'not an XCOM Map Workshop prefab'), ([], 422, 'not an XCOM Map Workshop prefab'),
                                    (prefab(schema='xcom-map-workshop/project'), 422, 'not an XCOM Map Workshop prefab'),
-                                   (prefab(schemaVersion=4), 409, 'A newer editor is needed'),
+                                   (prefab(schemaVersion=5), 409, 'A newer editor is needed'),
                                    (prefab(id='../../evil'), 422, 'no valid id')):
             with self.assertRaises(ProjectError) as refused: self.store.import_file(doc)
             self.assertEqual(refused.exception.status, status, doc)
@@ -209,7 +209,7 @@ class StoreTests(unittest.TestCase):
         doc['pieces'] += [other, glare]
         doc['groups'].append(dict(id='g-flare', members=[dict(added=glare['actor']), dict(added=other['actor'])]))
         self.assertEqual(validate(doc, ID), [])
-        self.assertEqual(doc['schemaVersion'], 3)
+        self.assertEqual(doc['schemaVersion'], 4)
         self.store.save(ID, doc, 0)
         self.assertEqual(self.store.load(ID)['pieces'][-1], glare)
         row = self.store.list()[0]
@@ -225,10 +225,53 @@ class StoreTests(unittest.TestCase):
         out = recover_sources(dict(doc, pieces=[glare], groups=[], donors=[dict(package='URB_Bar', sha256='a' * 64)]), None, lambda source: None)
         self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([glare], [], []))
 
-    def test_schema_1_is_read_imported_as_3_and_a_stale_page_cant_save(self):
-        # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds
+    def test_made_pieces_and_a_broken_copy_are_kept_as_a_project_has_them(self):
+        # schema 4 (review finding 6): a wall with an opening, a floor with a hole, a ramp, a rock with moved points and a
+        # broken copy of a map's fracturing piece, each with its record's own fields, saved and read back unchanged
+        donor = lambda actor, name, **extra: dict(actor=PL + name, **{'from': dict(package='URB_Bar', level='base', actor=PL + actor)},
+                                                  components=[PL + actor + '.FracturedStaticMeshComponent_0'], location=[96, 96, 0],
+                                                  rotation=[0, 16384, 0], prefab=None, partner=None, **extra)
+        wall = donor('XComDecoFracLevelActor_17', 'XComDecoFracLevelActor_17_copy6', flags=dict(cover=False),
+                     generated=dict(kind='fracWall', version=4, wall=dict(x0=0, x1=288, openings=[dict(x0=96, x1=192, z0=0, z1=208)], seed=3),
+                                    blasts=[dict(at=[48, 0, 96], radius=96)], breaksFurther=True))
+        floor = donor('XComFracLevelActor_4', 'XComFracLevelActor_4_copy7',
+                      generated=dict(kind='fracSlab', version=2, slab=dict(x0=0, x1=192, y0=0, y1=288, holes=[dict(x0=96, x1=192, y0=96, y1=192)],
+                                                                         seed=1, look=dict(mesh='URB_Bar_FRAC.Meshes.Floor', measure=2))))
+        ramp = donor('XComLevelActor_9', 'XComLevelActor_9_copy8',
+                     generated=dict(kind='ground', version=1, ground=dict(shape='ramp', x0=0, x1=192, y0=0, y1=96, height=64)))
+        rock = donor('XComLevelActor_9', 'XComLevelActor_9_copy9',
+                     generated=dict(kind='ground', version=2, ground=dict(shape='rock', x0=0, x1=192, y0=0, y1=192, height=96, seed=2 ** 31 - 1,
+                                                                          points=[[0, 0, 0], [192, 0, 10], [192, 192, 96], [0, 192, 40]])))
+        broken = donor('XComFracLevelActor_2', 'XComFracLevelActor_2_copy10', tinted=True,
+                       blasts=[dict(at=[10, 20, 30], radius=96), dict(at=[-5, 0, 64], radius=48)], breaksFurther=True)
+        doc = prefab()
+        doc['pieces'] += [wall, floor, ramp, rock, broken]
+        self.assertEqual(validate(doc, ID), [])
+        self.store.save(ID, doc, 0)
+        self.assertEqual(self.store.load(ID)['pieces'][-5:], [wall, floor, ramp, rock, broken])
+        self.assertEqual(self.store.list()[0]['pieces'], 9)
+        at = lambda k: ['pieces', len(prefab()['pieces']) + k]
+        for k, path, value in (
+                (0, ['generated', 'kind'], 'relit'), (0, ['generated', 'kind'], 'tower'), (0, ['generated', 'version'], 0),
+                (0, ['generated', 'version'], 'four'), (0, ['generated', 'surprise'], 1), (0, ['generated'], 'a wall'),
+                (0, ['generated', 'wall', 'x1'], float('nan')), (0, ['generated', 'wall', 'x1'], 1e12), (0, ['generated', 'wall', 'bad key!'], 1),
+                (0, ['generated', 'wall', 'note'], 'x' * 201), (0, ['generated', 'wall', 'note'], 'a\nb'),
+                (0, ['generated', 'wall', 'openings'], [dict(x0=k, x1=k + 1, z0=0, z1=1) for k in range(1100)]),
+                (0, ['generated', 'blasts'], []), (0, ['generated', 'blasts', 0, 'radius'], 'big'), (0, ['generated', 'breaksFurther'], False),
+                (0, ['blasts'], [dict(at=[0, 0, 0], radius=96)]),
+                (1, ['generated', 'slab', 'look', 'mesh'], [[[[[[['deep']]]]]]]),
+                (4, ['blasts'], []), (4, ['blasts'], [dict(at=[0, 0], radius=96)]), (4, ['blasts', 0, 'more'], 1),
+                (4, ['blasts'], [dict(at=[0, 0, 0], radius=96)] * 65), (4, ['breaksFurther'], False), (4, ['blasts'], DROP)):
+            with self.assertRaises(ProjectError, msg=(k, path, value)):
+                validate(changed(at(k) + path, value, doc), ID)
+
+    def test_schema_1_is_read_imported_as_4_and_a_stale_page_cant_save(self):
+        # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds, 4 made pieces and blasts
         stored = self.store.import_file(prefab(schemaVersion=1))
-        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 3)
+        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 4)
+        for version in (2, 3):
+            with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=version), 1)
+            self.assertIn('older than the editor', refused.exception.message)
         with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=1), 1)
         self.assertEqual(refused.exception.status, 409)
         self.assertIn('older than the editor', refused.exception.message)

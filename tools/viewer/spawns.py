@@ -329,7 +329,8 @@ def same_place(a, b, slack=2.0):
 
 
 ZONE_KEYS = ('id', 'location', 'direction', 'kind', 'missionType', 'councilType', 'alternate', 'lwr', 'ew', 'other')
-_TYPE = re.compile(r'^[A-Za-z0-9_]+$')
+# (matched whole, fullmatch: `$` would take a name ending in a line break, which writes a line of its own)
+_TYPE = re.compile(r'[A-Za-z0-9_]+')
 # A zone's `other` goes into the game's ini as written, so it must stay on its line: no line break of any kind and no
 # control character but a tab, and no longer than a line of the ini is likely to be (web/project.js has the twin)
 _OTHER = re.compile(r'[^\x00-\x08\x0a-\x1f\x7f\x85\u2028\u2029]{0,4000}\Z')
@@ -347,16 +348,17 @@ def _finite3(v):
 
 def valid_zone(z):
     """Whether a project's landing zone has the shape research/editor-contracts.md gives it (web/project.js
-    validLandingZone is the twin)."""
+    validLandingZone is the twin; tests/zone_cases.json holds the cases both pass). A field given is one of its
+    kind: null is no value of any of them."""
     if not isinstance(z, dict) or not isinstance(z.get('id'), str) or not z['id'] or set(z) - set(ZONE_KEYS):
         return False
     if not _finite3(z.get('location')) or z.get('direction') not in DIRECTIONS or z.get('kind', 'normal') not in KINDS:
         return False
-    if any(k in z and not (isinstance(z[k], str) and _TYPE.match(z[k])) for k in ('missionType', 'councilType')):
+    if any(k in z and not (isinstance(z[k], str) and _TYPE.fullmatch(z[k])) for k in ('missionType', 'councilType')):
         return False
     alt = z.get('alternate')
-    if alt is not None and not (isinstance(alt, dict) and set(alt) == {'location', 'direction'} and _finite3(alt['location'])
-                                and alt['direction'] in DIRECTIONS):
+    if 'alternate' in z and not (isinstance(alt, dict) and set(alt) == {'location', 'direction'} and _finite3(alt['location'])
+                                 and alt['direction'] in DIRECTIONS):
         return False
     return z.get('lwr', False) is False and z.get('ew', True) is True and plain_other(z.get('other', ''))
 

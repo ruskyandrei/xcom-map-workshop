@@ -938,7 +938,7 @@ class Shots:
         page.locator('#floor button[data-value="all"]').click()
         origin = page.evaluate('viewer.data.tileGrid.origin')
         spot = [origin[0] + 96 * 7, origin[1] + 96 * 10]
-        spot.append(page.evaluate('([x, y]) => viewer.groundAt(x + 48, y + 48) ?? 0', spot))
+        spot.append(page.evaluate('([x, y]) => viewer.groundAt(x + 48, y + 48, 4096) ?? 0', spot))
         self.zones = page.evaluate('viewer.landingLayer.visible')
         page.evaluate('viewer.landingLayer.visible = false')     # the zones' numbers would be taken for the marks
         self.snap = page.evaluate('viewer.gizmo.snap')

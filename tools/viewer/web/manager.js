@@ -14,6 +14,7 @@
 // be closed meanwhile: the queue goes on, and the editor's chip follows it.
 import { savedWhen } from './project_files.js';
 import { clock, needsFullBuild, requestOrder, rowLine, stripWords } from './build_queue.js';
+import { nextStop, tabOrder } from './modal.js';
 
 async function call(method, url, body) {
   const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
@@ -487,16 +488,14 @@ export function createProjectManager({ els, api = managerApi, mapLabel, onOpen, 
       e.preventDefault();
       const rows = [...els.list.querySelectorAll('.mrow:not(.off)')], at = rows.indexOf(e.target.closest('.mrow'));
       rows[Math.max(0, Math.min(rows.length - 1, at + (key === 'ArrowDown' ? 1 : -1)))]?.focus();
-    } else if (key === 'Tab') {
-      // the rows are one stop: Tab leaves the list for the selection's controls, Shift+Tab for the header's box
-      const items = [...els.root.querySelectorAll('button:not(:disabled), input:not(:disabled):not([tabindex="-1"]), select:not(:disabled)')]
-        .filter(x => x.offsetParent && !x.closest('.mrow'));
-      const inRow = e.target.closest('.mrow');
-      const next = inRow ? (e.shiftKey ? els.all : items.find(x => els.list.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING))
-        : items[(items.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + items.length) % items.length];
-      if (next) { e.preventDefault(); next.focus(); }
     }
     e.stopPropagation();
+  });
+  // Tab (modal.js): the rows are one stop, Tab leaves the list for the selection's controls, Shift+Tab for the header's box
+  tabOrder(els.root, (e, stops) => {
+    const items = stops.filter(x => !x.closest('.mrow'));
+    if (!e.target.closest?.('.mrow')) return nextStop(e, items);
+    return e.shiftKey ? els.all : items.find(x => els.list.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   function show() {

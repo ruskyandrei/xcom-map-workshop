@@ -119,11 +119,13 @@ const LANDING_KEYS = ['id', 'location', 'direction', 'kind', 'missionType', 'cou
 const typeName = v => v === undefined || (typeof v === 'string' && /^[A-Za-z0-9_]+$/.test(v));
 // `other` goes into the game's ini as written: it must stay on its line (spawns.py plain_other is the twin)
 const plainOther = v => v === undefined || (typeof v === 'string' && /^[^\x00-\x08\x0a-\x1f\x7f\x85\u2028\u2029]{0,4000}$/.test(v));
+// (spawns.py valid_zone is the twin: tests/zone_cases.json holds the cases both pass; a field given is one of its kind,
+// null is no value of any of them)
 export const validLandingZone = z => Boolean(z) && typeof z === 'object' && !Array.isArray(z) && typeof z.id === 'string' && z.id !== ''
   && Array.isArray(z.location) && z.location.length === 3 && z.location.every(Number.isFinite)
-  && LANDING_DIRECTIONS.includes(z.direction) && LANDING_KINDS.includes(z.kind ?? 'normal')
+  && LANDING_DIRECTIONS.includes(z.direction) && (z.kind === undefined || LANDING_KINDS.includes(z.kind))
   && typeName(z.missionType) && typeName(z.councilType)
-  && (z.alternate === undefined || (z.alternate && typeof z.alternate === 'object' && Object.keys(z.alternate).length === 2
+  && (z.alternate === undefined || (Boolean(z.alternate) && typeof z.alternate === 'object' && Object.keys(z.alternate).length === 2
     && Array.isArray(z.alternate.location) && z.alternate.location.length === 3 && z.alternate.location.every(Number.isFinite)
     && LANDING_DIRECTIONS.includes(z.alternate.direction)))
   && [undefined, false].includes(z.lwr) && [undefined, true].includes(z.ew) && plainOther(z.other)
@@ -191,7 +193,9 @@ const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'ob
 // keys a point takes is the compiler's to check.
 const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
-// (a no-spawn volume's box, [x0, y0, z0, x1, y1, z1], is a building box's: validBox)
+// (a no-spawn volume's box, [x0, y0, z0, x1, y1, z1]: each far side past the near one, as spawns_view.js validBox and
+// the compiler's spawn_box have it, not a building box's at least 1 unit; review finding 34)
+const validSpawnBox = b => Array.isArray(b) && b.length === 6 && b.every(Number.isFinite) && b[3] > b[0] && b[4] > b[1] && b[5] > b[2];
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
 // map has it; an effect's may be its values alone, and a spawn point's too; a no-spawn volume's is its box, its values
 // or both, never a pose)
@@ -207,7 +211,7 @@ export const validOverride = r => isTarget(r?.target) && validLight(r.light) && 
       && r.spawn === undefined && r.box === undefined))
   && validEffectValues(r.effect, 'effect') && validEffectValues(r.sound, 'sound') && !(r.effect && r.sound) && r.flare === undefined
   && validSpawnValues(r.spawn) && !(r.spawn !== undefined && (r.effect !== undefined || r.sound !== undefined || r.light !== undefined || r.flags !== undefined))
-  && (r.box === undefined || (validBox(r.box) && r.location === undefined && r.rotation === undefined && r.light === undefined
+  && (r.box === undefined || (validSpawnBox(r.box) && r.location === undefined && r.rotation === undefined && r.light === undefined
       && r.flags === undefined && r.effect === undefined && r.sound === undefined))
   && (r.deleted === true || (finite3(r.location) && finite3(r.rotation))
       || ((r.flags !== undefined || r.blasts !== undefined) && r.location === undefined && r.rotation === undefined && r.light === undefined)
@@ -240,7 +244,7 @@ const validAddedEffect = e => EFFECT_KINDS.includes(e.kind) && isTarget(e.from) 
 const validAddedSpawn = e => ['pod', 'meld'].includes(e.kind) && isTarget(e.from) && validSpawnValues(e.spawn)
   && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'location', 'rotation', 'spawn'].includes(k));
 // A no-spawn volume the project adds: a copy of the map's (`from`) or a new one (no `from`), placed by its box alone.
-const validAddedVolume = e => e.kind === 'noSpawn' && (e.from === undefined || isTarget(e.from)) && validBox(e.box) && validSpawnValues(e.spawn)
+const validAddedVolume = e => e.kind === 'noSpawn' && (e.from === undefined || isTarget(e.from)) && validSpawnBox(e.box) && validSpawnValues(e.spawn)
   && Object.keys(e).every(k => ['id', 'kind', 'actor', 'from', 'box', 'spawn'].includes(k));
 export const validAdded = e => typeof e?.id === 'string' && typeof e.actor === 'string'
   && (e.kind === 'noSpawn' ? validAddedVolume(e) : finite3(e.location) && finite3(e.rotation)

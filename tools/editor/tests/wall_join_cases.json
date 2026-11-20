@@ -1,0 +1,32 @@
+{
+ "about": "How made walls meet (custom geometry plan, M3 item 2): compiler.wall_joins (test_compiler_generated.py) and the page's walls.js wallJoins (shared_cases_test.mjs) both pass these (review finding 55). A wall: key, at (its location), yaw (rotation units, 0 left out), length (384 left out), storeys (1, or 2 left out); ends: each wall's x0 and x1 end styles; joins: a wall's joins where a case names them.",
+ "cases": [
+  {"case": "an L: the longer runs through", "walls": [{"key": "a", "at": [0, 0, 0], "length": 480}, {"key": "b", "at": [480, 0, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "through"], "b": ["free", "free"]}},
+  {"case": "an L the other way round", "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [384, 0, 0], "yaw": 16384, "length": 480}],
+   "ends": {"a": ["free", "free"], "b": ["through", "free"]}},
+  {"case": "the taller first: a one-storey wall butts on a two-storey one",
+   "walls": [{"key": "a", "at": [0, 0, 0], "length": 480, "storeys": 1}, {"key": "b", "at": [480, 0, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "free"], "b": ["through", "free"]}},
+  {"case": "an L at its start (b turned back on itself)", "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [0, 384, 0], "yaw": -16384}],
+   "ends": {"a": ["through", "free"], "b": ["free", "free"]}},
+  {"case": "a T: the stem's end on the other's line between its ends stays free",
+   "walls": [{"key": "a", "at": [0, 0, 0], "length": 768}, {"key": "b", "at": [384, 0, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "free"], "b": ["free", "free"]}, "joins": {"b": [{"end": 0, "how": "stem", "other": "a"}]}},
+  {"case": "end to end", "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [384, 0, 0]}],
+   "ends": {"a": ["free", "line"], "b": ["line", "free"]}},
+  {"case": "end to end with a stem between them: the pair along x reaches the line, the stem stays free",
+   "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [384, 0, 0]}, {"key": "c", "at": [384, 0, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "line"], "b": ["line", "free"], "c": ["free", "free"]}, "joins": {"c": [{"end": 0, "how": "stem", "other": "b"}]}},
+  {"case": "a cross of four ends: the pair along x end to end, the pair along y butting",
+   "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [384, 0, 0]}, {"key": "c", "at": [384, 0, 0], "yaw": 16384},
+             {"key": "d", "at": [384, -384, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "line"], "b": ["line", "free"], "c": ["free", "free"], "d": ["free", "free"]}},
+  {"case": "a storey apart: nothing meets", "walls": [{"key": "a", "at": [0, 0, 0], "storeys": 1}, {"key": "b", "at": [384, 0, 192], "yaw": 16384}],
+   "ends": {"a": ["free", "free"], "b": ["free", "free"]}},
+  {"case": "overlapping: nothing meets", "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [0, 0, 0]}],
+   "ends": {"a": ["free", "free"], "b": ["free", "free"]}},
+  {"case": "off by more than a unit: nothing meets", "walls": [{"key": "a", "at": [0, 0, 0]}, {"key": "b", "at": [386, 0, 0], "yaw": 16384}],
+   "ends": {"a": ["free", "free"], "b": ["free", "free"]}}
+ ]
+}

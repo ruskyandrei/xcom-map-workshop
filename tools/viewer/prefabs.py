@@ -13,7 +13,9 @@ only. Every later editor reads schema 1 (plan D11).
     { "schema": "xcom-map-workshop/prefab", "schemaVersion": 1, "id", "name", "revision", "created", "savedAt",
       "floor": { "tiles": [8, 6] },
       "pieces": [ a project's added records in prefab space: { actor, from, components, location, rotation, prefab,
-                  partner, tinted?, recipe? } | { actor, template: {kind: "cover", version}, cover, location,
+                  partner, tinted?, recipe?, flags?, generated?, blasts?, breaksFurther? } (schema 4: a piece made
+                  from numbers, `generated`, and a broken copy's `blasts`, as a project's records have them)
+                  | { actor, template: {kind: "cover", version}, cover, location,
                   rotation } | { actor, template: {kind: "spot" | "point", version}, light, location, rotation }
                   | { actor, kind: "effect" | "sound", from, location, rotation, effect? | sound? } (schema 3: a copy
                   of a map's effect or ambient sound, with the values a project's record has)
@@ -37,9 +39,10 @@ from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
 SCHEMA = 'xcom-map-workshop/prefab'
 # 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`; the effects and
 # sounds plan, stage FX6a; a lens flare is one more `kind` since stage FX6b, with no values object: an editor of
-# before FX6b says it doesn't know the kind). 1 and 2 are read too
-SCHEMA_VERSION = 3
-READ_VERSIONS = (1, 2, 3)
+# before FX6b says it doesn't know the kind). 4: a piece made from numbers (`generated`: a drawn wall, floor or roof, or
+# ground shape) and a broken copy's `blasts` and `breaksFurther` (review finding 6). 1 to 3 are read too
+SCHEMA_VERSION = 4
+READ_VERSIONS = (1, 2, 3, 4)
 EFFECT_KINDS = ('effect', 'sound', 'flare')
 EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
                      'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
@@ -65,6 +68,11 @@ PNG = b'\x89PNG\r\n\x1a\n'
 LIGHT_KEYS = ('color', 'brightness', 'radius', 'falloffExponent', 'innerConeAngle', 'outerConeAngle', 'enabled')
 LIGHT_KINDS = ('spot', 'point')
 BUILDING_KINDS = ('building', 'ufo')
+# A piece made from numbers (`generated`): its kind, and the most its numbers hold. What they mean is the compiler's to
+# check (compiler.generated_valid, which the Build and Test in game run): here they are numbers, words and short texts
+# in records and lists, at most MADE_DEPTH deep and MADE_VALUES in all. A blast list is made_blasts.py's shape.
+MADE_KINDS = ('fracWall', 'fracSlab', 'ground')
+MADE_DEPTH, MADE_VALUES, MAX_BLASTS = 6, 4096, 64
 
 
 def bad(message):
@@ -129,6 +137,51 @@ def record(value, required, optional, what, strict=False):
     if strict and unknown: raise bad(f'{what} has {", ".join(map(repr, unknown[:4]))}, which this editor doesn\'t know.')
     carried(value, (*required, *optional), what)
     return value
+
+
+def made_values(value, what, budget, depth=0):
+    """A made piece's numbers as data only: records with word keys, lists, finite numbers in range, true or false, and
+    texts of up to UNKNOWN_TEXT characters, at most MADE_DEPTH deep and MADE_VALUES values in all (`budget`, a list of
+    one count)."""
+    budget[0] -= 1
+    if budget[0] < 0 or depth > MADE_DEPTH: raise bad(f'{what} holds too much.')
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, str) or not WORD.fullmatch(k): raise bad(f'{what} has a field this editor can\'t take.')
+            made_values(v, what, budget, depth + 1)
+    elif isinstance(value, list):
+        for v in value: made_values(v, what, budget, depth + 1)
+    elif isinstance(value, str):
+        if len(value) > UNKNOWN_TEXT or not value.isprintable(): raise bad(f'{what} has a text this editor can\'t take.')
+    elif not isinstance(value, bool):
+        number(value, 2 ** 31, what)      # (a rock's seed reaches 2^31: ground.js ROCK_SEEDS)
+
+
+def check_blasts(blasts, what):
+    """A broken piece's blasts (a copy's `blasts`, a made piece's own): [{at: [x, y, z], radius}], one to MAX_BLASTS."""
+    listed(blasts, MAX_BLASTS, what, 1)
+    for b in blasts:
+        record(b, ('at', 'radius'), (), what, True)
+        triple(b['at'], 1e6, what)
+        number(b['radius'], 1e6, what)
+
+
+def check_made(piece, what):
+    """A copied piece's made numbers and blasts (schema 4): `generated` {kind, version, ...} of a kind this editor makes,
+    `blasts` on a copy that isn't made from numbers, `breaksFurther` true and with blasts."""
+    if 'generated' in piece:
+        g = record(piece['generated'], ('kind', 'version'), ('wall', 'slab', 'ground', 'blasts', 'breaksFurther'),
+                   f'{what}\'s made numbers', True)
+        if g['kind'] not in MADE_KINDS: raise bad(f'{what} is made from numbers of a kind this editor doesn\'t know.')
+        whole(g['version'], 1, 1000, f'{what}\'s made numbers\' version')
+        made_values(g, f'{what}\'s made numbers', [MADE_VALUES])
+        if 'blasts' in g: check_blasts(g['blasts'], f'{what}\'s blasts')
+        if g.get('breaksFurther', True) is not True: raise bad(f'{what}\'s breaksFurther is not true.')
+    if 'blasts' in piece:
+        if 'generated' in piece: raise bad(f'{what} is made from numbers: its blasts go in them.')
+        check_blasts(piece['blasts'], f'{what}\'s blasts')
+    if 'breaksFurther' in piece and (piece['breaksFurther'] is not True or 'blasts' not in piece):
+        raise bad(f'{what}\'s breaksFurther is not true with blasts.')
 
 
 def listed(value, most, what, least=0):
@@ -221,7 +274,9 @@ def check_piece(piece, what):
         else:
             raise bad(f'{what} is made from a recipe this editor doesn\'t know ({kind}).')
     else:
-        record(piece, ('actor', 'from', 'components', 'location', 'rotation'), ('prefab', 'partner', 'tinted', 'recipe', 'flags'), what)
+        record(piece, ('actor', 'from', 'components', 'location', 'rotation'),
+               ('prefab', 'partner', 'tinted', 'recipe', 'flags', 'generated', 'blasts', 'breaksFurther'), what)
+        check_made(piece, what)
         source = record(piece['from'], ('package', 'level', 'actor'), (), f'{what}\'s source', True)
         named(source['package'], PACKAGE, f'{what}\'s map')
         if source['level'] != 'base': raise bad(f'{what} is not a piece of a map\'s own level.')

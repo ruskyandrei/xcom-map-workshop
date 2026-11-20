@@ -1,0 +1,4 @@
+{
+ "about": "A prefab test's stage height: [the prefab's measured top over its ground, the levels its stage gets]. prefab_stage.stage_levels (test_prefab_stage.py) and the page's prefab_document.js prefabStageLevels (shared_cases_test.mjs) both pass them (review finding 55): 18 levels at least, 30 at most.",
+ "cases": [[64, 18], [1152, 18], [1152.4, 18], [1152.5, 18], [1153, 19], [1600, 25], [1920, 30], [2112, 30], [5000, 30]]
+}

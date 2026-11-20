@@ -35,14 +35,16 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
 import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
+         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
+import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
 import { HANDLE_COLOURS, SOLO_MAX, boxInReach, boxLines, createSolo, emissionShape, lightHandles, makeHandle, makeMarker,
          nearestValue, paintMarker, recordNow, scaleMarker, valuesOf } from './lights_view.js';
-import { effectiveConeDegrees, storableCone } from './light_rules.js';
+import { effectiveConeDegrees, storableCone, LIGHT_LIMITS } from './light_rules.js';
 import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes, tileGridOf, floorTilesOverlay } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
@@ -53,16 +55,22 @@ import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening,
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
          steppedStoreys,
          SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
-         toolSlab, slabLookOf, roomRoof } from './walls.js';
+         toolSlab, slabLookOf, roomRoof, FRAC_WALL } from './walls.js';
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, lookKey, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
          resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
-         buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
+         buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
 
 const $ = id => document.getElementById(id);
+// Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
+// (modal.js; put in first, so the build window's own key catcher doesn't keep Tab from it)
+holdModals();
+releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
+// Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
+function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const prefabParameter = new URLSearchParams(location.search).get('prefab');
 const builderMode = prefabParameter !== null;
 const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
@@ -190,8 +198,19 @@ const isStream = o => o?.layer === 'stream';
 // null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
 let families = null, assemblyIndex = new Map(), originalIndex = null;
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
-// opens once they are, so its pieces in a donor look are drawn in it
-const looksReady = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+// opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
+// 31): the banner says why, and Try again reads it again.
+let looksReady = readLooks();
+function readLooks() {
+  const ready = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+  ready.then(lists => {
+    const failed = lists.filter(l => l.error);
+    if (failed.length)
+      banner(`${failed.map(l => l.error).join('; ')}, so pieces made in those looks are drawn as the piece they copy and the look picker lists none of them.`,
+             [['Try again', () => { looksReady = readLooks(); }]]);
+  });
+  return ready;
+}
 // The original a piece is, or was copied from: package, level and actor (a project's key for it).
 const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 // foreignAssemblies: the same for the assemblies of other maps' pieces, as their records are read (libraryTemplate).
@@ -228,8 +247,10 @@ let stage = null;
 // A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
 // be set as on the blank map, smaller too. The landing zones as the project sets them (project.js validLandingZone):
 // null while the project keeps the map's own landings and the install's lines (zonesNow gives those); the install's
-// lines for the map (GET landing-lines.json) and its kind come with the map.
-let cleared = false, landingZones = null, landingLines = { kind: null, lines: [] };
+// lines for the map (GET landing-lines.json) and its kind come with the map: 'lwr' or 'longwar' (Long War), 'ew'
+// (plain Enemy Within), or null, a game the editor doesn't know (none set, or the read failed: `failed` says why), a
+// state of its own and not Long War (review finding 31). landingRead: that read, which a project waits for.
+let cleared = false, landingZones = null, landingLines = { kind: null, lines: [] }, landingRead = Promise.resolve();
 // The clear kept the scenery outside the play area (the Clear map window's tick): the Build's clear_level then leaves
 // the lights, smoke, stains and glints placed out there, and so does the view
 let clearKeepsOutside = false;
@@ -855,24 +876,50 @@ function showCover(root) {
 }
 // The ladder's ends where the selected ladder stands now (ladders.js against the export's original floor tiles and the
 // floor the project's own flat pieces are expected to give, as the compiler counts it), or null. `newFloor` says an
-// end has floor only by a piece of the project.
+// end has floor only by a piece of the project. The floor is counted as the compiler's ladder check counts it
+// (compiler.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and
+// with one of the map's own pieces made no floor, the tiles of those and of the pieces moved or deleted are taken out;
+// one of the map's own pieces made floor where it stands gives floor; a grown grid's new levels count.
 let floorSet = null, ladderChip = null, gridChip = null;
 function ladderNow(root) {
   const o = root?.userData.source;
   if (!o || o.actorClass !== 'XComLadder' || isStream(o) || !data.tileGrid || !data.tactical?.floorTiles) return null;
   floorSet ??= new Set(data.tactical.floorTiles.map(f => f.tile.join(',')));
-  const boxes = [];
+  const boxes = [], off = new Set(), gone = new Set();
   for (const r of roots.values()) {
     const s = r.userData.source;
-    // a cover block is no floor, bar the invisible floor, which is made to carry one (EXP-32)
-    if (r.userData.deleted || isStream(s) || s.actorClass === 'XComLadder' || (s.cover && s.cover.type !== 'floor') || !(s.added || r.userData.edit)) continue;
+    if (isStream(s) || s.actorClass === 'XComLadder') continue;
+    if (!s.added && (r.userData.deleted || r.userData.edit)) gone.add(s.actor);
+    if (r.userData.deleted) continue;
+    const floor = floorPlan(r);
+    if (!s.added && !r.userData.edit) {
+      // the map's own piece where it stands: its flags may take its floor away, or give it floor
+      if (floor?.before === 'on' && floor.after === 'off') off.add(s.actor);
+      else if (floor?.after === 'on' && floor.before !== 'on') boxes.push(boxOf(r));
+      continue;
+    }
+    // a cover block is no floor, bar the invisible floor, which is made to carry one (EXP-32); a copy whose flags make
+    // it no floor (and that collides) gives none
+    if ((s.cover && s.cover.type !== 'floor') || (floor?.collides && floor.after === 'off')) continue;
     boxes.push(boxOf(r));
   }
-  const added = addedFloors(boxes, data.tileGrid.origin, data.tileGrid.dimensions);
+  const dims = data.tileGrid.dimensions, own = ownSize()?.dims;
+  const added = addedFloors(boxes, data.tileGrid.origin, dims && [dims[0], dims[1], Math.max(dims[2], own?.[2] ?? 0)]);
+  const floors = off.size ? new Set(data.tactical.floorTiles.filter(f => !off.has(f.actor) && !gone.has(f.actor)).map(f => f.tile.join(',')))
+    : floorSet;
   const pose = placedPose(o, root.matrix);
-  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floorSet, ...added]));
-  ends.newFloor = ends.climbs && [ends.footTile, ends.linkedTop].some(t => !floorSet.has(t.join(',')));
+  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floors, ...added]));
+  ends.newFloor = ends.climbs && [ends.footTile, ends.linkedTop].some(t => !floors.has(t.join(',')));
   return ends;
+}
+// A piece's Floor before and after its flags (piece_flags.js plan, as the compiler's flag_plan), with whether it
+// collides, or null when it has no flags request (or they can't be planned).
+function floorPlan(r) {
+  const s = r.userData.source, c = flagContract();
+  if (!c || !r.userData.flags || !s.pieceFlags) return null;
+  const [cls, pf] = flagSource(s), { raw, assumed } = flagRaw(pf), p = planFlags(c, cls, raw, r.userData.flags, assumed);
+  if (Object.keys(p.conflicts).length) return null;
+  return { before: p.before.floor, after: p.after.floor, collides: s.added?.generated?.kind === 'ground' || s.pieceFlags.collides !== false };
 }
 const LADDER_NOTE = 'The game makes a ladder\'s climb between floors: its foot tile, and its top tile or the one below '
   + 'it, must have floor (the squares: green has floor, red has none). The map\'s own floor counts, and so does a flat '
@@ -1102,12 +1149,16 @@ function breather(slice = WORK_SLICE) {
   let since = performance.now();
   return async () => { if (performance.now() - since < slice) return; await nextFrame(); since = performance.now(); };
 }
-// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark.
-async function buildRoots(objs, step = null) {
+// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark. With `failed`
+// (a list), a piece that can't be drawn (its mesh, a material or a texture not had) is left out of what is given back
+// and named there, { obj, error }, as the map's own load leaves one out (review finding 29); without, it throws.
+async function buildRoots(objs, step = null, failed = null) {
   const built = [], rest = breather();
   for (let k = 0; k < objs.length; k += BUILD_CHUNK) {
-    built.push(...await Promise.all(objs.slice(k, k + BUILD_CHUNK).map(buildRoot)));
-    step?.(built.length, objs.length);
+    const chunk = objs.slice(k, k + BUILD_CHUNK);
+    const made = await Promise.all(chunk.map(obj => (failed ? buildRoot(obj).catch(error => { failed.push({ obj, error }); return null; }) : buildRoot(obj))));
+    built.push(...made.filter(Boolean));
+    step?.(k + chunk.length, objs.length);
     await rest();
   }
   return built;
@@ -1215,12 +1266,11 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
                      ...owns.map(o => ({ matrix: ownMatrix(o.box), building: `own:${o.building.name}`, floor: o.floor }))],
            buildingMeta: Object.fromEntries([...[...new Set(boxes.map(r => r.userData.volume.building))].map(id => [id, { ...buildingMeta.get(id) }]),
                                              ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
+           // (a piece's state: its tint, flags, made numbers and blasts, piece_records.js)
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
                                      ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
-                                     ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}),
-                                     ...(r.userData.blasts?.length ? { blasts: cloneBlasts(r.userData.blasts) } : {}),
-                                     ...(r.userData.blasts?.length && r.userData.breaksFurther ? { breaksFurther: true } : {}) })),
+                                     ...(r.userData.light || r.userData.effect ? {} : { state: stateOfRoot(r.userData) }) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
            // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
@@ -1247,7 +1297,7 @@ const movedMatrix = (source, location, rotation) => actorMatrix(location, rotati
 // server builds from the numbers as the Build does (generated.py), on its template's materials by slot (the made mesh's
 // sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
 // (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
-const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
+// (its numbers: walls.js FRAC_WALL)
 // A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
 // top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
@@ -1266,8 +1316,7 @@ const spelledLook = look => (typeof look === 'object' && look
 // its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
 // that default look and says so (compiler made-no-look).
 const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
-// the kinds of made piece (one piece each, made from numbers)
-const MADE_KINDS = new Set(['fracWall', 'fracSlab', 'ground']);
+// (MADE_KINDS, the kinds of made piece, one piece each made from numbers: piece_records.js)
 const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
 const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
@@ -1811,12 +1860,15 @@ function groupTree(copied, chainOf) {
   return pruneGroups(new Map([...made.values()].map(g => [g.id, g])));
 }
 const mapChain = key => groupChain(groupIndex.get(key));
-async function pasteSnapshot(clip, delta, step = null) {
+async function pasteSnapshot(clip, delta, step = null, { whole = false, first = null } = {}) {
   const serial = copySerial + 1;   // the paste's own number, for its prefab groups
   // (the parts of one actor are pasted as one copy; a made piece is one piece on its own, though a room's walls or a
   // look change's pieces share a donor actor: the user's quick Build of 19 November 2026 refused a room saved as one
   // actor naming its donor's component four times, its other walls' numbers lost)
-  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(e.source.added?.generated?.kind) ? e : e.source.actor);
+  // (an entry's state: its own when the clip has it, a copy's or a prefab's piece's; else its source's, as a piece of
+  // the Add panel or a drawn piece is)
+  const stateOfEntry = e => e.state ?? stateOfRoot({ source: e.source });
+  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(stateOfEntry(e).generated?.kind) ? e : e.source.actor);
   const keyOf = e => e.key ?? memberOf(e.source);
   const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
   clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
@@ -1856,14 +1908,22 @@ async function pasteSnapshot(clip, delta, step = null) {
     const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
     return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
-      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
-      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null,
-      generated: source.added?.generated ?? null, blasts: e.blasts ?? null, breaksFurther: Boolean(e.breaksFurther) });
+      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null, ...stateOfEntry(e) });
   });
+  // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
+  // A piece that can't be drawn (its mesh, a material or a texture not had) is left out, all its parts, and the hint
+  // says so (review finding 29); the rest is placed.
+  const failed = [], made = await buildRoots(objs, step, failed);
+  const lost = new Set(failed.map(f => f.obj.actor)), built = made.filter(r => !lost.has(r.userData.source.actor));
+  if (failed.length) {
+    for (const f of failed) console.error(f.obj.actor, f.error);
+    flashHint(`${plural(lost.size, 'piece')} of ${clip.name ?? 'the copy'} could not be drawn, so ${lost.size === 1 ? 'it is' : 'they are'} not placed: `
+      + `${failed[0].error?.message ?? failed[0].error}`);
+  }
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
   // (each copied member's key, and its copy's record: pieces, lights and buildings)
-  const copied = [...clip.entries.map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
+  const copied = [...clip.entries.filter(e => !lost.has(copies.get(unitOf(e)).name)).map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
                   ...lightEntries.map((e, k) => [keyOf(e), memberRecord(lights[k].userData.source)]),
                   ...effectEntries.map((e, k) => [keyOf(e), memberRecord(effects[k].userData.source)]),
                   ...[...twins].map(([was, t]) => [buildingKey(was), { building: t.id }])];
@@ -1885,11 +1945,17 @@ async function pasteSnapshot(clip, delta, step = null) {
     else if (only) tree.get(only).prefab = { ...clip.wrap };
   }
   const newGroups = [...tree.values()];
-  // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
-  const built = await buildRoots(objs, step);
-  const before = gizmo.picks(), ids = [...objs.map(o => o.id), ...lights.map(r => r.userData.source.id),
+  // (what it gives back says how many pieces it left out and why: `lost`, `why`, so a caller's own hint can say so;
+  // `stopped`: its `first` said no)
+  Object.assign(built, { lost: lost.size, why: failed[0] ? failed[0].error?.message ?? String(failed[0].error) : null });
+  // whole: all or nothing; first(): run after the pieces are made and just before the paste is recorded (a look
+  // change's delete), false to place nothing (setMadeLook)
+  if (whole && lost.size) return built;
+  if (first && first() === false) return Object.assign(built, { stopped: true });
+  const before = gizmo.picks(), ids = [...built.map(r => r.userData.source.id), ...lights.map(r => r.userData.source.id),
                                        ...effects.map(r => r.userData.source.id),
                                        ...(boxesShown ? boxes.map(r => r.userData.source.id) : [])];
+  if (!built.length && !lights.length && !effects.length && !boxes.length) return built;     // (nothing could be placed)
   gizmo.record({
     size: built.length,
     redo: () => {
@@ -1902,6 +1968,8 @@ async function pasteSnapshot(clip, delta, step = null) {
     undo: () => {
       removeRoots(built); removeLightRoots(lights); removeEffectRoots(effects);
       for (const r of boxes) r.userData.deleted = true;
+      // (the copied buildings' names go with them, so the next paste isn't named "copy 2": review finding 34)
+      for (const { id } of twins.values()) buildingMeta.delete(id);
       if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.delete(g.id); setGroups(next); }
       gizmo.setSelection(before.ids, before.active); sceneChanged();
     },
@@ -2297,12 +2365,16 @@ async function placeAt(at, keep) {
   // (a warning, not a refusal: plan "sturdier prefabs", R7; the Build's stage-outside says the same)
   const problem = prefabPlacementProblem(clip, delta);
   if (!keep) stopPlacing();
-  if (clip.entries.length >= BUSY_PIECES)
-    await busy(`Placing ${clip.prefab ? clip.name : 'the copy'}: pieces made`, step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true });
-  else await pasteSnapshot(clip, delta);
+  // (a paste that fails says why: placeAt is called without waiting for it, by a click or Ctrl+V)
+  let placed;
+  try {
+    placed = clip.entries.length >= BUSY_PIECES
+      ? await busy(`Placing ${clip.prefab ? clip.name : 'the copy'}: pieces made`, step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
+      : await pasteSnapshot(clip, delta);
+  } catch (error) { console.error(error); flashHint(`${clip.name ?? 'The copy'} could not be placed: ${error?.message ?? error}`); return; }
   if (clip.libraryEntry) library.used(clip.libraryEntry);     // it heads the recently used pieces
   if (problem) banner(problem, [['Undo', () => gizmo.undo()]]);
-  if (!keep) flashHint(`Placed ${clip.name} · Ctrl+V places another`);
+  if (!keep && !placed?.lost) flashHint(`Placed ${clip.name} · Ctrl+V places another`);
 }
 // Shift held as a move handle is taken (an axis or a plane): the drag moves a copy along it (the gizmo's copyDrag).
 // The selection itself is what moves under the cursor, with the snaps of any drag, and a drawn-only stand-in keeps
@@ -2329,9 +2401,12 @@ function copyDragBegin() {
 }
 async function copyDragEnd({ clip, stand }, delta) {
   try {
-    if (delta && clip.entries.length >= BUSY_PIECES)
-      await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true });
-    else if (delta) await pasteSnapshot(clip, delta);
+    const placed = delta && clip.entries.length >= BUSY_PIECES
+      ? await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
+      : delta ? await pasteSnapshot(clip, delta) : null;
+    if (placed?.lost) delta = null;      // (its hint says what was left out)
+  } catch (error) {
+    console.error(error); flashHint(`The copy of ${clip.name} could not be placed: ${error?.message ?? error}`); delta = null;
   } finally {
     // (the stand-in goes once the copy's original is drawn in its place again)
     world.remove(stand);
@@ -2416,11 +2491,11 @@ function prefabRecords({ complete = false } = {}) {
     names.set(actor, name); copied.push([memberOf(s), { added: name }]);
     if (was && !tags.has(was)) tags.set(was, `copy${tags.size + 1}:${was.replace(/^copy\d+:/, '')}`);
     const entry = s.foreign?.key ? library?.entry(s.foreign.key) : null;
+    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: piece_records.js)
     pieces.push({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component).sort(),
                   ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner ?? null,
-                  ...(s.provenance?.type === 'spawn' || s.added?.tinted ? { tinted: true } : {}),
-                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}),
-                  ...(list[0].flags ? { flags: { ...list[0].flags } } : {}) });
+                  ...recordFields(list[0].state ?? stateOfRoot({ source: s })),
+                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}) });
     donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
@@ -2525,11 +2600,20 @@ async function prefabClip(doc, step = null) {
       if (failure) { left.push(failure); continue; }
       const sources = p.components.map(c => templateFor(p.from, c));
       if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
+      // (each made as its record says, made numbers and blasts included, as a project's copy is: piece_records.js)
       for (const source of sources)
         entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), unit: p.actor, key, link: p.prefab ?? null, partner: p.partner ?? null,
-                       tinted: Boolean(p.tinted), ...(p.flags ? { flags: { ...p.flags } } : {}) });
+                       state: stateOf(p) });
     }
   }
+  // its made pieces' meshes asked for now, so the placing preview draws them as they will stand (previewGroup); one
+  // the server can't draw shows its donor there, and the paste says why (buildRoot)
+  await Promise.all(entries.filter(e => e.state?.generated).map(e => {
+    const mesh = madeShape(e.source, e.state.generated).mesh;
+    if (!mesh) return null;
+    track(geometryCache, mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[mesh].url)));
+    return geometryCache.get(mesh)?.catch(() => null);
+  }));
   const volumes = [], meta = {};
   for (const b of (doc.buildings ?? []).filter(validBuilding)) {
     meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building' };
@@ -2856,12 +2940,15 @@ function floorSupportOf(sources) {
   return floorData().stamps.get(stampSignature(sources))?.support ?? null;
 }
 
-// Reset all: the map as exported. Added pieces go, deleted ones return, moved ones go home, groups end, and the grid,
-// the landing zones and the clear mark are the map's own again; one undo step.
+// Reset all: the map as exported. Added pieces go, deleted ones return, moved ones go home, broken ones are mended,
+// groups end, and the grid, the landing zones and the clear mark are the map's own again; one undo step.
 function resetAll() {
   const all = [...roots.values()], lights = [...lightRoots.values()];
   const added = all.filter(r => r.userData.source.added), deleted = [...all, ...lights].filter(r => r.userData.deleted);
   const flagged = all.filter(r => !r.userData.source.added && r.userData.flags), flagsBefore = flagged.map(r => r.userData.flags);
+  // the map's own pieces broken (Break, E6) are mended: their blasts and Breaks further in battle go (review finding 28)
+  const broken = all.filter(r => !r.userData.source.added && r.userData.blasts?.length);
+  const brokenBefore = broken.map(r => ({ blasts: cloneBlasts(r.userData.blasts), further: Boolean(r.userData.breaksFurther) }));
   const moved = [...all, ...lights].filter(r => r.userData.edit && !r.userData.source.added);
   const addedLights = lights.filter(r => r.userData.source.added), changed = lights.filter(r => !r.userData.source.added && valuesEdited(r));
   // effects and sounds: copies go, deleted ones return, moved ones go home, kept ones follow their piece again
@@ -2874,7 +2961,7 @@ function resetAll() {
   const edits = mapEdits(), restore = mapRestoreChange([...edits.changed, ...edits.gone]);
   // the project's own buildings go: their boxes, which the buildings are made from
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
-  if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
+  if (!added.length && !deleted.length && !moved.length && !flagged.length && !broken.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
       && !addedEffects.length && !stays.length && !valued.length
       && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
@@ -2893,6 +2980,7 @@ function resetAll() {
   gizmo.record({
     redo: () => {
       for (const r of flagged) r.userData.flags = null;
+      for (const r of broken) { r.userData.blasts = null; r.userData.breaksFurther = false; drawBroken(r); }
       removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects); for (const r of stays) r.userData.stays = false;
       for (const r of valued) r.userData.values = null;
       for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
@@ -2904,6 +2992,7 @@ function resetAll() {
     },
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
+      broken.forEach((r, k) => { r.userData.blasts = cloneBlasts(brokenBefore[k].blasts); r.userData.breaksFurther = brokenBefore[k].further; drawBroken(r); });
       addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects); for (const r of stays) r.userData.stays = true;
       valued.forEach((r, k) => { r.userData.values = fxValues[k]; });
       for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
@@ -3194,7 +3283,7 @@ const lightIndex = new Map();     // an original light's key (package|level|acto
 const derivedMarks = new THREE.Group(); world.add(derivedMarks);
 const lightShapes = new THREE.Group(); world.add(lightShapes);
 const solo = createSolo(world);
-const LIGHT_LIMITS = { brightness: [0, 100], radius: [1, 16384], falloffExponent: [0.1, 64], innerConeAngle: [0, 89], outerConeAngle: [0, 89.99] };
+// (a light value's limits: light_rules.js LIGHT_LIMITS)
 const LIGHT_LABELS = { brightness: 'Brightness', radius: 'Radius', falloffExponent: 'Falloff', innerConeAngle: 'The inner cone',
                        outerConeAngle: 'The outer cone' };
 const REACH_WARN = 300;
@@ -4202,8 +4291,7 @@ function physicalBox(root) {
   const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
   physicalBoxes.set(root, { key, box }); return box;
 }
-const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags',
-                              'kind', 'effect', 'sound']);
+// (PIECE_FIELDS, the record fields this editor knows, are piece_records.js's)
 function builderDocument() {
   if (!eventMemo) return builderDocumentNow();
   return eventMemo.document ??= builderDocumentNow();
@@ -4367,10 +4455,12 @@ async function applyPrefabDocument(doc, { envelope = null, nextSerial = 0 } = {}
   // Reserve names and link serials even when none of their pieces can be displayed.
   for (const p of doc.pieces) for (const s of [/_copy(\d+)$/.exec(p.actor)?.[1], /^copy(\d+):/.exec(p.prefab ?? '')?.[1]]) nextSerial = Math.max(nextSerial, Number(s) || 0);
   builder.kept = doc.pieces;
-  const carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress);
+  let carried;
+  // (loading ends whatever happens: a failed open never leaves the builder thinking it is still reading)
+  try { carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress); }
+  finally { builder.loading = false; }
   builder.kept = carried.added.map(({ id, ...p }) => p);
   builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * 96, doc.floor.tiles[1] * 96, 0] : null;
-  builder.loading = false;
   refreshBuilder(); editChanged();
 }
 async function openPrefabDocument(id) {
@@ -4607,15 +4697,9 @@ function editStateNow() {
     } else if (o.added) {
       let entity = added.get(o.actor);
       if (!entity) {
+        // (its tint, made numbers, flags and a broken copy's blasts: piece_records.js)
         entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
-                   prefab: o.prefab ?? null, partner: o.partner ?? null };
-        if (o.added.tinted) entity.tinted = true;
-        if (o.added.generated) entity.generated = o.added.generated;
-        if (root.userData.flags) entity.flags = { ...root.userData.flags };
-        if (root.userData.blasts?.length && !o.added.generated) {
-          entity.blasts = cloneBlasts(root.userData.blasts);
-          if (root.userData.breaksFurther) entity.breaksFurther = true;
-        }
+                   prefab: o.prefab ?? null, partner: o.partner ?? null, ...recordFields(stateOfRoot(root.userData)) };
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
           entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
@@ -4730,7 +4814,7 @@ async function applyState(state, progress = null) {
       }
     }
   }
-  const objs = [], lights = [], effects = [];
+  const objs = [], lights = [], effects = [], entityOf = new Map();     // (each made piece's record: entityOf)
   for (const entity of state.added) {
     if (SPAWN_COPY_KINDS.includes(entity.kind)) {
       // a copy of one of the map's pods, Meld points or no-spawn volumes (SP7), or a new volume (no `from`); one the page
@@ -4757,6 +4841,7 @@ async function applyState(state, progress = null) {
       if (serial > copySerial) copySerial = serial;
       objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), { actor: entity.actor, entity: entity.id,
         prefab: null, partner: null, location: entity.location, rotation: entity.rotation, tinted: false }));
+      entityOf.set(objs.at(-1), entity);
       continue;
     }
     if (entity.template || lightIndex.has(targetKey(entity.from))) {
@@ -4772,11 +4857,22 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null, blasts: entity.blasts ?? null,
-        breaksFurther: entity.breaksFurther === true }));
+        ...stateOf(entity) }));
+      entityOf.set(objs.at(-1), entity);
     }
   }
-  addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
+  // A piece that can't be drawn (its mesh, a material or a texture not had: review finding 29) is a display error, as
+  // in the map's own load: its record is kept and saved back unchanged, and none of its parts is drawn.
+  const failed = [], built = await buildRoots(objs, progress && ((done, total) => progress('making', done, total)), failed);
+  const lost = new Set(failed.map(f => entityOf.get(f.obj)));
+  addRoots(built.filter(r => !lost.has(entityOf.get(r.userData.source))));
+  if (lost.size) {
+    for (const f of failed) console.error(f.obj.actor, f.error);
+    carried.added.push(...lost);
+    loadErrorCount += lost.size;
+    projectNote(`${plural(lost.size, 'piece')} of the ${builderMode ? 'prefab' : 'project'} could not be drawn (${failed[0].error?.message ?? failed[0].error}): `
+      + `${lost.size === 1 ? 'its record is' : 'their records are'} kept and saved back unchanged. The browser console has the errors.`);
+  }
   addLightRoots(lights);
   addEffectRoots(effects);
   setMissionMoves(streamMoves);
@@ -4788,7 +4884,7 @@ async function applyState(state, progress = null) {
   // Groups whose pieces are all here; one naming a piece this export (or this state) lacks is carried unchanged.
   const applied = new Set([...actors.keys()].map(k => `orig|${k}`));
   if (builderMode) for (const p of builder.kept) applied.add(memberKey({ added: p.actor }));
-  for (const o of objs) applied.add(memberKey({ added: o.actor }));
+  for (const o of objs) if (!lost.has(entityOf.get(o))) applied.add(memberKey({ added: o.actor }));
   // (lights and the project's buildings are members too)
   for (const r of [...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()]) applied.add(memberOf(r.userData.source));
   // (a group that names a group not applied goes with it; so does one in two groups, or in itself)
@@ -4827,10 +4923,16 @@ function banner(message, actions = [], { timeout = 0 } = {}) {
     setParagraphs(body, message);
     el.replaceChildren(body);
   } else el.replaceChildren(message);
+  // (an action that fails says so in the banner, as Restore them does when a recovered piece can't be read: review
+  // finding 29)
   for (const [label, run] of actions) {
     const button = text(el, 'button', label);
     button.type = 'button';
-    button.onclick = () => { el.hidden = true; run(); };
+    button.onclick = () => {
+      el.hidden = true;
+      try { run()?.catch?.(error => banner(`${label} could not be done: ${error?.message ?? error}`)); }
+      catch (error) { banner(`${label} could not be done: ${error?.message ?? error}`); }
+    };
   }
   const close = text(el, 'button', '×', 'close');
   Object.assign(close, { type: 'button', title: 'Dismiss' });
@@ -4880,6 +4982,7 @@ async function openProject(id) {
   try { doc = await projectApi.load(id); }
   catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
   await looksReady;
+  await landingRead;      // (the starting landing zones come from it: review finding 31)
   if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
   // (the server opens only a project it can read: projects.shape_problem. A document whose edits are not lists is
   // refused here too, rather than opened without them and saved back so: review finding 9)
@@ -5816,7 +5919,7 @@ $('problemsChip').onclick = () => {
   problems.open = !problems.open; problemsPaint();
 };
 // How many levels the test's stage gets (prefab_stage.py stage_levels): what the prefab needs, 18 at least, 30 at most.
-const testStageLevels = bounds => Math.min(PREFAB_GRID_LEVELS, Math.max(PREFAB_PLAYED_LEVELS, Math.ceil((bounds[5] - 0.5) / 64)));
+const testStageLevels = prefabStageLevels;     // (prefab_document.js: prefab_stage.stage_levels' twin)
 // The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
 // selected and framed. False when none is in the view.
 function selectActors(names) {
@@ -5928,7 +6031,7 @@ const gameMaps = createGameMaps({
   onChanged: () => refreshInstalls(),
 });
 function showGameMaps() {
-  if (gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   gameMaps.show();
@@ -5956,13 +6059,13 @@ async function refreshMapList() {
   } catch { /* the list stays as it was; a reload brings it */ }
 }
 function showPrecache() {
-  if (precache.open || gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   precache.show();
 }
 function showProjectManager() {
-  if (gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   projectManager.show();
@@ -6022,7 +6125,8 @@ function frame(root = content) {
 async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
   if (!id || !data.textures[id]) return null;
   const key = `${id}:${color}:${JSON.stringify(sampling)}`;
-  if (!texturePromises.has(key)) texturePromises.set(key, (async () => {
+  // (a texture that failed to load is asked for again by the next material that needs it: track)
+  track(texturePromises, key, async () => {
     const tex = await textureLoader.loadAsync(assetUrl(data.textures[id].url));
     tex.colorSpace = color && data.textures[id].srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     // UE UVs and extracted PNGs both use a top-left origin. Preserve that
@@ -6033,7 +6137,7 @@ async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     return tex;
-  })());
+  });
   return texturePromises.get(key);
 }
 // The plain material of a made piece with no look (B2): light grey, shaded by the lights, the floor's tile lines
@@ -6100,18 +6204,25 @@ function materialKey(obj, id) {
   const tint = obj.provenance?.type === 'spawn' || obj.added?.tinted ? obj.tint : null;
   return [`${id}:${JSON.stringify(tint)}`, tint];
 }
-// The no-op catch only stops an early failure being reported as unhandled before its piece is reached.
+// The catch stops an early failure being reported as unhandled before its piece is reached, and drops the failed load,
+// so the next piece that needs it asks again rather than failing for the page's life (review finding 29).
 // Once loaded, a value can also be had at once with loaded(), for drawing in the middle of a frame.
 const settled = new WeakMap();
 function track(map, key, start) {
-  if (!map.has(key)) { const promise = start(); promise.then(v => settled.set(promise, v), () => {}); map.set(key, promise); }
+  if (map.has(key)) return;
+  const promise = start();
+  promise.then(v => settled.set(promise, v), () => { if (map.get(key) === promise) map.delete(key); });
+  map.set(key, promise);
 }
 const loaded = (map, key) => settled.get(map.get(key));
 // A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
 // materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
 function previewGroup(parts, override, frame) {
   const group = new THREE.Group();
-  for (const { source, matrix, values } of parts) {
+  for (const { source, matrix: placed, values, state } of parts) {
+    // (a made piece of a prefab, its donor's source and its numbers: drawn from its made mesh once loaded, prefabClip)
+    const made = state?.generated && !data.meshes[source.mesh]?.made ? madeShape(source, state.generated) : null;
+    const drawn = made?.mesh && loaded(geometryCache, made.mesh) ? made : null, matrix = drawn ? unscaled(placed) : placed;
     if (source.isEffect) {
       const holder = new THREE.Group(), marker = makeEffectMarker(source);
       holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
@@ -6127,13 +6238,13 @@ function previewGroup(parts, override, frame) {
       group.add(holder);
       continue;
     }
-    const gltf = loaded(geometryCache, source.mesh);
+    const mesh = drawn?.mesh ?? source.mesh, materials = drawn?.materials ?? source.materials, gltf = loaded(geometryCache, mesh);
     if (!gltf) continue;
-    const root = data.meshes[source.mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
+    const root = data.meshes[mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
     let i = 0;
     root.traverse(part => {
       if (!part.isMesh) return;
-      part.material = override ?? loaded(materialCache, materialKey(source, source.materials[i])[0]) ?? ghostMaterial;
+      part.material = override ?? loaded(materialCache, materialKey(source, materials[i])[0]) ?? ghostMaterial;
       part.raycast = () => {}; i++;
     });
     root.matrix.multiplyMatrices(frame, matrix); root.matrixAutoUpdate = false;
@@ -6304,9 +6415,7 @@ function boxOf(root, precise = false) {
   drawnBox.setFromObject(root, precise);
   return drawnBox.isEmpty() ? null : [drawnBox.min.x, drawnBox.max.x, drawnBox.min.z, drawnBox.max.z, drawnBox.min.y, drawnBox.max.y];
 }
-// The classes a building floor lists (the Build's buildings.LISTED): a StaticMeshActor never hides.
-const LISTED_CLASSES = new Set(['XComLevelActor', 'XComOpacityFadeLevelActor', 'XComDestructibleActor', 'XComFracLevelActor', 'XComDecoFracLevelActor',
-                                'XComInteractiveLevelActor', 'XComLadder', 'XComCollectible', 'KAsset']);
+// (the classes a building floor lists: floors.js LISTED_CLASSES)
 // Where the project's buildings list a piece, by the game editor's rule as the Build applies it (floors.js
 // touchedFloors and ruleListing; tools/bake/buildings.py): from the box of what is drawn of it where it stands.
 function projectListings(root) {
@@ -6843,8 +6952,8 @@ function clearWords(v) {
     + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '');
   // the kinds a record alone gives the map, and the base map's missions that bring objects in their streams
   const brought = (data.missions ?? []).filter(m => (m.streams ?? []).some(s => data.streams?.[s]?.missionObjects?.length));
-  const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': 'a bomb mission', Crash: 'a UFO mission (with a UFO placed)' };
-  const added = Object.keys(words).filter(k => !(k === 'Special/Bomb' && (!lwrInstall() || baseHas(k))) && !brought.some(m => kindKey(m) === k)).map(k => words[k]);
+  const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': lwrInstall() ? 'a bomb mission' : 'a bomb mission (on Long War only)', Crash: 'a UFO mission (with a UFO placed)' };
+  const added = Object.keys(words).filter(k => !(k === 'Special/Bomb' && (plainEw() || baseHas(k))) && !brought.some(m => kindKey(m) === k)).map(k => words[k]);
   const listed = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]);
   $('clearMapMissions').hidden = false;
   $('clearMapMissions').textContent = `Then it asks what the cleared map is for: ${listed(added)}`
@@ -6916,7 +7025,11 @@ function clearMap(size, keepOutside = false) {
 const missionsPanel = createMissionsPanel({
   els: { root: $('missionsDialog'), form: $('missionsForm'), title: $('missionsTitle'), note: $('missionsNote'), list: $('missionsList'),
          warn: $('missionsWarn'), ok: $('missionsOk'), close: $('missionsClose'), cancel: $('missionsCancel') } });
-const lwrInstall = () => landingLines?.kind !== 'ew';
+// Which game is set (review finding 31): Long War, plain Enemy Within, or neither known, a state of its own
+const lwrInstall = () => ['lwr', 'longwar'].includes(landingLines?.kind);
+const plainEw = () => landingLines?.kind === 'ew';
+const gameUnknownWhy = () => (landingLines?.kind ? null : landingLines?.failed
+  ? `the editor couldn't read it: ${landingLines.failed}` : 'the settings name no game folder the editor recognises');
 // whether a UFO building stands on the map: one of the project's, or one of the map's own that stays
 const hasUfoBuilding = () => allBuildings().some(b => (b.project ? (b.project.kind ?? 'building') === 'ufo' : b.isUfo));
 const baseHas = kind => (data?.missions ?? []).some(m => kindKey(m) === kind);
@@ -6925,7 +7038,7 @@ const baseHas = kind => (data?.missions ?? []).some(m => kindKey(m) === kind);
 function clearedMissions() {
   const picked = (data?.missions ?? [])[missionIndex], key = picked ? kindKey(picked) : null;
   const addedPick = missionPickValue.startsWith('kind:') ? missionPickValue.slice(5) : null;
-  if (['Abduction', 'TerrorSite', 'Special/Bomb'].includes(addedPick) && (addedPick !== 'Special/Bomb' || lwrInstall())) return [{ kind: addedPick }];
+  if (['Abduction', 'TerrorSite', 'Special/Bomb'].includes(addedPick) && (addedPick !== 'Special/Bomb' || !plainEw())) return [{ kind: addedPick }];
   // (the base map's bomb is its own record, its objects standing where the original map has them until moved)
   if (picked && ['Abduction', 'TerrorSite', 'Special/Bomb'].includes(key)) return [{ record: missionIndex }];
   const abduction = (data?.missions ?? []).findIndex(m => kindKey(m) === 'Abduction');
@@ -6948,8 +7061,10 @@ async function showMissions(asked = false) {
   for (const [kind, k] of Object.entries(ADDED_KINDS)) {
     if (baseHas(kind) && !listed.some(e => e.kind === kind)) continue;     // the base map's own record is the row for it
     const entry = listed.find(e => e.kind === kind) ?? { kind, ...(k.ufo ? { ship: 'eShip_UFOSmallScout' } : {}) };
-    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: '', detail: k.needs, ufo: k.ufo,
-                disabled: k.lwr && !lwrInstall() ? 'Long War only: plain Enemy Within would play the bomb where Slaughterhouse has it.'
+    const unknown = k.lwr ? gameUnknownWhy() : null;
+    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: '', ufo: k.ufo,
+                detail: unknown ? `${k.needs} Which game is set isn't known (${unknown}), so the editor can't check that it is Long War.` : k.needs,
+                disabled: k.lwr && plainEw() ? 'Long War only: plain Enemy Within would play the bomb where Slaughterhouse has it.'
                   : k.ufo && !hasUfoBuilding() ? 'Place a UFO prefab first: the mission needs a UFO building on the map.' : null });
   }
   missionsPanel.show({
@@ -9267,22 +9382,41 @@ function copyVolumes(cut = false) {
   flashHint(`${boxCount(targets.length)} ${cut ? 'cut' : 'copied'} · Ctrl+V puts ${targets.length === 1 ? 'a copy' : 'copies'} on top, as the next floor`);
 }
 // Paste: each copied box again on top of where it was copied from, as the floor above it in its building (a building
-// that is gone gets the boxes as a new one). Moved from there with the gizmo.
+// that is gone gets the boxes as a new one). Moved from there with the gizmo. One undo step, whatever the buildings
+// (review finding 34: it was one a building), which takes the new buildings' names back too.
 function pasteVolumes() {
   if (!volumeClip?.length) { flashHint('Nothing copied yet: select a box and press Ctrl+C'); return; }
   const live = new Set(liveVolumes().map(r => r.userData.volume.building)), grid = volumeGrid();
   const top = grid && !builderMode ? grid.origin[2] + grid.dimensions[2] * grid.size[2] : Infinity;
   const byBuilding = new Map();
   for (const c of volumeClip) { if (!byBuilding.has(c.building)) byBuilding.set(c.building, []); byBuilding.get(c.building).push(c); }
-  const made = [];
+  const made = [], fresh = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
+  let last = null;
   for (const [building, clips] of byBuilding) {
+    let id = building;
+    if (!live.has(building)) {
+      // (a building that is gone: a new one, named as newBuilding names one)
+      id = newBuildingId();
+      let n = 1;
+      while (names.has(`Building ${n}`)) n++;
+      names.add(`Building ${n}`); fresh.set(id, { name: `Building ${n}`, kind: 'building' });
+    }
     const rise = Math.max(...clips.map(c => c.box[5])) - Math.min(...clips.map(c => c.box[2]));
     const fits = Math.max(...clips.map(c => c.box[5])) + rise <= top + 0.5 && live.has(building);
-    made.push(...addVolumes(clips.map(c => ({ box: fits ? [c.box[0], c.box[1], c.box[2] + rise, c.box[3], c.box[4], c.box[5] + rise] : [...c.box],
-                                              floor: fits ? Math.min(BUILDING_FLOORS_MAX - 1, c.floor + 1) : c.floor })),
-                            live.has(building) ? building : newBuilding()));
+    for (const c of clips) {
+      const root = makeVolume(fits ? [c.box[0], c.box[1], c.box[2] + rise, c.box[3], c.box[4], c.box[5] + rise] : [...c.box], id,
+                              fits ? Math.min(BUILDING_FLOORS_MAX - 1, c.floor + 1) : c.floor);
+      root.userData.deleted = true;
+      made.push(root);
+    }
+    last = id;
   }
-  gizmo.setSelection(made.map(r => r.userData.source.id));
+  const ids = made.map(r => r.userData.source.id), before = gizmo.picks();
+  gizmo.record({
+    redo: () => { for (const [id, meta] of fresh) buildingMeta.set(id, { ...meta }); for (const r of made) r.userData.deleted = false; gizmo.setSelection(ids); },
+    undo: () => { for (const r of made) r.userData.deleted = true; for (const id of fresh.keys()) buildingMeta.delete(id); gizmo.setSelection(before.ids, before.active); },
+  });
+  lastBuilding = last;
   flashHint(`${boxCount(made.length)} pasted`);
 }
 // A box for each floor of a building around the pieces that were selected when the view was turned on.
@@ -9791,6 +9925,7 @@ function lookChosen(kind, look) {
  *  eyedropper. `current`: the look key of the piece being given a look (its card ringed and first). */
 async function openLookPicker(kind, { onChoose = null, title = null, sample = null, current = null } = {}) {
   const list = await loadLooks(kind);
+  if (list.error) { flashHint(`${list.error}: the editor asks again when the looks are opened again`); return; }
   stopWallDrawing(); stopPlacing();
   const stored = storedLook(kind)?.donor;
   const used = usedLookKeys(kind);
@@ -9837,7 +9972,8 @@ async function lookPickAt(x, y) {
   const want = lookPicking;
   const hit = pick(x, y), src = hit ? roots.get(hit.object.userData.objectId)?.userData.source : null;
   if (!src) { flashHint('Nothing there: click a wall, a floor or roof, or a ground piece · Esc cancels'); return; }
-  await Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+  const unread = (await Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)))).find(l => l.error);
+  if (unread) { flashHint(`${unread.error}: click again to ask again · Esc cancels`); return; }
   const found = pieceLook(src);
   if (found.why) { flashHint(`Not a look: ${found.why} · Esc cancels`); return; }
   stopLookPick();
@@ -10138,7 +10274,16 @@ async function applyWall(root, state) {
   const token = root.userData.wallToken = (root.userData.wallToken ?? 0) + 1;
   track(geometryCache, key, () => gltfLoader.loadAsync(assetUrl(data.meshes[key].url)));
   let base;
-  try { base = await geometryCache.get(key); } catch { geometryCache.delete(key); return; }
+  try { base = await geometryCache.get(key); }
+  catch (error) {
+    // a mesh the server didn't make (review finding 31): the piece keeps the numbers (its panel, handles and the save
+    // have them, and the Build makes them) and its drawing the shape it had, which its mesh key says too; the hint says
+    // why. (track drops the failed load, so the next change asks again.)
+    if (root.userData.wallToken !== token) return;
+    o.mesh = was;
+    flashHint(`${data.meshes[key]?.name ?? 'The piece'}: the editor couldn't draw these numbers (${error?.message ?? error}), so it shows the shape it had; the Build makes the new one`);
+    return;
+  }
   if (root.userData.wallToken !== token) return;
   const old = root.userData.parts, materials = old.map(p => p.userData.baseMaterial);
   const fresh = base.scene.clone(true), parts = [];
@@ -10221,17 +10366,31 @@ function groundHandlesNow(root) {
 }
 // ---- a rock's corners (look picker and rock points plan, R2, R3): its points and which are corners, asked of the
 // server (Python's seeded random isn't the page's) for each rock's numbers; a point picked takes the move gizmo
-const rockCorners = new Map();      // the rock's numbers, look aside (JSON) -> { points, corners }, a promise, or { failed }
+const rockCorners = new Map();      // the rock's numbers, look aside (JSON) -> { points, corners } or a promise
+// A failed answer isn't kept (review finding 31): the hint says why, once, and the corners are asked for again after a
+// pause (the handles are worked out often, so not straight away)
+const rockCornersFailed = new Map();  // the rock's numbers -> performance.now() of its last failed answer
 function rockCornersOf(g) {
   const { look: _, ...shape } = madeGroundNumbers(g), key = JSON.stringify(shape), known = rockCorners.get(key);
-  if (known && !known.then) return known.failed ? null : known;
-  if (!known) {
-    rockCorners.set(key, fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
-      .then(r => (r.ok ? r.json() : null)).catch(() => null)
+  if (known && !known.then) return known;
+  if (!known && !(performance.now() - (rockCornersFailed.get(key) ?? -Infinity) < 4000)) {
+    const asking = fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
+      .then(async r => {
+        const answer = await r.json().catch(() => null);
+        if (!r.ok || !answer?.points) throw new Error(answer?.error ?? `the editor's server answered ${r.status}`);
+        return answer;
+      })
       .then(answer => {
-        rockCorners.set(key, answer?.points ? answer : { failed: true });
+        rockCorners.set(key, answer);
+        rockCornersFailed.delete(key);
         if (rockCorners.size > 300) rockCorners.delete(rockCorners.keys().next().value);
-      }));
+      }, error => {
+        if (rockCorners.get(key) === asking) rockCorners.delete(key);
+        if (!rockCornersFailed.has(key))
+          flashHint(`The rock's corner points couldn't be read (${error?.message ?? error}); the editor asks again in a moment`);
+        rockCornersFailed.set(key, performance.now());
+      });
+    rockCorners.set(key, asking);
   }
   return null;
 }
@@ -10574,6 +10733,9 @@ function moveWallDrag(e) {
     wall = movedOpening(w, h.index, h.part, delta, { along, up });
     words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
   }
+  // (numbers the tool doesn't make, which the mesh server and the Build would refuse, aren't applied: the drag stays
+  // at its last state the tool makes; review finding 32)
+  if (!toolWall(wall)) return;
   const key = JSON.stringify([wall, location]);
   if (key === d.shown) return;
   d.shown = key;
@@ -10748,7 +10910,6 @@ function mapBreakable(o) {
   return Boolean(o && !o.cover && !o.added?.generated && FRACTURING_CLASSES.has(o.actorClass)
     && data?.meshes[o.mesh]?.sections?.some(s => s.fragments?.length));
 }
-function cloneBlasts(blasts) { return blasts.map(b => ({ at: [...b.at], radius: b.radius })); }
 // A root's parts with the sections they draw: [{ section, part }] (the glb has a primitive for each section with
 // triangles, in order); none when they don't match.
 function sectionParts(root) {
@@ -10976,16 +11137,30 @@ async function setMadeLook(root, kind, look) {
       const { storeys: _, ...rest } = openingsInLook(gen[kind], numbers);
       numbers = withStoreys(rest, storeysInLook(gen[kind], rest)).wall;
     }
-    return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, l, numbers, Boolean(look.plain)) } },
-             matrix: movedMatrix(template, state.location, state.rotation) };
+    // (its flags, tint and blasts stay with it: only its look changes; piece_records.js)
+    const was = stateOfRoot(r.userData), broken = gen.blasts ? { blasts: gen.blasts, ...(gen.breaksFurther ? { breaksFurther: true } : {}) } : {};
+    return { source: template, matrix: movedMatrix(template, state.location, state.rotation),
+             state: { ...was, generated: { ...madeRequest(gen.kind, l, numbers, Boolean(look.plain)), ...broken } } };
   });
   // (only the pieces made again are deleted, not the rest of their locked group; pieces of one group, a room's,
   // take their places in it)
   const keys = targets.map(r => memberOf(r.userData.source)), held = groupIndex.get(keys[0]);
   const regroup = Boolean(held) && keys.every(k => groupIndex.get(k) === held);
-  gizmo.setSelection(targets.map(r => r.userData.source.id));
-  deleteNow(true, targets);
-  await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4());
+  // The new pieces are made first (their meshes asked of the server), nothing changed meanwhile. Then, in one go after
+  // that one wait, the old ones are deleted, the new ones placed and the group mended, joined as one undo step: nothing
+  // done during the wait is joined to it, and a mesh that can't be had, or a piece changed meanwhile, leaves
+  // everything as it was (review finding 30).
+  const poses = targets.map(r => r.matrix.clone());
+  const pasted = await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4(), null, {
+    whole: true,
+    first: () => {
+      if (targets.some((r, k) => roots.get(r.userData.source.id) !== r || r.userData.deleted || !r.matrix.equals(poses[k]))) return false;
+      gizmo.setSelection(targets.map(r => r.userData.source.id));
+      deleteNow(true, targets);
+      return true;
+    } });
+  if (pasted.stopped) { flashHint(`${targets.length > 1 ? 'They' : 'It'} changed while the new look was made: choose ${look.name} again`); return; }
+  if (pasted.lost) { flashHint(`${look.name} can't be used: ${plural(pasted.lost, 'piece')} in it could not be drawn (${pasted.why}); nothing changed`); return; }
   if (regroup) {
     const made = gizmo.picks().ids.map(id => roots.get(id)).filter(Boolean);
     changeGroups(next => {
@@ -11314,6 +11489,7 @@ const editMeta = change => {
 };
 volumeUi.name.onchange = () => { editMeta({ name: volumeUi.name.value.trim().slice(0, 60) }); volumeUi.name.blur(); };
 volumeUi.kind.onchange = () => { editMeta({ kind: volumeUi.kind.value }); volumeUi.kind.blur(); };
+volumeUi.floor.max = String(BUILDING_FLOORS_MAX);      // (the script's and the compiler's limit: review finding 34)
 volumeUi.floor.onchange = () => {
   const targets = pickedVolumes(), n = Number(volumeUi.floor.value);
   if (!targets.length || !Number.isInteger(n) || n < 1 || n > BUILDING_FLOORS_MAX) { volumePanel(); return; }
@@ -11964,10 +12140,20 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('projectMissions').hidden = !projectsAvailable();
   $('projectPicture').hidden = !projectsAvailable();
   ownGrid = null; startingCache = null; landingLines = { kind: null, lines: [] };
-  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones
+  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
+  // read leaves the game unknown, with the reason (review finding 31).
   if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-    fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`).then(r => (r.ok ? r.json() : null)).catch(() => null)
-      .then(v => { if (v && Array.isArray(v.lines)) { landingLines = v; startingCache = null; refreshGroundGrid(); refreshLandingZones(); } });
+    landingRead = fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
+      .then(async r => {
+        const v = await r.json().catch(() => null);
+        if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
+        return v;
+      })
+      .then(v => { landingLines = v; }, error => {
+        landingLines = { kind: null, lines: [], failed: String(error?.message ?? error) };
+        banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
+      })
+      .then(() => { startingCache = null; refreshGroundGrid(); refreshLandingZones(); });
   drawPlayArea();
   for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
   // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
@@ -12105,7 +12291,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
-    screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
@@ -12115,7 +12300,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
     slabPanelText: () => sectionText('slabBox'),
     buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
-    // the map's surface below a point (game x, y, from z down), as the wall tool and the Add panel find the floor
+    // the map's surface below a point (game x, y, from z down: 4096 when not given), as the wall tool and the Add panel
+    // find the floor, and as invisible floors read it (the game's collision once it has come). (One key each for this
+    // and screenOf: a second, later in the list, took its place; review finding 34.)
     groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
     wallMeshReady: id => { const r = madeRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
     addWallOpening, wallPanelText: () => sectionText('wallBox'),
@@ -12133,6 +12320,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
+    // (the dialogs' keys and a state put on the map, for the browser checks: browser_editing.py)
+    showPrepare, applyState,
     pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,
     // prefabs (prefab plan stage P), for the browser smoke test
     prefabs: prefabTab, prefabApi, prefabRecords, savePrefab, choosePrefab, prefabClip,
@@ -12153,8 +12342,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       return handleDefs.map(h => ({ key: h.key, value: h.value, screen: project(h.at(h.value)), origin: project(h.origin) })); },
     lightDragging: () => Boolean(lightDrag),
     levelSnap: () => levelSnap, setLevelSnap, chosenStorey: (x, y) => chosenStorey(x, y),
-    // the ground under a point as invisible floors read it (the game's collision once it has come)
-    groundAt: (x, y, fromZ) => groundAt(x, y, fromZ), collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
+    collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
     recipeOf: id => recipeOf(roots.get(id)?.userData.source),
     ladderEnds: id => ladderNow(roots.get(id)), ladderMarks,
     placing: () => placing && { name: placing.clip.name, fromList: Boolean(placing.entry), ghost: placing.ghost, turns: placing.turns, floor: placing.clip.floor },
@@ -12232,7 +12420,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     volumeHandle: key => { const r = volumeRoots.get(selected); return r ? projector()(viewPoint(handlePoint(volumeBox(r), key))) : null; },
     ownPicked: () => ownPicked?.userData.own ?? null,
     // the map's own buildings made editable (map buildings plan), for the browser smoke test
-    savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard, pasteSnapshot,
+    savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard,
     mapEdits: () => { const e = mapEdits(); return { changed: [...e.changed], gone: [...e.gone] }; },
     putVolume: (id, box) => { const r = volumeRoots.get(id); recordVolumes([r], () => setVolumeBox(r, box)); },
     listingsNow: id => roots.get(id) && listingsNow(roots.get(id)), floorTiles: () => floorTileLayer && floorTileLayer.userData.tiles.length,
@@ -12288,7 +12476,7 @@ poseInputs.forEach((input, i) => {
   });
 });
 function showMapBrowser() {
-  if (!mapBrowser || mapBrowser.open || lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (!mapBrowser || modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   mapBrowser.show();
@@ -12756,7 +12944,7 @@ window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
 // nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
-  if (lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || mapBrowser?.open || setupDialog.open || buildOptions.open) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
+  if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'b') { e.preventDefault(); if (!e.repeat) openBuild(); return; }

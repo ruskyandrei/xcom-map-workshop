@@ -178,6 +178,10 @@ export function copyFloors(listings, here, there, floorCount) {
 }
 
 // ---------------------------------------------------------------- buildings made from nothing (prefab plan 5.1, 5.3)
+/** The classes a building floor lists (the Build's buildings.LISTED; pinned in tests/twin_constants.json, review
+ *  finding 55): a StaticMeshActor never hides. */
+export const LISTED_CLASSES = new Set(['XComLevelActor', 'XComOpacityFadeLevelActor', 'XComDestructibleActor', 'XComFracLevelActor',
+                                       'XComDecoFracLevelActor', 'XComInteractiveLevelActor', 'XComLadder', 'XComCollectible', 'KAsset']);
 // The game editor's own rule for which floors of a building list a piece (findings register F-87), as the Build
 // applies it to a project's buildings (tools/bake/buildings.py, audit_buildings.touched and listing).
 // The cursor's floors (the map's cursor volumes, export 20): which floor a height is to the cursor, and so where the
