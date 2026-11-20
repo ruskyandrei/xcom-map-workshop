@@ -63,3 +63,7 @@ Checked:
   `--play --play-project` that project: both pass (51 s). Before the move the same runs passed on the commit before
   (with the checks of the entry before). Land here, which no check presses: a zone picked on the project, Land here
   opens the play dialog for the project landing at that zone.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`: all ten
+  runs pass, 71 checks ran (Play among them) and 6 skipped in the whole run, each for its map or its run (TempleShip's
+  two, the police station's light bar and Play run elsewhere; `streams`' edit and the patch previews have nothing on
+  the Bar's export to work on), 10 min 45 s with other work on the computer.
