@@ -80,7 +80,7 @@ def look_of(slab):
 
 def check(slab):
     """The slab's numbers checked (ValueError): a footprint of whole tiles, 1 to MAX_TILES each way; holes of whole
-    tiles inside it, apart; a whole seed; a listed look. Returns its tiles (nx, ny)."""
+    tiles inside it, leaving some of it; a whole seed; a listed look. Returns its tiles (nx, ny)."""
     R = look_of(slab)
     t = R['tile']
     if not isinstance(slab, dict) or not all(isinstance(slab.get(k), (int, float)) for k in ('x0', 'x1', 'y0', 'y1')):
@@ -98,14 +98,21 @@ def check(slab):
         for v, base in ((h['x0'], slab['x0']), (h['x1'], slab['x0']), (h['y0'], slab['y0']), (h['y1'], slab['y0'])):
             if abs((v - base) / t - round((v - base) / t)) > EPS:
                 raise ValueError('a hole of whole tiles: %r' % (h,))
-    return int(round(nx)), int(round(ny))
+    nx, ny = int(round(nx)), int(round(ny))
+    if not _solid(slab, t, nx, ny):
+        # (as frac_wall's openings; nothing would be left to build: review finding 32)
+        raise ValueError("the slab's holes leave none of it")
+    return nx, ny
 
 
 def tiles(slab):
     """The slab's solid tiles: {(i, j)} counted from its (x0, y0) corner, the holes' left out."""
     R = look_of(slab)
-    t = R['tile']
-    nx, ny = check(slab)
+    return _solid(slab, R['tile'], *check(slab))
+
+
+def _solid(slab, t, nx, ny):
+    """tiles' set, of a slab nx by ny tiles of t whose numbers are checked."""
     out = set()
     for i in range(nx):
         for j in range(ny):

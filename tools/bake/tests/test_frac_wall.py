@@ -280,6 +280,20 @@ class Slabs(unittest.TestCase):
         self.assertEqual(boxes, [((0.0, 0.0, -2.0), (192.0, 384.0, 0.0)), ((192.0, 0.0, -2.0), (288.0, 96.0, 0.0)),
                                  ((192.0, 288.0, -2.0), (288.0, 384.0, 0.0)), ((288.0, 0.0, -2.0), (480.0, 384.0, 0.0))])
 
+    def test_holes_that_leave_none_of_it_are_refused(self):
+        # (review finding 32) one hole over all of it, or two that overlap and cover it between them: said, where the
+        # build stopped on an empty min()
+        import frac_slab
+        slab = dict(x0=0.0, x1=288.0, y0=0.0, y1=192.0, seed=1)
+        for holes in ([dict(x0=0.0, x1=288.0, y0=0.0, y1=192.0)],
+                      [dict(x0=0.0, x1=192.0, y0=0.0, y1=192.0), dict(x0=96.0, x1=288.0, y0=0.0, y1=192.0)]):
+            for make in (frac_slab.check, frac_slab.build):
+                with self.assertRaisesRegex(ValueError, "the slab's holes leave none of it"):
+                    make(dict(slab, holes=holes))
+        # one tile left is a slab
+        self.assertEqual(frac_slab.tiles(dict(slab, holes=[dict(x0=0.0, x1=192.0, y0=0.0, y1=192.0),
+                                                           dict(x0=96.0, x1=288.0, y0=96.0, y1=192.0)])), {(2, 0)})
+
     def test_bad_numbers_are_refused(self):
         import frac_slab
         for bad in (dict(self.S, x1=500.0), dict(self.S, x1=96.0 * 17), dict(self.S, holes=[dict(x0=0, x1=50, y0=0, y1=96)]),

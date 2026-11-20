@@ -98,6 +98,20 @@ def wall_pieces(wall, look_storeys, heights, ends=False):
     return out
 
 
+def solid(width, depth, holes):
+    """Whether a slab `width` by `depth` (whole tiles from 0) keeps a tile its `holes` (in its frame; they may
+    overlap) leave: one whose centre is in no hole."""
+    return any(not any(h['x0'] < (i + 0.5) * TILE < h['x1'] and h['y0'] < (j + 0.5) * TILE < h['y1'] for h in holes)
+               for i in range(int(round(width / TILE))) for j in range(int(round(depth / TILE))))
+
+
+def slab_left(slab):
+    """Whether the slab's holes leave any of it (its numbers: x0, x1, y0, y1, holes)."""
+    x0, y0 = float(slab['x0']), float(slab['y0'])
+    holes = [dict(x0=h['x0'] - x0, x1=h['x1'] - x0, y0=h['y0'] - y0, y1=h['y1'] - y0) for h in slab.get('holes') or []]
+    return solid(float(slab['x1']) - x0, float(slab['y1']) - y0, holes)
+
+
 def slab_pieces(slab):
     """[(dx, dy, numbers)] of a made slab: each piece's place in the slab's frame and its numbers (at most MAX_TILES
     by MAX_TILES tiles, its holes cut to it and moved into it, `whole` [dx, dy, width, depth])."""
@@ -119,8 +133,8 @@ def slab_pieces(slab):
             piece = dict(keep, x0=0.0, x1=a1 - a0, y0=0.0, y1=b1 - b0, holes=cut, seed=_seed(slab.get('seed', 1), k),
                          whole=[a0 - x0, b0 - y0, x1 - x0, y1 - y0])
             k += 1
-            # (a piece all holes is no piece)
-            if sum((h['x1'] - h['x0']) * (h['y1'] - h['y0']) for h in cut) >= (a1 - a0) * (b1 - b0) - 1e-6:
+            # (a piece all holes is no piece: its tiles are tested, the holes may overlap, review finding 32)
+            if not solid(a1 - a0, b1 - b0, cut):
                 continue
             out.append((a0 - x0, b0 - y0, piece))
     return out
