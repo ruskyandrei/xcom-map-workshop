@@ -2302,6 +2302,17 @@ class BuildState:
     vans: list = filled(list)           # each van's building and floor volumes, carried with it
     flag_copies: list = filled(list)    # the copies' flags written on their clones (set_roles)
     blast_copies: list = filled(list)   # the copies broken by their blasts (break_component)
+    # the fracturing copies and the walls made from numbers (fracturing_copies)
+    poses: list = filled(list)          # each copy's (original, clone, its pose before, after, family)
+    fracturing: list = filled(list)     # the fracturing copies, as (original, clone), their columns moved with them
+    generated_records: list = filled(list)  # the pieces made from numbers (frac_walls.add_walls' records)
+    # the walls' columns (wall_columns), and what it reads that build made
+    walled: set = filled(set)           # the break groups that hold a wall made from numbers
+    cover_records: list = filled(list)  # the cover blocks made (cover_blocks.add_blocks' records)
+    columns: dict = filled(dict)        # each wall's columns changed by the hides and the door copies (edit_columns)
+    door_listings: list = filled(list)  # doors in a made wall's opening, listed in its columns
+    group_listings: list = filled(list)     # a made wall's break group's pieces, listed in its columns
+    neighbour_listings: list = filled(list)     # made walls and the fracturing pieces they meet, listing each other
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2612,6 +2623,136 @@ def clone_copies(st):
     st.flag_copies, st.blast_copies = flag_copies, blast_copies
 
 
+def fracturing_copies(st):
+    """The Build `st`'s fracturing copies (BuildState: a car's glass, a wall, a storey floor) with their columns,
+    and the walls, slabs and ground shapes made from numbers (frac_walls.py), after the copies are made
+    (clone_copies) and the cover blocks. Fills the state's poses (each copy's original, clone, the original's pose
+    and its own, and its family), fracturing (the fracturing copies, as (original, clone)) and generated_records."""
+    p, g, bake, made = st.p, st.g, st.bake, st.made
+    # each copy: its original, its clone, the original's pose and its own
+    poses = []
+    for m in made:
+        original = p.by_name[PL + m['actor']]
+        poses.append((original, m['info']['actor'], (p.own(original, 'Location', [0.0, 0.0, 0.0]),
+                      p.own(original, 'Rotation', [0, 0, 0])), (m['location'], m['rotation']), m.get('family')))
+    # a fracturing copy (a car's glass, a wall, a storey floor): its columns go with it, still listing the pieces
+    # copied with it, its assembly's and those carried by the same move (move_columns)
+    fracturing = []
+    for m, (original, copy, before, after, _) in zip(made, poses):
+        own = m['info'].pop('own')
+        if p.cls(original) not in FRACTURING:
+            continue
+        partners = {}
+        for o, c, b0, a0, _ in poses:
+            if c not in own and o not in partners and same_move((before, after), (b0, a0)):
+                partners[o] = c
+        m['info']['columns'] = move_columns(g, p, original, copy, before, after, own, partners)
+        # the fragments' saved world heights go up or down with a storey move
+        shift_fragment_heights(g, p, m['info']['mapping'], after[0][2] - before[0][2])
+        fracturing.append((original, copy))
+    # generated walls (frac_walls.py, plan section 0): a fracturing copy's mesh and columns made from numbers
+    generated = [dict(original=original, info=m['info'], generated=m['generated'], location=after[0], rotation=after[1],
+                      label=m.get('label') or m['actor'], wallGroup=m.get('wallGroup') or 0)
+                 for m, (original, copy, before, after, _) in zip(made, poses) if m.get('generated')]
+    generated_records = []
+    if generated:
+        import frac_walls
+        generated_records = frac_walls.add_walls(g, p, generated, level_grid(p), bake=bake)
+        for r in generated_records:
+            light = r.get('light') or {}
+            lit = ('%d x %d texels of its own' % tuple(light['rect']) if light.get('kind') == 'rect'
+                   else 'one even light, from %s' % light['piece'].split('.')[-2] if light.get('kind') == 'even'
+                   else 'as its donor\'s')
+            if r['kind'] in frac_walls.MADE:
+                print('    %s: made from numbers as %s, %d fragments%s, %d triangles, %d collision boxes; its columns '
+                      'are its own (%d); its lightmap %s' % (
+                          r['label'], r['meshName'], r['fragments'],
+                          (' (%d knocked out by its blasts%s)' % (r['broken'], '; bPreventChunkRemoval turned off'
+                                                                  if r.get('chunksLet') else '; kept whole in battle, the '
+                                                                  'hole cut into its mesh' if r.get('keptWhole') else ''))
+                          if r.get('broken') else '',
+                          r['triangles'], r['solids'], r['columns'], lit))
+            elif r['kind'] == 'ground':
+                print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
+                      % (r['label'], r['meshName'], r['triangles'], lit))
+    st.poses, st.fracturing, st.generated_records = poses, fracturing, generated_records
+
+
+def wall_columns(st):
+    """The walls' fragment columns after the hides and the lanes (BuildState `st`): the hidden pieces left out and
+    the door copies added (edit_columns), and the walls made from numbers listing a door in their opening, a group
+    that breaks with them and the fracturing pieces they meet (frac_walls.py). Fills the state's columns,
+    door_listings, group_listings and neighbour_listings."""
+    p, g, made, poses, fracturing = st.p, st.g, st.made, st.poses, st.fracturing
+    generated_records, hidden, walled = st.generated_records, st.hidden, st.walled
+    break_originals, cover_records = st.break_originals, st.cover_records
+    # the walls' columns without the hidden pieces and with the door copies (G8); every copy in the cutaway of its
+    # building floor (G7)
+    columns = edit_columns(g, p, {h['export'] for h in hidden}, [x[:4] for x in poses if x[4] == 'door'], fracturing)
+    # a door in a made wall's opening that nothing lists yet (a door of another map): in the wall's columns by it
+    door_listings = []
+    if any(r['kind'] == 'fracWall' for r in generated_records):
+        import frac_walls
+        door_listings = frac_walls.door_columns(
+            g, p, generated_records, [(copy, piece_box(p, original, *after), original)
+                                      for original, copy, before, after, family in poses if family == 'door'])
+        for d in door_listings:
+            print("    %s's copy: in a made wall's doorway, listed in %d of its columns"
+                  % (p.name(d['original']).split('.')[-1], len(d['columns'])))
+    # a group that breaks together with a made wall: its props and cover blocks in the wall's columns by them
+    group_listings = []
+    if walled:
+        members, labels = {}, {}
+        for m, (original, copy, before, after, _) in zip(made, poses):
+            if m.get('breakGroup') in walled:
+                members.setdefault(m['breakGroup'], []).append((copy, piece_box(p, original, *after), original))
+                labels[copy] = m.get('label') or m['actor']
+        for o in break_originals:
+            if int(o['group']) in walled:
+                i = p.by_name[PL + o['name']]
+                members.setdefault(int(o['group']), []).append(
+                    (i, piece_box(p, i, p.own(i, 'Location', [0.0, 0.0, 0.0]), p.own(i, 'Rotation', [0, 0, 0])), i))
+                labels[i] = o['name']
+        # (a cover block that breaks is a hidden prop: its entry copies a prop's)
+        prop_class = next((i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComDestructibleActor'), None)
+        for c in cover_records:
+            if c.get('breakGroup') in walled and prop_class:
+                members.setdefault(c['breakGroup'], []).append((c['actor'], c['box'], prop_class))
+                labels[c['actor']] = c['name']
+        import frac_walls
+        group_listings = frac_walls.group_columns(g, p, generated_records, members)
+        for d in group_listings:
+            print("    %s: breaks with its group's made wall, listed in %d of its columns"
+                  % (labels.get(d['piece'], d['piece']), len(d['columns'])))
+    # made walls and slabs and the fracturing pieces they touch list each other's columns, by the game's rule (M3 item 3)
+    neighbour_listings = []
+    if any(r['kind'] in ('fracWall', 'fracSlab') for r in generated_records):
+        import frac_walls
+        gone = {h['export'] for h in hidden}
+        level_index = p.by_name['TheWorld.PersistentLevel']
+
+        def heights(i, dz=0.0):
+            comp = p.own(i, 'FracturedStaticMeshComponent')
+            lo, hi = (p.own(comp, 'FragmentBoundsMinZ'), p.own(comp, 'FragmentBoundsMaxZ')) if comp else (None, None)
+            return [None, None, None, None, None if lo is None else lo + dz, None if hi is None else hi + dz]
+        others = [dict(export=i, original=i, bounds=heights(i)) for i in range(1, len(p.exports) + 1)
+                  if p.cls(i) in FRACTURING and p.exports[i - 1]['outer'] == level_index and i not in gone
+                  and not p.effective(i, 'bHidden', False)]
+        made_copies = {r['copy'] for r in generated_records}
+        others += [dict(export=copy, original=original, bounds=heights(original, after[0][2] - before[0][2]))
+                   for original, copy, before, after, family in poses
+                   if p.cls(original) in FRACTURING and copy not in made_copies]
+        neighbour_listings = frac_walls.neighbour_columns(g, p, generated_records, others)
+        named = {x['export']: p.name(x['original']).split('.')[-1] + ('' if x['export'] == x['original'] else "'s copy")
+                 for x in others}
+        named.update({r['copy']: r['label'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')})
+        for d in neighbour_listings:
+            print('    %s and %s list each other\'s columns where they meet (%d and %d listings)'
+                  % (named[d['wall']], named.get(d['other'], d['other']), d['lists'], d['listed']))
+    st.columns, st.door_listings = columns, door_listings
+    st.group_listings, st.neighbour_listings = group_listings, neighbour_listings
+
+
 def build(st):
     """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
     copies, bake...), which build reads once, and the state build fills as it goes.
@@ -2725,52 +2866,9 @@ def build(st):
     # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
     cover_actors, cover_records = cover_blocks.add_blocks(g, p, covers) if covers else ([], [])
     actors += cover_actors
-    # each copy: its original, its clone, the original's pose and its own
-    poses = []
-    for m in made:
-        original = p.by_name[PL + m['actor']]
-        poses.append((original, m['info']['actor'], (p.own(original, 'Location', [0.0, 0.0, 0.0]),
-                      p.own(original, 'Rotation', [0, 0, 0])), (m['location'], m['rotation']), m.get('family')))
-    # a fracturing copy (a car's glass, a wall, a storey floor): its columns go with it, still listing the pieces
-    # copied with it, its assembly's and those carried by the same move (move_columns)
-    fracturing = []
-    for m, (original, copy, before, after, _) in zip(made, poses):
-        own = m['info'].pop('own')
-        if p.cls(original) not in FRACTURING:
-            continue
-        partners = {}
-        for o, c, b0, a0, _ in poses:
-            if c not in own and o not in partners and same_move((before, after), (b0, a0)):
-                partners[o] = c
-        m['info']['columns'] = move_columns(g, p, original, copy, before, after, own, partners)
-        # the fragments' saved world heights go up or down with a storey move
-        shift_fragment_heights(g, p, m['info']['mapping'], after[0][2] - before[0][2])
-        fracturing.append((original, copy))
-    # generated walls (frac_walls.py, plan section 0): a fracturing copy's mesh and columns made from numbers
-    generated = [dict(original=original, info=m['info'], generated=m['generated'], location=after[0], rotation=after[1],
-                      label=m.get('label') or m['actor'], wallGroup=m.get('wallGroup') or 0)
-                 for m, (original, copy, before, after, _) in zip(made, poses) if m.get('generated')]
-    generated_records = []
-    if generated:
-        import frac_walls
-        generated_records = frac_walls.add_walls(g, p, generated, level_grid(p), bake=bake)
-        for r in generated_records:
-            light = r.get('light') or {}
-            lit = ('%d x %d texels of its own' % tuple(light['rect']) if light.get('kind') == 'rect'
-                   else 'one even light, from %s' % light['piece'].split('.')[-2] if light.get('kind') == 'even'
-                   else 'as its donor\'s')
-            if r['kind'] in frac_walls.MADE:
-                print('    %s: made from numbers as %s, %d fragments%s, %d triangles, %d collision boxes; its columns '
-                      'are its own (%d); its lightmap %s' % (
-                          r['label'], r['meshName'], r['fragments'],
-                          (' (%d knocked out by its blasts%s)' % (r['broken'], '; bPreventChunkRemoval turned off'
-                                                                  if r.get('chunksLet') else '; kept whole in battle, the '
-                                                                  'hole cut into its mesh' if r.get('keptWhole') else ''))
-                          if r.get('broken') else '',
-                          r['triangles'], r['solids'], r['columns'], lit))
-            elif r['kind'] == 'ground':
-                print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
-                      % (r['label'], r['meshName'], r['triangles'], lit))
+    # the fracturing copies and the walls made from numbers (fracturing_copies)
+    fracturing_copies(st)
+    poses, generated_records = st.poses, st.generated_records
     walled = {m['wallGroup'] for m in made if m.get('wallGroup')}
     groups, children = link_children(g, p, made, break_originals,
                                      [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')],
@@ -2802,69 +2900,11 @@ def build(st):
     # a moved or deleted van's building and floor volumes go with it
     edited = {p.by_name[PL + e['actor']] for e in building_edits if PL + e['actor'] in p.by_name}
     hidden_buildings = hide_van_buildings(g, p, {h['export'] for h in hidden}, edited) if hidden else []
-    # the walls' columns without the hidden pieces and with the door copies (G8); every copy in the cutaway of its
-    # building floor (G7)
-    columns = edit_columns(g, p, {h['export'] for h in hidden}, [x[:4] for x in poses if x[4] == 'door'], fracturing)
-    # a door in a made wall's opening that nothing lists yet (a door of another map): in the wall's columns by it
-    door_listings = []
-    if any(r['kind'] == 'fracWall' for r in generated_records):
-        import frac_walls
-        door_listings = frac_walls.door_columns(
-            g, p, generated_records, [(copy, piece_box(p, original, *after), original)
-                                      for original, copy, before, after, family in poses if family == 'door'])
-        for d in door_listings:
-            print("    %s's copy: in a made wall's doorway, listed in %d of its columns"
-                  % (p.name(d['original']).split('.')[-1], len(d['columns'])))
-    # a group that breaks together with a made wall: its props and cover blocks in the wall's columns by them
-    group_listings = []
-    if walled:
-        members, labels = {}, {}
-        for m, (original, copy, before, after, _) in zip(made, poses):
-            if m.get('breakGroup') in walled:
-                members.setdefault(m['breakGroup'], []).append((copy, piece_box(p, original, *after), original))
-                labels[copy] = m.get('label') or m['actor']
-        for o in break_originals:
-            if int(o['group']) in walled:
-                i = p.by_name[PL + o['name']]
-                members.setdefault(int(o['group']), []).append(
-                    (i, piece_box(p, i, p.own(i, 'Location', [0.0, 0.0, 0.0]), p.own(i, 'Rotation', [0, 0, 0])), i))
-                labels[i] = o['name']
-        # (a cover block that breaks is a hidden prop: its entry copies a prop's)
-        prop_class = next((i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComDestructibleActor'), None)
-        for c in cover_records:
-            if c.get('breakGroup') in walled and prop_class:
-                members.setdefault(c['breakGroup'], []).append((c['actor'], c['box'], prop_class))
-                labels[c['actor']] = c['name']
-        import frac_walls
-        group_listings = frac_walls.group_columns(g, p, generated_records, members)
-        for d in group_listings:
-            print("    %s: breaks with its group's made wall, listed in %d of its columns"
-                  % (labels.get(d['piece'], d['piece']), len(d['columns'])))
-    # made walls and slabs and the fracturing pieces they touch list each other's columns, by the game's rule (M3 item 3)
-    neighbour_listings = []
-    if any(r['kind'] in ('fracWall', 'fracSlab') for r in generated_records):
-        import frac_walls
-        gone = {h['export'] for h in hidden}
-        level_index = p.by_name['TheWorld.PersistentLevel']
-
-        def heights(i, dz=0.0):
-            comp = p.own(i, 'FracturedStaticMeshComponent')
-            lo, hi = (p.own(comp, 'FragmentBoundsMinZ'), p.own(comp, 'FragmentBoundsMaxZ')) if comp else (None, None)
-            return [None, None, None, None, None if lo is None else lo + dz, None if hi is None else hi + dz]
-        others = [dict(export=i, original=i, bounds=heights(i)) for i in range(1, len(p.exports) + 1)
-                  if p.cls(i) in FRACTURING and p.exports[i - 1]['outer'] == level_index and i not in gone
-                  and not p.effective(i, 'bHidden', False)]
-        made_copies = {r['copy'] for r in generated_records}
-        others += [dict(export=copy, original=original, bounds=heights(original, after[0][2] - before[0][2]))
-                   for original, copy, before, after, family in poses
-                   if p.cls(original) in FRACTURING and copy not in made_copies]
-        neighbour_listings = frac_walls.neighbour_columns(g, p, generated_records, others)
-        named = {x['export']: p.name(x['original']).split('.')[-1] + ('' if x['export'] == x['original'] else "'s copy")
-                 for x in others}
-        named.update({r['copy']: r['label'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab')})
-        for d in neighbour_listings:
-            print('    %s and %s list each other\'s columns where they meet (%d and %d listings)'
-                  % (named[d['wall']], named.get(d['other'], d['other']), d['lists'], d['listed']))
+    # the walls' columns (wall_columns)
+    st.walled, st.cover_records = walled, cover_records
+    wall_columns(st)
+    columns, door_listings = st.columns, st.door_listings
+    group_listings, neighbour_listings = st.group_listings, st.neighbour_listings
     # the map's own buildings edited in place (their new boxes), for the copies' floors
     replaced = {}
     for e in building_edits:
