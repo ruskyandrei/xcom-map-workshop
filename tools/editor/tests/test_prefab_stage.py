@@ -192,8 +192,10 @@ class StageTests(unittest.TestCase):
         self.assertIs(stage.without(doc, []), doc)
 
     def test_the_stage_is_as_tall_as_the_prefab_needs(self):
-        # 18 levels at least (the tallest map's, as every test before), 30 at most
-        for top, levels in ((64, 18), (1152, 18), (1152.4, 18), (1153, 19), (1920, 30), (2112, 30), (5000, 30)):
+        # 18 levels at least (the tallest map's, as every test before), 30 at most; the page's prefabStageLevels passes
+        # the same cases (stage_levels_cases.json, shared_cases_test.mjs)
+        cases = json.loads(Path(__file__).with_name('stage_levels_cases.json').read_text(encoding='utf-8'))['cases']
+        for top, levels in cases:
             self.assertEqual(stage.stage_levels([0, 0, 0, 96, 96, top]), levels, top)
 
     def test_one_translation_preserves_the_pose_and_remaps_nested_references(self):

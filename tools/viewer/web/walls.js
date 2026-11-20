@@ -21,6 +21,9 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
 // the Build cutting it into pieces of at most pieceTiles and its look's storeys.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
                       maxStoreys: 12, pieceTiles: 16 };
+// A made wall's mesh as the editor's server draws it (app.js madeShapeOf; generated.py's limits: minLength and
+// maxLength are its MIN_LENGTH and MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55)
+export const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
 export const STOREY_TOPS = { 1: 192, 2: 384 };

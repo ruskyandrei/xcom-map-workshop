@@ -9,6 +9,9 @@ export const PREFAB_GRID_LEVELS = 30, PREFAB_PLAYED_LEVELS = 18;
 export const PREFAB_TILES = 256, PREFAB_SLACK = 0.5, PREFAB_GRID_TOP = PREFAB_GRID_LEVELS * 64, PREFAB_ALLOWANCE = 192;
 export const PREFAB_PLAYED_TOP = PREFAB_PLAYED_LEVELS * 64;
 export const PREFAB_MIN_Z = -PREFAB_ALLOWANCE, PREFAB_MAX_Z = PREFAB_GRID_TOP + PREFAB_ALLOWANCE;
+/** How many levels a test's stage gets for a prefab whose measured bounds are `bounds` (prefab_stage.stage_levels; both
+ *  pass tools/editor/tests/stage_levels_cases.json, review finding 55). */
+export const prefabStageLevels = bounds => Math.min(PREFAB_GRID_LEVELS, Math.max(PREFAB_PLAYED_LEVELS, Math.ceil((bounds[5] - PREFAB_SLACK) / 64)));
 export function measurePrefab(boxes, unknown = []) {
   const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], offenders = [], outside = [];
   for (const [name, b] of boxes) {

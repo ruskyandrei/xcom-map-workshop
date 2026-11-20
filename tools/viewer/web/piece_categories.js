@@ -1,3 +1,7 @@
+// The library's verdicts on a piece of another map that only hold it back (compiler.py FOREIGN_SOFT; library.js tags
+// them; pinned in tests/twin_constants.json, review finding 55)
+export const SOFT = ['hidden', 'assembly', 'family', 'check'];
+
 // The Add panel uses these kinds in both map scopes, including the prefab builder.
 const CLASS_KIND = {
   XComDestructibleActor: 'Destructible', XComLevelActor: 'Scenery', XComOpacityFadeLevelActor: 'Scenery',

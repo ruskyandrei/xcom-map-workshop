@@ -139,7 +139,7 @@ class EffectiveConeTests(unittest.TestCase):
             from playwright.sync_api import sync_playwright
         except ImportError:
             self.skipTest('Playwright is not installed')
-        source=(Path(__file__).resolve().parents[1]/'web'/'light_rules.js').read_text(encoding='utf-8').replace('export function','function')
+        source=(Path(__file__).resolve().parents[1]/'web'/'light_rules.js').read_text(encoding='utf-8').replace('export function','function').replace('export const','const')
         # the module's functions, evaluated in a page with the cases as the argument
         script='cases => {%s; return cases.map(c => effectiveCone(c.inner, c.outer)); }' % source
         with sync_playwright() as pw:
@@ -178,7 +178,7 @@ class StorableConeTests(unittest.TestCase):
             from playwright.sync_api import sync_playwright
         except ImportError:
             self.skipTest('Playwright is not installed')
-        source=(Path(__file__).resolve().parents[1]/'web'/'light_rules.js').read_text(encoding='utf-8').replace('export function','function')
+        source=(Path(__file__).resolve().parents[1]/'web'/'light_rules.js').read_text(encoding='utf-8').replace('export function','function').replace('export const','const')
         script='cases => {%s; return cases.map(([i, o]) => storableCone(i, o)); }' % source
         with sync_playwright() as pw:
             browser=pw.chromium.launch(channel="msedge",headless=True)

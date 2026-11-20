@@ -35,7 +35,7 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
 import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
+         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
@@ -44,7 +44,7 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
 import { HANDLE_COLOURS, SOLO_MAX, boxInReach, boxLines, createSolo, emissionShape, lightHandles, makeHandle, makeMarker,
          nearestValue, paintMarker, recordNow, scaleMarker, valuesOf } from './lights_view.js';
-import { effectiveConeDegrees, storableCone } from './light_rules.js';
+import { effectiveConeDegrees, storableCone, LIGHT_LIMITS } from './light_rules.js';
 import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes, tileGridOf, floorTilesOverlay } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
@@ -55,14 +55,14 @@ import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening,
          withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
          steppedStoreys,
          SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
-         toolSlab, slabLookOf, roomRoof } from './walls.js';
+         toolSlab, slabLookOf, roomRoof, FRAC_WALL } from './walls.js';
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, lookKey, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
          resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
-         buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
+         buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -1297,7 +1297,7 @@ const movedMatrix = (source, location, rotation) => actorMatrix(location, rotati
 // server builds from the numbers as the Build does (generated.py), on its template's materials by slot (the made mesh's
 // sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
 // (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
-const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
+// (its numbers: walls.js FRAC_WALL)
 // A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
 // top 192: frac_wall.shaped) and thickness.
 function madeBounds(wall) {
@@ -3283,7 +3283,7 @@ const lightIndex = new Map();     // an original light's key (package|level|acto
 const derivedMarks = new THREE.Group(); world.add(derivedMarks);
 const lightShapes = new THREE.Group(); world.add(lightShapes);
 const solo = createSolo(world);
-const LIGHT_LIMITS = { brightness: [0, 100], radius: [1, 16384], falloffExponent: [0.1, 64], innerConeAngle: [0, 89], outerConeAngle: [0, 89.99] };
+// (a light value's limits: light_rules.js LIGHT_LIMITS)
 const LIGHT_LABELS = { brightness: 'Brightness', radius: 'Radius', falloffExponent: 'Falloff', innerConeAngle: 'The inner cone',
                        outerConeAngle: 'The outer cone' };
 const REACH_WARN = 300;
@@ -5791,7 +5791,7 @@ $('problemsChip').onclick = () => {
   problems.open = !problems.open; problemsPaint();
 };
 // How many levels the test's stage gets (prefab_stage.py stage_levels): what the prefab needs, 18 at least, 30 at most.
-const testStageLevels = bounds => Math.min(PREFAB_GRID_LEVELS, Math.max(PREFAB_PLAYED_LEVELS, Math.ceil((bounds[5] - 0.5) / 64)));
+const testStageLevels = prefabStageLevels;     // (prefab_document.js: prefab_stage.stage_levels' twin)
 // The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
 // selected and framed. False when none is in the view.
 function selectActors(names) {
@@ -6287,9 +6287,7 @@ function boxOf(root, precise = false) {
   drawnBox.setFromObject(root, precise);
   return drawnBox.isEmpty() ? null : [drawnBox.min.x, drawnBox.max.x, drawnBox.min.z, drawnBox.max.z, drawnBox.min.y, drawnBox.max.y];
 }
-// The classes a building floor lists (the Build's buildings.LISTED): a StaticMeshActor never hides.
-const LISTED_CLASSES = new Set(['XComLevelActor', 'XComOpacityFadeLevelActor', 'XComDestructibleActor', 'XComFracLevelActor', 'XComDecoFracLevelActor',
-                                'XComInteractiveLevelActor', 'XComLadder', 'XComCollectible', 'KAsset']);
+// (the classes a building floor lists: floors.js LISTED_CLASSES)
 // Where the project's buildings list a piece, by the game editor's rule as the Build applies it (floors.js
 // touchedFloors and ruleListing; tools/bake/buildings.py): from the box of what is drawn of it where it stands.
 function projectListings(root) {

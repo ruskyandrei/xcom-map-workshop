@@ -11,16 +11,16 @@
 // view's star.
 // (The look picker, which was a mode of this list, is a panel of its own: look_picker.js.)
 
-import { pieceKind, inKind, setKindOptions, effectKind } from './piece_categories.js';
+import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
 import { drawEffectIcon } from './effects_view.js';
 
-// What the library only holds back (compiler.py FOREIGN_SOFT): hidden in its own map, linked to other pieces, of a
-// kind not brought before, waiting for a game test. Such a piece is placed as any other; what shows in the game is
-// tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the user, 16 November 2026).
-// One that needs something that can't be brought ('closure') can't be placed, nor an effect or sound the editor can't
-// bring ('unavailable': a landing's actor, one riding on another).
-export const SOFT = ['hidden', 'assembly', 'family', 'check'];
+// What the library only holds back (SOFT, piece_categories.js: compiler.py FOREIGN_SOFT): hidden in its own map,
+// linked to other pieces, of a kind not brought before, waiting for a game test. Such a piece is placed as any other;
+// what shows in the game is tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the
+// user, 16 November 2026). One that needs something that can't be brought ('closure') can't be placed, nor an effect or
+// sound the editor can't bring ('unavailable': a landing's actor, one riding on another).
+export { SOFT };
 const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not something to see.'],
                     assembly: ['Linked', 'Linked to other pieces in its own map (a car\'s body and its glass, a prop and what it turns into).'] };
 const ROW = 61;         // a row's height, CSS pixels (style.css .libitem.lib)
