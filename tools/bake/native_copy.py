@@ -2335,6 +2335,15 @@ class BuildState:
     floor_emitters: list = filled(list)     # the effects listed in, or taken out of, the building floors' lists
     cursor_record: object = filled()    # the made slabs' cursor floors (made_cursors.apply), or None
     cursor_clones: list = filled(list)  # the cursor volumes made, for the level's list
+    # the map written and read back (write_and_verify), and what it reads that build made
+    effect_clones: list = filled(list)  # the effects, sounds, flares and spawn points copied, for the level's list
+    lane_sounds: list = filled(list)    # the sounds lane's records (native_sounds.apply)
+    lane_flares: list = filled(list)    # the flares lane's records (native_flares.apply)
+    lane_spawns: list = filled(list)    # the spawns lane's records (native_spawns.apply_lane)
+    level: object = filled()            # the level's actor list written (add_to_level)
+    dst: object = filled()              # the map written: <out>/<variant>.upk, or the grown map in <out>/grown
+    report: object = filled()           # the growing writer's report of the write
+    q: object = filled()                # the written map, read again
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2935,6 +2944,58 @@ def floors_and_cursors(st):
     st.floor_emitters, st.cursor_record, st.cursor_clones = floor_emitters, cursor_record, cursor_clones
 
 
+def write_and_verify(st):
+    """The variant map written and read back (BuildState `st`): every new actor in the level's list (add_to_level),
+    the map written by the growing writer (<out>/<variant>.upk, or with bake the grown map in <out>/grown, its name
+    table holding the variant cache's name), then what was written checked from a fresh read: the copies' vertex
+    lightmaps, the light edits, the lanes and the floors' effect lists, the made cursors, the flags; the ladders'
+    rebuild order read from it. Fills the state's level, dst, report and q, and the ladders' records read back."""
+    import native_effects
+    import native_flares
+    import native_lights
+    import native_sounds
+    import native_spawns
+    p, g, src, out, variant, bake, cache = st.p, st.g, st.src, st.out, st.variant, st.bake, st.cache
+    firsts, actors, hide_volumes, priority, made = st.firsts, st.actors, st.hide_volumes, st.priority, st.made
+    building_actors, effect_clones, cursor_clones = st.building_actors, st.effect_clones, st.cursor_clones
+    state, light_result, cursor_record = st.light_state, st.light_result, st.cursor_record
+    floor_emitters, lane_effects, lane_sounds = st.floor_emitters, st.lane_effects, st.lane_sounds
+    lane_flares, lane_spawns = st.lane_flares, st.lane_spawns
+    flag_copies, flag_record, ladders = st.flag_copies, st.flag_record, st.ladders
+    level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones + cursor_clones
+                         + (light_result['actors'] if light_result else []), before_rebuild=priority)
+    dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if bake:
+        # the variant texture cache's name in the table (the Build's <Map>_Lighting), so the relight's fixture,
+        # reading the grown map afresh, can write it into the textures it redirects (lightmap_writer.cache_fname)
+        g.name(lightmap_writer.cache_table_name(cache))
+    report = g.write(str(dst))
+    q = lighting.Package(dst)
+    for m in made:
+        check_vertex_lightmaps(q, m['info']['mapping'])
+    if state:
+        native_lights.verify(q, state, light_result)
+    # the effects' and sounds' lanes and the floors' effect lists read back
+    if lane_effects or lane_sounds or lane_flares or floor_emitters or lane_spawns:
+        from package import Package as Reader
+        r = Reader(dst)
+        native_effects.verify(r, lane_effects, floor_emitters)
+        native_sounds.verify(r, lane_sounds)
+        native_flares.verify(r, lane_flares)
+        native_spawns.verify(r, lane_spawns, p)
+    # the made floors' cursor volumes read back
+    if cursor_record and cursor_record['added']:
+        import made_cursors
+        from package import Package as Reader
+        made_cursors.verify(Reader(dst), cursor_record)
+    # the flags read back with a fresh reader: an edit not in the map is an error, never a success
+    for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
+        verify_roles(q, rec)
+    ladders = ladder_order(q, [dict(l, copy=q.name(l['export']).split('.')[-1]) for l in ladders]) if ladders else []
+    st.level, st.dst, st.report, st.q, st.ladders = level, dst, report, q, ladders
+
+
 def build(st):
     """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
     copies, bake...), which build reads once, and the state build fills as it goes.
@@ -3089,48 +3150,22 @@ def build(st):
     # the building floors: the copies', the made walls', the buildings made and edited (edit_buildings)
     edit_buildings(st)
     floor_caches, made_floors = st.floor_caches, st.made_floors
-    building_actors, building_records, edit_records = st.building_actors, st.building_records, st.edit_records
+    building_records, edit_records = st.building_records, st.edit_records
     # the map's own actors edited in place: lights registered, the clear, landings, flags, blasts (edits_in_place)
     st.light_result, st.hide_volumes, st.effect_moved = light_result, hide_volumes, effect_moved
     edits_in_place(st)
     registration, landing_record, stream_record = st.registration, st.landing_record, st.stream_record
-    flag_record, blast_record, priority = st.flag_record, st.blast_record, st.priority
+    flag_record, blast_record = st.flag_record, st.blast_record
     hide_volumes, firsts, ladders = st.hide_volumes, st.firsts, st.ladders
     # the building floors' effect lists and the made slabs' cursor floors (floors_and_cursors)
     st.effect_record, st.lane_effects = effect_record, lane_effects
     floors_and_cursors(st)
-    floor_emitters, cursor_record, cursor_clones = st.floor_emitters, st.cursor_record, st.cursor_clones
-    level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones + cursor_clones
-                         + (light_result['actors'] if light_result else []), before_rebuild=priority)
-    dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    if bake:
-        # the variant texture cache's name in the table (the Build's <Map>_Lighting), so the relight's fixture,
-        # reading the grown map afresh, can write it into the textures it redirects (lightmap_writer.cache_fname)
-        g.name(lightmap_writer.cache_table_name(cache))
-    report = g.write(str(dst))
-    q = lighting.Package(dst)
-    for m in made:
-        check_vertex_lightmaps(q, m['info']['mapping'])
-    if state:
-        native_lights.verify(q, state, light_result)
-    # the effects' and sounds' lanes and the floors' effect lists read back
-    if lane_effects or lane_sounds or lane_flares or floor_emitters or lane_spawns:
-        from package import Package as Reader
-        r = Reader(dst)
-        native_effects.verify(r, lane_effects, floor_emitters)
-        native_sounds.verify(r, lane_sounds)
-        native_flares.verify(r, lane_flares)
-        native_spawns.verify(r, lane_spawns, p)
-    # the made floors' cursor volumes read back
-    if cursor_record and cursor_record['added']:
-        import made_cursors
-        from package import Package as Reader
-        made_cursors.verify(Reader(dst), cursor_record)
-    # the flags read back with a fresh reader: an edit not in the map is an error, never a success
-    for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
-        verify_roles(q, rec)
-    ladders = ladder_order(q, [dict(l, copy=q.name(l['export']).split('.')[-1]) for l in ladders]) if ladders else []
+    floor_emitters, cursor_record = st.floor_emitters, st.cursor_record
+    # the map written and read back (write_and_verify)
+    st.src, st.out, st.effect_clones = src, out, effect_clones
+    st.lane_sounds, st.lane_flares, st.lane_spawns = lane_sounds, lane_flares, lane_spawns
+    write_and_verify(st)
+    level, dst, report, q, ladders = st.level, st.dst, st.report, st.q, st.ladders
     # what the record is made from (manifest_parts, relight_command)
     st.keep(src=src, level=level, report=report, made=made, children=children, groups=groups, assemblies=assemblies,
             ladders=ladders, columns=columns, effect_record=effect_record, lane_effects=lane_effects,
