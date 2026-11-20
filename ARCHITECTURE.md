@@ -112,7 +112,9 @@ are found by `lwr_file` in [`game_files.py`](tools/editor/game_files.py), which 
 A quick build makes the same edit without the relight. It hands on the package folder
 `<output>/<Variant>/`: `CookedPCConsole/<Variant>.upk` (with the intro and stream copies its records need),
 `README.txt`, and `manifest.json`. The manifest holds the project's revision, the source map's hash, each file with
-its hash, the config lines, each stage's result, and whether the build was quick.
+its hash, the config lines, each stage's result, and whether the build was quick. Its `tools` names the code that
+made it, each file with its hash: build.py and the modules of `tools/editor` it imports (`editor_modules`, found from
+their imports), and the tools of `tools/bake` and `tools/upk` it runs, which build.py lists.
 
 **The copy tool.** [`tools/bake/native_copy.py`](tools/bake/native_copy.py) (`build`) makes the native edit in a copy
 of the pristine base map, with the growing writer ([`tools/upk/package_grow.py`](tools/upk/package_grow.py)). Each copy

@@ -104,6 +104,7 @@ Enemy Within) gets neither, and its variant lands as the map's own landing zones
 in " |0" where the install's do (LWR's do; plain EW's don't).
 """
 import argparse
+import ast
 import contextlib
 import dataclasses
 import datetime
@@ -200,6 +201,25 @@ def sha256(path):
         for block in iter(lambda: f.read(1 << 20), b''):
             h.update(block)
     return h.hexdigest()
+
+
+def editor_modules():
+    """build.py and the modules of tools/editor it imports, and theirs: the compiler, the modules split off it and
+    game_files. The manifest's `tools` names each (with its SHA-256), so they are found from their import statements
+    (as the release finds its modules), and a module split off the compiler later is named with no list to keep.
+    build.py first, the rest by name."""
+    own = HERE / 'build.py'
+    found, todo = set(), [own]
+    while todo:
+        path = todo.pop()
+        if path in found:
+            continue
+        found.add(path)
+        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
+                     else [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module else [])
+            todo += [p for p in (HERE / ('%s.py' % n.split('.')[0]) for n in names) if p.is_file()]
+    return [own] + sorted(found - {own})
 
 
 def cache_name(variant):
@@ -1634,7 +1654,7 @@ class Build:
             # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
             lines['ownLandingGroups'] = self.own_landing_groups()
         tools = {str(p.relative_to(TOOLS.parent)).replace('\\', '/'): sha256(p)
-                 for p in (Path(__file__).resolve(), TOOLS / 'editor' / 'compiler.py', PATCHTOOL, RELIGHT,
+                 for p in (*editor_modules(), PATCHTOOL, RELIGHT,
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
                            TOOLS / 'bake' / 'lightmap_writer.py', TOOLS / 'upk' / 'package_grow.py',
                            TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',

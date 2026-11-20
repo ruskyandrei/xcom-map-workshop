@@ -985,6 +985,22 @@ class Builds(unittest.TestCase):
                                                    label='XComLevelActor_1_copy1', box=[0, 1, 0, 1, 0, 1])],
                                       breakOriginals=[], hides=[NATIVE_HIDE]))
 
+    def test_the_manifest_names_every_module_of_the_compile(self):
+        """The manifest's tools record names build.py first, then every module of tools/editor it imports, found from
+        their imports: the compiler and the modules split off it (its tables, the edit families, the native edit, the
+        piece lookup) and game_files, each with its SHA-256; not the prefab test's stage, which no Build imports."""
+        m = self.make().run()
+        editor = Path(build.__file__).resolve().parent
+        named = [k for k in m['tools'] if k.startswith('tools/editor/')]
+        self.assertEqual(named[0], 'tools/editor/build.py')
+        wanted = {'tools/editor/%s' % n for n in ('compiler.py', 'compiler_tables.py', 'native_edit.py', 'piece_lookup.py',
+                                                 'game_files.py')}
+        wanted |= {'tools/editor/%s' % p.name for p in editor.glob('*_edits.py')}
+        self.assertLessEqual(wanted, set(named))
+        self.assertNotIn('tools/editor/prefab_stage.py', named)
+        for k in named:
+            self.assertEqual(m['tools'][k], build.sha256(editor.parents[1] / k))
+
     def test_an_intro_without_a_landing_for_the_map_is_streamed_as_it_is(self):
         self.landing = False
         m = self.make().run()
