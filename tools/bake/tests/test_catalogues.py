@@ -88,6 +88,61 @@ class Files(unittest.TestCase):
                 self.assertEqual(len(out['mesh']['lods'][0]['sections']), e['recipe']['sections'], e['material'])
 
 
+def plain(v):
+    """A value as the catalogue file holds it (tuples as lists)."""
+    return json.loads(json.dumps(v))
+
+
+class Fresh(unittest.TestCase):
+    """A few looks of each catalogue, measured afresh on their donors, give their checked-in entries (review finding
+    57): a measurer changed without its version raised fails here, as the walls' catalogue does in test_wall_measure."""
+    COUNT = 3
+
+    @classmethod
+    def setUpClass(cls):
+        game = install()
+        if game is None:
+            raise unittest.SkipTest('the game install is not configured (python tools/viewer/viewer.py settings)')
+        cls.maps = {n: path for n, _, path in slab_catalogue.maps_of(game)}
+
+    def sample(self, catalogue):
+        """A few entries spread over the file, from maps the install lists, each with its donor's package open."""
+        from package import Package
+        looks = [e for e in json.loads(catalogue.read_text(encoding='utf-8'))['looks'] if e['map'] in self.maps]
+        if not looks:
+            self.skipTest('the install lists none of the donor maps')
+        picked = looks[::max(1, len(looks) // self.COUNT)][:self.COUNT]
+        return [(e, Package(self.maps[e['map']])) for e in picked]
+
+    def test_slab_looks_measured_afresh_are_the_catalogues(self):
+        import gen_mesh
+        import measure_common as mc
+        for e, p in self.sample(slab_catalogue.CATALOGUE):
+            found = slab_measure.measure(p, e['actor'])
+            _, _, mesh = mc.find_placing(p, e['actor'], slab_measure.FRACTURING, 'FracturedStaticMeshComponent')
+            facts = plain({k: v for k, v in found['facts'].items() if k not in ('mesh', 'actor')})
+            self.assertEqual(plain(found['recipe']), e['recipe'], e['mesh'])
+            self.assertEqual(facts, {k: e['facts'].get(k) for k in facts}, e['mesh'])
+            self.assertEqual(found['warnings'], e['warnings'], e['mesh'])
+            self.assertEqual(slab_measure.verdict(slab_measure.twin(found['recipe'], gen_mesh.read(p, mesh))), e['twin'],
+                             e['mesh'])
+
+    def test_ground_looks_measured_afresh_are_the_catalogues(self):
+        import gen_mesh
+        import measure_common as mc
+        for e, p in self.sample(ground_catalogue.CATALOGUE):
+            found = ground_measure.measure(p, e['actor'], e['material'])
+            _, _, mesh = mc.find_placing(p, e['actor'], ground_measure.PLAIN, 'StaticMeshComponent')
+            # (the catalogue adds its placings' counts and paint signs to what the measure finds)
+            facts = plain({k: v for k, v in found['facts'].items() if k not in ('mesh', 'actor', 'painted')})
+            self.assertEqual(found['facts']['mesh'], e['mesh'])
+            self.assertEqual(plain(found['recipe']), e['recipe'], e['material'])
+            self.assertEqual(facts, {k: e['facts'].get(k) for k in facts}, e['material'])
+            self.assertEqual(found['warnings'], e['warnings'][:len(found['warnings'])], e['material'])
+            self.assertEqual(ground_measure.verdict(ground_measure.twin(found['recipe'], gen_mesh.read(p, mesh))),
+                             e['twin'], e['material'])
+
+
 class Rebuilt(unittest.TestCase):
     """A build over one map, twice: the same bytes."""
 

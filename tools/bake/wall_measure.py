@@ -82,6 +82,7 @@ for folder in ('viewer', 'upk', 'lab'):
     sys.path.insert(0, str(HERE.parent / folder))
 sys.path.insert(0, str(HERE))
 import gen_mesh  # noqa: E402
+import measure_common as mc  # noqa: E402
 
 VERSION = 1
 FRACTURING = ('XComDecoFracLevelActor', 'XComFracLevelActor')
@@ -131,16 +132,16 @@ def placed(p, mesh=None):
 
 def find(p, what):
     """(actor or None, component or None, mesh) for `what`: an actor's name (XComDecoFracLevelActor_17, or its full
-    path) or a mesh's full name (its first placed piece's component then gives the materials and the lightmap)."""
-    for key in (what, 'TheWorld.PersistentLevel.' + what):
-        i = p.by_name.get(key)
-        if i and p.cls(i) in FRACTURING:
-            comp = p.own(i, 'FracturedStaticMeshComponent')
-            return i, comp, p.own(comp, 'StaticMesh')
+    path) or a mesh's full name (its placing's component then gives the materials and the lightmap), found as the slab
+    and ground measurers find theirs (measure_common.find_placing: a mesh's first placing at scale 1, else its first;
+    review finding 57). A fracturing mesh of the map that nothing places gives (None, None, mesh)."""
+    try:
+        return mc.find_placing(p, what, FRACTURING, 'FracturedStaticMeshComponent')
+    except ValueError:
+        pass
     i = p.by_name.get(what)
-    if i and p.cls(i) == 'FracturedStaticMesh':
-        pieces = placed(p, i)
-        return (pieces[0][0], pieces[0][1], i) if pieces else (None, None, i)
+    if i and p.cls(i) == 'FracturedStaticMesh' and not placed(p, i):
+        return None, None, i
     raise ValueError('%s is neither a fracturing piece nor a fracturing mesh of %s' % (what, p.path.name))
 
 

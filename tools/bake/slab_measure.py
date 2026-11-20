@@ -170,8 +170,7 @@ def shares(per, halves):
                                       r[0], r[1]))
 
 
-def _round(v, digits=2):
-    return round(float(v), digits) + 0.0
+_round = mc.rounded
 
 
 def measure_mesh(m, name, light=None, collision=None, lm_channel=1, scale=(1.0, 1.0, 1.0)):
@@ -432,11 +431,9 @@ def twin(recipe, template=None):
 
 
 def verdict(result):
-    """A twin result in a catalogue's words: 'ok', or what differs ('kind pitched, made flat; ...')."""
-    if result['ok']:
-        return 'ok'
-    return '; '.join('%s %s, made %s' % (r['key'], _words(r['donor']), _words(r['twin'])) for r in result['rows']
-                     if not r['ok'] and not r['soft'])
+    """A twin result in a catalogue's words (measure_common.verdict): 'ok', or what differs ('kind pitched, made flat;
+    ...')."""
+    return mc.verdict(result, lambda r: '%s %s, made %s' % (r['key'], _words(r['donor']), _words(r['twin'])))
 
 
 def _words(v):

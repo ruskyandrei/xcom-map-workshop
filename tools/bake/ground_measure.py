@@ -235,8 +235,7 @@ def top_of(T, slot):
     return out
 
 
-def _round(v, digits=2):
-    return round(float(v), digits) + 0.0
+_round = mc.rounded
 
 
 def measure_mesh(m, slot, scale=(1.0, 1.0, 1.0), light=None, colours=None, name='', record=None, lm_channel=1):
@@ -392,16 +391,9 @@ def twin(recipe, template=None):
 
 
 def verdict(result):
-    """A twin result in a catalogue's words: 'ok', or what differs."""
-    if result['ok']:
-        return 'ok'
-    out = []
-    for r in result['rows']:
-        if r['ok'] or r['soft']:
-            continue
-        a, b = r['donor'], r['twin']
-        if isinstance(a, list):
-            a, b = 'another layout', 'another'
-        out.append('%s %s, made %s' % (r['key'], a, b))
-    return '; '.join(out)
+    """A twin result in a catalogue's words (measure_common.verdict): 'ok', or what differs."""
+    def words(r):
+        a, b = ('another layout', 'another') if isinstance(r['donor'], list) else (r['donor'], r['twin'])
+        return '%s %s, made %s' % (r['key'], a, b)
+    return mc.verdict(result, words)
 

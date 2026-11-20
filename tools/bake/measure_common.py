@@ -204,6 +204,19 @@ def commonest(colours):
     return min(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0].hex()
 
 
+def rounded(v, digits=2):
+    """`v` rounded for a recipe or a catalogue, as a plain float (never -0.0)."""
+    return round(float(v), digits) + 0.0
+
+
+def verdict(result, row_words):
+    """A twin check's result in a catalogue's words: 'ok', or each row that differs (not ok, and not a soft row) in
+    `row_words`' words, joined by '; '. The measurers' one verdict (review finding 57); each says a row its own way."""
+    if result['ok']:
+        return 'ok'
+    return '; '.join(row_words(r) for r in result['rows'] if not r['ok'] and not r.get('soft'))
+
+
 def density(rect, lm_area, world_area):
     """Lightmap texels a world unit: the square root of the lightmap channel's UV area times the rectangle's texels over
     the mesh's world area (ground-audit.py's), or None."""
