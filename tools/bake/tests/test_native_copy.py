@@ -1203,7 +1203,7 @@ class VertexLit(unittest.TestCase):
                 native_copy.check_vertex_lightmaps(lighting.Package(out), info['mapping'])
 
 
-@unittest.skipUnless(BLANK.exists(), NO_BLANK)
+@unittest.skipUnless(BLANK and BLANK.exists(), NO_BLANK)
 class BakedDirectionalLight(unittest.TestCase):
     """(EXP-79 run D) The blank map's only light is a baked DirectionalLight, which its own pieces' lightmaps list. A
     piece of another map, or a ground shape made from one, brought onto it is given that light, as the point and spot
@@ -1229,7 +1229,7 @@ class BakedDirectionalLight(unittest.TestCase):
         self.assertEqual([x for x in native_copy.extra_lights(p, plane, [0.0, 0.0, 4.0], [0, 0, 0])
                           if x['light'] == p.name(light[0])], [])
 
-    @unittest.skipUnless(BAR.exists(), NO_BAR)
+    @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
     def test_a_dominant_light_is_not_listed(self):
         # URB_Bar's moon is a dominant light: it lights by shadow maps, never a lightmap's list
         p = lighting.Package(BAR)

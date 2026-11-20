@@ -9,15 +9,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import deploy_fixture as dep  # noqa: E402
-
-RECORDS = HERE.parents[1] / 'patch' / 'tests' / 'defaultmaps-records.txt'
-
-
-def record(name):
-    for line in RECORDS.read_bytes().split(b'\n'):
-        if line.startswith(name.encode() + b'\t'):
-            return line.split(b'\t', 1)[1]
-    raise KeyError(name)
+from fixtures import record  # noqa: E402
 
 
 class DeployRestore(unittest.TestCase):

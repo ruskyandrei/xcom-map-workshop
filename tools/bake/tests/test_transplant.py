@@ -1012,7 +1012,7 @@ class SkeletalPieces(unittest.TestCase):
                              [d.p.name(s['material']) for s in theirs['sections']])
 
 
-@unittest.skipUnless(BAR and POLICE and CLIFF, NO_BAR or NO_POLICE or NO_CLIFF)
+@unittest.skipUnless(all(m and m.exists() for m in (BAR, POLICE, CLIFF)), NO_BAR or NO_POLICE or NO_CLIFF)
 class FreshLight(unittest.TestCase):
     """A baked build with pieces of other maps (X8; EXP-37's two props where they were played): each is lit from
     nothing where it stands. One real bake, about a minute."""

@@ -28,7 +28,7 @@ import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
 import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
-from test_deploy import record  # noqa: E402
+from fixtures import record  # noqa: E402
 from test_projects import ID, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 

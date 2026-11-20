@@ -17,7 +17,7 @@ import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import outputnames as names  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from test_deploy import record  # noqa: E402
+from fixtures import record  # noqa: E402
 from test_projects import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 

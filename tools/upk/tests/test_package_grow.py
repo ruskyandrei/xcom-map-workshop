@@ -58,6 +58,18 @@ class Edits(unittest.TestCase):
         self.assertLess(time.perf_counter() - started, 10.0)
 
 
+class ChunkCuts(unittest.TestCase):
+    """Where a growing write cuts its chunks: no game file needed (review finding 58: it sat behind the bar's gate)."""
+
+    def test_chunks_are_cut_only_where_an_item_starts(self):
+        cut = package_grow.Grower.chunk_cuts
+        self.assertEqual(cut([0, 300, 700], 1000, limit=500), [(0, 300), (300, 700), (700, 1000)])
+        self.assertEqual(cut([0, 100, 200, 450], 1000, limit=500), [(0, 450), (450, 1000)])
+        # an item bigger than the limit gets a chunk to itself
+        self.assertEqual(cut([0, 100, 900], 1000, limit=500), [(0, 100), (100, 900), (900, 1000)])
+        self.assertEqual(cut([], 1000, limit=500), [(0, 1000)])
+
+
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class GrowBar(unittest.TestCase):
     @classmethod
@@ -103,14 +115,6 @@ class GrowBar(unittest.TestCase):
             e = exps[victim - 1]
             self.assertEqual(full[e['off']:e['off'] + e['size']], data)
             self.assertGreaterEqual(e['off'], self.h['chunks'][-1][0] + self.h['chunks'][-1][1])
-
-    def test_chunks_are_cut_only_where_an_item_starts(self):
-        cut = package_grow.Grower.chunk_cuts
-        self.assertEqual(cut([0, 300, 700], 1000, limit=500), [(0, 300), (300, 700), (700, 1000)])
-        self.assertEqual(cut([0, 100, 200, 450], 1000, limit=500), [(0, 450), (450, 1000)])
-        # an item bigger than the limit gets a chunk to itself
-        self.assertEqual(cut([0, 100, 900], 1000, limit=500), [(0, 100), (100, 900), (900, 1000)])
-        self.assertEqual(cut([], 1000, limit=500), [(0, 1000)])
 
     def test_new_imports_go_after_the_old_and_existing_ones_are_found(self):
         g = package_grow.Grower(str(BAR))
