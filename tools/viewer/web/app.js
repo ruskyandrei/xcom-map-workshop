@@ -38,7 +38,7 @@ import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from '.
 import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, recordOf, stateOf, stateOfRoot } from './piece_records.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordOf, stateOf, stateOfRoot } from './piece_records.js';
 import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
          groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
          projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
@@ -2257,7 +2257,8 @@ function prefabRecords({ complete = false } = {}) {
     if (s.cover) {
       const name = `${from.actor}_copy${++n}`;
       names.set(actor, name); copied.push([memberOf(s), { added: name }]);
-      pieces.push({ actor: name, template: { kind: COVER_KIND, version: coverVersion(s.added?.template?.version, s.cover.type) }, cover: { ...s.cover }, ...actorPose(s, placed) });
+      pieces.push(recordOf({ form: 'cover', actor: name, template: { kind: COVER_KIND, version: coverVersion(s.added?.template?.version, s.cover.type) },
+                             cover: s.cover, ...actorPose(s, placed) }, 'prefab'));
       continue;
     }
     if (from.level !== 'base') { left.push(`${short(data.meshes[s.mesh].name)}: a piece of a level the mission streams in, not of a map`); continue; }
@@ -2265,11 +2266,10 @@ function prefabRecords({ complete = false } = {}) {
     names.set(actor, name); copied.push([memberOf(s), { added: name }]);
     if (was && !tags.has(was)) tags.set(was, `copy${tags.size + 1}:${was.replace(/^copy\d+:/, '')}`);
     const entry = s.foreign?.key ? library?.entry(s.foreign.key) : null;
-    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: piece_records.js)
-    pieces.push({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component).sort(),
-                  ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner ?? null,
-                  ...recordFields(list[0].state ?? stateOfRoot({ source: s })),
-                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}) });
+    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: its state)
+    pieces.push(recordOf({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component),
+                           ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner,
+                           state: list[0].state ?? stateOfRoot({ source: s }), recipe: entry ? { key: entry.key, name: entry.name } : null }, 'prefab'));
     donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
@@ -2284,8 +2284,8 @@ function prefabRecords({ complete = false } = {}) {
     if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
     const name = `${from.actor}_copy${++n}`, values = kind === 'flare' ? null : savedValues(e.values);
     copied.push([memberOf(s), { added: name }]);
-    pieces.push({ actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
-                  ...actorPose(s, shift.clone().multiply(e.matrix)), ...(values ? { [kind]: values } : {}) });
+    pieces.push(recordOf({ form: 'effect', actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
+                           ...actorPose(s, shift.clone().multiply(e.matrix)), values }, 'prefab'));
     donor(from);
     if (kind === 'sound') sounds++; else if (kind === 'flare') flares++; else effects++;
   }
@@ -2300,7 +2300,8 @@ function prefabRecords({ complete = false } = {}) {
     copied.push([memberOf(e.source), { added: name }]); lights++;
     const value = k => { const v = e.values?.[k] ?? recipe.values[k]; return Array.isArray(v) ? [...v] : v; };
     // (a made light holds only cones in the editor's ranges: a map's stored 100 or 580 goes in as the 89.99 it lights as)
-    pieces.push({ actor: name, template: { kind, version: recipe.latest }, light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose });
+    pieces.push(recordOf({ form: 'light', actor: name, template: { kind, version: recipe.latest },
+                           light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose }, 'prefab'));
   }
   // its buildings: the project's and the map's own selected with the pieces, each a building of the prefab
   const by = new Map();
