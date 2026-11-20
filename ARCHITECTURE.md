@@ -66,7 +66,14 @@ pictures and hover pane), the panel with the Wave preview and the values, and th
 sounds. What it draws is made without the page in [`effects_view.js`](tools/viewer/web/effects_view.js) (markers,
 boxes, spheres) and [`effects_preview.js`](tools/viewer/web/effects_preview.js) (the likeness); what a record says and
 what of it can change is [`effects_rules.js`](tools/viewer/web/effects_rules.js)'s, and a particle system's stepping
-[`effects_sim.js`](tools/viewer/web/effects_sim.js)'s. `window.viewer`, set in `startScene`, is the set of hooks the
+[`effects_sim.js`](tools/viewer/web/effects_sim.js)'s. The Spawns view and the mission objects' moves are
+[`spawns_wiring.js`](tools/viewer/web/spawns_wiring.js)'s: the markers of the base map's spawn points, the streams'
+mission objects and a patch's spawn points, the view on or off and its families, a marker picked and its panel with
+its controls, the project's moves and edits of them (moved, turned, given values, copied, deleted, each one undo step)
+and what the project records of them, the picked marker's gizmo, a spawn point added from the Add panel, and the
+project's spawn rule. What a marker is and says is worked out without the page in
+[`spawns_view.js`](tools/viewer/web/spawns_view.js), and what the game does with a spawn point in
+[`spawn_rules.js`](tools/viewer/web/spawn_rules.js). `window.viewer`, set in `startScene`, is the set of hooks the
 browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -209,6 +216,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Build and Play in game: Build's panel and its window, Play's dialog, the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab builder's Test in game opened, the build queue's chip | [`build_play.js`](tools/viewer/web/build_play.js) (`createBuildPlay`). What a build status or a play's answer says, in words, goes in [`build_window.js`](tools/viewer/web/build_window.js) or [`play.js`](tools/viewer/web/play.js), pure, with their node tests; Build's panel itself is [`build_options.js`](tools/viewer/web/build_options.js), the test squad's dialog [`squad.js`](tools/viewer/web/squad.js), the prefab test's window [`prefab_test.js`](tools/viewer/web/prefab_test.js) and the queue's controller [`build_queue.js`](tools/viewer/web/build_queue.js). |
 | The Lights view: a light's root, its panel section, Solo, its reach, its drag handles (and the picked effect's or sound's), the area lights following their pieces, a light added from the Add panel or a recipe, the project's light records | [`lights_wiring.js`](tools/viewer/web/lights_wiring.js) (`createLightsWiring`). What it draws (a marker, an emission shape, a handle, Solo's lights) goes in [`lights_view.js`](tools/viewer/web/lights_view.js) (three.js, nothing of the page), and a light value's rule in [`light_rules.js`](tools/viewer/web/light_rules.js), pure, with its node and Python tests (`shared_cases_test.mjs`, `twin_constants_test.mjs`, `test_lights.py`). |
 | The Effects view: an effect's, sound's or lens flare's root and where it stands, the view's kinds, its panel, the Wave preview, its values' controls, the likeness, a copy added, the project's records of effects and sounds | [`effects_wiring.js`](tools/viewer/web/effects_wiring.js) (`createEffectsWiring`). What it draws goes in [`effects_view.js`](tools/viewer/web/effects_view.js) (a marker, a box, a sound's spheres) or [`effects_preview.js`](tools/viewer/web/effects_preview.js) (the likeness), three.js and nothing of the page; what a record says and what of it can change in [`effects_rules.js`](tools/viewer/web/effects_rules.js), and a particle system's stepping in [`effects_sim.js`](tools/viewer/web/effects_sim.js), pure, with their node tests. |
+| The Spawns view and the mission objects' moves: a spawn point's or mission object's marker, the view's families, its panel and controls, a move, turn, value, copy or delete of one, its gizmo, a spawn point added from the Add panel, the project's spawn rule | [`spawns_wiring.js`](tools/viewer/web/spawns_wiring.js) (`createSpawnsWiring`). What a marker is, draws and says goes in [`spawns_view.js`](tools/viewer/web/spawns_view.js) (its shapes take three.js as an argument) and what the game does with a spawn point in [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), pure, with their node tests (`spawns_view_test.mjs`, `spawn_rules_test.mjs`, `project_spawns_test.mjs`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -305,7 +313,12 @@ where there is one.
     piece is being assigned, the area lights' copies, the drag handles and a drag under way, and the reach worked out;
   - what of the Effects view they read or set (the redraw asked, the markers drawn, the Normal button's Effects
     switch, the Wave preview's player, the likeness's switch, thinning and count), and what it reads of other areas:
-    groups' pieces now (`liveCache`), box select's middles, the picked spawn marker, the pointer and its tips' redraw.
+    groups' pieces now (`liveCache`), box select's middles, the picked spawn marker, the pointer and its tips' redraw;
+  - what of the Spawns view they (and the Clear map window and the Buildings view's handles on a no-spawn volume)
+    read or set: the Normal button's spawn switch, whether its layer is made, the families shown, the zone it
+    describes, the install's spawn rules, the entries drawn, the project's moves and edits of spawn points and mission
+    objects (`missionMoves`) with their drag, and the kind being placed; and what it reads of the header's mission
+    picker (`missionIndex`).
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -316,7 +329,7 @@ where there is one.
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
-  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
+  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
   did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a

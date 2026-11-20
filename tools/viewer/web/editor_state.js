@@ -196,6 +196,10 @@ export function setPickedEffect(next) { pickedEffect = next; }
 // and spawn points are drawn.
 export let streamSet = new Set();
 export function setStreamSet(next) { streamSet = next; }
+// The mission the header's Mission picker shows (app.js's chooseMission): its record's index, -1 for a kind the
+// project adds (missionPickValue says which).
+export let missionIndex = 0;
+export function setMissionIndex(next) { missionIndex = next; }
 // What is being placed (app.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
 export let placing = null;
 export function setPlacing(next) { placing = next; }
@@ -256,7 +260,7 @@ export function setLiveCache(next) { liveCache = next; }
 // drawn changes.
 export let pickCentres = null;
 export function setPickCentres(next) { pickCentres = next; }
-// The picked spawn marker's key (spawns_view.js spawnKey; app.js's setPickedSpawn sets it and draws), or null.
+// The picked spawn marker's key (spawns_view.js spawnKey; spawns_wiring.js's setPickedSpawn sets it and draws), or null.
 export let pickedSpawn = null;
 export function setPickedSpawnValue(next) { pickedSpawn = next; }
 // The last pointer position over the view, for paste and the tips under the pointer, or null; tipDirty: a tip is to be
@@ -264,3 +268,29 @@ export function setPickedSpawnValue(next) { pickedSpawn = next; }
 export let pointer = null, tipDirty = false;
 export function setPointer(next) { pointer = next; }
 export function setTipDirty(next) { tipDirty = next; }
+
+// What other areas read or set of the Spawns view (spawns_wiring.js; app.js's map opening, the Clear map window, the
+// Buildings view's handles on a no-spawn volume, the keys, the pointer handlers, the draw loop and the test hooks):
+// - normalSpawns: the Normal button's "Spawn points and objectives" switch (remembered; read from the browser's
+//   storage as a map opens); spawnLayerReady: the view's layer is made (the views' buttons show it from then on);
+// - spawnFilters: the families the flyout shows, by family (remembered);
+// - spawnZonePick: a landing zone picked in the Spawns view, described only (decision D3), or null;
+// - spawnRulesData: what the install does with spawn points (spawn-rules.json), read as a map opens, or null;
+// - spawnEntriesNow: spawnRecords' entries for the mission the header shows, as drawn;
+// - missionMoves: the project's moves and edits of mission objects and spawn points, by marker key (spawns_view.js
+//   spawnKey): a stream object's {stream, actor, location, rotation}; a base spawn point's, with the values it changes
+//   (stream null, saved as overrides of level "base"); a copy's (stream 'copy'); missionDragView: those moves while a
+//   drag lasts, drawn in their place, or null (setMissionMovesValue: the view's setMissionMoves also draws them);
+// - spawnPlacing: the kind of spawn point the next click places (the Add panel's Spawn points), or null.
+export let normalSpawns = false, spawnLayerReady = false, spawnFilters = {}, spawnZonePick = null, spawnRulesData = null,
+           spawnEntriesNow = [];
+export function setNormalSpawnsValue(next) { normalSpawns = next; }
+export function setSpawnLayerReady(next) { spawnLayerReady = next; }
+export function setSpawnFilters(next) { spawnFilters = next; }
+export function setSpawnZonePick(next) { spawnZonePick = next; }
+export function setSpawnRulesData(next) { spawnRulesData = next; }
+export function setSpawnEntriesNow(next) { spawnEntriesNow = next; }
+export let missionMoves = new Map(), missionDragView = null, spawnPlacing = null;
+export function setMissionMovesValue(next) { missionMoves = next; }
+export function setMissionDragView(next) { missionDragView = next; }
+export function setSpawnPlacing(next) { spawnPlacing = next; }
