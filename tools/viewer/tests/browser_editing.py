@@ -22,7 +22,10 @@ pieces will do (the pieces made here use it as their donor).
 - failed-reads (finding 31): a look catalogue whose read fails once is said in the banner and not kept (Try again
   reads it); a rock's corner points that fail once are said in the hint and asked for again; a map whose landing
   lines can't be read leaves the game unknown, not Long War: the banner says so, Clear map lists the bomb mission as
-  Long War only, and the Missions panel leaves the council bomb tickable with a note."""
+  Long War only, and the Missions panel leaves the council bomb tickable with a note.
+- let-go (finding 33): the header's Mission select changed by a key gives the focus up (the next key changes nothing),
+  a fracturing piece's blast size chosen by key leaves Delete and Ctrl+Z working on the piece, and a tick box in a
+  dialog keeps the focus."""
 import json
 import math
 import time
@@ -432,3 +435,48 @@ def check_failed_reads(browser, url):
     page.close()
     assert not errors, errors
     return dict(asked=asked, bomb=bomb['words'][-90:])
+
+
+FOCUSED_ID = "() => document.activeElement?.id || document.activeElement?.tagName"
+
+
+def check_let_go(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    out = {}
+    # the header's Mission select: a key changes it once, and the focus has left it, so the next key doesn't
+    if page.locator('#missionPick').is_visible() and page.locator('#mission option').count() > 1:
+        page.focus('#mission')
+        before = page.input_value('#mission')
+        page.keyboard.press('ArrowDown')
+        changed = page.input_value('#mission')
+        assert changed != before and page.evaluate(FOCUSED_ID) != 'mission', (before, changed, page.evaluate(FOCUSED_ID))
+        page.keyboard.press('ArrowDown')
+        assert page.input_value('#mission') == changed
+        out['mission'] = [before, changed]
+    # a fracturing piece's blast size: chosen by key, then Delete reaches the piece
+    frac = page.evaluate("""() => [...viewer.roots.values()].find(r => !r.userData.source.added && !r.userData.deleted && r.visible
+      && ['XComFracLevelActor', 'XComDecoFracLevelActor'].includes(r.userData.source.actorClass)
+      && viewer.data.meshes[r.userData.source.mesh]?.sections?.some(s => s.fragments?.length))?.userData.source.id""")
+    page.evaluate('id => viewer.select(id)', frac)
+    page.wait_for_selector('#pieceBlastSize', state='visible')
+    page.focus('#pieceBlastSize')
+    size = page.input_value('#pieceBlastSize')
+    page.keyboard.press('ArrowDown' if page.evaluate("document.getElementById('pieceBlastSize').selectedIndex === 0") else 'ArrowUp')
+    assert page.input_value('#pieceBlastSize') != size and page.evaluate(FOCUSED_ID) != 'pieceBlastSize', page.evaluate(FOCUSED_ID)
+    page.keyboard.press('Delete')
+    assert page.evaluate('id => viewer.roots.get(id).userData.deleted', frac)
+    page.keyboard.press('Control+z')
+    assert not page.evaluate('id => viewer.roots.get(id).userData.deleted', frac)
+    out['blastSize'] = [size, page.input_value('#pieceBlastSize')]
+    # in a dialog, a tick box keeps the focus (its Tab ring)
+    page.evaluate('viewer.showMissions()')
+    page.wait_for_selector('#missionsDialog:not([hidden])')
+    page.evaluate("document.querySelector('#missionsList input:not(:disabled)').focus()")
+    page.keyboard.press('Space')
+    assert page.evaluate("document.activeElement === document.querySelector('#missionsList input:not(:disabled)')"), page.evaluate(FOCUSED_ID)
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#missionsDialog', state='hidden')
+    page.close()
+    assert not errors, errors
+    return out

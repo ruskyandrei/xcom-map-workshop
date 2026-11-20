@@ -70,3 +70,16 @@ export function holdModals(win = window) {
     }
   }).observe(doc.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
 }
+
+// Outside a dialog, a select, tick box, radio button or slider gives the focus up once it has changed (review finding
+// 33): the editor's shortcuts ignore keys typed in a field, so with the focus left there Up and Down would go on
+// changing a select, and Delete, Ctrl+Z or B would do nothing until the view was clicked. A dialog keeps its focus
+// (its Tab ring, above).
+const LET_GO = 'select, input[type=checkbox], input[type=radio], input[type=range]';
+/** Put in once: the focus leaves such a control, outside a dialog, after its change (its own listeners first). */
+export function releaseAfterChange(doc = document) {
+  doc.addEventListener('change', e => {
+    const t = e.target;
+    if (t?.matches?.(LET_GO) && !t.closest('.modal, dialog') && t === doc.activeElement) t.blur();
+  });
+}

@@ -38,7 +38,7 @@ import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orde
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
-import { anyModal, holdModals } from './modal.js';
+import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -68,6 +68,7 @@ const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
 // (modal.js; put in first, so the build window's own key catcher doesn't keep Tab from it)
 holdModals();
+releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
 // Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
 function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const prefabParameter = new URLSearchParams(location.search).get('prefab');
