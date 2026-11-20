@@ -424,14 +424,18 @@ class ProjectStore:
         self.check(document)
         return document
 
-    def save(self, project_id, document, expected, owner=None):
+    def save(self, project_id, document, expected, owner=None, picture_from=None):
         """Write the next revision if `expected` is the current one (0 for a new project); returns it. `owner`: the
-        page session saving, whose draft for recovery the save holds now and so removes (other sessions' stay)."""
+        page session saving, whose draft for recovery the save holds now and so removes (other sessions' stay).
+        `picture_from`: Save as from that project, whose kept map picture the document names: copied to this one
+        before the document is written (review finding 8; `pictureMissing` in the answer when that project keeps no
+        such picture, and the document is saved naming it all the same)."""
         self.check_id(project_id)
         self.validate(document, project_id)
         if not isinstance(expected, int) or isinstance(expected, bool) or expected < 0:
             raise ProjectError(400, 'expectedRevision must be a whole number.')
         if owner is not None: self._draft_path(project_id, owner)      # (checked before anything is written)
+        if picture_from is not None: self.check_id(picture_from)
         with self.lock:
             current_path = self._find(project_id)
             current = self._read(current_path) if current_path else None
@@ -444,6 +448,7 @@ class ProjectStore:
             document = dict(document, revision=revision + 1, savedAt=now())
             document.setdefault('created', document['savedAt'])
             self.root.mkdir(parents=True, exist_ok=True)
+            pictured = self._pictures(project_id, document, current, current_path, picture_from)
             target = self._target(project_id, document['name'], current_path)
             if current is not None:
                 # Keep the previous revision, itself written atomically, before replacing the project.
@@ -459,7 +464,23 @@ class ProjectStore:
                 except OSError: pass        # (saved all the same: the draft is offered once more, then discarded)
             self.paths[project_id] = target
             return dict(revision=document['revision'], savedAt=document['savedAt'], created=document['created'],
-                        file=target.name)
+                        file=target.name, **pictured)
+
+    def _pictures(self, project_id, document, current, current_path, picture_from):
+        """The map picture the document names, kept with the project before the document is written (pictures.py):
+        copied from `picture_from` (Save as), or taken in from beside the project's file (one sent with it), which a
+        rename would leave behind. {} or {pictureMissing: True}."""
+        import pictures
+        digest = pictures.named(document)
+        if not digest: return {}
+        if picture_from is not None and picture_from != project_id:
+            try:
+                copied = pictures.copy_picture(self, picture_from, project_id, digest, saved=pictures.named(current))
+            except OSError as error:
+                raise ProjectError(500, f'The map picture could not be copied to the project ({error}); nothing was saved.')
+            return {} if copied else dict(pictureMissing=True)
+        if current_path is not None: pictures.adopt_beside(self, current_path, document)
+        return {}
 
     # ------------------------------------------------------------------ drafts kept for recovery (review finding 3)
     # Each page session keeps its own draft (`owner`: the id the page made when it loaded), so two pages editing one

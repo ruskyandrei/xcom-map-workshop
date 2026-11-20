@@ -241,10 +241,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.projects.names is None: raise ProjectError(404, 'This server does not name projects.')
                 self.send_json(200, self.projects.names.preview(request.get('name'), request.get('map'), request.get('target')))
             elif kind == 'project' and method == 'GET':
-                document = self.projects.load(project_id)
-                # a picture sent beside the project's file is taken in the first time the project opens
-                pictures.adopt_beside(self.projects, self.projects.path(project_id), document)
-                self.send_json(200, document)
+                # (a picture sent beside the project's file is found there, and taken in by its next save: a read
+                # changes no file)
+                self.send_json(200, self.projects.load(project_id))
             # The map picture (pictures.py): PUT /projects/<id>/picture.png keeps an opaque 512 x 256 PNG of up to
             # 1 MB, written again clean, and answers {sha256}; GET serves the kept one (?sha256=<hash>: the kept file
             # with that hash, the current one or the one before it; ?as=game: as the game shows it, after DXT1);
@@ -281,9 +280,10 @@ class Handler(SimpleHTTPRequestHandler):
             elif kind == 'project' and method == 'PUT':
                 request = self.body_json()
                 if not isinstance(request, dict): raise ProjectError(400, 'Send {expectedRevision, document}.')
-                # owner: the page session saving (its draft for recovery goes)
+                # owner: the page session saving (its draft for recovery goes); pictureFrom: Save as from that project,
+                # whose map picture the document names (copied with the save)
                 self.send_json(200, self.projects.save(project_id, request.get('document'), request.get('expectedRevision'),
-                                                       owner=request.get('owner')))
+                                                       owner=request.get('owner'), picture_from=request.get('pictureFrom')))
             elif kind == 'recovery' and method == 'GET':
                 # null when nothing is kept: asking is routine, not an error.
                 self.projects.load(project_id)

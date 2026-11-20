@@ -480,6 +480,9 @@ class PrefabStore(ProjectStore):
     def readable(self, document):
         return True
 
+    def _pictures(self, prefab_id, document, current, current_path, picture_from):
+        return {}       # (a prefab's picture is the page's drawing: save_picture)
+
     def validate(self, document, prefab_id):
         """A save's check: the whole document, of the schema this editor writes."""
         check_schema(document, writing=True)

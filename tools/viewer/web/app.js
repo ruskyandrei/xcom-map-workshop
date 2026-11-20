@@ -20,7 +20,7 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneServes } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
-import { createMapPicture, pictureApi } from './map_picture.js';
+import { createMapPicture } from './map_picture.js';
 import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
          copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
          recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
@@ -5077,18 +5077,19 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     if (document.picture == null) delete document.picture;       // no picture of its own
     delete document.revision; delete document.savedAt;
     if (fresh) delete document.created;
-    const result = await projectApi.save(document.id, document, expected, { owner: SESSION });
+    // saved as another project: its map picture is kept by project, so the server copies the file to the new one
+    // within the save, byte for byte, before the document is written (review finding 8)
+    const pictureFrom = previous && previous !== document.id && document.picture ? { pictureFrom: previous } : {};
+    const result = await projectApi.save(document.id, document, expected, { owner: SESSION, ...pictureFrom });
+    if (result.pictureMissing)
+      banner(`The map picture was not copied to ${document.name}: the project saved from keeps it no more. Choose it again in Map picture.`);
     // Saved under another project: this page's draft of the one open before is in it now, and so is a draft restored
     // (the server dropped this page's draft of the one saved).
     if (previous && previous !== document.id) documentWrites.run(() => projectApi.dropRecovery(previous, SESSION)).catch(() => {});
     dropAdopted(projectApi, previous);
     recoveryTrouble = null;
-    // saved as another project: its map picture is kept by project, so the new one gets its own copy of the file
-    if (previous && previous !== document.id && document.picture) {
-      pictureApi.copy(previous, document.id, document.picture.sha256)
-        .catch(error => banner(`The map picture was not copied to ${document.name}: ${error.message}. Choose it again in Map picture.`));
-    }
-    project = { doc: { ...document, ...result }, revision: result.revision, carried, savedKey: stateKey(state) };
+    const { pictureMissing, ...saved } = result;
+    project = { doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) };
     recoveryKept = false;
     touchRecent(document.id);
     const parameters = new URLSearchParams(location.search);

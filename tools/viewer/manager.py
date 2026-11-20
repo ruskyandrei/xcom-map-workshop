@@ -181,8 +181,8 @@ def listing(projects, builds, player):
             in_game = dict(play=variant in played, rotation=entry['mode'] if entry else None,
                            buildId=(entry or played[variant]).get('buildId'),
                            current=bool(build) and (entry or played[variant]).get('buildId') == build['buildId'])
-        # its map picture: one sent beside the project's file is taken in, then whose the map shows (pictures.py)
-        pictures.adopt_beside(projects, projects.path(summary['id']), document)
+        # whose picture the map shows (pictures.py; one sent beside the project's file counts: a listing changes no
+        # file)
         picture = pictures.status(projects, document, installs.cooked(read) if read is not None else None)
         rows.append(dict(summary, variant=variant, build=build, missions=missions, warnings=warnings,
                          modeWarnings=by_mode, inGame=in_game, picture=picture,

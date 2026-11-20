@@ -11,7 +11,12 @@ the picture is part of the project's revision. A change of the picture that is n
 its own picture, in `picture.prev.png`: `picture_file` gives whichever of the two the document names.
 
 A project file sent to someone else has its picture beside it as `<project file's name without .json>.picture.png`
-(`beside`); `adopt_picture` takes such a file in when its SHA-256 is the one the project names.
+(`beside`). Reading never changes a file (review finding 45): `picture_file` finds the picture there while it lies
+beside the project's file, and the project's next save takes it in (`adopt_beside`: kept here byte for byte, the file
+beside it deleted), so a rename keeps it.
+
+Save as copies the picture the document names to the new project inside the save itself (`copy_picture`, review
+finding 8), byte for byte, so the new document never names a picture its project doesn't keep.
 
 Only the cropped picture is kept: the browser crops and scales (web/map_picture.js), the server takes nothing but an
 opaque 512 x 256 PNG of up to 1 MB and writes it again from its pixels.
@@ -45,6 +50,21 @@ def _folder(projects, project_id):
 
 def sha256(data):
     return hashlib.sha256(data).hexdigest()
+
+
+_HASHES = {}        # file -> (size, modified time, SHA-256): a kept picture hashed once while unchanged (review finding 50)
+
+
+def file_sha256(path):
+    """The SHA-256 of the file at `path`, from _HASHES while its size and modified time are the same."""
+    path = Path(path)
+    stat = path.stat()
+    known = _HASHES.get(str(path))
+    if known and known[:2] == (stat.st_size, stat.st_mtime_ns):
+        return known[2]
+    digest = sha256(path.read_bytes())
+    _HASHES[str(path)] = (stat.st_size, stat.st_mtime_ns, digest)
+    return digest
 
 
 def named(document):
@@ -114,7 +134,7 @@ def _keep_previous(folder, saved=None):
     current, previous = folder / NAME, folder / PREVIOUS
     if not current.is_file():
         return
-    if saved and sha256(current.read_bytes()) != saved and previous.is_file() and sha256(previous.read_bytes()) == saved:
+    if saved and file_sha256(current) != saved and previous.is_file() and file_sha256(previous) == saved:
         current.unlink()
     else:
         os.replace(current, previous)
@@ -128,11 +148,32 @@ def save_picture(projects, project_id, data, saved=None):
     digest = sha256(data)
     folder = _state_folder(projects, project_id)
     current = folder / NAME
-    if current.is_file() and sha256(current.read_bytes()) == digest:
+    if current.is_file() and file_sha256(current) == digest:
         return dict(sha256=digest)
     _keep_previous(folder, saved)
     _replace(current, data)
     return dict(sha256=digest)
+
+
+def copy_picture(projects, from_id, to_id, sha256_, saved=None):
+    """The kept picture of project `from_id` with that SHA-256 (`picture_file`: its current one, the one before, or one
+    lying beside its file) kept as project `to_id`'s current picture as well, byte for byte, so its SHA-256 stays the
+    one the document names (Save as: review finding 8). The one `to_id` had is kept for its saved revision (`saved`,
+    the SHA-256 that names), as save_picture keeps it. True, or False when `from_id` keeps no picture with that
+    SHA-256; an error copying (OSError) is the caller's."""
+    source = picture_file(projects, from_id, sha256_)
+    if source is None:
+        return False
+    data = source.read_bytes()
+    if sha256(data) != sha256_:
+        return False
+    folder = _state_folder(projects, to_id)
+    current = folder / NAME
+    if current.is_file() and file_sha256(current) == sha256_:
+        return True
+    _keep_previous(folder, saved)
+    _replace(current, data)
+    return True
 
 
 def remove_picture(projects, project_id, saved=None):
@@ -148,7 +189,8 @@ def remove_picture(projects, project_id, saved=None):
 def picture_file(projects, project_id, sha256_=None):
     """The project's kept picture file, or None. `projects` is the projects folder (or a ProjectStore). With
     `sha256_` (the one the project's document names: `named(document)`), the kept file with that SHA-256, the
-    current one or the one before it, or None when neither is it; without, the current one."""
+    current one or the one before it, else the file lying beside the project's file when it is that picture (one sent
+    with the project, until its next save takes it in), or None; without, the current one. Nothing is written."""
     try:
         folder = _folder(projects, project_id)
     except ProjectError:
@@ -156,11 +198,29 @@ def picture_file(projects, project_id, sha256_=None):
     for name in (NAME, PREVIOUS) if sha256_ else (NAME,):
         path = folder / name
         try:
-            if path.is_file() and (not sha256_ or sha256(path.read_bytes()) == sha256_):
+            if path.is_file() and (not sha256_ or file_sha256(path) == sha256_):
                 return path
         except OSError:
             continue
+    if sha256_:
+        path = _beside_file(projects, project_id)
+        try:
+            if path is not None and path.is_file() and path.stat().st_size <= MAX_BYTES and file_sha256(path) == sha256_:
+                return path
+        except OSError:
+            pass
     return None
+
+
+def _beside_file(projects, project_id):
+    """Where a picture sent with the project's file lies (`beside`), or None when the project's file isn't found."""
+    from projects import ProjectStore
+    store = projects if isinstance(projects, ProjectStore) else ProjectStore(_root(projects))
+    try:
+        path = store._find(project_id)
+    except ProjectError:
+        return None
+    return beside(path) if path is not None else None
 
 
 def project_picture(projects, document):
@@ -199,7 +259,7 @@ def adopt_picture(projects, project_id, source_path, sha256_=None, remove=True):
     try:
         folder = _state_folder(projects, project_id)
         current = folder / NAME
-        if not (current.is_file() and sha256(current.read_bytes()) == digest):
+        if not (current.is_file() and file_sha256(current) == digest):
             _keep_previous(folder)
             _replace(current, data)
         if remove:
@@ -210,10 +270,14 @@ def adopt_picture(projects, project_id, source_path, sha256_=None, remove=True):
 
 
 def adopt_beside(projects, project_path, document):
-    """`adopt_picture` for a project as it is listed or opened: when its document names a picture this computer does
-    not keep and the file `beside(project_path)` is it, that file is taken in. Returns True when it was."""
+    """`adopt_picture` for a project as it is saved (ProjectStore.save; never as it is read: review finding 45): when
+    its document names a picture this computer does not keep and the file `beside(project_path)` is it, that file is
+    taken in. Returns True when it was."""
     digest = named(document)
-    if not digest or picture_file(projects, document.get('id'), digest) is not None:
+    if not digest:
+        return False
+    found = picture_file(projects, document.get('id'), digest)
+    if found is not None and found.parent == _folder(projects, document.get('id')):
         return False
     return adopt_picture(projects, document.get('id'), beside(project_path), digest)
 
