@@ -16,7 +16,7 @@ and its maps, copied into XEW\\XComGame\\CookedPCConsole, is installed.
   hold (Config by SHA-256; CookedPCConsole by size and time, --hash for SHA-256 there too, which takes minutes) in
   <lab copy>\\XComLab-pack-test.json. A folder of the same name is replaced, as copying a newer version over does not:
   give --over to copy over what is there instead.
-- first-mission: a new campaign's first mission asks for its map by one display name (installs.INTRO_SLOT). The
+- first-mission: a new campaign's first mission asks for its map by one display name (installs.FIRST_MISSIONS). The
   test card, LWRMapPack_9999.upk in a folder of its own, holds one line: that display name and the install's own
   record for it, with the file, family and streamed maps of a pack line for <map> (looked up in the cards under
   CookedPCConsole). The highest card number wins a display name, so the first mission plays <map>. A lab tool only:

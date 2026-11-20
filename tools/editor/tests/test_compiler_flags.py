@@ -1,6 +1,5 @@
 """The compiler and pieces' flags (piece flags plan, P4): a flags-only override is written where the piece stands, a
 moved or added copy carries its flags to the Build's writer, and what can't be built is warned of or noted."""
-import copy
 from pathlib import Path
 import sys
 import unittest

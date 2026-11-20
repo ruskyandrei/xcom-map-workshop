@@ -149,8 +149,8 @@ SHELL = TOOLS / 'bake' / 'shell.py'
 NATIVE_LIGHTS = TOOLS / 'bake' / 'native_lights.py'
 LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
-# 9.3), passed to compiler.find_export where it takes a minimum
-EXPORT_MINIMUM = 18
+# 9.3), the compiler's own minimum
+EXPORT_MINIMUM = compiler.EXPORT_MINIMUM
 # the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
 EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
@@ -182,7 +182,11 @@ EOL = '\r\n'
 
 
 class BuildError(Exception):
-    pass
+    """Why a build failed. `code`, when given, says which failure it is to the editor's build runner (main prints it
+    on a "build failed code:" line before the reason; tools/viewer/builds.py keeps it as the job's errorCode)."""
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.code = code
 
 
 def sha256(path):
@@ -429,7 +433,7 @@ def mission_entries(records, listed):
     lists none, else the project's valid entries, its base records in file order and then its added kinds."""
     if not isinstance(listed, list):
         return [dict(record=i) for i in range(len(records))]
-    valid = [e for e in listed if compiler.valid_mission(e, len(records))]
+    valid = [e for e in listed if mission_kinds.valid_entry(e, len(records))]
     kinds = list(mission_kinds.ADDED_KINDS)
     picked = sorted({e['record'] for e in valid if 'record' in e})
     added = sorted({e['kind']: e for e in valid if 'kind' in e}.values(), key=lambda e: kinds.index(e['kind']))
@@ -687,6 +691,8 @@ class Build:
         self.stages = []
         self.started = self.stage_started = time.monotonic()
         self.has_lights, self.lights, self.unchanged = False, None, False
+        # the compiler's report (compile-report.json), and the untried pieces the Build itself left out (drop_untried)
+        self.compile_report, self.untried_dropped = None, []
 
     def _run(self, args, log):
         """Run a tool, its output to the log file and the console; raise on a failure. The tool writes its output in
@@ -749,13 +755,11 @@ class Build:
         # the builds folder's package of this name must be this project's, checked before any costly work (and again
         # as the new one goes in: package)
         owned_folder(self.output, self.variant, self.doc.get('id'))
-        # a generation with the light metadata (export 18), where the compiler's find_export takes a minimum
-        import inspect
-        minimum = {'minimum': EXPORT_MINIMUM} if 'minimum' in inspect.signature(compiler.find_export).parameters else {}
+        # a generation with the light metadata (export 18)
         try:
-            self.export, self.scene = compiler.find_export(self.cache, self.doc, **minimum)
+            self.export, self.scene = compiler.find_export(self.cache, self.doc, minimum=EXPORT_MINIMUM)
         except compiler.ExportMissing as error:
-            raise BuildError(str(error))
+            raise BuildError(str(error), code=compiler.ExportMissing.code)
         self.base = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % self.map)
         if not self.base.is_file():
             raise BuildError('the game install has no %s' % self.base)
@@ -791,6 +795,7 @@ class Build:
         spec, report = compiler.compile_project(self.doc, self.scene, self.enable,
                                                 compiler.Library(self.cache, self.lwr), self.foreign)
         report['export'] = str(self.export)
+        self.compile_report = report
         compiler.write_json(self.work / 'compile-report.json', report)
         if spec is None:
             raise BuildError('the project does not compile: %s' % '; '.join(e['message'] for e in report['errors']))
@@ -1056,7 +1061,16 @@ class Build:
                         % (c['label'].split(':', 1)[-1], ' (it stays where the map has it)' if c['label'].startswith('move:') else ''))
                    for c in gone]
         self.left_out += dropped
-        self.untried_dropped = getattr(self, 'untried_dropped', []) + dropped
+        self.untried_dropped = self.untried_dropped + dropped
+        # compile-report.json has every piece left out, the Build's own too (its stage and the window show the first
+        # LEFT_OUT_SHOWN), each marked by the stage that left it out
+        if self.compile_report is not None:
+            rows = self.compile_report.setdefault('leftOut', [])
+            rows += [dict(record='build', entity=row['actor'], code=row['code'], message=row['message'], stage='leftout')
+                     for row in dropped]
+            if isinstance(self.compile_report.get('counts'), dict):
+                self.compile_report['counts'] = dict(self.compile_report['counts'], leftOut=len(rows))
+            compiler.write_json(self.work / 'compile-report.json', self.compile_report)
         for g in unlinked:
             self.echo('break group %d no longer breaks together: a piece of it could not be made' % g)
         self.copies = self.work / 'native-edit.json'
@@ -1548,7 +1562,6 @@ class Build:
         # LWR's display names end in " |<n>", plain EW's don't: a record without an ending follows the install's
         tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
         listed = self.missions_listed     # the compiler's: the entries it can write, or None (every record)
-        count = len(mission_entries(records, listed))
         display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,
@@ -1732,6 +1745,8 @@ def main(argv=None):
               enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
               projects=args.projects, attempt=args.attempt, saved_file=args.saved_file).run()
     except BuildError as error:
+        if error.code:
+            print('build failed code: %s' % error.code)
         print('build failed: %s' % error)
         return 1
     return 0

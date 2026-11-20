@@ -1,5 +1,7 @@
 """What Play in game puts into a game install and Remove from game takes back out, for any LWR or plain Enemy Within
-install: the editor's own install step, nothing here knows a particular computer or our lab.
+install: the editor's own install step. Nothing here knows a particular computer. Two traces of our lab's own deploy
+tools are known, so that the editor takes their place cleanly: a record the lab's patchtool deploy wrote
+(patchtool_record) and, only in a lab copy with the lab setting set, a file those tools put there (lab_deploys).
 
 The game opens a map by its name (Play in game starts it that way: gamelaunch.py, EXP-29) and takes the map's patch and
 landing streams from the first DefaultMaps.ini record with that Name. So:
@@ -51,10 +53,6 @@ server's watch, or else before the next play or by Remove from game).
 Remove from game takes all of that back out: the lines it added, the files it copied that are unchanged since, the
 commands file, and the config kept aside. Afterwards the install's config files are byte for byte as they were.
 
-Before 9 November 2026 the editor installed a map as the first mission of a new campaign instead (Install as intro
-map): it rewrote the one record whose DisplayName is LWR's Commercial Alley Redux (INTRO_SLOTS). A ledger of that time
-is still read: the next play, or Remove from game, puts the install's own line back (restore_intro).
-
 All of these refuse while XCOM runs. A play's install and a campaign install check the whole package first, before a
 file is copied or a line changed (preflight): a variant the editor installed for another project is never replaced,
 and a package file already in CookedPCConsole (the name compared regardless of case) is replaced only when the editor
@@ -93,14 +91,12 @@ PLAY_SCHEMA = 'xcom-map-workshop/play'
 # after the last one), the files and landing zones a play copied in, and its variant's drop-in exclusion line
 PLAY_KEYS = ('records', 'installed', 'lastPlay', 'config', 'saves', 'lastSaves', 'playFiles', 'playZones', 'playExclusions')
 PACKAGE_SCHEMA = 'xcom-map-workshop/variant-package'
-# The first mission's record, by its DisplayName: LWR's, then plain EW's as a guess (the same without LWR's " |0").
-# Only an install from before Play in game changed it (restore_intro).
-INTRO_SLOTS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
-INTRO_SLOT = INTRO_SLOTS[0]
 # A record in rotation that the game also asks for by its DisplayName: a new campaign's first mission
-# (XGGeoscape.TakeFirstMission -> DetermineMap, EXP-03). A variant that replaces its map keeps this name on the record
-# that stands for it, or the first mission finds no map (F-117).
-FIRST_MISSION = frozenset(INTRO_SLOTS)
+# (XGGeoscape.TakeFirstMission -> DetermineMap, EXP-03), LWR's, then plain EW's as a guess (the same without LWR's
+# " |0"). A variant that replaces its map keeps this name on the record that stands for it, or the first mission finds
+# no map (F-117).
+FIRST_MISSIONS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
+FIRST_MISSION = frozenset(FIRST_MISSIONS)
 LZ = 'DefaultLZMutator.ini'     # Long War's landing zones: absent from plain EW
 # Long War's drop-in mutator's settings, whose ExcludeMaps list a project's spawn rule adds its variant to (the
 # editor spawns plan, SP8): absent from plain EW
@@ -286,24 +282,6 @@ def plan_variant_lz(lz, m, note, zone=None):
         [l.encode('latin-1') for l in lines]
 
 
-def intro_slot(lines):
-    """The DisplayName of the install's intro slot (INTRO_SLOTS: the first that exactly one record has), or a
-    ValueError."""
-    import deploy_fixture as dep
-    for name in INTRO_SLOTS:
-        if sum(1 for l in lines if dep.is_record(l) and dep.field(l, 'DisplayName') == name) == 1: return name
-    raise ValueError('expected one record named %s' % ' or '.join(f'"{n}"' for n in INTRO_SLOTS))
-
-
-def _ours(ledger, lines):
-    """The intro slot's index when an earlier version's install is still in it (its line the one that wrote), else
-    None."""
-    slot = ledger.get('slot')
-    if not slot: return None
-    at = slot['line'] - 1
-    return at if 0 <= at < len(lines) and lines[at] == slot['written'].encode('latin-1') else None
-
-
 def _run(lines, want):
     """Where the run of lines `want` starts in `lines`, or None."""
     return next((i for i in range(len(lines) - len(want) + 1) if lines[i:i + len(want)] == want), None) if want else None
@@ -398,13 +376,10 @@ def _strip_rotation(lines, ledger):
 
 def pristine_lines(game, lines=None):
     """DefaultMaps.ini's lines (bytes, CRLF split) as the install has them: the editor's variant records taken out
-    (any record one stood in for put back), its rotation installs undone, and an earlier version's intro line swapped
-    back."""
+    (any record one stood in for put back) and its rotation installs undone."""
     import deploy_fixture as dep
     lines = list(lines if lines is not None else dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes()))
     ledger = read_ledger(game)
-    at = _ours(ledger, lines)
-    if at is not None: lines[at] = ledger['slot']['original'].encode('latin-1')
     _strip_records(lines, ledger.get('records') or [])
     _strip_rotation(lines, ledger)
     return lines
@@ -417,7 +392,7 @@ def maps_text(game):
     data = path.read_bytes()
     data = data[3:] if data.startswith(bytes([0xEF, 0xBB, 0xBF])) else data
     ledger = read_ledger(game)
-    if not ledger.get('slot') and not ledger.get('records') and not ledger.get('rotation') and not ledger.get('linesOff'): return data.decode('latin-1')
+    if not ledger.get('records') and not ledger.get('rotation') and not ledger.get('linesOff'): return data.decode('latin-1')
     try: return b'\r\n'.join(pristine_lines(game)).decode('latin-1')
     except ValueError: return data.decode('latin-1')
 
@@ -442,25 +417,20 @@ def ready(game):
 
 
 def status(game):
-    """What the editor has in the install: the variants it installed (the last first), whether the commands file and
-    config kept aside for a play are there, and an earlier version's intro install, if one is still in."""
-    import deploy_fixture as dep
+    """What the editor has in the install: the variants it installed (the last first), and whether the commands file
+    and config kept aside for a play are there."""
     ledger = read_ledger(game)
-    lines = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
     installed = sorted((ledger.get('installed') or {}).values(), key=lambda i: i.get('installedAt') or '', reverse=True)
-    at = _ours(ledger, lines)
-    intro = None if at is None else dict(map=dep.field(lines[at], 'Name'),
-                                         ownMap=dep.field(ledger['slot']['original'].encode('latin-1'), 'Name'))
     rotation = [{k: v for k, v in entry.items() if k not in ('lines', 'standsFor')} for entry in ledger.get('rotation') or []]
     off = ledger.get('linesOff') or []
-    return dict(installed=installed, intro=intro, playFile=play_file(game).is_file(), rotation=rotation,
+    return dict(installed=installed, playFile=play_file(game).is_file(), rotation=rotation,
                 recordsOff=len(off), switchedOff=len(ledger.get('manualOff') or []),
                 configKept=bool(ledger.get('config')), savesKept=bool(ledger.get('saves')),
                 lastSaves=ledger.get('lastSaves'), lastPlay=ledger.get('lastPlay'),
                 play=bool(ledger.get('records') or ledger.get('playZones') or ledger.get('playExclusions') or ledger.get('playFiles')
                          or play_file(game).is_file()
                          or start_file(game).is_file()),
-                anything=bool(installed or intro or rotation or off or ledger.get('records') or ledger.get('landingZones') or ledger.get('files')
+                anything=bool(installed or rotation or off or ledger.get('records') or ledger.get('landingZones') or ledger.get('files')
                               or ledger.get('playZones') or ledger.get('playFiles') or ledger.get('dropInExclusions')
                               or ledger.get('playExclusions')
                               or ledger.get('config') or play_file(game).is_file() or start_file(game).is_file()))
@@ -604,14 +574,6 @@ def build_record(m, pristine, mission=None):
                                      replace=m.get('replaceStreams') or {}, index=index)
     except ValueError as error: raise InstallError(str(error))
     return record, index, missions.label(missions.kind_key(record)), False
-
-
-def _restore_intro(ledger, maps):
-    """An earlier version's intro install taken out of `maps` (in place): True when the slot line went back."""
-    at = _ours(ledger, maps)
-    if at is not None: maps[at] = ledger['slot']['original'].encode('latin-1')
-    ledger['slot'], ledger['intro'] = None, None
-    return at is not None
 
 
 def read_package(folder, game=None):
@@ -1324,13 +1286,12 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     # the variant's drop-in exclusion line (the project's spawn rule, SP8), planned against this install's file
     rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes()) if config(game, RANDOM_SPAWNS).is_file() else None
     rs_at, rs_new, rs_why = plan_variant_exclusion(game, rs, m, exclusion_note(note, m))
-    # DefaultMaps.ini: an earlier build's record of this variant out (what it stood in for back), an earlier version's
-    # intro line back, the new record in place of a patchtool record of the variant, else after the base map's last one
+    # DefaultMaps.ini: an earlier build's record of this variant out (what it stood in for back), the new record in
+    # place of a patchtool record of the variant, else after the base map's last one
     new_maps = list(maps)
     records = ledger.get('records') or []
     for old in [b for b in records if b['variant'] == variant]:
         if not _take_out(new_maps, old): raise InstallError(f'the record the editor wrote for {variant} has changed; take it out by hand')
-    intro_back = _restore_intro(ledger, new_maps)
     entry = dict(variant=variant, lines=[l.decode('latin-1') for l in block])
     stands_in = patchtool_record(new_maps, variant)
     if stands_in is not None:
@@ -1387,14 +1348,13 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
             installed['mission'] = chosen
         ledger.setdefault('installed', {})[variant] = installed
         ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=variant, buildId=m.get('buildId'),
-                                                     **({'introBack': True} if intro_back else {}),
                                                      **({'standsInFor': 'patchtool'} if 'original' in entry else {})))
         write_ledger(game, ledger)
     if test:
         test_install_path(game).unlink()
     group = next((g['group'] for g in (m.get('config') or {}).get('ownLandingGroups') or [] if g['zone'] == zone), None) \
         if zone is not None else None
-    return dict(installed, introBack=intro_back, standsInFor='patchtool' if 'original' in entry else None,
+    return dict(installed, standsInFor='patchtool' if 'original' in entry else None,
                 record=block[1].decode('latin-1'),
                 **({'dropInExclusion': dict(written=bool(rs_new), **({'why': rs_why} if rs_why else {}))}
                    if (m.get('config') or {}).get('dropInExclusion') else {}),
@@ -1553,15 +1513,15 @@ def rotation_plan(lines, m, note='', mode='additional', cards=False):
             new = new.replace(f'MapName="{was}"'.encode(), f'MapName="{now}"'.encode())
         if new in records: continue
         records.append(new)
-        missions.append(dict(type=kind, label=mission, group=group, inRotation=in_rotation, byName=by_name,
-                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {})))
+        missions.append(dict(base_mission(line), label=mission))
     how = 'in place of' if mode == 'replace' else 'beside'
     comment = f'; {variant}: {base}\'s records under its own name, {how} {base}\'s ({note})'.encode()
     return dict(block=[comment] + records, missions=missions, standsFor=[l.decode('latin-1') for _, l in found], kept=[])
 
 
-def _base_mission(line):
-    """A base map record's mission, as rotation_plan's missions give it."""
+def base_mission(line):
+    """A base map record's mission: {type, label, group, inRotation, byName, bomb, firstMission (when true)}, as
+    rotation_plan's missions and the project manager's give it (review finding 55: written once)."""
     import deploy_fixture as dep
     import maplist
     group, kind, label = maplist.mission_of(line.decode('latin-1'))
@@ -1607,7 +1567,7 @@ def _rotation_from_build(found, m, note, mode, cards=False):
     what = 'the records of the missions the project is for' if m['config'].get('missionsFromProject') else f'{base}\'s records'
     comment = f'; {variant}: {what} under its own name, {how} {base}\'s ({note})'.encode()
     return dict(block=[comment] + records, missions=out, standsFor=[found[i][1].decode('latin-1') for i in stood],
-                kept=[_base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
+                kept=[base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
 
 
 def mission_warnings(missions, base, mode, lwr=True, kept=()):
@@ -1880,28 +1840,6 @@ def set_records_use(game, originals, use, now=None):
     return dict(changed=len(before ^ after), replaced=[o for o in originals if use and o in after])
 
 
-def restore_intro(game, now=None):
-    """An earlier version's intro install taken out: the install's own first mission again. True when it changed."""
-    import deploy_fixture as dep
-    game = Path(game)
-    recover_change(game)
-    ledger = read_ledger(game)
-    if not ledger.get('slot'): return False
-    _check_ready(game)
-    now, stamp = _now(now)
-    maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
-    new_maps = list(maps)
-    with _change(game, 'an earlier version\'s intro install taken out'):
-        changed = _restore_intro(ledger, new_maps)
-        if changed:
-            ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-            dep.check_change(maps, new_maps, replaced=[i for i, (a, b) in enumerate(zip(maps, new_maps)) if a != b])
-            _write_config(game, 'DefaultMaps.ini', new_maps)
-            ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), introBack=True))
-        write_ledger(game, ledger)
-    return changed
-
-
 def write_play_file(game, text, played, now=None):
     """The console commands a play starts the game with, in XEW\\Binaries (PLAY_FILE), and what is played in the
     ledger."""
@@ -2027,24 +1965,20 @@ def restore_saves(game, now=None):
 
 def reset(game, now=None):
     """Take everything of the editor's back out of the install: the records and landing-zone lines it added, the files
-    it copied, the commands file, the config kept aside for a play, and an earlier version's intro install. Returns
-    what it did."""
+    it copied, the commands file and the config kept aside for a play. Returns what it did."""
     import deploy_fixture as dep
     game = Path(game)
     _check_ready(game)
     ledger = read_ledger(game)
     now, stamp = _now(now)
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
-    done = dict(records=0, rotation=0, recordsBack=0, landingZones=0, dropInExclusions=0, files=[], left=[], intro=False,
+    done = dict(records=0, rotation=0, recordsBack=0, landingZones=0, dropInExclusions=0, files=[], left=[],
                 playFile=False, config=[])
     records = ledger.get('records') or []
     if records or any(ledger.get(k) for k in ('landingZones', 'playZones', 'dropInExclusions', 'playExclusions', 'files',
-                                              'playFiles', 'slot', 'rotation', 'linesOff')):
+                                              'playFiles', 'rotation', 'linesOff')):
         ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
     new_maps = list(maps)
-    had_slot = bool(ledger.get('slot'))
-    done['intro'] = _restore_intro(ledger, new_maps)
-    if had_slot and not done['intro']: done['left'].append('the intro slot was changed by something else since; it is left as it is')
     # what can't be taken out stays noted as the editor's, and the files of a variant whose record stays stay too
     # (review finding 26)
     kept, kept_rotation, kept_off = [], [], []
@@ -2086,11 +2020,11 @@ def reset(game, now=None):
         if _commands_out(game): done['playFile'] = True
         # the landing zones, drop-in lines and files left are still noted (_zones_out, _exclusions_out, _files_out)
         stay = {b['variant'] for b in kept}
-        ledger.update(slot=None, records=kept, intro=None, lastPlay=None, rotation=kept_rotation, linesOff=kept_off,
+        ledger.update(records=kept, lastPlay=None, rotation=kept_rotation, linesOff=kept_off,
                       installed={k: v for k, v in (ledger.get('installed') or {}).items() if k in stay},
                       manualOff=[o for o in ledger.get('manualOff') or [] if o in {c['original'] for c in kept_off}])
         ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), reset=True, records=done['records'],
-                                                      files=len(done['files']), **({'introBack': True} if done['intro'] else {})))
+                                                      files=len(done['files'])))
         write_ledger(game, ledger)
     done['config'] = restore_config(game)
     done['saves'] = restore_saves(game)

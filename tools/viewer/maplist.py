@@ -32,7 +32,7 @@ MISSION_GROUP = {'Abduction': 'abduction', 'Crash': 'ufo', 'LandedUFO': 'ufo', '
 MISSION_LABEL = {'Abduction': 'Abduction', 'Crash': 'Crashed UFO', 'LandedUFO': 'Landed UFO', 'TerrorSite': 'Terror',
                  'CovertOpsExtraction': 'Covert extraction', 'CaptureAndHold': 'Data recovery',
                  'ExaltRaid': 'EXALT raid', 'AlienBase': 'Alien base', 'Final': 'Final mission',
-                 'HQAssault': 'Base defence', 'MPDeathmatch': 'Multiplayer', 'Special': 'Special'}
+                 'HQAssault': 'Base defence', 'MPDeathmatch': 'Multiplayer'}
 COUNCIL_LABEL = {'Rescue': 'Council rescue', 'Bomb': 'Council bomb', 'Assault': 'Council assault',
                  'Extraction': 'Council extraction'}
 LEFT_OUT = {'Strategy'}

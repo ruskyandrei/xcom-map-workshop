@@ -722,6 +722,8 @@ class MapBlastTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         _, native = compiler.native_split(compiler.stream_only(spec))
         self.assertEqual(sorted(bool(c.get('breaksFurther')) for c in native['copies']), [False, True])
+        # (a field of an added copy: no note that it is unknown)
+        self.assertEqual(noted(report, 'unknown-field'), [])
         # a piece the game lets break (a wall) has nothing to say of it
         _, report = self.compile([dict(target=target(self.NAME), blasts=self.BLASTS)])
         self.assertNotIn('in battle', notes(report)[0])
@@ -733,6 +735,13 @@ class MapBlastTests(unittest.TestCase):
                                           breaksFurther=True)])
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(noted(report, 'unknown-field'), ['unknown-field'])
+        _, native = compiler.native_split(compiler.stream_only(spec))
+        self.assertFalse(any(c.get('breaksFurther') for c in native['copies']))
+        # an added copy's the same: one note that it goes with blasts, not that the field is unknown
+        spec, report = self.compile([], added=[dict(add(self.NAME, 1, (0, 600, 0)), breaksFurther=True)])
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual([d['message'] for d in report['notes'] if d['code'] == 'unknown-field'],
+                         ['%s_copy1: breaksFurther goes with blasts; with none it is ignored' % self.NAME])
         _, native = compiler.native_split(compiler.stream_only(spec))
         self.assertFalse(any(c.get('breaksFurther') for c in native['copies']))
 

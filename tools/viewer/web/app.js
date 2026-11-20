@@ -880,8 +880,8 @@ function showCover(root) {
 // The ladder's ends where the selected ladder stands now (ladders.js against the export's original floor tiles and the
 // floor the project's own flat pieces are expected to give, as the compiler counts it), or null. `newFloor` says an
 // end has floor only by a piece of the project. The floor is counted as the compiler's ladder check counts it
-// (compiler.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and
-// with one of the map's own pieces made no floor, the tiles of those and of the pieces moved or deleted are taken out;
+// (compiler.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and the
+// tiles of the map's own pieces made no floor, moved or deleted are taken out (compiler floor_now);
 // one of the map's own pieces made floor where it stands gives floor; a grown grid's new levels count.
 let floorSet = null, ladderChip = null, gridChip = null;
 function ladderNow(root) {
@@ -908,7 +908,7 @@ function ladderNow(root) {
   }
   const dims = data.tileGrid.dimensions, own = ownSize()?.dims;
   const added = addedFloors(boxes, data.tileGrid.origin, dims && [dims[0], dims[1], Math.max(dims[2], own?.[2] ?? 0)]);
-  const floors = off.size ? new Set(data.tactical.floorTiles.filter(f => !off.has(f.actor) && !gone.has(f.actor)).map(f => f.tile.join(',')))
+  const floors = off.size || gone.size ? new Set(data.tactical.floorTiles.filter(f => !off.has(f.actor) && !gone.has(f.actor)).map(f => f.tile.join(',')))
     : floorSet;
   const pose = placedPose(o, root.matrix);
   const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floors, ...added]));
@@ -5198,8 +5198,8 @@ function renderBuild() {
   $('buildLogToggle').textContent = buildView.fullLog ? 'Latest lines only' : 'Show the log';
   // the result
   const result = $('buildResult'), pkg = status.package;
-  // the compiler found no export new enough (compiler.py: "... prepare the map ..."): Prepare the map does it from here
-  const wantsPrepare = status.state === 'failed' && /\bno export of\b.*\bprepare the map\b|\bre-export it\b/s.test(job.error ?? '');
+  // the compiler found no export new enough (compiler.ExportMissing's code, the job's errorCode): Prepare the map does it from here
+  const wantsPrepare = status.state === 'failed' && job.errorCode === 'export-missing';
   result.replaceChildren();
   result.hidden = running;
   result.classList.toggle('error', status.state === 'failed');

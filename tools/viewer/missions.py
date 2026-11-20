@@ -173,7 +173,10 @@ def kind_key(record):
 
 
 def kind_of_export(mission):
-    """The kind of an export's mission ({type, label}: export.map_records), as the page's twin works it out."""
+    """The kind of an export's mission ({type, label, kind}: export.map_records): its `kind` (export 37), else, for an
+    older export, from its type and its council label, as the page's twin (web/missions.js kindKey) works it out."""
+    if isinstance(mission.get('kind'), str):
+        return mission['kind']
     if mission.get('type') == 'Special':
         return next((f'Special/{c}' for c in COUNCIL if maplist.COUNCIL_LABEL[c] == mission.get('label')), 'Special')
     return mission.get('type') or ''
@@ -418,18 +421,14 @@ ADDED_KINDS = {
 
 
 def valid_entry(entry, records):
-    """Whether a `missions` entry is one the Build can write, for a base map with `records` missions."""
+    """Whether a `missions` entry is one the Build can write, for a base map with `records` missions (a kind that is a
+    list or an object is no entry, never a TypeError)."""
     if not isinstance(entry, dict): return False
     if set(entry) == {'record'}:
         return isinstance(entry['record'], int) and not isinstance(entry['record'], bool) and 0 <= entry['record'] < records
-    if 'kind' in entry and entry['kind'] in ADDED_KINDS and set(entry) <= {'kind', 'ship'}:
+    if isinstance(entry.get('kind'), str) and entry['kind'] in ADDED_KINDS and set(entry) <= {'kind', 'ship'}:
         return entry.get('ship') in UFO_TYPES if ADDED_KINDS[entry['kind']].get('ufo') else 'ship' not in entry
     return False
-
-
-def entry_id(entry):
-    """A `missions` entry's id, as a play names it (installs.mission_id): the record's index, or the kind."""
-    return entry['record'] if 'record' in entry else entry['kind']
 
 
 def _set(line, name, value):

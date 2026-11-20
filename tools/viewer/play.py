@@ -345,7 +345,6 @@ class Player:
         if entry is None: raise ProjectError(404, f'No map {map_id!r}.')
         name = entry['name']
         if not (installs.cooked(game) / f'{name}.upk').is_file(): raise installs.InstallError(f'{game} has no {name}.upk')
-        installs.restore_intro(game)        # an earlier version's intro install, taken out
         record = installs.map_record(game, name, mission)
         played = dict(kind='map', map=name, base=name, project=None, mission=dict(id=mission or 0),
                       record=record.decode('latin-1') if record else None)

@@ -23,7 +23,7 @@ from projects import ProjectError, ProjectStore
 from viewer import Handler, LocalServer
 import test_play
 from test_prefabs import prefab
-from test_projects import document
+from viewer_fixtures import document
 
 BUILDER = """
 from pathlib import Path

@@ -38,14 +38,6 @@ SOLDIERS = ((192.0, 384.0, -16.0), (0.0, 480.0, -16.0), (192.0, 192.0, -16.0),  
             (0.0, 288.0, -16.0), (-192.0, 384.0, -16.0), (-192.0, 192.0, -16.0))
 INSIDE_BACK = 288.0          # AdjustOffsets: an inside (or alternate, or no-evac) zone's points this much back in y
 GROUND = 64.0                # a zone's ground is this far under its StartLoc (the frame stands there)
-# the archetype names the mutator finds the landing's actors by (FindLZObjectsByArchetype), and what each is
-ARCHETYPES = {
-    'SoldierSpawns_DrpshipVol_12Arc0': 'frame', 'SoldierSpawns_DrpshipVol_Arc0': 'volume',
-    'SoldierSpawns_DrpshipVol_2Arc0': 'playerStart', 'SoldierSpawns_DrpshipVol_12Arc1': 'point',
-    'SoldierSpawns_DrpshipVol_Arc1': 'soldier1', 'SoldierSpawns_DrpshipVol_Arc2': 'soldier2',
-    'SoldierSpawns_DrpshipVol_Arc3': 'soldier3', 'SoldierSpawns_DrpshipVol_Arc4': 'soldier4',
-    'SoldierSpawns_DrpshipVol_Arc5': 'soldier5', 'SoldierSpawns_DrpshipVol_7Arc0': 'soldier6',
-}
 # the evac zone's building volume, as the landing prefab has it: 5 by 3 tiles, 192 high, about its actor
 EVAC_SIZE = (480.0, 288.0, 192.0)
 
@@ -349,10 +341,10 @@ def _finite3(v):
 def valid_zone(z):
     """Whether a project's landing zone has the shape research/editor-contracts.md gives it (web/project.js
     validLandingZone is the twin; tests/zone_cases.json holds the cases both pass). A field given is one of its
-    kind: null is no value of any of them."""
+    kind: null is no value of any of them, and a list or an object for a name is no zone (never a TypeError)."""
     if not isinstance(z, dict) or not isinstance(z.get('id'), str) or not z['id'] or set(z) - set(ZONE_KEYS):
         return False
-    if not _finite3(z.get('location')) or z.get('direction') not in DIRECTIONS or z.get('kind', 'normal') not in KINDS:
+    if not _finite3(z.get('location')) or z.get('direction') not in DIRECTIONS or not (isinstance(z.get('kind', 'normal'), str) and z.get('kind', 'normal') in KINDS):
         return False
     if any(k in z and not (isinstance(z[k], str) and _TYPE.fullmatch(z[k])) for k in ('missionType', 'councilType')):
         return False

@@ -20,7 +20,7 @@ import squadrecords  # noqa: E402
 import squads  # noqa: E402
 import test_play  # noqa: E402
 from projects import ProjectError  # noqa: E402
-from test_projects import ID  # noqa: E402
+from viewer_fixtures import ID  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 

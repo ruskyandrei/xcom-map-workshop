@@ -1,4 +1,6 @@
-"""Local original-map viewer. Run with --help for export and serve commands."""
+"""The XCOM Map Workshop's server and its command line: `serve` runs the editor's server (the one xcom_editor.cmd
+starts), `export` exports a map of the install into the cache, and `settings`, `library` and `doctor` do what --help
+says of them."""
 import argparse
 import errno
 from functools import partial
@@ -481,8 +483,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
-    # Export on first open (exports.py): POST /maps/<id>/export exports a listed map not exported yet;
-    # GET /maps/<id>/export.json follows it.
+    # Test in game for a prefab (prefab_tests.py): POST /prefab-tests starts one, POST /prefab-tests/check says what
+    # one would say, GET /prefab-tests/<id>.json follows it, POST /prefab-tests/<id>/cancel and /play act on it.
     def handle_prefab_tests(self, method):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if parts[0] != 'prefab-tests': return False
@@ -519,6 +521,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
+    # Export on first open (exports.py): POST /maps/<id>/export exports a listed map not exported yet;
+    # GET /maps/<id>/export.json follows it.
     def handle_map(self, method):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if len(parts) != 3 or parts[0] != 'maps' or parts[2] not in ('export', 'export.json'): return False
@@ -605,7 +609,7 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             try:
                 root = Path(entry['root'])
-                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
+                scene = self.wave_cache.scene(root)       # (read once per version of the file, not per wave)
                 find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
                 cooked = lambda: Path(find())
                 data, etag, record = self.wave_cache.get(
@@ -1061,7 +1065,7 @@ def main():
     exp = sub.add_parser("export",help="Read an original EW package into an external cache")
     exp.add_argument("map",type=Path)
     exp.add_argument("--cache",type=Path,help="The viewer cache to export into (default: the cache setting)")
-    exp.add_argument("--scope",choices=("sample","map"),default="map",help="map (the default): the whole map; sample: the three-piece study, URB_Bar's only")
+    exp.add_argument("--scope",choices=("map",),default="map",help="map, the whole map (the only scope)")
     exp.add_argument("--spec",type=Path,action="append",default=[],help="Include a patch spec as an experimental preview (repeatable)")
     serve = sub.add_parser("serve",help="Open an exported scene locally")
     serve.add_argument("scene",type=Path,nargs="?",help="Cache root with prepared maps, or one exact cache generation (default: the cache setting)")
@@ -1167,7 +1171,7 @@ def main():
                 if not args.no_open: webbrowser.open(f"http://127.0.0.1:{args.port}/")
                 return
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
-                     "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
+                     "main one). Restart that one (xcom_editor.cmd restart) instead of starting a second; tests "
                      "use --port 8790-8799.")
         # while it runs, Setup sees the editor running and asks for it to be closed before an upgrade (finding 60)
         import appmutex

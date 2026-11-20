@@ -6,7 +6,8 @@
 Folders default to the settings (`python tools/viewer/viewer.py settings`: cache, install).
 
 For every map exported in the viewer cache (each map folder's newest `*-v<N>-map*/scene.json`), with the install's
-package of the same name read where the export lacks something:
+package of the same name read where the export lacks something (its level's actors and Kismet records, which exports
+before 37 carried as `content`, are read from the package: level_content):
 - the pieces the mission's script names (`referencedBy`) and what names them, lights too;
 - the map's own landings: the actors of each landing prefab (`DGN_DropShipSoldierSpawn`: the drop zone's frame, the
   evac volume, the player start, a PointInSpace, six soldier points) and of each grounded Skyranger prefab, found by
@@ -56,12 +57,14 @@ SKYRANGER_ROLES = {'PRE_SkyrangerGrounded_4Arc0': 'mesh', 'PRE_SkyrangerGrounded
 # not in either prefab, hidden with the Skyranger by LWR (HideDropShip)
 LANDING_EXTRA_ARCHETYPES = ('ARC_Skyranger_Ground_Periphery',)
 
-# XComLZMutator's defaultproperties: each actor's offset from a line's StartLoc, before StartDir's turn
-OFFSETS = {'frame': (0.0, 0.0, -64.0), 'evac': (0.0, -47.0, 32.0), 'playerStart': (8.0, 189.0, 16.0),
-           'point': (-240.0, 432.0, -64.0)}
-SPAWN_OFFSETS = ((192.0, 384.0, -16.0), (0.0, 480.0, -16.0), (192.0, 192.0, -16.0), (0.0, 288.0, -16.0),
-                 (-192.0, 384.0, -16.0), (-192.0, 192.0, -16.0))
-INSIDE_BACK = 288.0     # AdjustOffsets: ESL_Inside, ESL_Alternate and ESL_NoEvacZone put the points this far back
+# XComLZMutator's defaultproperties: each actor's offset from a line's StartLoc, before StartDir's turn, the soldier
+# points' and how far an inside zone's go back (AdjustOffsets: ESL_Inside, ESL_Alternate and ESL_NoEvacZone), as the
+# editor's own reader has them (tools/viewer/spawns.py, whose 'volume' is the evac zone's here; review finding 55)
+sys.path.insert(0, str(HERE.parent / 'viewer'))
+import spawns as viewer_spawns  # noqa: E402
+OFFSETS = {role: viewer_spawns.OFFSETS['volume' if role == 'evac' else role] for role in ('frame', 'evac', 'playerStart', 'point')}
+SPAWN_OFFSETS = viewer_spawns.SOLDIERS
+INSIDE_BACK = viewer_spawns.INSIDE_BACK
 DIRECTIONS = ('ELZD_North', 'ELZD_East', 'ELZD_South', 'ELZD_West')
 QUARTER = 16384
 LEVEL_HEIGHT = 64.0
@@ -437,19 +440,30 @@ def landing_points(rec):
     return out
 
 
+def level_content(path):
+    """The level's actors and Kismet records of the package at `path`, [(path, class)], as the viewer's exporter reads
+    them (composition.content_records) and exports before 37 wrote them into scene.json's `content`."""
+    sys.path.insert(0, str(HERE.parent / 'viewer'))
+    from composition import content_records
+    from package import Package
+    return [(r['path'], r['actorClass'] or '?') for r in content_records(Package(path))]
+
+
 def survey_package(job):
     path, = job
     name = Path(path).stem
     try:
         level = read_level(path)
         landings, skyrangers, extra, native = landings_of(level)
+        content = level_content(path)
     except Exception as error:  # noqa: BLE001
         return name, dict(error=repr(error))
     sounds = [dict(actor=n, cls=a['cls'], location=_vec(a['props'].get('Location')), sounds=a.get('sounds', []),
                    skyranger=bool(a['archetype'] and SKYRANGER_PREFAB in a['archetype']))
               for n, a in sorted(level['actors'].items()) if a['cls'].startswith('AmbientSound')]
     return name, dict(landings=landings, skyrangers=skyrangers, landingExtras=extra, native=native,
-                      ambient=sounds, actorClasses=dict(collections.Counter(a['cls'] for a in level['actors'].values())))
+                      ambient=sounds, actorClasses=dict(collections.Counter(a['cls'] for a in level['actors'].values())),
+                      content=content)
 
 
 # --- the intro's places --------------------------------------------------------------------------------------------
@@ -563,9 +577,9 @@ def survey_export(scene_path, package, lines):
                    landing=is_landing_piece(o)) for o in pieces if o.get('referencedBy')]
     script_lights = [dict(actor=l['actor'].split('.')[-1], cls=l.get('actorClass'), role=l.get('role'),
                           referencedBy=l['referencedBy']) for l in lights if l.get('referencedBy')]
-    content = [(a['path'], a.get('actorClass') or '?') for a in sc.get('content') or []]
-    landing_paths = set()
     pkg = package or {}
+    content = [tuple(c) for c in pkg.get('content') or []]
+    landing_paths = set()
     for rec in pkg.get('landings', []) + pkg.get('skyrangers', []):
         landing_paths.add(LEVEL + rec['prefabInstance'])
         landing_paths.update(LEVEL + a['actor'] for a in rec['actors'].values())
