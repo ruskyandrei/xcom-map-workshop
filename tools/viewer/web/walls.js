@@ -291,8 +291,8 @@ export const openingParts = () => ['middle', 'x0', 'x1', 'z1', 'z0'];
  *  gap stays off its neighbours, at least OPENING.width wide (a tile when it moves by whole tiles) and OPENING.height
  *  tall, and reaches the wall's edges: a side to the wall's end, the bottom at or under the floor to the wall's bottom
  *  (its handle stands on the floor), the top past topMostOf(wall) through the wall's top. One part moved to the last
- *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, OPENING.width in): a gap never takes the whole
- *  wall. Gives the wall. */
+ *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, a side a step in, the gap at least
+ *  OPENING.width wide): a gap never takes the whole wall. Gives the wall. */
 export function movedOpening(wall, index, part, delta, { along = TILE, up = OPENING.fine } = {}) {
   const list = sortedOpenings(wall.openings ?? []);
   if (!list[index]) return wall;
@@ -328,11 +328,18 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
     o.z0 = v <= 1e-6 ? bottom : tidy(v);
   }
   if (takesWhole(wall, o)) {
+    // (a side stops a step in, and the gap keeps at least OPENING.width: on a one-tile wall moved by whole tiles, the
+    // side stays where it was rather than the gap closing up; review finding 32)
+    const was = list[index];
     if (part === 'z1') o.z1 = topMostOf(wall);
     else if (part === 'z0') o.z0 = OPENING.sill;
-    else if (part === 'x0') o.x0 = least;
-    else if (part === 'x1') o.x1 = tidy(wall.x1 - least);
-    else return wall;
+    else if (part === 'x0') {
+      const most = Math.min(least, o.x1 - OPENING.width);
+      o.x0 = tidy(was.x0 > 0 ? Math.min(most, was.x0) : most);
+    } else if (part === 'x1') {
+      const least1 = Math.max(wall.x1 - least, o.x0 + OPENING.width);
+      o.x1 = tidy(was.x1 < wall.x1 ? Math.max(least1, was.x1) : least1);
+    } else return wall;
   }
   const openings = list.map((p, i) => (i === index ? o : p));
   return { ...wall, openings };

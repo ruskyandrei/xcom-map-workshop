@@ -10559,6 +10559,9 @@ function moveWallDrag(e) {
     wall = movedOpening(w, h.index, h.part, delta, { along, up });
     words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
   }
+  // (numbers the tool doesn't make, which the mesh server and the Build would refuse, aren't applied: the drag stays
+  // at its last state the tool makes; review finding 32)
+  if (!toolWall(wall)) return;
   const key = JSON.stringify([wall, location]);
   if (key === d.shown) return;
   d.shown = key;

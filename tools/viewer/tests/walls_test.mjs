@@ -99,6 +99,20 @@ assert.equal(movedOpening(wall, 1, 'z0', 1000).openings[1].z0, 144);
   assert.equal(movedOpening(half, 0, 'x1', 1000, { along: 1 }).openings[0].x1, 176);
   assert.ok(toolWall(half));
   assert.ok(!toolWall({ ...half, openings: [{ x0: 0, x1: 192, z0: -16, z1: 384 }] }));
+  // (review finding 32: a one-tile wall's gap moved by whole tiles never closes up, and stays a gap the tool makes)
+  const narrow = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 48, z0: -16, z1: 384 }], seed: 1 };
+  for (const [index, part, delta] of [[0, 'x1', 100], [0, 'x1', 40]]) {
+    const moved = movedOpening(narrow, index, part, delta);
+    assert.deepEqual(moved.openings[0], narrow.openings[0]);
+    assert.ok(toolWall(moved));
+  }
+  const right = { x0: 0, x1: 96, openings: [{ x0: 48, x1: 96, z0: -16, z1: 384 }], seed: 1 };
+  assert.deepEqual(movedOpening(right, 0, 'x0', -100).openings[0], right.openings[0]);
+  // (a gap that reaches the end from the start: the fallback keeps it OPENING.width wide, never zero)
+  const whole = { x0: 0, x1: 96, openings: [{ x0: 0, x1: 96, z0: -16, z1: 384 }], seed: 1 };
+  assert.deepEqual(['x0', 'x1'].map(part => { const o = movedOpening(whole, 0, part, part === 'x0' ? -10 : 10).openings[0]; return o.x1 - o.x0; }),
+                   [16, 16]);
+  assert.equal(movedOpening(half, 0, 'x1', 1000).openings[0].x1, 96);      // (whole tiles: a tile in, as before)
 }
 assert.deepEqual(withoutOpening(wall, 0).openings, [wall.openings[1]]);
 
