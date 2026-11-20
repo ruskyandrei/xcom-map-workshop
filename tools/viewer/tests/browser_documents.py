@@ -271,23 +271,32 @@ def check_failed_save_waits(browser, url):
 
 
 def check_build_binding(browser, url):
-    """Finding 10: Save as starts the new project's build status afresh: no build of the project saved from shows."""
+    """Finding 10: a project's build status is its own. A copy saved from a project with a package of revision 1 is at
+    revision 1 too, and shows no package: the one saved from's is not taken for its own."""
     errors = []
     a = open_viewer(browser, f'{base(url)}?map={MAP}', errors)
     visible = pieces(a)
     edit(a, visible[2])
     first = save_new(a, f'Build binding {time.time_ns()}')
-    # a status as a build of the first project left it (no build runs on a test server for this)
-    a.evaluate("id => { viewer.followBuildForTest?.(id); }", first)
+    # the first project's last package, of its revision 1, as the server would say it (nothing is built here)
+    package = dict(folder='<builds>/BuildBinding', buildId='BuildBinding-1', builtAt='2026-11-20T10:00:00', seconds=5,
+                   quick=True, times=dict(quick=5), foreignPieces=0, foreignEffects=0, donors=[], revision=1, files=[])
+
+    def status(route):
+        answer = route.fetch(); body = answer.json(); body['package'] = package
+        route.fulfill(response=answer, json=body)
+    a.route(f'**/projects/{first}/build.json', status)
+    a.reload(); ready(a)
+    a.wait_for_function("id => viewer.lastBuild()?.project === id && viewer.lastBuild().package?.revision === 1", arg=first)
     a.locator('#projectButton').click(); a.locator('#projectSaveAs').click()
     a.wait_for_selector('#fileDialog:not([hidden]) .filerow')
     type_project_name(a, f'Build binding copy {time.time_ns()}')
     a.locator('#fileName').press('Enter')
     a.wait_for_function('id => viewer.project()?.id !== id && viewer.project().revision === 1', arg=first)
-    a.wait_for_function("id => viewer.lastBuild() === null || viewer.lastBuild().project === id", arg=a.evaluate('viewer.project().id'))
     copy = a.evaluate('viewer.project().id')
+    a.wait_for_function("id => viewer.lastBuild()?.project === id", arg=copy)
     status = a.evaluate('viewer.lastBuild()')
-    assert status is None or (status['project'] == copy and not status.get('package')), status
+    assert not status.get('package'), status
     a.close()
     assert not errors, errors
     return dict(first=first, copy=copy)
@@ -388,7 +397,8 @@ def check_first_open(browser, url, project_id=None, cold_url=None):
 
 
 CHECKS = {'two-windows': ('twoWindows', check_two_windows), 'replace': ('replace', check_replace_confirmed),
-          'waiting-save': ('waitingSave', check_failed_save_waits), 'first-open': ('firstOpen', check_first_open)}
+          'waiting-save': ('waitingSave', check_failed_save_waits), 'build-binding': ('buildBinding', check_build_binding),
+          'first-open': ('firstOpen', check_first_open)}
 
 
 def check_all(browser, url, only=None):

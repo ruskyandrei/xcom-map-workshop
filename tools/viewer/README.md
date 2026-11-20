@@ -990,7 +990,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   checked in the game). Nothing in it is specific to one computer.
 - **A play leaves nothing in the game.** Once the game has closed, the server's watch takes out what the play put
   in (`installs.clear_play`): the build's record, its landing zones and files, and the commands file. If the server
-  was stopped meanwhile, the next play, or the page's next look at the install, does it. What the project manager
+  was stopped meanwhile, the next play, or the next server as it starts, does it (a look at the install,
+  `GET /play.json`, changes nothing: 20 November 2026). What the project manager
   installed for campaigns stays. A tactical save made in a test battle on a build won't load afterwards. A server
   started with `--dry-play` starts no game, so it leaves a play's things in to be looked at.
 - **Two ledgers, in the install itself** (`<game>\XCOM Map Workshop`): `play.json` for what a play put in, and
@@ -1021,7 +1022,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   to its game folder, with its kind: Long War Rebalance or Enemy Within), the install it plays in and whether that
   can be played now, how the game is started there, and what the editor has installed in it.
   - The server's routes ([`play.py`](play.py)): `GET /play.json`, `POST /play/start` (`{"project": id}` or
-    `{"map": id}`) and `POST /play/remove`.
+    `{"map": id}`) and `POST /play/remove`. A project's play names the build the page means (`buildId`, or the
+    `attempt` that built it), checked under the package's guard: a package swapped in since starts nothing.
   - `serve --install <game folder>` points a test server at a scratch install, and `--dry-play` makes it do
     everything but start the game.
 - **Manage projects…** (Project menu) opens the project manager ([`manager.js`](web/manager.js),

@@ -1146,6 +1146,7 @@ def main():
         # package swaps settled before any request can build (builds.py recover); a server that could not bind has
         # started nothing
         builds.recover()
+        live.player.recover()       # (an earlier server's play left in the game: put back once it has closed)
         if not queue.activate(): print(queue.unavailable, flush=True)
         url = f"http://127.0.0.1:{server.server_port}/"
         print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)

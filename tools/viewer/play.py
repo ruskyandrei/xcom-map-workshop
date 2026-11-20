@@ -47,10 +47,15 @@ before it installs anything. Every play does this: a map, a project, Land here, 
 
 A play leaves nothing in the game: the same watch then takes out what the play put in (installs.clear_play: the
 build's record, landing zones and files, the commands file), and so does the next play before it installs, and the
-first look at the install (status) when a play's things are still there with the game closed (the server was stopped
-meanwhile). What the project manager installed for campaigns is another ledger's and stays. A server that only
+server's start (recover) when a play's things are still there with the game closed (the server was stopped
+meanwhile). GET /play.json only looks.
+
+A project's play names the build it plays (`buildId`, the one Build's panel showed, or `attempt`, the build Play in
+game asked for): checked under the package's guard, so a package another window or the build queue swapped in since
+is not what starts (review finding 10). What the project manager installed for campaigns is another ledger's and stays. A server that only
 prepares a play (serve --dry-play) starts no game, so it leaves the play's things in to be looked at.
 """
+import json
 from pathlib import Path
 import threading
 import time
@@ -119,12 +124,24 @@ class Player:
             out['launch'] = self.launch(game)
             try: out['game'] = installs.status(game)
             except (OSError, ValueError, installs.InstallError) as error: out['gameError'] = str(error)
-            # left from an earlier run: the config kept aside, or a play's things in the game
-            if out['game'] and (out['game']['configKept'] or out['game']['savesKept']
-                                or (self.cleanup and out['game']['play'])):
-                if not (out['game']['lastPlay'] or {}).get('prefabTest'):
-                    self.watch(game, appear=0)
+            # (what an earlier run left is put back by recover, at the server's start, and by the next play: a look at
+            # the install changes nothing in it, review finding 45)
         return out
+
+    def recover(self):
+        """What an earlier server's play left in the game (the config kept aside, the saves set aside, the play's
+        things with the game closed) put back or taken out once the game has closed, by the watch a play starts. The
+        server calls it once it holds its port (never on a read: review finding 45); the next play does the same
+        first. True when a watch started."""
+        game, _, _ = self.target()
+        if game is None: return False
+        try: state = installs.status(game)
+        except (OSError, ValueError, installs.InstallError): return False
+        if not (state['configKept'] or state['savesKept'] or (self.cleanup and state['play'])): return False
+        if (state['lastPlay'] or {}).get('prefabTest'): return False        # (the prefab tests' own to settle)
+        with self.lock:
+            self.watch(game, appear=0)
+        return True
 
     @staticmethod
     def content_text(game):
@@ -149,8 +166,12 @@ class Player:
             raise ProjectError(400, 'Not started: a map with no project plays one of its own records.')
         saving = request.get('saving', False)
         if not isinstance(saving, bool): raise ProjectError(400, 'Not started: "saving" is true or false.')
+        # the build the page means (review finding 10): its buildId, or the attempt that built it
+        build = {k: request[k] for k in ('buildId', 'attempt') if request.get(k) is not None}
+        if any(not isinstance(v, str) for v in build.values()) or (build and 'project' not in request):
+            raise ProjectError(400, 'Not started: "buildId" and "attempt" name a project\'s build.')
         # Land here (Clear map plan, section 4): the project's landing zone `zone` alone
-        make = (lambda game: self._install_project(game, request['project'], request.get('zone'), mission)) if 'project' in request else (
+        make = (lambda game: self._install_project(game, request['project'], request.get('zone'), mission, build)) if 'project' in request else (
             lambda game: self._map(game, request['map'], mission))
         played = self._run(make, saving=saving)
         return dict(self.status(), played=played)
@@ -256,7 +277,8 @@ class Player:
 
     def watch(self, game, appear, finished=None):
         """Put the game's config back once the game has closed, and take the play's things out of the game: waits up
-        to `appear` seconds for it to come up, then for it to close. One watch at a time; a play's replaces one that is only waiting for a game left running."""
+        to `appear` seconds for it to come up, then for it to close. One watch at a time; a play's replaces one that is only waiting for a game left running.
+        Called with self.lock held, so two callers can't both start one (review finding 50)."""
         if self.watching is not None and self.watching.is_alive() and not appear and finished is None: return
         stop = threading.Event()
         previous, self.stop_watch = self.stop_watch, stop
@@ -287,7 +309,8 @@ class Player:
         self.watching = threading.Thread(target=run, name='play-watch', daemon=True)
         self.watching.start()
 
-    def _install_project(self, game, project_id, zone=None, mission=None):
+    def _install_project(self, game, project_id, zone=None, mission=None, build=None):
+        """`build`: {buildId and/or attempt}, the build the page means; the package must still be it."""
         if self.projects is None or self.builds is None: raise ProjectError(404, 'This server does not build.')
         document = self.projects.load(project_id)
         # its package leased (a project being built, or about to be, can't be played) and its guard held while it is
@@ -300,9 +323,22 @@ class Player:
             folder = Path(package['folder'])
             try:
                 with publication.guard(folder.parent, folder.name):
+                    if build: self._same_build(folder, build)
                     return installs.install_package(game, folder, zone=zone, mission=mission)
             except publication.Busy as error:
                 raise installs.InstallError(str(error))
+
+    @staticmethod
+    def _same_build(folder, build):
+        """The package in `folder` is the build the page means (`build`: its buildId, the attempt that built it), read
+        under the package's guard; else a 409 that says which build is there now."""
+        try: m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError) as error: raise installs.InstallError(f'its package can\'t be read ({error})')
+        wrong = [k for k, v in build.items() if m.get(k) != v]
+        if wrong:
+            raise ProjectError(409, f'Not started: the project\'s package is another build now ({m.get("buildId")}, built '
+                                    f'{m.get("builtAt")}), not the one chosen. Choose Play in game again.',
+                               code='build-changed', buildId=m.get('buildId'))
 
     def _map(self, game, map_id, mission=None):
         entry = (self.catalogue or {}).get('maps', {}).get(map_id) if isinstance(map_id, str) else None

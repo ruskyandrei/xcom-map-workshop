@@ -4917,7 +4917,7 @@ async function openProject(id) {
   askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
   touchRecent(id);
   // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
-  projectApi.buildStatus(id).then(s => { lastBuild = s; renderPlayItems(); if (s.state === 'running') followBuild(s); }, () => {});
+  projectApi.buildStatus(id).then(s => { if (!setLastBuild(id, s)) return; renderPlayItems(); if (s.state === 'running') followBuild(s, id); }, () => {});
   $('loading').hidden = true;
   const kept = carried.overrides.length + carried.added.length + carried.groups.length + carried.areaLightBindings.length
     + carried.buildings.filter(validBuilding).length;
@@ -5090,6 +5090,12 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     recoveryTrouble = null;
     const { pictureMissing, ...saved } = result;
     project = { doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) };
+    if (previous !== document.id) {
+      // another project now (Save as, or Replace): its own build status, not the one saved from's (review finding 10)
+      lastBuild = null; clearTimeout(buildTimer);
+      const id = document.id;
+      projectApi.buildStatus(id).then(s => { if (setLastBuild(id, s)) { renderPlayItems(); if (s.state === 'running') followBuild(s, id); } }, () => {});
+    }
     recoveryKept = false;
     touchRecent(document.id);
     const parameters = new URLSearchParams(location.search);
@@ -5150,19 +5156,27 @@ async function buildProject(quick = false) {
   if (!canBuild()) return;
   if (dirty() && !(await saveProject())) return;
   try {
-    const status = await projectApi.build(project.doc.id, quick);
+    const id = project.doc.id, status = await projectApi.build(id, quick);
     // Play in game asked for this very build: its attempt, so no other build of the project (the queue's) plays
     if (playAfterBuild && !playAfterBuild.attempt && status.job?.project === playAfterBuild.project) playAfterBuild.attempt = status.job.attempt;
-    followBuild(status);
+    followBuild(status, id);
   }
   catch (e) { banner(`Not built: ${e.message}`); }
 }
+// The build status of the open project (review finding 10): kept with the id it was asked for, and an answer for a
+// project no longer open (the page saved as another since) thrown away. False when it was.
+function setLastBuild(id, status) {
+  if (!project || project.doc.id !== id) return false;
+  lastBuild = { ...status, project: id };
+  return true;
+}
 // Each status from the server (every 2 s while the build runs). A build that ended before this page saw it running
 // opens no window: its package shows in the Project menu. A build of the build queue's (job.origin 'queue') opens no
-// window either: the editor stays usable, and the chip and the project manager follow it.
-function followBuild(status) {
+// window either: the editor stays usable, and the chip and the project manager follow it. `id`: the project it was
+// asked for (a late answer for another is dropped).
+function followBuild(status, id = project?.doc.id) {
   clearTimeout(buildTimer);
-  lastBuild = status;
+  if (!setLastBuild(id, status)) return;
   const job = status.job;
   if (!project || !job) return;
   if (job.origin === 'queue' && buildView?.attempt !== job.attempt) { renderPlayItems(); return; }
@@ -5181,7 +5195,7 @@ function followBuild(status) {
   // Play in game asked for this build: play it once built (this attempt alone).
   if (buildView.ended && job.attempt && playAfterBuild?.attempt === job.attempt) {
     playAfterBuild = null;
-    if (status.state === 'built') playBuilt(job.project);
+    if (status.state === 'built') playBuilt(job.project, job.attempt);
   }
   renderBuild(); renderPlayItems();
   if (!buildView.ended) buildTimer = setTimeout(pollBuild, 2000);
@@ -5193,7 +5207,8 @@ function followBuild(status) {
 }
 function pollBuild() {
   if (!project) return;
-  projectApi.buildStatus(project.doc.id).then(followBuild, () => {
+  const id = project.doc.id;
+  projectApi.buildStatus(id).then(status => followBuild(status, id), () => {
     buildView.failures++;
     renderBuild();
     buildTimer = setTimeout(pollBuild, 5000);
@@ -5429,14 +5444,14 @@ async function playFinished() {
   try { playStatus = await playApi.status(); why = playBlocked(playStatus); }
   catch (e) { why = e.message; }
   if (why) { buildView.install = { state: 'failed', message: `Not started: ${why}.` }; renderBuild(); return; }
-  playBuilt(id);
+  playBuilt(id, buildView.status.job.attempt);
 }
 $('buildPlay').onclick = playFinished;
 $('buildPrepare').onclick = () => { closeBuildWindow(); showPrepare('failed', true); };
 // Cancel stops the build and its tools (builds.py); the package swaps in only at the end, so the last good one stays.
 $('buildCancel').onclick = async () => {
   $('buildCancel').disabled = true;
-  try { followBuild(await projectApi.cancelBuild(buildView.status.job.project, buildView.status.job.attempt)); }
+  try { const id = buildView.status.job.project; followBuild(await projectApi.cancelBuild(id, buildView.status.job.attempt), id); }
   catch (e) { buildView.report = `Not cancelled: ${e.message}`; buildView.reportPath = null; renderBuild(); }
   finally { $('buildCancel').disabled = false; }
 };
@@ -5544,7 +5559,9 @@ function followPlayedMission(value) {
   $('mission').value = v;
   $('mission').onchange({ target: $('mission') });
 }
-const builtAsShown = () => Boolean(project) && !dirty() && lastBuild?.package?.revision === project.revision;
+// (the open project's own package, of what is on screen: the same project, not just the same revision number, review
+// finding 10)
+const builtAsShown = () => Boolean(project) && !dirty() && lastBuild?.project === project.doc.id && lastBuild?.package?.revision === project.revision;
 async function refreshInstalls() {
   try { playStatus = await playApi.status(); }
   catch (e) { playStatus = { error: e.message, unavailable: e.status === 404 }; }
@@ -5646,7 +5663,8 @@ async function playChosen(kind, mission = null, saving = false) {
   playMission = mission === null || mission === undefined ? missionPickValue : String(mission);
   playSaving = Boolean(saving);
   followPlayedMission(playMission);
-  if (kind === 'last') { if (builtAsShown()) sendPlay(withZone({ project: project.doc.id }), project.doc.name); return; }
+  // (the build shown, named: a package swapped in since starts nothing, play.py)
+  if (kind === 'last') { if (builtAsShown()) sendPlay(withZone({ project: project.doc.id, buildId: lastBuild.package.buildId }), project.doc.name); return; }
   // save and build it, and play it when that build ends (followBuild)
   playAfterBuild = { project: project.doc.id, attempt: null };
   await buildProject(kind === 'quick');
@@ -5674,10 +5692,11 @@ function landHere() {
 }
 const PLAYED_FOR = 12000;     // ms the "Starting XCOM …" message stays (a failure stays until dismissed)
 // After a build Play in game asked for: the outcome shows in the build window, or in a banner once it's closed.
-async function playBuilt(id) {
+// `attempt`: that build's, so the play starts that package and no other (play.py checks it under its guard).
+async function playBuilt(id, attempt = null) {
   buildView.install = { state: 'running' };
   try {
-    const r = await playApi.start(withZone({ project: id }));
+    const r = await playApi.start(withZone({ project: id, ...(attempt ? { attempt } : {}) }));
     playStatus = r;
     buildView.install = { state: 'done', message: playedMessage(r), saving: Boolean(r.played?.saving) };
   }
@@ -5860,7 +5879,7 @@ function followQueueForProject(state, info) {
   const building = Boolean(mine && (mine.state === 'starting' || mine.state === 'building'));
   const shown = lastBuild?.state === 'running' && lastBuild.job?.origin === 'queue';
   if (building !== shown || info?.ended?.some(i => i.project === id))
-    projectApi.buildStatus(id).then(s => { if (project?.doc.id === id) { lastBuild = s; renderPlayItems(); } }, () => {});
+    projectApi.buildStatus(id).then(s => { if (setLastBuild(id, s)) renderPlayItems(); }, () => {});
 }
 $('queueChip').onclick = () => showProjectManager();
 window.addEventListener('focus', () => buildQueue.refresh());
