@@ -30,7 +30,7 @@ from itertools import product
 from pathlib import Path
 
 # (compiler_tables puts tools/viewer on the path, for export_math, and tools/bake, for the Build's looks, ground
-# shapes, blasts, made floors' cursors and cuts)
+# shapes, blasts, made floors' cursors and cuts, and a made wall's storeys)
 from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, keyable,
                              made_wall_along, short, tidy, union, wall_heights, world_box)
 from export_math import transform
@@ -39,6 +39,7 @@ import ground as ground_shapes
 import made_blasts
 import made_cursors
 import made_split
+import frac_wall     # (loaded already: ground's import loads it)
 
 # A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
 # least this long (tools/bake/frac_walls.py MIN_LENGTH; test_frac_walls checks they agree), and its solid stops
@@ -90,7 +91,6 @@ def wall_look_storeys(wall):
         resolved = looks.resolve('wall', look)
     except looks.LookError:
         return int(wall.get('storeys') or 2), False
-    import frac_wall
     own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
     return max(own), max(own) > 1 and 1 in own
 
