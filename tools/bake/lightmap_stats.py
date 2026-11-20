@@ -12,13 +12,11 @@ support or weaken a reading of the format; they do not establish the decoder.
 """
 import argparse
 import collections
-import io
 import json
 import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))

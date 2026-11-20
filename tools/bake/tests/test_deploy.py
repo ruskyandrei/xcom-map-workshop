@@ -254,13 +254,13 @@ class DeployRestore(unittest.TestCase):
         """Review finding 2: write_checked writes a temporary file beside the config file, reads it back and only then
         replaces the file, so a stop mid-write or a bad read-back leaves the game's file as it was."""
         from unittest import mock
+        import mapsini      # the config writer's own module (review finding 53)
         path = self.cfg / 'DefaultMaps.ini'
         lines = dep.lines_of(self.maps)
         new = lines[:-1] + [b';added', b'']
-        with mock.patch.object(dep.os, 'replace', side_effect=OSError('stopped')):
+        with mock.patch.object(mapsini.os, 'replace', side_effect=OSError('stopped')):
             with self.assertRaises(OSError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
-        import mapsini      # the config writer's own module (review finding 53)
         with mock.patch.object(mapsini, 'lines_of', return_value=[b'not what was written']):
             with self.assertRaises(ValueError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
