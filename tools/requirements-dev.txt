@@ -2,5 +2,10 @@
 # (tools/viewer/tests/browser_*.py), the guide's pictures (take_shots.py), the release's smoke tests and one viewer
 # unit test drive the installed Microsoft Edge through Playwright. The node tests need Node.js (not a pip package).
 #   python -m pip install -r tools/requirements-dev.txt
+# The page's names check (an undefined name or an unused import in tools/viewer/web/*.js; run by hand and by the
+# page's refactor stages, not by run_tests.py) runs ESLint 10.14.0 with the globals package 17.14.0 (both pinned in
+# the script) through npx. It needs Node.js with npm and npx; its first run installs them into .scratch/eslint (Git
+# ignores it; never a node_modules in the repository), which needs the network:
+#   python tools/viewer/tests/web_names.py
 -r viewer/requirements.txt
 playwright==1.64.1
