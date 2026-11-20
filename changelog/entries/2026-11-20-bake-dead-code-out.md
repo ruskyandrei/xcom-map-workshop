@@ -17,7 +17,8 @@ search over the repository, its tests, the research notes and the experiment scr
 - **The unused imports** in `frac_walls`, `test_faster_bake`, `test_gen_mesh`, `audit_clear`, `check_depends`,
   `map_picture` and `world_links`.
 - **Test-only code out of the product:** `native_copy.add_tiles` (its test calls `add_tiles_box` with the piece's
-  box, which is what it did). `map_frame.read_picture` and `cover_blocks.breaking_digest` moved into their tests.
+  box, which is what it did). `map_frame.read_picture` and `cover_blocks.breaking_digest` moved into their tests (the editor's
+  Build test of the picture reads it through `map_frame.locate` itself).
   `transplant.oracle` and `cook_noise` moved into
   [test_transplant.py](../../tools/bake/tests/test_transplant.py), which is what uses them; `XCOM_TRANSPLANT_RING`
   still runs the oracle over every pair.
