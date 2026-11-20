@@ -12,13 +12,11 @@ from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import outputnames as names  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from fixtures import record  # noqa: E402
-from viewer_fixtures import ID, OTHER, document  # noqa: E402
+from viewer_fixtures import ID, OTHER, document, record  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 THIRD = '2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e'

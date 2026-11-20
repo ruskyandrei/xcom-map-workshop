@@ -18,7 +18,6 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import gamemaps  # noqa: E402
@@ -28,8 +27,7 @@ import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
 import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
-from fixtures import record  # noqa: E402
-from viewer_fixtures import ID, document  # noqa: E402
+from viewer_fixtures import ID, document, record  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))

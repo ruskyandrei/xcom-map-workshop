@@ -16,7 +16,6 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import gamemaps  # noqa: E402

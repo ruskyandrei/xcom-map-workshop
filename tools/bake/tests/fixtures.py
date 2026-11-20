@@ -1,22 +1,15 @@
-"""Records and helpers the bake tests share (review finding 58): kept here, not in a test module, so a suite that
-needs one (the viewer's manager, play and output-name tests) imports no other suite's tests. What a helper needs of
-tools/bake it imports when it runs, so a suite that only reads a record loads none of it."""
+"""Records and helpers the bake tests share (review finding 58): kept here, not in a test module, so that no test
+imports another. The records more than one suite shares come from their one home, tools/tests/shared_fixtures.py.
+What a helper needs of tools/bake it imports when it runs."""
 import contextlib
 from pathlib import Path
+import sys
 import tempfile
 import traceback
 
 HERE = Path(__file__).resolve().parent
-RECORDS = HERE.parents[1] / 'patch' / 'tests' / 'defaultmaps-records.txt'
-
-
-def record(name):
-    """The game's DefaultMaps.ini record of the map `name` (bar, templeship...), from
-    tools/patch/tests/defaultmaps-records.txt."""
-    for line in RECORDS.read_bytes().split(b'\n'):
-        if line.startswith(name.encode() + b'\t'):
-            return line.split(b'\t', 1)[1]
-    raise KeyError(name)
+sys.path.insert(0, str(HERE.parents[1] / 'tests'))
+from shared_fixtures import minimal_mesh, record  # noqa: E402,F401  (the records every suite shares)
 
 
 class SharedBuild:

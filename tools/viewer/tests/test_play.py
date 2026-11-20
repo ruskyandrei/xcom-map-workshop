@@ -17,7 +17,6 @@ from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 from builds import BuildRunner  # noqa: E402
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
@@ -27,8 +26,7 @@ import missions  # noqa: E402
 from play import Player  # noqa: E402
 import playsaves  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from fixtures import record  # noqa: E402
-from viewer_fixtures import ID, OTHER, document  # noqa: E402
+from viewer_fixtures import ID, OTHER, document, record  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 VARIANT = 'URB_Bar_Remix_0f8b'

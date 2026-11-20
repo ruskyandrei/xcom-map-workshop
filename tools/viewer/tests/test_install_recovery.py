@@ -10,7 +10,6 @@ from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture  # noqa: E402
 import mapsini as dep  # noqa: E402
