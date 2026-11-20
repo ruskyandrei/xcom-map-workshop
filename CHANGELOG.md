@@ -8,6 +8,31 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 20 November 2026
 
+### Whole-editor review: a second review merged into the cleanup plan
+
+The private cleanup plan now holds 65 findings: the first review's 25, each with a note of what a second review
+found at the same place, and 40 new ones. Nothing in the tools was changed.
+
+- The second review read the code area by area: the [server](tools/viewer/viewer.py) and what it does in the game
+  folder ([installs](tools/viewer/installs.py)), the [exporter](tools/viewer/export.py), the
+  [page](tools/viewer/web/app.js) and its modules, the [compiler](tools/editor/compiler.py) and the
+  [Build](tools/editor/build.py), the [bake tools](tools/bake/native_copy.py), the
+  [package tools](tools/upk/package_edit.py), and the tests, release tooling and documents.
+- The new findings that come first: removing maps from the game can leave a record without its package; a build
+  fails when a folder's name holds a character the system code page lacks; a made wall's break group does not reach
+  the [copy tool](tools/bake/native_copy.py) through its command line; a property whose name is new to a map stops
+  the next walk over it (a copy with its mouse flag off on three maps, some light changes); and the server's static
+  route resolves an absolute or network path before it refuses it.
+- The rest covers what else the Build and the page get wrong at the edges, the package code written several times,
+  product code in modules named as audits and fixtures, rules written on both sides with no shared test, dead code,
+  and documents that have fallen behind.
+- How it was checked: the main findings were read again in the code, and six were reproduced with short read-only
+  scripts (the walker on two installed maps, the encoding probe, six malformed records, a floor that is all holes,
+  the static route's path join, the landing-zone name pattern). Every suite had passed on 19 November: 1,781
+  Python tests and 21 node files.
+- Not done: no game, browser or installer was started, and the relight's and the grower's costs are read from the
+  code, not timed on a real build.
+
 ### Editor rule for snapping and plan for continuous sizing
 
 - Added the [editor snap rule](AGENTS.md) for movement, sizing and rotation on every axis in map and prefab editing.
