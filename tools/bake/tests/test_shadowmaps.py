@@ -84,6 +84,135 @@ class Field(unittest.TestCase):
         self.assertTrue((delta <= 1e-12).all())            # a new shadow only darkens
 
 
+def old_signed_distance(g, light, transition=sm.TRANSITION, only=None):
+    """shadowmaps.signed_distance as it was before the editor refactor's stage B6: a search from every to-do
+    sub-sample through every offset of the window, the window's masks grown by a dilation by the whole box. The
+    reference its rewrite gives bit for bit."""
+    from scipy import ndimage
+    covered, world = g['covered'], g['world']
+    H, W = g['shape']
+    reach = sm.reach_of(g, transition)
+    shadowed, lit_ = covered & ~light, covered & light
+    box = np.ones((2 * reach + 1, 2 * reach + 1), bool)
+    near_shadow = ndimage.binary_dilation(shadowed, box) if shadowed.any() else np.zeros_like(covered)
+    near_light = ndimage.binary_dilation(lit_, box) if lit_.any() else np.zeros_like(covered)
+    todo = (lit_ & near_shadow) | (shadowed & near_light)
+    if only is not None:
+        todo &= only
+    ty, tx = np.nonzero(todo)
+    best = np.full(len(ty), np.inf)
+    best_steps = np.ones(len(ty))
+    if len(ty):
+        tw = world[ty, tx]
+        mine = light[ty, tx]
+        pad = reach
+        cov_p = np.pad(covered, pad)
+        light_p = np.pad(light, pad)
+        world_p = np.pad(world, ((pad, pad), (pad, pad), (0, 0)), constant_values=np.nan)
+        for dy in range(-reach, reach + 1):
+            for dx in range(-reach, reach + 1):
+                if not dy and not dx:
+                    continue
+                oy, ox = ty + dy + pad, tx + dx + pad
+                other = cov_p[oy, ox] & (light_p[oy, ox] != mine)
+                if not other.any():
+                    continue
+                dist = np.where(other, np.linalg.norm(world_p[oy, ox] - tw, axis=1), np.inf)
+                closer = dist < best
+                best[closer] = dist[closer]
+                best_steps[closer] = max(abs(dy), abs(dx))
+    d = np.full((H, W), 2 * transition)
+    d[ty, tx] = np.minimum(best * (1 - 1 / (2 * best_steps)), 2 * transition)
+    return np.where(light, d, -d)
+
+
+def made_up_grid(rng, case):
+    """A made-up sub-sample grid, its light and an `only` mask (or None), for the search against the old one: whole
+    units (many equal distances), stretched texels with a second island beside the first, a bent and noisy surface,
+    or coarse steps in height; holes; light scattered, cut by a line or with one shadowed block; every seventh case
+    keeps light on uncovered sub-samples too."""
+    H, W = int(rng.integers(1, 33)), int(rng.integers(1, 33))
+    py, px = np.mgrid[0:H, 0:W]
+    kind = case % 4
+    if kind == 0:
+        world = np.stack([px * 1.0, py * 1.0, np.zeros((H, W))], -1)
+    elif kind == 1:
+        world = np.stack([px * 3.0, py * 0.5, np.zeros((H, W))], -1)
+        world[H // 2:, :, 1] += 1000.0
+    elif kind == 2:
+        world = np.stack([px * 2.0, py * 2.0, np.sin(px / 3.0) * 4.0], -1) + rng.normal(0, 0.3, (H, W, 3))
+    else:
+        world = np.stack([px * 4.0, py * 4.0, rng.integers(0, 3, (H, W)) * 4.0], -1)
+    covered = rng.random((H, W)) < rng.uniform(0.3, 1.0)
+    world[~covered] = np.nan
+    pattern = case % 3
+    if pattern == 0:
+        light = rng.random((H, W)) < rng.uniform(0.1, 0.9)
+    elif pattern == 1:
+        light = (px * rng.normal() + py * rng.normal()) > rng.normal() * W
+    else:
+        light = np.ones((H, W), bool)
+        y0, x0 = int(rng.integers(0, H)), int(rng.integers(0, W))
+        light[y0:y0 + int(rng.integers(1, 12)), x0:x0 + int(rng.integers(1, 12))] = False
+    if case % 7:
+        light &= covered
+    only = None
+    if case % 5 == 0:
+        only = rng.random((H, W)) < 0.5
+    elif case % 5 == 1:
+        only = np.zeros((H, W), bool)
+        only[:H // 2] = True
+    g = dict(covered=covered, world=world, shape=(H, W),
+             spacing=[float(rng.choice([1.0, 2.0, 3.0, 4.0])), float(rng.choice([1.0, 2.0, 4.0]))])
+    return g, light, float(rng.choice([2.0, 5.0, 10.0])), only
+
+
+class SearchAsBefore(unittest.TestCase):
+    """The distance search (signed_distance and its nearest_across) gives the old search's answer bit for bit."""
+
+    def assertSame(self, got, want, msg=None):
+        self.assertEqual(got.dtype, want.dtype, msg)
+        self.assertTrue(np.array_equal(got, want), '%s: differs at %s' % (msg, np.argwhere(got != want)[:4].tolist()))
+
+    def test_made_up_grids_give_the_old_answer(self):
+        rng = np.random.default_rng(20261120)
+        for case in range(40):
+            g, light, transition, only = made_up_grid(rng, case)
+            self.assertSame(sm.signed_distance(g, light, transition, only),
+                            old_signed_distance(g, light, transition, only), 'case %d' % case)
+
+    def test_of_equal_distances_the_first_offset_in_raster_order_gives_the_steps(self):
+        # a lit sub-sample with two shadowed ones 5 units away: at (+3, +4), 4 steps, and at (+5, 0), 5 steps; the
+        # first in raster order (dy first) is (+3, +4), so the distance is 5 less half of a fourth: 4.375
+        py, px = np.mgrid[0:24, 0:24]
+        world = np.stack([px * 1.0, py * 1.0, np.zeros((24, 24))], -1)
+        only = np.zeros((24, 24), bool)
+        only[10, 10] = True
+        # with six more lit ones beside the shadowed two, the lit side is the larger: the search starts from the
+        # shadowed ones and finds the lit one, which meets its offsets in reverse order
+        for more_lit in (False, True):
+            covered = np.zeros((24, 24), bool)
+            covered[10, 10] = covered[13, 14] = covered[15, 10] = True
+            light = np.zeros((24, 24), bool)
+            light[10, 10] = True
+            if more_lit:
+                covered[16, 9:12] = covered[16, 13:16] = light[16, 9:12] = light[16, 13:16] = True
+            g = dict(covered=covered, world=world, shape=(24, 24), spacing=[1.0, 1.0])
+            d = sm.signed_distance(g, light, 10.0, only)
+            self.assertEqual(d[10, 10], 4.375, more_lit)
+            self.assertSame(d, old_signed_distance(g, light, 10.0, only), more_lit)
+            self.assertSame(sm.signed_distance(g, light, 10.0), old_signed_distance(g, light, 10.0), more_lit)
+
+    def test_near_is_the_dilation_by_the_whole_box(self):
+        from scipy import ndimage
+        rng = np.random.default_rng(7)
+        for case in range(12):
+            m = rng.random((int(rng.integers(1, 70)), int(rng.integers(1, 70)))) < [0.002, 0.05, 0.5][case % 3]
+            reach = int(rng.integers(1, sm.MAX_REACH + 1))
+            want = ndimage.binary_dilation(m, np.ones((2 * reach + 1, 2 * reach + 1), bool))
+            self.assertSame(sm.near(m, reach), want, 'case %d' % case)
+
+
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class BarShadowMaps(unittest.TestCase):
     @classmethod
