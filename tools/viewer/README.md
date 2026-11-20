@@ -851,8 +851,9 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - The project names its pieces by package, level and actor, never by short name.
   - It binds to the map's SHA-256. A project made on a different package says so.
   - Edits naming pieces this export lacks are kept and saved back unchanged; the import notes count them.
-- **Unsaved changes** are kept on the server a second after each change (never half a drag). Reopening offers them
-  back: **Restore them** or **Discard them**.
+- **Unsaved changes** are kept on the server a second after each change (never half a drag), in a draft of the page's
+  own: two tabs keep one each, and each deletes only its own. Reopening offers back the newest: **Restore them** or
+  **Discard them** (which offers the next).
 - **A save based on an older revision** is refused, for example when another tab saved first. The banner offers to
   overwrite it or open the saved one.
 - **Leaving with unsaved changes:** the browser asks before leaving, and before switching map or layout or loading
@@ -868,7 +869,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     - Two files with one project id (a copy made beside it): the newest revision is the project. The other is listed
       greyed out as a copy.
   - What stays on this computer is kept by project id in the hidden `.workshop` folder beside them:
-    `.workshop\<id>\project.prev.json` (the revision before) and `recovery.json`.
+    `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
+    changes (`recovery.json` from before 20 November 2026).
   - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
     first time the server reads the folder.
   - Saves are atomic.

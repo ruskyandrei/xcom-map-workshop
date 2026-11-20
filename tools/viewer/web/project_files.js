@@ -30,11 +30,23 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
   // ({ key, result } or { key, error }); asked again as the name changes, an answer for an older name thrown away.
   // Save waits for the answer for what is typed now.
   let preview = null, asked = 0, previewTimer = null;
+  // A save that fails leaves the dialog open, and whoever waits for it (a map or prefab change) waits on: the next
+  // Save that succeeds goes on with it, Cancel calls it off (review finding 34).
   async function saveAndClose(request) {
     els.ok.disabled = true;
     try { const saved = await onSave(request); close(Boolean(saved)); }
     catch (error) {
-      say(`Not saved: ${error.message}`); completion?.(false); completion = null;
+      // the project replaced was saved again since the question showed it (review finding 4): asked again, with
+      // its revision now
+      if (request.target && error.status === 409 && Number.isInteger(error.detail?.revision)) {
+        await refresh();
+        const fresh = projects.find(p => p.id === request.target.id && !p.error);
+        if (fresh) {
+          confirmReplace(fresh, request.name, `It was saved again meanwhile, from another window or tab.`);
+          return;
+        }
+      }
+      say(`Not saved: ${error.message}`);
       // the name shown was taken meanwhile: the one it would get now, for the next Save
       const proposal = error.detail?.proposal;
       if (proposal?.output && !request.target) { preview = { key: previewKey(), result: { fresh: true, notes: [], conflicts: [], ...proposal } }; showOutput(); }
@@ -173,10 +185,12 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     choose(match?.id ?? null, false);
   }
   function hideConfirm() { els.confirm.hidden = true; els.confirm.replaceChildren(); }
-  function confirmReplace(target, name) {
+  // Replace saves over the revision shown here and no other (app.js saveProject takes target.revision as the one
+  // expected).
+  function confirmReplace(target, name, note = null) {
     els.confirm.replaceChildren();
     const message = document.createElement('div');
-    message.textContent = `“${target.name}” already exists (revision ${target.revision}, saved ${savedWhen(target.savedAt)}). `
+    message.textContent = `${note ? `${note} ` : ''}“${target.name}” already exists (revision ${target.revision}, saved ${savedWhen(target.savedAt)}). `
       + 'Replace it with what is on screen? It keeps its map name, and its revision before is kept as a backup.';
     const yes = document.createElement('button'), no = document.createElement('button');
     Object.assign(yes, { type: 'button', textContent: 'Replace', className: 'primary' });

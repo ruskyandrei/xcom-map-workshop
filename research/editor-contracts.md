@@ -248,7 +248,8 @@ summary counts `effects`, `sounds` and `flares`.
   | --- | --- |
   | `<name>.json` | the saved document |
   | `.workshop\<id>\project.prev.json` | the revision before it |
-  | `.workshop\<id>\recovery.json` | unsaved state; removed by the next save |
+  | `.workshop\<id>\recovery-<owner>.json` | unsaved state of one page session (`owner`: the id the page makes as it loads); removed when that page saves or discards, or when another page restores or discards it |
+  | `.workshop\<id>\recovery.json` | the same, kept before drafts had owners (20 November 2026) |
 
   - **The file name** is the project's name with the characters Windows forbids (`<>:"/\|?*` and control characters)
     replaced by `_`, no leading or trailing dots or spaces, and `_` before a device name (`CON`, `NUL`, `COM1`...).
@@ -270,10 +271,14 @@ summary counts `effects`, `sounds` and `flares`.
   current revision); the viewer offers to overwrite it or open the saved one. Two tabs therefore cannot silently
   overwrite each other.
 - **Recovery:**
-  - The viewer keeps unsaved changes in `recovery.json` a second after each change. It never does so in the middle of
-    a drag.
-  - On opening, it offers them back ("Restore them", "Discard them"), saying when they were kept and which revision
-    they were based on.
+  - The viewer keeps unsaved changes a second after each change, in a draft of its own page session. It never does so
+    in the middle of a drag. A draft based on an older revision than the saved one (another tab saved meanwhile) is
+    kept too, answered as stale, and the page says so once. A draft write that fails is said in the page.
+  - A page deletes only its own draft (on saving, discarding or leaving) and a draft it showed: two tabs never delete
+    each other's (review finding 3, 20 November 2026).
+  - On opening, it offers back the newest draft ("Restore them", "Discard them"), saying when it was kept, the
+    revision it was based on when that is older, and how many more are kept. Restoring makes it this page's own;
+    Discard deletes it while it is still the one shown, and offers the next.
   - Undo history is not saved. Opening or restoring starts a fresh history.
 - **Routes** (in [viewer.py](../tools/viewer/viewer.py)):
 
@@ -282,8 +287,10 @@ summary counts `effects`, `sounds` and `flares`.
   | `GET /projects.json` | lists the projects |
   | `GET /projects/<id>/project.json` | opens one |
   | `PUT /projects/<id>/project.json` with `{expectedRevision, document}` | saves |
-  | `GET /projects/<id>/recovery.json` | the kept state, or null |
-  | `PUT` / `DELETE /projects/<id>/recovery.json` | keeps or drops it |
+  | `PUT /projects/<id>/project.json` also takes `owner` | the page session saving: its draft goes |
+  | `GET /projects/<id>/recovery.json` | the newest draft (`owner`, `others`), or null |
+  | `PUT /projects/<id>/recovery.json` with `{owner, baseRevision, ...}` | keeps that page's draft: `{revision, stale}` |
+  | `DELETE /projects/<id>/recovery.json?owner=<id>[&savedAt=<time>]` | that draft alone (a blank owner: the owner-less one), with `savedAt` only while it is still that one: `{dropped}` |
 - **Safety of changes.** Changes are accepted only with JSON bodies and only from the viewer's own page: a loopback
   `Host` and a matching `Origin` when the browser sends one. Ids must be UUIDs, and file names come from the
   sanitised project name inside the folder, so no path can leave the projects folder.
@@ -362,10 +369,10 @@ replace a different prefab after confirmation, keeping that target's id and leav
 It cannot replace the open prefab itself. A conflict offers overwrite or open saved. Dirty state uses stable
 working content, not normalized coordinates or newly allocated identities.
 
-`GET`, `PUT` and `DELETE /prefabs/<id>/recovery.json` use the atomic recovery file. PUT accepts
-`{baseRevision, document, envelope, nextSerial}`: the complete document in working coordinates, the conservative
-missing-geometry envelope (or null), and allocation state. Validation checks the full reference graph; stale
-base revisions are refused. Client writes are ordered, and saves/discards wait for pending writes before clearing
+`GET`, `PUT` and `DELETE /prefabs/<id>/recovery.json` keep drafts as projects do, one per page session. PUT accepts
+`{owner, baseRevision, document, envelope, nextSerial}`: the complete document in working coordinates, the
+conservative missing-geometry envelope (or null), and allocation state. Validation checks the full reference graph;
+a stale base revision is kept and answered as stale (refused until 20 November 2026), a newer one refused. Client writes are ordered, and saves/discards wait for pending writes before clearing
 recovery. Opening a map, project or prefab asks Save/Discard/Cancel; failed, conflicting or cancelled saves retain
 the current scene. Approved navigation suppresses the browser's duplicate prompt; reload/tab close still use it.
 New unnamed prefabs acquire recovery after their first save.

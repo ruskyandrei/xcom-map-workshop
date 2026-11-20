@@ -5,6 +5,8 @@
 // a selection and a clip to place of a prefab.
 // 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`: effects and
 // sounds plan, stage FX6a; a lens flare is one more kind since FX6b). A prefab of schema 1 or 2 opens, and saves as 3.
+import { draftQuery } from './project.js';
+
 export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 3;
 export const TILE = 96, STOREY = 64;
 
@@ -21,13 +23,17 @@ export const api = {
   load: id => call('GET', `${at(id)}/prefab.json`),
   size: document => call('POST', '/prefabs/size', { document }),
   recoverSources: document => call('POST', '/prefabs/recover-sources', { document }),
+  // drafts for recovery, one per page session, as projects keep theirs (project.js api)
   recovery: id => call('GET', `${at(id)}/recovery.json`),
   keepRecovery: (id, state) => call('PUT', `${at(id)}/recovery.json`, state),
-  dropRecovery: id => call('DELETE', `${at(id)}/recovery.json`),
-  save: (id, document, expectedRevision) => call('PUT', `${at(id)}/prefab.json`, { expectedRevision, document }),
+  dropRecovery: (id, owner, savedAt = null) => call('DELETE', `${at(id)}/recovery.json?${draftQuery(owner, savedAt)}`),
+  // extra: { owner }, the page session saving (its draft goes)
+  save: (id, document, expectedRevision, extra = {}) => call('PUT', `${at(id)}/prefab.json`, { expectedRevision, document, ...extra }),
   remove: id => call('DELETE', `${at(id)}/prefab.json`),
-  // a file from elsewhere; clash: what to do when the library has its id already (null asks: a 409 with `clash`)
-  importFile: (document, clash = null) => call('POST', '/prefabs/import', { document, clash }),
+  // a file from elsewhere; clash: what to do when the library has its id already (null asks: a 409 with `clash`);
+  // 'replace' names the revision the user was shown (expectedRevision): one saved since is a clash again
+  importFile: (document, clash = null, expectedRevision = null) =>
+    call('POST', '/prefabs/import', { document, clash, ...(expectedRevision === null ? {} : { expectedRevision }) }),
   picture: (id, revision) => `${at(id)}/picture.png?r=${revision}`,
   putPicture: (id, blob) => fetch(`${at(id)}/picture.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob }),
   // many pieces of other maps exported at once, each map opened once (a prefab's first use)
@@ -181,20 +187,23 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
     catch (error) { fail('Not deleted', error); }
     refresh();
   }
-  // A file from elsewhere: checked by the server; one whose id is here already asks what to do.
-  async function importDocument(doc, clash = null) {
+  // A file from elsewhere: checked by the server; one whose id is here already asks what to do. Replace replaces the
+  // revision the question showed (review finding 4): one saved meanwhile asks again, with its revision now.
+  async function importDocument(doc, clash = null, revision = null) {
     try {
-      const taken = await api.importFile(doc, clash);
+      const taken = await api.importFile(doc, clash, clash === 'replace' ? revision : null);
       note('');
       hint(taken.replaced ? `Replaced ${taken.name} with the file (revision ${taken.revision})` : `Imported ${taken.name}`);
     } catch (error) {
       const here = error.detail?.clash;
       if (error.status !== 409 || !here) { note(`Not imported. ${error.message}`, dismiss()); return; }
       const replace = el('button', { type: 'button', textContent: 'Replace it' }), both = el('button', { type: 'button', textContent: 'Keep both' });
-      replace.title = 'The file is saved over the prefab here, as its next revision (the one before is kept)';
+      replace.title = `The file is saved over revision ${here.revision} of the prefab here, as its next revision (the one before is kept)`;
       both.title = 'The file is stored as a prefab of its own, with "(imported)" after its name';
-      replace.onclick = () => importDocument(doc, 'replace'); both.onclick = () => importDocument(doc, 'copy');
-      note(`The library already has this prefab, as “${here.name}” (revision ${here.revision}).`, el('div', { className: 'row' }, replace, both, dismiss('Cancel')));
+      replace.onclick = () => importDocument(doc, 'replace', here.revision); both.onclick = () => importDocument(doc, 'copy');
+      const again = error.detail?.changed ? `It was saved again meanwhile. ` : '';
+      note(`${again}The library already has this prefab, as “${here.name}” (revision ${here.revision}).`, el('div', { className: 'row' }, replace, both, dismiss('Cancel')));
+      refresh();
       return;
     }
     refresh();

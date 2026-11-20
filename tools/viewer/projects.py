@@ -4,7 +4,10 @@ One file per project in the projects folder, named after the project, so a proje
 
     Bar remix.json                       the saved document (any name ending .json is read; the id inside is what counts)
     .workshop\\<id>\\project.prev.json     the revision before it, kept by every save
-    .workshop\\<id>\\recovery.json         unsaved state the browser autosaves; removed by the next save
+    .workshop\\<id>\\recovery-<owner>.json unsaved state a page autosaves, one file per page session (`owner`, the id
+                                         the page made when it loaded); removed when that session saves or discards,
+                                         or when the user restores or discards it from another page
+    .workshop\\<id>\\recovery.json         the same, kept before drafts had owners (an older editor's)
 
 `.workshop` (hidden on Windows) keeps what stays on this computer, by project id, so renaming or moving a project's file
 keeps its backup and recovery. A save writes the file the project's name gives (`<name>.json`, characters Windows
@@ -49,6 +52,14 @@ class ProjectError(Exception):
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+
+def draft_query(query):
+    """A DELETE of a draft's address query (parse_qs with blank values kept): (owner, savedAt). `owner` must be said
+    (blank: the draft kept before drafts had owners), so no page deletes drafts it can't name."""
+    if 'owner' not in query: raise ProjectError(400, 'Say whose kept changes to discard (?owner=).')
+    owner = query['owner'][0] or None
+    return owner, (query.get('savedAt') or [None])[0]
 
 
 def check_schema(document, writing=False):
@@ -164,7 +175,7 @@ class ProjectStore:
         source = document.get('source') or {}
         return dict(id=document['id'], name=document.get('name'), map=source.get('map'), file=path.name,
                     revision=document.get('revision'), savedAt=document.get('savedAt'),
-                    recovery=(self.state(document['id']) / 'recovery.json').is_file())
+                    recovery=bool(self._drafts(document['id'])))
 
     def __init__(self, root, names=None):
         """names: what checks a new project's output names as it saves (outputnames.Service; the server's), or None
@@ -347,11 +358,14 @@ class ProjectStore:
         self.check(document)
         return document
 
-    def save(self, project_id, document, expected):
-        """Write the next revision if `expected` is the current one (0 for a new project); returns it."""
+    def save(self, project_id, document, expected, owner=None):
+        """Write the next revision if `expected` is the current one (0 for a new project); returns it. `owner`: the
+        page session saving, whose draft for recovery the save holds now and so removes (other sessions' stay)."""
         self.check_id(project_id)
         self.validate(document, project_id)
-        if not isinstance(expected, int) or expected < 0: raise ProjectError(400, 'expectedRevision must be a whole number.')
+        if not isinstance(expected, int) or isinstance(expected, bool) or expected < 0:
+            raise ProjectError(400, 'expectedRevision must be a whole number.')
+        if owner is not None: self._draft_path(project_id, owner)      # (checked before anything is written)
         with self.lock:
             current_path = self._find(project_id)
             current = self._read(current_path) if current_path else None
@@ -374,19 +388,89 @@ class ProjectStore:
                 if same_path(target, current_path) and target.name != current_path.name: os.replace(current_path, target)
             self._write(target, document)
             if current_path is not None and not same_path(current_path, target): current_path.unlink(missing_ok=True)
-            (self.state(project_id) / 'recovery.json').unlink(missing_ok=True)
+            if owner is not None:
+                try: self._draft_path(project_id, owner).unlink(missing_ok=True)
+                except OSError: pass        # (saved all the same: the draft is offered once more, then discarded)
             self.paths[project_id] = target
             return dict(revision=document['revision'], savedAt=document['savedAt'], created=document['created'],
                         file=target.name)
 
+    # ------------------------------------------------------------------ drafts kept for recovery (review finding 3)
+    # Each page session keeps its own draft (`owner`: the id the page made when it loaded), so two pages editing one
+    # project never write over or delete each other's. A page deletes only its own draft (on saving, discarding or
+    # leaving), or the one it showed the user and the user restored or discarded (by its owner and time). A draft
+    # based on an older revision than the saved one (another page saved meanwhile) is kept too, and said to be stale.
+
+    def _draft_path(self, project_id, owner):
+        """The file of `owner`'s draft (None: the one kept before drafts had owners)."""
+        state = self.state(project_id)
+        if owner is None: return state / 'recovery.json'
+        if not isinstance(owner, str) or not ID.fullmatch(owner):
+            raise ProjectError(400, 'A draft\'s owner is the id of the page session that keeps it.')
+        return state / f'recovery-{owner}.json'
+
+    def _drafts(self, project_id):
+        """[(file, owner or None)]: the drafts kept for the project."""
+        state = self.state(project_id)
+        try: names = os.listdir(state)
+        except OSError: return []
+        found = []
+        for name in sorted(names):
+            if name == 'recovery.json': found.append((state / name, None))
+            elif name.startswith('recovery-') and name.endswith('.json') and ID.fullmatch(name[9:-5]):
+                found.append((state / name, name[9:-5]))
+        return found
+
     def recovery(self, project_id):
-        return self._read(self.state(project_id) / 'recovery.json')
+        """The newest draft kept for the project, with its `owner` (null: kept before drafts had owners) and `others`
+        (how many more are kept), or None. A draft that can't be read is passed over."""
+        drafts = []
+        for path, owner in self._drafts(project_id):
+            try: state = self._read(path)
+            except ProjectError: continue
+            if isinstance(state, dict): drafts.append(dict(state, owner=owner))
+        if not drafts: return None
+        drafts.sort(key=lambda d: str(d.get('savedAt') or ''), reverse=True)
+        return dict(drafts[0], others=len(drafts) - 1)
+
+    def _stale(self, project_id, state):
+        """{revision, stale}: the saved revision and whether the draft is based on an older one (refused when it is
+        based on a newer one, which no page has)."""
+        current = self.load(project_id).get('revision', 0)
+        base = state.get('baseRevision')
+        if base is None: return dict(revision=current, stale=False)
+        if not isinstance(base, int) or isinstance(base, bool) or base < 0:
+            raise ProjectError(422, 'A draft\'s baseRevision is a whole number.')
+        if base > current:
+            raise ProjectError(409, f'This draft is based on revision {base}; the {self.noun} is at revision {current}.',
+                               revision=current)
+        return dict(revision=current, stale=base < current)
 
     def save_recovery(self, project_id, state):
+        """Keeps a page session's draft (`state.owner`: the session; none: the owner-less file). Answers {ok,
+        revision, stale}."""
         if not isinstance(state, dict): raise ProjectError(422, 'Recovery state must be an object.')
+        path = self._draft_path(project_id, state.get('owner'))
         with self.lock:
             if self._find(project_id) is None: raise ProjectError(404, f'No such {self.noun}.')
-            self._write(self._state_folder(project_id) / 'recovery.json', dict(state, savedAt=now()))
+            answer = self._stale(project_id, state)
+            self._state_folder(project_id)
+            self._write(path, dict(state, savedAt=now()))
+            return dict(answer, ok=True)
 
-    def drop_recovery(self, project_id):
-        with self.lock: (self.state(project_id) / 'recovery.json').unlink(missing_ok=True)
+    def drop_recovery(self, project_id, owner=None, saved_at=None):
+        """Deletes `owner`'s draft (None: the owner-less one), and only while it is still the one kept at `saved_at`
+        when that is given (a draft the user was shown, and that its page may have kept again since). Answers
+        {dropped}."""
+        path = self._draft_path(project_id, owner)
+        with self.lock:
+            if saved_at is not None:
+                try: kept = self._read(path)
+                except ProjectError: kept = None
+                if not isinstance(kept, dict) or kept.get('savedAt') != saved_at: return dict(dropped=False)
+            try:
+                if not path.is_file(): return dict(dropped=False)
+                path.unlink()
+            except OSError as error:
+                raise ProjectError(500, f'The kept changes could not be discarded: {error}')
+            return dict(dropped=True)

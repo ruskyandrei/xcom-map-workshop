@@ -101,25 +101,33 @@ class BuilderRoutes(unittest.TestCase):
         self.assertEqual(set(table['lightRecipes']), {'point', 'spot'})
         self.assertIsNone(table['exportProblem'])
 
-    def test_complete_recovery_and_stale_write_rejected(self):
+    def test_complete_recovery_and_stale_write_kept_as_stale(self):
         doc = fixtures.prefab()
         self.store.save(fixtures.ID, doc, 0)
         # Working coordinates, mixed groups and unresolved recipes survive; no size cap on recovery.
         doc['pieces'][0]['location'] = [-40000, 0, -64]
         doc['floor']['tiles'] = [800, 8]
-        state = dict(baseRevision=1, document=doc, nextSerial=100, envelope=[-40000, 0, 0, 768, 576, 0])
+        page, other = 'aaaaaaaa-0000-4000-8000-00000000000a', 'bbbbbbbb-0000-4000-8000-00000000000b'
+        state = dict(owner=page, baseRevision=1, document=doc, nextSerial=100, envelope=[-40000, 0, 0, 768, 576, 0])
         route = f'/prefabs/{fixtures.ID}/recovery.json'
-        self.assertEqual(self.call('PUT', route, state)[0], 200)
+        self.assertEqual(self.call('PUT', route, state), (200, dict(ok=True, revision=1, stale=False)))
         status, kept = self.call('GET', route)
         self.assertEqual(status, 200)
         self.assertEqual(kept['document'], doc); self.assertEqual(kept['envelope'], state['envelope'])
+        self.assertEqual((kept['owner'], kept['others']), (page, 0))
         self.assertEqual(self.call('PUT', route, state, {'Origin': 'http://evil.example'})[0], 403)
-        self.store.save(fixtures.ID, fixtures.prefab(), 1)
-        self.assertEqual(self.call('PUT', route, state)[0], 409)
+        # another page saves (review finding 3): this page's draft stays, and its next one is kept as stale
+        self.store.save(fixtures.ID, fixtures.prefab(), 1, owner=other)
+        self.assertEqual(self.call('GET', route)[1]['owner'], page)
+        self.assertEqual(self.call('PUT', route, state), (200, dict(ok=True, revision=2, stale=True)))
+        self.assertEqual(self.call('PUT', route, dict(state, baseRevision=3))[0], 409)
+        self.assertEqual(self.call('DELETE', route)[0], 400)
+        self.assertEqual(self.call('DELETE', route + f'?owner={other}'), (200, dict(dropped=False)))
+        self.assertEqual(self.call('DELETE', route + f'?owner={page}'), (200, dict(dropped=True)))
         self.assertIsNone(self.call('GET', route)[1])
-        self.assertEqual(self.call('DELETE', route)[0], 200)
         bad = copy.deepcopy(state); bad['document']['pieces'][0]['location'][0] = float('nan')
         self.assertEqual(self.call('PUT', route, bad)[0], 422)
+        self.assertEqual(self.call('PUT', route, dict(state, owner='../x'))[0], 400)
 
     def test_building_only_save_and_old_oversized_import(self):
         doc = fixtures.prefab(pieces=[], groups=[])

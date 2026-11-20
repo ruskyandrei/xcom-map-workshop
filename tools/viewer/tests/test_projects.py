@@ -18,6 +18,9 @@ from viewer import Handler, LocalServer
 
 ID = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'
 OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d'
+# page sessions (the id each page makes as it loads)
+PAGE_A, PAGE_B, PAGE_C = ('aaaaaaaa-0000-4000-8000-00000000000a', 'bbbbbbbb-0000-4000-8000-00000000000b',
+                          'cccccccc-0000-4000-8000-00000000000c')
 
 
 def document(project_id=ID, **changes):
@@ -121,8 +124,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in b.iterdir()), ['my notes.txt'])     # anything else in it stays
         self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
         self.assertEqual(json.loads((self.root / '.workshop' / ID / 'project.prev.json').read_text(encoding='utf8'))['note'], 'project.prev.json')
-        self.assertEqual(self.store.save(ID, document(), 2)['revision'], 3)
-        self.assertIsNone(self.store.recovery(ID))
+        self.assertEqual(self.store.save(ID, document(), 2, owner=PAGE_A)['revision'], 3)
+        # (an owner-less draft is no page's: it stays until a page shows it and the user restores or discards it)
+        self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
 
     def test_a_save_based_on_an_older_revision_is_a_conflict(self):
         self.store.save(ID, document(), 0)
@@ -214,14 +218,55 @@ class StoreTests(unittest.TestCase):
     def test_recovery_is_kept_until_the_next_save(self):
         with self.assertRaises(ProjectError): self.store.save_recovery(ID, dict(baseRevision=0))
         self.store.save(ID, document(), 0)
-        self.store.save_recovery(ID, dict(baseRevision=1, overrides=[], added=[]))
+        self.assertEqual(self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1, overrides=[], added=[])),
+                         dict(ok=True, revision=1, stale=False))
         self.assertEqual(self.store.recovery(ID)['baseRevision'], 1)
         self.assertTrue(self.store.list()[0]['recovery'])
-        self.store.save(ID, document(), 1)
+        self.store.save(ID, document(), 1, owner=PAGE_A)
         self.assertIsNone(self.store.recovery(ID))
-        self.store.save_recovery(ID, dict(baseRevision=2))
-        self.store.drop_recovery(ID)
+        self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=2))
+        self.store.drop_recovery(ID, PAGE_A)
         self.assertIsNone(self.store.recovery(ID))
+
+    def test_each_page_session_keeps_its_own_draft(self):
+        """Review finding 3: two pages editing one project keep a draft each; a save, a discard or a clean page's
+        leaving deletes its own draft only, and a draft the user was shown goes only while it is still that one."""
+        self.store.save(ID, document(), 0)
+        self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1, note='a'))
+        self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b'))
+        newest = self.store.recovery(ID)
+        self.assertEqual((newest['others'], newest['owner'] in (PAGE_A, PAGE_B)), (1, True))
+        # a third page, clean, leaves: nothing of the two goes
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_C), dict(dropped=False))
+        self.assertEqual(len(self.store._drafts(ID)), 2)
+        # A saves: its draft goes, B's stays (and is stale now: based on revision 1, the project at 2)
+        self.store.save(ID, document(), 1, owner=PAGE_A)
+        kept = self.store.recovery(ID)
+        self.assertEqual((kept['owner'], kept['note'], kept['others']), (PAGE_B, 'b', 0))
+        self.assertEqual(self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b2')),
+                         dict(ok=True, revision=2, stale=True))
+        # a draft based on a revision the project never had is refused
+        with self.assertRaises(ProjectError) as error: self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=7))
+        self.assertEqual((error.exception.status, error.exception.extra), (409, dict(revision=2)))
+        # the user discards B's draft from another page, as it was shown: refused once B kept it again since
+        shown = self.store.recovery(ID)
+        self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b3'))
+        with mock.patch('projects.now', lambda: 'later'):
+            self.store.save_recovery(ID, dict(owner=PAGE_B, baseRevision=1, note='b4'))
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_B, shown['savedAt']), dict(dropped=False))
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_B, 'later'), dict(dropped=True))
+        self.assertIsNone(self.store.recovery(ID))
+        # an older editor's owner-less draft is listed, and goes by its own name only
+        self.store.save_recovery(ID, dict(baseRevision=2, note='old'))
+        self.assertEqual(self.store.recovery(ID)['owner'], None)
+        self.assertEqual(self.store.drop_recovery(ID, PAGE_A), dict(dropped=False))
+        self.assertEqual(self.store.drop_recovery(ID, None), dict(dropped=True))
+        # owners are page session ids: nothing else names a file
+        for bad in ('../x', 'ABC', 3):
+            with self.assertRaises(ProjectError): self.store.save_recovery(ID, dict(owner=bad, baseRevision=2))
+            with self.assertRaises(ProjectError): self.store.drop_recovery(ID, bad)
+        with self.assertRaises(ProjectError): self.store.save(ID, document(), 2, owner='../x')
+        self.assertEqual(self.store.load(ID)['revision'], 2)
 
 
 class RouteTests(unittest.TestCase):
@@ -253,10 +298,22 @@ class RouteTests(unittest.TestCase):
         status, conflict = self.call('PUT', f'/projects/{ID}/project.json', dict(expectedRevision=0, document=document()))
         self.assertEqual((status, conflict['revision']), (409, 1))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json'), (200, None))
-        self.assertEqual(self.call('PUT', f'/projects/{ID}/recovery.json', dict(baseRevision=1))[0], 200)
+        self.assertEqual(self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_A, baseRevision=1)),
+                         (200, dict(ok=True, revision=1, stale=False)))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json')[1]['baseRevision'], 1)
-        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json')[0], 200)
+        # a DELETE names whose draft (and, for one shown, its time): another page's goes with nothing of it
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json')[0], 400)
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_B}'), (200, dict(dropped=False)))
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_A}&savedAt=2000-01-01T00:00:00Z'),
+                         (200, dict(dropped=False)))
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_A}'), (200, dict(dropped=True)))
         self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json'), (200, None))
+        # a save names the page saving: its draft goes, another page's stays
+        self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_A, baseRevision=1))
+        self.call('PUT', f'/projects/{ID}/recovery.json', dict(owner=PAGE_B, baseRevision=1))
+        self.assertEqual(self.call('PUT', f'/projects/{ID}/project.json', dict(expectedRevision=1, document=document(), owner=PAGE_A))[0], 200)
+        self.assertEqual(self.call('GET', f'/projects/{ID}/recovery.json')[1]['owner'], PAGE_B)
+        self.assertEqual(self.call('DELETE', f'/projects/{ID}/recovery.json?owner={PAGE_B}'), (200, dict(dropped=True)))
         self.assertEqual(self.call('GET', f'/projects/{OTHER}/recovery.json')[0], 404)
         self.assertEqual(self.call('GET', '/projects.json')[1]['projects'][0]['id'], ID)
 
