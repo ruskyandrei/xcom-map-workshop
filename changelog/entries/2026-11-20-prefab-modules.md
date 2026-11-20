@@ -44,7 +44,10 @@ module of its own. Nothing the editor does changes.
 
   app.js: 11,702 lines to 10,948; its `let` statements 93 to 89 (157 names to 150); its top-level functions 760 to
   727. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the two modules, their rows in where new code goes, the shared
-  state they added to editor_state.js, and how a factory given a constant made further down is made after it.
+  state they added to editor_state.js, and how a factory given a constant made further down is made after it. The
+  comments of [prefabs.js](../../tools/viewer/web/prefabs.js), editor_state.js and
+  [document_session.js](../../tools/viewer/web/document_session.js) that placed the builder or the prefab's making
+  in app.js name the new modules.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 13 functions moved into
@@ -63,3 +66,7 @@ Checked:
 - **Every writer and reader:** stage P2's recording (one scene on the Bar with every kind of piece: the project's
   records, a paste, a prefab saved, read into a clip and placed, and the builder's document and edit state opened on
   it), on a fresh server of the commit before and one of this change: equal, every record, logged argument and root.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`: all ten
+  runs pass, 71 checks ran (Play among them) and 6 skipped in the whole run, each for its map or its run (TempleShip's
+  two, the police station's light bar and Play run elsewhere; `streams`' edit and the patch previews have nothing on
+  the Bar's export to work on), 12 min 52 s with other work on the computer.

@@ -76,7 +76,8 @@ export let buildings = [], buildingsVersion = 0;
 export function setBuildingsValue(next) { buildings = next; }
 export function setBuildingsVersion(next) { buildingsVersion = next; }
 
-// The document session's state (document_session.js; app.js's prefab builder saves and keeps its drafts with it):
+// The document session's state (document_session.js; the prefab builder, builder_session.js, saves and keeps its
+// drafts with it):
 // - leaving: the page is going by the editor's own doing (a document switched to, a map opened as asked), so the
 //   browser's own leave question is not asked;
 // - saving: a project's or a prefab's save is under way; no switch of document, other save or draft starts meanwhile;
