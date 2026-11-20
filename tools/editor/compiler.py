@@ -53,7 +53,7 @@ Lights (private/plans/done/editor-lights-plan.md, L6) are the `light` family: an
 switched off or deleted, a copy of one, or a spot light made from the built-in recipe; and the generated area lights a
 moved, copied or deleted glowing piece takes along (its association: export 18's `emitterAttachment`, or the project's
 `areaLightBindings`). They go into one `lights` object of the spec, which native_split hands to the Build's writer.
-light_rule says which lights may be edited. The family builds for every project since 9 November: the user switched
+light_rule says which lights may be edited. The family's checks are in light_edits.py, its own module. The family builds for every project since 9 November: the user switched
 it on after EXP-26 run 1 (a full build on Bar), before its runs 2 to 6, so that issues are fixed as they are found
 (FAMILIES['light']['builds'] off again brings back the refusal with its note). Every project with edits needs an export with the light data (export 18 and its area-light
 matcher: light_metadata_problem), since moving a piece can move the light its glow makes.
@@ -73,7 +73,8 @@ are, on any install).
 Effects and sounds (the effects and sounds plan, stage FX3; project schema 3) are the `effect` and `sound` families:
 an original Emitter or ambient sound moved, turned or deleted in place (an override of its actor), a copy of one (an
 added record with `kind` and `from`), and an effect a piece carries kept where it is (`effect.follow: none`).
-effect_override and effect_add check each against the export's `can` and `why` (export 28) and write the spec's
+effect_override and effect_add (effect_edits.py, the family's own module) check each against the export's `can` and
+`why` (export 28) and write the spec's
 `effects` and `sounds` objects (moves, deletes, copies), which native_split hands to the Build's writer
 (tools/bake/native_effects.py, native_sounds.py); a copy of another map's comes from the library (foreign_effect,
 stage FX4) and the Build stages it as a piece of another map. An effect's own pose, delete or follow none takes it out of its
@@ -115,9 +116,18 @@ import made_cursors  # noqa: E402
 import made_split  # noqa: E402
 import spawns  # noqa: E402
 # the tables and helpers the compiler shares with its edit families: compiler_tables.__all__ (compiler.FAMILIES
-# and the rest are its objects); the spawn family, and its table the compiler reads
+# and the rest are its objects); the spawn family, and its table the compiler reads; the effects family, and its
+# tables others read through the compiler (prefab_stage, the viewer's twin constants test)
 from compiler_tables import *  # noqa: E402,F401,F403
 from spawn_edits import SPAWN_COPY_KINDS, SpawnEdits  # noqa: E402
+from effect_edits import (EFFECT_SCALE, EFFECT_WORDS, PARAMETER_MAX, SOUND_PITCH, SOUND_RADIUS_MAX,  # noqa: E402,F401
+                          SOUND_VOLUME_MAX, EffectEdits)
+# the lights family, and its tables and helpers others read through the compiler (prefab_stage, the viewer's
+# families and twin constants, the tests)
+from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_problem, rotator_of,  # noqa: E402,F401
+                         LightEdits)
+# the pieces' flags family (nothing reads its tables through the compiler)
+from flag_edits import FlagEdits  # noqa: E402
 
 COMPILER_VERSION = 3
 # A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
@@ -271,56 +281,11 @@ FOREIGN_WORDS = {'hidden': '%s of %s is hidden in its own map (a helper, not som
 # The export a project's edits build from (plan 4.1): export 18 has each light's GUIDs and bake membership and the
 # area lights' glowing pieces, without which a moved piece could leave its glow's light behind.
 EXPORT_MINIMUM = 18
-# Effects and sounds (the effects and sounds plan, Part C): their records name actors of the export's `effects` and
-# `sounds` (export 28, effects_metadata.py), each with what an edit may do with it (`can`, `why`). EFFECT_CLASSES:
-# what each kind is (a lens flare, `flares`, since stage FX6b). An effect that is moved or new is listed by
-# each upper floor (index 1 up) one of whose boxes holds its place within EFFECT_SLACK (buildings.SLACK; plan Part D):
-# the report's note says which floors it joins and leaves.
-EFFECTS_EXPORT = 28
-EFFECT_CLASSES = {'effect': ('Emitter',),
-                  'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable'),
-                  'flare': ('LensFlareSource',)}
-# each kind's object of the spec and of the native edit (its lane), and what the messages call one
+# each kind of effect record's object of the spec and of the native edit (its lane); the effects family's own tables
+# are in effect_edits.py
 EFFECT_LANES = (('effect', 'effects'), ('sound', 'sounds'), ('flare', 'flares'))
-EFFECT_WORDS = {'effect': 'an effect', 'sound': 'a sound', 'flare': 'a lens flare'}
-EFFECT_SLACK = 2.0
-# the values objects (plan Part C): `follow` (an effect's carrying by the piece it stands on: 'none' once it is moved
-# by itself, 'auto' to follow again) is FX3's; the others are stage FX5's, behind the effect-values and sound-values
-# families: an effect's `scale` (a multiplier on the size the map gives it), `startsOn` and `parameters` ([{name,
-# value}]: a scalar, a vector [x, y, z] or a colour [r, g, b, a], each 0 to 1, by the kind its effect saves it in, else
-# by its system's parameter); a sound's `radiusMin`, `radiusMax`, `volume` and `pitch` ([least, most]) and `startsOn`
-EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
-                     'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
-EFFECT_FOLLOW = ('none', 'auto')
-# what a value may be (refused outside: nothing the game's maps come near; the page's handles and sliders stay well
-# inside): an effect's size multiplier, a parameter's magnitude, a sound's radius, volume and pitch
-EFFECT_SCALE = (1 / 64, 64.0)
-PARAMETER_MAX = 1e6
-SOUND_RADIUS_MAX = 65536.0
-SOUND_VOLUME_MAX = 16.0
-SOUND_PITCH = (1 / 16, 16.0)
-# the particle parameter types the editor writes, by the kind of value: what a saved entry's type takes, and the type
-# a parameter the effect doesn't save gets from its system's distribution
-PARAMETER_TYPES = {'PSPT_Scalar': 'scalar', 'PSPT_Vector': 'vector', 'PSPT_Color': 'colour'}
-DISTRIBUTION_TYPES = {'scalar': 'PSPT_Scalar', 'vector': 'PSPT_Vector'}
-# Pieces' flags (piece flags plan, P4): read from the export's pieceFlags (export 27; a piece of another map from its
-# library record), checked with piece_flags.plan, and built by the Build's writer from the package itself (native_copy
-# set_roles). A piece this wide or tall (units) with walking, cover or sight turned off is noted (flags-wall).
-FLAGS_EXPORT = 27
-FLAGS_WALL = 192.0
+# the version of the export's light metadata a project's edits need (light_metadata_problem)
 LIGHT_METADATA = 1
-# The light values an edit may set (plan 9.1), with their ranges (plan 4.2); the cone angles are spot lights' only.
-LIGHT_KEYS = ('color', 'brightness', 'radius', 'falloffExponent', 'innerConeAngle', 'outerConeAngle', 'enabled')
-CONE_KEYS = ('innerConeAngle', 'outerConeAngle')
-LIGHT_RANGES = dict(brightness=(0.0, 100.0), radius=(1.0, 16384.0), falloffExponent=(0.1, 64.0),
-                    innerConeAngle=(0.0, 89.0), outerConeAngle=(0.0, 89.99))
-# The built-in recipes for lights a map has no template for (plan 3.3, 4.9): kind -> version -> starting values.
-# (a point light's, light_factory.POINT_RECIPES, are for prefabs: a prefab's lights are recipe lights, so they need
-# no map; prefab plan 5.5. A point light has no cones.)
-LIGHT_RECIPES = {'spot': {1: dict(color=[255, 255, 255], brightness=1.0, radius=1024.0, falloffExponent=2.0,
-                                  innerConeAngle=0.0, outerConeAngle=44.0, enabled=True)},
-                 'point': {1: dict(color=[255, 255, 255], brightness=1.0, radius=1024.0, falloffExponent=2.0, enabled=True)}}
-RECIPE_ACTOR = {'spot': 'SpotLight', 'point': 'PointLight'}
 # Cover blocks (tools/bake/cover_blocks.py): whole tiles across, `width` along the block's X and `length` along its Y
 # from its corner (the record's location, on the floor), and from 12 units below that floor to 96 above it (high
 # cover) or 84 (low cover), as LWR's own CoverPatch.highcover and Cover2x4 helpers stand (URB_PoliceStation's patch),
@@ -380,10 +345,6 @@ def cover_shape(cover, recipe):
             and 0 < heights[1] - heights[0] <= cover_span(recipe)):
         return None
     return kind, [float(v) for v in size], [float(v) for v in heights]
-RECIPE_ROTATION = {'spot': [-16384, 0, 0],      # pointing down, as a placed SpotLight's class default
-                   'point': [0, 0, 0]}
-# An unresolved area light this near an edited piece's old box (units) is named in a warning (plan 4.8)
-AREA_NEAR = 64.0
 FRAME_MATCH = 1.0        # how far a door's frame stands from its leaf (units): they stand at one place
 PART_AT = 8.0            # how far a car's part its glass names stands from the body (units; Police Station's light bars: 2)
 INSTANCE_MATCH = 1.0     # how far apart two parts' moves may be and still be one copy of an assembly (units)
@@ -877,87 +838,8 @@ def light_metadata_problem(scene):
     return None
 
 
-def light_rule(light):
-    """None for a light an edit may change, else why it is view only (plan 3.2). The page shows the same verdicts
-    (families.json `lightRules`)."""
-    role, kind = light.get('role'), light.get('kind')
-    if light.get('layer') != 'base':
-        return "it is a light of a streamed level (a patch's own)"
-    if role == 'area':
-        return 'it was made by the bake for a glowing surface: it follows its glowing piece'
-    if role == 'toggleable':
-        who = ', '.join(light.get('referencedBy') or []) or 'a destructible'
-        return 'it is lit live and switched by %s; moving it means relighting its shadow maps (a later step)' % who
-    if role in ('dominant', 'sky') or kind in ('directional', 'sky'):
-        return 'it is the sun, moon or sky: these come with the time of day, a later step'
-    if role != 'static' or kind not in ('point', 'spot'):
-        return 'it is not a placed point or spot light'
-    if 'lightmapGuid' not in light or 'bakedInto' not in light:
-        return 'the export lacks its light data (export 18)'
-    if light.get('referencedBy'):
-        return "it is named by the map's Kismet (%s)" % '; '.join(light['referencedBy'])
-    if light.get('channels'):
-        return 'it lights only the lighting channels it picks'
-    if not light.get('bakedInto'):
-        return 'it is in no lightmap: the bake never used it'
-    return None
-
-
-def light_values(light):
-    """A light record's editable values in the package's terms (plan 9.1): colour bytes, not the export's 0-1."""
-    out = dict(color=[int(round(v * 255)) for v in (light.get('color') or [1, 1, 1])[:3]],
-               brightness=light.get('brightness'), enabled=bool(light.get('enabled')))
-    if light.get('kind') in ('point', 'spot'):
-        out.update(radius=light.get('radius'), falloffExponent=light.get('falloffExponent'))
-    if light.get('kind') == 'spot':
-        out.update(innerConeAngle=light.get('innerConeAngle'), outerConeAngle=light.get('outerConeAngle'))
-    return out
-
-
 # an error's `record` when it is one piece's: that piece is left out, the build goes on (Compiler.error)
 PIECE_RECORD = re.compile(r'^(overrides|added)\[\d+\]$')
-
-
-def light_value_problem(key, value):
-    """Why a submitted light value is out of its range (plan 4.2), or None."""
-    if key == 'color':
-        if not (isinstance(value, list) and len(value) == 3 and all(isinstance(v, int) and not isinstance(v, bool)
-                                                                      and 0 <= v <= 255 for v in value)):
-            return 'color must be three whole numbers 0 to 255'
-        return None
-    if key == 'enabled':
-        return None if isinstance(value, bool) else 'enabled must be true or false'
-    lo, hi = LIGHT_RANGES[key]
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
-        return '%s must be a number' % key
-    if not lo <= value <= hi:
-        return '%s must be %g to %g' % (key, lo, hi)
-    return None
-
-
-def reach_box(location, radius):
-    return [tidy(v, 3) for c in location for v in (c - radius, c + radius)]
-
-
-def rotator_of(m):
-    """The rotator [pitch, yaw, roll] (whole units, -32768..32767) of a 4 x 4 transform's rotation (export_math's
-    convention: its columns are the rotator's X, Y and Z axes)."""
-    x = [m[i][0] for i in range(3)]
-    pitch = math.atan2(x[2], math.hypot(x[0], x[1]))
-    yaw = math.atan2(x[1], x[0])
-    roll = math.atan2(-m[2][1], m[2][2])
-    unit = lambda a: int(game_round(a * 32768 / math.pi)) % 65536  # noqa: E731
-    return [(v + 32768) % 65536 - 32768 for v in (unit(pitch), unit(yaw), unit(roll))]
-
-
-def moved_light_pose(location, rotation, move):
-    """A light's pose carried by a rigid move (rigid_move: the owner's before to after): lightAfter = M · lightBefore.
-    A move that only turns about Z adds its turn to the light's yaw, keeping its stored rotator exactly otherwise."""
-    loc = [tidy(sum(move[i][k] * location[k] for k in range(3)) + move[i][3]) for i in range(3)]
-    if all(abs(move[i][2] - (1.0 if i == 2 else 0.0)) < 1e-9 for i in range(3)):
-        dyaw = game_round(math.atan2(move[1][0], move[0][0]) * 32768 / math.pi)
-        return loc, [int(rotation[0]), int(rotation[1]) + int(dyaw), int(rotation[2])]
-    return loc, rotator_of(multiply(move, transform([0, 0, 0], rotation, [1, 1, 1])))
 
 
 class Compiler:
@@ -989,33 +871,29 @@ class Compiler:
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
-        # light edits (plan 9.5): the spec's `lights` object, and what each piece edit does to the area lights
-        self.light_ops = dict(deletes=[], changes=[], adds=[], area=[])
-        self.owner_edits = []    # (kind, owner actor path, owner entity, rigid move or None, where)
+        # light edits (plan 9.5): the spec's `lights` object, what each piece edit does to the area lights, and the
+        # group member keys of the lights the project adds: their own module (review finding 23)
+        self.light_edits = LightEdits(self)
         self.covers = []         # cover blocks: the spec's `covers` object (cover_add)
         self.ladder_jobs = []    # moved and copied ladders whose climb is still to be checked (ladder_climbs)
         self.cover_members = set()   # their group member keys ('added|' and the output name)
         self.cover_by_member = {}    # member key -> its block in self.covers
-        self.light_members = set()   # the same for the lights the project adds
-        # effects and sounds (the effects and sounds plan, Part C): the spec's `effects` and `sounds` objects (moves,
-        # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
-        # project's own takes from the piece that carries them (they leave carriedEffects)
-        self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
+        # effects, sounds and lens flares (the effects and sounds plan, Part C): the spec's `effects`, `sounds` and
+        # `flares` objects, the group member keys of the ones the project adds, and the effects a record of the
+        # project's own takes from the piece that carries them: their own module (review finding 23)
+        self.effect_edits = EffectEdits(self)
         # the base map's spawn points moved, given values, copied and deleted (the editor spawns plan, SP6 and SP7):
         # their own module (review finding 23)
         self.spawn_edits = SpawnEdits(self)
-        self.effect_members = set()
-        self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
         self.building_edits = []     # the map's own buildings changed or deleted: the spec's `buildingEdits` object
         self.floor_sources = {}
         self.donor_buildings = {}
         self.untried_foreign = {}    # (package folded, actor path) of the pieces of other maps built untried
         # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand (the spec's
-        # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts
-        self.flag_edits = []
-        self.floor_off, self.floor_on = set(), {}
-        self.flag_counts = dict(requested=0, applied=0, leftOut=0, roles={r: 0 for r in piece_flags.ROLES}, companions=0)
+        # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts:
+        # their own module (review finding 23)
+        self.flag_edits = FlagEdits(self)
         # what run()'s stages work out, in its order (review finding 23): check_document the map's package;
         # cleared_mark the clear; spawn_rules_mark the drop-in rule; stage the larger grid; landing_zones the zones and
         # the map's own landings. Each keeps these values when the stage doesn't run (a document that stops earlier).
@@ -1138,7 +1016,6 @@ class Compiler:
         # the base map's spawn points by actor path (export 33's `spawns`)
         self.spawn_edits.index(self.scene)
         self.building_names = {b.get('id'): b.get('name') for b in self.scene.get('buildings') or []}
-        self.object_boxes = None
         # the map's meshes, and those of the pieces of other maps as they are looked up (foreign_piece)
         self.meshes = dict(self.scene.get('meshes') or {})
         # the assemblies of other maps' pieces: (package, actor) -> assembly, one dict for all its parts
@@ -1631,88 +1508,6 @@ class Compiler:
                     self.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
                               "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
 
-    def flags_valid(self, rec, where):
-        """Whether a record's `flags` (if any) is well formed: an object of known roles, each strictly true or false,
-        never empty. A malformed one leaves the record out, as any malformed field does."""
-        if 'flags' not in rec:
-            return True
-        f = rec['flags']
-        if isinstance(f, dict) and f and all(k in piece_flags.ROLES for k in f) and all(isinstance(v, bool) for v in f.values()):
-            return True
-        self.error('malformed', 'flags must name walking, cover, sight, floor or mouse, each true or false (it has %r)'
-                   % (f,), **where)
-        return False
-
-    def flag_plan(self, src, flags, name, where, box=None, made=None):
-        """(the request applied, piece_flags.plan) of a piece's flags against its settings as the export has them, or
-        (None, None) with a warning when they can't be checked (the piece is built without them). Roles the class
-        doesn't have are noted and dropped; a request a prop's gate makes ambiguous (a hand-edited file: the page
-        asks) is a warning and nothing of it is built. box: the piece's world box where it ends up (a copy's), else
-        the one where it stands. made: the generated kind of a wall, floor or ground made from numbers, whose flags
-        are planned on what the Build makes of its donor (piece_flags.made: simple collision of its own; a ground
-        shape's class and settings as native_copy.ground_collision leaves them)."""
-        self.flag_counts['requested'] += 1
-        record = src.get('pieceFlags')
-        cls = src.get('actorClass')
-        if not record:
-            why = ('the flags are not a setting of %s %s' % ('an' if str(cls)[:1] in 'AEIOUX' else 'a', cls)
-                   if piece_flags.family_of(cls) is None else
-                   'its export predates pieces\' flags (export %d): open the map in the editor to prepare it again, then '
-                   'build' % FLAGS_EXPORT)
-            self.warn('flags-unavailable', '%s\'s flags are not built: %s' % (name, why), **where)
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        if made:
-            cls, record = piece_flags.made(cls, record, made)
-        raw, assumed = piece_flags.raw_of(record)
-        plan = piece_flags.plan(cls, raw, flags, assumed)
-        for role, why in sorted(plan['unsupported'].items()):
-            self.note('flags-unsupported', '%s: %s is not built (%s)' % (name, piece_flags.LABELS.get(role, role), why),
-                      role=role, **where)
-        if plan['conflicts']:
-            self.warn('flags-conflict', '%s\'s flags are not built: %s' % (name, '; '.join(plan['conflicts'].values())),
-                      **where)
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        for role, why in sorted(plan['unmet'].items()):
-            self.note('flags-limited', '%s: %s' % (name, why), role=role, **where)
-        applied = {k: v for k, v in flags.items() if k not in plan['unsupported']}
-        if not applied:
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        changed = [r for r in piece_flags.ROLES if plan['after'][r] != plan['before'][r]]
-        if record.get('collides') is False and changed:
-            self.note('flags-no-collision', '%s collides with nothing, so no trace of the game meets it: its %s take effect '
-                      'only if it gets collision (the Build\'s floor for low scenery on a grown map gives some)'
-                      % (name, ' and '.join(piece_flags.LABELS[r] for r in changed)), **where)
-        elif record.get('bodySetup') is False and any(r in changed for r in ('walking', 'cover', 'sight')):
-            self.note('flags-limited', '%s\'s mesh has no simple collision (BodySetup): the pathing, cover and sight sweeps '
-                      'pass through it whatever its flags say' % name, **where)
-        opened = [r for r in ('walking', 'sight') if plan['after'][r] == 'off' and plan['before'][r] != 'off']
-        if cls == 'XComInteractiveLevelActor' and opened:
-            self.note('flags-door', '%s is a door with %s off: units %s through it when it is shut too'
-                      % (name, ' and '.join(piece_flags.LABELS[r] for r in opened),
-                         ' and '.join(dict(walking='walk', sight='see')[r] for r in opened)), **where)
-        if box is None:
-            box = self.boxes([src], src['location'], src['rotation']) if src.get('mesh') in self.meshes else None
-        if flags.get('walking') is True and plan['after']['walking'] in ('on', 'partial') and record.get('collides') is not False \
-                and piece_flags.low_piece(box, (tile_corner(self.scene.get('tileGrid')) or [None] * 3)[2]):
-            corner = tile_corner(self.scene.get('tileGrid'))[2]
-            reach = box[5] - (corner + piece_flags.LEVEL * math.floor((box[4] + 8 - corner) / piece_flags.LEVEL))
-            self.warn('flags-low', '%s is too low for Blocks walking to stop anyone: it reaches %d over the bottom of its '
-                      'level, under the %d the game\'s tiles need, so its tiles are only partly occupied and units still '
-                      'walk into them' % (name, round(reach), piece_flags.STOPS_FROM), **where)
-        if box and any(plan['after'][r] == 'off' and plan['before'][r] != 'off' for r in ('walking', 'cover', 'sight')) \
-                and (cls in ('XComFracLevelActor', 'XComDecoFracLevelActor') or max(box[1] - box[0], box[3] - box[2], box[5] - box[4]) > FLAGS_WALL):
-            self.note('flags-wall', '%s is a large piece (or a fracturing wall) that no longer blocks %s: units may walk or see '
-                      'through what looks solid' % (name, ' or '.join(piece_flags.LABELS[r].split()[-1] for r in ('walking', 'cover', 'sight')
-                                                                     if plan['after'][r] == 'off' and plan['before'][r] != 'off')), **where)
-        self.flag_counts['applied'] += 1
-        self.flag_counts['companions'] += len(plan['companions'])
-        for r in changed:
-            self.flag_counts['roles'][r] += 1
-        return applied, plan
-
     def blasts_valid(self, rec, parts, where, name=None):
         """Whether an override's or added copy's `blasts` are well formed (made_blasts.check) and on a fracturing
         piece; else an error and the record (an override) or its blasts (a copy) left out."""
@@ -1727,42 +1522,6 @@ class Compiler:
                 name or short(rec['target']['actor']), error), **where)
             return False
         return True
-
-    def stationary_flags(self, target, parts, flags, where):
-        """An original's flags changed where it stands (no move): the spec's `pieceFlags` entry, written in the map by
-        the Build (native_copy set_roles), with its box for the tiles it rebuilds."""
-        src, name = parts[0], short(target['actor'])
-        applied, plan = self.flag_plan(src, flags, name, where)
-        if applied is None:
-            return
-        box = self.boxes(parts, src['location'], src['rotation'])
-        if plan['after']['floor'] == 'off' and plan['before']['floor'] == 'on':
-            self.floor_off.add(target['actor'])
-            owned = sum(1 for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') == target['actor'])
-            if owned:
-                self.warn('flags-floor', '%s is no floor now: the %d tiles it is the floor of lose it unless another piece '
-                          'gives floor there; the landing, mission and ladder checks count without it' % (name, owned),
-                          tiles=owned, **where)
-        elif plan['after']['floor'] == 'on' and plan['before']['floor'] != 'on':
-            self.floor_on[target['actor']] = (name, box)
-        self.flag_edits.append(dict(name=name, target=target['actor'], flags=applied, box=[tidy(v, 3) for v in box],
-                                    tiles=plan['tiles'], actorClass=src['actorClass']))
-        self.entities.append(dict(kind='flags', target=target['actor'], actorClass=src['actorClass'], flags=applied,
-                                  before=plan['before'], after=plan['after'], writes=[list(w) for w in plan['writes']],
-                                  companions=plan['companions'], tiles=plan['tiles']))
-
-    def copy_flags(self, copy, src, flags, name, where):
-        """A copy's flags (a moved original's, an added piece's): its request goes with the copy, which the Build
-        writes once it is made."""
-        kind = (copy.get('generated') or {}).get('kind')
-        applied, plan = self.flag_plan(src, flags, name, where, copy.get('box'), made=kind)
-        if applied is None:
-            return
-        copy['flags'] = applied
-        collides = kind == 'ground' or src.get('pieceFlags', {}).get('collides') is not False
-        copy['floorAfter'] = plan['after']['floor'] if collides else None
-        copy['flagPlan'] = dict(before=plan['before'], after=plan['after'], companions=plan['companions'],
-                                writes=[list(w) for w in plan['writes']])
 
     # ---------------------------------------------------------------- poses
     def pose(self, rec, where):
@@ -1863,7 +1622,7 @@ class Compiler:
         flat = [c for c in self.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
                 and id(c) not in waiting and c.get('floorAfter') != 'off']
         # the map's own pieces the project's flags make floor where they stand
-        flat += [dict(box=[b[0], b[1], b[2], b[3], b[4], b[5]], label=name) for name, b in getattr(self, 'floor_on', {}).values()]
+        flat += [dict(box=[b[0], b[1], b[2], b[3], b[4], b[5]], label=name) for name, b in self.flag_edits.floor_on.values()]
         # an invisible floor is made to carry floor (EXP-32): a plate with its top at its place
         flat += [c for c in self.covers if c.get('kind') == 'floor']
         tiles, blocked = {}, {}
@@ -1934,13 +1693,13 @@ class Compiler:
         jobs, self.ladder_jobs = self.ladder_jobs, []
         for copy, name, src, loc, rot, where in jobs:
             copy['ladder'] = self.ladder_ends(name, src, loc, rot, where)
-        if not self.floor_off:
+        if not self.flag_edits.floor_off:
             return
         grid = self.scene.get('tileGrid') or {}
         if not grid.get('origin'):
             return
         lost = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])
-                if f.get('actor') in self.floor_off}
+                if f.get('actor') in self.flag_edits.floor_off}
         gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
         for o in self.scene.get('objects') or []:
             if o.get('actorClass') != 'XComLadder' or o.get('actor') in gone or o.get('layer') != 'base':
@@ -1959,7 +1718,7 @@ class Compiler:
         where it stands (its box with a quarter tile and a tile round it, from the ground to the level over its top):
         the Build rebuilds their top tile first and their foot after, as a moved ladder's, so the climb keeps both its
         links (native_copy.flags_in_place). [{actor, foot, top}], sorted."""
-        edits = [e for e in self.flag_edits if e['tiles']]
+        edits = [e for e in self.flag_edits.edits if e['tiles']]
         grid = self.scene.get('tileGrid') or {}
         if not edits or not self.floors or not grid.get('origin'):
             return []
@@ -1997,11 +1756,6 @@ class Compiler:
         return ['%s.%s' % (h['stream'], short(h['actor'])) for h in found]
 
     # ---------------------------------------------------------------- records
-    def light_of(self, target):
-        """The export's light a target {package, level, actor} names, or None."""
-        key = target_key(target)
-        return self.lights.get(key) if key else None
-
     def overrides(self):
         known = {'target', 'location', 'rotation', 'deleted', 'flags', 'blasts', 'breaksFurther'}
         gated = {}      # an assembly's records: id -> (assembly, {actor: (target, record, where, parts)})
@@ -2013,13 +1767,13 @@ class Compiler:
             target = rec.get('target')
             if isinstance(target, dict) and isinstance(target.get('actor'), str):
                 where['target'] = target['actor']
-            effect = self.effect_of(target)
+            effect = self.effect_edits.effect_of(target)
             if effect is not None:
-                self.effect_override(target, rec, where, effect)
+                self.effect_edits.effect_override(target, rec, where, effect)
                 continue
-            light = self.light_of(target)
+            light = self.light_edits.light_of(target)
             if light is not None:
-                self.light_override(target, rec, where, light)
+                self.light_edits.light_override(target, rec, where, light)
                 continue
             spawn = self.spawn_edits.spawn_of(target)
             if spawn is not None:
@@ -2042,7 +1796,7 @@ class Compiler:
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
-            if not self.flags_valid(rec, where):
+            if not self.flag_edits.flags_valid(rec, where):
                 continue
             parts = self.piece(target, where, deleting=rec.get('deleted') is True)
             if not parts:
@@ -2071,7 +1825,7 @@ class Compiler:
                 elif not self.pose_moves(rec, parts[0]):
                     # the piece where the map has it (flags alone, or its own pose): its flags written in place, and
                     # nothing else to build for the record (its assembly's move rule doesn't apply to flags)
-                    self.stationary_flags(target, parts, rec['flags'], where)
+                    self.flag_edits.stationary_flags(target, parts, rec['flags'], where)
                     continue
             family, assembly = self.family_of(target['actor'], parts)
             if assembly and family in ASSEMBLY_FAMILIES:
@@ -2213,7 +1967,7 @@ class Compiler:
             self.loot(src, name, 'delete', where)
             if ladder:
                 extra = dict(extra, helpers=self.hide_helpers(target['actor'], where))
-            self.owner_edits.append(('delete', target['actor'], target['actor'], None, where))
+            self.light_edits.owner_edits.append(('delete', target['actor'], target['actor'], None, where))
             self.hides.append(dict(name=name, label='delete:' + name, box=old))
             self.entities.append(dict(kind='delete', target=target['actor'], actorClass=src['actorClass'],
                                       oldBox=[tidy(v, 3) for v in old], **extra))
@@ -2236,13 +1990,13 @@ class Compiler:
             return
         new = self.boxes(parts, loc, rot)
         self.floor_note(name, src, new, where, old)
-        self.owner_edits.append(('move', target['actor'], target['actor'],
+        self.light_edits.owner_edits.append(('move', target['actor'], target['actor'],
                                  rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(0, target['actor']), source=name, label='move:' + name, location=loc, rotation=rot, box=new,
                                 member=original_key(target), actorClass=src['actorClass'], ladder=None,
                                 **{k: v for k, v in extra.items() if k != 'helpers'}))
         if rec.get('flags'):
-            self.copy_flags(self.copies[-1], src, rec['flags'], name, where)
+            self.flag_edits.copy_flags(self.copies[-1], src, rec['flags'], name, where)
         if rec.get('blasts'):
             # (a moved piece broken: its copy made in the map carries the blasts, in its own frame: E6)
             self.copies[-1]['blasts'] = rec['blasts']
@@ -2437,7 +2191,7 @@ class Compiler:
                 continue
             if 'kind' in rec:
                 # an effect, a sound or a flare copied (the effects and sounds plan, Part C)
-                self.effect_add(rec, where)
+                self.effect_edits.effect_add(rec, where)
                 continue
             if 'effect' in rec or 'sound' in rec:
                 self.error('malformed', '%s copies a piece, so it has no effect or sound values' % short(out), **where)
@@ -2448,9 +2202,9 @@ class Compiler:
                 # (as an override's: a copy's breaksFurther goes with its blasts; a made piece's is in `generated`)
                 self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % short(out),
                           **where)
-            if not self.flags_valid(rec, where) or not self.generated_valid(rec, where):
+            if not self.flag_edits.flags_valid(rec, where) or not self.generated_valid(rec, where):
                 continue
-            if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
+            if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_edits.light_of(rec.get('from')) is not None):
                 self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
                            'has no flags' % short(out), **where)
                 continue
@@ -2466,8 +2220,8 @@ class Compiler:
             if 'cover' in rec:
                 self.error('malformed', '%s has cover values but is not a cover block' % short(out), **where)
                 continue
-            if 'template' in rec or self.light_of(rec.get('from')) is not None:
-                self.light_add(rec, where)
+            if 'template' in rec or self.light_edits.light_of(rec.get('from')) is not None:
+                self.light_edits.light_add(rec, where)
                 continue
             if 'light' in rec:
                 self.error('malformed', '%s copies a piece, not a light, so it has no light values' % short(out), **where)
@@ -2588,13 +2342,13 @@ class Compiler:
                 else:
                     move = rigid_move(src.get('floorLocation', src['location']), src['rotation'], loc, rot)
                     for light in area['lights']:
-                        self.copy_area_light(light, rec['from']['actor'], out, move, donor)
+                        self.light_edits.copy_area_light(light, rec['from']['actor'], out, move, donor)
         elif not piece or piece == 1:
             # (a made piece's pieces: once, for the whole)
             if not (made and made['kind'] == 'ground'):
                 # (a ground shape is listed in the building it stands in by its own box, as a made wall is)
                 self.floor_note(whole or short(out), src, new, where, self.boxes(parts, src['location'], src['rotation']))
-            self.owner_edits.append(('copy', rec['from']['actor'], out,
+            self.light_edits.owner_edits.append(('copy', rec['from']['actor'], out,
                                      rigid_move(src['location'], src['rotation'], loc, rot), where))
         self.copies.append(dict(order=(1, out), source=name, label=short(out), location=loc, rotation=rot, box=new,
                                 member=member or 'added|' + out, actorClass=src['actorClass'], ladder=None, **extra))
@@ -2643,7 +2397,7 @@ class Compiler:
                               battle_words(src.get('keepsPieces'), rec['generated'].get('breaksFurther'))),
                           **where)
         if rec.get('flags'):
-            self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
+            self.flag_edits.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if 'blasts' in rec and not rec.get('generated'):
             # a copy of one of the map's fracturing pieces broken (E6): its clone carries the blasts
             if self.blasts_valid(rec, [src], where, name=short(out)):
@@ -2832,816 +2586,7 @@ class Compiler:
                                   cover=dict(cover), actorClass='XComLevelActor', location=loc, rotation=rot,
                                   rotationRounding=tidy(rounding, 6), newBox=[tidy(v, 3) for v in box]))
 
-    # ---------------------------------------------------------------- lights (plan 4.2)
-    def light_gate(self, name, where):
-        """The family's refusal while it doesn't build (plan 3.4): True when the edit may go on."""
-        if self.builds('light'):
-            return True
-        self.error('family', '%s is a light edit. %s' % (name, FAMILIES['light']['note']), family='light', **where)
-        return False
-
-    def submitted_light(self, values, kind, where, name):
-        """The submitted light values `values` checked (plan 4.2): dict, or None with an error."""
-        if not isinstance(values, dict):
-            self.error('malformed', '%s: "light" must be an object of light values' % name, **where)
-            return None
-        bad = sorted(set(values) - set(LIGHT_KEYS))
-        if bad:
-            self.error('malformed', '%s: %s %s not a light value (they are %s)' % (
-                name, ', '.join(bad), 'is' if len(bad) == 1 else 'are', ', '.join(LIGHT_KEYS)), **where)
-            return None
-        if kind != 'spot' and set(values) & set(CONE_KEYS):
-            self.error('light-value', '%s is a %s light, which has no cone' % (name, kind), **where)
-            return None
-        values = dict(values)
-        for key in sorted(values):
-            why = light_value_problem(key, values[key])
-            value = values[key]
-            if why and key in LIGHT_RANGES and isinstance(value, (int, float)) and not isinstance(value, bool) \
-                    and math.isfinite(value) and key not in CONE_KEYS:
-                # a number outside its range: built at the nearest value in range, and said (plan R3)
-                lo, hi = LIGHT_RANGES[key]
-                values[key] = min(max(value, lo), hi)
-                self.note('light-clamped', '%s: its %s is %g, outside %g to %g; built as %g'
-                          % (name, key, value, lo, hi, values[key]), key=key, stored=value, built=values[key], **where)
-            elif why and key in CONE_KEYS and isinstance(value, (int, float)) and not isinstance(value, bool) \
-                    and math.isfinite(value):
-                continue        # (the two cone angles are taken together, below)
-            elif why:
-                self.error('light-value', '%s: %s' % (name, why), key=key, **where)
-                return None
-        cone = [values.get(k) for k in CONE_KEYS]
-        if any(k in values and light_value_problem(k, values[k]) for k in CONE_KEYS):
-            # a cone out of range lights as its effective cone (a map's stored 100 lights as 89.99): built as that
-            from lights import storable_cone
-            inner, outer = cone
-            if inner is None or outer is None:
-                key = CONE_KEYS[0 if inner is not None else 1]
-                lo, hi = LIGHT_RANGES[key]
-                built = {key: min(max(values[key], lo), hi)}
-            else:
-                built = dict(zip(CONE_KEYS, storable_cone(inner, outer)))
-            for key, value in built.items():
-                if value != values[key]:
-                    self.note('light-clamped', '%s: its %s is %g, outside %g to %g; built as %g'
-                              % (name, key, values[key], *LIGHT_RANGES[key], value), key=key, stored=values[key],
-                              built=value, **where)
-                values[key] = value
-        return values
-
-    def light_after(self, name, kind, before, submitted, where):
-        """Every raw value after the edit, the inherited ones as stored (a stored 580-degree cone stays 580): dict, or
-        None with an error when an inherited value is malformed or an edited cone's inner is wider than its outer."""
-        after = dict(before, **submitted)
-        for key in LIGHT_KEYS:
-            if key not in after or key in submitted:
-                continue
-            value = after[key]
-            if key == 'color':
-                ok = isinstance(value, list) and len(value) == 3
-            elif key == 'enabled':
-                ok = isinstance(value, bool)
-            else:
-                ok = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-            if not ok:
-                self.error('light-value', '%s: its stored %s (%r) is not a value the Build can keep' % (name, key, value),
-                           key=key, **where)
-                return None
-        if kind == 'spot' and set(submitted) & set(CONE_KEYS) and after['innerConeAngle'] > after['outerConeAngle']:
-            self.note('light-clamped', '%s: its inner cone (%g) is wider than its outer cone (%g); built with the inner '
-                      'cone at %g' % (name, after['innerConeAngle'], after['outerConeAngle'], after['outerConeAngle']),
-                      key='innerConeAngle', stored=after['innerConeAngle'], built=after['outerConeAngle'], **where)
-            after['innerConeAngle'] = after['outerConeAngle']
-            submitted['innerConeAngle'] = after['innerConeAngle']
-        return after
-
-    def light_override(self, target, rec, where, light):
-        """An original light moved, turned, changed, switched off or deleted (plan 4.2)."""
-        name = short(target['actor'])
-        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'light'}):
-            self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
-        if target['package'].casefold() != self.map.casefold():
-            self.error('level', '%s is a light of %s, not of %s' % (name, target['package'], self.map), **where)
-            return
-        why = light_rule(light)
-        if why:
-            self.error('light-view-only', '%s is view only: %s' % (name, why), **where)
-            return
-        before = light_values(light)
-        kind = light['kind']
-        if rec.get('deleted') is True:
-            if not self.light_gate(name, where):
-                return
-            self.light_ops['deletes'].append(dict(name=name, label='delete:' + name, kind=kind, role=light['role'],
-                                                  reach=reach_box(light['location'], light['radius'])))
-            self.entities.append(dict(kind='light', op='delete', target=target['actor'], lightClass=light['actorClass'],
-                                      bakedInto=len(light.get('bakedInto') or [])))
-            return
-        if not {'location', 'rotation', 'light'} & set(rec):
-            self.error('malformed', 'a light override is deleted, or gives a pose or light values', **where)
-            return
-        p = self.pose(dict(location=rec.get('location', light['location']),
-                           rotation=rec.get('rotation', light['rotation'])), where)
-        if not p:
-            return
-        loc, rot, rounding = p
-        submitted = self.submitted_light(rec.get('light', {}), kind, where, name)
-        if submitted is None:
-            return
-        after = self.light_after(name, kind, before, submitted, where)
-        if after is None:
-            return
-        changed = {k: v for k, v in submitted.items() if v != before.get(k)}
-        moved = not (all(abs(a - b) < EPS_LOCATION for a, b in zip(loc, light['location']))
-                     and rot == [int(v) for v in light['rotation']])
-        if not changed and not moved:
-            self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
-            return
-        if not self.light_gate(name, where):
-            return
-        entry = dict(name=name, label='change:' + name, kind=kind, role=light['role'], location=loc, rotation=rot,
-                     set=changed, light=after,
-                     before=dict(before, location=list(light['location']), rotation=[int(v) for v in light['rotation']]),
-                     reach=dict(before=reach_box(light['location'], before['radius']),
-                                after=reach_box(loc, after['radius'])))
-        self.light_ops['changes'].append(entry)
-        self.entities.append(dict(kind='light', op='change', target=target['actor'], lightClass=light['actorClass'],
-                                  location=loc, rotation=rot, rotationRounding=tidy(rounding, 6), set=sorted(changed),
-                                  bakedInto=len(light.get('bakedInto') or []),
-                                  reaches=self.reaching(loc, after)))
-
-    def light_add(self, rec, where):
-        """A copy of an original light, or a spot light made from the built-in recipe (plan 3.3, 4.9)."""
-        out = rec['actor']
-        name = short(out)
-        template = rec.get('template')
-        if template is not None:
-            if 'from' in rec or 'components' in rec:
-                self.error('malformed', '%s is both a copy (from) and a recipe light (template)' % name, **where)
-                return
-            kind, version = (template.get('kind'), template.get('version')) if isinstance(template, dict) else (None, None)
-            if not (keyable(kind) and keyable(version)) or kind not in LIGHT_RECIPES or version not in LIGHT_RECIPES[kind]:
-                self.error('light-recipe', '%s is made from a recipe this compiler doesn\'t know (%r); its versions are %s'
-                           % (name, template, {k: sorted(v) for k, v in LIGHT_RECIPES.items()}), **where)
-                return
-            values = rec.get('light')
-            wanted = [k for k in LIGHT_KEYS if k in LIGHT_RECIPES[kind][version]]
-            if not isinstance(values, dict) or set(values) != set(wanted):
-                self.error('malformed', '%s: a recipe light carries every light value (%s)' % (name, ', '.join(wanted)),
-                           **where)
-                return
-            submitted = self.submitted_light(values, kind, where, name)
-            if submitted is None:
-                return
-            if kind == 'spot' and submitted['innerConeAngle'] > submitted['outerConeAngle']:
-                self.note('light-clamped', '%s: its inner cone (%g) is wider than its outer cone (%g); built with the '
-                          'inner cone at %g' % (name, submitted['innerConeAngle'], submitted['outerConeAngle'],
-                                                submitted['outerConeAngle']), key='innerConeAngle',
-                          stored=submitted['innerConeAngle'], built=submitted['outerConeAngle'], **where)
-                submitted['innerConeAngle'] = submitted['outerConeAngle']
-            p = self.pose(dict(location=rec.get('location'), rotation=rec.get('rotation', RECIPE_ROTATION[kind])), where)
-            if not p or not self.light_gate(name, where):
-                return
-            loc, rot, rounding = p
-            source = dict(template=dict(kind=kind, version=version))
-            after, actor_class = submitted, RECIPE_ACTOR[kind]
-        else:
-            light = self.light_of(rec.get('from'))
-            src = rec['from']
-            if src['package'].casefold() != self.map.casefold() or src['level'] != 'base':
-                self.error('level', '%s copies a light of %s level %s; only the base map\'s own lights copy'
-                           % (name, src['package'], src['level']), **where)
-                return
-            why = light_rule(light)
-            if why:
-                self.error('light-view-only', '%s copies %s, which is view only: %s' % (name, short(src['actor']), why),
-                           **where)
-                return
-            if sorted(rec.get('components') or []) != [light['component']]:
-                self.error('template-changed', '%s names components %s, but its template now has %s'
-                           % (name, rec.get('components'), [light['component']]), **where)
-                return
-            kind = light['kind']
-            submitted = self.submitted_light(rec.get('light', {}), kind, where, name)
-            if submitted is None:
-                return
-            after = self.light_after(name, kind, light_values(light), submitted, where)
-            p = self.pose(rec, where)
-            if after is None or not p or not self.light_gate(name, where):
-                return
-            loc, rot, rounding = p
-            source = {'from': short(src['actor'])}
-            actor_class = light['actorClass']
-        self.light_members.add('added|' + out)
-        self.light_ops['adds'].append(dict(source, name=name, label=name, kind=kind, role='static', location=loc,
-                                           rotation=rot, light=after, guidSeed='%s|%s' % (self.doc.get('id'), name),
-                                           reach=reach_box(loc, after['radius'])))
-        self.entities.append(dict(kind='light', op='add', entity=out, id=rec.get('id'), lightClass=actor_class,
-                                  template=rec.get('template') or (rec.get('from') or {}).get('actor'),
-                                  location=loc, rotation=rot, rotationRounding=tidy(rounding, 6),
-                                  reaches=self.reaching(loc, after)))
-
-    # ---------------------------------------------------------------- effects and sounds (the effects and sounds plan)
-    def effect_of(self, target):
-        """The export's effect, sound or flare a target {package, level, actor} names (its record with `kind`), or
-        None."""
-        key = target_key(target)
-        return self.effect_actors.get(key) if key else None
-
-    def effect_values(self, rec, kind, name, where, source=None, systems=None):
-        """A record's values object checked (the effects and sounds plan, Part C): (follow or None, values or None,
-        ok). `follow` is stage FX3's ('none': it doesn't follow the piece it stands on; 'auto': it does); `values` the
-        others (stage FX5), checked against `source` (the export record of the effect or sound they are set on, or
-        that a copy copies) and `systems` (its particle systems' records), as the Build's writer takes them: an
-        effect's {scale, startsOn, parameters: [{name, type, value}]}, a sound's {radiusMin, radiusMax, volume,
-        pitch, startsOn}. Refused: a malformed value, one outside what a value may be, a parameter its effect neither
-        saves in a kind the editor writes nor its system offers in one kind, and values while their family doesn't
-        build (effect-values, sound-values). A lens flare has no values object at all (its template and colour stay
-        as the map has them)."""
-        what = EFFECT_WORDS[kind]
-        other = next((k for k in ('effect', 'sound') if k != kind and k in rec), None)
-        if other:
-            self.error('malformed', '%s is %s, so it has no %s values' % (name, what, other), **where)
-            return None, None, False
-        if kind == 'flare':
-            if 'flare' in rec:
-                self.error('malformed', '%s is a lens flare, whose template and colour stay as the map has them: it '
-                           'has no values' % name, **where)
-                return None, None, False
-            return None, None, True
-        values = rec.get(kind)
-        if values is None:
-            return None, None, True
-        if not isinstance(values, dict):
-            self.error('malformed', '%s: "%s" must be an object of %s values' % (name, kind, kind), **where)
-            return None, None, False
-        bad = sorted(set(values) - set(EFFECT_VALUE_KEYS[kind]))
-        if bad:
-            self.error('malformed', '%s: %s %s not %s value (they are %s)' % (
-                name, ', '.join(bad), 'is' if len(bad) == 1 else 'are', what, ', '.join(EFFECT_VALUE_KEYS[kind])), **where)
-            return None, None, False
-        follow = values.get('follow')
-        if follow is not None and follow not in EFFECT_FOLLOW:
-            self.error('malformed', '%s: follow must be one of %s' % (name, ', '.join(EFFECT_FOLLOW)), **where)
-            return None, None, False
-        given = {k: v for k, v in values.items() if k != 'follow'}
-        if not given:
-            return follow, None, True
-        gate = kind + '-values'
-        if not self.builds(gate):
-            self.error('family', '%s sets its %s. %s' % (name, ', '.join(sorted(given)), FAMILIES[gate]['note']),
-                       family=gate, **where)
-            return None, None, False
-        source = source or {}
-        if not (source.get('can') or {}).get('values'):
-            why = (source.get('why') or {}).get('values') or 'the export doesn\'t say its values can change'
-            self.error('effect-view-only', '%s\'s values can\'t be set: %s' % (name, why), **where)
-            return None, None, False
-        out = {}
-        number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-        if 'startsOn' in given:
-            if not isinstance(given['startsOn'], bool):
-                self.error('malformed', '%s: startsOn is true or false' % name, **where)
-                return None, None, False
-            out['startsOn'] = given['startsOn']
-        if kind == 'effect':
-            if 'scale' in given:
-                v = given['scale']
-                if not number(v) or not EFFECT_SCALE[0] <= v <= EFFECT_SCALE[1]:
-                    self.error('malformed', '%s: its size is a multiplier of %g to %g of the size the map gives it'
-                               % (name, EFFECT_SCALE[0], EFFECT_SCALE[1]), **where)
-                    return None, None, False
-                out['scale'] = float(v)
-            if 'parameters' in given:
-                params = self.effect_parameters(given['parameters'], name, where, source, systems)
-                if params is None:
-                    return None, None, False
-                if params:
-                    out['parameters'] = params
-            return follow, out, True
-        have = source.get('values') or {}
-        for key in ('radiusMin', 'radiusMax'):
-            if key in given:
-                v = given[key]
-                if not number(v) or not 0 <= v <= SOUND_RADIUS_MAX:
-                    self.error('malformed', '%s: %s is 0 to %g units' % (name, key, SOUND_RADIUS_MAX), **where)
-                    return None, None, False
-                out[key] = float(v)
-        lo, hi = out.get('radiusMin', have.get('radiusMin')), out.get('radiusMax', have.get('radiusMax'))
-        if ('radiusMin' in out or 'radiusMax' in out) and number(lo) and number(hi) and lo > hi:
-            self.error('malformed', '%s: its inner radius (%g) is beyond its outer one (%g)' % (name, lo, hi), **where)
-            return None, None, False
-        for key, (least, most) in (('volume', (0.0, SOUND_VOLUME_MAX)), ('pitch', SOUND_PITCH)):
-            if key not in given:
-                continue
-            v = given[key]
-            if (not isinstance(v, list) or len(v) != 2 or not all(number(x) for x in v) or v[0] > v[1]
-                    or v[0] < least or v[1] > most):
-                self.error('malformed', '%s: %s is [least, most], each %g to %g' % (name, key, least, most), **where)
-                return None, None, False
-            out[key] = [float(x) for x in v]
-        return follow, out, True
-
-    def effect_parameters(self, given, name, where, source, systems):
-        """An effect's parameters ([{name, value}]) as the writer takes them ([{name, type, value}]), or None with an
-        error: a parameter the effect saves keeps the type it is saved in (a scalar, vector or colour entry; the
-        first of the name, as the game reads it), one it doesn't is added in the kind its system's distribution of
-        that name has (all of them one kind)."""
-        if not isinstance(given, list):
-            self.error('malformed', '%s: parameters is a list of {name, value}' % name, **where)
-            return None
-        saved = {}
-        for prm in source.get('parameters') or []:
-            if prm.get('name') and prm['name'] not in saved:
-                saved[prm['name']] = prm
-        offers = {}
-        system = (systems or {}).get(source.get('system')) if source.get('system') else None
-        for o in (system or {}).get('offers') or []:
-            offers.setdefault(o['name'], set()).add(o['kind'])
-        number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-        out, seen = [], set()
-        for prm in given:
-            if not isinstance(prm, dict) or set(prm) != {'name', 'value'} or not isinstance(prm['name'], str) or not prm['name']:
-                self.error('malformed', '%s: each parameter is {name, value}' % name, **where)
-                return None
-            pname = prm['name']
-            if pname in seen:
-                self.error('malformed', '%s sets parameter %s twice' % (name, pname), **where)
-                return None
-            seen.add(pname)
-            if pname in saved:
-                type_ = saved[pname].get('type')
-                if type_ not in PARAMETER_TYPES:
-                    self.error('effect-view-only', '%s\'s parameter %s is of type %s, which the editor keeps as the map '
-                               'has it' % (name, pname, type_), **where)
-                    return None
-            elif len(offers.get(pname, ())) == 1:
-                type_ = DISTRIBUTION_TYPES[next(iter(offers[pname]))]
-            elif pname in offers:
-                self.error('effect-view-only', '%s\'s system reads parameter %s both as a number and as a vector, so it '
-                           'is kept as the map has it' % (name, pname), **where)
-                return None
-            else:
-                self.error('malformed', '%s\'s system has no parameter %s%s' % (
-                    name, pname, '' if system else ' (its system didn\'t resolve)'), **where)
-                return None
-            v, shape = prm['value'], PARAMETER_TYPES[type_]
-            ok = (number(v) and abs(v) <= PARAMETER_MAX if shape == 'scalar'
-                  else isinstance(v, list) and len(v) == 3 and all(number(x) and abs(x) <= PARAMETER_MAX for x in v)
-                  if shape == 'vector'
-                  else isinstance(v, list) and len(v) == 4 and all(number(x) and 0 <= x <= 1 for x in v))
-            if not ok:
-                self.error('malformed', '%s: parameter %s is %s' % (name, pname, dict(
-                    scalar='a number', vector='three numbers [x, y, z]',
-                    colour='a colour [r, g, b, a], each 0 to 1')[shape]), **where)
-                return None
-            out.append(dict(name=pname, type=type_, value=float(v) if shape == 'scalar' else [float(x) for x in v]))
-        return out
-
-    def effect_value_warnings(self, name, kind, values, source, where, copy=False):
-        """The warnings for an effect's or sound's values (decision 9: what may behave oddly in the game): one that
-        starts off with nothing to switch it on, and values the map's script changes too."""
-        if not values:
-            return
-        users = ' '.join(source.get('referencedBy') or []) if not copy else ''
-        starts = values.get('startsOn', source.get('startsOn'))
-        if 'startsOn' in values and starts is False and 'Toggle' not in users:
-            self.warn('effect-starts-off', '%s starts off, and nothing in the map\'s script switches it on' % name,
-                      **where)
-        elif 'startsOn' in values and 'Toggle' in users:
-            self.warn('mission-linked', '%s is switched on and off by the map\'s Kismet (%s): what it starts as lasts '
-                      'until the script switches it' % (name, '; '.join(source['referencedBy'][:4])), **where)
-        if values.get('parameters') and 'SetParticleSysParam' in users:
-            self.warn('mission-linked', '%s\'s parameters are set by the map\'s Kismet too (%s): what the script sets '
-                      'replaces these when it runs' % (name, '; '.join(source['referencedBy'][:4])), **where)
-
-    def effect_gate(self, kind, name, where):
-        """The family's refusal while it doesn't build: True when the edit may go on."""
-        if self.builds(kind):
-            return True
-        self.error('family', '%s is %s edit. %s' % (name, EFFECT_WORDS[kind], FAMILIES[kind]['note']), family=kind,
-                   **where)
-        return False
-
-    def effect_usable(self, rec, can, name, where):
-        """Whether the export says an edit may `can` (move, copy, delete) the effect or sound `rec`: True, or False
-        with the export's reason as an error."""
-        if (rec.get('can') or {}).get(can):
-            return True
-        if 'can' not in rec:
-            self.error('export-version', '%s: this map\'s export predates the effects and sounds data (export %d): '
-                       'prepare it again' % (name, EFFECTS_EXPORT), minimum=EFFECTS_EXPORT, **where)
-            return False
-        why = (rec.get('why') or {}).get(can) or 'the export doesn\'t say it can'
-        self.error('effect-view-only', '%s can\'t be %s: %s' % (
-            name, dict(move='moved', copy='copied', delete='deleted')[can], why), **where)
-        return False
-
-    def effect_listing(self, location):
-        """[(building path, floor index)]: the upper floors (index 1 up) one of whose boxes, as the project has them,
-        holds `location` within EFFECT_SLACK: where the Build lists a moved or new effect (plan Part D)."""
-        out = []
-        for name, index, boxes in self.floor_boxes_now() or []:
-            if index >= 1 and any(all(b['min'][a] - EFFECT_SLACK <= location[a] <= b['max'][a] + EFFECT_SLACK
-                                      for a in range(3)) for b in boxes):
-                out.append((name, index))
-        return out
-
-    def effect_floor_note(self, name, rec, location, where):
-        """The note (not a warning) saying which floors' cutaways a moved or new effect joins and leaves: listed, it
-        hides when its floor is cut away. A sound is in no floor's list."""
-        if self.floor_boxes is None:
-            return
-        old = {(self.building_names.get(f.get('building')), f.get('floor')) for f in (rec or {}).get('floors') or []}
-        new = set(self.effect_listing(location))
-        words = lambda fs: ', '.join('floor %d of %s' % (k + 1, short(str(b))) for b, k in sorted(fs, key=str))
-        joins, leaves = new - old, old - new
-        if joins or leaves:
-            self.note('effect-floors', '%s%s%s' % (name, ' joins the cutaway of %s' % words(joins) if joins else '',
-                                                   ('%s leaves the cutaway of %s' % (',' if joins else '', words(leaves)))
-                                                   if leaves else ''),
-                      joins=[[short(str(b)), k] for b, k in sorted(joins, key=str)],
-                      leaves=[[short(str(b)), k] for b, k in sorted(leaves, key=str)], **where)
-
-    def effect_script(self, name, rec, what, where):
-        """The warning for an edit of an effect or sound the mission's script names (export 15's referencedBy): the
-        script acts on the original, wherever it is, and not on a copy."""
-        if rec.get('referencedBy'):
-            self.warn('mission-linked', '%s is named by the map\'s Kismet (%s): %s' % (
-                name, '; '.join(rec['referencedBy'][:4]), what), **where)
-
-    def effect_override(self, target, rec, where, effect):
-        """An original effect or sound moved, turned or deleted (the effects and sounds plan, Part C), in place: the
-        Build keeps its actor, so what names it still does."""
-        kind, name = effect['kind'], short(target['actor'])
-        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'effect', 'sound', 'flare'}):
-            self.note('unknown-field', 'field %r is not part of the override of %s and is ignored' % (f, EFFECT_WORDS[kind]),
-                      **where)
-        if target['level'] != 'base' or str(target['package']).casefold() != self.map.casefold():
-            self.error('effect-view-only', '%s is %s of %s level %s, which the editor shows but doesn\'t change'
-                       % (name, EFFECT_WORDS[kind], target['package'], target['level']), **where)
-            return
-        if not self.effect_gate(kind, name, where):
-            return
-        follow, values, ok = self.effect_values(rec, kind, name, where, effect, self.scene.get('effectSystems'))
-        if not ok:
-            return
-        ops = self.effect_ops[kind]
-        if rec.get('deleted') is True:
-            if not self.effect_usable(effect, 'delete', name, where):
-                return
-            self.effect_own.add(target['actor'])
-            self.effect_script(name, effect, 'it is taken out of the level, so what the script does with it does '
-                               'nothing', where)
-            ops['deletes'].append(dict(name=name, actorClass=effect['actorClass'], location=list(effect['location'])))
-            self.entities.append(dict(kind=kind, op='delete', target=target['actor'], actorClass=effect['actorClass']))
-            return
-        def set_values():
-            # its values, set on the actor in place (stage FX5): only once the record is known to build, since a
-            # record left out for its pose or its follow rule builds nothing of it
-            if values:
-                self.effect_value_warnings(name, kind, values, effect, where)
-                ops['values'].append(dict(name=name, actorClass=effect['actorClass'], **{kind: values}))
-                self.entities.append(dict(kind=kind, op='values', target=target['actor'], actorClass=effect['actorClass'],
-                                          **{kind: values}))
-        if 'location' not in rec and 'rotation' not in rec:
-            set_values()
-            if follow is None:
-                if not values:
-                    self.error('malformed', 'the override of %s is deleted%s' % (
-                        EFFECT_WORDS[kind], ' or gives a pose' if kind == 'flare' else ', gives a pose or values'), **where)
-            else:
-                # follow alone: carrying as the map has it ('auto') or not ('none', where it stands)
-                if follow == 'none' and effect.get('carriedBy'):
-                    self.effect_own.add(target['actor'])
-                    self.note('effect-detached', '%s stays where it is when %s moves' % (
-                        name, short(effect['carriedBy'])), **where)
-                elif not values:
-                    self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
-            return
-        p = self.pose(dict(location=rec.get('location', effect['location']),
-                           rotation=rec.get('rotation', effect['rotation'])), where)
-        if not p:
-            return
-        loc, rot, rounding = p
-        moved = not (all(abs(a - b) < EPS_LOCATION for a, b in zip(loc, effect['location']))
-                     and rot == [int(v) for v in effect['rotation']])
-        if follow == 'auto' and effect.get('carriedBy'):
-            self.error('malformed', '%s follows %s (follow auto), so it has no pose of its own'
-                       % (name, short(effect['carriedBy'])), **where)
-            return
-        if not moved:
-            set_values()
-            if not values:
-                self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
-            return
-        if not self.effect_usable(effect, 'move', name, where):
-            return
-        set_values()
-        # its own pose: the piece it stood on no longer takes it along (plan Part C, ownership and precedence)
-        self.effect_own.add(target['actor'])
-        if effect.get('carriedBy'):
-            self.note('effect-detached', '%s has a place of its own, so it no longer moves with %s'
-                      % (name, short(effect['carriedBy'])), **where)
-        self.effect_script(name, effect, 'the script still acts on it where it stands now (and a Matinee can put it '
-                           'back where it was)', where)
-        if kind == 'effect':
-            self.effect_floor_note(name, effect, loc, where)
-        ops['moves'].append(dict(name=name, actorClass=effect['actorClass'], location=loc, rotation=rot,
-                                 before=dict(location=list(effect['location']), rotation=list(effect['rotation']))))
-        self.entities.append(dict(kind=kind, op='move', target=target['actor'], actorClass=effect['actorClass'],
-                                  location=loc, rotation=rot, rotationRounding=tidy(rounding, 6)))
-
-    def effect_add(self, rec, where):
-        """A copy of one of the map's effects, sounds or lens flares (the effects and sounds plan, Part C): the Build
-        clones the actor and what it owns (its component, light environment and own cue) and shares the system, the
-        wave or the flare's template. A copy of
-        another map's (`from` names a base map other than this one: stage FX4) comes from the library
-        (foreign_effect): the Build stages its donor actor with what it needs (transplant.stage_edit) and clones that."""
-        out = rec['actor']
-        name = short(out)
-        kind = rec.get('kind')
-        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'effect', 'sound', 'flare'}):
-            if f in ('components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted'):
-                self.error('malformed', '%s is a copy of %s, so it has no %s' % (
-                    name, EFFECT_WORDS.get(kind, 'an effect'), f), **where)
-                return
-            self.note('unknown-field', 'field %r is not part of an added effect, sound or lens flare and is ignored' % f,
-                      **where)
-        if kind not in EFFECT_KINDS:
-            self.error('malformed', '%s: kind must be one of %s' % (name, ', '.join(EFFECT_KINDS)), **where)
-            return
-        if not isinstance(rec.get('id'), str) or not rec['id']:
-            self.error('malformed', '%s has no id' % name, **where)
-            return
-        src = rec.get('from')
-        donor, systems = None, None
-        if (isinstance(src, dict) and src.get('level') == 'base' and isinstance(src.get('package'), str)
-                and isinstance(src.get('actor'), str) and src['package'].casefold() != self.map.casefold()):
-            source, donor, systems = self.foreign_effect(src, name, where)
-            if source is None:
-                return
-        else:
-            source = self.effect_of(src)
-            if source is None:
-                self.error('missing', '%s copies %s, which is no effect, sound or lens flare of the export'
-                           % (name, short(str((src or {}).get('actor')))), **where)
-                return
-        if source['kind'] != kind:
-            self.error('malformed', '%s says it is %s but copies %s, which is %s' % (
-                name, kind, short(src['actor']), source['kind']), **where)
-            return
-        if src['level'] != 'base':
-            self.error('effect-view-only', '%s copies %s of %s level %s; only a base map\'s own are copied'
-                       % (name, short(src['actor']), src['package'], src['level']), **where)
-            return
-        if not self.effect_gate(kind, name, where):
-            return
-        follow, values, ok = self.effect_values(rec, kind, name, where, source,
-                                                systems if donor else self.scene.get('effectSystems'))
-        if not ok:
-            return
-        if follow is not None:
-            self.note('unknown-field', '%s is a copy, which no piece carries: its follow is ignored' % name, **where)
-        p = self.pose(rec, where)
-        if not p or not self.effect_usable(source, 'copy', name, where):
-            return
-        loc, rot, rounding = p
-        self.effect_members.add('added|' + out)
-        if kind == 'effect':
-            self.effect_floor_note(name, None, loc, where)
-        if source.get('referencedBy'):
-            self.note('effect-script-copy', '%s is a copy of %s, which its map\'s Kismet names: the copy is an ordinary '
-                      '%s, which the script doesn\'t switch on or off' % (
-                          name, short(src['actor']), 'lens flare' if kind == 'flare' else kind), **where)
-        if (values or {}).get('startsOn', source.get('startsOn')) is False:
-            self.warn('effect-starts-off', '%s is a copy of %s, %s: nothing switches the copy on' % (
-                name, short(src['actor']), 'set to start off' if (values or {}).get('startsOn') is False
-                else 'which starts off and waits for the script to switch it on'), **where)
-        self.effect_value_warnings(name, kind, {k: v for k, v in (values or {}).items() if k != 'startsOn'}, source,
-                                   where, copy=True)
-        if source.get('landingActor') or source.get('landingRole'):
-            # Long War's landing mutator (XComLZMutator.HideDropShip) destroys every actor made from the grounded
-            # Skyranger's archetypes when a battle loads, and a copy keeps its source's archetype (F-120)
-            self.warn('effect-landing-copy', '%s is a copy of %s, one of the landing\'s actors: under Long War the '
-                      'landing mutator takes out every actor made like the landing\'s when the battle loads, the copy '
-                      'among them (plain Enemy Within keeps it)' % (name, short(src['actor'])), **where)
-        copy = dict(id=rec['id'], name=name, source=short(src['actor']), actorClass=source['actorClass'], location=loc,
-                    rotation=rot)
-        if values:
-            copy['values'] = values
-        if donor:
-            # the Build stages the donor's actor in the map (transplant.stage_edit) and clones the staged one
-            copy['donor'] = donor
-            row = self.donor_report.setdefault(donor['package'], dict(donor, pieces=[]))
-            if short(src['actor']) not in row['pieces']:
-                row['pieces'].append(short(src['actor']))
-        self.effect_ops[kind]['copies'].append(copy)
-        self.entities.append(dict(kind=kind, op='add', entity=out, id=rec['id'], actorClass=source['actorClass'],
-                                  template=src['actor'], location=loc, rotation=rot,
-                                  rotationRounding=tidy(rounding, 6), **({'donor': donor} if donor else {})))
-
-    def foreign_effect(self, src, name, where):
-        """(record, donor, systems) of the effect, ambient sound or lens flare of another map a copy names (the effects
-        and sounds plan, stage FX4; a flare since FX6b): its export 28 record as the library reads it from its map (library.effect), its donor
-        {package, sha256} for the Build's staging and its system's record ({key: record}); (None, None, None) with an
-        error. What the library can't bring is
-        refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
-        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69 and lens flares
-        since EXP-71) is built as any copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
-        if self.library is None:
-            self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
-                       % (name, short(src['actor']), src['package']), **where)
-            return None, None, None
-        try:
-            template, entry = self.library.effect(src)
-        except LibraryError as error:
-            self.error(error.code, str(error), **where)
-            return None, None, None
-        if not entry['placeable'] and entry.get('blocked') != 'family':
-            self.error('not-placeable', '%s copies %s of %s, which can\'t be placed in another map: %s'
-                       % (name, short(src['actor']), template['source']['package'], entry['reason']), **where)
-            return None, None, None
-        source = template['source']
-        return (template['record'], dict(package=source['package'], sha256=source['sha256']),
-                template.get('systems') or {})
-
-    def reaching(self, location, values):
-        """How many of the base map's pieces a light's radius reaches at `location` (the report's estimate of what a
-        full build relights; plan 4.2): object boxes within its radius."""
-        if self.object_boxes is None:
-            self.object_boxes = []
-            meshes = self.scene.get('meshes') or {}
-            for o in self.scene.get('objects') or []:
-                if o.get('layer') == 'base' and o.get('mesh') in meshes and o.get('location') is not None:
-                    try:
-                        self.object_boxes.append(world_box(o, meshes, o['location'], o['rotation']))
-                    except (KeyError, TypeError, ValueError, IndexError):
-                        continue
-        r2 = float(values.get('radius') or 0) ** 2
-        n = 0
-        for b in self.object_boxes:
-            d2 = sum(max(b[2 * k] - location[k], 0, location[k] - b[2 * k + 1]) ** 2 for k in range(3))
-            n += d2 <= r2
-        return n
-
-    # ---------------------------------------------------------------- area lights following their pieces (plan 4.8)
-    def copy_area_light(self, light, owner, entity, move, donor=None):
-        lname = short(light['actor'])
-        name = '%s_%s' % (lname, short(entity))
-        location, rotation = moved_light_pose(light['location'], light['rotation'], move)
-        seed = '%s|%s|%s' % (self.doc.get('id'), lname, short(entity))
-        if donor:
-            seed += '|' + donor['package']
-        op = dict(op='copy', name=name, light=lname, owner=short(owner), ownerEntity=short(entity),
-                  label='area-copy:' + name, location=location, rotation=rotation, guidSeed=seed,
-                  reach=dict(before=None, after=reach_box(location, light['radius'])))
-        if donor:
-            op['donor'] = donor
-        self.light_ops['area'].append(op)
-        self.entities.append(dict(kind='light', op='area-copy', target=light['actor'], owner=owner,
-                                  ownerEntity=entity, lightClass=light['actorClass']))
-
-    def area_bindings(self):
-        """The effective glowing piece of each area light: {light actor path: (owner actor path or None, where it came
-        from)}: the project's areaLightBindings, else the export's verified association. A binding this compiler can't
-        use is left out (its light follows the export's association), and so is a list that is no list."""
-        out = {}
-        for light in self.scene.get('lights') or []:
-            if light.get('role') != 'area' or light.get('layer') != 'base':
-                continue
-            att = light.get('emitterAttachment') or {}
-            owner = (att.get('owner') or {}).get('target') if att.get('status') == 'verified' else None
-            out[light['actor']] = (owner.get('actor') if owner else None, 'export' if owner else att.get('status'))
-        records = self.doc.get('areaLightBindings')
-        if records is None:
-            return out
-        if not isinstance(records, list):
-            self.leave_out('malformed', '"areaLightBindings" must be a list: the bindings are left out, and each '
-                           'generated light follows the glowing piece the export found for it', record='areaLightBindings')
-            return out
-        seen = set()
-        for k, rec in enumerate(records):
-            where = dict(record='areaLightBindings[%d]' % k)
-            target = rec.get('target') if isinstance(rec, dict) else None
-            light = self.light_of(target)
-            if not isinstance(rec, dict) or not isinstance(target, dict) or 'owner' not in rec:
-                self.leave_out('area-binding', 'a binding names an area light (target) and its owner (or null): this one '
-                               'is left out', **where)
-                continue
-            where['target'] = str(target.get('actor'))
-            if light is None or light.get('role') != 'area' or light.get('layer') != 'base':
-                self.leave_out('area-binding', '%s is not an area light of %s\'s base level in the export: its binding '
-                               'is left out' % (short(str(target.get('actor'))), self.map), **where)
-                continue
-            if light['actor'] in seen:
-                self.leave_out('area-binding', '%s is bound twice: the first binding holds' % short(light['actor']), **where)
-                continue
-            seen.add(light['actor'])
-            owner = rec['owner']
-            if owner is None:
-                out[light['actor']] = (None, 'kept')
-                continue
-            ot = owner.get('target') if isinstance(owner, dict) else None
-            parts = self.actors.get(target_key(ot)) if target_key(ot) else None
-            if (not parts or ot.get('level') != 'base' or str(ot.get('package')).casefold() != self.map.casefold()
-                    or not any(p.get('component') == owner.get('component') for p in parts)):
-                self.leave_out('area-binding', '%s is bound to a piece that is not a base-level piece of %s in the export'
-                               ' (or not its component): the binding is left out, and the light follows the glowing '
-                               'piece the export found for it' % (short(light['actor']), self.map), **where)
-                continue
-            out[light['actor']] = (ot['actor'], 'project')
-        return out
-
-    def derive_area_lights(self):
-        """The area lights the piece edits take along (plan 4.8), once from the final piece state: a moved original's
-        lights move with it (rigid_move of the owner), a deleted one's go, each copy of an owner gets a copy of each
-        of its lights at the copy's place. An edited piece that may own an area light whose glowing piece isn't
-        settled (ambiguous or unmatched, and not bound in the project) is an error: assign or keep it fixed."""
-        if not self.owner_edits:
-            return
-        bound = self.area_bindings()
-        owned = {}
-        for light, (owner, _) in bound.items():
-            if owner:
-                owned.setdefault(owner, []).append(light)
-        lights = {l['actor']: l for l in self.scene.get('lights') or [] if l.get('role') == 'area'}
-        by_id = {l.get('id'): l for l in lights.values()}
-        for kind, owner, entity, move, where in self.owner_edits:
-            parts = self.actors.get((self.package, 'base', owner)) or []
-            # the lights this piece may have emitted whose glowing piece isn't settled (neither bound nor kept fixed)
-            maybe = sorted({lid for o in parts for lid in o.get('areaLights') or []})
-            unsettled = []
-            for lid in maybe:
-                rec = by_id.get(lid)
-                if rec is None:
-                    continue
-                owner_now, why = bound.get(rec['actor'], (None, None))
-                if owner_now is None and why != 'kept':
-                    unsettled.append(short(rec['actor']))
-            if unsettled and self.cleared and kind == 'delete':
-                # a cleared map's Build takes out every area light whose glowing piece isn't settled (clear_level)
-                unsettled = []
-            if unsettled:
-                # (a warning since plan R4: the piece's edit is built, and the light stays as the map has it)
-                self.note('area-light-unresolved', '%s may be the glowing piece of %s, whose glowing piece isn\'t settled '
-                          '(the matcher found it %s): the light stays where the map has it. Assign it or keep it fixed '
-                          '(the light\'s inspector) to settle it' % (short(owner), ', '.join(unsettled),
-                                                                    'ambiguous or unmatched'), **where)
-                continue
-            mine = sorted(owned.get(owner, []))
-            if not mine:
-                self.near_unknown(parts, where)
-                continue
-            if not self.builds('light'):
-                # (a warning since plan R4: the piece's edit is built, and its light stays as the map has it)
-                self.note('family', '%s glows: %s it would take its generated light%s (%s) along, which stay%s where '
-                          'the map has %s. %s' % (
-                              short(owner), {'move': 'moved,', 'delete': 'deleted,', 'copy': 'copied,'}[kind],
-                              '' if len(mine) == 1 else 's', ', '.join(short(m) for m in mine),
-                              's' if len(mine) == 1 else '', 'it' if len(mine) == 1 else 'them',
-                              FAMILIES['light']['note']), family='light', **where)
-                continue
-            for light_path in mine:
-                light = lights[light_path]
-                if kind == 'copy':
-                    self.copy_area_light(light, owner, entity, move)
-                    continue
-                lname = short(light_path)
-                before_reach = reach_box(light['location'], light['radius'])
-                if kind == 'delete':
-                    op = dict(op='delete', name=lname, light=lname, owner=short(owner), ownerEntity=short(owner),
-                              label='area-delete:' + lname, location=list(light['location']),
-                              rotation=[int(v) for v in light['rotation']], guidSeed=None,
-                              reach=dict(before=before_reach, after=None))
-                else:
-                    loc, rot = moved_light_pose(light['location'], light['rotation'], move)
-                    op = dict(op=kind, name=lname, light=lname, owner=short(owner), ownerEntity=short(entity),
-                              label='area-move:' + lname, location=loc, rotation=rot, guidSeed=None,
-                              reach=dict(before=before_reach, after=reach_box(loc, light['radius'])))
-                self.light_ops['area'].append(op)
-                self.entities.append(dict(kind='light', op='area-' + kind, target=light_path, owner=owner,
-                                          ownerEntity=entity, lightClass=light['actorClass']))
-
-    def near_unknown(self, parts, where):
-        """Warns of unmatched area lights (no candidate glowing piece) near an edited piece (plan 4.8): their glow may
-        be this piece's, which the matcher couldn't tell from its materials."""
-        try:
-            box = self.boxes(parts, parts[0]['location'], parts[0]['rotation'])
-        except (KeyError, TypeError, ValueError, IndexError):
-            return
-        near = []
-        for light in self.scene.get('lights') or []:
-            att = light.get('emitterAttachment') or {}
-            if light.get('role') != 'area' or att.get('status') != 'unmatched' or att.get('candidates'):
-                continue
-            if all(box[2 * k] - AREA_NEAR <= light['location'][k] <= box[2 * k + 1] + AREA_NEAR for k in range(3)):
-                near.append(short(light['actor']))
-        if near:
-            self.note('area-light-near', '%s stands by %s, generated light%s whose glowing piece the export couldn\'t '
-                      'find: if it glows from this piece, it stays where it is' % (
-                          short(parts[0]['actor']), ', '.join(near), '' if len(near) == 1 else 's'), **where)
-
+    # ---------------------------------------------------------------- groups
     def groups(self):
         """The user's groups (research/editor-contracts.md, section 2). Only "break together" reaches the game: each
         such group with two or more breakable pieces gets a number, given to its copies (breakGroups) and to the base
@@ -3730,7 +2675,7 @@ class Compiler:
             for m, key in zip(members, keys):
                 if 'group' in m:
                     continue   # a group inside it breaks by its own option
-                if 'building' in m or key in self.light_members or key in self.effect_members \
+                if 'building' in m or key in self.light_edits.members or key in self.effect_edits.members \
                         or ('actor' in m and ((m['package'], m['level'], m['actor']) in self.lights
                                               or (m['package'], m['level'], m['actor']) in self.effect_actors)):
                     continue   # a building's boxes, a light, an effect or a sound move with the group in the editor;
@@ -3872,9 +2817,9 @@ class Compiler:
             objects.append(dict(type='hide', exact=True, location=[tidy((loc[0] + loc[1]) / 2), tidy((loc[2] + loc[3]) / 2), tidy(loc[4])],
                                 alsoHide=[h['name'] for h in hides], labels=[h['label'] for h in hides],
                                 boxes=[[tidy(v, 3) for v in h['box']] for h in hides]))
-        if any(self.light_ops.values()):
+        if any(self.light_edits.ops.values()):
             # Light edits (plan 9.5): made in the map by the Build's writer (native_split moves them there)
-            ops = self.light_ops
+            ops = self.light_edits.ops
             objects.append(dict(type='lights', deletes=sorted(ops['deletes'], key=lambda d: d['name']),
                                 changes=sorted(ops['changes'], key=lambda d: d['name']),
                                 adds=sorted(ops['adds'], key=lambda d: d['name']),
@@ -3883,7 +2828,7 @@ class Compiler:
             # cover blocks (cover_add): made in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='covers', blocks=sorted(self.covers, key=lambda c: c['name'])))
         for kind, key in EFFECT_LANES:
-            ops = self.effect_ops[kind]
+            ops = self.effect_edits.ops[kind]
             if any(ops.values()):
                 # effects, sounds and lens flares (the effects and sounds plan, Part D): moved in place, deleted from
                 # the level's list and copied in the map by the Build's writer (native_split moves them there)
@@ -3899,12 +2844,12 @@ class Compiler:
                                 values=sorted(spawn_ops['values'], key=lambda d: d['name']),
                                 deletes=sorted(spawn_ops['deletes'], key=lambda d: d['name']),
                                 copies=sorted(spawn_ops['copies'], key=lambda d: d['name'])))
-        if self.flag_edits:
+        if self.flag_edits.edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
             # (and the map's ladders near them, whose top tiles the Build rebuilds first)
             near = self.flag_ladders()
-            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits, key=lambda e: e['name']),
+            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits.edits, key=lambda e: e['name']),
                                 **({'ladders': near} if near else {})))
         if self.blast_edits:
             # the map's own fracturing pieces broken where they stand (custom geometry editing plan, E6): their
@@ -3935,7 +2880,7 @@ class Compiler:
         # detaches itself (the effects and sounds plan, Part C: a record of its own takes it from its piece)
         carried = {}
         for e in self.scene.get('effects') or []:
-            if e.get('carriedBy') and e['actor'] not in self.effect_own:
+            if e.get('carriedBy') and e['actor'] not in self.effect_edits.own:
                 carried.setdefault(e['carriedBy'].rsplit('.', 1)[-1], []).append(e['actor'].rsplit('.', 1)[-1])
         if carried:
             extra['carriedEffects'] = {k: sorted(v) for k, v in sorted(carried.items())}
@@ -4843,7 +3788,7 @@ class Compiler:
     def floor_kept_off(self):
         """The map's own pieces whose Floor the project's flags turn off or keep off (explicit Floor off): the Build's
         floor for low scenery on a grown map leaves them as they are (F-100 gives way to the user's flags)."""
-        return {e['target'] for e in self.flag_edits if e['flags'].get('floor') is False}
+        return {e['target'] for e in self.flag_edits.edits if e['flags'].get('floor') is False}
 
     def floor_now(self):
         """The map's saved floor tiles whose piece is still where it was: a deleted or moved piece takes its floor
@@ -4852,7 +3797,7 @@ class Compiler:
 
     def floor_records_now(self):
         """The export's floor tile records (tactical.floorTiles: tile, location, actor) of floor_now."""
-        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | getattr(self, 'floor_off', set())
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | self.flag_edits.floor_off
         return [f for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') not in gone]
 
     def run(self):
@@ -4870,7 +3815,7 @@ class Compiler:
             self.join_made_walls()
             self.made_walls_stacked()
             self.made_wall_openings()
-            self.derive_area_lights()
+            self.light_edits.derive_area_lights()
             self.groups()
             self.stage()
             self.ladder_climbs()
@@ -4892,17 +3837,17 @@ class Compiler:
                       counts=dict(moved=sum(e['kind'] == 'move' for e in self.entities), deleted=sum(e['kind'] == 'delete' for e in self.entities),
                                   added=sum(e['kind'] == 'add' for e in self.entities), errors=len(self.errors), warnings=len(self.warnings),
                                   leftOut=len(self.left_out),
-                                  lights=dict(deleted=len(self.light_ops['deletes']), added=len(self.light_ops['adds']),
-                                              changed=len(self.light_ops['changes']), area=len(self.light_ops['area'])),
-                                  **{key: dict(moved=len(self.effect_ops[kind]['moves']),
-                                               deleted=len(self.effect_ops[kind]['deletes']),
-                                               added=len(self.effect_ops[kind]['copies']),
-                                               valued=len(self.effect_ops[kind]['values'])
-                                               + sum(1 for c in self.effect_ops[kind]['copies'] if c.get('values')))
+                                  lights=dict(deleted=len(self.light_edits.ops['deletes']), added=len(self.light_edits.ops['adds']),
+                                              changed=len(self.light_edits.ops['changes']), area=len(self.light_edits.ops['area'])),
+                                  **{key: dict(moved=len(self.effect_edits.ops[kind]['moves']),
+                                               deleted=len(self.effect_edits.ops[kind]['deletes']),
+                                               added=len(self.effect_edits.ops[kind]['copies']),
+                                               valued=len(self.effect_edits.ops[kind]['values'])
+                                               + sum(1 for c in self.effect_edits.ops[kind]['copies'] if c.get('values')))
                                      for kind, key in EFFECT_LANES},
                                   spawns={k: len(self.spawn_edits.ops[op]) for k, op in (
                                       ('moved', 'moves'), ('valued', 'values'), ('added', 'copies'), ('deleted', 'deletes'))},
-                                  flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
+                                  flags=dict(self.flag_edits.counts, inPlace=len(self.flag_edits.edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=self.stage_grid,
                       cleared=self.cleared, clearKeepsOutside=self.keep_outside, landingZones=self.zones,

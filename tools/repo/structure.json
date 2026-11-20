@@ -4,6 +4,9 @@
     "lets": 105
   },
   "compiler families": [
+    "tools/editor/effect_edits.py",
+    "tools/editor/flag_edits.py",
+    "tools/editor/light_edits.py",
     "tools/editor/spawn_edits.py"
   ],
   "file lines": {
@@ -11,7 +14,7 @@
     "tools/bake/relight.py": 2045,
     "tools/bake/wall_measure.py": 1619,
     "tools/editor/build.py": 1759,
-    "tools/editor/compiler.py": 5622,
+    "tools/editor/compiler.py": 4442,
     "tools/editor/tests/test_build.py": 1890,
     "tools/editor/tests/test_compiler.py": 3263,
     "tools/viewer/installs.py": 2035,

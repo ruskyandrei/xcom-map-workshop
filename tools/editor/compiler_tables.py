@@ -1,7 +1,8 @@
 """The tables and small helpers the compiler shares with its edit families (review finding 23).
 
-The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py) import this module; a family
-never imports the compiler (tools/repo/structure.json, `compiler families`). The compiler takes every name of __all__
+The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py, effect_edits.py,
+light_edits.py, flag_edits.py) import this module; a family never imports the compiler (tools/repo/structure.json,
+`compiler families`). The compiler takes every name of __all__
 with `from compiler_tables import *`, so compiler.FAMILIES and the rest are these same objects: a test that changes
 compiler.FAMILIES['spawn'] in place changes what the spawn family reads too.
 
@@ -175,7 +176,7 @@ ASSEMBLY_FAMILIES = ('ladder', 'door', 'frameless-door', 'car', 'van')
 # A flat piece the project adds is expected to give floor (added_floors): no more than FLOOR_THICK high, and with
 # HEADROOM clear over a tile (F-71: about 150 units; the game gives no floor to a tile a soldier can't stand on)
 FLOOR_THICK, HEADROOM = 40.0, 150.0
-# the kinds an effect record is: an effect (Emitter), an ambient sound or a lens flare (compiler.EFFECT_CLASSES)
+# the kinds an effect record is: an effect (Emitter), an ambient sound or a lens flare (effect_edits.EFFECT_CLASSES)
 EFFECT_KINDS = ('effect', 'sound', 'flare')
 # The pose rule (plan section 3.2)
 TILE, STOREY, QUARTER = 96.0, 64.0, 16384
