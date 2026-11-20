@@ -1,4 +1,5 @@
-"""The numpy DXT1 encoder and decoder, checked against PIL's DDS decoder (which `lightmap_textures` reads with)."""
+"""The numpy DXT1 encoder and decoder, checked against PIL's DDS decoder; `lightmap_textures` reads a lightmap's top
+mip with this decoder."""
 import io
 from pathlib import Path
 import sys
@@ -50,6 +51,20 @@ class Dxt1(unittest.TestCase):
         two = np.array([[0.8, 0.6, 0.4]] * 8 + [[0.2, 0.3, 0.4]] * 8)[None]
         out = dxt1.decode_blocks(dxt1.encode_blocks(two))
         self.assertLess(np.abs(out - two).max(), 0.02)
+
+    def test_the_lightmap_reader_decodes_with_this_decoder(self):
+        """lightmap_textures reads a lightmap's top mip with this decoder, whole or a rectangle of it (PIL's rounds a
+        palette's in-between colours down to whole 255ths, a third or two of one away)."""
+        from unittest import mock
+        import lightmap_textures
+        raw = dxt1.encode_blocks(dxt1.image_blocks(self.image).reshape(-1, 16, 3))
+        with mock.patch.object(lightmap_textures, 'top_mip_raw', return_value=(raw, 64, 64)):
+            whole = lightmap_textures.top_mip_rgb(None, 1)
+            self.assertTrue((whole == dxt1.decode_image(raw, 64, 64)).all())
+            for x0, y0, x1, y1 in ((0, 0, 64, 64), (5, 3, 23, 41), (8, 8, 12, 12), (61, 0, 64, 2)):
+                with self.subTest(rect=(x0, y0, x1, y1)):
+                    self.assertTrue((lightmap_textures.top_mip_rect(None, 1, x0, y0, x1, y1)
+                                     == whole[y0:y1, x0:x1]).all())
 
     def test_blocks_image_round_trip(self):
         b = dxt1.image_blocks(self.image)
