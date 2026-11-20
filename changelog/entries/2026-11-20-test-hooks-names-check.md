@@ -27,3 +27,5 @@ must leave those hooks as they were.
   - `--write-api-names` refuses 8768. `--ports` refuses 8768, a repeated port, a port outside 8790-8799, and use
     without `--all`.
   - The node suite passes.
+  - `--all` passes with `api-names` in its whole run, in 11 minutes on that cache. Its nine runs ran 70 checks. Play
+    was left out, since no scratch game folder was given.
