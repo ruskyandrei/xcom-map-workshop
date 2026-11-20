@@ -109,11 +109,8 @@ import piece_flags  # noqa: E402
 # (the Build's looks, after the viewer's and editor's own modules, so no module of the Build's stands in for one of them)
 if str(HERE.parent / 'bake') not in sys.path:
     sys.path.append(str(HERE.parent / 'bake'))
-import looks  # noqa: E402
-import ground as ground_shapes  # noqa: E402
-import made_blasts  # noqa: E402
+import looks  # noqa: E402,F401  (the made family's; read through the compiler by its tests: compiler.looks)
 import made_cursors  # noqa: E402
-import made_split  # noqa: E402
 import spawns  # noqa: E402
 # the tables and helpers the compiler shares with its edit families: compiler_tables.__all__ (compiler.FAMILIES
 # and the rest are its objects); the spawn family, and its table the compiler reads; the effects family, and its
@@ -128,68 +125,29 @@ from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_pr
                          LightEdits)
 # the pieces' flags family (nothing reads its tables through the compiler)
 from flag_edits import FlagEdits  # noqa: E402
+# the made walls, floors, roofs and ground shapes family, and its tables and helpers others read through the compiler
+# (the tests, the bake suite's agreement test, an example)
+from made_edits import (FRAC_SLAB_MAX_TILES, FRAC_WALL_LOOKS, FRAC_WALL_MIN_LENGTH, WALL_SWEEPS,  # noqa: E402,F401
+                        MadeEdits, opening_play, wall_joins)
+# the buildings family (made from nothing, and the map's own changed or deleted), and its tables and helpers others
+# read through the compiler (the tests, the viewer's prefab builder test)
+from building_edits import BUILDING_FLOORS_MAX, BuildingEdits, moved_whole, source_floor_match  # noqa: E402,F401
+# the map grid, the clear, landing zones, missions and spawn places, and the tables others read through the compiler
+# (the tests, the viewer's prefab builder test)
+from mission_edits import STAGE_GRID_MAX, STAGE_LEVELS_MAX, MissionEdits, stage_max  # noqa: E402,F401
 
 COMPILER_VERSION = 3
-# A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
-# least this long (tools/bake/frac_walls.py MIN_LENGTH; test_frac_walls checks they agree), and its solid stops
-# FRAC_WALL_END_INSET (compiler_tables) short of each end
-FRAC_WALL_MIN_LENGTH = 40.0
-# the looks a made wall can be in (custom geometry plan, M4 item 1: tools/bake/wall_looks.json, frac_wall.LOOKS); the
-# first is the one a wall naming none is in
-FRAC_WALL_LOOKS = [look['id'] for look in json.loads(
-    (Path(__file__).resolve().parents[1] / 'bake' / 'wall_looks.json').read_text(encoding='utf-8'))['looks']]
 # a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): the
-# look of one that names none; a slab is whole tiles, 1 to FRAC_SLAB_MAX_TILES each way, its holes whole tiles
-# inside it; its looks are FRAC_SLAB_LOOKS (compiler_tables)
+# look of one that names none; its looks are FRAC_SLAB_LOOKS (compiler_tables), its sizes the made family's
 FRAC_SLAB_DEFAULT_LOOK = 'roof'
-FRAC_SLAB_MAX_TILES = 16
-# a made wall or floor of any size (custom geometry editing plan, B4, D-3, 19 November 2026): the Build cuts it into
-# pieces of at most FRAC_SLAB_MAX_TILES tiles and its look's storeys (made_split); these bound the numbers only
-MADE_MAX_TILES = 128
-MADE_MAX_STOREYS = made_split.MAX_STOREYS
 
 
-# ground shapes made from numbers (M6: tools/bake/ground.py): a patch, block or ramp of whole tiles (1 to 16 each way), a
-# block's or ramp's height 1 to 384, copying a plain piece (GROUND_CLASSES); a slope steeper than about 10 degrees is
-# sloped (F-81: no cover on it) and past 45 no floor
+# ground shapes made from numbers (M6: tools/bake/ground.py), copying a plain piece (GROUND_CLASSES); a slope steeper
+# than about 10 degrees is sloped (F-81: no cover on it) and past 45 no floor; their shapes and sizes are the made
+# family's
 GROUND_DEFAULT_LOOK = next(iter(GROUND_LOOKS))
-GROUND_SHAPES = ('patch', 'block', 'ramp', 'rock')
-GROUND_ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to this less one (ground.py ROCK_SEEDS)
 GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActor')
-GROUND_MAX_HEIGHT = 384.0
-GROUND_MAX_TILES = 64       # (one plain piece, not cut: B4; ground.MAX_TILES)
 GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
-
-
-# the generated request versions each kind takes (tools/bake/frac_walls.py VERSIONS, OTHER_VERSIONS); a look named by
-# its donor (custom geometry plan, M4: {mesh, measure}, looks.py) comes with a wall's version 3 and a slab's or ground
-# shape's version 2, which always name one
-GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4), 'fracSlab': (1, 2, 3), 'ground': (1, 2, 3, 4), 'relit': (1,)}
-DONOR_LOOK_SINCE = {'fracWall': 3, 'fracSlab': 2, 'ground': 2}
-# a made piece with no look chosen (custom geometry editing plan, B2, 19 November 2026): drawn plain in the editor, its
-# numbers its kind's default look's as version 1 has them; the Build makes it in that look (D-1) and warns made-no-look,
-# and the copy goes on as version 1
-PLAIN_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
-# a rock whose corners were moved in the editor (look picker and rock points plan, R1): its numbers carry `points`, and
-# its request is this version whatever its look (a look id, one named by its donor, or none: plain), so an editor from
-# before refuses it rather than make the seed's rock; it goes on to the Build as the version its look gives
-POINTS_VERSION = {'ground': 4}
-
-
-def wall_look_storeys(wall):
-    """(its look's own storeys, whether a wall one storey tall can be made in it) of a made wall (frac_wall.storeys_of):
-    the Bar's inside wall's, (2, yes), for a look id; for a donor look no catalogue holds, its storeys as asked, uncut
-    (the Build measures it)."""
-    look = wall.get('look')
-    if not isinstance(look, dict):
-        return 2, True
-    try:
-        resolved = looks.resolve('wall', look)
-    except looks.LookError:
-        return int(wall.get('storeys') or 2), False
-    import frac_wall
-    own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
-    return max(own), max(own) > 1 and 1 in own
 
 
 def slab_heights(slab):
@@ -213,18 +171,6 @@ def ground_thickness(g):
     return GROUND_LOOKS.get(look if isinstance(look, str) else GROUND_DEFAULT_LOOK, 8.0)
 
 
-def look_valid(kind, look, version, since, ids):
-    """Whether a made piece's look fits its request version: named by its donor from version `since` on (always), a
-    look id of `ids` (or none) before it."""
-    if version >= since:
-        try:
-            looks.check_look(looks.REQUESTS[kind][0], look)
-            return True
-        except looks.LookError:
-            return False
-    return look is None or (isinstance(look, str) and look in ids)
-
-
 def ground_box(g):
     """A ground shape's box in its mesh's frame (ground.local_box)."""
     if g['shape'] == 'patch':
@@ -237,12 +183,6 @@ def ground_box(g):
 def ground_slope(g):
     """A ramp's slope in degrees (ground.slope)."""
     return math.degrees(math.atan2(float(g['height']), float(g['x1']) - float(g['x0']))) if g.get('shape') == 'ramp' else 0.0
-# What the game does at a made wall's opening (custom geometry plan, M1 item 4; tools/viewer/web/walls.js is the twin):
-# its sweeps over a tile's floor along the line between two tiles' centres (research/native/cover-build.md,
-# line-of-sight.md): cover 44 to 60, high or low 88 to 104, walking 64 (half a unit thick), sight from the eye tile 96
-# over the floor's level. An opening counts at a tile only where it holds the tile's centre along the wall. Heights
-# are over the floor the wall stands on (its numbers' z 0); a doorway reaches the wall's bottom, -16.
-WALL_SWEEPS = dict(cover=(44.0, 60.0), high=(88.0, 104.0), walk=64.0, sight=96.0, half=0.5)
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
 # sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7).
@@ -252,9 +192,10 @@ READ_VERSIONS = (1, 2, 3, 4)
 # the map's own low scenery past its far sides, on a grid the project grows, is made walkable by the Build (F-100;
 # native_copy.SCENERY_LOW, shell.py scenery_to_walk): a level actor no taller than this, within the grid's levels
 SCENERY_LOW = 32.0
-# The cursor's floors (the export's cursorVolumes, export 20): a building's floor should start within CURSOR_NEAR of
-# where one starts. A map with none gets CURSOR_STOREYS even storeys of CURSOR_STOREY from the Build (shell.py).
-CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
+# The cursor's floors (the export's cursorVolumes, export 20): a map with none gets CURSOR_STOREYS even storeys of
+# CURSOR_STOREY from the Build (shell.py); a building's floor should start within the buildings family's
+# CURSOR_NEAR of where one starts.
+CURSOR_STOREY, CURSOR_STOREYS = 192.0, 4
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -412,183 +353,6 @@ def finite(v, n):
                                                        and math.isfinite(x) for x in v)
 
 
-BUILDING_SHAPE = ('each building is {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, z0, x1, '
-                  'y1, z1]]}]}, each floor with at least one box that has room in it; one of the map\'s has "replaces": '
-                  '{"package", "level", "actor"} and each floor "volumes" as long as its boxes, or is {"id", "replaces", '
-                  '"deleted": true}')
-
-
-def building_well_formed(b):
-    """Whether a `buildings` record has the shape BUILDING_SHAPE says."""
-    def number(v):
-        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-    if not isinstance(b, dict) or not isinstance(b.get('id'), str) or not b['id'] \
-            or not isinstance(b.get('name', ''), str):
-        return False
-    rep = b.get('replaces')
-    if rep is not None and not (isinstance(rep, dict) and set(rep) == {'package', 'level', 'actor'}
-                                and all(isinstance(v, str) for v in rep.values())):
-        return False
-    if 'deleted' in b:
-        return b['deleted'] is True and rep is not None and 'floors' not in b
-    if not keyable(b.get('kind', 'building')) or b.get('kind', 'building') not in BUILDING_KINDS:
-        return False
-    floors = b.get('floors')
-    if not isinstance(floors, list) or not 1 <= len(floors) <= BUILDING_FLOORS_MAX:
-        return False
-    for f in floors:
-        boxes = f.get('boxes') if isinstance(f, dict) else None
-        if not isinstance(boxes, list) or not boxes:
-            return False
-        for x in boxes:
-            if not (isinstance(x, list) and len(x) == 6 and all(number(v) for v in x)
-                    and all(x[k + 3] - x[k] >= 1 for k in range(3))):
-                return False
-        volumes = f.get('volumes')
-        if rep is None and volumes is not None:
-            return False
-        if rep is not None and not (isinstance(volumes, list) and len(volumes) == len(boxes) and all(
-                v is None or (isinstance(v, str) and v) for v in volumes)):
-            return False
-    return True
-
-
-def opening_play(wall, o):
-    """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
-    centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
-    rebuild gives its ClimbOver, F-126), sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
-    tiles))."""
-    length = float(wall['x1']) - float(wall['x0'])
-    centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
-    tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
-    if not tiles:
-        return dict(tiles=0, walk=False, climb=False, sight=False, cover='whole')
-    s = WALL_SWEEPS
-
-    def spans(a, b):
-        return o['z0'] < a and o['z1'] > b
-    cover_hit, high_hit = not spans(*s['cover']), not spans(*s['high'])
-    walk = spans(s['walk'] - s['half'], s['walk'] + s['half'])
-    cover = 'none' if not cover_hit else 'high' if high_hit else 'low'
-    return dict(tiles=tiles, walk=walk, climb=not walk and cover == 'low',
-                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']), cover=cover)
-
-
-# How made walls meet (custom geometry plan, M3 item 2; walls.js wallJoins is the twin): an end's style for its solid
-# (tools/bake/frac_wall.py END_INSETS) and how it meets. The game's walls (research/evidence/wall-joints.py): an
-# inside wall's end on another wall's line stops square 8 short of it (a T's stem: 'free', as a free end); at an L one
-# runs through to the other's far face ('through') and the other butts on its face ('free'); end to end both reach the
-# line ('line').
-WALL_JOIN_REACH = 1.0           # an end within this of a point or a line meets it
-WALL_JOIN_FLOOR = 32.0          # walls meet when their heights overlap by more than this (a storey apart they don't)
-
-
-def wall_joins(walls):
-    """Where made walls meet: `walls` [dict(key, location, rotation, wall)] (their poses and numbers) gives {key:
-    dict(ends: [the x0 end's style, the x1 end's] ('free', 'through' or 'line'), joins: [dict(end (0 or 1), how
-    ('corner' (runs through), 'butt', 'line', 'stem'), other (the other wall's key))])}. An end meets the walls whose
-    ends lie within WALL_JOIN_REACH of it, or whose centre line passes through it between their ends, on the same floor
-    (heights overlapping by more than WALL_JOIN_FLOOR). At a point: two ends leaving it in opposite directions are end
-    to end ('line'; with a second such pair across them, that pair butts); a wall passing through makes every end there
-    a stem; two ends at right angles make an L, where the taller wall runs through, then the longer, then the one along
-    game x, and the other butts. Anything else (walls overlapping) stays free. Only level walls turned by yaw meet."""
-    tau = 2 * math.pi
-    info = []
-    for w in walls:
-        loc, rot, wall = w['location'], w['rotation'], w['wall']
-        if round(rot[0]) % 65536 or round(rot[2]) % 65536:
-            continue
-        yaw = rot[1] * tau / 65536
-        d = (math.cos(yaw), math.sin(yaw))
-        x0, x1 = float(wall['x0']), float(wall['x1'])
-        bottom, top, _, _ = wall_heights(wall)
-        info.append(dict(key=w['key'], d=d, x0=x0, x1=x1,
-                         p=[(loc[0] + d[0] * x, loc[1] + d[1] * x) for x in (x0, x1)],
-                         z=(loc[2] + bottom, loc[2] + top), height=top, length=x1 - x0,
-                         loc=(loc[0], loc[1])))
-    out = {w['key']: dict(ends=['free', 'free'], joins=[]) for w in walls}
-
-    def floor(a, b):
-        return min(a['z'][1], b['z'][1]) - max(a['z'][0], b['z'][0]) > WALL_JOIN_FLOOR
-
-    def through(pt, b):
-        vx, vy = pt[0] - b['loc'][0], pt[1] - b['loc'][1]
-        t = vx * b['d'][0] + vy * b['d'][1]
-        return abs(b['d'][0] * vy - b['d'][1] * vx) <= WALL_JOIN_REACH and b['x0'] + WALL_JOIN_REACH < t < b['x1'] - WALL_JOIN_REACH
-
-    def leaving(w, m):
-        # the way the wall leaves the point at its end m, as a quarter: 0 +x, 1 +y, 2 -x, 3 -y
-        dx, dy = w['d'] if m == 0 else (-w['d'][0], -w['d'][1])
-        return (0 if dx > 0.5 else 2) if abs(dx) > abs(dy) else (1 if dy > 0.5 else 3)
-
-    done = set()
-    for i, a in enumerate(info):
-        for k in (0, 1):
-            if (i, k) in done:
-                continue
-            pt = a['p'][k]
-            ends = [(j, m) for j, b in enumerate(info) for m in (0, 1)
-                    if (j == i or floor(a, b)) and math.dist(b['p'][m], pt) <= WALL_JOIN_REACH]
-            done.update(ends)
-            passes = [j for j, b in enumerate(info) if j != i and floor(a, b) and through(pt, b)]
-            if len(ends) < 2 and not passes:
-                continue
-            style = {}
-            if passes:
-                for j, m in ends:
-                    style[j, m] = ('free', 'stem', info[passes[0]]['key'])
-            else:
-                by = {}
-                for j, m in ends:
-                    by.setdefault(leaving(info[j], m), []).append((j, m))
-                if any(len(v) > 1 for v in by.values()):
-                    continue                    # walls overlapping: left free
-                pairs = [q for q in (0, 1) if q in by and q + 2 in by]
-                if pairs:
-                    line = pairs[0]             # (two pairs: the one along x is end to end, the other butts on it)
-                    (ja, ma), (jb, mb) = by[line][0], by[line + 2][0]
-                    style[ja, ma] = ('line', 'line', info[jb]['key'])
-                    style[jb, mb] = ('line', 'line', info[ja]['key'])
-                    for q in ((1, 3) if line == 0 else (0, 2)):
-                        if q in by:
-                            j, m = by[q][0]
-                            style[j, m] = ('free', 'stem', info[ja]['key'])
-                elif len(ends) == 2:
-                    (ja, ma), (jb, mb) = ends
-                    A, B = info[ja], info[jb]
-                    rank = lambda w: (w['height'], w['length'], abs(w['d'][0]) > abs(w['d'][1]))  # noqa: E731
-                    if rank(A) < rank(B):
-                        (ja, ma), (jb, mb), A, B = (jb, mb), (ja, ma), B, A
-                    style[ja, ma] = ('through', 'corner', B['key'])
-                    style[jb, mb] = ('free', 'butt', A['key'])
-            for (j, m), (shape, how, other) in style.items():
-                rec = out[info[j]['key']]
-                rec['ends'][m] = shape
-                rec['joins'].append(dict(end=m, how=how, other=other))
-    return out
-
-
-def opening_box(location, rotation, o, half=12.0):
-    """The world box [x0, x1, y0, y1, z0, z1] of a made wall's opening, the wall standing at `location` turned by
-    `rotation` (its numbers in its own frame: x along it, z over its floor)."""
-    m = transform(location, rotation, [1, 1, 1])
-    pts = [[sum(m[i][k] * v[k] for k in range(3)) + m[i][3] for i in range(3)]
-           for v in product((o['x0'], o['x1']), (-half, half), (o['z0'], o['z1']))]
-    return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts),
-            min(p[2] for p in pts), max(p[2] for p in pts)]
-
-
-WALL_STACK_GAP = 24.0      # a made wall's bottom this near another's top stands on it (made_walls_stacked)
-
-
-def overlaps_by(a, b, least):
-    """Whether boxes a and b ([x0, x1, y0, y1, z0, z1]) overlap at all across and by more than `least` along x or y
-    (whichever is longer in a) and up."""
-    along = 0 if a[1] - a[0] >= a[3] - a[2] else 1
-    over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(3)]
-    return over[along] > least and over[2] > least and over[1 - along] > 0
-
-
 def is_landing(obj):
     """Whether an export's piece is one of the map's landing-zone pieces (LANDING_PREFIXES, by its archetype)."""
     return str(obj.get('archetype') or '').casefold().startswith(LANDING_PREFIXES)
@@ -661,60 +425,6 @@ def rigid_move(src_location, src_rotation, location, rotation):
     b = transform(location, rotation, [1, 1, 1])
     inverse = [[a[j][i] for j in range(3)] + [-sum(a[j][i] * a[j][3] for j in range(3))] for i in range(3)] + [[0, 0, 0, 1]]
     return multiply(b, inverse)
-
-
-def source_floor_match(buildings, floors, before, location, rotation):
-    """The source building a building of the project comes from, as seen from one piece taken from that source: the
-    source's buildings (an export's: floors with boxes {min, max}) carried by the piece's move (from its source pose
-    `before` {location, rotation} to `location`, `rotation`, a whole number of quarter turns), each floor paired with
-    the project floor its boxes overlap most. `floors`: the project building's ([{boxes: [[x0, y0, z0, x1, y1, z1]]}]).
-    The source building chosen is the one that overlaps the project building most, and it must pair its floors with
-    distinct project floors (one at least). Returns dict(building, floor_map: [project floor or None per source floor],
-    moved: the source's floors carried, [[[x0, y0, z0, x1, y1, z1]]]) or None. The boxes may have been edited since:
-    the piece keeps what its map saved where the rule agrees (buildings.carried). web/floors.js sourceFloorMatch is
-    the twin; both pass tests/source_floor_match_cases.json."""
-    pitch, yaw, roll = [(a - b + 32768) % 65536 - 32768 for a, b in zip(rotation, before['rotation'])]
-    turns = game_round(yaw / QUARTER)
-    if max(abs(pitch), abs(roll), abs(yaw - turns * QUARTER)) > POSE_SLACK:
-        return None
-    origin = [*turned(before['location'][:2], turns), before['location'][2]]
-    shift = [v - origin[k] for k, v in enumerate(location)]
-
-    def move(point):
-        return [v + shift[k] for k, v in enumerate((*turned(point[:2], turns), point[2]))]
-
-    def carry(box):
-        a, b = move(box['min']), move(box['max'])
-        return [min(v, w) for v, w in zip(a, b)] + [max(v, w) for v, w in zip(a, b)]
-
-    def meet(p, q):
-        n = 1.0
-        for j in range(3):
-            n *= max(0.0, min(p[j + 3], q[j + 3]) - max(p[j], q[j]))
-        return n
-
-    best = None
-    for b in buildings:
-        if not b.get('floors'):
-            continue
-        moved = [[carry(x) for x in f.get('boxes') or []] for f in b['floors']]
-        floor_map, used, total, fine = [], set(), 0.0, True
-        for boxes in moved:
-            pick, most = None, 0.0
-            for j, g in enumerate(floors):
-                got = sum(meet(x, y) for x in boxes for y in g['boxes'])
-                if got > most:
-                    pick, most = j, got
-            if pick is not None and pick in used:
-                fine = False
-            if pick is not None:
-                used.add(pick)
-            floor_map.append(pick)
-            total += most
-        if not fine or not used or (best and total <= best[0]):
-            continue
-        best = (total, dict(building=b, floor_map=floor_map, moved=moved))
-    return best[1] if best else None
 
 
 def same_moves(moves, slack=INSTANCE_MATCH):
@@ -862,11 +572,9 @@ class Compiler:
         # (an override or an added piece) leaves that piece out and the build goes on; `errors` are the document's
         self.left_out = []
         self.copies, self.hides = [], []
-        self.made_walls = []        # (copy, where) of each fracturing wall made from numbers (made_wall_openings)
-        self.made_parts = {}        # a made wall's label: its template's parts (join_made_walls makes its box again)
-        self.made_slabs = []        # (copy, where) of each floor or roof made from numbers (made_slabs_in_floors)
-        self.made_wholes = []       # (copy, where) of each made wall as drawn: its copy, or its pieces' whole (split_made)
-        self.broken_wholes = {}     # a cut piece's member key: how many blasts it was given (split_made)
+        # walls, floors, roofs and ground shapes made from numbers (custom geometry plan): the made copies add records
+        # for the family's checks, and the blasts of each cut piece's whole: their own module (review finding 23)
+        self.made_edits = MadeEdits(self)
         self.blast_edits = []       # the map's own pieces broken where they stand: [dict(name, target, blasts)] (E6)
         self.break_copies, self.break_originals, self.group_report = {}, [], []
         self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
@@ -885,23 +593,19 @@ class Compiler:
         # the base map's spawn points moved, given values, copied and deleted (the editor spawns plan, SP6 and SP7):
         # their own module (review finding 23)
         self.spawn_edits = SpawnEdits(self)
-        self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
-        self.building_edits = []     # the map's own buildings changed or deleted: the spec's `buildingEdits` object
-        self.floor_sources = {}
-        self.donor_buildings = {}
+        # buildings made from nothing and the map's own changed or deleted (the spec's `buildings` and `buildingEdits`
+        # objects), with the sources of the copies whose floors they read: their own module (review finding 23)
+        self.building_edits = BuildingEdits(self)
         self.untried_foreign = {}    # (package folded, actor path) of the pieces of other maps built untried
         # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand (the spec's
         # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts:
         # their own module (review finding 23)
         self.flag_edits = FlagEdits(self)
-        # what run()'s stages work out, in its order (review finding 23): check_document the map's package;
-        # cleared_mark the clear; spawn_rules_mark the drop-in rule; stage the larger grid; landing_zones the zones and
-        # the map's own landings. Each keeps these values when the stage doesn't run (a document that stops earlier).
+        # what run()'s stages work out, in its order (review finding 23): check_document the map's package (it keeps
+        # this value when the stage doesn't run: a document that stops earlier). The map grid, the clear, the drop-in
+        # rule, the landing zones and the missions: their own module, which keeps what its stages work out
         self.package = ''
-        self.cleared, self.keep_outside = False, False
-        self.spawn_rules = None
-        self.stage_grid = None
-        self.zones, self.own_landings_found, self.own_count = None, None, None
+        self.mission_edits = MissionEdits(self)
 
     # ---------------------------------------------------------------- diagnostics
     def error(self, code, message, **where):
@@ -1158,7 +862,7 @@ class Compiler:
         # and quarter turns from the original) then reads as for one of the map's own pieces
         parts = record['objects']
         donor_key = target['package'].casefold()
-        self.donor_buildings[donor_key] = record.get('buildings', [])
+        self.building_edits.donor_buildings[donor_key] = record.get('buildings', [])
         if record.get('grid') and self.grid_origin is not None:
             shift = [float(a) - b for a, b in zip(self.scene['tileGrid']['origin'][:3], record['grid'])]
             parts = [dict(o, floorLocation=o['location'], location=[v + d for v, d in zip(o['location'], shift)]) for o in parts]
@@ -1177,351 +881,6 @@ class Compiler:
             kept = self.foreign_assemblies.setdefault((package.casefold(), a['pivot']), dict(a))
             self.foreign_assemblies[(target['package'].casefold(), target['actor'])] = kept
         return [o for o in parts if short(o['actor']) == short(target['actor'])]
-
-    # ---------------------------------------------------------------- pieces' flags (piece flags plan)
-    def generated_valid(self, rec, where):
-        """Whether a record's `generated` (if any) is well formed (custom geometry plan, section 0): {kind 'fracWall',
-        version 1, wall {x0, x1, openings [{x0, x1, z0, z1}], seed, storeys (1 or 2; left out, 2)}}, a fracturing wall made from numbers in its
-        template's frame (tools/bake/frac_wall.py; x0 and x1 its tile edges, FRAC_WALL_MIN_LENGTH apart or more), or {kind 'relit', version 1}, the template's own mesh lit as a made
-        wall is. A malformed one leaves the record out, as any malformed field does."""
-        if 'generated' not in rec:
-            return True
-        g = rec['generated']
-        num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
-        # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet; a wall's
-        # version 3 and a slab's or ground shape's version 2 name the look by its donor)
-        ok = isinstance(g, dict) and keyable(g.get('kind')) and g.get('kind') in GENERATED_VERSIONS \
-            and g.get('version') in GENERATED_VERSIONS[g['kind']]
-        # (a plain piece's numbers are checked as version 1's; a rock's with points as its look's version)
-        points = ok and g['version'] == POINTS_VERSION.get(g['kind'])
-        look = (g.get('ground') or {}).get('look') if points and isinstance(g.get('ground'), dict) else None
-        plain = ok and (g['version'] == PLAIN_VERSION.get(g['kind']) or (points and look is None))
-        version = 1 if plain else (2 if isinstance(look, dict) else 1) if points else g['version'] if ok else None
-        if ok and g['kind'] == 'fracSlab':
-            ok = self.slab_valid(g.get('slab'), num, version)
-            if ok and not made_split.slab_left(g['slab']):
-                # (nothing of it to build: the Build's check refuses it, review finding 32)
-                self.error('slab-all-holes', '%s: its holes leave none of it, so it is left out of the build'
-                           % (rec.get('label') or short(rec.get('from', {}).get('actor', '?'))), **where)
-                return False
-        elif ok and g['kind'] == 'ground':
-            ok = self.ground_valid(g.get('ground'), num, version, points)
-        elif ok and g['kind'] == 'fracWall':
-            w = g.get('wall')
-            ok = (isinstance(w, dict) and num(w.get('x0')) and num(w.get('x1')) and w['x1'] - w['x0'] >= FRAC_WALL_MIN_LENGTH
-                  and w['x1'] - w['x0'] <= MADE_MAX_TILES * TILE + 1e-6 and 'ends' not in w and 'whole' not in w
-                  and (('look' not in w and version < 3) or (version >= 2 and look_valid(
-                      'fracWall', w.get('look'), version, DONOR_LOOK_SINCE['fracWall'], FRAC_WALL_LOOKS)))
-                  and isinstance(w.get('seed', 1), int) and isinstance(w.get('storeys', 2), int)
-                  and 1 <= w.get('storeys', 2) <= MADE_MAX_STOREYS and not isinstance(w.get('storeys'), bool)
-                  and all(isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
-                          and w['x0'] <= o['x0'] < o['x1'] <= w['x1'] and o['z0'] < o['z1']
-                          for o in w.get('openings') or []))
-        if ok and 'blasts' in g:
-            # (a made wall, floor or roof built broken: custom geometry editing plan, B5)
-            try:
-                if g['kind'] not in MADE_KINDS:
-                    raise ValueError('only a made wall, floor or roof breaks')
-                made_blasts.check(g['blasts'])
-                if g.get('breaksFurther', True) is not True:
-                    raise ValueError('breaksFurther is true or left out')
-            except ValueError as error:
-                self.error('malformed', '%s: its blasts are not ones the Build makes: %s'
-                           % (rec.get('label') or short(rec.get('from', {}).get('actor', '?')), error), **where)
-                return False
-        if ok and 'breaksFurther' in g and 'blasts' not in g:
-            self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored'
-                      % (rec.get('label') or short(rec.get('from', {}).get('actor', '?'))), **where)
-            g = rec['generated'] = {k: v for k, v in g.items() if k != 'breaksFurther'}
-        if ok and plain:
-            name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
-            default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
-                       else "the Bar's upper floor" if g['slab'].get('look') == 'floor' else "the Bar's roof")
-            self.warn('made-no-look', "%s has no look chosen (drawn plain in the editor): the Build makes it in %s, its "
-                      "kind's default look; choose its look in its piece panel" % (name, default), **where)
-            g = rec['generated'] = dict(g, version=1)
-        elif ok and points:
-            g = rec['generated'] = dict(g, version=version)
-        if ok:
-            kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}.get(g['kind'])
-            numbers = g.get(kind) if kind else None
-            if kind and donor_shape(kind, numbers) is False:
-                self.note('look-measured', "%s's look, %s, is in none of this editor's catalogues: the Build measures it "
-                          'from its donor' % (rec.get('label') or short(rec.get('from', {}).get('actor', '?')),
-                                              numbers['look']['mesh']), **where)
-            return True
-        self.error('malformed', "generated must be a fracturing wall's numbers ({kind: fracWall, version: 1, wall: "
-                   '{x0, x1, openings, seed, storeys}}: up to %d tiles long and %d storeys, version 2 with its look: '
-                   'one of %s, or version 3 with its look named by its donor: {mesh, measure}), a slab\'s ({kind: '
-                   'fracSlab, version: 1, slab: {x0, x1, y0, y1, holes, seed, look}}: whole tiles, 1 to %d each way, '
-                   'its holes whole tiles inside it, its look one of %s), a ground shape\'s ({kind: ground, version: 1, '
-                   'ground: {shape (patch, block or ramp), x0, x1, y0, y1, height, look}}: whole tiles, 1 to %d each '
-                   'way, a height of 1 to %g, its look one of %s; version 2 for a slab or ground shape names its look '
-                   'by its donor: {mesh, measure}, a ground look\'s also its material) or {kind: relit, version: 1} '
-                   '(it has %r)'
-                   % (MADE_MAX_TILES, MADE_MAX_STOREYS, ', '.join(FRAC_WALL_LOOKS), MADE_MAX_TILES,
-                      ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_TILES, GROUND_MAX_HEIGHT, ', '.join(GROUND_LOOKS), g),
-                   **where)
-        return False
-
-    @staticmethod
-    def ground_valid(s, num, version=1, points=False):
-        """Whether a ground shape's numbers are well formed (tools/bake/ground.py check is the Build's); `points`: a
-        rock's request of POINTS_VERSION, which carries its moved points (and no other request does)."""
-        if not (isinstance(s, dict) and s.get('shape') in GROUND_SHAPES and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
-            return False
-        if ('points' in s) != bool(points) or (points and s['shape'] != 'rock'):
-            return False
-        if points:
-            try:
-                if not num(s.get('height')):
-                    return False
-                ground_shapes.check_points(s)
-            except (ValueError, TypeError, KeyError):
-                return False
-        whole = all(abs((s[b] - s[a]) / 96.0 - round((s[b] - s[a]) / 96.0)) < 1e-4
-                    and 1 <= round((s[b] - s[a]) / 96.0) <= GROUND_MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1')))
-        height = s['shape'] == 'patch' or (num(s.get('height')) and 1 <= s['height'] <= GROUND_MAX_HEIGHT)
-        seed = s['shape'] != 'rock' or (isinstance(s.get('seed'), int) and not isinstance(s.get('seed'), bool)
-                                        and 0 <= s['seed'] < GROUND_ROCK_SEEDS)
-        return whole and height and seed and look_valid('ground', s.get('look'), version, DONOR_LOOK_SINCE['ground'],
-                                                        GROUND_LOOKS)
-
-    @staticmethod
-    def slab_valid(s, num, version=1):
-        """Whether a slab's numbers are well formed (tools/bake/frac_slab.py check is the Build's; one its holes leave
-        none of is well formed, and left out by generated_valid)."""
-        def whole(v, base):
-            return abs((v - base) / 96.0 - round((v - base) / 96.0)) < 1e-4
-        if not (isinstance(s, dict) and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):
-            return False
-        if not all(whole(s[b], s[a]) and 1 <= round((s[b] - s[a]) / 96.0) <= MADE_MAX_TILES
-                   for a, b in (('x0', 'x1'), ('y0', 'y1'))) or 'whole' in s:
-            return False
-        if not look_valid('fracSlab', s.get('look'), version, DONOR_LOOK_SINCE['fracSlab'], FRAC_SLAB_LOOKS) \
-                or not isinstance(s.get('seed', 1), int) \
-                or isinstance(s.get('seed'), bool) or not isinstance(s.get('holes') or [], list):
-            return False
-        return all(isinstance(h, dict) and all(num(h.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))
-                   and s['x0'] <= h['x0'] < h['x1'] <= s['x1'] and s['y0'] <= h['y0'] < h['y1'] <= s['y1']
-                   and all(whole(h[k], s[k[0] + '0']) for k in ('x0', 'x1', 'y0', 'y1'))
-                   for h in s.get('holes') or [])
-
-    def join_made_walls(self):
-        """Made walls that meet (custom geometry plan, M3 item 2): each copy's request gains its end styles
-        (wall_joins; version 2, `ends`) when an end is joined, and its box follows its solid."""
-        if len(self.made_walls) < 2:
-            return
-        found = wall_joins([dict(key=copy['label'], location=copy['location'], rotation=copy['rotation'],
-                                 wall=copy['generated']['wall']) for copy, _ in self.made_walls])
-        for copy, where in self.made_walls:
-            ends = found[copy['label']]['ends']
-            if ends == ['free', 'free']:
-                continue
-            gen = copy['generated']
-            copy['generated'] = dict(gen, version=max(2, gen.get('version', 1)), wall=dict(gen['wall'], ends=list(ends)))
-            _, _, inset, half = wall_heights(gen['wall'])
-            insets = {'free': inset, 'line': 0.0, 'through': -half}
-            along = made_wall_along(gen['wall'], insets[ends[0]], insets[ends[1]])
-            copy['box'] = self.boxes(self.made_parts[copy['label']], copy['location'], copy['rotation'], along)
-
-    def made_walls_stacked(self):
-        """A note for each made wall standing on another (custom geometry plan, M2 item 6; F-127): its bottom within
-        WALL_STACK_GAP of the other's top, the two overlapping across and by more than a tile's quarter along. When
-        the one under it breaks, it stays standing: the game passes a break from one fracturing piece to another only
-        up to the height the blast reached (research/native/frac-neighbours.md), and the game's own walls keep their
-        upper part over a hole broken under it (EXP-75 run C)."""
-        for upper, where in self.made_walls:
-            a = upper.get('box')
-            if not a:
-                continue
-            for lower, _ in self.made_walls:
-                b = lower.get('box')
-                if lower is upper or not b or abs(a[4] - b[5]) > WALL_STACK_GAP or lower['member'] == upper['member']:
-                    continue
-                along = 0 if a[1] - a[0] >= a[3] - a[2] else 1
-                over = [min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) for k in range(2)]
-                if over[along] > TILE / 4 and over[1 - along] > 0:
-                    self.note('wall-on-wall', "%s stands on %s: when %s breaks under it, it stays standing, as the "
-                              "game's walls keep their upper part over a hole broken under it (a break passes from one "
-                              'piece to another only as high as the blast reached)'
-                              % (upper.get('whole') or upper['label'], lower.get('whole') or lower['label'],
-                                 lower.get('whole') or lower['label']), **where)
-                    break
-
-    def made_slab_wholes(self):
-        """The made floors and roofs as they were drawn, for the checks: [(copy, where)], a slab the Build cuts into
-        pieces (made_split) one entry, its label the whole's and its box the pieces' together."""
-        out, at = [], {}
-        for c, where in self.made_slabs:
-            if not c.get('box'):
-                continue
-            name = c.get('whole')
-            if not name:
-                out.append((c, where))
-            elif name in at:
-                at[name]['box'] = union([at[name]['box'], c['box']])
-            else:
-                at[name] = dict(label=name, box=list(c['box']))
-                out.append((at[name], where))
-        return out
-
-    def made_slab_boxes(self):
-        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)]."""
-        return [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label'])
-                for c, _ in self.made_slabs for b in [c.get('box')] if b]
-
-    def made_slab_cursors(self):
-        """The made floors' and roofs' own cursor floors (custom geometry plan, M5b; F-128): the Build gives each its
-        floors over its footprint (tools/bake/made_cursors.py), and cursor_storeys has them. Warned of:
-        - slab-cursor-volume: a footprint over a stair or turned cursor volume of the map's, which stays as it is
-          over the made floors;
-        - slab-headroom: a made slab less than HEADROOM over the map's own floor tiles under it (F-71: the game gives
-          no floor to a tile a soldier can't stand on). A made slab over another flat piece the project adds is
-          floor_headroom's."""
-        if not self.made_slabs:
-            return
-        slabs = self.made_slab_boxes()
-        if (self.scene.get('exporterVersion') or 0) >= 20:
-            volumes = [dict(key=v.get('name') or str(k), floor=v.get('floor'), box=list(v['box']['min']) + list(v['box']['max']),
-                            stair=bool(v.get('stair')))
-                       for k, v in enumerate(self.scene.get('cursorVolumes') or []) if v.get('box')]
-            crossed = {}
-            whole = {c['label']: c.get('whole') or c['label'] for c, _ in self.made_slabs}
-            for c in made_cursors.split(volumes, slabs)['crossed']:
-                crossed.setdefault(whole.get(c['slab'], c['slab']), set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))
-            for label, names in sorted(crossed.items()):
-                where = next((w for c, w in self.made_slabs if (c.get('whole') or c['label']) == label), {})
-                self.warn('slab-cursor-volume', "%s is over the map's cursor %s %s, which the Build leaves as %s over it: "
-                          "the cursor may keep to %s floor there rather than the made floor's" % (
-                              label, 'volume' if len(names) == 1 else 'volumes', ', '.join(sorted(names)),
-                              'it is' if len(names) == 1 else 'they are', 'its' if len(names) == 1 else 'their'), **where)
-        # (the floor tiles' saved places: a tile's floor is where the map's own piece has it)
-        floors = [f for f in self.floor_records_now() if len(f.get('location') or ()) == 3]
-        for c, where in self.made_slab_wholes():
-            b, under = [c['box'][k] for k in (0, 2, 4, 1, 3, 5)], c['box'][4]
-            tiles = sorted(list(f['tile']) for f in floors
-                           if b[0] < f['location'][0] < b[3] and b[1] < f['location'][1] < b[4]
-                           and 8.0 < under - f['location'][2] < HEADROOM)
-            if tiles:
-                self.warn('slab-headroom', "%s is less than %d units over the map's floor under it at %d %s: the game gives no "
-                          "floor to a tile a soldier can't stand on, so %s won't be walked on" % (
-                              c['label'], HEADROOM, len(tiles), 'tile' if len(tiles) == 1 else 'tiles',
-                              'it' if len(tiles) == 1 else 'they'), tiles=tiles[:12], **where)
-
-    def made_slabs_in_floors(self):
-        """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
-        floors by the game editor's rule (tools/bake/buildings.py, F-87): a piece is listed in a floor only when it
-        touches one of the floor's boxes (within 2) with its bottom more than 20 under that box's top. Such a slab is
-        never cut away with its building, and the cursor lands on it (EXP-76 run E). The game's buildings have a floor
-        start at each slab: URB_Bar's upstairs floor is the bottom of its floor 1, its roof of its floor 2.
-        And slab-outdoors for one in no building with the map's floor at least HEADROOM under it: there the mouse
-        takes its top on every storey (F-135)."""
-        slabs = self.made_slab_wholes()
-        if not slabs:
-            return
-        houses = [(b['name'] or 'a new building', [[x for x in f['boxes']] for f in b['floors']]) for b in self.new_buildings]
-        houses += [(e['name'], [[x for x in f['boxes']] for f in e['floors']]) for e in self.building_edits
-                   if not e.get('deleted') and e.get('floors')]
-        edited = {e['actor'] for e in self.building_edits}
-        for b in self.scene.get('buildings') or []:
-            if b.get('actor') in edited:
-                continue
-            floors = [[[*v['min'], *v['max']] for v in f.get('boxes') or [] if isinstance(v, dict)] for f in b.get('floors') or []]
-            if any(floors):
-                houses.append((b.get('actor') or 'a building of the map\'s', floors))
-        ground = [f for f in self.floor_records_now() if len(f.get('location') or ()) == 3]
-        for c, where in slabs:
-            box = c['box']
-            for name, floors in houses:
-                vols = [v for f in floors for v in f if len(v) == 6]
-                inside = any(min(box[1], v[3]) - max(box[0], v[0]) > TILE / 2 and min(box[3], v[4]) - max(box[2], v[1]) > TILE / 2
-                             and v[2] - 64 <= box[4] <= v[5] + 64 for v in vols)
-                if not inside:
-                    continue
-                counts = any(box[4] < v[5] - 20 and all(box[2 * j] <= v[j + 3] + 2 and box[2 * j + 1] >= v[j] - 2 for j in range(3))
-                             for f in floors for v in f if len(v) == 6)
-                if not counts:
-                    self.warn('slab-in-no-floor', "%s stands in %s but in none of its floors: the game won't cut it away "
-                              'when the cursor is inside, and the cursor lands on it. Start a floor at its height (the '
-                              "game lists a piece in a floor only when its bottom is more than 20 under the floor's top), "
-                              'as the Room with a roof tool and the game\'s buildings do' % (c['label'], name),
-                              **where)
-                break
-            # (EXP-80 run H) out of every building the mouse takes the first walkable hit at once, whatever the storey
-            # (XComTacticalHUD.GetMousePickActor), as on the game's overpasses and canopies: the tiles with the map's
-            # floor standing room under the slab where its top is in no building's floor box
-            boxes = [v for _, floors in houses for f in floors for v in f if len(v) == 6]
-            under = sorted(list(f['tile']) for f in ground
-                           if box[0] < f['location'][0] < box[1] and box[2] < f['location'][1] < box[3]
-                           and box[4] - f['location'][2] >= HEADROOM
-                           and not any(v[0] <= f['location'][0] <= v[3] and v[1] <= f['location'][1] <= v[4]
-                                       and v[2] - 1 <= box[5] <= v[5] + 16 for v in boxes))
-            if under:
-                self.warn('slab-outdoors', "%s is in no building over %d %s of the map's floor under it: where soldiers "
-                          "can stand on its top, the mouse picks it there on every storey, as it does the game's overpasses "
-                          'and canopies, and the floor under it only from beside it. In a building (the Room with a roof '
-                          'tool, or a building drawn round it) the storeys are picked one at a time and cut away' % (
-                              c['label'], len(under), 'tile' if len(under) == 1 else 'tiles'), tiles=under[:12], **where)
-
-    def made_wall_openings(self):
-        """Warnings for what a made wall's gaps do in the game that may surprise (custom geometry plan, M1 item 4),
-        by opening_play (one kind of gap since 19 November 2026, its play read from its shape): a gap units walk
-        through with no wall under it to give cover and no door in it (a unit in it has cover toward its sides, as the
-        game gives a tile between two pieces of wall; the game's doorways hold doors); one they walk through over a
-        wall that gives cover; one starting under the cover line too low to walk through; one starting over it that
-        doesn't reach across the sight line. A door stands in a gap when a door's box (a copy's, or one of the map's
-        own the project leaves where it is) overlaps the gap's box by more than 8 along the wall and up."""
-        if not self.made_wholes:
-            return
-        hidden = {short(h['name']) for h in self.hides}
-        doors = [c['box'] for c in self.copies if c.get('actorClass') == 'XComInteractiveLevelActor' and c.get('box')]
-        for obj in self.scene.get('objects') or []:
-            if (obj.get('layer') == 'base' and obj.get('actorClass') == 'XComInteractiveLevelActor'
-                    and short(obj['actor']) not in hidden and obj.get('mesh') in self.meshes):
-                doors.append(world_box(obj, self.meshes, obj['location'], obj['rotation']))
-        for copy, where in self.made_wholes:
-            wall = copy['generated']['wall']
-            name = copy['label']
-            for o in wall.get('openings') or []:
-                play = opening_play(wall, o)
-                low = o['z0'] < WALL_SWEEPS['cover'][0]
-                what = "%s's gap at %g to %g along it" % (name, o['x0'], o['x1'])
-                if not play['tiles']:
-                    self.warn('wall-opening-between-tiles', "%s: units can't walk or see through it, and the wall gives "
-                              "cover there as if whole: no tile's centre line passes through it (the game walks, sees "
-                              "and takes cover along the lines between tiles' centres)" % what, **where)
-                    continue
-                if play['walk'] and play['cover'] != 'none':
-                    self.warn('wall-window-walked', "%s: its bottom, %g over the floor, is under the game's walking "
-                              'line, %g: units walk through it, over the wall under it, which gives %s cover there' % (
-                                  what, o['z0'], WALL_SWEEPS['walk'], play['cover']), **where)
-                elif play['walk']:
-                    box = opening_box(copy['location'], copy['rotation'], o)
-                    if not any(overlaps_by(box, d, 8.0) for d in doors):
-                        self.warn('wall-doorway-no-door', '%s: a unit in this gap has cover toward its sides: put a '
-                                  "door in it, as the game's doorways have" % what, **where)
-                elif low:
-                    self.warn('wall-doorway-low', "%s: units can't walk through it: its top is under the game's "
-                              'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
-                if not low and not play['walk'] and not play['sight']:
-                    self.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
-                              "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
-
-    def blasts_valid(self, rec, parts, where, name=None):
-        """Whether an override's or added copy's `blasts` are well formed (made_blasts.check) and on a fracturing
-        piece; else an error and the record (an override) or its blasts (a copy) left out."""
-        try:
-            if parts[0]['actorClass'] not in ('XComFracLevelActor', 'XComDecoFracLevelActor'):
-                raise ValueError('it is a %s: only a fracturing piece breaks' % parts[0]['actorClass'])
-            made_blasts.check(rec['blasts'])
-            if rec.get('breaksFurther', True) is not True:
-                raise ValueError('breaksFurther is true or left out')
-        except ValueError as error:
-            self.error('malformed', '%s: its blasts are not ones the Build makes: %s' % (
-                name or short(rec['target']['actor']), error), **where)
-            return False
-        return True
 
     # ---------------------------------------------------------------- poses
     def pose(self, rec, where):
@@ -1555,12 +914,12 @@ class Compiler:
         grid = self.scene.get('tileGrid') or {}
         if not grid.get('origin'):
             return self.with_made_slabs(own, None)
-        count = list(self.stage_grid or grid['dimensions'][:3])
+        count = list(self.mission_edits.stage_grid or grid['dimensions'][:3])
         box = [float(grid['origin'][k]) for k in range(3)] + [grid['origin'][k] + count[k] * grid['size'][k] for k in range(3)]
-        if (own or volumes) and not self.cleared:
+        if (own or volumes) and not self.mission_edits.cleared:
             return self.with_made_slabs(self.grown_storeys(own, grid), box)
         bottom = float(grid['origin'][2])
-        levels = (self.stage_grid or grid['dimensions'])[2]
+        levels = (self.mission_edits.stage_grid or grid['dimensions'])[2]
         top = bottom + levels * grid['size'][2]
         # (a grid made taller gets a storey more for each 192 units: shell.py clones the last)
         storeys = max(CURSOR_STOREYS, round((top - bottom) / CURSOR_STOREY))
@@ -1572,7 +931,7 @@ class Compiler:
     def with_made_slabs(self, storeys, grid_box):
         """The cursor's floors `storeys` [(floor, box)] with the made floors' and roofs' own over their footprints, as
         the Build gives them (made_cursors.storeys; M5b)."""
-        slabs = self.made_slab_boxes() if getattr(self, 'made_slabs', None) else []
+        slabs = self.made_edits.made_slab_boxes() if self.made_edits.slabs else []
         if not slabs:
             return storeys
         return made_cursors.storeys([dict(key=k, floor=f, box=list(b)) for k, (f, b) in enumerate(storeys)], slabs, grid_box)
@@ -1580,7 +939,7 @@ class Compiler:
     def grown_storeys(self, own, grid):
         """The map's own cursor floors `own` [(floor, box)] on the project's grid (cursor_storeys; shell.py
         grow_cursors is what the Build does)."""
-        stage = self.stage_grid
+        stage = self.mission_edits.stage_grid
         if not stage:
             return own
         o, n, size = grid['origin'], grid['dimensions'], grid['size']
@@ -1616,7 +975,7 @@ class Compiler:
         if not origin:
             return {}, {}
         # the levels as the project has them: a grid grown up has floor on its new levels too (once stage() has run)
-        levels = max(dims[2], (self.stage_grid or [0, 0, 0])[2]) if dims else None
+        levels = max(dims[2], (self.mission_edits.stage_grid or [0, 0, 0])[2]) if dims else None
         waiting = {id(job[0]) for job in self.ladder_jobs}
         # (a copy whose flags make it no floor, and that collides, gives none: piece flags plan, 6.1)
         flat = [c for c in self.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
@@ -1806,7 +1165,7 @@ class Compiler:
                           % short(target['actor']), **where)
             if 'blasts' in rec:
                 # one of the map's fracturing pieces broken (custom geometry editing plan, E6)
-                if not self.blasts_valid(rec, parts, where):
+                if not self.made_edits.blasts_valid(rec, parts, where):
                     continue
                 if rec.get('deleted') is True:
                     self.note('blasts-deleted', '%s is deleted, so its blasts are not built' % short(target['actor']), **where)
@@ -1902,7 +1261,7 @@ class Compiler:
 
     def added_kinds(self):
         """The kinds of mission the project adds (its `missions` entries that name a kind; missions_kept)."""
-        listed = self.missions_kept()[0]
+        listed = self.mission_edits.missions_kept()[0]
         return {e['kind'] for e in listed if isinstance(e, dict) and isinstance(e.get('kind'), str)} if isinstance(listed, list) else set()
 
     def stream_info(self, stream):
@@ -2034,11 +1393,11 @@ class Compiler:
         if self.floor_boxes is None or getattr(self, '_floor_boxes_now', None) is not None:
             return self.floor_boxes if self.floor_boxes is None else self._floor_boxes_now
         records = {}
-        for b in self.building_records()[0]:
+        for b in self.building_edits.building_records()[0]:
             rep = b.get('replaces')
             if isinstance(rep, dict) and str(rep.get('package')).casefold() == self.map.casefold() and rep.get('level') == 'base' and isinstance(rep.get('actor'), str):
                 records.setdefault(rep['actor'], b)
-        usable = self.map_buildings()
+        usable = self.building_edits.map_buildings()
         out, done = [], set()
         for name, index, xs in self.floor_boxes:
             rec = records.get(name)
@@ -2202,7 +1561,7 @@ class Compiler:
                 # (as an override's: a copy's breaksFurther goes with its blasts; a made piece's is in `generated`)
                 self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % short(out),
                           **where)
-            if not self.flag_edits.flags_valid(rec, where) or not self.generated_valid(rec, where):
+            if not self.flag_edits.flags_valid(rec, where) or not self.made_edits.generated_valid(rec, where):
                 continue
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_edits.light_of(rec.get('from')) is not None):
                 self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
@@ -2301,9 +1660,9 @@ class Compiler:
         elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
         if made and made['kind'] in MADE_KINDS and not piece:
-            pieces = self.made_pieces(made)
+            pieces = self.made_edits.made_pieces(made)
             if len(pieces) > 1:
-                self.split_made(rec, where, parts, pose, extra, pieces)
+                self.made_edits.split_made(rec, where, parts, pose, extra, pieces)
                 return
         # a wall made from numbers stands in its own box, not its template's: its solid, its ends in from its tile edges
         along = made_wall_along(made['wall']) if made and made['kind'] == 'fracWall' else None
@@ -2358,18 +1717,18 @@ class Compiler:
             # (the notes are the whole's, said with its first piece)
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
-                self.made_walls.append((self.copies[-1], dict(where)))
-                self.made_parts[short(out)] = drawn
+                self.made_edits.walls.append((self.copies[-1], dict(where)))
+                self.made_edits.parts[short(out)] = drawn
             else:
-                self.made_slabs.append((self.copies[-1], dict(where)))
+                self.made_edits.slabs.append((self.copies[-1], dict(where)))
         elif rec.get('generated'):
             # a fracturing wall made from numbers on the template's materials (custom geometry plan, section 0)
             self.copies[-1]['generated'] = rec['generated']
             if rec['generated']['kind'] == 'fracWall':
-                self.made_walls.append((self.copies[-1], dict(where)))
-                self.made_parts[short(out)] = drawn
+                self.made_edits.walls.append((self.copies[-1], dict(where)))
+                self.made_edits.parts[short(out)] = drawn
                 if not piece:
-                    self.made_wholes.append((self.copies[-1], dict(where)))
+                    self.made_edits.wholes.append((self.copies[-1], dict(where)))
                 self.note('generated-wall', "%s is a fracturing wall made from numbers on %s's materials: it breaks "
                           'in parts, and a break passes to the fracturing pieces it touches and from them to it, as '
                           "the game's walls pass theirs on" % (whole or short(out), name), **where)
@@ -2386,21 +1745,21 @@ class Compiler:
                               'it gets no cover, as on every slope of the game\'s steeper than about 10 degrees'
                               % (short(out), round(slope)), **where)
             elif rec['generated']['kind'] == 'fracSlab':
-                self.made_slabs.append((self.copies[-1], dict(where)))
+                self.made_edits.slabs.append((self.copies[-1], dict(where)))
                 self.note('generated-slab', "%s is a floor or roof made from numbers on %s's materials: units walk on "
                           'it, it breaks in parts, and a break passes to the fracturing pieces it touches and from them '
                           'to it' % (whole or short(out), name), **where)
-            if (rec.get('generated') or {}).get('blasts') or (piece == 1 and member and self.broken_wholes.get(member)):
+            if (rec.get('generated') or {}).get('blasts') or (piece == 1 and member and self.made_edits.broken_wholes.get(member)):
                 self.note('made-broken', '%s is built broken: %s the fragments '
                           "they reach, saved as the game's maps save the pieces their designers painted out%s" % (
-                              whole or short(out), blast_words(self.broken_wholes.get(member) or len(rec['generated']['blasts'])),
+                              whole or short(out), blast_words(self.made_edits.broken_wholes.get(member) or len(rec['generated']['blasts'])),
                               battle_words(src.get('keepsPieces'), rec['generated'].get('breaksFurther'))),
                           **where)
         if rec.get('flags'):
             self.flag_edits.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if 'blasts' in rec and not rec.get('generated'):
             # a copy of one of the map's fracturing pieces broken (E6): its clone carries the blasts
-            if self.blasts_valid(rec, [src], where, name=short(out)):
+            if self.made_edits.blasts_valid(rec, [src], where, name=short(out)):
                 self.copies[-1]['blasts'] = rec['blasts']
                 if rec.get('breaksFurther'):
                     self.copies[-1]['breaksFurther'] = True
@@ -2410,71 +1769,12 @@ class Compiler:
                           **where)
         if extra.get('family') == 'ladder':
             self.ladder_jobs.append((self.copies[-1], short(out), src, loc, rot, where))
-        self.floor_sources[short(out)] = src
+        self.building_edits.floor_sources[short(out)] = src
         if piece:
             return      # (the whole's entity is split_made's)
         self.entities.append(dict(kind='add', entity=out, id=rec.get('id'), template=rec['from']['actor'],
                                   actorClass=src['actorClass'], location=loc, rotation=rot,
                                   rotationRounding=tidy(rounding, 6), newBox=[tidy(v, 3) for v in new], **extra))
-
-    def made_pieces(self, made):
-        """[(its place in the whole's frame (x, y, z), its numbers)] of a made wall or slab (made_split): one, the
-        numbers as they are, when no cut is needed."""
-        if made['kind'] == 'fracWall':
-            w = made['wall']
-            return [((float(w['x0']) + dx, 0.0, dz), n) for dx, dz, n in made_split.wall_pieces(
-                w, wall_look_storeys, lambda n: wall_heights(n)[:2])]
-        s = made['slab']
-        return [((float(s['x0']) + dx, float(s['y0']) + dy, 0.0), n) for dx, dy, n in made_split.slab_pieces(s)]
-
-    def split_made(self, rec, where, parts, pose, extra, pieces):
-        """A made wall or floor cut into pieces the game is known to take (custom geometry editing plan, B4, D-3;
-        made_split): each a copy of its own (`<actor>_part<k>`) at its place in the whole's frame, all of them one
-        member of the project's groups (the whole's); the notes and checks name the whole."""
-        out, made = rec['actor'], rec['generated']
-        loc, rot, rounding = pose
-        key = 'wall' if made['kind'] == 'fracWall' else 'slab'
-        m = transform(loc, rot, [1, 1, 1])
-        first = len(self.copies)
-        if made.get('blasts'):
-            self.broken_wholes['added|' + out] = len(made['blasts'])
-        for k, (at, numbers) in enumerate(pieces, 1):
-            place = [m[i][0] * at[0] + m[i][1] * at[1] + m[i][2] * at[2] + m[i][3] for i in range(3)]
-            gen = dict(made, **{key: numbers})
-            if made.get('blasts'):
-                # (each piece the blasts that reach it, in its frame)
-                span = [(0.0, float(numbers['x1']))] + ([(0.0, float(numbers['y1']))] if key == 'slab' else [None])
-                gen['blasts'] = made_blasts.for_piece(made['blasts'], at, span)
-                if not gen['blasts']:
-                    del gen['blasts']
-                    gen.pop('breaksFurther', None)
-            self.add(dict(rec, actor='%s_part%d' % (out, k), generated=gen), where, parts,
-                     (place, rot, rounding), extra=dict(extra, piece=k, member='added|' + out, whole=short(out)))
-        made_copies = self.copies[first:]
-        if not made_copies:
-            return
-        numbers = made[key]
-        if key == 'wall':
-            self.made_wholes.append((dict(label=short(out), location=loc, rotation=rot, generated=made), dict(where)))
-            tiles = round((float(numbers['x1']) - float(numbers['x0'])) / TILE)
-            joined = len({round(at[0], 3) for at, _ in pieces}) > 1
-            stacked = len({round(at[2], 3) for at, _ in pieces}) > 1
-            self.note('made-split', '%s, %d tiles long and %d storeys, is made as %d walls %s (each at most %d tiles long '
-                      "and its look's storeys tall, as the game's walls are): a break passes between them as between "
-                      "the game's joined walls" % (
-                          short(out), tiles, numbers.get('storeys') or wall_look_storeys(numbers)[0], len(made_copies),
-                          ' and '.join(w for w, on in (('joined end to end', joined), ('stacked', stacked)) if on),
-                          FRAC_SLAB_MAX_TILES), **where)
-        else:
-            nx, ny = (round((float(numbers[b]) - float(numbers[a])) / TILE) for a, b in (('x0', 'x1'), ('y0', 'y1')))
-            self.note('made-split', '%s, %d by %d tiles, is made as %d slabs side by side (each at most %d by %d '
-                      'tiles): they list each other\'s fragments where they meet, as the game\'s touching pieces do, '
-                      'so a break passes between them' % (short(out), nx, ny, len(made_copies), FRAC_SLAB_MAX_TILES,
-                                                         FRAC_SLAB_MAX_TILES), **where)
-        self.entities.append(dict(kind='add', entity=out, id=rec.get('id'), template=rec['from']['actor'],
-                                  actorClass=parts[0]['actorClass'], location=loc, rotation=rot,
-                                  rotationRounding=tidy(rounding, 6), pieces=len(made_copies),
-                                  newBox=[tidy(v, 3) for v in union([c['box'] for c in made_copies])], **extra))
 
     def assembly_added(self, assembly, items):
         """The copies of one assembly's pieces, sorted into copies of the whole by their moves: each copy names every
@@ -2610,12 +1910,12 @@ class Compiler:
         deleted = {original_key(r['target']) for r in self.doc.get('overrides') or []
                    if isinstance(r, dict) and isinstance(r.get('target'), dict) and r.get('deleted') is True}
         linked = {}   # member key -> the group that links it
-        listed = self.building_records()[0]
+        listed = self.building_edits.building_records()[0]
         made = {b['id'] for b in listed if b.get('deleted') is not True}
         # the map's own buildings that can be edited, by the id made from their actor, record or none (map buildings
         # plan, section 2); a deleted one is no member
         gone = {b['id'] for b in listed if b.get('deleted') is True}
-        made |= {map_building_id(b) for b, why in self.map_buildings().values() if why is None} - gone
+        made |= {map_building_id(b) for b, why in self.building_edits.map_buildings().values() if why is None} - gone
         records = self.doc.get('groups', [])
         if not isinstance(records, list):
             self.leave_out('malformed', '"groups" must be a list of groups: the groups are left out, so none of them '
@@ -2855,12 +2155,12 @@ class Compiler:
             # the map's own fracturing pieces broken where they stand (custom geometry editing plan, E6): their
             # components' painted fragments written in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='pieceBlasts', pieces=sorted(self.blast_edits, key=lambda e: e['name'])))
-        if self.new_buildings:
+        if self.building_edits.new_buildings:
             # buildings made from nothing: made in the map by the Build's writer (native_split moves them there)
-            objects.append(dict(type='buildings', buildings=self.new_buildings))
-        if self.building_edits:
+            objects.append(dict(type='buildings', buildings=self.building_edits.new_buildings))
+        if self.building_edits.edits:
             # the map's own buildings changed or deleted: edited in place by the Build's writer (buildings.edit)
-            objects.append(dict(type='buildingEdits', edits=self.building_edits))
+            objects.append(dict(type='buildingEdits', edits=self.building_edits.edits))
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
         # The streamed patches' pieces the Build takes out of its copies of them ({stream: [actor]}): a moved or
         # deleted ladder's helpers (G6).
@@ -2870,9 +2170,9 @@ class Compiler:
             extra['streamMoves'] = {k: sorted(v, key=lambda m: m['actor']) for k, v in sorted(self.stream_moves.items())}
         # a cleared map (Clear map plan, section 7): the Build's clear_level takes out what the editor never showed,
         # over the grid as the project has it
-        if self.cleared:
-            extra['cleared'] = dict(grid=self.stage_grid or list(self.scene['tileGrid']['dimensions'][:3]))
-            box = self.outside_box() if self.keep_outside else None
+        if self.mission_edits.cleared:
+            extra['cleared'] = dict(grid=self.mission_edits.stage_grid or list(self.scene['tileGrid']['dimensions'][:3]))
+            box = self.mission_edits.outside_box() if self.mission_edits.keep_outside else None
             if box:
                 extra['cleared']['keepOutside'] = box
         # the effects the map's pieces carry (export 23; tools/bake/native_effects.py): each follows its piece's move,
@@ -2886,11 +2186,12 @@ class Compiler:
             extra['carriedEffects'] = {k: sorted(v) for k, v in sorted(carried.items())}
         # the project's landing zones (section 4): the variant's LZArray lines, and the map's own landings moved
         # the project's spawn rules (spawns plan, SP8): the Build writes the variant's ExcludeMaps line
-        if self.spawn_rules:
-            extra['spawnRules'] = dict(self.spawn_rules)
-        if self.zones is not None:
-            extra['landingZones'] = dict(zones=self.zones, own=spawns.own_slots(self.zones, self.own_count),
-                                         ownLandings=self.own_count)
+        if self.mission_edits.spawn_rules:
+            extra['spawnRules'] = dict(self.mission_edits.spawn_rules)
+        if self.mission_edits.zones is not None:
+            extra['landingZones'] = dict(zones=self.mission_edits.zones,
+                                         own=spawns.own_slots(self.mission_edits.zones, self.mission_edits.own_count),
+                                         ownLandings=self.mission_edits.own_count)
         return dict(
             **extra,
             name=self.out['patch'], base='',
@@ -2905,858 +2206,14 @@ class Compiler:
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
                                              'landingZones', 'stage', 'spawnRules'))
 
-    def map_buildings(self):
-        """The export's own buildings (export 21 has their actors): {actor path: (record, why it stays fixed or None)}.
-        Fixed: a building with no floors, a van's (it goes with the van), one with a floor that has no floor volume
-        or a volume without a box (F-86, F-95), and a patch's. Older exports have none."""
-        if getattr(self, '_map_buildings', None) is not None:
-            return self._map_buildings
-        out = {}
-        for b in self.scene.get('buildings') or [] if (self.scene.get('exporterVersion') or 0) >= 21 else []:
-            if not isinstance(b, dict) or not b.get('actor') or not isinstance(b.get('name'), str):
-                continue
-            floors = b.get('floors') or []
-            why = None
-            if not floors:
-                why = 'it has no floors'
-            elif b.get('van'):
-                why = "it is a van's own building, which goes with the van"
-            elif any(not f.get('volumes') for f in floors):
-                why = 'a floor of it has no floor volume'
-            elif any(len(f.get('boxes') or []) != len(f['volumes']) for f in floors):
-                why = 'a floor volume of it has no box'
-            elif not str(b.get('id')).isdigit():
-                why = "it is a patch's"
-            out[b['name']] = (b, why)
-        self._map_buildings = out
-        return out
-
-    def building_records(self):
-        """The project's `buildings` records this compiler can read: (the records, in order, [(where, why) of each one
-        left out]): one that is malformed (building_well_formed), one whose id an earlier record has, or the whole
-        value when it is no list. The groups, the floors a copy stands in and buildings() all read these."""
-        if getattr(self, '_building_records', None) is None:
-            items, kept, dropped, ids = self.doc.get('buildings'), [], [], set()
-            if items and not isinstance(items, list):
-                dropped.append((dict(record='buildings'), '"buildings" is no list'))
-            for k, b in enumerate(items if isinstance(items, list) else []):
-                where = dict(record='buildings[%d]' % k, **({'building': b['id']} if isinstance(b, dict) and isinstance(b.get('id'), str) else {}))
-                if not building_well_formed(b):
-                    dropped.append((where, 'building record %d can\'t be read' % (k + 1)))
-                elif b['id'] in ids:
-                    dropped.append((where, 'building record %d has the id of an earlier one (%s)' % (k + 1, b['id'])))
-                else:
-                    ids.add(b['id'])
-                    kept.append(b)
-            self._building_records = (kept, dropped)
-        return self._building_records
-
-    def buildings(self):
-        """The project's `buildings` (optional; prefab plan 5.1; map buildings plan, sections 2 and 3).
-        - Buildings made from nothing, each {id, name, kind: 'building' | 'ufo', floors: [{boxes: [[x0, y0, z0, x1,
-          y1, z1]]}]}, floor 0 first, the boxes in world units and unturned. The Build makes a building volume and a
-          floor volume for each box, and lists in each floor the pieces standing in it (tools/bake/buildings.py).
-          A copied actor whose source building the building comes from (source_floor_match: the source's floors
-          carried by the copy's move overlap the building's, their boxes edited or not) keeps what its map saved
-          where the rule agrees with the source's boxes and with the building's (`carry`, buildings.carried): the
-          map's hand-made inclusion and exclusion lists come along (a UFO's roof listed on its roof floor only).
-        - The map's own buildings changed (`replaces` the map's building volume, each floor's `volumes` beside its
-          boxes) or deleted (`deleted`): the Build edits them in place (buildings.edit). One the compiler can't use is
-          passed over with a warning (building-replaces) and stays as exported; one unchanged (every box within
-          BUILDING_SAME of its volume's, the same kind) builds nothing.
-        Nothing here stops a Build but an export with no tile grid: a record that can't be read, or that names a
-        building an earlier one names, is left out (building-shape, building_records); a box outside the tile grid,
-        two floors that meet, a floor away from the cursor's floors are warnings, and for the map's buildings only
-        where a box changed (the map's own overlaps, as exported, are not reported)."""
-        items, dropped = self.building_records()
-        for where, why in dropped:
-            self.leave_out('building-shape', '%s, so it is left out (a building of the map\'s stays as the map has it): %s'
-                           % (why, BUILDING_SHAPE), **where)
-        if not items:
-            return
-        if not self.builds('building'):
-            self.error('family', 'the project has %s. %s' % (FAMILIES['building']['what'], FAMILIES['building']['note']),
-                       family='building')
-            return
-        grid = self.scene.get('tileGrid') or {}
-        dims, origin, size = grid.get('dimensions'), grid.get('origin'), grid.get('size')
-        if not (dims and origin and size):
-            self.error('building-grid', 'the export of %s has no tile grid, which a building needs' % self.map)
-            return
-        count = list(self.stage_grid or dims[:3])
-        lo = [float(v) for v in origin[:3]]
-        hi = [lo[k] + count[k] * size[k] for k in range(3)]
-        storeys = self.cursor_storeys()
-
-        def meet(a, b):
-            return all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > BUILDING_OVERLAP for k in range(3))
-
-        # every box after the edit: dict(building id, label, floor, box, changed, own: the map's, authored)
-        boxes, replaced, gone = [], set(), set()
-        exported = self.map_buildings()
-        for b in items:
-            if b.get('replaces') is None:
-                self.new_building(b, boxes)
-                continue
-            rep = b['replaces']
-            where = dict(building=b['id'])
-            found = exported.get(rep['actor']) if rep['package'].casefold() == self.map.casefold() and rep['level'] == 'base' else None
-            why = found[1] if found else ('the export of %s has no buildings\' actors (export 21): prepare it again'
-                                          % self.map if (self.scene.get('exporterVersion') or 0) < 21
-                                          else 'it is not one of the map\'s buildings')
-            if not why and rep['actor'] in replaced:
-                why = 'an earlier record names it'
-            if why:
-                self.warn('building-replaces', 'the record for the map\'s building %s is passed over: %s; the building '
-                          'stays as the map has it' % (short(rep['actor']), why), **where)
-                continue
-            replaced.add(rep['actor'])
-            e = found[0]
-            label = b.get('name') or e['actor']
-            old = [[dict(volume=short(v), box=list(x['min']) + list(x['max'])) for v, x in zip(f['volumes'], f['boxes'])]
-                   for f in e['floors']]
-            if b.get('deleted'):
-                gone.add(rep['actor'])
-                if e.get('referencedBy'):
-                    self.warn('mission-linked', "the map's building %s is named by the map's Kismet (%s): deleted, its "
-                              "script acts on a volume out of the level" % (label, '; '.join(e['referencedBy'])), **where)
-                self.building_edits.append(dict(id=b['id'], actor=e['actor'], name=label, deleted=True, old=old,
-                                                kind='ufo' if e.get('isUfo') else 'building', moved=False))
-                continue
-            own_volumes = {v['volume']: v['box'] for f in old for v in f}
-            floors, used = [], set()
-            for k, f in enumerate(b['floors']):
-                vols = []
-                for v in f['volumes']:
-                    if v is not None and (v not in own_volumes or v in used):
-                        self.warn('building-replaces', 'floor %d of the map\'s building %s names the floor volume %s, '
-                                  'which is %s: its box gets a new volume' % (
-                                      k + 1, label, v, 'named twice' if v in used else 'not one of the building\'s'), **where)
-                        v = None
-                    if v is not None:
-                        used.add(v)
-                    vols.append(v)
-                floors.append(dict(boxes=[[tidy(float(x), 3) for x in box] for box in f['boxes']], volumes=vols))
-            same_box = lambda box, v: v is not None and all(abs(box[j] - own_volumes[v][j]) <= BUILDING_SAME for j in range(6))
-            unchanged = (len(floors) == len(old) and (b.get('kind', 'building') == 'ufo') == bool(e.get('isUfo'))
-                         and all(sorted(filter(None, f['volumes'])) == sorted(v['volume'] for v in o) and len(f['volumes']) == len(o)
-                                 and all(same_box(x, v) for x, v in zip(f['boxes'], f['volumes'])) for f, o in zip(floors, old)))
-            for k, f in enumerate(floors):
-                for x, v in zip(f['boxes'], f['volumes']):
-                    boxes.append(dict(building=b['id'], label=label, floor=k, box=x, own=True, authored=False,
-                                      changed=not same_box(x, v),
-                                      bottom=own_volumes[v][2] if v is not None else None))
-            if unchanged:
-                continue
-            if e.get('referencedBy'):
-                self.warn('mission-linked', "the map's building %s is named by the map's Kismet (%s): it is edited in "
-                          "place, so the script still finds it, but moved or resized it may act differently"
-                          % (label, '; '.join(e['referencedBy'])), **where)
-            self.building_edits.append(dict(id=b['id'], actor=e['actor'], name=label, deleted=False,
-                                            kind=b.get('kind', 'building'), floors=floors, old=old,
-                                            moved=moved_whole(old, floors)))
-        # the map's buildings left as exported (fixed ones too), and the ones of no record
-        for path, (e, why) in exported.items():
-            if path in replaced:
-                continue
-            for k, f in enumerate(e.get('floors') or []):
-                for x in f.get('boxes') or []:
-                    boxes.append(dict(building=map_building_id(e), label=e['actor'], floor=k, own=True, authored=False,
-                                      box=list(x['min']) + list(x['max']), changed=False))
-        if (self.scene.get('exporterVersion') or 0) < 21:
-            # an older export: the map's floor volumes by building name (export 15)
-            for name, index, xs in self.floor_boxes or []:
-                for x in xs:
-                    boxes.append(dict(building='map|' + name, label=short(name), floor=index, own=True, authored=False,
-                                      box=list(x['min']) + list(x['max']) if isinstance(x, dict) else list(x), changed=False))
-        # the warnings, for each changed or new box
-        said = set()
-        for n, item in enumerate(boxes):
-            if not item['changed']:
-                continue
-            x, k, label = item['box'], item['floor'], item['label']
-            where = dict(building=item['building'], floor=k, box=x)
-            if any(x[j] < lo[j] - 0.5 or x[j + 3] > hi[j] + 0.5 for j in range(3)):
-                self.note('building-outside', 'floor %d of the building %s reaches outside the map\'s tile grid: the '
-                          'game has no tiles there' % (k + 1, label), **where)
-            for m, other in enumerate(boxes):
-                if m == n or (other['building'] == item['building'] and (other['floor'] == k or item['authored'])):
-                    continue
-                if (min(m, n), max(m, n)) in said or not meet(x, other['box']):
-                    continue
-                said.add((min(m, n), max(m, n)))
-                whose = ('the same building' if other['building'] == item['building'] else
-                         "the map's own building %s" % other['label'] if other['own'] and not other['changed']
-                         else 'the building %s' % other['label'])
-                self.warn('building-overlap', 'floor %d of the building %s overlaps floor %d of %s: a piece in both is '
-                          'listed by both, and a unit there may see either floor cut away' % (k + 1, label, other['floor'] + 1, whose),
-                          **where)
-            starts = sorted({round(c[2], 2) for _, c in storeys or []
-                             if min(c[3], x[3]) - max(c[0], x[0]) > 0 and min(c[4], x[4]) - max(c[1], x[1]) > 0})
-            # (a map box at its volume's own height, moved sideways or stretched across, is as the map had it)
-            same_height = item.get('bottom') is not None and abs(item['bottom'] - x[2]) <= BUILDING_SAME
-            if starts and not same_height and not any(abs(x[2] - z) <= CURSOR_NEAR for z in starts):
-                self.warn('building-cursor', 'floor %d of the building %s starts at %g, away from where the cursor\'s '
-                          'floors start there (%s): the mouse wheel would not stop at this storey'
-                          % (k + 1, label, x[2], ', '.join('%g' % z for z in starts)), starts=starts, **where)
-        if self.errors:
-            self.new_buildings, self.building_edits = [], []
-
-    def new_building(self, b, boxes):
-        """A building made from nothing (buildings()): into self.new_buildings, with `carry` {copy label: dict(saved:
-        [[floor, CutdownFloor]] as its map saved them, floors: its source building's boxes carried by the copy's move,
-        floor_map: the building's floor for each of those)} for the copies whose source building it comes from
-        (source_floor_match); its boxes into `boxes`."""
-        label = b.get('name') or b['id']
-        carry = {}
-        for copy in self.copies:
-            source = self.floor_sources.get(copy['label'])
-            # (a wall made from numbers is not its donor: the rule lists it by its own box, custom geometry plan M3)
-            if source is None or (copy.get('generated') or {}).get('kind') in MADE_KINDS + ('ground',):
-                continue
-            donor = copy.get('donor')
-            originals = self.donor_buildings.get(donor['package'].casefold(), []) if donor else (self.scene.get('buildings') or [])
-            before = dict(location=source.get('floorLocation', source['location']), rotation=source['rotation'])
-            match = source_floor_match(originals, b['floors'], before, copy['location'], copy['rotation'])
-            if match:
-                carry[copy['label']] = dict(
-                    saved=[[f['floor'], f['cutdownFloor']] for f in source.get('floors', []) if f['building'] == match['building']['id']],
-                    floors=[[[tidy(v, 3) for v in x] for x in f] for f in match['moved']], floor_map=match['floor_map'])
-        for k, f in enumerate(b['floors']):
-            for x in f['boxes']:
-                boxes.append(dict(building=b['id'], label=label, floor=k, box=[float(v) for v in x], own=False,
-                                  authored=bool(carry), changed=True))
-        self.new_buildings.append(dict(id=b['id'], name=b.get('name') or '', kind=b.get('kind', 'building'),
-                                       **({'carry': carry} if carry else {}),
-                                       floors=[dict(boxes=[[tidy(float(v), 3) for v in x] for x in f['boxes']])
-                                               for f in b['floors']]))
-
+    # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
-        """The project's `stage` (optional): `grid` [nx, ny] or [nx, ny, nz], the map's tile grid made that many tiles
-        from its own corner (prefab plan 5.11; the Build's shell stage resizes it) and, with nz, that many levels from
-        its own bottom (5.6b), `ground` (false: lay no ground over the new area), `lines` (true: the ground drawn as a
-        grid, its planes hidden and a white line on every tile edge; 5.11) and `hideGround` (true: the planes hidden, no
-        lines). A map as it is, the blank map among them, only grows (the user, 13 November 2026: any map, where
-        before only the blank map); a cleared project's grid (Clear map plan, section 6) may also be smaller in any of
-        the three, from 1 tile or level. Each is at most STAGE_GRID_MAX tiles or STAGE_LEVELS_MAX levels, or the map's
-        own where that is more (stage_max). A size this compiler can't build is left out (record `stage`: the map
-        keeps its size, and the Build reads nothing of `stage`); an export with no tile grid is an error.
-        Sets self.stage_grid to [nx, ny, nz] when the grid differs from the map's, else None."""
-        self.stage_grid = None
-        stage = self.doc.get('stage')
-        if stage is None:
-            return
-        grid = stage.get('grid') if isinstance(stage, dict) else None
-        if not (isinstance(grid, list) and len(grid) in (2, 3) and all(isinstance(v, int) and not isinstance(v, bool) for v in grid)) \
-                or any(stage.get(k) not in (None, True, False) for k in ('ground', 'lines', 'hideGround')):
-            self.leave_out('stage-shape', 'the project\'s map size must be {"grid": [tiles across, tiles deep]} or '
-                                          '{"grid": [tiles across, tiles deep, levels]}, with an optional "ground", '
-                                          '"lines" and "hideGround", each true or false: it is left out, and the map '
-                                          'keeps its own size', record='stage')
-            return
-        bare = self.map in STAGE_MAPS
-        grows_only = not self.cleared
-        own = (self.scene.get('tileGrid') or {}).get('dimensions')
-        if not own:
-            self.error('stage-grid', 'the export of %s has no tile grid to resize' % self.map)
-            return
-        if not bare and any(stage.get(k) is not None for k in ('lines', 'hideGround')):
-            self.note('stage-ground', '"lines" and "hideGround" are the blank map\'s; on %s they do nothing' % self.map)
-        if self.cleared and stage.get('ground') is not None:
-            self.note('stage-ground', '"ground" does nothing on a cleared map: it lays no ground')
-        grid = list(grid[:2]) + [grid[2] if len(grid) == 3 else own[2]]
-        if grows_only and (grid[0] < own[0] or grid[1] < own[1]):
-            self.leave_out('stage-grid', '%s can be made larger, not smaller, until it is cleared: %d by %d tiles against '
-                           'its own %d by %d; the size is left out, and the map keeps its own'
-                           % ('the blank map' if bare else self.map, grid[0], grid[1], own[0], own[1]),
-                           grid=grid, own=own[:2], record='stage')
-            return
-        most = stage_max(own)
-        if not (1 <= grid[0] <= most[0] and 1 <= grid[1] <= most[1]):
-            self.leave_out('stage-grid', 'the map can be from 1 to %d tiles across and 1 to %d deep (asked: %d by %d); '
-                           'the size is left out, and the map keeps its own'
-                           % (most[0], most[1], grid[0], grid[1]), grid=grid, own=own[:3], record='stage')
-            return
-        lowest = own[2] if grows_only else 1
-        if not lowest <= grid[2] <= most[2]:
-            self.leave_out('stage-grid', 'the map can be from %d up to %d levels high (asked: %d); the size is left out, '
-                           'and the map keeps its own' % (lowest, most[2], grid[2]), grid=grid, own=own[:3], record='stage')
-            return
-        if grid != list(own[:3]):
-            self.stage_grid = grid
-            if grows_only and not bare:
-                words = []
-                if grid[:2] != list(own[:2]):
-                    words.append('the Build lays more of the map\'s ground over the new area only where it is laid as '
-                                 'planes, and makes the map\'s own low scenery there (ground, pavements) walkable; '
-                                 'elsewhere lay floors')
-                if grid[2] > own[2]:
-                    words.append('the cursor reaches the new levels by storeys the Build adds over the whole grid, above '
-                                 'the map\'s own cursor volumes')
-                self.note('stage-grown-map', '%s made larger as it is: %s' % (self.map, '; '.join(words)),
-                          grid=grid, own=own[:3])
-
-    def spawn_rules_mark(self):
-        """The project's `spawnRules` (schema 4; spawns plan, SP8): left out or null, scripted drop-ins play as the
-        install plays them; {"dropIns": "placed"}, Long War's scripted drop-ins land where placed: the Build adds the
-        variant to its drop-in mutator's ExcludeMaps list (DefaultRandomSpawns.ini). Anything else (a newer editor's
-        rule this one can't build) is left out (spawn-rules): the drop-ins play as the install plays them."""
-        self.spawn_rules = None
-        rules = self.doc.get('spawnRules')
-        if rules is None:
-            return
-        if rules != {'dropIns': 'placed'}:
-            self.leave_out('spawn-rules', 'the project\'s spawn rules must be {"dropIns": "placed"} or left out; it has '
-                           '%s, which this editor can\'t build: the rule is left out, and scripted drop-ins play as the '
-                           'install plays them' % json.dumps(rules)[:160], record='spawnRules')
-            return
-        self.spawn_rules = dict(dropIns='placed')
-
-    def spawn_rules_notes(self):
-        """Notes on the spawn rule (spawns plan, SP8): dropins-placed says what it covers, the scripted actions that
-        drop aliens in at points of the map and of the streams of the missions the variant keeps (export 33's `uses`),
-        and that wave systems are never moved by Long War; dropins-base-excluded, with no rule, that the install's
-        ExcludeMaps names the base map (the Chryssalid Hive) but not the variant, which has a name of its own."""
-        variant = self.out['shipAs']
-        if self.spawn_rules:
-            actions = set()
-            for r in self.scene.get('spawns') or []:
-                if isinstance(r, dict) and r.get('kind') == 'dropIn':
-                    actions.update(('the map', a) for a in scripted_users(r))
-            for _, _, stream, objects in self.kept_streams():
-                for o in objects:
-                    if o.get('kind') == 'dropIn':
-                        actions.update((stream, a) for a in scripted_users(o))
-            labels = [m.get('label') or 'mission %d' % (i + 1) for i, m in self.kept_missions()]
-            labels += ['%s (added)' % missions.label(k) for k in sorted(self.added_kinds())]
-            places = sorted({where for where, _ in actions})
-            covers = ('%d scripted %s in %s' % (len(actions), 'action' if len(actions) == 1 else 'actions', ', '.join(places))
-                      if actions else 'every scripted drop-in (the export finds no scripted action dropping aliens in)')
-            self.note('dropins-placed', 'Scripted drop-ins land where placed: the Build adds %s to Long War\'s ExcludeMaps list '
-                      '(DefaultRandomSpawns.ini), for %s of %s (%s), and Long War\'s drop-in mutator gives them neither its '
-                      'overwatch nor its reveal; wave systems\' drop-ins are never moved by Long War. Plain Enemy Within '
-                      'plays them where placed already, and the Build writes nothing there'
-                      % (variant, covers, 'the one mission' if len(labels) == 1 else 'every mission', ', '.join(labels)),
-                      actions=len(actions), missions=labels)
-            return
-        game = getattr(self.library, 'game', None)
-        if not isinstance(game, (str, Path)) or not game:
-            return
-        import spawnrules
-        try:
-            found = spawnrules.rules(game)
-        except (OSError, ValueError):
-            return
-        if found.get('dropIns') == 'active' and spawnrules.excluded(found, self.map) and not spawnrules.excluded(found, variant):
-            self.note('dropins-base-excluded', 'Long War\'s ExcludeMaps names %s, so its drop-in mutator leaves the map\'s '
-                      'scripted drop-ins where placed; %s has a name of its own, and Long War moves them near the squad '
-                      'there unless the project leaves them where placed (the Spawns view\'s flyout)' % (self.map, variant))
+        """The project's larger grid (MissionEdits.stage), kept on the compiler for the tests that call it by name."""
+        return self.mission_edits.stage()
 
     def cleared_mark(self):
-        """The project's `cleared` (Clear map plan, section 6): true says the Build takes out what the editor never
-        showed and puts one rebuild volume over the whole grid. The pieces themselves go by their delete records."""
-        cleared = self.doc.get('cleared', False)
-        if not isinstance(cleared, bool):
-            self.leave_out('cleared-shape', '"cleared" must be true or false: it is left out, and the map is built as '
-                           'not cleared (its pieces go by their own delete records)', record='cleared')
-            cleared = False
-        self.cleared = cleared is True
-        # `clearKeepsOutside` (the Clear map window's "Keep the scenery outside the play area"): the clear left the
-        # pieces wholly outside the play area, and the Build's clear_level leaves the lights, emitters, decals and
-        # lens flares placed outside it (outside_box). Without `cleared` it says nothing.
-        keeps = self.doc.get('clearKeepsOutside', False)
-        if not isinstance(keeps, bool):
-            self.leave_out('cleared-shape', '"clearKeepsOutside" must be true or false: it is left out%s'
-                           % (', and the clear takes out what lies outside the play area too' if cleared is True else ''),
-                           record='clearKeepsOutside')
-            keeps = False
-        self.keep_outside = self.cleared and keeps is True
-        if self.cleared and not (self.scene.get('tileGrid') or {}).get('dimensions'):
-            self.error('cleared-grid', 'the export of %s has no tile grid, which a cleared map\'s Build covers with its '
-                       'cursor and rebuild volumes' % self.map)
-        if self.cleared:
-            # LWR's patch levels for the map: every piece of them out of the variant's copies (section 7, step 4).
-            # The mission's own streamed levels are left.
-            for stream, info in sorted((self.scene.get('streams') or {}).items()):
-                if info.get('kind') == 'lwr':
-                    for o in info.get('objects') or []:
-                        self.stream_hides.setdefault(stream, set()).add(short(o['actor']))
-
-    def outside_box(self):
-        """What a clear that keeps the scenery outside the play area counts as the play area, across: [x0, y0, x1, y1],
-        the map's level volume (playableBounds, in the viewer's basis [x, up, y]) and the grid as the project has it
-        together. A piece or an actor wholly outside it stays."""
-        b, g = self.scene.get('playableBounds') or {}, self.grid_box()
-        boxes = ([[b['min'][0], b['min'][2], b['max'][0], b['max'][2]]] if b.get('min') and b.get('max') else []) \
-            + ([[g[0], g[1], g[3], g[4]]] if g else [])
-        if not boxes:
-            return None
-        return [float(min(v[0] for v in boxes)), float(min(v[1] for v in boxes)),
-                float(max(v[2] for v in boxes)), float(max(v[3] for v in boxes))]
-
-    def grid_box(self):
-        """The tile grid as the project has it: [x0, y0, z0, x1, y1, z1], or None without one."""
-        grid = self.scene.get('tileGrid') or {}
-        if not grid.get('origin') or not grid.get('dimensions'):
-            return None
-        o, size = grid['origin'], grid.get('size') or [TILE, TILE, STOREY]
-        dims = self.stage_grid or grid['dimensions']
-        return [float(o[0]), float(o[1]), float(o[2]), float(o[0]) + dims[0] * size[0], float(o[1]) + dims[1] * size[1],
-                float(o[2]) + dims[2] * size[2]]
-
-    def stage_outside(self):
-        """The warning for the project's pieces and cover blocks wholly outside a grid the project sized
-        (stage-outside): counted, the first few named. A piece is outside when the middle of its box's floor is
-        outside the grid's sides, or its box reaches no level of the grid (a piece sunk into the ground, or reaching
-        over its top, still stands in it). Lights and building floors are left out: a light lights anything, and a
-        floor box beyond the grid only covers a place with no tiles (the user, 14 November 2026: warnings only for
-        what can cause a problem in the game)."""
-        if not self.stage_grid:
-            return
-        g = self.grid_box()
-
-        def outside(b):
-            x, y = (b[0] + b[1]) / 2, (b[2] + b[3]) / 2
-            return not (g[0] <= x <= g[3] and g[1] <= y <= g[4]) or b[5] < g[2] or b[4] > g[5]
-        out = []
-        for c in self.copies:
-            if outside(c['box']):
-                out.append(c['label'].split(':', 1)[-1])
-        for c in self.covers:
-            if c.get('box') and outside(c['box']):
-                out.append(c['name'])
-        if out:
-            self.warn('stage-outside', '%d of the project\'s pieces stand outside the %d by %d by %d '
-                      'grid: there are no tiles there to stand on or take cover by (%s%s)'
-                      % (len(out), self.stage_grid[0], self.stage_grid[1], self.stage_grid[2], ', '.join(out[:5]),
-                         ', ...' if len(out) > 5 else ''), count=len(out), names=out[:12])
-
-    # ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
-    def landing_zones(self):
-        """The project's landing zones (`landingZones`, optional): checked for shape, then warned of: a soldier point
-        over no floor (landing-floor), a piece the project puts on one (landing-blocked), a zone outside the grid
-        (landing-outside), more zones than the map has landings of its own (landing-lwr-only), a zone that plays
-        nowhere (landing-unused), none (landing-none). A zone this compiler can't read, or whose id an earlier one has,
-        is left out (landing-shape) and the rest are the variant's; a list that is no list, or whose zones are all left
-        out, is as no list: the base map's lines are copied. Without the list, the map's own landings are checked the
-        same way on a cleared or resized project. Sets self.zones (the list, tidied, or None) and self.own_count."""
-        self.zones = None
-        own = spawns.own_landings(self.scene)
-        self.own_landings_found = own
-        self.own_count = len(own)
-        raw = self.doc.get('landingZones')
-        if raw is not None and not isinstance(raw, list):
-            self.leave_out('landing-shape', '"landingZones" must be a list of landing zones: it is left out, and the '
-                           'variant lands as %s does' % self.map, record='landingZones')
-            raw = None
-        kept, ids = [], set()
-        for k, z in enumerate(raw or []):
-            where = dict(record='landingZones[%d]' % k)
-            if not spawns.valid_zone(z):
-                self.leave_out('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}: '
-                               'it is left out' % (k + 1), **where)
-            elif z['id'] in ids:
-                self.leave_out('landing-shape', 'landing zone %d has the id of an earlier one (%s): it is left out'
-                               % (k + 1, z['id']), **where)
-            else:
-                ids.add(z['id'])
-                kept.append(z)
-        if raw and not kept:
-            # every zone left out: the variant lands as the map does, not at none
-            self.note('landing-own', 'every landing zone of the project is left out: the variant lands as %s does' % self.map)
-            raw = None
-        if raw is None:
-            if self.cleared or self.stage_grid:
-                self.check_zones([dict(o['zone'], id='own%d' % (k + 1)) for k, o in enumerate(own)], own=True)
-            return
-        self.zones = [tidy_zone(z) for z in kept]
-        if not self.zones:
-            self.warn('landing-none', 'the project has no landing zone: LWR gets no line for the map, and a plain '
-                      'install plays the map\'s own landing where it stands')
-            return
-        slots = spawns.own_slots(self.zones, self.own_count)
-        lwr_only = [k + 1 for k in range(len(self.zones)) if k not in slots and self.zones[k].get('lwr', True) is not False]
-        nowhere = [k + 1 for k in range(len(self.zones)) if k not in slots and self.zones[k].get('lwr', True) is False]
-        if lwr_only:
-            self.warn('landing-lwr-only', '%s %s under Long War only: a plain install plays the map\'s %d landing%s of '
-                      'its own, at the zones marked Plain EW' % (zone_words(lwr_only), 'plays' if len(lwr_only) == 1 else 'play',
-                                                                self.own_count, '' if self.own_count == 1 else 's'),
-                      zones=lwr_only)
-        marked = [k + 1 for k, z in enumerate(self.zones) if z.get('ew') is True]
-        if spawns.explicit(self.zones) and len(marked) > self.own_count:
-            self.warn('landing-ew-extra', '%d zones are marked Plain EW, and the map has %d landing%s of its own: %s '
-                      'play%s under Long War only' % (len(marked), self.own_count, '' if self.own_count == 1 else 's',
-                                                      zone_words(marked[self.own_count:]),
-                                                      's' if len(marked) - self.own_count == 1 else ''),
-                      zones=marked[self.own_count:])
-        if len(slots) < self.own_count:
-            self.warn('landing-ew-fewer', 'a plain install also lands at %d of the map\'s own landing%s where the map has '
-                      '%s: only %d zone%s %s marked Plain EW' % (
-                          self.own_count - len(slots), '' if self.own_count - len(slots) == 1 else 's',
-                          'it' if self.own_count - len(slots) == 1 else 'them', len(slots), '' if len(slots) == 1 else 's',
-                          'is' if len(slots) == 1 else 'are'),
-                      missing=self.own_count - len(slots))
-        if nowhere:
-            self.warn('landing-unused', '%s %s no line for Long War and %s none of the map\'s own landings, so %s '
-                      'never played' % (zone_words(nowhere), 'has' if len(nowhere) == 1 else 'have',
-                                        'is' if len(nowhere) == 1 else 'are', 'it is' if len(nowhere) == 1 else 'they are'),
-                      zones=nowhere)
-        self.check_zones(self.zones)
-
-    def missions_kept(self):
-        """The project's `missions` as the Build writes them (mission types plan, D1): (its entries the Build can
-        write, in order, or None for every record of the base map; [(where, why) of each part left out]). An entry the
-        Build can't write is left out, and so is the whole value when it is no list or empty, or when none of its
-        entries can be written: the variant then serves every record of the base map, as with no list. build.py
-        writes the records of this list (the report's `missions`)."""
-        if getattr(self, '_missions_kept', None) is None:
-            listed, dropped = self.doc.get('missions'), []
-            records = len([m for m in self.scene.get('missions') or [] if isinstance(m, dict)])
-            if listed is not None and (not isinstance(listed, list) or not listed):
-                dropped.append((dict(record='missions'), 'the project\'s missions must be a list of at least one'))
-                listed = None
-            kept = [e for e in listed if missions.valid_entry(e, records)] if listed is not None else None
-            for k, e in enumerate(listed or []):
-                if not missions.valid_entry(e, records):
-                    dropped.append((dict(record='missions[%d]' % k), 'mission %d of the project\'s list is neither one of the '
-                                    'base map\'s %d records nor a kind a record alone gives a map (%s)'
-                                    % (k + 1, records, ', '.join(missions.ADDED_KINDS))))
-            self._missions_kept = (kept or None, dropped)
-        return self._missions_kept
-
-    def kept_missions(self):
-        """The base map's missions the variant keeps (mission types plan, D1): [(index, the export's mission)]: the
-        entries of the project's `missions` (missions_kept) that name a record ({record: i}), else every mission of
-        the export."""
-        found = [m for m in self.scene.get('missions') or [] if isinstance(m, dict)]
-        listed = self.missions_kept()[0]
-        if not isinstance(listed, list):
-            return list(enumerate(found))
-        return [(e['record'], found[e['record']]) for e in listed
-                if isinstance(e, dict) and isinstance(e.get('record'), int) and 0 <= e['record'] < len(found)]
-
-    def kept_streams(self):
-        """Each stream of the missions the variant keeps with its objects (export 24): [(label, index or kind, stream,
-        objects)], the kept records' streams, then an added kind's donor stream (export 33: the added bomb's
-        Slaughterhouse stream) where no kept record streams it already."""
-        streams = self.scene.get('streams') or {}
-        out, named = [], set()
-        for index, mission in self.kept_missions():
-            label = mission.get('label') or 'mission %d' % (index + 1)
-            for name in mission.get('streams') or []:
-                named.add(name)
-                objects = (streams.get(name) or {}).get('missionObjects') or []
-                if objects:
-                    out.append((label, index, name, objects))
-        for kind in sorted(self.added_kinds()):
-            donor = (self.scene.get('donors') or {}).get(kind)
-            if isinstance(donor, dict) and donor.get('stream') and donor['stream'] not in named and donor.get('missionObjects'):
-                out.append(('%s (added)' % missions.label(kind), kind, donor['stream'], donor['missionObjects']))
-        return out
-
-    def missions_check(self):
-        """What an edit means for the map's missions (private/plans/done/mission-types-plan.md): a note for a map the
-        game knows by its whole name (missions.NAMED_MAPS: the Build's records can't keep it, plan Part B), and, for
-        each mission the variant keeps, its stream's objects (export 24) against the edit (C3): mission_objects."""
-        why = missions.named_map(self.map) or (missions.named_map(self.package) if self.package != self.map else None)
-        if why:
-            self.note('named-map', '%s is known by its name in the game\'s script, which a variant can\'t keep: %s.'
-                      % (self.map, why))
-        self.mission_list()
-        self.mission_objects()
-        self.spawn_places()
-        self.spawn_rules_notes()
-
-    def mission_list(self):
-        """The project's `missions` (D1, optional): what of it is left out (missions_kept: an entry the Build can't
-        write; the whole list, when it is no list, is empty or keeps nothing, so the variant serves every record of the
-        base map); a warning for a UFO mission on a map with no UFO building (mission-ufo: Long War puts the
-        commander's pod in the UFO's building volume, O-5), a note for a bomb mission added (mission-bomb: Long War's
-        mutator places it; plain Enemy Within plays Slaughterhouse's places)."""
-        listed, dropped = self.missions_kept()
-        for where, why in dropped:
-            self.leave_out('missions', '%s: %s left out' % (why, 'it is' if where['record'] == 'missions' else 'that entry is'),
-                           **where)
-        if dropped and listed is None:
-            self.note('missions-all', 'the project\'s missions list keeps no mission the Build can write: the variant '
-                      'serves every mission of %s' % self.map)
-        if listed is None:
-            return
-        kinds = {e['kind'] for e in listed if 'kind' in e}
-        if kinds & {'Crash', 'LandedUFO'}:
-            gone = {e['actor'] for e in self.building_edits if e.get('deleted')}
-            ufo = any(b.get('kind') == 'ufo' for b in self.new_buildings) or any(
-                e.get('isUfo') and e.get('name', e.get('actor')) not in gone and e.get('actor') not in gone
-                for e in self.scene.get('buildings') or [])
-            if not ufo:
-                self.warn('mission-ufo', 'the project is for a UFO mission and the map has no UFO building: Long War puts '
-                          'the commander\'s pod in the UFO, so place a UFO prefab')
-        if 'Special/Bomb' in kinds:
-            self.note('mission-bomb', 'the bomb mission streams %s: Long War\'s bomb mutator places its bomb and power '
-                      'nodes on the map; plain Enemy Within would play them where Slaughterhouse has them'
-                      % missions.BOMB_STREAM)
-
-    # a mission's objects that a soldier, the operative or a VIP must reach, or that stand for an objective: a warning
-    # when the edit leaves one over no floor or inside a piece (C3); drop-in points and pods only get a note (Long War
-    # places most of its drop-ins and pods itself)
-    MISSION_REACHED = {'capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'}
-    MISSION_SPAWNS = {'dropIn', 'pod'}
-
-    def mission_objects(self):
-        """C3, for each mission the variant keeps (kept_missions) and each stream of it that has objects: a warning
-        (mission-object) for an objective, a landing's or soldier's point, the operative's or a VIP's point that had
-        floor under it before the edit and has none now (the map's saved floor tiles that stay, and the floor the
-        project's flat copies give), or that a copy of the project stands on; a warning (mission-capture) for a capture
-        volume with none of its floor tiles left; a note (mission-spawns) for the drop-in points and pods that lose
-        their floor; on a cleared map, a note (mission-cleared) that the stream's objects stand where the original map
-        had them. Warnings only: the Build goes on. Each names its mission (mission, missionIndex) and the object's
-        stream and actor, for the build window's list by mission."""
-        grid = self.scene.get('tileGrid') or {}
-        origin = grid.get('origin')
-        kept = self.kept_streams()
-        if not origin or not kept:
-            return
-        size = grid.get('size') or [TILE, TILE, STOREY]
-        before = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])}
-        added, _ = self.added_floors()
-        now = self.floor_now() | set(added)
-        corner = tile_corner(grid)      # an object's tile as the game counts it
-        tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
-                                int(math.floor((p[2] - corner[2]) / size[2])) + dz)
-        under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
-        solid = [c for c in self.copies if c.get('box') and c.get('actorClass') != 'XComLadder' and c['box'][5] - c['box'][4] > FLOOR_THICK]
-        seen = set()
-        g = self.grid_box()
-        for label, index, name, objects in kept:
-            where = dict(mission=label, missionIndex=index) if isinstance(index, int) else dict(mission=label, missionKind=index)
-            donor = not isinstance(index, int)
-            unmoved = [o for o in objects if self.moved_object(name, o)[1] is None]
-            if self.cleared and unmoved and not donor:
-                self.note('mission-cleared', '%s: %s of %s stand where the original map had them, on a cleared map: '
-                          'place them, or drop the mission' % (label, '%d objects' % len(unmoved) if len(unmoved) != len(objects)
-                                                              else 'the %d objects' % len(objects), name), stream=name, **where)
-            lost = []
-            for o in objects:
-                p, offset = self.moved_object(name, o)
-                key = (index, name, o.get('actor'))
-                if key in seen:
-                    continue
-                seen.add(key)
-                short = str(o.get('actor') or '').rsplit('.', 1)[-1]
-                what = missions.object_words(o)
-                if o.get('actorClass') == 'XComCapturePointVolume' and o.get('box'):
-                    d = offset or [0, 0, 0]
-                    b = dict(min=[o['box']['min'][k] + d[k] for k in range(3)], max=[o['box']['max'][k] + d[k] for k in range(3)])
-                    inside = lambda t: (b['min'][0] <= origin[0] + (t[0] + 0.5) * size[0] <= b['max'][0]  # noqa: E731
-                                        and b['min'][1] <= origin[1] + (t[1] + 0.5) * size[1] <= b['max'][1]
-                                        and b['min'][2] - size[2] <= origin[2] + t[2] * size[2] <= b['max'][2])
-                    had = [t for t in before if inside(t)] if offset is None else [None]
-                    if had and not any(inside(t) for t in now):
-                        self.warn('mission-capture', '%s: %s (%s) has none of its %d floor tiles left: no soldier can '
-                                  'stand in it to capture it' % (label, what, short, len(had)),
-                                  stream=name, actor=o.get('actor'), **where)
-                    continue
-                kind = o.get('kind')
-                if kind not in self.MISSION_REACHED and kind not in self.MISSION_SPAWNS:
-                    continue
-                if o.get('role') in ('effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'):
-                    continue
-                if donor:
-                    # an added kind's object stands where its own map has it until placed: its fallback place
-                    # (Long War plays it there when it finds no place of its own), checked on this map as it is
-                    if kind in ('bomb', 'powerNode') and offset is None:
-                        out_grid = g is not None and not (g[0] <= p[0] <= g[3] and g[1] <= p[1] <= g[4])
-                        inside = next((c for c in solid if c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]
-                                       and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24), None)
-                        why = ('off the map\'s grid' if out_grid else 'over no floor' if not under(p, now)
-                               else 'inside %s' % inside['label'].split(':', 1)[-1] if inside else None)
-                        if why:
-                            self.warn('mission-donor-place', '%s: %s (%s) still stands where %s has it, which here is %s: Long '
-                                      'War plays it there when it finds no place of its own; place it on the map'
-                                      % (label, what, short, name, why), stream=name, actor=o.get('actor'), **where)
-                        continue
-                # (moved, it needs floor where it stands now, whatever the map had there)
-                bare = (under(p, before) or offset is not None) and not under(p, now)
-                on = next((c for c in solid if c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]
-                           and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24), None)
-                if kind in self.MISSION_SPAWNS:
-                    if bare or on: lost.append(o)
-                    continue
-                if bare:
-                    self.warn('mission-object', '%s: %s (%s) has no floor under it now: %s' % (
-                        label, what, short, missions.object_risk(o)), stream=name, actor=o.get('actor'), **where)
-                if on:
-                    self.warn('mission-object', '%s: %s (%s) is inside %s now: %s' % (
-                        label, what, short, on['label'].split(':', 1)[-1], missions.object_risk(o)),
-                        stream=name, actor=o.get('actor'), **where)
-            if lost:
-                count = {}
-                for o in lost: count[o['kind']] = count.get(o['kind'], 0) + 1
-                words = ', '.join('%d %s' % (n, missions.object_words(dict(kind=k), plural=n != 1)) for k, n in sorted(count.items()))
-                self.note('mission-spawns', '%s: %s of %s stand over no floor or inside a piece now (Long War places '
-                          'most drop-ins and pods itself; plain Enemy Within uses them where they stand)'
-                          % (label, words, name), stream=name, **where)
-
-    def projected_spawns(self):
-        """The base map's spawn points as the variant will have them (export 33: scene.json's `spawns`): [(record,
-        location)], a point a delete record takes out left out. Spawns plan, SP5; the base point edits (SP6, SP7) move,
-        copy and delete them here."""
-        gone = {e['target'] for e in self.entities if e['kind'] == 'delete' or (e['kind'] == 'spawn' and e['op'] == 'delete')}
-        moved = {e['target']: e['location'] for e in self.entities if e['kind'] == 'spawn' and e['op'] == 'move'}
-        valued = {e['target']: e['spawn'] for e in self.entities if e['kind'] == 'spawn' and e['op'] == 'values'}
-        with_values = lambda r, values: dict(r, values=dict(r.get('values') or {}, **{  # noqa: E731
-            k: {'value': v, 'from': 'project'} for k, v in (values or {}).items()})) if values else r
-        out = [(with_values(r, valued.get(r['actor'])), moved.get(r['actor'], r['location'])) for r in self.scene.get('spawns') or []
-               if isinstance(r, dict) and isinstance(r.get('location'), list) and r.get('actor') not in gone]
-        # (a copy: its template's record under its own name, with its values; never one the map had)
-        for e in self.entities:
-            if e['kind'] == 'spawn' and e['op'] == 'add':
-                t = self.spawn_edits.actors.get(e['template'])
-                if t:
-                    out.append((with_values(dict(t, actor=e['entity'], copied=True), e.get('spawn')), e['location']))
-        return out
-
-    def spawn_places(self):
-        """The base map's pods and Meld points against the edit (spawns plan, SP5): a pod or Meld point's place is usable
-        when it is in the grid, over floor (the map's that stays, or the project's own) and in no solid piece of the
-        project. Warnings: spawn-pod-places when fewer pod places are usable than the map had (plain Enemy Within, and
-        the missions Long War's pod mutator leaves alone, put a pod at each: fewer places than pods can lose one);
-        spawn-meld-group when a Meld spawn group loses every usable hard point, or every point, it had. A note,
-        spawn-outside, counts the points a resized grid leaves outside. Each names the variant's mission (its one, or
-        every one) and the first point it is about, for the build window's "show"."""
-        grid = self.scene.get('tileGrid') or {}
-        records = self.projected_spawns()
-        if not grid.get('origin') or not grid.get('dimensions') or not records:
-            return
-        size = grid.get('size') or [TILE, TILE, STOREY]
-        corner = tile_corner(grid)
-        tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
-                                int(math.floor((p[2] - corner[2]) / size[2])) + dz)
-        before = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])}
-        added, _ = self.added_floors()
-        now = self.floor_now() | set(added)
-        o, dims = grid['origin'], grid['dimensions']
-        box_before = [o[0], o[1], o[0] + dims[0] * size[0], o[1] + dims[1] * size[1]]
-        g = self.grid_box()
-        box_now = [g[0], g[1], g[3], g[4]]
-        solid = [c for c in self.copies if c.get('box') and c.get('actorClass') != 'XComLadder' and c['box'][5] - c['box'][4] > FLOOR_THICK]
-        inside_box = lambda p, b: b[0] <= p[0] <= b[2] and b[1] <= p[1] <= b[3]  # noqa: E731
-        in_piece = lambda p: any(c['box'][0] <= p[0] <= c['box'][1] and c['box'][2] <= p[1] <= c['box'][3]  # noqa: E731
-                                 and c['box'][4] < p[2] + STOREY and c['box'][5] > p[2] - 24 for c in solid)
-        under = lambda p, floors: tile(p) in floors or tile(p, -1) in floors  # noqa: E731
-        was = lambda r: not r.get('copied') and inside_box(r['location'], box_before) and under(r['location'], before)  # noqa: E731
-        usable = lambda p: inside_box(p, box_now) and under(p, now) and not in_piece(p)  # noqa: E731
-        labels = [m.get('label') or 'mission %d' % (i + 1) for i, m in self.kept_missions()]
-        labels += ['%s (added)' % missions.label(k) for k in sorted(self.added_kinds())]
-        where = dict(mission=labels[0] if len(labels) == 1 else 'Every mission of the variant')
-        name = lambda r: str(r.get('actor') or '').rsplit('.', 1)[-1]  # noqa: E731
-
-        pods = [(r, p) for r, p in records if r.get('kind') == 'pod']
-        had = [r for r, _ in pods if was(r)]
-        has = [r for r, p in pods if usable(p)]
-        if len(has) < len(had):
-            lost = next((r for r, p in pods if was(r) and not usable(p)), None) or had[0]
-            self.warn('spawn-pod-places', '%s: %d of the map\'s pod places are usable now, where %d were (in the grid, over '
-                      'floor, in no piece of the project), %s among those lost: plain Enemy Within, and the missions Long '
-                      'War\'s pod mutator leaves alone, put a pod at each place, and with fewer places than pods it can '
-                      'lose one' % (where['mission'], len(has), len(had), name(lost)), actor=lost.get('actor'),
-                      before=len(had), now=len(has), **where)
-
-        groups = {}
-        for r, p in records:
-            if r.get('kind') == 'meld':
-                group = ((r.get('values') or {}).get('spawnGroup') or {}).get('value', 0)
-                groups.setdefault(group if isinstance(group, int) else 0, []).append((r, p))
-        for group, points in sorted(groups.items()):
-            hard = lambda r: str(((r.get('values') or {}).get('difficulty') or {}).get('value', '')).endswith('Hard')  # noqa: E731
-            had_any = [r for r, _ in points if was(r)]
-            has_any = [r for r, p in points if usable(p)]
-            had_hard = [r for r in had_any if hard(r)]
-            has_hard = [r for r in has_any if hard(r)]
-            if had_any and not has_any:
-                self.warn('spawn-meld-group', '%s: Meld spawn group %d has none of its %d usable points left (in the grid, '
-                          'over floor, in no piece of the project): when the mission picks this group it places no '
-                          'canister' % (where['mission'], group, len(had_any)), actor=had_any[0].get('actor'),
-                          group=group, **where)
-            elif had_hard and not has_hard:
-                self.warn('spawn-meld-group', '%s: Meld spawn group %d has none of its %d usable hard points left (in the '
-                          'grid, over floor, in no piece of the project): the mission places a hard canister of the group '
-                          'first, and without one it places fewer' % (where['mission'], group, len(had_hard)),
-                          actor=had_hard[0].get('actor'), group=group, **where)
-
-        if self.stage_grid:
-            out = [r for r, p in records if r.get('kind') in ('pod', 'meld') and not r.get('copied') and inside_box(r['location'], box_before)
-                   and not inside_box(p, box_now)]
-            if out:
-                count = {}
-                for r in out: count[r['kind']] = count.get(r['kind'], 0) + 1
-                words = ' and '.join('%d %s' % (n, ('pod' if k == 'pod' else 'Meld point') + ('s' if n != 1 else ''))
-                                     for k, n in sorted(count.items(), key=lambda kv: kv[0] != 'pod'))
-                self.note('spawn-outside', '%s of the map stand outside the grid as the project sizes it, %s among them'
-                          % (words, name(out[0])), actor=out[0].get('actor'), count=len(out), **where)
-
-    def check_zones(self, zones, own=False):
-        """Warnings for zones' places: outside the grid, over no floor, a piece of the project on a soldier point, and
-        a grid too small for LWR's pods (stage-small, F-90)."""
-        g = self.grid_box()
-        if g is None:
-            return
-        grid = self.scene['tileGrid']
-        # a soldier's spot's tile as the game counts it (tile_corner)
-        corner, size = tile_corner(grid), grid.get('size') or [TILE, TILE, STOREY]
-        label = (lambda k: "the map's landing %d" % (k + 1)) if own else (lambda k: 'landing zone %d' % (k + 1))
-        floors = self.floor_now()
-        added, _ = self.added_floors()
-        scenery = self.scenery_floor()
-        # each zone's own landing, where it is one (a landing with no frame keeps its own points until its zone moves)
-        found = self.own_landings_found or []
-        mine = {k: found[k] for k in range(min(len(zones), len(found)))} if own else \
-            {k: found[j] for j, k in enumerate(spawns.own_slots(zones, len(found)))}
-        far = []
-        for k, z in enumerate(zones):
-            at = spawns.place(z)
-            points = [p for p, _ in spawns.soldier_spots(z, mine.get(k))]
-            ground = spawns.ground(z)
-            if any(not (g[0] <= p[0] <= g[3] and g[1] <= p[1] <= g[4] and g[2] <= p[2] <= g[5]) for p in points + [at['frame'][0]]):
-                self.warn('landing-outside', '%s is outside the tile grid: its soldiers would stand where there are no '
-                          'tiles' % label(k), zone=z['id'])
-                continue
-            bare, blocked = [], []
-            for n, p in enumerate(points):
-                # (its ground's level: a ground up to a unit under a level's start is in it, as the maps' floors are
-                # a unit over the game's corner; 2 over the level volume's, as before)
-                tile = (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),
-                        int(math.floor((ground + 1.0 - corner[2]) / size[2])))
-                if (tile not in floors and tile not in added
-                        and not any(b[0] <= p[0] <= b[1] and b[2] <= p[1] <= b[3] and abs(b[5] - ground) <= 20.0
-                                    for b in scenery)):
-                    bare.append(n + 1)
-                for c in self.copies:
-                    b = c['box']
-                    if c.get('actorClass') == 'XComLadder' or b[5] - b[4] <= FLOOR_THICK:
-                        continue
-                    if b[0] <= p[0] <= b[1] and b[2] <= p[1] <= b[3] and b[4] < ground + HEADROOM and b[5] > ground + 8:
-                        blocked.append((n + 1, c['label'].split(':', 1)[-1]))
-                        break
-            if bare:
-                self.warn('landing-floor', '%s: soldier point%s %s %s over no floor of the map or the project: lay floor '
-                          'there, or the squad lands on nothing (F-46)'
-                          % (label(k), '' if len(bare) == 1 else 's', numbers(bare), 'is' if len(bare) == 1 else 'are'),
-                          zone=z['id'], points=bare)
-            if blocked:
-                who = sorted({b for _, b in blocked})
-                self.warn('landing-blocked', '%s: %s stand%s on soldier point%s %s, where a soldier lands (F-06)'
-                          % (label(k), ', '.join(who), 's' if len(who) == 1 else '', '' if len(blocked) == 1 else 's',
-                             numbers([n for n, _ in blocked])), zone=z['id'])
-            # LWR's pod mutator keeps only map sections at least POD_DISTANCE tiles from the squad's middle (F-90)
-            mx, my = sum(p[0] for p in points) / len(points), sum(p[1] for p in points) / len(points)
-            reach = max(math.hypot(x - mx, y - my) for x in (g[0], g[3]) for y in (g[1], g[4]))
-            if reach < POD_DISTANCE * size[0]:
-                far.append(k)
-        if far and (self.cleared or self.stage_grid):
-            self.warn('stage-small', 'no part of the grid is %d tiles from %s: LWR places no pods or Meld there for a '
-                      'squad landing at %s (F-90)' % (POD_DISTANCE, ', '.join(label(k) for k in far),
-                                                      'it' if len(far) == 1 else 'them'), zones=[zones[k]['id'] for k in far])
+        """The project's clear (MissionEdits.cleared_mark), kept on the compiler for a test that calls it by name."""
+        return self.mission_edits.cleared_mark()
 
     def scenery_floor(self):
         """The boxes of the map's own low scenery the Build makes walkable on a grid the project grows (F-100;
@@ -3766,14 +2223,14 @@ class Compiler:
         floor tiles stop at its own grid, so a soldier point over one of these counts as floor. The Build turns on the
         collision of those that have it off and puts their tiles in the rebuild's queue. (The export doesn't say which
         collide: a piece of debris that collides but is no floor counts here too.)"""
-        if not self.stage_grid or self.cleared:
+        if not self.mission_edits.stage_grid or self.mission_edits.cleared:
             return []
         grid = self.scene.get('tileGrid') or {}
         origin, dims = grid.get('origin'), grid.get('dimensions')
         if not origin or not dims:
             return []
         x1, y1 = origin[0] + TILE * dims[0], origin[1] + TILE * dims[1]
-        levels = self.stage_grid[2] if len(self.stage_grid) > 2 else dims[2]
+        levels = self.mission_edits.stage_grid[2] if len(self.mission_edits.stage_grid) > 2 else dims[2]
         bottom, top = origin[2] - STOREY / 4, origin[2] + STOREY * levels
         gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | self.floor_kept_off()
         boxes = []
@@ -3808,24 +2265,24 @@ class Compiler:
                 self.error('export-version', problem, minimum=EXPORT_MINIMUM)
         if not self.errors and self.map is not None:
             self.index_export()
-            self.cleared_mark()
-            self.spawn_rules_mark()
+            self.mission_edits.cleared_mark()
+            self.mission_edits.spawn_rules_mark()
             self.overrides()
             self.added()
-            self.join_made_walls()
-            self.made_walls_stacked()
-            self.made_wall_openings()
+            self.made_edits.join_made_walls()
+            self.made_edits.made_walls_stacked()
+            self.made_edits.made_wall_openings()
             self.light_edits.derive_area_lights()
             self.groups()
-            self.stage()
+            self.mission_edits.stage()
             self.ladder_climbs()
             self.floor_headroom()
-            self.buildings()
-            self.made_slabs_in_floors()
-            self.made_slab_cursors()
-            self.landing_zones()
-            self.missions_check()
-            self.stage_outside()
+            self.building_edits.buildings()
+            self.made_edits.made_slabs_in_floors()
+            self.made_edits.made_slab_cursors()
+            self.mission_edits.landing_zones()
+            self.mission_edits.missions_check()
+            self.mission_edits.stage_outside()
             # A moved original can also be another copy's template; only one hide per actor.
             seen = set()
             self.hides = [h for h in sorted(self.hides, key=lambda h: (h['name'], h['label'])) if not (h['name'] in seen or seen.add(h['name']))]
@@ -3849,15 +2306,16 @@ class Compiler:
                                       ('moved', 'moves'), ('valued', 'values'), ('added', 'copies'), ('deleted', 'deletes'))},
                                   flags=dict(self.flag_edits.counts, inPlace=len(self.flag_edits.edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
-                      errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=self.stage_grid,
-                      cleared=self.cleared, clearKeepsOutside=self.keep_outside, landingZones=self.zones,
-                      ownLandings=self.own_count, spawnRules=self.spawn_rules,
-                      missions=self.missions_kept()[0] if self.map is not None else None,
+                      errors=self.errors, warnings=self.warnings, notes=self.notes,
+                      stageGrid=self.mission_edits.stage_grid, cleared=self.mission_edits.cleared,
+                      clearKeepsOutside=self.mission_edits.keep_outside, landingZones=self.mission_edits.zones,
+                      ownLandings=self.mission_edits.own_count, spawnRules=self.mission_edits.spawn_rules,
+                      missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
-                                 for b in self.new_buildings],
+                                 for b in self.building_edits.new_buildings],
                       mapBuildings=[dict(id=e['id'], actor=e['actor'], **({'deleted': True} if e['deleted'] else
                                                                            dict(floors=len(e['floors']), moved=e['moved'])))
-                                    for e in self.building_edits],
+                                    for e in self.building_edits.edits],
                       entities=sorted(self.entities, key=lambda e: (e['kind'], e.get('op') or '', e.get('target') or e.get('entity'),
                                                                     e.get('ownerEntity') or '')),
                       groups=self.group_report, assemblies=sorted(self.moves, key=lambda m: m['id']),
@@ -3947,105 +2405,6 @@ class Library:
             raise LibraryError('not-placeable', '%s of %s is not an effect, sound or lens flare the library lists'
                                % (short(target['actor']), template['source']['package']))
         return template, entry
-
-
-# a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all
-# (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
-# before), and a map past it keeps its own as its limit (stage_max)
-STAGE_GRID_MAX = 256
-# levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b; prefab_bounds.PLAYED_LEVELS,
-# the test stage's least height); the editor makes up to 30 (1,920 units; the user, 14 November 2026)
-STAGE_LEVELS_MAX = 30
-
-
-def stage_max(own):
-    """The most a project's grid may be on each axis for a map whose own grid is `own` [nx, ny, nz]: STAGE_GRID_MAX
-    tiles across and deep and STAGE_LEVELS_MAX levels, or the map's own where that is more, so a map is never past
-    the limit at its own size and can still be made larger (project.js stageMax is the twin)."""
-    return [max(limit, int(own[k]) if own and len(own) > k else 0)
-            for k, limit in enumerate((STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX))]
-# a project's buildings made from nothing (Compiler.buildings): the kinds, the most floors (a CutdownFloor is a byte;
-# the game's own buildings have at most 5), and how far two boxes may reach into each other before they overlap
-BUILDING_KINDS = ('building', 'ufo')
-BUILDING_FLOORS_MAX = 10    # (ten floors of three levels fill a 30-level grid)
-BUILDING_OVERLAP = 0.5
-# a map building's box is unchanged when every coordinate is within this of its volume's box in the export (the page
-# rounds a box to three decimals; the export does not): web/project.js BUILDING_SAME and buildings.SAME are the twins
-BUILDING_SAME = 0.01
-
-
-# LWR's pod mutator keeps only map sections this many tiles from the squad's middle (F-90): stage-small
-POD_DISTANCE = 29
-
-
-def tidy_zone(z):
-    """A landing zone as the spec carries it: the keys it has, the place to four decimals (web/project.js
-    tidyLandingZone)."""
-    out = dict(id=z['id'], location=[tidy(float(v)) for v in z['location']], direction=z['direction'],
-               kind=z.get('kind') or 'normal')
-    for k in ('missionType', 'councilType'):
-        if z.get(k):
-            out[k] = z[k]
-    if z.get('alternate'):
-        out['alternate'] = dict(location=[tidy(float(v)) for v in z['alternate']['location']],
-                                direction=z['alternate']['direction'])
-    if z.get('lwr') is False:
-        out['lwr'] = False
-    if z.get('ew') is True:
-        out['ew'] = True
-    if z.get('other'):
-        out['other'] = z['other']
-    return out
-
-
-def numbers(ns):
-    """1, 2 and 5 / 3 to 7: a list of numbers in words."""
-    ns = sorted(ns)
-    if len(ns) > 2 and ns == list(range(ns[0], ns[-1] + 1)):
-        return '%d to %d' % (ns[0], ns[-1])
-    return ', '.join(str(n) for n in ns[:-1]) + (' and ' if len(ns) > 1 else '') + str(ns[-1])
-
-
-def zone_words(ns):
-    return 'landing zone%s %s' % ('' if len(ns) == 1 else 's', numbers(ns))
-
-
-def moved_whole(old, floors):
-    """Whether a map building's floors (dict(boxes, volumes)) are its old ones (dict(volume, box) each) moved
-    together: every old volume kept on its floor, every box its old one carried by one move of whole quarter turns
-    and a translation that is not nothing. A building moved whole leaves its visibility groups behind."""
-    if len(old) != len(floors):
-        return False
-    pairs = []
-    for f, o in zip(floors, old):
-        boxes = {v['volume']: v['box'] for v in o}
-        if len(f['volumes']) != len(o) or set(f['volumes']) != set(boxes):
-            return False
-        pairs += [(boxes[v], x) for v, x in zip(f['volumes'], f['boxes'])]
-    for turns in range(4):
-        def carried(box):
-            corners = [turned((box[i], box[j]), turns) for i in (0, 3) for j in (1, 4)]
-            return [min(c[0] for c in corners), min(c[1] for c in corners), box[2],
-                    max(c[0] for c in corners), max(c[1] for c in corners), box[5]]
-        first = carried(pairs[0][0])
-        shift = [pairs[0][1][j] - first[j] for j in range(3)]
-        if all(all(abs(x[j] - (carried(b)[j] + shift[j % 3])) <= BUILDING_SAME for j in range(6)) for b, x in pairs):
-            return turns != 0 or any(abs(v) > BUILDING_SAME for v in shift)
-    return False
-
-
-def scripted_users(record):
-    """The scripted actions that drop units at a spawn point (export 33's `uses`: a SeqAct_SpawnAlien naming it, or
-    an object list holding it that feeds such actions), as web/spawn_rules.js scriptedUsers reads them."""
-    out = []
-    for u in record.get('uses') or []:
-        if not isinstance(u, dict):
-            continue
-        if u.get('how') == 'direct' and u.get('byClass') == 'SeqAct_SpawnAlien':
-            out.append(u.get('by'))
-        elif u.get('how') == 'indirect':
-            out += list(u.get('then') or [u.get('by')])
-    return list(dict.fromkeys(a for a in out if a))
 
 
 def compile_project(doc, scene, enable=(), library=None, foreign=()):

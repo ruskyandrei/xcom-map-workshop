@@ -58,7 +58,13 @@ the compiler makes for itself:
 - [`effect_edits.py`](tools/editor/effect_edits.py) (`EffectEdits`): the map's effects, ambient sounds and lens flares;
 - [`light_edits.py`](tools/editor/light_edits.py) (`LightEdits`): the map's placed lights, and the area lights its
   glowing pieces take along;
-- [`flag_edits.py`](tools/editor/flag_edits.py) (`FlagEdits`): pieces' flags (walking, cover, sight, floor, mouse).
+- [`flag_edits.py`](tools/editor/flag_edits.py) (`FlagEdits`): pieces' flags (walking, cover, sight, floor, mouse);
+- [`made_edits.py`](tools/editor/made_edits.py) (`MadeEdits`): walls, floors, roofs and ground shapes made from
+  numbers, cut into pieces where they are too large, and the blasts that break a fracturing piece;
+- [`building_edits.py`](tools/editor/building_edits.py) (`BuildingEdits`): buildings made from nothing, and the map's
+  own buildings changed or deleted;
+- [`mission_edits.py`](tools/editor/mission_edits.py) (`MissionEdits`): the map's grid made larger or smaller, the
+  clear, the drop-in rule, landing zones, missions and the places units are dropped at.
 
 The tables and helpers that the compiler and its families share (`FAMILIES`, `short`, `tidy` and the others its
 `__all__` names) are in [`compiler_tables.py`](tools/editor/compiler_tables.py). The compiler takes them all with
@@ -129,7 +135,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A setting (a folder, an install) | [`settings.py`](tools/viewer/settings.py). |
 | A record of the map's export | [`export.py`](tools/viewer/export.py) or [`scene_metadata.py`](tools/viewer/scene_metadata.py), with `EXPORT_VERSION` raised. |
 | A field of the project document | [`projects.py`](tools/viewer/projects.py) and [`project.js`](tools/viewer/web/project.js), with the compiler's reading of it, and the contract in [`research/editor-contracts.md`](research/editor-contracts.md). |
-| An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. The compiler holds it as an attribute named as its module (`self.effect_edits`), and reads the family's state through it (`self.effect_edits.ops`): the state has one home. [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model; section 1 lists the others. |
+| An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. The compiler holds it as an attribute named as its module (`self.effect_edits`), and reads the family's state through it (`self.effect_edits.ops`): the state has one home. A method of the family stays on the compiler only as a one-line forwarder, and only when a test or a tool calls it there by name (`Compiler.stage`). [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model; section 1 lists the others. |
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`, the effects' in `effect_edits.py`, the `LIGHT_*` tables and `light_rule` in `light_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split`, a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)) called from `native_copy.build`, and the Build. |
 | A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py). |
@@ -290,9 +296,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 ### Compiler families
 
 A module listed under `compiler families` does not import the compiler. It lists the families in modules of their own
-(section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py` and `flag_edits.py`, each of which takes the tables
-and helpers it shares with the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed
-in the commit that moves it.
+(section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py`, `flag_edits.py`, `made_edits.py`,
+`building_edits.py` and `mission_edits.py`, each of which takes the tables and helpers it shares with the compiler
+from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in the commit that moves it.
 
 ### structure.json's form
 
