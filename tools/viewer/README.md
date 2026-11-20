@@ -872,7 +872,8 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
     changes (`recovery.json` from before 20 November 2026).
   - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
-    first time the server reads the folder.
+    first time the server reads the folder. One of a project that a file here holds already never writes over it:
+    the newer revision is the project, and the other is kept beside it as `<name> (kept copy).json`.
   - Saves are atomic.
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a

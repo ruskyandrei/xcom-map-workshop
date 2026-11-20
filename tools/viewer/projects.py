@@ -28,6 +28,7 @@ from pathlib import Path
 import re
 import shutil
 import threading
+import uuid
 
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
@@ -240,9 +241,31 @@ class ProjectStore:
 
     # ------------------------------------------------------------------ finding the files
 
+    @staticmethod
+    def _rank(document):
+        """Which of two documents of one project is the project: the higher revision, then the later save."""
+        if not isinstance(document, dict): return (-1, '')
+        revision = document.get('revision')
+        return (revision if isinstance(revision, int) and not isinstance(revision, bool) else 0, str(document.get('savedAt') or ''))
+
+    @staticmethod
+    def _free(path):
+        """`path`, or the first `<stem> (2)`, `(3)`... beside it that is free: nothing is written over."""
+        if not path.exists(): return path
+        for n in itertools.count(2):
+            other = path.with_name(f'{path.stem} ({n}){path.suffix}')
+            if not other.exists(): return other
+
     def _migrate(self):
         """Moves each project folder of the old layout (<id>\\project.json) to a file named after the project, its
-        previous revision and recovery to .workshop\\<id>\\. The folder goes once empty; anything else in it stays."""
+        previous revision and recovery to .workshop\\<id>\\. The folder goes once empty; anything else in it stays.
+
+        Nothing is written over (review finding 5). When a file of this layout holds the project already (a backup
+        restored beside a current library), the two are ranked as the listing ranks copies (revision, then the later
+        save; the file here wins a tie) and the other is kept beside it as `<name> (kept copy).json`, which the
+        listing shows as a copy of the project; the same bytes twice keep one. A previous revision or a draft whose
+        name is taken is kept under a name of its own (a draft as another page's). Each step is one rename, so a
+        stop halfway leaves the folder to finish at the next listing."""
         if not self.root.is_dir(): return
         for folder in sorted(self.root.iterdir()):
             old = folder / 'project.json'
@@ -253,10 +276,29 @@ class ProjectStore:
             name = document.get('name') if isinstance(document, dict) and isinstance(document.get('name'), str) and document['name'].strip() else folder.name
             state = None
             for kept in ('project.prev.json', 'recovery.json'):
-                if (folder / kept).is_file():
-                    state = state or self._state_folder(project_id)
-                    os.replace(folder / kept, state / kept)
-            os.replace(old, self._target(project_id, name, None))
+                source = folder / kept
+                if not source.is_file(): continue
+                state = state or self._state_folder(project_id)
+                target = state / kept
+                if target.exists():
+                    if target.read_bytes() == source.read_bytes():
+                        source.unlink(); continue
+                    target = state / f'recovery-{uuid.uuid4()}.json' if kept == 'recovery.json' else self._free(target)
+                os.replace(source, target)
+            target = self._target(project_id, name, None)
+            if not target.exists():
+                os.replace(old, target)
+            elif target.read_bytes() == old.read_bytes():
+                old.unlink()
+            else:
+                copy = self._free(target.with_name(f'{target.stem} (kept copy){SUFFIX}'))
+                try: here = json.loads(target.read_text(encoding='utf8'))
+                except (OSError, ValueError): here = None
+                if self._rank(document) > self._rank(here):
+                    os.replace(target, copy)        # the file here is the older: kept beside, then the folder's moves in
+                    os.replace(old, target)
+                else:
+                    os.replace(old, copy)
             for temp in folder.glob('*.tmp'): temp.unlink(missing_ok=True)
             try: folder.rmdir()
             except OSError: pass
@@ -281,9 +323,7 @@ class ProjectStore:
         best = {}
         for path, document in found:
             if isinstance(document, ProjectError): continue
-            revision = document.get('revision')
-            rank = (revision if isinstance(revision, int) else 0, str(document.get('savedAt') or ''),
-                    file_stem(document.get('name')) == path.stem)
+            rank = (*self._rank(document), file_stem(document.get('name')) == path.stem)
             if document['id'] not in best or rank > best[document['id']][0]: best[document['id']] = (rank, path)
         self.paths = {project_id: path for project_id, (_, path) in best.items()}
         rows = []

@@ -128,6 +128,94 @@ class StoreTests(unittest.TestCase):
         # (an owner-less draft is no page's: it stays until a page shows it and the user restores or discards it)
         self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
 
+    def _legacy(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix', **kept):
+        folder = self.root / ID; folder.mkdir(parents=True)
+        (folder / 'project.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='legacy')),
+                                             encoding='utf8', newline='\n')
+        for k, value in kept.items(): (folder / f'{k}.json').write_text(json.dumps(value), encoding='utf8', newline='\n')
+        return folder
+
+    def _current(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix'):
+        self.root.mkdir(parents=True, exist_ok=True)
+        (self.root / f'{name}.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='current')),
+                                                encoding='utf8', newline='\n')
+
+    def _listed(self):
+        return {p['file']: p for p in self.store.list()}
+
+    def test_an_old_layout_folder_never_writes_over_a_newer_project(self):
+        """Review finding 5: a restored backup of the old layout beside a current library is ranked against the file
+        that holds the project; the newer is the project and the other is kept as a copy beside it."""
+        self._current(2)
+        self._legacy(1)
+        listed = self._listed()
+        self.assertEqual(self.store.load(ID)['revision'], 2)
+        self.assertEqual(self.store.load(ID)['note'], 'current')
+        self.assertIn('A copy of the project', listed['Bar remix (kept copy).json']['error'])
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 1)
+        self.assertFalse((self.root / ID).exists())
+
+    def test_an_old_layout_folder_with_a_newer_revision_becomes_the_project(self):
+        self._current(2)
+        self._legacy(3)
+        self._listed()
+        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
+        kept = json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))
+        self.assertEqual((kept['revision'], kept['note']), (2, 'current'))
+
+    def test_equal_revisions_go_by_the_later_save_and_a_tie_keeps_the_file_here(self):
+        self._current(2, saved_at='2026-11-02T00:00:00Z')
+        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
+        self._listed()
+        self.assertEqual(self.store.load(ID)['note'], 'legacy')
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['note'], 'current')
+        # a tie: the file here stays the project; a second copy is numbered, never written over
+        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
+        (self.root / ID / 'project.json').write_text(json.dumps(document(revision=2, savedAt='2026-11-05T00:00:00Z', note='tie')),
+                                                     encoding='utf8', newline='\n')
+        self._listed()
+        self.assertEqual(self.store.load(ID)['note'], 'legacy')
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy) (2).json').read_text(encoding='utf8'))['note'], 'tie')
+        # the same bytes twice keep one
+        shutil_copy = (self.root / 'Bar remix.json').read_bytes()
+        (self.root / ID).mkdir(); (self.root / ID / 'project.json').write_bytes(shutil_copy)
+        before = sorted(p.name for p in self.root.iterdir())
+        self._listed()
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), [n for n in before if n != ID])
+
+    def test_old_layout_drafts_and_previous_revisions_are_kept_beside_those_here(self):
+        self.store.save(ID, document(), 0)
+        self.store.save(ID, document(), 1)
+        self.store.save_recovery(ID, dict(baseRevision=2, note='here'))
+        self._legacy(1, **{'project.prev': dict(note='old prev'), 'recovery': dict(baseRevision=1, note='old draft')})
+        self._listed()
+        state = self.root / '.workshop' / ID
+        notes = sorted(json.loads(p.read_text(encoding='utf8')).get('note') for p in state.glob('recovery*.json'))
+        self.assertEqual(notes, ['here', 'old draft'])
+        self.assertEqual(self.store.recovery(ID)['others'], 1)
+        self.assertEqual(json.loads((state / 'project.prev (2).json').read_text(encoding='utf8'))['note'], 'old prev')
+        self.assertEqual(self.store.load(ID)['revision'], 2)
+
+    def test_a_migration_stopped_halfway_finishes_at_the_next_listing(self):
+        self._current(2)
+        self._legacy(3)
+        real = os.replace
+        calls = []
+
+        def stop_on_second(source, target):
+            calls.append(Path(target).name)
+            if len(calls) == 2: raise OSError('stopped')
+            return real(source, target)
+        with mock.patch('projects.os.replace', stop_on_second):
+            with self.assertRaises(OSError): self.store.list()
+        # the file here was moved aside, the folder's not yet in: nothing is lost, and the next listing finishes
+        self.assertEqual(calls, ['Bar remix (kept copy).json', 'Bar remix.json'])
+        self.assertTrue((self.root / ID / 'project.json').is_file())
+        self._listed()
+        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
+        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 2)
+        self.assertFalse((self.root / ID).exists())
+
     def test_a_save_based_on_an_older_revision_is_a_conflict(self):
         self.store.save(ID, document(), 0)
         self.store.save(ID, document(), 1)
