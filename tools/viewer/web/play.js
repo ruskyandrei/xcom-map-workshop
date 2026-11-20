@@ -10,6 +10,28 @@ export const playApi = {
   start: request => call('POST', '/play/start', request),   // {project: id} or {map: id}
 };
 
+/** Why the game can't be played now, going by the server's play status (null: it can, or it isn't known yet). */
+export const playBlocked = s => (!s ? null : s.error ?? (!s.install?.ready ? s.install?.why ?? 'asking the server' : s.launch && !s.launch.how ? s.launch.why : null));
+/** A play's mission as the server takes it: a record's index, or an added kind (a value `kind:<kind>`). */
+export const missionRequest = value => (String(value).startsWith('kind:') ? String(value).slice(5) : Number(value) || 0);
+// The "Starting XCOM" message: what is played, what to do at the main menu when saving is on, and anything the play
+// goes without or should know, one short paragraph each.
+export function playedMessage(r, mapLabel) {
+  const p = r.played;
+  const what = (p.kind === 'project' ? `${p.project?.name}, revision ${p.project?.revision}${p.quick ? ' (lighting not baked)' : ''}`
+    : `${mapLabel(p.map)} (original map)`) + (p.mission?.label ? `, ${p.mission.label}` : '');
+  return [
+    p.how === 'dry' ? `Starting XCOM is left out here (serve --dry-play): ${what}.` : `Starting XCOM: ${what}.`,
+    p.how === 'steam' ? 'Pick Enemy Within if the game\'s launcher asks.' : null,
+    p.saving ? `At the main menu, press ${p.saving.key} to start the battle.` : null,
+    p.squad ? `Squad: ${p.squad.name}, ${p.squad.count} unit${p.squad.count === 1 ? '' : 's'}${p.squad.warnings?.length
+      ? ` (${p.squad.warnings.length} warning${p.squad.warnings.length === 1 ? '' : 's'}: Test squad setup lists them)` : ''}.` : null,
+    ...(p.mission?.missing ?? []),
+    p.introBack ? 'The first mission an earlier version of the editor installed is the game\'s own again.' : null,
+    p.note,
+  ].filter(Boolean).join('\n');
+}
+
 // A map's name with its label when the catalogue has one: "Commercial Alley Redux (URB_CommercialAlley_EWI)".
 const named = (name, mapLabel) => { const label = mapLabel(name); return label && label !== name ? `${label} (${name})` : name; };
 

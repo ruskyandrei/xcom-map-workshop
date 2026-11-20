@@ -579,3 +579,75 @@ export function roomRoof(room, { template, floor, storeys = 2, seed = 1, top = n
   return { location: [south.location[0], south.location[1], tidy(floor + (top ?? STOREY_TOPS[storeys]))], rotation: wallRotation(template.rotation, 0, 1),
            slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed }, tiles: [nx, ny] };
 }
+
+// ---- made pieces' meshes (custom geometry plan, section 0, M4, M5): the numbers a made wall or slab is drawn from by
+// the editor's server (generated.py), its mesh's key, request and bounds, and the mesh record put into the scene's
+// meshes (`meshes`: data.meshes, keyed by the request), on its template's materials by slot. Numbers the server can't
+// draw (generated.py's limits) give {}: the template's own mesh is drawn.
+/** A look in one spelling (generated.py donor_look): a look id as it is; a donor look (M4) its mesh, a ground look's
+ *  material, and the measurer's version. */
+export const spelledLook = look => (typeof look === 'object' && look
+  ? { mesh: look.mesh, ...(look.material ? { material: look.material } : {}), measure: look.measure } : look);
+/** A made piece's blasts (B5) in its mesh's key and request (generated.py: ?blasts=), none when it has none. */
+export const blastQuery = blasts => (blasts?.length ? { key: `|${JSON.stringify(blasts)}`, query: { blasts: JSON.stringify(blasts) } } : { key: '', query: {} });
+// the mesh record of a made piece over its template's (the mesh form: name, sections by slot, bounds), and its
+// materials: the template's by slot
+function madeRecord(template, meshes, key, { noun, url, sections, bounds }) {
+  if (!meshes[key]) {
+    // (`look`: the template's mesh, which Select all of a kind counts it as)
+    meshes[key] = { name: `${meshes[template.mesh]?.name ?? noun}, made from numbers`, kind: 'static', made: true,
+      look: meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
+      url, sections: Array.from({ length: sections }, (_, slot) => ({ slot, count: 1 })), bounds };
+  }
+  const slots = (meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
+  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
+  return { mesh: key, materials: Array.from({ length: sections }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+}
+/** A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: its look's own
+ *  storeys left out), with its end styles where they are joined (`ends`, worked out from where it stands: app.js
+ *  refreshJoins; two free ends left out). */
+export const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
+                                seed: w.seed ?? 1, ...(w.storeys !== undefined && w.storeys !== wallSpec(w).storeys ? { storeys: w.storeys } : {}),
+                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
+                                ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
+/** A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid between its ends' insets
+ *  (tools/bake/frac_wall.py RECIPE), its look's height and thickness. */
+export function madeBounds(wall) {
+  // (its look's heights, insets and thickness: the Bar's for a look id, wallSpec's for a donor look)
+  const spec = wallSpec(wall), insets = endInsetsOf(wall), top = wallTop(wall), [e0, e1] = wall.ends ?? ['free', 'free'];
+  const a = wall.x0 + insets[e0], b = wall.x1 - insets[e1], hx = (b - a) / 2, hz = (top - spec.bottom) / 2;
+  return [(a + b) / 2, 0, spec.bottom + hz, hx, spec.half, hz, Math.hypot(hx, spec.half, hz)];
+}
+/** A fracturing wall made from numbers: drawn from /generated/fracwall.glb, its look's sections bound to its template's
+ *  materials by slot (the made mesh's sections are slots 0 to 5 in order). { mesh, materials }, or {}. */
+export function madeWallShape(template, w, blasts, meshes) {
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
+    || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)
+    || !(w.storeys === undefined || (Number.isInteger(w.storeys) && w.storeys >= 1 && w.storeys <= WALL.maxStoreys))
+    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
+  const wall = madeWallNumbers(w), broken = blastQuery(blasts);
+  return madeRecord(template, meshes, `made:fracwall:${JSON.stringify(wall)}${broken.key}`, { noun: 'a wall',
+    url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall), ...broken.query })}`,
+    sections: wallSpec(wall).sections, bounds: madeBounds(wall) });
+}
+// A made slab: drawn from /generated/fracslab.glb, its two sections (the top with the edges, the underside) bound to
+// its template's materials by slot; its bounds its footprint between its look's heights.
+const FRAC_SLAB = { slots: 2 };
+export const madeSlabNumbers = s => ({ x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, holes: (s.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 })),
+                                       seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: spelledLook(s.look) } : {}) });
+export function slabBounds(s) {
+  const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
+  return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
+}
+/** A made slab's { mesh, materials }, or {}. */
+export function madeSlabShape(template, s, blasts, meshes) {
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!s || !['x0', 'x1', 'y0', 'y1'].every(k => finite(s[k])) || !slabLookOf(s) || !Number.isInteger(s.seed ?? 1)
+    || (s.holes ?? []).length > SLAB.maxHoles) return {};
+  const numbers = madeSlabNumbers(s), broken = blastQuery(blasts);
+  return madeRecord(template, meshes, `made:fracslab:${JSON.stringify(numbers)}${broken.key}`, { noun: 'a slab',
+    url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers), ...broken.query })}`,
+    sections: slabLookOf(numbers).sections ?? FRAC_SLAB.slots, bounds: slabBounds(numbers) });
+}

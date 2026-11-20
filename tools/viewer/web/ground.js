@@ -9,7 +9,7 @@
 // rotator units (pitch, yaw, roll). A rock whose corners were moved (look picker and rock points plan, R1) carries
 // `points`, its ROCK.points points in its frame, and its request is POINTS_VERSION whatever its look (versionedGround).
 import { TILE } from './constants.js';
-import { wallRotation, wallDirection } from './walls.js';
+import { wallRotation, wallDirection, spelledLook } from './walls.js';
 import { catalogued } from './looks.js';
 
 // The looks, as tools/bake/ground_looks.json lists them (walls_test.mjs compares the two)
@@ -212,4 +212,26 @@ export function groundWords(g) {
   if (g.shape === 'patch') return `${SHAPE_WORDS.patch}, ${size}`;
   if (g.shape === 'block' || g.shape === 'rock') return `${SHAPE_WORDS[g.shape]}, ${size}, ${Math.round(g.height)} high`;
   return `${SHAPE_WORDS.ramp}, ${plural(a, 'tile')} long and ${plural(b, 'tile')} wide, rising ${Math.round(g.height)}`;
+}
+
+// ---- a ground shape's mesh (custom geometry plan, M6): drawn from /generated/ground.glb by the editor's server
+// (generated.py), its one section on its template's material; the mesh record goes into the scene's meshes.
+export const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
+                                         ...(g.shape === 'rock' ? { seed: g.seed } : {}), ...(g.shape === 'rock' && g.points ? { points: g.points } : {}),
+                                         ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: spelledLook(g.look) } : {}) });
+export function groundBounds(g) {
+  const b = groundBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
+  return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
+}
+/** A ground shape's { mesh, materials } from its numbers, or {} when the tool would refuse them. */
+export function madeGroundShape(template, g, meshes) {
+  if (!g || !toolGround({ ...g, x0: 0, y0: 0, x1: g.x1 - g.x0, y1: g.y1 - g.y0 })) return {};
+  const numbers = madeGroundNumbers(g), key = `made:ground:${JSON.stringify(numbers)}`;
+  if (!meshes[key]) {
+    meshes[key] = { name: `${meshes[template.mesh]?.name ?? 'ground'}, made from numbers`, kind: 'static', made: true,
+      look: meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
+      url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`,
+      sections: [{ slot: 0, count: 1 }], bounds: groundBounds(numbers) };
+  }
+  return { mesh: key, materials: [template.materials[0]] };
 }
