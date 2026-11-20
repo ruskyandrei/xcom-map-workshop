@@ -777,7 +777,7 @@ def mission_objects(p, warn=None):
 
 
 # ---------------------------------------------------------------- spawn points and who uses them (export 33)
-# private/plans/todo/editor-spawns-implementation-plan.md, SP1: the base map's pods, Meld points, drop-in points,
+# private/plans/done/editor-spawns-implementation-plan.md, SP1: the base map's pods, Meld points, drop-in points,
 # soldier and other points, starts, alien path nodes and no-spawn volumes, each with its values and where each came
 # from, its outgoing links and what uses it. A mission stream's pods, Meld points and drop-ins carry the same through
 # mission_objects. Read only.

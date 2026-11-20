@@ -1,5 +1,7 @@
 """What Play in game puts into a game install and Remove from game takes back out, for any LWR or plain Enemy Within
-install: the editor's own install step, nothing here knows a particular computer or our lab.
+install: the editor's own install step. Nothing here knows a particular computer. Two traces of our lab's own deploy
+tools are known, so that the editor takes their place cleanly: a record the lab's patchtool deploy wrote
+(patchtool_record) and, only in a lab copy with the lab setting set, a file those tools put there (lab_deploys).
 
 The game opens a map by its name (Play in game starts it that way: gamelaunch.py, EXP-29) and takes the map's patch and
 landing streams from the first DefaultMaps.ini record with that Name. So:

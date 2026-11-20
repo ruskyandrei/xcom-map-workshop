@@ -1,4 +1,6 @@
-"""Local original-map viewer. Run with --help for export and serve commands."""
+"""The XCOM Map Workshop's server and its command line: `serve` runs the editor's server (the one xcom_editor.cmd
+starts), `export` exports a map of the install into the cache, and `settings`, `library` and `doctor` do what --help
+says of them."""
 import argparse
 import errno
 from functools import partial
@@ -481,8 +483,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
-    # Export on first open (exports.py): POST /maps/<id>/export exports a listed map not exported yet;
-    # GET /maps/<id>/export.json follows it.
+    # Test in game for a prefab (prefab_tests.py): POST /prefab-tests starts one, POST /prefab-tests/check says what
+    # one would say, GET /prefab-tests/<id>.json follows it, POST /prefab-tests/<id>/cancel and /play act on it.
     def handle_prefab_tests(self, method):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if parts[0] != 'prefab-tests': return False
@@ -519,6 +521,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.drain_body()
         return True
 
+    # Export on first open (exports.py): POST /maps/<id>/export exports a listed map not exported yet;
+    # GET /maps/<id>/export.json follows it.
     def handle_map(self, method):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if len(parts) != 3 or parts[0] != 'maps' or parts[2] not in ('export', 'export.json'): return False
@@ -1167,7 +1171,7 @@ def main():
                 if not args.no_open: webbrowser.open(f"http://127.0.0.1:{args.port}/")
                 return
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
-                     "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
+                     "main one). Restart that one (xcom_editor.cmd restart) instead of starting a second; tests "
                      "use --port 8790-8799.")
         # while it runs, Setup sees the editor running and asks for it to be closed before an upgrade (finding 60)
         import appmutex

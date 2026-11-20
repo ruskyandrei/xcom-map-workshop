@@ -270,6 +270,27 @@ class Queue(unittest.TestCase):
         self.assertEqual((row['state'], row['result']['revision'], row['attempts']), ('built', 2, 2))
         self.assertNotEqual(row['attempt'], first)
 
+    def test_a_stop_that_cannot_be_saved_leaves_the_queue_and_its_build_running(self):
+        """(review finding 64) The build is told to stop once the stop is saved: when it can't be, the queue is put
+        back as running and its build goes on with it, rather than a running queue whose build was stopped."""
+        hold = Hold()
+        self.queue.hooks['spawned'] = hold
+        self.call('add', projects=[ID])
+        self.assertTrue(hold.reached.wait(30))
+        told, real_stop, real_save = [], self.runner.stop_attempt, self.queue._save
+        self.runner.stop_attempt = lambda attempt_id: (told.append(attempt_id), real_stop(attempt_id))[1]
+        self.queue._save = lambda: (_ for _ in ()).throw(OSError('disk full'))
+        with self.assertRaises(ProjectError) as error: self.call('stop')
+        self.assertEqual(error.exception.extra['code'], 'queue-storage')
+        self.assertEqual((self.queue.view()['state'], told), ('running', []))
+        self.queue._save = real_save
+        status, _ = self.call('stop')
+        self.assertEqual(status, 202)
+        until(lambda: told, what='the build told to stop')
+        self.assertEqual(told, [self.row(ID)['attempt']])
+        hold.go.set()
+        self.settled('stopped')
+
     def test_a_package_that_went_in_before_stop_stays_built(self):
         hold = Hold()
         self.queue.hooks['ended'] = hold

@@ -14,8 +14,9 @@ keeps its backup and recovery. A save writes the file the project's name gives (
 forbids replaced by `_`, ` (2)` added when another project has that name), and renames the file when the name changes.
 
 Saves are atomic (a temporary file, then a replace) and carry the revision they were based on: a save based on an
-older revision is refused as a conflict instead of overwriting work saved from another tab. A document with another
-schema version is refused with a clear message; there is no migration before the tool is public.
+older revision is refused as a conflict instead of overwriting work saved from another tab. A document of a schema
+version the editor reads (READ_VERSIONS) opens, and a save writes the current one (SCHEMA_VERSION); any other version
+is refused with a clear message.
 """
 from datetime import datetime, timezone
 import itertools

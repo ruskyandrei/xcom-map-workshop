@@ -1,6 +1,6 @@
 """The editor's compiler for static pieces (first-editor plan, slice E3).
 
-Turns a saved project (research/editor-contracts.md, schema 1 to 3) and the viewer export of its source map into a
+Turns a saved project (research/editor-contracts.md, schema 1 to 4: READ_VERSIONS) and the viewer export of its source map into a
 patchtool spec (tools/patch/README.md) plus a report. The spec is a snapshot of one project revision: the same
 project and export always give the same spec, byte for byte.
 
@@ -31,9 +31,9 @@ are assemblies (assemblies(): a car's parts, a door's leaf and its frame, a ladd
 assembly's pieces with one move. On the grid (grid_move: whole tiles, whole storeys and quarter turns from the
 original) everything the map saves per tile maps exactly; since 10 November 2026 any other pose builds too, with an
 off-grid warning naming the nearest pose on the grid (the user took the editor's snapping limits away; the Build
-carries the per-tile data by the exact move, untested in the game off the grid). Each family is refused until it passes
-in the game (ladders, doors with a frame, cars and vans did on 8 November; lights were switched on on 9 November, see
-below); `enable` (--family) builds one for an experiment before that. A door's frame edited without its leaf is
+carries the per-tile data by the exact move). A family builds once it has passed in the game (ladders, doors with a
+frame, cars and vans did on 8 November; lights were switched on on 9 November, see below); `enable` (--family) builds
+one that doesn't (FAMILIES' `builds`) for an experiment. A door's frame edited without its leaf is
 a destructible prop of its own. Copies of an assembly carry its family, its id and its grid move to the Build.
 
 Fracturing pieces (walls, storey floors, roof slabs: XComFracLevelActor, XComDecoFracLevelActor) and physics props
@@ -43,9 +43,11 @@ are found. A fracturing piece is no assembly, but it is checked against the grid
 columns are saved one to a tile and the Build carries them with the copy, which is exact only for whole tiles, whole
 storeys and quarter turns (off the grid: the off-grid warning). A physics prop takes any pose. The Build makes both in the map itself (NATIVE_CLASSES).
 
-Anything else is refused with an error, never built partly or approximately: families not built yet (they name their
-milestone), assemblies edited in part, pieces of other levels than the base map's, components offset
-from their actor, and records the export lacks. A build is allowed only when the report has no errors.
+Anything else is never built partly or approximately: families not built yet (they name their milestone),
+assemblies edited in part, pieces of other levels than the base map's, components offset from their actor, and
+records the export lacks. A record of that kind, or one that is malformed, is left out and named (the report's
+`leftOut`) and the rest builds; an error (a document or export the compiler can't read, a project that would build
+nothing) stops the build: the Build goes on only when the report has no errors.
 
 Lights (private/plans/done/editor-lights-plan.md, L6) are the `light` family: an original placed light moved, turned, changed,
 switched off or deleted, a copy of one, or a spot light made from the built-in recipe; and the generated area lights a
@@ -81,8 +83,8 @@ a stream's are view only.
 Lens flares (LensFlareSource actors; stage FX6b) are the `flare` family, made the same way: an override moves, turns
 or deletes one in place, an added record with `kind: flare` copies one (this map's, or another map's through the
 library), and they go into the spec's `flares` object, which the Build's tools/bake/native_flares.py makes. A flare
-has no values object (its template and colour stay as the map has them). The family builds where it is enabled
-(`enable`, --family flare) until its game check.
+has no values object (its template and colour stay as the map has them). The family builds for every project since
+EXP-71 (17 November 2026).
 
 Rotators are rounded to whole rotation units half away from zero, as the viewer's resolver rounds (game_round); the
 report gives each pose's rounding. Each copy's world box (its mesh bounds, turned by the full rotation and scaled) is
@@ -3677,9 +3679,8 @@ class Compiler:
         {package, sha256} for the Build's staging and its system's record ({key: record}); (None, None, None) with an
         error. What the library can't bring is
         refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
-        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69, and lists no
-        lens flare until its game check) is built as any copy, as the pieces of a kind not brought before are
-        (FOREIGN_SOFT)."""
+        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69 and lens flares
+        since EXP-71) is built as any copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
         if self.library is None:
             self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
                        % (name, short(src['actor']), src['package']), **where)
