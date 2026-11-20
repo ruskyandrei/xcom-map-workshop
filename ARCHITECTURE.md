@@ -30,11 +30,16 @@ through the import map (fetched by `setup_vendor.py`, not tracked). The page dra
 project document. It asks the server through [`api.js`](tools/viewer/web/api.js), and keeps what a browser remembers
 through [`storage.js`](tools/viewer/web/storage.js). [`project.js`](tools/viewer/web/project.js) holds the document's
 shape on the page. What several of the page's areas use (the scene, its roots, the selection, the project open, the
-groups, the buildings and the cleared map's state) lives in [`editor_state.js`](tools/viewer/web/editor_state.js).
-An added thing's record (a copy of a piece, a made piece, a cover block, a light, an effect, a sound or a lens flare),
-as a project, a prefab and the prefab builder's document keep it, is written and read in one place,
-[`piece_records.js`](tools/viewer/web/piece_records.js). `window.viewer`, set in `startScene`, is the set of hooks the
-browser checks drive.
+groups, the buildings, the cleared map's state, and what the document session shares with other areas) lives in
+[`editor_state.js`](tools/viewer/web/editor_state.js). The open document's life is
+[`document_session.js`](tools/viewer/web/document_session.js)'s: a project opened, saved and left, its unsaved state
+kept on the server as a draft against a lost tab and offered back, and the banner under the header. The scene to and
+from a document's state is [`document_state.js`](tools/viewer/web/document_state.js)'s: `editStateNow` reads the edits
+on screen as a project records them, and `applyState` puts such a state back on the map. A project's file, its drafts
+and the prefab builder's document all go through these two. An added thing's record (a copy of a piece, a made piece,
+a cover block, a light, an effect, a sound or a lens flare), as a project, a prefab and the prefab builder's document
+keep it, is written and read in one place, [`piece_records.js`](tools/viewer/web/piece_records.js). `window.viewer`,
+set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -128,7 +133,9 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 
 | Kind of work | Where it goes |
 | --- | --- |
-| An area of the page (a panel, a view, a tool) | A module of its own in `tools/viewer/web`. When it needs many of app.js's functions, it is made by a factory that takes them as one argument object: `createProjectDialog` in [`project_files.js`](tools/viewer/web/project_files.js) and `createQueueController` in [`build_queue.js`](tools/viewer/web/build_queue.js) are the model. |
+| An area of the page (a panel, a view, a tool) | A module of its own in `tools/viewer/web`. When it needs many of app.js's functions, it is made by a factory that takes them as one argument object: `createProjectDialog` in [`project_files.js`](tools/viewer/web/project_files.js) and `createQueueController` in [`build_queue.js`](tools/viewer/web/build_queue.js) are the model, and `createDocumentSession` in [`document_session.js`](tools/viewer/web/document_session.js) is one made from many of app.js's functions (section 3, "The page"). |
+| Opening, saving or leaving a document, its drafts kept for recovery, the banner under the header | [`document_session.js`](tools/viewer/web/document_session.js) (`createDocumentSession`). The prefab builder's own saving and opening are in app.js, with the builder, and share its drafts' state in [`editor_state.js`](tools/viewer/web/editor_state.js). |
+| A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
 | The game's grid numbers on the page | [`constants.js`](tools/viewer/web/constants.js). |
@@ -194,12 +201,29 @@ where there is one.
     `setStage`);
   - a collection (a `Map`, an array) is changed in place through the import as it is.
 
-  What one area alone uses lives in that area's module. What several areas use lives in
-  [`editor_state.js`](tools/viewer/web/editor_state.js): the scene (`data`) and its roots, the selection, the project
-  open, the groups, the buildings, the map's size, the cleared map's state and its landing zones, the project's
-  missions, picture and spawn rules. app.js still declares the state of the areas not yet moved out of it; new state
-  never goes there. An assignment to an imported name throws only when its line runs, and no browser check runs every
-  line: a change that moves state searches for any assignment to the moved names left behind.
+  A counter taken one step at a time has a `next<Name>()` beside its setter (`nextCopySerial()`, where app.js wrote
+  `++copySerial`).
+
+  What one area alone uses lives in that area's module, inside its factory when it is made by one (the document
+  session's `navigating`). What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js):
+  - the scene (`data`) and its roots, the selection, the project open, the groups, the buildings, the map's size, the
+    cleared map's state and its landing zones, the project's missions, picture and spawn rules;
+  - what the document session shares with other areas: `leaving`, `saving`, the drafts' timer, owner and trouble
+    (the prefab builder's saves use them too), the build status, the copies' serial, and the reads a project waits for;
+  - what the scene to and from a document reads of the areas that own it: the All maps library, the area lights'
+    glowing pieces, the count of pieces that could not be drawn, `allBuildings`' list.
+
+  app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
+  an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
+  searches for any assignment to the moved names left behind.
+- A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`) takes them as one
+  argument object and destructures it, so the code moved into it calls them by the names it always did. It returns
+  the functions other areas call, and app.js destructures them under the same names, so their callers stay as they
+  were. app.js makes it after the functions and objects it is given, and before any code that runs as the page loads
+  and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is given
+  as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
+  `moved_code.py` reads a file's top-level functions, so a move into a factory is checked on the factory's body
+  written to a scratch file of its own.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
   `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links,
   state, recipe, a cover block's, a light's or an effect's own fields) and hands it to `recordOf`, which gives the

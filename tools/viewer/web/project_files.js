@@ -3,7 +3,7 @@
 // Save a new name makes a new project, the open project's own name saves its next revision, and another project's
 // name replaces that project after a confirm. Under the name box Save shows what the project builds as: a new
 // project's map name, from the server (the project name as one word, at most 24 characters, numbered when taken), or
-// the fixed one of the project saved onto. The caller does the opening and saving (app.js).
+// the fixed one of the project saved onto. The caller does the opening and saving (document_session.js).
 const byName = (a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' });
 const SORTS = {
   name: byName,
@@ -185,8 +185,8 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     choose(match?.id ?? null, false);
   }
   function hideConfirm() { els.confirm.hidden = true; els.confirm.replaceChildren(); }
-  // Replace saves over the revision shown here and no other (app.js saveProject takes target.revision as the one
-  // expected).
+  // Replace saves over the revision shown here and no other (document_session.js's saveProject takes target.revision
+  // as the one expected).
   function confirmReplace(target, name, note = null) {
     els.confirm.replaceChildren();
     const message = document.createElement('div');

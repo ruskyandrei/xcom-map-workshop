@@ -30,7 +30,7 @@ export const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volu
 export let selected;
 export function setSelected(next) { selected = next; }
 
-// The project open (app.js's Projects section): null, or { doc, revision, carried: {overrides, added} kept as they
+// The project open (document_session.js opens and saves it): null, or { doc, revision, carried: {overrides, added} kept as they
 // were, savedKey }.
 export let project = null;
 export function setProject(next) { project = next; }
