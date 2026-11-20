@@ -131,20 +131,27 @@ def reach_of(g, transition=TRANSITION):
     return min(int(math.ceil(transition / max(min(g['spacing']), 1e-3))) + 1, MAX_REACH)
 
 
+def near(mask, reach):
+    """(H, W) bool: the cells within `reach` grid cells of one in `mask`, each way (the search window's box). A
+    maximum filter grows the box along one axis and then the other: the answer of a dilation by the whole box, at a
+    small part of its cost (the box of the widest window has 9,409 cells)."""
+    from scipy import ndimage
+    return ndimage.maximum_filter(mask, size=2 * reach + 1, mode='constant', cval=False)
+
+
 def signed_distance(g, light, transition=TRANSITION, only=None):
     """(H, W) signed world distance from each covered sub-sample to the shadow's edge, positive in the light, at most
     2 x `transition` either way: the nearest covered sub-sample on the other side, searched within a window of the
     grid reaching `transition` (by world distance, so that UV islands packed side by side, as a road marking's dashes
     are, don't see each other), less the half step before it (the edge lies halfway between the last sub-sample on
-    one side and the first on the other). With `only` (H, W bool), sub-samples outside it are left at the ends."""
-    from scipy import ndimage
-    covered, world = g['covered'], g['world']
+    one side and the first on the other). With `only` (H, W bool), sub-samples outside it are left at the ends.
+    The search is nearest_across's."""
+    covered = g['covered']
     H, W = g['shape']
     reach = reach_of(g, transition)
     shadowed, lit_ = covered & ~light, covered & light
-    box = np.ones((2 * reach + 1, 2 * reach + 1), bool)
-    near_shadow = ndimage.binary_dilation(shadowed, box) if shadowed.any() else np.zeros_like(covered)
-    near_light = ndimage.binary_dilation(lit_, box) if lit_.any() else np.zeros_like(covered)
+    near_shadow = near(shadowed, reach) if shadowed.any() else np.zeros_like(covered)
+    near_light = near(lit_, reach) if lit_.any() else np.zeros_like(covered)
     todo = (lit_ & near_shadow) | (shadowed & near_light)
     if only is not None:
         todo &= only
@@ -152,27 +159,83 @@ def signed_distance(g, light, transition=TRANSITION, only=None):
     best = np.full(len(ty), np.inf)
     best_steps = np.ones(len(ty))
     if len(ty):
-        tw = world[ty, tx]
-        mine = light[ty, tx]
-        pad = reach
-        cov_p = np.pad(covered, pad)
-        light_p = np.pad(light, pad)
-        world_p = np.pad(world, ((pad, pad), (pad, pad), (0, 0)), constant_values=np.nan)
-        for dy in range(-reach, reach + 1):
-            for dx in range(-reach, reach + 1):
-                if not dy and not dx:
-                    continue
-                oy, ox = ty + dy + pad, tx + dx + pad
-                other = cov_p[oy, ox] & (light_p[oy, ox] != mine)
-                if not other.any():
-                    continue
-                dist = np.where(other, np.linalg.norm(world_p[oy, ox] - tw, axis=1), np.inf)
-                closer = dist < best
-                best[closer] = dist[closer]
-                best_steps[closer] = max(abs(dy), abs(dx))
+        nearest_across(g, reach, (lit_, shadowed), (lit_ & near_shadow, shadowed & near_light), only, (ty, tx), best,
+                       best_steps)
     d = np.full((H, W), 2 * transition)
     d[ty, tx] = np.minimum(best * (1 - 1 / (2 * best_steps)), 2 * transition)
     return np.where(light, d, -d)
+
+
+def nearest_across(g, reach, sides, edges, only, todo, best, best_steps):
+    """signed_distance's search: for each to-do sub-sample (`todo`, its (ty, tx); `best` and `best_steps` in their
+    order, filled in place) the world distance to the nearest covered sub-sample on the other side of the edge within
+    the window (every offset (dy, dx) up to `reach` each way), and that offset's step count max(|dy|, |dx|).
+
+    The answer is the one of a search from every to-do sub-sample through the window's offsets in raster order (dy,
+    then dx), a strictly shorter distance replacing the best so far: the shortest distance, and of equal ones the
+    first offset in that order. Each (lit, shadowed) pair within the window is met once here, from the side with
+    fewer sub-samples near the edge (`edges`: the lit sub-samples with a shadowed one within the window, and the
+    shadowed with a lit one; `sides`: all lit and all shadowed), and its distance goes to both ends. The side
+    searched from meets its offsets in raster order, so a strictly shorter distance wins there; the other end of
+    each pair sees the reverse offset, so it meets its offsets in reverse raster order, and a distance as short as
+    its best wins there (the last of equal ones is the first in raster order). A distance is worked out as numpy's
+    norm works out one row, sqrt((x * x + y * y) + z * z), on the same difference (or its negation, which squares
+    the same), so each pair's distance is the same number from either end."""
+    covered, world = g['covered'], g['world']
+    ty, tx = todo
+    pad = reach
+    Hp, Wp = covered.shape[0] + 2 * pad, covered.shape[1] + 2 * pad
+    lit_edge, shadowed_edge = edges
+    if only is not None:
+        # a pair counts when one of its ends is to do: the end searched from lies within the window of `only`
+        within = near(only, reach)
+        lit_edge, shadowed_edge = lit_edge & within, shadowed_edge & within
+    if np.count_nonzero(lit_edge) <= np.count_nonzero(shadowed_edge):
+        searched, found = lit_edge, sides[1]
+    else:
+        searched, found = shadowed_edge, sides[0]
+    sy, sx = np.nonzero(searched)
+    # by padded linear index: each to-do sub-sample's place in best (-1: not to do), and the sub-samples findable
+    slot = np.full(Hp * Wp, -1, np.int32)
+    slot[(ty + pad) * Wp + (tx + pad)] = np.arange(len(ty))
+    found = np.pad(found, pad).ravel()
+    axes = [np.pad(world[:, :, a], pad, constant_values=np.nan).ravel() for a in range(3)]
+    base = (sy + pad) * Wp + (sx + pad)
+    own = [world[sy, sx, a] for a in range(3)]
+    own_slot = slot[base]
+    for dy in range(-reach, reach + 1):
+        for dx in range(-reach, reach + 1):
+            if not dy and not dx:
+                continue
+            at = base + (dy * Wp + dx)
+            k = np.nonzero(found[at])[0]
+            if not len(k):
+                continue
+            other = at[k]
+            dist = axes[0][other]
+            dist -= own[0][k]
+            dist *= dist
+            for a in (1, 2):
+                e = axes[a][other]
+                e -= own[a][k]
+                e *= e
+                dist += e
+            np.sqrt(dist, out=dist)
+            steps = max(abs(dy), abs(dx))
+            mine, theirs = own_slot[k], slot[other]
+            if only is None:            # every end of a pair is to do
+                mine_dist = their_dist = dist
+            else:
+                keep = mine >= 0
+                mine, mine_dist = mine[keep], dist[keep]
+                keep = theirs >= 0
+                theirs, their_dist = theirs[keep], dist[keep]
+            closer = mine_dist < best[mine]
+            best[mine[closer]] = mine_dist[closer]
+            best_steps[mine[closer]] = steps
+            closer = their_dist <= best[theirs]
+            best[theirs[closer]] = their_dist[closer]
+            best_steps[theirs[closer]] = steps
 
 
 def encode(d, transition=TRANSITION):
@@ -212,14 +275,13 @@ def change(geo, seen_before, seen_after, upsample=UPSAMPLE, transition=TRANSITIO
     """What an edit changes in the field, per texel: None when no sub-sample's view of the light changes, else
     (delta (h, w): after minus before, covered (h, w), sub-samples changed). Only the sub-samples within the search
     window of a changed one can differ, so only those are measured."""
-    from scipy import ndimage
     if np.array_equal(seen_before, seen_after):
         return None
     g = grid(geo)
     before, after = light_grid(g, seen_before), light_grid(g, seen_after)
     flipped = g['covered'] & (before != after)
     reach = reach_of(g, transition)
-    region = ndimage.binary_dilation(flipped, np.ones((2 * reach + 1, 2 * reach + 1), bool))
+    region = near(flipped, reach)
     vb = encode(signed_distance(g, before, transition, region), transition)
     va = encode(signed_distance(g, after, transition, region), transition)
     diff = np.where(region & g['covered'], va - vb, 0.0)
