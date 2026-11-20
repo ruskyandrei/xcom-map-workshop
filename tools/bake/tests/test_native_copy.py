@@ -181,6 +181,47 @@ class WalkableScenery(unittest.TestCase):
 
 @unittest.skipUnless(POLICE and POLICE.exists(), NO_POLICE)
 class RebuildTemplate(unittest.TestCase):
+    """The police station: rebuild volumes on a map without a trigger volume, and two copies made in one build the
+    class shares (fixtures.SharedBuild), each test reading its own part (part): a door copied onto the station's
+    outer wall and the car copied a few tiles on, which touch different pieces and lists."""
+    DOOR = 'door 0 and its frame (XComDestructibleActor_42) copied into door 95\'s doorway on the back wall'
+    CAR = 'car 1071 and its glass (XComFracLevelActor_198) copied three tiles on'
+
+    @classmethod
+    def setUpClass(cls):
+        p = lighting.Package(POLICE)
+        folder = Path(cls.enterClassContext(tempfile.TemporaryDirectory()))
+        cls.shared = fixtures.SharedBuild(folder / 'build', {cls.DOOR: cls.door_copied(p), cls.CAR: cls.car_copied(p)},
+                                          fixtures.native_build(POLICE, 'URB_PoliceShared'), fixtures.NativePart)
+        cls.addClassCleanup(delattr, cls, 'shared')     # the map read back goes with its folder, not held to the end
+
+    def part(self, name):
+        """This test's part of the shared build that carries the edit `name` (fixtures.SharedBuild.part)."""
+        return self.shared.part(self, name)
+
+    @staticmethod
+    def door_copied(p):
+        # Police Station's floor volumes end on the back wall's line (x -384), so a door there has its centre on their
+        # face: door 0 copied into door 95's doorway joins floor 0 of the station (the volumes it overlaps most)
+        copies = []
+        for n in ('XComDestructibleActor_42', 'XComInteractiveLevelActor_0'):
+            i = p.by_name[PL + n]
+            loc = list(p.own(i, 'Location'))
+            copies.append(dict(actor=n, location=[loc[0] - 1056, loc[1] + 2400, loc[2]], rotation=[0, 16384, 0],
+                               assembly='add:XComInteractiveLevelActor_0_copy2', family='door'))
+        return dict(copies=copies)
+
+    @staticmethod
+    def car_copied(p):
+        # Police Station's car 1071: its glass's columns also name XComDestructibleActor_1070, outside the car
+        copies = []
+        for n in ('XComDestructibleActor_1071', 'XComFracLevelActor_198'):
+            i = p.by_name[PL + n]
+            loc = list(p.own(i, 'Location'))
+            copies.append(dict(actor=n, location=[loc[0], loc[1] + 288, loc[2]], rotation=list(p.own(i, 'Rotation', [0, 0, 0])),
+                               assembly='add:XComDestructibleActor_1071_copy1', family='car'))
+        return dict(copies=copies)
+
     def test_priority_tile_volumes_precede_existing_rebuilds(self):
         with tempfile.TemporaryDirectory() as d:
             first, second = Path(d) / 'first.upk', Path(d) / 'second.upk'
@@ -222,35 +263,16 @@ class RebuildTemplate(unittest.TestCase):
 
 
     def test_a_door_copy_on_its_buildings_outer_wall_joins_that_floor(self):
-        # Police Station's floor volumes end on the back wall's line (x -384), so a door there has its centre on their
-        # face: door 0 copied into door 95's doorway joins floor 0 of the station (the volumes it overlaps most)
-        p = lighting.Package(POLICE)
-        copies = []
-        for n in ('XComDestructibleActor_42', 'XComInteractiveLevelActor_0'):
-            i = p.by_name[PL + n]
-            loc = list(p.own(i, 'Location'))
-            copies.append(dict(actor=n, location=[loc[0] - 1056, loc[1] + 2400, loc[2]], rotation=[0, 16384, 0],
-                               assembly='add:XComInteractiveLevelActor_0_copy2', family='door'))
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(POLICE, d, 'URB_PoliceDoor', copies)
-            self.assertEqual(m['nativeCopies']['floorCaches'],
-                             [dict(copy=c['actor'], building='XComBuildingVolume_2', floor=0) for c in copies])
+        with self.part(self.DOOR) as part:
+            self.assertEqual(part.nc['floorCaches'],
+                             [dict(copy=c['actor'], building='XComBuildingVolume_2', floor=0) for c in part.edit['copies']])
 
     def test_a_car_copys_glass_drops_column_entries_of_other_pieces(self):
-        # Police Station's car 1071: its glass's columns also name XComDestructibleActor_1070, outside the car. The
-        # copy's columns keep the body's entry (pointing at the body's copy) and drop that one (plan 7.2)
-        p = lighting.Package(POLICE)
-        copies = []
-        for n in ('XComDestructibleActor_1071', 'XComFracLevelActor_198'):
-            i = p.by_name[PL + n]
-            loc = list(p.own(i, 'Location'))
-            copies.append(dict(actor=n, location=[loc[0], loc[1] + 288, loc[2]], rotation=list(p.own(i, 'Rotation', [0, 0, 0])),
-                               assembly='add:XComDestructibleActor_1071_copy1', family='car'))
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(POLICE, d, 'URB_PoliceCar', copies)
-            sec = {c['actor']: c for c in m['nativeCopies']['copies']}
+        # the copy's columns keep the body's entry (pointing at the body's copy) and drop that one (plan 7.2)
+        with self.part(self.CAR) as part:
+            sec = {c['actor']: c for c in part.nc['copies']}
             self.assertGreater(sec['XComFracLevelActor_198']['columns']['dropped'], 0)
-            q = lighting.Package(Path(d) / 'URB_PoliceCar.upk')
+            q = part.q
             glass = sec['XComFracLevelActor_198']['export']
             named = {e[('DestructibleActor', 0)]['value'] for c in q.structs(q.own(glass, 'FragmentColumns'))
                      for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value'))}

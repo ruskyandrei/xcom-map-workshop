@@ -82,19 +82,9 @@ def tearDownModule():
     BUILDS.close()
 
 
-class SharedPart:
-    """A class whose tests read the edit EDIT of the shared build BUILD (BUILDS), each test in part()."""
-    BUILD = EDIT = None
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.build = BUILDS.get(cls.BUILD)
-
-    def part(self, edit=None):
-        """This test's part of the shared build (fixtures.CopiesPart), for the class's edit or `edit`, in a subtest
-        named for it (fixtures.SharedBuild.part)."""
-        return self.build.part(self, edit or self.EDIT)
+class SharedPart(fixtures.SharedPart):
+    """A class whose tests read the edit EDIT of the shared build BUILD of BUILDS (fixtures.CopiesPart)."""
+    BUILDS = BUILDS
 
 
 class Columns(unittest.TestCase):

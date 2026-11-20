@@ -140,6 +140,22 @@ class ModuleBuilds:
             self.tmp = None
 
 
+class SharedPart:
+    """A test class (before unittest.TestCase in its bases) whose tests read the edit EDIT of the shared build BUILD of
+    BUILDS (the module's ModuleBuilds), each test in part()."""
+    BUILDS = BUILD = EDIT = None
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.build = cls.BUILDS.get(cls.BUILD)
+
+    def part(self, edit=None):
+        """This test's part of the shared build, for the class's edit or `edit`, in a subtest named for it
+        (SharedBuild.part)."""
+        return self.build.part(self, edit or self.EDIT)
+
+
 def copies_build(src, variant, stage=None, **options):
     """SharedBuild's make for native_copy.build when each edit is a list of copies (made walls, slabs and ground, the
     doors standing in them), so that two edits may copy one piece: the edits' copies joined in the edits' order and
@@ -205,3 +221,54 @@ class CopiesPart:
         if 'pieceFlags' in nc:
             part['pieceFlags'] = dict(onCopies=[r for r in nc['pieceFlags']['onCopies'] if r['copy'] in mine])
         self.m = dict(self.manifest, nativeCopies=part)
+
+
+LANES = ('effects', 'sounds', 'flares')
+
+
+def lanes_build(src, variant, stage=None):
+    """SharedBuild's make for native_copy.build's lanes (effects, sounds, flares: each a dict of moves, deletes, copies
+    and values): each edit a dict of lanes, and no two edits edit one lane, so that a lane's records are one edit's
+    (ValueError). The edits' lanes are built together, with no copies of pieces, as <folder>/<variant>.upk. `stage`,
+    for lanes copying another map's actors, is transplant.stage_edit (src, folder, edit) -> (the staged map, the staged
+    edit, its report), made on the joined edit first; the build is then made from the staged map in <folder>/build.
+    Returns a dict: manifest, q (the written map read again), edit (the lanes as built: the staged edit where staged)
+    and report (the staging's, or None)."""
+    def make(folder, edits):
+        import lighting_records
+        import native_copy
+        joined, owner = {}, {}
+        for name, lanes in edits.items():
+            for lane, value in lanes.items():
+                if lane not in LANES:
+                    raise ValueError('edit %r: %s is not a lane (%s)' % (name, lane, ', '.join(LANES)))
+                if owner.setdefault(lane, name) != name:
+                    raise ValueError('the edits %r and %r both edit the %s lane: a shared build takes one edit a lane'
+                                     % (owner[lane], name, lane))
+                joined[lane] = value
+        folder, out, report, src_map = Path(folder), Path(folder), None, src
+        edit = dict(copies=[], **joined)
+        if stage:
+            folder.mkdir(parents=True)
+            src_map, edit, report = stage(src, folder, edit)
+            out = folder / 'build'
+        manifest = native_copy.build(src_map, out, variant, edit['copies'], **{lane: edit[lane] for lane in joined})
+        return dict(manifest=manifest, q=lighting_records.Package(out / ('%s.upk' % variant)), edit=edit, report=report)
+    return make
+
+
+class LanesPart:
+    """One edit's part of a shared lanes_build (SharedBuild's view): `edit` (its lanes as given), `staged` (its lanes
+    as built: the staged edit's where staged), `q` (the written map), `manifest` (the whole build's), `section` (the
+    manifest's records of its lanes, and of the floors' emitter lists with the effects lane), `report` (the staging's,
+    whole) and `donors`, the report's rows of the maps its lanes' copies come from."""
+
+    def __init__(self, name, edit, made):
+        self.name, self.edit = name, edit
+        self.manifest, self.q, self.report = made['manifest'], made['q'], made['report']
+        nc = self.manifest['nativeCopies']
+        keys = list(edit) + (['floorEmitters'] if 'effects' in edit else [])
+        self.section = {k: nc[k] for k in keys if k in nc}
+        self.staged = {lane: made['edit'][lane] for lane in edit}
+        maps = {c['donor']['package'] for lane in edit.values() for c in lane.get('copies', []) if c.get('donor')}
+        self.donors = [r for r in (self.report or {}).get('donors', []) if r['map'] in maps]
