@@ -530,6 +530,21 @@ class Values(unittest.TestCase):
         self.assertNotIn('effect-starts-off', [w['code'] for w in report['warnings']])
         self.assertEqual(report['counts']['effects']['valued'], 2)
 
+    def test_a_record_left_out_for_its_pose_builds_none_of_its_values(self):
+        """(review finding 44) An override whose pose is malformed, or that gives a pose to an effect that follows its
+        piece, is left out: its values are not built either (they were, though the record was reported left out)."""
+        s = values_scene()
+        s['effects'][3]['carriedBy'] = PL + 'XComLevelActor_1'        # Emitter_43 rides on a piece, following it
+        for record, code in ((dict(target=target('Emitter_44'), location=[1, 2], effect=dict(scale=0.5)), 'malformed'),
+                             (moved('Emitter_43', (720, 0, 0), effect=dict(scale=2.0, follow='auto')), 'malformed')):
+            with self.subTest(record=record):
+                spec, report = compile_project(doc([record]), s, enable=self.ON)
+                self.assertEqual(codes(report), [code])
+                _, native = native_split(stream_only(spec))
+                lane = native.get('effects') or {}
+                self.assertEqual((lane.get('values', []), lane.get('moves', [])), ([], []))
+                self.assertNotIn('values', [e.get('op') for e in report['entities']])
+
     def test_a_copy_set_to_start_off_is_warned_of(self):
         _, report = self.compile([], [copied('Emitter_44', 1, (720, 0, 0), effect=dict(startsOn=False))])
         self.assertEqual([w['code'] for w in report['warnings']], ['effect-starts-off'])

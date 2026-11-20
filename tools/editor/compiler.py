@@ -1361,12 +1361,19 @@ class Compiler:
         """The extra for a move or a copy of a class with no family of its own, or None (with an error) for one that
         is no piece at all: a volume. A map's level volume draws some of its meshes and holds its tile data; a copy
         of it would be a second level volume, and its hide would take the map's own out."""
-        cls = parts[0]['actorClass']
-        if cls.endswith('Volume'):
-            self.error('not-a-piece', '%s is a mesh of the map\'s %s, which is no piece: a volume is not moved or '
-                       'copied (the level volume holds the map\'s tile data)' % (short(actor), cls), actorClass=cls, **where)
+        if self.not_a_piece(actor, parts, where, 'moved or copied'):
             return None
         return self.untried()
+
+    def not_a_piece(self, actor, parts, where, what):
+        """True (with the error that leaves the record out) for a mesh of a volume, which is no piece: it is never
+        `what` (moved or copied; deleted, which would hide the map's level volume and its tile data with it)."""
+        cls = parts[0]['actorClass']
+        if not cls.endswith('Volume'):
+            return False
+        self.error('not-a-piece', '%s is a mesh of the map\'s %s, which is no piece: a volume is not %s (the level '
+                   'volume holds the map\'s tile data)' % (short(actor), cls, what), actorClass=cls, **where)
+        return True
 
     def refuse(self, family, actor, parts, where, assembly=None):
         """The error for a piece (or an assembly) of a family that isn't built yet."""
@@ -2570,8 +2577,9 @@ class Compiler:
                 gated.setdefault(id(assembly), (assembly, {}))[1][target['actor']] = (target, rec, where, parts)
             elif not self.builds(family) and rec.get('deleted') is True:
                 # a delete empties the piece's slot in the level's list and needs nothing of its family (Clear map
-                # plan, section 6)
-                self.override(target, rec, where, parts)
+                # plan, section 6); a volume's mesh is no piece, and its delete is left out as its move is
+                if family != 'other' or not self.not_a_piece(target['actor'], parts, where, 'deleted'):
+                    self.override(target, rec, where, parts)
             elif not self.builds(family) and family == 'other':
                 extra = self.class_untried(target['actor'], parts, where)
                 if extra:
@@ -3783,13 +3791,16 @@ class Compiler:
             ops['deletes'].append(dict(name=name, actorClass=effect['actorClass'], location=list(effect['location'])))
             self.entities.append(dict(kind=kind, op='delete', target=target['actor'], actorClass=effect['actorClass']))
             return
-        if values:
-            # its values, set on the actor in place (stage FX5)
-            self.effect_value_warnings(name, kind, values, effect, where)
-            ops['values'].append(dict(name=name, actorClass=effect['actorClass'], **{kind: values}))
-            self.entities.append(dict(kind=kind, op='values', target=target['actor'], actorClass=effect['actorClass'],
-                                      **{kind: values}))
+        def set_values():
+            # its values, set on the actor in place (stage FX5): only once the record is known to build, since a
+            # record left out for its pose or its follow rule builds nothing of it
+            if values:
+                self.effect_value_warnings(name, kind, values, effect, where)
+                ops['values'].append(dict(name=name, actorClass=effect['actorClass'], **{kind: values}))
+                self.entities.append(dict(kind=kind, op='values', target=target['actor'], actorClass=effect['actorClass'],
+                                          **{kind: values}))
         if 'location' not in rec and 'rotation' not in rec:
+            set_values()
             if follow is None:
                 if not values:
                     self.error('malformed', 'the override of %s is deleted%s' % (
@@ -3815,11 +3826,13 @@ class Compiler:
                        % (name, short(effect['carriedBy'])), **where)
             return
         if not moved:
+            set_values()
             if not values:
                 self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
             return
         if not self.effect_usable(effect, 'move', name, where):
             return
+        set_values()
         # its own pose: the piece it stood on no longer takes it along (plan Part C, ownership and precedence)
         self.effect_own.add(target['actor'])
         if effect.get('carriedBy'):

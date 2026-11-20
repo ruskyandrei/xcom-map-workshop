@@ -306,12 +306,13 @@ class LightCounts(unittest.TestCase):
                                                before=dict(location=[1.0, 2.0, 3.0], rotation=[0, 0, 0]))]))
         self.assertEqual((build.light_counts(still)['moved'], build.light_counts(still)['changed']), (0, 0))
 
-    def test_the_quick_build_light_text_stays_conditional_until_the_game_test(self):
-        # plan 4.3: until EXP-26 run 2 is played, the unbaked behaviour is stated as to be confirmed
-        self.assertIn('still to be confirmed (EXP-26 run 2)', build.QUICK_LIGHTS)
+    def test_the_quick_build_light_text_says_what_is_not_baked(self):
+        # plan 4.3, said plainly (review finding 44: the editor never says a thing waits for a game test)
         for limitation in ('a deleted light\'s pool stays on the baked surfaces', 'an added light has no baked light',
                            'the old glow stays baked where it was'):
             self.assertIn(limitation, build.QUICK_LIGHTS)
+        for doubt in ('to be confirmed', 'not yet known', 'EXP-26'):
+            self.assertNotIn(doubt, build.QUICK_LIGHTS)
 
 
 class ToolRunner(unittest.TestCase):
@@ -1603,7 +1604,7 @@ class Builds(unittest.TestCase):
         self.assertEqual(q['stages'][3]['lights']['added'], 2)
         readme = (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1')
         self.assertIn(build.QUICK_LIGHTS, readme)
-        self.assertIn('EXP-26 run 2', readme)
+        self.assertNotIn('EXP-26', readme)
         self.assertNotIn('Each added, moved or changed light is baked', readme)
 
     def test_a_full_build_that_changes_no_lighting_ships_the_edited_map_without_a_cache(self):

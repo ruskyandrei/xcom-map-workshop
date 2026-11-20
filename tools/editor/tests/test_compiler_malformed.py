@@ -10,7 +10,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 from compiler import compile_project  # noqa: E402
-from test_compiler import PL, add, document, scene, target  # noqa: E402
+from test_compiler import PL, add, document, part, scene, target  # noqa: E402
 
 # a copy that builds, beside each malformed record: the build goes on with it
 GOOD = add('XComLevelActor_1', 1, (96, 96, 0))
@@ -55,6 +55,24 @@ class MalformedRecords(unittest.TestCase):
         _, report = compile_project(document(added=[GOOD], landingZones=[dict(id=[1], location=[0, 0, 64], direction='north',
                                                                               kind=['normal'])]), scene())
         self.assertIn('landing-shape', [e['code'] for e in report['errors'] + report['leftOut']])
+
+    def test_a_volume_is_never_deleted_moved_or_copied(self):
+        """(review finding 44) A mesh of a volume is no piece: its delete is left out as its move and copy are, where
+        it became a hide, which for the level volume would take the map's tile data out. The page never writes one
+        (its delete and Clear skip hidden pieces); a hand edit can."""
+        s = scene()
+        s['objects'].append(part('XComLevelVolume_0', cls='XComLevelVolume', at=(0, 0, 0), hidden=True))
+        records = dict(overrides=[dict(target=target('XComLevelVolume_0'), deleted=True)],
+                       moved=[dict(target=target('XComLevelVolume_0'), location=[96, 0, 0], rotation=[0, 0, 0])],
+                       copied=[add('XComLevelVolume_0', 2, (96, 0, 0))])
+        for name, recs in records.items():
+            with self.subTest(name):
+                lane = 'added' if name == 'copied' else 'overrides'
+                spec, report = compile_project(document(**{lane: recs}, **({} if lane == 'added' else {'added': [GOOD]})), s)
+                self.assertTrue(report['ok'], report['errors'])
+                self.assertIn('not-a-piece', [e['code'] for e in report['leftOut']])
+                self.assertNotIn('XComLevelVolume_0', [h for o in spec['objects'] for h in o.get('alsoHide', [])])
+                self.assertNotIn('XComLevelVolume_0', [h['name'] for h in spec.get('hides') or []])
 
     def test_buildings_that_are_no_list_do_not_stop_the_groups(self):
         for buildings in (True, 1.5, [dict(id=[1], name='B', kind='building', floors=[])]):

@@ -5,7 +5,7 @@ in game, installs.py, or a modder's own, from the package's README). The install
 has it: what the editor installed into it is taken out (installs.maps_text).
 
   python -B tools/editor/build.py <project file | project id or name> [--cache <viewer cache>] [--output <builds folder>]
-      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family frameless-door ...] [--quick]
+      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family other ...] [--quick]
 
 --quick is the editor's Build with Bake the lighting off (its default): the edit made in the map exactly as a full
 build makes it, but its lighting not baked (stage 4 without the relight), in seconds instead of minutes. Pathing, cover
@@ -13,9 +13,10 @@ and line of sight in the game are a full build's; the lighting is not right (the
 and cast no shadows, and deleted or moved pieces leave their shadows behind). Its package replaces the project's last
 one, as any build's does, and its manifest says `quick`.
 
---family builds a family the compiler doesn't build yet (compiler.FAMILIES), for an experiment's build: EXP-22 built
-ladders with --family ladder, EXP-23 doors with --family door and EXP-24 cars and vans with --family car and
---family van, and EXP-26 run 1 lights with --family light, before each family was switched on for every project.
+--family builds a family the compiler doesn't build for every project (compiler.FAMILIES), for an experiment's build;
+its choices are the families still switched off, which today is only `other` (the classes with no family of their
+own). EXP-22 built ladders with --family ladder, EXP-23 doors with --family door, EXP-24 cars and vans with --family car
+and --family van and EXP-26 run 1 lights with --family light, before each family was switched on for every project.
 Fracturing pieces and physics props were switched on without one (9 November 2026; EXP-28 has their game runs).
 
 Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
@@ -149,15 +150,14 @@ EXPORT_MINIMUM = 18
 # the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
 EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
-# what a quick build does with light edits (editor lights plan, 4.3). Its wording stays conditional until EXP-26 run 2
-# has shown what the game does; the editor's build panel can show the same text beside Bake the lighting
-QUICK_LIGHTS = ('Its light edits are made in the map but not baked, and what the game does with them is still to be '
-                'confirmed (EXP-26 run 2): a deleted light\'s pool stays on the baked surfaces; a changed light leaves '
-                'its old pool baked where it was, while soldiers, aliens and other things lit live can get the edited '
-                'light, and surfaces it newly reaches may get it live too; an added light has no baked light of its '
-                'own, and whether the game draws it live, and with what shadows, is not yet known; glow lights that '
-                'follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays baked '
-                'where it was and the new place gets none.')
+# what a quick build does with light edits (editor lights plan, 4.3): made in the map, not baked; the editor's build
+# panel can show the same text beside Bake the lighting
+QUICK_LIGHTS = ('Its light edits are made in the map but not baked: a deleted light\'s pool stays on the baked '
+                'surfaces; a changed or moved light leaves its old pool baked where it was, and only what the game '
+                'lights live (soldiers, aliens and other moving things) takes the edited light; an added light has no '
+                'baked light of its own, so the surfaces it reaches show only what the game lights live; glow lights '
+                'that follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays '
+                'baked where it was and the new place gets none.')
 INTRO_COPY = TOOLS / 'bake' / 'intro_copy.py'
 INLINE_LIGHTING = TOOLS / 'bake' / 'inline_lighting.py'
 MAP_FRAME = TOOLS / 'bake' / 'map_frame.py'
@@ -1566,7 +1566,8 @@ def main(argv=None):
     a.add_argument('--radius', type=float, default=RADIUS,
                    help='relight receivers within this many units of the edit (default %(default)g)')
     a.add_argument('--family', action='append', default=[], choices=sorted(f for f in compiler.FAMILIES if not compiler.FAMILIES[f]['builds']),
-                   help='build this family although the compiler doesn\'t yet: an experiment\'s build (repeatable)')
+                   help='build this family although the compiler doesn\'t for every project: an experiment\'s build '
+                        '(repeatable; the choices are the families still switched off)')
     a.add_argument('--foreign-family', action='append', default=[], choices=sorted(compiler.FAMILIES) + ['check'],
                    help='build this family\'s pieces from other maps although that isn\'t switched on yet: an '
                         'experiment\'s build (repeatable)')

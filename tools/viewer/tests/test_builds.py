@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -221,6 +222,17 @@ class Builds(unittest.TestCase):
         self.assertTrue(any(n.startswith('project/') for n in names))
         report = json.loads(zipfile.ZipFile(r['zip']).read('report.json'))
         self.assertEqual((report['variant'], report['build']['state']), ('URB_Bar_Remix_0f8b', 'built'))
+        self.assertEqual(sorted(r['files']), sorted(names))         # the answer names what the zip holds
+        # a file over the limit is left out of the zip, and the answer says so instead of listing it (review finding 44)
+        (self.output / '.work' / own / 'logs' / 'relight.log').write_text('x' * 100000, encoding='utf-8')
+        with mock.patch.object(builds_module, 'REPORT_FILE_MAX', 50000):
+            r = self.runner.report(ID)
+        names = zipfile.ZipFile(r['zip']).namelist()
+        self.assertNotIn(f'work/{own}/logs/relight.log', names + r['files'])
+        self.assertEqual(r['leftOut'], [f'work/{own}/logs/relight.log'])
+        self.assertEqual(sorted(r['files']), sorted(names))
+        self.assertEqual(json.loads(zipfile.ZipFile(r['zip']).read('report.json'))['leftOut'], r['leftOut'])
+        self.assertFalse((self.output / 'URB_Bar_Remix_0f8b-report.zip.tmp').exists())
 
     def test_the_routes_build_only_for_the_viewer_itself(self):
         catalogue = dict(defaultMap='URB_Bar', maps=dict(URB_Bar=dict(root=Path(self.temp.name))))

@@ -66,6 +66,7 @@ VARIANT = re.compile(r'[A-Za-z][A-Za-z0-9_]*')
 KEEP = 400
 DRAIN_GRACE = 15.0          # seconds a finished build.py's leftover processes get before they are killed
 DRAIN_LIMIT = 90.0          # seconds after which processes that won't end leave the slot busy (a writer of unknown state)
+REPORT_FILE_MAX = 32 << 20  # a bug report's zip leaves out a file larger than this (and says so)
 
 
 def now():
@@ -609,14 +610,24 @@ class BuildRunner:
         if not work and not (package / 'manifest.json').is_file(): raise ProjectError(409, 'The project has not been built yet: there is nothing to report.')
         target = self.output / f'{variant}-report.zip'
         temp = target.with_suffix('.zip.tmp')
-        with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for path, name in files:
-                if path.stat().st_size <= 32 << 20: z.write(path, name)
-            z.writestr('report.json', json.dumps(dict(editorVersion=VERSION, project=project_id, variant=variant, madeAt=now(),
-                                                      build=summary, work=[w.name for w in work[-3:]]), indent=1))
-            if lines: z.writestr('build-output.txt', '\n'.join(lines) + '\n')
-        temp.replace(target)
-        return dict(zip=str(target), files=[n for _, n in files] + ['report.json'] + (['build-output.txt'] if lines else []))
+        written, skipped = [], []       # the answer names what the zip holds: a file over REPORT_FILE_MAX is left out
+        try:
+            with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:
+                for path, name in files:
+                    if path.stat().st_size <= REPORT_FILE_MAX:
+                        z.write(path, name)
+                        written.append(name)
+                    else:
+                        skipped.append(name)
+                z.writestr('report.json', json.dumps(dict(editorVersion=VERSION, project=project_id, variant=variant, madeAt=now(),
+                                                          build=summary, work=[w.name for w in work[-3:]],
+                                                          **({'leftOut': skipped} if skipped else {})), indent=1))
+                if lines: z.writestr('build-output.txt', '\n'.join(lines) + '\n')
+            temp.replace(target)
+        finally:
+            temp.unlink(missing_ok=True)
+        return dict(zip=str(target), files=written + ['report.json'] + (['build-output.txt'] if lines else []),
+                    **({'leftOut': skipped} if skipped else {}))
 
     def reveal(self, path):
         """Show a folder or file of the builds folder in Windows Explorer: a folder opened, a file selected in its
