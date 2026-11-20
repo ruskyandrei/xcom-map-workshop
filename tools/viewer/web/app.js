@@ -4,16 +4,17 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
 import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
+         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, validPicture, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
-import { ownLandings, startingZones, place as zonePlace, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
+import { ownLandings, startingZones, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
-import { playApi, renderInstalls } from './play.js';
+import { missionRequest, playApi, playBlocked, playedMessage, renderInstalls } from './play.js';
 import { createSquadDialog, squadLine } from './squad.js';
 import { createProjectManager } from './manager.js';
-import { chipWords, createQueueController } from './build_queue.js';
+import { chipWords, clock, createQueueController, sentence } from './build_queue.js';
+import { buildBar, buildSteps, leftOutList, logText, missionWarnings, secondsBetween } from './build_window.js';
 import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
@@ -34,11 +35,13 @@ import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls,
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
-import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
+import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
+         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
+import { call } from './api.js';
+import { forget, recall, remember } from './storage.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -47,19 +50,22 @@ import { HANDLE_COLOURS, SOLO_MAX, boxInReach, boxLines, createSolo, emissionSha
 import { effectiveConeDegrees, storableCone, LIGHT_LIMITS } from './light_rules.js';
 import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes, tileGridOf, floorTilesOverlay } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
-import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
+import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverSightWords, coverTiles, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
-import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
+import { gridMove, nearestGridPose } from './poserule.js';
+import { LEVEL, QUARTER, TILE } from './constants.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
+         withoutOpening, withStoreys, wallJoins, joinWords, drawnRoom, wallSpec, storeyWords, storeysInLook, openingsInLook,
          steppedStoreys,
          SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
-         toolSlab, slabLookOf, roomRoof, FRAC_WALL } from './walls.js';
+         toolSlab, slabLookOf, roomRoof, madeWallShape, madeSlabShape, madeBounds, madeWallNumbers, madeSlabNumbers, slabBounds,
+         blastQuery } from './walls.js';
 import { loadLooks, catalogued, entryForPiece, lookFromEntry, lookTags, lookKey, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
-         resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK } from './ground.js';
+         resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK,
+         madeGroundShape, madeGroundNumbers, groundBounds } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
          stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
@@ -152,7 +158,7 @@ const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
-// Trial edits: the gizmo moves whole actors in the view only; nothing is saved or built.
+// Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
 // Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
 // selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
 // November 2026: "just leave it to group/ungroup"): every group is locked, and a project's `locked` is always true.
@@ -359,7 +365,7 @@ function useMapFamilies(table) {
   landingActors = Array.isArray(table?.landing) ? new Set(table.landing) : null;
   gizmo.regroup();
 }
-let data, selected, originalPositions = false, loadErrorCount = 0, lighting;
+let data, selected, loadErrorCount = 0, lighting;
 let activeMapId, cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
 let lightRadius = 700;
 
@@ -379,7 +385,6 @@ async function copyText(button, value) {
   catch { button.textContent = 'Copy failed'; }
   setTimeout(() => { button.textContent = label; }, 1500);
 }
-// Settings kept per browser (stats line, source details open). Storage can be missing or blocked.
 // a panel section's text with its how-to notes shown (the test hooks read it)
 function sectionText(id) {
   const box = $(id);
@@ -390,8 +395,6 @@ function sectionText(id) {
   box.classList.toggle('showhow', had);
   return words;
 }
-const recall = key => { try { return localStorage.getItem(key); } catch { return null; } };
-const remember = (key, value) => { try { localStorage.setItem(key, value); } catch { /* not kept */ } };
 // The selection's group as a chip beside its name; groupPanel keeps it up to date.
 const groupChip = document.createElement('span');
 groupChip.hidden = true;
@@ -941,7 +944,7 @@ function refreshLadder(root) {
   const tiles = [[ends.footTile, ends.footFloor], [ends.linkedTop ?? ends.topTile, Boolean(ends.linkedTop)]];
   tiles.forEach(([tile, ok], k) => {
     const mark = ladderMarks.children[k];
-    mark.position.set(ox + (tile[0] + 0.5) * 96, oz + tile[2] * 64 + 3, oy + (tile[1] + 0.5) * 96);
+    mark.position.set(ox + (tile[0] + 0.5) * TILE, oz + tile[2] * LEVEL + 3, oy + (tile[1] + 0.5) * TILE);
     mark.material.color.set(ok ? 0x5ad17a : 0xe0605a);
   });
 }
@@ -1189,7 +1192,7 @@ function restingHint() {
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
 
-// Adding and deleting pieces. Like moves, these are trial edits: drawn only, not saved or built.
+// Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
 // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
 let clipboard = null, copySerial = 0;
 const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
@@ -1210,7 +1213,7 @@ function snapButton() {
   button.classList.toggle('on', snapMode !== 'off'); button.setAttribute('aria-pressed', snapMode !== 'off');
   button.title = recipe ? `${RECIPE_NOTE}.` : SNAPS[snapMode][2];
   $('snapBadge').textContent = recipe ? 'R' : SNAPS[snapMode][1];
-}// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
+}
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
@@ -1228,6 +1231,7 @@ function selectionWords(list, other = '') {
 }
 // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
 const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
+// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
 function copyable() {
   return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
     : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
@@ -1293,23 +1297,6 @@ function actorPose(source, matrix) {
 // The render matrix that puts a source piece's actor at a game pose (the inverse of actorPose).
 const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
-// A fracturing wall the Build makes from numbers (custom geometry plan, section 0): drawn from its own mesh, which the
-// server builds from the numbers as the Build does (generated.py), on its template's materials by slot (the made mesh's
-// sections are slots 0 to 5 in order). Its numbers are its tile edges; its solid stops endInset short of each
-// (tools/bake/frac_wall.py RECIPE). Numbers the server can't draw (generated.py's limits) leave the template's mesh.
-// (its numbers: walls.js FRAC_WALL)
-// A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid, its section's height (one storey's
-// top 192: frac_wall.shaped) and thickness.
-function madeBounds(wall) {
-  // (its look's heights, insets and thickness: the Bar's for a look id, wallSpec's for a donor look)
-  const spec = wallSpec(wall), insets = endInsetsOf(wall), top = wallTop(wall), [e0, e1] = wall.ends ?? ['free', 'free'];
-  const a = wall.x0 + insets[e0], b = wall.x1 - insets[e1], hx = (b - a) / 2, hz = (top - spec.bottom) / 2;
-  return [(a + b) / 2, 0, spec.bottom + hz, hx, spec.half, hz, Math.hypot(hx, spec.half, hz)];
-}
-// A look in one spelling (generated.py donor_look): a look id as it is; a donor look (M4) its mesh, a ground look's
-// material, and the measurer's version.
-const spelledLook = look => (typeof look === 'object' && look
-  ? { mesh: look.mesh, ...(look.material ? { material: look.material } : {}), measure: look.measure } : look);
 // A made piece's request (custom geometry plan, M4): a donor look's at its kind's DONOR_VERSION with the look in its
 // numbers, a look id's (or none) at version 1 as before.
 // A made piece drawn plain (custom geometry editing plan, B2, 19 November 2026): its kind's default look's numbers at
@@ -1332,86 +1319,18 @@ function plainLook(kind, numbers = null) {
   const role = slabLookOf(numbers ?? {})?.role ?? 'roof';
   return { ...(SLAB_LOOKS.find(l => l.role === role) ?? SLAB_LOOKS[0]), plain: true };
 }
-// A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: its look's own storeys left out),
-// with its end styles where they are joined (`ends`, worked out from where it stands: refreshJoins; two free ends left out).
-const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
-                                seed: w.seed ?? 1, ...(w.storeys !== undefined && w.storeys !== wallSpec(w).storeys ? { storeys: w.storeys } : {}),
-                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
-                                ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
-// A made slab (custom geometry plan, M5): drawn from /generated/fracslab.glb (generated.py), its two sections (the top
-// with the edges, the underside) bound to its template's materials by slot; its bounds its footprint between its look's
-// heights.
-const FRAC_SLAB = { slots: 2 };
-const madeSlabNumbers = s => ({ x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, holes: (s.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 })),
-                                seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: spelledLook(s.look) } : {}) });
-function slabBounds(s) {
-  const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
-  return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
-}
-// A made piece's blasts (B5) in its mesh's key and request (generated.py: ?blasts=), none when it has none.
-const blastQuery = blasts => (blasts?.length ? { key: `|${JSON.stringify(blasts)}`, query: { blasts: JSON.stringify(blasts) } } : { key: '', query: {} });
-function madeSlabShape(template, s, blasts = null) {
-  const finite = v => typeof v === 'number' && Number.isFinite(v);
-  if (!s || !['x0', 'x1', 'y0', 'y1'].every(k => finite(s[k])) || !slabLookOf(s) || !Number.isInteger(s.seed ?? 1)
-    || (s.holes ?? []).length > SLAB.maxHoles) return {};
-  const numbers = madeSlabNumbers(s), broken = blastQuery(blasts), key = `made:fracslab:${JSON.stringify(numbers)}${broken.key}`;
-  if (!data.meshes[key]) {
-    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a slab'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
-      url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers), ...broken.query })}`,
-      sections: Array.from({ length: slabLookOf(numbers).sections ?? FRAC_SLAB.slots }, (_, slot) => ({ slot, count: 1 })), bounds: slabBounds(numbers) };
-  }
-  const slots = (data.meshes[template.mesh]?.sections ?? []).filter(x => x.count).map(x => x.slot);
-  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
-  return { mesh: key, materials: Array.from({ length: slabLookOf(numbers).sections ?? FRAC_SLAB.slots }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
-}
-// A ground shape (custom geometry plan, M6): drawn from /generated/ground.glb, its one section on its template's material.
-const madeGroundNumbers = g => ({ shape: g.shape, x0: g.x0, x1: g.x1, y0: g.y0, y1: g.y1, ...(g.shape === 'patch' ? {} : { height: g.height }),
-                                  ...(g.shape === 'rock' ? { seed: g.seed } : {}), ...(g.shape === 'rock' && g.points ? { points: g.points } : {}),
-                                  ...(g.look && g.look !== GROUND_LOOKS[0].id ? { look: spelledLook(g.look) } : {}) });
-function groundBounds(g) {
-  const b = groundShapeBox(g), h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
-  return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
-}
-function madeGroundShape(template, g) {
-  if (!g || !toolGround({ ...g, x0: 0, y0: 0, x1: g.x1 - g.x0, y1: g.y1 - g.y0 })) return {};
-  const numbers = madeGroundNumbers(g), key = `made:ground:${JSON.stringify(numbers)}`;
-  if (!data.meshes[key]) {
-    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'ground'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
-      url: `/generated/ground.glb?${new URLSearchParams({ ground: JSON.stringify(numbers) })}`,
-      sections: [{ slot: 0, count: 1 }], bounds: groundBounds(numbers) };
-  }
-  return { mesh: key, materials: [template.materials[0]] };
-}
 // A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces.
 function madeShape(template, generated) {
   const shape = madeShapeOf(template, generated);
   return isPlain(generated) && shape.materials
     ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
 }
+// A made piece's mesh and materials from its numbers (walls.js madeWallShape and madeSlabShape, ground.js
+// madeGroundShape: the mesh record goes into the scene's meshes), or {} when the server can't draw them.
 function madeShapeOf(template, generated) {
-  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts);
-  if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground);
-  const w = generated?.kind === 'fracWall' ? generated.wall : null;
-  const finite = v => typeof v === 'number' && Number.isFinite(v);
-  if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
-    || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
-      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)
-    || !(w.storeys === undefined || (Number.isInteger(w.storeys) && w.storeys >= 1 && w.storeys <= WALL.maxStoreys))
-    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
-  const wall = madeWallNumbers(w), broken = blastQuery(generated.blasts);
-  const key = `made:fracwall:${JSON.stringify(wall)}${broken.key}`;
-  if (!data.meshes[key]) {
-    // (`look`: the template's mesh, which Select all of a kind counts it as)
-    data.meshes[key] = { name: `${data.meshes[template.mesh]?.name ?? 'a wall'}, made from numbers`, kind: 'static', made: true,
-      look: data.meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
-      url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall), ...broken.query })}`,
-      sections: Array.from({ length: wallSpec(wall).sections }, (_, slot) => ({ slot, count: 1 })), bounds: madeBounds(wall) };
-  }
-  const slots = (data.meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
-  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
-  return { mesh: key, materials: Array.from({ length: wallSpec(wall).sections }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts, data.meshes);
+  if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground, data.meshes);
+  return generated?.kind === 'fracWall' ? madeWallShape(template, generated.wall, generated.blasts, data.meshes) : {};
 }
 // An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
 // A made piece stands at scale 1 whatever its donor's (custom geometry plan, M4b: the Build sets its DrawScale and
@@ -1435,7 +1354,7 @@ function addedObject(template, placed, { actor, entity, prefab, partner, locatio
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
     // `generated`: a fracturing wall the Build makes from numbers on this piece's materials (custom geometry plan,
-    // section 0), kept as the project has it; the view draws the template's own mesh
+    // section 0), kept as the project has it; the view draws the mesh made from its numbers (madeShapeOf)
     added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
              ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
 }
@@ -1454,7 +1373,7 @@ const coverVersion = (version, type) => {
 const validCoverValues = c => {
   const r = coverRecipe();
   if (!r || !c || !Object.hasOwn(r.heights, c.type) || !Array.isArray(c.size) || c.size.length !== 2) return false;
-  const across = r.maxTiles * 96, flat = r.flat?.includes(c.type);
+  const across = r.maxTiles * TILE, flat = r.flat?.includes(c.type);
   if (!c.size.every(v => Number.isFinite(v) && v > 0 && v <= across)) return false;
   if (flat) return Object.keys(c).length === 2;
   const span = r.heights.high[1] - r.heights.high[0] + r.heightStep * (r.maxHeight - 1), h = c.heights;
@@ -1576,9 +1495,8 @@ function askLineCollision() {
   if (lineCollisionAsked) return;
   lineCollisionAsked = true;
   if (builderMode) { lineCollision ??= new Map(); return; }
-  const map = activeMapId;
-  fetch(`/maps/${encodeURIComponent(map)}/collision.json`).then(r => (r.ok ? r.json() : null)).catch(() => null).then(reply => {
-    if (map !== activeMapId) return;
+  // (one map per page: the answer is always the open map's)
+  fetch(`/maps/${encodeURIComponent(activeMapId)}/collision.json`).then(r => (r.ok ? r.json() : null)).catch(() => null).then(reply => {
     lineCollision ??= new Map();
     lineCollisionFailed = !reply?.meshes;
     for (const [id, c] of Object.entries(reply?.meshes ?? {})) lineCollision.set(id, collisionMesh(c));
@@ -1613,133 +1531,15 @@ function groundAt(x, y, fromZ) {
   }
   return top;
 }
-// A cover piece's footprint against the map's tiles, as the game's tile rebuild reads it (research/native/cover-build.md,
-// sections 2 to 5; cover-block-handles-plan.md, section 1; EXP-59 to play). `at(u, v)` is a point of the piece's own
-// frame (its corner's floor, game axes) in the world, `local(x, y)` a world point across in its frame.
-function coverFrame(root) {
-  root.updateMatrixWorld(true);
-  const toLocal = root.matrixWorld.clone().invert();
-  const at = (u, v, w = 0) => { const p = new THREE.Vector3(u, w, v).applyMatrix4(root.matrixWorld); return [p.x, p.z, p.y]; };
-  const local = (x, y, z) => { const p = new THREE.Vector3(x, z, y).applyMatrix4(toLocal); return [p.x, p.z, p.y]; };
-  return { at, local };
-}
-// The game's numbers (cover-build.md): a tile is occupied when its box, 48 each way across and 28 to 92 over its level's
-// bottom, meets a piece at least 4 units through every way (or 384 across); fully occupied, with no floor to stand on,
-// when the middle 40 x 40 from 60 to 92 meets it too. Crossing to a neighbour is blocked by a sweep from 64 over the
-// floor to the neighbour's centre; cover by a sweep from the middle, 44 to 60 over the floor, meeting the piece within 88
-// of the middle, looked for only toward an occupied neighbour or from a partly occupied tile.
-// Sight is walked between the tiles one level above the floor (eye height: line-of-sight.md, section 2.3), whose own
-// blocking sweep runs from their centre, EYE_SWEEP over the floor level's bottom, and stops only at a piece that
-// blocks sight (a high block; low cover and blockers let units see past).
-const TILE_BOX = [48, 28, 92], TILE_MIDDLE = [20, 60, 92], WALL_SWEEP = 64, COVER_SWEEP = [44, 60], COVER_REACH = 88;
-const EYE_SWEEP = 96;
-/** A cover piece against the tiles round it: { tiles: [{ centre, occupied, full, carried }] (the tiles it reaches),
- *  thin, walls (the lines between neighbouring tiles' centres it blocks), looked (the ways tiles look for cover toward
- *  or from it), covered (the tiles that get cover from it), seen (the lines between tiles' centres it crosses at eye
- *  height, eye over its floor),
- *  sweep (false when it misses the height cover is looked for at), top (its floor's height) }. */
-function coverTiles(root) {
-  const c = root.userData.source.cover, [ox, oy] = gridOrigin() ?? [0, 0], oz = data?.tileGrid?.origin?.[2] ?? 0;
-  const { at, local } = coverFrame(root);
-  const corners = [[0, 0], [c.size[0], 0], [c.size[0], c.size[1]], [0, c.size[1]]].map(([u, v]) => at(u, v));
-  const xs = corners.map(p => p[0]), ys = corners.map(p => p[1]), z = corners[0][2];
-  const [h0, h1] = c.heights ?? coverBox(c, coverRecipe()).map(p => p[2]);
-  const inside = (x, y) => { const [u, v] = local(x, y, z); return u >= -1e-6 && v >= -1e-6 && u <= c.size[0] + 1e-6 && v <= c.size[1] + 1e-6; };
-  // the footprint's own axes in the world, for an exact test against a tile's square (separating axes)
-  const axes = [corners[1], corners[3]].map((q, k) => [(q[0] - corners[0][0]) / c.size[k], (q[1] - corners[0][1]) / c.size[k]]);
-  const meets = (cx, cy, half) => {
-    if (Math.max(...xs) <= cx - half + 1e-6 || Math.min(...xs) >= cx + half - 1e-6
-        || Math.max(...ys) <= cy - half + 1e-6 || Math.min(...ys) >= cy + half - 1e-6) return false;
-    return axes.every(([dx, dy], k) => {
-      const m = (cx - corners[0][0]) * dx + (cy - corners[0][1]) * dy, r = half * (Math.abs(dx) + Math.abs(dy));
-      return m + r > 1e-6 && m - r < c.size[k] - 1e-6;
-    });
-  };
-  // does the footprint cross the line from p to q (across)? (clipped to it in its own frame)
-  const crosses = (p, q) => {
-    const a = local(p[0], p[1], z), b = local(q[0], q[1], z);
-    let t0 = 0, t1 = 1;
-    for (let k = 0; k < 2; k++) {
-      const d = b[k] - a[k];
-      for (const [pk, qk] of [[-d, a[k]], [d, c.size[k] - a[k]]]) {
-        if (Math.abs(pk) < 1e-9) { if (qk < 1e-6) return false; continue; }
-        if (pk < 0) t0 = Math.max(t0, qk / pk); else t1 = Math.min(t1, qk / pk);
-      }
-    }
-    return t1 - t0 > 1e-6;
-  };
-  // heights against its floor's level (the level its location stands in)
-  const bottom = oz + 64 * Math.floor((z - oz) / 64 + 1e-6), lo = z + h0, hi = z + h1;
-  const spans = (a, b) => hi > bottom + a + 1e-6 && lo < bottom + b - 1e-6;
-  const thin = Math.min(c.size[0], c.size[1], h1 - h0) < 4 && Math.max(c.size[0], c.size[1]) < 384;
-  const tx0 = Math.floor((Math.min(...xs) - ox) / 96) - 1, tx1 = Math.ceil((Math.max(...xs) - ox) / 96);
-  const ty0 = Math.floor((Math.min(...ys) - oy) / 96) - 1, ty1 = Math.ceil((Math.max(...ys) - oy) / 96);
-  const centre = (tx, ty) => [ox + tx * 96 + 48, oy + ty * 96 + 48];
-  const tile = new Map(), key = (tx, ty) => `${tx},${ty}`;
-  for (let tx = tx0; tx <= tx1; tx++) {
-    for (let ty = ty0; ty <= ty1; ty++) {
-      const [cx, cy] = centre(tx, ty);
-      if (!meets(cx, cy, 47.5)) continue;
-      const occupied = !thin && spans(TILE_BOX[1], TILE_BOX[2]);
-      tile.set(key(tx, ty), { centre: [cx, cy], occupied, full: occupied && meets(cx, cy, TILE_MIDDLE[0]) && spans(TILE_MIDDLE[1], TILE_MIDDLE[2]),
-                              carried: inside(cx, cy) });
-    }
-  }
-  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  let walls = 0, looked = 0, seen = 0;
-  const covered = new Set(), wallUp = h0 < WALL_SWEEP && h1 > WALL_SWEEP, eyeUp = spans(EYE_SWEEP, EYE_SWEEP);
-  const sweep = h1 > COVER_SWEEP[0] && h0 < COVER_SWEEP[1];
-  for (let tx = tx0; tx <= tx1; tx++) {
-    for (let ty = ty0; ty <= ty1; ty++) {
-      const here = tile.get(key(tx, ty)), [cx, cy] = centre(tx, ty);
-      for (const [dx, dy] of DIRS) {
-        const next = tile.get(key(tx + dx, ty + dy));
-        // a wall: counted once, from the tile on its low side, between two tiles a unit can stand in
-        if ((dx > 0 || dy > 0) && wallUp && !here?.full && !next?.full && crosses([cx, cy], centre(tx + dx, ty + dy))) walls++;
-        if ((dx > 0 || dy > 0) && eyeUp && crosses([cx, cy], centre(tx + dx, ty + dy))) seen++;
-        // cover this way: looked for toward an occupied neighbour, or every way from a partly occupied tile
-        if (here?.full || !sweep || !(next?.occupied || (here?.occupied && !here.full))) continue;
-        looked++;
-        if (crosses([cx, cy], [cx + dx * (COVER_REACH + 1), cy + dy * (COVER_REACH + 1)])) covered.add(key(tx, ty));
-      }
-    }
-  }
-  return { tiles: [...tile.values()], thin, walls, looked, covered: covered.size, seen, eye: bottom + EYE_SWEEP - z, sweep, top: z };
-}
+// A cover piece against the tiles round it (cover.js coverTiles, the game's tile rebuild as research/native/cover-build.md
+// has it): its frame in the world, the tile grid's corner and the cover recipe.
+const coverTilesOf = root => coverTiles(root.userData.source.cover, coverFrame(root),
+  [...(gridOrigin() ?? [0, 0]), data?.tileGrid?.origin?.[2] ?? 0], coverRecipe());
 /** An invisible floor's tiles' centres on its top, [x, y, z] game units each: the map's tiles whose centre it covers,
  *  where the game looks for a tile's floor (one line straight down through the centre). */
 function floorCentres(root) {
-  const { tiles, top } = coverTiles(root);
+  const { tiles, top } = coverTilesOf(root);
   return tiles.filter(t => t.carried).map(t => [...t.centre, top]);
-}
-// What the game will do with a block, in words (coverTiles' model; EXP-59 to play): where units can stand, the tile
-// edges it walls off, and the cover it gives.
-function coverGameWords(root, g = coverTiles(root)) {
-  const c = root.userData.source.cover, [h0, h1] = c.heights;
-  const count = (n, one, many) => (n === 1 ? one : many.replace('#', n));
-  const occupied = g.tiles.filter(t => t.occupied).length, full = g.tiles.filter(t => t.full).length;
-  const stand = g.thin ? 'Under 4 units through: the game counts it as filling no tile, so units can stand all round it.'
-    : full ? `Units can't stand in the ${count(full, 'tile', '# tiles')} whose middle it fills.`
-    : occupied ? `It fills no tile's middle, so units can stand in the ${count(occupied, 'tile', 'tiles')} it reaches into.`
-    : 'It reaches no tile of the map.';
-  const walls = g.walls ? `It stops units crossing ${count(g.walls, 'the tile edge', 'the # tile edges')} it stands across, as a wall does.`
-    : (occupied && !full) || g.thin ? 'It stands across no line between tile centres 64 over the floor, so units walk past it.' : '';
-  const cover = isBlocker(c) ? 'Units beside it get no cover from it.'
-    : h1 <= COVER_SWEEP[0] ? `Its top is under ${COVER_SWEEP[0]} over the floor, below where the game looks for cover (${COVER_SWEEP[0]} to ${COVER_SWEEP[1]}): it gives none.`
-    : h0 >= COVER_SWEEP[1] ? `Its bottom is over ${COVER_SWEEP[1]} above the floor, above where the game looks for cover (${COVER_SWEEP[0]} to ${COVER_SWEEP[1]}): it gives none.`
-    : g.covered ? `Units in ${count(g.covered, 'the tile', 'the # tiles')} beside it get ${c.type} cover from it.`
-    : g.looked ? 'It stands off the lines the game looks for cover along, so it gives none.'
-    : 'No tile looks for cover toward it, since it fills none: it gives none.';
-  return ['Hidden in the game.', stand, walls, cover].filter(Boolean).join(' ');
-}
-// Its line of sight, in one sentence: a blocker and low cover are seen through or over; a high block stops sight where
-// it stands across the line between tiles at eye height (a unit beside it still leans round a short wall's ends).
-function coverSightWords(root, g = coverTiles(root)) {
-  const c = root.userData.source.cover;
-  if (isBlocker(c)) return 'Sight: units see and shoot through it.';
-  if (c.type === 'low') return 'Sight: units see and shoot over it, as over any low cover.';
-  return g.seen ? 'Sight: it blocks line of sight as a wall does, though a unit beside it can lean round its ends.'
-    : `Sight: it doesn't stand across eye height (${Math.round(g.eye)} over its floor), so units see and shoot past it.`;
 }
 /** How far an invisible floor's top stands over the ground at each of its tiles' centres (null where none is under). */
 const floorClearances = root => floorCentres(root).map(([x, y, z]) => { const g = groundAt(x, y, z + 96); return g == null ? null : z - g; });
@@ -1787,9 +1587,9 @@ function coverPanel(root) {
   if (floor) { $('coverSight').textContent = ''; floorNote(root); return; }
   const [h0, h1] = c.heights, below = h0 < 0 ? `${lengthWords(-h0)} below its floor` : h0 > 0 ? `${lengthWords(h0)} over its floor` : 'its floor';
   $('coverSize').textContent = `${sizeWords(c.size)} across, from ${below} to ${lengthWords(h1)} ${h1 < 0 ? 'below' : 'above'} it.`;
-  const g = coverTiles(root);
-  $('coverSight').textContent = coverSightWords(root, g);
-  $('coverNote').textContent = coverGameWords(root, g);
+  const g = coverTilesOf(root);
+  $('coverSight').textContent = coverSightWords(c, g);
+  $('coverNote').textContent = coverGameWords(c, g);
 }
 // A record and a render matrix put on a cover piece, its box drawn anew (no undo step: setCover and the handles' drags
 // make one).
@@ -1898,7 +1698,7 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
       names.add(name);
       twins.set(v.building, { id: newBuildingId(), meta: { name, kind: meta.kind ?? 'building' } });
     }
-    const root = makeVolume([0, 0, 0, 96, 96, 64], twins.get(v.building).id, v.floor);
+    const root = makeVolume([0, 0, 0, TILE, TILE, LEVEL], twins.get(v.building).id, v.floor);
     root.matrix.copy(delta.clone().multiply(v.matrix));
     setVolumeBox(root, volumeBox(root));
     root.userData.deleted = true;
@@ -2007,9 +1807,9 @@ function dropTarget(clip, at) {
   const [px, py] = clip.pivot;
   // a prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels, whatever the snap:
   // its pivot is a tile corner at ground level
-  if (clip.gridLocked) return [px + Math.round((x - px) / 96) * 96, py + Math.round((y - py) / 96) * 96, clip.pivot[2] + Math.round((z - clip.pivot[2]) / 64) * 64];
+  if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
   if (snapMode === 'fine') [x, y] = [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
-  else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / 96) * 96, py + Math.round((y - py) / 96) * 96];
+  else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE];
   if (clip.floor != null && levelSnap)
     z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
   // a light from the Add panel: at its template's height above what is under the cursor
@@ -2018,7 +1818,7 @@ function dropTarget(clip, at) {
   // first tile's), where the game looks for that tile's floor and the panel measures (floorCentres), whatever the snap:
   // with snap off the pivot stands anywhere in that tile, and the ground there can be a kerb's height off
   if (clip.groundFloor) {
-    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + 96 * Math.floor(([x, y][k] - o[k]) / 96) + 48) : [x, y];
+    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + TILE * Math.floor(([x, y][k] - o[k]) / TILE) + TILE / 2) : [x, y];
     const g = groundAt(at[0], at[1], z + 96); if (g != null) z = g + FLOOR_CLEARANCE;
   }
   return [x, y, z];
@@ -2026,7 +1826,7 @@ function dropTarget(clip, at) {
 // The move (viewer space) that takes the clip's pivot to a game location, turned by quarter turns about the pivot
 // (R while placing). Game (x, y, z up) is viewer (x, z, y).
 const moveTo = (clip, [x, y, z], turns = 0) => new THREE.Matrix4().makeTranslation(x, z, y)
-  .multiply(actorMatrix([0, 0, 0], [0, turns * 16384, 0]))
+  .multiply(actorMatrix([0, 0, 0], [0, turns * QUARTER, 0]))
   .multiply(new THREE.Matrix4().makeTranslation(-clip.pivot[0], -clip.pivot[2], -clip.pivot[1]));
 // A move (viewer space) of pieces ({ source, matrix } each), kept under tile snap to the pose rule of the first of them
 // that is a ladder, door, car, van or fracturing piece (the recipe snap, as the gizmo keeps it); any other move as it is.
@@ -2306,8 +2106,6 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  if (entry.lookPicker) { openLookPicker(entry.lookPicker); return; }      // a kind's Choose a look (M4c)
-  if (entry.wallLook) { startWallDrawing(entry.ground ? groundLookNow() : entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof), ground: entry.ground ?? null }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
   if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
@@ -2461,8 +2259,8 @@ function prefabRecords({ complete = false } = {}) {
   // map's bottom level stands on the builder's drawn grid, and what lies under the grid goes below 0. Builder ground
   // stays zero.
   const down = (v, o, step) => o + Math.floor((v - o + 0.5) / step) * step;
-  const origin = [down(low[0], grid[0], 96), down(low[1], grid[1], 96), grid[2]];
-  const tiles = [0, 1].map(k => Math.max(1, Math.ceil((high[k] - origin[k]) / 96 - 1e-4)));
+  const origin = [down(low[0], grid[0], TILE), down(low[1], grid[1], TILE), grid[2]];
+  const tiles = [0, 1].map(k => Math.max(1, Math.ceil((high[k] - origin[k]) / TILE - 1e-4)));
   const shift = new THREE.Matrix4().makeTranslation(-origin[0], -origin[2], -origin[1]);
   const pieces = [], left = [], donors = new Map(), names = new Map(), copied = [];
   let n = 0;
@@ -2623,7 +2421,7 @@ async function prefabClip(doc, step = null) {
   return { entries, volumes, buildingMeta: meta, left, name: doc.name, prefab: mark, wrap: mark, pivotIndex: 0,
            groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
            // held by the middle of its footprint, on a tile corner
-           pivot: [base[0] + Math.round(tiles[0] / 2) * 96, base[1] + Math.round(tiles[1] / 2) * 96, base[2]],
+           pivot: [base[0] + Math.round(tiles[0] / 2) * TILE, base[1] + Math.round(tiles[1] / 2) * TILE, base[2]],
            gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && !e.source.isEffect && pieceGrid(e.source)) };
 }
 function canRecoverPrefabSources(doc, missing) {
@@ -3268,8 +3066,8 @@ function align() {
 // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root
 // keeps its values in the package's terms (plan 9.1) now (`values`) and as exported or placed (`baseValues`).
 // Generated area lights are never edited: they follow their glowing piece (deriveAreaLights), which the export's
-// matcher found or the project binds (areaBindings). Lights never join a group; a lamp and its light can still be
-// selected together and moved in one move.
+// matcher found or the project binds (areaBindings). A light that can be edited joins a group as a piece does
+// (groupables); a generated one follows its piece instead.
 const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 const PL = 'TheWorld.PersistentLevel.';
 let lightsShown = false, areaShown = recall(AREA_SHOWN) === '1';
@@ -3287,7 +3085,6 @@ const solo = createSolo(world);
 const LIGHT_LABELS = { brightness: 'Brightness', radius: 'Radius', falloffExponent: 'Falloff', innerConeAngle: 'The inner cone',
                        outerConeAngle: 'The outer cone' };
 const REACH_WARN = 300;
-const isLightRoot = r => Boolean(r?.userData.light);
 const lightKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 const sameValue = (a, b) => (Array.isArray(a) ? Array.isArray(b) && a.length === b.length && a.every((v, k) => v === b[k]) : a === b);
 function changedValues(values, base) {
@@ -3997,7 +3794,7 @@ function lightClip(kind) {
     height = floor == null ? 200 : Math.max(16, template.location[2] - floor);
   } else if (families?.lightRecipes?.[kind]) {
     // a map without one: the editor's own, made from its built-in recipe (a spot light points down)
-    ({ source, values } = recipeLight({ kind, version: families.lightRecipes[kind].latest }, null, [0, 0, 0], kind === 'spot' ? [-16384, 0, 0] : [0, 0, 0]));
+    ({ source, values } = recipeLight({ kind, version: families.lightRecipes[kind].latest }, null, [0, 0, 0], kind === 'spot' ? [-QUARTER, 0, 0] : [0, 0, 0]));
     height = 256;
   } else { flashHint(`This map has no ${kind} light to copy`); return null; }
   return { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix), values }], pivot: [...source.location],
@@ -4426,8 +4223,8 @@ function refreshBuilder() {
     size.outside.length ? `Out of the grid: ${size.outside.slice(0, 8).join(', ')}${size.outside.length > 8 ? ' …' : ''}.` : ''].filter(Boolean).join('\n');
   $('builderSize').classList.toggle('warn', size.warnings.length > 0 || !size.verified);
   gridWarning();
-  const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / 96) * 96);
-  const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / 96) * 96);
+  const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / TILE) * TILE);
+  const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / TILE) * TILE);
   const key = [...lo, ...hi, ...size.origin, ...size.tiles, size.warnings.length].join(',');
   if (key === builderGroundKey) return;
   builderGroundKey = key;
@@ -4437,13 +4234,13 @@ function refreshBuilder() {
   plane.position.set((hi[0] + lo[0]) / 2, -0.2, (hi[1] + lo[1]) / 2); builderGround.add(plane);
   const lines = [], line = (x, y, X, Y) => lines.push(x, 0, y, X, 0, Y);
   // Bound drawing cost even when repairing a very large legacy prefab.
-  const step = Math.max(96, Math.ceil(Math.max(hi[0] - lo[0], hi[1] - lo[1]) / (256 * 96)) * 96);
+  const step = Math.max(TILE, Math.ceil(Math.max(hi[0] - lo[0], hi[1] - lo[1]) / (256 * TILE)) * TILE);
   for (let x = lo[0]; x <= hi[0]; x += step) line(x, lo[1], x, hi[1]);
   for (let y = lo[1]; y <= hi[1]; y += step) line(lo[0], y, hi[0], y);
   builderGround.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)),
     new THREE.LineBasicMaterial({ color: 0x91a9ac, transparent: true, opacity: 0.14 })));
   const [x, y] = size.origin, [nx, ny] = size.tiles;
-  const outline = [x, 0.4, y, x + nx * 96, 0.4, y, x + nx * 96, 0.4, y + ny * 96, x, 0.4, y + ny * 96, x, 0.4, y];
+  const outline = [x, 0.4, y, x + nx * TILE, 0.4, y, x + nx * TILE, 0.4, y + ny * TILE, x, 0.4, y + ny * TILE, x, 0.4, y];
   builderGround.add(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(outline, 3)),
     new THREE.LineBasicMaterial({ color: size.warnings.length ? 0xef9979 : 0x82d5ce })));
   for (const child of builderGround.children) child.raycast = () => {};
@@ -4460,7 +4257,7 @@ async function applyPrefabDocument(doc, { envelope = null, nextSerial = 0 } = {}
   try { carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress); }
   finally { builder.loading = false; }
   builder.kept = carried.added.map(({ id, ...p }) => p);
-  builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * 96, doc.floor.tiles[1] * 96, 0] : null;
+  builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * TILE, doc.floor.tiles[1] * TILE, 0] : null;
   refreshBuilder(); editChanged();
 }
 async function openPrefabDocument(id) {
@@ -4603,10 +4400,10 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     flashHint(`Saved ${doc.name} · revision ${result.revision}${!result.size?.verified ? ' · size unverified: missing pieces kept' : ''}`);
     return true;
   } catch (error) {
-    if (error.status === 409 && Number.isInteger(error.detail?.revision) && !name) {
+    if (error.status === 409 && Number.isInteger(error.body?.revision) && !name) {
       recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${builder.doc.name} was saved elsewhere (revision ${error.detail.revision}).`, [
-        ['Overwrite it with this', () => { builder.doc.revision = error.detail.revision; saveBuilder(); }],
+      banner(`${builder.doc.name} was saved elsewhere (revision ${error.body.revision}).`, [
+        ['Overwrite it with this', () => { builder.doc.revision = error.body.revision; saveBuilder(); }],
         ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
       ]);
     }
@@ -4679,7 +4476,7 @@ let templates = null, recoveryTimer = null, recoveryKept = false, saving = false
 const SESSION = uuid();
 let adoptedDraft = null, recoveryTrouble = null;
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-// Projects edit a full map's original layout: not a piece study or a patch preview.
+// Projects edit a full map's original layout: not a patch preview.
 const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
 // The edits on screen, as a project records them: overrides of original actors and added actors, sorted.
 function editState() {
@@ -5155,7 +4952,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
       const target = await projectApi.load(replace.id);
       if (target.source?.map !== activeMapId) throw new Error(`${target.name} is a project of another map.`);
       if (target.revision !== replace.revision)
-        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, detail: { revision: target.revision } });
+        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, body: { revision: target.revision } });
       base = { ...target, name, source }; expected = replace.revision;
     } else if (fresh) {
       if (!output) throw new Error('the map name is still being worked out; save again in a moment');
@@ -5209,13 +5006,13 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     return true;
   } catch (e) {
     // the map name shown was taken meanwhile: the dialog shows the one it would get now, and nothing is lost
-    if (fresh && e.status === 409 && e.detail?.proposal) throw e;
+    if (fresh && e.status === 409 && e.body?.proposal) throw e;
     // the project replaced was saved again since the dialog showed it: the dialog asks again
-    if (replace && e.status === 409 && Number.isInteger(e.detail?.revision)) throw e;
-    if (e.status === 409 && Number.isInteger(e.detail?.revision) && !name && !replace) {
+    if (replace && e.status === 409 && Number.isInteger(e.body?.revision)) throw e;
+    if (e.status === 409 && Number.isInteger(e.body?.revision) && !name && !replace) {
       recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.detail.revision}).`, [
-        ['Overwrite it with this', () => { project.revision = e.detail.revision; saveProject(); }],
+      banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.body.revision}).`, [
+        ['Overwrite it with this', () => { project.revision = e.body.revision; saveProject(); }],
         ['Open the saved one', () => discardAndGo({ map: activeMapId, project: project.doc.id, scene: null })],
       ]);
     } else banner(`Not saved: ${e.message}`);
@@ -5232,12 +5029,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
 // - the time so far against the project's last build, which gives the bar its estimate.
 // When the build ends, the window shows the package or why it failed, and closes with Close or Esc.
 let buildTimer = null, buildTicker = null, lastBuild = null, buildView = null;
-const BUILD_ROWS = [['snapshot', 'Read the project and its base map'], ['compile', 'Compile the edit'],
-                    ['patch', 'Build and cook the patch in UDK'], ['transplant', 'Bring the pieces from other maps'], ['light', 'Make the edit in the map and bake its lighting'],
-                    ['package', 'Write the variant folder']];
-const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const secondsBetween = (a, b) => Math.max(0, ((b ? new Date(b).getTime() : Date.now()) - new Date(a).getTime()) / 1000);
-const sentence = s => s.charAt(0).toUpperCase() + s.slice(1);
+// (the window's words: build_window.js)
 // Whether Build can start now: false (with a hint) without a saved project or while a build runs.
 function canBuild() {
   if (!projectsAvailable() || saving) return false;
@@ -5334,58 +5126,6 @@ function closeBuildWindow() {
   $('buildModal').hidden = true;
   if (buildView && !buildView.ended) { buildView.attempt = null; buildTimer = setTimeout(pollBuild, 5000); }
 }
-const copyCount = n => n === 1 ? '1 copy' : `${n} copies`;
-// A step's line under its name: what it made once done, or what it is doing while it runs.
-// The Build's light counts (build.py light_counts): placed lights moved, changed, added and deleted, and the glow
-// lights following their pieces.
-function lightWords(l) {
-  if (!l) return '';
-  const placed = [l.moved && `${l.moved} moved`, l.changed && `${l.changed} changed`,
-                  l.added && `${l.added} added${l.recipeSpots ? ` (${l.recipeSpots} from the recipe)` : ''}`, l.deleted && `${l.deleted} deleted`];
-  const glow = l.area ? (l.area.moved || 0) + (l.area.copied || 0) + (l.area.deleted || 0) : 0;
-  return [placed.some(Boolean) && `lights ${placed.filter(Boolean).join(', ')}`,
-          glow && `${plural(glow, 'glow light')} following ${plural(l.area.pieces?.length ?? 0, 'piece')}`].filter(Boolean).join('; ');
-}
-// the writer's record of pieces' flags (build.py flag_record): the pieces written and read back, any it refused
-function flagWords(f) {
-  if (!f) return '';
-  const pieces = (f.inPlace ?? 0) + (f.onCopies ?? 0) - (f.refused?.length ?? 0);
-  return [`flags written on ${plural(pieces, 'piece')}`, f.regions && `${plural(f.regions, 'tile region')} worked out again`,
-          f.refused?.length && `not written on ${f.refused.join(', ')}`].filter(Boolean).join(', ');
-}
-function buildStepDetail(key, stage, job, running) {
-  if (key === 'compile' && stage) {
-    const say = (parts, where) => (parts = parts.filter(Boolean)).length ? `${parts.join(' and ')} ${where}` : '';
-    return [say([stage.nativeCopies && copyCount(stage.nativeCopies), stage.hides && plural(stage.hides, 'hidden piece')], 'made in the map'),
-            say([stage.copierCopies && copyCount(stage.copierCopies), stage.patchHides && plural(stage.patchHides, 'hidden piece')], 'for the patch'),
-            lightWords(stage.lights), stage.pieceFlags && `${plural(stage.pieceFlags, 'piece')} with flags changed in place`,
-            stage.leftOut ? `${plural(stage.leftOut, 'piece')} left out (listed below)` : '']
-      .filter(Boolean).join('; ');
-  }
-  if (key === 'patch' && stage?.bytes) return `${Math.round(stage.bytes / 1024)} KB cooked`;
-  if (key === 'transplant' && stage) {
-    // pieces, and effects and sounds (effects and sounds plan, FX4) and lens flares (FX6b: counted among the
-    // effects, and of their own), each donor's actors staged once
-    const sum = k => stage.donors.reduce((n, d) => n + (d[k] ?? 0), 0), pieces = sum('pieces'), flares = sum('flares'), effects = sum('effects') - flares;
-    const what = [pieces && plural(pieces, 'piece'), effects && `${effects} ${effects === 1 ? 'effect or sound' : 'effects and sounds'}`,
-                  flares && plural(flares, 'lens flare')]
-      .filter(Boolean).join(' and ') || plural(stage.foreignPieces, 'piece');
-    return `${what} from ${stage.donors.map(d => d.map).join(', ')}: ${kilobytes(sum('bytes'))} more in the map`;
-  }
-  if (key === 'light' && stage?.baked === false)    // a quick build's: the edit made, nothing relit
-    return [stage.nativeCopies && `${copyCount(stage.nativeCopies)} made`, stage.hidden && `${stage.hidden} taken out`,
-            stage.lights && 'light edits made', flagWords(stage.pieceFlags), 'lighting not baked'].filter(Boolean).join(', ');
-  // a build whose light edits change no texel (a light added switched off) keeps the map's lighting
-  if (key === 'light' && stage?.lightingUnchanged) return ['lighting unchanged: no texel to relight', flagWords(stage.pieceFlags)].filter(Boolean).join('; ');
-  if (key === 'light' && stage) return [`${plural(stage.written, 'piece')} relit`, `${stage.unchanged} unchanged`,
-                                        stage.hidden && `${stage.hidden} taken out`, flagWords(stage.pieceFlags),
-                                        stage.otherPiecesChanged && `${plural(stage.otherPiecesChanged.count, 'piece')} not relit changed too (below)`]
-    .filter(Boolean).join(', ');
-  if (!running) return '';
-  const p = job.progress;
-  if (p) return sentence(p.total ? `${p.what}: ${p.done} of ${p.total}` : `${p.what}…`);
-  return job.running ? `${sentence(job.running)}…` : '';
-}
 function renderBuild() {
   const { status, estimate, failures } = buildView, job = status.job;
   const running = status.state === 'running', built = status.state === 'built';
@@ -5404,80 +5144,53 @@ function renderBuild() {
     : built ? `Revision ${job.revision}, in ${clock(elapsed)}.${quick ? ' Its lighting is not baked: in the game the edit\'s lighting is wrong, while pathing, cover and line of sight are as a full build makes them. Build with Bake the lighting ticked for the proper lighting.' : ''}${buildView.thenInstall || install ? ''
       : playable ? ' Nothing is installed yet: Play in game installs it and starts the game in a battle on it.' : ' Nothing is installed: the package\'s README says how.'}`
     : `Revision ${job.revision}, stopped after ${clock(elapsed)}.`;
-  // the steps: done with their times, the one running with its progress. The patch's shows only once the compile
-  // leaves the patch something, which no project the compiler accepts does today: its edit is made in the map itself.
+  // the steps: done with their times, the one running with its progress (build_window.js buildSteps)
   const stages = Object.fromEntries((job.stages || []).map(s => [s.stage, s]));
-  const compiled = stages.compile;
-  const patchMade = Boolean(stages.patch ? !stages.patch.skipped : compiled?.copierCopies || compiled?.patchHides);
   const list = $('buildSteps');
   list.replaceChildren();
-  let from = job.startedAt, reached = false;
-  for (const [key, label] of BUILD_ROWS) {
-    const end = key === 'package' ? (built ? job.finishedAt : null) : stages[key]?.at;
-    if (key === 'patch' && !patchMade) { if (end) from = end; continue; }
-    if (key === 'transplant' && !(stages.transplant || compiled?.foreignCopies)) continue;
-    const state = end ? 'done' : reached ? 'todo' : running ? 'now' : built ? 'done' : 'failed';
-    if (state === 'now' || state === 'failed') reached = true;
-    const li = text(list, 'li', '', state);
+  for (const step of buildSteps(status)) {
+    const li = text(list, 'li', '', step.state);
     text(li, 'span', '', 'stepmark');
-    const what = text(li, 'span', key === 'light' && quick ? 'Make the edit in the map (lighting not baked)' : label, 'what');
-    const detail = buildStepDetail(key, stages[key], job, state === 'now');
-    if (detail) text(what, 'small', detail);
-    if (state === 'now' && job.progress?.total) {
-      const bar = text(what, 'span', '', 'stepbar');
-      text(bar, 'span').style.width = `${(100 * job.progress.done / job.progress.total).toFixed(1)}%`;
-    }
-    text(li, 'span', ['done', 'now', 'failed'].includes(state) ? clock(secondsBetween(from, end ?? job.finishedAt)) : '', 'time');
-    if (end) from = end;
+    const what = text(li, 'span', step.label, 'what');
+    if (step.detail) text(what, 'small', step.detail);
+    if (step.progress !== null) text(text(what, 'span', '', 'stepbar'), 'span').style.width = `${(100 * step.progress).toFixed(1)}%`;
+    text(li, 'span', step.time, 'time');
   }
-  // the pieces the compiler left out (plan "sturdier prefabs", R4): the build goes on without them; a row selects
-  // its piece
-  // (with those the Build itself could not make: its `leftout` stage, build.py drop_untried)
-  const gone = [...(compiled?.leftOutPieces ?? []), ...(stages.leftout?.pieces ?? [])], goneList = $('buildLeftOut');
-  goneList.hidden = !gone.length;
+  // the pieces left out of the build: it goes on without them; a row selects its piece
+  const gone = leftOutList(status), goneList = $('buildLeftOut');
+  goneList.hidden = !gone;
   goneList.replaceChildren();
-  if (gone.length) {
-    // the heading's count and the "… and N more" line's agree: the compiler's and the Build's own left-out pieces
-    const goneCount = (compiled?.leftOut ?? compiled?.leftOutPieces?.length ?? 0) + (stages.leftout?.count ?? 0) || gone.length;
-    const shownGone = Math.min(gone.length, 50);
-    text(goneList, 'li', `${plural(goneCount, 'piece')} left out of this build: ${gone.length === 1 ? 'it' : 'they'} can't be built. The rest ${running ? 'is being built' : built ? 'is built' : 'was being built'}.`, 'head');
-    for (const row of gone.slice(0, 50)) {
+  if (gone) {
+    text(goneList, 'li', gone.head, 'head');
+    for (const row of gone.rows) {
       const li = text(goneList, 'li', row.message, row.actor ? 'pick' : '');
       if (row.actor) { li.title = `Select ${short(row.actor)}`; li.onclick = () => selectActors([row.actor]); }
     }
-    if (goneCount > shownGone) text(goneList, 'li', `… and ${goneCount - shownGone} more (the build's compile-report.json has them all)`);
+    if (gone.more) text(goneList, 'li', gone.more);
   }
-  // what the edit does to the missions the variant keeps (the compiler's mission warnings, mission types plan C3), by
-  // mission: warnings only, the build goes on
-  const warned = compiled?.missionWarnings ?? [], missionList = $('buildMissions');
-  missionList.hidden = !warned.length;
+  // what the edit does to the missions the variant keeps, by mission: a row shows its object's marker
+  const warned = missionWarnings(status), missionList = $('buildMissions');
+  missionList.hidden = !warned;
   missionList.replaceChildren();
-  if (warned.length) {
-    const count = compiled.missionWarningCount ?? warned.length, byMission = new Map();
-    for (const row of warned) { if (!byMission.has(row.mission)) byMission.set(row.mission, []); byMission.get(row.mission).push(row); }
-    text(missionList, 'li', `${plural(count, 'mission warning')}: what the edit does to ${byMission.size === 1 ? 'a mission' : `${byMission.size} missions`} the variant keeps. The build goes on; move the piece, or drop the mission from the project.`, 'head');
-    for (const [mission, rows] of byMission) {
+  if (warned) {
+    text(missionList, 'li', warned.head, 'head');
+    for (const [mission, rows] of warned.missions) {
       text(missionList, 'li', mission ?? 'A mission', 'mission');
       for (const row of rows) {
         const li = text(missionList, 'li', row.message.replace(/^[^:]*: /, ''), row.actor ? 'pick' : '');
         if (row.actor) { li.title = `Show ${short(row.actor)} (its marker, the Normal button's Spawn points and objectives)`; li.onclick = () => showSpawn(row.actor, row.stream ?? null); }
       }
     }
-    if (count > warned.length) text(missionList, 'li', `… and ${count - warned.length} more (the build's compile-report.json has them all)`);
+    if (warned.more) text(missionList, 'li', warned.more);
   }
   // the bar: the time so far against the last build's, or a moving bar when there is none to go by
-  const bar = $('buildBar'), barText = $('buildBarText');
-  bar.className = `buildbar ${status.state}${running && !estimate ? ' indeterminate' : ''}`;
-  const share = running ? (estimate ? Math.min(elapsed / estimate, 0.97) : 0.3) : built ? 1 : Math.min(elapsed / (estimate || elapsed || 1), 1);
-  bar.firstElementChild.style.width = `${(100 * share).toFixed(1)}%`;
-  const last = quick ? 'the last unbaked build' : 'the last baked build';
-  barText.textContent = !running ? '' : !estimate ? `This project hasn't had ${quick ? 'an unbaked' : 'a baked'} build before, so there is no time to go by.`
-    : elapsed < estimate ? `About ${clock(estimate - elapsed)} left, going by ${last} (${clock(estimate)}).`
-    : `Taking longer than ${last} (${clock(estimate)}).`;
+  const bar = $('buildBar'), shownBar = buildBar(status, estimate, elapsed);
+  bar.className = shownBar.className;
+  bar.firstElementChild.style.width = `${(100 * shownBar.share).toFixed(1)}%`;
+  $('buildBarText').textContent = shownBar.text;
   // the log: its latest lines, or all the server keeps (the last 40)
-  const lines = (job.lines || []).filter(l => !/^\w+: \{/.test(l) && !l.trimStart().startsWith('$ ')).map(l => l.trim()).filter(Boolean);
   // (written only when it changes; the full log follows its end unless it was scrolled up to read)
-  const log = $('buildLog'), shown = (buildView.fullLog ? job.lines || [] : lines.slice(-4)).join('\n') || '…';
+  const log = $('buildLog'), shown = logText(job, buildView.fullLog);
   const wasFull = log.classList.contains('full'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
   if (log.textContent !== shown) log.textContent = shown;
   log.classList.toggle('full', buildView.fullLog);
@@ -5665,8 +5378,7 @@ function playMissionNote(value) {
   }
   return missionNote(playStatus?.missionKinds, m?.mission);
 }
-// a play's mission as the server takes it: a record's index, or an added kind
-const missionRequest = value => (String(value).startsWith('kind:') ? String(value).slice(5) : Number(value) || 0);
+// (a play's mission as the server takes it: play.js missionRequest)
 // The header's picker follows the mission played, so the streams on screen are that mission's.
 function followPlayedMission(value) {
   const v = String(value);
@@ -5683,8 +5395,7 @@ async function refreshInstalls() {
   renderInstalls($('installInfo'), playStatus, mapLabel);
   renderPlayItems();
 }
-// Why the game can't be played now, going by the server's play status (null: it can, or it isn't known yet).
-const playBlocked = s => !s ? null : s.error ?? (!s.install?.ready ? s.install?.why ?? 'asking the server' : s.launch && !s.launch.how ? s.launch.why : null);
+// (why the game can't be played now: play.js playBlocked)
 // The header's Build and Play buttons and the Game menu's Game maps: what each can do now, and why not.
 function renderPlayItems() {
   const s = playStatus, play = $('projectPlay'), maps = $('projectMaps'), build = $('projectBuild');
@@ -5709,23 +5420,7 @@ function renderPlayItems() {
     : `Start the game in a battle on the original ${mapLabel(activeMapId)} (no project open, so no edits), in ${where}: no campaign to start, and nothing is installed (but a copy of the map's record where the game comments its records out: the tutorial's map)`;
   maps.title = `The map records of ${where} as the game reads them now: which are in rotation, which a project's build replaces or adds to, and each one switched off or on. It undoes what the editor changed${s?.game?.anything ? ' (there is something of the editor\'s in the game now)' : ''}`;
 }
-// The "Starting XCOM" message: what is played, what to do at the main menu when saving is on, and anything the play
-// goes without or should know, one short paragraph each.
-function playedMessage(r) {
-  const p = r.played;
-  const what = (p.kind === 'project' ? `${p.project?.name}, revision ${p.project?.revision}${p.quick ? ' (lighting not baked)' : ''}`
-    : `${mapLabel(p.map)} (original map)`) + (p.mission?.label ? `, ${p.mission.label}` : '');
-  return [
-    p.how === 'dry' ? `Starting XCOM is left out here (serve --dry-play): ${what}.` : `Starting XCOM: ${what}.`,
-    p.how === 'steam' ? 'Pick Enemy Within if the game\'s launcher asks.' : null,
-    p.saving ? `At the main menu, press ${p.saving.key} to start the battle.` : null,
-    p.squad ? `Squad: ${p.squad.name}, ${p.squad.count} unit${p.squad.count === 1 ? '' : 's'}${p.squad.warnings?.length
-      ? ` (${p.squad.warnings.length} warning${p.squad.warnings.length === 1 ? '' : 's'}: Test squad setup lists them)` : ''}.` : null,
-    ...(p.mission?.missing ?? []),
-    p.introBack ? 'The first mission an earlier version of the editor installed is the game\'s own again.' : null,
-    p.note,
-  ].filter(Boolean).join('\n');
-}
+// (the "Starting XCOM" message: play.js playedMessage)
 async function playInGame(zoned) {
   if (zoned !== true) playZone = null;
   showPop(null);
@@ -5788,7 +5483,7 @@ async function playChosen(kind, mission = null, saving = false) {
 }
 async function sendPlay(request, label) {
   flashHint(`Starting the game on ${label}…`);
-  try { const r = await playApi.start(request); playStatus = r; banner(playedMessage(r), [], playedFor(r)); }
+  try { const r = await playApi.start(request); playStatus = r; banner(playedMessage(r, mapLabel), [], playedFor(r)); }
   catch (e) { banner(e.message, [['Try again', playAgain]]); }
 }
 // how long the "Starting XCOM …" message stays: a play with saving on keeps it until dismissed (it says the key)
@@ -5813,7 +5508,7 @@ async function playBuilt(id, attempt = null) {
   try {
     const r = await playApi.start(withZone({ project: id, ...(attempt ? { attempt } : {}) }));
     playStatus = r;
-    buildView.install = { state: 'done', message: playedMessage(r), saving: Boolean(r.played?.saving) };
+    buildView.install = { state: 'done', message: playedMessage(r, mapLabel), saving: Boolean(r.played?.saving) };
   }
   catch (e) { buildView.install = { state: 'failed', message: e.message }; }
   if (!$('buildModal').hidden) renderBuild();
@@ -5880,9 +5575,7 @@ async function checkPrefab() {
   if (!doc.pieces.length && !doc.buildings.length) { Object.assign(problems, { result: null, error: null, key }); problemsPaint(); return; }
   problems.running = true; problemsPaint();
   try {
-    const response = await fetch('/prefab-tests/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot: doc }) });
-    const value = await response.json().catch(() => ({}));
-    if (!response.ok) throw Error(value.error ?? `the server said ${response.status}`);
+    const value = await call('POST', '/prefab-tests/check', { snapshot: doc }, { fallback: r => `the server said ${r.status}` });
     Object.assign(problems, { result: value, error: null, key });
   } catch (error) { Object.assign(problems, { result: null, error: error.message, key }); }
   finally { problems.running = false; problemsPaint(); }
@@ -5968,13 +5661,7 @@ const fileDialog = createProjectDialog({
 // for the project manager and for the chip in the top bar, which says where the queue is (and its results, until
 // Clear or the next Build) and opens the manager. A row of the open project's that starts or ends refreshes its
 // build state (its package), even when the server has gone on to the next row.
-async function queueCall(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, body: value });
-  return value;
-}
+const queueCall = (method, url, body) => call(method, url, body, { init: { cache: 'no-store' } });
 const buildQueue = createQueueController({
   get: () => queueCall('GET', '/manager/queue.json'),
   post: (action, body) => queueCall('POST', action === 'add' ? '/manager/queue' : `/manager/queue/${action}`, body),
@@ -6150,8 +5837,8 @@ function plainMaterial() {
     local?.(shader, r);
     shader.uniforms.plainTileOrigin = { value: new THREE.Vector2(origin[0], origin[1]) };
     shader.fragmentShader = `uniform vec2 plainTileOrigin;\n${shader.fragmentShader}`.replace('#include <dithering_fragment>', `#include <dithering_fragment>
-      vec2 plainTile = (vLocalWorld.xz - plainTileOrigin) / 96.0;
-      vec2 plainDist = abs(fract(plainTile + 0.5) - 0.5) * 96.0;
+      vec2 plainTile = (vLocalWorld.xz - plainTileOrigin) / ${TILE.toFixed(1)};
+      vec2 plainDist = abs(fract(plainTile + 0.5) - 0.5) * ${TILE.toFixed(1)};
       float plainWidth = max(0.6, length(fwidth(vLocalWorld.xz)) * 0.8);
       gl_FragColor.rgb *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, plainWidth, min(plainDist.x, plainDist.y)));`);
   };
@@ -6317,19 +6004,9 @@ function removeRoots(list) {
   for (const root of list) { roots.delete(root.userData.source.id); content.remove(root); }
   pickables.splice(0, pickables.length, ...pickables.filter(p => !parts.has(p)));
 }
-// The piece's unedited matrix: as exported (for a copy, where it was placed), or at its study position in sample mode.
+// The piece's unedited matrix: as exported (for a copy, where it was placed).
 function baseMatrix(root) {
-  const obj = root.userData.source, matrix = new THREE.Matrix4().fromArray(obj.matrix);
-  if (data.scope === 'sample' && !originalPositions && !obj.added) {
-    const carLocation = data.objects.find(o => short(o.actor) === 'XComDestructibleActor_20')?.location || [0,0,0];
-    const name = short(obj.actor);
-    const anchor = name === 'XComLevelActor_242' ? [0,0,0] : name === 'XComDecoFracLevelActor_9' ? [-230,0,0] : [150,1,0];
-    const source = name === 'XComFracLevelActor_10' ? carLocation : obj.location;
-    matrix.elements[12] += anchor[0] - source[0];
-    matrix.elements[13] += anchor[1] - source[2];
-    matrix.elements[14] += anchor[2] - source[1];
-  }
-  return matrix;
+  return new THREE.Matrix4().fromArray(root.userData.source.matrix);
 }
 function placeObjects() {
   for (const root of roots.values()) {
@@ -6563,11 +6240,10 @@ function ownSize() {
     ownGrid = { dims: [...data.tileGrid.dimensions], max: [...data.playableBounds.max] };
   return ownGrid;
 }
-// Whether the map's size can be set: on any whole map (13 November), growing only while it is as it is, and any way, in
-// any of the three, once it is cleared (Clear map plan, section 6). On the bare map a new map starts from
-// (project.js STAGE_MAPS) the Build lays its ground over the new area.
+// The map's size can be set on any whole map (13 November), growing only while it is as it is, and any way, in any of
+// the three, once it is cleared (Clear map plan, section 6). Whether this is the bare map a new map starts from
+// (project.js STAGE_MAPS): the Build lays its ground over the new area.
 const bareMap = () => STAGE_MAPS.includes(activeMapId);
-const sizeEditable = () => Boolean(ownSize());
 // The grid a stage asks for, as [nx, ny, nz], when this map can take it; else null (the map's own size)
 function stageDims(next, own = ownSize()) {
   if (!own || !next || !validStage(next, own.dims)) return null;
@@ -6581,7 +6257,7 @@ function stageDims(next, own = ownSize()) {
 function showGrid(dims) {
   const own = ownSize();
   if (!own) return;
-  const [nx, ny, nz] = dims ?? own.dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const [nx, ny, nz] = dims ?? own.dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   data.tileGrid.dimensions[0] = nx; data.tileGrid.dimensions[1] = ny; data.tileGrid.dimensions[2] = nz;
   data.playableBounds.max[0] = dims ? ox + nx * sx : own.max[0];
   data.playableBounds.max[2] = dims ? oy + ny * sy : own.max[2];
@@ -6600,7 +6276,7 @@ function setStage(next) {
   // a map grown as it is: the new area as a faint sheet, green where the Build lays the map's ground (where it is laid
   // as planes), grey where the project asked for none
   if (!dims || cleared) return;
-  const [nx, ny] = dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [96, 96];
+  const [nx, ny] = dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [TILE, TILE];
   const x1 = ox + own.dims[0] * sx, x2 = ox + nx * sx, y1 = oy + own.dims[1] * sy, y2 = oy + ny * sy;
   for (const [ax, ay, bx, by] of [[x1, oy, x2, y2], [ox, y1, x1, y2]]) {
     if (bx - ax < 1 || by - ay < 1) continue;
@@ -6735,7 +6411,7 @@ function startGridDrag(e) {
 function moveGridDrag(e) {
   const d = gridDrag, t = alongLine(e.clientX, e.clientY, d.origin, d.dir);
   if (t === null) return;
-  const step = (data.tileGrid.size ?? [96, 96, 64])[d.axis], rule = gridRule();
+  const step = (data.tileGrid.size ?? [TILE, TILE, LEVEL])[d.axis], rule = gridRule();
   const n = Math.min(rule.max[d.axis], Math.max(rule.min[d.axis], d.from[d.axis] + Math.round((t - d.t0) / step)));
   if (n === d.dims[d.axis]) return;
   d.dims[d.axis] = n;
@@ -6796,7 +6472,7 @@ function groundHeight() {
 }
 const LEVEL_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
 function groundWords(levels) {
-  const oz = data.tileGrid.origin[2], sz = data.tileGrid.size?.[2] ?? 64, ground = groundHeight();
+  const oz = data.tileGrid.origin[2], sz = data.tileGrid.size?.[2] ?? LEVEL, ground = groundHeight();
   const under = Math.max(0, Math.floor((ground - oz + 2) / sz));
   if (under >= levels) return `The ground is at ${Math.round(ground)}, above the grid's top: the grid needs ${under + 1} levels or more.`;
   return `The ground is at level ${under + 1} of ${levels}: ${under ? `${LEVEL_WORDS[under] ?? under} level${under === 1 ? '' : 's'} of the grid ${under === 1 ? 'is' : 'are'}` : 'no level of the grid is'} under it.`;
@@ -6804,7 +6480,7 @@ function groundWords(levels) {
 // The notes under a size, none of which blocks (warn, don't block): zones outside the grid, no room for LWR's pods
 // (F-90), the ground above the grid
 function sizeNotes([nx, ny, nz], zoneList = null) {
-  const notes = [], [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const notes = [], [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   const box = [ox, oy, oz, ox + nx * sx, oy + ny * sy, oz + nz * sz];
   const zones = zoneList ?? zonesNow();
   const inside = p => p[0] >= box[0] && p[0] <= box[3] && p[1] >= box[1] && p[1] <= box[4] && p[2] >= box[2] && p[2] <= box[5];
@@ -6821,7 +6497,7 @@ function sizeNotes([nx, ny, nz], zoneList = null) {
 // The play area a clear that keeps the scenery outside goes by, across, in game units [x0, y0, x1, y1]: the map's level
 // volume as exported and the grid of `dims` tiles together (the compiler's outside_box)
 function outsideBox(dims = data.tileGrid.dimensions) {
-  const own = ownSize(), b = data.playableBounds, [ox, oy] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [96, 96, 64];
+  const own = ownSize(), b = data.playableBounds, [ox, oy] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   return [Math.min(b.min[0], ox), Math.min(b.min[2], oy), Math.max(own?.max[0] ?? b.max[0], ox + dims[0] * sx),
           Math.max(own?.max[2] ?? b.max[2], oy + dims[1] * sy)];
 }
@@ -6929,7 +6605,7 @@ function clearSize() {
 }
 function showClearMap() {
   showPop(null);
-  if (!projectsAvailable() || !ownSize()) { banner('Clear map is for a whole map, not a piece study, a preview or the prefab builder.'); return; }
+  if (!projectsAvailable() || !ownSize()) { banner('Clear map is for a whole map, not a preview or the prefab builder.'); return; }
   clearSize();
   clearDialog.root.hidden = false;
   setTimeout(() => $('clearMapOk').focus(), 0);
@@ -7180,7 +6856,7 @@ function refreshGroundGrid(force = true) {
   if (!force && key === groundGridKey) return;
   groundGridKey = key;
   for (const child of [...groundGrid.children]) { child.geometry.dispose(); groundGrid.remove(child); }
-  const [ox, oy] = data.tileGrid.origin, [nx, ny] = data.tileGrid.dimensions, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const [ox, oy] = data.tileGrid.origin, [nx, ny] = data.tileGrid.dimensions, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   const covered = new Set();
   for (const f of data.tactical?.floorTiles ?? []) {
     if (f.location[2] <= ground + sz / 2 && floorStays(f.actor)) covered.add(`${f.tile[0]},${f.tile[1]}`);
@@ -7234,7 +6910,7 @@ const NORMAL_SPAWNS = 'workshop.normalSpawns', SPAWN_FILTERS = 'workshop.spawnFi
 {
   const old = recall('workshop.missionObjects');
   if (old !== null && recall(NORMAL_SPAWNS) === null) remember(NORMAL_SPAWNS, old === '0' ? '0' : '1');
-  try { localStorage.removeItem('workshop.missionObjects'); } catch { /* not kept */ }
+  forget('workshop.missionObjects');
 }
 normalSpawns = recall(NORMAL_SPAWNS) === '1';
 const spawnLayer = new THREE.Group(); world.add(spawnLayer);
@@ -7368,7 +7044,7 @@ function copySpawn(key) {
   if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
   const at = spawnAt(e), now = missionMoves.get(key);
   const actor = copyName(o), k = spawnKey('copy', actor), box = o.kind === 'noSpawn' ? spawnBoxNow(e) : null;
-  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]], box: box && [box[0] + 96, box[1], box[2], box[3] + 96, box[4], box[5]],
+  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + TILE, at[1], at[2]], box: box && [box[0] + TILE, box[1], box[2], box[3] + TILE, box[4], box[5]],
                                rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
   const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
@@ -7417,7 +7093,7 @@ function placeSpawn(clientX, clientY) {
   let entry;
   if (kind === 'noSpawn') {
     // a volume: its box over whole tiles round the click, its bottom on the level of the surface under it
-    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [96, 96, 64] };
+    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [TILE, TILE, LEVEL] };
     const box = volumePlace(template, [hit.x, hit.z, hit.y], groundAt(hit.x, hit.z, hit.y + 64), grid);
     entry = copyEntry(template, { id: uuid(), actor, box, spawn: {} });
   } else {
@@ -7585,8 +7261,8 @@ function spawnPanel() {
   else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
   else {
     const d = moved.location.map((v, i) => v - o.location[i]);
-    const levels = Math.abs(Math.round(d[2] / 64));
-    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
+    const levels = Math.abs(Math.round(d[2] / LEVEL));
+    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / TILE)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
   }
   if (movable) {
     // a stream's copy replaces it in every record that streams it (keyed by the source package): name them all
@@ -7622,7 +7298,7 @@ function spawnEditControls(e, entry) {
   const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
   const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
   if (TURNED_KINDS.includes(base.kind)) {
-    for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left ([)'], ['Turn right', 16384, 'A quarter turn to the right (])']]) {
+    for (const [label, turn, title] of [['Turn left', -QUARTER, 'A quarter turn to the left ([)'], ['Turn right', QUARTER, 'A quarter turn to the right (])']]) {
       button(label, `${title}: its units drop in from a tile behind it (high up, for a wave's) and land facing its way`, () => edit({ turn }, `Turned the drop-in point a quarter ${turn > 0 ? 'right' : 'left'}`));
     }
   }
@@ -7705,7 +7381,7 @@ const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use'
 function missionFloorLost(o) {
   const grid = data?.tileGrid, tiles = data?.tactical?.floorTiles;
   if (!grid?.origin || !tiles?.length) return false;
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const tx = Math.floor((o.location[0] - ox) / sx), ty = Math.floor((o.location[1] - oy) / sy), tz = Math.floor((o.location[2] - oz) / sz);
   const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
   return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
@@ -7744,8 +7420,8 @@ missionGizmo.addEventListener('mouseDown', () => {
 missionGizmo.addEventListener('objectChange', () => {
   const d = missionDrag;
   if (!d || d.cancelled) return;
-  const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / 96) * 96, dz = Math.round((p.z - d.at.z) / 96) * 96,
-        dy = Math.round((p.y - d.at.y) / 64) * 64;
+  const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
+        dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
   p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
   d.delta = [dx, dz, dy];                 // the view's basis is x, up, y
   const key = d.delta.join(',');
@@ -8430,7 +8106,7 @@ async function waveFailed(player, url, error) {
   if (wavePlayer === player) paintWaves();
 }
 function paintWaves() {
-  const clock = t => (Number.isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '');
+  const time = t => (Number.isFinite(t) ? clock(t) : '');
   for (const el of $('effectWaves').querySelectorAll('[data-wave]')) {
     const p = wavePlayer?.wave === el.dataset.wave && wavePlayer.record === pickedEffect ? wavePlayer : null;
     if (el.tagName === 'BUTTON') {
@@ -8439,7 +8115,7 @@ function paintWaves() {
       el.classList.toggle('on', Boolean(p && p.state !== 'failed'));
     } else {
       el.textContent = !p ? '' : p.state === 'loading' ? 'loading…' : p.state === 'failed' ? (p.why ? `Not played: ${p.why}` : 'Not played…')
-        : `${clock(p.audio.currentTime)} / ${clock(p.audio.duration)}`;
+        : `${time(p.audio.currentTime)} / ${time(p.audio.duration)}`;
       el.classList.toggle('bad', p?.state === 'failed');
     }
   }
@@ -8766,7 +8442,7 @@ function floorTop(x, y, ground) {
   }
   // the spot's tile as the game counts it; its ground's level takes a ground up to a unit under a level's start (the
   // maps' floors are a unit over the game's corner: 2 over the origin, as before)
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const key = [Math.floor((x - ox) / sx), Math.floor((y - oy) / sy), Math.floor((ground + 1 - oz) / sz)].join(',');
   const top = floorTopIndex.tops.get(key);
   return top !== undefined && top >= ground - 8 && top <= ground + sz ? top : null;
@@ -8928,13 +8604,13 @@ zoneGizmo.addEventListener('objectChange', () => {
   const d = zoneGizmoDrag;
   if (!d || d.cancelled) return;
   if (zoneGizmo.mode === 'translate') {
-    const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / 96) * 96, dz = Math.round((p.z - d.at.z) / 96) * 96,
-          dy = Math.round((p.y - d.at.y) / 64) * 64;
+    const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
+          dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
     p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
     // the zone's ground lands on a level of the grid: a zone saved off the levels (the tutorial's, fitted before the
     // ground was snapped: 16 under the grid) comes onto one with its first move
     const l = d.from.location, oz = data.tileGrid?.origin?.[2] ?? 0, ground = l[2] - ZONE_GROUND + dy;
-    const level = Math.round(oz + Math.round((ground - oz) / 64) * 64) + ZONE_GROUND;
+    const level = Math.round(oz + Math.round((ground - oz) / LEVEL) * LEVEL) + ZONE_GROUND;
     const z = data.tileGrid && Math.abs(level - (l[2] + dy)) >= 1 ? level : l[2] + dy;
     d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
   } else {
@@ -8995,7 +8671,7 @@ function landingPanel() {
 // Notes while editing, none of which blocks: outside the grid, a soldier point over no floor, a piece on one, played
 // under LWR only, played nowhere
 function zoneNotes(z, k, { zones, own, slots }) {
-  const notes = [], grid = data.tileGrid, [ox, oy, oz] = grid.origin, [nx, ny, nz] = grid.dimensions, [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const notes = [], grid = data.tileGrid, [ox, oy, oz] = grid.origin, [nx, ny, nz] = grid.dimensions, [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const soldiers = zoneSoldiers(z, { zones, own, slots }), ground = groundOf(z);
   if (soldiers.some(s => s.location[0] < ox || s.location[0] > ox + nx * sx || s.location[1] < oy || s.location[1] > oy + ny * sy
                              || ground < oz - 1 || ground > oz + nz * sz)) notes.push('It is outside the tile grid: its soldiers would stand where there are no tiles.');
@@ -9098,7 +8774,7 @@ function placeZone(clientX, clientY) {
   if (!at) return;
   const [ox, oy] = data.tileGrid.origin, first = zonesNow()[0];
   // a zone's StartLoc sits a unit off a tile's corner, as LWR's lines do (Bar's first: 719, -1681)
-  const x = ox + Math.round((at.x - ox) / 96) * 96 - 1, y = oy + Math.round((at.z - oy) / 96) * 96 - 1, id = uuid();
+  const x = ox + Math.round((at.x - ox) / TILE) * TILE - 1, y = oy + Math.round((at.z - oy) / TILE) * TILE - 1, id = uuid();
   const zones = explicitZones(), ew = !zones.some(z => z.ew) && ownLandings(data).length > 0;
   setZones([...zones, { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }], 'Added a landing zone');
   pickZone(id);
@@ -9147,7 +8823,7 @@ let ownPicked = null;       // one of the map's own boxes, picked to read: its f
 // Build leaves the map's own volumes as they are (the user, 11 November 2026, after copying the Bar).
 const ownSet = new Set();
 const volumeGrid = () => (data?.tileGrid?.origin && data.tileGrid.dimensions
-  ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [96, 96, 64], unbounded: builderMode,
+  ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [TILE, TILE, LEVEL], unbounded: builderMode,
       ...(builderMode ? { heights: [PREFAB_MIN_Z, PREFAB_MAX_Z] } : {}) } : null);
 const newBuildingId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const boxCount = n => `${n} ${n === 1 ? 'box' : 'boxes'}`;
@@ -9586,7 +9262,7 @@ function volumeHint(message) {
   hint.hidden = false; hint.replaceChildren(`${message} · `);
   text(hint, 'kbd', 'Esc'); hint.append(' cancels');
 }
-const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [96, 96, 64]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
+const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [TILE, TILE, LEVEL]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
 // ---- the pointer in the view while it is on: a face handle stretches, the New box tool draws a footprint
 function startVolumeDrag(e) {
   // a picked no-spawn volume's face handle (the Spawns view, or the Normal button's spawn switch): stretches its box
@@ -9919,11 +9595,11 @@ function lookChosen(kind, look) {
   if (pieces.open) showPieces(true);
   flashHint(`Ground in ${look.name.toLowerCase()}: pick a shape in the Ground kind, then drag it out`);
 }
-/** Open the look picker of `kind` ('wall', 'slab', 'ground'; look picker plan, L1): a panel of its own over the view,
- *  each of the kind's looks a card with a large picture of a sample made in it (`sample`: a ground look's shape, the
- *  piece's or the tool's), a click choosing one (onChoose(look), else lookChosen), "Pick from the view" (I) for the
- *  eyedropper. `current`: the look key of the piece being given a look (its card ringed and first). */
-async function openLookPicker(kind, { onChoose = null, title = null, sample = null, current = null } = {}) {
+/** Open the look picker of `kind` ('wall', 'slab', 'ground'; look picker plan, L1) for a piece being given a look: a
+ *  panel of its own over the view, each of the kind's looks a card with a large picture of a sample made in it
+ *  (`sample`: a ground look's shape, the piece's or the tool's), a click choosing one (onChoose(look)), "Pick from the
+ *  view" (I) for the eyedropper. `current`: the look key of the piece (its card ringed and first). */
+async function openLookPicker(kind, { onChoose, title = null, sample = null, current = null }) {
   const list = await loadLooks(kind);
   if (list.error) { flashHint(`${list.error}: the editor asks again when the looks are opened again`); return; }
   stopWallDrawing(); stopPlacing();
@@ -9933,8 +9609,8 @@ async function openLookPicker(kind, { onChoose = null, title = null, sample = nu
   lookPicker.open({
     kind, title: title ?? LOOK_TITLES[kind], entries: list.looks, used, current,
     sample: kind === 'ground' ? (sample ?? 'patch') : kind,
-    verb: onChoose ? 'click to give the piece this look' : 'click to draw in this look',
-    onChoose: entry => (onChoose ?? (l => lookChosen(kind, l)))(lookFromEntry(kind, entry)),
+    verb: 'click to give the piece this look',
+    onChoose: entry => onChoose(lookFromEntry(kind, entry)),
     onPick: () => startLookPick(kind, onChoose),
   });
 }
@@ -9986,9 +9662,6 @@ async function lookPickAt(x, y) {
   }
   (want.onChoose ?? (l => lookChosen(want.kind, l)))(look);
 }
-// The ground's look: the one last picked (the piece panel's swatches pick it; remembered in this browser).
-const GROUND_LOOK = 'workshop.groundLook';
-const groundLookNow = () => storedLook('ground') ?? GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
 // ---- the Build menu (custom geometry editing plan, B1, 19 November 2026): the Add button's flyout starts drawing a made
 // piece at once; the find box finds the same tools by their words
 // (drawn plain, B2: in its kind's default look's shape, the look chosen afterwards in the piece panel)
@@ -10804,7 +10477,7 @@ const MAX_BLASTS = 64;
 const BREAK_ROWS = ['wall', 'slab', 'piece'];     // the panels with a Break row: made walls, made slabs, the map's pieces (E6)
 let breaking = null;      // { id }: the piece Break is on
 let blastTiles = 1;
-try { blastTiles = Math.min(3, Math.max(1, Math.round(Number(localStorage.getItem('workshop.blastTiles')) || 1))); } catch { /* none kept */ }
+blastTiles = Math.min(3, Math.max(1, Math.round(Number(recall('workshop.blastTiles')) || 1)));
 const blastMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
   new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.25, depthTest: false, depthWrite: false }));
 blastMarker.renderOrder = 9; blastMarker.visible = false; blastMarker.raycast = () => {}; world.add(blastMarker);
@@ -10878,7 +10551,7 @@ for (const k of BREAK_ROWS) {
   $(`${k}Break`).onclick = () => (breaking ? stopBreak() : startBreak());
   $(`${k}BlastSize`).onchange = e => {
     blastTiles = Number(e.target.value) || 1;
-    try { localStorage.setItem('workshop.blastTiles', String(blastTiles)); } catch { /* not kept */ }
+    remember('workshop.blastTiles', String(blastTiles));
     for (const j of BREAK_ROWS) $(`${j}BlastSize`).value = String(blastTiles);
   };
   if (k === 'piece') {
@@ -11391,7 +11064,7 @@ function volumePanel() {
   volumeUi.name.parentElement.firstChild.textContent = readOnly ? 'Floor volume' : 'Name';
   if (readOnly) {
     // one of the map's own boxes: what the map saves of it
-    const b = own.box, g = grid?.size ?? [96, 96, 64], t = k => Number(((b[k + 3] - b[k]) / g[k]).toFixed(2)) + 0;
+    const b = own.box, g = grid?.size ?? [TILE, TILE, LEVEL], t = k => Number(((b[k + 3] - b[k]) / g[k]).toFixed(2)) + 0;
     const floor = own.building.floors[own.floor], members = floor.members ?? [], cut = members.filter(m => m.cutdownFloor).length;
     volumeUi.title.textContent = `The map's box · ${t(0)} by ${t(1)} tiles, ${Math.round(b[5] - b[2])} high`;
     volumeUi.bottom.value = Math.round(b[2] * 100) / 100; volumeUi.top.value = Math.round(b[5] * 100) / 100;
@@ -11788,12 +11461,12 @@ $('boxAdd').onclick = () => takePickBox(true);
 $('boxAgain').onclick = () => setPickTool(true);
 $('boxCancel').onclick = stopPickBox;
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
-const WHOLE_OVERHANG = 4 * 96;    // four tiles
+const WHOLE_OVERHANG = 4 * TILE;    // four tiles
 function cutaway() {
   touchShadows();
   cutKey = editedKey();
   // The floor cut applies to every building at once (the user's choice, 7 November: no building list).
-  const requested = $('floor').value ?? 'all', chosen = 'all';
+  const requested = $('floor').value ?? 'all';
   const interior=$('scenery').value==='interior';
   const allFloors = $('floor').querySelector('[data-value=all]');
   if (allFloors) allFloors.title = interior ? 'All interior floors' : 'All floors · roof closed';
@@ -11819,7 +11492,6 @@ function cutaway() {
       const idx = Number(requested)-1;
       const groups = new Map();
       for (const entry of listingsNow(root)) {
-        if (chosen !== 'all' && entry.building !== chosen) continue;
         const old = groups.get(entry.building);
         // The game's floor pass runs top to bottom: the lowest cache entry wins.
         if (!old || entry.floor < old.floor) groups.set(entry.building,entry);
@@ -12127,8 +11799,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   mergedBuildings = null;
   // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
-  originalPositions = data.scope !== 'sample';
-  $('layout').hidden = data.scope !== 'sample';
   document.title = `${data.name} · XCOM Map Workshop`;
   $('previewChip').hidden = !data.preview;
   // Configure light data before the first lit material compiles.
@@ -12272,7 +11942,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)
     coverHandles: (tiles = 1) => { const r = handleCover(), project = projector();
       return r ? Object.fromEntries(coverFacesNow(r).map(f => { const p = coverHandlePoint(f);
-        return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, 96 * tiles))]]; })) : {}; },
+        return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, TILE * tiles))]]; })) : {}; },
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     // made walls (custom geometry plan, M1): the Build menu's tools (B1), drawing, a game point on the screen, the picked
     // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
@@ -12291,7 +11961,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
-    wallHandles: (units = 96) => { const r = handleWall(), project = projector();
+    wallHandles: (units = TILE) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
         return [h.key, [...project(p), ...project(way ? p.clone().addScaledVector(way, units) : p)]]; })) : {}; },
@@ -12442,14 +12112,14 @@ function showPop(id) {
 }
 for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });
-$('statsToggle').checked = recall('viewer.stats') === '1';
+$('statsToggle').checked = recall('workshop.stats') === '1';
 $('statsLine').hidden = !$('statsToggle').checked;
-$('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('viewer.stats', e.target.checked ? '1' : '0'); };
-$('sourceDetails').open = recall('viewer.sourceDetails') === '1';
+$('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('workshop.stats', e.target.checked ? '1' : '0'); };
+$('sourceDetails').open = recall('workshop.sourceDetails') === '1';
 // The piece panel's folding sections (Group, Align, Flags, Place) keep how they were left; a section's info button
 // shows or hides its how-to text (the .how notes), which is out of sight until asked for.
 for (const fold of document.querySelectorAll('details[data-fold]')) {
-  const key = `viewer.fold.${fold.dataset.fold}`, kept = recall(key);
+  const key = `workshop.fold.${fold.dataset.fold}`, kept = recall(key);
   if (kept) fold.open = kept === '1';
   fold.addEventListener('toggle', () => remember(key, fold.open ? '1' : '0'));
 }
@@ -12461,7 +12131,7 @@ for (const button of document.querySelectorAll('.howbutton')) {
     if (on && box.tagName === 'DETAILS') box.open = true;
   };
 }
-$('sourceDetails').ontoggle = e => remember('viewer.sourceDetails', e.target.open ? '1' : '0');
+$('sourceDetails').ontoggle = e => remember('workshop.sourceDetails', e.target.open ? '1' : '0');
 // Typed pose: a changed field moves the selection there (one undo step); Escape puts the field back.
 poseInputs.forEach((input, i) => {
   input.addEventListener('change', () => {
@@ -12514,7 +12184,6 @@ $('wire').onchange = e => {
   for (const mat of new Set([...pickables.map(p => p.userData.baseMaterial), ...cutMaterials.values()])) mat.wireframe = e.target.checked;
 };
 $('exposure').oninput = e => { renderer.toneMappingExposure = Number(e.target.value); };
-$('layout').onclick = () => { originalPositions = !originalPositions; placeObjects(); frame(); $('layout').textContent = originalPositions ? 'Piece study' : 'Original positions'; };
 let pointerStart;
 // The Buildings view's drags (a box's face handle, the New box tool) take the press first.
 // A cover piece's handles likewise (cover-block-handles-plan.md).
@@ -12618,7 +12287,7 @@ $('editRotate').onclick = () => gizmo.setMode('rotate');
 $('editOff').onclick = () => gizmo.setMode('off');
 $('editSpace').onclick = () => gizmo.toggleSpace();
 // The pivot (C): each piece's own origin, or the selection's centre (Discord feedback S4); remembered on this computer.
-const PIVOT = 'viewer.pivot';
+const PIVOT = 'workshop.pivot';
 function togglePivot() {
   gizmo.setPivot(gizmo.pivot === 'centre' ? 'origin' : 'centre');
   remember(PIVOT, gizmo.pivot);
@@ -12788,14 +12457,14 @@ const PAN_KEYS = { arrowup: 'forward', w: 'forward', arrowdown: 'back', s: 'back
 const TURN_KEYS = { q: 1, e: -1 };    // a positive turn about +Y swings forward towards the screen's left
 const TURN_SPEED = THREE.MathUtils.degToRad(60);
 const PAN_SPEED = 5000;    // about 52 tiles a second (7,200 at first: the user found it a little fast)
-const FLY_KEYS = 'viewer.flyKeys';
+const FLY_KEYS = 'workshop.flyKeys';
 const panKeys = new Set();
 let panFast = false, flyKeys = recall(FLY_KEYS) === '1';
 // View options' camera speeds (Discord feedback S2, S3): each a factor on its default, remembered on this computer.
 // Move speed scales PAN_SPEED, key turn speed TURN_SPEED, and drag turn speed OrbitControls' orbit and the look-drag
 // along the view (LOOK_PER_SCREEN). A double-click on a slider puts it back to 1; letting go of one gives the keys back
 // to the camera.
-const CAMERA_SPEEDS = { moveSpeed: 'viewer.moveSpeed', turnSpeed: 'viewer.turnSpeed', dragSpeed: 'viewer.dragSpeed' };
+const CAMERA_SPEEDS = { moveSpeed: 'workshop.moveSpeed', turnSpeed: 'workshop.turnSpeed', dragSpeed: 'workshop.dragSpeed' };
 const cameraSpeed = { moveSpeed: 1, turnSpeed: 1, dragSpeed: 1 };
 for (const [id, key] of Object.entries(CAMERA_SPEEDS)) {
   const input = $(id), saved = Number(recall(key));
@@ -12933,15 +12602,17 @@ document.addEventListener('keyup', e => {
 // press: Discord feedback B1)
 document.addEventListener('keydown', e => { if (e.key === 'Shift') panFast = true; });
 window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
-// V select, T box select, G move, R rotate (while placing, R turns the piece), P the piece list, X world/local, C the
-// pivot (origin or centre), F frame, arrow keys and
-// WASD move the camera and Q and E turn it, O solos the selected lights, B shows or hides the play area,
-// Escape cancels a drag,
-// stops placing, closes a menu or, when there is none of those, clears the selection,
-// Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste pieces, Ctrl+G groups the
-// selection and Ctrl+Shift+G ungroups the selected group, Delete deletes, Ctrl+S saves, Ctrl+B saves
-// and builds, and Ctrl+O loads a project. Typing in a field never triggers them (Ctrl+S, B and O aside), and Ctrl+C with
-// nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
+// The editor's keys (index.html's help panel lists them for users): V select, T box select, G move, R rotate (while
+// placing, R and Shift+R turn the piece), P the Add panel, M the map browser, X world or local axes, C the pivot
+// (origin or centre), F frame, L level snap, O solo the selected lights, B Break on a picked wall, floor or roof that
+// breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
+// Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
+// stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Ctrl+Z /
+// Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste, Ctrl+G groups the selection and
+// Ctrl+Shift+G ungroups the selected group, Delete deletes; a picked landing zone or spawn point takes Delete, Ctrl+D
+// (a copy) and [ ] (a quarter turn); Ctrl+S saves, Ctrl+B builds and Ctrl+O loads a project. Typing in a field never
+// triggers them (Ctrl+S, B and O aside), and Ctrl+C with nothing selected is the browser's own copy. An open dialog
+// (modalOpen) keeps the keys.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
@@ -13006,7 +12677,7 @@ document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
       // (a drop-in point only: a pod's facing aims nothing, the user, 18 November 2026)
       if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && TURNED_KINDS.includes(se.record.kind) && spawnMovable(se)) {
-        const turn = key === '[' ? -16384 : 16384, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
+        const turn = key === '[' ? -QUARTER : QUARTER, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
         if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
         e.preventDefault(); return;
       }
@@ -13084,7 +12755,7 @@ renderer.setAnimationLoop(() => {
   lastFrame = now;
   controls.update();
   if (builderMode && now - builderRefresh > 250) {
-    const at = `${Math.round(controls.target.x / 96)},${Math.round(controls.target.z / 96)}`;
+    const at = `${Math.round(controls.target.x / TILE)},${Math.round(controls.target.z / TILE)}`;
     if (at !== builderTarget || now - builderRefresh > 2000) { builderTarget = at; builderRefresh = now; refreshBuilder(); }
   }
   scaleMarkers();

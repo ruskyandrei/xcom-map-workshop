@@ -3,14 +3,8 @@
 // Steam's libraries, a folder typed in, or a Windows folder dialog; the Settings menu's "Game install and checks"
 // opens the same dialog later. Choosing an install saves the game setting; the server then lists that install's maps,
 // and the page reloads.
+import { call } from './api.js';
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status });
-  return value;
-}
 export const setupApi = {
   status: (checks = true) => call('GET', checks ? '/setup.json' : '/setup.json?checks=0'),
   chooseGame: folder => call('POST', '/setup/game', { folder }),

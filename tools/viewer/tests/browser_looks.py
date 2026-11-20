@@ -71,6 +71,8 @@ def from_above(page, c):
 def check_looks(browser, url, open_viewer, at=(-1200.0, -2200.0, 16.0), start=(-1344.0, -2208.0, 16.0), end=(-960.0, -2208.0, 16.0)):
     errors = []
     page = open_viewer(browser, url, errors)
+    # (the points above are on the police station's ground: on another map they mean nothing)
+    assert page.evaluate('viewer.mapId') == 'URB_PoliceStation', f"open the police station (?map=URB_PoliceStation), not {page.evaluate('viewer.mapId')}"
     page.evaluate("for (const k of ['workshop.wallLook', 'workshop.slabLook', 'workshop.groundLook']) localStorage.removeItem(k)")
     out = dict(map=page.evaluate('viewer.data.name'))
     # a wall from the Build menu: plain

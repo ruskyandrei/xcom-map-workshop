@@ -2,14 +2,10 @@
 // an option of its own, every map, read from the game now instead of the first time each is used. It shows what
 // there is to do, a bar while the job runs, and Cancel at any moment; what is cached so far stays. Closing the window
 // leaves a running job running: opening it again shows where it is.
+import { call as ask } from './api.js';
+import { clock } from './build_queue.js';
 
-const call = async (method, url, body) => {
-  const response = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {},
-                                      body: body ? JSON.stringify(body) : undefined });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || `The server answered ${response.status}`);
-  return result;
-};
+const call = (method, url, body) => ask(method, url, body, { fallback: r => `The server answered ${r.status}` });
 const count = n => Number(n).toLocaleString('en-GB');
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? '' : 's'}`;
 export function duration(seconds) {
@@ -22,10 +18,9 @@ export function size(bytes) {
   if (bytes < 1e9) return `${Math.max(1, Math.round(bytes / 1e6))} MB`;
   return `${(bytes / 1e9).toFixed(bytes < 1e10 ? 1 : 0)} GB`;
 }
-const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** What a line under an option says, from the plan (precache.py plan()). */
-export function piecesLine(plan) {
+function piecesLine(plan) {
   const p = plan.pieces, e = plan.estimates.pieces;
   if (p.error) return p.error;
   if (!p.ready) return 'The library has not been read yet: it is read first (about half a minute), then every piece of it.';
@@ -33,7 +28,7 @@ export function piecesLine(plan) {
   if (!p.missing) return `All ${count(p.total)} pieces of ${plural(p.maps, 'map')} are cached.${stale}`;
   return `${count(p.missing)} of ${count(p.total)} pieces to read (${count(p.kept)} cached): ${duration(e.seconds)}, about ${size(e.bytes)}.${stale}`;
 }
-export function mapsLine(plan) {
+function mapsLine(plan) {
   const m = plan.maps, e = plan.estimates.maps, todo = m.missing + m.outdated;
   if (!m.available) return 'This server does not prepare maps.';
   if (!todo) return `All ${count(m.total)} maps are prepared.`;

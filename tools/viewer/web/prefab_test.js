@@ -1,3 +1,5 @@
+import { call as ask } from './api.js';
+
 // This tab authorizes the first launch only while following the build it submitted.
 const SESSION = 'workshop.prefabTest';
 const ACTIVE = new Set(['preparing', 'building', 'launching', 'playing']);
@@ -7,14 +9,8 @@ const LABEL = {
   dry: 'Dry launch prepared', cancelled: 'Prefab test cancelled', failed: 'Prefab test failed',
 };
 
-async function call(path, body) {
-  const response = await fetch(`/prefab-tests${path}`, body === undefined ? undefined : {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  });
-  const result = await response.json();
-  if (!response.ok) throw Object.assign(new Error(result.error ?? response.statusText), result, { status: response.status });
-  return result;
-}
+// (a refusal's own fields are on its body: code and test, for one)
+const call = (path, body) => ask(body === undefined ? 'GET' : 'POST', `/prefab-tests${path}`, body, { fallback: r => r.statusText });
 
 function keep(id) {
   try { if (id) sessionStorage.setItem(SESSION, id); else sessionStorage.removeItem(SESSION); } catch {}
@@ -120,9 +116,9 @@ export function createPrefabTest({ els, uuid, onPick = null }) {
       keep(state.id);
       pending = null;
     } catch (e) {
-      if (e.code === 'test-busy' && e.test) {
+      if (e.body?.code === 'test-busy' && e.body?.test) {
         authorize = false;
-        try { state = await call(`/${e.test}.json`); keep(state.id); pending = null; }
+        try { state = await call(`/${e.body.test}.json`); keep(state.id); pending = null; }
         catch (failed) { error = failed.message; }
       } else {
         error = e.message;

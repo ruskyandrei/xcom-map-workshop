@@ -2,7 +2,7 @@
 anything is published. Nothing is installed in the game and nothing outside dist/ is written.
 
   python tools/release/smoke_release.py [--version <v>] [--dist dist/release] [--port 8795] [--map URB_Bar]
-                                        [--only <browser smoke checks>] [--no-browser] [--keep]
+                                        [--cache <scratch cache>] [--only <browser smoke checks>] [--no-browser] [--keep]
 
 1. The files: XCOM-Map-Workshop-<v>.zip and -Setup.exe are there; their sizes and SHA-256s are printed.
 2. The zip read back: one folder XCOM-Map-Workshop-<v>; VERSION.txt names the version; README.md is
@@ -10,8 +10,12 @@ anything is published. Nothing is installed in the game and nothing outside dist
    files and the bundled Python are there; every file of ours under tools/ (compiled .pyc aside) equals the repository's.
 3. The zip unpacked to dist/smoke-<v> (a short path: the bundled Python's paths pass Windows' 260 characters in the
    scratchpad) and started with its own Python, as its launcher does, on a test port (8790-8799), with scratch
-   projects and builds folders and --dry-play: /setup.json names the version and the editor; / and /maps.json answer;
-   the map is listed.
+   projects and builds folders, --dry-play and a scratch settings file (XCOM_MAP_WORKSHOP_SETTINGS) naming a scratch
+   cache and the game install the user's settings name, read only: nothing lands in the user's folders, and the
+   result doesn't hang on what the user's cache holds. Unless --no-browser or --cache <a prepared scratch cache>, the
+   map is first exported into dist/smoke-<v>/cache by the release's own Python (about half a minute). /setup.json
+   names the version and the editor; / and /maps.json answer; the map is listed, and ready when the browser checks
+   are asked for (a map that isn't fails them, saying why).
 4. In a headless browser (Playwright, Edge, as the browser smoke): the map opens, the help names
    "XCOM Map Workshop <v> (preview)", and the page logs no errors; then tools/viewer/tests/browser_smoke.py --only
    <checks> (read-only checks: light-grid and text-select by default) against the same server.
@@ -23,6 +27,7 @@ settings and shortcuts on this computer.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -125,7 +130,9 @@ def main(argv=None):
     ap.add_argument('--version', default=VERSION, help='the release to check (default tools/viewer/version.py\'s)')
     ap.add_argument('--dist', type=Path, default=REPO / 'dist' / 'release', help='where the zip and installer are')
     ap.add_argument('--port', type=int, default=8795, help='a test port, 8790-8799 (never 8768, the main server)')
-    ap.add_argument('--map', default='URB_Bar', help='a map ready in the cache, opened in the browser check')
+    ap.add_argument('--map', default='URB_Bar', help='the map opened in the browser check, exported into a scratch cache first')
+    ap.add_argument('--cache', type=Path, help='a scratch cache holding the map exported by this version (default: made in '
+                    'dist/smoke-<v>/cache); never the user\'s own, which a test server writes into')
     ap.add_argument('--only', default='light-grid,text-select', help='browser_smoke.py --only checks to run')
     ap.add_argument('--no-browser', action='store_true', help='skip the browser checks')
     ap.add_argument('--keep', action='store_true', help='leave the unpacked folder')
@@ -159,6 +166,23 @@ def main(argv=None):
     app = trial / ('XCOM-Map-Workshop-%s' % v)
     for sub in ('projects', 'builds'):
         (trial / sub).mkdir()
+    # the server's settings: a scratch file naming a scratch cache and the user's game install (read only)
+    from settings import load_settings, resolve_game
+    from installs import cooked
+    game = load_settings().get('game')
+    cache = args.cache or trial / 'cache'
+    settings = trial / 'settings.json'
+    settings.write_text(json.dumps(dict(cache=str(cache), **({'game': str(game)} if game else {}))), encoding='utf-8', newline='\n')
+    env = dict(os.environ, XCOM_MAP_WORKSHOP_SETTINGS=str(settings))
+    if not args.cache and not args.no_browser:
+        if game is None:
+            step('%s exported into a scratch cache' % args.map, False, 'the settings name no game install: give --cache')
+        else:
+            package = cooked(resolve_game(game)[0]) / ('%s.upk' % args.map)
+            out = subprocess.run([str(app / 'python' / 'python.exe'), '-B', r'tools\viewer\viewer.py', 'export', str(package), '--cache',
+                                  str(cache)], cwd=app, env=env, capture_output=True, text=True)
+            step('%s exported into a scratch cache by the release' % args.map, out.returncode == 0,
+                 '' if out.returncode == 0 else ((out.stdout + out.stderr).strip().splitlines() or [''])[-1])
     base = 'http://127.0.0.1:%d/' % args.port
     try:
         get(base + 'maps.json', 2)
@@ -169,7 +193,7 @@ def main(argv=None):
     log = open(trial / 'server.log', 'wb')
     proc = subprocess.Popen([str(app / 'python' / 'python.exe'), '-B', r'tools\viewer\viewer.py', 'serve', '--port', str(args.port),
                              '--no-open', '--projects', str(trial / 'projects'), '--builds', str(trial / 'builds'), '--dry-play'],
-                            cwd=app, stdout=log, stderr=subprocess.STDOUT)
+                            cwd=app, env=env, stdout=log, stderr=subprocess.STDOUT)
     try:
         up = wait_up(base, proc)
         step('the release starts with its own Python', up, base if up else 'no answer on %s' % base)
@@ -183,6 +207,8 @@ def main(argv=None):
             entry = next((m for m in listed if args.map in (m.get('id'), m.get('name'))), None)
             step('map %s listed' % args.map, entry is not None, 'ready' if entry and entry.get('ready') else 'not prepared yet'
                  if entry else '')
+            if not args.no_browser and not (entry and entry.get('ready')):
+                step('browser checks', False, '%s is not %s: the map opens in none of them' % (args.map, 'ready in the cache' if entry else 'listed'))
             if not args.no_browser and entry and entry.get('ready'):
                 url = base + '?map=' + args.map
                 try:

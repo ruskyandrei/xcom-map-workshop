@@ -8,7 +8,7 @@
 // longer than WALL.pieceTiles or taller than its look's storeys is drawn whole and made by the Build as pieces of
 // those sizes, joined end to end and stacked (tools/bake/made_split.py; the editing plan's D-3).
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
-import { QUARTER, TILE } from './poserule.js';
+import { QUARTER, TILE } from './constants.js';
 import { catalogued } from './looks.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
@@ -21,12 +21,12 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
 // the Build cutting it into pieces of at most pieceTiles and its look's storeys.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
                       maxStoreys: 12, pieceTiles: 16 };
-// A made wall's mesh as the editor's server draws it (app.js madeShapeOf; generated.py's limits: minLength and
-// maxLength are its MIN_LENGTH and MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55)
-export const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
+// The lengths of made wall the editor's server draws a mesh for (app.js madeShapeOf; generated.py's MIN_LENGTH and
+// MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55); the mesh's other numbers are WALL's
+export const FRAC_WALL = { minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
-export const STOREY_TOPS = { 1: 192, 2: 384 };
+const STOREY_TOPS = { 1: 192, 2: 384 };
 // A gap's limits: the highest its top goes under the cornice (past it, the gap is cut through to the wall's top), the
 // smallest sizes, the Alt step, and the threshold a doorway starts with: the strip of wall kept under it, so no gap is
 // left under its door (the user, 19 November 2026; under the game's cover line, so it gives no cover and units walk
@@ -127,9 +127,6 @@ export function steppedStoreys(wall, step) {
   const next = step > 0 ? counts.find(n => n > now) : [...counts].reverse().find(n => n < now);
   return next === undefined ? null : withStoreys(wall, next);
 }
-/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
- *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
- *  the new look takes. */
 /** A wall changed from look `old` to the look in `numbers`, its gaps on the new look's bottom: one cut to the old
  *  bottom (a doorway to the floor) is cut to the new one, and none starts below it (a door added before a look whose
  *  bottom is higher had kept the old bottom, and the wall then had no handles: the user, 19 November 2026). */
@@ -138,6 +135,9 @@ export function openingsInLook(old, numbers) {
   if (!(numbers.openings ?? []).length) return numbers;
   return { ...numbers, openings: numbers.openings.map(o => (o.z0 !== bottom && (o.z0 <= was + 1e-6 || o.z0 < bottom) ? { ...o, z0: bottom } : o)) };
 }
+/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
+ *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
+ *  the new look takes. */
 export function storeysInLook(old, numbers) {
   const n = storeysOf(old), spec = wallSpec(numbers);
   if (n === 1 && spec.lower) return 1;
@@ -350,7 +350,7 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
 
 // ---- what an opening does in play
 /** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening. */
-export const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
+const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
   .filter(c => c > o.x0 + 1 && c < o.x1 - 1);
 /** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, climb, sight, cover
  *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. `climb`: units vault through it, as
@@ -384,7 +384,6 @@ export function playWords(wall, o, { door = false } = {}) {
   if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it (a door from the Add panel), as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
-/** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
 // ---- joints (custom geometry plan, M3 item 2; compiler.py wall_joins is the twin)
 // An end's style for its solid (frac_wall.END_INSETS: how far in from its tile edge it stops) and how it meets: the
 // game's inside walls stop square 8 short of a wall they meet (a T's stem, as a free end); at an L one runs through to
@@ -464,6 +463,7 @@ export function joinWords(joins) {
   const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);
   return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
 }
+/** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
 export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeyWords(storeysOf(wall))} (${wallTop(wall) - wallSpec(wall).bottom} tall)`;
 
 // ---- floors and roofs (custom geometry plan, M5): a slab is an added copy of its look's donor (one of the game's
@@ -578,4 +578,76 @@ export function roomRoof(room, { template, floor, storeys = 2, seed = 1, top = n
   // (on the walls' top: `top` over the floor, the Bar's by its storeys when not given)
   return { location: [south.location[0], south.location[1], tidy(floor + (top ?? STOREY_TOPS[storeys]))], rotation: wallRotation(template.rotation, 0, 1),
            slab: { x0: 0, x1: nx * TILE, y0: 0, y1: ny * TILE, holes: [], seed }, tiles: [nx, ny] };
+}
+
+// ---- made pieces' meshes (custom geometry plan, section 0, M4, M5): the numbers a made wall or slab is drawn from by
+// the editor's server (generated.py), its mesh's key, request and bounds, and the mesh record put into the scene's
+// meshes (`meshes`: data.meshes, keyed by the request), on its template's materials by slot. Numbers the server can't
+// draw (generated.py's limits) give {}: the template's own mesh is drawn.
+/** A look in one spelling (generated.py donor_look): a look id as it is; a donor look (M4) its mesh, a ground look's
+ *  material, and the measurer's version. */
+export const spelledLook = look => (typeof look === 'object' && look
+  ? { mesh: look.mesh, ...(look.material ? { material: look.material } : {}), measure: look.measure } : look);
+/** A made piece's blasts (B5) in its mesh's key and request (generated.py: ?blasts=), none when it has none. */
+export const blastQuery = blasts => (blasts?.length ? { key: `|${JSON.stringify(blasts)}`, query: { blasts: JSON.stringify(blasts) } } : { key: '', query: {} });
+// the mesh record of a made piece over its template's (the mesh form: name, sections by slot, bounds), and its
+// materials: the template's by slot
+function madeRecord(template, meshes, key, { noun, url, sections, bounds }) {
+  if (!meshes[key]) {
+    // (`look`: the template's mesh, which Select all of a kind counts it as)
+    meshes[key] = { name: `${meshes[template.mesh]?.name ?? noun}, made from numbers`, kind: 'static', made: true,
+      look: meshes[template.mesh]?.name ?? null, fallback: { mesh: template.mesh, materials: [...template.materials] },
+      url, sections: Array.from({ length: sections }, (_, slot) => ({ slot, count: 1 })), bounds };
+  }
+  const slots = (meshes[template.mesh]?.sections ?? []).filter(s => s.count).map(s => s.slot);
+  const bySlot = new Map(slots.map((slot, i) => [slot, template.materials[i]]));
+  return { mesh: key, materials: Array.from({ length: sections }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
+}
+/** A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: its look's own
+ *  storeys left out), with its end styles where they are joined (`ends`, worked out from where it stands: app.js
+ *  refreshJoins; two free ends left out). */
+export const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
+                                seed: w.seed ?? 1, ...(w.storeys !== undefined && w.storeys !== wallSpec(w).storeys ? { storeys: w.storeys } : {}),
+                                ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
+                                ...(ends && (ends[0] !== 'free' || ends[1] !== 'free') ? { ends: [...ends] } : {}) });
+/** A made wall's mesh bounds (the mesh form's [centre, half sizes, radius]): its solid between its ends' insets
+ *  (tools/bake/frac_wall.py RECIPE), its look's height and thickness. */
+export function madeBounds(wall) {
+  // (its look's heights, insets and thickness: the Bar's for a look id, wallSpec's for a donor look)
+  const spec = wallSpec(wall), insets = endInsetsOf(wall), top = wallTop(wall), [e0, e1] = wall.ends ?? ['free', 'free'];
+  const a = wall.x0 + insets[e0], b = wall.x1 - insets[e1], hx = (b - a) / 2, hz = (top - spec.bottom) / 2;
+  return [(a + b) / 2, 0, spec.bottom + hz, hx, spec.half, hz, Math.hypot(hx, spec.half, hz)];
+}
+/** A fracturing wall made from numbers: drawn from /generated/fracwall.glb, its look's sections bound to its template's
+ *  materials by slot (the made mesh's sections are slots 0 to 5 in order). { mesh, materials }, or {}. */
+export function madeWallShape(template, w, blasts, meshes) {
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!w || !finite(w.x0) || !finite(w.x1) || w.x1 - w.x0 < FRAC_WALL.minLength || w.x1 - w.x0 > FRAC_WALL.maxLength
+    || !Number.isInteger(w.seed ?? 1) || !(w.openings ?? []).every(o => ['x0', 'x1', 'z0', 'z1'].every(k => finite(o?.[k]))
+      && w.x0 <= o.x0 && o.x0 < o.x1 && o.x1 <= w.x1 && o.z0 < o.z1)
+    || !(w.storeys === undefined || (Number.isInteger(w.storeys) && w.storeys >= 1 && w.storeys <= WALL.maxStoreys))
+    || (w.look !== undefined && !WALL_LOOKS.some(l => l.id === w.look) && !catalogued('wall', w.look))) return {};
+  const wall = madeWallNumbers(w), broken = blastQuery(blasts);
+  return madeRecord(template, meshes, `made:fracwall:${JSON.stringify(wall)}${broken.key}`, { noun: 'a wall',
+    url: `/generated/fracwall.glb?${new URLSearchParams({ wall: JSON.stringify(wall), ...broken.query })}`,
+    sections: wallSpec(wall).sections, bounds: madeBounds(wall) });
+}
+// A made slab: drawn from /generated/fracslab.glb, its two sections (the top with the edges, the underside) bound to
+// its template's materials by slot; its bounds its footprint between its look's heights.
+const FRAC_SLAB = { slots: 2 };
+export const madeSlabNumbers = s => ({ x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, holes: (s.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 })),
+                                       seed: s.seed ?? 1, ...(s.look && s.look !== SLAB_LOOKS[0].id ? { look: spelledLook(s.look) } : {}) });
+export function slabBounds(s) {
+  const look = slabLookOf(s), hx = (s.x1 - s.x0) / 2, hy = (s.y1 - s.y0) / 2, hz = (look.top - look.bottom) / 2;
+  return [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2, (look.top + look.bottom) / 2, hx, hy, hz, Math.hypot(hx, hy, hz)];
+}
+/** A made slab's { mesh, materials }, or {}. */
+export function madeSlabShape(template, s, blasts, meshes) {
+  const finite = v => typeof v === 'number' && Number.isFinite(v);
+  if (!s || !['x0', 'x1', 'y0', 'y1'].every(k => finite(s[k])) || !slabLookOf(s) || !Number.isInteger(s.seed ?? 1)
+    || (s.holes ?? []).length > SLAB.maxHoles) return {};
+  const numbers = madeSlabNumbers(s), broken = blastQuery(blasts);
+  return madeRecord(template, meshes, `made:fracslab:${JSON.stringify(numbers)}${broken.key}`, { noun: 'a slab',
+    url: `/generated/fracslab.glb?${new URLSearchParams({ slab: JSON.stringify(numbers), ...broken.query })}`,
+    sections: slabLookOf(numbers).sections ?? FRAC_SLAB.slots, bounds: slabBounds(numbers) });
 }

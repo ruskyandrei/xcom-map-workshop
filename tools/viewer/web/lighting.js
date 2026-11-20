@@ -82,8 +82,9 @@ export function withLocalLights(material) {
 
 // UE3 turns FColor into linear colour with a 2.2 power; its lights carry no 1/pi,
 // three.js's Lambert term does, hence the pi.
-const linear = (rgb, scale = 1) => rgb.map(v => Math.pow(v, 2.2) * scale);
-const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
+export const linear = (rgb, scale = 1) => rgb.map(v => Math.pow(v, 2.2) * scale);
+// a game vector (x, y, z up) in the view's axes (y up)
+export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
 
 /** Map lighting for one scene. Call before the first material compiles. setLights(records) puts the lights as edited
  *  in place of the scene's (editor lights plan 4.6: moved, changed, added and deleted lights, and the area lights their
@@ -147,7 +148,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       sun.color.copy(neutral.sun); sun.intensity = neutral.intensity; sun.castShadow = neutral.castShadow;
       sun.position.copy(target).add(new THREE.Vector3(1, 1.6, -1).multiplyScalar(radius));
       uniforms.localGridInfo.value.w = 0;
-      return { local: 0, dropped: 0 };
+      return { local: 0 };
     }
     const skies = lights.filter(l => l.kind === 'sky');
     const sky = [0, 0, 0], ground = [0, 0, 0];
@@ -172,7 +173,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     const chosen = new Set(lights);
     fillGrid(l => chosen.has(l));
     uniforms.localGridInfo.value.w = bounds && lights.some(l => l.kind === 'point' || l.kind === 'spot') ? 1 : 0;
-    return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length, dropped: 0 };
+    return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length };
   }
 
   /** Solo (editor lights plan 4.6): the map dimmed to a faint neutral, its own lights off; apply() puts it back. */

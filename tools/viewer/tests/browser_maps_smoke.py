@@ -40,11 +40,12 @@ def pick(page,map_id):
 
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument('--url',default='http://127.0.0.1:8768/')
+    ap.add_argument('--url',required=True,help='a test server, as http://127.0.0.1:<port>/ (never 8768, the main server)')
     ap.add_argument('--screenshot',type=Path,required=True)
     ap.add_argument('--prepare',help='Also open this map, not exported yet, and wait for its export (scratch caches only)')
     args=ap.parse_args();args.screenshot.parent.mkdir(parents=True,exist_ok=True)
     url=urlsplit(args.url);base=urlunsplit((url.scheme,url.netloc,'/','',''))
+    if url.port==8768:ap.error('8768 is the main server, the one the user keeps open: check a test server (8790-8799)')
     errors=set();requests=[]
     with sync_playwright() as pw:
         browser=pw.chromium.launch(channel='msedge',headless=True)

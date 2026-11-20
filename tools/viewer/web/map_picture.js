@@ -4,30 +4,27 @@
 // is the result as the game will show it, after DXT1 (the server sends that back). Use this picture sends the cropped
 // 512 x 256 PNG to the server (tools/viewer/pictures.py keeps it with the project) and hands its SHA-256 to the page,
 // which saves it with the project. The image itself never leaves the browser: only the cropped picture is sent.
-import { HEIGHT, WIDTH, clampFrame, dragCorner, moveFrame, scaleSteps, sourceRect, startFrame, zoomFrame } from './map_picture_crop.js';
+import { refusal } from './api.js';
+import { HEIGHT, WIDTH, dragCorner, moveFrame, scaleSteps, sourceRect, startFrame, zoomFrame } from './map_picture_crop.js';
 
 const at = id => `/projects/${encodeURIComponent(id)}/picture.png`;
-async function failure(response) {
-  const value = await response.json().catch(() => ({}));
-  return new Error(value.error || `The server said ${response.status}`);
-}
 // The server's side (viewer.py, the project routes)
 export const pictureApi = {
   /** Keep a cropped picture (a PNG blob) with the project: { sha256 }. */
   async save(id, blob) {
     const response = await fetch(at(id), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
-    if (!response.ok) throw await failure(response);
+    if (!response.ok) throw await refusal(response);
     return response.json();
   },
   async remove(id) {
     const response = await fetch(at(id), { method: 'DELETE' });
-    if (!response.ok) throw await failure(response);
+    if (!response.ok) throw await refusal(response);
     return response.json();
   },
   /** A cropped picture as the game shows it, after DXT1: a PNG blob. Nothing is kept. */
   async preview(blob) {
     const response = await fetch('/projects/picture-preview', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob });
-    if (!response.ok) throw await failure(response);
+    if (!response.ok) throw await refusal(response);
     return response.blob();
   },
   /** The project's kept picture with that SHA-256 as the game shows it, or null. */

@@ -28,7 +28,7 @@ export function addedFloors(boxes, origin, dimensions) {
 }
 
 /** The climb's top and foot points for a ladder at `location` turned `rotation` (rotator units). */
-export function ladderPoints(location, rotation, extentZ) {
+function ladderPoints(location, rotation, extentZ) {
   const yaw = rotation[1] * 2 * Math.PI / TURN, fx = Math.cos(yaw), fy = Math.sin(yaw), h = 2 * (extentZ + 1);
   return { top: [location[0] + TOP_REACH * fx, location[1] + TOP_REACH * fy, location[2] + h + END_LIFT],
            foot: [location[0] - FOOT_BACK * fx, location[1] - FOOT_BACK * fy, location[2] + END_LIFT] };

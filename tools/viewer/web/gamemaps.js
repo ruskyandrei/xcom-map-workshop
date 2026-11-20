@@ -4,14 +4,9 @@
 // each with an Undo that takes that build out. Group by turns the list round: each kind of mission with the maps the
 // game can play it on (the install's own and the editor's), which is the way to see what a mission draws from. Undo everything takes all of the editor's out of the game: records,
 // landing zones, files (what the Project menu's Remove from game did).
+import { call } from './api.js';
+import { recall, remember } from './storage.js';
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status });
-  return value;
-}
 export const gameMapsApi = {
   list: () => call('GET', '/gamemaps.json'),
   use: (records, use) => call('POST', '/gamemaps/use', { records, use }),
@@ -37,14 +32,13 @@ const SHOWS = {
 };
 
 /** What Undo everything did (installs.reset's result), in a sentence. */
-export function removedText(d) {
+function removedText(d) {
   const parts = [];
   if (d.records) parts.push(plural(d.records, 'map record'));
   if (d.rotation) parts.push(`${plural(d.rotation, 'build')} from the campaign's maps`);
   if (d.recordsBack) parts.push(`${plural(d.recordsBack, 'record')} of the game's own back in use`);
   if (d.landingZones) parts.push(`the landing zones of ${plural(d.landingZones, 'map')}`);
   if (d.files.length) parts.push(plural(d.files.length, 'file'));
-  if (d.intro) parts.push('the first mission an earlier version installed (the game\'s own again)');
   if (d.playFile) parts.push('the commands file');
   const left = d.left.length ? ` Left as they are: ${d.left.join('; ')}.` : '';
   return (parts.length ? `Taken out of the game: ${parts.join(', ')}.` : 'The editor had nothing in the game.') + left;
@@ -187,9 +181,9 @@ export function createGameMaps({ els, api = gameMapsApi, onChanged }) {
   els.search.addEventListener('input', render);
   els.show.addEventListener('change', render);
   // the grouping chosen is kept for next time
-  try { if (localStorage.getItem('gameMapsGroup') === 'mission') els.group.value = 'mission'; } catch { /* no storage */ }
+  if (recall('workshop.gameMapsGroup') === 'mission') els.group.value = 'mission';
   els.group.addEventListener('change', () => {
-    try { localStorage.setItem('gameMapsGroup', els.group.value); } catch { /* no storage */ }
+    remember('workshop.gameMapsGroup', els.group.value);
     els.list.scrollTop = 0;
     render();
   });

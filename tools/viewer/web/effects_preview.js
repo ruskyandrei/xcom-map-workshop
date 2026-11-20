@@ -97,7 +97,7 @@ void main() {
 /** Which texture gives a draw record its colour and which its shape: { picture, opacity, mask, maskFrom } (draw
  *  version 4, effects_draw.pick_textures). A record of draw version 3 or before (a library template kept from then)
  *  is read as it was meant: a packed picture ('channel') shapes by its red channel and gives no colour. */
-export function textureRoles(draw) {
+function textureRoles(draw) {
   if (draw.opacity === 'channel') return { picture: null, opacity: 'none', mask: draw.picture ?? draw.mask ?? null, maskFrom: 'red' };
   return { picture: draw.picture ?? null, opacity: draw.opacity ?? 'brightness', mask: draw.mask ?? null, maskFrom: draw.maskFrom ?? 'brightness' };
 }
@@ -127,7 +127,7 @@ function particleMaterial(draw, vertexShader, soft) {
 /** The tint a material's own colour parameters give a particle with no colour picture (effects_draw.material_colours):
  *  their mean, brought down to 1 at most keeping its hue; null where the material has none. The night smoke's are
  *  all but black: its plume is drawn dark (then lifted to a dark grey by DIM_FLOOR), not white or pink. */
-export function materialTint(draw) {
+function materialTint(draw) {
   const colours = Object.values(draw.colours ?? {}).filter(c => Array.isArray(c) && c.length >= 3);
   if (!colours.length) return null;
   const mean = [0, 1, 2].map(k => colours.reduce((sum, c) => sum + Math.max(0, Number(c[k]) || 0), 0) / colours.length);
@@ -139,7 +139,8 @@ const CHARRED = 0.12;
 const blank = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
 blank.needsUpdate = true;
 
-function spriteObject(sim, draw, deps) {
+function spriteObject(first, draw, deps) {
+  let sim = first;
   const n = sim.pos.length / 3, geometry = new THREE.InstancedBufferGeometry();
   geometry.index = quad.index;
   geometry.setAttribute('position', quad.getAttribute('position'));
@@ -162,14 +163,22 @@ function spriteObject(sim, draw, deps) {
     for (const a of Object.values(at)) { a.clearUpdateRanges?.(); a.addUpdateRange?.(0, c * a.itemSize); a.needsUpdate = true; }
     geometry.instanceCount = c;
   };
-  object.userData.dispose = () => { object.userData.gone = true; geometry.dispose(); material.dispose(); };
+  // a new run of the same emitter (a replay: its buffers are the same size) draws into the same objects
+  object.userData.rebind = next => { if (next.pos.length !== sim.pos.length) return false; sim = next; return true; };
+  // (the quad's index and corners are shared by every sprite: taken off first, so disposing this one leaves them)
+  object.userData.dispose = () => {
+    object.userData.gone = true; geometry.setIndex(null); geometry.deleteAttribute('position');
+    geometry.dispose(); material.dispose();
+  };
   return object;
 }
 
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
-function meshObjects(sim, draw, deps, group) {
+function meshObjects(first, draw, deps, group) {
+  let sim = first;
   const n = sim.pos.length / 3, made = [];
-  const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); group.remove(o); } } };
+  const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); o.dispose(); group.remove(o); } } };
+  holder.rebind = next => { if (next.pos.length !== sim.pos.length) return false; sim = next; return true; };
   holder.ready = deps.meshParts(draw).then(async parts => {
     // its own picture and mask where the export picked them (a see-through sheet of vapour), else its material's
     // colour texture as a piece's (a rat, a sheet of paper)
@@ -237,10 +246,13 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   const limit = Math.max(8, Math.min(LIMITS.emitter, Math.floor(LIMITS.effect / Math.max(1, draws.length))));
   let sims = [], pause = 0;
   const start = () => { sims = draws.map((d, k) => makeEmitter(d, { params, seed: seed * 7919 + k * 104729 + 1, limit })); parts.forEach((p, k) => p.rebind(sims[k])); };
+  // each emitter's drawing: made once, and bound to the emitter's next run when it replays (review finding 56: a
+  // replay used to release and remake every geometry, material and mesh, and hide the sprites until their textures
+  // came back)
   const parts = draws.map(d => {
-    const part = { rebind(sim) { part.release?.(); part.sim = sim; part.make(sim); } };
-    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.release = () => h.dispose(); };
-    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.release = () => { o.userData.dispose(); group.remove(o); }; };
+    const part = { rebind(sim) { if (part.keep?.(sim)) return; part.release?.(); part.make(sim); } };
+    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); };
+    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.keep = o.userData.rebind; part.release = () => { o.userData.dispose(); group.remove(o); }; };
     return part;
   });
   start();

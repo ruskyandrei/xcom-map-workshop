@@ -221,6 +221,10 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     s.image[p] = s.randomImage ? Math.floor(s.rand() * s.images) : 0;
     for (const [birth, m] of births) birth(m, s, p);
   }
+  // a particle's own random number, the same each step (its steps' samples of a random table use it): one function for
+  // the emitter, reading the particle being stepped, not a function made per particle per step (review finding 56)
+  let ownNow = 0;
+  const own = () => ownNow;
   function kill(p) {
     const last = --s.count;
     if (p !== last) for (const [key, k] of fields) s[key].copyWithin(p * k, last * k, last * k + k);
@@ -253,7 +257,8 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
       });
     }
     for (let p = 0; p < s.count; p++) {
-      const rel = s.life[p] > 0 ? Math.min(1, s.age[p] / s.life[p]) : 0, u = s.own[p], own = () => u;
+      const rel = s.life[p] > 0 ? Math.min(1, s.age[p] / s.life[p]) : 0;
+      ownNow = s.own[p];
       for (let k = 0; k < 3; k++) { s.vel[3 * p + k] = s.base[3 * p + k]; s.size[3 * p + k] = s.baseSize[3 * p + k]; s.meshRate[3 * p + k] = s.meshBase[3 * p + k]; }
       for (let k = 0; k < 4; k++) s.colour[4 * p + k] = s.baseColour[4 * p + k];
       s.rate[p] = s.baseRate[p];
@@ -284,7 +289,7 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
  *  colour modules reach over DATA_COLOUR in that channel, or null for none. The game's fires do it: their start
  *  colour is red 1 to 3 (the brightness) and green and blue anything up to 50 (each flame's own offset into its
  *  scrolling texture), which as a colour would draw them cyan-white. */
-export const DATA_COLOUR = 8;
+const DATA_COLOUR = 8;
 export function dataChannels(draw) {
   const most = [0, 0, 0];
   const look = d => {
@@ -325,7 +330,7 @@ export function dataChannels(draw) {
  *  over life, at their least). The fires' chunks do so: their alpha rises from 1.5 to 10 as they rise, and each
  *  dissolves; as a plain opacity it would make them solid squares. An alpha set above 1 and held (a steam's
  *  Opacity 2) is a plain opacity. The drawing then takes the shape to the power of the alpha. */
-export const ERODE_FROM = 1.2;
+const ERODE_FROM = 1.2;
 export function alphaErodes(draw) {
   const least = d => {
     if (!d || d.unread) return null;

@@ -95,7 +95,7 @@ function extremePoints(geometry) {
 
 // Tiles count as covered when the footprint reaches this far into them (a quarter tile), and as touched at the edge
 // when it reaches in at all, by more than EDGE units.
-export const COVER_DEPTH=24, EDGE_DEPTH=2;
+const COVER_DEPTH=24, EDGE_DEPTH=2;
 const point=new THREE.Vector3();
 // The tiles a piece covers: each mesh's outline, turned and moved as drawn, laid flat on the map. Returns the tiles it
 // covers and those it only reaches into at the edge ("x,y" keys), the outlines (in game x, y), its lowest point (viewer
@@ -148,7 +148,7 @@ function floorsOf(scene) {
 // lines where gone(actor) (a piece moved or deleted since: the Build's rebuild checks those tiles again). shown(floor)
 // picks the tiles drawn. userData.tiles[i] is the tile of the mesh's triangles 2i and 2i+1, for picking. The saved
 // data only: copies have no saved floor, so they show none.
-export const GONE_COLOR=0x7d8a93;
+const GONE_COLOR=0x7d8a93;
 export function floorTilesOverlay(scene,{shown=()=>true,colorOf=()=>0x82d5ce,gone=()=>false}={}) {
   const {origin,size}=tileGridOf(scene),group=new THREE.Group(),tiles=[],pos=[],col=[],hatch=[],color=new THREE.Color();
   for(const floor of scene.preview ? [] : scene.tactical?.floorTiles || []){
@@ -180,7 +180,7 @@ export function floorTilesOverlay(scene,{shown=()=>true,colorOf=()=>0x82d5ce,gon
 const GRID_COLOR=new THREE.Color(0x79d6ce), FOOT_COLOR=0xf2c46d, FLOAT_COLOR=0x8fb4ff;
 // A piece whose lowest point is more than this above the floor under it is drawn as floating (EXP-11: a fog pod lifted
 // 64 units gave no cover).
-export const FLOAT_GAP=8;
+const FLOAT_GAP=8;
 // The grid around a footprint: the tiles within `reach` of it at its tile level, fading out with distance. A tile lies
 // on the map's saved floor surface at that level where there is one (unless its floor actor is hidden or cut away), and
 // flat at the piece's lowest point elsewhere. The covered tiles are filled and outlined, also through the piece itself,

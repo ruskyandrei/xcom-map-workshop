@@ -3,12 +3,13 @@
 // level and actor; added pieces, each a copy of a source actor's components under its own output name and pose; and
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
+import { call } from './api.js';
 
 // 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
 // plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
 // (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7). A project of schema 1
 // to 3 opens, and saves as 4.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 4, READ_VERSIONS = [1, 2, 3, 4];
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 4;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -47,7 +48,7 @@ const byKey = (a, b) => memberKey(a).localeCompare(memberKey(b));
 // (`prefab`: the prefab a group was placed from, { id, name, revision }: a label, for "update to the newest" later)
 export const validPrefabMark = p => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.name === 'string'
   && Number.isInteger(p.revision) && Object.keys(p).length === 3;
-export const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakTogether: g.breakTogether === true,
+const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakTogether: g.breakTogether === true,
                                  ...(validPrefabMark(g.prefab) ? { prefab: { id: g.prefab.id, name: g.prefab.name, revision: g.prefab.revision } } : {}),
                                  members: [...g.members].sort(byKey) });
 // Two edit states are the same project content when these match (records come sorted).
@@ -102,7 +103,7 @@ export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b
 // map plan, section 6) the grid may also be smaller than the map's, in any of the three; the corner and the bottom
 // never move.
 // (256 tiles a side since 16 November 2026, at the user's word; 128 before)
-export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30, STAGE_LEVELS_PLAYED = 18;
+export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30;
 // The maps whose size can be set without clearing them: the bare map a new prefab or a new map starts from
 // (compiler.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.
 export const STAGE_MAPS = ['CB2_MP_Blank'];
@@ -114,7 +115,7 @@ export const STAGE_MAPS = ['CB2_MP_Blank'];
 // (AltSpawnLoc, AltSpawnDir), lwr?: false (no line is written for it), other?: string (a line's fields the editor does
 // not know, as written) }. Absent: the base map's lines and its own landings, as they are. tools/viewer/spawns.py
 // reads and writes the lines.
-export const LANDING_DIRECTIONS = ['north', 'east', 'south', 'west'], LANDING_KINDS = ['normal', 'inside', 'alternate', 'noEvac', 'default'];
+const LANDING_DIRECTIONS = ['north', 'east', 'south', 'west'], LANDING_KINDS = ['normal', 'inside', 'alternate', 'noEvac', 'default'];
 const LANDING_KEYS = ['id', 'location', 'direction', 'kind', 'missionType', 'councilType', 'alternate', 'lwr', 'ew', 'other'];
 const typeName = v => v === undefined || (typeof v === 'string' && /^[A-Za-z0-9_]+$/.test(v));
 // `other` goes into the game's ini as written: it must stay on its line (spawns.py plain_other is the twin)
@@ -185,7 +186,7 @@ const validLight = v => v === undefined || (v && typeof v === 'object' && !Array
 // An effect's or a sound's values (effects and sounds plan, Part C): `effect` {scale?, startsOn?, parameters?, follow?}
 // or `sound` {radiusMin?, radiusMax?, volume?, pitch?, startsOn?}, known keys only. `follow` ('none': it stays where
 // it is when the piece that carries it moves; 'auto': it follows) is stage FX3's; the others are carried as saved.
-export const EFFECT_VALUE_KEYS = { effect: ['scale', 'startsOn', 'parameters', 'follow'], sound: ['radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn'] };
+const EFFECT_VALUE_KEYS = { effect: ['scale', 'startsOn', 'parameters', 'follow'], sound: ['radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn'] };
 const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.keys(v).every(k => EFFECT_VALUE_KEYS[kind].includes(k)) && (v.follow === undefined || ['none', 'auto'].includes(v.follow)));
 // A base spawn point's values (the editor spawns plan, SP6): `spawn` {commander?, secondary?, use?} of a pod or
@@ -194,7 +195,7 @@ const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'ob
 const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
 // (a no-spawn volume's box, [x0, y0, z0, x1, y1, z1]: each far side past the near one, as spawns_view.js validBox and
-// the compiler's spawn_box have it, not a building box's at least 1 unit; review finding 34)
+// spawn_edits.py SpawnEdits.spawn_box have it, not a building box's at least 1 unit; review finding 34)
 const validSpawnBox = b => Array.isArray(b) && b.length === 6 && b.every(Number.isFinite) && b[3] > b[0] && b[4] > b[1] && b[5] > b[2];
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
 // map has it; an effect's may be its values alone, and a spawn point's too; a no-spawn volume's is its box, its values
@@ -289,13 +290,6 @@ export function newDocument(name, mapId, data, output) {
   };
 }
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, detail: value });
-  return value;
-}
 const at = id => `/projects/${encodeURIComponent(id)}`;
 /** A draft's DELETE query: its owner (blank: the draft kept before drafts had owners) and, for one shown, its time. */
 export const draftQuery = (owner, savedAt = null) => new URLSearchParams({ owner: owner ?? '', ...(savedAt ? { savedAt } : {}) }).toString();

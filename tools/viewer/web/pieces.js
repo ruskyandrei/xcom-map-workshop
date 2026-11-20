@@ -17,7 +17,7 @@ let families = null, assemblyFamily = () => null;
 /** The families table (families.json) and assemblyFamily(obj): the family of the map's assembly the piece is in or
  *  was copied from, or null. With no table every piece counts as building. */
 export function useFamilies(table, familyOfAssembly) { families = table; assemblyFamily = familyOfAssembly; }
-export const pieceFamily = obj => assemblyFamily(obj) ?? (obj.partner ? 'car' : families?.classFamily[obj.actorClass] ?? 'other');
+const pieceFamily = obj => assemblyFamily(obj) ?? (obj.partner ? 'car' : families?.classFamily[obj.actorClass] ?? 'other');
 const familyRecord = obj => families?.families[pieceFamily(obj)] ?? null;
 /** Whether the piece keeps the pose rule (poserule.js): whole tiles, storeys and quarter turns from its original. */
 export const pieceGrid = obj => Boolean(familyRecord(obj)?.grid);
@@ -121,80 +121,6 @@ function drawSpawnIcon(canvas, kind) {
   } else { g.fillStyle = colour; g.beginPath(); g.arc(24, 24, 8, 0, Math.PI * 2); g.fill(); }
   g.restore();
 }
-// A wall look's icon (app.js wallEntries): a stretch of wall with a doorway, its skirting and cornice, a tile line under it
-// A room's (M3 item 6): four walls round a floor seen from above at a slant, a gap for the doorway in the near one.
-// A ground shape's (M6): a patch, a block or a ramp on a tile line, seen at a slant.
-function drawGroundIcon(canvas, shape) {
-  const g = canvas.getContext('2d'), s = canvas.width;
-  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
-  g.save(); g.scale(s / 48, s / 48);
-  g.strokeStyle = '#4a5a66'; g.lineWidth = 1; g.setLineDash([2, 2]);
-  g.beginPath(); g.moveTo(2, 40.5); g.lineTo(46, 40.5); g.stroke(); g.setLineDash([]);
-  const top = '#5b6168', side = '#3d4247', front = '#474d53';
-  if (shape === 'patch') {
-    g.fillStyle = side; g.fillRect(6, 34, 36, 4);
-    g.fillStyle = top; g.beginPath(); g.moveTo(6, 34); g.lineTo(14, 28); g.lineTo(42, 28); g.lineTo(42, 34); g.closePath(); g.fill();
-  } else if (shape === 'block') {
-    g.fillStyle = front; g.fillRect(8, 22, 26, 18);
-    g.fillStyle = side; g.beginPath(); g.moveTo(34, 22); g.lineTo(42, 16); g.lineTo(42, 34); g.lineTo(34, 40); g.closePath(); g.fill();
-    g.fillStyle = top; g.beginPath(); g.moveTo(8, 22); g.lineTo(16, 16); g.lineTo(42, 16); g.lineTo(34, 22); g.closePath(); g.fill();
-  } else if (shape === 'rock') {
-    g.fillStyle = side; g.beginPath(); g.moveTo(26, 14); g.lineTo(38, 20); g.lineTo(42, 32); g.lineTo(36, 40); g.lineTo(28, 40); g.closePath(); g.fill();
-    g.fillStyle = front; g.beginPath(); g.moveTo(8, 40); g.lineTo(6, 30); g.lineTo(14, 20); g.lineTo(26, 14); g.lineTo(28, 40); g.closePath(); g.fill();
-    g.fillStyle = top; g.beginPath(); g.moveTo(14, 20); g.lineTo(26, 14); g.lineTo(38, 20); g.lineTo(27, 23); g.closePath(); g.fill();
-  } else {
-    g.fillStyle = side; g.beginPath(); g.moveTo(40, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(44, 36); g.closePath(); g.fill();
-    g.fillStyle = top; g.beginPath(); g.moveTo(4, 40); g.lineTo(40, 14); g.lineTo(44, 10); g.lineTo(8, 36); g.closePath(); g.fill();
-    g.fillStyle = front; g.beginPath(); g.moveTo(4, 40); g.lineTo(40, 40); g.lineTo(40, 14); g.closePath(); g.fill();
-  }
-  g.restore();
-}
-// A floor or roof's (M5): a slab seen at a slant, its break lines, a hole in a floor; a roof's grey gravel.
-function drawSlabIcon(canvas, role) {
-  const g = canvas.getContext('2d'), s = canvas.width;
-  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
-  g.save(); g.scale(s / 48, s / 48);
-  const top = role === 'roof' ? '#8d949a' : '#6b4a32', side = role === 'roof' ? '#5d6368' : '#4a3222';
-  g.fillStyle = side; g.beginPath(); g.moveTo(4, 26); g.lineTo(24, 36); g.lineTo(44, 26); g.lineTo(44, 30); g.lineTo(24, 40); g.lineTo(4, 30); g.closePath(); g.fill();
-  g.fillStyle = top; g.beginPath(); g.moveTo(4, 26); g.lineTo(24, 16); g.lineTo(44, 26); g.lineTo(24, 36); g.closePath(); g.fill();
-  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(14, 21); g.lineTo(34, 31); g.moveTo(14, 31); g.lineTo(34, 21); g.moveTo(9, 28.5); g.lineTo(19, 23.5); g.stroke();
-  if (role !== 'roof') { g.fillStyle = '#1f2a33'; g.beginPath(); g.moveTo(26, 27); g.lineTo(32, 24); g.lineTo(37, 26.5); g.lineTo(31, 29.5); g.closePath(); g.fill(); }
-  g.restore();
-}
-function drawRoomIcon(canvas, roof = false) {
-  const g = canvas.getContext('2d'), s = canvas.width;
-  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
-  g.save(); g.scale(s / 48, s / 48);
-  g.fillStyle = '#2c3a44'; g.beginPath(); g.moveTo(8, 30); g.lineTo(24, 38); g.lineTo(40, 30); g.lineTo(24, 22); g.closePath(); g.fill();
-  g.fillStyle = '#9c8a74';
-  g.beginPath(); g.moveTo(8, 30); g.lineTo(24, 22); g.lineTo(24, 10); g.lineTo(8, 18); g.closePath(); g.fill();     // far left
-  g.fillStyle = '#c9b49a';
-  g.beginPath(); g.moveTo(24, 22); g.lineTo(40, 30); g.lineTo(40, 18); g.lineTo(24, 10); g.closePath(); g.fill();   // far right
-  g.fillStyle = '#b8a288';
-  g.beginPath(); g.moveTo(8, 30); g.lineTo(13, 32.5); g.lineTo(13, 20.5); g.lineTo(8, 18); g.closePath(); g.fill();  // near left, to the doorway
-  g.beginPath(); g.moveTo(19, 35.5); g.lineTo(24, 38); g.lineTo(40, 30); g.lineTo(40, 18); g.lineTo(24, 26); g.lineTo(19, 23.5); g.closePath(); g.fill();
-  if (roof) {     // a roof over it, the grey gravel lid at its walls' tops
-    g.fillStyle = 'rgba(141,148,154,0.92)'; g.beginPath(); g.moveTo(8, 18); g.lineTo(24, 10); g.lineTo(40, 18); g.lineTo(24, 26); g.closePath(); g.fill();
-  }
-  g.strokeStyle = '#82d5ce'; g.lineWidth = 1.5;
-  g.beginPath(); g.arc(8, 30, 2.5, 0, Math.PI * 2); g.moveTo(42.5, 30); g.arc(40, 30, 2.5, 0, Math.PI * 2); g.stroke();
-  g.restore();
-}
-function drawWallIcon(canvas) {
-  const g = canvas.getContext('2d'), s = canvas.width;
-  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
-  g.save(); g.scale(s / 48, s / 48);
-  g.strokeStyle = '#4a5a66'; g.lineWidth = 1; g.setLineDash([2, 2]);
-  g.beginPath(); g.moveTo(2, 40.5); g.lineTo(46, 40.5); g.stroke(); g.setLineDash([]);
-  g.fillStyle = '#c9b49a'; g.fillRect(6, 10, 36, 30);          // the wall
-  g.fillStyle = '#8a6f55'; g.fillRect(6, 36, 36, 4); g.fillRect(5, 9, 38, 3);    // skirting, cornice
-  g.fillStyle = '#9c8a74'; g.fillRect(6, 24, 36, 1);           // the storey line
-  g.fillStyle = '#1f2a33'; g.fillRect(19, 19, 10, 21);         // the doorway
-  g.strokeStyle = '#82d5ce'; g.lineWidth = 1.5;
-  g.beginPath(); g.arc(6, 25, 2.5, 0, Math.PI * 2); g.moveTo(44.5, 25); g.arc(42, 25, 2.5, 0, Math.PI * 2); g.stroke();
-  g.restore();
-}
 const tiles = units => Math.max(1, Math.round(units / 96));   // a floor piece's size across in whole tiles (a curb drops out)
 const short = path => path.split('.').at(-1);
 // The package path an archetype sits in: a prefab's parts share their prefab's (VEH_MovingVan.Prefab.PRE_MovingVanA).
@@ -224,7 +150,6 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
     byKey.set(key, {
       key, id: `piece-${byKey.size}`, name: prefab ?? short(mesh), mesh, pkg: mesh.split('.')[0], kind, role: pivot.sceneryRole ?? 'interior',
       sources, pivotIndex: sources.indexOf(pivot), count: 1, materials,
-      // An assembly builds when all its parts do.
       // Viewer basis in the actor's frame: x is game X, y is up, z is game Y.
       frame, box, size: [size.x, size.z, size.y], extent: size.length(),
       text: [...sources.map(s => data.meshes[s.mesh].name), ...sources.map(s => s.archetype).filter(a => a !== 'None'),
@@ -234,139 +159,60 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
   return [...byKey.values()];
 }
 
-// Rows for pieces of This map and recipes in either scope.
-export function pieceRow(entry, pixelRatio, choose) {
-  if (entry.lookPicker) {   // a kind's Choose a look (app.js lookPickerEntry, M4c): opens the look picker
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    (entry.lookPicker === 'ground' ? c => drawGroundIcon(c, 'patch') : entry.lookPicker === 'slab' ? c => drawSlabIcon(c, 'floor') : drawWallIcon)(thumb);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Looks', title: 'Every map\'s pieces of this kind, to draw in their look' }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.wallLook) {     // the Walls kind (app.js wallEntries): drawn by dragging along the tile lines
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    (entry.ground ? c => drawGroundIcon(c, entry.ground) : entry.slab ? c => drawSlabIcon(c, entry.wallLook.role)
-      : entry.room ? c => drawRoomIcon(c, entry.roof) : drawWallIcon)(thumb);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: entry.wallLook.lwrOnly ? 'LWR only' : 'Made',
-      title: entry.wallLook.lwrOnly ? 'Long War Rebalance only: its donor is in no map of plain Enemy Within'
-        : entry.ground ? 'Made by the Build from numbers on one of the game\'s ground materials'
-        : `Made by the Build from numbers, like the game's own ${entry.slab ? 'floors and roofs' : 'walls'}` }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawSpawnIcon(thumb, entry.spawnAdd);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `Spawn points · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} on this map` }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawZoneIcon(thumb);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `Landing zones · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.light) {
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawLightIcon(thumb, entry.light, entry.colour);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `${LIGHTS} · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    if (entry.count) tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} ${entry.light} lights in this map` }));
-    if (!entry.builds) tags.append(Object.assign(document.createElement('span'), { className: 'tag test', textContent: 'Test',
-      title: entry.note }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
+// One row of a list: its thumbnail (drawn here by `draw`, else by the list's painter later), the entry's name, two lines
+// under it (`detail`: words, or a small's properties) and its tags (each a tag's properties).
+function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, title }) {
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
   const thumb = document.createElement('canvas');
   thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+  if (draw) { draw(thumb); thumb.dataset.drawn = '1'; }
   const label = document.createElement('span');
+  label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
+    Object.assign(document.createElement('small'), { textContent: sub }),
+    Object.assign(document.createElement('small'), typeof detail === 'object' ? detail : { textContent: detail }));
+  const box = Object.assign(document.createElement('span'), { className: 'tags' });
+  box.append(...tags.map(tag => Object.assign(document.createElement('span'), { className: 'tag', ...tag })));
+  button.title = title;
+  button.append(thumb, label, box);
+  button.onclick = choose;
+  button.thumb = thumb;
+  return button;
+}
+
+// Rows for pieces of This map and recipes in either scope.
+export function pieceRow(entry, pixelRatio, choose) {
+  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
+    return listRow(entry, pixelRatio, choose, { draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
+      detail: entry.detail, title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} on this map` }] });
+  }
+  if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
+    return listRow(entry, pixelRatio, choose, { draw: drawZoneIcon, sub: `Landing zones · ${entry.pkg}`, detail: entry.detail,
+      title: entry.title, tags: [{ textContent: `×${entry.count}`,
+                                   title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }] });
+  }
+  if (entry.light) {
+    return listRow(entry, pixelRatio, choose, { draw: c => drawLightIcon(c, entry.light, entry.colour), sub: `${LIGHTS} · ${entry.pkg}`,
+      detail: entry.detail, title: entry.title, tags: [
+        ...(entry.count ? [{ textContent: `×${entry.count}`, title: `${entry.count} ${entry.light} lights in this map` }] : []),
+        ...(entry.builds ? [] : [{ className: 'tag test', textContent: 'Test', title: entry.note }])] });
+  }
   const parts = entry.sources.length > 1 ? ` · ${entry.sources.length} parts` : '';
   const [w, d, h] = entry.size.map(Math.round);
-  label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-    Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}${parts}` }),
-    Object.assign(document.createElement('small'), entry.cover
+  return listRow(entry, pixelRatio, choose, {
+    sub: `${entry.kind} · ${entry.pkg}${parts}`,
+    detail: entry.cover
       ? (entry.cover.type === 'floor'
         ? { textContent: 'Any size: set once placed', title: 'Placed as one tile; its width and length are set in the piece panel' }
         : { textContent: 'Any size and height, high or low: set once placed',
             title: 'Placed as one tile of high cover; its width, length, height and cover are set in the piece panel' })
       : { textContent: `${w} × ${d} × ${h}${entry.floor ? ` · floor, ${tiles(w)} × ${tiles(d)} tiles` : ''}`,
-          title: 'Width × depth × height in game units (a floor tile is 96 across)' }));
-  const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-  // a cover block or invisible floor (app.js coverEntries) is the editor's own piece: none in the map to count
-  tags.append(entry.cover
-    ? Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Invisible', title: 'Hidden in the game' })
-    : Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} in this map` }));
-  button.title = entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n');
-  button.append(thumb, label, tags);
-  button.onclick = choose;
-  button.thumb = thumb;
-  return button;
+          title: 'Width × depth × height in game units (a floor tile is 96 across)' },
+    // a cover block or invisible floor (app.js coverEntries) is the editor's own piece: none in the map to count
+    tags: [entry.cover ? { textContent: 'Invisible', title: 'Hidden in the game' }
+                       : { textContent: `×${entry.count}`, title: `${entry.count} in this map` }],
+    title: entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n'),
+  });
 }
 
 /** The panel: filter, kind, where and sort; rows with a thumbnail, name, kind, size and count.
@@ -386,7 +232,7 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
   function load(list) {
     entries = list;
     setKindOptions(els.kind, entries);
-    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd && !e.wallLook).map(e => e.role))];
+    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd).map(e => e.role))];
     els.where.replaceChildren(new Option('Anywhere', 'all'), ...roles.map(r => new Option(ROLES[r] ?? r, r)));
     els.where.hidden = roles.length < 2;
   }
@@ -401,12 +247,12 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const kind = els.kind.value;
     const shown = entries.filter(e => inKind(e, kind)
-      && (els.where.value === 'all' || e.light || e.zone || e.spawnAdd || e.wallLook || e.role === els.where.value) && words.every(w => e.text.includes(w)));
+      && (els.where.value === 'all' || e.light || e.zone || e.spawnAdd || e.role === els.where.value) && words.every(w => e.text.includes(w)));
     shown.sort(SORTS[els.sort.value]);
     els.list.replaceChildren(...shown.map(row));
     for (const [k, b] of rows) b.classList.toggle('on', k === chosen?.key);
     // pieces and lights counted apart
-    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone && !e.spawnAdd && !e.wallLook)).length;
+    const count = (list, what) => list.filter(e => (what === 'light' ? Boolean(e.light) : !e.light && !e.zone && !e.spawnAdd)).length;
     const say = (n, of, what) => (n === of ? `${of} ${what}${of === 1 ? '' : 's'}` : `${n} of ${of} ${what}s`);
     const total = [count(shown, 'piece') && say(count(shown, 'piece'), count(entries, 'piece'), 'piece'),
                    count(shown, 'light') && say(count(shown, 'light'), count(entries, 'light'), 'light')].filter(Boolean).join(' and ');

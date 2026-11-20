@@ -19,7 +19,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from browser_smoke import open_viewer, project_url, type_pose, type_project_name     # noqa: E402
+from browser_smoke import open_viewer, type_pose, type_project_name     # noqa: E402
 
 MAP = 'URB_Bar'
 

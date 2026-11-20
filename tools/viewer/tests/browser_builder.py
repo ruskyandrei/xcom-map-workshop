@@ -7,12 +7,20 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
 
 
+def listen(page, errors, expected=()):
+    """The page's errors, its console's errors and its failed requests into `errors` (HTTP statuses in `expected` are
+    the check's own doing; a request a navigation cancels, net::ERR_ABORTED, is not a failure)."""
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' and not any(f'status of {s}' in m.text for s in expected) else None)
+    page.on('requestfailed', lambda r: errors.append(f'{r.url}: {r.failure}') if 'ERR_ABORTED' not in (r.failure or '') else None)
+
+
 def check_builder(browser, url, screenshot=None):
     base = url.split('?')[0]
     assert 8790 <= urlsplit(base).port <= 8799, 'Use a test server and scratch prefab/project stores'
     errors, dialogs = [], []
     page = browser.new_page(viewport=dict(width=1600, height=1000))
-    page.on('pageerror', lambda e: errors.append(str(e)))
+    listen(page, errors, expected=(404,))      # (the pieces of an unavailable map asked for below are the check's own)
     page.on('dialog', lambda d: (dialogs.append(d.type), d.accept()))
     def opened(query):
         page.goto(base + query)
@@ -91,7 +99,7 @@ def check_builder(browser, url, screenshot=None):
     assert lamp['location'] == [384, 288, 160]
     assert page.evaluate('id => viewer.prefabApi.recovery(id)', prefab_id) is None
     # A stale second page cannot save or navigate on Save; Cancel preserves the working scene.
-    stale = browser.new_page()
+    stale = browser.new_page(); listen(stale, errors, expected=(404, 409))     # (the same unavailable piece; its refused save)
     stale.goto(base + '?prefab=' + prefab_id); stale.wait_for_function('window.viewer && !document.querySelector("#loading").hidden === false', timeout=120000)
     assert page.evaluate('viewer.saveBuilder()')
     assert stale.evaluate('viewer.saveBuilder()') is False
@@ -156,7 +164,7 @@ def check_recipe_recovery(browser, url):
     """Automatically repair an unavailable donor when placing or opening a prefab."""
     from uuid import uuid4
     base = url.split('?')[0]
-    page = browser.new_page()
+    page = browser.new_page(); errors = []; listen(page, errors, expected=(404,))     # (UnavailableRecipeMap's pieces: the check's own)
     page.goto(base + '?prefab=new')
     page.wait_for_function('window.viewer && document.querySelector("#loading").hidden', timeout=120000)
     fixture = page.evaluate('''async () => {
@@ -207,13 +215,14 @@ def check_recipe_recovery(browser, url):
     saved = page.evaluate('id => viewer.prefabApi.load(id)', doc['id'])
     assert next(p for p in saved['pieces'] if p['actor'] == 'Lost_copy90')['from'] == repaired['from']
     assert not page.evaluate('viewer.dirty()')
+    assert not errors, errors
     page.close()
     return dict(recovered=source['package'], unresolved=1, placement=True, undo=True, saved=True)
 
 
 def check_real_sources(browser, url, box_id, screenshot=None):
     base = url.split('?')[0]; page = browser.new_page(viewport=dict(width=1600, height=1000)); errors = []
-    page.on('pageerror', lambda e: errors.append(str(e))); page.on('dialog', lambda d: d.accept())
+    listen(page, errors); page.on('dialog', lambda d: d.accept())
     page.goto(base + '?prefab=new'); page.wait_for_function('window.viewer && document.querySelector("#loading").hidden')
     page.evaluate('viewer.showPieces(true)'); page.wait_for_function('viewer.library.ready()', timeout=120000)
     assert page.locator('#builderRecipes').count() == 0
@@ -296,13 +305,14 @@ def check_real_sources(browser, url, box_id, screenshot=None):
 
 def check_navigation(browser, url, source_id, project_id):
     base = url.split('?')[0]; page = browser.new_page(viewport=dict(width=1600, height=1000)); errors, prompts = [], []
-    page.on('pageerror', lambda e: errors.append(str(e)))
+    listen(page, errors, expected=(500, 409))      # (the failed and stale writes below are the check's own)
     page.on('dialog', lambda d: (prompts.append(d.type), d.accept()))
     def open_source():
         page.goto(base+'?prefab='+source_id)
         page.wait_for_function('window.viewer && document.querySelector("#loading").hidden', timeout=120000)
     def changed(): page.evaluate('viewer.addVolumes([{box:[384,0,0,480,96,192],floor:0}])')
-    def go(target): page.evaluate('target=>{ void viewer.goTo(target); }', target); page.locator('#leaveDialog').wait_for(state='visible')
+    def go(target):     # (goTo's answer is kept: true when it left, false when it stayed)
+        page.evaluate('target=>{ window.goToAnswer = viewer.goTo(target); }', target); page.locator('#leaveDialog').wait_for(state='visible')
     open_source()
     source = page.evaluate('viewer.builderDocument()')
     target = page.evaluate('''async () => { const d=await viewer.prefabApi.load(viewer.builderDocument().id);
@@ -346,7 +356,8 @@ def check_navigation(browser, url, source_id, project_id):
     route = '**/prefabs/'+source_id+'/prefab.json'
     for status, body in [(500, dict(error='Simulated write failure')), (409, dict(error='Stale revision', revision=999))]:
         page.route(route, lambda r: r.fulfill(status=status, json=body) if r.request.method=='PUT' else r.continue_())
-        old_url = page.url; go(dict(prefab=target['id'])); page.locator('#leaveSave').click(); page.wait_for_timeout(250)
+        old_url = page.url; go(dict(prefab=target['id'])); page.locator('#leaveSave').click()
+        assert page.evaluate('window.goToAnswer') is False      # it stayed, the save having failed
         assert page.url == old_url and page.evaluate('viewer.dirty()')
         page.unroute(route)
     go(dict(prefab='new')); page.locator('#leaveDiscard').click(); page.wait_for_url('**/?prefab=new')
@@ -370,7 +381,8 @@ def check_navigation(browser, url, source_id, project_id):
 
 def check_recovery_edges(browser, url, box_id):
     base = url.split('?')[0]; page = browser.new_page(viewport=dict(width=1600, height=1000)); errors = []
-    page.on('pageerror', lambda e: errors.append(str(e))); page.on('dialog', lambda d: d.accept())
+    # (404s are the check's own: an unavailable map's piece, and a draft asked for after it is gone)
+    listen(page, errors, expected=(404,)); page.on('dialog', lambda d: d.accept())
     def ready(): page.wait_for_function('window.viewer && document.querySelector("#loading").hidden', timeout=120000)
     page.goto(base+'?prefab='+box_id); ready()
     before = page.evaluate('viewer.buildings().length')
@@ -409,7 +421,7 @@ def check_recovery_edges(browser, url, box_id):
 
 def check_large_builder(browser, url):
     base = url.split('?')[0]; page = browser.new_page(viewport=dict(width=1600, height=1000)); errors = []
-    page.on('pageerror', lambda e: errors.append(str(e))); page.on('dialog', lambda d: d.accept())
+    listen(page, errors); page.on('dialog', lambda d: d.accept())
     page.goto(base+'?map=URB_Bar'); page.wait_for_function('window.viewer && document.querySelector("#loading").hidden', timeout=120000)
     selection = page.evaluate('''() => {
       viewer.setBoxesShown(true); viewer.setNormalLights(true);

@@ -4,7 +4,8 @@
 // roll as they were: everything the map saves per tile then maps exactly. The editor's recipe snap puts a piece at
 // nearestGridPose. Both pass the cases in tools/editor/tests/pose_rule_cases.json.
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll), the origin the tile grid's corner.
-export const TILE = 96, STOREY = 64, QUARTER = 16384, POSE_SLACK = 0.5;
+import { LEVEL as STOREY, QUARTER, TILE } from './constants.js';
+export const POSE_SLACK = 0.5;
 
 // Half away from zero, as the compiler rounds (game_round).
 const gameRound = n => (n >= 0 ? Math.floor(n + 0.5) : Math.ceil(n - 0.5));

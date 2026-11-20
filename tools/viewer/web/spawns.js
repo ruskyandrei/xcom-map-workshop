@@ -2,13 +2,15 @@
 // actors, by the offsets of LWR's landing-zone mutator (XComLZMutator), and the project's starting list made from the
 // map's own landings and the install's lines. tools/viewer/spawns.py has the same rules for the compiler and the
 // Build; game units, x and y across, z up.
+import { QUARTER } from './constants.js';
+
 export const DIRECTIONS = ['north', 'east', 'south', 'west'];
-export const QUARTER = 16384, GROUND = 64, INSIDE_BACK = 288, TILE = 96;
+export const GROUND = 64, INSIDE_BACK = 288;
 export const OFFSETS = { playerStart: [8, 189, 16], volume: [0, -47, 32], frame: [0, 0, -64], point: [-240, 432, -64] };
 export const SOLDIERS = [[192, 384, -16], [0, 480, -16], [192, 192, -16], [0, 288, -16], [-192, 384, -16], [-192, 192, -16]];
 export const EVAC_SIZE = [480, 288, 192];
 // zones whose soldier points stand this close to a landing's are one place (F-99: 41 of the install's landings)
-export const SAME_PLACE = 4;
+const SAME_PLACE = 4;
 
 export const yawOf = direction => DIRECTIONS.indexOf(direction) * QUARTER;
 /** A vector [x, y, z] turned by a yaw in rotation units (v >> Rotator(0, yaw, 0)); exact for quarter turns. */
@@ -66,7 +68,7 @@ export function fitZone(actors, bottom = null) {
            direction: best.direction, kind: 'normal' };
 }
 /** Whether a zone stands where the map's own landing `own` has it (the same direction, the place within half a unit). */
-export const atOwnPlace = (zone, own) => Boolean(own) && zone.direction === own.zone.direction
+const atOwnPlace = (zone, own) => Boolean(own) && zone.direction === own.zone.direction
   && [0, 1, 2].every(k => Math.abs(Number(zone.location[k]) - Number(own.zone.location[k])) < 0.5);
 /** Whether a zone leaves the map's own landing `own` where the map has it, as the Build reckons it
  *  (tools/bake/native_spawns.py unmoved): the same direction, and the frame and the six soldier points within
@@ -90,7 +92,7 @@ export function soldierSpots(zone, own = null) {
   }
   return place(zone).soldiers;
 }
-export const keptForMission = z => Boolean(z.missionType || z.councilType);
+const keptForMission = z => Boolean(z.missionType || z.councilType);
 /** Whether the list says which zones plain EW plays (`ew: true`, the panel's Plain EW) rather than by order. */
 export const explicitEw = zones => zones.some(z => 'ew' in z);
 /** The indices of the zones that are also the map's own landings (spawns.py own_slots): those marked `ew: true`, the

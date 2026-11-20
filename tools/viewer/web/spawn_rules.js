@@ -1,4 +1,4 @@
-// What the game does with a spawn point or a mission's objective (private/plans/todo/editor-spawns-implementation-plan.md,
+// What the game does with a spawn point or a mission's objective (private/plans/done/editor-spawns-implementation-plan.md,
 // SP2): the sentences the Spawns inspector shows under "In the game", from the record (export 33), the mission the
 // header shows (an export's mission: {type, label}) and what the install does (/maps/<id>/spawn-rules.json:
 // tools/viewer/spawnrules.py). Pure: no page, no three.js. The table follows the spawns plan's 2.3 and 2.4 and the

@@ -5,7 +5,7 @@
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 export const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-const sentence = s => s.charAt(0).toUpperCase() + s.slice(1);
+export const sentence = s => s.charAt(0).toUpperCase() + s.slice(1);
 export const ACTIVE = ['waiting', 'starting', 'building'];
 
 // The manager's Show choice "Needs a full build": a readable project not built, built quick (its lighting not
@@ -25,7 +25,7 @@ export function requestOrder(sorted, picked) {
 }
 
 // The step a row's build is at, in words: what a tool is counting, or the stage.
-export function stepWords(job) {
+function stepWords(job) {
   if (!job) return '';
   const p = job.progress;
   if (p) return sentence(p.total ? `${p.what}: ${p.done} of ${p.total}` : `${p.what}…`);

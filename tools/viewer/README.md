@@ -305,12 +305,13 @@ screenshots, typical tasks, and what the editor can't do yet.
 
   ```powershell
   python tools/viewer/viewer.py serve --port 8790 --no-open --projects "<scratch>\projects" --builds "<scratch>\builds"
-  python tools/release/guide/take_shots.py
+  python tools/release/guide/take_shots.py --out .scratch/guide-shots
   ```
 
   [take_shots.py](../release/guide/take_shots.py) drives the page (Playwright and Edge) through a small demo project
-  on the Bar, draws the numbered marks, and writes `tools/release/guide/shots/*.webp`. It saves a project and never
-  builds or installs. The server's answers that would name this computer's folders are replaced by a usual install's.
+  on the Bar, draws the numbered marks, and writes `*.webp` into the `--out` folder (the guide skill copies the chosen
+  ones into `tools/release/guide/shots`; 8768, the main server, is refused). It saves a project and never builds or
+  installs. The server's answers that would name this computer's folders are replaced by a usual install's.
 
 ## Editing (move, rotate, copy, add, delete)
 
