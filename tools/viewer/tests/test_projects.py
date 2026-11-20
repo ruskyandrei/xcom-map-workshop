@@ -12,24 +12,14 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue
-from projects import SCHEMA, SCHEMA_VERSION, ProjectError, ProjectStore, file_stem
+from projects import SCHEMA_VERSION, ProjectError, ProjectStore, file_stem
 import settings as settings_module
 from viewer import Handler, LocalServer
+from viewer_fixtures import ID, OTHER, document  # noqa: F401  (the records the viewer suite shares)
 
-ID = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'
-OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d'
 # page sessions (the id each page makes as it loads)
 PAGE_A, PAGE_B, PAGE_C = ('aaaaaaaa-0000-4000-8000-00000000000a', 'bbbbbbbb-0000-4000-8000-00000000000b',
                           'cccccccc-0000-4000-8000-00000000000c')
-
-
-def document(project_id=ID, **changes):
-    doc = dict(schema=SCHEMA, schemaVersion=SCHEMA_VERSION, id=project_id, name='Bar remix', mode='edit',
-               source=dict(map='URB_Bar', package='URB_Bar.upk', sha256='a' * 64, exporterVersion=12),
-               overrides=[dict(target=dict(package='URB_Bar', level='base', actor='TheWorld.PersistentLevel.A_1'), deleted=True)],
-               added=[])
-    doc.update(changes)
-    return doc
 
 
 class StoreTests(unittest.TestCase):

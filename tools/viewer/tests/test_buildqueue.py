@@ -22,7 +22,7 @@ from builds import BuildRunner  # noqa: E402
 import gamesetup  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
 from test_builds import STANDIN  # noqa: E402
-from test_projects import ID, OTHER, document  # noqa: E402
+from viewer_fixtures import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 THIRD = '2c3d4e5f-1d2a-4b6c-8e9f-123456789abc'

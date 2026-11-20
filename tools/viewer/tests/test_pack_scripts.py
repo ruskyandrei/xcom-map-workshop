@@ -21,7 +21,7 @@ import manager  # noqa: E402
 import test_manager  # noqa: E402  (its Manager is used by name, so that its tests don't run here again)
 from test_manager import OTHER, OTHER_ID, pack_env, powershell_report  # noqa: E402
 import test_play  # noqa: E402
-from test_projects import ID  # noqa: E402
+from viewer_fixtures import ID  # noqa: E402
 
 VARIANT = test_play.VARIANT
 WINDOWS_POWERSHELL = sys.platform == 'win32' and shutil.which('powershell')

@@ -22,7 +22,7 @@ from builds import BuildRunner
 import procs
 import publication
 from projects import ProjectError, ProjectStore
-from test_projects import ID, OTHER, document
+from viewer_fixtures import ID, OTHER, document
 from viewer import Handler, LocalServer
 
 VIEWER = str(Path(__file__).resolve().parents[1])
