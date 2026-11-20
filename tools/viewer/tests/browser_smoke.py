@@ -5243,6 +5243,18 @@ def main():
             if 'let-go' in only:
                 from browser_editing import check_let_go
                 print(json.dumps(dict(letGo=check_let_go(browser, page.url, open_viewer))))
+            if 'paste-buildings' in only:
+                from browser_editing import check_paste_buildings
+                print(json.dumps(dict(pasteBuildings=check_paste_buildings(browser, page.url, open_viewer))))
+            if 'squad-read' in only:
+                from browser_editing import check_squad_read
+                print(json.dumps(dict(squadRead=check_squad_read(browser, page.url, open_viewer))))
+            if 'ladder-floor' in only:
+                from browser_editing import check_ladder_floor
+                print(json.dumps(dict(ladderFloor=check_ladder_floor(browser, page.url, open_viewer))))
+            if 'small-defects' in only:
+                from browser_editing import check_small_defects
+                print(json.dumps(dict(smallDefects=check_small_defects(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

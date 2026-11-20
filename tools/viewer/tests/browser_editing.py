@@ -25,7 +25,17 @@ pieces will do (the pieces made here use it as their donor).
   Long War only, and the Missions panel leaves the council bomb tickable with a note.
 - let-go (finding 33): the header's Mission select changed by a key gives the focus up (the next key changes nothing),
   a fracturing piece's blast size chosen by key leaves Delete and Ctrl+Z working on the piece, and a tick box in a
-  dialog keeps the focus."""
+  dialog keeps the focus.
+- paste-buildings (finding 34): a copy of a project's building pasted with a piece and undone takes its name back
+  (the next paste is "... copy" again, not "... copy 2"); floor boxes of two buildings, one of them gone, pasted as one
+  undo step, which takes the new building's name back too.
+- squad-read (finding 34): Test squad setup after a read that fails has its controls off (keys on the list and a
+  click on Add do nothing, with no error); read again they are back, and on an install that lands fewer units than
+  the squad keeps (plain EW's six, stood in for) the count names both and Add goes by the squad's own limit.
+- ladder-floor (finding 34): one of the map's ladders climbing to a roof: that roof's Floor turned off by its flags,
+  the ladder's chip says it won't climb (as the Build warns); undone, it climbs.
+- small-defects (finding 34): a warning note in the warning colour, the Floor field to 10, and a UFO mission whose
+  ship type the editor doesn't know shown as it is with OK off until a ship is chosen."""
 import json
 import math
 import time
@@ -480,3 +490,158 @@ def check_let_go(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return out
+
+
+LIVE_BOXES = "() => [...viewer.volumeRoots.values()].filter(r => !r.userData.deleted).map(r => r.userData.source.id)"
+NAMES = "() => viewer.buildingsNow().map(b => b.name).sort()"
+
+
+def check_paste_buildings(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    piece = page.evaluate("() => [...viewer.roots.values()].find(r => !r.userData.source.added && r.visible && !r.userData.source.hidden).userData.source.id")
+    # a building of the project's, and a copy of it with a piece (the paste of a selection): undone, its name goes
+    # with it, so the next paste is "… copy" again, not "… copy 2"
+    first = page.evaluate("""id => { const b = viewer.pieceBox(id), at = [b[0], b[2], b[4]];
+      const [box] = viewer.addVolumes([{ box: [at[0], at[1] + 960, at[2], at[0] + 96, at[1] + 1056, at[2] + 192], floor: 0 }], viewer.newBuilding());
+      return box.userData.source.id; }""", piece)
+    base = page.evaluate(NAMES)
+    paste = """async ([box, id]) => { const T = await import('/vendor/three/three.module.js');
+      viewer.gizmo.setSelection([box, id], id); const clip = viewer.snapshot();
+      await viewer.pasteSnapshot(clip, new T.Matrix4().makeTranslation(192, 0, 0)); }"""
+    page.evaluate(paste, [first, piece])
+    copied = page.evaluate(NAMES)
+    assert len(copied) == len(base) + 1 and any(n.endswith(' copy') for n in copied), (base, copied)
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate(NAMES) == base
+    had = set(page.evaluate(LIVE_BOXES))
+    page.evaluate(paste, [first, piece])
+    assert page.evaluate(NAMES) == copied, (copied, page.evaluate(NAMES))
+    # floor boxes of two buildings pasted (one of them gone by then): one undo step, which takes the new building's name
+    page.evaluate('viewer.setVolumesShown(true)')
+    copy_box, = set(page.evaluate(LIVE_BOXES)) - had
+    page.evaluate("ids => { viewer.gizmo.setSelection(ids, ids[0]); viewer.copyVolumes(); viewer.gizmo.setSelection([ids[1]], ids[1]); viewer.deleteVolumes(); }",
+                  [first, copy_box])
+    boxes, names = page.evaluate(LIVE_BOXES), page.evaluate(NAMES)
+    page.evaluate('viewer.pasteVolumes()')
+    pasted = page.evaluate(NAMES)
+    assert len(page.evaluate(LIVE_BOXES)) == len(boxes) + 2 and len(pasted) == len(names) + 1, (names, pasted)
+    page.evaluate('viewer.gizmo.undo()')
+    assert sorted(page.evaluate(LIVE_BOXES)) == sorted(boxes) and page.evaluate(NAMES) == names
+    page.evaluate('viewer.pasteVolumes()')
+    assert page.evaluate(NAMES) == pasted, (pasted, page.evaluate(NAMES))
+    page.evaluate('viewer.setVolumesShown(false)')
+    page.close()
+    assert not errors, errors
+    return dict(copy=[n for n in copied if n not in base], pasted=[n for n in pasted if n not in names])
+
+
+SQUAD_CONTROLS = "() => ['squadAdd', 'squadCopy', 'squadName', 'squadExport', 'squadImport', 'squadSave'].map(id => document.getElementById(id).disabled)"
+
+
+def check_squad_read(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors, expected=(500,))
+    mode = dict(now='fail')
+
+    def squad(route):
+        if route.request.method != 'GET': return route.continue_()
+        if mode['now'] == 'fail':
+            return route.fulfill(status=500, content_type='application/json', body=json.dumps(dict(error='check: no squad')))
+        answer = route.fetch().json()
+        # (an install whose landing takes fewer units than the squad keeps, as plain EW's six)
+        answer['choices'] = dict(answer.get('choices') or {}, maxUnits=6, familyLabel='Plain Enemy Within')
+        route.fulfill(status=200, content_type='application/json', body=json.dumps(answer))
+
+    def open_squad():
+        page.locator('#playButton').click()
+        page.locator('#settingsSquad').click()
+        page.wait_for_selector('#squadDialog:not([hidden])')
+
+    page.route('**/squad.json', squad)
+    # a read that fails: the controls that work on the squad are off, and keys on the list do nothing
+    open_squad()
+    page.wait_for_function("document.getElementById('squadStatus').textContent.includes('could not be read')", timeout=30000)
+    assert all(page.evaluate(SQUAD_CONTROLS)), page.evaluate(SQUAD_CONTROLS)
+    page.dispatch_event('#squadUnits', 'keydown', dict(key='ArrowDown'))
+    page.evaluate("document.getElementById('squadAdd').onclick()")       # (as a click that got through would)
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#squadDialog', state='hidden')
+    # read again: the controls are back, and the count names the install's own limit beside the squad's
+    mode['now'] = 'fewer'
+    open_squad()
+    page.wait_for_function("document.querySelectorAll('#squadUnits li').length > 0", timeout=30000)
+    disabled = page.evaluate(SQUAD_CONTROLS)
+    count = page.locator('#squadCount').inner_text()
+    units = page.locator('#squadUnits li').count()
+    assert not disabled[3] and not disabled[4] and not disabled[2], disabled
+    assert f'of at most 8' in count and 'Plain Enemy Within lands at most 6' in count, count
+    assert disabled[0] == (units >= 8), (disabled, units)
+    page.keyboard.press('Escape')
+    page.close()
+    errors = [e for e in errors if 'check: no squad' not in e]
+    assert not errors, errors
+    return dict(count=count)
+
+
+# one of the map's ladders that climbs, the piece whose floor its top stands on, and that floor tile
+LADDER_ON_FLOOR = """() => { const tiles = viewer.data.tactical?.floorTiles ?? [];
+  for (const r of viewer.roots.values()) { const s = r.userData.source;
+    if (s.actorClass !== 'XComLadder' || s.added || s.layer === 'stream') continue;
+    const ends = viewer.ladderEnds(s.id);
+    if (!ends?.climbs) continue;
+    const top = tiles.find(f => f.tile.join(',') === ends.linkedTop.join(','));
+    const owner = top && [...viewer.roots.values()].find(o => o.userData.source.actor === top.actor && !o.userData.source.added && o.userData.source.pieceFlags);
+    if (owner) return { ladder: s.id, roof: owner.userData.source.id, actor: top.actor, top: ends.linkedTop };
+  }
+  return null; }"""
+
+
+def check_ladder_floor(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    found = page.evaluate(LADDER_ON_FLOOR)
+    assert found, 'no ladder of the map climbs to a floor of a piece with flags'
+    # the floor its top stands on made no floor by the piece's flags: the chip says it won't climb, as the Build warns
+    page.evaluate('id => viewer.select(id)', found['roof'])
+    page.evaluate("document.getElementById('flagsBox').open = true")
+    row = page.locator('#flagsRows label', has_text='Floor').first
+    assert row.locator('input').is_checked(), page.locator('#flagsRows').inner_text()
+    row.locator('input').click()
+    page.evaluate('id => viewer.select(id)', found['ladder'])
+    ends = page.evaluate('id => viewer.ladderEnds(id)', found['ladder'])
+    assert not ends['climbs'] and ends['why'] == ['top'], ends
+    assert "Won't climb: no floor at its top" in page.locator('#details').inner_text()
+    # undone: it climbs again
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('id => viewer.ladderEnds(id).climbs', found['ladder'])
+    page.close()
+    assert not errors, errors
+    return dict(ladder=found['actor'], top=found['top'])
+
+
+def check_small_defects(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    # a warning is drawn in the warning colour, not dimmer than a note
+    colours = page.evaluate("""() => { const probe = document.createElement('p'); probe.className = 'optionsnote warn'; document.body.append(probe);
+      const warn = getComputedStyle(probe).color; probe.className = 'optionsnote'; const note = getComputedStyle(probe).color; probe.remove();
+      return { warn, note, token: getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() }; }""")
+    assert colours['warn'] != colours['note'] and colours['warn'] == 'rgb(231, 197, 148)', colours
+    # the Floor field goes to the script's and the compiler's limit
+    assert page.evaluate("document.getElementById('volumeFloor').max") == '10'
+    # a UFO mission whose ship type the editor doesn't know: shown as it is, OK off until a ship is chosen
+    page.evaluate("""() => { window.missionsChosen = null; viewer.missionsPanel.show({ title: 'Missions', note: '',
+      rows: [{ entry: { kind: 'Crash', ship: 'eShip_Unheard' }, label: 'Crashed UFO (added)', checked: true, words: '', detail: '', ufo: true }],
+      onOk: entries => { window.missionsChosen = entries; } }); }""")
+    page.wait_for_selector('#missionsDialog:not([hidden])')
+    ship = page.locator('#missionsList select.missionship')
+    assert ship.input_value() == 'eShip_Unheard' and page.locator('#missionsOk').is_disabled()
+    assert 'eShip_Unheard' in page.locator('#missionsWarn').inner_text()
+    ship.select_option('eShip_UFOAbductor')
+    assert page.locator('#missionsOk').is_enabled() and page.locator('#missionsWarn').is_hidden()
+    page.locator('#missionsOk').click()
+    assert page.evaluate('window.missionsChosen') == [dict(kind='Crash', ship='eShip_UFOAbductor')]
+    page.close()
+    assert not errors, errors
+    return colours

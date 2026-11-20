@@ -138,4 +138,9 @@ const tick = () => new Promise(r => setTimeout(r, 0));
   assert.equal(h.timers.length, before);                  // nothing more asked
   assert.equal(h.calls.filter(x => x === 'get').length, 2);
 }
+// the clock, which the Build panel's estimate shares (build_options.js; review finding 34): whole seconds down
+{
+  const { clock } = await import('../web/build_queue.js');
+  assert.deepEqual([clock(119.6), clock(60), clock(59.99), clock(3725)], ['1:59', '1:00', '0:59', '62:05']);
+}
 console.log('build_queue_test: ok');

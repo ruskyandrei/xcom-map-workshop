@@ -142,6 +142,14 @@ assert.deepEqual(f.wall.openings, [{ x0: 96, x1: 192, z0: 72, z1: 168 }, { x0: 1
 assert.deepEqual(flippedWall(f.wall, f.location, f.rotation).wall, wall);
 assert.equal(reshuffled(wall, 0.5).seed, 500000);
 assert.notEqual(reshuffled({ ...wall, seed: 1 }, 0).seed, 1);
+// (a floor's Reshuffle never gives back its seed either: review finding 34)
+{
+  const { reshuffledSlab } = await import('../web/walls.js');
+  const slab = { x0: 0, x1: 192, y0: 0, y1: 192, holes: [], seed: 500000 };
+  assert.notEqual(reshuffledSlab(slab, 0.4999995).seed, 500000);
+  assert.notEqual(reshuffledSlab({ ...slab, seed: 1 }, 0).seed, 1);
+  assert.equal(reshuffledSlab(slab, 0.25).seed, 250000);
+}
 
 // ---- what the game does at an opening
 assert.deepEqual(openingPlay(wall, wall.openings[0]), { tiles: 1, walk: true, climb: false, sight: true, cover: 'none' });

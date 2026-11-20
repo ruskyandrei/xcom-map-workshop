@@ -561,8 +561,8 @@ export function movedHole(slab, index, part, delta) {
   holes[index] = h;
   return { ...slab, holes };
 }
-/** Another break pattern: a new seed (`pick` in [0, 1)). */
-export const reshuffledSlab = (slab, pick = Math.random()) => ({ ...slab, seed: 1 + Math.floor(pick * 999999) });
+/** Another break pattern: a new seed (`pick` in [0, 1)), never the old one (as a wall's: review finding 34). */
+export const reshuffledSlab = (slab, pick = Math.random()) => ({ ...slab, seed: reshuffled(slab, pick).seed });
 const tileWords = (a, b) => `${a} by ${b} tile${a * b === 1 ? '' : 's'}`;
 export const holeWords = h => `Hole, ${tileWords(Math.round((h.x1 - h.x0) / TILE), Math.round((h.y1 - h.y0) / TILE))}`;
 export const slabWords = slab => {

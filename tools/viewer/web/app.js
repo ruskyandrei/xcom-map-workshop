@@ -876,24 +876,50 @@ function showCover(root) {
 }
 // The ladder's ends where the selected ladder stands now (ladders.js against the export's original floor tiles and the
 // floor the project's own flat pieces are expected to give, as the compiler counts it), or null. `newFloor` says an
-// end has floor only by a piece of the project.
+// end has floor only by a piece of the project. The floor is counted as the compiler's ladder check counts it
+// (compiler.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and
+// with one of the map's own pieces made no floor, the tiles of those and of the pieces moved or deleted are taken out;
+// one of the map's own pieces made floor where it stands gives floor; a grown grid's new levels count.
 let floorSet = null, ladderChip = null, gridChip = null;
 function ladderNow(root) {
   const o = root?.userData.source;
   if (!o || o.actorClass !== 'XComLadder' || isStream(o) || !data.tileGrid || !data.tactical?.floorTiles) return null;
   floorSet ??= new Set(data.tactical.floorTiles.map(f => f.tile.join(',')));
-  const boxes = [];
+  const boxes = [], off = new Set(), gone = new Set();
   for (const r of roots.values()) {
     const s = r.userData.source;
-    // a cover block is no floor, bar the invisible floor, which is made to carry one (EXP-32)
-    if (r.userData.deleted || isStream(s) || s.actorClass === 'XComLadder' || (s.cover && s.cover.type !== 'floor') || !(s.added || r.userData.edit)) continue;
+    if (isStream(s) || s.actorClass === 'XComLadder') continue;
+    if (!s.added && (r.userData.deleted || r.userData.edit)) gone.add(s.actor);
+    if (r.userData.deleted) continue;
+    const floor = floorPlan(r);
+    if (!s.added && !r.userData.edit) {
+      // the map's own piece where it stands: its flags may take its floor away, or give it floor
+      if (floor?.before === 'on' && floor.after === 'off') off.add(s.actor);
+      else if (floor?.after === 'on' && floor.before !== 'on') boxes.push(boxOf(r));
+      continue;
+    }
+    // a cover block is no floor, bar the invisible floor, which is made to carry one (EXP-32); a copy whose flags make
+    // it no floor (and that collides) gives none
+    if ((s.cover && s.cover.type !== 'floor') || (floor?.collides && floor.after === 'off')) continue;
     boxes.push(boxOf(r));
   }
-  const added = addedFloors(boxes, data.tileGrid.origin, data.tileGrid.dimensions);
+  const dims = data.tileGrid.dimensions, own = ownSize()?.dims;
+  const added = addedFloors(boxes, data.tileGrid.origin, dims && [dims[0], dims[1], Math.max(dims[2], own?.[2] ?? 0)]);
+  const floors = off.size ? new Set(data.tactical.floorTiles.filter(f => !off.has(f.actor) && !gone.has(f.actor)).map(f => f.tile.join(',')))
+    : floorSet;
   const pose = placedPose(o, root.matrix);
-  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floorSet, ...added]));
-  ends.newFloor = ends.climbs && [ends.footTile, ends.linkedTop].some(t => !floorSet.has(t.join(',')));
+  const ends = ladderEnds(pose.location, pose.rotation, data.meshes[o.mesh].bounds[5], tileCorner(), new Set([...floors, ...added]));
+  ends.newFloor = ends.climbs && [ends.footTile, ends.linkedTop].some(t => !floors.has(t.join(',')));
   return ends;
+}
+// A piece's Floor before and after its flags (piece_flags.js plan, as the compiler's flag_plan), with whether it
+// collides, or null when it has no flags request (or they can't be planned).
+function floorPlan(r) {
+  const s = r.userData.source, c = flagContract();
+  if (!c || !r.userData.flags || !s.pieceFlags) return null;
+  const [cls, pf] = flagSource(s), { raw, assumed } = flagRaw(pf), p = planFlags(c, cls, raw, r.userData.flags, assumed);
+  if (Object.keys(p.conflicts).length) return null;
+  return { before: p.before.floor, after: p.after.floor, collides: s.added?.generated?.kind === 'ground' || s.pieceFlags.collides !== false };
 }
 const LADDER_NOTE = 'The game makes a ladder\'s climb between floors: its foot tile, and its top tile or the one below '
   + 'it, must have floor (the squares: green has floor, red has none). The map\'s own floor counts, and so does a flat '
@@ -1942,6 +1968,8 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
     undo: () => {
       removeRoots(built); removeLightRoots(lights); removeEffectRoots(effects);
       for (const r of boxes) r.userData.deleted = true;
+      // (the copied buildings' names go with them, so the next paste isn't named "copy 2": review finding 34)
+      for (const { id } of twins.values()) buildingMeta.delete(id);
       if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.delete(g.id); setGroups(next); }
       gizmo.setSelection(before.ids, before.active); sceneChanged();
     },
@@ -9228,22 +9256,41 @@ function copyVolumes(cut = false) {
   flashHint(`${boxCount(targets.length)} ${cut ? 'cut' : 'copied'} · Ctrl+V puts ${targets.length === 1 ? 'a copy' : 'copies'} on top, as the next floor`);
 }
 // Paste: each copied box again on top of where it was copied from, as the floor above it in its building (a building
-// that is gone gets the boxes as a new one). Moved from there with the gizmo.
+// that is gone gets the boxes as a new one). Moved from there with the gizmo. One undo step, whatever the buildings
+// (review finding 34: it was one a building), which takes the new buildings' names back too.
 function pasteVolumes() {
   if (!volumeClip?.length) { flashHint('Nothing copied yet: select a box and press Ctrl+C'); return; }
   const live = new Set(liveVolumes().map(r => r.userData.volume.building)), grid = volumeGrid();
   const top = grid && !builderMode ? grid.origin[2] + grid.dimensions[2] * grid.size[2] : Infinity;
   const byBuilding = new Map();
   for (const c of volumeClip) { if (!byBuilding.has(c.building)) byBuilding.set(c.building, []); byBuilding.get(c.building).push(c); }
-  const made = [];
+  const made = [], fresh = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
+  let last = null;
   for (const [building, clips] of byBuilding) {
+    let id = building;
+    if (!live.has(building)) {
+      // (a building that is gone: a new one, named as newBuilding names one)
+      id = newBuildingId();
+      let n = 1;
+      while (names.has(`Building ${n}`)) n++;
+      names.add(`Building ${n}`); fresh.set(id, { name: `Building ${n}`, kind: 'building' });
+    }
     const rise = Math.max(...clips.map(c => c.box[5])) - Math.min(...clips.map(c => c.box[2]));
     const fits = Math.max(...clips.map(c => c.box[5])) + rise <= top + 0.5 && live.has(building);
-    made.push(...addVolumes(clips.map(c => ({ box: fits ? [c.box[0], c.box[1], c.box[2] + rise, c.box[3], c.box[4], c.box[5] + rise] : [...c.box],
-                                              floor: fits ? Math.min(BUILDING_FLOORS_MAX - 1, c.floor + 1) : c.floor })),
-                            live.has(building) ? building : newBuilding()));
+    for (const c of clips) {
+      const root = makeVolume(fits ? [c.box[0], c.box[1], c.box[2] + rise, c.box[3], c.box[4], c.box[5] + rise] : [...c.box], id,
+                              fits ? Math.min(BUILDING_FLOORS_MAX - 1, c.floor + 1) : c.floor);
+      root.userData.deleted = true;
+      made.push(root);
+    }
+    last = id;
   }
-  gizmo.setSelection(made.map(r => r.userData.source.id));
+  const ids = made.map(r => r.userData.source.id), before = gizmo.picks();
+  gizmo.record({
+    redo: () => { for (const [id, meta] of fresh) buildingMeta.set(id, { ...meta }); for (const r of made) r.userData.deleted = false; gizmo.setSelection(ids); },
+    undo: () => { for (const r of made) r.userData.deleted = true; for (const id of fresh.keys()) buildingMeta.delete(id); gizmo.setSelection(before.ids, before.active); },
+  });
+  lastBuilding = last;
   flashHint(`${boxCount(made.length)} pasted`);
 }
 // A box for each floor of a building around the pieces that were selected when the view was turned on.
@@ -11316,6 +11363,7 @@ const editMeta = change => {
 };
 volumeUi.name.onchange = () => { editMeta({ name: volumeUi.name.value.trim().slice(0, 60) }); volumeUi.name.blur(); };
 volumeUi.kind.onchange = () => { editMeta({ kind: volumeUi.kind.value }); volumeUi.kind.blur(); };
+volumeUi.floor.max = String(BUILDING_FLOORS_MAX);      // (the script's and the compiler's limit: review finding 34)
 volumeUi.floor.onchange = () => {
   const targets = pickedVolumes(), n = Number(volumeUi.floor.value);
   if (!targets.length || !Number.isInteger(n) || n < 1 || n > BUILDING_FLOORS_MAX) { volumePanel(); return; }
@@ -12109,7 +12157,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
-    screenOf: ([x, y, z]) => projector()(new THREE.Vector3(x, z, y)),
     wallHandles: (units = 96) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
@@ -12119,7 +12166,9 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
     slabPanelText: () => sectionText('slabBox'),
     buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
-    // the map's surface below a point (game x, y, from z down), as the wall tool and the Add panel find the floor
+    // the map's surface below a point (game x, y, from z down: 4096 when not given), as the wall tool and the Add panel
+    // find the floor, and as invisible floors read it (the game's collision once it has come). (One key each for this
+    // and screenOf: a second, later in the list, took its place; review finding 34.)
     groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
     wallMeshReady: id => { const r = madeRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
     addWallOpening, wallPanelText: () => sectionText('wallBox'),
@@ -12159,8 +12208,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       return handleDefs.map(h => ({ key: h.key, value: h.value, screen: project(h.at(h.value)), origin: project(h.origin) })); },
     lightDragging: () => Boolean(lightDrag),
     levelSnap: () => levelSnap, setLevelSnap, chosenStorey: (x, y) => chosenStorey(x, y),
-    // the ground under a point as invisible floors read it (the game's collision once it has come)
-    groundAt: (x, y, fromZ) => groundAt(x, y, fromZ), collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
+    collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
     recipeOf: id => recipeOf(roots.get(id)?.userData.source),
     ladderEnds: id => ladderNow(roots.get(id)), ladderMarks,
     placing: () => placing && { name: placing.clip.name, fromList: Boolean(placing.entry), ghost: placing.ghost, turns: placing.turns, floor: placing.clip.floor },
@@ -12238,7 +12286,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     volumeHandle: key => { const r = volumeRoots.get(selected); return r ? projector()(viewPoint(handlePoint(volumeBox(r), key))) : null; },
     ownPicked: () => ownPicked?.userData.own ?? null,
     // the map's own buildings made editable (map buildings plan), for the browser smoke test
-    savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard, pasteSnapshot,
+    savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard,
     mapEdits: () => { const e = mapEdits(); return { changed: [...e.changed], gone: [...e.gone] }; },
     putVolume: (id, box) => { const r = volumeRoots.get(id); recordVolumes([r], () => setVolumeBox(r, box)); },
     listingsNow: id => roots.get(id) && listingsNow(roots.get(id)), floorTiles: () => floorTileLayer && floorTileLayer.userData.tiles.length,
