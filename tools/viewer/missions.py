@@ -421,11 +421,12 @@ ADDED_KINDS = {
 
 
 def valid_entry(entry, records):
-    """Whether a `missions` entry is one the Build can write, for a base map with `records` missions."""
+    """Whether a `missions` entry is one the Build can write, for a base map with `records` missions (a kind that is a
+    list or an object is no entry, never a TypeError)."""
     if not isinstance(entry, dict): return False
     if set(entry) == {'record'}:
         return isinstance(entry['record'], int) and not isinstance(entry['record'], bool) and 0 <= entry['record'] < records
-    if 'kind' in entry and entry['kind'] in ADDED_KINDS and set(entry) <= {'kind', 'ship'}:
+    if isinstance(entry.get('kind'), str) and entry['kind'] in ADDED_KINDS and set(entry) <= {'kind', 'ship'}:
         return entry.get('ship') in UFO_TYPES if ADDED_KINDS[entry['kind']].get('ufo') else 'ship' not in entry
     return False
 

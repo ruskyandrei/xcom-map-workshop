@@ -605,7 +605,7 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             try:
                 root = Path(entry['root'])
-                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
+                scene = self.wave_cache.scene(root)       # (read once per version of the file, not per wave)
                 find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
                 cooked = lambda: Path(find())
                 data, etag, record = self.wave_cache.get(

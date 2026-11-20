@@ -1291,7 +1291,14 @@ class Launch(unittest.TestCase):
         self.assertEqual(missions.kind_of_export(dict(type='Special', label='Council rescue (new words)', kind='Special/Rescue')),
                          'Special/Rescue')
         self.assertEqual(missions.kind('eMission_Unheard')['state'], 'untried')
-        landed = 'MissionType=eMission_LandedUFO, ShipType=eShip_UFOSmallScout, CouncilType=eFCMType_None'
+        # an entry the Build can write; a kind that is a list or a record is no entry, never a TypeError (review 23)
+        self.assertTrue(missions.valid_entry(dict(record=0), 1))
+        self.assertTrue(missions.valid_entry(dict(kind='Abduction'), 1))
+        self.assertTrue(missions.valid_entry(dict(kind='Crash', ship='eShip_UFOSmallScout'), 1))
+        for kind in (['Abduction'], {'Abduction': 1}, 5, None):
+            self.assertFalse(missions.valid_entry(dict(kind=kind), 1), repr(kind))
+        self.assertFalse(missions.valid_entry(dict(record=1), 1))
+        landed ='MissionType=eMission_LandedUFO, ShipType=eShip_UFOSmallScout, CouncilType=eFCMType_None'
         hive = 'MapFamily="EWI_ChryssalidHive", MissionType=eMission_Special, CouncilType=eFCMType_Assault'
         extraction = 'MissionType=eMission_CovertOpsExtraction, CouncilType=eFCMType_None'     # (not played yet)
         for record_text, tried_lines, tried_options in (

@@ -2429,6 +2429,26 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(warning['ends']['top'][2], 7)
         self.assertFalse(any(c for o in spec['objects'] for c in (o.get('ladders') or [])))
 
+    def test_a_ladder_does_not_climb_to_the_floor_of_a_piece_the_project_deletes(self):
+        # a deleted or moved piece takes its floor with it (floor_now), as the compiler's other floor checks count it,
+        # whether or not a piece's flags take a floor away too (app.js ladderNow is the twin)
+        s = assembly_scene()
+        for f in s['tactical']['floorTiles']:
+            if f['tile'][2] == 6:
+                f['actor'] = PL + 'XComLevelActor_34'       # the roofs' floor is this piece's
+        moved = dict(target=target('XComLadder_20'), **dict(zip(('location', 'rotation'), grid_moved(0, (0, -3))(LADDER()))))
+        climbs = lambda spec: [c for o in spec['objects'] for c in (o.get('ladders') or [])]  # noqa: E731
+        spec, report = compile_project(document([moved]), s, enable=['ladder'])
+        self.assertEqual(climbs(spec), [dict(foot=[33, 30, 0], top=[33, 29, 6])])
+        for gone in (dict(deleted=True), dict(location=[-1900, -1240, 640], rotation=[0, 0, 0])):
+            with self.subTest(gone):
+                spec, report = compile_project(document([moved, dict(target=target('XComLevelActor_34'), **gone)]), s,
+                                               enable=['ladder'])
+                self.assertTrue(report['ok'], refused(report))
+                [warning] = [w for w in report['warnings'] if w['code'] == 'ladder-climb']
+                self.assertIn('top tile', warning['message'])
+                self.assertEqual(climbs(spec), [])
+
     def test_a_ladders_ends_count_from_the_corner_the_game_counts_its_tiles_from(self):
         # export 26's tileGrid.tiles (its world data's WorldBounds); an older export's: a unit under the origin
         self.assertEqual(compiler.tile_corner(dict(origin=[0, 10, 20])), [-1, 9, 19])

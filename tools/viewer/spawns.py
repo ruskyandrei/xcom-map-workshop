@@ -341,10 +341,10 @@ def _finite3(v):
 def valid_zone(z):
     """Whether a project's landing zone has the shape research/editor-contracts.md gives it (web/project.js
     validLandingZone is the twin; tests/zone_cases.json holds the cases both pass). A field given is one of its
-    kind: null is no value of any of them."""
+    kind: null is no value of any of them, and a list or an object for a name is no zone (never a TypeError)."""
     if not isinstance(z, dict) or not isinstance(z.get('id'), str) or not z['id'] or set(z) - set(ZONE_KEYS):
         return False
-    if not _finite3(z.get('location')) or z.get('direction') not in DIRECTIONS or z.get('kind', 'normal') not in KINDS:
+    if not _finite3(z.get('location')) or z.get('direction') not in DIRECTIONS or not (isinstance(z.get('kind', 'normal'), str) and z.get('kind', 'normal') in KINDS):
         return False
     if any(k in z and not (isinstance(z[k], str) and _TYPE.fullmatch(z[k])) for k in ('missionType', 'councilType')):
         return False

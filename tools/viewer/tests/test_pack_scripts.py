@@ -2,7 +2,8 @@
 - review finding 26: Uninstall keeps a map whose records were edited since in the game, with its files, and keeps
   noting what it left; a card changed since keeps the pack's maps; the cards install no longer says no file was
   changed after adding drop-in lines;
-- review finding 25: the scripts run the same from a shell that set PowerShell 7's module path."""
+- review finding 25: the scripts run the same from a shell that set PowerShell 7's module path;
+- a config is written beside itself and put in its place, or left as it was."""
 import json
 from pathlib import Path
 import shutil
@@ -118,6 +119,31 @@ class PackScripts(unittest.TestCase):
         card.unlink()
         self.run_script(folder, 'Uninstall.cmd', self.copy)
         self.assertFalse(there.exists() or state.exists())
+
+    def test_a_config_is_replaced_whole_or_left_as_it_was(self):
+        """(review finding 26's leftover) The scripts write a config beside itself and put it in its place: none of
+        their temporary files is left, and a config that can't be replaced (here read-only) stays byte for byte."""
+        import os
+        import stat
+        self.more_missions(self.copy)
+        folder, r = self.setup_pack('Whole')
+        config = self.copy / 'XEW/XComGame/Config'
+        maps = config / 'DefaultMaps.ini'
+        before = maps.read_bytes()
+        self.assertIn('Installed 2 map(s)', self.run_script(folder, 'Install.cmd', self.copy))
+        self.assertNotEqual(maps.read_bytes(), before)
+        self.assertEqual(list(config.glob('*.pack-new')), [])
+        self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
+        self.assertEqual((maps.read_bytes(), list(config.glob('*.pack-new'))), (before, []))
+        os.chmod(maps, stat.S_IREAD)
+        try:
+            out = self.run_script_with(folder, 'Install.cmd', self.copy, code=1)
+        finally:
+            os.chmod(maps, stat.S_IREAD | stat.S_IWRITE)
+        self.assertIn('could not be replaced', out)
+        self.assertIn('it is left as it was', out)
+        self.assertEqual(maps.read_bytes(), before)
+        self.assertEqual(list(config.glob('*.pack-new')), [])
 
     def test_the_scripts_run_from_powershell_7(self):
         """Review finding 25: a suite (or a user) in PowerShell 7 hands Windows PowerShell 7's module path, where it does

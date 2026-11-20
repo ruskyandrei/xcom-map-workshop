@@ -433,7 +433,7 @@ def mission_entries(records, listed):
     lists none, else the project's valid entries, its base records in file order and then its added kinds."""
     if not isinstance(listed, list):
         return [dict(record=i) for i in range(len(records))]
-    valid = [e for e in listed if compiler.valid_mission(e, len(records))]
+    valid = [e for e in listed if mission_kinds.valid_entry(e, len(records))]
     kinds = list(mission_kinds.ADDED_KINDS)
     picked = sorted({e['record'] for e in valid if 'record' in e})
     added = sorted({e['kind']: e for e in valid if 'kind' in e}.values(), key=lambda e: kinds.index(e['kind']))
@@ -691,6 +691,8 @@ class Build:
         self.stages = []
         self.started = self.stage_started = time.monotonic()
         self.has_lights, self.lights, self.unchanged = False, None, False
+        # the compiler's report (compile-report.json), and the untried pieces the Build itself left out (drop_untried)
+        self.compile_report, self.untried_dropped = None, []
 
     def _run(self, args, log):
         """Run a tool, its output to the log file and the console; raise on a failure. The tool writes its output in
@@ -793,6 +795,7 @@ class Build:
         spec, report = compiler.compile_project(self.doc, self.scene, self.enable,
                                                 compiler.Library(self.cache, self.lwr), self.foreign)
         report['export'] = str(self.export)
+        self.compile_report = report
         compiler.write_json(self.work / 'compile-report.json', report)
         if spec is None:
             raise BuildError('the project does not compile: %s' % '; '.join(e['message'] for e in report['errors']))
@@ -1058,7 +1061,16 @@ class Build:
                         % (c['label'].split(':', 1)[-1], ' (it stays where the map has it)' if c['label'].startswith('move:') else ''))
                    for c in gone]
         self.left_out += dropped
-        self.untried_dropped = getattr(self, 'untried_dropped', []) + dropped
+        self.untried_dropped = self.untried_dropped + dropped
+        # compile-report.json has every piece left out, the Build's own too (its stage and the window show the first
+        # LEFT_OUT_SHOWN), each marked by the stage that left it out
+        if self.compile_report is not None:
+            rows = self.compile_report.setdefault('leftOut', [])
+            rows += [dict(record='build', entity=row['actor'], code=row['code'], message=row['message'], stage='leftout')
+                     for row in dropped]
+            if isinstance(self.compile_report.get('counts'), dict):
+                self.compile_report['counts'] = dict(self.compile_report['counts'], leftOut=len(rows))
+            compiler.write_json(self.work / 'compile-report.json', self.compile_report)
         for g in unlinked:
             self.echo('break group %d no longer breaks together: a piece of it could not be made' % g)
         self.copies = self.work / 'native-edit.json'

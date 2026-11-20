@@ -1679,7 +1679,8 @@ class Builds(unittest.TestCase):
         moved = dict(HIDE, alsoHide=['SkeletalMeshActor_30'], labels=['move:SkeletalMeshActor_30'])
         self.spec['objects'] = [tried, untried, moved]
         self.failing_once('native_copy', 'bad property name in TheWorld.PersistentLevel.SkeletalMeshActor_30')
-        m = self.make().run()
+        b = self.make()
+        m = b.run()
         first, second = self.tool('native_copy.py')
         edit = json.loads(Path(second[second.index('--copies') + 1]).read_text(encoding='utf-8'))
         # the tried copy is still made; the untried move is gone with its hide, so the piece stays where the map has it
@@ -1689,6 +1690,12 @@ class Builds(unittest.TestCase):
                          (1, ['untried-failed'], 'SkeletalMeshActor_30'))
         self.assertIn('stays where the map has it', stage['pieces'][0]['message'])
         self.assertEqual([row['code'] for row in m['leftOut']], ['untried-failed'])
+        # compile-report.json, which the build window says has them all, has the Build's own too, marked by its stage
+        report = json.loads((b.work / 'compile-report.json').read_text(encoding='utf-8'))
+        self.assertEqual([(e['entity'], e['code'], e['stage']) for e in report['leftOut']],
+                         [('SkeletalMeshActor_30', 'untried-failed', 'leftout')])
+        self.assertEqual(report['counts']['leftOut'], 1)
+        self.assertNotIn('leftOut', self.report['counts'])
         self.assertTrue((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).exists())
 
     def test_a_failure_with_no_untried_piece_is_the_builds_and_one_with_nothing_else_says_so(self):

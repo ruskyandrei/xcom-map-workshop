@@ -675,22 +675,6 @@ def building_well_formed(b):
     return True
 
 
-def valid_zone(zone):
-    """spawns.valid_zone, False for a zone one of whose names is a list or an object (spawns.py looks them up)."""
-    try:
-        return spawns.valid_zone(zone)
-    except TypeError:
-        return False
-
-
-def valid_mission(entry, records):
-    """missions.valid_entry, False for an entry whose kind is a list or an object (missions.py looks it up)."""
-    try:
-        return missions.valid_entry(entry, records)
-    except TypeError:
-        return False
-
-
 def world_box(obj, meshes, location, rotation, along=None):
     """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given. `along` (x0, x1) puts
     the mesh's x range in its own frame in place of its bounds' (a fracturing wall made from numbers on the component's
@@ -2142,8 +2126,8 @@ class Compiler:
                       'soldier can\'t stand on, so they won\'t be walked on' % (label, over, HEADROOM, len(tiles)), tiles=tiles[:12])
 
     def ladder_ends(self, name, src, loc, rot, where):
-        """A ladder copy's climb at its pose (ladders.ends against the export's original floor tiles and the floor the
-        project's own flat pieces are expected to give, added_floors): dict(foot, top) tiles, top being the linked top
+        """A ladder copy's climb at its pose (ladders.ends against the export's floor tiles whose pieces are still there,
+        floor_now, and the floor the project's own flat pieces are expected to give, added_floors): dict(foot, top) tiles, top being the linked top
         tile T′ that the Build rebuilds first, or None with the warning ladder-climb (the ladder is built all the same,
         as a piece with no climb: the check goes by drawn boxes, and warns rather than refuses). An end that counts on
         a floor the project adds is warned of (ladder-new-floor): that floor is made by the game's rebuild, where the
@@ -2155,8 +2139,9 @@ class Compiler:
                       'climb of its own' % (self.map, name), family='ladder', **where)
             return None
         new, _ = self.added_floors()
-        # (the floor of a piece the project's flags make no floor is gone: floor_now)
-        floors = self.floors & self.floor_now() if self.floor_off else self.floors
+        # (the floor of a piece deleted or moved, or that the project's flags make no floor, is gone: floor_now, as the
+        # other floor checks count it; a moved piece's copy gives floor where it lands, in `new`)
+        floors = self.floors & self.floor_now()
         e = ladders.ends(loc, rot, extent, tile_corner(grid), floors | set(new))
         if e['climbs']:
             counted = sorted({new[t] for t in (tuple(e['footTile']), tuple(e['linkedTop'])) if t not in floors})
@@ -2664,7 +2649,7 @@ class Compiler:
 
     def added(self):
         known = {'id', 'actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'light',
-                 'template', 'cover', 'flags', 'kind', 'effect', 'sound', 'generated', 'blasts'}
+                 'template', 'cover', 'flags', 'kind', 'effect', 'sound', 'generated', 'blasts', 'breaksFurther'}
         gated = {}      # an assembly's copies: id -> (assembly, [(source actor, record, where, parts, pose)])
         for k, rec in enumerate(self.doc.get('added') or []):
             where = dict(record='added[%d]' % k)
@@ -2689,6 +2674,10 @@ class Compiler:
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an added piece and is ignored' % f, **where)
+            if 'breaksFurther' in rec and 'blasts' not in rec:
+                # (as an override's: a copy's breaksFurther goes with its blasts; a made piece's is in `generated`)
+                self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % short(out),
+                          **where)
             if not self.flags_valid(rec, where) or not self.generated_valid(rec, where):
                 continue
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
@@ -4652,7 +4641,7 @@ class Compiler:
         kept, ids = [], set()
         for k, z in enumerate(raw or []):
             where = dict(record='landingZones[%d]' % k)
-            if not valid_zone(z):
+            if not spawns.valid_zone(z):
                 self.leave_out('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}: '
                                'it is left out' % (k + 1), **where)
             elif z['id'] in ids:
@@ -4715,9 +4704,9 @@ class Compiler:
             if listed is not None and (not isinstance(listed, list) or not listed):
                 dropped.append((dict(record='missions'), 'the project\'s missions must be a list of at least one'))
                 listed = None
-            kept = [e for e in listed if valid_mission(e, records)] if listed is not None else None
+            kept = [e for e in listed if missions.valid_entry(e, records)] if listed is not None else None
             for k, e in enumerate(listed or []):
-                if not valid_mission(e, records):
+                if not missions.valid_entry(e, records):
                     dropped.append((dict(record='missions[%d]' % k), 'mission %d of the project\'s list is neither one of the '
                                     'base map\'s %d records nor a kind a record alone gives a map (%s)'
                                     % (k + 1, records, ', '.join(missions.ADDED_KINDS))))
