@@ -92,7 +92,7 @@ print('warnings', json.dumps([(w['code'], w['message'][:240]) for w in report['w
 if not report['ok'] or '--compile' in sys.argv:
     sys.exit(0 if report['ok'] else 1)
 try:
-    m = build.Build(project, cache, builds, game, None, quick='--full' not in sys.argv).run()
+    m = build.Build(build.BuildInputs(project, cache, builds, game, None, quick='--full' not in sys.argv)).run()
 except build.BuildError as error:
     print('build failed:', error)
     sys.exit(1)

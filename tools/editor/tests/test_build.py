@@ -327,7 +327,7 @@ class ToolRunner(unittest.TestCase):
             tool = folder / 'tool.py'
             tool.write_text('import sys\nprint("work folder: " + sys.argv[1])\n', encoding='utf-8')
             said = []
-            b = build.Build(folder / 'project.json', temp, folder, temp, None, echo=said.append)
+            b = build.Build(build.BuildInputs(folder / 'project.json', temp, folder, temp, None, echo=said.append))
             bare = {k: v for k, v in os.environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
             with mock.patch.dict(os.environ, bare, clear=True):
                 b._run([sys.executable, '-B', tool, folder / '.work'], folder / 'tool.log')
@@ -496,9 +496,10 @@ class Builds(unittest.TestCase):
     def make(self, stamp='110000', udk=True, quick=False):
         import datetime
         now = datetime.datetime(2026, 11, 7, int(stamp[:2]), int(stamp[2:4]), int(stamp[4:]))
-        return build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk if udk else None,
-                           patch_work=self.work, now=now, run=self.run_tool, seed=self.seed, echo=self.said.append,
-                           quick=quick, named=self.name_copy, picture=self.picture_copy)
+        return build.Build(build.BuildInputs(
+            self.project, self.tmp.name, self.output, self.lwr, self.udk if udk else None, patch_work=self.work,
+            now=now, run=self.run_tool, seed=self.seed, echo=self.said.append, quick=quick, named=self.name_copy,
+            picture=self.picture_copy))
 
     def picture_copy(self, src, dst, png):
         """The map picture's writer (Build._picture), as a stand-in: the map's bytes and the picture file's hash."""
@@ -984,6 +985,22 @@ class Builds(unittest.TestCase):
                                                    label='XComLevelActor_1_copy1', box=[0, 1, 0, 1, 0, 1])],
                                       breakOriginals=[], hides=[NATIVE_HIDE]))
 
+    def test_the_manifest_names_every_module_of_the_compile(self):
+        """The manifest's tools record names build.py first, then every module of tools/editor it imports, found from
+        their imports: the compiler and the modules split off it (its tables, the edit families, the native edit, the
+        piece lookup) and game_files, each with its SHA-256; not the prefab test's stage, which no Build imports."""
+        m = self.make().run()
+        editor = Path(build.__file__).resolve().parent
+        named = [k for k in m['tools'] if k.startswith('tools/editor/')]
+        self.assertEqual(named[0], 'tools/editor/build.py')
+        wanted = {'tools/editor/%s' % n for n in ('compiler.py', 'compiler_tables.py', 'native_edit.py', 'piece_lookup.py',
+                                                 'game_files.py')}
+        wanted |= {'tools/editor/%s' % p.name for p in editor.glob('*_edits.py')}
+        self.assertLessEqual(wanted, set(named))
+        self.assertNotIn('tools/editor/prefab_stage.py', named)
+        for k in named:
+            self.assertEqual(m['tools'][k], build.sha256(editor.parents[1] / k))
+
     def test_an_intro_without_a_landing_for_the_map_is_streamed_as_it_is(self):
         self.landing = False
         m = self.make().run()
@@ -1241,8 +1258,9 @@ class Builds(unittest.TestCase):
 
     def test_patchtool_works_in_the_builds_folder_by_default(self):
         import datetime
-        b = build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk, now=datetime.datetime(2026, 11, 7),
-                        run=self.run_tool, seed=self.seed, echo=lambda *_: None)
+        b = build.Build(build.BuildInputs(self.project, self.tmp.name, self.output, self.lwr, self.udk,
+                                          now=datetime.datetime(2026, 11, 7), run=self.run_tool, seed=self.seed,
+                                          echo=lambda *_: None))
         self.assertEqual(b.patch_work, self.output / '.work' / 'patchtool')
 
     def test_a_project_with_a_map_picture_builds_it_into_the_map(self):
@@ -1287,10 +1305,11 @@ class Builds(unittest.TestCase):
 
         def make(stamp):
             import datetime
-            return build.Build(snapshot, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
-                               now=datetime.datetime(2026, 11, 7, 11, int(stamp), 0), run=self.run_tool, seed=self.seed,
-                               echo=self.said.append, named=self.name_copy, picture=self.picture_copy,
-                               projects=self.project.parent, saved_file=self.project)
+            return build.Build(build.BuildInputs(
+                snapshot, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+                now=datetime.datetime(2026, 11, 7, 11, int(stamp), 0), run=self.run_tool, seed=self.seed,
+                echo=self.said.append, named=self.name_copy, picture=self.picture_copy,
+                projects=self.project.parent, saved_file=self.project))
         m = make('0').run()
         (_, _, png), = self.pictured
         self.assertEqual(Path(png), pictures.beside(snapshot))
@@ -1482,10 +1501,11 @@ class Builds(unittest.TestCase):
         import datetime
 
         def snapshot_build(projects):
-            return build.Build(private, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
-                               now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed,
-                               echo=lambda *_: None, named=self.name_copy, projects=projects, attempt=attempt,
-                               saved_file=self.project)
+            return build.Build(build.BuildInputs(
+                private, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+                now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed,
+                echo=lambda *_: None, named=self.name_copy, projects=projects, attempt=attempt,
+                saved_file=self.project))
         # without the projects folder the snapshot's own folder is all it sees: the other project's names go unseen
         with self.assertRaisesRegex(build.BuildError, 'the build would write names that are taken'):
             snapshot_build(self.project.parent).run()
@@ -1502,8 +1522,8 @@ class Builds(unittest.TestCase):
         seen = {}
 
         class Recorder:
-            def __init__(self, *args, **kwargs):
-                seen.update(args=args, kwargs=kwargs)
+            def __init__(self, inputs):
+                seen.update(inputs=inputs)
 
             def run(self):
                 return {}
@@ -1513,9 +1533,10 @@ class Builds(unittest.TestCase):
             code = build.main([str(self.project), '--pinned', '--game', str(self.lwr), '--cache', 'C', '--output', 'O',
                                '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S'])
         self.assertEqual(code, 0)
-        self.assertEqual(seen['args'][:5], (self.project, Path('C'), Path('O'), self.lwr, None))      # no --udk: no UDK
-        self.assertEqual((seen['kwargs']['games'], seen['kwargs']['projects'], seen['kwargs']['attempt'],
-                          seen['kwargs']['saved_file']), ([Path('I')], Path('P'), attempt, Path('S')))
+        i = seen['inputs']
+        self.assertEqual((i.project, i.cache, i.output, i.lwr, i.udk),
+                         (self.project, Path('C'), Path('O'), self.lwr, None))      # no --udk: no UDK
+        self.assertEqual((i.games, i.projects, i.attempt, i.saved_file), ([Path('I')], Path('P'), attempt, Path('S')))
         with self.assertRaises(SystemExit):
             build.main([str(self.project), '--pinned', '--game', str(self.lwr)])         # a folder missing
         with self.assertRaises(SystemExit):

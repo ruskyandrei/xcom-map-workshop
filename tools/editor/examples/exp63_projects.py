@@ -95,8 +95,8 @@ def main():
         return
     play = settings_module.install_game(s)[0]
     for project_id in built:
-        m = build.Build(store.path(project_id), s['cache'], s['output'], game, s['udk'], quick=args.quick,
-                        games=[play] if play else []).run()
+        m = build.Build(build.BuildInputs(store.path(project_id), s['cache'], s['output'], game, s['udk'],
+                                          quick=args.quick, games=[play] if play else [])).run()
         print('built %s: cache %s, files %s' % (m['buildId'], m['cache'], sorted(Path(f).name for f in m['files'])))
 
 

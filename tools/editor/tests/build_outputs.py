@@ -478,15 +478,15 @@ def prepare_cache(user_cache, install, folder, inputs):
     """The scratch cache: each needed map's export (the generation the cache's newest qualifying one is: its
     scene.json alone) and the library's index. {map: {generation, sha256}} of the exports copied."""
     use_paths()
-    import build
     import compiler
+    import game_files
     folder.mkdir(parents=True, exist_ok=True)
     exports, missing = {}, []
     wanted = [(m, True) for e in inputs for m in e['maps']] + [(m, False) for e in inputs for m in e.get('donors', ())]
     for name, required in wanted:
         if name in exports:
             continue
-        base = build.lwr_file(install, 'CookedPCConsole', '%s.upk' % name)
+        base = game_files.lwr_file(install, 'CookedPCConsole', '%s.upk' % name)
         if not base.is_file():
             if required:
                 missing.append('%s (not in the install)' % name)
@@ -576,8 +576,8 @@ def run_build(project, cache, install, output, quick, enable, foreign, log):
     import decomp
     rec = Recorder()
     lines = []
-    b = build.Build(project, cache, output, install, None, now=NOW, run=rec, echo=lines.append, quick=quick,
-                    enable=enable, foreign=foreign, games=())
+    b = build.Build(build.BuildInputs(project, cache, output, install, None, now=NOW, run=rec, echo=lines.append,
+                                      quick=quick, enable=enable, foreign=foreign, games=()))
     rec.build = b
     # (the Build points the decoders at its work folder and the cache's kept images through the environment)
     saved = {k: os.environ.get(k) for k in (decomp.WORK_ENV, decomp.KEEP_ENV)}
@@ -593,7 +593,7 @@ def run_build(project, cache, install, output, quick, enable, foreign, log):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    return m, error, rec, getattr(b, 'work', None)
+    return m, error, rec, b.work
 
 
 def package_files(folder):

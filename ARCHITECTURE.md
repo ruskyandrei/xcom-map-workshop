@@ -107,10 +107,19 @@ package and never touches a game install: the install is only read. Its stages, 
 - light: the copy tool, then the seeds, the map picture and the lightmaps put inside the map;
 - package.
 
+A Build is given what it builds as one record, `BuildInputs`: the project, its folders, the options a command line
+gives and the stand-ins a test gives for its tools. `main` makes it from the command line, which is how the server's
+builds start it (as a process). `Build.__init__` reads the record once, and names the state each stage fills, with
+the stage. The install's files (its maps under `XEW/XComGame/CookedPCConsole`, its config under `XEW/XComGame/Config`)
+are found by `lwr_file` in [`game_files.py`](tools/editor/game_files.py), which the prefab test's stage
+([`prefab_stage.py`](tools/editor/prefab_stage.py)) uses too, so that it need not load the Build.
+
 A quick build makes the same edit without the relight. It hands on the package folder
 `<output>/<Variant>/`: `CookedPCConsole/<Variant>.upk` (with the intro and stream copies its records need),
 `README.txt`, and `manifest.json`. The manifest holds the project's revision, the source map's hash, each file with
-its hash, the config lines, each stage's result, and whether the build was quick.
+its hash, the config lines, each stage's result, and whether the build was quick. Its `tools` names the code that
+made it, each file with its hash: build.py and the modules of `tools/editor` it imports (`editor_modules`, found from
+their imports), and the tools of `tools/bake` and `tools/upk` it runs, which build.py lists.
 
 **The copy tool.** [`tools/bake/native_copy.py`](tools/bake/native_copy.py) (`build`) makes the native edit in a copy
 of the pristine base map, with the growing writer ([`tools/upk/package_grow.py`](tools/upk/package_grow.py)). Each copy

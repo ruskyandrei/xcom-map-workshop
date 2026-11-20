@@ -112,7 +112,8 @@ print('notes', json.dumps([(n['code'], n['message'][:200]) for n in report['note
 if not report['ok'] or '--compile' in sys.argv:
     sys.exit(0 if report['ok'] else 1)
 try:
-    m = build.Build(project, cache, builds, game, None, enable=FAMILIES, quick='--full' not in sys.argv).run()
+    m = build.Build(build.BuildInputs(project, cache, builds, game, None, enable=FAMILIES,
+                                      quick='--full' not in sys.argv)).run()
 except build.BuildError as error:
     print('build failed:', error)
     sys.exit(1)

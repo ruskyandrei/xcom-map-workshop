@@ -112,6 +112,6 @@ print('warnings', json.dumps([(w['code'], w['message'][:200]) for w in report['w
 print('notes', json.dumps([(n['code'], n['message'][:160]) for n in report['notes'] if n['code'].startswith('mission')], indent=1))
 if not report['ok'] or a.compile:
     sys.exit(0 if report['ok'] else 1)
-m = build.Build(store.path(PROJECT_ID), str(a.cache), a.builds, game, None, quick=True).run()
+m = build.Build(build.BuildInputs(store.path(PROJECT_ID), str(a.cache), a.builds, game, None, quick=True)).run()
 print(json.dumps({k: m.get(k) for k in ('variant', 'quick', 'seconds', 'replaceStreams')}))
 print('package', a.builds / m['variant'])

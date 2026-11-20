@@ -18,7 +18,7 @@ for folder in (TOOLS / 'viewer', TOOLS / 'bake', TOOLS / 'upk'):
         sys.path.append(str(folder))
 
 import compiler  # noqa: E402
-from build import lwr_file  # noqa: E402
+from game_files import lwr_file  # noqa: E402
 from export import EXPORT_VERSION  # noqa: E402
 import library as piece_library  # noqa: E402
 from library import LEVEL, digest_of, read_pieces  # noqa: E402

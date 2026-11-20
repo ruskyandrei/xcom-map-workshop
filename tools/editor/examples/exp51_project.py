@@ -190,7 +190,7 @@ def main(argv):
     if not report['ok'] or '--compile' in argv:
         return 0 if report['ok'] else 1
     try:
-        m = build.Build(project, cache, builds, game, s['udk'], quick='--full' not in argv).run()
+        m = build.Build(build.BuildInputs(project, cache, builds, game, s['udk'], quick='--full' not in argv)).run()
     except build.BuildError as error:
         print('build failed:', error)
         return 1

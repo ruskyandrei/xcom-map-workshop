@@ -100,7 +100,8 @@ def main(argv=None):
     if args.compile or spec is None:
         return 0 if spec else 1
     t = time.time()
-    m = build.Build(project, s['cache'], args.out / 'builds', game, s['udk'], quick=not args.full).run()
+    m = build.Build(build.BuildInputs(project, s['cache'], args.out / 'builds', game, s['udk'],
+                                      quick=not args.full)).run()
     print('built in %.1f s: %s' % (time.time() - t, m.get('buildId')))
     return 0
 

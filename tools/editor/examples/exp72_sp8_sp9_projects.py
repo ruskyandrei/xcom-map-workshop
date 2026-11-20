@@ -145,5 +145,5 @@ for key, (doc, scene) in projects_to_make().items():
             print('   %s: %s' % (d['code'], d['message'][:260]))
     if not report['ok'] or a.compile:
         continue
-    m = build.Build(store.path(doc['id']), str(a.cache), a.builds, game, None, quick=True).run()
+    m = build.Build(build.BuildInputs(store.path(doc['id']), str(a.cache), a.builds, game, None, quick=True)).run()
     print('   built %s in %ss; dropInExclusion %s' % (m['variant'], m.get('seconds'), (m.get('config') or {}).get('dropInExclusion')))
