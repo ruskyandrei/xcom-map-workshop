@@ -679,7 +679,6 @@ def grid_origin(p):
     """The corner of a map's tile grid, [x, y, z] (its level volume's; tiles are 96 by 96 by 64 from there), or None.
     A piece that keeps the pose rule stands in another map as it stood on its own grid."""
     try:
-        sys.path.insert(0, str(HERE.parent / 'bake')) if str(HERE.parent / 'bake') not in sys.path else None
         import native_copy
         g = native_copy.level_grid(p)
         return [round(float(g[k]), 4) for k in ('ox', 'oy', 'oz')]

@@ -24,7 +24,10 @@ apply: seeds the union of the plans' tiles in a copy of map.upk (tools/upk/seed_
 """
 import json, math, os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import seed_tiles
+if os.path.dirname(os.path.dirname(os.path.abspath(__file__))) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
+import seed_tiles  # noqa: E402
 
 TILE, FLOOR = 96.0, 64.0
 MARGIN = 24.0      # a piece within a quarter tile of a tile edge also seeds the tile across it
@@ -74,7 +77,7 @@ def grid(inv, spec_origin, map_path=None):
     g = dict(ox=x0, oy=y0, oz=z0, nx=round((x1 - x0) / TILE), ny=round((y1 - y0) / TILE), nz=round((z1 - z0) / FLOOR),
              tx=x0 - 1, ty=y0 - 1, tz=z0 - 1)
     if map_path:
-        sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'viewer'))
+        paths.use('viewer')
         import scene_metadata
         from package import Package
         game = scene_metadata.game_grid(Package(map_path), dict(min=[x0, y0, z0], max=[x1, y1, z1]))

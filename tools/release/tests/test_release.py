@@ -27,7 +27,9 @@ class ReleaseTests(unittest.TestCase):
                        # pieces from other maps: the library, the transplanter and what it reads objects by
                        'viewer/library.py', 'bake/transplant.py', 'upk/schema.py', 'upk/typed_props.py',
                        'upk/native_fields.py', 'bake/shadowmaps.py', 'viewer/prefabs.py', 'viewer/prefab_bounds.py',
-                       'viewer/prefab_tests.py', 'viewer/area_light_bindings.py', 'editor/prefab_stage.py'):
+                       'viewer/prefab_tests.py', 'viewer/area_light_bindings.py', 'editor/prefab_stage.py',
+                       # what the modules reach the other folders by (review finding 54)
+                       'paths.py'):
             self.assertIn(needed, names)
         # nothing shipped imports the lab's tools since the config lines left deploy_fixture (review finding 53)
         self.assertFalse([n for n in names if n.startswith(('patch/', 'udk/', 're/', 'lab/')) or '/tests/' in n])

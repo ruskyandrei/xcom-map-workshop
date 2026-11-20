@@ -123,6 +123,9 @@ TOOLS = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 sys.path.insert(0, str(TOOLS / 'upk'))
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 import builds as build_runs  # noqa: E402
 import compiler  # noqa: E402
 import decomp  # noqa: E402
@@ -208,7 +211,7 @@ def cache_name(variant):
 def inline_map(src, dst, cache, tfc):
     """dst: the map `src` with the lightmaps of its cache `cache` (the file `tfc`) inside it (inline_lighting.inline):
     {cache, textures, mips, bytes, sha256}. An error when it can't be done (the map is then left as it is)."""
-    sys.path.insert(0, str(TOOLS / 'bake'))
+    paths.use('bake')
     import inline_lighting
     return inline_lighting.inline(src, dst, cache, tfc, echo=lambda *_: None)
 
@@ -974,7 +977,7 @@ class Build:
         grid = stage.get('grid')    # the compiler has checked it against the map's own
         cleared = bool(self.cleared)
         ambient = self.doc.get('prefabTest') and self.map in compiler.STAGE_MAPS
-        sys.path.insert(0, str(TOOLS / 'bake'))
+        paths.use('bake')
         import shell
         from package import Package
         try:
@@ -1238,7 +1241,7 @@ class Build:
         the growing writer (package_grow.py) with the variant cache's name added to its name table, so the relight can
         write that name into the textures it moves there (lightmap_writer.cache_fname). The game install's file is
         never written; the copy reads the texture caches where the map does (tfc-folder.txt)."""
-        sys.path.insert(0, str(TOOLS / 'bake'))
+        paths.use('bake')
         import lightmap_writer
         from package import link_caches
         folder = self.work / 'named'
@@ -1359,7 +1362,7 @@ class Build:
     def _picture(src, dst, png):
         """The map `src` written to `dst` with the picture file `png` (512 x 256) as its MapPicture
         (tools/bake/map_frame.py): dict(export, how)."""
-        sys.path.insert(0, str(TOOLS / 'bake')) if str(TOOLS / 'bake') not in sys.path else None
+        paths.use('bake')
         import map_frame
         return map_frame.write_picture(src, dst, map_frame.encode_file(png))
 
@@ -1435,7 +1438,7 @@ class Build:
     def own_landing_groups(self):
         """[{zone, index, group}] for the zones that are the map's own landings: the spawn group the game knows each
         by (`?SpawnGroup=Group<N>`: its points' tag where it is Group<N>, else Group<index>; F-96)."""
-        sys.path.insert(0, str(TOOLS / 'bake'))
+        paths.use('bake')
         import scene_metadata
         from package import Package
         try:
@@ -1454,7 +1457,7 @@ class Build:
         if not getattr(self, 'moves_landings', False):
             return []
         if not hasattr(self, '_landing_moves'):
-            sys.path.insert(0, str(TOOLS / 'bake'))
+            paths.use('bake')
             import native_spawns
             import scene_metadata
             from package import Package
@@ -1465,7 +1468,7 @@ class Build:
     def stream_tile_boxes(self):
         """The moved mission objects that touch the game's tiles (stream_copy.tile_boxes on the install's streams):
         [{stream, actor, old, new}], for native_copy.py to rebuild the base map's tiles at both places."""
-        sys.path.insert(0, str(TOOLS / 'bake'))
+        paths.use('bake')
         import stream_copy
         out = []
         for stream, moves in sorted(self.stream_moves.items()):

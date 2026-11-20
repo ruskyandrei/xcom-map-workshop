@@ -13,7 +13,8 @@ environment variable, else the usual install folders. Without it the zip alone i
 What goes in (dist/release/XCOM-Map-Workshop-<version>/, then the zip and the installer beside):
 - the editor's modules: every module of ours the editor's entry points import (the server, the Build and the bake
   tools it runs: ENTRIES), found by reading their imports, with the folders they sit in (tools/viewer, tools/editor,
-  tools/bake, tools/upk, tools/lab), plus EXTRAS that are run as subprocesses by path or read as data; the page (the
+  tools/bake, tools/upk; tools/lab is searched so a shipped import of a lab tool shows, and none ships; tools/ itself
+  for paths.py), plus EXTRAS that are run as subprocesses by path or read as data; the page (the
   files Git tracks in tools/viewer/web, so an untracked file there never ships) with its pinned three.js (checked
   against setup_vendor.py's checksums). A working tree with uncommitted changes under tools/ gets a warning;
 

@@ -7,6 +7,9 @@ dynamically from these records instead.
 import math
 from pathlib import Path
 import sys
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 
 from export_math import forward
 
@@ -128,8 +131,7 @@ def light_metadata(p, lights, objects, kismet, warn=None):
     (`channels`), which properties its component saves (`saved`) and what names it (`referencedBy`: `kismet`, the
     package's Kismet references by actor export index, and destructibles' ToggleLight actions). A component whose
     lightmap records don't read (a skeletal mesh) lists no light."""
-    upk = str(Path(__file__).resolve().parents[1] / 'upk')
-    if upk not in sys.path: sys.path.append(upk)
+    paths.use('upk')
     import lighting_records
     listed, shadowed = {}, {}
     for obj in objects:

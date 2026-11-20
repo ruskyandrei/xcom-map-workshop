@@ -128,7 +128,6 @@ def main(argv=None):
     ap.add_argument('--dry-run', action='store_true', help='list what would go, delete nothing')
     a = ap.parse_args(argv)
     if a.cache is None:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
         from settings import load_settings
         a.cache = load_settings()['cache']
     r = prune(a.cache, dry_run=a.dry_run, log=print)

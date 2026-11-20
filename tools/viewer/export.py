@@ -2,6 +2,10 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 import re
 import shutil
 import struct
@@ -620,8 +624,7 @@ class Exporter:
                                                                             self.warn), None)
         # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)
         if not stream:
-            import sys
-            sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
+            paths.use('editor')
             import compiler
             vans = compiler.van_buildings(dict(objects=objects, buildings=buildings, meshes=self.meshes), p.path.stem)
             for building in buildings: building['van'] = building['id'] in vans

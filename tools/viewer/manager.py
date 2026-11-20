@@ -70,6 +70,9 @@ import sys
 import tempfile
 import zipfile
 
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 import installs
 import packs
 import spawnrules
@@ -490,7 +493,7 @@ def _inline_lighting(parts, files, work):
     the map) and takes the built map's place in `files` ({name: (source, SHA-256)}); the cache then leaves `files` and
     the part's file list, and the part records it (lightingInside). A map that can't take it in goes as it is, with
     its cache beside the folder, and a warning says why."""
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
+    paths.use('bake')
     import inline_lighting
     for p in parts:
         cache, n = p.get('cache'), f'{p["variant"]}.upk'
@@ -543,7 +546,7 @@ def _shared_intros(parts, files, work, record, cooked):
     written) keeps its own copy: the pack then works as before, and the map's introOwn says why. Returns
     {file: {stream, maps}}."""
     import hashlib
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
+    paths.use('bake')
     import intro_copy
     groups = {}
     for p in parts:
@@ -618,7 +621,7 @@ def _pack_record(projects, builds, request, parts, game, now, rng=None):
 def _pack(projects, builds, player, request, chosen, mode, now, work):
     import mapsini as dep
     from settings import game_kind
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
+    paths.use('upk')
     import pack_card
     _, _, read = _targets(player)
     game = read if read is not None else _targets(player)[0]

@@ -4527,9 +4527,6 @@ class Compiler:
         game = getattr(self.library, 'game', None)
         if not isinstance(game, (str, Path)) or not game:
             return
-        viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
-        if viewer not in sys.path:
-            sys.path.append(viewer)
         import spawnrules
         try:
             found = spawnrules.rules(game)
@@ -5175,9 +5172,6 @@ class Library:
         """(the piece record, its index entry) of a target {package, level, actor}; LibraryError otherwise. `sky`: a sky
         dome (every mesh a Skybox one), which the library leaves out, is taken too: a test stage's backdrop (prefab plan
         5.11)."""
-        viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
-        if viewer not in sys.path:
-            sys.path.append(viewer)
         import library
         from projects import ProjectError
         index, entries, donors = self.load()
@@ -5208,9 +5202,6 @@ class Library:
 
     def load(self):
         """(index, {key: entry}, {package folded: donor}), read once; LibraryError when it was never scanned."""
-        viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
-        if viewer not in sys.path:
-            sys.path.append(viewer)
         import library
         if self.index is None:
             index = library.load_index(self.cache)

@@ -27,6 +27,9 @@ import os
 from pathlib import Path
 import sys
 
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 from projects import ID, SHA256, STATE, ProjectError, hide
 
 HERE = Path(__file__).resolve().parent
@@ -298,8 +301,7 @@ def shown_png(data):
 
 
 def _map_frame():
-    if str(HERE.parent / 'bake') not in sys.path:
-        sys.path.append(str(HERE.parent / 'bake'))
+    paths.use('bake')
     import map_frame
     return map_frame
 
