@@ -23,6 +23,41 @@ FURIES, NO_FURIES = labpaths.test_file('XCOM_FURIES_UPK', labpaths.lwr_cooked('D
 FLOOR = 'TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7'
 
 
+class Edits(unittest.TestCase):
+    """(Review finding 43) Fixed-size edits are kept in order and checked against their neighbours: an overlap and an
+    empty edit are refused, as before, and thousands of edits take no longer than the writing does."""
+    def grower(self):
+        g = package_grow.Grower.__new__(package_grow.Grower)
+        g.chunks, g.end, g.edits, g.edit_starts = [(100, 100000, 0, 0)], 100100, {}, []
+        return g
+
+    def test_an_overlap_or_an_empty_edit_is_refused(self):
+        g = self.grower()
+        for at in (500, 520, 505, 200, 1000):
+            g.edit(at, b'abcde')
+        self.assertEqual(g.edit_starts, [200, 500, 505, 520, 1000])
+        for at, data in ((498, b'xyz'), (504, b'x'), (509, b'xx'), (196, b'x' * 400), (90, b'x'), (100099, b'xx')):
+            with self.assertRaises(ValueError, msg=(at, data)):
+                g.edit(at, data)
+        with self.assertRaisesRegex(ValueError, 'empty'):
+            g.edit(3000, b'')
+        g.edit(510, b'0123456789')         # between two, touching both
+        self.assertEqual(sorted(g.edits), g.edit_starts)
+
+    def test_many_edits_in_any_order(self):
+        import random
+        import time
+        g = self.grower()
+        offsets = [100 + 5 * k for k in range(19000)]
+        random.Random(1).shuffle(offsets)
+        started = time.perf_counter()
+        for at in offsets:
+            g.edit(at, b'12345')
+        self.assertEqual(g.edit_starts, sorted(offsets))
+        # (a check of every earlier edit took 11 to 16 s for 20,000; this takes a fraction of a second)
+        self.assertLess(time.perf_counter() - started, 10.0)
+
+
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class GrowBar(unittest.TestCase):
     @classmethod
