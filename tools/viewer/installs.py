@@ -207,8 +207,43 @@ def _write_json(path, data):
                 time.sleep(0.02)
 
 
+KEEP_BACKUPS = 20       # the install's newest backup folders kept (review finding 49): about ten plays' worth
+KEEP_HISTORY = 200      # and the newest entries of the ledger's history
+
+
+def _prune(game, data):
+    """The ledger `data` (in place) cut to the newest KEEP_HISTORY history entries and KEEP_BACKUPS backups, the older
+    backup folders deleted (review finding 49): each play adds two of each, and nothing took them away. Never one
+    something still needs: a lab file kept there to go back (labFiles), or one a stopped change's roll-back kept
+    (interrupted-*); and no folder at all while a change is under way or a stopped one waits (its journal), so a
+    roll-back never brings back a ledger naming a folder that is gone. A folder that can't be deleted stays listed."""
+    if len(data.get('history') or []) > KEEP_HISTORY: data['history'] = data['history'][-KEEP_HISTORY:]
+    backups = data.get('backups') or []
+    if len(backups) <= KEEP_BACKUPS: return
+    if _current(game) is not None or change_path(game).exists() or test_install_path(game).exists(): return
+    root = os.path.normcase(os.path.abspath(Path(game) / LEDGER_FOLDER / 'backups'))
+
+    def folder(rel):
+        """The backup folder an entry (or a file under it) names, as a normalised path; None outside the backups."""
+        path = os.path.normcase(os.path.abspath(Path(game) / rel))
+        if not path.startswith(root + os.sep): return None
+        return os.path.join(root, os.path.relpath(path, root).split(os.sep)[0])
+    needed = {folder(rel) for rel in (data.get('labFiles') or {}).values() if isinstance(rel, str)}
+    kept = []
+    for rel in backups[:-KEEP_BACKUPS]:
+        path = folder(rel) if isinstance(rel, str) else None
+        if path is None or path in needed or os.path.basename(path).startswith('interrupted-'):
+            kept.append(rel)
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        if os.path.exists(path): kept.append(rel)
+    data['backups'] = kept + backups[-KEEP_BACKUPS:]
+
+
 def write_ledger(game, data):
-    """The dict read_ledger gives, written back as the two files; play.json only once a play has put something in."""
+    """The dict read_ledger gives, written back as the two files; play.json only once a play has put something in.
+    Its history and backups are kept to the newest (_prune)."""
+    _prune(game, data)
     play = {k: data[k] for k in PLAY_KEYS if k in data}
     main = {k: v for k, v in data.items() if k not in PLAY_KEYS}
     _write_json(ledger_path(game), dict(main, schema=SCHEMA, schemaVersion=3))

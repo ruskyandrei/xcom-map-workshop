@@ -183,6 +183,47 @@ class Recovery(unittest.TestCase):
         self.assertFalse(procs.running('NoSuchProgram-XMW.exe'))
 
 
+class Pruning(unittest.TestCase):
+    """Review finding 49: the install's backups and the ledger's history keep the newest (installs.KEEP_BACKUPS,
+    KEEP_HISTORY), never a folder something still needs, and none while a change waits."""
+    setUp = test_play.Play.setUp
+
+    def ledger_with(self, game, count):
+        backups = game / installs.LEDGER_FOLDER / 'backups'
+        names = [f'20261120-1000{k:02d}' for k in range(count - 1)] + ['interrupted-20261120-090000']
+        names = [names[-1]] + names[:-1]                                    # the oldest: a roll-back's
+        for name in names:
+            (backups / name).mkdir(parents=True)
+            (backups / name / 'DefaultMaps.ini').write_bytes(b'x')
+        lab = backups / names[1] / 'CookedPCConsole' / 'URB_Lab.upk'       # an old one keeps a lab file to go back
+        lab.parent.mkdir()
+        lab.write_bytes(b'lab')
+        return dict(backups=[str((backups / n).relative_to(game)) for n in names],
+                    history=[dict(at=str(k)) for k in range(installs.KEEP_HISTORY + 50)],
+                    labFiles={'URB_Lab.upk': str(lab.relative_to(game))}, files={'URB_Lab.upk': 'f' * 64}), names
+
+    def test_the_newest_are_kept_and_what_is_needed(self):
+        game = self.lwr
+        ledger, names = self.ledger_with(game, installs.KEEP_BACKUPS + 10)
+        installs.write_ledger(game, ledger)
+        kept = installs.read_ledger(game)
+        self.assertEqual(len(kept['history']), installs.KEEP_HISTORY)
+        self.assertEqual(kept['history'][-1], dict(at=str(installs.KEEP_HISTORY + 49)))
+        self.assertEqual([Path(b).name for b in kept['backups']], names[:2] + names[-installs.KEEP_BACKUPS:])
+        there = sorted(p.name for p in (game / installs.LEDGER_FOLDER / 'backups').iterdir())
+        self.assertEqual(there, sorted(names[:2] + names[-installs.KEEP_BACKUPS:]))
+        self.assertEqual(ledger['backups'], kept['backups'])                # the caller's dict too
+
+    def test_nothing_is_deleted_while_a_change_waits(self):
+        game = self.lwr
+        ledger, names = self.ledger_with(game, installs.KEEP_BACKUPS + 5)
+        installs.change_path(game).write_text('{}', encoding='utf-8')
+        installs.write_ledger(game, ledger)
+        self.assertEqual(len(installs.read_ledger(game)['backups']), len(names))
+        self.assertEqual(len(list((game / installs.LEDGER_FOLDER / 'backups').iterdir())), len(names))
+        self.assertEqual(len(installs.read_ledger(game)['history']), installs.KEEP_HISTORY)
+
+
 # the real checks, before the tests' set-up stands in for them
 REAL_GAME_RUNNING, REAL_DEP_GAME_RUNNING = installs.game_running, dep.game_running
 
