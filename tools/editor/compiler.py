@@ -626,6 +626,37 @@ def finite(v, n):
                                                        and math.isfinite(x) for x in v)
 
 
+def keyable(v):
+    """Whether a value read from a record can be a key: a JSON string, number, true, false or null, never a list or an
+    object (a hand-edited or newer project's; looking one up in a table would raise TypeError)."""
+    return not isinstance(v, (list, dict))
+
+
+def target_key(target):
+    """A target {package, level, actor}'s key into the export's tables, or None when it is no such object or a part of
+    it is a list or an object (such a target names nothing)."""
+    if not isinstance(target, dict):
+        return None
+    key = (target.get('package'), target.get('level'), target.get('actor'))
+    return key if all(keyable(v) for v in key) else None
+
+
+def valid_zone(zone):
+    """spawns.valid_zone, False for a zone one of whose names is a list or an object (spawns.py looks them up)."""
+    try:
+        return spawns.valid_zone(zone)
+    except TypeError:
+        return False
+
+
+def valid_mission(entry, records):
+    """missions.valid_entry, False for an entry whose kind is a list or an object (missions.py looks it up)."""
+    try:
+        return missions.valid_entry(entry, records)
+    except TypeError:
+        return False
+
+
 def world_box(obj, meshes, location, rotation, along=None):
     """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given. `along` (x0, x1) puts
     the mesh's x range in its own frame in place of its bounds' (a fracturing wall made from numbers on the component's
@@ -1466,7 +1497,8 @@ class Compiler:
         num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
         # (version 2 names a look; a wall's end styles are the Build's, worked out from where the walls meet; a wall's
         # version 3 and a slab's or ground shape's version 2 name the look by its donor)
-        ok = isinstance(g, dict) and g.get('kind') in GENERATED_VERSIONS and g.get('version') in GENERATED_VERSIONS[g['kind']]
+        ok = isinstance(g, dict) and keyable(g.get('kind')) and g.get('kind') in GENERATED_VERSIONS \
+            and g.get('version') in GENERATED_VERSIONS[g['kind']]
         # (a plain piece's numbers are checked as version 1's; a rock's with points as its look's version)
         points = ok and g['version'] == POINTS_VERSION.get(g['kind'])
         look = (g.get('ground') or {}).get('look') if points and isinstance(g.get('ground'), dict) else None
@@ -2459,9 +2491,8 @@ class Compiler:
 
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""
-        if not isinstance(target, dict):
-            return None
-        return self.lights.get((target.get('package'), target.get('level'), target.get('actor')))
+        key = target_key(target)
+        return self.lights.get(key) if key else None
 
     def overrides(self):
         known = {'target', 'location', 'rotation', 'deleted', 'flags', 'blasts', 'breaksFurther'}
@@ -2740,7 +2771,7 @@ class Compiler:
         if self.floor_boxes is None or getattr(self, '_floor_boxes_now', None) is not None:
             return self.floor_boxes if self.floor_boxes is None else self._floor_boxes_now
         records = {}
-        for b in self.doc.get('buildings') or []:
+        for b in self.doc.get('buildings') if isinstance(self.doc.get('buildings'), list) else []:
             rep = b.get('replaces') if isinstance(b, dict) else None
             if isinstance(rep, dict) and str(rep.get('package')).casefold() == self.map.casefold() and rep.get('level') == 'base' and isinstance(rep.get('actor'), str):
                 records.setdefault(rep['actor'], b)
@@ -2909,6 +2940,12 @@ class Compiler:
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
                 self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
                            'has no flags' % short(out), **where)
+                continue
+            if 'template' in rec and not isinstance(rec['template'], dict):
+                # a recipe is {kind, version}: anything else (null, a list, a name) names none, and the record is left
+                # out, its `from` too, if it has one
+                self.error('malformed', '%s names its recipe as %s, not {kind, version}' % (short(out), json.dumps(rec['template'])[:80]),
+                           **where)
                 continue
             if isinstance(rec.get('template'), dict) and rec['template'].get('kind') == 'cover':
                 self.cover_add(rec, where)
@@ -3235,7 +3272,7 @@ class Compiler:
         out = rec['actor']
         name = short(out)
         version = rec['template'].get('version')
-        if set(rec['template']) != {'kind', 'version'} or version not in COVER_RECIPES:
+        if set(rec['template']) != {'kind', 'version'} or not keyable(version) or version not in COVER_RECIPES:
             self.error('cover-recipe', '%s is made from a cover recipe this compiler doesn\'t know (%r); its versions are %s'
                        % (name, rec['template'], sorted(COVER_RECIPES)), **where)
             return
@@ -3430,7 +3467,7 @@ class Compiler:
                 self.error('malformed', '%s is both a copy (from) and a recipe light (template)' % name, **where)
                 return
             kind, version = (template.get('kind'), template.get('version')) if isinstance(template, dict) else (None, None)
-            if kind not in LIGHT_RECIPES or version not in LIGHT_RECIPES[kind]:
+            if not (keyable(kind) and keyable(version)) or kind not in LIGHT_RECIPES or version not in LIGHT_RECIPES[kind]:
                 self.error('light-recipe', '%s is made from a recipe this compiler doesn\'t know (%r); its versions are %s'
                            % (name, template, {k: sorted(v) for k, v in LIGHT_RECIPES.items()}), **where)
                 return
@@ -3495,9 +3532,8 @@ class Compiler:
     def effect_of(self, target):
         """The export's effect, sound or flare a target {package, level, actor} names (its record with `kind`), or
         None."""
-        if not isinstance(target, dict):
-            return None
-        return self.effect_actors.get((target.get('package'), target.get('level'), target.get('actor')))
+        key = target_key(target)
+        return self.effect_actors.get(key) if key else None
 
     def effect_values(self, rec, kind, name, where, source=None, systems=None):
         """A record's values object checked (the effects and sounds plan, Part C): (follow or None, values or None,
@@ -4107,10 +4143,12 @@ class Compiler:
         deleted = {original_key(r['target']) for r in self.doc.get('overrides') or []
                    if isinstance(r, dict) and isinstance(r.get('target'), dict) and r.get('deleted') is True}
         linked = {}   # member key -> the group that links it
-        made = {b.get('id') for b in self.doc.get('buildings') or [] if isinstance(b, dict) and b.get('deleted') is not True}
+        listed = [b for b in self.doc.get('buildings') or [] if isinstance(b, dict) and isinstance(b.get('id'), str)] \
+            if isinstance(self.doc.get('buildings'), list) else []
+        made = {b['id'] for b in listed if b.get('deleted') is not True}
         # the map's own buildings that can be edited, by the id made from their actor, record or none (map buildings
         # plan, section 2); a deleted one is no member
-        gone = {b.get('id') for b in self.doc.get('buildings') or [] if isinstance(b, dict) and b.get('deleted') is True}
+        gone = {b['id'] for b in listed if b.get('deleted') is True}
         made |= {map_building_id(b) for b, why in self.map_buildings().values() if why is None} - gone
         records = self.doc.get('groups', [])
         if not isinstance(records, list):
@@ -4777,6 +4815,9 @@ class Compiler:
             self.error('cleared-shape', '"clearKeepsOutside" must be true or false')
             keeps = False
         self.keep_outside = self.cleared and keeps is True
+        if self.cleared and not (self.scene.get('tileGrid') or {}).get('dimensions'):
+            self.error('cleared-grid', 'the export of %s has no tile grid, which a cleared map\'s Build covers with its '
+                       'cursor and rebuild volumes' % self.map)
         if self.cleared:
             # LWR's patch levels for the map: every piece of them out of the variant's copies (section 7, step 4).
             # The mission's own streamed levels are left.
@@ -4854,10 +4895,12 @@ class Compiler:
         if not isinstance(raw, list):
             self.error('landing-shape', '"landingZones" must be a list of landing zones')
             return
-        bad = [k for k, z in enumerate(raw) if not spawns.valid_zone(z)]
+        bad = [k for k, z in enumerate(raw) if not valid_zone(z)]
         for k in bad:
             self.error('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}' % (k + 1),
                        record='landingZones[%d]' % k)
+        if bad:
+            return
         ids = [z.get('id') for z in raw if isinstance(z, dict)]
         if len(set(ids)) != len(ids):
             self.error('landing-shape', 'two landing zones have the same id')
@@ -4952,7 +4995,7 @@ class Compiler:
             self.error('missions', 'the project\'s missions must be a list of at least one: with none the Build writes no '
                        'record to play')
             return
-        bad = [k + 1 for k, e in enumerate(listed) if not missions.valid_entry(e, records)]
+        bad = [k + 1 for k, e in enumerate(listed) if not valid_mission(e, records)]
         if bad:
             self.error('missions', 'mission%s %s of the project\'s list %s neither one of the base map\'s %d records nor a '
                        'kind a record alone gives a map (%s)' % ('' if len(bad) == 1 else 's', numbers(bad),

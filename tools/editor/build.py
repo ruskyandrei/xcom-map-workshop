@@ -410,7 +410,7 @@ def mission_entries(records, listed):
     lists none, else the project's valid entries, its base records in file order and then its added kinds."""
     if not isinstance(listed, list):
         return [dict(record=i) for i in range(len(records))]
-    valid = [e for e in listed if mission_kinds.valid_entry(e, len(records))]
+    valid = [e for e in listed if compiler.valid_mission(e, len(records))]
     kinds = list(mission_kinds.ADDED_KINDS)
     picked = sorted({e['record'] for e in valid if 'record' in e})
     added = sorted({e['kind']: e for e in valid if 'kind' in e}.values(), key=lambda e: kinds.index(e['kind']))
