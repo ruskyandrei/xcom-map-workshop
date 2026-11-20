@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-143 (20 November, EXP-88): a cover block grouped with a made wall keeps its cover when the wall's columns break
+  (the block is invincible and the columns reach it only by damage); a prop in the same kind of group goes.
 - T-49 (20 November): Furies (`DLC2_3_Furies`, which LWR stores uncompressed) didn't build in 0.6.0; fixed offline
   (an uncompressed map is written in the compressed maps' layout), the built map not played.
 - T-47 (a new case, EXP-83 run A, 19 November): a soldier whose tile on a map roof broke away under her (the roof
@@ -298,6 +300,21 @@ points and initialises pods. Scripted reinforcements use a later hook.
 The editor already writes the variant's landing lines. A per-variant scripted drop-in exclusion and an optional
 pod/Meld runtime experiment remain in the private spawns plan. Deployment counts, exact placements and reload
 behaviour for these proposed edits still need direct observation.
+
+### F-143: A cover block grouped with a made wall keeps its cover when the wall goes
+**Open** (20 November 2026, [EXP-88](experiments/EXP-88-review-fixes-in-game.md) check 1, LWR lab copy).
+- **Seen.** A one-storey made wall four tiles long in a group (Break together) with a high cover block over the tile
+  beside its middle. The Build lists the block in six of the wall's columns (`groupListings`). An HE grenade at the
+  wall's other face took the whole wall out. The log has six `XComDamageType_DestructibleActorClear` hits of 500 on
+  the block's actor (each with `Accessed None 'EventInstigator'` in `XComDestructibleActor.ApplyDamageToMe`): the
+  columns did send their clear to it. The block stayed: its `Health` read 3 before and after, and three units on the
+  tiles round its tile (one placed there after the wall had gone) each read high cover (50) toward it alone.
+- **Why, as far as known.** A block that breaks with its group is a hidden prop whose toughness is `bInvincible`
+  (`cover_blocks.BREAKING`, F-101), so `ApplyDamageToMe` returns at once: it goes only when a prop of its group is
+  destroyed and the game's `AffectedChildren` link moves it (`SyncChildStates`). A made wall's column reaches what it
+  lists by damage, which the block ignores. Props in such a group are not invincible and went with their wall parts
+  in the same run (the ATM's copy cleared by its columns, Health 0).
+- **Left.** A block grouped with a made wall and no prop is an invisible wall once the wall is gone. Not fixed here.
 
 ### F-137: A made patch on the blank map lay under its floor planes
 **Verified** (19 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D3; fixed the same night, played in run D4).
