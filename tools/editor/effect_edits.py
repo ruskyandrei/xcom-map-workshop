@@ -265,7 +265,7 @@ class EffectEdits:
         """[(building path, floor index)]: the upper floors (index 1 up) one of whose boxes, as the project has them,
         holds `location` within EFFECT_SLACK: where the Build lists a moved or new effect (plan Part D)."""
         out = []
-        for name, index, boxes in self.c.floor_boxes_now() or []:
+        for name, index, boxes in self.c.floor_edits.floor_boxes_now() or []:
             if index >= 1 and any(all(b['min'][a] - EFFECT_SLACK <= location[a] <= b['max'][a] + EFFECT_SLACK
                                       for a in range(3)) for b in boxes):
                 out.append((name, index))

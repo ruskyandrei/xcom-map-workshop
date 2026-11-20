@@ -51,9 +51,12 @@ writes the document; the compiler reads it.
 
 **The compiler.** [`tools/editor/compiler.py`](tools/editor/compiler.py): `compile_project(doc, scene, ...)` gives
 `(spec, report)`. The spec is the edit, the same bytes for the same project and export. The report gives the errors
-(which stop a Build), warnings, notes and the records left out. The `Compiler` class runs the checks and the edit
-families. `FAMILIES` says which families build for every project. The families in modules of their own, each a class
-the compiler makes for itself:
+(which stop a Build), warnings, notes and the records left out. The `Compiler` class runs the document's and the
+export's checks and the edit families, in `run`'s order. It keeps what joins them: the family gates (`FAMILIES` says
+which families build for every project), the map's own pieces moved, deleted and copied and the pieces of other
+maps (`overrides` and `added`, with the assemblies and the grid rule), cover blocks, `spec`, and the diagnostics
+(`error`, `warn`, `note`, `leave_out`) through which the families report. The families, in modules of their own, are
+each a class the compiler makes for itself:
 - [`spawn_edits.py`](tools/editor/spawn_edits.py) (`SpawnEdits`): the base map's spawn points;
 - [`effect_edits.py`](tools/editor/effect_edits.py) (`EffectEdits`): the map's effects, ambient sounds and lens flares;
 - [`light_edits.py`](tools/editor/light_edits.py) (`LightEdits`): the map's placed lights, and the area lights its
@@ -66,7 +69,10 @@ the compiler makes for itself:
 - [`mission_edits.py`](tools/editor/mission_edits.py) (`MissionEdits`): the map's grid made larger or smaller, the
   clear, the drop-in rule, landing zones, missions and the places units are dropped at;
 - [`group_edits.py`](tools/editor/group_edits.py) (`GroupEdits`): the user's groups that break together, and what
-  of each group breaks with it.
+  of each group breaks with it;
+- [`floor_edits.py`](tools/editor/floor_edits.py) (`FloorEdits`): the floor a project leaves and the floors its
+  pieces are checked against: the cursor's floors, the floor flat pieces give, ladders' climbs, the building floor a
+  copy stands in, and the map's floor tiles still there.
 
 The tables and helpers that the compiler and its families share (`FAMILIES`, `short`, `tidy` and the others its
 `__all__` names) are in [`compiler_tables.py`](tools/editor/compiler_tables.py). The compiler takes them all with
@@ -299,9 +305,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 
 A module listed under `compiler families` does not import the compiler. It lists the families in modules of their own
 (section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py`, `flag_edits.py`, `made_edits.py`,
-`building_edits.py`, `mission_edits.py` and `group_edits.py`, each of which takes the tables and helpers it shares with
-the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in the commit that moves
-it.
+`building_edits.py`, `mission_edits.py`, `group_edits.py` and `floor_edits.py`, each of which takes the tables and
+helpers it shares with the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in
+the commit that moves it.
 
 ### structure.json's form
 

@@ -13,8 +13,9 @@ the cursor's floors.
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A BuildingEdits works for one
 Compiler: it reads the map, the scene, the document, the copies, the larger grid and the building floors from it, asks
-it whether a family builds (builds) and for the cursor's floors (cursor_storeys), and says what it finds through its
-error, leave_out, warn and note, so the report and the pieces left out are the compiler's as before.
+it whether a family builds (builds) and its floor family for the cursor's floors (cursor_storeys), and says what it
+finds through its error, leave_out, warn and note, so the report and the pieces left out are the compiler's as
+before.
 
 Its own tables and helpers (BUILDING_SHAPE, BUILDING_KINDS, BUILDING_FLOORS_MAX, BUILDING_SAME, source_floor_match,
 moved_whole and the others) are here, and the compiler names again those that others read through it
@@ -27,8 +28,8 @@ import math
 from compiler_tables import (FAMILIES, MADE_KINDS, POSE_SLACK, QUARTER, game_round, keyable, map_building_id, short,
                              tidy, turned)
 
-# The cursor's floors (the export's cursorVolumes, export 20; the compiler's cursor_storeys): a building's floor should
-# start within CURSOR_NEAR of where one starts.
+# The cursor's floors (the export's cursorVolumes, export 20; the floor family's cursor_storeys): a building's floor
+# should start within CURSOR_NEAR of where one starts.
 CURSOR_NEAR = 32.0
 # a project's buildings made from nothing (buildings): the kinds, the most floors (a CutdownFloor is a byte;
 # the game's own buildings have at most 5), and how far two boxes may reach into each other before they overlap
@@ -254,7 +255,7 @@ class BuildingEdits:
         count = list(self.c.mission_edits.stage_grid or dims[:3])
         lo = [float(v) for v in origin[:3]]
         hi = [lo[k] + count[k] * size[k] for k in range(3)]
-        storeys = self.c.cursor_storeys()
+        storeys = self.c.floor_edits.cursor_storeys()
 
         def meet(a, b):
             return all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > BUILDING_OVERLAP for k in range(3))

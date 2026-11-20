@@ -1,14 +1,13 @@
 """The tables and small helpers the compiler shares with its edit families (review finding 23).
 
-The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py, effect_edits.py,
-light_edits.py, flag_edits.py, made_edits.py, building_edits.py, mission_edits.py, group_edits.py) import this
-module; a family never imports the compiler (tools/repo/structure.json, `compiler families`). The compiler takes
-every name of __all__ with `from compiler_tables import *`, so compiler.FAMILIES and the rest are these same
-objects: a test that changes compiler.FAMILIES['spawn'] in place changes what the spawn family reads too.
+The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py, effect_edits.py, light_edits.py,
+flag_edits.py, made_edits.py, building_edits.py, mission_edits.py, group_edits.py, floor_edits.py) import this module; a
+family never imports the compiler (tools/repo/structure.json, `compiler families`). The compiler takes every name of
+__all__ with `from compiler_tables import *`, so compiler.FAMILIES and the rest are these same objects: a test that
+changes compiler.FAMILIES['spawn'] in place changes what the spawn family reads too.
 
-What is here: each table or helper that more than one of them reads, the compiler and a family or two families (a
-family whose methods are still the Compiler's counts as one). A table or helper only the compiler reads stays in
-compiler.py; one only a family reads is that family's, in its module once it has one.
+What is here: each table or helper that more than one of them reads, the compiler and a family or two families. A
+table or helper only the compiler reads stays in compiler.py; one only a family reads is in that family's module.
 """
 import json
 import math

@@ -3,6 +3,7 @@
     "tools/editor/building_edits.py",
     "tools/editor/effect_edits.py",
     "tools/editor/flag_edits.py",
+    "tools/editor/floor_edits.py",
     "tools/editor/group_edits.py",
     "tools/editor/light_edits.py",
     "tools/editor/made_edits.py",

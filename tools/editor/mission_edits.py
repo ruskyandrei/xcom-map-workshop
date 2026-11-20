@@ -13,9 +13,9 @@ notes.
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A MissionEdits works for one
 Compiler: it reads the map, the scene, the document, the copies, the cover blocks, the entities and the other families'
-state from it, asks it for the floor the project leaves (floor_now, added_floors, scenery_floor) and a mission
-object's place in its stream (moved_object), and says what it finds through its error, leave_out, warn and note, so
-the report and what is left out are the compiler's as before.
+state from it, asks its floor family for the floor the project leaves (floor_now, added_floors, scenery_floor) and it
+for a mission object's place in its stream (moved_object), and says what it finds through its error, leave_out, warn and
+note, so the report and what is left out are the compiler's as before.
 
 Its own tables and helpers (STAGE_GRID_MAX, STAGE_LEVELS_MAX, stage_max, POD_DISTANCE, tidy_zone, zone_words,
 scripted_users and the others) are here, and the compiler names again those that others read through it
@@ -499,8 +499,8 @@ class MissionEdits:
             return
         size = grid.get('size') or [TILE, TILE, STOREY]
         before = {tuple(f['tile']) for f in ((self.c.scene.get('tactical') or {}).get('floorTiles') or [])}
-        added, _ = self.c.added_floors()
-        now = self.c.floor_now() | set(added)
+        added, _ = self.c.floor_edits.added_floors()
+        now = self.c.floor_edits.floor_now() | set(added)
         corner = tile_corner(grid)      # an object's tile as the game counts it
         tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
                                 int(math.floor((p[2] - corner[2]) / size[2])) + dz)
@@ -614,8 +614,8 @@ class MissionEdits:
         tile = lambda p, dz=0: (int(math.floor((p[0] - corner[0]) / size[0])), int(math.floor((p[1] - corner[1]) / size[1])),  # noqa: E731
                                 int(math.floor((p[2] - corner[2]) / size[2])) + dz)
         before = {tuple(f['tile']) for f in ((self.c.scene.get('tactical') or {}).get('floorTiles') or [])}
-        added, _ = self.c.added_floors()
-        now = self.c.floor_now() | set(added)
+        added, _ = self.c.floor_edits.added_floors()
+        now = self.c.floor_edits.floor_now() | set(added)
         o, dims = grid['origin'], grid['dimensions']
         box_before = [o[0], o[1], o[0] + dims[0] * size[0], o[1] + dims[1] * size[1]]
         g = self.grid_box()
@@ -686,9 +686,9 @@ class MissionEdits:
         # a soldier's spot's tile as the game counts it (tile_corner)
         corner, size = tile_corner(grid), grid.get('size') or [TILE, TILE, STOREY]
         label = (lambda k: "the map's landing %d" % (k + 1)) if own else (lambda k: 'landing zone %d' % (k + 1))
-        floors = self.c.floor_now()
-        added, _ = self.c.added_floors()
-        scenery = self.c.scenery_floor()
+        floors = self.c.floor_edits.floor_now()
+        added, _ = self.c.floor_edits.added_floors()
+        scenery = self.c.floor_edits.scenery_floor()
         # each zone's own landing, where it is one (a landing with no frame keeps its own points until its zone moves)
         found = self.own_landings_found or []
         mine = {k: found[k] for k in range(min(len(zones), len(found)))} if own else \
