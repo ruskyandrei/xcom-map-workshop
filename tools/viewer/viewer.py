@@ -5,8 +5,9 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import socket
+import traceback
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
 from export import export_map, stream_package, EXPORT_VERSION
@@ -96,6 +97,25 @@ def spawn_rules(map_id):
     except (OSError, ValueError) as error:
         found = dict(spawnrules.rules(None), error=str(error))
     return dict(found, map=map_id, excluded=spawnrules.excluded(found, map_id))
+
+
+def contained(root, rel):
+    """The path `rel` names under the folder `root` (absolute), or root/.denied, worked out from the text alone: a part
+    that is absolute, names a drive or a network share, starts with a slash or backslash, or holds a colon or a NUL is
+    refused before anything is joined, and the joined path is compared with the root without being resolved (resolving
+    opens the path first: a network one would be reached; review finding 45)."""
+    root = str(root)
+    denied = os.path.join(root, '.denied')
+    if rel and (rel[0] in '/\\' or ':' in rel or '\x00' in rel or PureWindowsPath(rel).drive
+                or PureWindowsPath(rel).is_absolute() or PurePosixPath(rel).is_absolute()):
+        return denied
+    target = os.path.normpath(os.path.join(root, rel)) if rel else os.path.normpath(root)
+    base = os.path.normcase(os.path.normpath(root))
+    try:
+        inside = os.path.commonpath([os.path.normcase(target), base]) == base
+    except ValueError:
+        inside = False
+    return target if inside else denied
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -203,13 +223,54 @@ class Handler(SimpleHTTPRequestHandler):
         origin = self.headers.get('Origin')
         return origin is None or origin == f'http://{host}'
 
-    def body_json(self):
-        if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
-            raise ProjectError(415, 'Send JSON.')
+    def parse_request(self):
+        """Every request's Host, and its Origin when sent, checked in one place before any route, reads too: a page
+        elsewhere, or one that rebinds its name to 127.0.0.1, reads nothing (review finding 45)."""
+        if not super().parse_request(): return False
+        self.answered = False
+        if self.same_origin(): return True
+        self.body_read = False
+        self.drain_body()
+        self.send_json(403, dict(error=f'Only the editor\'s own page (http://127.0.0.1:{self.server.server_port}/) '
+                                       'may use this server.'), body=self.command != 'HEAD')
+        return False
+
+    def send_response(self, *args, **kwargs):
+        self.answered = True
+        super().send_response(*args, **kwargs)
+
+    def answer(self, method, route):
+        """Run a request's route; any failure it doesn't answer itself is answered as a JSON 500 with its reason, never
+        a dropped connection (review finding 46). The traceback goes to the server's window."""
+        try:
+            route()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            self.close_connection = True
+        except Exception as error:      # noqa: BLE001 (whatever failed, the page is told why)
+            traceback.print_exc()
+            if getattr(self, 'answered', False):
+                self.close_connection = True
+                return
+            try:
+                self.send_json(500, dict(error=f'The editor\'s server could not do that: {error}' if str(error)
+                                         else f'The editor\'s server could not do that ({type(error).__name__}).'),
+                               body=method != 'HEAD')
+            except OSError:
+                self.close_connection = True
+
+    def body_length(self, limit=32 << 20, too_large='Too large.'):
+        """A request body's length from its Content-Length (none: 0): 400 when it is not a whole number of 0 or more,
+        413 over `limit` (review finding 46: a bad value raised with no answer, a negative one held the thread)."""
         try: length = int(self.headers.get('Content-Length') or 0)
         except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
         if length < 0: raise ProjectError(400, 'Invalid Content-Length.')
-        if length > 32 << 20: raise ProjectError(413, 'Too large.')
+        if length > limit: raise ProjectError(413, too_large)
+        return length
+
+    def body_json(self):
+        if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
+            raise ProjectError(415, 'Send JSON.')
+        length = self.body_length()
         self.body_read = True
         try: return json.loads(self.rfile.read(length) or b'null')
         except ValueError: raise ProjectError(400, 'Malformed JSON.')
@@ -250,18 +311,14 @@ class Handler(SimpleHTTPRequestHandler):
             # with that hash, the current one or the one before it; ?as=game: as the game shows it, after DXT1);
             # DELETE takes it away. GET /map-pictures/<map>.png is the game's own picture of a map (404: it has none).
             elif kind == 'picture' and method == 'PUT':
-                try: length = int(self.headers.get('Content-Length') or 0)
-                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
-                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                length = self.body_length(pictures.MAX_BYTES, 'A map picture is a PNG of up to 1 MB.')
                 if length <= 0: raise ProjectError(400, 'Send the picture.')
                 saved = pictures.named(self.projects.load(project_id))
                 self.body_read = True
                 self.send_json(200, pictures.save_picture(self.projects, project_id, self.rfile.read(length), saved))
             elif kind == 'picture-preview' and method == 'POST':
                 # a cropped picture as the game will show it (after DXT1), for the dialog; nothing is kept
-                try: length = int(self.headers.get('Content-Length') or 0)
-                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
-                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                length = self.body_length(pictures.MAX_BYTES, 'A map picture is a PNG of up to 1 MB.')
                 if length <= 0: raise ProjectError(400, 'Send the picture.')
                 self.body_read = True
                 self.send_png(pictures.shown_png(self.rfile.read(length)))
@@ -294,14 +351,14 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ProjectError(404, 'This server does not build.')
             elif kind == 'build' and method == 'POST':
                 # {"quick": true}: a quick build (the edit without its lighting baked); no body or {}: a full one
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
+                request = self.body_json() if self.body_length() else None
                 self.send_json(202, self.builds.start(project_id, quick=isinstance(request, dict) and request.get('quick') is True))
             elif kind == 'build-status' and method == 'GET':
                 self.send_json(200, self.builds.status(project_id))
             elif kind == 'build-cancel' and method == 'POST':
                 # {"attempt": id}: only that launch (a stale page's cancel stops no newer build); none: the running one
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
-                attempt = request.get('attempt') if isinstance(request, dict) else None
+                request = self.body_json() if self.body_length() else None
+                attempt =request.get('attempt') if isinstance(request, dict) else None
                 if attempt is not None and not (isinstance(attempt, str) and self.projects.check_id(attempt)):
                     raise ProjectError(400, 'Send {"attempt": the build\'s attempt id}.')
                 self.send_json(200, self.builds.cancel(project_id, attempt))
@@ -371,8 +428,7 @@ class Handler(SimpleHTTPRequestHandler):
             elif len(parts) == 3 and parts[2] == 'prefab.json' and method == 'DELETE':
                 self.send_json(200, self.prefabs.delete(parts[1]))
             elif len(parts) == 3 and parts[2] == 'picture.png' and method == 'PUT':
-                length = int(self.headers.get('Content-Length') or 0)
-                if length > MAX_PICTURE: raise ProjectError(413, 'Too large.')
+                length = self.body_length(MAX_PICTURE)
                 self.body_read = True
                 self.send_json(200, self.prefabs.save_picture(parts[1], self.rfile.read(length)))
             elif len(parts) == 3 and parts[2] == 'picture.png' and method == 'GET':
@@ -439,7 +495,7 @@ class Handler(SimpleHTTPRequestHandler):
             if self.exports is None: raise ProjectError(404, 'This server does not export maps.')
             if parts[2] == 'export' and method == 'POST':
                 if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
+                request = self.body_json() if self.body_length() else None
                 self.send_json(202, self.exports.start(parts[1], prepare=bool(isinstance(request, dict) and request.get('prepare'))))
             elif parts[2] == 'export.json' and method == 'GET':
                 self.send_json(200, self.exports.status(parts[1]))
@@ -797,8 +853,7 @@ class Handler(SimpleHTTPRequestHandler):
                 folder = parts[1]
                 path = self.library.thumb(parts[2][:-4], folder)
                 if method == 'PUT':
-                    length = int(self.headers.get('Content-Length') or 0)
-                    if length > (4 << 20 if folder == 'pictures' else 1 << 20): raise ProjectError(413, 'Too large.')
+                    length = self.body_length(4 << 20 if folder == 'pictures' else 1 << 20)
                     self.body_read = True
                     self.send_json(200, self.library.save_thumb(parts[2][:-4], self.rfile.read(length), folder))
                 elif not path.is_file(): raise ProjectError(404, 'No picture is kept for that.')
@@ -882,29 +937,40 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         if body: self.wfile.write(payload)
 
-    def do_GET(self):
+    def do_GET(self): self.answer('GET', self.route_GET)
+
+    def route_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
         elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
-    def do_PUT(self):
+    def do_PUT(self): self.answer('PUT', self.route_PUT)
+
+    def route_PUT(self):
         if not any(handle('PUT') for handle in (self.handle_squad, self.handle_library, self.handle_prefabs, self.handle_project)): self.send_error(405)
 
-    def do_POST(self):
+    def do_POST(self): self.answer('POST', self.route_POST)
+
+    def route_POST(self):
         if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
 
-    def do_DELETE(self):
+    def do_DELETE(self): self.answer('DELETE', self.route_DELETE)
+
+    def route_DELETE(self):
         if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_manager, self.handle_project)): self.send_error(405)
 
-    def do_HEAD(self):
+    def do_HEAD(self): self.answer('HEAD', self.route_HEAD)
+
+    def route_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
         elif not self.handle_wave('HEAD'): super().do_HEAD()
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)
-        root,rel=WEB,request.lstrip('/')
+        # (only the one slash the request path starts with is taken off: a second one would make it a network path)
+        root,rel=WEB,request[1:] if request.startswith('/') else request
         if request.startswith('/cache-library/'):
             # a library piece's meshes and textures (library.py): <donor>/<generation>/<file>
             if self.library is None: return str(WEB / ".denied")
@@ -918,9 +984,7 @@ class Handler(SimpleHTTPRequestHandler):
             root=entry['root'] if entry else self.scene_root
             if root is None: return str(WEB / ".denied")
             if entry:rel=asset
-        target = (root / rel).resolve()
-        if not target.is_relative_to(root): return str(root / ".denied")
-        return str(target)
+        return contained(root, rel)
 
     def list_directory(self, path):
         self.send_error(403, "Directory listing is disabled")
