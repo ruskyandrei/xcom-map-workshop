@@ -553,8 +553,8 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             try:
                 root = Path(entry['root'])
-                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
-                ids = parse_qs(split.query).get('mesh') or sorted(scene.get('meshes') or {})
+                scene = self.collision_cache.scene(root)        # (read once per export, not on every request)
+                ids = parse_qs(split.query).get('mesh') or scene['meshes']
                 find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
                 self.send_json(200, dict(meshes=self.collision_cache.get(root, scene, find, ids)))
             except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra))

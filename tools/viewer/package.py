@@ -3,7 +3,6 @@
 The older research CLIs stay independent. Object references remain package-local
 indices; names are for diagnostics, never implicit cross-package substitutions.
 """
-from functools import lru_cache
 from pathlib import Path
 import struct
 import sys
@@ -143,8 +142,16 @@ class Package:
                 return [red / 255, g / 255, b / 255, a / 255]
         return raw
 
-    @lru_cache(maxsize=None)
     def properties(self, index):
+        """(the export's tagged properties, where its native data starts), read once and kept on the package itself:
+        a cache on the method would hold every package the server ever opened (review finding 19)."""
+        kept = self.__dict__.setdefault('_properties', {})
+        found = kept.get(index)
+        if found is None:
+            found = kept[index] = self._read_properties(index)
+        return found
+
+    def _read_properties(self, index):
         e = self.exports[index - 1]
         if self.cls(index) in LEADING_SHADOW_MAP:
             # The cooked component puts its DominantLightShadowMap (a counted WORD array)
