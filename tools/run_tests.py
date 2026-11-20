@@ -13,10 +13,19 @@ counted by reason under their suite, so a run on a computer with no game install
   python -B tools/run_tests.py bake -k shell       only the tests whose names hold "shell" (unittest's -k)
   python -B tools/run_tests.py --log <folder>      where the logs go (default .scratch/tests/<date-time>)
   python -B tools/run_tests.py upk --install       with the checks over every map of the install too
+  python -B tools/run_tests.py editor --times      and then the twenty slowest tests and classes of each suite
+  python -B tools/run_tests.py --times --log <folder>   the slowest of logs already there, running nothing
 
 The checks over every map of the install (tools/upk/tests/test_game_grid.py: two minutes, most of it opening the maps)
 run when every suite runs, as the release does, or with --install; they skip otherwise (XCOM_INSTALL_TESTS is how
 the suites are told).
+
+Each line of a log starts with two times in seconds since its suite started, `[begun ended] `: when the line's first
+character came and when its end did. unittest writes a test's name when the test starts and its verdict when it
+ends, so the two times of a test's line are its start and end, and the gap before a class's first test is the class's
+set-up (setUpClass, and the tearDownClass of the class before). --times reads them; the screen shows no times. With
+--log naming a folder that already holds logs, --times reads those (the suites named, else every log there) and runs
+nothing.
 
 Exit status 0 when everything passed, 1 when anything failed or a suite could not run. The browser smoke
 (tools/viewer/tests/browser_smoke.py) needs a test server and is not run here.
@@ -38,16 +47,37 @@ SUITES = PYTHON_SUITES + ('node',)
 HEADER = re.compile(r'^(FAIL|ERROR): (\S+) \((\S+)\)')
 SUMMARY = re.compile(r'^Ran (\d+) tests? in ([\d.]+)s$')
 SKIPPED = re.compile(r" \.\.\. skipped '(.*)'$")
+STAMP = re.compile(r'^\[ *(\d+\.\d+) +(\d+\.\d+)\] ')
+# a test's line in unittest's verbose output: name (module.Class.name) [... verdict]; a docstring's first line, when
+# the test has one, comes on the next line before the verdict
+TEST = re.compile(r'^(\w+) \((\w[\w.]*\.[\w.]*)\)(?: \.\.\. (.*))?$')
+VERDICT = re.compile(r"(?:^|\.\.\. )(ok|FAIL|ERROR|skipped '.*'|skipped|expected failure|unexpected success)$")
+NODE_FILE = re.compile(r'^== (\S+) \(exit -?\d+\)$')
+SLOWEST = 20
+
+
+def stamped(output):
+    """[(begun, ended, line)] of a log's lines: their two times, or None and None for a line with no stamp."""
+    out = []
+    for line in output.splitlines():
+        m = STAMP.match(line)
+        out.append((float(m.group(1)), float(m.group(2)), line[m.end():]) if m else (None, None, line))
+    return out
+
+
+def unstamped(output):
+    """A suite's output without the times its log's lines start with (output with none is returned as it is)."""
+    return '\n'.join(line for _, _, line in stamped(output))
 
 
 def skip_reasons(output):
     """[(reason, count)] of the skipped tests (and skipped classes) in unittest's verbose output, commonest first."""
-    return Counter(m.group(1) for line in output.splitlines() if (m := SKIPPED.search(line))).most_common()
+    return Counter(m.group(1) for line in unstamped(output).splitlines() if (m := SKIPPED.search(line))).most_common()
 
 
 def failure_blocks(output):
     """[(kind, test, block text)] of unittest's failure and error reports in `output`."""
-    lines, blocks, i = output.splitlines(), [], 0
+    lines, blocks, i = unstamped(output).splitlines(), [], 0
     while i < len(lines):
         m = HEADER.match(lines[i])
         if m and i > 0 and lines[i - 1].startswith('====='):
@@ -67,7 +97,7 @@ def failure_blocks(output):
 
 def outcome(output, code):
     """The suite's last unittest line (OK, OK (skipped=3), FAILED (failures=2)), or why it did not run."""
-    tail = [line for line in output.splitlines() if line.strip()]
+    tail = [line for line in unstamped(output).splitlines() if line.strip()]
     # after unittest's own "Ran N tests" line (a test's prints can follow it in the log, stdout coming after stderr)
     ran = max((k for k, line in enumerate(tail) if line.startswith('Ran ') and ' test' in line), default=len(tail) - 5)
     for line in tail[max(0, ran):]:
@@ -76,20 +106,48 @@ def outcome(output, code):
     return f'did not finish (exit {code})' + (f': {tail[-1]}' if tail else '')
 
 
-def run(cmd, log):
+def stamp(begun, ended, line):
+    return '[%9.3f %9.3f] %s' % (begun, ended, line)
+
+
+def run(cmd, log, since=None):
+    """Runs `cmd`, writing its output to `log` with each line's two times in seconds since `since` (a
+    time.monotonic(), default now). Returns (the output without the times, exit code, seconds taken, the stamped
+    output)."""
     started = time.monotonic()
+    since = started if since is None else since
     # the suites write UTF-8 (a test's message may hold any character), which is how it is read back
-    proc = subprocess.run(cmd, cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          text=True, encoding='utf-8', errors='replace', env=dict(os.environ, PYTHONIOENCODING='utf-8'))
-    log.write_text(proc.stdout, encoding='utf-8', newline='\n')
-    return proc.stdout, proc.returncode, time.monotonic() - started
+    lines, part, begun, now = [], bytearray(), None, 0.0
+    with subprocess.Popen(cmd, cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          env=dict(os.environ, PYTHONIOENCODING='utf-8')) as proc:
+        while True:
+            chunk = proc.stdout.read1(65536)
+            now = time.monotonic() - since
+            if not chunk:
+                break
+            pos = 0
+            while pos < len(chunk):
+                begun = now if begun is None else begun
+                end = chunk.find(b'\n', pos)
+                if end < 0:
+                    part += chunk[pos:]
+                    break
+                part += chunk[pos:end]
+                lines.append((begun, now, part.decode('utf-8', 'replace').rstrip('\r')))
+                part, begun, pos = bytearray(), None, end + 1
+        if begun is not None:
+            lines.append((begun, now, part.decode('utf-8', 'replace').rstrip('\r')))
+        code = proc.wait()
+    marked = ''.join(stamp(*line) + '\n' for line in lines)
+    log.write_text(marked, encoding='utf-8', newline='\n')
+    return ''.join(line + '\n' for _, _, line in lines), code, time.monotonic() - started, marked
 
 
 def python_suite(name, pattern, logs):
     cmd = [sys.executable, '-B', '-m', 'unittest', 'discover', '-s', f'tools/{name}/tests', '-p', 'test_*.py', '-v']
     if pattern:
         cmd += ['-k', pattern]
-    output, code, took = run(cmd, logs / f'{name}.log')
+    output, code, took, _ = run(cmd, logs / f'{name}.log')
     ran = next((m for m in map(SUMMARY.match, output.splitlines()) if m), None)
     count = int(ran.group(1)) if ran else 0
     failures = failure_blocks(output)
@@ -111,17 +169,87 @@ def node_suite(pattern, logs):
             'node is not installed (or not on the path): the node tests need Node.js'
         (logs / 'node.log').write_text(line + '\n', encoding='utf-8', newline='\n')
         return dict(name='node', passed=False, line=line, count=0, took=0.0, failures=[], log=logs / 'node.log')
-    failures, took, parts = [], 0.0, []
+    failures, took, parts, since = [], 0.0, [], time.monotonic()
     for f in files:
-        output, code, t = run(['node', str(f.relative_to(REPO))], logs / f'node-{f.stem}.log')
+        begun = time.monotonic() - since
+        output, code, t, marked = run(['node', str(f.relative_to(REPO))], logs / f'node-{f.stem}.log', since)
         took += t
-        parts.append(f'== {f.name} (exit {code})\n{output}')
+        # the file's line in node.log carries its start and end, which --times reads
+        parts.append(stamp(begun, time.monotonic() - since, f'== {f.name} (exit {code})') + '\n' + marked)
         if code:
             failures.append(('FAIL', f.name, output.strip()[-4000:] or f'exit {code}'))
-    (logs / 'node.log').write_text('\n'.join(parts), encoding='utf-8', newline='\n')
+    (logs / 'node.log').write_text(''.join(parts), encoding='utf-8', newline='\n')
     line = f'OK ({len(files)} files)' if not failures else f'FAILED ({len(failures)} of {len(files)} files)'
     return dict(name='node', passed=not failures, line=line, count=len(files), took=took,
                 failures=failures, log=logs / 'node.log')
+
+
+def times(output):
+    """The times in a suite's stamped log, slowest first: (tests [(seconds, module.Class.test)], classes [(seconds,
+    set-up seconds, tests, module.Class)]); a node log's files are its tests. A class's set-up is the gap between the
+    end of the test before its first test and that test's start; its time is that and the time from its first test's
+    start to its last test's end. None when the log has no times."""
+    lines = stamped(output)
+    if all(begun is None for begun, _, _ in lines):
+        return None
+    tests, classes, ended_last, current = [], {}, 0.0, None
+    for begun, ended, line in lines:
+        if begun is None:
+            continue
+        m = NODE_FILE.match(line)
+        if m:
+            tests.append((ended - begun, m.group(1)))
+            continue
+        m = TEST.match(line)
+        if m:
+            name, where, rest = m.groups()
+            if name in ('setUpClass', 'tearDownClass', 'setUpModule', 'tearDownModule'):
+                ended_last, current = ended, None       # a class (or module) whose fixture skipped or failed
+                continue
+            current = (name, where[:-len(name) - 1] if where.endswith('.' + name) else where, begun)
+            if rest is None or not VERDICT.search(line):
+                continue                                # its docstring, or what it printed, comes first
+        elif current is None or not VERDICT.search(line):
+            continue
+        name, cls, start = current
+        current = None
+        tests.append((ended - start, f'{cls}.{name}'))
+        c = classes.setdefault(cls, dict(setup=max(0.0, start - ended_last), first=start, last=ended, count=0))
+        c['last'], c['count'] = ended, c['count'] + 1
+        ended_last = ended
+    return (sorted(tests, key=lambda t: (-t[0], t[1])),
+            sorted(((c['setup'] + c['last'] - c['first'], c['setup'], c['count'], cls) for cls, c in classes.items()),
+                   key=lambda c: (-c[0], c[3])))
+
+
+def print_times(name, output):
+    found = times(output)
+    if found is None:
+        print(f'\n== {name}: its log has no times (it was written before the runner stamped its lines)')
+        return
+    tests, classes = found
+    print(f'\n== {name}: the {min(SLOWEST, len(tests))} slowest {"files" if name == "node" else "tests"}')
+    for seconds, test in tests[:SLOWEST]:
+        print(f'  {seconds:8.2f} s  {test}')
+    if classes:
+        print(f"== {name}: the {min(SLOWEST, len(classes))} slowest classes (set-up: the gap before a class's first test)")
+        for seconds, setup, count, cls in classes[:SLOWEST]:
+            print(f'  {seconds:8.2f} s  set-up {setup:7.2f} s  {cls} ({count} test{"s" if count != 1 else ""})')
+
+
+def logged_times(folder, suites):
+    """--times over the logs already in `folder`: the suites named, else every suite with a log there."""
+    print(f'logs: {folder}')
+    missing = []
+    for name in suites or SUITES:
+        log = folder / f'{name}.log'
+        if log.is_file():
+            print_times(name, log.read_text(encoding='utf-8', errors='replace'))
+        elif suites:
+            missing.append(name)
+    for name in missing:
+        print(f'\n== {name}: no {name}.log in {folder}')
+    return 1 if missing else 0
 
 
 def main(argv=None):
@@ -132,6 +260,9 @@ def main(argv=None):
     ap.add_argument('--log', type=Path, help='folder for the logs (default .scratch/tests/<date-time>)')
     ap.add_argument('--install', action='store_true',
                     help='run the checks over every map of the install too (on when every suite runs)')
+    ap.add_argument('--times', action='store_true',
+                    help='then print the twenty slowest tests and classes of each suite; with --log naming a folder '
+                         'that already holds logs, read those and run nothing')
     args = ap.parse_args(argv)
     # a console that can't show a character of a failure's message shows a stand-in rather than stopping the run
     if hasattr(sys.stdout, 'reconfigure'):
@@ -139,6 +270,8 @@ def main(argv=None):
     unknown = [s for s in args.suites if s not in SUITES]
     if unknown:
         ap.error(f'unknown suite {", ".join(unknown)} (one of {", ".join(SUITES)})')
+    if args.times and args.log and args.log.is_dir() and any(args.log.glob('*.log')):
+        return logged_times(args.log, args.suites)
     suites = args.suites or list(SUITES)
     if args.install or not args.suites:
         os.environ['XCOM_INSTALL_TESTS'] = '1'
@@ -166,6 +299,9 @@ def main(argv=None):
               + (f' ({skipped} skipped for {len(r["skips"])} reason(s), listed above)' if skipped else ''))
         for kind, test, _ in r['failures']:
             print(f'          {kind} {test}')
+    if args.times:
+        for r in results:
+            print_times(r['name'], r['log'].read_text(encoding='utf-8', errors='replace'))
     print(f'logs: {logs}')
     return 0 if all(r['passed'] for r in results) else 1
 

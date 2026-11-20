@@ -1,0 +1,65 @@
+{
+  "app.js": {
+    "functions": 812,
+    "lets": 112
+  },
+  "compiler families": [],
+  "file lines": {
+    "tools/bake/native_copy.py": 3177,
+    "tools/bake/relight.py": 2045,
+    "tools/bake/wall_measure.py": 1619,
+    "tools/editor/build.py": 1759,
+    "tools/editor/compiler.py": 5622,
+    "tools/editor/tests/test_build.py": 1890,
+    "tools/editor/tests/test_compiler.py": 3263,
+    "tools/viewer/installs.py": 2035,
+    "tools/viewer/tests/browser_smoke.py": 5856,
+    "tools/viewer/web/app.js": 12792
+  },
+  "function lines": {
+    "tools/bake/buildings.py::edit": 210,
+    "tools/bake/frac_walls.py::add_walls": 153,
+    "tools/bake/native_copy.py::build": 544,
+    "tools/bake/native_copy.py::main": 198,
+    "tools/bake/shell.py::equip": 191,
+    "tools/bake/transplant.py::stage_edit": 154,
+    "tools/editor/compiler.py::Compiler.groups": 166,
+    "tools/viewer/effects_metadata.py::describe": 169,
+    "tools/viewer/manager.py::_pack": 188,
+    "tools/viewer/web/app.js::startScene": 303
+  },
+  "limits": {
+    "file lines": 1500,
+    "function lines": 150
+  },
+  "not shipped": {
+    "a research tool": [
+      "research/*",
+      "tools/re/*",
+      "tools/upk/audit_*.py",
+      "tools/upk/map_inventory.py",
+      "tools/upk/scan_patch_art.py",
+      "tools/upk/wdparse.py",
+      "tools/viewer/perf_probe.py"
+    ],
+    "a test": [
+      "*/tests/*",
+      "*/test_*.py",
+      "test_*.py"
+    ],
+    "the lab": [
+      "tools/bake/*_fixture.py",
+      "tools/bake/udk_*.py",
+      "tools/editor/examples/*",
+      "tools/lab/*",
+      "tools/patch/*",
+      "tools/udk/*"
+    ]
+  },
+  "page cycles": [],
+  "path changes": {
+    "tools/bake/looks.py::measurer": "puts its own folder on the path, if it is not there, before importing a look's measurer by name (importlib), for a look the catalogue does not hold",
+    "tools/paths.py::use": "paths.use() itself: the one function made to put a tool folder on the path, once"
+  },
+  "shipped imports": {}
+}
