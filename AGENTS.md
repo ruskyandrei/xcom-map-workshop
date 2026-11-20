@@ -22,6 +22,11 @@
   Never start a second server on 8768, and leave no other long-running viewer servers behind.
 - **Test servers** use ports 8790–8799. Start one for a check, point it at what you are testing (including scratch
   caches), and stop it when the check is done.
+- **The editor's Snap setting governs movement, sizing and rotation on every axis**, including vertical edits.
+  With Snap off, placement, drag handles, gizmos and numeric edits must allow continuous values. With Snap on,
+  they use the selected linear or angular step. Apply the same rule to map and prefab editing. A tool may offer
+  an explicit alignment command or preset. Never silently round an edit to a unit, tile, storey or quarter turn.
+  If the game cannot represent an edit, explain the specific limitation and preserve the authored value.
 - **No folder of one computer in anything checked in.** Code takes folders from the settings
   (`Documents\XCOM Map Workshop\settings.json`: `python tools/viewer/viewer.py settings`), from arguments, or relative
   to the repository; docs and usage lines write placeholders such as `<LWR install>`, `<cache>`, `<udk>` or `<lab>`.

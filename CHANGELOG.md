@@ -8,6 +8,18 @@ Before 5 November 2026 the history is in Git and in the experiment notes.
 
 ## 20 November 2026
 
+### Editor rule for snapping and plan for continuous sizing
+
+- Added the [editor snap rule](AGENTS.md) for movement, sizing and rotation on every axis in map and prefab editing.
+- Wrote a private implementation plan for fractional wall, floor, roof and ground dimensions, removal of authoring
+  caps, texture mapping controls and a separate Size tool for normal pieces.
+- Traced [editor handles](tools/viewer/web/app.js), [preview validation](tools/viewer/generated.py),
+  [compiler checks](tools/editor/compiler.py), [mesh splitting](tools/bake/made_split.py) and
+  [exported actor scale](tools/viewer/export.py). The plan specifies package read-back and in-game checks for
+  partial slabs, fracture seams, cursor floors and scaled props.
+- Verified the plan's source links and ran the [repository suite](tools/run_tests.py). All three checks passed.
+  Editor implementation and gameplay checks are pending.
+
 ### Furies builds: an uncompressed map is written in the compressed maps' layout
 
 A user's report from 0.6.0: a Furies project (six cover blocks, two pieces' Mouse flag) stopped in `native_copy.py`
