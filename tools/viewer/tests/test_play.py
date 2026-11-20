@@ -36,7 +36,7 @@ VARIANT = 'URB_Bar_Remix_0f8b'
 MUTATOR_LOADER = b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n'
 RANDOM_SPAWNS = dep.EOL.join([b'[XComLZMutator.XComSpawnAlienMutator]', b'MAX_DROP_DIST = 32', b'ExcludeMaps = "EWI_ChryssalidHive"',
                               b';ExcludeMaps = "DLC2_2_Deluge"', b'', b'[XComLZMutator.XComSpawnMutator]', b'PLAYER_PROXIMITY = 29', b''])
-SLOT = installs.INTRO_SLOT
+SLOT = installs.FIRST_MISSIONS[0]      # the first mission's record, which the game asks for by name
 
 
 def bomb_record(name='URB_Bar'):
@@ -169,7 +169,7 @@ class Play(unittest.TestCase):
         self.assertEqual((s['lwr']['folder'], s['install']['folder']), (str(self.lwr), str(self.lwr)))
         self.assertEqual((s['install']['source'], s['install']['sameAsLwr'], s['install']['ready']), ('the game install', True, True))
         self.assertEqual(s['launch'], dict(how='direct', why=None))           # a game folder in no Steam library
-        self.assertEqual((s['game']['installed'], s['game']['intro'], s['game']['anything']), ([], None, False))
+        self.assertEqual((s['game']['installed'], s['game']['anything']), ([], False))
         s = self.player(self.copy).status()
         self.assertEqual((s['install']['folder'], s['install']['source'], s['install']['sameAsLwr']), (str(self.copy), 'the install setting', False))
         s = self.player(self.copy.parent / 'Nowhere').status()
@@ -265,8 +265,8 @@ class Play(unittest.TestCase):
         self.assertTrue((self.lwr / 'XCOM Map Workshop' / 'installs.json').is_file())      # the record lives in the install
         self.settle(player)
         done = player.remove()['removed']
-        self.assertEqual((done['records'], done['landingZones'], sorted(done['files']), done['playFile'], done['intro']),
-                         (1, 1, sorted(['Lighting_4242.tfc', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk']), True, False))
+        self.assertEqual((done['records'], done['landingZones'], sorted(done['files']), done['playFile']),
+                         (1, 1, sorted(['Lighting_4242.tfc', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk']), True))
         self.assertEqual(self.files(self.lwr), before)
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())
         self.assertFalse(any(player.remove()['removed'][k] for k in ('records', 'landingZones', 'files', 'playFile')))
@@ -844,38 +844,6 @@ class Play(unittest.TestCase):
         self.settle(fresh)
         self.assertEqual((mine / 'save1').read_bytes(), campaign1)
         self.assertEqual(len(list(aside.iterdir())), 4)
-
-    def test_an_earlier_versions_intro_install_goes_back(self):
-        # a ledger as Install as intro map left it: the slot line rewritten to Bar's record
-        maps_path = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
-        maps = dep.lines_of(maps_path.read_bytes())
-        at = dep.slot_index(maps, SLOT)
-        written = dep.set_field(record('bar'), 'DisplayName', SLOT)
-        before = maps_path.read_bytes()
-        maps[at] = written
-        maps_path.write_bytes(dep.EOL.join(maps))
-        installs.write_ledger(self.lwr, dict(slot=dict(line=at + 1, original=self.default.decode('latin-1'), written=written.decode('latin-1'),
-                                                       at='20261108-120000'), intro=dict(kind='map', map='URB_Bar')))
-        player = self.player()
-        self.assertEqual(player.status()['game']['intro'], dict(map='URB_Bar', ownMap='URB_LiquorStore'))
-        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before)      # read as the game's own meanwhile
-        player.play(dict(map='URB_Bar'))
-        self.assertEqual(maps_path.read_bytes(), before)
-        self.assertIsNone(player.status()['game']['intro'])
-        # and by Remove from game; a slot something else changed since is left
-        self.settle(player)
-        maps_path.write_bytes(dep.EOL.join(maps))
-        installs.write_ledger(self.lwr, dict(installs.read_ledger(self.lwr), slot=dict(line=at + 1, original=self.default.decode('latin-1'),
-                                                                                         written=written.decode('latin-1'), at='x')))
-        self.assertTrue(player.remove()['removed']['intro'])
-        self.assertEqual(maps_path.read_bytes(), before)
-        maps[at] = dep.set_field(record('templeship'), 'DisplayName', SLOT)
-        maps_path.write_bytes(dep.EOL.join(maps))
-        installs.write_ledger(self.lwr, dict(installs.read_ledger(self.lwr), slot=dict(line=at + 1, original=self.default.decode('latin-1'),
-                                                                                         written=written.decode('latin-1'), at='x')))
-        done = player.remove()['removed']
-        self.assertFalse(done['intro'])
-        self.assertTrue(any('intro slot' in note for note in done['left']))
 
     def test_in_a_copy_the_game_install_is_untouched(self):
         player = self.player(self.copy)

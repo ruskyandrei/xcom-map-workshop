@@ -872,9 +872,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - What stays on this computer is kept by project id in the hidden `.workshop` folder beside them:
     `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
     changes (`recovery.json` from before 20 November 2026).
-  - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
-    first time the server reads the folder. One of a project that a file here holds already never writes over it:
-    the newer revision is the project, and the other is kept beside it as `<name> (kept copy).json`.
   - Saves are atomic.
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a
@@ -967,7 +964,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     variant's name, out of rotation, with its own landing intro streamed), and the base map's landing zones are added
     under that name (the project's own, when it has `landingZones`: see Clear map, the ground grid and landing
     zones). The record is an abduction whatever kind the base map's is (Temple Ship's is the final
-    mission's), as the intro slot's was; a Temple Ship variant hasn't been played this way.
+    mission's); a Temple Ship variant hasn't been played this way.
   - It opens Build's panel first ([`build_options.js`](web/build_options.js)), with the same **Bake the lighting**
     choice, off by default.
     - **Build and play** builds (saving first if there are unsaved changes), and installs and plays the package when
@@ -1005,9 +1002,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Undo everything**, in the Game maps window (below; it was the Project menu's Remove from game), takes it all back out: the records and landing-zone lines it added, the files it copied
   (unless they changed since), the commands file and any config kept aside. Both INI files end up byte for byte as
   they were.
-- **An install from before 9 November 2026** made a map the first mission of a new campaign (Install as intro map: it
-  rewrote the record named `URB_CommercialAlley_EWI (Commercial Alley Redux) |0`). Its record of that is still read:
-  the next play, or Undo everything, puts the game's own line back.
 - **The editor reads an install the way the game does:** the map list, the exporter and Build read `DefaultMaps.ini` with the
   editor's lines taken out (`installs.maps_text`), so an installed variant never shows up as a map or a record.
 - All of these refuse, with the reason, while XCOM runs. A package file already in `CookedPCConsole` is replaced only
@@ -1225,9 +1219,8 @@ python tools/viewer/viewer.py doctor --cache "<cache>"
 ```
 
 - **Settings** live in `Documents\XCOM Map Workshop\settings.json`, beside the projects, where every program sees
-  the same file. (Until 8 November 2026 they were in `%APPDATA%`; the Microsoft Store's Python redirects what it
-  writes there to a folder of its own, out of sight of PowerShell. A file left there is moved the first time it is
-  read.) `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
+  the same file (not under `%APPDATA%`: the Microsoft Store's Python redirects what it writes there to a folder of
+  its own, out of sight of PowerShell). `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
   computer: they all take these settings, or arguments. The settings:
   - **projects** and **output** (builds): in a release, default `projects` and `builds` in the editor's own folder
     (beside `tools` and `python`; `default_folders`), where an upgrade keeps them; under `Documents\XCOM Map
@@ -1358,7 +1351,7 @@ install and would start the game, so it refuses any server not started with `ser
 of an LWR install's), the open map's package in `XEW\XComGame\CookedPCConsole` and an `XEW\Binaries` folder.
 `test_play.py` covers the same on temporary installs, with a start that records its command: a map played with
 nothing installed, a project's record added and taken out byte for byte, plain Enemy Within, the game's config kept
-aside and put back when the game closes, an earlier version's intro install put back, a separate copy, lines and
+aside and put back when the game closes, a separate copy, lines and
 files changed since, XCOM running, the routes, the squad's text and Steam's command.
 
 It checks rendering, resource errors, the search list (hidden until there is text), the piece panel, typed

@@ -844,7 +844,7 @@ class Manager(unittest.TestCase):
         first mission asks for by name (installs.FIRST_MISSION), and no other record has that name."""
         path = game / 'XEW/XComGame/Config/DefaultMaps.ini'
         lines = [l for l in dep.lines_of(path.read_bytes()) if l != self.default]
-        first = dep.set_field(record('bar'), 'DisplayName', installs.INTRO_SLOT)
+        first = dep.set_field(record('bar'), 'DisplayName', installs.FIRST_MISSIONS[0])
         lines[lines.index(record('bar'))] = first
         path.write_bytes(dep.EOL.join(lines))
         return first
@@ -871,20 +871,20 @@ class Manager(unittest.TestCase):
         self.assertTrue(done['ok'], done)
         self.assertTrue(any('first mission' in w for w in done['warnings']), done['warnings'])
         mine, = self.records(self.lwr, VARIANT)
-        self.assertEqual((dep.field(mine, 'DisplayName'), dep.unquoted(mine, 'bInRotation')), (installs.INTRO_SLOT, 'True'))
-        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), [VARIANT])
+        self.assertEqual((dep.field(mine, 'DisplayName'), dep.unquoted(mine, 'bInRotation')), (installs.FIRST_MISSIONS[0], 'True'))
+        self.assertEqual(self.named(self.lwr, installs.FIRST_MISSIONS[0]), [VARIANT])
         self.assertIn(b';' + first, dep.lines_of(self.files(self.lwr)['DefaultMaps.ini']))
         # beside the original, the variant has a name of its own and the original keeps the first mission
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
-        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), ['URB_Bar'])
-        self.assertNotEqual(dep.field(self.records(self.lwr, VARIANT)[0], 'DisplayName'), installs.INTRO_SLOT)
+        self.assertEqual(self.named(self.lwr, installs.FIRST_MISSIONS[0]), ['URB_Bar'])
+        self.assertNotEqual(dep.field(self.records(self.lwr, VARIANT)[0], 'DisplayName'), installs.FIRST_MISSIONS[0])
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
         # a build with its own records (mission types plan, D4) does the same
         line = dep.set_field(dep.set_field(first, 'Name', VARIANT), 'DisplayName', f'{VARIANT} (Bar remix, Abduction) |0')
         self.package(maps=[line.decode('latin-1')], record_missions=[[0]])
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
-        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), [VARIANT])
+        self.assertEqual(self.named(self.lwr, installs.FIRST_MISSIONS[0]), [VARIANT])
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
 
@@ -902,10 +902,10 @@ class Manager(unittest.TestCase):
         folder = Path(self.temp.name) / 'unzipped first mission'
         with zipfile.ZipFile(r['zip']) as z: z.extractall(folder)
         packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
-        self.assertEqual([dep.field(l.encode('latin-1'), 'DisplayName') for l in packed['records'][1:]], [installs.INTRO_SLOT])
+        self.assertEqual([dep.field(l.encode('latin-1'), 'DisplayName') for l in packed['records'][1:]], [installs.FIRST_MISSIONS[0]])
         self.assertTrue(any('first mission' in w for w in packed['warnings']), packed['warnings'])
         self.run_script(folder, 'Install.cmd', self.copy)
-        self.assertEqual(self.named(self.copy, installs.INTRO_SLOT), [VARIANT])
+        self.assertEqual(self.named(self.copy, installs.FIRST_MISSIONS[0]), [VARIANT])
         manager.install(self.store, self.builds, player, request)
         self.assertEqual(self.files(self.copy), self.files(self.lwr))
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
@@ -942,7 +942,7 @@ class Manager(unittest.TestCase):
         self.assertEqual((done['ok'], done['switchedOff']), (True, 1))
         self.assertTrue(any('first mission' in w for w in done['warnings']), done['warnings'])
         self.assertEqual(self.records(self.lwr, 'URB_Bar'), [first])
-        self.assertEqual(self.named(self.lwr, installs.INTRO_SLOT), ['URB_Bar'])
+        self.assertEqual(self.named(self.lwr, installs.FIRST_MISSIONS[0]), ['URB_Bar'])
         self.assertIn(b';' + covert, dep.lines_of(self.files(self.lwr)['DefaultMaps.ini']))
         # the Game maps window: the abduction record in use, the covert extraction record replaced by the project
         bar = next(m for m in gamemaps.listing(player)['maps'] if m['name'] == 'URB_Bar')
@@ -968,12 +968,12 @@ class Manager(unittest.TestCase):
         folder = Path(self.temp.name) / 'unzipped covert only'
         with zipfile.ZipFile(r['zip']) as z: z.extractall(folder)
         packed = json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps'][0]
-        self.assertEqual((packed['switch'], packed['keep']), (['URB_Bar (Covert Extraction) |0'], [installs.INTRO_SLOT]))
+        self.assertEqual((packed['switch'], packed['keep']), (['URB_Bar (Covert Extraction) |0'], [installs.FIRST_MISSIONS[0]]))
         readme = (folder / 'README.txt').read_bytes().decode('latin-1')
         self.assertIn("URB_Bar's own records to leave as they are", readme)
         self.run_script(folder, 'Install.cmd', self.copy)
         self.assertEqual(self.records(self.copy, 'URB_Bar'), [first])
-        self.assertEqual(self.named(self.copy, installs.INTRO_SLOT), ['URB_Bar'])
+        self.assertEqual(self.named(self.copy, installs.FIRST_MISSIONS[0]), ['URB_Bar'])
         manager.install(self.store, self.builds, player, request)
         self.assertEqual(self.files(self.copy), self.files(self.lwr))
         self.assertIn('exactly as it was before the pack', self.run_script(folder, 'Uninstall.cmd', self.copy))
