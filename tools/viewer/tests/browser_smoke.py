@@ -3655,7 +3655,7 @@ def check_library_flares(browser, url):
     prefab, = [p for p in listed if p['id'] == saved['id']]
     assert (prefab['pieces'], prefab['effects'], prefab['sounds'], prefab['flares']) == (0, 0, 0, 2), prefab
     doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
-    assert doc['schemaVersion'] == 3 and all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' for p in doc['pieces']), doc['pieces']
+    assert doc['schemaVersion'] == 4 and all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' for p in doc['pieces']), doc['pieces']
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
@@ -5054,7 +5054,7 @@ def check_prefab_effects(browser, url):
     row, = [p for p in listed() if p['id'] == saved['id']]
     assert (row['pieces'], row['lights'], row['effects'], row['sounds'], row['maps']) == (1, 0, 1, 1, [here]), row
     doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
-    assert doc['schemaVersion'] == 3 and sorted(p.get('kind', 'piece') for p in doc['pieces']) == ['effect', 'piece', 'sound']
+    assert doc['schemaVersion'] == 4 and sorted(p.get('kind', 'piece') for p in doc['pieces']) == ['effect', 'piece', 'sound']
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
@@ -5220,6 +5220,10 @@ def main():
                 # (draws walls and saves nothing: needs the walls catalogue and the library's index)
                 from browser_looks import check_looks
                 print(json.dumps(dict(looks=check_looks(browser, page.url, open_viewer))))
+            if 'made-prefab' in only:
+                # (the review's editing checks: browser_editing.py; saves a prefab, so on a test server with --projects)
+                from browser_editing import check_made_prefab
+                print(json.dumps(dict(madePrefab=check_made_prefab(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

@@ -223,6 +223,25 @@ class StageTests(unittest.TestCase):
         self.assertEqual(project['buildings'][0]['floors'][0]['boxes'], [[192, -192, 0, 384, 0, 176]])
         self.assertEqual(project['stage'], dict(grid=[36, 36, 18], ground=True, hideGround=True))
 
+    def test_made_pieces_and_a_broken_copy_reach_the_tests_project(self):
+        # review finding 6: a prefab's made wall (its numbers, its own blasts) and a broken copy (its blasts, Breaks
+        # further in battle) are built by Test in game as they are, not as their donors
+        wall, broken = source('Wall', actor='XComDecoFracLevelActor_17'), source('Broken', actor='XComFracLevelActor_1')
+        wall['generated'] = dict(kind='fracWall', version=4, wall=dict(x0=0, x1=288, openings=[dict(x0=96, x1=192, z0=0, z1=208)], seed=3),
+                                 blasts=[dict(at=[48, 0, 96], radius=96)])
+        broken.update(blasts=[dict(at=[10, 20, 30], radius=96)], breaksFurther=True, flags=dict(cover=False))
+        doc = snapshot(pieces=[wall, broken])
+        stage.validate_snapshot(doc)
+        scene = dict(name=stage.MAP, source=dict(sha256='a' * 64), exporterVersion=20, tileGrid=GRID)
+        with patch.object(stage, 'stock_overrides', return_value=[]):
+            project, _ = stage.make_project(doc, scene, dict(grid=[36, 36], translation=[0, 0, 0]),
+                                            {p['actor']: p['from'] for p in (wall, broken)}, TEST)
+        made, copy = project['added']
+        self.assertEqual(made['generated'], wall['generated'])
+        self.assertEqual((copy['blasts'], copy['breaksFurther'], copy['flags']), (broken['blasts'], True, dict(cover=False)))
+        self.assertNotIn('blasts', made)
+        self.assertTrue({'generated', 'blasts', 'breaksFurther'} <= set(stage.PIECE_FIELDS))
+
     def test_a_map_lights_wide_stored_cone_becomes_the_cone_it_lights_as(self):
         # a prefab saved before the page capped them: the Small Landed UFO's blue spots hold the map's stored 100
         spot = light('spot')

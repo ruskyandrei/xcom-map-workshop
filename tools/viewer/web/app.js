@@ -37,6 +37,7 @@ import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from '.
 import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -1215,12 +1216,11 @@ function snapshot(selection = gizmo.selection(), own = ownSet) {
                      ...owns.map(o => ({ matrix: ownMatrix(o.box), building: `own:${o.building.name}`, floor: o.floor }))],
            buildingMeta: Object.fromEntries([...[...new Set(boxes.map(r => r.userData.volume.building))].map(id => [id, { ...buildingMeta.get(id) }]),
                                              ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
+           // (a piece's state: its tint, flags, made numbers and blasts, piece_records.js)
            entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
                                      ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
                                      ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
-                                     ...(r.userData.flags ? { flags: { ...r.userData.flags } } : {}),
-                                     ...(r.userData.blasts?.length ? { blasts: cloneBlasts(r.userData.blasts) } : {}),
-                                     ...(r.userData.blasts?.length && r.userData.breaksFurther ? { breaksFurther: true } : {}) })),
+                                     ...(r.userData.light || r.userData.effect ? {} : { state: stateOfRoot(r.userData) }) })),
            pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
            name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
            // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
@@ -1266,8 +1266,7 @@ const spelledLook = look => (typeof look === 'object' && look
 // its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
 // that default look and says so (compiler made-no-look).
 const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
-// the kinds of made piece (one piece each, made from numbers)
-const MADE_KINDS = new Set(['fracWall', 'fracSlab', 'ground']);
+// (MADE_KINDS, the kinds of made piece, one piece each made from numbers: piece_records.js)
 const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
 const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
@@ -1816,7 +1815,10 @@ async function pasteSnapshot(clip, delta, step = null) {
   // (the parts of one actor are pasted as one copy; a made piece is one piece on its own, though a room's walls or a
   // look change's pieces share a donor actor: the user's quick Build of 19 November 2026 refused a room saved as one
   // actor naming its donor's component four times, its other walls' numbers lost)
-  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(e.source.added?.generated?.kind) ? e : e.source.actor);
+  // (an entry's state: its own when the clip has it, a copy's or a prefab's piece's; else its source's, as a piece of
+  // the Add panel or a drawn piece is)
+  const stateOfEntry = e => e.state ?? stateOfRoot({ source: e.source });
+  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(stateOfEntry(e).generated?.kind) ? e : e.source.actor);
   const keyOf = e => e.key ?? memberOf(e.source);
   const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
   clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
@@ -1856,9 +1858,7 @@ async function pasteSnapshot(clip, delta, step = null) {
     const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
     return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
-      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null,
-      tinted: e.tinted ?? Boolean(source.provenance?.type === 'spawn' || source.added?.tinted), flags: e.flags ?? null,
-      generated: source.added?.generated ?? null, blasts: e.blasts ?? null, breaksFurther: Boolean(e.breaksFurther) });
+      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null, ...stateOfEntry(e) });
   });
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
@@ -2416,11 +2416,11 @@ function prefabRecords({ complete = false } = {}) {
     names.set(actor, name); copied.push([memberOf(s), { added: name }]);
     if (was && !tags.has(was)) tags.set(was, `copy${tags.size + 1}:${was.replace(/^copy\d+:/, '')}`);
     const entry = s.foreign?.key ? library?.entry(s.foreign.key) : null;
+    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: piece_records.js)
     pieces.push({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component).sort(),
                   ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner ?? null,
-                  ...(s.provenance?.type === 'spawn' || s.added?.tinted ? { tinted: true } : {}),
-                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}),
-                  ...(list[0].flags ? { flags: { ...list[0].flags } } : {}) });
+                  ...recordFields(list[0].state ?? stateOfRoot({ source: s })),
+                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}) });
     donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
@@ -2525,11 +2525,20 @@ async function prefabClip(doc, step = null) {
       if (failure) { left.push(failure); continue; }
       const sources = p.components.map(c => templateFor(p.from, c));
       if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
+      // (each made as its record says, made numbers and blasts included, as a project's copy is: piece_records.js)
       for (const source of sources)
         entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), unit: p.actor, key, link: p.prefab ?? null, partner: p.partner ?? null,
-                       tinted: Boolean(p.tinted), ...(p.flags ? { flags: { ...p.flags } } : {}) });
+                       state: stateOf(p) });
     }
   }
+  // its made pieces' meshes asked for now, so the placing preview draws them as they will stand (previewGroup); one
+  // the server can't draw shows its donor there, and the paste says why (buildRoot)
+  await Promise.all(entries.filter(e => e.state?.generated).map(e => {
+    const mesh = madeShape(e.source, e.state.generated).mesh;
+    if (!mesh) return null;
+    track(geometryCache, mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[mesh].url)));
+    return geometryCache.get(mesh)?.catch(() => null);
+  }));
   const volumes = [], meta = {};
   for (const b of (doc.buildings ?? []).filter(validBuilding)) {
     meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building' };
@@ -4202,8 +4211,7 @@ function physicalBox(root) {
   const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
   physicalBoxes.set(root, { key, box }); return box;
 }
-const PIECE_FIELDS = new Set(['actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'recipe', 'template', 'light', 'cover', 'id', 'flags',
-                              'kind', 'effect', 'sound']);
+// (PIECE_FIELDS, the record fields this editor knows, are piece_records.js's)
 function builderDocument() {
   if (!eventMemo) return builderDocumentNow();
   return eventMemo.document ??= builderDocumentNow();
@@ -4558,15 +4566,9 @@ function editStateNow() {
     } else if (o.added) {
       let entity = added.get(o.actor);
       if (!entity) {
+        // (its tint, made numbers, flags and a broken copy's blasts: piece_records.js)
         entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
-                   prefab: o.prefab ?? null, partner: o.partner ?? null };
-        if (o.added.tinted) entity.tinted = true;
-        if (o.added.generated) entity.generated = o.added.generated;
-        if (root.userData.flags) entity.flags = { ...root.userData.flags };
-        if (root.userData.blasts?.length && !o.added.generated) {
-          entity.blasts = cloneBlasts(root.userData.blasts);
-          if (root.userData.breaksFurther) entity.breaksFurther = true;
-        }
+                   prefab: o.prefab ?? null, partner: o.partner ?? null, ...recordFields(stateOfRoot(root.userData)) };
         if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
           entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
@@ -4723,8 +4725,7 @@ async function applyState(state, progress = null) {
     for (const source of sources) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        tinted: Boolean(entity.tinted), flags: entity.flags ?? null, generated: entity.generated ?? null, blasts: entity.blasts ?? null,
-        breaksFurther: entity.breaksFurther === true }));
+        ...stateOf(entity) }));
     }
   }
   addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
@@ -5983,7 +5984,10 @@ const loaded = (map, key) => settled.get(map.get(key));
 // materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
 function previewGroup(parts, override, frame) {
   const group = new THREE.Group();
-  for (const { source, matrix, values } of parts) {
+  for (const { source, matrix: placed, values, state } of parts) {
+    // (a made piece of a prefab, its donor's source and its numbers: drawn from its made mesh once loaded, prefabClip)
+    const made = state?.generated && !data.meshes[source.mesh]?.made ? madeShape(source, state.generated) : null;
+    const drawn = made?.mesh && loaded(geometryCache, made.mesh) ? made : null, matrix = drawn ? unscaled(placed) : placed;
     if (source.isEffect) {
       const holder = new THREE.Group(), marker = makeEffectMarker(source);
       holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
@@ -5999,13 +6003,13 @@ function previewGroup(parts, override, frame) {
       group.add(holder);
       continue;
     }
-    const gltf = loaded(geometryCache, source.mesh);
+    const mesh = drawn?.mesh ?? source.mesh, materials = drawn?.materials ?? source.materials, gltf = loaded(geometryCache, mesh);
     if (!gltf) continue;
-    const root = data.meshes[source.mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
+    const root = data.meshes[mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
     let i = 0;
     root.traverse(part => {
       if (!part.isMesh) return;
-      part.material = override ?? loaded(materialCache, materialKey(source, source.materials[i])[0]) ?? ghostMaterial;
+      part.material = override ?? loaded(materialCache, materialKey(source, materials[i])[0]) ?? ghostMaterial;
       part.raycast = () => {}; i++;
     });
     root.matrix.multiplyMatrices(frame, matrix); root.matrixAutoUpdate = false;
@@ -10620,7 +10624,6 @@ function mapBreakable(o) {
   return Boolean(o && !o.cover && !o.added?.generated && FRACTURING_CLASSES.has(o.actorClass)
     && data?.meshes[o.mesh]?.sections?.some(s => s.fragments?.length));
 }
-function cloneBlasts(blasts) { return blasts.map(b => ({ at: [...b.at], radius: b.radius })); }
 // A root's parts with the sections they draw: [{ section, part }] (the glb has a primitive for each section with
 // triangles, in order); none when they don't match.
 function sectionParts(root) {
