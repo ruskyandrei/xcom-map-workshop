@@ -324,8 +324,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 A module listed under `compiler families` does not import the compiler. It lists the families in modules of their own
 (section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py`, `flag_edits.py`, `made_edits.py`,
 `building_edits.py`, `mission_edits.py`, `group_edits.py` and `floor_edits.py`, each of which takes the tables and
-helpers it shares with the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in
-the commit that moves it.
+helpers it shares with the compiler from `compiler_tables.py`. The other modules split off the compiler are listed
+too, since none may import it either: `compiler_tables.py`, `native_edit.py` and `piece_lookup.py`. A family or module
+moved out of the compiler is listed in the commit that moves it.
 
 ### structure.json's form
 

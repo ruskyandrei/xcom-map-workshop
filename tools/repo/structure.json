@@ -1,6 +1,7 @@
 {
   "compiler families": [
     "tools/editor/building_edits.py",
+    "tools/editor/compiler_tables.py",
     "tools/editor/effect_edits.py",
     "tools/editor/flag_edits.py",
     "tools/editor/floor_edits.py",
@@ -8,6 +9,8 @@
     "tools/editor/light_edits.py",
     "tools/editor/made_edits.py",
     "tools/editor/mission_edits.py",
+    "tools/editor/native_edit.py",
+    "tools/editor/piece_lookup.py",
     "tools/editor/spawn_edits.py"
   ],
   "guideline sizes": {
