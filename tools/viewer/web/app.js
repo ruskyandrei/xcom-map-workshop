@@ -3,10 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
 import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_MAPS,
-         validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
-         BUILDING_SAME, validLandingZone, validPicture, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
+import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
+         validStage, tidyStage, stageMax, STAGE_MAPS,
+         validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, mapBuildingId,
+         BUILDING_SAME, validLandingZone, validSpawnRules } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
 import { ownLandings, startingZones, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -23,8 +23,8 @@ import { ADDED_KINDS, addedMission, kindKey, missionNote, setParagraphs, zoneSer
 import { createMissionsPanel } from './missions_panel.js';
 import { createMapPicture } from './map_picture.js';
 import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
-         copyEntryOf, copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
-         recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnEntryOf, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
+         copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
+         recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
          volumePlace } from './spawns_view.js';
 import { consumerWords, fromWords, useLines } from './spawn_rules.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
@@ -39,11 +39,17 @@ import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREF
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, recordOf, stateOf, stateOfRoot } from './piece_records.js';
-import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
-         groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
-         projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
-         setClearKeepsOutside, setData, setGroups, setLandingZones, setProject, setProjectMissions, setProjectPicture,
-         setProjectSpawnRules, setSelected, setStageValue, stage, volumeRoots } from './editor_state.js';
+import { activeMapId, allRoots, areaBindings, askedPick, builderMode, buildings, buildingsVersion, buildTimer, cleared,
+         clearKeepsOutside, copySerial, data, effectIndex, effectRoots, groupIndex, groups, landingZones, lastBuild, leaving,
+         library, lightIndex, lightRoots, loadErrorCount, mergedBuildings, nextCopySerial, prefabParameter, project,
+         projectMissions, projectPicture, projectSpawnRules, recoveryTimer, roots, saving, selected, setActiveMapId,
+         setAdoptedDraft, setAreaBindings, setAskedPick, setBuildingsValue, setBuildingsVersion, setBuildTimer, setCleared,
+         setClearKeepsOutside, setCopySerial, setData, setGroups, setLandingRead, setLandingZones, setLastBuildValue, setLeaving,
+         setLibrary, setLoadErrorCount, setLooksReady, setMergedBuildings, setProjectMissions, setProjectPicture,
+         setProjectSpawnRules, setRecoveryKept, setRecoveryTrouble, setSaving, setSelected, setStageValue, stage,
+         volumeRoots } from './editor_state.js';
+import { createDocumentSession } from './document_session.js';
+import { createDocumentState } from './document_state.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { forget, recall, remember } from './storage.js';
@@ -84,7 +90,6 @@ releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts 
 function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
 const documentWrites = orderedWrites();
-let leaving = false, navigating = false;
 const viewport = $('viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -198,14 +203,14 @@ let families = null, assemblyIndex = new Map(), originalIndex = null;
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
-let looksReady = readLooks();
+setLooksReady(readLooks());
 function readLooks() {
   const ready = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
   ready.then(lists => {
     const failed = lists.filter(l => l.error);
     if (failed.length)
       banner(`${failed.map(l => l.error).join('; ')}, so pieces made in those looks are drawn as the piece they copy and the look picker lists none of them.`,
-             [['Try again', () => { looksReady = readLooks(); }]]);
+             [['Try again', () => { setLooksReady(readLooks()); }]]);
   });
   return ready;
 }
@@ -242,19 +247,19 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, and
 // the buildings: editor_state.js.) The install's landing lines for the map (GET landing-lines.json) and its kind come
 // with the map: 'lwr' or 'longwar' (Long War), 'ew' (plain Enemy Within), or null, a game the editor doesn't know (none
-// set, or the read failed: `failed` says why), a state of its own and not Long War (review finding 31). landingRead:
-// that read, which a project waits for.
-let landingLines = { kind: null, lines: [] }, landingRead = Promise.resolve();
+// set, or the read failed: `failed` says why), a state of its own and not Long War (review finding 31). (That read,
+// which a project waits for, landingRead: editor_state.js.)
+let landingLines = { kind: null, lines: [] };
 // allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
-// project's and the changed ones of the map by their boxes.
-let mergedBuildings = null;
+// project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
+// mergedBuildings, editor_state.js).
 const PROJECT_BUILDING = 'project:';
 function allBuildings() {
   if (!mergedBuildings) {
     const edits = mapEdits();
-    mergedBuildings = [...(data?.buildings ?? []).filter(b => !edits.exportIds.has(b.id) && !(cleared && !mapEditable(b))),
+    setMergedBuildings([...(data?.buildings ?? []).filter(b => !edits.exportIds.has(b.id) && !(cleared && !mapEditable(b))),
       ...buildings.filter(b => !buildingMeta.get(b.id)?.map || edits.changed.has(b.id))
-        .map(b => ({ id: PROJECT_BUILDING + b.id, name: b.name || 'Building', project: b, floors: floorsOf(b), map: buildingMeta.get(b.id)?.map ?? null }))];
+        .map(b => ({ id: PROJECT_BUILDING + b.id, name: b.name || 'Building', project: b, floors: floorsOf(b), map: buildingMeta.get(b.id)?.map ?? null }))]);
   }
   return mergedBuildings;
 }
@@ -341,7 +346,7 @@ function useMapFamilies(table) {
   landingActors = Array.isArray(table?.landing) ? new Set(table.landing) : null;
   gizmo.regroup();
 }
-let loadErrorCount = 0, lighting;
+let lighting;     // (the pieces that could not be drawn, loadErrorCount: editor_state.js)
 let cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
 let lightRadius = 700;
 
@@ -1170,7 +1175,7 @@ function restingHint() {
 
 // Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
 // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
-let clipboard = null, copySerial = 0;
+let clipboard = null;     // (the copies' serial: editor_state.js)
 const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 let snapMode = 'off';   // 'off', 'fine' (24 units, 15 degrees) or 'tile' (whole tiles, 90 degrees)
 // Snap cycles off, fine steps, whole tiles. Under tile snap a selection with a ladder, door, car, van or fracturing piece
@@ -1649,14 +1654,14 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
   const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
   clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
   for (const e of clip.entries)
-    if (!copies.has(unitOf(e))) copies.set(unitOf(e), { name: `${fromOf(e.source).actor}_copy${++copySerial}`, entity: uuid() });
+    if (!copies.has(unitOf(e))) copies.set(unitOf(e), { name: `${fromOf(e.source).actor}_copy${nextCopySerial()}`, entity: uuid() });
   const tags = new Map(), tagged = new Set();
   const linkTag = e => {
     const was = linkOf(e);
     if (!was) return null;
     if (!tags.has(was)) {
       const tag = was.replace(/^copy\d+:/, '');
-      tags.set(was, `copy${tagged.has(tag) ? ++copySerial : serial}:${tag}`);
+      tags.set(was, `copy${tagged.has(tag) ? nextCopySerial() : serial}:${tag}`);
       tagged.add(tag);
     }
     return tags.get(was);
@@ -2001,7 +2006,7 @@ const foreignNote = obj => `A piece of ${obj.foreign.package}, not of this map. 
 // What Build's panel says of a project with pieces of other maps: what baking does for them.
 const bakeNote = () => (foreignCount() ? `${plural(foreignCount(), 'piece')} from other maps: baked, ${foreignCount() === 1 ? 'it is' : 'they are'} lit for `
   + `where ${foreignCount() === 1 ? 'it stands' : 'they stand'}; unbaked, ${foreignCount() === 1 ? 'it keeps' : 'they keep'} the light of the map ${foreignCount() === 1 ? 'it comes' : 'they come'} from.` : null);
-let library = null, libraryScope = 'map', chooseToken = 0;
+let libraryScope = 'map', chooseToken = 0;     // (the All maps library, library: editor_state.js)
 const LIBRARY_SCOPES = { map: 'libFilter', all: 'libAllFilter', prefabs: 'prefabFilter' };
 function setLibraryScope(scope) {
   if (builderMode && scope === 'map') scope = 'all';
@@ -2750,7 +2755,7 @@ function resetAll() {
     setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
     setMissionMoves(new Map(m.moves ?? []));
     setProjectSpawnRules(m.rules ?? null); syncSpawnRule();
-    mergedBuildings = null; pickedZone = null; setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
+    setMergedBuildings(null); pickedZone = null; setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
   };
   const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
   gizmo.record({
@@ -2764,7 +2769,7 @@ function resetAll() {
       restore.redo();
       for (const r of ownBoxes) r.userData.deleted = true;
       mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
-      areaBindings = new Map(); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
+      setAreaBindings(new Map()); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
     },
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
@@ -2776,7 +2781,7 @@ function resetAll() {
       restore.undo();
       for (const r of ownBoxes) r.userData.deleted = false;
       mapState(map);
-      areaBindings = new Map(bindingsBefore); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); lightsDirty = true;
+      setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); lightsDirty = true;
       gizmo.setSelection(picks.ids, picks.active); sceneChanged();
     },
   });
@@ -3053,8 +3058,7 @@ let reachShown = recall(REACH_SHOWN) === '1';   // the selected light's reach ou
 let soloOn = false, lightsDirty = true, lastLightSync = 0, assigning = null, warnedLights = false;
 let fixedLights = [], derivedCopies = [], ownerIndex = null, paintedLights = new Set();
 let handleDefs = [], handleHover = null, lightDrag = null;   // the selected light's drag handles (below commitColour)
-// area light actor path -> its glowing piece as the project sets it ({ target, component }), or null: kept fixed
-let areaBindings = new Map();
+// (an area light's glowing piece as the project sets it, areaBindings: editor_state.js)
 const derivedMarks = new THREE.Group(); world.add(derivedMarks);
 const lightShapes = new THREE.Group(); world.add(lightShapes);
 const solo = createSolo(world);
@@ -3867,7 +3871,7 @@ function recipeLight(template, light, location, rotation, actor = null) {
 function addedLight(source, placed, values, actor = null) {
   const recipe = source.added?.template ?? source.recipe ?? null;
   const from = recipe ? null : source.added ? source.added.from : { package: source.sourcePackage, level: source.layer, actor: source.actor };
-  actor ??= `${recipe ? `${PL}${recipe.kind === 'point' ? 'PointLight' : 'SpotLight'}` : from.actor}_copy${++copySerial}`;
+  actor ??= `${recipe ? `${PL}${recipe.kind === 'point' ? 'PointLight' : 'SpotLight'}` : from.actor}_copy${nextCopySerial()}`;
   // its pose read against its source's own place (a light's matrix is its actor's); a point light keeps its rotator
   const pose = actorPose(source, placed);
   if (source.kind === 'point') pose.rotation = [...source.rotation];
@@ -3906,7 +3910,7 @@ function clearLightEdits() {
   const moved = [...lightRoots.values()].filter(r => r.userData.edit);
   gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
   for (const r of lightRoots.values()) { r.userData.deleted = false; setLightValues(r, r.userData.baseValues); }
-  areaBindings = new Map();
+  setAreaBindings(new Map());
 }
 // Light records of a project state put on the map; those naming lights this export lacks are returned to be carried.
 function applyLightRecord(record) {
@@ -3922,7 +3926,7 @@ function applyLightRecord(record) {
 function addedLightOf(entity) {
   const l = optionsOf(entity, 'light');      // (piece_records.js: its names, pose, recipe or original, and values)
   const serial = Number(/_copy(\d+)$/.exec(l.actor)?.[1]);
-  if (serial > copySerial) copySerial = serial;
+  if (serial > copySerial) setCopySerial(serial);
   let source, values;
   if (l.recipe) {
     const made = recipeLight(l.recipe, l.light, l.location, l.rotation, l.actor);
@@ -4257,8 +4261,8 @@ async function openPrefabDocument(id) {
     ['Restore them', async () => {
       builder.doc.donors = recovery.document.donors;
       await applyPrefabDocument(recovery.document, recovery);
-      adoptedDraft = { owner: recovery.owner, savedAt: recovery.savedAt };
-      recoveryKept = true; projectChanged();
+      setAdoptedDraft({ owner: recovery.owner, savedAt: recovery.savedAt });
+      setRecoveryKept(true); projectChanged();
       await recoverOpenedPrefabSources();
     }],
     ['Discard them', async () => { await discardDraft(prefabApi, id, recovery); await recoverOpenedPrefabSources(); }],
@@ -4348,7 +4352,7 @@ function builderTitle() {
 async function saveBuilder({ name = null, replace = null } = {}) {
   if (saving || builder.loading || gizmo.controls.dragging) return false;
   if (!name && !builder.doc.revision) return showPrefabDialog(true);
-  saving = true; clearTimeout(recoveryTimer);
+  setSaving(true); clearTimeout(recoveryTimer);
   try {
     await documentWrites.wait();
     const records = prefabRecords({ complete: true }), before = builderKey(), previous = builder.doc.id;
@@ -4367,7 +4371,7 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     const baseline = JSON.parse(before);
     baseline.pieces = withRecipes(baseline.pieces);
     builder.doc = { ...doc, pieces: withRecipes(doc.pieces), revision: result.revision, created: result.created, savedAt: result.savedAt };
-    builder.savedKey = JSON.stringify(baseline); recoveryKept = false; recoveryTrouble = null;
+    builder.savedKey = JSON.stringify(baseline); setRecoveryKept(false); setRecoveryTrouble(null);
     setTimeout(checkPrefab, 0);
     builder.metadata = new Map(withRecipes(records.pieces).map(p => [p.actor, structuredClone(p)]));
     history.replaceState(null, '', `?prefab=${encodeURIComponent(id)}`);
@@ -4377,7 +4381,7 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     return true;
   } catch (error) {
     if (error.status === 409 && Number.isInteger(error.body?.revision) && !name) {
-      recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
+      setRecoveryTrouble('stale');      // (told here: the drafts kept meanwhile say nothing more of it)
       banner(`${builder.doc.name} was saved elsewhere (revision ${error.body.revision}).`, [
         ['Overwrite it with this', () => { builder.doc.revision = error.body.revision; saveBuilder(); }],
         ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
@@ -4385,72 +4389,16 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     }
     else banner(`Not saved: ${error.message}`);
     return false;
-  } finally { saving = false; projectChanged(); }
-}
-// Discarding the changes on screen: this page's own draft goes, and a draft it restored; other pages' stay.
-async function clearDocumentRecovery() {
-  clearTimeout(recoveryTimer);
-  const id = builderMode ? builder.doc?.id : project?.doc.id, api = builderMode ? prefabApi : projectApi;
-  const adopted = adoptedDraft;
-  adoptedDraft = null;
-  await documentWrites.run(async () => {
-    if (!id) return;
-    await api.dropRecovery(id, SESSION);
-    if (adopted) await api.dropRecovery(id, adopted.owner, adopted.savedAt);
-  });
-  recoveryKept = false;
-}
-// A draft the user restored, deleted once this page's own draft or a save holds its changes.
-function dropAdopted(api, id) {
-  const adopted = adoptedDraft;
-  if (!adopted || !id) return Promise.resolve();
-  adoptedDraft = null;
-  return documentWrites.run(() => api.dropRecovery(id, adopted.owner, adopted.savedAt)).catch(() => {});
-}
-// A draft the user was shown and discarded: that one alone, while it is still the one shown.
-function discardDraft(api, id, draft) {
-  return documentWrites.run(() => api.dropRecovery(id, draft.owner, draft.savedAt))
-    .catch(error => banner(`The kept changes could not be discarded: ${error.message}`));
-}
-// What a draft offered back says beside its time: based on an older revision (another page saved since), and how
-// many more are kept.
-function draftWords(draft, revision) {
-  const words = [];
-  if (Number.isInteger(draft.baseRevision) && draft.baseRevision !== revision)
-    words.push(` They were made on revision ${draft.baseRevision}; it has been saved since (revision ${revision}), so restoring them puts revision ${draft.baseRevision}'s state back with these changes, and saving that replaces what was saved since.`);
-  if (draft.others) words.push(` ${plural(draft.others, 'other set')} of unsaved changes ${draft.others === 1 ? 'is' : 'are'} kept too, from other windows or tabs.`);
-  return words.join('');
-}
-// A draft write that failed, or was kept against an older revision than the saved one: said once, until a write
-// goes through again.
-function recoveryProblem(kind, message) {
-  if (recoveryTrouble === kind) return;
-  recoveryTrouble = kind;
-  banner(message);
-}
-async function discardAndGo(change) {
-  await clearDocumentRecovery(); leaving = true; navigate(change);
-}
-function askLeave() {
-  return new Promise(resolve => {
-    const modal = $('leaveDialog'); modal.hidden = false;
-    $('leaveName').textContent = `Save changes to ${builderMode ? builder.doc.name : project?.doc.name ?? 'this map'} before opening something else?`;
-    const done = value => { modal.hidden = true; resolve(value); };
-    $('leaveSave').onclick = () => done('save'); $('leaveDiscard').onclick = () => done('discard'); $('leaveCancel').onclick = () => done('cancel');
-    modal.onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') done('cancel'); };
-    $('leaveCancel').focus();
-  });
+  } finally { setSaving(false); projectChanged(); }
 }
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
 // (The project open, `project`: editor_state.js.)
-let templates = null, recoveryTimer = null, recoveryKept = false, saving = false;
+let templates = null;
 // Drafts for recovery belong to the page session that keeps them (review finding 3; projects.py): this page's id,
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
-// user restored (`adoptedDraft`, { owner, savedAt }: deleted once this page's own draft or a save holds its changes)
-// or discarded. `recoveryTrouble`: the last draft write failed or was stale, and the user was told.
+// user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
-let adoptedDraft = null, recoveryTrouble = null;
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // Projects edit a full map's original layout: not a patch preview.
 const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
@@ -4458,49 +4406,6 @@ const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 
 function editState() {
   if (!eventMemo) return editStateNow();
   return eventMemo.state ??= editStateNow();
-}
-function editStateNow() {
-  const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
-  for (const root of roots.values()) {
-    const o = root.userData.source;
-    if (o.added && o.cover) {      // a cover block: its recipe (a version that makes its type), size and cover, at its corner
-      added.set(o.actor, { form: 'cover', id: o.added.entity, actor: o.actor,
-                           template: { ...o.added.template, version: coverVersion(o.added.template.version, o.cover.type) }, cover: o.cover,
-                           ...actorPose(o, root.matrix) });
-    } else if (o.added) {
-      let unit = added.get(o.actor);
-      if (!unit) {
-        // (its tint, made numbers, flags and a broken copy's blasts: its state)
-        unit = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
-                 prefab: o.prefab, partner: o.partner, state: stateOfRoot(root.userData) };
-        if (builderMode && builder.metadata.get(o.actor)?.recipe) unit.recipe = builder.metadata.get(o.actor).recipe;
-        else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
-          unit.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
-        added.set(o.actor, unit);
-      }
-      unit.components.push(o.component);
-    } else if ((root.userData.deleted || root.userData.edit || root.userData.flags || root.userData.blasts?.length) && !overrides.has(sourceKey(o))) {
-      // (flags or blasts alone: an override with no pose, the piece where the map has it; a deleted piece has neither)
-      const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
-      overrides.set(sourceKey(o), root.userData.deleted ? { target, deleted: true }
-        : { target, ...(root.userData.edit ? actorPose(o, root.matrix) : {}), ...(root.userData.flags ? { flags: { ...root.userData.flags } } : {}),
-            ...(root.userData.blasts?.length ? { blasts: cloneBlasts(root.userData.blasts) } : {}),
-            ...(root.userData.blasts?.length && root.userData.breaksFurther ? { breaksFurther: true } : {}) });
-    }
-  }
-  for (const [actor, unit] of added) added.set(actor, recordOf(unit));
-  const areaLightBindings = lightState(overrides, added);
-  effectState(overrides, added);
-  // A group keeps the pieces still on the map and the groups inside it; one left with fewer than two members isn't
-  // saved (its last member takes its place in the group it was in).
-  const saved = cloneGroups();
-  for (const g of saved.values()) for (const [k, m] of [...g.members]) if (m.group === undefined && !liveMembers().has(k)
-    && !(builderMode && builder.kept.some(p => memberKey({ added: p.actor }) === k))) g.members.delete(k);
-  const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
-                                                             ...(g.prefab ? { prefab: g.prefab } : {}) }));
-  return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
-                    buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
-                    spawnRules: projectSpawnRules, picture: projectPicture });
 }
 const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
 const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
@@ -4519,7 +4424,7 @@ function clearEdits() {
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
   clearEffectEdits();
-  setCleared(false); setClearKeepsOutside(false); setLandingZones(null); mergedBuildings = null; setProjectMissions(null);
+  setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
   setProjectPicture(null);
   setProjectSpawnRules(null); syncSpawnRule();
   setMissionMoves(new Map());
@@ -4534,188 +4439,6 @@ function templateFor(from, component) {
   }
   return templates.get(`${targetKey(from)}|${component}`) ?? foreignTemplates.get(`${targetKey(from)}|${component}`);
 }
-// Put a project state on the map: originals moved or deleted, copies added. Records naming pieces this export does
-// not have are returned, to be kept and saved back unchanged; nothing is matched by short name.
-const foreignNoted = new Set();
-async function applyState(state, progress = null) {
-  // pieces of other maps: their templates read first (a map the install lacks leaves its records carried)
-  for (const message of await loadForeignTemplates(state.added, progress))
-    if (!foreignNoted.has(message)) { foreignNoted.add(message); projectNote(`${message}: its copies are kept and saved back unchanged.`); }
-  clearEdits();
-  setCleared(state.cleared === true); setClearKeepsOutside(cleared && state.clearKeepsOutside === true); mergedBuildings = null;
-  setLandingZones(Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null);
-  setProjectMissions(Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null);
-  setProjectPicture(validPicture(state.picture) ? { sha256: state.picture.sha256 } : null);
-  setProjectSpawnRules(state.spawnRules ?? null); syncSpawnRule();
-  setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
-  clearedChanged();
-  // (a record for a map building this export can't edit is kept and saved back unchanged)
-  const unknownBuildings = setBuildings((state.buildings ?? []).filter(validBuilding));
-  const actors = new Map(), carried = { overrides: [], added: [], groups: [], areaLightBindings: [], buildings: unknownBuildings };
-  for (const r of roots.values()) {
-    const key = sourceKey(r.userData.source);
-    if (!actors.has(key)) actors.set(key, []);
-    actors.get(key).push(r);
-  }
-  const streamMoves = new Map();
-  for (const record of state.overrides) {
-    if (record.target?.level === 'stream') {
-      // a mission object moved in its stream (Part E): one of this export's, else carried unchanged
-      const o = streamObjects(record.target.package).find(x => x.actor === record.target.actor);
-      if (o && !record.deleted && Array.isArray(record.location) && Array.isArray(record.rotation))
-        streamMoves.set(missionKey(record.target.package, o.actor), { stream: record.target.package, actor: o.actor,
-                                                                      location: [...record.location], rotation: [...record.rotation] });
-      else carried.overrides.push(record);
-      continue;
-    }
-    // a base pod, Meld point or drop-in point moved, turned or given values (SP6); one the page doesn't take is
-    // carried unchanged (below: no piece has its actor)
-    if (record.target?.level === 'base' && String(record.target.package).toLowerCase() === String(data.name).toLowerCase()) {
-      const o = baseSpawnOf(record.target.actor), entry = o ? spawnEntryOf(o, record) : null;
-      if (entry) { streamMoves.set(missionKey(null, o.actor), entry); continue; }
-    }
-    if (applyLightRecord(record)) continue;
-    if (applyEffectRecord(record)) continue;
-    const list = actors.get(targetKey(record.target));
-    if (!list) { carried.overrides.push(record); continue; }
-    if (record.deleted) { for (const r of list) if (!r.userData.source.hidden && !r.userData.source.environment) r.userData.deleted = true; }
-    else {
-      if (record.location !== undefined) gizmo.applyMatrices(list, list.map(r => movedMatrix(r.userData.source, record.location, record.rotation)));
-      if (record.flags) for (const r of list) r.userData.flags = { ...record.flags };
-      if (record.blasts) for (const r of list) if (mapBreakable(r.userData.source)) {
-        r.userData.blasts = cloneBlasts(record.blasts); r.userData.breaksFurther = record.breaksFurther === true; drawBroken(r);
-      }
-    }
-  }
-  const objs = [], lights = [], effects = [], entityOf = new Map();     // (each made piece's record: entityOf)
-  for (const entity of state.added) {
-    if (SPAWN_COPY_KINDS.includes(entity.kind)) {
-      // a copy of one of the map's pods, Meld points or no-spawn volumes (SP7), or a new volume (no `from`); one the page
-      // doesn't take is carried unchanged
-      const from = entity.from, o = from?.level === 'base' && String(from.package).toLowerCase() === String(data.name).toLowerCase() ? baseSpawnOf(from.actor)
-        : from === undefined && entity.kind === 'noSpawn' ? NEW_VOLUME : null;
-      const entry = o ? copyEntryOf(o, entity) : null;
-      if (entry) {
-        streamMoves.set(spawnKey('copy', entry.actor), entry);
-        const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
-        if (serial > copySerial) copySerial = serial;
-      } else carried.added.push(entity);
-      continue;
-    }
-    if (entity.kind) {      // an effect, a sound or a flare copied (effects and sounds plan, Part C)
-      const root = addedEffectOf(entity);
-      if (root) effects.push(root); else carried.added.push(entity);
-      continue;
-    }
-    if (entity.template?.kind === COVER_KIND) {
-      const source = coverOf(entity);
-      if (!source) { carried.added.push(entity); continue; }
-      const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
-      if (serial > copySerial) copySerial = serial;
-      objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), optionsOf(entity, 'cover')));
-      entityOf.set(objs.at(-1), entity);
-      continue;
-    }
-    if (entity.template || lightIndex.has(targetKey(entity.from))) {
-      const light = addedLightOf(entity);
-      if (light) lights.push(light); else carried.added.push(entity);
-      continue;
-    }
-    // Output names already used, applied or not, are never handed out again.
-    const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
-    if (serial > copySerial) copySerial = serial;
-    const sources = entity.components.map(c => templateFor(entity.from, c));
-    if (sources.some(t => !t)) { carried.added.push(entity); continue; }
-    for (const source of sources) {
-      const options = optionsOf(entity);
-      objs.push(addedObject(source, movedMatrix(source, options.location, options.rotation), options));
-      entityOf.set(objs.at(-1), entity);
-    }
-  }
-  // A piece that can't be drawn (its mesh, a material or a texture not had: review finding 29) is a display error, as
-  // in the map's own load: its record is kept and saved back unchanged, and none of its parts is drawn.
-  const failed = [], built = await buildRoots(objs, progress && ((done, total) => progress('making', done, total)), failed);
-  const lost = new Set(failed.map(f => entityOf.get(f.obj)));
-  addRoots(built.filter(r => !lost.has(entityOf.get(r.userData.source))));
-  if (lost.size) {
-    for (const f of failed) console.error(f.obj.actor, f.error);
-    carried.added.push(...lost);
-    loadErrorCount += lost.size;
-    projectNote(`${plural(lost.size, 'piece')} of the ${builderMode ? 'prefab' : 'project'} could not be drawn (${failed[0].error?.message ?? failed[0].error}): `
-      + `${lost.size === 1 ? 'its record is' : 'their records are'} kept and saved back unchanged. The browser console has the errors.`);
-  }
-  addLightRoots(lights);
-  addEffectRoots(effects);
-  setMissionMoves(streamMoves);
-  // Area lights' glowing pieces as the project sets them; one naming a light this export lacks is carried.
-  for (const b of state.areaLightBindings ?? []) {
-    const root = lightIndex.get(targetKey(b.target));
-    if (root?.userData.source.role === 'area') areaBindings.set(root.userData.source.actor, b.owner); else carried.areaLightBindings.push(b);
-  }
-  // Groups whose pieces are all here; one naming a piece this export (or this state) lacks is carried unchanged.
-  const applied = new Set([...actors.keys()].map(k => `orig|${k}`));
-  if (builderMode) for (const p of builder.kept) applied.add(memberKey({ added: p.actor }));
-  for (const o of objs) if (!lost.has(entityOf.get(o))) applied.add(memberKey({ added: o.actor }));
-  // (lights and the project's buildings are members too)
-  for (const r of [...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()]) applied.add(memberOf(r.userData.source));
-  // (a group that names a group not applied goes with it; so does one in two groups, or in itself)
-  const next = new Map(), wanted = state.groups ?? [];
-  let fit = wanted.filter(g => g.members.every(m => m.group !== undefined || applied.has(memberKey(m))));
-  for (let before = -1; before !== fit.length;) {
-    before = fit.length;
-    const ids = new Set(fit.map(g => g.id)), holders = new Map();
-    for (const g of fit) for (const m of g.members) if (m.group !== undefined) holders.set(m.group, (holders.get(m.group) ?? 0) + 1);
-    const loops = g => { for (let x = g, n = 0; x; n++) { if (n > 64) return true; x = fit.find(p => p.members.some(m => m.group === x.id)); } return false; };
-    fit = fit.filter(g => g.members.every(m => m.group === undefined || (ids.has(m.group) && m.group !== g.id)) && (holders.get(g.id) ?? 0) <= 1 && !loops(g));
-  }
-  for (const g of wanted) {
-    if (!fit.includes(g)) { carried.groups.push(g); continue; }
-    // (a group saved unlocked, before 11 November 2026, is a group as any other now)
-    next.set(g.id, { id: g.id, locked: true, breakTogether: g.breakTogether === true,
-                     ...(validPrefabMark(g.prefab) ? { prefab: { ...g.prefab } } : {}),
-                     members: new Map(g.members.map(m => [memberKey(m), m])) });
-  }
-  setGroups(next);
-  copySerial = Math.max(copySerial, Number.isInteger(state.nextSerial) ? state.nextSerial : 0);
-  gizmo.setSelection([]); gizmo.clearHistory(); sceneChanged(); editChanged();
-  return carried;
-}
-// A message under the header with its actions (recovered edits, a save conflict, a project that cannot open).
-// timeout (ms): a passing message closes itself after that long (Play in game's "Starting XCOM …"); hovering it
-// keeps it open, and × still closes it sooner. Without one it stays until dismissed.
-let bannerTimer = null;
-function banner(message, actions = [], { timeout = 0 } = {}) {
-  const el = $('projectBanner');
-  clearTimeout(bannerTimer);
-  el.onmouseenter = el.onmouseleave = null;
-  // a message with line breaks: one paragraph each
-  if (typeof message === 'string' && message.includes('\n')) {
-    const body = document.createElement('div'); body.className = 'bannertext';
-    setParagraphs(body, message);
-    el.replaceChildren(body);
-  } else el.replaceChildren(message);
-  // (an action that fails says so in the banner, as Restore them does when a recovered piece can't be read: review
-  // finding 29)
-  for (const [label, run] of actions) {
-    const button = text(el, 'button', label);
-    button.type = 'button';
-    button.onclick = () => {
-      el.hidden = true;
-      try { run()?.catch?.(error => banner(`${label} could not be done: ${error?.message ?? error}`)); }
-      catch (error) { banner(`${label} could not be done: ${error?.message ?? error}`); }
-    };
-  }
-  const close = text(el, 'button', '×', 'close');
-  Object.assign(close, { type: 'button', title: 'Dismiss' });
-  close.onclick = () => { el.hidden = true; };
-  el.hidden = false;
-  if (timeout) {
-    const arm = () => { clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { el.hidden = true; }, timeout); };
-    el.onmouseenter = () => clearTimeout(bannerTimer);
-    el.onmouseleave = arm;
-    arm();
-  }
-}
 // Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
 const RECENT = 'workshop.recentProjects';
 function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }
@@ -4724,275 +4447,27 @@ function touchRecent(id) {
   remember(RECENT, JSON.stringify(Object.fromEntries(Object.entries(times).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 20))));
 }
 function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); $('issueCount').textContent = String(Number($('issueCount').textContent || 0) + 1); }
-function navigate(change) {
-  const parameters = new URLSearchParams(location.search);
-  if ('prefab' in change) for (const key of ['map', 'project', 'scene', 'mission']) parameters.delete(key);
-  else if ('map' in change || 'project' in change) parameters.delete('prefab');
-  for (const [key, value] of Object.entries(change)) { if (value == null) parameters.delete(key); else parameters.set(key, value); }
-  location.search = parameters.toString();
-}
-async function goTo(change) {
-  if (navigating || saving) return false;
-  navigating = true;
-  try {
-    if (unsavedDocument()) {
-      const decision = await askLeave();
-      if (decision === 'cancel') return false;
-      if (decision === 'save') {
-        const saved = builderMode ? await saveBuilder() : project ? await saveProject() : await showFileDialog('save', true);
-        if (!saved || (builderMode ? dirty() : !project || dirty())) return false;
-      }
-    }
-    await discardAndGo(change); return true;
-  } catch (error) { banner(`Could not leave: ${error.message}`); return false; }
-  finally { navigating = false; }
-}
-async function openProject(id) {
-  if (!projectsAvailable()) { banner('Projects edit a map\'s original layout, so this layout opened without the project.'); return; }
-  let doc;
-  try { doc = await projectApi.load(id); }
-  catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
-  await looksReady;
-  await landingRead;      // (the starting landing zones come from it: review finding 31)
-  if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
-  // (the server opens only a project it can read: projects.shape_problem. A document whose edits are not lists is
-  // refused here too, rather than opened without them and saved back so: review finding 9)
-  const listOrNone = value => value === undefined || Array.isArray(value);
-  if (!listOrNone(doc.overrides) || !listOrNone(doc.added) || typeof doc.source?.sha256 !== 'string') {
-    banner(`The project could not be opened: ${doc.name ?? id} is not a project this editor can read (its edits or its base map are not as a project has them).`);
-    return;
-  }
-  $('loading').hidden = false; loadingState(`Opening ${doc.name}…`, 0);
-  const docOverrides = doc.overrides ?? [], docAdded = doc.added ?? [];
-  const docGroups = Array.isArray(doc.groups) ? doc.groups : [];
-  const docBindings = Array.isArray(doc.areaLightBindings) ? doc.areaLightBindings : [];
-  const malformed = { overrides: docOverrides.filter(r => !validOverride(r)), added: docAdded.filter(e => !validAdded(e)),
-                      groups: docGroups.filter(g => !validGroup(g)), areaLightBindings: docBindings.filter(b => !validBinding(b)) };
-  const carried = await applyState({ overrides: docOverrides.filter(validOverride), added: docAdded.filter(validAdded),
-                                     groups: docGroups.filter(validGroup), areaLightBindings: docBindings.filter(validBinding),
-                                     stage: doc.stage, buildings: Array.isArray(doc.buildings) ? doc.buildings : [],
-                                     cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
-                                     landingZones: Array.isArray(doc.landingZones) ? doc.landingZones : null,
-                                     missions: Array.isArray(doc.missions) ? doc.missions : null,
-                                     spawnRules: doc.spawnRules ?? null, picture: doc.picture ?? null,
-                                     nextSerial: doc.nextSerial }, openingProgress(doc.name));
-  // a building this page can't read is kept and saved back unchanged, and so is one of the map's it can't edit
-  carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
-  carried.overrides.push(...malformed.overrides); carried.added.push(...malformed.added); carried.groups.push(...malformed.groups);
-  carried.areaLightBindings.push(...malformed.areaLightBindings);
-  setProject({ doc, revision: doc.revision, carried, savedKey: stateKey(editState()) });
-  // a bomb moved before export 33 left its helper point behind (F-124; decision D6): the helper gets the move now, and
-  // the project shows as changed until it is saved
-  const helped = bombHelperFix();
-  if (helped) {
-    setMissionMoves(helped);
-    banner('The bomb\'s helper point now moves with it: Long War\'s bomb mutator finds the bomb again and places it where it finds places, the project\'s place being where it plays when it finds none. Save the project to keep it.');
-  }
-  askedPick = null;     // (the address's added kind is picked by now, if the project adds it)
-  touchRecent(id);
-  // its last package, and a build still running (opened again, or the page reloaded mid-build): follow it
-  projectApi.buildStatus(id).then(s => { if (!setLastBuild(id, s)) return; renderPlayItems(); if (s.state === 'running') followBuild(s, id); }, () => {});
-  $('loading').hidden = true;
-  const kept = carried.overrides.length + carried.added.length + carried.groups.length + carried.areaLightBindings.length
-    + carried.buildings.filter(validBuilding).length;
-  if (kept) projectNote(`${doc.name}: ${plural(kept, 'edit')} name pieces this export does not have; they are kept and saved back unchanged.`);
-  if (doc.source.sha256 !== data.source.sha256) {
-    projectNote(`${doc.name} was made on another ${doc.source.package} (SHA-256 ${doc.source.sha256.slice(0, 12)}…, this one ${data.source.sha256.slice(0, 12)}…).`);
-    banner(`${doc.name} was made on a different ${doc.source.package}. Its edits are shown where their pieces match; check them before building.`);
-  }
-  if (doc.view?.camera?.length === 3 && doc.view.target?.length === 3) {
-    camera.position.fromArray(doc.view.camera); controls.target.fromArray(doc.view.target); controls.update();
-  }
-  await offerProjectDraft(id, doc);
-  editChanged();
-}
-// The newest draft of the project another page session kept (a lost tab's, or another window's), offered back: one
-// that is the saved state already is spent, and goes (the next is offered then).
-async function offerProjectDraft(id, doc, tries = 4) {
-  const recovery = await projectApi.recovery(id).catch(() => null);
-  if (recovery && Array.isArray(recovery.overrides) && Array.isArray(recovery.added)) {
-    const state = { overrides: recovery.overrides.filter(validOverride), added: recovery.added.filter(validAdded),
-                    groups: (Array.isArray(recovery.groups) ? recovery.groups : []).filter(validGroup),
-                    areaLightBindings: (Array.isArray(recovery.areaLightBindings) ? recovery.areaLightBindings : []).filter(validBinding),
-                    stage: validStage(recovery.stage, ownSize()?.dims) ? recovery.stage : null,
-                    buildings: (Array.isArray(recovery.buildings) ? recovery.buildings : []).filter(validBuilding),
-                    cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
-                    landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
-                    missions: Array.isArray(recovery.missions) ? recovery.missions : null,
-                    spawnRules: recovery.spawnRules ?? null, picture: recovery.picture ?? null,
-                    nextSerial: recovery.nextSerial };
-    if (stateKey(sortState(state)) !== project.savedKey) {
-      const when = new Date(recovery.savedAt).toLocaleString();
-      banner(`Unsaved changes to ${doc.name} from ${when} were kept.${draftWords(recovery, project.revision)}`, [
-        ['Restore them', async () => {
-          await applyState(state);
-          adoptedDraft = { owner: recovery.owner, savedAt: recovery.savedAt };
-          recoveryKept = true; projectChanged();
-        }],
-        ['Discard them', async () => {
-          await discardDraft(projectApi, id, recovery);
-          if (recovery.others && project?.doc.id === id) await offerProjectDraft(id, doc, tries - 1);
-        }],
-      ]);
-    } else if (tries > 0) {
-      const { dropped } = await documentWrites.run(() => projectApi.dropRecovery(id, recovery.owner, recovery.savedAt)).catch(() => ({ dropped: false }));
-      if (dropped && recovery.others) await offerProjectDraft(id, doc, tries - 1);
-    }
-  }
-}
-// The project's own state in the header, and its unsaved state kept on the server against a lost tab.
-function projectChanged() {
-  if (builderMode) {
-    if (builder.loading) return;
-    builderTitle(); refreshBuilder(); problemsPaint(); clearTimeout(recoveryTimer);
-    // (the status says saved or unsaved: a save changes it with no edit)
-    if (builder.doc?.revision) { $('editCount').hidden = false; $('editCount').textContent = saveState(); $('editCount').classList.toggle('warn', saveState() !== 'saved'); }
-    if (!navigating && !saving) recoveryTimer = setTimeout(keepRecovery, 1000);
-    return;
-  }
-  $('projectTitle').textContent = project ? project.doc.name : 'None';
-  renderPlayItems();
-  if (!project) return;
-  $('projectButton').classList.toggle('unsaved', dirty());
-  clearTimeout(recoveryTimer);
-  recoveryTimer = setTimeout(keepRecovery, 1000);
-}
-async function keepRecovery() {
-  if (builderMode) {
-    if (!builder.doc?.revision || builder.loading || saving || navigating) return;
-    if (gizmo.controls.dragging) { recoveryTimer = setTimeout(keepRecovery, 1000); return; }
-    const id = builder.doc.id, state = { owner: SESSION, baseRevision: builder.doc.revision, document: builderDocument(), envelope: builder.envelope, nextSerial: copySerial };
-    const changed = dirty();
-    if (!changed && !recoveryKept) return;
-    try {
-      const kept = await documentWrites.run(() => changed ? prefabApi.keepRecovery(id, state) : prefabApi.dropRecovery(id, SESSION));
-      recoveryKept = changed;
-      if (changed) { keptDraft(kept, builder.doc.name); dropAdopted(prefabApi, id); }
-    } catch (error) {
-      recoveryProblem('failed', `Unsaved changes to ${builder.doc.name} could not be kept for recovery: ${error.message}. They are still on screen; save to keep them.`);
-    }
-    return;
-  }
-  if (!project || saving || navigating) return;
-  // A drag in progress is never kept half done.
-  if (gizmo.controls.dragging) { recoveryTimer = setTimeout(keepRecovery, 1000); return; }
-  const state = editState(), id = project.doc.id;
-  try {
-    if (stateKey(state) !== project.savedKey) {
-      const snapshot = { owner: SESSION, baseRevision: project.revision, nextSerial: copySerial, ...state };
-      const kept = await documentWrites.run(() => projectApi.keepRecovery(id, snapshot));
-      recoveryKept = true;
-      keptDraft(kept, project.doc.name);
-      dropAdopted(projectApi, id);
-    } else if (recoveryKept) { await documentWrites.run(() => projectApi.dropRecovery(id, SESSION)); recoveryKept = false; }
-  } catch (error) {
-    // (said in the page, as a prefab's is: review finding 3)
-    recoveryProblem('failed', `Unsaved changes to ${project?.doc.name ?? 'the project'} could not be kept for recovery: ${error.message}. They are still on screen; save to keep them.`);
-  }
-}
-// A draft the server kept: one kept against an older revision than the saved one says so once (another window or tab
-// saved meanwhile; saving then asks whether to overwrite that).
-function keptDraft(kept, name) {
-  if (kept?.stale) recoveryProblem('stale', `${name} was saved elsewhere since this page opened it (revision ${kept.revision}). `
-    + 'These unsaved changes are kept for recovery; saving asks whether to overwrite that revision.');
-  else recoveryTrouble = null;
-}
-// Save (Ctrl+S): the open project's next revision; without one, the Save dialog asks for a name first.
-// The Save dialog calls it with { name, output } for a new project from what is on screen, with the map name it showed
-// (the server's: output names plan); { name, replace } to put what is on screen into that saved project, which keeps
-// its id and map name; or { rename } for the open project's next revision under that name (the dialog matches names
-// regardless of case), its map name kept. A new project's save that the server refuses because its map name was
-// taken meanwhile throws, so the dialog can show the name it would get now; other failures say so in a banner.
-async function saveProject({ name = null, replace = null, rename = null, output = null } = {}) {
-  if (builderMode) return saveBuilder({ name, replace });
-  if (!projectsAvailable() || saving || gizmo.controls.dragging) return false;
-  if (!project && !name) { showFileDialog('save'); return false; }
-  saving = true;
-  clearTimeout(recoveryTimer); await documentWrites.wait();
-  const state = editState(), carried = project?.carried ?? { overrides: [], added: [], groups: [], areaLightBindings: [] };
-  const previous = project?.doc.id, fresh = Boolean(name) && !replace;
-  // What is on screen was made against the open project's map, or else this export. A project of this very package
-  // opened on a newer export is bound to it on saving: what is on screen is that export's, and the Build compiles
-  // against the export the project names (compiler.find_export), so a newer export's data (export 23's effects) reaches
-  // it.
-  const source = project ? { ...project.doc.source } : sourceOf(activeMapId, data);
-  if (project && source.sha256 === data?.source?.sha256 && Number(data.exporterVersion) > Number(source.exporterVersion ?? 0))
-    source.exporterVersion = data.exporterVersion;
-  let base = project?.doc, expected = project?.revision;
-  try {
-    if (replace) {
-      // the revision the dialog showed is the one replaced, and no other (review finding 4): one saved since is asked
-      // about again (the dialog shows its revision now)
-      const target = await projectApi.load(replace.id);
-      if (target.source?.map !== activeMapId) throw new Error(`${target.name} is a project of another map.`);
-      if (target.revision !== replace.revision)
-        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, body: { revision: target.revision } });
-      base = { ...target, name, source }; expected = replace.revision;
-    } else if (fresh) {
-      if (!output) throw new Error('the map name is still being worked out; save again in a moment');
-      base = { ...newDocument(name, activeMapId, data, output), source }; expected = 0;
-    }
-    else if (rename && project) base = { ...project.doc, name: rename };
-    const document = { ...base, schemaVersion: PROJECT_SCHEMA_VERSION, ...sortState({ overrides: [...state.overrides, ...carried.overrides], added: [...state.added, ...carried.added],
-                                               groups: [...state.groups, ...carried.groups],
-                                               areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
-                                               stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
-                                               cleared: state.cleared, clearKeepsOutside: state.clearKeepsOutside,
-                                               landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules,
-                                               picture: state.picture }),
-                       nextSerial: copySerial, view: { camera: camera.position.toArray(), target: controls.target.toArray() } };
-    if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
-    if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
-    if (!document.buildings.length) delete document.buildings;
-    if (!document.cleared) delete document.cleared;
-    if (!document.clearKeepsOutside) delete document.clearKeepsOutside;
-    if (document.landingZones == null) delete document.landingZones;     // the map's own landings and lines
-    if (document.missions == null) delete document.missions;     // every mission of the base map
-    if (document.picture == null) delete document.picture;       // no picture of its own
-    delete document.revision; delete document.savedAt;
-    if (fresh) delete document.created;
-    // saved as another project: its map picture is kept by project, so the server copies the file to the new one
-    // within the save, byte for byte, before the document is written (review finding 8)
-    const pictureFrom = previous && previous !== document.id && document.picture ? { pictureFrom: previous } : {};
-    const result = await projectApi.save(document.id, document, expected, { owner: SESSION, ...pictureFrom });
-    if (result.pictureMissing)
-      banner(`The map picture was not copied to ${document.name}: the project saved from keeps it no more. Choose it again in Map picture.`);
-    // Saved under another project: this page's draft of the one open before is in it now, and so is a draft restored
-    // (the server dropped this page's draft of the one saved).
-    if (previous && previous !== document.id) documentWrites.run(() => projectApi.dropRecovery(previous, SESSION)).catch(() => {});
-    dropAdopted(projectApi, previous);
-    recoveryTrouble = null;
-    const { pictureMissing, note, ...saved } = result;
-    if (note) banner(`Saved ${document.name}. ${note}`);      // (saved, with something left to say: projects.py)
-    setProject({ doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) });
-    if (previous !== document.id) {
-      // another project now (Save as, or Replace): its own build status, not the one saved from's (review finding 10)
-      lastBuild = null; clearTimeout(buildTimer);
-      const id = document.id;
-      projectApi.buildStatus(id).then(s => { if (setLastBuild(id, s)) { renderPlayItems(); if (s.state === 'running') followBuild(s, id); } }, () => {});
-    }
-    recoveryKept = false;
-    touchRecent(document.id);
-    const parameters = new URLSearchParams(location.search);
-    parameters.set('map', activeMapId); parameters.delete('scene'); parameters.set('project', document.id);
-    history.replaceState(null, '', `?${parameters}`);
-    flashHint(`Saved ${document.name} · revision ${result.revision}`);
-    return true;
-  } catch (e) {
-    // the map name shown was taken meanwhile: the dialog shows the one it would get now, and nothing is lost
-    if (fresh && e.status === 409 && e.body?.proposal) throw e;
-    // the project replaced was saved again since the dialog showed it: the dialog asks again
-    if (replace && e.status === 409 && Number.isInteger(e.body?.revision)) throw e;
-    if (e.status === 409 && Number.isInteger(e.body?.revision) && !name && !replace) {
-      recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.body.revision}).`, [
-        ['Overwrite it with this', () => { project.revision = e.body.revision; saveProject(); }],
-        ['Open the saved one', () => discardAndGo({ map: activeMapId, project: project.doc.id, scene: null })],
-      ]);
-    } else banner(`Not saved: ${e.message}`);
-    return false;
-  } finally { saving = false; editChanged(); }
-}
+// The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
+// project's state put on the map.
+const { editStateNow, applyState } = createDocumentState({
+  actorPose, addEffectRoots, addLightRoots, addRoots, addedEffectOf, addedLightOf, addedObject, applyEffectRecord,
+  applyLightRecord, buildRoots, builder, clearEdits, clearedChanged, cloneGroups, coverOf, coverVersion, drawBroken,
+  editChanged, effectState, gizmo, lightState, liveMembers, loadForeignTemplates, mapBreakable, memberOf, missionOverrides,
+  movedMatrix, ownSize, plural, projectNote, savedBuildings, sceneChanged, setBuildings, setMissionMoves, setStage, short,
+  sourceKey, syncSpawnRule, templateFor,
+  // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
+  baseSpawnOf: actor => baseSpawnOf(actor), missionKey: (stream, actor) => missionKey(stream, actor),
+  spawnCopyRecords: () => spawnCopyRecords(), streamObjects: stream => streamObjects(stream) });
+// The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
+// and offered back, and the banner under the header.
+const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
+        openProject, projectChanged, saveProject } = createDocumentSession({
+  $, SESSION, applyState, bombHelperFix, builder, builderDocument, builderTitle, camera, controls, dirty, documentWrites,
+  editChanged, editState, flashHint, followBuild, gizmo, loadingState, ownSize, plural, problemsPaint, projectNote,
+  projectsAvailable, refreshBuilder, renderPlayItems, saveBuilder, saveState, setLastBuild, setMissionMoves,
+  showFileDialog, text, touchRecent, unsavedDocument,
+  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
+  openingProgress: name => openingProgress(name) });
 // Build (Ctrl+B, the header's Build): a panel first asks whether to bake the lighting (build_options.js; off by default),
 // then the open project is saved if it has unsaved changes (Save itself never builds) and the server builds the saved
 // revision (tools/viewer/builds.py runs tools/editor/build.py, with --quick when not baking): the variant package in the
@@ -5002,7 +4477,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
 // - the log's latest lines;
 // - the time so far against the project's last build, which gives the bar its estimate.
 // When the build ends, the window shows the package or why it failed, and closes with Close or Esc.
-let buildTimer = null, buildTicker = null, lastBuild = null, buildView = null;
+let buildTicker = null, buildView = null;     // (the build status and the next ask for it: editor_state.js)
 // (the window's words: build_window.js)
 // Whether Build can start now: false (with a hint) without a saved project or while a build runs.
 function canBuild() {
@@ -5037,7 +4512,7 @@ async function buildProject(quick = false) {
 // project no longer open (the page saved as another since) thrown away. False when it was.
 function setLastBuild(id, status) {
   if (!project || project.doc.id !== id) return false;
-  lastBuild = { ...status, project: id };
+  setLastBuildValue({ ...status, project: id });
   return true;
 }
 // Each status from the server (every 2 s while the build runs). A build that ended before this page saw it running
@@ -5068,7 +4543,7 @@ function followBuild(status, id = project?.doc.id) {
     if (status.state === 'built') playBuilt(job.project, job.attempt);
   }
   renderBuild(); renderPlayItems();
-  if (!buildView.ended) buildTimer = setTimeout(pollBuild, 2000);
+  if (!buildView.ended) setBuildTimer(setTimeout(pollBuild, 2000));
   else {
     clearInterval(buildTicker); $('buildClose').focus();
     // the window's Play in game goes by the installs as they are now
@@ -5081,7 +4556,7 @@ function pollBuild() {
   projectApi.buildStatus(id).then(status => followBuild(status, id), () => {
     buildView.failures++;
     renderBuild();
-    buildTimer = setTimeout(pollBuild, 5000);
+    setBuildTimer(setTimeout(pollBuild, 5000));
   });
 }
 function openBuildWindow() {
@@ -5098,7 +4573,7 @@ function openBuildWindow() {
 function closeBuildWindow() {
   clearInterval(buildTicker); clearTimeout(buildTimer);
   $('buildModal').hidden = true;
-  if (buildView && !buildView.ended) { buildView.attempt = null; buildTimer = setTimeout(pollBuild, 5000); }
+  if (buildView && !buildView.ended) { buildView.attempt = null; setBuildTimer(setTimeout(pollBuild, 5000)); }
 }
 function renderBuild() {
   const { status, estimate, failures } = buildView, job = status.job;
@@ -5489,8 +4964,6 @@ async function playBuilt(id, attempt = null) {
   else if (buildView.install.state === 'failed') banner(buildView.install.message, [['Try again', playAgain]]);
   else banner(buildView.install.message, [], buildView.install.saving ? {} : { timeout: PLAYED_FOR });
 }
-// Opening another project reloads the page on its map (the browser asks first if there are unsaved changes).
-function loadProject(p) { if (p.id !== project?.doc.id) goTo({ map: p.map, scene: null, project: p.id }); }
 // The game install and the editor's checks (setup.js): a first run asks for the install before anything else.
 const setupDialog = createSetupDialog({
   els: { root: $('setupDialog'), form: $('setupForm'), title: $('setupTitle'), intro: $('setupIntro'), found: $('setupFound'),
@@ -5659,14 +5132,6 @@ function followQueueForProject(state, info) {
 }
 $('queueChip').onclick = () => showProjectManager();
 window.addEventListener('focus', () => buildQueue.refresh());
-// Build in the manager saves the open project first when it is ticked and has unsaved changes, as the editor's own
-// Build does; a save that fails or is refused queues nothing, and neither does a project switched meanwhile.
-async function ensureSavedFor(ids) {
-  if (builderMode || !project || !ids.includes(project.doc.id) || !dirty()) return true;
-  const id = project.doc.id;
-  const saved = await saveProject();
-  return Boolean(saved) && project?.doc.id === id && !dirty();
-}
 // The project manager (manager.js): every project and its last build, to install or zip several at once, or to build.
 const projectManager = createProjectManager({
   els: { root: $('managerDialog'), form: $('managerForm'), close: $('managerClose'), search: $('managerSearch'), show: $('managerShow'),
@@ -6649,8 +6114,8 @@ function clearMap(size, keepOutside = false) {
       removeRoots(plan.added); removeLightRoots(plan.addedLights);
       setMissionMoves(new Map(spawnsAfter));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = true;
-      areaBindings = new Map(); setGroups(new Map());
-      setCleared(true); setClearKeepsOutside(keepOutside); mergedBuildings = null; setStage(next); clearedChanged();
+      setAreaBindings(new Map()); setGroups(new Map());
+      setCleared(true); setClearKeepsOutside(keepOutside); setMergedBuildings(null); setStage(next); clearedChanged();
       setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
       if (kept) { setLandingZones([{ ...kept }]); pickedZone = null; refreshLandingZones(); }
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection([]); sceneChanged();
@@ -6659,8 +6124,8 @@ function clearMap(size, keepOutside = false) {
       addRoots(plan.added); addLightRoots(plan.addedLights);
       setMissionMoves(new Map(spawnsBefore));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = false;
-      areaBindings = new Map(bindingsBefore); setGroups(cloneGroups(groupsBefore));
-      setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); mergedBuildings = null; setStage(stageBefore); clearedChanged();
+      setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore));
+      setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
       setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
       if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); pickedZone = null; refreshLandingZones(); }
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection(picks.ids, picks.active); sceneChanged();
@@ -7029,7 +6494,7 @@ function copySpawn(key) {
 // a copy's template: the base record it copies, or NEW_VOLUME for a no-spawn volume made fresh (no `from`)
 const copyTemplateOf = m => (m?.stream !== 'copy' ? null : m.copy.from ? baseSpawnOf(m.copy.from) : m.copy.kind === 'noSpawn' ? NEW_VOLUME : null);
 // a new copy's name: its template's with a serial (a fresh volume's after the class)
-const copyName = o => `${o.actor ?? `TheWorld.PersistentLevel.${o.actorClass}`}_copy${++copySerial}`;
+const copyName = o => `${o.actor ?? `TheWorld.PersistentLevel.${o.actorClass}`}_copy${nextCopySerial()}`;
 // a no-spawn volume's box now (the drag's, the project's, else the map's): [x0, y0, z0, x1, y1, z1]
 const spawnBoxNow = e => missionMoveOf(e.stream, e.record.actor)?.box ?? recordBox(e.record);
 // A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
@@ -8314,7 +7779,7 @@ function applyEffectRecord(record) {
 function addedEffect(source, placed, actor = null, entity = null, values = null) {
   const base = source.added ? source.added.base : source;
   const from = source.added ? source.added.from : { package: source.sourcePackage, level: source.layer, actor: source.actor };
-  actor ??= `${from.actor}_copy${++copySerial}`;
+  actor ??= `${from.actor}_copy${nextCopySerial()}`;
   const pose = actorPose(source, placed);
   const o = { ...base, id: `effect-added:${uuid()}`, actor, layer: 'added', isEffect: true, matrix: placed.toArray(),
               location: pose.location, rotation: pose.rotation, referencedBy: [], floors: [], carriedBy: null, carriedHow: null,
@@ -8330,7 +7795,7 @@ function addedEffectOf(entity) {
   const template = effectIndex.get(targetKey(e.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(e.from ?? {}));
   if (!template || template.kind !== e.kind || !Array.isArray(e.location) || !Array.isArray(e.rotation)) return null;
   const serial = Number(/_copy(\d+)$/.exec(e.actor)?.[1]);
-  if (serial > copySerial) copySerial = serial;
+  if (serial > copySerial) setCopySerial(serial);
   const root = addedEffect(template, actorMatrix(e.location, e.rotation), e.actor, e.entity, e.values);
   Object.assign(root.userData.source, { location: [...e.location], rotation: [...e.rotation] });
   return root;
@@ -8762,7 +8227,7 @@ function clearedChanged() {
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();
   $('projectPicture').hidden = !projectsAvailable();
-  mergedBuildings = null;
+  setMergedBuildings(null);
   refreshMissionPicker();     // a project's missions, or none
   refreshLightVisibility();
   effectsDirty = true;
@@ -8876,7 +8341,7 @@ function syncVolumes() {
   if (!data || gizmo.controls.dragging || volumeDrag) return;
   const next = buildingsFromVolumes(), key = JSON.stringify(next);
   if (key === volumesKey) return;
-  volumesKey = key; setBuildingsValue(next); setBuildingsVersion(buildingsVersion + 1); mergedBuildings = null;
+  volumesKey = key; setBuildingsValue(next); setBuildingsVersion(buildingsVersion + 1); setMergedBuildings(null);
   liveCache = null;     // a group's buildings are counted by their boxes
   floorOptions();       // the Floor buttons, then the cutaway
 }
@@ -8907,7 +8372,7 @@ function setBuildings(next) {
     floors.forEach((floor, k) => floor.boxes.forEach((box, n) => makeVolume(box, id, k, floor.volumes?.[n] ?? null)));
   }
   setBuildingsValue(buildingsFromVolumes()); volumesKey = JSON.stringify(buildings);
-  setBuildingsVersion(buildingsVersion + 1); mergedBuildings = null;
+  setBuildingsVersion(buildingsVersion + 1); setMergedBuildings(null);
   if (data) drawOwnVolumes();
   refreshVolumes();
   if (data) floorOptions();
@@ -11660,8 +11125,7 @@ async function fetchJson(url, onProgress) {
 // missionPickValue is the picker's value: a record's index ('0', '1', ...), or 'kind:<kind>' for a kind the project
 // adds (mission types plan, D2), which streams nothing; missionIndex is the record's index, -1 for an added kind.
 let missionIndex = 0, missionPickValue = '0', streamSet = new Set();
-// an added kind the address asks for (?mission=kind:...), picked once the project that adds it is open
-let askedPick = null;
+// (an added kind the address asks for, askedPick: editor_state.js)
 // The missions the header's picker lists: the map's records, or the project's missions when it names them (its
 // records kept, then the kinds it adds).
 function headerMissions() {
@@ -11681,7 +11145,7 @@ const headerMission = () => (missionIndex >= 0 ? (data?.missions ?? [])[missionI
 function refreshMissionPicker() {
   if (!data) return;
   const list = headerMissions(), before = missionPickValue;
-  if (askedPick && list.some(m => m.value === askedPick)) { chooseMission(askedPick); askedPick = null; }
+  if (askedPick && list.some(m => m.value === askedPick)) { chooseMission(askedPick); setAskedPick(null); }
   $('missionPick').hidden = list.length < 2;
   $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
   if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
@@ -11739,7 +11203,7 @@ async function open() {
     // which opens it alone.
     onOpen: id => {
       mapBrowser.close();
-      if (id === askedUnprepared) { leaving = true; location.reload(); return; }
+      if (id === askedUnprepared) { setLeaving(true); location.reload(); return; }
       goTo({ map: id, scene: null, project: null, mission: null });
     } });
   if (builderMode) {
@@ -11771,7 +11235,7 @@ async function open() {
 }
 // Both maps and the prefab workspace start the same editor on a scene.
 async function startScene({ parameters, familiesAsked, mapName }) {
-  mergedBuildings = null;
+  setMergedBuildings(null);
   // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
   document.title = `${data.name} · XCOM Map Workshop`;
@@ -11788,7 +11252,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
   // read leaves the game unknown, with the reason (review finding 31).
   if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-    landingRead = fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
+    setLandingRead(fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
       .then(async r => {
         const v = await r.json().catch(() => null);
         if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
@@ -11798,7 +11262,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
         landingLines = { kind: null, lines: [], failed: String(error?.message ?? error) };
         banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
       })
-      .then(() => { startingCache = null; refreshGroundGrid(); refreshLandingZones(); });
+      .then(() => { startingCache = null; refreshGroundGrid(); refreshLandingZones(); }));
   drawPlayArea();
   for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
   // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
@@ -11806,7 +11270,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // What the original layout's missions stream into the map (export 13), shown for reference and never edited.
   const streamObjects = data.preview ? [] : Object.values(data.streams || {}).flatMap(s => s.objects);
   chooseMission(parameters.get('mission') ?? '0');
-  if (parameters.get('project') && parameters.get('mission')?.startsWith('kind:')) askedPick = parameters.get('mission');
+  if (parameters.get('project') && parameters.get('mission')?.startsWith('kind:')) setAskedPick(parameters.get('mission'));
   // Request every mesh and material up front so downloads overlap; pieces are
   // still assembled in scene order below.
   const everything = [...data.objects, ...streamObjects];
@@ -11817,7 +11281,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   let built = 0;
   for (const obj of everything) {
     try { addRoots([await buildRoot(obj)]); }
-    catch (e) { console.error(obj.actor, e); loadErrorCount++; }
+    catch (e) { console.error(obj.actor, e); setLoadErrorCount(loadErrorCount + 1); }
     built++;
     if (built % 8 === 0 || built === everything.length)
       loadingState(`Opening ${mapName}: building its pieces…`, 0.1 + 0.9 * built / everything.length,
@@ -12289,7 +11753,7 @@ pieces = createPieceBrowser({
          sort: $('libSort'), foot: $('libFoot') },
   renderer, preview: entry => previewGroup(entryParts(entry), null, entry.frame), onChoose: chooseEntry,
 });
-library = createLibraryBrowser({
+setLibrary(createLibraryBrowser({
   els: { box: $('libAll'), scan: $('libScan'), filter: $('libAllFilter'), kind: $('libAllKind'), home: $('libAllHome'),
          sort: $('libAllSort'), placeable: $('libAllPlaceable'), elsewhere: $('libAllElsewhere'),
          favourites: $('libAllFavourites'), list: $('libAllList'), foot: $('libAllFoot') },
@@ -12307,7 +11771,7 @@ library = createLibraryBrowser({
     viewHeight.value = 96;
     try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
   },
-});
+}));
 lookPicker = createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint });
 prefabTab = createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
