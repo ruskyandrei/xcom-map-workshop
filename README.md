@@ -81,7 +81,9 @@ each one is.
 
 ## Working from a clone
 
-1. Python 3.12, then `pip install -r tools/viewer/requirements.txt` (numpy, SciPy, Pillow, embreex).
+1. Python 3.12, then `pip install -r tools/viewer/requirements.txt` (numpy, SciPy, Pillow, embreex). For the
+   browser checks, the guide's pictures and the release's smoke tests, `pip install -r tools/requirements-dev.txt`
+   (adds Playwright, which drives the installed Edge); the node tests need Node.js.
 2. `python tools/viewer/setup_vendor.py` fetches the page's three.js, pinned and checked.
 3. `python tools/viewer/viewer.py settings` shows the settings, which hold every folder the editor uses; set **game**
    to your Steam `common` folder or the game's own folder. `python tools/viewer/viewer.py doctor` checks them.

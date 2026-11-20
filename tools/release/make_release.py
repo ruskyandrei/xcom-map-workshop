@@ -13,8 +13,10 @@ environment variable, else the usual install folders. Without it the zip alone i
 What goes in (dist/release/XCOM-Map-Workshop-<version>/, then the zip and the installer beside):
 - the editor's modules: every module of ours the editor's entry points import (the server, the Build and the bake
   tools it runs: ENTRIES), found by reading their imports, with the folders they sit in (tools/viewer, tools/editor,
-  tools/bake, tools/upk, tools/lab), plus EXTRAS that are run as subprocesses by path; the page (tools/viewer/web)
-  with its pinned three.js (checked against setup_vendor.py's checksums);
+  tools/bake, tools/upk, tools/lab), plus EXTRAS that are run as subprocesses by path or read as data; the page (the
+  files Git tracks in tools/viewer/web, so an untracked file there never ships) with its pinned three.js (checked
+  against setup_vendor.py's checksums). A working tree with uncommitted changes under tools/ gets a warning;
+
 - Python: the official embeddable package for Windows (python.org, PYTHON_ZIP pinned by SHA-256), its ._pth naming
   the tools' folders (an embedded Python adds no script folder to the path), and requirements.txt's packages installed
   into it as Windows wheels (pip --only-binary, from PyPI);
@@ -62,7 +64,7 @@ ENTRIES = ('viewer/viewer.py', 'viewer/gamesetup.py', 'viewer/setup_vendor.py', 
            'bake/relight.py', 'bake/intro_copy.py', 'bake/stream_copy.py')
 # run by path as subprocesses, which reading imports doesn't find
 # and the data the modules read from beside themselves: the looks of made walls, floors and ground
-EXTRAS = ('upk/map_inventory.py', 'viewer/requirements.txt', 'viewer/version.py',
+EXTRAS = ('viewer/requirements.txt', 'viewer/version.py',
           'bake/wall_looks.json', 'bake/slab_looks.json', 'bake/ground_looks.json',
           'bake/looks/walls.json', 'bake/looks/slabs.json', 'bake/looks/ground.json')
 TEMPLATES = {'XCOM Map Workshop.cmd': 'XCOM Map Workshop.cmd', 'README.md': 'GETTING-STARTED.md'}
@@ -100,16 +102,23 @@ def modules():
     return sorted(seen)
 
 
-def download(url, cache, expect=None):
+def download(url, cache, expect=None, fetch=None):
+    """The file at `url`, kept in `cache`. A download is checked against `expect` before it is kept, so a bad one
+    never stays in the cache; a cached file that no longer matches is fetched again."""
     cache.mkdir(parents=True, exist_ok=True)
     path = cache / url.rsplit('/', 1)[1]
-    if not path.is_file():
-        print('downloading %s' % url)
-        data = urllib.request.urlopen(url, timeout=120).read()
-        path.write_bytes(data)
-    data = path.read_bytes()
+    if path.is_file():
+        data = path.read_bytes()
+        if not expect or sha256(data) == expect:
+            return data
+        print('%s is not the pinned file: downloading it again' % path)
+    print('downloading %s' % url)
+    data = (fetch or (lambda u: urllib.request.urlopen(u, timeout=120).read()))(url)
     if expect and sha256(data) != expect:
-        raise SystemExit('%s has SHA-256 %s, not the pinned %s' % (path, sha256(data), expect))
+        raise SystemExit('%s has SHA-256 %s, not the pinned %s (nothing kept)' % (url, sha256(data), expect))
+    part = path.with_name(path.name + '.part')
+    part.write_bytes(data)
+    os.replace(part, path)
     return data
 
 
@@ -163,17 +172,47 @@ def notices(stage, pythondir):
         licence = next((l.split(':', 1)[1].strip() for l in meta.splitlines() if l.startswith(('License-Expression:', 'License:'))), '')
         body = '\n\n'.join('[%s]\n%s' % (p.relative_to(info).as_posix(), p.read_text(encoding='utf-8', errors='replace')) for p in files)
         add('%s %s%s (PyPI)' % (name, version, ' - %s' % licence if licence else ''), body or '(no licence file in the wheel; see %s)' % licence)
-    add('three.js 0.180.0 (github.com/mrdoob/three.js, r180)',
+    add('three.js %s (github.com/mrdoob/three.js, %s)' % (setup_vendor.VERSION, setup_vendor.TAG),
         (TOOLS / 'viewer' / 'web' / 'vendor' / 'three' / 'LICENSE').read_text(encoding='utf-8'))
     add('Inno Setup (jrsoftware.org)', 'The Windows installer is made with Inno Setup, Copyright (C) 1997-2026 Jordan '
         'Russell, portions Copyright (C) 2000-2026 Martijn Laan. https://jrsoftware.org/')
     (stage / 'THIRD-PARTY-NOTICES.txt').write_text('\r\n'.join('\n'.join(parts).split('\n')), encoding='utf-8', newline='')
 
 
-def copy_tools(stage):
-    files = [p for p in modules()] + [TOOLS / e for e in EXTRAS]
+def tracked(folder):
+    """The files Git tracks under `folder` (absolute paths), or None without Git."""
+    try:
+        out = subprocess.run(['git', 'ls-files', '-z', '--', str(folder.relative_to(REPO).as_posix())], cwd=REPO,
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return [REPO / f for f in out.decode('utf-8').split('\0') if f]
+
+
+def page_files():
+    """The page: the files Git tracks in tools/viewer/web (an untracked file there doesn't ship), and the vendored
+    three.js that setup_vendor.py pins and vendor() checks (Git ignores it)."""
     web = TOOLS / 'viewer' / 'web'
-    files += [p for p in web.rglob('*') if p.is_file() and '__pycache__' not in p.parts]
+    files = tracked(web)
+    if files is None:
+        raise SystemExit('the page is copied from what Git tracks: run make_release.py in a Git checkout')
+    vendor_root = web / 'vendor' / 'three'
+    files += [vendor_root / local for local in setup_vendor.CHECKSUMS]
+    return sorted(p for p in set(files) if p.is_file())
+
+
+def dirty():
+    """The working tree's changes (git status lines) that would ship or be missed, or [] when clean."""
+    try:
+        out = subprocess.run(['git', 'status', '--porcelain', '--', 'tools', 'LICENSE'], cwd=REPO,
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def copy_tools(stage):
+    files = [p for p in modules()] + [TOOLS / e for e in EXTRAS] + page_files()
     for path in files:
         dst = stage / path.relative_to(REPO)
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -244,6 +283,11 @@ def main(argv=None):
     iscc = None if args.no_installer else find_iscc(args.iscc)
     name = 'XCOM-Map-Workshop-%s' % VERSION
     stage = args.out / name
+    changes = dirty()
+    if changes:
+        # the modules are copied from the working tree, so these changes ship (or are missed) as they stand
+        print('warning: the working tree has %d uncommitted change(s) under tools/; the release takes the files as they '
+              'are on disk:\n  %s' % (len(changes), '\n  '.join(changes[:20])))
     if stage.exists(): shutil.rmtree(stage)
     stage.mkdir(parents=True)
     vendor(stage)

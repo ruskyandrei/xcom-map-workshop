@@ -61,6 +61,37 @@ class ReleaseTests(unittest.TestCase):
         found = make_release.find_iscc(make_release.REPO / 'no-such' / 'ISCC.exe')
         self.assertTrue(found is None or found.name.lower() == 'iscc.exe')
 
+    def test_a_download_is_checked_before_it_is_kept(self):
+        import hashlib
+        import tempfile
+        good = b'the pinned bytes'
+        digest = hashlib.sha256(good).hexdigest()
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            with self.assertRaises(SystemExit):
+                make_release.download('https://example.invalid/x.zip', cache, digest, fetch=lambda u: b'tampered')
+            self.assertEqual(list(cache.iterdir()), [])         # nothing bad stays behind
+            self.assertEqual(make_release.download('https://example.invalid/x.zip', cache, digest, fetch=lambda u: good), good)
+            (cache / 'x.zip').write_bytes(b'damaged since')      # a damaged cache file is fetched again
+            self.assertEqual(make_release.download('https://example.invalid/x.zip', cache, digest, fetch=lambda u: good), good)
+            self.assertEqual((cache / 'x.zip').read_bytes(), good)
+
+    def test_the_page_ships_what_git_tracks_and_the_pinned_vendor_files(self):
+        web = make_release.TOOLS / 'viewer' / 'web'
+        probe = web / 'untracked-probe.tmp'
+        probe.write_bytes(b'x')
+        try:
+            files = make_release.page_files()
+        finally:
+            probe.unlink()
+        names = {p.relative_to(web).as_posix() for p in files}
+        self.assertNotIn('untracked-probe.tmp', names)
+        self.assertTrue({'index.html', 'app.js', 'style.css'} <= names)
+        vendored = {'vendor/three/' + k for k in make_release.setup_vendor.CHECKSUMS}
+        present = {n for n in vendored if (web / n).is_file()}
+        self.assertEqual(present, vendored & names)
+        self.assertNotIn('upk/map_inventory.py', make_release.EXTRAS)   # nothing shipped runs it
+
     def test_the_user_guide_is_one_page_with_its_pictures_and_sections(self):
         source = guide.SOURCE
         text = source.read_text(encoding='utf-8')

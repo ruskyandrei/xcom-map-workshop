@@ -3,9 +3,12 @@
 Each Python suite (tools/<suite>/tests, test_*.py) runs in its own process with unittest's verbose output, and the
 node tests (tools/viewer/tests/*_test.mjs) one file each. The whole output of every suite is kept in a log folder,
 and every failure and error is printed with its traceback when its suite ends, so a failure in a long suite (bake
-takes about a quarter of an hour) needs no second run to be found.
+takes about seven minutes, every suite together about ten) needs no second run to be found.
 
-  python -B tools/run_tests.py                     every suite: viewer, editor, upk, bake, release, repo, node
+A selection that runs nothing fails: -k matching no test (no file, for node), or node missing. Skipped tests are
+counted by reason under their suite, so a run on a computer with no game install says how much it left out.
+
+  python -B tools/run_tests.py                     every suite: viewer, editor, upk, bake, lab, release, repo, node
   python -B tools/run_tests.py viewer editor       only these
   python -B tools/run_tests.py bake -k shell       only the tests whose names hold "shell" (unittest's -k)
   python -B tools/run_tests.py --log <folder>      where the logs go (default .scratch/tests/<date-time>)
@@ -19,10 +22,12 @@ Exit status 0 when everything passed, 1 when anything failed or a suite could no
 (tools/viewer/tests/browser_smoke.py) needs a test server and is not run here.
 """
 import argparse
+from collections import Counter
 from datetime import datetime
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -32,6 +37,12 @@ PYTHON_SUITES = ('viewer', 'editor', 'upk', 'bake', 'lab', 'release', 'repo')
 SUITES = PYTHON_SUITES + ('node',)
 HEADER = re.compile(r'^(FAIL|ERROR): (\S+) \((\S+)\)')
 SUMMARY = re.compile(r'^Ran (\d+) tests? in ([\d.]+)s$')
+SKIPPED = re.compile(r" \.\.\. skipped '(.*)'$")
+
+
+def skip_reasons(output):
+    """[(reason, count)] of the skipped tests (and skipped classes) in unittest's verbose output, commonest first."""
+    return Counter(m.group(1) for line in output.splitlines() if (m := SKIPPED.search(line))).most_common()
 
 
 def failure_blocks(output):
@@ -82,15 +93,24 @@ def python_suite(name, pattern, logs):
     ran = next((m for m in map(SUMMARY.match, output.splitlines()) if m), None)
     count = int(ran.group(1)) if ran else 0
     failures = failure_blocks(output)
-    passed = code == 0 and outcome(output, code).startswith('OK')
-    return dict(name=name, passed=passed, line=outcome(output, code), count=count, took=took,
-                failures=failures, log=logs / f'{name}.log')
+    line = outcome(output, code)
+    passed = code == 0 and line.startswith('OK')
+    if count == 0 and not failures and (code == 5 or 'NO TESTS RAN' in output):
+        # Python 3.12's unittest exits 5 when nothing ran: a selection that runs nothing checked nothing
+        line, passed = (f'no test matched -k {pattern}' if pattern else 'no tests ran'), False
+    return dict(name=name, passed=passed, line=line, count=count, took=took,
+                failures=failures, log=logs / f'{name}.log', skips=skip_reasons(output))
 
 
 def node_suite(pattern, logs):
     files = sorted((REPO / 'tools/viewer/tests').glob('*_test.mjs'))
     if pattern:
         files = [f for f in files if pattern in f.name]
+    if not files or not shutil.which('node'):
+        line = (f'no test file matched -k {pattern}' if pattern else 'no test files') if not files else \
+            'node is not installed (or not on the path): the node tests need Node.js'
+        (logs / 'node.log').write_text(line + '\n', encoding='utf-8', newline='\n')
+        return dict(name='node', passed=False, line=line, count=0, took=0.0, failures=[], log=logs / 'node.log')
     failures, took, parts = [], 0.0, []
     for f in files:
         output, code, t = run(['node', str(f.relative_to(REPO))], logs / f'node-{f.stem}.log')
@@ -132,6 +152,8 @@ def main(argv=None):
         r = node_suite(args.pattern, logs) if name == 'node' else python_suite(name, args.pattern, logs)
         results.append(r)
         print(f'== {name}: {r["line"]}, {r["count"]} {"files" if name == "node" else "tests"}, {r["took"]:.0f} s', flush=True)
+        for reason, n in r.get('skips', []):
+            print(f'   skipped {n}: {reason}', flush=True)
         for kind, test, block in r['failures']:
             print(f'\n-- {kind} {test}\n{block}', flush=True)
         if not r['passed'] and not r['failures']:
@@ -139,7 +161,9 @@ def main(argv=None):
 
     print('\nSummary')
     for r in results:
-        print(f'  {"pass" if r["passed"] else "FAIL"}  {r["name"]:<8} {r["line"]}')
+        skipped = sum(n for _, n in r.get('skips', []))
+        print(f'  {"pass" if r["passed"] else "FAIL"}  {r["name"]:<8} {r["line"]}'
+              + (f' ({skipped} skipped for {len(r["skips"])} reason(s), listed above)' if skipped else ''))
         for kind, test, _ in r['failures']:
             print(f'          {kind} {test}')
     print(f'logs: {logs}')

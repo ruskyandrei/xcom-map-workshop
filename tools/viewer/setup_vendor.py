@@ -4,6 +4,8 @@ from pathlib import Path
 import urllib.request
 
 ROOT = Path(__file__).resolve().parent / "web/vendor/three"
+# the one place the pinned version is written (the release's notices read it too)
+VERSION, TAG = "0.180.0", "r180"
 FILES = {"three.module.js":"build/three.module.js", "three.core.js":"build/three.core.js",
          "addons/controls/OrbitControls.js":"examples/jsm/controls/OrbitControls.js",
          "addons/controls/TransformControls.js":"examples/jsm/controls/TransformControls.js",
@@ -27,7 +29,7 @@ def main():
     # any existing install untouched rather than a mix of old and new files.
     downloads, records = {}, []
     for local, remote in FILES.items():
-        url = "https://raw.githubusercontent.com/mrdoob/three.js/r180/" + remote
+        url = f"https://raw.githubusercontent.com/mrdoob/three.js/{TAG}/" + remote
         data = urllib.request.urlopen(url,timeout=60).read()
         if hashlib.sha256(data).hexdigest() != CHECKSUMS[local]:
             raise ValueError(f"Checksum mismatch for {local}; no update installed")
@@ -38,8 +40,8 @@ def main():
         path.parent.mkdir(parents=True,exist_ok=True)
         path.write_bytes(data)
     import json
-    (ROOT/"manifest.json").write_text(json.dumps(dict(version="0.180.0",files=records),indent=2),encoding="utf-8")
-    print("Installed three.js 0.180.0 locally")
+    (ROOT/"manifest.json").write_text(json.dumps(dict(version=VERSION,files=records),indent=2),encoding="utf-8")
+    print(f"Installed three.js {VERSION} locally")
 
 
 if __name__ == "__main__": main()

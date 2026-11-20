@@ -1,0 +1,6 @@
+# What working on the editor needs beyond the editor's own packages: the browser checks
+# (tools/viewer/tests/browser_*.py), the guide's pictures (take_shots.py), the release's smoke tests and one viewer
+# unit test drive the installed Microsoft Edge through Playwright. The node tests need Node.js (not a pip package).
+#   python -m pip install -r tools/requirements-dev.txt
+-r viewer/requirements.txt
+playwright==1.64.1
