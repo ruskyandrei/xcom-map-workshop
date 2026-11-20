@@ -31,7 +31,7 @@ POLICE, NO_POLICE = labpaths.test_file('XCOM_POLICE_UPK', labpaths.lwr_cooked('U
 DEMOLITION, NO_DEMOLITION = labpaths.test_file('XCOM_DEMOLITION_UPK', labpaths.lwr_cooked('URB_Demolition_EWI.upk'),
                                                'URB_Demolition_EWI.upk')
 # a map whose only plain volume with a brush of the fallback classes is its lightmass importance volume (F-77)
-INTRO, NO_INTRO = labpaths.test_file('XCOM_INTRO_UPK', labpaths.lwr_cooked('Act1_IntroLevel.upk'), 'Act1_IntroLevel.upk')
+INTRO, NO_INTRO = labpaths.install_map('Act1_IntroLevel')
 # the blank map, lit by one baked (not dominant) directional light (EXP-79 run D)
 BLANK, NO_BLANK = labpaths.test_file('XCOM_BLANK_UPK', labpaths.lwr_cooked('CB2_MP_Blank.upk'), 'CB2_MP_Blank.upk')
 PL = native_copy.PL
