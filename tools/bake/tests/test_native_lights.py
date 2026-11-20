@@ -27,6 +27,11 @@ import labpaths  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 TEMPLE, NO_TEMPLE = labpaths.test_file('XCOM_TEMPLE_UPK', labpaths.lwr_cooked('TempleShip.upk'), 'TempleShip.upk')
+# maps whose name tables lack a light value's property (review finding 37): no light of the farm saves
+# FalloffExponent, none of the battleship's InnerConeAngle
+FARM, NO_FARM = labpaths.test_file('XCOM_FARM_UPK', labpaths.lwr_cooked('CsmallScout_Farm.upk'), 'CsmallScout_Farm.upk')
+BATTLESHIP, NO_BATTLESHIP = labpaths.test_file('XCOM_BATTLESHIP_UPK', labpaths.lwr_cooked('CBattleship_01.upk'),
+                                               'CBattleship_01.upk')
 PL = native_lights.PL
 
 
@@ -44,8 +49,10 @@ class FakeGrower:
 
 
 class FakePackage:
+    """The map as the reader read it: its own copy of the name table, which the grower's additions never reach (as
+    audit_lighting.Package's and package_grow.Grower's are two lists)."""
     def __init__(self, names):
-        self.names = names
+        self.names = list(names)
 
 
 def tag(names, name, kind, size, sub=None):
@@ -72,7 +79,7 @@ class SetProperty(unittest.TestCase):
 
     def setUp(self):
         self.g = FakeGrower(self.NAMES)
-        self.w = native_copy.Walker(FakePackage(self.g.names))
+        self.w = native_copy.Walker(FakePackage(self.NAMES), self.g)
 
     def test_a_saved_value_is_set_in_place(self):
         data, start = self.export()
@@ -118,6 +125,20 @@ class SetProperty(unittest.TestCase):
             native_lights.set_property(self.w, self.g, data, start, 'Radius', 'StructProperty', 'Vector', bytes(12))
         with self.assertRaisesRegex(ValueError, 'one byte'):
             native_lights.set_property(self.w, self.g, data, start, 'bEnabled', 'BoolProperty', None, b'\x00\x00')
+
+    def test_a_name_new_to_the_map_is_walked_with_the_growers_names(self):
+        # (review finding 37) a tag whose name the map lacks gets an index past the map's own table; the walker of a
+        # growing package reads names from the grower, so a second write (and any walk) gets past it
+        data, start = self.export()
+        out = native_lights.set_property(self.w, self.g, data, start, 'FalloffExponent', 'FloatProperty', None,
+                                         struct.pack('<f', 3.0))
+        out = native_lights.set_property(self.w, self.g, out, start, 'bEnabled', 'BoolProperty', None, b'\x00')
+        self.assertNotIn('FalloffExponent', self.w.p.names)
+        found = [prop for prop, *_ in self.w.walk(bytes(out), start, len(out))]
+        self.assertEqual(found, ['Radius[0]', 'LightColor[0]', 'FalloffExponent[0]', 'bEnabled[0]'])
+        # a walker that knows the map's own names alone stops at it
+        with self.assertRaisesRegex(ValueError, 'bad property name'):
+            list(native_copy.Walker(FakePackage(self.NAMES)).walk(bytes(out), start, len(out)))
 
     def test_value_bytes(self):
         self.assertEqual(native_lights.value_bytes('color', [255, 196, 140], 200),
@@ -419,7 +440,7 @@ class BarLights(unittest.TestCase):
             t = reg['SpotLight_53']
             info = native_copy.clone_assembly(g, pkg, [(t['actorIndex'], location, rotation)])[0]
             ci = info['mapping'][t['componentIndex']]
-            walker = native_copy.Walker(pkg)
+            walker = native_copy.Walker(pkg, g)
             data = bytearray(g.export_data(ci))
             start = native_lights.props_start(pkg, t['componentIndex'])
             for key in native_lights.keys_for('spot'):
@@ -720,6 +741,34 @@ class ZeroWrites(unittest.TestCase):
             self.assertEqual(light_record(q, q.by_name[made['PointLight_0_copy2']['actor']])['brightness'], 0.0)
             self.assertEqual(m['lights']['registered'], {})
             self.assertEqual(m['nativeCopies']['copies'], [])
+
+
+class NameNewToTheMap(unittest.TestCase):
+    """(Review finding 37) A light change setting two values its component does not save, the first a property no
+    object of the map saves: apply adds its name to the grower's table and walks past it to write the second."""
+    def changed(self, path, kind, values):
+        p = lighting.Package(path)
+        prop = native_lights.PROPERTIES[next(iter(values))][0]
+        self.assertNotIn(prop, p.names)
+        reg = native_lights.source_registry(p)
+        e = next(e for e in reg.values() if e['role'] == 'static' and e['kind'] == kind)
+        g = package_grow.Grower(str(path))
+        state = native_lights.prepare(p, dict(changes=[change(e, set=dict(values))]))
+        (rec,) = native_lights.apply(g, p, state)['records']
+        names = [native_lights.PROPERTIES[k][0] for k in values]
+        self.assertEqual((rec['tagsAdded'][:1], rec['written']), ([prop], names))
+        ci = rec['exports']['component']
+        data = g.export_data(ci)
+        found = [prop for prop, *_ in native_copy.Walker(p, g).walk(data, native_lights.props_start(p, ci), len(data))]
+        self.assertLessEqual({n + '[0]' for n in names}, set(found))
+
+    @unittest.skipUnless(FARM and FARM.exists(), NO_FARM)
+    def test_a_point_lights_falloff_exponent_on_the_farm(self):
+        self.changed(FARM, 'point', dict(falloffExponent=3.0, enabled=False))
+
+    @unittest.skipUnless(BATTLESHIP and BATTLESHIP.exists(), NO_BATTLESHIP)
+    def test_a_spot_lights_inner_cone_on_the_battleship(self):
+        self.changed(BATTLESHIP, 'spot', dict(innerConeAngle=10.0, enabled=False))
 
 
 @unittest.skipUnless(TEMPLE and TEMPLE.exists(), NO_TEMPLE)

@@ -134,7 +134,7 @@ def apply(g, p, zones, gone=()):
     each actor's old and new pose, and the tiles; the rebuild volumes to add to the level). `gone`: actors the edit
     takes out (never moved)."""
     import native_copy
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     moves = plan(scene_metadata.landing_metadata(p), zones, native_copy.level_grid(p)['oz'])
     volumes, report = [], []
     for m in moves:
@@ -267,9 +267,8 @@ def apply_lane(g, p, ops):
     and its values; a delete leaves its slot in the level's list empty (native_copy.empty_slots, by the caller)."""
     if not ops or not any(ops.get(k) for k in ('moves', 'values', 'deletes', 'copies')):
         return [], set(), []
-    import buildings
     import native_copy
-    walker = buildings.grown_walker(p, g)
+    walker = native_copy.Walker(p, g)
     listed = set(native_copy.level_actors(p))
     record, moved, gone, clones = [], {}, set(), []
     for m in ops.get('moves') or []:

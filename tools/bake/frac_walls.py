@@ -238,8 +238,7 @@ def unscale(g, p, actor_old, actor_new, comp_old, comp_new):
     them). Returns the names set."""
     import native_copy
     import native_lights
-    walker = native_copy.Walker(p)
-    walker.names = g.names
+    walker = native_copy.Walker(p, g)
     done = []
     for old, new, single, vector in ((actor_old, actor_new, 'DrawScale', 'DrawScale3D'),
                                      (comp_old, comp_new, 'Scale', 'Scale3D')):
@@ -813,7 +812,7 @@ def cut_copy(g, p, mesh, gone):
     e = p.exports[mesh - 1]
     head = bytearray(p.data[e['off']:e['off'] + m['start']])
     struct.pack_into('<i', head, 0, net)
-    at = native_copy.Walker(p).value(bytes(head), 4, len(head), 'BodySetup[0]')
+    at = native_copy.Walker(p, g).value(bytes(head), 4, len(head), 'BodySetup[0]')
     body = index + 1 if body_old > 0 else 0
     if at is not None:
         struct.pack_into('<i', head, at, body)
@@ -990,7 +989,7 @@ def _list_in_columns(g, p, walls, pick):
     piece of that class (its MinZ the piece's lowest point less one, as the game's frames save it; its CutdownFloor 0,
     as a door's) in those columns. Returns [dict(wall, piece, original, columns)]."""
     import native_copy
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
     templates = {}
     for i in range(1, len(p.exports) + 1):
@@ -1066,7 +1065,7 @@ def neighbour_columns(g, p, walls, pieces):
     Listings between two of the map's own pieces are the map's, left as they are. Returns [dict(wall, other, lists (the
     wall's listings of the other's columns), listed (the other's of the wall's))]."""
     import native_copy
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     made = [dict(export=w['copy'], original=w['original'], bounds=list(w['box']), made=True)
             for w in walls if w.get('kind') in MADE]
     if not made:
@@ -1137,7 +1136,7 @@ def add_walls(g, p, items, grid, bake=True):
     copy, mesh, bodySetup, fragments, columns, vertices, triangles, box, light)). `bake`: the Build bakes the lighting
     (each wall's lightmap its own rectangle, which the relight fills); without, each wall gets an even light."""
     import native_copy
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     built, records = [], []
     dominant = None
     for item in items:

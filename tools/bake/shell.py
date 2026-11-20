@@ -263,8 +263,7 @@ def set_props(g, p, index, like=None, vectors=None, bools=None):
     e = p.exports[source - 1]
     data = bytearray(g.export_data(index))
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
-    walker = native_copy.Walker(p)
-    walker.names = g.names
+    walker = native_copy.Walker(p, g)
     for name, value in (vectors or {}).items():
         data = native_copy.set_vector(walker, g, data, start, name, value)
     for name, value in (bools or {}).items():
@@ -277,8 +276,7 @@ def configure_stage_light(g, p, actor, brightness, extra=()):
     component = p.own(actor, 'LightComponent')
     data = g.export_data(component)
     start = native_lights.props_start(p, component)
-    walker = native_copy.Walker(p)
-    walker.names = g.names
+    walker = native_copy.Walker(p, g)
     # Match XComMapEdSun's channels. The donor sky light is normally limited to units.
     channels = struct.pack('<ii', g.name('None'), 0)
     for name in ('bInitialized', 'BSP', 'Static', 'Dynamic', 'CompositeDynamic'):
@@ -601,7 +599,7 @@ def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, groun
     # second pass: the grid resized, and the staged actors that are to be in the battle placed and listed
     p = Package(source)
     g = package_grow.Grower(str(source))
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     add = []
     if ambient:
         index = p.by_name[LEVEL + '.' + staged['ambient'][0]]

@@ -110,11 +110,15 @@ SEED = 0x1
 
 
 class Walker:
-    """Tagged properties of an export's data: where each value lies, and which values are object references."""
+    """Tagged properties of an export's data: where each value lies, and which values are object references.
 
-    def __init__(self, p):
+    With `g`, the growing package (package_grow.Grower) being written over the map `p`, names are read from the
+    grower's table: the map's, then the ones added. A property whose name is new to the map is added there with an
+    index past the end of the map's own table, so a walker of grown bytes needs it (review finding 37)."""
+
+    def __init__(self, p, g=None):
         self.p = p
-        self.names = p.names
+        self.names = p.names if g is None else g.names
 
     def name_at(self, b, at):
         i, n = struct.unpack_from('<ii', b, at)
@@ -402,7 +406,7 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
     `fresh` are mesh components (export indices) of pieces brought from another map: a clone's texture lightmaps list
     `extra_guids` alone (the lights they listed are the other map's), and its distance-field shadow maps name
     `shadow_guid`, this map's dominant light (left as they are where the map has none)."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     fresh = set(fresh)
     extra_guids = extra_guids or {}
     at = len(g.entries) + 1
@@ -623,7 +627,7 @@ def link_children(g, p, made, originals, blocks=(), walled=()):
     lists them too, and a block lists nothing, so it follows its group and nothing follows it; with a block, one
     member is enough for a group, and so it is in a group with a made wall (`walled`: those groups' numbers), whose
     columns list its pieces (frac_walls.group_columns). Returns ({group: [members, then blocks]}, {copy: notes})."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
     groups, kept, notes = {}, {}, {}
     together = {}       # an assembly's copy: every original export of its members -> its clone
@@ -853,7 +857,7 @@ def add_volume(g, p, box, cls_name, template, tag=None):
     staying shared) cloned, placed and scaled, and retyped where it is of another class. Its Tag is `tag` (the class's
     name by default: the template's own tag would match what scripts look for by it). Returns dict(export, mapping
     (template export -> clone), template (its export), location, scale)."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     ti = p.by_name[PL + template]
     tc = p.own(ti, 'BrushComponent', 0)
     if not plain_volume(p, ti):
@@ -1053,8 +1057,7 @@ def make_walkable(g, p, actor, mapping=None):
     added where it saves none."""
     import native_lights
     mapping = mapping or {}
-    walker = Walker(p)
-    walker.names = g.names
+    walker = Walker(p, g)
     parts = [(actor, ('bCollideActors', 'bPathColliding'))]
     parts += [(ci, ('CollideActors', 'BlockRigidBody')) for ci in subtree(p, actor) if static_mesh(p, ci) > 0]
     for source, names in parts:
@@ -1084,8 +1087,7 @@ def ground_collision(g, p, actor, mapping):
     StaticMeshActor of URB_CommercialAlley saves bCanStepUpOn off, and no soldier climbed onto a block made from it).
     Returns the names changed."""
     import native_lights
-    walker = Walker(p)
-    walker.names = g.names
+    walker = Walker(p, g)
     changed = []
     on = GROUND_ON if p.cls(actor) in SCENERY_CLASSES else GROUND_ON[:1]
     parts = [(actor, on, GROUND_SAVED)]
@@ -1172,7 +1174,7 @@ def hide_pieces(g, p, hides, volumes=True):
     piece outside the map's tiles has none (its section's `tiles` and `volume` are None). Without `volumes` (a cleared
     map, whose one volume covers the whole grid: clear_level) none has a volume of its own.
     Returns (the manifest's sections, the volumes to add to the level)."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
     grid = level_grid(p)
     rebuild = volumes       # (the list below takes the name)
@@ -1511,7 +1513,7 @@ def move_columns(g, p, original, copy, before, after, members, partners=None):
     the original stands). Returns dict(columns, dropped: the DestructibleCache entries dropped, and, when there are
     any, carried: the entries now naming a partner's copy, neighbours: {kept, dropped} of the FracActorCache), or None
     when the copy saves no columns."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     partners = partners or {}
     e = p.exports[original - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
@@ -1561,7 +1563,7 @@ def shift_fragment_heights(g, p, mapping, dz):
     FragmentBoundsMaxZ, which the map saves as world heights (Bar's inner wall, standing at z 16, saves -0.04 and
     400; its roof slab at z 400 saves 398 and 402), go with it. `mapping`: the copy's {original export: clone}.
     Returns the components changed."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     changed = []
     for old, new in mapping.items():
         if abs(dz) < 1e-6 or p.cls(old) != 'FracturedStaticMeshComponent':
@@ -1592,7 +1594,7 @@ def edit_columns(g, p, gone, copies, fracturing=()):
     copy already. (No rule of the columns' own reproduces the bake's listing: a padded box of the piece misses or adds
     columns for most of Bar's.) Returns the manifest's section: {piece: {dropped, added, and neighboursDropped when
     any}} for each piece changed, a copy under '<original> copy <export>'."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
     pieces, names, sources = {}, {}, {}
     for i in range(1, len(p.exports) + 1):
@@ -1739,7 +1741,7 @@ def edit_floor_caches(g, p, copies, replaced=None):
     left to that edit, which lists it by the carried rule, and the copy's floor is found with their new boxes.
     Returns the manifest's section: [{copy, building, floor} or {copy, outside: true} or {copy, building, edited:
     true}]."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     buildings = building_floors(walker, g, p)
     replaced = replaced or {}
     after_floors = {i: (b, field, floors) for i, (b, field, floors) in buildings.items() if i not in replaced}
@@ -1792,7 +1794,7 @@ def list_made_walls(g, p, walls, replaced=None):
     walls = [w for w in walls if w.get('kind') in ('fracWall', 'fracSlab', 'ground')]
     if not walls:
         return []
-    walker = Walker(p)
+    walker = Walker(p, g)
     found = building_floors(walker, g, p)
     replaced = replaced or {}
     shape = building_tools.building_template(p, walker)
@@ -1867,7 +1869,7 @@ def edit_van_building(g, p, original, copy, own):
     VisGroupIdxToHideWhenOccluding is emptied (visibility groups of the original's place). Its floor volumes and
     ExternalMeshGroups already point at the clones. Returns dict(dropped: the residents dropped, outside: actors of its
     ExternalMeshGroups outside the assembly, kept as they are)."""
-    walker = Walker(p)
+    walker = Walker(p, g)
     e = p.exports[original - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     b = g.export_data(copy)
@@ -2016,8 +2018,7 @@ def set_roles(g, p, source, index, request, known=None, label=None, made=None):
         return rec
     if not plan['writes']:
         return rec
-    walker = Walker(p)
-    walker.names = g.names
+    walker = Walker(p, g)
     data = bytearray(g.export_data(index))
     start = native_lights.props_start(p, source)
     tail = bytes(data[props_end(walker, data, start):])
@@ -2133,8 +2134,7 @@ def break_component(g, p, actor, mapping, blasts, label=None, breaks_further=Fal
     e = p.exports[comp - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     target = mapping.get(comp, comp) if mapping else comp
-    walker = Walker(p)
-    walker.names = g.names
+    walker = Walker(p, g)
     data = frac_walls.painted_arrays(g, walker, g.export_data(target), start, made_blasts.visible_value(len(frags), out),
                                      made_blasts.chunks_of_bounds(frags, out))
     # a piece that keeps its fragments: kept whole, its hole cut into its own mesh (F-139), or, asked to break further,
