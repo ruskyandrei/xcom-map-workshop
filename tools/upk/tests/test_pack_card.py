@@ -78,6 +78,22 @@ class Lines(unittest.TestCase):
         self.assertEqual([pack_card.ship_number(v) for v in ('eShip_None', 'eship_ufoethereal', '12', 7)], [0, 9, 12, 7])
         with self.assertRaises(CardError): pack_card.ship_number('eShip_Nothing')
 
+    def test_a_value_a_card_cant_hold_is_refused(self):
+        """Review finding 44: each is a CardError (a ValueError, which the pack export reports for its project), not an
+        error of another kind, a huge card or a line read a character at a time."""
+        for text in ('Maps=( Name="X", InitialChance=abc )', 'Maps=( Name="X", InitialGain=1e300 )',
+                     'Maps=( Name="X", ShipType=99999999999 )',
+                     'Maps=( Name="X", StreamingMaps[0]=( MapName="A", Rot=( Pitch=inf ) ) )',
+                     'Maps=( Name="X", StreamingMaps[100000]=( MapName="A" ) )', 'Maps=( Name="X", StreamingMaps="XY" )',
+                     'Maps=( Name="X", StreamingMaps=( MapName="A" ) )', 'Maps=( Name="X", DynamicAliens[2]=eChar_Sectoid )',
+                     'LZArray=( MapName="X", StartLoc=( X=nope ) )'):
+            with self.subTest(text), self.assertRaises(CardError): from_lines('P', [text])
+        # the highest slot taken, and one alien with no slot is slot 0, as the ini reads it
+        line = map_line(parse_record(f'Maps=( Name="X", StreamingMaps[{pack_card.MAX_STREAM_SLOT}]=( MapName="A" ) )').fields)
+        self.assertEqual(len(line['StreamingMaps']), pack_card.MAX_STREAM_SLOT + 1)
+        self.assertEqual(map_line(parse_record('Maps=( Name="X", DynamicAliens=eChar_Sectoid )').fields)['DynamicAliens'],
+                         ['eChar_Sectoid', 'eChar_None'])
+
     def test_a_zone_line_has_every_field(self):
         self.assertEqual(zone_line(parse_record(ZONE).fields),
                          dict(MapName='EXP_Market', MissionType='eMission_None', CouncilType='eFCMType_None',

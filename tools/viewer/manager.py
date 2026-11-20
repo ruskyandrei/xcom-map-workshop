@@ -422,6 +422,54 @@ def folder_readme(pack, parts):
     return EOL.join(lines)
 
 
+# What of a build's manifest a pack carries (packages/<variant>/manifest.json), by an explicit list: what the build is
+# and holds, with the names and hashes a recipient checks, and never a folder of the computer it was made on: no
+# project.file, source.file or work, no stages (each tool's report, with its paths), no donor's file (review finding
+# 14). The build's own manifest stays as it is in the builds folder.
+PUBLIC_MANIFEST = ('schema', 'schemaVersion', 'editorVersion', 'buildId', 'builtAt', 'quick', 'variant', 'patch', 'cache',
+                   'lightingInside', 'files', 'streams', 'config', 'intros', 'replaceStreams', 'streamCopies', 'families',
+                   'nativeCopies', 'nativeHides', 'coverBlocks', 'pieceFlags', 'spawnEdits', 'buildings', 'buildingEdits',
+                   'foreignPieces', 'foreignEffects', 'lights', 'lightingUnchanged', 'picture', 'pictureNote', 'leftOut',
+                   'shell', 'tools')
+PUBLIC_PROJECT = ('id', 'name', 'revision', 'savedAt')
+PUBLIC_SOURCE = ('map', 'sha256', 'exporterVersion')
+PUBLIC_DONOR = ('map', 'sha256', 'pieces', 'effects', 'flares', 'objectsBrought', 'objectsReused', 'cut', 'sizes', 'bytes')
+
+
+def scrubber(roots):
+    """A function putting a placeholder (<name>) in place of each folder of `roots` ({name: folder}) in a text, either
+    slash and any case, the longest first: the last guard that no text of a pack names a folder of this computer (an
+    error's words in a warning, a README) (review finding 14)."""
+    found = sorted(((name, str(Path(root))) for name, root in roots.items() if root and len(str(Path(root))) > 3),
+                   key=lambda pair: -len(pair[1]))
+    patterns = [(re.compile(r'[\\/]'.join(re.escape(part) for part in re.split(r'[\\/]', text)), re.IGNORECASE), f'<{name}>')
+                for name, text in found]
+
+    def scrub(text):
+        for pattern, placeholder in patterns: text = pattern.sub(lambda _: placeholder, text)
+        return text
+    return scrub
+
+
+def scrubbed(value, scrub):
+    """A JSON value with every text in it (keys too) scrubbed."""
+    if isinstance(value, str): return scrub(value)
+    if isinstance(value, list): return [scrubbed(v, scrub) for v in value]
+    if isinstance(value, dict): return {scrub(k) if isinstance(k, str) else k: scrubbed(v, scrub) for k, v in value.items()}
+    return value
+
+
+def public_manifest(m, scrub=lambda text: text):
+    """A build's manifest as a pack carries it: the fields of PUBLIC_MANIFEST, the project's, the source's and each
+    donor's public ones, every text scrubbed."""
+    out = {k: m[k] for k in PUBLIC_MANIFEST if k in m}
+    for key, fields in (('project', PUBLIC_PROJECT), ('source', PUBLIC_SOURCE)):
+        if isinstance(m.get(key), dict): out[key] = {k: m[key][k] for k in fields if k in m[key]}
+    if isinstance(m.get('donors'), list):
+        out['donors'] = [{k: d[k] for k in PUBLIC_DONOR if k in d} for d in m['donors'] if isinstance(d, dict)]
+    return scrubbed(out, scrub)
+
+
 def pack(projects, builds, player, request, now=None):
     """One zip of the chosen projects' last builds (see the module notes). Projects without a build are left out and
     named; with none left it is an error."""
@@ -596,7 +644,9 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     stamp = now.strftime('%Y%m%d-%H%M%S')
     note = f'{installs.RECORD_NOTE}, {stamp[:8]}'
     parts, skipped, files = [], [], {}
-    card_maps, card_pictures, card_zones = [], [], []
+    card_pictures, card_zones = [], []
+    # each project's files, card lines and picture are staged on their own and join the pack only once the whole
+    # project has passed, so a project left out leaves nothing in it (review finding 13)
     for project_id, name, m, folder, why, its in chosen:
         if m is None:
             skipped.append(dict(id=project_id, name=name, error=why))
@@ -606,10 +656,11 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             plan = installs.rotation_plan(lines, m, note, its)
             on_card = installs.rotation_plan(lines, m, note, its, cards=True)
             base, variant = m['source']['map'], m['variant']
+            staged = {}
             for src, _, digest in package_files:
-                if files.get(src.name, (src, digest))[1] != digest:
+                if files.get(src.name, staged.get(src.name, (src, digest)))[1] != digest:
                     raise installs.InstallError(f'{src.name} is in two of the builds with different contents')
-                files[src.name] = (src, digest)
+                staged[src.name] = (src, digest)
             # replacing: the base map's live records the build has records for are commented out (switch), the others
             # stay in use (keep, F-118); a map whose records the install comments out has none
             live = [l for l in lines if dep.is_record(l) and dep.field(l, 'Name') == base] if its == 'replace' else []
@@ -639,10 +690,11 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                 if src.suffix.lower() == '.upk' and packs.package_guid(src) == bytes(16):
                     warnings.append(f'{src.name} has an all-zero GUID: LWR takes such a map file as missing and skips its lines.')
             mine = [l.decode('latin-1') for l in on_card['block'] if pack_card.parse_record(l) is not None]
-            card_maps += mine
-            card_zones += [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
-            if library: card_pictures.append(f'Pictures=(Map="{variant}", Picture="{library}.{base}")')
-            parts.append(dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
+            zone_lines = [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
+            picture_lines = [f'Pictures=(Map="{variant}", Picture="{library}.{base}")'] if library else []
+            # the card's lines typed now: one the card can't hold leaves this project out, with why (review finding 44)
+            pack_card.from_lines('check', mine + picture_lines + zone_lines)
+            part = dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               cache=m.get('cache'), intros=_intros_of(m), introActions=_intro_actions(m),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
@@ -653,9 +705,14 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
                               donors=[{k: d.get(k) for k in ('map', 'sha256', 'pieces')} for d in m.get('donors') or []],
-                              warnings=warnings))
-        except (OSError, ValueError, KeyError, installs.InstallError) as error:
+                              warnings=warnings)
+        except (OSError, ValueError, KeyError, TypeError, installs.InstallError) as error:
             skipped.append(dict(id=project_id, name=name, error=str(error)))
+            continue
+        files.update(staged)
+        card_zones += zone_lines
+        card_pictures += picture_lines
+        parts.append(part)
     if not parts:
         raise ProjectError(409, 'Not made: none of the chosen projects has a build to pack. '
                            + ' '.join(f'{s["name"]}: {s["error"]}' for s in skipped), skipped=skipped)
@@ -688,7 +745,8 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     intro_files = _shared_intros(parts, files, work, record, cooked)
     card_maps = [l for p in parts for l in p['cardLines']]
     card_lines = card_maps + card_pictures + card_zones
-    card_data, card_notes = pack_card.from_lines(pack_name, card_lines)
+    try: card_data, card_notes = pack_card.from_lines(pack_name, card_lines)
+    except ValueError as error: raise ProjectError(409, f'Not made: the pack\'s card could not be written ({error}).')
     card_file = pack_card.file_name(record['card'])
     # a display name two lines of the pack share: LWR uses the later line alone
     seen, shared_names = {}, []
@@ -721,22 +779,37 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     folder = builds.output / PACKS
     target = folder / record['zip']
     temp = target.with_suffix('.zip.tmp')
-    with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:
-        z.writestr('README.txt', pack_readme(described, parts).encode('latin-1', 'replace'))
-        z.writestr('pack.json', json.dumps(described, indent=1) + '\n')
-        z.writestr('Install.cmd', pack_scripts.INSTALL_CMD)
-        z.writestr('Uninstall.cmd', pack_scripts.UNINSTALL_CMD)
-        z.writestr('pack-tools/pack.ps1', pack_scripts.PS1)
-        z.writestr(f'CookedPCConsole/{pack_folder}/{card_file}', card_data)
-        z.writestr(f'CookedPCConsole/{pack_folder}/README.txt', folder_readme(described, parts).encode('latin-1', 'replace'))
-        for n, (src, _) in sorted(files.items()):
-            z.write(src, f'CookedPCConsole/{n}' if n in caches else f'CookedPCConsole/{pack_folder}/{n}')
-        for p in parts:
-            for n in ('README.txt', 'manifest.json'):
-                if (p['folder'] / n).is_file(): z.write(p['folder'] / n, f'packages/{p["variant"]}/{n}')
-        for n, data in sorted(project_data.items()):
-            z.writestr(f'projects/{n}', data)
-    temp.replace(target)
+    # no text of the pack names a folder of this computer: each build's manifest goes as its public fields, and every
+    # text the pack writes is scrubbed of the folders the editor knows (review finding 14); the editor projects, when
+    # asked for, go byte for byte as saved
+    scrub = scrubber(dict(builds=builds.output, projects=projects.root, cache=getattr(builds, 'cache', None), game=game,
+                          install=_targets(player)[0], temp=tempfile.gettempdir(), home=Path.home()))
+    try:
+        with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('README.txt', scrub(pack_readme(described, parts)).encode('latin-1', 'replace'))
+            z.writestr('pack.json', json.dumps(scrubbed(described, scrub), indent=1) + '\n')
+            z.writestr('Install.cmd', pack_scripts.INSTALL_CMD)
+            z.writestr('Uninstall.cmd', pack_scripts.UNINSTALL_CMD)
+            z.writestr('pack-tools/pack.ps1', pack_scripts.PS1)
+            z.writestr(f'CookedPCConsole/{pack_folder}/{card_file}', card_data)
+            z.writestr(f'CookedPCConsole/{pack_folder}/README.txt',
+                       scrub(folder_readme(described, parts)).encode('latin-1', 'replace'))
+            for n, (src, _) in sorted(files.items()):
+                z.write(src, f'CookedPCConsole/{n}' if n in caches else f'CookedPCConsole/{pack_folder}/{n}')
+            for p in parts:
+                readme, manifest = p['folder'] / 'README.txt', p['folder'] / 'manifest.json'
+                if readme.is_file():
+                    z.writestr(f'packages/{p["variant"]}/README.txt', scrub(readme.read_bytes().decode('latin-1')).encode('latin-1'))
+                if manifest.is_file():
+                    z.writestr(f'packages/{p["variant"]}/manifest.json',
+                               json.dumps(public_manifest(json.loads(manifest.read_text(encoding='utf-8')), scrub), indent=1) + '\n')
+            for n, data in sorted(project_data.items()):
+                z.writestr(f'projects/{n}', data)
+        temp.replace(target)
+    except OSError as error:
+        raise ProjectError(500, f'Not made: the zip could not be written ({error}).')
+    finally:
+        temp.unlink(missing_ok=True)        # a zip that failed part-way is not left behind (review finding 46)
     packs.save(projects.root, record)
     return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size, folder=pack_folder, card=record['card'],
                 version=record['version'], notes=notes,

@@ -72,6 +72,9 @@ ZONE_FIELDS = (('MapName', 'str', ''), ('MissionType', 'EMissionType', 'eMission
                ('StartDir', 'name', 'None'), ('ESpawnLoc', 'name', 'None'), ('AltSpawnLoc', 'vector', (0.0, 0.0, 0.0)),
                ('AltSpawnDir', 'name', 'None'))
 PICTURE_FIELDS = (('Map', 'str', ''), ('Picture', 'str', ''))
+# the highest StreamingMaps slot a line may give: the game's own records use a handful, and each slot up to the highest
+# is written, so StreamingMaps[100000] made a 12 MB card (review finding 44)
+MAX_STREAM_SLOT = 99
 KINDS = {'maps': 'Maps', 'pictures': 'Pictures', 'lzarray': 'LZArray'}
 KEYS = {'Maps': [f for f, _, _ in MAP_FIELDS] + ['DynamicAliens', 'StreamingMaps'],
         'Pictures': [f for f, _, _ in PICTURE_FIELDS], 'LZArray': [f for f, _, _ in ZONE_FIELDS]}
@@ -152,7 +155,17 @@ def _bool(value):
 
 
 def _f32(value):
-    return struct.unpack('<f', struct.pack('<f', float(value)))[0]
+    """A value as a card's float holds it; a CardError for one that is no number or too large (review finding 44)."""
+    try: return struct.unpack('<f', struct.pack('<f', float(value)))[0]
+    except (ValueError, TypeError, OverflowError, struct.error): raise CardError(f'not a number a card can hold: {value!r}') from None
+
+
+def _int32(value, what):
+    """A value as a card's int holds it, or a CardError."""
+    try: number = int(float(value)) if isinstance(value, str) else int(value)
+    except (ValueError, TypeError, OverflowError): raise CardError(f'{what} {value!r} is not a whole number') from None
+    if not -2 ** 31 <= number < 2 ** 31: raise CardError(f'{what} {value!r} is too large for a card')
+    return number
 
 
 def _vector(value, keys='XYZ'):
@@ -162,18 +175,19 @@ def _vector(value, keys='XYZ'):
 
 
 def _rotator(value):
-    if isinstance(value, dict): return tuple(int(float(value.get(k, 0))) for k in ('Pitch', 'Yaw', 'Roll'))
-    if isinstance(value, (tuple, list)) and len(value) == 3: return tuple(int(v) for v in value)
+    if isinstance(value, dict): return tuple(_int32(value.get(k, 0), k) for k in ('Pitch', 'Yaw', 'Roll'))
+    if isinstance(value, (tuple, list)) and len(value) == 3: return tuple(_int32(v, 'a rotator') for v in value)
     raise CardError(f'not a rotator: {value!r}')
 
 
 def ship_number(value):
     """A ShipType as a card holds it: the entry's number for an eShip_ name, a plain number as it is."""
-    if isinstance(value, int) and not isinstance(value, bool): return value
+    if isinstance(value, int) and not isinstance(value, bool): return _int32(value, 'ShipType')
     text = str(value).strip()
     if text.lower() in SHIP_NUMBER: return SHIP_NUMBER[text.lower()]
-    try: return int(text)
+    try: number = int(text)
     except ValueError: raise CardError(f'ShipType {text!r} is neither an eShip_ name nor a number') from None
+    return _int32(number, 'ShipType')
 
 
 def _typed(kind, value):
@@ -198,15 +212,27 @@ def _stream(value):
 
 def map_line(fields):
     """A map record as the card holds it: every field, typed. `fields`: a Record's, or a line made before (the same
-    comes back). StreamingMaps: {slot: stream} (ini) or a list; slots without a stream get an empty element."""
+    comes back). StreamingMaps: {slot: stream} (ini, slots 0 to MAX_STREAM_SLOT) or a list; slots without a stream get
+    an empty element. DynamicAliens: {slot: name}, a list, or one name (slot 0, as an ini line without a slot sets
+    it)."""
     line = _line(fields, MAP_FIELDS)
     aliens = fields.get('DynamicAliens') or {}
-    if isinstance(aliens, dict): aliens = [aliens.get(0, ALIEN_NONE), aliens.get(1, ALIEN_NONE)]
+    if isinstance(aliens, str): aliens = [aliens]
+    if isinstance(aliens, dict):
+        if any(k not in (0, 1) for k in aliens): raise CardError('DynamicAliens has two slots, 0 and 1')
+        aliens = [aliens.get(0, ALIEN_NONE), aliens.get(1, ALIEN_NONE)]
     aliens = [str(a) if a else ALIEN_NONE for a in aliens]
     if len(aliens) > 2: raise CardError('DynamicAliens has two slots')
     line['DynamicAliens'] = (aliens + [ALIEN_NONE, ALIEN_NONE])[:2]
     streams = fields.get('StreamingMaps') or []
-    if isinstance(streams, dict): streams = [streams.get(i) for i in range(max(streams) + 1)] if streams else []
+    # one stream with no slot (a text, or a bracket of its own) would be read a character or a key at a time
+    if isinstance(streams, str) or (isinstance(streams, dict) and not all(isinstance(k, int) for k in streams)):
+        raise CardError('StreamingMaps needs its slot: StreamingMaps[0]=(MapName="...")')
+    if isinstance(streams, dict):
+        if streams and max(streams) > MAX_STREAM_SLOT:
+            raise CardError(f'StreamingMaps[{max(streams)}]: a card line takes slots 0 to {MAX_STREAM_SLOT}')
+        streams = [streams.get(i) for i in range(max(streams) + 1)] if streams else []
+    if len(streams) > MAX_STREAM_SLOT + 1: raise CardError(f'a card line takes {MAX_STREAM_SLOT + 1} streams at most')
     line['StreamingMaps'] = [_stream(s) for s in streams]
     return line
 
