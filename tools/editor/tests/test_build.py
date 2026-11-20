@@ -467,7 +467,9 @@ class Builds(unittest.TestCase):
                 self.flag_fixture(args, lit, variant)
             (lit / ('%s.relight.json' % variant)).write_text(json.dumps(dict(
                 components=[1, 2], unchanged=[3], skipped=[], copies=[] if native else [dict(source='X_1', triangles=5)],
-                nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [])))
+                nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [],
+                # the relight's record of texels its writes changed in pieces it didn't relight (lighting_fixture)
+                otherPiecesChanged=getattr(self, 'other_changed', dict(textures=0, pieces=[], texels=0, largest=0.0)))))
 
     def tool(self, name):
         return [r for r in self.ran if r[0] != 'pwsh' and any(a.endswith(name) for a in r)]
@@ -1113,6 +1115,26 @@ class Builds(unittest.TestCase):
         with self.assertRaisesRegex(build.BuildError, 'needs a patch cooked in UDK, and the udk setting is not set'):
             self.make(udk=False).run()
         self.assertEqual([r for r in self.ran if r[0] == 'pwsh'], [])
+
+    def test_texels_changed_in_pieces_not_relit_reach_the_light_stage(self):
+        """(review finding 15) The relight's record of texels its writes changed in the lightmaps of pieces it was not
+        relighting reaches the light stage as a record of its own (count, largest change, the first pieces), by both
+        command lines (native_copy.py --bake, and relight.py alone); a clean record adds nothing."""
+        pieces = ['TheWorld.PersistentLevel.XComLevelActor_%d.StaticMeshComponent_0' % k for k in range(25)]
+        self.other_changed = dict(textures=2, pieces=pieces, texels=37, largest=0.21)
+        for stamp, objects, tool in (('110000', [COPY, DOOR, HIDE], 'native_copy.py'), ('111500', [DOOR], 'relight.py')):
+            with self.subTest(tool=tool):
+                self.ran.clear()
+                self.spec['objects'] = objects
+                m = self.make(stamp).run()
+                self.assertTrue(any('--cache' in r for r in self.tool(tool)))
+                other = next(s for s in m['stages'] if s['stage'] == 'light')['otherPiecesChanged']
+                self.assertEqual({k: other[k] for k in ('texels', 'largest', 'count', 'textures')},
+                                 dict(texels=37, largest=0.21, count=25, textures=2))
+                self.assertEqual(other['pieces'], pieces[:build.OTHER_SHOWN])
+        self.other_changed = dict(textures=0, pieces=[], texels=0, largest=0.0)
+        m = self.make('112000').run()
+        self.assertNotIn('otherPiecesChanged', next(s for s in m['stages'] if s['stage'] == 'light'))
 
     def test_the_copiers_copies_stay_in_the_patch(self):
         self.spec['objects'] = [DOOR]

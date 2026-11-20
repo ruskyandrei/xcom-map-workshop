@@ -397,8 +397,10 @@ class BuildRunner:
                 job['error'] = line[len('build failed: '):]
             elif line.startswith('built ') and ': ' in line:
                 job['buildId'] = line[6:].split(': ', 1)[0]
-            elif line.startswith('warning: '):
-                job.setdefault('warnings', []).append(line[len('warning: '):])
+            elif line.lstrip().startswith('warning: '):
+                # build.py's own at the line's start, a tool's indented under its command line (relight.py's writes
+                # reaching pieces it didn't relight)
+                job.setdefault('warnings', []).append(line.lstrip()[len('warning: '):])
             elif line.startswith('  $ '):
                 tool = next((t for t in ('patchtool.ps1', 'native_copy.py', 'relight.py') if t in line), None)
                 if tool: job['running'] = dict(patchtool='patch and cook',

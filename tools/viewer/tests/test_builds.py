@@ -178,6 +178,18 @@ class Builds(unittest.TestCase):
         self.assertEqual((s['package']['foreignPieces'], s['package']['foreignEffects'], s['package']['donors']),
                          (2, 0, [dict(map='URB_PoliceStation', pieces=2, effects=None, bytes=1234)]))
 
+    def test_a_tools_indented_warning_is_a_warning_of_the_build(self):
+        """(review finding 15) build.py echoes a tool's lines indented under its command line: the relight's warning
+        that its writes changed pieces it didn't relight is found there too, not only at a line's start."""
+        job = dict(lines=[], stages=[], stage=None, running=None, progress=None, error=None)
+        self.runner._line(job, 'warning: the package swap left a note')
+        self.runner._line(job, '        warning: writing the lighting changed 37 texels (by up to 0.21) in the lightmaps '
+                               'of 2 pieces that were not relit: A, B')
+        self.runner._line(job, '    the word warning: in the middle is no warning')
+        self.assertEqual(job['warnings'], ['the package swap left a note',
+                                           'writing the lighting changed 37 texels (by up to 0.21) in the lightmaps of 2 '
+                                           'pieces that were not relit: A, B'])
+
     def test_a_failed_build_says_why(self):
         self.outcome = 'fail'
         self.runner.start(ID)

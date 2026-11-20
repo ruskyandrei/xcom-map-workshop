@@ -151,6 +151,7 @@ EXPORT_MINIMUM = 18
 # the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
 EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
+OTHER_SHOWN = 20            # how many pieces the light stage names whose lightmaps the relight's writes reached
 # what a quick build does with light edits (editor lights plan, 4.3): made in the map, not baked; the editor's build
 # panel can show the same text beside Bake the lighting
 QUICK_LIGHTS = ('Its light edits are made in the map but not baked: a deleted light\'s pool stays on the baked '
@@ -306,6 +307,18 @@ def light_counts(native):
                           deleted=sum(1 for a in area if a.get('op') == 'delete'),
                           pieces=sorted({str(a.get('ownerEntity') or a.get('owner')) for a in area
                                          if a.get('ownerEntity') or a.get('owner')})))
+
+
+def other_pieces_changed(record):
+    """The relight record's otherPiecesChanged (lighting_fixture.others_changed: the texels its writes changed in the
+    lightmaps of pieces it was not relighting, a write re-encoding whole 4-texel blocks) as the light stage carries
+    it: {texels, largest (the largest change, 0 to 1), count (pieces), pieces (the first OTHER_SHOWN), textures}, or
+    None when it changed none."""
+    if not isinstance(record, dict) or not record.get('texels'):
+        return None
+    pieces = [str(p) for p in record.get('pieces') or []]
+    return dict(texels=record['texels'], largest=record.get('largest'), count=len(pieces), pieces=pieces[:OTHER_SHOWN],
+                textures=record.get('textures'))
 
 
 def light_summary(counts):
@@ -1190,6 +1203,11 @@ class Build:
                           # pieces of other maps, lit from nothing where they stand (relight.py --foreign-copy)
                           **({'foreignCopies': [c['copy'] for c in rec['foreignCopies']]} if rec.get('foreignCopies') else {}),
                           hidden=len(self.native['hides']), lightingUnchanged=self.unchanged)
+        # texels the relight's writes changed in the lightmaps of pieces it was not relighting (relight.py's warning):
+        # carried as a record of its own, so the build window says it once the log has scrolled past
+        other = other_pieces_changed(rec.get('otherPiecesChanged'))
+        if other:
+            self.relit['otherPiecesChanged'] = other
         if self.lights:
             self.relit['lights'] = dict(self.lights, **self.light_record())
         self.relit.update(self.building_record())
