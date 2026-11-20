@@ -522,9 +522,9 @@ records; [test_effects_metadata.py](../tools/viewer/tests/test_effects_metadata.
 **Where.** The map's own are the scene's `effects`, `sounds` and `flares` (sorted by actor). A mission stream's own are
 its layer's (`streams[<name>].effects`, `.sounds`, `.flares`), with `layer: "stream"` and `stream` its name; the
 cinematic streams (`CIN_`) are not read, as for pieces. `effectSystems` and `soundWaves` are keyed
-`<package>|<object path>` and hold every system and wave the map's and its streams' records name. `effectsMetadata`
-is `{ version: 1, defaults: "script" | "table" }`: whether class defaults came from the game's script packages or,
-where those can't be read, from the module's `CLASS_DEFAULTS`.
+`<package>|<object path>` and hold every system and wave the map's and its streams' records name. (Exports 28 to
+36 also wrote `effectsMetadata`, whether class defaults came from the game's script packages or the module's
+`CLASS_DEFAULTS`; nothing read it, and export 37 dropped it.)
 
 **Every record:**
 

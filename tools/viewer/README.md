@@ -42,8 +42,8 @@ It never stops a process that is not this server.
 The default port is **8768**, the main viewer/editor server. Keep one server there and restart it after a re-export
 (it picks its exports when it starts); web changes only need a browser reload. Test servers use `--port`
 8790–8799 and are stopped after the check. `--no-open` starts the server without opening a browser.
-Use `--scope sample` on URB_Bar for a close study of asphalt, compact car body/glass and a fractured wall.
-Sample mode can switch between study positions and original placements. Other maps require `--scope map`.
+An export is of the whole map (`--scope map`, the only scope; the piece study of three of URB_Bar's pieces that
+earlier exports offered is gone, and such a generation is no longer opened).
 An arbitrary new map has not been validated just because its package version matches.
 
 ### Choose a base map in the UI
@@ -85,7 +85,7 @@ leaves a short banner with **Re-export**; a map that comes
 back still outdated in the same browser session waits for a click instead of starting again.
 
 Library mode chooses one published full-map generation per map, preferring the highest exporter version and then
-the latest manifest. It skips `.export-*` staging folders, malformed manifests and sample exports. An export made
+the latest manifest. It skips `.export-*` staging folders, malformed manifests and earlier piece studies. An export made
 outside the server (`viewer.py export`) needs a restart to be listed. Serving an exact generation, as above, keeps
 that generation pinned and shows just its base map. A map-specific cache folder can also be served to select its
 latest full generation.
@@ -263,7 +263,8 @@ The 3D view fills the window. The rest appears when it is needed, so the screen 
 
 The game loads more than the map package: each of the map's `DefaultMaps.ini` records (one per mission) streams
 other packages into it. Since export 13 the export reads them from the install the package is in (`missions` and
-`streams` in `scene.json`, landing intros and other cinematics left out), and the original layout shows them:
+`streams` in `scene.json`, landing intros and other cinematics left out; since export 37 each mission also says its
+kind, `kind`: a council mission's `Special/<council type>`), and the original layout shows them:
 - **LWR's patches** (`patch_<map>`, on 93 of LWR's 95 maps, and `patch_hide_randomized_objects`): mostly pieces
   placed hidden in the game, cover blocks and blockers (URB_PoliceStation's six: `highcover`, `Cover2x4`,
   `CoverSmallCar` over a burnt-out car...), hidden as in the game unless **Hide patch helpers** is unticked.
@@ -844,7 +845,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Ctrl+S** saves the next revision; without a project open it opens the Save dialog. The address carries
   `?map=…&project=<id>`, so a reload reopens it. Saving under another project drops the changes kept for recovery of
   the one open before: they are saved now.
-- On a patch preview or piece study, Save and Save as… are off (projects edit a map's original layout); Load and the
+- On a patch preview, Save and Save as… are off (projects edit a map's original layout); Load and the
   recent list still open a project on its map.
 - **Opening** a project replays it onto the map as exported: originals moved or deleted, copies added. It also puts
   back the camera from the last save, and starts with an empty undo history.

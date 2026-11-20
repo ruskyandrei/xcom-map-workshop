@@ -1287,6 +1287,9 @@ class Launch(unittest.TestCase):
         self.assertEqual([missions.kind_key(r) for r in (record('bar'), bomb_record(), record('templeship'), record('gangplank'))],
                          ['Abduction', 'Special/Bomb', 'Final', 'LandedUFO'])
         self.assertEqual(missions.kind_of_export(dict(type='Special', label='Council rescue')), 'Special/Rescue')
+        # export 37 says the kind itself: a reworded label no longer turns a council mission into a plain special one
+        self.assertEqual(missions.kind_of_export(dict(type='Special', label='Council rescue (new words)', kind='Special/Rescue')),
+                         'Special/Rescue')
         self.assertEqual(missions.kind('eMission_Unheard')['state'], 'untried')
         landed = 'MissionType=eMission_LandedUFO, ShipType=eShip_UFOSmallScout, CouncilType=eFCMType_None'
         hive = 'MapFamily="EWI_ChryssalidHive", MissionType=eMission_Special, CouncilType=eFCMType_Assault'

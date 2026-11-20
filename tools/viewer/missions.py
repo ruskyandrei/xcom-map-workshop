@@ -173,7 +173,10 @@ def kind_key(record):
 
 
 def kind_of_export(mission):
-    """The kind of an export's mission ({type, label}: export.map_records), as the page's twin works it out."""
+    """The kind of an export's mission ({type, label, kind}: export.map_records): its `kind` (export 37), else, for an
+    older export, from its type and its council label, as the page's twin (web/missions.js kindKey) works it out."""
+    if isinstance(mission.get('kind'), str):
+        return mission['kind']
     if mission.get('type') == 'Special':
         return next((f'Special/{c}' for c in COUNCIL if maplist.COUNCIL_LABEL[c] == mission.get('label')), 'Special')
     return mission.get('type') or ''

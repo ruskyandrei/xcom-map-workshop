@@ -11,6 +11,9 @@ assert.equal(kindKey({ type: 'Abduction', label: 'Abduction' }), 'Abduction');
 assert.equal(kindKey({ type: 'Special', label: 'Council bomb' }), 'Special/Bomb');
 assert.equal(kindKey({ type: 'Special', label: 'Something else' }), 'Special');
 assert.equal(kindKey(null), '');
+// export 37 says the kind itself (the label is taken only from an older export)
+assert.equal(kindKey({ type: 'Special', label: 'Council bomb, reworded', kind: 'Special/Bomb' }), 'Special/Bomb');
+assert.equal(kindKey({ type: 'Abduction', label: 'Abduction', kind: 'Abduction' }), 'Abduction');
 assert.deepEqual(missionTypes({ type: 'Special', label: 'Council rescue' }), { missionType: 'eMission_Special', councilType: 'eFCMType_Rescue' });
 // a zone kept for no mission serves every one; one kept for the bomb serves the bomb alone
 const bomb = { type: 'Special', label: 'Council bomb' }, abduction = { type: 'Abduction', label: 'Abduction' };
