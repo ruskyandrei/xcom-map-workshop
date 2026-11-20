@@ -2329,6 +2329,12 @@ class BuildState:
     blast_record: object = filled()     # the map's own pieces broken where they stand (blasts_in_place), or None
     stream_record: list = filled(list)  # a mission's pieces' tiles moved in their stream
     priority: tuple = filled(tuple)     # the ladders' top tile volumes the rebuild queues first, on a resized map
+    # the floors' effect lists and the cursor floors (floors_and_cursors), and what it reads that build made
+    effect_record: list = filled(list)  # the effects carried with the moved, copied and deleted pieces
+    lane_effects: list = filled(list)   # the effects lane's records (native_effects.apply)
+    floor_emitters: list = filled(list)     # the effects listed in, or taken out of, the building floors' lists
+    cursor_record: object = filled()    # the made slabs' cursor floors (made_cursors.apply), or None
+    cursor_clones: list = filled(list)  # the cursor volumes made, for the level's list
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2893,6 +2899,42 @@ def edits_in_place(st):
     st.hide_volumes, st.firsts, st.ladders = hide_volumes, firsts, ladders
 
 
+def floors_and_cursors(st):
+    """The building floors' effect lists against the final effects and floors (native_effects.floor_lists), and the
+    made floors' and roofs' own cursor floors (made_cursors.py), after the copies, the buildings, the clear and the
+    landings (BuildState `st`). Fills the state's floor_emitters, cursor_record and cursor_clones."""
+    import native_effects
+    p, g, building_edits, building_records = st.p, st.g, st.building_edits, st.building_records
+    effect_record, lane_effects, generated_records = st.effect_record, st.lane_effects, st.generated_records
+    # the building floors' effect lists, once, against the final effects and floors (plan Part D): after the copies'
+    # cutaways, the buildings made and edited, the clear and the landings
+    moved_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'moved'}
+    moved_now.update({p.by_name[PL + r['effect']]: r['location'] for r in effect_record if r['how'] == 'moved'})
+    new_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'copied'}
+    new_now.update({r['copy']: r['location'] for r in effect_record if r['how'] == 'copied'})
+    gone_effects = ({r['export'] for r in lane_effects if r['how'] == 'deleted'}
+                    | {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'deleted'})
+    floor_emitters = native_effects.floor_lists(g, p, moved_now, new_now, gone_effects, building_edits,
+                                                building_records)
+    # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,
+    # F-128): the map's cursor volumes they cross taken out and stood again round them, and floors breaking at
+    # their tops over them
+    cursor_record, cursor_clones = None, []
+    made_slabs = [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=r['label'])
+                  for r in generated_records if r['kind'] == 'fracSlab' for b in [r['box']]]
+    if made_slabs:
+        import made_cursors
+        cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs)
+        if cursor_record:
+            print("    the made floors' and roofs' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "
+                  '(%d over the made slabs)' % (len(cursor_record['hidden']), ', '.join(cursor_record['hidden']) or 'none',
+                                               len(cursor_record['added']), sum(a['over'] for a in cursor_record['added'])))
+            for c in cursor_record['crossed']:
+                print("    %s is over the map's %s cursor volume %s, left as it is" % (
+                    c['slab'], 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
+    st.floor_emitters, st.cursor_record, st.cursor_clones = floor_emitters, cursor_record, cursor_clones
+
+
 def build(st):
     """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
     copies, bake...), which build reads once, and the state build fills as it goes.
@@ -3054,32 +3096,10 @@ def build(st):
     registration, landing_record, stream_record = st.registration, st.landing_record, st.stream_record
     flag_record, blast_record, priority = st.flag_record, st.blast_record, st.priority
     hide_volumes, firsts, ladders = st.hide_volumes, st.firsts, st.ladders
-    # the building floors' effect lists, once, against the final effects and floors (plan Part D): after the copies'
-    # cutaways, the buildings made and edited, the clear and the landings
-    moved_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'moved'}
-    moved_now.update({p.by_name[PL + r['effect']]: r['location'] for r in effect_record if r['how'] == 'moved'})
-    new_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'copied'}
-    new_now.update({r['copy']: r['location'] for r in effect_record if r['how'] == 'copied'})
-    gone_effects = ({r['export'] for r in lane_effects if r['how'] == 'deleted'}
-                    | {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'deleted'})
-    floor_emitters = native_effects.floor_lists(g, p, moved_now, new_now, gone_effects, building_edits,
-                                                building_records)
-    # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,
-    # F-128): the map's cursor volumes they cross taken out and stood again round them, and floors breaking at
-    # their tops over them
-    cursor_record, cursor_clones = None, []
-    made_slabs = [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=r['label'])
-                  for r in generated_records if r['kind'] == 'fracSlab' for b in [r['box']]]
-    if made_slabs:
-        import made_cursors
-        cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs)
-        if cursor_record:
-            print("    the made floors' and roofs' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "
-                  '(%d over the made slabs)' % (len(cursor_record['hidden']), ', '.join(cursor_record['hidden']) or 'none',
-                                               len(cursor_record['added']), sum(a['over'] for a in cursor_record['added'])))
-            for c in cursor_record['crossed']:
-                print("    %s is over the map's %s cursor volume %s, left as it is" % (
-                    c['slab'], 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
+    # the building floors' effect lists and the made slabs' cursor floors (floors_and_cursors)
+    st.effect_record, st.lane_effects = effect_record, lane_effects
+    floors_and_cursors(st)
+    floor_emitters, cursor_record, cursor_clones = st.floor_emitters, st.cursor_record, st.cursor_clones
     level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones + cursor_clones
                          + (light_result['actors'] if light_result else []), before_rebuild=priority)
     dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
