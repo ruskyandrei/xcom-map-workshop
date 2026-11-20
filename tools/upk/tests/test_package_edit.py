@@ -299,6 +299,83 @@ class UncompressedMap(unittest.TestCase):
             self.assertEqual(report['bytesChanged'], sum(a != b for a, b in zip(self.full[start:start + 4], b'XCOM')))
 
 
+def flat_package(sizes, seed=5):
+    """A synthetic package stored uncompressed: a v845 summary with no chunks, a name table, an export table and its
+    depends, then each export's data (random bytes of `sizes`). Returns (its bytes, the export data's offsets)."""
+    rng = random.Random(seed)
+    names = b''.join(fstr(n) + struct.pack('<Q', 0) for n in ('None', 'Core', 'Thing'))
+
+    def head(nameoff, expoff, dependsoff, headersize):
+        out = struct.pack('<IHHI', 0x9E2A83C1, 845, 64, headersize) + fstr('None') + struct.pack('<I', 0x8)
+        out += struct.pack('<11I', 3, nameoff, len(sizes), expoff, 0, 0, dependsoff, 0, 0, 0, 0) + bytes(range(16))
+        out += struct.pack('<I3I', 1, len(sizes), 3, 0) + struct.pack('<III', 8916, 0, 0)
+        return out + struct.pack('<I', 0) + struct.pack('<II', 0, 0)       # no chunks, the package source, no extra
+
+    size0 = len(head(0, 0, 0, 0))
+    nameoff = size0
+    expoff = nameoff + len(names)
+    dependsoff = expoff + 68 * len(sizes)
+    headersize = dependsoff + 4 * len(sizes)
+    offsets, at = [], headersize
+    for n in sizes:
+        offsets.append(at)
+        at += n
+    table = b''.join(struct.pack('<iiiiiiQIIII', 0, 0, 0, 2, k, 0, 0, n, off, 0, 0) + bytes(16) + struct.pack('<I', 0)
+                     for k, (n, off) in enumerate(zip(sizes, offsets)))
+    data = b''.join(bytes(rng.randrange(256) for _ in range(n)) if n < 4096 else rng.randbytes(n) for n in sizes)
+    raw = head(nameoff, expoff, dependsoff, headersize) + names + table + bytes(4 * len(sizes)) + data
+    assert len(raw) == at
+    return raw, offsets
+
+
+class SyntheticUncompressed(unittest.TestCase):
+    """The uncompressed-map layout on a synthetic package (review finding 62: UncompressedMap needs URB_Bar): the
+    summary keeps every field but its flags and chunks, the header's tables are the first chunk, the export data
+    is cut only where an export starts and into chunks of up to CHUNK_UNCOMPRESSED (an export bigger than that gets
+    one to itself), and an edit of it is written compressed."""
+    SIZES = [300, 700_000, 500_000, 1_300_000, 40]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.flat, cls.offsets = flat_package(cls.SIZES)
+        cls.h = upkinfo.summary(cls.flat)
+
+    def test_the_layout_is_the_cooked_maps(self):
+        out = package_edit.compressed_layout(self.flat)
+        h = upkinfo.summary(out)
+        self.assertEqual({k: v for k, v in h.items() if k not in ('chunks', 'flags', 'compflags')},
+                         {k: v for k, v in self.h.items() if k not in ('chunks', 'flags', 'compflags')})
+        self.assertEqual(int(h['flags'], 16), int(self.h['flags'], 16) | package_edit.STORE_COMPRESSED)
+        self.assertEqual(h['compflags'], package_edit.COMPRESS_LZO)
+        start, end = h['nameoff'], h['headersize']
+        self.assertEqual([c[:2] for c in h['chunks']],
+                         [(start, end - start), (self.offsets[0], 300 + 700_000), (self.offsets[2], 500_000),
+                          (self.offsets[3], 1_300_000), (self.offsets[4], 40)])
+        package_edit.check_layout(out, h['chunks'])
+        self.assertEqual(decomp._decode(out, h)[start:], self.flat[start:])
+        for uo, us, co, cs in h['chunks']:
+            self.assertEqual(package_edit.read_chunk(out, co)[1], package_edit.BLOCK_SIZE)
+        self.assertIs(package_edit.compressed_layout(out), out)          # a compressed package is returned as it is
+
+    def test_an_edit_is_written_compressed(self):
+        at = self.offsets[3] + 1000
+        with tempfile.TemporaryDirectory() as d:
+            src, dst = os.path.join(d, 'flat.upk'), os.path.join(d, 'out.upk')
+            Path(src).write_bytes(self.flat)
+            write_edited(src, dst, [(at, b'XCOM')])
+            full, h = decomp.decompress_pkg(dst)
+        self.assertEqual(h['compflags'], package_edit.COMPRESS_LZO)
+        expect = bytearray(self.flat)
+        expect[at:at + 4] = b'XCOM'
+        self.assertEqual(full[h['nameoff']:], bytes(expect[h['nameoff']:]))
+
+    def test_a_package_not_laid_out_as_a_cooked_map_is_refused(self):
+        bad = bytearray(self.flat)
+        struct.pack_into('<I', bad, 8, self.offsets[0] + 10)          # a header size past the first export's data
+        with self.assertRaises(ValueError):
+            package_edit.compressed_layout(bytes(bad))
+
+
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class PatchWriters(unittest.TestCase):
     """The tile seeder and the link mover write through write_edited (review finding 52): any chunk, an uncompressed
