@@ -1,6 +1,6 @@
-// Move/rotate gizmo for trying out edits in the viewer. Edits change only what is drawn:
-// nothing is saved or built. An edit moves a whole actor (all its components) about the
-// actor's own pivot, on all three axes, and is undoable.
+// The move and rotate gizmo. An edit moves a whole actor (all its components) about the actor's own pivot or the
+// selection's middle, on all three axes, and is undoable; the page keeps the edits in a project (Ctrl+S), and the
+// Build makes them.
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { nearestGridPose } from './poserule.js';

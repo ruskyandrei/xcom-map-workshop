@@ -152,7 +152,7 @@ const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
-// Trial edits: the gizmo moves whole actors in the view only; nothing is saved or built.
+// Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
 // Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
 // selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
 // November 2026: "just leave it to group/ungroup"): every group is locked, and a project's `locked` is always true.
@@ -379,7 +379,6 @@ async function copyText(button, value) {
   catch { button.textContent = 'Copy failed'; }
   setTimeout(() => { button.textContent = label; }, 1500);
 }
-// Settings kept per browser (stats line, source details open). Storage can be missing or blocked.
 // a panel section's text with its how-to notes shown (the test hooks read it)
 function sectionText(id) {
   const box = $(id);
@@ -390,6 +389,7 @@ function sectionText(id) {
   box.classList.toggle('showhow', had);
   return words;
 }
+// Settings kept per browser (stats line, source details open). Storage can be missing or blocked.
 const recall = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const remember = (key, value) => { try { localStorage.setItem(key, value); } catch { /* not kept */ } };
 // The selection's group as a chip beside its name; groupPanel keeps it up to date.
@@ -1189,7 +1189,7 @@ function restingHint() {
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
 
-// Adding and deleting pieces. Like moves, these are trial edits: drawn only, not saved or built.
+// Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
 // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
 let clipboard = null, copySerial = 0;
 const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
@@ -1210,7 +1210,7 @@ function snapButton() {
   button.classList.toggle('on', snapMode !== 'off'); button.setAttribute('aria-pressed', snapMode !== 'off');
   button.title = recipe ? `${RECIPE_NOTE}.` : SNAPS[snapMode][2];
   $('snapBadge').textContent = recipe ? 'R' : SNAPS[snapMode][1];
-}// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
+}
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
@@ -1228,6 +1228,7 @@ function selectionWords(list, other = '') {
 }
 // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
 const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
+// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
 function copyable() {
   return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
     : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
@@ -1435,7 +1436,7 @@ function addedObject(template, placed, { actor, entity, prefab, partner, locatio
     // copy's own listings follow where it stands (listingsNow), as the Build lists it.
     floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
     // `generated`: a fracturing wall the Build makes from numbers on this piece's materials (custom geometry plan,
-    // section 0), kept as the project has it; the view draws the template's own mesh
+    // section 0), kept as the project has it; the view draws the mesh made from its numbers (madeShapeOf)
     added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
              ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
 }
@@ -3265,8 +3266,8 @@ function align() {
 // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root
 // keeps its values in the package's terms (plan 9.1) now (`values`) and as exported or placed (`baseValues`).
 // Generated area lights are never edited: they follow their glowing piece (deriveAreaLights), which the export's
-// matcher found or the project binds (areaBindings). Lights never join a group; a lamp and its light can still be
-// selected together and moved in one move.
+// matcher found or the project binds (areaBindings). A light that can be edited joins a group as a piece does
+// (groupables); a generated one follows its piece instead.
 const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 const PL = 'TheWorld.PersistentLevel.';
 let lightsShown = false, areaShown = recall(AREA_SHOWN) === '1';
@@ -12924,15 +12925,17 @@ document.addEventListener('keyup', e => {
 // press: Discord feedback B1)
 document.addEventListener('keydown', e => { if (e.key === 'Shift') panFast = true; });
 window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
-// V select, T box select, G move, R rotate (while placing, R turns the piece), P the piece list, X world/local, C the
-// pivot (origin or centre), F frame, arrow keys and
-// WASD move the camera and Q and E turn it, O solos the selected lights, B shows or hides the play area,
-// Escape cancels a drag,
-// stops placing, closes a menu or, when there is none of those, clears the selection,
-// Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste pieces, Ctrl+G groups the
-// selection and Ctrl+Shift+G ungroups the selected group, Delete deletes, Ctrl+S saves, Ctrl+B saves
-// and builds, and Ctrl+O loads a project. Typing in a field never triggers them (Ctrl+S, B and O aside), and Ctrl+C with
-// nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
+// The editor's keys (index.html's help panel lists them for users): V select, T box select, G move, R rotate (while
+// placing, R and Shift+R turn the piece), P the Add panel, M the map browser, X world or local axes, C the pivot
+// (origin or centre), F frame, L level snap, O solo the selected lights, B Break on a picked wall, floor or roof that
+// breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
+// Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
+// stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Ctrl+Z /
+// Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste, Ctrl+G groups the selection and
+// Ctrl+Shift+G ungroups the selected group, Delete deletes; a picked landing zone or spawn point takes Delete, Ctrl+D
+// (a copy) and [ ] (a quarter turn); Ctrl+S saves, Ctrl+B builds and Ctrl+O loads a project. Typing in a field never
+// triggers them (Ctrl+S, B and O aside), and Ctrl+C with nothing selected is the browser's own copy. An open dialog
+// (modalOpen) keeps the keys.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }

@@ -150,7 +150,6 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
     byKey.set(key, {
       key, id: `piece-${byKey.size}`, name: prefab ?? short(mesh), mesh, pkg: mesh.split('.')[0], kind, role: pivot.sceneryRole ?? 'interior',
       sources, pivotIndex: sources.indexOf(pivot), count: 1, materials,
-      // An assembly builds when all its parts do.
       // Viewer basis in the actor's frame: x is game X, y is up, z is game Y.
       frame, box, size: [size.x, size.z, size.y], extent: size.length(),
       text: [...sources.map(s => data.meshes[s.mesh].name), ...sources.map(s => s.archetype).filter(a => a !== 'None'),

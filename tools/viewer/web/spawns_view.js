@@ -1,4 +1,4 @@
-// Spawn points and mission objectives in the view (private/plans/todo/editor-spawns-implementation-plan.md, SP3; it
+// Spawn points and mission objectives in the view (private/plans/done/editor-spawns-implementation-plan.md, SP3; it
 // took over mission_view.js, mission types plan C2): one list of records that both the Spawns view (Shift+U, the rail's
 // button) and the Normal button's "Spawn points and objectives" switch draw, each a marker one size on screen and faint
 // through walls, as lights' are. The records:

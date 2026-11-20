@@ -127,9 +127,6 @@ export function steppedStoreys(wall, step) {
   const next = step > 0 ? counts.find(n => n > now) : [...counts].reverse().find(n => n < now);
   return next === undefined ? null : withStoreys(wall, next);
 }
-/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
- *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
- *  the new look takes. */
 /** A wall changed from look `old` to the look in `numbers`, its gaps on the new look's bottom: one cut to the old
  *  bottom (a doorway to the floor) is cut to the new one, and none starts below it (a door added before a look whose
  *  bottom is higher had kept the old bottom, and the wall then had no handles: the user, 19 November 2026). */
@@ -138,6 +135,9 @@ export function openingsInLook(old, numbers) {
   if (!(numbers.openings ?? []).length) return numbers;
   return { ...numbers, openings: numbers.openings.map(o => (o.z0 !== bottom && (o.z0 <= was + 1e-6 || o.z0 < bottom) ? { ...o, z0: bottom } : o)) };
 }
+/** The storeys a wall changed to another look keeps: one storey when it was one and the new look can be made so; the
+ *  new look's own when it stood at its old look's own; else as many as it had (the Build stacks them), in the counts
+ *  the new look takes. */
 export function storeysInLook(old, numbers) {
   const n = storeysOf(old), spec = wallSpec(numbers);
   if (n === 1 && spec.lower) return 1;
@@ -384,7 +384,6 @@ export function playWords(wall, o, { door = false } = {}) {
   if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it (a door from the Add panel), as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
-/** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
 // ---- joints (custom geometry plan, M3 item 2; compiler.py wall_joins is the twin)
 // An end's style for its solid (frac_wall.END_INSETS: how far in from its tile edge it stops) and how it meets: the
 // game's inside walls stop square 8 short of a wall they meet (a T's stem, as a free end); at an L one runs through to
@@ -464,6 +463,7 @@ export function joinWords(joins) {
   const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);
   return `Joined: ${parts.join('; ')}. A break passes between joined walls, as between the game's.`;
 }
+/** The wall's size in words: "4 tiles long, two storeys (400 tall)" or "..., one storey (208 tall)". */
 export const wallWords = wall => `${plural(tilesOf(wall), 'tile')} long, ${storeyWords(storeysOf(wall))} (${wallTop(wall) - wallSpec(wall).bottom} tall)`;
 
 // ---- floors and roofs (custom geometry plan, M5): a slab is an added copy of its look's donor (one of the game's

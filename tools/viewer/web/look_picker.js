@@ -1,4 +1,4 @@
-// The look picker (private/plans/todo/look-picker-and-rock-points-plan.md, L1): a large panel of its own over the
+// The look picker (private/plans/done/look-picker-and-rock-points-plan.md, L1): a large panel of its own over the
 // view, for every place a made wall's, floor's or roof's, or ground shape's look is chosen. Each look is a card with
 // a large picture of a sample made in it (what the tool will make: a wall three tiles long, a floor three by three,
 // the ground shape being given the look), drawn once in the page and kept by the server

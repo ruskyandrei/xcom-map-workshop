@@ -42,14 +42,6 @@ async function json(url, options) {
   return body;
 }
 
-/**
- * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
- * favourites (checkboxes), list, foot.
- * mapName(): the open map's package; pixelRatio(); template(source): a promise of what draws the piece (app.js
- * libraryTemplate); paint(template, canvas): draw it into a row's canvas, called while a frame is drawn;
- * recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover thumbnail;
- * onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
- */
 // The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
 const PICTURE_VERSION = 2;
@@ -59,6 +51,14 @@ function pictureKey(entry) {
   for (const c of `${entry.key}|likeness${PICTURE_VERSION}`) { a = Math.imul(a ^ c.charCodeAt(0), 0x01000193) >>> 0; b = Math.imul(b + c.charCodeAt(0), 0x85ebca6b) >>> 0; b ^= b >>> 13; }
   return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
 }
+/**
+ * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
+ * favourites (checkboxes), list, foot.
+ * mapName(): the open map's package; pixelRatio(); template(source): a promise of what draws the piece (app.js
+ * libraryTemplate); paint(template, canvas): draw it into a row's canvas, called while a frame is drawn;
+ * recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover thumbnail;
+ * onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
+ */
 export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint, recipesForScene, paintRecipe,
                                        onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null }) {
   let index = null, entries = [], byKey = new Map(), shown = [], chosen = null, status = null, loading = null, scanTimer = null;
