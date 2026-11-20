@@ -38,7 +38,7 @@ import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from '.
 import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, recordOf, stateOf, stateOfRoot } from './piece_records.js';
 import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
          groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
          projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
@@ -1682,9 +1682,9 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
   });
   const objs = clip.entries.map(e => {
     const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
-    return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
+    return addedObject(source, placed, optionsOf({ actor: copy.name, id: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
-      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null, ...stateOfEntry(e) });
+      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null }, 'piece', stateOfEntry(e)));
   });
   // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
   // A piece that can't be drawn (its mesh, a material or a texture not had) is left out, all its parts, and the hint
@@ -2257,7 +2257,8 @@ function prefabRecords({ complete = false } = {}) {
     if (s.cover) {
       const name = `${from.actor}_copy${++n}`;
       names.set(actor, name); copied.push([memberOf(s), { added: name }]);
-      pieces.push({ actor: name, template: { kind: COVER_KIND, version: coverVersion(s.added?.template?.version, s.cover.type) }, cover: { ...s.cover }, ...actorPose(s, placed) });
+      pieces.push(recordOf({ form: 'cover', actor: name, template: { kind: COVER_KIND, version: coverVersion(s.added?.template?.version, s.cover.type) },
+                             cover: s.cover, ...actorPose(s, placed) }, 'prefab'));
       continue;
     }
     if (from.level !== 'base') { left.push(`${short(data.meshes[s.mesh].name)}: a piece of a level the mission streams in, not of a map`); continue; }
@@ -2265,11 +2266,10 @@ function prefabRecords({ complete = false } = {}) {
     names.set(actor, name); copied.push([memberOf(s), { added: name }]);
     if (was && !tags.has(was)) tags.set(was, `copy${tags.size + 1}:${was.replace(/^copy\d+:/, '')}`);
     const entry = s.foreign?.key ? library?.entry(s.foreign.key) : null;
-    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: piece_records.js)
-    pieces.push({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component).sort(),
-                  ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner ?? null,
-                  ...recordFields(list[0].state ?? stateOfRoot({ source: s })),
-                  ...(entry ? { recipe: { key: entry.key, name: entry.name } } : {}) });
+    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: its state)
+    pieces.push(recordOf({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component),
+                           ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner,
+                           state: list[0].state ?? stateOfRoot({ source: s }), recipe: entry ? { key: entry.key, name: entry.name } : null }, 'prefab'));
     donor(from);
   }
   // (a partner is named by its name in the prefab; one left out is no partner)
@@ -2284,8 +2284,8 @@ function prefabRecords({ complete = false } = {}) {
     if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
     const name = `${from.actor}_copy${++n}`, values = kind === 'flare' ? null : savedValues(e.values);
     copied.push([memberOf(s), { added: name }]);
-    pieces.push({ actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
-                  ...actorPose(s, shift.clone().multiply(e.matrix)), ...(values ? { [kind]: values } : {}) });
+    pieces.push(recordOf({ form: 'effect', actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
+                           ...actorPose(s, shift.clone().multiply(e.matrix)), values }, 'prefab'));
     donor(from);
     if (kind === 'sound') sounds++; else if (kind === 'flare') flares++; else effects++;
   }
@@ -2300,7 +2300,7 @@ function prefabRecords({ complete = false } = {}) {
     copied.push([memberOf(e.source), { added: name }]); lights++;
     const value = k => { const v = e.values?.[k] ?? recipe.values[k]; return Array.isArray(v) ? [...v] : v; };
     // (a made light holds only cones in the editor's ranges: a map's stored 100 or 580 goes in as the 89.99 it lights as)
-    pieces.push({ actor: name, template: { kind, version: recipe.latest }, light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose });
+    pieces.push(recordOf({ form: 'light', actor: name, template: { kind, version: recipe.latest }, light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose }, 'prefab'));
   }
   // its buildings: the project's and the map's own selected with the pieces, each a building of the prefab
   const by = new Map();
@@ -2349,35 +2349,37 @@ async function prefabClip(doc, step = null) {
   for (const p of records) {
     const key = memberKey({ added: p.actor });
     if (p.kind && !p.template) {
-      const failure = failed.get(targetKey(p.from));
+      const e = optionsOf(p, 'effect');
+      const failure = failed.get(targetKey(e.from));
       if (failure) { left.push(failure); continue; }
-      const source = isForeignTarget(p.from) ? foreignEffects.get(targetKey(p.from)) : effectIndex.get(targetKey(p.from))?.userData.source;
-      const what = p.kind === 'sound' ? 'sound' : p.kind === 'flare' ? 'lens flare' : 'effect';
-      if (!source || source.kind !== p.kind) { left.push(`${short(p.from.actor)} of ${p.from.package}: this export of the map has no such ${what}`); continue; }
+      const source = isForeignTarget(e.from) ? foreignEffects.get(targetKey(e.from)) : effectIndex.get(targetKey(e.from))?.userData.source;
+      const what = e.kind === 'sound' ? 'sound' : e.kind === 'flare' ? 'lens flare' : 'effect';
+      if (!source || source.kind !== e.kind) { left.push(`${short(e.from.actor)} of ${e.from.package}: this export of the map has no such ${what}`); continue; }
       const why = effectViewOnly(source, 'copy');
       if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
       // its values are placed where their family builds (families.json); the prefab keeps them either way
-      const values = p.kind !== 'flare' && families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
-      entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), ...(values ? { values } : {}), unit: p.actor, key });
+      const values = e.kind !== 'flare' && families?.families?.[`${e.kind}-values`]?.builds ? e.values : null;
+      entries.push({ source, matrix: movedMatrix(source, e.location, e.rotation), ...(values ? { values } : {}), unit: e.actor, key });
       continue;
     }
     if (p.template?.kind === COVER_KIND) {
-      const source = coverOf(p);
-      if (!source) { left.push(`${short(p.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
-      entries.push({ source, matrix: new THREE.Matrix4().fromArray(source.matrix), unit: p.actor, key, link: null, partner: null });
+      const source = coverOf(p), c = optionsOf(p, 'cover');
+      if (!source) { left.push(`${short(c.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
+      entries.push({ source, matrix: new THREE.Matrix4().fromArray(source.matrix), unit: c.actor, key, link: c.prefab, partner: c.partner });
     } else if (p.template) {
-      const made = lightsBlocked() ? null : recipeLight(p.template, p.light, p.location, p.rotation);
-      if (!made) { left.push(`${short(p.actor)}: a ${p.template.kind} light${lightsBlocked() ? ` (${lightsBlocked()})` : ', which this editor can\'t make yet'}`); continue; }
-      entries.push({ source: made.source, matrix: new THREE.Matrix4().fromArray(made.source.matrix), values: made.values, unit: p.actor, key });
+      const l = optionsOf(p, 'light'), made = lightsBlocked() ? null : recipeLight(l.recipe, l.light, l.location, l.rotation);
+      if (!made) { left.push(`${short(l.actor)}: a ${l.recipe.kind} light${lightsBlocked() ? ` (${lightsBlocked()})` : ', which this editor can\'t make yet'}`); continue; }
+      entries.push({ source: made.source, matrix: new THREE.Matrix4().fromArray(made.source.matrix), values: made.values, unit: l.actor, key });
     } else {
       const failure = failed.get(targetKey(p.from));
       if (failure) { left.push(failure); continue; }
       const sources = p.components.map(c => templateFor(p.from, c));
       if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
-      // (each made as its record says, made numbers and blasts included, as a project's copy is: piece_records.js)
-      for (const source of sources)
-        entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), unit: p.actor, key, link: p.prefab ?? null, partner: p.partner ?? null,
-                       state: stateOf(p) });
+      // (each made as its record says, made numbers and blasts included, as a project's copy is)
+      for (const source of sources) {
+        const state = stateOf(p), o = optionsOf(p, 'piece', state);
+        entries.push({ source, matrix: movedMatrix(source, o.location, o.rotation), unit: o.actor, key, link: o.prefab, partner: o.partner, state });
+      }
     }
   }
   // its made pieces' meshes asked for now, so the placing preview draws them as they will stand (previewGroup); one
@@ -3883,12 +3885,10 @@ function lightState(overrides, added) {
     const o = root.userData.source;
     if (o.added) {
       const pose = lightPose(root);
-      if (o.added.template) added.set(o.actor, { id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose, light: { ...root.userData.values } });
-      else {
-        const light = changedValues(root.userData.values, o.added.templateValues);
-        added.set(o.actor, { id: o.added.entity, actor: o.actor, from: o.added.from, components: [o.added.component], ...pose,
-                             ...(Object.keys(light).length ? { light } : {}) });
-      }
+      if (o.added.template) added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose,
+                                                         light: { ...root.userData.values } }));
+      else added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, from: o.added.from, component: o.added.component, ...pose,
+                                         light: changedValues(root.userData.values, o.added.templateValues) }));
       continue;
     }
     if (isStream(o) || lightViewOnly(o)) continue;
@@ -3920,22 +3920,23 @@ function applyLightRecord(record) {
   return true;
 }
 function addedLightOf(entity) {
-  const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+  const l = optionsOf(entity, 'light');      // (piece_records.js: its names, pose, recipe or original, and values)
+  const serial = Number(/_copy(\d+)$/.exec(l.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;
   let source, values;
-  if (entity.template) {
-    const made = recipeLight(entity.template, entity.light, entity.location, entity.rotation, entity.actor);
+  if (l.recipe) {
+    const made = recipeLight(l.recipe, l.light, l.location, l.rotation, l.actor);
     if (!made) return null;
     ({ source, values } = made);
   } else {
-    const template = lightIndex.get(targetKey(entity.from))?.userData.source;
-    if (!template || entity.components?.[0] !== template.component) return null;
-    source = template; values = { ...valuesOf(template), ...(entity.light ?? {}) };
+    const template = lightIndex.get(targetKey(l.from))?.userData.source;
+    if (!template || l.component !== template.component) return null;
+    source = template; values = { ...valuesOf(template), ...(l.light ?? {}) };
   }
-  const root = addedLight(source, actorMatrix(entity.location, entity.rotation), values, entity.actor);
+  const root = addedLight(source, actorMatrix(l.location, l.rotation), values, l.actor);
   const o = root.userData.source;
-  Object.assign(o, { location: entity.location, rotation: entity.rotation });
-  o.added.entity = entity.id;
+  Object.assign(o, { location: l.location, rotation: l.rotation });
+  o.added.entity = l.entity;
   return root;
 }
 // The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
@@ -4459,25 +4460,25 @@ function editState() {
   return eventMemo.state ??= editStateNow();
 }
 function editStateNow() {
-  const overrides = new Map(), added = new Map();
+  const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
   for (const root of roots.values()) {
     const o = root.userData.source;
     if (o.added && o.cover) {      // a cover block: its recipe (a version that makes its type), size and cover, at its corner
-      added.set(o.actor, { id: o.added.entity, actor: o.actor,
-                           template: { ...o.added.template, version: coverVersion(o.added.template.version, o.cover.type) }, cover: { ...o.cover },
+      added.set(o.actor, { form: 'cover', id: o.added.entity, actor: o.actor,
+                           template: { ...o.added.template, version: coverVersion(o.added.template.version, o.cover.type) }, cover: o.cover,
                            ...actorPose(o, root.matrix) });
     } else if (o.added) {
-      let entity = added.get(o.actor);
-      if (!entity) {
-        // (its tint, made numbers, flags and a broken copy's blasts: piece_records.js)
-        entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
-                   prefab: o.prefab ?? null, partner: o.partner ?? null, ...recordFields(stateOfRoot(root.userData)) };
-        if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
+      let unit = added.get(o.actor);
+      if (!unit) {
+        // (its tint, made numbers, flags and a broken copy's blasts: its state)
+        unit = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
+                 prefab: o.prefab, partner: o.partner, state: stateOfRoot(root.userData) };
+        if (builderMode && builder.metadata.get(o.actor)?.recipe) unit.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
-          entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
-        added.set(o.actor, entity);
+          unit.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
+        added.set(o.actor, unit);
       }
-      entity.components.push(o.component);
+      unit.components.push(o.component);
     } else if ((root.userData.deleted || root.userData.edit || root.userData.flags || root.userData.blasts?.length) && !overrides.has(sourceKey(o))) {
       // (flags or blasts alone: an override with no pose, the piece where the map has it; a deleted piece has neither)
       const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
@@ -4487,7 +4488,7 @@ function editStateNow() {
             ...(root.userData.blasts?.length && root.userData.breaksFurther ? { breaksFurther: true } : {}) });
     }
   }
-  for (const entity of added.values()) entity.components?.sort();
+  for (const [actor, unit] of added) added.set(actor, recordOf(unit));
   const areaLightBindings = lightState(overrides, added);
   effectState(overrides, added);
   // A group keeps the pieces still on the map and the groups inside it; one left with fewer than two members isn't
@@ -4611,8 +4612,7 @@ async function applyState(state, progress = null) {
       if (!source) { carried.added.push(entity); continue; }
       const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
       if (serial > copySerial) copySerial = serial;
-      objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), { actor: entity.actor, entity: entity.id,
-        prefab: null, partner: null, location: entity.location, rotation: entity.rotation, tinted: false }));
+      objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), optionsOf(entity, 'cover')));
       entityOf.set(objs.at(-1), entity);
       continue;
     }
@@ -4627,9 +4627,8 @@ async function applyState(state, progress = null) {
     const sources = entity.components.map(c => templateFor(entity.from, c));
     if (sources.some(t => !t)) { carried.added.push(entity); continue; }
     for (const source of sources) {
-      objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
-        prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        ...stateOf(entity) }));
+      const options = optionsOf(entity);
+      objs.push(addedObject(source, movedMatrix(source, options.location, options.rotation), options));
       entityOf.set(objs.at(-1), entity);
     }
   }
@@ -8278,8 +8277,8 @@ function effectState(overrides, added) {
     if (isStream(o)) continue;
     const values = savedValues(root.userData.values);
     if (o.added) {
-      added.set(o.actor, { id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from }, ...actorPose(o, root.matrix),
-                           ...(values ? { [o.added.kind]: values } : {}) });
+      added.set(o.actor, recordOf({ form: 'effect', id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from },
+                                    ...actorPose(o, root.matrix), values }));
       continue;
     }
     const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
@@ -8326,13 +8325,14 @@ function addedEffect(source, placed, actor = null, entity = null, values = null)
   return root;
 }
 function addedEffectOf(entity) {
+  const e = optionsOf(entity, 'effect');      // (piece_records.js: its names, original, pose and values)
   // the map's own, or one of another map (its template read first: loadForeignTemplates)
-  const template = effectIndex.get(targetKey(entity.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(entity.from ?? {}));
-  if (!template || template.kind !== entity.kind || !Array.isArray(entity.location) || !Array.isArray(entity.rotation)) return null;
-  const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+  const template = effectIndex.get(targetKey(e.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(e.from ?? {}));
+  if (!template || template.kind !== e.kind || !Array.isArray(e.location) || !Array.isArray(e.rotation)) return null;
+  const serial = Number(/_copy(\d+)$/.exec(e.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;
-  const root = addedEffect(template, actorMatrix(entity.location, entity.rotation), entity.actor, entity.id, keptValues(entity[entity.kind]));
-  Object.assign(root.userData.source, { location: [...entity.location], rotation: [...entity.rotation] });
+  const root = addedEffect(template, actorMatrix(e.location, e.rotation), e.actor, e.entity, e.values);
+  Object.assign(root.userData.source, { location: [...e.location], rotation: [...e.rotation] });
   return root;
 }
 // The name of the marker under the pointer (the floor tiles' tip)
