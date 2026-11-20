@@ -174,6 +174,7 @@ INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBa
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
 KEEP_WORK = 3       # a variant's newest work folders kept whole (prune_work)
+LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
 EOL = '\r\n'
 
 
@@ -1006,38 +1007,97 @@ class Build:
 
     def drop_untried(self, error):
         """After a failed transplant or copy stage: the copies marked untried (compiler.Compiler.untried: a class the
-        Build has not made before, an assembly's part on its own, a piece the library held back) are taken out of the
-        native edit, with the hide of a moved one (it stays where the map has it), and named as left out. False when
-        there is none to drop: the failure is the build's."""
-        gone = [c for c in self.natives if c.get('untried')]
+        Build has not made before, an assembly's part on its own, a piece the library held back) that the failure names
+        (untried_named) are taken out of the native edit with what depends on them: the hide of a moved one (it stays
+        where the map has it), the glow lights that would follow them (area-light ops owned by them), an assembly left
+        with no part, and a group they broke with that no longer can (unlinked_groups). They are named as left out,
+        and the caller runs the stages again. False when the failure names none: it is the build's own, and nothing
+        is run again."""
+        gone = self.untried_named(error)
         if not gone:
             return False
         labels = {c['label'] for c in gone}
+        names = {c['label'].split(':', 1)[-1] for c in gone}
         why = str(error).splitlines()[0][:300]
         self.echo('the Build could not make the edit with %d piece%s of kinds it has not made before (%s): building '
                   'without them' % (len(gone), '' if len(gone) == 1 else 's', why))
-        self.native['copies'] = self.natives = [c for c in self.natives if not c.get('untried')]
+        self.native['copies'] = self.natives = [c for c in self.natives if c['label'] not in labels]
         self.native['hides'] = [h for h in self.native['hides'] if h['label'] not in labels]
         made = {c.get('assembly') for c in self.natives}
         if self.native.get('assemblies'):
             self.native['assemblies'] = [m for m in self.native['assemblies'] if m['id'] in made]
+        # a dropped copy's copied glow light, a dropped move's moved one: the piece isn't made, or stays where it is
+        lights = self.native.get('lights')
+        if lights and lights.get('area'):
+            lights['area'] = [a for a in lights['area']
+                              if not (a.get('op') in ('copy', 'move') and str(a.get('ownerEntity')) in names)]
+            self.has_lights, self.lights = has_light_edits(self.native), light_counts(self.native)
+        unlinked = self.unlinked_groups(gone)
         dropped = [dict(actor=c['label'].split(':', 1)[-1], code='untried-failed',
                         message='making %s failed: left out%s'
                         % (c['label'].split(':', 1)[-1], ' (it stays where the map has it)' if c['label'].startswith('move:') else ''))
                    for c in gone]
         self.left_out += dropped
+        self.untried_dropped = getattr(self, 'untried_dropped', []) + dropped
+        for g in unlinked:
+            self.echo('break group %d no longer breaks together: a piece of it could not be made' % g)
         self.copies = self.work / 'native-edit.json'
         compiler.write_json(self.copies, self.native)
         for folder in (self.work / 'transplant', self.work / 'lit'):
             if folder.exists():
                 shutil.rmtree(folder)
-        self.stage('leftout', pieces=dropped[:LEFT_OUT_SHOWN], count=len(dropped), reason=why)
-        if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
-                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.flags_edit or self.effects_edit):
+        # (cumulative: a second failure that names another untried piece drops it too, and the stage lists both)
+        self.stage('leftout', pieces=self.untried_dropped[:LEFT_OUT_SHOWN], count=len(self.untried_dropped), reason=why,
+                   **({'groupsUnlinked': unlinked} if unlinked else {}))
+        if not self.has_work():
             raise BuildError('nothing of the project can be built: its %d piece%s could not be made (%s)'
-                             % (len(gone), '' if len(gone) == 1 else 's', why))
+                             % (len(self.untried_dropped), '' if len(self.untried_dropped) == 1 else 's', why))
         return True
+
+    def untried_named(self, error):
+        """The untried copies a failure is about: those whose name (the copy's, or the moved piece's) or whose source
+        actor its message names, or the last LOG_TAIL lines of the failing tool's log (the "see <log>" of _run's
+        error, where a tool's traceback ends). [] when it names none."""
+        untried = [c for c in self.natives if c.get('untried')]
+        if not untried:
+            return []
+        text = str(error)
+        log = re.search(r'; see (.+?)\s*$', text)
+        if log:
+            try:
+                text += '\n' + '\n'.join(Path(log.group(1)).read_text(encoding='utf-8', errors='replace').splitlines()[-LOG_TAIL:])
+            except OSError:
+                pass
+
+        def named(c):
+            return any(n and re.search(r'(?<!\w)%s(?!\w)' % re.escape(n), text)
+                       for n in (c['label'].split(':', 1)[-1], str(c.get('actor') or '')))
+        return [c for c in untried if named(c)]
+
+    def unlinked_groups(self, gone):
+        """The break groups a dropped copy broke with that can't break together without it, by the compiler's rule
+        (Compiler.groups): two breakable pieces, or one and a cover block, with one of them made in the map, or a made
+        wall with a prop or a block. Their numbers are taken off the copies, cover blocks and made walls left, and their
+        map pieces out of breakOriginals, so the edit links no group short of its pieces (native_copy.py refuses one).
+        Returns those numbers."""
+        touched = sorted({g for c in gone for g in (c.get('breakGroup'), c.get('wallGroup')) if g})
+        undone = []
+        for g in touched:
+            copies = [c for c in self.natives if c.get('breakGroup') == g]
+            originals = [o for o in self.native.get('breakOriginals') or [] if o.get('group') == g]
+            blocks = [c for c in self.covers if c.get('breakGroup') == g]
+            walls = [c for c in self.natives if c.get('wallGroup') == g]
+            links = len(copies) + len(originals)
+            if (walls and (links or blocks)) or (links >= (1 if blocks else 2) and (blocks or copies)):
+                continue
+            undone.append(g)
+            for c in copies + blocks:
+                c.pop('breakGroup', None)
+            for c in walls:
+                c.pop('wallGroup', None)
+            if 'breakOriginals' in self.native:
+                self.native['breakOriginals'] = [o for o in self.native['breakOriginals'] if o.get('group') != g]
+        return undone
 
     def transplant(self):
         """Pieces of other maps (the native edit's copies with a donor), and effects and sounds of other maps (its
@@ -1580,16 +1640,16 @@ class Build:
             self.preflight()
             self.patch_and_cook()
             self.shell()
-            try:
-                self.transplant()
-                self.light()
-            except BuildError as error:
-                # a copy the Build has not been tried on (the compiler's `untried`) may be one it can't make: those
-                # are left out, named, and the rest is built
-                if not self.drop_untried(error):
-                    raise
-                self.transplant()
-                self.light()
+            while True:
+                try:
+                    self.transplant()
+                    self.light()
+                    break
+                except BuildError as error:
+                    # a copy the Build has not been tried on (the compiler's `untried`) may be one it can't make: those
+                    # the failure names are left out, named, and the rest is built (each try drops at least one)
+                    if not self.drop_untried(error):
+                        raise
             m = self.package()
             self.prune_work()
         finally:

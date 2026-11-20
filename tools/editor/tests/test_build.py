@@ -1561,13 +1561,22 @@ class Builds(unittest.TestCase):
             self.make('112000').run()
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], first['buildId'])
 
-    def failing_once(self, tool):
-        """The first run of `tool` fails; later ones go through."""
+    def failing_once(self, tool, says='', times=1):
+        """The first `times` runs of `tool` fail as Build._run says a failure ("<tool> failed (exit 1); see <log>"),
+        their log ending with `says` (a str, or one per failure); later ones go through."""
         runs, plain = [], Builds.run_tool.__get__(self)
 
         def run(args, log):
             mine = any(tool in str(a) for a in args)
-            self.failing = tool if mine and not runs else None
+            if mine and '--copies' in [str(a) for a in args]:     # the edit as this run was given it
+                self.edits_seen = getattr(self, 'edits_seen', []) + [
+                    json.loads(Path(args[[str(a) for a in args].index('--copies') + 1]).read_text(encoding='utf-8'))]
+            if mine and len(runs) < times:
+                runs.append(1)
+                self.ran.append([str(a) for a in args])
+                text = says if isinstance(says, str) else says[len(runs) - 1]
+                Path(log).write_text('ran\nTraceback (most recent call last):\nValueError: %s\n' % text, encoding='utf-8')
+                raise build.BuildError('%s failed (exit 1); see %s' % (tool, log))
             if mine:
                 runs.append(1)
             return plain(args, log)
@@ -1581,7 +1590,7 @@ class Builds(unittest.TestCase):
                        **{'from': ['SkeletalMeshActor_30']})
         moved = dict(HIDE, alsoHide=['SkeletalMeshActor_30'], labels=['move:SkeletalMeshActor_30'])
         self.spec['objects'] = [tried, untried, moved]
-        self.failing_once('native_copy')
+        self.failing_once('native_copy', 'bad property name in TheWorld.PersistentLevel.SkeletalMeshActor_30')
         m = self.make().run()
         first, second = self.tool('native_copy.py')
         edit = json.loads(Path(second[second.index('--copies') + 1]).read_text(encoding='utf-8'))
@@ -1603,10 +1612,59 @@ class Builds(unittest.TestCase):
         # an edit of untried pieces alone: nothing is left to build
         self.ran.clear()
         self.spec['objects'] = [dict(COPY, untried=[True])]
-        self.failing_once('native_copy')
+        self.failing_once('native_copy', 'making XComLevelActor_1_copy1 failed')
         with self.assertRaises(build.BuildError) as caught:
             self.make('112000').run()
         self.assertIn('nothing of the project can be built', str(caught.exception))
+
+    def test_a_failure_that_names_no_untried_piece_is_not_run_again(self):
+        """(review finding 40) Untried copies are dropped and the stages run again only when the failing tool names
+        one of them (its message or its log's last lines); else the failure is the build's own, said at once."""
+        self.spec['objects'] = [dict(COPY, untried=[True])]
+        self.failing_once('native_copy', 'the disk is full')
+        with self.assertRaisesRegex(build.BuildError, 'native_copy failed'):
+            self.make().run()
+        self.assertEqual(len(self.tool('native_copy.py')), 1)
+
+    def test_only_the_untried_pieces_a_failure_names_are_dropped_with_what_depends_on_them(self):
+        """(review finding 40) Of two untried copies, the one the failure names is dropped, with its glow light and
+        its group (left with one piece, which no longer breaks with anything); a second failure that names the other
+        drops it too, and the stage lists both. The 'nothing left' test is the compile step's (has_work): a mission
+        object's move left keeps the build going."""
+        first = dict(COPY, labels=['SkeletalMeshActor_30_copy1'], classes=['SkeletalMeshActor'], untried=[True],
+                     breakGroups=[1], **{'from': ['SkeletalMeshActor_30']})
+        second = dict(COPY, labels=['SkeletalMeshActor_31_copy2'], classes=['SkeletalMeshActor'], untried=[True],
+                      **{'from': ['SkeletalMeshActor_31']})
+        prop = dict(COPY, labels=['XComDestructibleActor_4_copy3'], classes=['XComDestructibleActor'], breakGroups=[1],
+                    untried=[False], **{'from': ['XComDestructibleActor_4']})
+        glow = dict(LIGHTS, deletes=[], changes=[], adds=[], area=[
+            dict(op='copy', name='GeneratedMeshAreaLight_1_SkeletalMeshActor_30_copy1', light='GeneratedMeshAreaLight_1',
+                 owner='SkeletalMeshActor_30', ownerEntity='SkeletalMeshActor_30_copy1', location=[0, 0, 0], rotation=[0, 0, 0])])
+        self.spec['objects'] = [first, second, prop, glow]
+        self.failing_once('native_copy', ['bad property in SkeletalMeshActor_30_copy1', 'SkeletalMeshActor_31 has no mesh'], times=2)
+        m = self.make().run()
+        self.assertEqual(len(self.tool('native_copy.py')), 3)
+        before, edit, last = self.edits_seen
+        self.assertEqual(before['copies'][2]['breakGroup'], 1)
+        # after the first: the named copy gone, its glow light with it, and its group (now one prop) unlinked
+        self.assertEqual([c['label'] for c in edit['copies']], ['SkeletalMeshActor_31_copy2', 'XComDestructibleActor_4_copy3'])
+        self.assertNotIn('breakGroup', edit['copies'][1])
+        self.assertEqual(edit['lights']['area'], [])
+        self.assertEqual([c['label'] for c in last['copies']], ['XComDestructibleActor_4_copy3'])
+        stage = [s for s in m['stages'] if s['stage'] == 'leftout'][-1]
+        self.assertEqual(([p['actor'] for p in stage['pieces']], stage['count']),
+                         (['SkeletalMeshActor_30_copy1', 'SkeletalMeshActor_31_copy2'], 2))
+        self.assertEqual([s.get('groupsUnlinked') for s in m['stages'] if s['stage'] == 'leftout'], [[1], None])
+        self.assertIsNone(m['lights'])
+        # the compile step's own test: untried copies alone beside a mission object's move still leave work
+        self.ran.clear()
+        self.spec['objects'] = [dict(second, breakGroups=[0])]
+        self.spec['streamMoves'] = {'URB_Bar_CNH': [dict(actor='XComSpawnPoint_1', location=[0, 0, 0], rotation=[0, 0, 0])]}
+        self.failing_once('native_copy', 'SkeletalMeshActor_31 has no mesh')
+        b = self.make('113000')
+        b.stream_tile_boxes = lambda: []
+        b.stream_copies = lambda cooked: {}
+        self.assertIn('leftout', [s['stage'] for s in b.run()['stages']])
 
     def test_a_project_that_does_not_compile_builds_nothing(self):
         self.spec = None
