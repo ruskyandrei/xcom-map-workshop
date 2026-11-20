@@ -174,7 +174,7 @@ PICTURE_FAILED = ('the map picture could not be written into %s (%s): the map is
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
-INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
+INTROS = outputnames.INTROS
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)

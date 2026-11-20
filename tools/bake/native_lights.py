@@ -513,17 +513,6 @@ def component_flags(q, ci):
     return flags, sorted({name for name, _ in props})
 
 
-def write_pose(walker, g, p, actor, start, raw, loc, rot, added, written):
-    data = bytearray(g.export_data(actor))
-    if loc:
-        data = put(walker, g, data, start, 'Location', 'StructProperty', 'Vector',
-                   struct.pack('<3f', *[float(v) for v in raw['location']]), added, written)
-    if rot:
-        data = put(walker, g, data, start, 'Rotation', 'StructProperty', 'Rotator',
-                   struct.pack('<3i', *[int(v) for v in raw['rotation']]), added, written)
-    g.relocate(actor, bytes(data))
-
-
 def apply(g, p, state):
     """The light edits of `state` (prepare's) made in the growing package `g` over the source `p`. Returns
     dict(actors: the new light actors, for the Level's list; gone: the actors whose Level slots empty; records: one
@@ -542,8 +531,9 @@ def apply(g, p, state):
             ai, ci = b['actorIndex'], b['componentIndex']
             loc, rot = moved(b['raw'], a['raw'])
             if loc or rot:
-                write_pose(walker, g, p, ai, props_start(p, ai), a['raw'], loc, rot, rec['actorTagsAdded'],
-                           rec['actorWritten'])
+                native_copy.set_pose(walker, g, p, ai, a['raw']['location'] if loc else None,
+                                     a['raw']['rotation'] if rot else None,
+                                     noted=(rec['actorTagsAdded'], rec['actorWritten']))
             start = props_start(p, ci)
             data = bytearray(g.export_data(ci))
             for key in op.get('set') or {}:

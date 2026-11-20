@@ -77,6 +77,7 @@ import lightmap_fields  # noqa: E402
 import lightmap_textures  # noqa: E402
 import lightmap_writer  # noqa: E402
 import package_grow  # noqa: E402
+import piece_flags  # noqa: E402
 import props as legacy_props  # noqa: E402
 import scene_metadata  # noqa: E402
 import seed_map  # noqa: E402
@@ -525,6 +526,32 @@ def set_struct(walker, g, data, start, name, struct_name, fmt, value):
                                       struct.pack(fmt, *value))
 
 
+POSE = ('Location', 'Rotation', 'RelativeLocation')
+
+
+def set_pose(walker, g, p, index, location=None, rotation=None, relative=None, names=POSE, noted=None):
+    """Export `index` with its place set where it stands in the map `g` grows: each of `location` (a Vector),
+    `rotation` (a Rotator) and `relative` (a component's or a based actor's RelativeLocation) that is given, written in
+    place or added before the closing None where the export saves none (native_lights.set_property). `names` are the
+    three properties' names (a Kismet Set Location action saves LocationValue and RotationValue); `noted`, a pair of
+    lists (added, written), records the properties written and those added (native_lights.put). The one way the Build
+    sets a pose in place (review finding 55)."""
+    import native_lights
+    e = p.exports[index - 1]
+    data = bytearray(g.export_data(index))
+    start = legacy_props.props_start(p.data, e, p.names) - e['off']
+    for name, (struct_name, fmt, kind), value in zip(names, (('Vector', '<3f', float), ('Rotator', '<3i', int),
+                                                             ('Vector', '<3f', float)), (location, rotation, relative)):
+        if value is None:
+            continue
+        raw = struct.pack(fmt, *[kind(v) for v in value])
+        if noted is not None:
+            data = native_lights.put(walker, g, data, start, name, 'StructProperty', struct_name, raw, *noted)
+        else:
+            data = native_lights.set_property(walker, g, data, start, name, 'StructProperty', struct_name, raw)
+    g.relocate(index, bytes(data))
+
+
 def set_object_array(walker, g, data, start, name, values):
     """`data` (an export's bytes, tagged properties from `start`) with the object array property `name` set to
     `values` (export indices): in place when the export saves it, else added before the closing None (nothing is
@@ -931,14 +958,24 @@ def tile_volume(g, p, tile, grid=None):
     return add_rebuild_volume(g, p, [c[0] - 16, c[0] + 16, c[1] - 16, c[1] + 16, c[2] - 8, c[2] + 8])
 
 
-def level_actors(p):
-    """The persistent Level's actor list (export indices, 0 for an empty slot), in order."""
+def actor_list(p, data=None):
+    """The persistent Level's actor list, where it lies: (the Level's export index, the list's offset in `data`, the
+    actors: export indices, 0 for an empty slot, in order). `data` is the Level's export bytes as an edit has left them
+    (a Grower's export_data), else the map's own (the offset then in p.data). The list is the first thing of the
+    Level's native data, owned by the Level; anything else is refused. The one reader of it (review finding 55)."""
     level = p.by_name['TheWorld.PersistentLevel']
-    _, end = p.properties(level)
-    owner, count = struct.unpack_from('<ii', p.data, end)
+    end = p.properties(level)[1]
+    at = end if data is None else end - p.exports[level - 1]['off']
+    data = p.data if data is None else data
+    owner, count = struct.unpack_from('<ii', data, at)
     if owner != level:
         raise ValueError('the Level does not start its native data with its actor list')
-    return list(struct.unpack_from('<%di' % count, p.data, end + 8))
+    return level, at, list(struct.unpack_from('<%di' % count, data, at + 8))
+
+
+def level_actors(p):
+    """The persistent Level's actor list (export indices, 0 for an empty slot), in order."""
+    return actor_list(p)[2]
 
 
 def volume_sphere(p, volume):
@@ -1019,13 +1056,9 @@ def has_mesh(p, actor):
     return any(static_mesh(p, ci) > 0 or skeletal_mesh(p, ci) > 0 for ci in subtree(p, actor))
 
 
-def collides(p, actor):
-    """Whether the actor can touch the game's tiles: it collides (bCollideActors) and one of its mesh components does
-    (CollideActors). A piece that can't (a sky dome) changes no tile, so its copy seeds none."""
-    if p.effective(actor, 'bCollideActors', True) is False:
-        return False
-    return any(p.effective(ci, 'CollideActors', True) is not False for ci in subtree(p, actor)
-               if static_mesh(p, ci) > 0 or skeletal_mesh(p, ci) > 0)
+# Whether the actor can touch the game's tiles: it collides (bCollideActors) and one of its mesh components does
+# (CollideActors). A piece that can't (a sky dome) changes no tile, so its copy seeds none. The export's rule too.
+collides = piece_flags.collides
 
 
 # Scenery the map shows but the game ignores (F-100): the ground planes and pavements a map is seen against beyond
@@ -1201,18 +1234,12 @@ def hide_pieces(g, p, hides, volumes=True):
 def empty_slots(g, p, gone):
     """The persistent Level's actor list with the actors `gone` (export indices) in it as empty slots (None), as the
     level designer's delete leaves them: the game never spawns them. The Level export is relocated."""
-    level = p.by_name['TheWorld.PersistentLevel']
-    e = p.exports[level - 1]
-    data = bytearray(g.export_data(level))
-    _, end = p.properties(level)
-    at = end - e['off']
-    owner, count = struct.unpack_from('<ii', data, at)
-    if owner != level:
-        raise ValueError('the Level does not start its native data with its actor list')
+    data = bytearray(g.export_data(p.by_name['TheWorld.PersistentLevel']))
+    level, at, listed = actor_list(p, data)
     found = set()
-    for k in range(count):
-        if struct.unpack_from('<i', data, at + 8 + 4 * k)[0] in gone:
-            found.add(struct.unpack_from('<i', data, at + 8 + 4 * k)[0])
+    for k, actor in enumerate(listed):
+        if actor in gone:
+            found.add(actor)
             struct.pack_into('<i', data, at + 8 + 4 * k, 0)
     if found != set(gone):
         raise ValueError(f'not in the Level\'s actor list: {sorted(p.name(i) for i in set(gone) - found)}')
@@ -1262,11 +1289,6 @@ CLEAR_KEEP = (
     'XComDecoFracLevelActor', 'KAsset', 'XComInteractiveLevelActor', 'XComLadder', 'XComMergedLevelActor',
     'XComOpacityFadeLevelActor', 'SkeletalMeshActor', 'SkeletalMeshActorMAT',
 )
-# the landing's prefabs (section 4): their actors are never taken out (LWR spawns the landing from them, a plain
-# install plays them), the evac volume among them, which is a building volume
-LANDING_PREFABS = ('DGN_DropShipSoldierSpawn.Prefabs.', 'VEH_Lv1Skyranger_MOD.Prefabs.')
-# and the grounded Skyranger's dust, an emitter placed beside its prefab (the C0 survey: 17 landing actors on Bar)
-LANDING_EXTRA = ('ARC_Skyranger_Ground_Periphery',)
 
 
 def archetype_path(p, i):
@@ -1276,9 +1298,10 @@ def archetype_path(p, i):
 
 
 def landing_actor(p, i):
-    """Whether a level actor is one of the landing's prefabs' (by its archetype)."""
-    path = archetype_path(p, i)
-    return path.casefold().startswith(tuple(x.casefold() for x in LANDING_PREFABS)) or path.split('.')[-1] in LANDING_EXTRA
+    """Whether a level actor is one of the landing's prefabs' (by its archetype; section 4): never taken out (LWR spawns
+    the landing from them, a plain install plays them), the evac volume among them, which is a building volume, and
+    the grounded Skyranger's dust, an emitter placed beside its prefab (the C0 survey: 17 landing actors on Bar)."""
+    return scene_metadata.landing_archetype(archetype_path(p, i))
 
 
 def clear_level(g, p, gone=(), keep=(), outside=None):
@@ -1291,15 +1314,11 @@ def clear_level(g, p, gone=(), keep=(), outside=None):
     levels, in place of one for each delete: the tiles the old pieces stood on carry the bake's marks, so the battle
     works them out again. Returns (the report: {out: {class: count}, kept: {class: count}, odd: {class: [names]},
     landing: [names], outside: {class: count}, rebuildVolume}, the volume's export to add to the level)."""
-    level = p.by_name['TheWorld.PersistentLevel']
     gone = set(gone)
     out, kept, odd, landing, take, beyond = {}, {}, {}, [], set(), {}
     # the actor list as the edit has left it so far (a van's or an emptied building's volumes may be out already)
-    e = p.exports[level - 1]
-    data = g.export_data(level)
-    at = p.properties(level)[1] - e['off']
-    count = struct.unpack_from('<i', data, at + 4)[0]
-    for i in struct.unpack_from('<%di' % count, data, at + 8):
+    level, _, listed = actor_list(p, g.export_data(p.by_name['TheWorld.PersistentLevel']))
+    for i in listed:
         if i <= 0 or i in gone or p.exports[i - 1]['outer'] != level:
             continue
         cls = p.cls(i)
@@ -1834,7 +1853,7 @@ def van_buildings(p, pieces):
         if p.cls(i) != 'XComBuildingVolume' or p.exports[i - 1]['outer'] != level:
             continue
         residents, volumes = building_lists(p, i)
-        if residents and len(residents & pieces) * 2 > len(residents):
+        if piece_flags.van_building(residents, pieces):
             out.append(dict(building=i, volumes=volumes, residents=sorted(residents)))
     return out
 
@@ -1908,16 +1927,11 @@ def hide_van_buildings(g, p, gone, edited=()):
 
 def add_to_level(g, p, actors, *, before_rebuild=()):
     """Append actors and place any priority volumes before the first existing rebuild volume."""
-    level = p.by_name['TheWorld.PersistentLevel']
-    e = p.exports[level - 1]
-    data = bytearray(g.export_data(level))
-    _, end = p.properties(level)
-    at = end - e['off']
-    owner, count = struct.unpack_from('<ii', data, at)
-    if owner != level:
-        raise ValueError('the Level does not start its native data with its actor list')
+    data = bytearray(g.export_data(p.by_name['TheWorld.PersistentLevel']))
+    level, at, listed = actor_list(p, data)
+    count = len(listed)
     tail = at + 8 + 4 * count
-    original = struct.unpack_from(f'<{count}i', data, at + 8)
+    original = tuple(listed)
     where = next((k for k, a in enumerate(original) if a > 0 and p.cls(a) == 'XComRebuildWorldDataVolume'),
                  count) if before_rebuild else count
     after = original[:where] + tuple(before_rebuild) + original[where:] + tuple(actors)

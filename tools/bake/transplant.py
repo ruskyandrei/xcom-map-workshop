@@ -276,21 +276,10 @@ def closure(donor, roots, dest, shared=None, shells=True):
 def van_volumes(p, members):
     """The building and floor volumes of the van whose parts `members` (export indices of the package `p`'s level)
     are: [building, floor volume, ...] of the level's XComBuildingVolume more than half of whose residents they are
-    (native_copy.van_buildings' rule, which finds the staged building again by it), or []."""
-    level = p.by_name.get(LEVEL)
-    members = set(members)
-    for i in p.children.get(level, []) if level else []:
-        if p.cls(i) != 'XComBuildingVolume':
-            continue
-        residents, volumes = set(), []
-        for floor in p.structs(p.own(i, 'Floors')):
-            cached = floor.get(('m_aCachedActors', 0), {}).get('value')
-            residents |= {e[('ResidentActor', 0)]['value'] for e in p.structs(cached)} if cached else set()
-            listed = floor.get(('FloorVolumes', 0), {}).get('value')
-            volumes += [v for v in (p.refs(listed) if listed else []) if v > 0]
-        if residents and len(residents & members) * 2 > len(residents):
-            return [i] + volumes
-    return []
+    (native_copy.van_buildings' rule, which finds the staged building again by it: the first such), or []."""
+    import native_copy
+    found = native_copy.van_buildings(p, members) if LEVEL in p.by_name else []
+    return [found[0]['building']] + found[0]['volumes'] if found else []
 
 
 def bring(g, dest, donor, roots, shared=None):

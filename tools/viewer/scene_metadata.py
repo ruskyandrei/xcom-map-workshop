@@ -241,50 +241,44 @@ def prefab_members(p, warn=None):
 def kismet_references(p, warn=None):
     """Placed actor (export index) -> what of the package's Kismet names it, sorted (private/plans/done/cars-doors-ladders-plan.md,
     3.5): the op that uses it, with the link, where a variable holds it ("SeqAct_ToggleHidden_1 Target"), else the
-    sequence object that names it, with the property ("SeqEvent_Touch_0 Originator"). Read from every sequence
-    object's own object properties and object arrays (an array of other 4-byte values whose entries all happen to be
-    the level's actors would read as references too). URB_Bar's Kismet hides its grounded Skyranger and drop zone
-    (XComLevelActor_138 and _6) with a SeqAct_ToggleHidden at the landing."""
-    level = p.by_name.get("TheWorld.PersistentLevel")
-    def sequence(i): return p.cls(i).startswith("Seq") or p.cls(i) in ("Sequence", "PrefabSequence")
-    def placed(i): return 0 < i <= len(p.exports) and p.exports[i-1]["outer"] == level and not sequence(i)
-    def text(raw):
-        n = struct.unpack_from("<i", raw)[0] if len(raw) >= 4 else 0
-        if n > 0: return raw[4:4+n-1].decode("latin-1")
-        if n < 0: return raw[4:4-2*n-2].decode("utf-16-le")
-        return ""
-    named, users = {}, {}
-    for i in range(1, len(p.exports)+1):
-        if not sequence(i) or p.exports[i-1]["outer"] <= 0: continue
-        try:
-            props = p.properties(i)[0]
-            for (key, slot), item in props.items():
-                kind, value = item["kind"], item["value"]
-                found = []
-                if kind == "ObjectProperty" and isinstance(value, int):
-                    found = [value]
-                elif kind == "ArrayProperty" and isinstance(value, bytes) and len(value) >= 8:
-                    n = struct.unpack_from("<i", value)[0]
-                    if n > 0 and len(value) == 4+4*n:
-                        found = list(struct.unpack_from(f"<{n}i", value, 4))
-                        if not all(placed(v) for v in found): found = []
-                prop = key if not slot else f"{key}[{slot}]"
-                for v in found:
-                    if placed(v): named.setdefault(i, []).append((v, prop))
-                if key == "VariableLinks" and kind == "ArrayProperty":
-                    for row in p.structs(value):
-                        linked = row.get(("LinkedVariables", 0), {}).get("value")
-                        desc = row.get(("LinkDesc", 0), {}).get("value")
-                        for var in p.refs(linked) if linked else []:
-                            users.setdefault(var, []).append(
-                                "%s %s" % (p.name(i).rsplit(".", 1)[-1], text(desc) if isinstance(desc, bytes) else ""))
-        except Exception as error:
-            if warn: warn(p.name(i), f"Kismet references not read: {error}")
+    sequence object that names it, with the property ("SeqEvent_Touch_0 Originator"). Read by kismet_walk.
+    URB_Bar's Kismet hides its grounded Skyranger and drop zone (XComLevelActor_138 and _6) with a SeqAct_ToggleHidden
+    at the landing."""
+    named, users, _ = kismet_walk(p, warn, "references")
     out = {}
     for i, refs in named.items():
         for actor, prop in refs:
-            out.setdefault(actor, set()).update(users.get(i) or ["%s %s" % (p.name(i).rsplit(".", 1)[-1], prop)])
+            out.setdefault(actor, set()).update(["%s %s" % (_short(p.name(op)), desc) for op, desc in users.get(i, [])]
+                                                or ["%s %s" % (_short(p.name(i)), prop)])
     return {actor: sorted(v) for actor, v in out.items()}
+
+
+def kismet_walk(p, warn=None, what="references"):
+    """What the package's Kismet names, the one walk kismet_references and kismet_uses read (review finding 55):
+    (named {sequence object: [(placed actor, property)]}, users {variable: [(op, its link's text)]}, links {op:
+    [variables]}). Every sequence object's own object properties and plain reference arrays are read (an array of
+    other 4-byte values whose entries all happen to be the level's actors would read as references too: _ref_values).
+    An object that can't be read is warned of as "Kismet <what> not read" and the rest go on."""
+    level = p.by_name.get(LEVEL_PATH)
+
+    def placed(i): return 0 < i <= len(p.exports) and p.exports[i - 1]["outer"] == level and not _sequence(p, i)
+    named, users, links = {}, {}, {}
+    for i in range(1, len(p.exports) + 1):
+        if not _sequence(p, i) or p.exports[i - 1]["outer"] <= 0: continue
+        try:
+            for (key, slot), item in p.properties(i)[0].items():
+                for v in _ref_values(p, item, placed):
+                    named.setdefault(i, []).append((v, key if not slot else f"{key}[{slot}]"))
+                if key == "VariableLinks" and item["kind"] == "ArrayProperty":
+                    for row in p.structs(item["value"]):
+                        linked = row.get(("LinkedVariables", 0), {}).get("value")
+                        desc = _link_text(row.get(("LinkDesc", 0), {}).get("value"))
+                        for var in p.refs(linked) if linked else []:
+                            users.setdefault(var, []).append((i, desc))
+                            links.setdefault(i, []).append(var)
+        except Exception as error:      # noqa: BLE001
+            if warn: warn(p.name(i), f"Kismet {what} not read: {error}")
+    return named, users, links
 
 
 def fragment_breaks(p, actors, warn=None):
@@ -443,6 +437,14 @@ SKYRANGER_ROLES = {"XComLevelActor": "mesh", "Emitter": "emitter", "PointInSpace
 # the grounded Skyranger's dust: an emitter placed beside its prefab, not in it (tools/bake/native_copy.py
 # LANDING_EXTRA), listed with the nearest Skyranger as role "dust", so a moved zone carries it with the Skyranger
 SKYRANGER_EXTRA = ("ARC_Skyranger_Ground_Periphery",)
+# a clear keeps the landing's actors (tools/bake/native_copy.py clear_level, effects_metadata.landing_actor): those
+# placed from the two prefabs, by their archetype's path, case aside, and the Skyranger's dust
+LANDING_PREFABS = (LANDING_TEMPLATE, SKYRANGER_TEMPLATE)
+
+
+def landing_archetype(path):
+    """Whether an actor placed from the archetype at `path` is one of the landing's, as a clear keeps it."""
+    return path.casefold().startswith(tuple(x.casefold() for x in LANDING_PREFABS)) or path.split(".")[-1] in SKYRANGER_EXTRA
 
 
 def prefab_pairs(p, index):
@@ -864,26 +866,8 @@ def kismet_uses(p, warn=None):
     - 'indirect': an object-list action stands between (SeqAct_AccessObjectList "Object List"); `then` names the
       actions its other variables feed;
     - 'variable': a variable holds it and no action reads that variable.
-    The walk is kismet_references' (sequence objects' own object properties and plain reference arrays)."""
-    level = p.by_name.get(LEVEL_PATH)
-
-    def placed(i): return 0 < i <= len(p.exports) and p.exports[i - 1]["outer"] == level and not _sequence(p, i)
-    named, users, links = {}, {}, {}
-    for i in range(1, len(p.exports) + 1):
-        if not _sequence(p, i) or p.exports[i - 1]["outer"] <= 0: continue
-        try:
-            for (key, slot), item in p.properties(i)[0].items():
-                for v in _ref_values(p, item, placed):
-                    named.setdefault(i, []).append((v, key if not slot else f"{key}[{slot}]"))
-                if key == "VariableLinks" and item["kind"] == "ArrayProperty":
-                    for row in p.structs(item["value"]):
-                        linked = row.get(("LinkedVariables", 0), {}).get("value")
-                        desc = _link_text(row.get(("LinkDesc", 0), {}).get("value"))
-                        for var in p.refs(linked) if linked else []:
-                            users.setdefault(var, []).append((i, desc))
-                            links.setdefault(i, []).append(var)
-        except Exception as error:      # noqa: BLE001
-            if warn: warn(p.name(i), f"Kismet uses not read: {error}")
+    The walk is kismet_walk's (sequence objects' own object properties and plain reference arrays)."""
+    named, users, links = kismet_walk(p, warn, "uses")
     out = {}
     for i, refs in named.items():
         for actor, prop in refs:

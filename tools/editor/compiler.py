@@ -1076,9 +1076,7 @@ def assemblies(scene, package):
             frameless = not any(objs[a]['actorClass'] == 'XComDestructibleActor' for a in members)
             entry = dict(family='frameless-door' if frameless else 'door', members=members, pivot=leaves[0], leaves=leaves)
         elif bodies:
-            # a van's own building lists its parts, and whatever else touches its floor volumes (on Bar, a skid
-            # mark under one); a car parked in a building is a small part of that building's pieces
-            van = any(m and len(m & set(members)) * 2 > len(m) for m in owned)
+            van = any(piece_flags.van_building(m, members) for m in owned)
             entry = dict(family='van' if van else 'car', members=members, pivot=bodies[0], leaves=[])
         else:
             for a in members:
@@ -1101,7 +1099,7 @@ def van_buildings(scene, package=None):
     out = set()
     for b in scene.get('buildings') or []:
         owned = {m['actor'] for f in b.get('floors') or [] for m in f.get('members') or []}
-        if owned and any(len(owned & members) * 2 > len(owned) for members in vans.values()):
+        if any(piece_flags.van_building(owned, members) for members in vans.values()):
             out.add(b['id'])
     return out
 

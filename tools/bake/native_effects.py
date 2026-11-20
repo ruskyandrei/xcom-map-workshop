@@ -78,18 +78,6 @@ def carried(p, pairs):
     return out
 
 
-def _set_pose(walker, g, p, index, location, rotation):
-    import native_lights
-    e = p.exports[index - 1]
-    data = bytearray(g.export_data(index))
-    start = native_copy.legacy_props.props_start(p.data, e, p.names) - e['off']
-    data = native_lights.set_property(walker, g, data, start, 'Location', 'StructProperty', 'Vector',
-                                      struct.pack('<3f', *location))
-    data = native_lights.set_property(walker, g, data, start, 'Rotation', 'StructProperty', 'Rotator',
-                                      struct.pack('<3i', *rotation))
-    g.relocate(index, bytes(data))
-
-
 def carry(g, p, copies, hidden, pairs):
     """The effects the moved, copied and deleted pieces carry, made to follow them in `g` (the grower of package `p`).
     `copies`: [(original export, label, before (location, rotation), after (location, rotation))], one for each copy
@@ -118,7 +106,7 @@ def carry(g, p, copies, hidden, pairs):
             rec = dict(effect=p.name(e).rsplit('.', 1)[-1], template=template(p, e),
                        piece=p.name(original).rsplit('.', 1)[-1], location=[round(v, 3) for v in loc], rotation=rot)
             if is_move:
-                _set_pose(walker, g, p, e, loc, rot)
+                native_copy.set_pose(walker, g, p, e, loc, rot)
                 report.append(dict(rec, how='moved'))
             else:
                 made = native_copy.clone_actor(g, p, e, loc, rot)
@@ -403,7 +391,7 @@ def apply(g, p, ops, classes=EFFECT_CLASSES, what='an effect'):
         edited.add(i)
         loc, rot = [float(v) for v in m['location']], [int(v) for v in m['rotation']]
         before = pose_of(p, i)
-        _set_pose(walker, g, p, i, loc, rot)
+        native_copy.set_pose(walker, g, p, i, loc, rot)
         record.append(dict(actor=m['name'], how='moved', export=i, cls=p.cls(i), location=loc, rotation=rot,
                            before=dict(location=before[0], rotation=before[1])))
     for d in ops.get('deletes') or []:

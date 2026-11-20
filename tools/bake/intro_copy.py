@@ -162,15 +162,7 @@ def missing_places(p, base, landings):
 
 def set_place(g, p, w, i, location, rotation):
     """Set Location `i`'s LocationValue and RotationValue set (added where it saves none)."""
-    import native_lights
-    e = p.exports[i - 1]
-    data = bytearray(g.export_data(i))
-    start = legacy_props.props_start(p.data, e, p.names) - e['off']
-    data = native_lights.set_property(w, g, data, start, 'LocationValue', 'StructProperty', 'Vector',
-                                      struct.pack('<3f', *location))
-    data = native_lights.set_property(w, g, data, start, 'RotationValue', 'StructProperty', 'Rotator',
-                                      struct.pack('<3i', *rotation))
-    g.relocate(i, bytes(data))
+    native_copy.set_pose(w, g, p, i, location, rotation, names=('LocationValue', 'RotationValue'))
 
 
 def fill_places(g, p, base, landings):

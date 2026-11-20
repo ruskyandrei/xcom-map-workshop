@@ -50,9 +50,6 @@ CLASS_DEFAULTS = {
                          'LPFRadiusMin': 3500.0, 'LPFRadiusMax': 7000.0, 'PitchMin': 1.0, 'PitchMax': 1.0,
                          'VolumeMin': 0.7, 'VolumeMax': 0.7},
 }
-# a clear keeps the landing's actors (tools/bake/native_copy.py LANDING_PREFABS, LANDING_EXTRA: the same rule)
-LANDING_PREFABS = ('DGN_DropShipSoldierSpawn.Prefabs.', 'VEH_Lv1Skyranger_MOD.Prefabs.')
-LANDING_EXTRA = ('ARC_Skyranger_Ground_Periphery',)
 # a particle emitter's kind, from its first LOD level's type data module (none: sprites)
 TYPE_DATA = {'ParticleModuleTypeDataMesh': 'mesh', 'ParticleModuleTypeDataRibbon': 'ribbon',
              'ParticleModuleTypeDataBeam2': 'beam', 'ParticleModuleTypeDataTrail2': 'trail',
@@ -259,10 +256,10 @@ def floor_lists(p, level, prefix=''):
 
 
 def landing_actor(p, i):
-    """Whether a clear keeps an actor as the landing's (native_copy.landing_actor: by its archetype)."""
+    """Whether a clear keeps an actor as the landing's (scene_metadata.landing_archetype: by its archetype)."""
+    import scene_metadata
     a = p.exports[i - 1]['arch']
-    path = p.name(a) if a else ''
-    return path.casefold().startswith(tuple(x.casefold() for x in LANDING_PREFABS)) or short(path) in LANDING_EXTRA
+    return scene_metadata.landing_archetype(p.name(a) if a else '')
 
 
 def component_pose(p, component):

@@ -90,11 +90,7 @@ def actors(p, cls):
 
 def listed(p):
     """The export indices in the level's actor list (a staged or a deleted actor is under the level and not in it)."""
-    import struct
-    level = p.by_name[LEVEL]
-    _, end = p.properties(level)
-    owner, count = struct.unpack_from('<ii', p.data, end)
-    return set(struct.unpack_from('<%di' % count, p.data, end + 8))
+    return set(native_copy.level_actors(p))
 
 
 def soldier_points(p):
@@ -144,13 +140,6 @@ def squad_places(p, count=SQUAD):
         raise ValueError('the map has neither %d multiplayer spawn points nor a player start to put the squad by' % count)
     x, y, z = p.own(starts[0], 'Location')
     return [[x + 96 * (k % 3), y + 96 * (k // 3), z] for k in range(count)]
-
-
-def set_location(walker, g, p, index, location):
-    e = p.exports[index - 1]
-    data = bytearray(g.export_data(index))
-    start = legacy_props.props_start(p.data, e, p.names) - e['off']
-    g.relocate(index, bytes(native_copy.set_vector(walker, g, data, start, 'Location', location)))
 
 
 def fit(lo, hi, grid_lo, grid_hi):
@@ -621,7 +610,7 @@ def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, groun
                                       directional=p.name(sun), directionalBrightness=STAGE_SUN_BRIGHTNESS)
     for name, place in zip(staged.get('soldiers', []), squad_places(p)):
         index = p.by_name[LEVEL + '.' + name]
-        set_location(walker, g, p, index, place)
+        native_copy.set_pose(walker, g, p, index, place)
         add.append(index)
         report['placed'].append(dict(actor=name, location=place))
     box = grid_box(p)
