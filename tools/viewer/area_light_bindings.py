@@ -54,7 +54,6 @@ import json
 import math
 from pathlib import Path
 import struct
-import sys
 import time
 
 import numpy as np

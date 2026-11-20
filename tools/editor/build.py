@@ -149,8 +149,8 @@ SHELL = TOOLS / 'bake' / 'shell.py'
 NATIVE_LIGHTS = TOOLS / 'bake' / 'native_lights.py'
 LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
-# 9.3), passed to compiler.find_export where it takes a minimum
-EXPORT_MINIMUM = 18
+# 9.3), the compiler's own minimum
+EXPORT_MINIMUM = compiler.EXPORT_MINIMUM
 # the native edit's lanes of effects, ambient sounds and lens flares (compiler.native_split; native_copy.py makes them)
 EFFECT_LANES = ('effects', 'sounds', 'flares')
 LEFT_OUT_SHOWN = 100        # how many left-out pieces the compile stage names (the report file has them all)
@@ -749,11 +749,9 @@ class Build:
         # the builds folder's package of this name must be this project's, checked before any costly work (and again
         # as the new one goes in: package)
         owned_folder(self.output, self.variant, self.doc.get('id'))
-        # a generation with the light metadata (export 18), where the compiler's find_export takes a minimum
-        import inspect
-        minimum = {'minimum': EXPORT_MINIMUM} if 'minimum' in inspect.signature(compiler.find_export).parameters else {}
+        # a generation with the light metadata (export 18)
         try:
-            self.export, self.scene = compiler.find_export(self.cache, self.doc, **minimum)
+            self.export, self.scene = compiler.find_export(self.cache, self.doc, minimum=EXPORT_MINIMUM)
         except compiler.ExportMissing as error:
             raise BuildError(str(error))
         self.base = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % self.map)
@@ -1548,7 +1546,6 @@ class Build:
         # LWR's display names end in " |<n>", plain EW's don't: a record without an ending follows the install's
         tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
         listed = self.missions_listed     # the compiler's: the entries it can write, or None (every record)
-        count = len(mission_entries(records, listed))
         display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,

@@ -366,7 +366,7 @@ class Builds(unittest.TestCase):
         saved = compiler.find_export, compiler.compile_project
         self.addCleanup(setattr, compiler, 'find_export', saved[0])
         self.addCleanup(setattr, compiler, 'compile_project', saved[1])
-        compiler.find_export = lambda cache, doc: (root / 'scene.json', dict(name='URB_Bar'))
+        compiler.find_export = lambda cache, doc, minimum=None: (root / 'scene.json', dict(name='URB_Bar'))
         self.spec = dict(name=PATCH, map=dict(name='URB_Bar', origin=[0, 0, 0], shipAs=VARIANT), editor={},
                          objects=[COPY, DOOR, HIDE])
         self.report = dict(errors=[], warnings=[], counts=dict(moved=0, deleted=0, added=1, errors=0, warnings=0))
@@ -1849,7 +1849,7 @@ class Builds(unittest.TestCase):
         with self.assertRaisesRegex(build.BuildError, 'changes nothing'):
             self.make().run()
 
-    def test_the_export_asked_for_is_one_with_light_metadata_where_the_compiler_takes_a_minimum(self):
+    def test_the_export_asked_for_is_one_with_light_metadata(self):
         seen = []
         root = Path(self.tmp.name)
         compiler.find_export = lambda cache, doc, minimum=None: (seen.append(minimum),

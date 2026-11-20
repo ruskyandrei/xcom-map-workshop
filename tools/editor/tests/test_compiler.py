@@ -34,6 +34,17 @@ def library_scanned():
     except (OSError, ValueError):
         return False
 BAR_SHA = 'a3ae5a73457c3c3f3e490fde9e1ad935f667c4843792fc8d140abc66878e09b5'
+# the classes of the static pieces and props the Bar's parity test edits (the first editor's milestone M1)
+STATIC_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComCollectible')
+
+
+def pinned_bar(test, version):
+    """The viewer cache's export of the Bar these tests were written on (BAR_SHA), or the test skipped when the cache
+    has none: no cache, no URB_Bar, or another install's Bar (review finding 58)."""
+    try:
+        return compiler.find_export(CACHE, dict(source=dict(map='URB_Bar', sha256=BAR_SHA, exporterVersion=version)))[1]
+    except compiler.ExportMissing:
+        test.skipTest('no export of the URB_Bar these tests pin (SHA-256 %s...) in the viewer cache' % BAR_SHA[:16])
 
 
 def part(name, cls='XComLevelActor', at=(0, 0, 0), rot=(0, 0, 0), layer='base', package='URB_Bar', **extra):
@@ -1248,7 +1259,7 @@ class StageTests(unittest.TestCase):
         for levels in (11, 31):
             _, report = self.run_stage({'grid': [52, 39, levels]})
             self.assertEqual(codes(report), ['stage-grid'], levels)
-        self.assertEqual((compiler.STAGE_LEVELS_PLAYED, compiler.STAGE_LEVELS_MAX), (18, 30))
+        self.assertEqual(compiler.STAGE_LEVELS_MAX, 30)
 
     def test_a_taller_grid_gets_a_cursor_storey_for_each_192(self):
         s = scene()
@@ -2227,10 +2238,9 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(sorted(f for f, v in compiler.FAMILIES.items() if v['builds']),
                          ['building', 'car', 'collectible', 'destructible', 'door', 'effect', 'effect-values', 'flare', 'fracturing',
                           'frameless-door', 'ladder', 'light', 'physics', 'scenery', 'sound', 'sound-values', 'spawn', 'van'])
-        self.assertTrue(all(compiler.FAMILIES[compiler.CLASS_FAMILY[c]]['builds'] for c in compiler.M1_CLASSES))
         # every class with a family builds (fracturing pieces and physics props since 9 November), in the map itself
         # or as part of an assembly
-        self.assertEqual(compiler.MILESTONE, {})
+        self.assertTrue(all(compiler.FAMILIES[f]['builds'] for f in compiler.CLASS_FAMILY.values()))
         self.assertEqual(set(compiler.CLASS_FAMILY) - set(compiler.NATIVE_CLASSES), {'XComLadder', 'XComInteractiveLevelActor'})
         self.assertTrue(all(compiler.FAMILIES[f]['grid'] for f in compiler.ASSEMBLY_FAMILIES))
         # a fracturing piece keeps the grid move (its columns are saved one to a tile); a physics prop takes any pose
@@ -2280,10 +2290,9 @@ class FamilyTests(unittest.TestCase):
         for name in ('XComDestructibleActor_28', 'XComDestructibleActor_29'):
             self.assertNotIn(PL + name, found)
 
-    @unittest.skipUnless((CACHE / 'URB_Bar').is_dir(), 'no viewer cache with URB_Bar')
     def test_the_bars_assemblies(self):
         # the inventory (plan section 2): 13 cars and 4 vans, 7 framed doors, 2 ladders
-        _, base = compiler.find_export(CACHE, dict(source=dict(map='URB_Bar', sha256=BAR_SHA, exporterVersion=14)))
+        base = pinned_bar(self, 14)
         found = {id(a): a for a in compiler.assemblies(base, 'URB_Bar').values()}.values()
         count = {}
         for a in found:
@@ -2636,9 +2645,8 @@ class PreviewParityTests(unittest.TestCase):
                         add('XComDestructibleActor_4', 3, (40, -600, 0), (0, 12000, 0))])
         self.check(scene(), doc)
 
-    @unittest.skipUnless((CACHE / 'URB_Bar').is_dir(), 'no viewer cache with URB_Bar')
     def test_the_bars_static_pieces(self):
-        _, base = compiler.find_export(CACHE, dict(source=dict(map='URB_Bar', sha256=BAR_SHA, exporterVersion=12)))
+        base = pinned_bar(self, 12)
         rnd = random.Random(11)
         # pieces of cars, vans, doors and ladders build with their assemblies, not one by one
         joined = compiler.assemblies(base, 'URB_Bar')
@@ -2646,7 +2654,7 @@ class PreviewParityTests(unittest.TestCase):
         glowing = {l['emitterAttachment']['owner']['target']['actor'] for l in base['lights']
                    if (l.get('emitterAttachment') or {}).get('status') == 'verified'}
         self.assertGreater(len(glowing), 20)
-        pieces = sorted({o['actor'] for o in base['objects'] if o['actorClass'] in compiler.M1_CLASSES and o['layer'] == 'base'
+        pieces = sorted({o['actor'] for o in base['objects'] if o['actorClass'] in STATIC_CLASSES and o['layer'] == 'base'
                          and not o.get('partner') and o['actor'] not in joined and o['actor'] not in glowing})
         self.assertGreater(len(pieces), 750)
         # Destructible props are among them (M1 since EXP-13; cars', vans' and doors' are left out above).

@@ -2,7 +2,6 @@
 trees that a Cancel ends whole, never by a bare process id; the pieces folder is locked across processes; temporary
 files have names of their own; and the game install changes only when none of them runs, with the setting put back
 when the server can't load the new one."""
-import json
 from pathlib import Path
 import subprocess
 import sys

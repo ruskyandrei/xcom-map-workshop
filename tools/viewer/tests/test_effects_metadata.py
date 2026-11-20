@@ -10,7 +10,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import effects_metadata as em  # noqa: E402
-from package import Reader  # noqa: E402
 
 
 class Fake:

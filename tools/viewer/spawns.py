@@ -38,14 +38,6 @@ SOLDIERS = ((192.0, 384.0, -16.0), (0.0, 480.0, -16.0), (192.0, 192.0, -16.0),  
             (0.0, 288.0, -16.0), (-192.0, 384.0, -16.0), (-192.0, 192.0, -16.0))
 INSIDE_BACK = 288.0          # AdjustOffsets: an inside (or alternate, or no-evac) zone's points this much back in y
 GROUND = 64.0                # a zone's ground is this far under its StartLoc (the frame stands there)
-# the archetype names the mutator finds the landing's actors by (FindLZObjectsByArchetype), and what each is
-ARCHETYPES = {
-    'SoldierSpawns_DrpshipVol_12Arc0': 'frame', 'SoldierSpawns_DrpshipVol_Arc0': 'volume',
-    'SoldierSpawns_DrpshipVol_2Arc0': 'playerStart', 'SoldierSpawns_DrpshipVol_12Arc1': 'point',
-    'SoldierSpawns_DrpshipVol_Arc1': 'soldier1', 'SoldierSpawns_DrpshipVol_Arc2': 'soldier2',
-    'SoldierSpawns_DrpshipVol_Arc3': 'soldier3', 'SoldierSpawns_DrpshipVol_Arc4': 'soldier4',
-    'SoldierSpawns_DrpshipVol_Arc5': 'soldier5', 'SoldierSpawns_DrpshipVol_7Arc0': 'soldier6',
-}
 # the evac zone's building volume, as the landing prefab has it: 5 by 3 tiles, 192 high, about its actor
 EVAC_SIZE = (480.0, 288.0, 192.0)
 

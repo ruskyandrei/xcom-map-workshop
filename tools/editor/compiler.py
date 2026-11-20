@@ -139,10 +139,8 @@ MADE_MAX_STOREYS = made_split.MAX_STOREYS
 
 def _ground_looks():
     """A ground shape's looks (custom geometry plan, M6: tools/bake/ground_looks.json, ground.LOOKS), each its patch's
-    thickness; the one plain recipe until the file is written."""
+    thickness."""
     path = Path(__file__).resolve().parents[1] / 'bake' / 'ground_looks.json'
-    if not path.exists():
-        return {'plain': 8.0}
     return {look['id']: float(look.get('recipe', {}).get('thickness', 8.0))
             for look in json.loads(path.read_text(encoding='utf-8'))['looks']}
 
@@ -408,9 +406,6 @@ FOREIGN_SOFT = ('hidden', 'assembly', 'family', 'check')
 FOREIGN_WORDS = {'hidden': '%s of %s is hidden in its own map (a helper, not something to see)',
                  'assembly': '%s of %s is linked to other pieces in its own map (a car\'s body and its glass, a prop and '
                              'what it turns into)'}
-# Milestone M1's classes (research/editor-contracts.md, section 6), and the milestone each other class names.
-M1_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComCollectible')
-MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not FAMILIES[f]['builds']}
 # The export a project's edits build from (plan 4.1): export 18 has each light's GUIDs and bake membership and the
 # area lights' glowing pieces, without which a moved piece could leave its glow's light behind.
 EXPORT_MINIMUM = 18
@@ -548,8 +543,6 @@ LOOT_NOTES = {
     'move': '%s is a collectible (mission loot): moved, it still counts once',
     'delete': '%s is a collectible (mission loot): deleted, it no longer counts',
 }
-# An added piece naming a partner that isn't a car's is refused with the car's milestone.
-PARTNER_MILESTONE = FAMILIES['car']['milestone']
 NAME_BASE = 900
 # UDK's Save As stops at a warning for package names over 30 characters (findings register T-09).
 NAME_LIMIT = 30
@@ -5580,10 +5573,10 @@ class Library:
 # a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all
 # (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
 # before), and a map past it keeps its own as its limit (stage_max)
-STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 256
-# levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b); the editor makes up to
-# 30 (1,920 units; the user, 14 November 2026)
-STAGE_LEVELS_PLAYED, STAGE_LEVELS_MAX = 18, 30
+STAGE_GRID_MAX = 256
+# levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b; prefab_bounds.PLAYED_LEVELS,
+# the test stage's least height); the editor makes up to 30 (1,920 units; the user, 14 November 2026)
+STAGE_LEVELS_MAX = 30
 
 
 def stage_max(own):

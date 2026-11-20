@@ -16,7 +16,6 @@ editor's Play in game plays each as its project's last build. The game, the cach
   python -B tools/editor/examples/exp63_projects.py [--build] [--quick]
 """
 import argparse
-import hashlib
 from pathlib import Path
 import sys
 

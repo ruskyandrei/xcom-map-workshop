@@ -427,11 +427,6 @@ def valid_entry(entry, records):
     return False
 
 
-def entry_id(entry):
-    """A `missions` entry's id, as a play names it (installs.mission_id): the record's index, or the kind."""
-    return entry['record'] if 'record' in entry else entry['kind']
-
-
 def _set(line, name, value):
     """A record's unquoted field set (added before the closing bracket when the record has none)."""
     pattern = r'(?<![A-Za-z])%s\s*=\s*\w+' % name

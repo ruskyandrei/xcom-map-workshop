@@ -4,7 +4,6 @@ prop's pathing gate and its companion writes, normalizing a request, and the par
 
   python -B tools/viewer/tests/test_piece_flags.py --write-cases    write piece_flag_cases.json again
 """
-import itertools
 import json
 from pathlib import Path
 import random

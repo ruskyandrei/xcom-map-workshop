@@ -3,10 +3,7 @@ play's clear-up and Remove from game, each stopped after any file copy, config r
 (a crash or a forced stop: no clean-up runs), then the next operation on the install (Remove from game, or the next
 look at it). The game's files must come back byte for byte, nothing of the change left behind, and a hand edit made
 in between kept and reported. On the temporary game installs of test_play.py."""
-import hashlib
-import json
 from pathlib import Path
-import shutil
 import sys
 import unittest
 from unittest import mock

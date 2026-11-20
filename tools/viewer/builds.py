@@ -103,18 +103,6 @@ def explorer(command):
     subprocess.Popen(f'"{exe}" {command}', creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 
 
-def stop_process(pid):
-    """Stop a process this server started and its children (the exporter's and the precache's; builds are contained
-    process trees instead: procs.py)."""
-    if sys.platform == 'win32':
-        subprocess.run(['taskkill', '/T', '/F', '/PID', str(pid)], capture_output=True,
-                       creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    else:
-        import signal
-        try: os.killpg(pid, signal.SIGTERM)
-        except ProcessLookupError: pass
-
-
 def _write(path, data):
     temp = path.with_name(path.name + '.tmp')
     with open(temp, 'wb') as stream:

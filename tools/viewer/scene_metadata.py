@@ -428,7 +428,7 @@ def effect_metadata(p):
 
 
 # the landing's prefabs (private/plans/done/clear-map-plan.md, section 4; F-96): a landing is a PrefabInstance of
-# the soldier-spawn dropship prefab (its ten actors, roles by archetype as spawns.ARCHETYPES), the grounded Skyranger
+# the soldier-spawn dropship prefab (its ten actors, roles by archetype: LANDING_ROLES), the grounded Skyranger
 # a PrefabInstance of the Skyranger prefab (its mesh, an emitter, a sound and a PointInSpace)
 LANDING_TEMPLATE = "DGN_DropShipSoldierSpawn.Prefabs."
 SKYRANGER_TEMPLATE = "VEH_Lv1Skyranger_MOD.Prefabs."

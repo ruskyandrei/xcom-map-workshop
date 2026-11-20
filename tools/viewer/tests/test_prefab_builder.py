@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import test_prefabs as fixtures
 from prefab_bounds import measure, policy, require_supported
 from prefabs import validate
-from projects import ProjectError
 from export_math import transform, view_matrix
 from library import pieces_root
 
@@ -39,7 +38,7 @@ class BoundsTests(unittest.TestCase):
         self.assertEqual(limits, dict(gridLevels=b.GRID_LEVELS, playedLevels=b.PLAYED_LEVELS, gridTop=b.GRID_TOP, minZ=b.MIN_Z,
                                       maxZ=b.MAX_Z, tiles=b.MAX_TILES, stageLevels=compiler.STAGE_LEVELS_MAX,
                                       stageGrid=compiler.STAGE_GRID_MAX, buildingFloors=compiler.BUILDING_FLOORS_MAX))
-        self.assertEqual((compiler.STAGE_LEVELS_PLAYED, prefabs.MAX_FLOORS), (b.PLAYED_LEVELS, compiler.BUILDING_FLOORS_MAX))
+        self.assertEqual(prefabs.MAX_FLOORS, compiler.BUILDING_FLOORS_MAX)
 
     def test_geometry_wins_over_declared_floor_and_actor_origin(self):
         with tempfile.TemporaryDirectory() as temp:
