@@ -5230,6 +5230,10 @@ def main():
             if 'reset-all' in only:
                 from browser_editing import check_reset_all
                 print(json.dumps(dict(resetAll=check_reset_all(browser, page.url, open_viewer))))
+            if 'draw-errors' in only:
+                assert args.projects, 'the draw-errors check saves a project: give --projects, on a test server'
+                from browser_editing import check_draw_errors
+                print(json.dumps(dict(drawErrors=check_draw_errors(browser, page.url, open_viewer, save_dialog))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

@@ -1109,12 +1109,16 @@ function breather(slice = WORK_SLICE) {
   let since = performance.now();
   return async () => { if (performance.now() - since < slice) return; await nextFrame(); since = performance.now(); };
 }
-// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark.
-async function buildRoots(objs, step = null) {
+// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark. With `failed`
+// (a list), a piece that can't be drawn (its mesh, a material or a texture not had) is left out of what is given back
+// and named there, { obj, error }, as the map's own load leaves one out (review finding 29); without, it throws.
+async function buildRoots(objs, step = null, failed = null) {
   const built = [], rest = breather();
   for (let k = 0; k < objs.length; k += BUILD_CHUNK) {
-    built.push(...await Promise.all(objs.slice(k, k + BUILD_CHUNK).map(buildRoot)));
-    step?.(built.length, objs.length);
+    const chunk = objs.slice(k, k + BUILD_CHUNK);
+    const made = await Promise.all(chunk.map(obj => (failed ? buildRoot(obj).catch(error => { failed.push({ obj, error }); return null; }) : buildRoot(obj))));
+    built.push(...made.filter(Boolean));
+    step?.(k + chunk.length, objs.length);
     await rest();
   }
   return built;
@@ -1866,10 +1870,20 @@ async function pasteSnapshot(clip, delta, step = null) {
       prefab: linkTag(e),
       partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null, ...stateOfEntry(e) });
   });
+  // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
+  // A piece that can't be drawn (its mesh, a material or a texture not had) is left out, all its parts, and the hint
+  // says so (review finding 29); the rest is placed.
+  const failed = [], made = await buildRoots(objs, step, failed);
+  const lost = new Set(failed.map(f => f.obj.actor)), built = made.filter(r => !lost.has(r.userData.source.actor));
+  if (failed.length) {
+    for (const f of failed) console.error(f.obj.actor, f.error);
+    flashHint(`${plural(lost.size, 'piece')} of ${clip.name ?? 'the copy'} could not be drawn, so ${lost.size === 1 ? 'it is' : 'they are'} not placed: `
+      + `${failed[0].error?.message ?? failed[0].error}`);
+  }
   // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
   // options as the original has them. A prefab's clip brings its own groups.
   // (each copied member's key, and its copy's record: pieces, lights and buildings)
-  const copied = [...clip.entries.map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
+  const copied = [...clip.entries.filter(e => !lost.has(copies.get(unitOf(e)).name)).map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
                   ...lightEntries.map((e, k) => [keyOf(e), memberRecord(lights[k].userData.source)]),
                   ...effectEntries.map((e, k) => [keyOf(e), memberRecord(effects[k].userData.source)]),
                   ...[...twins].map(([was, t]) => [buildingKey(was), { building: t.id }])];
@@ -1891,11 +1905,12 @@ async function pasteSnapshot(clip, delta, step = null) {
     else if (only) tree.get(only).prefab = { ...clip.wrap };
   }
   const newGroups = [...tree.values()];
-  // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
-  const built = await buildRoots(objs, step);
-  const before = gizmo.picks(), ids = [...objs.map(o => o.id), ...lights.map(r => r.userData.source.id),
+  const before = gizmo.picks(), ids = [...built.map(r => r.userData.source.id), ...lights.map(r => r.userData.source.id),
                                        ...effects.map(r => r.userData.source.id),
                                        ...(boxesShown ? boxes.map(r => r.userData.source.id) : [])];
+  // (what it gives back says how many pieces it left out: `lost`, so a caller's own hint doesn't hide the reason)
+  Object.assign(built, { lost: lost.size });
+  if (!built.length && !lights.length && !effects.length && !boxes.length) return built;     // (nothing could be placed)
   gizmo.record({
     size: built.length,
     redo: () => {
@@ -2303,12 +2318,16 @@ async function placeAt(at, keep) {
   // (a warning, not a refusal: plan "sturdier prefabs", R7; the Build's stage-outside says the same)
   const problem = prefabPlacementProblem(clip, delta);
   if (!keep) stopPlacing();
-  if (clip.entries.length >= BUSY_PIECES)
-    await busy(`Placing ${clip.prefab ? clip.name : 'the copy'}: pieces made`, step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true });
-  else await pasteSnapshot(clip, delta);
+  // (a paste that fails says why: placeAt is called without waiting for it, by a click or Ctrl+V)
+  let placed;
+  try {
+    placed = clip.entries.length >= BUSY_PIECES
+      ? await busy(`Placing ${clip.prefab ? clip.name : 'the copy'}: pieces made`, step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
+      : await pasteSnapshot(clip, delta);
+  } catch (error) { console.error(error); flashHint(`${clip.name ?? 'The copy'} could not be placed: ${error?.message ?? error}`); return; }
   if (clip.libraryEntry) library.used(clip.libraryEntry);     // it heads the recently used pieces
   if (problem) banner(problem, [['Undo', () => gizmo.undo()]]);
-  if (!keep) flashHint(`Placed ${clip.name} · Ctrl+V places another`);
+  if (!keep && !placed?.lost) flashHint(`Placed ${clip.name} · Ctrl+V places another`);
 }
 // Shift held as a move handle is taken (an axis or a plane): the drag moves a copy along it (the gizmo's copyDrag).
 // The selection itself is what moves under the cursor, with the snaps of any drag, and a drawn-only stand-in keeps
@@ -2335,9 +2354,12 @@ function copyDragBegin() {
 }
 async function copyDragEnd({ clip, stand }, delta) {
   try {
-    if (delta && clip.entries.length >= BUSY_PIECES)
-      await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true });
-    else if (delta) await pasteSnapshot(clip, delta);
+    const placed = delta && clip.entries.length >= BUSY_PIECES
+      ? await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
+      : delta ? await pasteSnapshot(clip, delta) : null;
+    if (placed?.lost) delta = null;      // (its hint says what was left out)
+  } catch (error) {
+    console.error(error); flashHint(`The copy of ${clip.name} could not be placed: ${error?.message ?? error}`); delta = null;
   } finally {
     // (the stand-in goes once the copy's original is drawn in its place again)
     world.remove(stand);
@@ -4386,10 +4408,12 @@ async function applyPrefabDocument(doc, { envelope = null, nextSerial = 0 } = {}
   // Reserve names and link serials even when none of their pieces can be displayed.
   for (const p of doc.pieces) for (const s of [/_copy(\d+)$/.exec(p.actor)?.[1], /^copy(\d+):/.exec(p.prefab ?? '')?.[1]]) nextSerial = Math.max(nextSerial, Number(s) || 0);
   builder.kept = doc.pieces;
-  const carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress);
+  let carried;
+  // (loading ends whatever happens: a failed open never leaves the builder thinking it is still reading)
+  try { carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress); }
+  finally { builder.loading = false; }
   builder.kept = carried.added.map(({ id, ...p }) => p);
   builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * 96, doc.floor.tiles[1] * 96, 0] : null;
-  builder.loading = false;
   refreshBuilder(); editChanged();
 }
 async function openPrefabDocument(id) {
@@ -4694,7 +4718,7 @@ async function applyState(state, progress = null) {
       }
     }
   }
-  const objs = [], lights = [], effects = [];
+  const objs = [], lights = [], effects = [], entityOf = new Map();     // (each made piece's record: entityOf)
   for (const entity of state.added) {
     if (SPAWN_COPY_KINDS.includes(entity.kind)) {
       // a copy of one of the map's pods, Meld points or no-spawn volumes (SP7), or a new volume (no `from`); one the page
@@ -4721,6 +4745,7 @@ async function applyState(state, progress = null) {
       if (serial > copySerial) copySerial = serial;
       objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), { actor: entity.actor, entity: entity.id,
         prefab: null, partner: null, location: entity.location, rotation: entity.rotation, tinted: false }));
+      entityOf.set(objs.at(-1), entity);
       continue;
     }
     if (entity.template || lightIndex.has(targetKey(entity.from))) {
@@ -4737,9 +4762,21 @@ async function applyState(state, progress = null) {
       objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
         prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
         ...stateOf(entity) }));
+      entityOf.set(objs.at(-1), entity);
     }
   }
-  addRoots(await buildRoots(objs, progress && ((done, total) => progress('making', done, total))));
+  // A piece that can't be drawn (its mesh, a material or a texture not had: review finding 29) is a display error, as
+  // in the map's own load: its record is kept and saved back unchanged, and none of its parts is drawn.
+  const failed = [], built = await buildRoots(objs, progress && ((done, total) => progress('making', done, total)), failed);
+  const lost = new Set(failed.map(f => entityOf.get(f.obj)));
+  addRoots(built.filter(r => !lost.has(entityOf.get(r.userData.source))));
+  if (lost.size) {
+    for (const f of failed) console.error(f.obj.actor, f.error);
+    carried.added.push(...lost);
+    loadErrorCount += lost.size;
+    projectNote(`${plural(lost.size, 'piece')} of the ${builderMode ? 'prefab' : 'project'} could not be drawn (${failed[0].error?.message ?? failed[0].error}): `
+      + `${lost.size === 1 ? 'its record is' : 'their records are'} kept and saved back unchanged. The browser console has the errors.`);
+  }
   addLightRoots(lights);
   addEffectRoots(effects);
   setMissionMoves(streamMoves);
@@ -4751,7 +4788,7 @@ async function applyState(state, progress = null) {
   // Groups whose pieces are all here; one naming a piece this export (or this state) lacks is carried unchanged.
   const applied = new Set([...actors.keys()].map(k => `orig|${k}`));
   if (builderMode) for (const p of builder.kept) applied.add(memberKey({ added: p.actor }));
-  for (const o of objs) applied.add(memberKey({ added: o.actor }));
+  for (const o of objs) if (!lost.has(entityOf.get(o))) applied.add(memberKey({ added: o.actor }));
   // (lights and the project's buildings are members too)
   for (const r of [...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()]) applied.add(memberOf(r.userData.source));
   // (a group that names a group not applied goes with it; so does one in two groups, or in itself)
@@ -4790,10 +4827,16 @@ function banner(message, actions = [], { timeout = 0 } = {}) {
     setParagraphs(body, message);
     el.replaceChildren(body);
   } else el.replaceChildren(message);
+  // (an action that fails says so in the banner, as Restore them does when a recovered piece can't be read: review
+  // finding 29)
   for (const [label, run] of actions) {
     const button = text(el, 'button', label);
     button.type = 'button';
-    button.onclick = () => { el.hidden = true; run(); };
+    button.onclick = () => {
+      el.hidden = true;
+      try { run()?.catch?.(error => banner(`${label} could not be done: ${error?.message ?? error}`)); }
+      catch (error) { banner(`${label} could not be done: ${error?.message ?? error}`); }
+    };
   }
   const close = text(el, 'button', '×', 'close');
   Object.assign(close, { type: 'button', title: 'Dismiss' });
@@ -5906,7 +5949,8 @@ function frame(root = content) {
 async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
   if (!id || !data.textures[id]) return null;
   const key = `${id}:${color}:${JSON.stringify(sampling)}`;
-  if (!texturePromises.has(key)) texturePromises.set(key, (async () => {
+  // (a texture that failed to load is asked for again by the next material that needs it: track)
+  track(texturePromises, key, async () => {
     const tex = await textureLoader.loadAsync(assetUrl(data.textures[id].url));
     tex.colorSpace = color && data.textures[id].srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     // UE UVs and extracted PNGs both use a top-left origin. Preserve that
@@ -5917,7 +5961,7 @@ async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     return tex;
-  })());
+  });
   return texturePromises.get(key);
 }
 // The plain material of a made piece with no look (B2): light grey, shaded by the lights, the floor's tile lines
@@ -5984,11 +6028,15 @@ function materialKey(obj, id) {
   const tint = obj.provenance?.type === 'spawn' || obj.added?.tinted ? obj.tint : null;
   return [`${id}:${JSON.stringify(tint)}`, tint];
 }
-// The no-op catch only stops an early failure being reported as unhandled before its piece is reached.
+// The catch stops an early failure being reported as unhandled before its piece is reached, and drops the failed load,
+// so the next piece that needs it asks again rather than failing for the page's life (review finding 29).
 // Once loaded, a value can also be had at once with loaded(), for drawing in the middle of a frame.
 const settled = new WeakMap();
 function track(map, key, start) {
-  if (!map.has(key)) { const promise = start(); promise.then(v => settled.set(promise, v), () => {}); map.set(key, promise); }
+  if (map.has(key)) return;
+  const promise = start();
+  promise.then(v => settled.set(promise, v), () => { if (map.get(key) === promise) map.delete(key); });
+  map.set(key, promise);
 }
 const loaded = (map, key) => settled.get(map.get(key));
 // A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
@@ -12011,8 +12059,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
-    // (the dialogs' keys, for the browser check: browser_editing.py)
-    showPrepare,
+    // (the dialogs' keys and a state put on the map, for the browser checks: browser_editing.py)
+    showPrepare, applyState,
     pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,
     // prefabs (prefab plan stage P), for the browser smoke test
     prefabs: prefabTab, prefabApi, prefabRecords, savePrefab, choosePrefab, prefabClip,

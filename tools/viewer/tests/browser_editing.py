@@ -11,9 +11,14 @@ pieces will do (the pieces made here use it as their donor).
   and Shift+Tab from the first to the last; Delete, M and W don't reach the scene behind; Escape closes and the focus
   goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick.
 - reset-all (finding 28): one of the map's fracturing pieces broken with Break (B and a click on it) is the only
-  change: Reset all mends it, and Ctrl+Z breaks it again; broken with another piece deleted, Reset all puts both back."""
+  change: Reset all mends it, and Ctrl+Z breaks it again; broken with another piece deleted, Reset all puts both back.
+- draw-errors (finding 29, needs --projects): a project holding a copy of a piece whose mesh the browser can't load
+  opens all the same, with the copy counted as a display error and its record kept and saved back; a paste of that
+  piece says it could not be drawn and places nothing, and once the mesh can be had again the next paste places it
+  (a failed load is not kept)."""
 import json
 import math
+import time
 
 WALL = dict(kind='fracWall', version=4, wall=dict(x0=0, x1=288, openings=[dict(x0=96, x1=192, z0=-16, z1=208)], seed=3),
             blasts=[dict(at=[48, 0, 96], radius=96)], breaksFurther=True)
@@ -230,3 +235,82 @@ def check_reset_all(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return dict(piece=piece, blasts=len(blasts))
+
+
+# a piece of the map whose mesh no other piece uses (one component, a static mesh): its id, actor and mesh file
+LONE_PIECE = """() => { const uses = new Map();
+  for (const o of viewer.data.objects) uses.set(o.mesh, (uses.get(o.mesh) ?? 0) + 1);
+  const r = [...viewer.roots.values()].find(r => { const o = r.userData.source;
+    return !o.added && r.visible && !o.hidden && uses.get(o.mesh) === 1 && viewer.data.meshes[o.mesh].kind === 'static'
+      && viewer.data.objects.filter(x => x.actor === o.actor).length === 1; });
+  const o = r.userData.source;
+  return { id: o.id, actor: o.actor, file: viewer.data.meshes[o.mesh].url.split('/').at(-1) }; }"""
+PASTE_SOURCE = """async actor => { const T = await import('/vendor/three/three.module.js');
+  const o = viewer.data.objects.find(x => x.actor === actor);
+  const placed = await viewer.pasteSnapshot({ entries: [{ source: o, matrix: new T.Matrix4().fromArray(o.matrix) }], pivotIndex: 0, name: 'the lone piece' },
+                                            new T.Matrix4().makeTranslation(0, 0, 192));
+  return { placed: placed.length, lost: placed.lost ?? 0, hint: document.getElementById('dragHint').textContent }; }"""
+
+
+def check_draw_errors(browser, url, open_viewer, save_dialog):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    lone = page.evaluate(LONE_PIECE)
+    # a project with a copy of it, saved
+    page.evaluate('id => viewer.select(id)', lone['id'])
+    page.keyboard.press('Control+c')
+    page.evaluate('async () => { const c = viewer.clipboard(); const T = await import("/vendor/three/three.module.js");'
+                  ' await viewer.pasteSnapshot(c, new T.Matrix4().makeTranslation(0, 0, 192)); }')
+    save_dialog(page, f'Draw errors check {int(time.time())}')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1', timeout=60000)
+    project = page.evaluate('viewer.project()')
+    copy = next(a for a in project['doc']['added'] if a['from']['actor'] == lone['actor'])
+    page.close()
+    # opened where that mesh can't be loaded: the project opens, the copy is a display error, its record is kept
+    errors = []
+    page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    blocked = lambda route: route.abort()      # noqa: E731
+    page.route(f"**/{lone['file']}", blocked)
+    page.goto(url.split('?')[0] + f"?map={project['doc']['source']['map']}&project={project['id']}")
+    page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=120000)
+    opened = page.evaluate('viewer.project()')
+    assert opened and opened['id'] == project['id'], opened
+    assert any(a['actor'] == copy['actor'] for a in opened['carried']['added']), opened['carried']
+    assert not page.evaluate('viewer.dirty()')
+    # a paste of it: says so and places nothing; once the mesh can be had, the next paste places it
+    tried = page.evaluate(PASTE_SOURCE, lone['actor'])
+    assert tried['placed'] == 0 and tried['lost'] == 1 and 'could not be drawn' in tried['hint'], tried
+    page.unroute(f"**/{lone['file']}", blocked)
+    again = page.evaluate(PASTE_SOURCE, lone['actor'])
+    assert again['placed'] == 1 and again['lost'] == 0, again
+    # saved back: the copy that couldn't be drawn is still in the project
+    page.keyboard.press('Control+s')
+    page.wait_for_function('viewer.project()?.revision === 2', timeout=60000)
+    saved = page.evaluate('viewer.project().doc.added')
+    assert any(a['actor'] == copy['actor'] and a['from'] == copy['from'] for a in saved), saved
+    # a state whose copy needs a material that can't be had (its texture is missing) is put on the map all the same:
+    # the copy is a display error, said in the notes, and its record carried
+    # (another piece of the map, drawn: the lone one's mesh was kept from this page's load)
+    applied = page.evaluate("""async lone => {
+      const root = [...viewer.roots.values()].find(r => { const s = r.userData.source;
+        return !s.added && r.visible && !s.hidden && s.actor !== lone && viewer.data.objects.filter(x => x.actor === s.actor).length === 1; });
+      const o = root.userData.source, actor = o.actor;
+      viewer.data.textures['check:gone'] = { url: '/cache/no-such-map/no-such-texture.png', srgb: true };
+      viewer.data.materials['check:gone'] = { ...viewer.data.materials[o.materials[0]], diffuse: 'check:gone', render: {} };
+      const kept = o.materials; o.materials = o.materials.map(() => 'check:gone');
+      const record = { id: 'draw-errors-check', actor: `${actor}_copy987`, from: { package: o.sourcePackage, level: 'base', actor },
+                       components: [o.component], location: o.location.map((v, k) => v + (k === 1 ? 384 : 0)), rotation: [...o.rotation] };
+      try {
+        const carried = await viewer.applyState({ overrides: [], added: [record], groups: [] });
+        return { copy: record.actor, carried: carried.added.map(a => a.actor), drawn: [...viewer.roots.values()].some(r => r.userData.source.actor === record.actor),
+                 notes: document.getElementById('diagnostics').textContent };
+      } finally { o.materials = kept; }
+    }""", lone['actor'])
+    assert applied['carried'] == [applied['copy']] and not applied['drawn'], applied
+    assert 'could not be drawn' in applied['notes'], applied['notes']
+    page.close()
+    errors = [e for e in errors if 'no-such-texture' not in e]
+    assert not errors, errors
+    return dict(piece=lone['actor'], project=project['id'])
