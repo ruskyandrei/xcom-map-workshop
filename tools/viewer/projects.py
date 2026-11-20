@@ -79,6 +79,23 @@ def check_schema(document, writing=False):
                            schemaVersion=version)
 
 
+def shape_problem(document):
+    """What keeps a project of a schema this editor reads from being listed, opened or built (review finding 9), in
+    words, or None: the least the listing, the page and the Build read, the same for schema 1 to 4. Its name is text;
+    it names its base map and that map's SHA-256; its edits, when it has them, are lists of records; its revision is a
+    whole number. Edits that name pieces a map lacks are the page's to judge, and carried."""
+    if not isinstance(document.get('name', ''), str): return 'its name is not text'
+    source = document.get('source')
+    if not isinstance(source, dict) or not isinstance(source.get('map'), str) or not isinstance(source.get('sha256'), str):
+        return 'it does not name its base map and that map\'s SHA-256 (source.map and source.sha256)'
+    for key in ('overrides', 'added', 'groups', 'areaLightBindings', 'buildings'):
+        if key in document and not (isinstance(document[key], list) and all(isinstance(r, dict) for r in document[key])):
+            return f'its "{key}" is not a list of records'
+    revision = document.get('revision', 0)
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0: return 'its revision is not a whole number'
+    return None
+
+
 def validate(document, project_id):
     """The checks the server can make without the map: shape, identity and binding. The browser checks the edits
     against the map when it opens them."""
@@ -167,7 +184,15 @@ class ProjectStore:
     schema, noun, prev = SCHEMA, 'project', 'project.prev.json'
 
     def check(self, document):
+        """A document the listing, the page and the Build can read: of a schema this editor reads, and of the least
+        shape they read (shape_problem); else a ProjectError that says why."""
         check_schema(document)
+        problem = shape_problem(document)
+        if problem: raise ProjectError(422, f'This {self.noun} can\'t be read: {problem}.')
+
+    def readable(self, document):
+        """Whether the listing prefers this document over a copy that can't be read (prefabs: always)."""
+        return shape_problem(document) is None
 
     def validate(self, document, project_id):
         validate(document, project_id)
@@ -323,7 +348,8 @@ class ProjectStore:
         best = {}
         for path, document in found:
             if isinstance(document, ProjectError): continue
-            rank = (*self._rank(document), file_stem(document.get('name')) == path.stem)
+            # (a copy that can be read is the project before one that can't: review finding 9)
+            rank = (self.readable(document), *self._rank(document), file_stem(str(document.get('name'))) == path.stem)
             if document['id'] not in best or rank > best[document['id']][0]: best[document['id']] = (rank, path)
         self.paths = {project_id: path for project_id, (_, path) in best.items()}
         rows = []

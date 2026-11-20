@@ -117,6 +117,16 @@ class Manager(unittest.TestCase):
         self.store.save(ID, dict(self.store.load(ID), picture=dict(sha256=digest)), 2)
         self.assertEqual(self.row(manager.listing(self.store, self.builds, player))['picture'], 'own')
 
+    def test_a_malformed_shared_project_is_a_row_of_its_own(self):
+        """Review finding 9: one file the editor can't read (its base map a string) is listed with its reason, and the
+        other projects are listed as before."""
+        broken = '4d5e6f7a-1d2a-4b6c-8e9f-123456789abc'
+        (self.store.root / 'from a friend.json').write_text(json.dumps(document(broken, source='URB_Bar')), encoding='utf8')
+        listed = manager.listing(self.store, self.builds, self.player())
+        self.assertEqual(self.row(listed)['variant'], VARIANT)
+        bad = next(p for p in listed['projects'] if p['file'] == 'from a friend.json')
+        self.assertIn('base map', bad['error'])
+
     def test_a_campaign_install_follows_the_builds_records_for_the_projects_missions(self):
         # mission types plan, D4: the Build's own records, in rotation as the base map's (an added terror in, a bomb out)
         terror, council = self.more_missions(self.lwr)

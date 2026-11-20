@@ -216,6 +216,36 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 2)
         self.assertFalse((self.root / ID).exists())
 
+    def test_a_malformed_shared_project_is_listed_with_its_reason_and_the_rest_open(self):
+        """Review finding 9: a file of the project schema whose shape the editor can't read (its base map a string,
+        its edits not lists, its revision not a number) is a row of its own with the reason; the others list, open
+        and capture as before, schema 1 among them."""
+        self.store.save(ID, document(), 0)
+        old = dict(document(OTHER, name='Old one', revision=3), schemaVersion=1)
+        (self.root / 'old.json').write_text(json.dumps(old), encoding='utf8', newline='\n')
+        bad = {'source string.json': dict(source='URB_Bar'), 'edits object.json': dict(overrides={'a': 1}),
+               'added numbers.json': dict(added=[1, 2]), 'revision text.json': dict(revision='3'),
+               'no hash.json': dict(source=dict(map='URB_Bar')), 'name list.json': dict(name=['x'])}
+        ids = {}
+        for k, (file, change) in enumerate(bad.items()):
+            ids[file] = f'00000000-0000-4000-8000-0000000000{k:02d}'
+            (self.root / file).write_text(json.dumps(document(ids[file], **change)), encoding='utf8', newline='\n')
+        listed = {p['file']: p for p in self.store.list()}
+        self.assertEqual((listed['Bar remix.json']['revision'], listed['old.json']['revision']), (1, 3))
+        for file in bad:
+            self.assertIn('can\'t be read', listed[file]['error'], file)
+            with self.assertRaises(ProjectError) as error: self.store.load(ids[file])
+            self.assertEqual(error.exception.status, 422)
+            with self.assertRaises(ProjectError): self.store.capture(ids[file])
+        self.assertIn('base map', listed['source string.json']['error'])
+        self.assertIn('"overrides"', listed['edits object.json']['error'])
+        self.assertEqual(self.store.load(OTHER)['schemaVersion'], 1)
+        self.assertEqual(self.store.capture(ID)[0]['revision'], 1)
+        # a copy that can be read is the project before a newer one that can't
+        (self.root / 'Bar remix - broken.json').write_text(json.dumps(document(revision=9, overrides='x')), encoding='utf8', newline='\n')
+        self.assertEqual(self.store.load(ID)['revision'], 1)
+        self.assertIn('copy', {p['file']: p for p in self.store.list()}['Bar remix - broken.json']['error'])
+
     def test_a_save_based_on_an_older_revision_is_a_conflict(self):
         self.store.save(ID, document(), 0)
         self.store.save(ID, document(), 1)

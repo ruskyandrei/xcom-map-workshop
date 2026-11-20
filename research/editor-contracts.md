@@ -261,7 +261,10 @@ summary counts `effects`, `sounds` and `flares`.
   - **Two files with one id** (a copy made beside it): the one with the highest revision, then the newest `savedAt`,
     then the one named after its project, is the project. The other is listed as a copy and cannot be opened.
   - **Other files** ending `.json` are listed as unreadable. A project of another schema version is found by its id,
-    so opening it says which version, and listed with that error.
+    so opening it says which version, and listed with that error. So is a project whose shape the editor can't
+    read (`projects.shape_problem`: its name not text, no base map and SHA-256, edits that are not lists of
+    records, a revision that is not a whole number), with the reason; opening and building it are refused with
+    the same words, and a copy that can be read is the project before one that can't (20 November 2026).
   - **`.workshop`** (hidden on Windows) keeps what stays on this computer, by id, so renaming a file keeps its backup
     and recovery.
   - **The earlier layout** (`<id>\project.json`, `project.prev.json`, `recovery.json`) is moved to this one the first

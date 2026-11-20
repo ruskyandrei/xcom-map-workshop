@@ -477,6 +477,9 @@ class PrefabStore(ProjectStore):
     def check(self, document):
         check_schema(document)
 
+    def readable(self, document):
+        return True
+
     def validate(self, document, prefab_id):
         """A save's check: the whole document, of the schema this editor writes."""
         check_schema(document, writing=True)

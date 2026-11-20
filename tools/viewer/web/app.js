@@ -4881,12 +4881,20 @@ async function openProject(id) {
   catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
   await looksReady;
   if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
+  // (the server opens only a project it can read: projects.shape_problem. A document whose edits are not lists is
+  // refused here too, rather than opened without them and saved back so: review finding 9)
+  const listOrNone = value => value === undefined || Array.isArray(value);
+  if (!listOrNone(doc.overrides) || !listOrNone(doc.added) || typeof doc.source?.sha256 !== 'string') {
+    banner(`The project could not be opened: ${doc.name ?? id} is not a project this editor can read (its edits or its base map are not as a project has them).`);
+    return;
+  }
   $('loading').hidden = false; loadingState(`Opening ${doc.name}…`, 0);
+  const docOverrides = doc.overrides ?? [], docAdded = doc.added ?? [];
   const docGroups = Array.isArray(doc.groups) ? doc.groups : [];
   const docBindings = Array.isArray(doc.areaLightBindings) ? doc.areaLightBindings : [];
-  const malformed = { overrides: doc.overrides.filter(r => !validOverride(r)), added: doc.added.filter(e => !validAdded(e)),
+  const malformed = { overrides: docOverrides.filter(r => !validOverride(r)), added: docAdded.filter(e => !validAdded(e)),
                       groups: docGroups.filter(g => !validGroup(g)), areaLightBindings: docBindings.filter(b => !validBinding(b)) };
-  const carried = await applyState({ overrides: doc.overrides.filter(validOverride), added: doc.added.filter(validAdded),
+  const carried = await applyState({ overrides: docOverrides.filter(validOverride), added: docAdded.filter(validAdded),
                                      groups: docGroups.filter(validGroup), areaLightBindings: docBindings.filter(validBinding),
                                      stage: doc.stage, buildings: Array.isArray(doc.buildings) ? doc.buildings : [],
                                      cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
