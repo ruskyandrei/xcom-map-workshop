@@ -558,6 +558,17 @@ class Builds(unittest.TestCase):
         self.assertIn('3 work folders, 2 sets of kept pieces', said.call_args[0][0])
         self.assertEqual(runner.prune(), dict(freed=0, folders=0, pieces=0))     # nothing more to do
 
+    def test_a_server_whose_projects_are_not_the_builds_own_takes_no_variant_for_abandoned(self):
+        """A test server given scratch projects beside the real builds folder (viewer.py serve --projects alone)
+        prunes with no projects known: a variant none of its projects ships as keeps its newest work folders whole."""
+        import datetime
+        old = (datetime.datetime.now() - datetime.timedelta(days=builds_module.ORPHAN_DAYS + 5)).strftime('%Y%m%d-%H%M%S')
+        real = self.work_folder('Real_Users_Variant-%s' % old)
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command,
+                             orphans=False)
+        self.assertEqual(runner.prune()['folders'], 0)
+        self.assertTrue((real / 'arrays.bin').is_file())
+
     def test_pruning_spares_a_running_builds_work_and_needs_the_projects_for_a_variant_none_ships_as(self):
         """(review finding 49) prune_work leaves the folders it is told to spare; with no projects known (build.py's
         own prune) a variant alone keeps its newest; an unreadable projects folder is no projects known."""

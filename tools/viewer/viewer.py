@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import socket
+import sys
 import traceback
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -1041,6 +1042,12 @@ def compiler_families():
 
 
 def main():
+    # a redirected output is in the system's code page: a folder name it lacks (a Cyrillic user name on a Western
+    # system) is shown with a stand-in rather than stopping the server as it starts (review finding 35)
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            try: stream.reconfigure(errors='backslashreplace')
+            except (OSError, ValueError): pass
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="command",required=True)
     exp = sub.add_parser("export",help="Read an original EW package into an external cache")
@@ -1188,7 +1195,10 @@ def serve_cache(args, ap, server, exact):
     if args.family:
         import families as family_table
         family_table.ENABLED.update(args.family)
-    builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
+    # a scratch projects folder beside the settings' builds folder (a test server given --projects alone) must not
+    # make every real variant look abandoned to the prune at start: only each variant's newest are then kept whole
+    builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family,
+                         orphans=not (args.projects and not args.builds))
     if not (WEB/"vendor/three/three.module.js").is_file():
         ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
     # Serving a cache root lists every map the game install plays; those not exported yet export on first open.

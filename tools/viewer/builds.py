@@ -290,12 +290,17 @@ class Attempt:
 
 
 class BuildRunner:
-    def __init__(self, projects, cache, output, command=None, reveal_with=None, launch=procs.launch, enable=()):
+    def __init__(self, projects, cache, output, command=None, reveal_with=None, launch=procs.launch, enable=(),
+                 orphans=True):
         """projects: the ProjectStore; cache: the viewer cache the page shows; output: the builds folder.
         command(project_file) gives the build's command line, reveal_with(arguments) runs Explorer (tests stub both);
         launch: how a process tree is started (procs.launch); enable: families every build makes although the
-        compiler doesn't yet (build.py --family; an experiment's server: viewer.py serve --family)."""
+        compiler doesn't yet (build.py --family; an experiment's server: viewer.py serve --family).
+        orphans: whether the prune at start may treat a variant no project here ships as as abandoned; off for a
+        server whose projects folder is not the one these builds were made from (a test server's scratch projects
+        beside the real builds folder would take every real variant for abandoned)."""
         self.projects, self.cache, self.output = projects, Path(cache), Path(output)
+        self.orphans = orphans
         self.reveal_with = reveal_with or (explorer if sys.platform == 'win32' else None)
         self.families = [a for f in enable for a in ('--family', f)]
         self.command = command or (lambda f: [sys.executable, '-B', '-u', str(BUILD), str(f), '--cache', str(self.cache),
@@ -705,7 +710,8 @@ class BuildRunner:
         variant no project ships as is pruned too: as the server starts (recover). The result, or None when it failed
         (never the server's start)."""
         try:
-            result = prune_work(self.output, owned=owned_variants(getattr(self.projects, 'root', None)))
+            owned = owned_variants(getattr(self.projects, 'root', None)) if self.orphans else None
+            result = prune_work(self.output, owned=owned)
         except Exception as error:
             result, said = None, f'The builds folder\'s old work could not be pruned: {error}'
         else:

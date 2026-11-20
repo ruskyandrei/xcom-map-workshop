@@ -848,4 +848,4 @@ def record(state, result, policy, registration=None, copies=None, names=None):
                 note=('baked: each added or changed placed light that emits is listed in the texture lightmaps its '
                       'radius reaches; generated area lights never are' if policy == 'baked' else
                       'unbaked: receivers\' lightmap lists are left as they are and no new light GUID is added to '
-                      'any; whether the game lights an edited or added light live is for EXP-26 run 2'))
+                      'any, so no lightmap holds an edited or added light\'s light'))

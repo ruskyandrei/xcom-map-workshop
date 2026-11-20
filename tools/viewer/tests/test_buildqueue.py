@@ -255,7 +255,16 @@ class Queue(unittest.TestCase):
         self.go.touch()
         status, _ = self.call('resume')
         self.assertEqual(status, 202)
-        self.assertEqual(self.call('resume')[0], 200)       # running already: harmless
+        # running already: harmless. The worker may move the queue on between the view this reads and the request
+        # (a build that starts or ends), which is a stale request the page answers by reading the view again.
+        for _ in range(5):
+            try:
+                self.assertEqual(self.call('resume')[0], 200)
+                break
+            except ProjectError as error:
+                self.assertEqual(error.extra['code'], 'queue-stale')
+        else:
+            self.fail('the queue stayed stale')
         view = self.settled()
         row = self.row(ID, view)
         self.assertEqual((row['state'], row['result']['revision'], row['attempts']), ('built', 2, 2))
