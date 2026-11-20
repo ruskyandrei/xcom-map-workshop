@@ -5,7 +5,7 @@ import sys
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from package import Package, Reader
-from scene_metadata import fragment_breaks, kismet_references, prefab_members
+from scene_metadata import fragment_breaks, kismet_references, kismet_uses, prefab_members
 from resolver import resolve_scene
 from viewer_fixtures import scene
 import settings
@@ -48,6 +48,51 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(first[0]['partner'],'Preview.Glass_copy0')
         self.assertIsNone(second[0]['partner'])   # its glass was not copied
         self.assertEqual(out['objects'][0]['prefab'],'PrefabInstance_7')   # the original is untouched
+
+
+class KismetPackage:
+    """A made-up map's Kismet: a variable (4) holds the placed actor 2 and an action (5) reads it through its Target
+    link; the event 6 can't be read. Counts each export's property reads."""
+    LEVEL = 'TheWorld.PersistentLevel'
+    ROWS = (('Level', 0, {}), ('XComLevelActor', 1, {}), ('Sequence', 1, {}),
+            ('SeqVar_Object', 3, {('ObjValue', 0): dict(kind='ObjectProperty', value=2)}),
+            ('SeqAct_ToggleHidden', 3, {('VariableLinks', 0): dict(kind='ArrayProperty', value=[
+                {('LinkedVariables', 0): dict(value=[4]), ('LinkDesc', 0): dict(value=b'\x07\0\0\0Target\0')}])}),
+            ('SeqEvent_Touch', 3, None))
+
+    def __init__(self):
+        names = ['', 'XComLevelActor_6', 'Main_Sequence', 'Main_Sequence.SeqVar_Object_2',
+                 'Main_Sequence.SeqAct_ToggleHidden_1', 'Main_Sequence.SeqEvent_Touch_0']
+        self.paths = [self.LEVEL + ('.' + n if n else '') for n in names]
+        self.by_name = {path: i for i, path in enumerate(self.paths, 1)}
+        self.exports = [dict(outer=outer) for _, outer, _ in self.ROWS]
+        self.reads = {}
+    def name(self, index): return self.paths[index - 1]
+    def cls(self, index): return self.ROWS[index - 1][0] if 0 < index <= len(self.ROWS) else 'None'
+    def properties(self, index):
+        self.reads[index] = self.reads.get(index, 0) + 1
+        props = self.ROWS[index - 1][2]
+        if props is None: raise ValueError('cut short')
+        return props, 0
+    def structs(self, raw): return raw
+    def refs(self, raw): return raw
+
+
+class KismetWalkTests(unittest.TestCase):
+    def test_walked_once_per_package_and_each_reader_warns_in_its_own_words(self):
+        # an export asks three times (the scene's references, then the spawn points' references and uses)
+        p, notes = KismetPackage(), []
+        warn = lambda source, message: notes.append((source.rsplit('.', 1)[-1], message))  # noqa: E731
+        for _ in range(2):
+            self.assertEqual(kismet_references(p, warn), {2: ['SeqAct_ToggleHidden_1 Target']})
+        self.assertEqual(kismet_uses(p, warn), {2: [dict(by='SeqAct_ToggleHidden_1', byClass='SeqAct_ToggleHidden',
+                                                         how='direct', link='Target')]})
+        self.assertEqual(notes, [('SeqEvent_Touch_0', 'Kismet references not read: cut short')] * 2
+                         + [('SeqEvent_Touch_0', 'Kismet uses not read: cut short')])
+        self.assertEqual(p.reads, {3: 1, 4: 1, 5: 1, 6: 1})
+        other = KismetPackage()        # kept per package: another one walks its own Kismet
+        self.assertEqual(kismet_references(other), {2: ['SeqAct_ToggleHidden_1 Target']})
+        self.assertEqual(other.reads, {3: 1, 4: 1, 5: 1, 6: 1})
 
 
 @unittest.skipUnless(BAR and BAR.exists(), 'URB_Bar.upk of the LWR install (the lwr setting) not found')

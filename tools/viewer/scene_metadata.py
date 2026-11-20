@@ -244,7 +244,9 @@ def kismet_references(p, warn=None):
     sequence object that names it, with the property ("SeqEvent_Touch_0 Originator"). Read by kismet_walk.
     URB_Bar's Kismet hides its grounded Skyranger and drop zone (XComLevelActor_138 and _6) with a SeqAct_ToggleHidden
     at the landing."""
-    named, users, _ = kismet_walk(p, warn, "references")
+    named, users, _, unread = kismet_walk(p)
+    if warn:
+        for name, error in unread: warn(name, f"Kismet references not read: {error}")
     out = {}
     for i, refs in named.items():
         for actor, prop in refs:
@@ -253,16 +255,23 @@ def kismet_references(p, warn=None):
     return {actor: sorted(v) for actor, v in out.items()}
 
 
-def kismet_walk(p, warn=None, what="references"):
+def kismet_walk(p):
     """What the package's Kismet names, the one walk kismet_references and kismet_uses read (review finding 55):
     (named {sequence object: [(placed actor, property)]}, users {variable: [(op, its link's text)]}, links {op:
-    [variables]}). Every sequence object's own object properties and plain reference arrays are read (an array of
-    other 4-byte values whose entries all happen to be the level's actors would read as references too: _ref_values).
-    An object that can't be read is warned of as "Kismet <what> not read" and the rest go on."""
+    [variables]}, unread [(sequence object's name, why)]). Every sequence object's own object properties and plain
+    reference arrays are read (an array of other 4-byte values whose entries all happen to be the level's actors would
+    read as references too: _ref_values). An object that can't be read is listed in unread and the rest go on; each
+    reader warns of it in its own words, each time it is asked.
+    Walked once per package and kept on the package itself, as Package.properties keeps its reads: an export asks three
+    times (the scene's references, then the spawn points' references and uses) and a stream or the bomb donor two or
+    three times. The readers only read what it returns."""
+    kept = p.__dict__.get('_kismet_walk')
+    if kept is not None:
+        return kept
     level = p.by_name.get(LEVEL_PATH)
 
     def placed(i): return 0 < i <= len(p.exports) and p.exports[i - 1]["outer"] == level and not _sequence(p, i)
-    named, users, links = {}, {}, {}
+    named, users, links, unread = {}, {}, {}, []
     for i in range(1, len(p.exports) + 1):
         if not _sequence(p, i) or p.exports[i - 1]["outer"] <= 0: continue
         try:
@@ -277,8 +286,9 @@ def kismet_walk(p, warn=None, what="references"):
                             users.setdefault(var, []).append((i, desc))
                             links.setdefault(i, []).append(var)
         except Exception as error:      # noqa: BLE001
-            if warn: warn(p.name(i), f"Kismet {what} not read: {error}")
-    return named, users, links
+            unread.append((p.name(i), str(error)))
+    kept = p.__dict__['_kismet_walk'] = (named, users, links, unread)
+    return kept
 
 
 def fragment_breaks(p, actors, warn=None):
@@ -867,7 +877,9 @@ def kismet_uses(p, warn=None):
       actions its other variables feed;
     - 'variable': a variable holds it and no action reads that variable.
     The walk is kismet_walk's (sequence objects' own object properties and plain reference arrays)."""
-    named, users, links = kismet_walk(p, warn, "uses")
+    named, users, links, unread = kismet_walk(p)
+    if warn:
+        for name, error in unread: warn(name, f"Kismet uses not read: {error}")
     out = {}
     for i, refs in named.items():
         for actor, prop in refs:
