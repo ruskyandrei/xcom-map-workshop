@@ -75,3 +75,41 @@ export function setProjectSpawnRules(next) { projectSpawnRules = next; }
 export let buildings = [], buildingsVersion = 0;
 export function setBuildingsValue(next) { buildings = next; }
 export function setBuildingsVersion(next) { buildingsVersion = next; }
+
+// The document session's state (document_session.js; app.js's prefab builder saves and keeps its drafts with it):
+// - leaving: the page is going by the editor's own doing (a document switched to, a map opened as asked), so the
+//   browser's own leave question is not asked;
+// - saving: a project's or a prefab's save is under way; no switch of document, other save or draft starts meanwhile;
+// - recoveryTimer: the draft's next write, a second after the last change;
+// - recoveryKept: this page's draft of the open document is kept on the server;
+// - adoptedDraft: a draft the user restored, { owner, savedAt }: deleted once this page's own draft or a save holds
+//   its changes (review finding 3; projects.py);
+// - recoveryTrouble: the last draft write failed ('failed') or was kept against an older revision than the saved one
+//   ('stale'), and the user was told.
+export let leaving = false, saving = false, recoveryTimer = null, recoveryKept = false, adoptedDraft = null, recoveryTrouble = null;
+export function setLeaving(next) { leaving = next; }
+export function setSaving(next) { saving = next; }
+export function setRecoveryTimer(next) { recoveryTimer = next; }
+export function setRecoveryKept(next) { recoveryKept = next; }
+export function setAdoptedDraft(next) { adoptedDraft = next; }
+export function setRecoveryTrouble(next) { recoveryTrouble = next; }
+// An added kind the address asks for (?mission=kind:...), picked once the project that adds it is open (app.js's
+// mission picker).
+export let askedPick = null;
+export function setAskedPick(next) { askedPick = next; }
+// The open project's Build (app.js's Build window): lastBuild, its last build status as the server gave it, with the
+// project's id (app.js's setLastBuild takes one for the open project only: review finding 10); buildTimer, the next
+// ask for a running build's status.
+export let lastBuild = null, buildTimer = null;
+export function setLastBuildValue(next) { lastBuild = next; }
+export function setBuildTimer(next) { buildTimer = next; }
+// The serial the last copy's name took (`<actor>_copy<n>`): output names already used, applied or not, are never
+// handed out again (a project saves it as nextSerial). nextCopySerial() takes the next one.
+export let copySerial = 0;
+export function setCopySerial(next) { copySerial = next; }
+export function nextCopySerial() { return ++copySerial; }
+// The reads a project waits for before it opens: the looks made pieces can take (app.js's readLooks; a read that
+// failed is asked again), and the install's landing lines for the map (app.js's startScene: review finding 31).
+export let looksReady = null, landingRead = Promise.resolve();
+export function setLooksReady(next) { looksReady = next; }
+export function setLandingRead(next) { landingRead = next; }
