@@ -114,6 +114,10 @@ the tools read, what it does and what skips without it; these are the ones for r
 The rest belong to the tools' own runs, which set them: the Build's decoded maps, a prefab test's folder, and the
 lab's hidden game runs (where `XCOM_HIDDEN_SOUND=1` leaves the game's sound on).
 
+Each suite's tests share records and helpers through a fixtures module of the suite's own, and what several suites
+share is in `tools/tests/`; no test file imports another, so any one runs alone
+(`python -B -m unittest discover -s tools/<suite>/tests -p <file>`).
+
 `python tools/release/make_release.py` builds a release; the installer needs Inno Setup 6 or 7.
 
 ## Licence
