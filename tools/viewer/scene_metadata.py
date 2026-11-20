@@ -11,11 +11,14 @@ TILE_SIZE = [96, 96, 64]
 BOX_NOTE = 0.01
 
 
-def level_list(p):
-    """The persistent level's actor list as a set of export indices (export 33: the effects, the spawn points and the
-    mission objects read it here; tools/bake/native_copy.level_actors is the Build's ordered copy). None where the
-    package has no persistent level or its native data does not start with the list."""
-    level = p.by_name.get("TheWorld.PersistentLevel")
+def level_list(p, level=None):
+    """The persistent level's actor list (or that of the level export `level`) as a set of export indices (export 33:
+    the effects, the spawn points and the mission objects read it here; tools/bake/native_copy.level_actors is the
+    Build's ordered copy). None where the package has no persistent level or its native data does not start with the
+    list. The one reader of it (effects_metadata's goes through it), and one answer when it can't be read: None, which
+    every reader takes as "every actor listed" (the game lists what it places), the spawn points' records as
+    `listed: None`, not read (review finding 50)."""
+    level = p.by_name.get("TheWorld.PersistentLevel") if level is None else level
     if level is None:
         return None
     try:
@@ -24,8 +27,14 @@ def level_list(p):
         if owner != level or not 0 <= count < 1_000_000:
             return None
         return set(struct.unpack_from("<%di" % count, p.data, end + 8))
-    except (ValueError, struct.error):
+    except (ValueError, struct.error, IndexError):
         return None
+
+
+class _Everything:
+    """An actor list that could not be read: every actor is taken as on it."""
+    def __contains__(self, index):
+        return True
 
 
 def tile_header(p, container):
@@ -385,7 +394,8 @@ def effect_metadata(p):
     level = p.by_name.get("TheWorld.PersistentLevel")
     if level is None:
         return []
-    listed = level_list(p) or set()
+    listed = level_list(p)      # None (not read): every effect counts as listed, as effects_metadata.describe has it
+    listed = _Everything() if listed is None else listed
     members = prefab_members(p)
     pieces, effects = [], []
     for index, name in enumerate(p.paths, 1):

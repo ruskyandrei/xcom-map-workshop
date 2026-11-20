@@ -1,4 +1,8 @@
-import struct, sys, collections
+import struct, sys, collections, os
+
+# lzo1x and decomp beside it, for load(): put on the path once, here
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 class R:
     def __init__(s, b, o=0): s.b=b; s.o=o
@@ -62,31 +66,33 @@ def clsname(idx,imps,exps):
     if idx<0: return imps[-idx-1]['name']
     return exps[idx-1]['name']
 
-def load(path):
-    b=open(path,'rb').read()
+def load(path, raw=False):
+    """(the package's bytes, decoded when compressed, and its summary). `raw`: the bytes as they are in the file (the
+    command line's --raw). A library function: it reads no command line and adds to sys.path once, when the module
+    loads, not at every package (review finding 50)."""
+    with open(path,'rb') as f: b=f.read()
     tag,block,_,total=struct.unpack_from('<IIII',b,0)
-    if tag==0x9E2A83C1 and block==131072 and '--raw' not in sys.argv:
-        # a package the cooker compressed whole (the startup and script packages): one run of LZO blocks
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    if tag==0x9E2A83C1 and block==131072 and not raw:
+        # a package the cooker compressed whole (the startup and script packages): one run of LZO blocks, each of the
+        # size the table gives (lzo1x raises ValueError on one cut short or of another length)
         import lzo1x
         count=(total+block-1)//block
         at,out=16+8*count,bytearray()
         for n in range(count):
             packed,unpacked=struct.unpack_from('<II',b,16+8*n)
+            if at+packed>len(b): raise ValueError('compressed package cut short at block %d' % n)
             out+=lzo1x.decompress(b[at:at+packed],unpacked); at+=packed
+        if len(out)!=total: raise ValueError('compressed package gives %d bytes, not %d' % (len(out),total))
         b=bytes(out)
         return b,summary(b)
     h=summary(b)
-    if h['chunks'] and '--raw' not in sys.argv:
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    if h['chunks'] and not raw:
         import decomp
         b,h=decomp.decompress_pkg(path)
     return b,h
 
 if __name__=='__main__':
-    b,h=load(sys.argv[1])
+    b,h=load(sys.argv[1],raw='--raw' in sys.argv)
     mode=sys.argv[2] if len(sys.argv)>2 else 'summary'
     names,imps,exps=tables(b,h)
     if mode=='summary':

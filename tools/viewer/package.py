@@ -99,7 +99,15 @@ class Package:
         return upkinfo.objname(index, self.imports, self.exports)
 
     def cls(self, index):
-        return upkinfo.clsname(self.exports[index - 1]["cls"], self.imports, self.exports)
+        """The class name of object `index`: an export's class, an import's own class (a negative index: before, it read
+        an unrelated export's class through the list's wrap; review finding 50), 'None' for no object."""
+        if 0 < index <= len(self.exports):
+            return upkinfo.clsname(self.exports[index - 1]["cls"], self.imports, self.exports)
+        if index == 0:
+            return "None"
+        if -len(self.imports) <= index < 0:
+            return self.imports[-index - 1]["cls"]
+        raise FormatError(f"Invalid object reference {index}")
 
     def fname(self, r):
         i, number = r.unpack("ii")

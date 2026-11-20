@@ -1047,8 +1047,13 @@ def light_metadata_problem(scene):
     if not isinstance(meta, dict) or (meta.get('version') or 0) < LIGHT_METADATA:
         return 'the export of %s has no light metadata: %s' % (scene.get('name'), how)
     if not meta.get('areaMatcher'):
-        return ('the export of %s has no area-light associations (which glowing piece made each generated light): %s'
-                % (scene.get('name'), how))
+        # (review finding 31: the matcher is missing from the exporter itself, so exporting again alone gives the same)
+        why = next((d.get('message') for d in scene.get('diagnostics') or ()
+                    if isinstance(d, dict) and d.get('source') == 'area lights'), None)
+        return ('the export of %s has no area-light associations (which glowing piece made each generated light): %s. '
+                'Exporting it again gives the same until the editor\'s Python packages are mended (install the editor '
+                'again); then %s' % (scene.get('name'), why or 'the area-light matcher could not be loaded when it was '
+                                     'made', how))
     return None
 
 

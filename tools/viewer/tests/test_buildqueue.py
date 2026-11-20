@@ -483,6 +483,17 @@ class Queue(unittest.TestCase):
         self.queue = fourth = self.make_queue()
         self.assertEqual(fourth.view()['state'], 'unreadable')
         self.assertIn('schema version 2', fourth.view()['error'])
+        fourth.close()
+        # told by the version, not the error's words (review finding 50): a newer one is left even with a good copy
+        # there, an older one is replaced by the copy
+        (work / 'build-queue.json.bak').write_text(json.dumps(buildqueue.empty()), encoding='utf-8')
+        self.queue = fifth = self.make_queue()
+        self.assertEqual(fifth.view()['state'], 'unreadable')
+        fifth.close()
+        (work / 'build-queue.json').write_text(json.dumps(dict(buildqueue.empty(), schemaVersion=0)), encoding='utf-8')
+        self.queue = sixth = self.make_queue()
+        self.assertTrue(sixth.view()['available'])
+        self.assertIn('last good copy', sixth.view()['notice'])
 
     def test_one_server_owns_the_queue_and_nothing_is_touched_before_activate(self):
         other = self.make_queue(activate=False)

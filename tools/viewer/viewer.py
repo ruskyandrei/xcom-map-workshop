@@ -1046,7 +1046,7 @@ def main():
     exp = sub.add_parser("export",help="Read an original EW package into an external cache")
     exp.add_argument("map",type=Path)
     exp.add_argument("--cache",type=Path,help="The viewer cache to export into (default: the cache setting)")
-    exp.add_argument("--scope",choices=("sample","map"),default="sample")
+    exp.add_argument("--scope",choices=("sample","map"),default="map",help="map (the default): the whole map; sample: the three-piece study, URB_Bar's only")
     exp.add_argument("--spec",type=Path,action="append",default=[],help="Include a patch spec as an experimental preview (repeatable)")
     serve = sub.add_parser("serve",help="Open an exported scene locally")
     serve.add_argument("scene",type=Path,nargs="?",help="Cache root with prepared maps, or one exact cache generation (default: the cache setting)")
